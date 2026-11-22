@@ -31,10 +31,10 @@ const ROOT = resolve(HERE, '..', '..', '..');
 const argv = process.argv.slice(2);
 const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const SEEDS = Number(arg('seeds', 8)), HOURS = Number(arg('hours', 12)), WORKERS = Number(arg('workers', 8)), SETTLE_H = Number(arg('settle', 4));
-const GROUND = arg('ground', 'muster_barrows'), L = Number(arg('level', 60)), L2 = Number(arg('level2', 70)), ABOVE = Number(arg('above', 800));
+const GROUND = arg('ground', 'muster_barrows'), L = Number(arg('level', 60)), L2 = Number(arg('level2', 70)), ABOVE = Number(arg('above', 680));
 const ONLY = arg('only') ? arg('only').split(',') : null;
 const STYLES = ['hammer', 'bow', 'mage', 'healer'];
-const RISKS = ['careful', 'steady', 'bold'];
+const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bold'];
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
@@ -88,11 +88,13 @@ const H = 3600000;
 function readSeed(res, start) {
   const log = (res.party.danger || []).map(([, ms, step, to, low, why]) => ({ ms, step, to, low, why }));
   const huntedMs = Math.round(res.party.hours * H);
-  const endMs = Math.max(huntedMs, log.length ? log[log.length - 1].ms : 0);
+  /* THE FOUR'S STEP: read only while all four hunt, to the end of the pull in which the first hero died (a three is another party) */
+  const firstDeath = log.find((e) => e.low <= 0);
+  const endMs = firstDeath ? firstDeath.ms : Math.max(huntedMs, log.length ? log[log.length - 1].ms : 0);
   /* the step in force over time: the start, then each pull's `to` from its end */
   const spans = [];
   let at = 0, cur = start;
-  for (const e of log) { if (e.ms > at) spans.push([at, e.ms, cur]); at = e.ms; cur = e.to; }
+  for (const e of log) { if (e.ms >= endMs) break; if (e.ms > at) spans.push([at, e.ms, cur]); at = e.ms; cur = e.to; }
   if (endMs > at) spans.push([at, endMs, cur]);
   const from = SETTLE_H * H;
   const timeAt = new Map();
@@ -108,7 +110,7 @@ function readSeed(res, start) {
     if (h1[1] > h1[0]) { halves[0].s += s * (h1[1] - h1[0]); halves[0].t += h1[1] - h1[0]; }
     if (h2[1] > h2[0]) { halves[1].s += s * (h2[1] - h2[0]); halves[1].t += h2[1] - h2[0]; }
   }
-  const settled = log.filter((e) => e.ms >= from);
+  const settled = log.filter((e) => e.ms >= from && e.ms < endMs);
   const changes = settled.filter((e) => e.to !== e.step).length;
   /* near-wipes: a pull where a hero fell under 10% of its HP or died; "warned": a fall back in the three pulls before it */
   const near = [];
@@ -127,7 +129,7 @@ function readSeed(res, start) {
     fallsPerH: wt ? settled.filter((e) => e.why === 'fall' || e.why === 'death').length / (wt / H) : null,
     near, deaths, wipe, huntedH: res.party.hours, max: Math.max(start, ...log.map((e) => e.to)),
     reach: firstNear, xpPerH: res.party.levelXpPerHeroPerH, killsPerH: res.party.killsPerH, pullsPerH: res.party.pullsPerH,
-    heroesLost: res.heroes.filter((h) => h.deaths > 0).length,
+    heroesLost: res.heroes.filter((h) => h.deaths > 0).length, fourH: wt / H, firstDeathH: firstDeath ? firstDeath.ms / H : null,
   };
 }
 
@@ -158,7 +160,8 @@ for (const c of cells) {
     reachH: r1(mean(seeds.map((x) => x.reach(Math.max(0, (x.held || 0) - 20))).filter((x) => x !== null))),
     pullsPerH: r1(mean(seeds.map((x) => x.pullsPerH))), killsPerH: r0(mean(seeds.map((x) => x.killsPerH))), xpPerHeroH: r0(mean(seeds.map((x) => x.xpPerH))),
     deaths: seeds.reduce((a, x) => a + x.deaths, 0), wipes: seeds.filter((x) => x.wipe).length, seedsWithADeath: seeds.filter((x) => x.deaths > 0).length,
-    huntedH: r1(mean(seeds.map((x) => x.huntedH))),
+    huntedH: r1(mean(seeds.map((x) => x.huntedH))), fourH: r1(mean(seeds.map((x) => x.fourH))),
+    firstDeathH: seeds.map((x) => r1(x.firstDeathH)).filter((x) => x !== null),
     nearWipes: near.length, nearWithDeath: near.filter((x) => x.death).length, nearWarned: near.filter((x) => x.warned).length,
     nearFellAfter: near.filter((x) => x.fellAfter).length,
     whys: seeds.reduce((o, x) => { for (const [k, n] of Object.entries(x.whys)) o[k] = (o[k] || 0) + n; return o; }, {}),
@@ -180,14 +183,21 @@ for (const risk of RISKS) {
 report.wallS = Math.round((Date.now() - t0) / 1000);
 
 console.log('\nV1 on ' + GROUND + ' (' + SEEDS + ' seeds x ' + HOURS + ' h, held step read from hour ' + SETTLE_H + '; step 0 = the ground as built, one step = +' + (DANGER.powerStep * 100) + '% health and blow)');
-console.log('cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  whys');
+console.log('levers: CLIMB ' + JSON.stringify(CLIMB) + ' RISKS ' + JSON.stringify(RISK_ROWS) + ' readyPm ' + DANGER.readyPm);
+console.log('held = the time-weighted step while all four hunt (to the first death), from hour ' + SETTLE_H + '; fourH = those hours a seed');
+console.log('cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys');
 for (const [id, c] of Object.entries(report.cells)) {
   console.log(id.padEnd(17) + String(c.held.mean).padStart(6) + ' +- ' + String(c.held.sd).padEnd(6) + String(c.drift).padStart(6) + String(c.within10).padStart(6) + String(c.within20).padStart(6)
     + String(c.changesPerH).padStart(7) + String(c.fallsPerH).padStart(7) + String(c.reachH).padStart(8) + String(c.pullsPerH).padStart(9)
-    + String(c.deaths).padStart(7) + String(c.wipes).padStart(6) + ('  ' + c.nearWipes + ' (' + c.nearWithDeath + '/' + c.nearWarned + '/' + c.nearFellAfter + ')').padEnd(30) + JSON.stringify(c.whys));
+    + String(c.deaths).padStart(7) + String(c.wipes).padStart(6) + ('  ' + c.nearWipes + ' (' + c.nearWithDeath + '/' + c.nearWarned + '/' + c.nearFellAfter + ')').padEnd(30)
+    + String(c.fourH).padStart(5) + '  ' + JSON.stringify(c.whys) + (c.firstDeathH.length ? ' first deaths at h ' + c.firstDeathH.join(',') : ''));
 }
 console.log('\npower moves (paired seeds): the held step at the changed power minus at base');
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
 console.log('\nwall ' + report.wallS + ' s');
 const jf = arg('json');
 if (jf) writeFileSync(jf, JSON.stringify(report, null, 1) + '\n');
+/* --raw <file>: every seed's pull log and its heroes' deaths and ends, to read again without playing again */
+const rf = arg('raw');
+if (rf) writeFileSync(rf, JSON.stringify(Object.fromEntries(Object.entries(out).map(([id, o]) => [id, { danger: o.result.party.danger || [], hours: o.result.party.hours,
+  heroes: o.result.heroes.map((h) => ({ style: h.style, deaths: h.deaths, ended: h.ended, hours: h.hours, xp: h.levelXpPerH })) }]))) + '\n');

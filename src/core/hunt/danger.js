@@ -10,7 +10,8 @@
 // are the one hunt):
 //   risk    the stance ('' = the scale is off: a tier hunt)
 //   danger  the step the next pull is made at (0 = the ground as built)
-//   climb   how far the next climb goes (1, doubling on each climb up to CLIMB.climbMax, back to 1 on any pull that is not clean)
+//   climb   how far the next climb goes in the opening (1, doubling on each climb up to CLIMB.climbMax, back to 1 on any pull that is not
+//           clean); 0 once the hunt has fallen back: the creep, one step a window of CLIMB.settleRun clean pulls
 //   clean   clean pulls in a row since the last climb
 //   low     the lowest HP any hero reached in the pull under way, permille of its max (1000 at each pull's start; 0 = a hero died)
 //   cool    pulls left before the party may climb again after a fall back
@@ -81,8 +82,8 @@ export function openDanger(world, risk, step) {
   world.cool = 0;
 }
 
-/** The step's dial and pull size on the instance from now (the swing's other readers see it at once). */
-export function applyStep(inst) {
+/* The step's dial and pull size on the instance from now (the swing's other readers see it at once). */
+function applyStep(inst) {
   const dial = dangerDial(inst.ground, inst.world.danger);
   inst.tier = dial;
   inst.world.density = dial.pull[0];
@@ -114,17 +115,23 @@ export function pullEnds(inst, sc) {
   const st = RISKS[w.risk], from = w.danger, low = w.low;
   const cooling = w.cool > 0;
   if (cooling) w.cool -= 1;
+  /* THE OPENING AND THE CREEP: until the hunt's first fall back (climb > 0) a climb takes CLIMB.cleanRun clean pulls and doubles; after it
+     (climb 0) a climb takes a window of CLIMB.settleRun clean pulls and is one step, so the party finds its edge fast and then sits under it */
+  const settled = w.climb === 0;
   let why = 'hold', to = from;
   if (low <= 0 || low < st.fallPm) {
     why = low <= 0 ? 'death' : 'fall';
     to = from - (low <= 0 ? CLIMB.deathSteps : CLIMB.fallSteps);
-    w.climb = 1; w.clean = 0; w.cool = CLIMB.coolPulls;
+    w.climb = 0; w.clean = 0; w.cool = CLIMB.coolPulls;
   } else if (low >= st.cleanPm) {
     if (!cooling) {
       w.clean += 1;
-      if (w.clean >= CLIMB.cleanRun) { why = 'climb'; to = from + w.climb; w.climb = Math.min(CLIMB.climbMax, w.climb * 2); w.clean = 0; }
+      if (w.clean >= (settled ? CLIMB.settleRun : CLIMB.cleanRun)) {
+        why = 'climb'; to = from + (settled ? 1 : w.climb); w.clean = 0;
+        if (!settled) w.climb = Math.min(CLIMB.climbMax, w.climb * 2);
+      }
     }
-  } else { w.clean = 0; w.climb = 1; }
+  } else { w.clean = 0; if (!settled) w.climb = 1; }
   w.danger = clampStep(to);
   w.low = 1000;
   sc.emit(makeEvent('danger', sc.atMs, { step: from, to: w.danger, low, why }));

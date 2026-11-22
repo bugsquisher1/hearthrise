@@ -83,24 +83,36 @@ const CASES = {
     const { CLIMB, RISKS } = M.dangerData;
     const st = RISKS.steady, clean = st.cleanPm, between = Math.floor((st.fallPm + st.cleanPm) / 2), under = st.fallPm - 1;
     const w = world(M, []);
-    M.danger.openDanger(w, 'steady', 10);
+    M.danger.openDanger(w, 'steady', 100);
     const inst = instOf(M, w);
     const sc = subStep(0);
     const steps = [];
     const pull = (low) => { w.low = low; M.danger.pullEnds(inst, sc); steps.push(w.danger); };
     /* two clean pulls climb one, two more climb two; a pull between holds and resets the climb; two clean climb one again */
     for (const low of [clean, 1000, clean, 990, between, clean, clean]) pull(low);
-    const want = [10, 11, 11, 13, 13, 13, 14];
+    const want = [100, 101, 101, 103, 103, 103, 104];
     if (CLIMB.cleanRun !== 2) return 'fixture: the rule case is written for two clean pulls a climb, the data says ' + CLIMB.cleanRun;
     if (JSON.stringify(steps) !== JSON.stringify(want)) return 'the climb walked ' + JSON.stringify(steps) + ', the rule ' + JSON.stringify(want);
     pull(under);
-    if (w.danger !== 14 - CLIMB.fallSteps) return 'a pull under the trigger (' + under + ') left the step at ' + w.danger + ', not ' + (14 - CLIMB.fallSteps);
+    const fell = 104 - CLIMB.fallSteps;
+    if (w.danger !== fell) return 'a pull under the trigger (' + under + ') left the step at ' + w.danger + ', not ' + fell;
+    /* after a fall back: CLIMB.coolPulls clean pulls climb nothing, then each window of CLIMB.settleRun clean pulls climbs ONE step (no doubling) */
+    for (let i = 0; i < CLIMB.coolPulls; i++) pull(1000);
+    if (w.danger !== fell) return 'the party climbed inside its cool-down after a fall back: ' + w.danger;
+    for (let i = 0; i < CLIMB.settleRun - 1; i++) pull(1000);
+    if (w.danger !== fell) return 'after a fall back the party climbed on fewer than ' + CLIMB.settleRun + ' clean pulls: ' + w.danger;
+    pull(1000);
+    for (let i = 0; i < CLIMB.settleRun; i++) pull(1000);
+    if (w.danger !== fell + 2) return 'after a fall back two windows of clean pulls climbed to ' + w.danger + ', not one step each (' + (fell + 2) + ')';
     pull(0);
-    if (w.danger !== Math.max(0, 14 - CLIMB.fallSteps - CLIMB.deathSteps)) return 'a pull with a death left the step at ' + w.danger;
+    if (w.danger !== fell + 2 - CLIMB.deathSteps) return 'a pull with a death left the step at ' + w.danger + ', not ' + (fell + 2 - CLIMB.deathSteps);
+    w.danger = 3;
     pull(0);
     if (w.danger !== 0) return 'a fall went under step 0: ' + w.danger;
+    const settle = Array(CLIMB.settleRun - 1).fill('hold').concat('climb');
+    const wantWhys = ['hold', 'climb', 'hold', 'climb', 'hold', 'hold', 'climb', 'fall', ...Array(CLIMB.coolPulls).fill('hold'), ...settle, ...settle, 'death', 'death'].join(',');
     const whys = sc.events.filter((e) => e.type === 'danger').map((e) => e.why).join(',');
-    if (whys !== 'hold,climb,hold,climb,hold,hold,climb,fall,death,death') return 'the pulls\' reasons read ' + whys;
+    if (whys !== wantWhys) return 'the pulls\' reasons read ' + whys;
     if (w.low !== 1000) return 'the margin was not made whole for the next pull: ' + w.low;
     return null;
   },
@@ -157,8 +169,11 @@ const CASES = {
 };
 
 const MUTANTS = [
-  { name: 'the step never climbs', case: 'rule', edits: [['src/core/hunt/danger.js', "why = 'climb'; to = from + w.climb;", "why = 'climb'; to = from;"]] },
-  { name: 'the climb never doubles', case: 'rule', edits: [['src/core/hunt/danger.js', 'w.climb = Math.min(CLIMB.climbMax, w.climb * 2);', 'w.climb = 1;']] },
+  { name: 'the step never climbs', case: 'rule', edits: [['src/core/hunt/danger.js', "why = 'climb'; to = from + (settled ? 1 : w.climb);", "why = 'climb'; to = from;"]] },
+  { name: 'the climb never doubles', case: 'rule', edits: [['src/core/hunt/danger.js', 'if (!settled) w.climb = Math.min(CLIMB.climbMax, w.climb * 2);', '']] },
+  { name: 'after a fall back the climb still doubles', case: 'rule', edits: [['src/core/hunt/danger.js', 'w.climb = 0; w.clean = 0; w.cool = CLIMB.coolPulls;', 'w.climb = 1; w.clean = 0; w.cool = CLIMB.coolPulls;']] },
+  { name: 'after a fall back a short run climbs', case: 'rule', edits: [['src/core/hunt/danger.js', 'if (w.clean >= (settled ? CLIMB.settleRun : CLIMB.cleanRun)) {', 'if (w.clean >= CLIMB.cleanRun) {']] },
+  { name: 'no cool-down after a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', '  if (cooling) w.cool -= 1;\n', '  if (cooling) w.cool = 0;\n']] },
   { name: 'the fall back ignores the stance\'s trigger', case: 'rule', edits: [['src/core/hunt/danger.js', 'if (low <= 0 || low < st.fallPm) {', 'if (low <= 0) {']] },
   { name: 'a death falls no further than a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', 'to = from - (low <= 0 ? CLIMB.deathSteps : CLIMB.fallSteps);', 'to = from - CLIMB.fallSteps;']] },
   { name: 'the clean run does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['climb', 'int'], ['clean', 'int'], ['low', 'int'],", "['climb', 'int'], ['low', 'int'],"]] },

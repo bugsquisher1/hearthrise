@@ -10,9 +10,9 @@
 // FROM THIS CHECKOUT (git):
 //   node tools/balance-program/baseline.mjs --materialize <ref> --into <dir> [--label L]    the game commit + this harness, in a folder
 //   node tools/balance-program/baseline.mjs --report [<results.json.gz>]                      the baseline (default: the committed pin), by category
-//   node tools/balance-program/baseline.mjs --compare <candidate.json.gz> [--baseline <f>] [--targets <BL-3 targets.json>] [--intent a,b]
+//   node tools/balance-program/baseline.mjs --compare <candidate.json.gz> [--baseline <f>] [--targets <f> | --no-targets] [--intent a,b]
 //                                        [--json f] [--all-views]     the candidate side by side with the baseline, Tyler's eight groups:
-//                                                                         each new-game target toward or away, plain movement where none is set
+//                                                                         each target of BL-3's targets.json (by default) toward or away
 //   node tools/balance-program/baseline.mjs --local <ref> [--patch a.json,b.json] [--base proposed] --only 30,60 | --blocks four,ways
 //                                                                         the whole loop on this PC for a SMALL slice (refused unsliced:
 //                                                                         the full scenario list plays on GitHub, balance-baseline.yml)
@@ -22,14 +22,16 @@
 //   --shard i/n --spec <f> --out <f> [--patch a.json,b.json] [--base <proposals>] [--workers N]   one GitHub job's share
 //   --determinism --spec <f> --out <f> [--cells N] the same cells, seed 0, played twice in fresh workers in opposite orders: byte-identical
 //   --join <dir> --spec <f> --out <results.json.gz> [--label L] [--run-id N]   the shards as one results file: the manifest, every
-//                                                  seed's outcomes, the views, the calibration (Krell, C-2), the determinism check
+//                                                  seed's outcomes, the views, the reader rows, the calibration (Krell, C-2), the determinism check
+//   --add-readers <results.json.gz> --join <dir>  a results file joined before reader rows were stored gains them from its run's own shards
 //   --selftest                                     the proofs (below)
 //
 // SELFTEST: the outcome reader on a planted seed; the noise rule and the Poisson rule bite both ways; planted new-game targets read toward,
 // away and both as IMPROVEMENT, REGRESSION and TRADEOFF, a move with no target MOVED, one outside the intent UNEXPECTED, a copy WITHIN NOISE; time to the top on a planted flat rate is the
 // curve's sum; the spec of this tree holds no staged ground and every planned cell stands on an open one with its Level's hours; a join of
 // shards from two scenarios or two trees is refused; one real cell played twice is byte-identical and the comparator sees a planted change;
-// the overlay exports the commit's game and lays this checkout's harness over it.
+// the overlay exports the commit's game and lays this checkout's harness over it; BL-3's inventory rows read on reader rows (3b); no job carries the
+// S-5 Blessing ladder and a death keeps the tree's share (5b); the committed results stay binary and decompress (10).
 //
 // Exit: 0 ran · 1 a selftest proof failed, a tool red, a determinism difference or an error cell · 2 harness.
 // mutant-anchors: none — the selftest plants answers and docs in memory and plays on this tree or a temporary export; no tracked file is patched

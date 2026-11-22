@@ -3,17 +3,18 @@ BALANCE REGRESSION: fb8-stage1 against overhaul-start (the same scenarios, seeds
   candidate game fb8-stage1 90ad526dd, harness 85c298651, 1353 cells, scenario f69b19b4db54c731
   shared cells 1353, only in the baseline 0, only in the candidate 0
   the noise rule: a move counts when |change| >= 2 x its combined standard error and >= 1% (deaths: Poisson z >= 2)
-  the target rule: no target file given: every change is plain movement, its size against its noise; the change means to move equipment, survival (a move elsewhere is UNEXPECTED)
+  the target rule: 100 targets from BL-3's file (the inventory's rows are design hypotheses until the target work picks): a move toward a target's range is an improvement, away a regression, a hard target left is named; the change means to move equipment, survival (a move elsewhere is UNEXPECTED)
 
 VERDICTS
   Combat performance          MOVED (no target), UNEXPECTED         cell outcomes moved 1055, view rows moved 0
-  Survivability               MOVED (no target)                     cell outcomes moved 8422, view rows moved 15
-  Resource economy            MOVED (no target), UNEXPECTED         cell outcomes moved 4778, view rows moved 29
-  Progression                 MOVED (no target), UNEXPECTED         cell outcomes moved 1648, view rows moved 0
-  Equipment value             MOVED (no target)                     cell outcomes moved 0, view rows moved 94
+  Survivability               TRADEOFF                              targets 5: toward 69, away 7; cell outcomes moved 8422, view rows moved 15
+  Resource economy            TRADEOFF, UNEXPECTED                  targets 5: toward 7, away 5; cell outcomes moved 4778, view rows moved 29
+  Progression                 MOVED, INSIDE ITS TARGETS, UNEXPECTED targets 5: toward 0, away 0; cell outcomes moved 1648, view rows moved 0
+  Equipment value             TRADEOFF                              targets 8: toward 6, away 5; cell outcomes moved 0, view rows moved 94
   Hunting ground viability    MOVED (no target), UNEXPECTED         cell outcomes moved 0, view rows moved 118
-  Solo and party performance  MOVED (no target), UNEXPECTED         cell outcomes moved 0, view rows moved 77
+  Solo and party performance  REGRESSION, UNEXPECTED                targets 1: toward 0, away 1; cell outcomes moved 0, view rows moved 77
   Long-term scaling           MOVED (no target), UNEXPECTED         cell outcomes moved 0, view rows moved 47
+  UNREAD targets: 76 of 100 (no matrix reader: 43, e.g. PACE-6 PACE-8 PACE-14 PARTY-2; no number in its band: 23, e.g. PACE-7 PACE-10 PARTY-3 STYLE-8; nothing on these cells reads it: 10, e.g. PACE-9 PACE-11 PACE-12 PACE-13)
 
 == COMBAT PERFORMANCE (MOVED (no target), UNEXPECTED)
   TARGETS: none in this category: plain movement
@@ -28,8 +29,16 @@ VERDICTS
   VIEWS: 192 rows, 0 moved beyond noise. Side by side (before | after | change | z):
   LARGE MOVES (beyond noise and over 10%): 423 cell outcomes, e.g. pullsPerH tank L45 mid deadly +205.3%; pullsPerH muster_barrows L55 x1 deadly +193.2%; pullsPerH tank L45 bis deadly +171.3%; pullsPerH tank L88 low deadly +151.8%
 
-== SURVIVABILITY (MOVED (no target))
-  TARGETS: none in this category: plain movement
+== SURVIVABILITY (TRADEOFF)
+  TARGETS: 811 readings of 5 targets; the moves:
+    REGRESSED SURV-1 (hypothesis)     S2.mid bow 400 mid x1 normal                 0.000 ->     35.20  [, 1.00]
+    REGRESSED SURV-1 (hypothesis)     S2.mid crossbow 400 mid x1 normal            0.000 ->     17.70  [, 1.00]
+    REGRESSED SURV-2 (hypothesis)     S7.mid bow 400 mid x1 normal                  1.00 ->     0.655  [0.990, ]
+    REGRESSED SURV-2 (hypothesis)     S7.mid crossbow 400 mid x1 normal             1.00 ->     0.809  [0.990, ]
+    REGRESSED SURV-4 (hypothesis)     S1.mid G:coppercap_warrens 32 mid x1 nor     0.628 ->     0.496  [0.600, 0.800]
+    REGRESSED SURV-4 (hypothesis)     S1.mid G:millrace_sewer 5 mid x1 normal      0.640 ->     0.518  [0.600, 0.800]
+    REGRESSED SURV-4 (hypothesis)     S1.mid G:muster_barrows 55 mid x1 normal     0.647 ->     0.503  [0.600, 0.800]
+    IMPROVED  SURV-4 (hypothesis)     S1.mid hammer 20 mid x1 normal               0.838 ->     0.773  [0.600, 0.800]
   OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
     takenPerH           1032 /   1 /  300    +25.0%   tank L45 bis deadly 149.0k->301.9k (+102.6%); bow L88 low dangerous 157.6k->319.1k (+102.5%)
     frontTakenShare      195 /  18 /  316     +2.1%   tm L88 mid deadly 0.947->0.384 (-59.5%); mosslight_glade L16 x2 dangerous 0.685->0.297 (-56.7%)
@@ -68,8 +77,16 @@ VERDICTS
       deaths in 1,000 hero-hours, party of 3, dangerous, MID, every Level                        0.000 |     0.000 |       - | 0.0
   LARGE MOVES (beyond noise and over 10%): 5726 cell outcomes, e.g. hpUnder10 muster_barrows L55 x2 deadly +37700.0%; hpUnder10 tm L88 mid deadly +21833.3%; deathsPer1000h axes L45 bis dangerous +17088.7%; deathsPer1000h tank L45 mid dangerous +15082.9%
 
-== RESOURCE ECONOMY (MOVED (no target), UNEXPECTED)
-  TARGETS: none in this category: plain movement
+== RESOURCE ECONOMY (TRADEOFF, UNEXPECTED)
+  TARGETS: 381 readings of 5 targets; the moves:
+    REGRESSED GOLD-4 (hypothesis)     G-1 bow 60 mid x1 normal                     0.930 ->     0.907  [1.00, ]
+    REGRESSED GOLD-4 (hypothesis)     G-1 bow 88 mid x1 normal                     0.997 ->     0.965  [1.00, ]
+    REGRESSED GOLD-4 (hypothesis)     G-1 bow 145 mid x1 normal                    0.578 ->     0.549  [1.00, ]
+    REGRESSED GOLD-4 (hypothesis)     G-1 crossbow 88 mid x1 normal                0.950 ->     0.925  [1.00, ]
+    REGRESSED GOLD-4 (hypothesis)     G-1 sword 145 mid x1 normal                  0.832 ->     0.809  [1.00, ]
+    IMPROVED  GOLD-2 (hypothesis)     G-4 G:muster_barrows 55 mid x4 deadly         9118 ->      8805  [3000, 8000]
+    IMPROVED  GOLD-3 (hypothesis)     G-5 hammer 45 low x4 deadly                   9821 ->      6554  [, 0.000]
+    IMPROVED  GOLD-3 (hypothesis)     G-5 hammer 15 low x4 deadly                   1978 ->      1913  [, 0.000]
   OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
     coinPerH              16 /  45 / 1272     -8.7%   tank L45 low dangerous 3960->0.000 (-100.0%); tank L45 mid deadly 9816->1433 (-85.4%)
     lootPerH              20 /  48 / 1265     -7.1%   tank L45 low dangerous 1106->0.000 (-100.0%); tank L45 mid deadly 4904->66.67 (-98.6%)
@@ -97,8 +114,8 @@ VERDICTS
     * lone ways netPerH, deadly, Levels 30-59 (mean of cells)                                   -46.8k |    -71.8k |  -53.4% | -6.5
   LARGE MOVES (beyond noise and over 10%): 2640 cell outcomes, e.g. foodPerH C-2 pyre_field L66 deadly +40599.8%; blessingGoldPerH axes L45 bis dangerous +30316.5%; foodPerH hbmh L300 mid deadly +29333.3%; foodPerH pyre_field L70 x3 deadly +26600.0%
 
-== PROGRESSION (MOVED (no target), UNEXPECTED)
-  TARGETS: none in this category: plain movement
+== PROGRESSION (MOVED, INSIDE ITS TARGETS, UNEXPECTED)
+  TARGETS: 212 readings of 5 targets; none moved beyond noise
   OUTCOMES over 1353 shared cells: moved up / moved down / within noise | median change of the moved | the largest moves
     levelXpPerH           10 /  54 / 1269    -12.1%   tank L45 low dangerous 121.7k->0.000 (-100.0%); tank L45 mid deadly 355.9k->62.9k (-82.3%)
     netLevelXpPerH         0 / 159 / 1194    -82.0%   tank L110 low dangerous 1724->-438.1k (-25519.1%); sword L110 bis deadly 68.3k->-408.9k (-698.9%)
@@ -122,8 +139,16 @@ VERDICTS
       Hours from Level 1 to 110, tank alone, MID, Normal                                           597 |       597 |   +0.0% | 0.3
   LARGE MOVES (beyond noise and over 10%): 751 cell outcomes, e.g. hoursPerLevel muster_barrows L55 x2 deadly +132358.0%; deathTax axes L45 bis dangerous +26136.5%; netLevelXpPerH tank L110 low dangerous -25519.1%; deathTax axes L45 mid dangerous +25360.0%
 
-== EQUIPMENT VALUE (MOVED (no target))
-  TARGETS: none in this category: plain movement
+== EQUIPMENT VALUE (TRADEOFF)
+  TARGETS: 255 readings of 8 targets; the moves:
+    REGRESSED GEAR-2 (hypothesis)     E1.armor hammer Level 15                     0.130 ->     0.207  [0.030, 0.050]
+    REGRESSED GEAR-2 (hypothesis)     E1.armor hammer Level 30                     0.046 ->     0.175  [0.030, 0.050]
+    REGRESSED GEAR-2 (hypothesis)     E1.armor hammer Level 45                     0.076 ->     0.132  [0.030, 0.050]
+    REGRESSED GEAR-2 (hypothesis)     E1.armor hammer Level 60                    -0.005 ->     0.112  [0.030, 0.050]
+    REGRESSED GEAR-2 (hypothesis)     E1.armor hammer Level 110                    0.037 ->     0.051  [0.030, 0.050]
+    IMPROVED  GEAR-1 (hypothesis)     E1.weapon hammer Level 45                    0.032 ->     0.034  [0.050, 0.080]
+    IMPROVED  GEAR-2 (hypothesis)     E1.armor hammer Level 10                     0.523 ->     0.376  [0.030, 0.050]
+    IMPROVED  GEAR-2 (hypothesis)     E1.armor hammer Level 88                    -0.006 ->     0.084  [0.030, 0.050]
   VIEWS: 684 rows, 94 moved beyond noise. Side by side (before | after | change | z):
     * four takenPerH, MID over LOW at 5                                                          0.360 |     0.489 |  +35.9% | 12.1
     * four takenPerH, MID over LOW at 10                                                         0.379 |     0.502 |  +32.5% | 12.8
@@ -154,8 +179,9 @@ VERDICTS
       coppercap_warrens dangerous, party of 4: Level XP over the contract, mean of the band       2.91 |      2.91 |   +0.0% | 0.1
       coppercap_warrens deadly, lone: Level XP over the contract, mean of the band ends           2.56 |      2.31 |   -9.8% | -1.6
 
-== SOLO AND PARTY PERFORMANCE (MOVED (no target), UNEXPECTED)
-  TARGETS: none in this category: plain movement
+== SOLO AND PARTY PERFORMANCE (REGRESSION, UNEXPECTED)
+  TARGETS: 24 readings of 1 targets; the moves:
+    REGRESSED PARTY-1 (hypothesis)    S11.unblessed hammer Level 400 (the MID       1.63 ->     -1.14  [1.00, ]
   VIEWS: 216 rows, 77 moved beyond noise. Side by side (before | after | change | z):
     * tank,mage netPerH a head over the lone hammer at 88 deadly                                -0.014 |     0.084 | +697.4% | 11.0
     * bow,healer netPerH a head over the lone hammer at 5 deadly                                 0.736 |     -1.39 | -288.8% | -2.1

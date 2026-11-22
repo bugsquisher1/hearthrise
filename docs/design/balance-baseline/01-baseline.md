@@ -53,6 +53,8 @@ Full hashes are in the results file (`node tools/balance-program/baseline.mjs --
 
 The two early runs are kept as the reproduction proof (section 2). They are not the pin.
 
+**Reader rows.** After the run, the pinned results gained the matrix judge's reader rows (each standards band's VALUE on this tree, 3,629 rows), so BL-3's targets can be read against them (`--add-readers`, from the run's own shards, judged on the materialized pin). Nothing else in the file changed: MEASURED, all 1,353 cells, all 573,672 seed values, every view and the calibration byte-identical to the file the GitHub join wrote.
+
 **The bands.** `tools/balance-program/standards.mjs` is recorded above because the request asks for it. By Tyler's ruling of 2026-11-21 its bands (rulings about the current game) are neither constraints nor targets for the overhaul, and nothing in this baseline is judged against them. BL-3's target specification replaces them (`08-regression.md` section 4).
 
 ---
@@ -490,5 +492,7 @@ Kills read 0.82 to 1.24 of real, XP 0.72 to 1.04 and coin 0.63 to 1.23. The Slak
 | `tools/balance-program/baseline/overhaul-start/spec.json` | the pinned scenario spec |
 | `tools/balance-program/baseline/overhaul-start/results.json.gz` | the pinned results |
 | `tools/balance-program/baseline/target.json` | what a push to `balance-baseline/**` measures |
+| `tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.json.gz`, `.compare.txt` | the first candidate (FB-8 stage 1) and its side-by-side (`08-regression.md` section 7) |
+| `tools/balance-program/targets.json` | BL-3's target inventory, read by the compare by default |
 | `.github/workflows/balance-baseline.yml` | the GitHub run |
 | `tools/balance-program/balance-matrix.mjs` | two hooks added to `playRun` (`planHook`, `perSeed`) |

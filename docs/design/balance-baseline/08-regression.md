@@ -10,10 +10,10 @@ Labels. MEASURED names the run. COMPUTED is arithmetic on named inputs. CODE mea
 
 1. **One command plays a candidate** (a branch, a commit, patch files laid on a tree, or a proposal base) on the baseline's own 1,353 cells, eight seeds each, on the same engine path and the same harness, and prints it side by side with the committed baseline.
 2. **The report is grouped by Tyler's eight categories:** combat performance, survivability, resource economy, progression, equipment value, hunting ground viability, solo and party performance, and long-term scaling.
-3. **Every change is marked.** Against BL-3's new-game targets where a target exists: IMPROVEMENT (toward its range), REGRESSION (away, or a hard target newly left), TRADEOFF (both in one category). Where no target exists: plain movement, up or down, with its size against its noise. A move under the noise is reported as within noise, never as a change.
+3. **Every change is marked.** Against BL-3's targets (`tools/balance-program/targets.json`, read by default) where a target can be read: IMPROVEMENT (toward its range), REGRESSION (away, or a hard target newly left), TRADEOFF (both in one category). Where no target exists: plain movement, up or down, with its size against its noise. A move under the noise is reported as within noise, never as a change. Every target the baseline cannot read is listed UNREAD with its reason.
 4. **Unexpected outcomes are named.** A candidate says which categories it means to move (`--intent`). A move beyond noise anywhere else reads UNEXPECTED. Every move over 10% beyond noise is listed by cell.
-5. **The current game's rulings judge nothing here.** Tyler, 2026-11-21: the game is being redone, so rulings about the current game are neither constraints nor targets. `standards.mjs` bands are not read by this report. Until BL-3's targets exist, every change reads as plain movement.
-6. **First real candidate:** FB-8 stage 1 (`lane/c-pace` at `f063f140b`), section 7.
+5. **The current game's rulings judge nothing here.** Tyler, 2026-11-21: the game is being redone, so rulings about the current game are neither constraints nor targets. A `standards.mjs` band is used only as a READER (the matrix judge's formula for a value). Its old range is never read. The range is BL-3's.
+6. **First real candidate:** FB-8 stage 1 (`lane/c-pace` at `90ad526dd`), section 7.
 
 ---
 
@@ -69,7 +69,11 @@ What one cell against one cell can resolve, outcome by outcome, is in `01-baseli
 
 ## 4. Targets: the interface for BL-3
 
-BL-3 owns the target specification. This report reads it from a JSON file (`--targets <file>`, schema `hearthrise.balance-targets/1`, CODE: `baseline/compare.mjs` `loadTargets`):
+BL-3 owns the target specification. It landed on the set as `tools/balance-program/targets.json` (`docs/design/balance-baseline/03-targets.md`): an inventory of 100 candidate targets, every one a DESIGN HYPOTHESIS until the target work picks. The compare reads that file by default (`--targets <file>` names another, `--no-targets` reads none). CODE: `baseline/compare.mjs` `loadTargets` and `fromInventory`.
+
+**BL-3's rows.** Each row names an area, a class, a band `{ lo, hi }` and its readers. A reader that is a `standards.mjs` band id is computed by the matrix's own judge on each tree at join and stored in the results as a reader row (band, way, place, value). Only its value is kept. Its old range and status are dropped. The row's area maps to a category (pace to progression, party to solo and party, style to combat, survival and sustain to survivability, gear to equipment, supply, gold and drops to resource economy, long to long-term scaling). A reader row has no seed error of its own, so a move under 2% (`READER_MIN_REL`) is held as noise. A row whose readers are another tool's (a guard line, a table, a named standard) or MISSING, a row whose band has no number, and a row whose reader judged nothing on the baseline's cells are listed UNREAD with that reason.
+
+**This report's own form.** For a target that reads an outcome or a view directly, the same schema takes rows of this shape:
 
 ```
 { "schema": "hearthrise.balance-targets/1", "source": "...",
@@ -117,7 +121,7 @@ JUDGMENT: the reviewer should be someone who did not author the candidate, as fo
 
 ## 7. The first candidate: FB-8 stage 1
 
-**What was played.** `lane/c-pace` at `90ad526dd` (its STAGE 1 DONE), on the baseline's 1,353 cells, 8 seeds each, with the pin's harness: MEASURED, GitHub run 44985095603 against the pin run 44985081080. The two harness commits differ only in the run's `target.json`, so the report prints no harness warning. Its game tree differs from the pin's (COMPUTED from `git diff 861ae52e3 90ad526dd`; the engine `src/core` and the edge settle are identical) in:
+**What was played.** `lane/c-pace` at `90ad526dd` (its STAGE 1 DONE), on the baseline's 1,353 cells, 8 seeds each, with the pin's harness: MEASURED, GitHub run 44985095603 against the pin run 44985081080. The two harness commits differ only in the run's `target.json`, so the report prints no harness warning. Its game tree differs from the pin's (COMPUTED from `git diff 861ae52e3 90ad526dd`, with the engine `src/core` and the edge settle identical) in:
 
 - the armor curve x2.4 (`src/data/core-model.js`: dodge k 0.4 to 0.96, absorb k 0.62 to 1.488),
 - the gear curve and its exchange rates (`src/data/gear-curve.js`, `gear-tiers.js`),
@@ -127,20 +131,34 @@ JUDGMENT: the reviewer should be someone who did not author the candidate, as fo
 
 The armor curve sits in the tree, and no knob is laid on it, so `armorCurve` cannot apply twice.
 
-**The command.** `node tools/balance-program/baseline.mjs --compare tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.json.gz --intent equipment,survival`. The full printout is `tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.compare.txt`. BL-3's targets do not exist yet, so every change below is plain movement against its noise. The intent names equipment and survival, because that is what an armor curve is for.
+**The command.** `node tools/balance-program/baseline.mjs --compare tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.json.gz --intent equipment,survival`. The full printout is `tools/balance-program/baseline/candidates/fb8-stage1-90ad526dd.compare.txt`. It reads BL-3's inventory (100 candidate targets, every one a design hypothesis). The intent names equipment and survival, because that is what an armor curve is for.
+
+The two results files gained their reader rows after the runs (`--add-readers`, from each run's own shards, judged on its own materialized tree). Nothing else in either file changed: MEASURED, all 1,353 cells, all 573,672 seed values, every view and the calibration byte-identical to the files the GitHub join wrote.
 
 **Verdicts.** 1,092 of 1,353 cells moved in at least one outcome beyond noise. The 261 that did not include all three C3 cells.
 
-| Category | Verdict | Moved beyond noise |
-|---|---|---|
-| Combat performance | MOVED (no target), UNEXPECTED | 1,055 cell outcomes, no view |
-| Survivability | MOVED (no target) | 8,422 cell outcomes, 15 views |
-| Resource economy | MOVED (no target), UNEXPECTED | 4,778 cell outcomes, 29 views |
-| Progression | MOVED (no target), UNEXPECTED | 1,648 cell outcomes, no view |
-| Equipment value | MOVED (no target) | 94 views |
-| Hunting ground viability | MOVED (no target), UNEXPECTED | 118 views |
-| Solo and party performance | MOVED (no target), UNEXPECTED | 77 views |
-| Long-term scaling | MOVED (no target), UNEXPECTED | 47 views, all of them deaths or rates past 110 on Deadly |
+| Category | Verdict | BL-3 targets read: readings toward / away | Moved beyond noise |
+|---|---|---|---|
+| Combat performance | MOVED (no target), UNEXPECTED | none readable | 1,055 cell outcomes, no view |
+| Survivability | TRADEOFF | 5 targets: 69 / 7 | 8,422 cell outcomes, 15 views |
+| Resource economy | TRADEOFF, UNEXPECTED | 5 targets: 7 / 5 | 4,778 cell outcomes, 29 views |
+| Progression | MOVED, INSIDE ITS TARGETS, UNEXPECTED | 5 targets: 0 / 0 | 1,648 cell outcomes, no view |
+| Equipment value | TRADEOFF | 8 targets: 6 / 5 | 94 views |
+| Hunting ground viability | MOVED (no target), UNEXPECTED | none readable | 118 views |
+| Solo and party performance | REGRESSION, UNEXPECTED | 1 target: 0 / 1 | 77 views |
+| Long-term scaling | MOVED (no target), UNEXPECTED | none readable | 47 views, all of them deaths or rates past 110 on Deadly |
+
+Of BL-3's 100 rows, 24 are read here. 76 are UNREAD: 43 have no matrix reader (another tool's, or MISSING), 23 have no number in their band yet, and 10 name a reader that judged nothing on these cells (the pace seat on Dangerous past 110, for one).
+
+**Against BL-3's inventory** (the readings that moved, each a design hypothesis, MEASURED on the reader rows):
+
+- SURV-4, typical lowest health 0.6 to 0.8 (`S1.mid`): 69 readings moved toward the range as lone heroes on Normal dip lower (the hammer at 20: 0.84 to 0.77), and a few moved away, out under 0.6 (Coppercap Warrens at 32: 0.63 to 0.50).
+- SURV-7, SURV-8 and the rest of SURV-1 and SURV-2 held. SURV-1 and SURV-2 (`S2.mid`, `S7.mid`, deaths and the hunted share on Normal MID) moved away only at Level 400, past live content: the lone bow and crossbow now die on Normal there.
+- GEAR-2, an armor step worth 3 to 5% less damage (`E1.armor`): the step moved from under the range to over it. At Level 30 it read 4.6% and now 17.5%, at 60 it read 0 and now 11.2%. It moved toward the range at 88 (from -0.6% to 8.4%, nearer in relative distance) and at 10 (from 52% to 38%).
+- GEAR-1, a weapon step worth 5 to 8%: one reading moved 0.2 points, the other six held, so the weapon half is untouched. GEAR-9 and GEAR-10 (gear prices over a band's net gold) moved toward their ranges in 3 readings.
+- GOLD-4, net gold a new ground pays a lone hero over the ground before (`G-1`): five readings (the bow, the crossbow and the sword) slip 2 to 3 points further under 1, one moved toward. GOLD-2 and GOLD-3 (net gold on Deadly, and for an arrival four on Deadly) moved toward their ranges in 6 readings.
+- PARTY-1, the four's Level XP a head after deaths on its hardest tier over the same heroes alone on Normal (`S11`): one reading moved away, at Level 400, projected.
+- PACE-1 to PACE-5 (212 readings) and DROP-1 (168): every reading held. The candidate does not touch the pace or the drops.
 
 **Side by side** (before is the pin, after is FB-8 stage 1, a move counts beyond noise by section 3):
 
@@ -170,7 +188,7 @@ The armor curve sits in the tree, and no knob is laid on it, so `armorCurve` can
 | The Krell four's damage taken in front, over the one real four's (calibration) | 0.65 | 0.89 | +37% | |
 | The Krell four's front share of the damage, over real | 0.96 | 1.05 | | |
 
-**What it says.** JUDGMENT, because no target judges it yet:
+**What it says.** JUDGMENT. BL-3's rows are design hypotheses, so their readings inform this and do not decide it:
 
 1. **In play, FB-8 stage 1 is its armor curve.** It raises the damage a lone hero takes on Normal by a median of 17% (up to 33%) and moves no Level XP on Normal anywhere. From Level 30 up it makes armor worth something: LOW to MID armor now saves 17% of the damage at 30 and 11% at 60, where it saved 5% and nothing. At Level 10 the MID set saves less than before.
 2. **The cost lands on survival on the harder tiers,** and on the parties least protected by a healer and a front. Lone deaths on Dangerous rise 42 to 191% by gear state. The pairs on Deadly go from 7 to 56 in 1,000 hours, and the four in LOW gear from 1 to 11. The four in MID and BIS and the three still never die.
@@ -202,4 +220,4 @@ JUDGMENT: one later step is worth doing when BL-3's targets land. Teach `balance
 2. The noise rule is unpaired. A paired rule (seed k against seed k) would resolve smaller moves, but only while the two trees' dice stay in step, which a real engine change breaks within minutes of play.
 3. A view's error assumes its cells are independent. Cells share seeds, so the true error of a pooled view is somewhat larger than printed.
 4. The scenarios are fixed at the pin. A candidate that adds content past Level 110 is measured only through the `beyond` block until a new pin re-derives the spec.
-5. The targets interface is mine. BL-3 may need fields it lacks. Adding them is a change to `baseline/compare.mjs` alone.
+5. BL-3's rows are read through band readers only. A row another tool reads (the atlas, the paths, a guard line, the start cards) stays UNREAD here until that reader stores its value in the results, and 23 rows wait for a number in their band.

@@ -19,7 +19,7 @@ This report builds on the framework audit (`docs/design/overhaul/review/F-framew
 5. **What the baseline can claim.** Which outcomes a change moves, in which direction, and by how much against measured run-to-run noise, across every way, gear state, tier, open ground and party shape in live content. Kills, XP and coin an hour for a four on Deadly to about 5 to 20% of real play.
 6. **What it cannot claim.** Absolute gold (an upper bound, see 3.3), absolute survival on Normal and Dangerous (no real data), anything about a real player's day, and anything past Level 110, which is not live content (the `beyond` block measures it on staged and placeholder grounds and labels it so).
 
-My count (JUDGMENT, my own grouping): of 52 mechanics in section 2, 20 run for real in a cell (two of them with a harness-approximated reading), 9 are approximated or pinned to a constant, 22 are absent, and one (the rested bank) no longer exists.
+My count (JUDGMENT, my own grouping): of 53 mechanics in section 2, 20 run for real in a cell (two of them with a harness-approximated reading), 9 are approximated or pinned to a constant, 23 are absent, and one (the rested bank) no longer exists.
 
 ---
 
@@ -66,6 +66,7 @@ INCLUDED means the game's own code runs in the cell. APPROXIMATED means the cell
 | Timed buffs | `member.js`, `combat.js`, `hunt-rewards.js` | EXCLUDED from the baseline | the matrix's buff variants play one buff. The baseline holds none, because the starting game gives a player no standing buff | the matrix gained the hook |
 | Talents | no engine seam on the pin | EXCLUDED | cells carry each way's suggested build, which bites only on the matrix's scratch hook | new since the audit |
 | Hone and ammo | `src/core/ammo.js` | INCLUDED | | same |
+| The gear curve past Level 110 and its exchange rates | `src/data/gear-curve.js`, `gear-tiers.js` (FB-8 stage 1) | EXCLUDED in effect | no item a cell wears reads them yet. Under Level 110 the curve is its own samples, and past 110 the kits come from the staged rows and `grid-project.mjs`'s projected line. MEASURED, run 44985095603: FB-8 stage 1 moved no beyond-block cell's DPS or pace. The matrix plays the curve only through its R10 plan step, a harness stand-in | new |
 
 ### 2.2 Hunting and progression
 
@@ -125,7 +126,7 @@ INCLUDED means the game's own code runs in the cell. APPROXIMATED means the cell
 | Kills an hour | yes | `killsPerH`, seconds to kill (median and slowest tenth), pulls |
 | Damage dealt and taken by seat | yes | each cell's seats in its `m.seats` (style, share of damage taken, taken and dealt an hour, deaths) and the front seat's share as an outcome |
 | Deaths in 1,000 hours | yes | counts and hours pooled, read as Poisson rates |
-| Lowest health | yes, by the harness | each fight's lowest point (typical, worst tenth, worst hundredth) and the time under 30% and 10%, tracked from blows and heals with regeneration inferred |
+| Lowest health | yes, by the harness | each fight's lowest point (typical, worst tenth, worst hundredth) and the time under 30% and 10%, tracked from blows and heals with regeneration inferred. A fight in which the hero died can read its lowest point under zero: that is the killing blow's overkill, so read a value under 0 as "died in that fight" |
 | Mana and supply sustainability | partly | mana spent, mana drinks and mana back an hour, supplies used and their gold. NOT emitted: time spent low on mana, casts held for want of mana, a supply running out. In the cell the store never runs dry and the purse never empties, so "does it last" cannot be read, only "how much it takes" |
 | Supplies used | yes | units and gold an hour |
 | Gold in, out and net | yes, as an upper bound | coin, vendor loot, rares, store, Blessings, net |

@@ -380,14 +380,14 @@ export const COMBAT = [
     flags: [flag('redundant', 'Two mechanisms for one effect: a unit field and a status row, added', '44 X-MARK-TWO-WAYS, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('spell.bleed', 'spells', 'global', 'Bleed', {
-    at: [at('src/data/statuses.js', 'blowPm: 33'), at('src/data/statuses.js', 'tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400])')],
+    at: [at('src/data/statuses.js', 'blowPm: 33'), at('src/data/statuses.js', 'tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),')],
     def: 'scale = max(tier share, floor(maxHit x 33 x tier share / 1000)); a tick of 1..3 x scale a stack a second, 5 stacks, 6 s',
     range: 'permille above 0; stacks whole',
     touches: 'damage over time of the ways that bleed', out: KILL, f: ['C-STATUS'],
     perturb: P(),
     ev: 'CONFIRMED (read)' }),
   L('spell.chill', 'spells', 'global', 'Chill', {
-    at: [at('src/data/statuses.js', 'slowPm: 300'), at('src/data/statuses.js', 'tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667])')],
+    at: [at('src/data/statuses.js', 'slowPm: 300'), at('src/data/statuses.js', 'tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) })')],
     def: 'a chilled unit\'s swing and windup stretch by 30% x its tier step, 4 s',
     range: 'permille 0..1000',
     touches: 'damage taken from chilled packs (the tank spell Frost Slam)', out: ['takenPerH', 'deathsPer1000h'], f: ['C-STATUS'],
@@ -500,7 +500,7 @@ export const COMBAT = [
     def: 'Storm burns mana for half the HP it took; Necrotic lands Withered (a hero heals 30% less, a monster 50%)',
     range: 'permille 0..1000',
     touches: 'nothing until NECROTIC_STORM.live is true', out: [], f: ['C-RESIST-HERO', 'C-HEAL-CUT'],
-    perturb: NP('not-built', 'dark behind src/data/necrotic-storm.js live: false; the knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on'),
+    perturb: { ...NP('not-built', 'dark behind src/data/necrotic-storm.js live: false; the knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on'), also: ['stormDrain', 'necroticCut'] },
     flags: [flag('ineffective', 'Dark: no shipped table holds Necrotic or Storm', 'CONFIRMED (necrotic-storm.js live false)')],
     ev: 'CONFIRMED (read)' }),
 

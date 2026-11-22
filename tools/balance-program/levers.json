@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": true
  },
- "authored": "828bf3c22bb5fad8",
+ "authored": "fc1eb27b4d12a152",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 163,
+  "levers": 164,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -78,7 +78,7 @@
    "regen": 4,
    "monster-stats": 21,
    "spawn": 7,
-   "monster-rewards": 10,
+   "monster-rewards": 11,
    "rare-drops": 6,
    "equipment": 9,
    "imbuements": 1,
@@ -88,13 +88,13 @@
   },
   "byClass": {
    "global": 68,
-   "archetype": 22,
+   "archetype": 23,
    "content": 46,
    "exception-intentional": 16,
    "exception-accidental": 11
   },
   "byPerturb": {
-   "knob": 30,
+   "knob": 31,
    "not-playable:dead": 8,
    "patch": 75,
    "not-playable:player-policy": 1,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 5
   },
   "byTest": {
-   "asserted": 52,
+   "asserted": 53,
    "mentioned only": 91,
    "none": 20
   },
@@ -3940,6 +3940,10 @@
     "kind": "not-playable",
     "gap": "not-built",
     "note": "dark behind src/data/necrotic-storm.js live: false; the knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on",
+    "also": [
+     "stormDrain",
+     "necroticCut"
+    ],
     "existingPatches": []
    },
    "flags": [
@@ -4710,6 +4714,9 @@
     "kind": "knob",
     "knob": "monsterAccuracy",
     "note": "heroHit is the knob heroAccuracy; both are formula sources (regen)",
+    "also": [
+     "heroAccuracy"
+    ],
     "existingPatches": []
    },
    "flags": [],
@@ -4774,6 +4781,9 @@
     "kind": "knob",
     "knob": "monsterDefense",
     "note": "the cut 0.03 is the knob monsterDefenseCut",
+    "also": [
+     "monsterDefenseCut"
+    ],
     "existingPatches": []
    },
    "flags": [
@@ -5029,6 +5039,9 @@
     "kind": "knob",
     "knob": "partyGroundHp",
     "note": "the blow is the knob partyGroundBlow; the other six numbers on the line are patches",
+    "also": [
+     "partyGroundBlow"
+    ],
     "existingPatches": [
      "tools/balance-program/patches/world-1-one-fit.json"
     ]
@@ -6658,6 +6671,9 @@
     "kind": "knob",
     "knob": "xpPerKill",
     "note": "the Level exponent b is the knob xpByLevel; both are formula sources (regen)",
+    "also": [
+     "xpByLevel"
+    ],
     "existingPatches": []
    },
    "flags": [
@@ -6667,6 +6683,73 @@
      "ev": "44 summary item 2, CONFIRMED"
     }
    ],
+   "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "reward.tier-xp",
+   "category": "monster-rewards",
+   "name": "Harder-tier XP",
+   "sites": [
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": 444,
+     "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
+     "binding": "TIER_DIALS"
+    },
+    {
+     "file": "src/data/balance-sheet.js",
+     "line": 451,
+     "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
+     "binding": "TIER_DIALS"
+    }
+   ],
+   "definition": "xpPm 1100 and 1250: Level XP a kill on Dangerous and Deadly",
+   "range": "permille 1000 or more. BALANCE_SHEET: Dangerous at least 1.10 and Deadly 1.25 of Normal (targets)",
+   "touches": "what a harder tier pays, so the reason to take the risk",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "C-TIER",
+    "E01"
+   ],
+   "reach": {
+    "feeds": 9,
+    "closure": 77
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/hunt-tiers.mjs",
+      "what": "the tier rows",
+      "reads": [
+       "TIER_DIALS",
+       "tierRowFor"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-sheet.mjs",
+     "tests/hunt-core/hunt-tiers.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "knob",
+    "knob": "tierXp",
+    "existingPatches": [
+     "tools/balance-program/patches/bp-tiers-2500.json",
+     "tools/balance-program/patches/bp-tiers-dangerous-2600-deadly-2250.json",
+     "tools/balance-program/patches/bp-tiers-dangerous-3000-deadly-2500.json"
+    ]
+   },
+   "flags": [],
    "evidence": "CONFIRMED (read)"
   },
   {

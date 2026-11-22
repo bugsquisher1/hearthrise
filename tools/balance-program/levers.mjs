@@ -33,6 +33,7 @@
 // mutant-anchors: none — --selftest plants on an in-memory file map and in-memory rows; no tracked file is patched
 // ci-step: economy-selftests | Balance lever registry - an unclaimed typed number, a new key in a pinned table, a lost anchor and a bad knob are each caught
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/levers.mjs --selftest
+// ci-run: node tools/balance-program/levers.mjs --check
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve, dirname, relative } from 'node:path';
@@ -63,7 +64,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 /** A home or not-a-lever pattern: `file#name`, `*` one path segment or name part, `**` any depth. */
 export const patternRe = (p) => new RegExp('^' + p.split('**').map((a) => a.split('*').map((b) => b.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/#]*')).join('.*') + '$');
 const wordRe = (w) => new RegExp('(?<![\\w$])' + w.replace(/[$]/g, '\\$') + '(?![\\w$])');
-const countOf = (text, needle) => { let n = 0, i = -1; while ((i = text.indexOf(needle, i + 1)) >= 0) n++; return n; };
+/* AN ANCHOR NEVER PINS A VALUE: every number written in an anchor matches any number, so a balance lane that moves the value keeps the
+   anchor (and --check green), while a renamed or deleted line loses it. `hpPerLevel: 10` finds `hpPerLevel: 12`. */
+const NUM_TOKEN = /(?<![\w.])-?\d+(?:\.\d+)?(?![\w.])/g;
+export const anchorRe = (anchor, flags = '') => new RegExp(anchor.split(NUM_TOKEN).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('-?\\d+(?:\\.\\d+)?'), flags);
+const countOf = (text, anchor) => (text.match(anchorRe(anchor, 'g')) || []).length;
 const inTrees = (file, trees) => trees.some((t) => file === t || file.startsWith(t + '/'));
 
 /* ── THE BINDING SPANS: bindingsOf gives a start line; a site needs the binding its line sits in ─────────────────────────────── */
@@ -117,6 +122,7 @@ export function buildModel(ctx) {
     if (hit && !pin) homes.get(hit[0]).levers.add(id); else addHome(k, pin || 'count', id);
   };
   const ids = new Set();
+  const usedKnobs = new Set();
   const levers = [];
   for (const L of ctx.levers) {
     if (ids.has(L.id)) bad('lever', L.id + ' is listed twice');
@@ -129,7 +135,8 @@ export function buildModel(ctx) {
       if (text === null) { bad('anchor', L.id + ': ' + s.file + ' is not in the tree'); continue; }
       const lines = lf(text).split('\n');
       const hits = [];
-      lines.forEach((t, i) => { if (t.includes(s.anchor)) hits.push(i + 1); });
+      const re = anchorRe(s.anchor);
+      lines.forEach((t, i) => { if (re.test(t)) hits.push(i + 1); });
       const want = s.count || 1;
       if (hits.length !== want) { bad('anchor', L.id + ': ' + s.file + ' has ' + hits.length + ' line(s) holding ' + JSON.stringify(s.anchor) + ', the row names ' + want); continue; }
       const occ = countOf(lf(text), s.anchor);
@@ -157,6 +164,8 @@ export function buildModel(ctx) {
     }
     if (p.kind === 'not-playable' && !GAPS[p.gap]) bad('perturb', L.id + ': gap ' + p.gap + ' is not one of ' + Object.keys(GAPS).join(', '));
     if (p.planned && !plannedIds.has(p.planned)) bad('perturb', L.id + ': planned knob ' + p.planned + ' is not in knobs.json planned');
+    for (const k of p.also || []) if (!knobIds.has(k)) bad('perturb', L.id + ': also-knob ' + k + ' is not a live knob in knobs.json');
+    for (const k of [p.knob, ...(p.also || [])].filter(Boolean)) usedKnobs.add(k);
     /* the seventh field: an authored assert must name a test that exists and reads one of the lever's names */
     const names = [...new Set([...sites.map((s) => s.binding).filter(Boolean), ...((L.rows && L.rows.names) || []), ...(L.names || [])])].filter((n) => !GENERIC_NAMES.has(n));
     const asserts = [];
@@ -181,6 +190,8 @@ export function buildModel(ctx) {
       flags: L.flags || [], evidence: L.ev || '',
     });
   }
+  /* the knob list and the registry agree: every live knob moves a lever the registry names */
+  for (const k of knobIds) if (!usedKnobs.has(k)) bad('knob', 'knobs.json knob ' + k + ' moves no lever row (name it as a lever\'s knob or `also`)');
   /* claims: every binding that holds a typed number */
   const notRes = (ctx.notLevers || []).map((n) => ({ ...n, re: patternRe(n.at) }));
   const homeRes = [...homes].map(([pattern, h]) => ({ pattern, ...h, re: patternRe(pattern) }));
@@ -301,7 +312,9 @@ export function countsOf(m) {
 
 /* ── THE DOC'S GENERATED TABLES ─────────────────────────────────────────────────────────────────────────────────────────────── */
 const mark = (k) => ['<!-- GENERATED:' + k + ' (tools/balance-program/levers.mjs --write) -->', '<!-- END GENERATED:' + k + ' -->'];
-const cell = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+/* the doc's prose rule (no semicolons, no dashes as punctuation): a row's "a; b" reads "a. B" in the doc, the JSON keeps the row's text */
+const prose = (s) => s.replace(/;\s+(\S)/g, (m, c) => '. ' + c.toUpperCase()).replace(/\s[–—]\s/g, ', ');
+const cell = (s) => prose(String(s == null ? '' : s)).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 export function docTables(doc) {
   const t = {};
   const c = doc.counts;
@@ -316,7 +329,7 @@ export function docTables(doc) {
   t.CENSUS = ['| | Count |', '|---|---|', '| Top-level bindings in the rule code that hold a typed number | ' + doc.census.bindings + ' (in ' + doc.census.files + ' files, ' + doc.census.typed + ' typed numbers) |',
     '| Claimed by a lever | ' + doc.census.lever + ' |', '| Claimed by a not-a-lever reason | ' + doc.census.notLever + ' |', '| Unclaimed | ' + doc.census.unclaimed + ' |',
     '| Exceptions, intentional and accidental | ' + (c.byClass['exception-intentional'] || 0) + ' and ' + (c.byClass['exception-accidental'] || 0) + ' |',
-    '| Values read at | ' + String(doc.baseline.commit || 'unknown').slice(0, 9) + ' (' + doc.baseline.ref + '); rule code and migrations the same as the baseline: ' + (doc.baseline.ruleCodeSameAsBaseline ? 'yes' : 'NO') + ' |'].join('\n');
+    '| Values read at | ' + String(doc.baseline.commit || 'unknown').slice(0, 9) + ' (' + doc.baseline.ref + '). Rule code and migrations the same as the baseline: ' + (doc.baseline.ruleCodeSameAsBaseline ? 'yes' : 'NO') + ' |'].join('\n');
   const flagRows = [];
   for (const kind of ['redundant', 'ineffective', 'contradictory']) for (const L of doc.levers) for (const f of L.flags.filter((x) => x.kind === kind)) flagRows.push('| ' + kind + ' | `' + L.id + '` ' + cell(L.name) + ' | ' + cell(f.why) + ' | ' + cell(f.ev) + ' |');
   t.FLAGS = ['| Kind | Lever | What | Evidence |', '|---|---|---|---|', ...flagRows].join('\n');
@@ -405,16 +418,21 @@ function selftest() {
   /* PLANT 3: a new field in a content table is caught, a new row with the same fields is not */
   ok(has(run({ 'src/data/sheet.js': FILES['src/data/sheet.js'].replace('rat: { hp: 12, atk: 3 }', 'rat: { hp: 12, atk: 3, dropBonus: 1.15 }') }, { pins }), 'pin', 'dropBonus'), 'a new numeric field in a content table is caught');
   ok(run({ 'src/data/sheet.js': FILES['src/data/sheet.js'].replace('rat: { hp: 12, atk: 3 }', 'rat: { hp: 12, atk: 3 }, bat: { hp: 9, atk: 4 }') }, { pins }).problems.length === 0, 'a new row with the same fields is no problem');
-  /* PLANT 4: a value change is no problem */
-  ok(run({ 'src/data/sheet.js': FILES['src/data/sheet.js'].replace('hp: 4.95', 'hp: 5.4'), 'src/core/fight.js': FILES['src/core/fight.js'].replace('0.35', '0.4') }, { pins: null, levers: base().map((L) => (L.id === 'blow.skill' ? { ...L, at: [{ file: 'src/core/fight.js', anchor: 's * 0.4' }] } : L)) }).problems.length === 0, 'a moved value is no problem');
-  /* PLANT 5: a lost anchor */
-  ok(has(run({ 'src/core/fight.js': 'export function blow(s) { return Math.floor(s * 0.4 + 7); }\n' }), 'anchor', 'blow.skill'), 'a lost anchor is caught');
+  /* PLANT 4: a value change is no problem, with the rows and pins untouched: an anchor that names a value finds the moved one */
+  const moved = run({ 'src/data/sheet.js': FILES['src/data/sheet.js'].replace('hp: 4.95', 'hp: 5.4'), 'src/core/fight.js': FILES['src/core/fight.js'].replace('0.35', '0.4'),
+    'supabase/migrations/0001-fee.sql': FILES['supabase/migrations/0001-fee.sql'].replace('150', '400') }, { pins });
+  ok(moved.problems.length === 0, 'a moved value is no problem, got ' + JSON.stringify(moved.problems));
+  ok(moved.levers.find((L) => L.id === 'blow.skill').sites[0].text.includes('s * 0.4'), 'the site reads the moved value');
+  ok(anchorRe('hpPerLevel: 10,').test('  hpPerLevel: 12,') && !anchorRe('hpPerLevel: 10,').test('  hpPerLevels: 12,') && !anchorRe('tier7: 1').test('tier8: 1'), 'an anchor\'s numbers match any number, never a name');
+  /* PLANT 5: a lost anchor (the line renamed) */
+  ok(has(run({ 'src/core/fight.js': 'export function blow(k) { return Math.floor(k * 0.35 + 7); }\n' }), 'anchor', 'blow.skill'), 'a lost anchor is caught');
   ok(has(run({ 'supabase/migrations/0001-fee.sql': 'select 1;\n' }), 'anchor', 'econ.fee'), 'a lost SQL anchor is caught');
   /* PLANT 6: a bad knob, a planned knob, a patch on an anchor that is not one exact text, a bad gap */
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.hp' ? { ...L, perturb: { kind: 'knob', knob: 'nope' } } : L)) }), 'perturb', 'knob nope'), 'an unknown knob is caught');
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.hp' ? { ...L, perturb: { kind: 'knob', knob: 'skillPower' } } : L)) }), 'perturb', 'PLANNED'), 'a planned knob is caught as not playable');
   ok(has(run({ 'src/core/fight.js': 'export function blow(s) { return Math.floor(s * 0.35 + 7) + s * 0.35; }\n' }), 'perturb', 'cannot be a patch'), 'a patch on a text written twice on its line is caught');
   ok(has(run({}, { levers: base().map((L) => (L.id === 'econ.fee' ? { ...L, perturb: { kind: 'not-playable', gap: 'later' } } : L)) }), 'perturb', 'gap later'), 'an unknown gap is caught');
+  ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.hp' ? { ...L, perturb: { kind: 'patch' } } : L)) }), 'knob', 'monsterHp moves no lever'), 'a live knob no lever names is caught');
   /* PLANT 7: a test that does not read the lever, a test that is not there */
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.rows' ? { ...L, tests: [['tests/sheet.mjs', 'x']] } : L)) }), 'test', 'reads none of'), 'an authored test that reads none of the lever is caught');
   ok(has(run({}, { levers: base().map((L) => (L.id === 'mon.hp' ? { ...L, tests: [['tests/gone.mjs', 'x']] } : L)) }), 'test', 'not a test file'), 'a missing test file is caught');

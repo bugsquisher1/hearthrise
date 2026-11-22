@@ -213,7 +213,7 @@ export const GEAR_ECONOMY = [
     flags: [flag('contradictory', 'A Level-keyed cut on party XP is live; Tyler\'s 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT', '44 P-X06, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('party.tank-rules', 'party', 'archetype', 'Challenge and the healer\'s peel', {
-    at: [at('src/data/hunt-roles.js', 'export const CHALLENGE = '), at('src/data/hunt-roles.js', 'peel: 180')],
+    at: [at('src/data/hunt-roles.js', 'export const CHALLENGE = '), at('src/data/hunt-roles.js', "healer: Object.freeze({ label: 'Healer'")],
     def: 'Challenge takes every monster within 6 tiles not on a tank and holds it 8 s (not under 90% HP holder); a Healer\'s basic draws a free monster 18% of the time',
     range: 'tiles, ms, permille',
     touches: 'who takes damage in a party (the front hero takes 92 to 100% on nine of 14 grounds)', out: SURVIVE, f: ['C-TARGET'],

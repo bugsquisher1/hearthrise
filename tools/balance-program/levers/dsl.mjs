@@ -8,7 +8,7 @@
 
 export const L = (id, cat, cls, name, o) => Object.freeze({ id, cat, cls, name, ...o });
 export const at = (file, anchor, o = {}) => ({ file, anchor, ...o });
-export const K = (knob, note) => ({ kind: 'knob', knob, ...(note ? { note } : {}) });
+export const K = (knob, note, also) => ({ kind: 'knob', knob, ...(note ? { note } : {}), ...(also ? { also } : {}) });
 export const P = (note, planned) => ({ kind: 'patch', ...(note ? { note } : {}), ...(planned ? { planned } : {}) });
 export const V = (variant, note) => ({ kind: 'variant', variant, ...(note ? { note } : {}) });
 export const NP = (gap, note, planned) => ({ kind: 'not-playable', gap, ...(note ? { note } : {}), ...(planned ? { planned } : {}) });

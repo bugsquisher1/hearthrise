@@ -154,6 +154,13 @@ export const RUNS = Object.freeze({
   deaths: DEATHS,
   /* `--run deaths-full`: the death sample with chapter 14's full-game block (CH14 above); `patch` plays on top of the run's base */
   'deaths-full': Object.freeze({ ...DEATHS, id: 'deaths-full', patch: 'patches/ch14-full-game.json', ch14: true, blocks: Object.freeze([...DEATHS.blocks, CH14_CAPS]) }),
+  /* ONE TALENTS UNLOCK IN A CELL (13-build-plan.md D-9; 10-level-choices.md section 4): Force's rank 3 unlock, Focus fire (+6% on a monster another
+     hero of the party is attacking), on every seat of the MID four beside the same four without it, at Levels 30, 60 and 110 on Normal and the hardest
+     tier. The engine has no seam for it (the modifier table's when column, R20), so the run plays patches/tal-focus-fire.json on its scratch copy */
+  unlock: Object.freeze({ id: 'unlock', levels: Object.freeze([30, 60, 110]), seeds: 2, hours: 2, patch: 'patches/tal-focus-fire.json', blocks: Object.freeze([
+    { id: 'four', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'] },
+    { id: 'unlock', comps: compsOf(4), gears: ['mid'], tiers: ['normal', 'hardest'], variants: [{ tag: 'unlock:focusFire', unlocks: { focusFire: 60 } }] },
+  ]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
      resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */

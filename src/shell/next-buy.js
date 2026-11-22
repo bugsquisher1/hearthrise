@@ -18,7 +18,7 @@
 //   deed     the House's next property rung, and the rooms it opens       chest  the account Storage's next chest
 //   bag      the bag's next rung (bought in Storage)                       dummy  the account's training dummy's next skill, a house owned
 //   tool     a better Shop tool for a skill the hero trains (no hero slot: all four are the account's from the start, 1036)
-//   refill   a stamina refill, only after a hunt that ran out of stamina
+//   refill   a bought hunting block (2 h of stamina), only after a hunt that ran out of stamina
 // Its words are labels (Tyler 2026-11-14: "Recommended: 4+ players"), never sentences: "Next buy: Bronze-Rimmed Shield (140 gp)", "+1 Defense vs Practice Shield".
 // PURE (nextBuy) over the server's sections; nextBuyOf reads them from a CharacterSession. Every price, rung, gate and count
 // is the server's (CLAUDE.md §6): nothing here is a gate the server trusts, and the press only opens the window where the

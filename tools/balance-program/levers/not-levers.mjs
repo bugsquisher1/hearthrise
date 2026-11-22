@@ -46,6 +46,9 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/live-events.js#LIVE_EVENT_SHOWN', why: 'when the event banner shows' }, { at: 'src/data/gold-sinks.js#ROUND_SHOW', why: 'the round\'s show (art timing)' }, { at: 'src/data/hearth.js#BURN_SHOW', why: 'the burn\'s show (art timing)' },
   { at: 'src/data/factions.js#*', why: 'faction swap timing and outfit hours: no power, gold or XP in these rows' },
   { at: 'src/data/boss-halls.js#namedWaveOf', why: 'a words builder' }, { at: 'src/data/clans.js#*', why: 'clan names, tags and invite days (the founding gold is econ.clans)' },
+  { at: 'src/data/danger.js#DEPTHS', why: 'how many depths a ground\'s band is cut into for the player\'s "Depth N of 20" words (12-targets 3.1): display, the server and the engine read steps' },
+  /* rulings (Tyler's numbers, not dials: validate refuses a move) */
+  { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)' },
   /* player choice bounds and history */
   { at: 'src/data/hunt-sessions.js#SESSION_LIMITS', why: 'the hours a player may set a hunt to (1..24) and the bag lines shown' },
   { at: 'src/data/hunt-sessions.js#STAMINA_LOW_MIN', why: 'a low-stamina warning' }, { at: 'src/data/hunt-sessions.js#SESSIONS_KEPT', why: 'hunt history kept' },

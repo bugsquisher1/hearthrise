@@ -94,6 +94,9 @@ export const SWEEP_NOT_LEVERS = Object.freeze({
   'core-model.js': [[/^(ARMOUR_MITIGATION|COMBAT_XP|FLAME_REGEN)\./, 'engine constants: the shape of a rule, the same for every hero']],
   'catalogue-coherence.js': [[/^(ITEMS|MONSTERS)\./, 'a re-export of items.js and monsters.js, read there']],
   'supplies.js': [[/^SUPPLIES\./, 'the supply view of items.js rows, read there']],
+  /* "dominanceMaxPm" reads as xp to the sweep (Ma-xP-m): it is a Trait guard, the share of cells a Trait may be best on, checked by
+     tests/gear-steps.mjs GS-3 and registered as lever gear.trait-budget; no fight, purse or clock reads it */
+  'gear-steps.js': [[/^GEAR_STEPS\.dominanceMaxPm$/, 'a Trait guard (GS-3, lever gear.trait-budget), not XP: the sweep reads "MaxPm" as xp']],
 });
 
 /* Modules a node scan cannot load, each with its reason. */

@@ -382,13 +382,19 @@ async function mutate() {
   const all = Object.entries(table).flatMap(([s, rows]) => Object.entries(rows).map(([k, row]) => ({ id: s + '.' + k, row })));
   const filled = all.find((r) => typeof r.row === 'string' && placeholdersOf(r.row).size > 0);
   const surface = Object.keys(table)[0];
-  const ratcheted = Object.keys(baseline)[0];
+  /* A ratcheted file and how many new sentences put it one over its ceiling: a file at its ceiling takes one; a file a lane
+     brought under its ceiling without --write takes the gap + 1 (v0.2.144: boot.js sat under its 19 and one plant hid there). */
+  const have = countTexts(sources).counts;
+  const ratcheted = Object.keys(baseline).find((f) => sources.has(f) && (have[f] || 0) === baseline[f])
+    || Object.keys(baseline).find((f) => sources.has(f));
+  const overBy = baseline[ratcheted] - (have[ratcheted] || 0) + 1;
+  const newSentences = Array.from({ length: overBy }, (_, i) => `\nexport const TH_PLANT_${i} = 'You found brand new sentence number ${i + 1} here.';\n`).join('');
   const plant = (rel, src) => new Map([...sources, [rel, src]]);
   const imp = 'import { t } from \'../render/player-text.js\';\n';
   const withRow = (row) => ({ ...table, [surface]: { ...table[surface], th_mutant_row: row } });
   const named = (row) => ({ table: withRow(row), sources: plant('src/shell/__th_reader.js', imp + 'export const x = () => t(\'' + surface + '.th_mutant_row\');\n') });
   const MUTANTS = [
-    ['TH-1', 'a new sentence in a ratcheted file', { sources: plant(ratcheted, sources.get(ratcheted) + '\nexport const TH_PLANT = \'You found a brand new sentence here.\';\n') }],
+    ['TH-1', 'a new sentence in a ratcheted file', { sources: plant(ratcheted, sources.get(ratcheted) + newSentences) }],
     ['TH-1', 'a new file under src/shell that writes a sentence', { sources: plant('src/shell/__th_plant.js', 'export const x = \'Your hero waits at the gate.\';\n') }],
     ['TH-1', 'a stale ALLOW row', { allow: [...ALLOW, { file: ratcheted, text: 'No such words anywhere', why: 'mutant' }] }],
     ['TH-2', 'a surface file the table never names', { sources: plant(TEXT_DIR + '__orphan.js', 'export const ORPHAN_TEXT = Object.freeze({ a: \'Hello there.\' });\n') }],

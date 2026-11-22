@@ -55,7 +55,10 @@ export const NAMES = [
   'HearthrisePetSession', 'HearthriseNightPlan', 'HearthriseSetTheNight', 'HearthriseHuntersLedger',
   'HearthriseSpoils', 'HearthriseEnchant', 'HearthriseHouseThemes', 'HearthriseMarks', 'HearthriseBossOfDay',
   // constants and fields
-  'DAILY_TASK_POOL', 'RAID_BOSSES', 'BOUNTY_SHOP', 'IAP_CATALOG', 'HOUSE_THEMES', 'partyIntentFence', 'TRAITS',
+  // TRAITS left this list on 2026-11-22: the approved redesign's gear Traits (docs/design/redesign 04 section 10, src/data/gear-steps.js,
+  // lane/g-gear-steps) are a new system under the same word, rules on gear, not the old bounty board's bought traits. That shop's
+  // verbs (buyTrait, hasTrait) and its currency (BOUNTY_SHOP, HearthriseMarks) stay banned below.
+  'DAILY_TASK_POOL', 'RAID_BOSSES', 'BOUNTY_SHOP', 'IAP_CATALOG', 'HOUSE_THEMES', 'partyIntentFence',
   // client functions of the demolished surfaces. renderClan left this list on 2026-11-21: clans came back by ruling (Tyler 2026-11-20,
   // the social dive 25: clans open in steps, the roster and chat first) as the rebuilt Clan window, src/shell/windows/clan.js
   // (lane/c-social, 1041-social-clans.sql). The old client's clan globals and files above stay banned.

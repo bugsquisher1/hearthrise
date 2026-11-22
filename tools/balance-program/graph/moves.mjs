@@ -152,4 +152,19 @@ export const LEVER_MOVES = Object.freeze({
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],
   'econ.offline-cap': [['+stamina', 'the cap on the hours a hunt runs unwatched, and no formula in the register writes it']],
+  /* GEAR IN STEPS (src/data/gear-steps.js, lane/g-gear-steps): no formula in the register writes the step model yet */
+  'gear.step-tier': [['~gear.tier', 'tierSteps is the item Levels a base tier spans and wearAhead how early a piece is worn (gear-steps.js tierLevel), so it moves the Level a tier is worn at']],
+  'gear.slot-weights': [['~gear.weapon', 'the weights split a kit\'s item Level between slots, summing to 1000 (GS-1): a raised slot takes share from the others'],
+    ['~gear.armor', 'the same split, the armor slots\' side']],
+  'gear.trait-budget': [['+gear.special', 'a Trait of rank r adds traitSteps[r] to the gear part while its condition holds (gear-steps.js)']],
+  'gear.traits': [['~gear.special', 'each Trait\'s condition and source decide when its steps count and on which ground it rolls']],
+  'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
+  /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
+  'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],
+  'econ.wage-base': [['+refill.price', 'every block price is written in hours of wage (wage.js wage, read by blockPrice)'],
+    ['+sink.other', 'market prices and fees are written in hours of wage too (wave 4)']],
+  'econ.wage-step': [['+refill.price', 'the wage grows by it a Level step, and a block is priced at the hero\'s step'],
+    ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)']],
+  'econ.work-day': [['+town.skill', 'more minutes of town work a UTC day are more gathering and bench runs (work-day.js freeMin, hr_work_day)']],
+  'econ.work-premium': [['+town.skill', 'Premium\'s extra minutes are more town work a day (work-day.js premiumExtraMin)']],
 });

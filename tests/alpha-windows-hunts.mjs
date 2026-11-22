@@ -12,7 +12,7 @@
 //   node tests/alpha-windows-hunts.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows-hunts.mjs --shots <dir>  also write the visual-gate screenshots (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/widgets/amount.js src/shell/windows/float-menu.js src/shell/bag-model.js src/shell/windows/hunts.js src/shell/hunt-list.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/render/creature-sprite.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/data/shell-windows.js src/shell/carry-in.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-head.js
+// mutant-anchors: src/shell/widgets/amount.js src/shell/windows/float-menu.js src/shell/bag-model.js src/shell/windows/hunts.js src/shell/hunt-list.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/render/creature-sprite.js src/shell/hunt-go.js src/data/refusal-words.js src/styles/windows.css src/data/shell-windows.js src/shell/carry-in.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-head.js
 // mutant-writes-tree: no — page mutants are served overrides (tests/_alpha-windows.mjs pageRun), pure ones planted into a temp copy of src (tickerMutant)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs

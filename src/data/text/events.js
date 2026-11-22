@@ -17,4 +17,6 @@ export const EVENTS_TEXT = Object.freeze({
   ends_in: 'Ends in {mins} min',
   /* The Character sheet's event line, after its chip, when the event names grounds: "+25% Level XP in Millrace Sewer". */
   sheet_where: 'in {where}',
+  /* A quiet weekend's plate (D-7 section 1.5, the Week card's line): what the calendar holds next and in how many days. */
+  next_in: Object.freeze({ one: 'Next: {event} in 1 day', other: 'Next: {event} in {count} days' }),
 });

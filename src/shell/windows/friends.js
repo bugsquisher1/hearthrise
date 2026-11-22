@@ -12,6 +12,9 @@
 //   Sent requests    Cancel (the request you sent)
 //   Blocked        the block list with Unblock (./block-list.js; Settings'
 //                  `social.blocked` row opens this window)
+//   Your friend link   the account's server-made link (GR-72) and Copy link: a new player who
+//                  signs up through it starts with you as a friend (src/social/friend-link.js)
+//   Quiet presence one switch for the account, read back from the server's `presence` section (MM-20)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
 import { refusalWords } from '../intent-words.js';
@@ -22,9 +25,10 @@ import { blocksHtml, patchBlocks, actBlocks } from './block-list.js';
 import { rows, text, cls, prop, element } from '../../render/paint.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { t } from '../../render/player-text.js';
+import { linkOf, linkUrl, setQuiet } from '../../social/friend-link.js';
 
 const STATE = new WeakMap();
-const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };
+const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false, link: null, linkAsked: false, copied: false }; STATE.set(body, s); } return s; };
 
 /** What a friend is doing, in words. Pure. */
 export function doingWords(f) {
@@ -39,7 +43,11 @@ export function renderFriends() {
     + '<p class="hf-msg" role="status" aria-live="polite"></p>'
     + '<h3 class="hs-sub hf-head is-in">Friend requests</h3><ul class="hf-list is-in"></ul>'
     + '<h3 class="hs-sub">Friends</h3><ul class="hf-list is-friends"></ul><p class="hh-empty hf-none">No friends yet. <span class="hw-desk-word">Right-click</span><span class="hw-phone-word">Hold</span> a name in chat to add one.</p>'
-    + '<h3 class="hs-sub hf-head is-out">Sent requests</h3><ul class="hf-list is-out"></ul>' + blocksHtml() + '</div>';
+    + '<h3 class="hs-sub hf-head is-out">Sent requests</h3><ul class="hf-list is-out"></ul>' + blocksHtml()
+    + '<h3 class="hs-sub">' + esc(t('clan.link_head')) + '</h3><p class="hf-explain">' + esc(t('clan.link_explain')) + '</p>'
+    + '<div class="hf-add"><input type="text" class="hf-link" readonly aria-label="' + esc(t('clan.link_head')) + '">'
+    + '<button type="button" class="hh-tool" data-hs-act="copy-link"></button></div>'
+    + '<label class="hf-quiet"><input type="checkbox" data-hs-act="quiet"> ' + esc(t('clan.quiet_label')) + '</label><p class="hf-explain">' + esc(t('clan.quiet_hint')) + '</p></div>';
 }
 
 /* A row names ONE hero (the server's person: the account's current character and its slot). The name, the menu's
@@ -94,6 +102,25 @@ renderFriends.patch = function patchFriends(body, ctx) {
   prop(body.querySelector('[data-hs-act="ask"]'), 'disabled', st.pending);
   text(body.querySelector('.hf-msg'), st.msg || (f.read ? '' : 'Loading friends…'));
   patchBlocks(body, ctx);
+  patchLink(body, ctx, st);
+};
+
+/* The friend link (the server's code, asked once when the window opens) and quiet presence (the server's `presence` section). */
+function patchLink(body, ctx, st) {
+  if (!st.linkAsked && ctx.account) {
+    st.linkAsked = true;
+    const view = ctx.doc && ctx.doc.defaultView;
+    linkOf(ctx.account).then((r) => { if (r.ok && view) { st.link = linkUrl(view.location.origin + view.location.pathname, r.code); renderFriends.patch(body, ctx); } });
+  }
+  const field = body.querySelector('.hf-link');
+  if (field.value !== (st.link || '')) field.value = st.link || '';
+  const copy = body.querySelector('[data-hs-act="copy-link"]');
+  text(copy, t(st.copied ? 'clan.link_copied' : 'clan.link_copy'));
+  prop(copy, 'disabled', !st.link);
+  const p = ctx.character && typeof ctx.character.read === 'function' ? ctx.character.read('presence') : null;
+  const box = body.querySelector('[data-hs-act="quiet"]');
+  prop(box, 'checked', !!(p && p.quiet === true));
+  prop(box, 'disabled', st.pending || !p);
 };
 
 renderFriends.events = Object.freeze(['keydown']);
@@ -125,6 +152,16 @@ renderFriends.act = function actFriends(ctx, body, action, ev, el) {
   if (!social || st.pending) return false;
   /* Unblock: ONE hr_block_set; its refusal reads on this window's line. */
   if (action === 'unblock' && ev.type === 'click') { settle(ctx, body, st, actBlocks(ctx, body, el), ''); return true; }
+  if (action === 'quiet' && ev.type === 'click') {
+    const on = !!el.checked;
+    settle(ctx, body, st, setQuiet(ctx.account, on).then(async (r) => { if (ctx.character && typeof ctx.character.load === 'function') await ctx.character.load(); return r; }), '');
+    return true;
+  }
+  if (action === 'copy-link' && ev.type === 'click') {
+    const nav = ctx.doc && ctx.doc.defaultView && ctx.doc.defaultView.navigator;
+    if (st.link && nav && nav.clipboard) nav.clipboard.writeText(st.link).then(() => { st.copied = true; renderFriends.patch(body, ctx); }, () => {});
+    return true;
+  }
   const ask = () => {
     const field = body.querySelector('.hf-name');
     const name = field.value.trim();

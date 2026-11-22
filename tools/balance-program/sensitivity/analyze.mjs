@@ -308,6 +308,51 @@ export async function structure(P, root = ROOT) {
   return rows;
 }
 
+/* ── THE NAMED FINDINGS (Phase 4's six lists), read off the matrix by fixed rules so a re-run names the same things ───────────── */
+const KEY_OUTS = Object.freeze(['dps', 'killsPerH', 'takenPerH', 'levelXpPerH', 'netLevelXpPerH', 'incomePerH', 'storePerH', 'netPerH']);
+export const FINDING_RULES = Object.freeze({
+  dead: 'no core outcome resolved in any group at any step',
+  intendedMiss: 'the largest elasticity on an intended outcome is under 0.05, or nothing resolved on it',
+  sideEffect: 'an outcome the lever is not for moves with an elasticity of 0.5 or more (rate outcomes, all cells)',
+  byLevel: 'the high-step elasticity differs between two Levels by more than 0.3 and by more than a factor of two, or changes sign, both resolved',
+  byStyle: 'at one step the outcome rises for one lone way and falls for another, both resolved',
+  redundant: 'two levers whose effect vectors (every cell, every core rate outcome, lowest and highest step) have a cosine of 0.9 or more, or -0.9 or less',
+  nonlinear: 'the low-step and high-step elasticities differ by 0.25 or more and by 30% of the larger, both resolved',
+});
+export function findings(M) {
+  const out = { dead: [], intendedMiss: [], sideEffect: [], byLevel: [], byStyle: [], redundant: [], nonlinear: [] };
+  const levels = M.groups.filter((g) => g.id.startsWith('L:')).map((g) => g.id), ways = M.groups.filter((g) => g.id.startsWith('way:')).map((g) => g.id);
+  for (const [id, lv] of Object.entries(M.oat)) {
+    const E = M.elast[id];
+    const anyRes = M.groups.some((g) => CORE.some((o) => E[g.id] && E[g.id][o] && E[g.id][o].anyResolved));
+    if (!anyRes) { out.dead.push({ lever: id }); continue; }
+    const best = (r) => (r ? Math.max(0, ...[r.lo, r.local, r.hi].filter(finite).map(Math.abs)) : 0);
+    for (const o of lv.intends) { const r = E.all[o]; if (!r || !r.anyResolved || best(r) < 0.05) out.intendedMiss.push({ lever: id, outcome: o, lo: r ? r.lo : null, local: r ? r.local : null, hi: r ? r.hi : null, resolved: r ? r.anyResolved : 0 }); }
+    for (const o of CORE) {
+      const r = E.all[o];
+      if (!r || !r.anyResolved || kindOf(o) !== 'rel') continue;
+      if (!lv.intends.includes(o) && best(r) >= 0.5) out.sideEffect.push({ lever: id, outcome: o, lo: r.lo, local: r.local, hi: r.hi });
+      if (KEY_OUTS.includes(o) && r.rLo && r.rHi && finite(r.lo) && finite(r.hi) && Math.abs(r.hi - r.lo) >= 0.25 && Math.abs(r.hi - r.lo) >= 0.3 * Math.max(Math.abs(r.hi), Math.abs(r.lo))) out.nonlinear.push({ lever: id, outcome: o, lo: r.lo, local: r.local, hi: r.hi, steps: [E._steps.lo, E._steps.hi] });
+    }
+    for (const o of KEY_OUTS) {
+      const per = levels.map((g) => ({ g, r: E[g] && E[g][o] })).filter((x) => x.r && x.r.rHi && finite(x.r.hi));
+      if (per.length >= 2) {
+        const hi = per.reduce((a, b) => (b.r.hi > a.r.hi ? b : a)), lo = per.reduce((a, b) => (b.r.hi < a.r.hi ? b : a));
+        const flip = hi.r.hi > 0 && lo.r.hi < 0, wide = Math.abs(hi.r.hi - lo.r.hi) > 0.3 && Math.max(Math.abs(hi.r.hi), Math.abs(lo.r.hi)) > 2 * Math.min(Math.abs(hi.r.hi), Math.abs(lo.r.hi));
+        if (flip || wide) out.byLevel.push({ lever: id, outcome: o, at: E._steps.hi, byLevel: Object.fromEntries(per.map((x) => [x.g, x.r.hi])), flip });
+      }
+      for (const m of Object.keys(lv.steps)) {
+        const es = ways.map((g) => ({ g, e: lv.steps[m][g] && lv.steps[m][g][o] })).filter((x) => x.e && x.e.r && x.e.k !== 'd');
+        const up = es.filter((x) => x.e.e > 0), down = es.filter((x) => x.e.e < 0);
+        if (up.length && down.length) { out.byStyle.push({ lever: id, outcome: o, m: Number(m), up: Object.fromEntries(up.map((x) => [x.g, x.e.e])), down: Object.fromEntries(down.map((x) => [x.g, x.e.e])) }); break; }
+      }
+    }
+  }
+  out.redundant = M.pairs.filter((p) => Math.abs(p.cos) >= 0.9 && p.normA >= 0.05 && p.normB >= 0.05);
+  out.sideEffect.sort((a, b) => Math.max(Math.abs(b.lo || 0), Math.abs(b.hi || 0)) - Math.max(Math.abs(a.lo || 0), Math.abs(a.hi || 0)));
+  return out;
+}
+
 /* ── THE REPORT ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const pct = (x, d = 1) => (finite(x) ? (x >= 0 ? '+' : '') + (100 * x).toFixed(d) + '%' : '  n/a');
 const num = (x, d = 2) => (finite(x) ? (x >= 0 ? '+' : '') + x.toFixed(d) : ' n/a');
@@ -324,6 +369,26 @@ function reportOat(M, out) {
     for (const r of rank[o].slice(0, 12)) out('  ' + r.id.padEnd(20) + num(r.lo).padStart(8) + num(r.local).padStart(8) + num(r.hi).padStart(8));
   }
   return rank;
+}
+/* the matrix as a markdown table: a row a lever, a column a core outcome, the local elasticity, then (low / high) where either end
+   differs from it by 0.15 or more. `.` is a cell where nothing resolved. --group picks the cells (default all). */
+function mdMatrix(M, out) {
+  const g = arg('group', 'all');
+  const cols = arg('outcomes') ? arg('outcomes').split(',') : CORE;
+  const f = (x) => (finite(x) ? (Math.abs(x) < 0.005 ? '0' : x.toFixed(2)) : '?');
+  out('| Lever | ' + cols.join(' | ') + ' |');
+  out('|---|' + cols.map(() => '---').join('|') + '|');
+  const size = (id) => Math.max(0, ...cols.map((o) => { const r = M.elast[id][g] && M.elast[id][g][o]; return r && r.anyResolved && kindOf(o) === 'rel' ? Math.max(...[r.lo, r.local, r.hi].filter(finite).map(Math.abs), 0) : 0; }));
+  for (const id of Object.keys(M.oat).sort((a, b) => size(b) - size(a))) {
+    const cells = cols.map((o) => {
+      const r = M.elast[id][g] && M.elast[id][g][o];
+      if (!r || !r.anyResolved) return '.';
+      const mid = finite(r.local) ? r.local : finite(r.hi) ? r.hi : r.lo;
+      const ends = [r.lo, r.hi].some((x) => finite(x) && Math.abs(x - mid) >= 0.15 && Math.abs(x - mid) >= 0.3 * Math.max(Math.abs(x), Math.abs(mid)));
+      return f(mid) + (ends ? ' (' + f(r.lo) + ' / ' + f(r.hi) + ')' : '');
+    });
+    out('| ' + id + ' | ' + cells.join(' | ') + ' |');
+  }
 }
 function reportLever(M, id, out) {
   const lv = M.oat[id];
@@ -395,6 +460,8 @@ async function main() {
   }
   const P = loadParts(src);
   const M = { ...buildMatrix(P), structure: await structure(P) };
+  M.findings = findings(M);
+  M.findingRules = FINDING_RULES;
   const prev = existsSync(MATRIX_FILE) ? JSON.parse(readFileSync(MATRIX_FILE, 'utf8')) : {};
   const doc = { schema: 'hearthrise.balance-sensitivity-matrix/1', scenarioHash: P.scenarioHash, commits: P.commits, githubRuns: arg('run') ? arg('run').split(',') : prev.githubRuns || [], seedSets: P.seedSets,
     cells: P.meta, outcomes: OUTCOMES.map(([id, label, category, unit]) => ({ id, label, category, unit, kind: kindOf(id) })), core: CORE, ...M };
@@ -408,6 +475,18 @@ async function main() {
     for (const r of M.structure) out('  ' + r.key.padEnd(30) + String(r.ground).padEnd(17) + ' kills ' + String(r.killsPerH).padStart(6) + (r.ceiling ? ' / ' + String(r.ceiling).padStart(4) + ' = ' + (100 * r.ceilingShare).toFixed(0).padStart(3) + '%' : '              ') + '  xp ' + String(r.levelXpPerH).padStart(8) + ' net xp ' + String(r.netLevelXpPerH).padStart(8) + '  taken ' + String(r.takenPerH).padStart(7) + '  store ' + String(r.storePerH).padStart(7) + '  net ' + String(r.netPerH).padStart(7) + '  deaths ' + r.deaths + ' in ' + r.heroHours + ' h  lowP10 ' + r.lowHpP10 + '  cv(kills,xp) ' + r.cv.killsPerH + ' ' + r.cv.levelXpPerH);
     return 0;
   }
+  if (has('findings')) {
+    const F = M.findings, j = (o) => JSON.stringify(o);
+    out('DEAD (' + FINDING_RULES.dead + '): ' + F.dead.map((x) => x.lever).join(', '));
+    out('INTENDED OUTCOME NOT MOVED: ' + F.intendedMiss.length); for (const x of F.intendedMiss) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + [x.lo, x.local, x.hi].map((v) => num(v)).join(' / ') + (x.resolved ? '' : '  nothing resolved'));
+    out('SIDE EFFECTS OF 0.5 OR MORE: ' + F.sideEffect.length); for (const x of F.sideEffect) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + [x.lo, x.local, x.hi].map((v) => num(v)).join(' / '));
+    out('CHANGES WITH LEVEL: ' + F.byLevel.length); for (const x of F.byLevel) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + 'x' + x.at + ' ' + j(x.byLevel) + (x.flip ? '  SIGN FLIP' : ''));
+    out('OPPOSITE ACROSS STYLES: ' + F.byStyle.length); for (const x of F.byStyle) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + 'x' + x.m + ' up ' + j(x.up) + ' down ' + j(x.down));
+    out('REDUNDANT PAIRS: ' + F.redundant.length); for (const x of F.redundant) out('  ' + (x.a + ' ~ ' + x.b).padEnd(44) + 'cos ' + x.cos + '  size ' + x.normA + ' / ' + x.normB);
+    out('NONLINEAR: ' + F.nonlinear.length); for (const x of F.nonlinear) out('  ' + x.lever.padEnd(20) + x.outcome.padEnd(18) + 'x' + x.steps[0] + ' ' + num(x.lo) + '  local ' + num(x.local) + '  x' + x.steps[1] + ' ' + num(x.hi));
+    return 0;
+  }
+  if (has('md')) { mdMatrix(M, out); return 0; }
   const which = arg('report', 'all');
   if (arg('lever')) { reportLever(M, arg('lever'), out); return 0; }
   if (arg('exp')) { reportFx(M, arg('exp'), out); return 0; }

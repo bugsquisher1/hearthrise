@@ -110,7 +110,8 @@ export const READERS = Object.freeze([
       return cells.filter((c) => hasSus(c) && c.party === 4 && c.gear === 'mid' && c.tier === 'dangerous').map((c) => {
         const hs = heroesOf(c), deaths = sum(hs.map((h) => h.deaths || 0));
         const short = sum(hs.filter((h) => h.style === 'healer').map((h) => sum(Object.entries(h.sustain.shortAt || {}).filter(([a]) => ctx.isHeal(a)).map(([, n]) => n))));
-        return row(c.key, point(short, deaths), short ? 'off' : 'ok', short + ' of ' + deaths + ' death(s) with the healer\'s heal waiting for mana');
+        /* no death in the sample says nothing about deaths: thin, never ok */
+        return row(c.key, point(short, deaths), short ? 'off' : deaths ? 'ok' : 'thin', short + ' of ' + deaths + ' death(s) with the healer\'s heal waiting for mana');
       });
     },
   },
@@ -471,6 +472,7 @@ function selftest() {
   const ctx = plantCtx(FLAT);
   const ok0 = readAll(docOf(honestWorld()), ctx);
   expect('CONTROL: the honest world reads no finding (got ' + ok0.findings.map((f) => f.what).join(' | ') + ')', ok0.findings.length === 0);
+  expect('a Dangerous four with no death reads RD-MANA-DEATHS thin, never ok', (ok0.rows.find((r) => r.reader === 'RD-MANA-DEATHS' && r.at === 'd4') || {}).status === 'thin');
   const each = (cs, key, f) => cs.find((c) => c.key === key).seeds.forEach((s) => s.heroes.forEach(f));
   const plants = [
     ['RD-SUSTAIN: a hardest-tier four nobody hurt', (cs) => each(cs, 'x4', (h) => { h.deaths = 0; })],
@@ -529,7 +531,7 @@ function selftest() {
   expect('an assumptions block with nothing stated reads complete', checkAssumptions(assumptionsOf({})).length > 5);
   expect('CONTROL: a stated block reads incomplete', !checkAssumptions(assumptionsOf({ candidate: null, tree: { commit: 'x', dirty: false }, scenario: { run: 'subset', blocks: ['four'], cells: 1, planHash: 'h', seeds: 1, hours: 1 }, deathRule: 'real', bar: 'b', supply: 's', gear: 'g' })).length);
   for (const f of fails) console.error('FAIL ' + f);
-  console.log('readers selftest: ' + (plants.length + 21) + ' cases, ' + fails.length + ' failed');
+  console.log('readers selftest: ' + (plants.length + 22) + ' cases, ' + fails.length + ' failed');
   return fails.length ? 1 : 0;
 }
 

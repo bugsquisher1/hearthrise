@@ -906,8 +906,12 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
              read, sent at once; the card after it (the Cellar's) is finished by a server fact, so its Got it HIDES it in the residue, which waits in
              the debounce and must be flushed on the way out (src/shell/alerts.js). The second press is the one a reload can lose. */
           await page.evaluate((q) => document.querySelector(q).click(), got);
+          await page.keyboard.press('Escape');   // her window shut: the next card stands in town with its Got it
           const town = '.hs-pointer[data-tutorial]:not([data-tutorial="' + card + '"]) .hs-coach-got';
-          if (!(await wait(page, (q) => [...document.querySelectorAll(q)].some((b) => b.offsetParent), town, 8000))) fails.push('B-18 CONTROL: no next card with a Got it after "' + card + '"');
+          if (!(await wait(page, (q) => [...document.querySelectorAll(q)].some((b) => b.offsetParent), town, 8000))) {
+            fails.push('B-18 CONTROL: no next card with a Got it after "' + card + '"; on screen: ' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('.hs-pointer[data-tutorial]')]
+              .map((p) => p.getAttribute('data-tutorial') + (p.classList.contains('is-min') ? ':min' : '') + (p.querySelector('.hs-coach-got') ? ':got' : '') + (p.offsetParent ? '' : ':hidden')))));
+          }
           else {
             const next = await page.evaluate((q) => [...document.querySelectorAll(q)].find((b) => b.offsetParent).closest('[data-tutorial]').getAttribute('data-tutorial'), town);
             const t0 = Date.now();

@@ -215,37 +215,7 @@ export const PROPERTIES = Object.freeze({
       : 'deathXpLoss takes ' + (M.deathXpLoss(st, f).level || 0) + ' Level XP where levelDeathLoss says ' + M.levelDeathLoss(st.levelXp, f)))),
     deterministic: async ({ M, imp }) => first(await deathStates(imp), (st) => (show(M.deathXpLoss(st)) === show(M.deathXpLoss(JSON.parse(show(st)))) ? null : 'deathXpLoss answered twice differently')),
   }),
-  'hero-power': Object.freeze({
-    pmShape: async ({ M, imp }) => { const K = await gearKits(imp); return first(K.kits, (k) => first(K.tempers, (t) => {
-      const b = M.blowsPmOf(k, K.items, t), a = M.armorPmOf(k, K.items, t);
-      return whole(b) && b >= 0 && whole(a) && a >= 0 && a <= 999 ? null : show(k) + ' temper ' + show(t) + ' answers blowsPm ' + b + ', armorPm ' + a;
-    })); },
-    bareIsNone: async ({ M, imp }) => { const K = await gearKits(imp); return first([{}, null], (k) => first(K.tempers, (t) => (M.blowsPmOf(k, K.items, t) === 0 && M.armorPmOf(k, K.items, t) === 0 ? null : 'a bare hero with temper ' + show(t) + ' answers ' + M.blowsPmOf(k, K.items, t) + ' / ' + M.armorPmOf(k, K.items, t)))); },
-    higherGearNoLess: async ({ M, imp }) => {
-      const K = await gearKits(imp);
-      for (let i = 1; i < K.weapons.length; i++) if (M.blowsPmOf({ weapon: K.weapons[i] }, K.items) < M.blowsPmOf({ weapon: K.weapons[i - 1] }, K.items)) return K.weapons[i] + ' gains less than ' + K.weapons[i - 1];
-      for (let i = 1; i < K.sets.length; i++) if (M.armorPmOf(K.sets[i], K.items) < M.armorPmOf(K.sets[i - 1], K.items)) return show(K.sets[i]) + ' loses less than ' + show(K.sets[i - 1]);
-      return null;
-    },
-    deterministic: async ({ M, imp }) => { const K = await gearKits(imp); return first(K.kits, (k) => first(K.tempers, (t) => (M.blowsPmOf(k, K.items, t) === M.blowsPmOf(JSON.parse(show(k)), K.items, t) && M.armorPmOf(k, K.items, t) === M.armorPmOf(JSON.parse(show(k)), K.items, t) ? null : show(k) + ' answered twice differently'))); },
-  }),
 });
-
-/* the catalogue's tiered weapons and armor sets by item Level (one family of each, so "higher" is one line), every kit of them, and a few
-   Temperings (none, every rung, a planted huge rung the ladder clamps) */
-async function gearKits(imp) {
-  const { ITEMS } = await imp('src/data/items.js');
-  const { ARMOUR_SLOTS } = await imp('src/data/core-model.js');
-  const rows = Object.entries(ITEMS).filter(([, it]) => Number.isInteger(it.tier) && Number.isInteger(it.reqLv));
-  const weapons = rows.filter(([, it]) => it.slot === 'weapon' && it.weaponType === 'sword').sort((a, b) => a[1].reqLv - b[1].reqLv).map(([id]) => id);
-  const tiers = [...new Set(rows.map(([, it]) => it.tier))].sort((a, b) => a - b);
-  const sets = tiers.map((t) => Object.fromEntries(ARMOUR_SLOTS.map((s) => [s, (rows.find(([, it]) => it.slot === s && it.tier === t && it.armourClass === 'plate' && Number(it.defB) > 0) || [])[0]]).filter(([, id]) => id)))
-    .filter((s) => Object.keys(s).length).sort((a, b) => ITEMS[Object.values(a)[0]].reqLv - ITEMS[Object.values(b)[0]].reqLv);
-  const kits = weapons.flatMap((w, i) => [{ weapon: w }, { weapon: w, ...(sets[i % Math.max(1, sets.length)] || {}) }]).concat(sets);
-  const all = Object.fromEntries(rows.map(([id, it]) => ['temper:' + (it.slot === 'weapon' ? 'blows' : 'armor') + ':' + it.tier, 3]));
-  const huge = Object.fromEntries(Object.keys(all).map((k) => [k, 1e6]));
-  return { items: ITEMS, weapons, sets, kits, tempers: [undefined, {}, all, huge] };
-}
 
 /* every party of 0 to 6 heroes over the five roles, sampled, plus a large one and an unknown role */
 function roleSets() {

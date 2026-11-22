@@ -1,0 +1,24 @@
+
+V1 on muster_barrows (12 seeds x 12 h, held step read from hour 6; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 6; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       566.8 +- 9.1      6.4  57.7  87.3   10.3    0.8     3.8       64      0     0  0 (0/0/0)                       6  {"hold":6820,"climb":2280,"fall":110}
+weapon:steady     501.5 +- 16.1    12.8  44.7  74.6   15.6    1.4     1.9     67.9      0     0  0 (0/0/0)                       6  {"hold":6871,"climb":2689,"fall":201}
+armor:steady      511.8 +- 33       2.9  45.8  75.3   15.5    1.6     2.1     70.5      0     0  1 (0/0/1)                       6  {"hold":7232,"climb":2709,"fall":205}
+
+pay from a held start (hour 6 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.82x  sd 0.03  n 12  window 6 h  seeds 0.8 0.85 0.82 0.75 0.85 0.83 0.84 0.85 0.82 0.81 0.78 0.83
+  weapon:steady      0.53x  sd 0.06  n 12  window 6 h  seeds 0.58 0.49 0.53 0.5 0.5 0.54 0.5 0.49 0.53 0.49 0.68 0.49
+  armor:steady       0.61x  sd 0.13  n 12  window 6 h  seeds 0.53 0.52 0.57 0.86 0.53 0.64 0.53 0.51 0.74 0.52 0.52 0.84
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 1706 +- 82  income 4729 +- 95  store 9515  loot by band: common 256, uncommon 154, scarce 2613, other 0  n 12
+  weapon:steady     L60  coin 1323 +- 31  income 4292 +- 125  store 9591  loot by band: common 252, uncommon 155, scarce 2562, other 0  n 12
+  armor:steady      L60  coin 1424 +- 89  income 4520 +- 120  store 9622  loot by band: common 266, uncommon 159, scarce 2672, other 0  n 12
+
+power moves (paired seeds): the held step at the changed power minus at base
+  weapon:steady      -65.2 steps (sd 21.8, se 6.3, n 12)
+  armor:steady         -55 steps (sd 38, se 11, n 12)
+
+wall 195 s

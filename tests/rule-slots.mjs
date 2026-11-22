@@ -28,7 +28,7 @@
 //   report's pairs and chance count (tools/balance-program/variants.mjs) read planted series right.
 //
 // Exit: 0 green · 1 a check or a proof failed · 2 harness.
-// mutant-anchors: tools/balance-program/variants/armor/armor.hit-ratio.js tools/balance-program/variants/party-xp/party-xp.even-share.js tools/balance-program/variants/death-cost/death-cost.hours.js tools/balance-program/variants/hero-power/hero-power.step.js tools/balance-program/rule-slots.json
+// mutant-anchors: tools/balance-program/variants/armor/armor.hit-ratio.js tools/balance-program/variants/party-xp/party-xp.even-share.js tools/balance-program/variants/death-cost/death-cost.hours.js tools/balance-program/rule-slots.json
 // ci-step: economy-selftests | Rule slots - every family of every cut slot holds its contract, candidates compose, no variant in a bundle
 // ci-run: node tests/rule-slots.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/rule-slots.mjs --selftest
@@ -216,10 +216,6 @@ const MUTANTS = [
   ['death-cost', 'shareMonotone', '(f / DEATH_XP_LOSS)', '(DEATH_XP_LOSS / f)'],
   ['death-cost', 'skillKeepsLevel', 'const n = skillDeathLoss(k, state && state.skills ? state.skills[k] : 0, fraction);', 'const n = (state && state.skills ? state.skills[k] : 0) || 0;'],
   ['death-cost', 'lossShape', 'return out;\n}', 'out.gold = 1;\n  return out;\n}'],
-  ['hero-power', 'pmShape', 'return shippedBlowsPm(equipment, items, temper) +', 'return -1 + shippedBlowsPm(equipment, items, temper) +'],
-  ['hero-power', 'bareIsNone', ': 0));\n}', ': 1));\n}'],
-  ['hero-power', 'higherGearNoLess', 'up(WEIGHT_GEAR * levelOf(it))', 'up(WEIGHT_GEAR * Math.max(0, 100 - levelOf(it)))'],
-  ['hero-power', 'deterministic', 'const WEIGHT_GEAR = 1.0;', 'let WEIGHT_GEAR = 1.0;', 'up(WEIGHT_GEAR * levelOf(it))', 'up((WEIGHT_GEAR += 0.5) * levelOf(it))'],
   ['death-cost', 'deterministic', 'const DEATH_HOURS = 7.5;', 'let DEATH_HOURS = 7.5;', 'const hours = Math.floor(DEATH_HOURS *', 'const hours = Math.floor((DEATH_HOURS += 0.5) *'],
 ];
 

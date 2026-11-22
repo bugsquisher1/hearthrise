@@ -417,6 +417,44 @@ async function rules(M) {
     await cs.flushResidue({ keepalive: true, hidden: true });
     return puts() === 3 || 'a page hidden past the debounce kept its write back';
   });
+  /* RES-BYE (AR-6, 2026-11-22): THE GOODBYE LEAVES INSIDE THE PAGEHIDE HANDLER. A closing page can be torn down as soon as its pagehide
+     work returns; the stamp's put waited on `await token()` and so started only after the handler, and on a busy machine the page died first:
+     the away card then counted the hunt the player had watched (+33,583 Level XP for an hour, 2 runs in 3). The keepalive put must be on
+     the wire before flushResidue returns to its caller, with the token in hand; a hidden page sends the stamp even inside the debounce. */
+  await t('RES-BYE', async () => {
+    const sent = [];
+    const fetch = (url, init) => { sent.push({ url, keepalive: !!init.keepalive, body: JSON.parse(init.body) }); return Promise.resolve({ ok: true, status: 200, json: async () => (/hr_load/.test(url) ? env(1) : { ok: true }) }); };
+    /* the link as boot.js builds it, on the real auth (asking for a token is a wait of its own: async, and a refresh near its expiry
+       is supabase-js's getSession behind its lock) */
+    let lasting = { access_token: 'jwt', refresh_token: 'r', expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: UID } };
+    const client = { auth: { getSession: () => new Promise((ok) => setTimeout(() => ok({ data: { session: lasting } }), 50)),
+      refreshSession: async () => ({ data: { session: lasting }, error: null }), signOut: async () => {}, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } };
+    const auth = AU.createAuth({ client, device: memStore(), tab: memStore(), redirectTo: 'https://x/' });
+    await auth.refresh();
+    const tokens = auth.tokensFor(UID);
+    if (tokens.held() !== 'jwt') return 'the token in hand was not held: ' + tokens.held();
+    const link = S.createServerLink({ url: 'https://p', publishableKey: 'sb_publishable_test', token: tokens.fresh, renew: tokens.renew, held: tokens.held, fetch });
+    let at = 1000;
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: link, channel: fakeHub().channel, setTimer: () => 1, clearTimer: () => {}, now: () => at });
+    await cs.load();
+    const puts = () => sent.filter((s) => /hr_put_client_state/.test(s.url));
+    cs.setResidue('awaySeen', { s: 's-1', at: 5000, xp: 10 });
+    const going = cs.flushResidue({ keepalive: true });
+    /* nothing awaited: this is the handler's own turn */
+    const now = puts();
+    if (now.length !== 1 || !now[0].keepalive || !now[0].body.p_patch.awaySeen) return 'the goodbye put was not on the wire when the handler returned: ' + JSON.stringify(now);
+    if (!(await going)) return 'the goodbye put was not answered ok';
+    /* hidden inside the debounce: the stamp still goes (a phone's hidden tab may never run the timer) */
+    at += 500;
+    cs.setResidue('awaySeen', { s: 's-1', at: 6000, xp: 20 });
+    cs.flushResidue({ keepalive: true, hidden: true });
+    const hid = puts();
+    if (!(hid.length === 2 && hid[1].keepalive && hid[1].body.p_patch.awaySeen.at === 6000)) return 'a hidden page held the stamp back in the debounce: ' + JSON.stringify(hid);
+    /* an expired token is never sent: the goodbye then waits for a fresh one like any call */
+    lasting = Object.assign({}, lasting, { expires_at: Math.floor(Date.now() / 1000) - 1 });
+    await auth.refresh();
+    return tokens.held() === null || 'an expired token was held: ' + tokens.held();
+  });
   await t('ISO-2', async () => {
     const srv = fakeServer({ 0: env(1), 1: env(1) });
     const hub = fakeHub();
@@ -2782,8 +2820,11 @@ const MUTANTS = [
   ['a roster answer that is no hero is taken, not read', 'src/session/character-session.js', "held && this._take(held, 'load') ? this._heldFor(heldMs) : this._reads.load();", "held ? Promise.resolve(this._take(held, 'load')) : this._reads.load();"],
   ['a roster answer is spent more than once', 'src/session/account-session.js', '    this._rosterReads.delete(slot);\n', ''],
   ['[tick-span] a mid-hunt verb refused settle_first is not caught up', 'src/session/catch-up.js', '    if (!catchingUp(ans) || !o.hunting()) return ans;', '    return ans;'],
-  ['[RES-HIDE] a flickering page writes on every hide', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", ''],
-  ['[RES-HIDE] a closing page holds its write back like a hidden one', 'src/session/character-session.js', "if (hidden && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", 'if (this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;'],
+  ['[RES-HIDE] a flickering page writes on every hide', 'src/session/character-session.js', "if (hidden && !('awaySeen' in this._pending) && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", ''],
+  ['[RES-BYE] a goodbye put waits for a token behind the pagehide handler', 'src/session/server.js', 'let jwt = keep && o.held ? held() : null;', 'let jwt = null;'],
+  ['[RES-BYE] an expired token is sent with a goodbye', 'src/net/auth.js', '(!session.expires_at || session.expires_at * 1000 > now())', 'true'],
+  ['[RES-BYE] a hidden page holds the stamp back in the debounce', 'src/session/character-session.js', "if (hidden && !('awaySeen' in this._pending) && ", 'if (hidden && '],
+  ['[RES-HIDE] a closing page holds its write back like a hidden one', 'src/session/character-session.js', "if (hidden && !('awaySeen' in this._pending) && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;", "if (!('awaySeen' in this._pending) && this._now() - this._putAt < SESSION_CONFIG.residueDebounceMs) return false;"],
   ['[tick-span] the catch-up retry reuses the refused key', 'src/session/catch-up.js', "() => server.rpc(name, { ...args, p_idem: newIdem() }, opt)", '() => server.rpc(name, args)'],
   ['[tick-span] the catch-up retries without settling first', 'src/session/catch-up.js', '    try { await o.catchUp(); } catch (e) { /* the retry\'s own answer says what the server holds */ }\n', ''],
   ['[tick-span] an engine intent\'s catch-up retry reuses the refused key', 'src/session/catch-up.js', 'const next = { ...body, intentId: newIdem() }; return server.accrue(next);', 'return server.accrue(body);'],

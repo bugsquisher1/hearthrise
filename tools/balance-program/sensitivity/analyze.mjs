@@ -647,7 +647,8 @@ async function main() {
     mkdirSync(PARTS_DIR, { recursive: true });
     for (const f of partFiles(src)) writeDoc(join(PARTS_DIR, basename(f)), packPart(readDoc(f)));
   }
-  const P = loadParts(src);
+  /* after --save the matrix is read from the committed copy (five digits), so what is written equals what a later run reads */
+  const P = loadParts(arg('parts') && has('save') ? PARTS_DIR : src);
   const M = { ...buildMatrix(P), structure: await structure(P) };
   M.noise = noiseTable(P);
   if (has('noise')) {

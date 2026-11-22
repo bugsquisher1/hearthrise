@@ -35,6 +35,7 @@ create table if not exists public.hr_danger_rules (
   start_margin      int not null check (start_margin >= 0),
   climb_max         int not null check (climb_max >= 1),
   clean_run         int not null check (clean_run >= 1),
+  regroup_ms        int not null check (regroup_ms >= 100),
   power_step_ppm    int not null check (power_step_ppm between 1 and 100000),
   pay_step_xp_ppm   int not null check (pay_step_xp_ppm between 0 and 100000),
   pay_step_coin_ppm int not null check (pay_step_coin_ppm between 0 and 100000),
@@ -67,9 +68,9 @@ comment on table public.hr_danger_grounds is '1055-danger-scale-danger-catalogue
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_danger_rules;
-insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, power_step_ppm, pay_step_xp_ppm,
+insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
   pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per) values
-  (true, 4000, 8, 15000, 20, 8, 2, 3500, 7000,
+  (true, 4000, 8, 15000, 20, 8, 2, 1500, 3500, 7000,
    7000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[]);
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values

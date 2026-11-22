@@ -6,7 +6,8 @@
 // LEVEL_PACE.targets the one source of the hours a Level takes. The engine reads the data (src/core/hunt/danger.js); the server reads
 // these tables when it freezes a hunt's stance and start step (1056-danger-scale.sql hr_danger_freeze) and when it bounds a window
 // played on the scale (hr_danger_bound). This writes them whole, with the SQL twins of the two pay functions and a self-check.
-//   hr_danger_rules     one row: step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, the pay levers (ppm), the hours spans
+//   hr_danger_rules     one row: step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms (hunt-tuning.js: every
+//                       cleared pull rests at least this long, so a window's climb is bounded by its time), the pay levers (ppm), the hours spans
 //   hr_danger_stances   per stance: rank (0 the safest), fall_pm, clean_pm, after_death (the stance a death settles to, never bolder)
 //   hr_danger_grounds   per ground the scale opens on: ref_step, share_pm_max (the most of a row's health one monster carries at any step),
 //                       coin_pm_max (the most of a row's coin one kill pays: that share x the depth ratio at the gap ceiling)
@@ -41,12 +42,13 @@ export const PIN_LEVELS = Object.freeze([1, 9, 40, 60, 75, 300, 1000]);
 async function load(root) {
   const v = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
-  const [data, core, model, grounds] = await Promise.all([imp('src/data/danger.js'), imp('src/core/hunt/danger.js'), imp('src/data/core-model.js'), imp('src/data/hunt-grounds.js')]);
-  return { data, core, model, grounds };
+  const [data, core, model, grounds, tuning] = await Promise.all([imp('src/data/danger.js'), imp('src/core/hunt/danger.js'), imp('src/data/core-model.js'),
+    imp('src/data/hunt-grounds.js'), imp('src/data/hunt-tuning.js')]);
+  return { data, core, model, grounds, tuning };
 }
 
 /** The resolved rows of the data, refused on a defect. */
-export function rowsOf({ data, core, model, grounds }) {
+export function rowsOf({ data, core, model, grounds, tuning }) {
   const { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } = data;
   const ids = Object.keys(RISKS);
   ids.forEach((id, rank) => {
@@ -64,11 +66,11 @@ export function rowsOf({ data, core, model, grounds }) {
   for (let i = 1; i < spans.length; i++) if (!(spans[i][1] >= spans[i - 1][1]) || !(spans[i][0] > spans[i - 1][0])) throw new Error('gen-danger: the hours table\'s spans fall at ' + spans[i][0]);
   const rules = {
     step_max: DANGER.stepMax, pull_max: DANGER.pullMax, respawn_ms: DANGER.respawnMs, start_margin: DANGER.startMargin,
-    climb_max: CLIMB.climbMax, clean_run: CLIMB.cleanRun, power_step_ppm: ppm(DANGER.powerStep, 'powerStep'),
+    climb_max: CLIMB.climbMax, clean_run: CLIMB.cleanRun, regroup_ms: tuning.HUNT_TUNING.regroupMs, power_step_ppm: ppm(DANGER.powerStep, 'powerStep'),
     pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(PAY.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
     ref_kills_head: PAY.refKillsHead, hours_at: spans.map((s) => s[0]), hours_per: spans.map((s) => s[1]),
   };
-  for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'gap_max', 'ref_kills_head']) {
+  for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'regroup_ms', 'gap_max', 'ref_kills_head']) {
     if (!Number.isInteger(rules[k]) || rules[k] < 0) throw new Error('gen-danger: ' + k + ' ' + rules[k] + ' is not a whole number');
   }
   const ground = [];
@@ -139,6 +141,7 @@ create table if not exists public.hr_danger_rules (
   start_margin      int not null check (start_margin >= 0),
   climb_max         int not null check (climb_max >= 1),
   clean_run         int not null check (clean_run >= 1),
+  regroup_ms        int not null check (regroup_ms >= 100),
   power_step_ppm    int not null check (power_step_ppm between 1 and 100000),
   pay_step_xp_ppm   int not null check (pay_step_xp_ppm between 0 and 100000),
   pay_step_coin_ppm int not null check (pay_step_coin_ppm between 0 and 100000),
@@ -171,9 +174,9 @@ comment on table public.hr_danger_grounds is '${OUT_NAME}: the grounds the Dange
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_danger_rules;
-insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, power_step_ppm, pay_step_xp_ppm,
+insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
   pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per) values
-  (true, ${R.step_max}, ${R.pull_max}, ${R.respawn_ms}, ${R.start_margin}, ${R.climb_max}, ${R.clean_run}, ${R.power_step_ppm}, ${R.pay_step_xp_ppm},
+  (true, ${R.step_max}, ${R.pull_max}, ${R.respawn_ms}, ${R.start_margin}, ${R.climb_max}, ${R.clean_run}, ${R.regroup_ms}, ${R.power_step_ppm}, ${R.pay_step_xp_ppm},
    ${R.pay_step_coin_ppm}, ${R.gap_max}, ${R.ref_kills_head}, '{${R.hours_at.map(lit).join(',')}}'::numeric[], '{${R.hours_per.map(lit).join(',')}}'::numeric[]);
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values

@@ -405,8 +405,9 @@ export function runPhase(inst, sc) {
       w.packs[p].alive = false;
       w.packs[p].aggro = false;
       w.packs[p].holder = null;
-      /* THE DANGER SCALE (danger.js): the pull's end moves the step, and the pack is down only a moment (the pace is the party's) */
-      pullEnds(inst, sc);
+      /* THE DANGER SCALE (danger.js): the pull's end moves the step (a CLEARED pull, the only kind that can count clean), and the pack is
+         down only a moment (the pace is the party's) */
+      pullEnds(inst, sc, true);
       w.packs[p].respawnAtMs = sc.atMs + respawnMsOf(inst);
       w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;
     } else if (!w.packs[p].aggro) {

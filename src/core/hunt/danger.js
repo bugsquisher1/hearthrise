@@ -175,8 +175,11 @@ export function pullBegins(world) {
  * step moves. A hero died (low 0): down CLIMB.deathSteps. Under the stance's trigger: a fall back, down CLIMB.fallSteps. At or over its
  * climb threshold: a clean pull, and CLIMB.cleanRun of them in a row climb. Between the two: the step holds and the climb goes back
  * to one step. Answers the step's dial when it moved, else null.
+ * ONLY A CLEARED PULL IS CLEAN (wave 1): a pull the leash took home cleared nothing and proves nothing, so over the climb threshold it
+ * holds and leaves the run as it was (under the trigger it still falls back). So every climb is CLIMB.cleanRun cleared pulls, each
+ * followed by its regroup: the server bounds a window's climb by its time (1056-danger-scale.sql hr_danger_bound).
  */
-export function pullEnds(inst, sc) {
+export function pullEnds(inst, sc, cleared = false) {
   const w = inst.world;
   if (!dangerOn(w)) return null;
   const st = RISKS[w.risk], from = w.danger, low = w.low;
@@ -189,7 +192,7 @@ export function pullEnds(inst, sc) {
     w.climb = 1; w.clean = 0; w.cool = CLIMB.coolPulls;
   } else if (low >= st.cleanPm) {
     /* (a clean pull inside the cool-down after a fall back counts for nothing: the party steadies before it climbs again) */
-    if (!cooling) {
+    if (!cooling && cleared) {
       w.clean += 1;
       if (w.clean >= CLIMB.cleanRun) { why = 'climb'; to = from + w.climb; w.climb = Math.min(CLIMB.climbMax, w.climb * 2); w.clean = 0; }
     }

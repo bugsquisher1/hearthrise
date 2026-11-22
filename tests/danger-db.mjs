@@ -5,9 +5,10 @@
 //   node tests/danger-db.mjs --mutate   the proof: each SQL mutant turns it red
 //
 // THE MEASURE: the replayed chain (PGlite), the shipped world tick and the viewed hello (tools/settle-cost.mjs), the real engine.
-//   DZ-1 BOTH PATHS: a Level 60 hero on Muster Barrows whose plan names Steady and who last held step 300 there: browser closed (the tick's
-//        `fire` door) and hunt viewed (index.ts's hello, the `viewed` door) from one anchor. The instance froze steady at 300 - start_margin,
-//        every window landed (no refusal), the stored world plays the scale (a stance, a step), the two doors store the same world and pay the
+//   DZ-1 BOTH PATHS: a Level 60 four on Muster Barrows whose leader's plan names Steady, each of whom last held step 20 there (it opens
+//        at the ground as built and climbs): browser closed (the tick's `fire` door) and hunt viewed (index.ts's hello, the `viewed` door) from
+//        one anchor. The instance froze steady at 20 - start_margin (0),
+//        every window landed (no refusal), the stored world plays the scale (a stance, a step it climbed to), the two doors store the same world and pay the
 //        same Level XP, and every kill paid the scale's share of the hero's own Level (src/core/hunt/danger.js levelShareXp) at a step the
 //        window could stand at, never its row's XP.
 //   DZ-2 THE SECTION: a reload's `danger` section names the frozen stance, the start and the stored world's step (the server's numbers).
@@ -25,6 +26,8 @@ import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 3;
 const MUSTER = 'muster_barrows';
+/* the step the hero last held there: shallow enough that a Level 60 climbs inside the guard's windows (the section and the climb bound read a moved step) */
+const HELD = 20;
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
 const idem = () => crypto.randomUUID();
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
@@ -45,7 +48,7 @@ const planWith = (risk, held) => async ({ db, uids, asUser, one: q, idem: id }) 
 
 async function door(db, which, o = {}) {
   const run = await prepare({ heroes: o.heroes || 1, windows: WINDOWS, hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: GEAR,
-    beforeEnter: planWith(o.risk === undefined ? 'steady' : o.risk, o.held || [300]) });
+    beforeEnter: planWith(o.risk === undefined ? 'steady' : o.risk, o.held || [HELD]) });
   await run.warm();
   for (let w = 2; w <= WINDOWS + 1; w++) await run.step(w);
   const row = (await db.query(`select i.id, i.risk, i.danger, i.danger_top, i.refusals, i.world::text as world, s.user_id, s.id as sid
@@ -60,18 +63,19 @@ async function door(db, which, o = {}) {
 
 async function bothPaths(boot) {
   const problems = [];
-  const closed = await door((await boot()).db, 'fire');
-  const viewed = await door((await boot()).db, 'viewed');
-  const start = 300 - DANGER.startMargin;
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, held: [HELD, HELD, HELD, HELD] });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, held: [HELD, HELD, HELD, HELD] });
+  const start = HELD - DANGER.startMargin;
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) {
     if (r.risk !== 'steady' || r.danger !== start) problems.push('DZ-1 ' + name + ': the instance froze ' + r.risk + ' at ' + r.danger + ', want steady at ' + start);
     if (Number(r.refusals) !== 0) problems.push('DZ-1 ' + name + ': ' + r.refusals + ' window(s) refused');
     const w = r.world ? decodeStored(JSON.parse(r.world)) : null;
-    if (!w || !['steady', 'careful'].includes(w.risk) || !Number.isInteger(w.danger)) problems.push('DZ-1 ' + name + ': the stored world plays ' + JSON.stringify(w && { risk: w.risk, danger: w.danger }) + ', not the scale');
+    if (!w || !['steady', 'careful'].includes(w.risk) || !(Number.isInteger(w.danger) && w.danger > start)) problems.push('DZ-1 ' + name + ': the stored world plays ' + JSON.stringify(w && { risk: w.risk, danger: w.danger }) + ', not the scale');
     if (!(r.xp > 0)) problems.push('DZ-1 ' + name + ': no Level XP was paid');
-    const g = HUNT_GROUNDS[MUSTER], lo = Math.floor(levelShareXp(60, Math.max(0, start - CLIMB.deathSteps - CLIMB.fallSteps), g));
+    /* a kill pays each hero its share over the heroes there (one to four), at a step between the deepest fall and the most it can climb */
+    const g = HUNT_GROUNDS[MUSTER], lo = Math.floor(levelShareXp(60, Math.max(0, start - CLIMB.deathSteps - CLIMB.fallSteps), g) / 4);
     const hi = Math.ceil(levelShareXp(60, start + CLIMB.climbMax * r.kills, g));
-    if (!(r.kills > 0) || r.xp < r.kills * lo || r.xp > r.kills * hi) problems.push('DZ-1 ' + name + ': ' + r.xp + ' Level XP over ' + r.kills + ' kills, not the scale\'s share of Level 60 a kill (' + lo + '..' + hi + ')');
+    if (!(r.kills > 0) || r.xp < r.kills * lo || r.xp > r.kills * hi) problems.push('DZ-1 ' + name + ': ' + r.xp + ' Level XP over ' + r.kills + ' kills, not the scale\'s share of Level 60 a kill over one to four heroes (' + lo + '..' + hi + ')');
   }
   if (closed.world !== viewed.world) problems.push('DZ-1 the two doors stored different worlds');
   if (closed.xp !== viewed.xp) problems.push('DZ-1 browser closed pays ' + closed.xp + ' Level XP, hunt viewed ' + viewed.xp);
@@ -106,11 +110,11 @@ async function offScale(boot) {
 const MUTANTS = [
   { name: 'the freeze ignores the margin', fn: 'public.hr_danger_freeze()', find: "- coalesce(v_margin, 0)", repl: '- 0', want: /^DZ-1 .*froze/ },
   { name: 'the engine never reads the frozen stance', fn: 'public.hr_hunt_instance_read(uuid,integer)', find: "jsonb_build_object('risk', v_i.risk, 'danger', v_i.danger)", repl: "jsonb_build_object('risk', null, 'danger', null)", want: /^DZ-1 .*(not the scale|refused|THREW)/ },
-  { name: 'the climb bound gives no slack a kill', fn: 'public.hr_danger_bound(uuid,uuid,integer,bigint)', find: 'if v_step > v_top + v_r.climb_max * greatest(p_kills, 0) then', repl: 'if v_step > v_top then', want: /^(DZ-1 .*refused|THREW)/ },
+  { name: 'the climb bound admits no honest climb', fn: 'public.hr_danger_bound(uuid,uuid,integer,bigint)', find: 'if v_step > v_top + v_climb then', repl: 'if v_step > v_top then', want: /^(DZ-1 .*refused|THREW)/ },
   { name: 'the end never stamps the held step', fn: 'public.hr_danger_end_stamp()', find: 'on conflict (user_id, slot, hunt_id) do update set danger_held = excluded.danger_held;', repl: 'on conflict (user_id, slot, hunt_id) do nothing;', want: /^DZ-3/ },
   { name: 'the section reads the plan for the hunt', fn: 'public.hr_danger_view(uuid,integer)', find: "'step', coalesce(case when jsonb_typeof(v_w->'step') = 'number' then (v_w->>'step')::int end, v_i.danger),", repl: "'step', v_i.danger,", want: /^DZ-2/ },
   { name: 'a party starts at its leader\'s held step', fn: 'public.hr_danger_freeze()', find: 'select m.user_id, m.slot from public.hunt_party_members m where m.party_id = new.instance_id\n          union ', repl: '', want: /^DZ-4/, four: true },
-  { name: 'a hunt with no stance opens on one', fn: 'public.hr_danger_freeze()', find: 'select hp.risk into v_risk from', repl: "select coalesce(hp.risk, 'steady') into v_risk from", want: /^DZ-5/, off: true },
+  { name: 'a hunt with no stance opens on one', fn: 'public.hr_danger_freeze()', find: '  if v_risk is null or not exists (select 1 from public.hr_danger_stances s where s.risk = v_risk)', repl: "  v_risk := coalesce(v_risk, 'steady');\n  if v_risk is null or not exists (select 1 from public.hr_danger_stances s where s.risk = v_risk)", want: /^DZ-5/, off: true },
 ];
 
 async function main() {

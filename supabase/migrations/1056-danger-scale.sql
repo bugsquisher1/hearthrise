@@ -36,8 +36,8 @@
 -- SETTLE (hr_hunt_apply_member, spliced; hr_danger_of, hr_danger_bound):
 --   (a) the kill bound: a ground on the scale presents at most pull_max a pocket, and a cleared pack stands again after respawn_ms;
 --   (b) the stored world is re-proved: its stance is the frozen one or a safer (rank never rises; a world off the scale on a frozen instance
---       plays the tier and gets the tier's bounds), its step inside 0..step_max and at most climb_max x this window's kills over the highest
---       step accepted before (each climb needs a cleared pull, and the kill that clears it is journalled in the window it lands in);
+--       plays the tier and gets the tier's bounds), its step inside 0..step_max and at most the window's climb over the highest step accepted
+--       before (a climb is clean_run CLEARED pulls, each followed by a regroup of regroup_ms: climb_max x (window / (clean_run x regroup_ms) + 1));
 --       refused danger_risk / danger_step / danger_climb (hr_reject: the whole commit rolls back);
 --   (c) the value bound follows the step: XP a kill up to the row bound x (1 + powerStep)^(the highest step the window can have stood at)
 --       x the ground's share_pm_max, and a Level XP kill up to hr_danger_level_xp_max at the hero's Level (and the two under it); coin a kill
@@ -160,14 +160,14 @@ end $fn$;
 
 -- THE BOUND OF A WINDOW ON THE SCALE (hr_hunt_apply_member, after hr_apply and the kill bound): the stored world re-proved, the highest step
 -- accepted raised, and what one kill there may pay. Raises (hr_reject) on a world the server cannot accept; null when the world plays the tier.
-create or replace function public.hr_danger_bound(p_instance uuid, p_user uuid, p_slot int, p_kills bigint)
+create or replace function public.hr_danger_bound(p_instance uuid, p_user uuid, p_slot int, p_window_ms bigint)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   v_i  public.hunt_instances%rowtype;
   v_r  public.hr_danger_rules%rowtype;
   v_g  public.hr_danger_grounds%rowtype;
   v_w  jsonb;
-  v_step int; v_top int; v_hi int; v_lv int; v_xp bigint;
+  v_step int; v_top int; v_hi int; v_lv int; v_xp bigint; v_climb int;
 begin
   -- DANGER-SCALE (1056-danger-scale.sql)
   select * into v_i from public.hunt_instances i where i.id = p_instance;
@@ -177,6 +177,9 @@ begin
   select * into v_g from public.hr_danger_grounds g where g.hunt_id = v_i.hunt_id;
   if not found then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'hr_danger_grounds', 'hunt', v_i.hunt_id)); end if;
   v_top := coalesce(v_i.danger_top, v_i.danger, 0);
+  -- THE MOST A WINDOW CAN CLIMB: a climb is clean_run CLEARED pulls (danger.js pullEnds), each followed by a regroup of at least regroup_ms
+  -- (pull-cycle.js), so at most window / (clean_run x regroup_ms) + 1 climbs of at most climb_max steps (the first may use a run carried in)
+  v_climb := v_r.climb_max * (greatest(p_window_ms, 0) / (v_r.clean_run * v_r.regroup_ms) + 1)::int;
   v_w := public.hr_danger_world(v_i.world);
   if v_w is not null then
     -- a world off the scale on a frozen instance (a scaled window, a restart) plays the tier: the tier's bounds
@@ -188,16 +191,16 @@ begin
        or (v_w->>'step')::numeric < 0 or (v_w->>'step')::numeric > v_r.step_max then
       perform public.hr_reject('danger_step', jsonb_build_object('step', v_w->'step', 'max', v_r.step_max)); end if;
     v_step := (v_w->>'step')::int;
-    if v_step > v_top + v_r.climb_max * greatest(p_kills, 0) then
-      perform public.hr_reject('danger_climb', jsonb_build_object('step', v_step, 'top', v_top, 'kills', p_kills, 'climb_max', v_r.climb_max)); end if;
+    if v_step > v_top + v_climb then
+      perform public.hr_reject('danger_climb', jsonb_build_object('step', v_step, 'top', v_top, 'window_ms', p_window_ms, 'climb', v_climb)); end if;
     if v_step > v_top then
       update public.hunt_instances set danger_top = v_step where id = p_instance and coalesce(danger_top, -1) < v_step;
     end if;
   else
     v_step := v_top;
   end if;
-  -- the highest step any monster of this window can have stood at: the ceiling before it, climbed at most climb_max a kill
-  v_hi := least(v_r.step_max, greatest(v_top, v_step) + v_r.climb_max * greatest(p_kills, 0)::int);
+  -- the highest step any monster of this window can have stood at: the ceiling before it, climbed at most the window's climb
+  v_hi := least(v_r.step_max, greatest(v_top, v_step) + v_climb);
   v_lv := public.hr_char_level((select ps.level_xp from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));
   v_xp := greatest(public.hr_danger_level_xp_max(v_lv), public.hr_danger_level_xp_max(greatest(1, v_lv - 1)),
                    public.hr_danger_level_xp_max(greatest(1, v_lv - 2)));
@@ -385,7 +388,7 @@ $a$;
   -- and what one kill on the scale may pay: XP at the step's health, Level XP at the hero's own Level share, coin at the depth ratio.
   -- Each only widens the tier bound; a world that plays the tier keeps it.
   if v_dz is not null then
-    v_dz := public.hr_danger_bound(p_instance, p_user, p_slot, v_kills);
+    v_dz := public.hr_danger_bound(p_instance, p_user, p_slot, v_win);
     if v_dz is not null then
       v_vb_gold := greatest(v_vb_gold, ceil(v_vb_gold * (v_dz->>'coin_pm')::numeric / 1000.0)::bigint);
       v_vb_xp := greatest(v_vb_xp, ceil(v_vb_xp * (v_dz->>'hp_pm')::numeric / 1000.0)::bigint, (v_dz->>'level_xp_max')::bigint);
@@ -424,7 +427,7 @@ begin
     raise exception 'VERIFY(a): the verb''s baseline row or the section is missing'; end if;
   -- (b) the splices landed once each
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
-  if (length(v_def) - length(replace(v_def, 'public.hr_danger_bound(p_instance, p_user, p_slot, v_kills)', ''))) / length('public.hr_danger_bound(p_instance, p_user, p_slot, v_kills)') <> 1
+  if (length(v_def) - length(replace(v_def, 'public.hr_danger_bound(p_instance, p_user, p_slot, v_win)', ''))) / length('public.hr_danger_bound(p_instance, p_user, p_slot, v_win)') <> 1
      or strpos(v_def, 'v_dz := public.hr_danger_of(p_instance);') = 0 then
     raise exception 'VERIFY(b): hr_hunt_apply_member does not read the scale''s bound once'; end if;
   if strpos(replace(pg_get_functiondef('public.hr_hunt_instance_read(uuid,integer)'::regprocedure), chr(13), ''), $a$jsonb_build_object('risk', v_i.risk, 'danger', v_i.danger)$a$) = 0 then
@@ -477,23 +480,23 @@ begin
               from generate_series(0, (select count(*) from jsonb_object_keys((select fields->'world' from public.hr_hunt_world_shape where id)))::int - 1) k2),
       'u', '[]'::jsonb, 'p', '[]'::jsonb)::text where id = v_iid;
     begin
-      perform public.hr_danger_bound(v_iid, v_u, 0, 3);
+      perform public.hr_danger_bound(v_iid, v_u, 0, 10000);
       raise exception 'VERIFY(g): a bolder world than the frozen stance was accepted';
     exception when others then
       if sqlerrm not like '%danger_risk%' then raise exception 'VERIFY(g): a bolder world answered %', sqlerrm; end if;
     end;
     update public.hunt_instances set world = replace(world, '"bold"', '"careful"') where id = v_iid;
-    v := public.hr_danger_bound(v_iid, v_u, 0, 0);
+    v := public.hr_danger_bound(v_iid, v_u, 0, 10000);
     if (v->>'step')::int <> 280 or (v->>'level_xp_max')::bigint < public.hr_danger_level_xp_max(60) then
       raise exception 'VERIFY(g): a safer honest world bounds %', v; end if;
     update public.hunt_instances set world = replace(world, '280', '400') where id = v_iid;
     begin
-      perform public.hr_danger_bound(v_iid, v_u, 0, 2);
-      raise exception 'VERIFY(g): a climb of 120 steps on 2 kills was accepted';
+      perform public.hr_danger_bound(v_iid, v_u, 0, 10000);
+      raise exception 'VERIFY(g): a climb of 120 steps in a 10 s window was accepted';
     exception when others then
       if sqlerrm not like '%danger_climb%' then raise exception 'VERIFY(g): a forged climb answered %', sqlerrm; end if;
     end;
-    v := public.hr_danger_bound(v_iid, v_u, 0, 20);
+    v := public.hr_danger_bound(v_iid, v_u, 0, 90000);
     if (select danger_top from public.hunt_instances where id = v_iid) <> 400 then raise exception 'VERIFY(g): the accepted climb left the ceiling at %', (select danger_top from public.hunt_instances where id = v_iid); end if;
     -- (h) THE END STAMP: the session ends with the world's stance and step, and the hero's held step there is the hunt's last
     perform public.hr_hunt_close(v_sid, 'left', now(), true);

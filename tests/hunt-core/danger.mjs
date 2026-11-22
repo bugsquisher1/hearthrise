@@ -9,7 +9,8 @@
 //   off     the same party with no stance: no `danger` event, the world's risk is '' (a tier hunt plays as before).
 //   rule    the climb on one world, pull by pull: two clean pulls climb one step, the next two climb two (the climb doubles), a pull
 //           between the stance's thresholds holds and puts the climb back to one, a pull under the trigger falls CLIMB.fallSteps, a
-//           pull with a death falls CLIMB.deathSteps, and no fall goes under step 0.
+//           pull with a death falls CLIMB.deathSteps, and no fall goes under step 0; a pull that cleared nothing (the leash took it home)
+//           is never clean (wave 1: every climb is cleared pulls, which the server's time bound reads), but it still falls back.
 //   ready   the regroup's exit waits for every standing hero at DANGER.readyPm of its max HP, and leaves at the sub-step the last one
 //           gets there; off the scale a hurt party leaves at once.
 //   scale   the dial: a pull's total health and blow grow by exactly (1 + powerStep) a step and its coin by (1 + payStepCoin) up to the
@@ -95,7 +96,7 @@ const CASES = {
     const inst = instOf(M, w);
     const sc = subStep(0);
     const steps = [];
-    const pull = (low) => { w.low = low; M.danger.pullEnds(inst, sc); steps.push(w.danger); };
+    const pull = (low, cleared = true) => { w.low = low; M.danger.pullEnds(inst, sc, cleared); steps.push(w.danger); };
     /* two clean pulls climb one, two more climb two; a pull between holds and resets the climb; two clean climb one again */
     for (const low of [clean, 1000, clean, 990, between, clean, clean]) pull(low);
     const want = [1000, 1001, 1001, 1003, 1003, 1003, 1004];
@@ -116,6 +117,18 @@ const CASES = {
     w.danger = 3;
     pull(0);
     if (w.danger !== 0) return 'a fall went under step 0: ' + w.danger;
+    /* ONLY A CLEARED PULL IS CLEAN (wave 1): pulls the leash took home climb nothing however whole the party stayed, and leave the run as
+       it was; one under the trigger still falls back */
+    const w2 = world(M, []);
+    M.danger.openDanger(w2, 'steady', 500);
+    const inst2 = instOf(M, w2), sc2 = subStep(0);
+    for (let i = 0; i < 6; i++) { w2.low = 1000; M.danger.pullEnds(inst2, sc2, false); }
+    if (w2.danger !== 500) return 'six pulls that cleared nothing climbed the step to ' + w2.danger;
+    w2.low = 1000; M.danger.pullEnds(inst2, sc2, true);
+    w2.low = 1000; M.danger.pullEnds(inst2, sc2, true);
+    if (w2.danger !== 501) return 'two cleared pulls after them climbed to ' + w2.danger + ', not 501';
+    w2.low = RISKS.steady.fallPm - 1; M.danger.pullEnds(inst2, sc2, false);
+    if (w2.danger !== 501 - CLIMB.fallSteps) return 'an uncleared pull under the trigger left the step at ' + w2.danger;
     const wantWhys = ['hold', 'climb', 'hold', 'climb', 'hold', 'hold', 'climb', 'fall', ...Array(CLIMB.coolPulls).fill('hold'), 'hold', 'climb', 'hold', 'climb', 'death', 'death'].join(',');
     const whys = sc.events.filter((e) => e.type === 'danger').map((e) => e.why).join(',');
     if (whys !== wantWhys) return 'the pulls\' reasons read ' + whys;
@@ -287,7 +300,7 @@ const MUTANTS = [
   { name: 'the climb never doubles', case: 'rule', edits: [['src/core/hunt/danger.js', 'w.climb = Math.min(CLIMB.climbMax, w.climb * 2);', 'w.climb = 1;']] },
   { name: 'a fall back keeps the doubled climb', case: 'rule', edits: [['src/core/hunt/danger.js', 'w.climb = 1; w.clean = 0; w.cool = CLIMB.coolPulls;', 'w.clean = 0; w.cool = CLIMB.coolPulls;']] },
   { name: 'no cool-down after a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', '  if (cooling) w.cool -= 1;\n', '  if (cooling) w.cool = 0;\n']] },
-  { name: 'a clean pull in the cool-down counts', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling) {\n      w.clean += 1;', '    {\n      w.clean += 1;']] },
+  { name: 'a clean pull in the cool-down counts', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling && cleared) {\n      w.clean += 1;', '    if (cleared) {\n      w.clean += 1;']] },
   { name: 'the fall back ignores the stance\'s trigger', case: 'rule', edits: [['src/core/hunt/danger.js', 'if (low <= 0 || low < st.fallPm) {', 'if (low <= 0) {']] },
   { name: 'a death falls no further than a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', 'to = from - (low <= 0 ? CLIMB.deathSteps : CLIMB.fallSteps);', 'to = from - CLIMB.fallSteps;']] },
   { name: 'the clean run does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['climb', 'int'], ['clean', 'int'], ['low', 'int'],", "['climb', 'int'], ['low', 'int'],"]] },
@@ -313,6 +326,8 @@ const MUTANTS = [
   { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };', 'coinPm: share * 1000 };']] },
   { name: 'a broken-off pack is re-formed whole', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (mons.length !== size && packWhole(w.packs[p])) {', '  if (mons.length !== size) {']] },
   { name: 'a fallen pack row is never counted', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '    if (Number.isInteger(u.pocket) && !isAdd(inst, u)) packDown(inst.world, u.pocket);\n', '']] },
+  { name: 'a pull the leash took home counts clean', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling && cleared) {', '    if (!cooling) {']] },
+  { name: 'a cleared pull is never told so', case: 'trace', edits: [['src/core/hunt/pull-cycle.js', '      pullEnds(inst, sc, true);', '      pullEnds(inst, sc);']] },
   { name: 'a respawn keeps the count', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (w.packs[p].down) w.packs[p].down = 0;\n', '']] },
 ];
 

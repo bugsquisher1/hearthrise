@@ -38,7 +38,7 @@ Everything here is a recommendation for review. Nothing is final and no number i
 
 ## 1. The foundation: the step, the gap and the reference company
 
-**The step.** One step is a fixed ratio of power, `s`. A hero of Level L whose gear and skill are all "at Level" has an offence rating and a defence rating of L. A monster of Danger step N has both at N. Every contest reads the gap: the attacker's rating minus the defender's.
+**The step.** One step is a fixed ratio of power, `s`. A hero of Level L whose gear and skill are all "at Level" has an offense rating and a defense rating of L. A monster of Danger step N has both at N. Every contest reads the gap: the attacker's rating minus the defender's.
 
 ```
 amount = base share x s ^ gap
@@ -62,13 +62,13 @@ The search range is 0.25% to 0.5%. The value is settled by two readings that pul
 
 **What a hero's rating is made of.** A weighted mean of three parts, each counted in Levels: the Level itself, the skill for the style in use, and the item Levels of the gear that feeds that rating. The weights sum to one, so two levers (`weightGear`, `weightSkill`). They answer a design question in plain words: how much of a hero is its Level, its training and its kit. Conditional power (a Trait, a move, a buff, an imbuement) adds steps for as long as its "when" holds.
 
-**The display curve.** Players like numbers that grow. Health and damage are shown through one display curve of Level, shared by heroes and monsters, so it cancels in every contest. It is presentation. Any curve works, and it is one lever that moves no outcome. JUDGMENT: keep today's straight line (150 plus 10 a Level) so the numbers stay readable forever.
+**The display curve.** Players like numbers that grow. Health is shown through one display curve of Level, shared by heroes and monsters. Every amount is a share of its target's own health, so the curve cancels in every contest. It is presentation. Any curve works, and it is one lever that moves no outcome. JUDGMENT: keep today's straight line (150 plus 10 a Level) so the numbers stay readable forever.
 
 **The open risk in this section.** A constant step makes the first twenty Levels worth only about 7% of power, where today Levels 1 to 10 raise health by 60%. The early game may need more per Level to feel fast. Two ways, both cheap: a short "early bonus" on the rating (two levers, a size and a Level where it fades), or let the first hour's power come from filling empty gear slots and opening bar slots. SPECULATIVE until a played first hour on the model.
 
 ## 2. Damage and defense
 
-**1. Behavior needed.** Every point of offence and defence can be felt as depth held (identity principle 2). A stat never reaches a wall and never becomes decoration. Two defenses, armor against physical and ward against magic (`02-architecture.md` package 1). A slightly worse kit gives a slightly worse result (principle 3). The same rule for a hero hitting a monster, a monster hitting a hero and, later, a hero hitting a hero.
+**1. Behavior needed.** Every point of offense and defense can be felt as depth held (identity principle 2). A stat never reaches a wall and never becomes decoration. Two defenses, armor against physical and ward against magic (`02-architecture.md` package 1). A slightly worse kit gives a slightly worse result (principle 3). The same rule for a hero hitting a monster, a monster hitting a hero and, later, a hero hitting a hero.
 
 **2. Model families.**
 
@@ -77,23 +77,23 @@ The search range is 0.25% to 0.5%. The value is settled by two readings that pul
 | Subtraction | damage minus armor (SURVEY: the OpenTibia servers' random armor and shield subtraction) | Strong against many small hits, nothing against a big one. Weak hits go to zero | Needs armor to grow with damage forever, by hand | Rejected as the base. It makes fast weapons and ticks useless and is the cause of today's "small hits against big ones" patches |
 | Armor against hit size | armor / (armor + k x raw damage) (SURVEY: Path of Building) | The same bias as subtraction, softened. No Level term needed | Holds if armor and damage grow together | Good second choice. But it makes multi-hit and one-hit moves need separate sizing |
 | Armor against the attacker's Level, with a cap | armor / (armor + k x Level), capped (SURVEY: TrinityCore. Also today's `mitigation.js`) | A percent off, the same for every hit size | Drifts unless gear is on the same line as k x Level. Today it saturates and the 60% cap becomes the real armor number (EVIDENCE: `12-balance-pass.md` 3.6) | Rejected. It is the family that failed |
-| **The step contest** | base share x s ^ (attack rating minus defence rating) | A percent off, the same for every hit size. Each step of armor is the same share less damage at any Level, with no cap | Exact by construction | **Recommended** |
+| **The step contest** | base share x s ^ (attack rating minus defense rating) | A percent off, the same for every hit size. Each step of armor is the same share less damage at any Level, with no cap | Exact by construction | **Recommended** |
 
 **3. Recommendation.**
 
 - **One contest for every amount.** A hero's blow, a spell, a tick, a monster's blow and a heal all use `base share x s ^ gap`. The base share is a share of the reference health of the target's Level, set per move in the rule table.
-- **Two defence ratings.** Armor and ward. An armor piece spends its item Level between them: heavy mostly armor, light mostly ward, medium even. That replaces three different functional forms (dodge, absorb, a flat ward) with one, and the choice of weight stays a real trade.
-- **No cap.** The limit on defence is the number of steps a kit can hold, which is a budget, not a clamp. Buff and Trait steps carry one stated ceiling on what can be active at once (`conditionalStepsMax`).
+- **Two defense ratings.** Armor and ward. An armor piece spends its item Level between them: heavy mostly armor, light mostly ward, medium even. That replaces three different functional forms (dodge, absorb, a flat ward) with one, and the choice of weight stays a real trade.
+- **No cap.** The limit on defense is the number of steps a kit can hold, which is a budget, not a clamp. Buff and Trait steps carry one stated ceiling on what can be active at once (`conditionalStepsMax`).
 - **One roll shape with one spread.** Today a blow rolls from 1 to its maximum, a spell from half, and a heal not at all. One lever, `rollSpread`, for all of them. JUDGMENT: keep the spread narrow (plus or minus 20%) and put danger in monster wind-ups instead. A bar can answer a wind-up. Nothing answers a dice roll.
 - **Drop the separate hit chance contest, or fold it in.** Today a blow first rolls to land (a ratio of two ratings held between 5% and 97%, the common shape, SURVEY: Path of Building's accuracy against evasion) and then rolls damage. Both contests read the same skill and gear, so they double count, and accuracy gear is worth about an eighth of damage gear (EVIDENCE: `44-formula-architecture.md` 5.1). Spells skip it. I recommend a blow always lands, with dodge and block as moves and Traits in the rule table. That removes six levers and the "reference hero" table that monsters' aim is inverted from. `02-architecture.md` keeps accuracy as a thing a skill gives. If the designer wants misses for feel, the clean form is a fixed base miss chance (one lever) that a monster role or a Trait can move, never a second ratings contest.
 
 Levers: `powerStep`, `weightGear`, `weightSkill`, `rollSpread`, `conditionalStepsMax`, and the armor and ward split for each weight (three rows). Eight numbers replace about fourteen.
 
-**4. Coupling.** The gap feeds everything: kill time (section 8), incoming damage and so sustain (section 3), and through depth the pay (section 7). Because offence and defence are the same currency with the same ratio, neither is favored by the formula. Which one a company wants more is decided by what limits its depth, which changes with the ground. That is the build decision.
+**4. Coupling.** The gap feeds everything: kill time (section 8), incoming damage and so sustain (section 3), and through depth the pay (section 7). Because offense and defense are the same currency with the same ratio, neither is favored by the formula. Which one a company wants more is decided by what limits its depth, which changes with the ground. That is the build decision.
 
 **5. Validation.** A cell is a company on a Danger step. Sweep the gap from minus 60 to plus 60 in tens.
 - Time to kill and damage taken per kill must each change by the same ratio for every ten steps, at Levels 30, 300 and 3,000. This is the scale test of section 14.
-- Stat weights by finite difference: add ten steps of offence, then ten of defence, to each seat. Each must move depth held by a readable amount on at least one ground mix.
+- Stat weights by finite difference: add ten steps of offense, then ten of defense, to each seat. Each must move depth held by a readable amount on at least one ground mix.
 - **Proves it wrong:** a seat or a stat whose ten steps move depth by less than the noise on every ground. Or a kit that reaches a gap where it stops taking damage that matters on its own ground.
 
 ## 3. Healing and mana
@@ -211,7 +211,7 @@ A ground is a mix of roles and at most one rule from the shared table. An encoun
 
 Levers: for each of six roles, seconds to kill, pressure, wind-up share and reach. Those are content rows that the designer owns. The global levers are `encounterPerHero`, `rampPerMinute` by encounter type, and wind-up size and frequency scales. Four.
 
-**4. Coupling.** Role seconds and the fight share (section 8) fix the reference kill rate, which sizes pay (sections 5 and 7). Reach sets the front hero's share of damage, which decides whether the back seats' defence is worth anything.
+**4. Coupling.** Role seconds and the fight share (section 8) fix the reference kill rate, which sizes pay (sections 5 and 7). Reach sets the front hero's share of damage, which decides whether the back seats' defense is worth anything.
 
 **5. Validation.**
 - The front hero's share of damage is a designed number for each mix, and it is measured. Today it reads 92 to 100% on nine of fourteen grounds (EVIDENCE: `12-balance-pass.md` 4.1).
@@ -250,7 +250,7 @@ Levers: `payStepXp`, `payStepCoin`, `payStepLoot`, `payGapMax`, `partyPay`. Five
 
 ## 8. Hunting efficiency
 
-**1. Behavior needed.** Pace is set by the company, not by a respawn timer (package 3). Damage, defence and sustain each move the result.
+**1. Behavior needed.** Pace is set by the company, not by a respawn timer (package 3). Damage, defense and sustain each move the result.
 
 **2. The model, which is an identity and not a choice.** An hour is kills times the seconds one kill costs:
 
@@ -486,7 +486,7 @@ Screening and a low-discrepancy sample are about a hundred lines each in Node an
 
 1. **Scale.** The reference company at a gap of zero at Levels 30, 300 and 3,000. Seconds to kill, lowest health, the fight share, the supply share and the share of a Level per hour must agree within noise. This one test stands in for "works at unlimited Levels", and it needs no content past Level 185 because nothing in the model is typed by Level.
 2. **Slope.** Sweep depth in single steps from safe to wiped. The result must degrade in order: the supply bill rises, then pace falls, then fall backs begin, then deaths. Measure the width of the edge in steps from the first fall back to a certain wipe. It must be wider than the largest single power step a player can take (one gear tier), so no single upgrade moves a company from safe to dead or back.
-3. **Weights.** Ten steps of offence, defence and sustain on each seat, by finite difference. Each must move depth held on some ground mix. The ratios between them set the exchange rates that Traits and gear are budgeted with.
+3. **Weights.** Ten steps of offense, defense and sustain on each seat, by finite difference. Each must move depth held on some ground mix. The ratios between them set the exchange rates that Traits and gear are budgeted with.
 
 **Hard constraints and soft objectives.**
 
@@ -503,7 +503,35 @@ Screening and a low-discrepancy sample are about a hundred lines each in Node an
 - **Two layers once gear rolls.** Kits times seeds, with the two spreads reported apart.
 - **Holdout seeds.** The search sees one set of seeds and the final regression plays another. With a hundred targets and thousands of cells some will pass by chance on any one set.
 
-## 15. What is settled, what is not, and what I did not check
+## 15. Source families the Lab can play against each other
+
+The owner's direction of 2026-11-21: build the best combination of formulas from the open versions of the big games. This section names, for each domain, the strongest source model and where two sources joined beat either alone. Each row is a candidate family for the Balance Lab to play on our one engine against the recommendation of this page.
+
+**The hard rules.** A source gives a mechanic or a formula shape as an idea. We rebuild it as our own named function in our engine. We never take a name, text, art or a data table. Code under the GPL is never copied, and data mined from a commercial game is never used. Everything below is SURVEY for the shape and JUDGMENT for the verdict. I did not read the sources.
+
+| Domain | Strongest source model | Why it is strong | Its weak point for us | The better join |
+|---|---|---|---|---|
+| Defense | The ARPG calculators' armor against hit size | Makes heavy armor good against many small hits and weak against one big one, so "what hits me here" becomes a gear question | Multi-hit and one-hit moves need separate sizing, and it has no Level term | **Step contest for the scale, hit size as a role.** Our contest keeps every Level even. A monster role or a Trait can then carry "strong against small hits" as a rule. That gets the question without the drift |
+| Defense, the alternative | The MMO emulators' armor against the attacker's Level | A plain percent the player can read. Fights of the same Level stay even | It is today's family and it needed a cap | Play it uncapped beside the step contest. If the two read the same inside a 60 step gap, keep the simpler text |
+| Hit chance | The ARPG accuracy against evasion ratio | Gives a real evasion build | A second contest on the same stats | **One contest, with evasion as a defense style.** Evasion becomes a rule: a share of blows avoided, paid for with fewer armor steps. A build without a second stat race |
+| Skill progression | The OpenTibia servers' skill by use | The identity of "a hero is what it uses". Proven over decades | Geometric cost, so skill fades beside anything linear | **Tibia's rule, our clock.** Keep gain by use. Replace the geometric cost with time parity so skill stays worth its weight. From the UO servers take one idea only: the guaranteed-gain timer, so no session goes without a gain |
+| Level curve | The OpenTibia servers' cubic total XP | Unbounded, simple, and familiar to this audience | A Level takes ever longer, and so does everything counted in Levels | Play cubic against rise-then-level-off on a career run to Level 1,000. Judge by hours between upgrades, not by the look of the curve |
+| Kill XP | The MMO emulators' XP by Level gap with a gray Level | Players understand "gray gives nothing" at a glance | A hard edge and a hand-set cap above | **Our smooth ratio, their words.** Pay follows `payStep ^ gap`. The screen shows it in their plain bands: full, reduced, almost nothing |
+| Loot | The OpenTibia servers' chance for each item on each monster | Every drop has a home. The bestiary can show it. It is the "drop is a story" model | No structure for rarity or for rolls | **Tibia homes with ARPG items.** Where a thing drops is Tibia's model: a monster family owns its rows and its Trait pool. What the thing is comes from the ARPG side: rarity tiers and rolled properties. The owner named this join, and it is the one this page recommends in section 10 |
+| Item rolls | The ARPG affix schema: groups, weights, item Level gates | The cleanest known way to make a roll table that cannot produce a broken item. One row from each group, weights by item type, gates by Level | Stat affixes get solved once | **Their schema, our content.** Use groups, weights and gates as the data shape for Trait pools. Fill it with rules, not stats. A gate is a step, so a pool grows with depth |
+| Items that change skills | The Diablo-style idea of an item property that changes how a move works | The strongest known source of "this drop changes my build" | Needs each one written by hand | This is the Signature of package 2. Join it with the rule table so a Signature is a row with a "when", not custom code |
+| Sets and rune combinations | Diablo-style sets and recipes | A long chase made of many small finds | Sets push every hero to the same kit | Candidate only. Play a small set as "two Traits that are stronger together" under `conditionalStepsMax`. If it wins the dominance check it ships. If it flattens kits it does not |
+| Magic find | Diablo-style find chance as a stat | A reason to trade power for luck, which is a real decision | Becomes a must-have if it scales the best drops | **Find as steps given up.** A find Trait spends the same budget as a combat Trait. Join it with pity so luck narrows, and with Tibia's homes so find only helps on the ground you chose |
+| Imbuements and spell upgrades | The OpenTibia servers' timed imbuements and upgraded spells | A consumable layer of power made from monster parts, which ties hunting to crafting | Flat percent sizes | Keep the mechanic and size it in steps against one damage type for a set number of hunted hours |
+| The build layer | The ARPG passive tree, and Diablo-style skill trees | Long-term choices with a cost to undo. Thousands of hours of planning | `02-architecture.md` drops Talent trees because stat nodes measured as too small to feel | **A tree of rules, not of percents.** If a tree returns, its nodes are rule rows with step budgets under the same ceiling, and the travel between them is the cost. Candidate for the designer. It competes with "the bar is the build" and should be played against it, not added to it |
+| Offline play | The idle games' capped-tick catch-up | Cheap server time for long absences | Larger steps change outcomes, which breaks "the same viewed or closed" | Not for combat. Our settle already walks the same swings at any cut. Keep the idea for town work only, which is closed form today |
+| The market | The agent market with price beliefs | A way to test whether a price settles before players arrive | A model of people, not of the game | Use it as the range finder of section 11, on engine rates |
+
+**Where the joins matter most.** Three of them carry the design. Tibia's skill by use on our clock (section 4). Tibia's drop homes with ARPG rolled items (section 10). Any source's readable contest on our step, so it holds at every Level (section 2). In each case the source gives the feel and our step gives the scaling.
+
+**How the Lab plays them.** Each family is one patch against the same scenario set and the same dice, read with the acceptance tests of section 14. A family that fails the scale test is out whatever its feel, because it will need a table typed by Level. A family that passes is judged on the slope test, the weights test and the dominance check, and then by play.
+
+## 16. What is settled, what is not, and what I did not check
 
 **JUDGMENT, argued on this page:** the step as the unit. The contest. Targets as times and shares. Pay as a ratio for each step. Hours for a Level that level off. Progress stored as a Level and a share. One hit contest and not two.
 

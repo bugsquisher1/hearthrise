@@ -222,6 +222,7 @@
     "node tools/mutant-gate.mjs node tests/rule-slots.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/arrival-kit.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest": "economy-selftests",
+    "node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/calibrate.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/census.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/experiments.mjs --selftest": "economy-selftests",

@@ -14,7 +14,7 @@
 // Every number is read off the engine's answer (tools/balance-sim/cell.mjs runCell); nothing here computes a fight.
 // ════════════════════════════════════════════════════════════════════════
 import * as STD from './standards.mjs';
-import { cellRates, compsOf, BLESSING_LADDER } from './progression-grid.mjs';
+import { cellRates, compsOf, BLESSING_LADDER, deathXpAt, blessedShareOf } from './progression-grid.mjs';
 import { judgeGrid, statusOf, distanceOf, holds } from './grid-derive.mjs';
 import { ARCHETYPE_AXES } from './matrix-plan.mjs';
 import { STYLE_GROUPS } from './knob-rules.mjs';
@@ -130,8 +130,9 @@ export function cellMetrics(D, meta, seeds, arch = {}) {
     seatsM: seats, byArch, buysPerPartyH,
     /* each seat's Defense rating and the monsters' chance to land on it, before and with its Footing (cell.mjs toHit; the floor CORE-4 owes) */
     toHit: meta.styles.map((_, i) => (seeds[0] && seeds[0].heroes[i] && seeds[0].heroes[i].toHit) || null),
-    /* the Level XP one unblessed death takes at this Level (standards.mjs DEATH_COST: 6% of all Level XP, on this tree's curve) */
-    deathXp: r(STD.DEATH_COST.share * D.XP.charXpForLevel(meta.L)),
+    /* the Level XP one unblessed death takes at this Level, priced by the TREE (progression-grid.mjs deathXpAt: src/core/action-rules.js
+       levelDeathLoss), and the share three Blessings leave (blessedShareOf: src/data/blessings.js), never standards.mjs DEATH_COST typed again */
+    deathXp: r(deathXpAt(D, meta.L)), deathBlessedShare: blessedShareOf(D),
     /* EACH SEED'S ENDS (the sitting's S-14: does the four die together when the front falls?): every seat whose hunt ended before the seed's
        time, [seat, hunted hours at its end, the reason], in the order they ended. Under the real death rule a seed is one hunt, so a seed's
        list is what happened in that hunt; seats that hunted the whole time are not in it */
@@ -228,17 +229,17 @@ export function deriveMatrix(cells) {
   }
   /* XP AFTER DEATHS AT THE RULED COUNT (60 G-7: "add a matrix band that reads XP after deaths"; COMPUTED, because the harness sample is too
      thin for a death rate): a harder-tier cell's Level XP an hour less the ruled deaths a 1,000 hours (standards.mjs S6, the tier and gear's
-     row) x one death's XP x the share a fully blessed death still takes. Three Blessings (DEATH_COST.blessedShare); with Blessings 4 to
+     row) x one death's XP x the share a fully blessed death still takes. Three Blessings (the tree's own table, src/data/blessings.js, read into deathBlessedShare); with Blessings 4 to
      7 (proposal GR-7) each one open at BLESSING_LADDER halves what is left. Read against the same party on Normal: at or over 1 the harder
      tier still pays for its risk */
   const afterDeaths = [];
-  for (const c of ok.filter((x) => x.tier !== 'normal' && !x.step && x.block !== 'lineups' && Number.isFinite(x.m.deathXp))) {
+  for (const c of ok.filter((x) => x.tier !== 'normal' && !x.step && x.block !== 'lineups' && Number.isFinite(x.m.deathXp) && Number.isFinite(x.m.deathBlessedShare))) {
     const n = get(c.L, c.gear, c.party, c.comp, 'normal');
     const band = STD.bandById('S6.' + c.tier + '.' + c.gear), ruled = band ? (band.hi ?? band.lo) : null;
     if (!n || !Number.isFinite(ruled)) continue;
     const opened = BLESSING_LADDER.filter((L) => c.L >= L).length;
     const lost = (share) => (ruled / 1000) * c.m.deathXp * share;
-    const three = c.m.levelXpPerH - lost(STD.DEATH_COST.blessedShare), ladder = c.m.levelXpPerH - lost(STD.DEATH_COST.blessedShare * 0.5 ** opened);
+    const three = c.m.levelXpPerH - lost(c.m.deathBlessedShare), ladder = c.m.levelXpPerH - lost(c.m.deathBlessedShare * 0.5 ** opened);
     afterDeaths.push({ key: c.key, L: c.L, gear: c.gear, party: c.party, tier: c.tier, ruledDeaths: ruled, blessingsOpen: 3 + opened, normalXpPerH: n.m.levelXpPerH,
       vsNormalThree: ratio(three, n.m.levelXpPerH), vsNormalLadder: ratio(ladder, n.m.levelXpPerH) });
   }

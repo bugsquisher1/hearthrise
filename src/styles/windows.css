@@ -1522,7 +1522,7 @@
 .hcl-line input, .hcl-found input[type="text"] { flex: 1; min-width: 0; min-height: 30px; padding: 0 8px; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); }
 .hcl-found .hcl-ftag { flex: 0 0 76px; text-transform: uppercase; }
 .hcl-check { display: flex; align-items: center; gap: 6px; font-size: var(--t-small); color: var(--ink-2); }
-.hcl-found .hh-tool.is-main { flex-basis: 100%; min-height: 36px; }
+.hcl-found .hh-tool.is-primary { flex-basis: 100%; }
 .hcl-list { margin: 0 0 8px; padding: 0; list-style: none; }
 .hcl-row { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; column-gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line-soft); }
 .hcl-list.is-clans .hcl-row, .hcl-list.is-invites .hcl-row, .hcl-list.is-invited .hcl-row { grid-template-columns: 1fr auto; }
@@ -1536,7 +1536,6 @@
 .hcl-tag { color: var(--gold); }
 .hcl-count { margin: 0 2px 10px; font-size: var(--t-micro); color: var(--ink-2); }
 .hcl-leave { margin-top: 10px; }
-.hcl-leave.is-warn { color: var(--red); }
 .hf-explain { margin: 2px 2px 6px; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.35; }
 .hf-link { flex: 1; min-width: 0; min-height: 30px; padding: 0 8px; color: var(--ink-2); font-family: var(--f-ui); font-size: var(--t-micro); }
 .hf-quiet { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--t-small); color: var(--ink); }

@@ -53,7 +53,7 @@ export function renderClan() {
     + '" placeholder="' + esc(t('clan.found_name')) + '"><input type="text" class="hcl-ftag" maxlength="' + CLAN_RULES.tagMax + '" autocomplete="off" aria-label="'
     + esc(t('clan.found_tag')) + '" placeholder="' + esc(t('clan.found_tag_hint')) + '">'
     + '<label class="hcl-check"><input type="checkbox" class="hcl-fopen" checked> ' + esc(t('clan.found_open')) + '</label>'
-    + '<button type="button" class="hh-tool is-main" data-hs-act="found"></button></div>'
+    + '<button type="button" class="hh-tool is-primary" data-hs-act="found"></button></div>'
     + '</section>'
     + '<section class="hcl-mine">'
     + '<h3 class="hcl-title"><span class="hcl-tag"></span><b class="hcl-name"></b></h3><p class="hcl-count"></p>'
@@ -169,7 +169,7 @@ function patchMine(body, ctx, st, r) {
   prop(pol, 'disabled', st.pending);
   const lv = body.querySelector('[data-hs-act="leave"]');
   text(lv, t(st.leaving ? 'clan.leave_confirm' : 'clan.leave'));
-  cls(lv, 'is-warn', st.leaving);
+  cls(lv, 'is-danger', st.leaving);
   prop(lv, 'disabled', st.pending);
   prop(body.querySelector('[data-hs-act="invite"]'), 'disabled', st.pending);
 }

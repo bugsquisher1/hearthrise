@@ -101,6 +101,8 @@ declare
     'chest_warmth',
     /* the Hearth Chest's green window on the square, naming the hero who opened it (2027-05-05-hearth-moods.sql) */
     'hearth_bursts',
+    /* the hourly journal's fold cursor, naming the hero it reached (1047-hourly-journal.sql): its next run recreates it at the wipe's hour */
+    'hr_ledger_hours_state',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',

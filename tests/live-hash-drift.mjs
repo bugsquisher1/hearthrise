@@ -757,12 +757,22 @@ export const restateOnlyOf = (tracked) => new Set(
 // (a rename, schema.sql, format()) and a NEW OVERLOAD of a tracked function both
 // come back as rows the baseline must account for. Until 2026-11-14 this was
 // filtered by the swept names, which is how clan_feast_call__ungated drifted
-// unmeasured. Aggregates and window functions are out: pg_get_functiondef
-// refuses them, and no migration here makes one.
+// unmeasured. AGGREGATES ARE MEASURED TOO (2026-11-21, 1047-hourly-journal.sql's
+// hr_ledger_meta_fold, the first one): pg_get_functiondef refuses an aggregate,
+// so its "body" is its catalogue definition (DEF_SQL: sfunc, stype, initcond,
+// finalfunc, kind) WITH its step function's own definition, so a changed initcond
+// or a changed step body moves its hash. Until then the measurement read prokind
+// f/p only, and --write could never baseline the aggregate the sweep derived: a
+// permanent `untracked`. Window functions stay out (none, and none is written).
 // The `__census__` row makes a truncated paste a harness error instead of a set
 // of silent live-missing findings — schema-drift's partial_measurement lesson.
+export const DEF_SQL = "(case when p.prokind = 'a' then (select 'AGGREGATE ' || p.oid::regprocedure::text"
+  + " || ' SFUNC ' || ag.aggtransfn::regprocedure::text || ' STYPE ' || format_type(ag.aggtranstype, null)"
+  + " || ' INITCOND ' || coalesce(ag.agginitval, '<none>') || ' FINALFUNC ' || coalesce(nullif(ag.aggfinalfn::oid, 0)::regprocedure::text, '<none>')"
+  + " || ' KIND ' || ag.aggkind::text || ' STEP ' || pg_get_functiondef(ag.aggtransfn)"
+  + ' from pg_aggregate ag where ag.aggfnoid = p.oid) else pg_get_functiondef(p.oid) end)';
 export function bodyQuery() {
-  const NORM = "regexp_replace(pg_get_functiondef(p.oid), '[[:space:]]+', ' ', 'g')";
+  const NORM = `regexp_replace(${DEF_SQL}, '[[:space:]]+', ' ', 'g')`;
   // chr(226)/chr(195)/chr(194) are the lead characters of double-encoded UTF-8 as
   // stored. Written with chr() rather than as literals so this probe cannot be
   // broken by the encoding fault it exists to find, and backslash-free because
@@ -780,7 +790,7 @@ with f as (
          ${MOJI} as mojibake
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.prokind in ('f', 'p')
+   where n.nspname = 'public' and p.prokind in ('f', 'p', 'a')
      and not exists (select 1 from pg_depend d
                       where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e'))
 select '__census__'::text as sig, md5(coalesce(string_agg(sig, chr(10) order by sig), '')) as body_md5,
@@ -1095,8 +1105,8 @@ export function stripSqlComments(src) {
 }
 
 const defQuery = (names) => 'select p.proname::text||\'(\'||pg_get_function_identity_arguments(p.oid)||\')\' as sig,'
-  + ' pg_get_functiondef(p.oid) as def from pg_proc p join pg_namespace n on n.oid = p.pronamespace'
-  + ` where n.nspname = 'public' and p.prokind = 'f' and p.proname = any(array[${
+  + ` ${DEF_SQL} as def from pg_proc p join pg_namespace n on n.oid = p.pronamespace`
+  + ` where n.nspname = 'public' and p.prokind in ('f', 'a') and p.proname = any(array[${
     [...names].sort().map((n) => `'${n}'`).join(',')}]) order by 1`;
 
 async function codeDiff(only) {
@@ -1867,6 +1877,34 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
     else { console.error(`  ✗  ${id} — apply-order-honesty said ${JSON.stringify(got)}, want ${JSON.stringify(want)}`); process.exitCode = 1; bad += 1; }
   }
 
+  /* ── AN AGGREGATE IS MEASURED (2026-11-21, hr_ledger_meta_fold) ─────────────
+     On a bare PGlite, bodyQuery() itself: an aggregate has a row (the measurement before this fix read prokind f/p and
+     had none, so the swept name stayed untracked forever: the planted old query is red here), and its hash moves with
+     its INITCOND and with its STEP function's body, so a changed aggregate is caught as drift once baselined. */
+  {
+    const { PGlite } = await import('@electric-sql/pglite');
+    const pg = new PGlite();
+    const md5Of = async (q) => ((await pg.query(q)).rows.find((r) => String(r.sig).startsWith('hr_selagg(')) || {}).body_md5 || null;
+    try {
+      await pg.exec(`create function public.hr_selagg_step(a jsonb, b jsonb) returns jsonb language sql immutable as $s$ select a || b $s$;
+                     create aggregate public.hr_selagg(jsonb) (sfunc = public.hr_selagg_step, stype = jsonb, initcond = '{}');`);
+      const OLD = bodyQuery().replace("p.prokind in ('f', 'p', 'a')", "p.prokind in ('f', 'p')");
+      const m0 = await md5Of(bodyQuery()); const mOld = await md5Of(OLD);
+      await pg.exec(`create or replace aggregate public.hr_selagg(jsonb) (sfunc = public.hr_selagg_step, stype = jsonb, initcond = '{"x": 1}');`);
+      const m1 = await md5Of(bodyQuery());
+      await pg.exec('create or replace function public.hr_selagg_step(a jsonb, b jsonb) returns jsonb language sql immutable as $s$ select b || a $s$;');
+      const m2 = await md5Of(bodyQuery());
+      for (const [id, ok, said] of [
+        ['aggregate_is_measured', m0 !== null && mOld === null, `a row (md5 ${m0}); the f/p-only query planted back: ${mOld === null ? 'no row (the old blind spot)' : 'a row?'}`],
+        ['aggregate_initcond_moves', m1 !== null && m1 !== m0, `initcond edited: ${m0} -> ${m1}`],
+        ['aggregate_step_moves', m2 !== null && m2 !== m1, `step function edited: ${m1} -> ${m2}`],
+      ]) {
+        if (ok) console.log(`  ok  ${id.padEnd(32)} ${said}`);
+        else { console.error(`  ✗  ${id} — ${said}`); process.exitCode = 1; bad += 1; }
+      }
+    } finally { await pg.close(); }
+  }
+
   for (const [id, c] of Object.entries(cases)) {
     const b = c.base ? c.base() : base;
     const nm = c.names ? [...c.names()] : derived;
@@ -1919,7 +1957,7 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
     process.exit(1);
   }
   console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length + Object.keys(ONCE).length
-    + Object.keys(CHAINS).length + Object.keys(ABSENCE).length + Object.keys(ATTRIB).length + 1} planted defects caught by their NAMED assertion`);
+    + Object.keys(CHAINS).length + Object.keys(ABSENCE).length + Object.keys(ATTRIB).length + 1 + 3} planted defects caught by their NAMED assertion`);
 }
 
 // ── --mutate: the same proof, against the REAL migration text ──────────────
@@ -2013,6 +2051,19 @@ const MUTATIONS = {
         + 'alter function public.hr_mut_tower_src(uuid, integer) rename to hr_tower_starts;\n'
         + 'revoke execute on function public.hr_tower_starts(uuid, integer) from public, anon, authenticated, service_role;\n'
         + "-- 2027-04-30-tower-board.sql — THE BURNING TOWER'S BOARD",
+  },
+  /* 2026-11-21: an AGGREGATE the chain builds (1047-hourly-journal.sql made the first). The measurement read prokind f/p
+     only, so an aggregate no text rule derives was measured by nobody and reported by nothing: SILENT before the fix,
+     `untracked` after it (rule `catalog`). Planted beside 1047's own aggregate, on its step function. */
+  aggregate_built_untracked: {
+    file: '1047-hourly-journal.sql',
+    what: 'a migration builds an aggregate (no `create or replace function`, so no text rule names it): only the '
+        + 'measured catalogue can track it, and an aggregate was outside the measurement',
+    expect: 'untracked hr_mut_agg',
+    find: "create or replace aggregate public.hr_ledger_meta_fold(jsonb, jsonb) (sfunc = public.hr_ledger_meta_fold_step, stype = jsonb, initcond = '{}');\n",
+    repl: "create or replace aggregate public.hr_ledger_meta_fold(jsonb, jsonb) (sfunc = public.hr_ledger_meta_fold_step, stype = jsonb, initcond = '{}');\n"
+        + "create aggregate public.hr_mut_agg(jsonb, jsonb) (sfunc = public.hr_ledger_meta_fold_step, stype = jsonb, initcond = '{\"m\": 1}');\n"
+        + 'revoke execute on function public.hr_mut_agg(jsonb, jsonb) from public;\n',
   },
   new_overload_authored: {
     file: '2026-09-02-renown-kill-faucet.sql',

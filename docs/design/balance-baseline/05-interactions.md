@@ -173,14 +173,14 @@ cost-regen, netPerH, mage alone (change from the base)
 
 | spellCost | manaRegen | measured | singles predict | gap |
 |---|---|---|---|---|
-| x0.5 | x0.5 | +566.800 | +112.600 | +454.500 +/- 2.968 |
+| x0.5 | x0.5 | +566.800 | +112.600 | +454.300 +/- 2.965 |
 | x0.5 | x1 | +1030.000 | single |  |
-| x0.5 | x2 | +1210.000 | +1943.000 | -732.400 +/- 5.206 |
+| x0.5 | x2 | +1210.000 | +1943.000 | -732.400 +/- 5.195 |
 | x1 | x0.5 | -917.400 | single |  |
 | x1 | x2 | +912.500 | single |  |
-| x2 | x0.5 | -4422.000 | -4169.000 | -252.700 +/- 3.737 |
+| x2 | x0.5 | -4422.000 | -4169.000 | -252.600 +/- 3.801 |
 | x2 | x1 | -3252.000 | single |  |
-| x2 | x2 | -1123.000 | -2340.000 | +1216.000 +/- 5.325 |
+| x2 | x2 | -1123.000 | -2340.000 | +1216.000 +/- 5.367 |
 <!-- /GEN -->
 
 What it shows.
@@ -315,7 +315,7 @@ damage-hp, levelXpPerH, the four on deadly (ratio to the base)
 | x1 | x2 | x1.266 | single |  |
 | x2 | x0.5 | x0.723 | x0.836 | -13.5% +/- 0.0% |
 | x2 | x1 | x1.300 | single |  |
-| x2 | x2 | x2.028 | x1.645 | +23.2% +/- 0.0% |
+| x2 | x2 | x2.028 | x1.646 | +23.2% +/- 0.0% |
 
 damage-hp, takenPerH, the four on deadly (ratio to the base)
 
@@ -584,10 +584,10 @@ damage-heal, netPerH, the four on deadly (change from the base)
 
 | playerAttack | healPower | foodPrice | measured | singles predict | gap |
 |---|---|---|---|---|---|
-| x0.75 | x0.5 | x1 | -4254.000 | -3938.000 | -316.300 +/- 65.72 |
+| x0.75 | x0.5 | x1 | -4254.000 | -3938.000 | -316.300 +/- 65.73 |
 | x0.75 | x1 | x1 | -3849.000 | single |  |
 | x0.75 | x2 | x1 | -3594.000 | -3636.000 | within noise |
-| x1 | x0.5 | x1 | -89.220~ | single |  |
+| x1 | x0.5 | x1 | -89.300~ | single |  |
 | x1 | x2 | x1 | +213.500~ | single |  |
 | x1.5 | x0.5 | x1 | +5145.000 | +5079.000 | within noise |
 | x1.5 | x1 | x1 | +5168.000 | single |  |
@@ -638,12 +638,12 @@ damage-heal, netPerH, the hammer alone on dangerous (MID, Levels 30 to 110) (cha
 |---|---|---|---|---|---|
 | x0.75 | x0.5 | x1 | -57300.000 | -44950.000 | within noise |
 | x0.75 | x1 | x1 | -26540.000 | single |  |
-| x0.75 | x2 | x1 | +10920.000 | +880.000 | +10040.000 +/- 3081 |
+| x0.75 | x2 | x1 | +10920.000 | +880.000 | +10040.000 +/- 3080 |
 | x1 | x0.5 | x1 | -18410.000 | single |  |
 | x1 | x2 | x1 | +27420.000 | single |  |
-| x1.5 | x0.5 | x1 | +24210.000 | +18340.000 | +5869.000 +/- 1287 |
+| x1.5 | x0.5 | x1 | +24210.000 | +18340.000 | +5870.000 +/- 1287 |
 | x1.5 | x1 | x1 | +36750.000 | single |  |
-| x1.5 | x2 | x1 | +51780.000 | +64170.000 | -12400.000 +/- 687.6 |
+| x1.5 | x2 | x1 | +51780.000 | +64170.000 | -12400.000 +/- 687.7 |
 <!-- /GEN -->
 
 - **The loop Tyler describes is real and strong, without leech.** For the four on Deadly, damage x1.5 cuts damage taken to 0.52, healing received to 0.28 and the store bill to 0.74, and adds 5,170 gold an hour a hero. Damage x0.75 raises damage taken to 1.42 and healing to 1.86. Hero damage is as strong a survival lever as the mitigation cap, the strongest armor lever (sensitivity page, section 4), and unlike the cap it also pays. A dead monster deals nothing.

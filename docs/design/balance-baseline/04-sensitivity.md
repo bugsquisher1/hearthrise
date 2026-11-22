@@ -67,6 +67,7 @@ Each cell is on the ground the game advises for its Level and party size. That i
 | storeSupplyShare | Store supply strength | knob, Player combat | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | monsterDamage | Monster damage | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | monsterHp | Monster HP | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| monsterAccuracy | Monster to-hit | knob, Monsters | x0.8, x0.9, x0.95, x1.05, x1.1, x1.2 |
 | monsterDefense | Monster defense | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | monsterDefenseCut | Defense cut a point | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | partyGroundHp | Party ground HP | knob, Monsters | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
@@ -277,18 +278,19 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | mitigationCap | . | 0.02 | -0.89 (-0.73 / -0.33) | -29.25 (-17.04 / -9.07) | 0.20 | 0.03 | 1.38 (0.28 / 0.44) | . | -0.45 (-1.21 / -0.11) | 35990.00 (3965.00 / 6610.00) |
 | armorMitigation | . | 0 | -0.41 (-0.59 / -0.10) | -6.08 (-14.24 / -1.14) | 0.08 | 0.01 | -0.06 (0.26 / -0.04) | . | -0.36 (-1.34 / -0.06) | 10060.00 (8483.00 / 1140.00) |
 | heroHp | . | . | 1.23 | 20.76 (5.86 / 17.62) | -0.06 | 0 | -0.61 (-0.40 / -0.28) | . | 0.17 | -13460.00 (-5566.00 / -8463.00) |
-| xpPerKill | . | . | . | . | 0 | 1.00 | 1.03 | . | -0.01 | 95.97 (38.68 / 124.70) |
+| monsterAccuracy | . | . | 1.16 | . | -0.19 | . | -1.20 (-0.89 / -0.48) | . | 0.43 | -24530.00 (-13480.00 / -28620.00) |
+| xpPerKill | . | . | . | . | 0 | 1.00 | 1.03 | . | -0.01 | 96.02 (38.68 / 124.70) |
 | playerAttack | 0.50 | 0.51 | -0.60 | -8.74 | 0.14 | 0.52 | 0.86 | 0.52 | -0.67 | 24280.00 |
 | heroMana | . | . | . | . | 0 | . | . | . | -0.23 (-0.90 / -0.18) | 769.50 |
-| soloXp | . | . | . | . | 0 | 0.82 | 0.85 | . | -0.01 | 80.94 (37.29 / 121.60) |
-| monsterHp | 0.50 | -0.50 | 0.43 | 12.71 (7.59 / 10.16) | -0.12 | 0.50 | -0.15 (0.22 / 0.23) | 0.19 | 0.49 (0.58 / 0.88) | -8065.00 |
-| manaRegen | . | . | . | . | 0 | . | . | . | -0.22 (-0.82 / -0.18) | 723.10 |
+| soloXp | . | . | . | . | 0 | 0.82 | 0.85 | . | -0.01 | 80.99 (37.29 / 121.60) |
+| monsterHp | 0.50 | -0.50 | 0.43 | 12.71 (7.59 / 10.16) | -0.12 | 0.50 | -0.15 (0.22 / 0.23) | 0.19 | 0.49 (0.58 / 0.88) | -8066.00 |
+| manaRegen | . | . | . | . | 0 | . | . | . | -0.22 (-0.82 / -0.18) | 723.20 |
 | spellCooldown | -0.20 | -0.20 | 0.21 | 14.24 (9.85 / 5.71) | -0.07 | -0.20 | -0.59 (-0.78 / -0.33) | -0.21 | -0.30 (-0.26 / -0.10) | -15070.00 (-10030.00 / -9924.00) |
 | runePrice | . | . | . | . | . | . | . | . | 0.44 (0.33 / 0.67) | -5219.00 (-3582.00 / -7345.00) |
 | spellPower | 0.28 | 0.28 | -0.22 | -6.21 | 0.08 | 0.30 | 0.33 (0.38 / 0.67) | 0.31 | -0.33 | 16830.00 (9963.00 / 15860.00) |
 | respawn | -0.13 (-0.02 / -0.49) | -0.13 (-0.02 / -0.49) | -0.15 (-0.02 / -0.50) | . | 0 | -0.13 (-0.02 / -0.49) | -0.13 (-0.02 / -0.49) | -0.13 (-0.02 / -0.50) | -0.17 (-0.03 / -0.60) | -591.20 (-112.90 / -3990.00) |
 | tierHp | 0.07 | -0.12 | 0.10 | . | -0.03 | -0.12 | -0.54 (-0.49 / -0.21) | -0.12 | 0.14 | -13810.00 |
-| weaponDamage | 0.14 | 0.14 | -0.15 | . | 0.04 | 0.14 | 0.38 (0.19 / 0.48) | 0.14 | -0.14 | 7601.00 |
+| weaponDamage | 0.14 | 0.14 | -0.15 | . | 0.04 | 0.14 | 0.38 (0.19 / 0.48) | 0.14 | -0.14 | 7602.00 |
 | heroAccuracy | 0.19 | 0.19 | -0.17 | . | 0.06 | 0.20 | 0.40 (0.45 / -0.05) | 0.20 | . | 6072.00 |
 | attackInterval | -0.26 | -0.25 | -0.45 | -20.61 (-13.39 / -20.61) | 0.06 | -0.24 | . | -0.23 | -0.09 (-0.34 / -0.09) | 12430.00 (1453.00 / 12430.00) |
 | armorCurve | . | . | 0.06 | . | 0 | . | 0.15 (0.05 / -0.11) | . | 0.01 (0.03 / 0.42) | 1089.00 (-556.90 / -4285.00) |
@@ -297,7 +299,7 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | tierPull | 0.04 | 0.05 | 0.02 | 4.09 (7.59 / 0) | -0.01 | 0.04 | -0.31 (-0.28 / 0) | 0.03 | 0.08 | -5060.00 (-6017.00 / 0) |
 | healPower | . | . | . | 0 (-1.24 / -7.01) | 0.01 | . | -0.01 (0.09 / 0.30) | . | -0.15 | 5484.00 (2921.00 / 5087.00) |
 | weaknessDamage | 0.04 | 0.04 | -0.05 | . | 0.01 | 0.04 | 0.29 (0.10 / 0.09) | 0.03 | -0.04 | 1990.00 |
-| armorValue | 0.03 | 0.02 | -0.17 | -16.62 (-10.81 / -1.14) | 0.03 | 0.02 | 0.14 | 0.03 | -0.16 | 2002.00 (6332.00 / 2676.00) |
+| armorValue | 0.03 | 0.02 | -0.17 | -16.62 (-10.81 / -1.14) | 0.03 | 0.02 | 0.14 | 0.03 | -0.16 | 2003.00 (6332.00 / 2676.00) |
 | partyXp | . | . | . | . | 0 | 0.18 | 0.18 | . | . | . |
 | spellRollLow | 0.09 | 0.09 | -0.07 | . | 0.02 | 0.09 | -0.01 (0.13 / 0.23) | 0.09 | -0.07 | 2753.00 (3979.00 / 6716.00) |
 | shieldPower | . | . | -0.17 | . | 0.02 | . | . | . | -0.04 | 684.70 |
@@ -305,12 +307,12 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | drinkPrice | . | . | . | . | . | . | . | . | 0.15 | -645.30 (-425.90 / -851.80) |
 | gearSaleRate | . | . | . | . | . | . | . | 0.14 | . | 3257.00 (2409.00 / 4801.00) |
 | foodPrice | . | . | . | . | . | . | . | . | 0.14 | -7371.00 (-5335.00 / -10670.00) |
-| partyGroundBlow | . | . | 0.09 | . | -0.01 | . | . | . | 0.01 | -66.39 (-36.56 / -80.37) |
+| partyGroundBlow | . | . | 0.09 | . | -0.01 | . | . | . | 0.01 | -66.40 (-36.54 / -80.37) |
 | regen | . | . | 0.02 | . | 0.02 | . | 0.03 | . | -0.08 | 1551.00 (3592.00 / 2111.00) |
 | weaponAccuracy | . | . | . | . | 0 | . | -0.09 (0.04 / 0.10) | . | 0.01 | 1060.00 (137.80 / 699.70) |
 | deathLoss | . | . | . | . | . | . | -0.05 | . | . | . |
 | levelCurve | . | . | . | . | 0 | . | -0.05 | . | 0.01 | -122.10 (-105.70 / -35.45) |
-| partyGroundHp | 0.04 | -0.05 | 0.05 | . | -0.01 | 0.04 | 0.04 | 0.01 | 0.04 | -152.90 |
+| partyGroundHp | 0.04 | -0.05 | 0.05 | . | -0.01 | 0.04 | 0.04 | 0.01 | 0.04 | -152.80 |
 | toHitBase | . | . | 0 | . | . | . | . | . | . | . |
 | critMult | 0.01 | 0.01 | -0.02 | . | . | 0.01 | . | . | . | 20.43 (-182.50 / 363.80) |
 | monsterDefense | . | . | . | . | . | . | . | . | . | . |
@@ -326,19 +328,20 @@ For the outcomes read as absolute changes the number is the change for one unit 
 <!-- GEN: matrix group=party:1 outcomes=killsPerH,levelXpPerH,takenPerH,lowHpP10,incomePerH,storePerH,netPerH -->
 | Lever | killsPerH | levelXpPerH | takenPerH | lowHpP10 | incomePerH | storePerH | netPerH |
 |---|---|---|---|---|---|---|---|
-| xpByLevel | . | 1.41 | . | 0 | . | . | 15.08 (7.55 / 25.42) |
-| heroHp | . | . | 1.17 | -0.01 | . | 0.02 | -272.00 (102.10 / -205.40) |
-| monsterDamage | . | . | 1.05 | -0.17 | . | 0.12 (0.06 / 0.98) | -597.20 (-204.30 / -2157.00) |
-| xpPerKill | . | 1.01 | . | 0 | . | -0.01 | 13.18 (3.42 / 18.97) |
-| soloXp | . | 1.00 | . | 0 | . | -0.01 | 13.18 (3.42 / 17.17) |
+| xpByLevel | . | 1.41 | . | 0 | . | . | 15.10 (7.55 / 25.41) |
+| heroHp | . | . | 1.17 | -0.01 | . | 0.02 | -271.90 (102.10 / -205.40) |
+| monsterAccuracy | . | . | 1.10 | -0.13 | 0.01 | 0.10 | -259.90 (-337.20 / -741.50) |
+| monsterDamage | . | . | 1.05 | -0.17 | . | 0.12 (0.06 / 0.98) | -597.30 (-204.30 / -2157.00) |
+| xpPerKill | . | 1.01 | . | 0 | . | -0.01 | 13.20 (3.42 / 18.96) |
+| soloXp | . | 1.00 | . | 0 | . | -0.01 | 13.20 (3.42 / 17.15) |
 | spellCost | . | . | . | . | . | 0.68 (0.31 / 0.90) | -792.30 (-380.20 / -1402.00) |
-| mitigationCap | . | . | -0.81 (-0.71 / -0.29) | 0.15 | . | -0.08 (-0.41 / -0.03) | 447.70 (643.00 / 249.60) |
-| respawn | -0.05 (0 / -0.58) | -0.05 (0 / -0.58) | -0.05 (0 / -0.59) | . | -0.05 (0 / -0.59) | -0.10 (0 / -0.77) | -263.80 (-50.21 / -5077.00) |
+| mitigationCap | . | . | -0.81 (-0.71 / -0.29) | 0.15 | . | -0.08 (-0.41 / -0.03) | 447.60 (643.00 / 249.60) |
+| respawn | -0.05 (0 / -0.58) | -0.05 (0 / -0.58) | -0.05 (0 / -0.59) | . | -0.05 (0 / -0.59) | -0.10 (0 / -0.77) | -263.90 (-50.22 / -5077.00) |
 | runePrice | . | . | . | . | . | 0.33 (0.22 / 0.73) | -2384.00 (-1549.00 / -3386.00) |
 | spellCooldown | -0.13 | -0.13 | 0.08 | -0.03 | -0.14 | -0.70 (-0.44 / -0.65) | -1177.00 |
 | monsterHp | -0.48 | 0.53 | 0.42 | -0.11 | 0.22 | 0.24 | 1955.00 |
 | playerAttack | 0.50 | 0.50 | -0.50 | 0.12 | 0.49 | -0.28 | 9083.00 |
-| armorMitigation | . | . | -0.42 (-0.57 / -0.10) | 0.05 | . | -0.03 | 151.00 (221.30 / 23.23) |
+| armorMitigation | . | . | -0.42 (-0.57 / -0.10) | 0.05 | . | -0.03 | 150.70 (221.20 / 23.23) |
 | heroMana | . | . | . | . | . | -0.36 | 508.30 |
 | attackInterval | -0.27 | -0.27 | -0.38 | 0.03 | -0.22 | 0.18 (0.03 / 0.18) | -2667.00 (-4106.00 / -2667.00) |
 | manaRegen | . | . | . | . | . | -0.35 | 471.00 |
@@ -347,21 +350,21 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | regroup | -0.09 | -0.09 | -0.10 | 0 | -0.09 | -0.12 | -924.30 (-470.70 / -1707.00) |
 | heroAccuracy | 0.21 | 0.21 | -0.15 | 0.05 | 0.23 | -0.09 | 3320.00 (3426.00 / 1798.00) |
 | armorValue | 0.01 | 0.01 | -0.13 | 0.02 | 0.03 | -0.03 | 632.60 |
-| storeSupplyShare | 0.12 | 0.12 | -0.17 | 0.03 | 0.12 | -0.08 | 2367.00 |
+| storeSupplyShare | 0.12 | 0.12 | -0.17 | 0.03 | 0.12 | -0.08 | 2368.00 |
 | gearSaleRate | . | . | . | . | 0.12 | . | 2335.00 (1728.00 / 3441.00) |
 | armorCurve | . | . | 0.09 | -0.01 | . | 0.02 | . |
 | weaponDamage | 0.11 | 0.11 | -0.10 | 0.03 | 0.11 | -0.05 | 2628.00 |
 | spellRollLow | 0.07 | 0.07 | -0.06 | 0.02 | 0.07 | 0 | 1354.00 (1031.00 / 2007.00) |
-| shieldPower | . | . | -0.09 | 0 | . | -0.03 | 73.97 (130.50 / 151.50) |
-| toHitBase | . | . | -0.01 | -0.01 | . | . | -216.70 (43.54 / -144.40) |
+| shieldPower | . | . | -0.09 | 0 | . | -0.03 | 73.88 (130.50 / 151.50) |
+| toHitBase | . | . | -0.01 | -0.01 | . | . | -217.10 (43.51 / -144.30) |
 | weaknessDamage | 0.04 | 0.04 | -0.04 | 0.01 | 0.03 | -0.04 | 616.90 |
-| critMult | 0.01 | 0.01 | -0.02 | 0 | . | -0.03 | 310.20 (95.59 / 199.70) |
-| foodPrice | . | . | . | . | . | 0.01 | -20.79 (-15.02 / -30.07) |
+| critMult | 0.01 | 0.01 | -0.02 | 0 | . | -0.03 | 310.30 (95.56 / 199.70) |
+| foodPrice | . | . | . | . | . | 0.01 | -20.77 (-15.03 / -30.07) |
 | weaponAccuracy | . | . | . | 0 | . | 0.02 | . |
-| levelCurve | . | . | . | 0 | . | 0.01 | -12.76 (-14.21 / -3.42) |
-| regen | . | . | 0.01 | 0.02 | . | -0.01 | 27.43 (13.36 / 38.71) |
-| monsterDefense | . | . | . | 0 | . | . | -192.50 (0 / -136.00) |
-| monsterDefenseCut | . | . | . | 0 | . | . | -192.50 (0 / -136.00) |
+| levelCurve | . | . | . | 0 | . | 0.01 | -12.78 (-14.21 / -3.42) |
+| regen | . | . | 0.01 | 0.02 | . | -0.01 | 27.38 (13.34 / 38.71) |
+| monsterDefense | . | . | . | 0 | . | . | -192.40 (0 / -136.00) |
+| monsterDefenseCut | . | . | . | 0 | . | . | -192.40 (0 / -136.00) |
 | partyGroundHp | . | . | . | . | . | . | . |
 | partyGroundBlow | . | . | . | . | . | . | . |
 | tierDanger | . | . | . | . | . | . | . |
@@ -383,6 +386,7 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | Lever | killsPerH | levelXpPerH | takenPerH | lowHpP10 | incomePerH | storePerH | netPerH |
 |---|---|---|---|---|---|---|---|
 | xpByLevel | . | 1.47 | -0.02 | 0 | . | . | . |
+| monsterAccuracy | . | . | 1.24 | -0.10 | . | 0.11 | . |
 | heroHp | . | . | 1.15 | 0.01 | . | 0.02 | . |
 | partyXp | . | 1.01 | -0.01 | . | . | . | . |
 | xpPerKill | . | 1.00 | -0.01 | . | . | . | . |
@@ -390,22 +394,22 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | playerAttack | 0.20 | 0.20 | -0.82 | 0.08 | 0.20 | -0.68 | 3911.00 |
 | monsterHp | -0.20 | 0.79 | 0.39 | -0.04 | 0.50 | 0.64 | 1962.00 (1331.00 / 1626.00) |
 | monsterDamage | . | . | 0.55 (0.54 / 0.83) | -0.06 | . | 0.08 | -138.40 (-125.40 / -311.00) |
-| mitigationCap | . | . | -0.64 (-0.66 / -0.22) | 0.06 | . | -0.09 | 40.36 (200.40 / -0.55) |
+| mitigationCap | . | . | -0.64 (-0.66 / -0.22) | 0.06 | . | -0.09 | 40.31 (200.40 / -0.57) |
 | storeSupplyShare | 0.06 | 0.06 | -0.55 | 0.06 | 0.04 | -0.21 | 1115.00 |
 | runePrice | . | . | . | . | . | 0.48 | -1511.00 (-1119.00 / -2365.00) |
-| armorMitigation | . | . | -0.36 (-0.54 / -0.11) | 0.04 | . | -0.02 | 156.20 (130.90 / -60.87) |
+| armorMitigation | . | . | -0.36 (-0.54 / -0.11) | 0.04 | . | -0.02 | 156.20 (130.90 / -60.88) |
 | spellPower | 0.09 | 0.09 | -0.14 | 0.01 | 0.09 | -0.38 | 2077.00 |
 | shieldPower | . | . | -0.42 (-0.27 / -0.53) | 0.03 | . | -0.02 | . |
 | spellCost | . | . | . | . | . | 0.24 (0.15 / 0.45) | -503.10 (-292.30 / -1046.00) |
 | attackInterval | -0.10 | -0.11 | -0.43 (-0.23 / -0.43) | 0 | -0.04 | 0.07 | -256.50 (-821.80 / -256.50) |
-| partyGroundBlow | . | . | 0.29 | -0.03 | . | 0.02 | -126.90 (-45.08 / -154.40) |
-| partyGroundHp | -0.18 | 0.32 | 0.29 | -0.04 | 0.16 | 0.27 | 775.70 (537.80 / 129.80) |
+| partyGroundBlow | . | . | 0.29 | -0.03 | . | 0.02 | -127.00 (-45.10 / -154.40) |
+| partyGroundHp | -0.18 | 0.32 | 0.29 | -0.04 | 0.16 | 0.27 | 775.60 (537.80 / 129.80) |
 | spellCooldown | -0.06 | -0.06 | 0.34 (0.17 / 0.32) | -0.04 | -0.06 | -0.19 | . |
-| heroAccuracy | 0.15 | 0.15 | -0.24 | 0.03 | 0.08 | -0.17 | 1127.00 (1781.00 / 691.60) |
+| heroAccuracy | 0.15 | 0.15 | -0.24 | 0.03 | 0.08 | -0.17 | 1128.00 (1781.00 / 691.60) |
 | weaponDamage | 0.03 | 0.03 | -0.12 | 0.01 | 0.03 | -0.17 | 1142.00 |
 | gearSaleRate | . | . | . | . | 0.17 | . | 1609.00 (1189.00 / 2376.00) |
-| armorValue | 0.01 | 0.01 | -0.13 | 0.01 | -0.02 | -0.05 | 227.30 (313.40 / 441.00) |
-| armorCurve | . | . | 0.07 | -0.01 | . | 0.01 | 122.80 (36.24 / -73.58) |
+| armorValue | 0.01 | 0.01 | -0.13 | 0.01 | -0.02 | -0.05 | 227.20 (313.40 / 441.00) |
+| armorCurve | . | . | 0.07 | -0.01 | . | 0.01 | 122.70 (36.23 / -73.58) |
 | drinkPrice | . | . | . | . | . | 0.13 | -239.70 (-166.60 / -333.30) |
 | heroMana | . | . | . | . | . | -0.12 | 257.30 |
 | spellRollLow | 0.02 | 0.02 | . | 0.01 | 0.02 | -0.12 | 586.20 |
@@ -414,9 +418,9 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | weaknessDamage | 0.03 | 0.03 | -0.12 | . | 0.04 | -0.05 | 709.80 (470.60 / 273.00) |
 | regen | . | . | 0.05 | 0 | . | . | . |
 | weaponAccuracy | . | . | -0.03 | . | . | . | 139.60 (64.37 / 40.89) |
-| healPower | . | . | -0.02 | 0.01 | . | . | -2.64 (52.28 / -25.91) |
+| healPower | . | . | -0.02 | 0.01 | . | . | -2.74 (52.28 / -25.91) |
 | critMult | 0.01 | 0.01 | . | . | . | -0.02 | . |
-| toHitBase | . | . | . | . | . | . | 412.90 (72.87 / -65.49) |
+| toHitBase | . | . | . | . | . | . | 412.90 (72.91 / -65.49) |
 | monsterDefense | . | . | . | . | . | . | . |
 | monsterDefenseCut | . | . | . | . | . | . | . |
 | tierDanger | . | . | . | . | . | . | . |
@@ -441,38 +445,39 @@ For the outcomes read as absolute changes the number is the change for one unit 
 | tierDanger | 0 | . | 2.25 (0.96 / 2.09) | -0.30 (-0.12 / -0.72) | . | 0.17 (0.07 / 1.00) | -1557.00 (-481.10 / -21310.00) |
 | xpByLevel | . | 1.56 | 0.03 | . | . | . | . |
 | playerAttack | 0.45 (0.71 / 0.38) | 0.45 (0.71 / 0.38) | -1.32 | 0.14 | 0.43 (0.71 / 0.38) | -0.57 (-0.32 / -0.69) | 11880.00 |
-| heroHp | . | . | 1.30 | -0.05 | . | 0.06 | -712.90 (-494.60 / -211.10) |
-| mitigationCap | . | . | -1.29 (-1.02 / -0.26) | 0.21 (0.26 / 0.03) | . | -0.09 | 734.50 (691.50 / 29.89) |
-| monsterDamage | . | . | 1.29 | -0.21 | . | 0.10 | -704.40 (-671.70 / -1034.00) |
+| monsterAccuracy | . | . | 1.42 | -0.16 | . | 0.12 | -1580.00 (-1378.00 / -657.10) |
+| heroHp | . | . | 1.30 | -0.05 | . | 0.06 | -713.10 (-494.60 / -211.10) |
+| mitigationCap | . | . | -1.29 (-1.02 / -0.26) | 0.21 (0.26 / 0.03) | . | -0.09 | 735.30 (691.50 / 29.97) |
+| monsterDamage | . | . | 1.29 | -0.21 | . | 0.10 | -704.10 (-671.70 / -1034.00) |
 | storeSupplyShare | 0.18 | 0.18 | -0.90 (-0.61 / -1.26) | 0.09 | 0.19 | -0.36 (-0.18 / -0.45) | 5643.00 |
 | tierXp | . | 1.00 | 0.03 | . | . | . | . |
 | xpPerKill | . | 1.00 | 0.02 | . | . | . | . |
 | partyXp | . | 0.99 | 0.01 | . | . | . | . |
 | monsterHp | -0.44 (-0.36 / -0.66) | 0.56 (0.64 / 0.34) | 0.91 | -0.08 | 0.21 | 0.48 (0.59 / 0.19) | . |
-| armorMitigation | . | . | -0.49 (-0.85 / -0.04) | 0.06 | . | -0.03 | 49.37 (583.40 / 30.80) |
-| spellPower | 0.28 | 0.28 | -0.71 | 0.06 | 0.30 | -0.43 (-0.13 / -0.53) | 8555.00 |
+| armorMitigation | . | . | -0.49 (-0.85 / -0.04) | 0.06 | . | -0.03 | 49.30 (583.60 / 30.69) |
+| spellPower | 0.28 | 0.28 | -0.71 | 0.06 | 0.30 | -0.43 (-0.13 / -0.53) | 8554.00 |
 | spellCooldown | -0.21 | -0.21 | 0.72 (0.38 / 0.55) | -0.12 | -0.21 | -0.30 (-0.17 / -0.49) | -1091.00 |
 | tierPull | 0.27 (0.34 / 0) | 0.20 (0.30 / 0) | 0.17 (0.70 / 0) | 0.02 | 0.21 (0.33 / 0) | 0.30 (0.28 / 0) | 1298.00 (2802.00 / 0) |
 | runePrice | . | . | . | . | . | 0.63 | -4892.00 (-3406.00 / -6936.00) |
-| respawn | -0.28 (-0.02 / -0.56) | -0.28 (-0.02 / -0.56) | -0.40 (-0.01 / -0.61) | 0.03 | -0.27 (-0.02 / -0.56) | -0.29 (-0.02 / -0.64) | -3336.00 (-269.10 / -4811.00) |
-| shieldPower | . | . | -0.43 (-0.29 / -0.63) | 0.05 | . | -0.03 | 241.00 (151.30 / 254.30) |
+| respawn | -0.28 (-0.02 / -0.56) | -0.28 (-0.02 / -0.56) | -0.40 (-0.01 / -0.61) | 0.03 | -0.27 (-0.02 / -0.56) | -0.29 (-0.02 / -0.64) | -3335.00 (-269.20 / -4811.00) |
+| shieldPower | . | . | -0.43 (-0.29 / -0.63) | 0.05 | . | -0.03 | 241.20 (151.50 / 254.30) |
 | tierHp | -0.33 | -0.33 | 0.63 | -0.07 | -0.33 | 0.28 | -9710.00 |
 | attackInterval | -0.20 | -0.20 | -0.55 | 0.04 | -0.22 | 0.16 (-0.02 / 0.16) | -4827.00 |
 | partyGroundBlow | . | . | 0.45 | -0.06 | . | 0.04 | -265.80 (-201.10 / -496.40) |
 | weaponDamage | 0.14 | 0.14 | -0.41 | 0.06 | 0.13 | -0.17 | 3774.00 |
 | spellCost | . | . | . | . | . | 0.23 (0.16 / 0.39) | -1328.00 (-830.00 / -2893.00) |
-| armorValue | 0.04 | 0.04 | -0.24 | 0.03 | 0.03 | -0.04 | 990.10 |
-| spellRollLow | 0.09 | 0.09 | -0.24 | 0.02 | 0.10 | -0.15 | 2717.00 |
+| armorValue | 0.04 | 0.04 | -0.24 | 0.03 | 0.03 | -0.04 | 989.50 |
+| spellRollLow | 0.09 | 0.09 | -0.24 | 0.02 | 0.10 | -0.15 | 2716.00 |
 | armorCurve | . | . | 0.06 (0.01 / 0.29) | 0 | . | 0 | . |
-| partyGroundHp | -0.28 | 0.05 | 0.17 | -0.03 | -0.06 | 0.06 | -1587.00 |
-| gearSaleRate | . | . | . | . | 0.18 | . | 3740.00 (2766.00 / 5521.00) |
-| heroAccuracy | 0.12 | 0.12 | -0.22 | 0.01 | 0.11 | -0.07 | 2372.00 (2755.00 / 1230.00) |
-| regroup | -0.07 | -0.07 | -0.12 | 0.01 | -0.07 | -0.07 | -668.40 (-222.90 / -1474.00) |
-| heroMana | . | . | . | . | . | -0.13 | 735.80 |
-| manaRegen | . | . | . | . | . | -0.12 | 685.90 |
+| partyGroundHp | -0.28 | 0.05 | 0.17 | -0.03 | -0.06 | 0.06 | -1588.00 |
+| gearSaleRate | . | . | . | . | 0.18 | . | 3740.00 (2766.00 / 5523.00) |
+| heroAccuracy | 0.12 | 0.12 | -0.22 | 0.01 | 0.11 | -0.07 | 2372.00 (2755.00 / 1229.00) |
+| regroup | -0.07 | -0.07 | -0.12 | 0.01 | -0.07 | -0.07 | -668.50 (-222.90 / -1474.00) |
+| heroMana | . | . | . | . | . | -0.13 | 736.00 |
+| manaRegen | . | . | . | . | . | -0.12 | 686.20 |
 | drinkPrice | . | . | . | . | . | 0.13 | -671.40 (-437.30 / -874.60) |
 | toHitBase | . | . | 0.09 | . | . | . | . |
-| weaknessDamage | 0.06 | 0.06 | -0.07 | 0 | 0.08 | -0.03 | 1955.00 (1183.00 / 1106.00) |
+| weaknessDamage | 0.06 | 0.06 | -0.07 | 0 | 0.08 | -0.03 | 1954.00 (1183.00 / 1107.00) |
 | healPower | . | . | 0.05 | 0.01 | . | -0.02 | . |
 | critMult | 0.02 | 0.02 | -0.03 | . | . | 0 | . |
 | monsterDefense | 0 | 0 | 0.02 | . | . | . | . |
@@ -501,18 +506,18 @@ The strongest levers on each outcome, over every cell. The number is the largest
 | dps | monsterHp +0.62, playerAttack +0.58, respawn -0.49, spellPower +0.29, attackInterval -0.26, spellCooldown -0.20, heroAccuracy +0.19 |
 | killsPerH | monsterHp -0.60, playerAttack +0.60, respawn -0.49, spellPower +0.30, attackInterval -0.25, spellCooldown -0.20, heroAccuracy +0.20 |
 | ttkS | playerAttack -1.88, monsterHp +1.76, spellPower -1.09, attackInterval +0.64, storeSupplyShare -0.61, weaponDamage -0.48, heroAccuracy -0.47 |
-| takenPerH | heroHp +1.23, monsterDamage +1.10, mitigationCap -0.89, playerAttack -0.68, armorMitigation -0.59, tierDanger +0.53, monsterHp +0.52 |
-| healInPerH | monsterDamage +6.64, mitigationCap -6.14, armorMitigation -5.28, playerAttack -4.98, monsterHp +4.93, heroAccuracy -3.67, heroHp -3.17 |
+| takenPerH | heroHp +1.23, monsterAccuracy +1.16, monsterDamage +1.10, mitigationCap -0.89, playerAttack -0.68, armorMitigation -0.59, tierDanger +0.53 |
+| healInPerH | monsterDamage +6.64, mitigationCap -6.14, armorMitigation -5.28, monsterAccuracy +5.14, playerAttack -4.98, monsterHp +4.93, heroAccuracy -3.67 |
 | deathsPer1000h (deaths in 1,000 h a unit of ln) | tierDanger +64, monsterDamage +39, mitigationCap -29, heroHp +21, attackInterval -21, armorValue -17, armorMitigation -14 |
-| lowHpP10 (absolute a unit of ln) | monsterDamage -0.29, mitigationCap +0.20, playerAttack +0.18, tierDanger -0.17, monsterHp -0.15, armorMitigation +0.14, spellPower +0.09 |
-| huntedShare (absolute a unit of ln) | tierDanger -0.35, monsterDamage -0.29, mitigationCap +0.28, attackInterval +0.20, heroHp -0.15, monsterHp -0.13, armorMitigation +0.12 |
+| lowHpP10 (absolute a unit of ln) | monsterDamage -0.29, mitigationCap +0.20, monsterAccuracy -0.19, playerAttack +0.18, tierDanger -0.17, monsterHp -0.15, armorMitigation +0.14 |
+| huntedShare (absolute a unit of ln) | tierDanger -0.35, monsterDamage -0.29, monsterAccuracy -0.28, mitigationCap +0.28, attackInterval +0.20, heroHp -0.15, monsterHp -0.13 |
 | levelXpPerH | xpByLevel +1.63, xpPerKill +1.00, soloXp +0.87, monsterHp +0.62, playerAttack +0.61, respawn -0.49, tierXp +0.34 |
-| netLevelXpPerH | xpByLevel +1.69, tierDanger -1.66, monsterDamage -1.42, mitigationCap +1.38, xpPerKill +1.03, playerAttack +0.91, soloXp +0.90 |
+| netLevelXpPerH | xpByLevel +1.69, tierDanger -1.66, monsterDamage -1.42, mitigationCap +1.38, monsterAccuracy -1.20, xpPerKill +1.03, playerAttack +0.91 |
 | hoursPerLevel | monsterHp +2.11, playerAttack -1.83, xpByLevel -1.70, armorValue -1.40, xpPerKill -1.08, levelCurve +0.90, soloXp -0.89 |
 | mainSkillXpPerH | monsterHp +0.55, respawn -0.49, spellCost +0.42, spellCooldown -0.27, playerAttack +0.20, attackInterval -0.18, regroup -0.16 |
 | incomePerH | playerAttack +0.62, respawn -0.50, spellPower +0.31, attackInterval -0.24, monsterHp +0.23, heroAccuracy +0.21, spellCooldown -0.21 |
 | storePerH | monsterDamage +2.74, spellCost +1.52, armorMitigation -1.34, mitigationCap -1.21, heroMana -0.90, monsterHp +0.88, manaRegen -0.82 |
-| netPerH (absolute a unit of ln) | mitigationCap +35990, tierDanger -35400, monsterDamage -30690, playerAttack +24700, spellPower +16830, spellCooldown -15070, tierHp -13810 |
+| netPerH (absolute a unit of ln) | mitigationCap +35990, tierDanger -35400, monsterDamage -30690, monsterAccuracy -28620, playerAttack +24700, spellPower +16830, spellCooldown -15070 |
 | suppliesPerH | monsterDamage +2.40, spellCost +1.88, heroMana -1.22, armorMitigation -1.16, manaRegen -1.10, mitigationCap -0.96, monsterHp +0.71 |
 | castsPerH | respawn -0.49, spellCooldown -0.48, playerAttack -0.33, monsterHp +0.31, spellPower -0.20, regroup -0.16, storeSupplyShare -0.15 |
 | manaPotionsPerH | spellCost +10.24, heroMana -8.15, manaRegen -7.15, spellCooldown -6.08, playerAttack -2.81, monsterHp +1.42, spellPower -1.37 |
@@ -552,6 +557,7 @@ Rule: an elasticity of 0.5 or more on an outcome outside the lever's purpose. Da
 | mitigationCap | suppliesPerH | -0.96 / -0.38 / -0.09 |
 | playerAttack | netLevelXpPerH | +0.80 / +0.86 / +0.91 |
 | heroMana | storePerH | -0.90 / -0.23 / -0.18 |
+| monsterAccuracy | netLevelXpPerH | -0.89 / -1.20 / -0.48 |
 | monsterHp | storePerH | +0.58 / +0.49 / +0.88 |
 | manaRegen | storePerH | -0.82 / -0.22 / -0.18 |
 | spellCooldown | netLevelXpPerH | -0.78 / -0.59 / -0.33 |
@@ -676,7 +682,7 @@ Rule: at one step the outcome rises for one lone way and falls for another, both
 | spellRollLow | storePerH | x2 | hammer +8.6% | tank -2.2%, axes -3.2%, bow -3.9%, mage -9.0% |
 | monsterHp | storePerH | x0.75 | hammer +25.9% | tank -4.6%, axes -6.3%, bow -10.7%, crossbow -13.6%, mage -18.1%, healer -6.5% |
 | heroHp | storePerH | x0.5 | axes +11.1%, bow +2.3%, crossbow +25.7% | healer -15.9% |
-| heroHp | netPerH | x0.5 | healer +771 | bow -612, crossbow -479 |
+| heroHp | netPerH | x0.5 | healer +770 | bow -612, crossbow -479 |
 | spellCooldown | netPerH | x2 | mage +876, healer +704 | tank -1121, sword -1425, hammer -1471, axes -1461, bow -329, crossbow -1165 |
 | spellPower | storePerH | x1.5 | hammer +17.3% | tank -2.8%, axes -5.1%, bow -6.1%, crossbow -7.3%, mage -14.7% |
 <!-- /GEN -->
@@ -894,7 +900,7 @@ monsterDamage, the four on deadly
 
 | Outcome | x0.5 | x0.75 | x0.9 | x1.1 | x1.25 | x1.5 | x2 |
 |---|---|---|---|---|---|---|---|
-| takenPerH | -58.0% | -32.4% | -12.8% | +13.0% | +32.3% | +65.9% | +128.5% |
+| takenPerH | -58.0% | -32.4% | -12.8% | +13.0% | +32.3% | +66.0% | +128.5% |
 | lowHpP10 | +0.096 | +0.060 | +0.022 | -0.019 | -0.051 | -0.113 | -0.232 |
 | deathsPer1000h | 0->0~ | 0->0~ | 0->0~ | 0->0~ | 0->0~ | 0->0~ | 0->0~ |
 | netLevelXpPerH | +0.0%~ | +0.0%~ | +0.0%~ | +0.0%~ | +0.0%~ | +0.0%~ | -0.0%~ |
@@ -914,12 +920,12 @@ Counting what the matrix says about the 51 levers.
 |---|---|---|
 | Clean multipliers, an elasticity of 0.8 to 1.5 on one outcome and nothing else | 9 | XP a kill, XP by Level, lone XP, party XP, tier XP, the Level curve, the death price, coin a kill, what gear sells for |
 | Prices, move the store bill only | 3 | Food, drink and rune prices |
-| Strong and tangled, elasticity over 0.4 on several outcomes | 6 | Hero damage, monster health, monster damage, hero health, the mitigation cap, the tier blow dial |
+| Strong and tangled, elasticity over 0.4 on several outcomes | 7 | Hero damage, monster health, monster damage, monster accuracy, hero health, the mitigation cap, the tier blow dial |
 | Moderate, 0.1 to 0.4 | 13 | Spell damage, spell cooldown, the attack interval, hero accuracy, weapon damage, store supply power, armor ceilings, armor points, shield size, tier health, tier pull (downward only), respawn (upward only), the wait between pulls |
 | Weak, under 0.1 over all cells | 8 | Crit size, weapon accuracy, weakness damage, the to-hit base, monster defense, the defense cut, health regeneration, the low end of a spell's roll |
 | The supply bill only | 4 | Mana pool, mana regeneration, spell cost, heal size |
 | Dead here | 4 | Spell leech, the Necrotic cut, the Storm drain (dark), the Blessings' cut (harness) |
-| One-sided or seat-bound | 4 | The armor curve, monster accuracy, the two party ground dials |
+| Seat-bound | 3 | The armor curve (the lone melee hero on a harder tier), the two party ground dials (party grounds only) |
 
 Three things follow.
 
@@ -939,6 +945,7 @@ Rule: the low-step and high-step elasticities differ by 0.25 or more and by 30% 
 | manaRegen | storePerH | x0.5: -0.82 | -0.22 | x2: -0.18 |
 | monsterDamage | storePerH | x0.5: +0.25 | +0.62 | x2: +2.74 |
 | monsterHp | storePerH | x0.5: +0.58 | +0.49 | x2: +0.88 |
+| monsterAccuracy | netLevelXpPerH | x0.8: -0.89 | -1.20 | x1.2: -0.48 |
 | tierDanger | takenPerH | x0.5: +0.14 | +0.53 | x2: +0.51 |
 | tierHp | netLevelXpPerH | x0.5: -0.49 | -0.54 | x2: -0.21 |
 | heroMana | storePerH | x0.5: -0.90 | -0.23 | x2: -0.18 |

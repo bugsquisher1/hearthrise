@@ -2243,6 +2243,8 @@ function selftest() {
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
     /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */
     'a least spell windup the Defense bound does not cover': () => ({ spellWindupMinMs: Math.ceil(COMBAT_BALANCE.tickMs / COMBAT_XP.blockMult) - 100 }),
+    'a falls cap past the one the report\'s CHECK is proved at': () => ({ reportFallsMax: 33 }),
+    'a falls cap of none': () => ({ reportFallsMax: 0 }),
     'a block multiple that no longer covers a spell\'s windup': () => ({ blockMult: 1 }),
     'a monster spell under the least windup': () => ({ spells: { ...MONSTER_SPELLS, squeal: { ...MONSTER_SPELLS.squeal, windupMs: SPELL_BOUNDS.windupMs[0] - 100 } } }),
     /* COMBAT TRAINING (training.js): the dummy pays nothing and stands only on a training ground; a training ground is one seat and the dummy */

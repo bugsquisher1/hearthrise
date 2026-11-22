@@ -223,6 +223,11 @@
         "bytes": 3263447,
         "on": "2026-11-22",
         "why": "lane/r2-danger-falls +6,947 B on the set after R8: a fall back names its hero seat and monster (danger.js lowHero/lowBy, combat-sim syncUnit seat), the report's deep and falls fold and proposal (report.js), HUNT_REPORT.fallsMax and DEFAULT_RISK (src/data)"
+      },
+      {
+        "bytes": 3277870,
+        "on": "2026-11-22",
+        "why": "lane/r12-company-trades: the work day reaches the engine (src/core/work-day.js, src/data/work-day.js; the stop in accrual.js, work_to in both accruers, the day carried in tick-shadow.js, the work_day input in envelope.js)"
       }
     ]
   }

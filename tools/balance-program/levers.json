@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f46244e0b4a5e89e",
+ "authored": "a15505e19b1baf93",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -106,9 +106,9 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 63,
+   "asserted": 65,
    "mentioned only": 91,
-   "none": 22
+   "none": 20
   },
   "flags": {
    "redundant": 41,
@@ -117,47 +117,14 @@
   }
  },
  "census": {
-  "bindings": 663,
-  "typed": 15678,
+  "bindings": 661,
+  "typed": 15676,
   "files": 222,
   "lever": 281,
-  "notLever": 376,
-  "unclaimed": 6
+  "notLever": 380,
+  "unclaimed": 0
  },
- "problems": [
-  {
-   "kind": "test",
-   "what": "econ.work-day: tests/company-trades.mjs is not a test file"
-  },
-  {
-   "kind": "test",
-   "what": "econ.work-premium: tests/company-trades.mjs is not a test file"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/core/work-day.js#DAY_MS:24 holds 1 typed number(s) [86400000] and no lever row or NOT_LEVERS reason claims it"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/core/work-day.js#MIN_MS:25 holds 1 typed number(s) [60000] and no lever row or NOT_LEVERS reason claims it"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/core/work-day.js#WORK_END_SLACK_MS:28 holds 1 typed number(s) [60000] and no lever row or NOT_LEVERS reason claims it"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/core/work-day.js#dayMsOf:34 holds 5 typed number(s) [4 5 7 8 10] and no lever row or NOT_LEVERS reason claims it"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/core/work-day.js#foldWork:70 holds 2 typed number(s) [8 8] and no lever row or NOT_LEVERS reason claims it"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/data/work-day.js#WORK_BLOCK_RULED:38 holds 2 typed number(s) [120 4] and no lever row or NOT_LEVERS reason claims it"
-  }
- ],
+ "problems": [],
  "levers": [
   {
    "id": "blow.skill-term",
@@ -10593,10 +10560,20 @@
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
-    "asserts": [],
-    "mentions": [],
-    "mentionCount": 0,
-    "verdict": "none"
+    "asserts": [
+     {
+      "file": "tests/company-trades.mjs",
+      "what": "the day stops the job at the cap, viewed and closed",
+      "reads": [
+       "WORK_DAY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/company-trades.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
@@ -10631,10 +10608,20 @@
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
-    "asserts": [],
-    "mentions": [],
-    "mentionCount": 0,
-    "verdict": "none"
+    "asserts": [
+     {
+      "file": "tests/company-trades.mjs",
+      "what": "the Premium day",
+      "reads": [
+       "WORK_DAY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/company-trades.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
@@ -12263,6 +12250,14 @@
   {
    "at": "src/data/time-blocks.js#RULED",
    "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
+  },
+  {
+   "at": "src/data/work-day.js#WORK_BLOCK_RULED",
+   "why": "Tyler's ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice"
+  },
+  {
+   "at": "src/core/work-day.js#*",
+   "why": "calendar arithmetic of the work day (ms a UTC day, ms a minute, the YYYY-MM-DD fields, a window's days scanned): the hours are the levers (econ.work-day, econ.work-premium)"
   },
   {
    "at": "src/data/hunt-sessions.js#SESSION_LIMITS",

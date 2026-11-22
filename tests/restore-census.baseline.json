@@ -567,7 +567,6 @@
    "hr-hunt-after | * * * * * | select public.hr_hunt_after_sweep(50)",
    "hr-hunt-party-sweep | * * * * * | select public.hr_hunt_party_sweep(200)",
    "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",
-   "hr-job-next | * * * * * | select public.hr_job_next_sweep(50)",
    "hr-kill-credit-prune | 40 4 * * * | select public.hr_kill_credit_prune()",
    "hr-ledger-hours | 6-56/10 * * * * | select public.hr_ledger_hours_fold(50000)",
    "hr-ledger-prune | 2-57/5 * * * * | select public.hr_ledger_prune(20000)",
@@ -675,6 +674,7 @@
  "player_value_tables": [
   "account_bank",
   "account_coach",
+  "company_trades",
   "account_farm",
   "account_farm_plots",
   "account_house_dummy",
@@ -1012,6 +1012,12 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER-SCOPED (1051-company-start.sql, lane/c-company): the account's standing plan lines (wear_upgrades, D-2). Written only by hr_company_line_set. Not gold, but a rebuild returning it EMPTY silently turns every account's \"Wear upgrades\" back to the default (on), so a player who turned it off finds heroes dressing themselves. RLS on, no policy, no client grant."
+  },
+  "company_trades": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "replay": 0,
+   "note": "PLAYER VALUE. Each company's trade XP, the one copy (1059-company-trades.sql, Tyler 2026-11-22 CR-Q1 a: trade Levels are the company's): every hero's player_skills row for a trade is its projection (hr_trade_row_sync). Losing it while player_skills survives would let the next credit restart a company's total from one hero's row; a backup is the only full answer."
   },
   "display_names": {
    "class": "restore_only",
@@ -2000,7 +2006,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 57,
+   "replay": 58,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -2206,6 +2212,11 @@
    "class": "regenerated",
    "replay": 2,
    "note": "The audit row of the 2026-10-15 clean-slate wipe (2026-10-21-closed-rebuild-wipe.sql, one-shot). A rebuild runs that file and writes ONE row of its own — the right count with the WRONG content (the replay's own timestamp and counts, not production's 2026-10-15 02:41 UTC wipe). No player value; the production row is the only record of when the real wipe ran, so a backup is what keeps it."
+  },
+  "hr_work_day": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1059-company-trades-catalogue.generated.sql, tools/gen-work-day.mjs from src/data/work-day.js): one row, a hero's free town-work day and Premium's extra, the skill categories that are company trades and the pointer kinds that are town work. Empty, hr_work_base_ms answers null, the work_day section is broken and no skill reads as a trade (the projection trigger passes every write through). Rebuilt from repo, never restored."
   },
   "hr_world_notice_rules": {
    "class": "seeded",

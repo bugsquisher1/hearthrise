@@ -39,17 +39,17 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 30 | 16 | 3 | 10 | 1 | 0 | 27 | 15 |
-| **All** | **176** | 78 | 24 | 46 | 28 | 31 | 65 | 63 |
+| Economy sources and sinks | 30 | 16 | 3 | 10 | 1 | 0 | 27 | 17 |
+| **All** | **176** | 78 | 24 | 46 | 28 | 31 | 65 | 65 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 663 (in 222 files, 15678 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 661 (in 222 files, 15676 typed numbers) |
 | Claimed by a lever | 281 |
-| Claimed by a not-a-lever reason | 376 |
-| Unclaimed | 6 |
+| Claimed by a not-a-lever reason | 380 |
+| Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->

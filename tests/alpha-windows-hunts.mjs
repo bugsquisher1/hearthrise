@@ -976,7 +976,7 @@ async function checks(overrides, shots, opts) {
         const castNote = await page.evaluate((w) => { const n = document.querySelector(w + '.hw-hd-casts'); return n && !n.hidden ? n.textContent : null; }, W);
         if (castNote !== 'Sewer Kobold casts Muck Fling. Rat King casts Tail Lash and Squeal.') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
         const pp = await party();
-        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Invite a player' || !/^Play other heroes from Characters to bring them/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Invite a player' || !/^Bring other heroes from Characters/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         /* Invite a player is a link: its words start on the section's edge with the lines around it, as Hunt prep's do (visual pass 2: a
            boxed button's 10 px padding stood it 8 px in from "Players: 1 to 4") */
         const inset = await page.evaluate((w) => { const a = document.querySelector(w + '.hw-invite-here'), why = document.querySelector(w + '.hw-hd-party-why');

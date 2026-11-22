@@ -31,9 +31,9 @@ export const WORK_TEXT = Object.freeze({
   then_wait: 'Wait in town',
   /* THE COMPANY'S TRADES AND THE HERO'S WORK DAY (1059-company-trades.sql; Tyler 2026-11-22): the ledger's Levels are the company's,
      and each hero's town work stops for the day at its cap (the `work_day` section, as of the server's last settle). */
-  company_trades: 'Trade Levels belong to your company. Every hero shares them.',
+  company_trades: 'Trade Levels shared by all heroes',
   day_left: 'Town work left today: {left} of {cap}',
-  day_done: 'No town work left today. A new day starts at midnight UTC.',
+  day_done: 'No town work left today · Resets 00:00 UTC',
   /* THE LINE WHEN A BENCH RUN FINISHES IN VIEW (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word): what it
      made or burned, the server's count, then the skill's level as a label. */
   done_made: '{name} made {count} {item}.',

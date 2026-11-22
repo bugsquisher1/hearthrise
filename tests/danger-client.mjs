@@ -110,9 +110,13 @@ const bold = pickOf({ risk: 'bold', held: {}, playing: null });
 check('DC-9', bold.pressed.join() === 'bold' && bold.note === HUNTS_TEXT.stance_line_bold, 'the server\'s stance wins: ' + JSON.stringify(bold));
 check('DC-9', pickOf(undefined).pressed.length === 0, 'no section, nothing pressed');
 
-// DC-10 (visual pass 2: 'Held depth: Depth 1 of 20' said depth twice): the depth this hero last held reads as the report's cause line does
+// DC-10 (visual pass 2: 'Held depth: Depth 1 of 20' said depth twice; Tyler's label rule): the depth this hero last held, one short label
 const held = pickOf({ risk: null, held: { [M]: 590 }, playing: null }).depth;
-check('DC-10', /^Held Depth \d+ of 20 last time\.$/.test(held) && !/depth\W+depth/i.test(held), 'the held line reads ' + JSON.stringify(held));
+check('DC-10', /^Last held Depth \d+ of 20$/.test(held) && !/depth\W+depth/i.test(held), 'the held line reads ' + JSON.stringify(held));
+
+// DC-11 (Tyler's label rule, 11-14, re-said 11-22): the Risk pick's lines are short labels, never sentences or colon-joined clauses
+const pickLines = ['stance_line_careful', 'stance_line_steady', 'stance_line_bold', 'stance_next', 'stance_leader', 'stance_reading', 'depth_new'].map((k) => HUNTS_TEXT[k]);
+check('DC-11', pickLines.every((s) => typeof s === 'string' && !/[.!?]\s|[.;:—–]$|:\s[a-z]/.test(s)), 'the pick\'s lines read ' + JSON.stringify(pickLines));
 
 console.log(fails ? 'danger-client: ' + fails + ' RED' : 'danger-client: all green');
 process.exit(fails ? 1 : 0);

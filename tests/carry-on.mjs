@@ -464,7 +464,7 @@ async function wordsArm() {
   const lines = S.carryLinesOf(p);
   const txt = lines.map((l) => l.text);
   if (lines.length !== 4 || p.heroes.length !== 5) bad.push('CO-WORDS a busy or out-of-range hero got a line: ' + JSON.stringify(txt));
-  if (!/^Wren: Meadowbrook Thicket, Normal\. From Storage: 40 Cooked Shrimp\. Short of last time: 5 Cooked Shrimp\. .*Bless again: 450 gp\. Runs its loot plan first\. Stops gathering\.$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
+  if (!/^Wren: Meadowbrook Thicket, Normal\. From Storage: 40 Cooked Shrimp\. Short: 5 Cooked Shrimp \(store refills in the hunt\) .*Bless again: 450 gp\. Runs its loot plan first\. Stops gathering\.$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
   if (txt[1] !== 'Bryn stays in town: no stamina left.' || txt[2] !== 'Tess waits for Marlow to start the party\'s hunt.' || txt[3] !== 'Dorn stays where you left it.') bad.push('CO-WORDS the other lines read ' + JSON.stringify(txt.slice(1)));
   if (txt.some((s) => /[;—–]/.test(s))) bad.push('CO-WORDS a line has a semicolon or a dash: ' + JSON.stringify(txt));
   /* a Danger scale ground has no tier (visual pass 2: "The Muster Barrows, Normal."): the line names the hero's Risk, Steady where none is read */

@@ -77,7 +77,7 @@ export function causeLine(d) {
       : ['report.fell_many', 'report.fell_many_died'];
     parts.push(t(keys[pm === 0 ? 1 : 0], v));
   }
-  return parts.join(' ');
+  return parts.join(' · ');
 }
 
 /** The rules block's lines: slots that fired (bar order), then those that never fired, at most HUNT_REPORT.rulesShown, the change line last. */

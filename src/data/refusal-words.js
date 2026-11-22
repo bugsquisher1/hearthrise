@@ -348,10 +348,10 @@ export const REFUSAL_WORDS = Object.freeze({
   would_confiscate: 'Hero busy, stop it first',
   /* Services. A bought hunting block (1058-hunting-blocks.sql hr_time_buy): stamina_full = a full day of blocks is already banked. */
   stamina_full: 'Stamina full',
-  block_limit: 'Today\'s blocks are bought. More after midnight UTC',
+  block_limit: 'All blocks bought today · Resets 00:00 UTC',
   stamina_ahead: 'Stamina full',
   /* Town work (1059-company-trades.sql hr_apply): the hero's town work for the day is used up (Tyler 2026-11-22 CR-Q3 b). */
-  work_cap: 'No town work left today. More after midnight UTC',
+  work_cap: 'No town work left today · Resets 00:00 UTC',
   already_blessed: 'Already blessed',
   needs_previous: 'Buy the previous Blessing first',
   unknown_tier: 'No such Blessing',

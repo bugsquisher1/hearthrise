@@ -105,7 +105,7 @@ const ARMS = {
     const say = Object.fromEntries(off.shown.map((r) => [r.kind, r.text]));
     if (say.outgrown !== 'Tess has outgrown Mill Cellar.') out.push('the outgrown row reads ' + JSON.stringify(say.outgrown));
     if (say.cannot_start !== 'Dorn\'s bag is full.') out.push('the cannot start row reads ' + JSON.stringify(say.cannot_start));
-    if (say.death !== 'Wren died and lost 4,200 Level XP. No Blessing is on.') out.push('the death row reads ' + JSON.stringify(say.death));
+    if (say.death !== 'Wren died · Death cost 4,200 Level XP · No Blessing active') out.push('the death row reads ' + JSON.stringify(say.death));
     if (off.shown.some((r) => /[;—–]/.test(r.text))) out.push('a row has a semicolon or a dash');
     const all = X.N.needsRowsOf({ peers: () => peers, plan, wearOn: false });
     const gear = all.find((r) => r.kind === 'gear_choice');
@@ -140,9 +140,9 @@ ARMS['NY-NEAR'] = async (X) => {
   ];
   const row = X.N.needsRowsOf({ peers: () => peers, plan: null, wearOn: true }).find((r) => r.kind === 'near_death');
   if (!row || row.slot !== 2 || row.go !== 'prep' || row.label !== 'Change the plan') out.push('the row reads ' + JSON.stringify(row));
-  else if (!/^Bryn nearly died, down to 3% health from .+'s .+\.$/.test(row.text) || /[;—–:]/.test(row.text)) out.push('the row\'s words: ' + row.text);
+  else if (!/^Bryn near death \(3% health, .+, .+\)$/.test(row.text) || /[;—–:]/.test(row.text)) out.push('the row\'s words: ' + row.text);
   const swing = X.N.needsRowsOf({ peers: () => [peers[1]], plan: null, wearOn: true }).find((r) => r.kind === 'near_death');
-  if (!swing || !/^Wren nearly died, down to 8% health from a .+\.$/.test(swing.text)) out.push('a swing reads ' + JSON.stringify(swing && swing.text));
+  if (!swing || !/^Wren near death \(8% health, [^,]+\)$/.test(swing.text)) out.push('a swing reads ' + JSON.stringify(swing && swing.text));
   const calls = withReport(1, 'Wren', 'stamina', { low: { pm: 600, by: 'rat', blow: 'basic', at: 1 }, close: 3 });
   if (!X.N.needsRowsOf({ peers: () => [calls], plan: null, wearOn: true }).some((r) => r.kind === 'near_death')) out.push('three close calls are not Near death');
   const quiet = [peers[0], peers[3], withReport(1, 'Wren', 'stamina', low(80, 'rat', 'basic'), false)];

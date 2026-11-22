@@ -55,7 +55,7 @@ import { loadGridData, inputHash, compsOf, cellKey, buildCell } from './progress
 import { loadKits } from './grid-kit.mjs';
 import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS, ch14Slots as MP_ch14Slots } from './matrix-plan.mjs';
 import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS, checkGRows, toolReds, TOOL_RED_ENDS } from './matrix-metrics.mjs';
-import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, locateKnob, PATCH_SCHEMA, KnobGone } from './matrix-scratch.mjs';
+import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, locateKnob, knobReach, PATCH_SCHEMA, KnobGone } from './matrix-scratch.mjs';
 import { calibrationJobs, calibrationTable, printCalibration } from './matrix-calibration.mjs';
 import { STYLE_GROUPS, KNOB_FILE } from './knob-rules.mjs';
 
@@ -475,6 +475,14 @@ async function sweep(run, o, ids0, out = null) {
   for (const id of ids) {
     const k = list.byId.get(id);
     doc.knobs[id] = doc.knobs[id] || { label: k.label, group: k.group, what: k.what, ruled: k.ruled || null, steps: {} };
+    /* DOES THE KNOB REACH THIS GAME? (matrix-scratch.mjs knobReach) On a proposal base a knob's numbers can stay written while the code
+       that read them is replaced: such a knob is not on this game. Said once, never played, never stored as a row of zeros. */
+    if (base && !doc.knobs[id].reach) {
+      const reach = await knobReach(k, base.patch);
+      doc.knobs[id].reach = reach;
+      if (reach.checked && !reach.reaches) { doc.knobs[id].gone = 'knob ' + id + ' is not on this game: its numbers are written but nothing reads them (' + reach.how + ' did not move)'; console.error(doc.knobs[id].gone); writeFileSync(file, JSON.stringify(doc) + '\n'); continue; }
+    }
+    if (doc.knobs[id].gone) continue;
     for (const m of k.steps) {
       if (m === 1 || doc.knobs[id].steps[String(m)]) continue;
       const patch = combinePatches(base ? base.patch : null, { schema: PATCH_SCHEMA, name: id + ' x' + m, knobs: { [id]: m }, targets: [] });
@@ -682,6 +690,22 @@ async function selftest() {
   if (table) check('every knob finds its numbers on the tree (' + table.length + ' knobs, ' + table.reduce((a, k) => a + k.sites.length, 0) + ' lines)', table.every((k) => k.sites.length > 0));
   check('a whole number stays whole, a decimal keeps its places', scaled('150', 1.125) === '169' && scaled('0.35', 1.1) === '0.385' && scaled('2', 1.25, true) === '2.5');
   check('every knob\'s numbers today are the list\'s `value` (no stale knob)', table && table.every((k) => !k.stale), table && table.filter((k) => k.stale).map((k) => k.id).join(', '));
+  /* 1a. A KNOB THAT NOTHING READS IS CAUGHT (Balance Lab phase 1: xpPerKill, xpByLevel and levelCurve read 'moved nothing' on the proposed
+     game). On the tree each reaches the engine. With the reader replaced by a planted edit (the shape of proposals GR-5 and GR-6: the
+     typed numbers stay, the code that read them is gone) each is reported as not reaching, and a knob whose reader is untouched still does. */
+  {
+    const K0 = readKnobs(ROOT).byId;
+    const noXpReader = { schema: PATCH_SCHEMA, name: 'planted: the kill reward stops reading STAT_FORMULA.xp', targets: [], edits: [{ file: 'src/data/balance-sheet.js', from: 'Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b)', to: '(2)' }] };
+    const noCurveReader = { schema: PATCH_SCHEMA, name: 'planted: the Level table stops reading LEVEL_CURVE', targets: [], edits: [{ file: 'src/core/xp.js', from: 'export function charXpForLevel(lv) { return xpForLevelOn(LEVEL_ROWS, lv); }', to: 'export function charXpForLevel(lv) { return 1000 * lv * lv; }' }] };
+    try {
+      const live = [await knobReach(K0.get('xpPerKill')), await knobReach(K0.get('xpByLevel')), await knobReach(K0.get('levelCurve'))];
+      check('xpPerKill, xpByLevel and levelCurve reach the engine on the tree', live.every((x) => x.checked && x.reaches), JSON.stringify(live.map((x) => x.reaches)));
+      const dead = [await knobReach(K0.get('xpPerKill'), noXpReader), await knobReach(K0.get('xpByLevel'), noXpReader), await knobReach(K0.get('levelCurve'), noCurveReader)];
+      check('with their reader replaced (the numbers still written) all three are caught as not reaching', dead.every((x) => x.checked && !x.reaches), JSON.stringify(dead.map((x) => x.reaches)));
+      const other = [await knobReach(K0.get('monsterHp'), noXpReader), await knobReach(K0.get('levelCurve'), noXpReader)];
+      check('a knob whose own reader stands still reaches on that game', other.every((x) => x.checked && x.reaches), JSON.stringify(other.map((x) => x.reaches)));
+    } catch (e) { check('a knob that nothing reads is caught', false, e.message); }
+  }
   /* 1b. KNOBS ON ONE LINE (knobs.json sharesLineWith): one edit a line, built from the untouched line, every pick scaled; two knobs on one
      number multiply; and the plant applies it (its exactly-once anchor would refuse a second edit built from the untouched line) */
   const list = readKnobs(ROOT);

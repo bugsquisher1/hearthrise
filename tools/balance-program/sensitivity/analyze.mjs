@@ -520,7 +520,7 @@ function mdExp(M, id, out, o = {}) {
     for (const p of [...x.points].sort((a, b) => key(a).localeCompare(key(b)))) {
       const i = p.inter && p.inter[g] && p.inter[g][o];
       if (!Object.keys(p.effects[g] || {}).length) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | refused by the engine | | |'); continue; }
-      if (p.moved.length > 1 && !i) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | no single reading (a lever alone was refused) | |'); continue; }
+      if (p.moved.length > 1 && !i) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | no single reading to compare (a lever alone was refused, or its base is zero here) | |'); continue; }
       if (p.moved.length > 1 && !i.resolved && !has('all')) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + show(i.predicted) + ' | within noise |'); continue; }
       out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | ' + (i ? show(i.predicted) : 'single') + ' | ' + (i ? (rel ? pct(Math.exp(i.inter) - 1) : num(i.inter, dth ? 1 : 3)) + ' +/- ' + (rel ? (100 * i.se).toFixed(1) + '%' : i.se) : '') + ' |');
     }

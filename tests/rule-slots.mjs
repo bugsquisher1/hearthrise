@@ -42,7 +42,7 @@ import { isMain } from './_is-main.mjs';
 import { readSlots, registryOf, shelfFileOf, readCandidate, listCandidates, compose, candidatePatch, checkCandidate, treeOf, markerLineOf, CANDIDATE_SCHEMA, SHELF, SLOTS_FILE } from '../tools/balance-program/candidates.mjs';
 import { GENERIC, PROPERTIES, genericProblems, propertyProblems, callersOf } from '../tools/balance-program/slot-contracts.mjs';
 import { PATCH_SCHEMA, plantScratch, patchEdits, checkOverlays, shippedNameOf, KnobGone, readKnobs } from '../tools/balance-program/matrix-scratch.mjs';
-import { paired, aheadOf, chanceCount, groupRead, planOf, sameBytes } from '../tools/balance-program/variants.mjs';
+import { paired, aheadOf, chanceCount, groupRead, planOf, sameBytes, roleReads } from '../tools/balance-program/variants.mjs';
 import { combinePatches, playJobs } from '../tools/balance-program/balance-matrix.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -363,6 +363,12 @@ async function selftest() {
   const cellsOf = (aheadB, aheadA, n) => Array.from({ length: n }, (_, i) => ({ reads: { x: i < aheadB ? { verdict: 'B', a: 1, b: 2 } : i < aheadB + aheadA ? { verdict: 'A', a: 2, b: 1 } : { verdict: 'noise', a: 1, b: 1 } } }));
   check('a group leads only past its chance count: 2 of 20 cells is chance, 6 of 20 leads',
     groupRead(cellsOf(2, 0, 20), 'x', 'higher').lead === null && groupRead(cellsOf(6, 1, 20), 'x', 'higher').lead === 'B' && groupRead(cellsOf(1, 6, 20), 'x', 'lower').lead === 'B');
+  /* the roles: each cell weighs the same, so one Level 5,000 cell cannot outvote nine others by its size */
+  const roleCells = [{ roles: { x: [[1e9, 1.1e9, 0.9e9, 1e9], [0.5e9, 0.55e9, 0.45e9, 0.5e9]], y: [[5, 5, 5, 5], [5, 5, 5, 5]] } },
+    ...Array.from({ length: 9 }, (_, i) => ({ roles: { x: [[10 + i, 11 + i, 12 + i, 13 + i], [1.1 * (10 + i), 1.1 * (11 + i) + 0.01, 1.1 * (12 + i), 1.1 * (13 + i)]], y: [[5, 5, 5, 5], [5, 5, 5, 5]] } }))];
+  const rr = roleReads(roleCells, 4);
+  check('roles: each cell weighs the same (nine cells +10% and one huge cell -50% read +1.7%, not the summed -50%); an unmoved role is the same',
+    rr.x.verdict === 'B' && Math.abs(rr.x.ratio - 0.0167) < 0.002 && rr.y.verdict === 'same' && rr.x.cells === 10, JSON.stringify(rr));
   return failed ? 1 : 0;
 }
 

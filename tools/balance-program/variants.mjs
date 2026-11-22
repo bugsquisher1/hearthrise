@@ -64,6 +64,7 @@ const T975 = [null, 12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.2
 export const tCrit = (df) => (df < 1 ? Infinity : df < T975.length ? T975[df] : df < 30 ? 2.09 : 1.96);
 const finite = (x) => typeof x === 'number' && Number.isFinite(x);
 const mean = (xs) => xs.reduce((a, x) => a + x, 0) / xs.length;
+const sig4 = (v) => (finite(v) ? Number(v.toPrecision(4)) : v);
 
 /**
  * One difference read as pairs: `a` and `b` the two sides' values seed by seed. Answers { a, b, d, lo, hi, n, verdict } where verdict is
@@ -212,7 +213,7 @@ export function compareSides(K, A, B, o = {}) {
     const p = paired(both.map((s) => e.B[s].dist), both.map((s) => e.A[s].dist));
     const statusA = majority(both.map((s) => e.A[s].status)), statusB = majority(both.map((s) => e.B[s].status));
     if (p.verdict === 'same' && statusA === statusB) continue;
-    bands.push({ way: e.way, band: e.band, group: e.group, at: e.at, statusA, statusB, valueA: mean(both.map((s) => e.A[s].value)), valueB: mean(both.map((s) => e.B[s].value)),
+    bands.push({ way: e.way, band: e.band, group: e.group, at: e.at, statusA, statusB, valueA: sig4(mean(both.map((s) => e.A[s].value))), valueB: sig4(mean(both.map((s) => e.B[s].value))),
       nearer: p.verdict === 'B' ? 'B' : p.verdict === 'A' ? 'A' : null, dist: p });
   }
   return { cells, groups, roles, bands };
@@ -277,8 +278,7 @@ async function identity() {
 
 /** A report as it is kept: four significant digits (a reading, not a ledger), each cell's per-role seed lists dropped (the summed roles stay). */
 export function slimReport(rep) {
-  const sig = (v) => (typeof v === 'number' && Number.isFinite(v) && !Number.isInteger(v) ? Number(v.toPrecision(4)) : v);
-  const walk = (x) => (Array.isArray(x) ? x.map(walk) : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, walk(v)])) : sig(x));
+  const walk = (x) => (Array.isArray(x) ? x.map(walk) : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, walk(v)])) : Number.isInteger(x) ? x : sig4(x));
   return walk({ ...rep, cells: rep.cells.map(({ roles, ...c }) => (void roles, c)) });
 }
 

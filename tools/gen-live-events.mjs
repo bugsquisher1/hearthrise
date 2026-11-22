@@ -22,8 +22,8 @@
 //
 // REFUSES (throws, nothing written): a type whose dial, range, stack or scope the server doesn't know; an event of no type; a pm outside
 // its type's range; a window of 0 or more than 168 hours; a repeat of 0 or more than 90 days, or shorter than its own window (an event
-// never overlaps itself); `until` before `first`; a `first` that isn't a UTC instant; a scope naming no ground (xp_bonus) or no call
-// (open_halls); words missing a name, a start or an end line, a System line past the chat's 240 characters once filled, or words that
+// never overlaps itself); `until` before `first`; a `first` that isn't a UTC instant; a scope naming no ground (an XP type) or no call
+// (a fee type); words missing a name, a start or an end line, a System line past the chat's 240 characters once filled, or words that
 // break the copy rules (a semicolon, a dash, a colon joining two clauses).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';

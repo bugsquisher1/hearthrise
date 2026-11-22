@@ -24,8 +24,9 @@
 --   hr_clan_rank(p_target, p_rank)      the leader sets officer or member, or hands the clan on (the leader becomes an officer).
 --   clan_join, clan_leave, clan_kick, clan_invite_revoke, clan_join_policy_set   the 2026-08 bodies, unchanged, now client-executable.
 -- THE CASTLE, HIDDEN AND KEPT (X-04): every castle, feast, upkeep, vote, treasury, rations and work-order call, the free clan_create and the
---   display-name clan_invite and clan_invites_list stay on the server with no client grant (src/data/clans.js CLAN_HIDDEN_CALLS). §4
---   asserts each exists and that a request role calling one is refused. Chapter 14 builds the castle on them.
+--   display-name clan_invite and clan_invites_list stay on the server with no client grant (tests/_clan-hidden.mjs CLAN_HIDDEN_CALLS). §5
+--   asserts each exists and that a request role calling one is refused. Chapter 14 builds the castle on them. The tavern's rested grant
+--   is not among them: it went with the rested bank (1040-rested-bank-cut.sql, FB-2, S-9 c).
 -- CHAT:
 --   hr_chat_send RESTATED WHOLE: kinds global | party | clan. 'local' is refused bad_channel (GR-69: no Local tab). A clan line is channel
 --        clan:<id>, for the account's clan. A Global line first passes the slow mode: the room's lines in the last minute pick the step,
@@ -370,7 +371,7 @@ begin
                 where n.nspname = 'public' and p.proname = any (array[
                   'clan_contribute', 'clan_contribute__ungated', 'clan_create', 'clan_deposit', 'clan_deposit__ungated',
                   'clan_feast_call', 'clan_feast_call__ungated', 'clan_feast_deposit', 'clan_feast_deposit__ungated',
-                  'clan_invite', 'clan_invites_list', 'clan_rested_grant', 'clan_rested_grant__ungated', 'clan_seat_read', 'clan_seat_read__ungated',
+                  'clan_invite', 'clan_invites_list', 'clan_seat_read', 'clan_seat_read__ungated',
                   'clan_upkeep_settle', 'clan_vice_set', 'clan_vice_set__ungated',
                   'clan_vote_cast', 'clan_vote_cast__ungated', 'clan_vote_close', 'clan_vote_close__ungated',
                   'clan_vote_open', 'clan_vote_open__ungated', 'clan_vote_read', 'clan_vote_read__ungated',
@@ -659,7 +660,7 @@ declare
   c_hidden constant text[] := array[
     'clan_contribute', 'clan_contribute__ungated', 'clan_create', 'clan_deposit', 'clan_deposit__ungated',
     'clan_feast_call', 'clan_feast_call__ungated', 'clan_feast_deposit', 'clan_feast_deposit__ungated',
-    'clan_invite', 'clan_invites_list', 'clan_rested_grant', 'clan_rested_grant__ungated', 'clan_seat_read', 'clan_seat_read__ungated',
+    'clan_invite', 'clan_invites_list', 'clan_seat_read', 'clan_seat_read__ungated',
     'clan_upkeep_settle', 'clan_vice_set', 'clan_vice_set__ungated',
     'clan_vote_cast', 'clan_vote_cast__ungated', 'clan_vote_close', 'clan_vote_close__ungated',
     'clan_vote_open', 'clan_vote_open__ungated', 'clan_vote_read', 'clan_vote_read__ungated',

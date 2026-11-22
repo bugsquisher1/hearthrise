@@ -17,11 +17,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/* The castle's calls the first build hides (the chapter 14 castle builds on them), plus the superseded free create and display-name invite. */
+/* The castle's calls the first build hides (the chapter 14 castle builds on them), plus the superseded free create and display-name invite.
+   The clan tavern's rested grant is not here: it went with the rested bank (1040-rested-bank-cut.sql, FB-2, Tyler's S-9 c). */
 export const CLAN_HIDDEN_CALLS = Object.freeze([
   'clan_contribute', 'clan_contribute__ungated', 'clan_create', 'clan_deposit', 'clan_deposit__ungated',
   'clan_feast_call', 'clan_feast_call__ungated', 'clan_feast_deposit', 'clan_feast_deposit__ungated',
-  'clan_invite', 'clan_invites_list', 'clan_rested_grant', 'clan_rested_grant__ungated', 'clan_seat_read', 'clan_seat_read__ungated',
+  'clan_invite', 'clan_invites_list', 'clan_seat_read', 'clan_seat_read__ungated',
   'clan_upkeep_settle', 'clan_vice_set', 'clan_vice_set__ungated',
   'clan_vote_cast', 'clan_vote_cast__ungated', 'clan_vote_close', 'clan_vote_close__ungated',
   'clan_vote_open', 'clan_vote_open__ungated', 'clan_vote_read', 'clan_vote_read__ungated',

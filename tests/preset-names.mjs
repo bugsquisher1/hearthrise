@@ -330,7 +330,13 @@ async function checks(overrides) {
       p = await prep();
       if (p.msg !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 a refused save says ' + JSON.stringify(p.msg));
       s.refuseSave = null;
-      /* Use equipped asks once (nothing sent), then ONE hr_hunt_preset_save over the picked setup (the one in use, 0) */
+      /* every number used: Save is off and the window says the only way left, with no price */
+      s.env.hunt_presets = setups(upTo(max));
+      await at();
+      p = await prep();
+      if (p.buy || !p.save || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the limit: ' + JSON.stringify({ save: p.save, buy: p.buy, why: p.why }));
+      /* Use equipped asks once (nothing sent), then ONE hr_hunt_preset_save over the picked setup (the one in use, 0); its answer never
+         hides why Save is off (the full line stands beside the news) */
       const overBefore = sent(s, 'hr_hunt_preset_save').length;
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]');
       await page.waitForTimeout(120);
@@ -339,11 +345,16 @@ async function checks(overrides) {
       await page.waitForTimeout(500);
       const over = sent(s, 'hr_hunt_preset_save').slice(overBefore);
       if (over.length !== 1 || over[0].body.p_preset !== 0) fails.push('PN-11 Use equipped sent ' + JSON.stringify(over.map((c) => c.body)));
-      /* every number used: Save is off and the window says the only way left, with no price */
-      s.env.hunt_presets = setups(upTo(max));
-      await at();
       p = await prep();
-      if (p.buy || !p.save || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 at the limit: ' + JSON.stringify({ save: p.save, buy: p.buy, why: p.why }));
+      if (!/^Replaced/.test(p.msg) || p.why !== `This hero's ${max} setup slots are full. Delete one to save a new setup.`) fails.push('PN-11 an answer hid why Save is off: ' + JSON.stringify({ msg: p.msg, why: p.why }));
+      /* A SETUP SAVED BEFORE THE ONE-SETUP MODEL, on a number past the limit (5 to 7): it keeps every control */
+      s.env.hunt_presets = setups([0, max]);
+      await at();
+      await page.click(ROW(max) + ' small');
+      await page.waitForTimeout(120);
+      const kept = await page.evaluate((sel) => { const li = document.querySelector(sel); return li && { use: li.querySelector('.hw-use').disabled, over: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]').disabled }; }, ROW(max));
+      if (!kept || kept.use || kept.over) fails.push('PN-11 a setup past the limit reads ' + JSON.stringify(kept));
+      if (!(await page.isVisible(ROW(max) + ' .hw-del'))) fails.push('PN-11 a setup past the limit has no Delete');
       // PN-12
       delete s.env.setup_slots;
       s.env.hunt_presets = setups([0]);

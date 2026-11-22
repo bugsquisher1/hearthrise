@@ -88,6 +88,12 @@
         "gzipBytes": 894771,
         "on": "2026-11-22",
         "why": "set/v0.2.144 at 020f01ac4 after lane/c-social (FB-12) and lane/c-first-hour (FB-5): town 864.8 -> 873.8 KB gzip. The modules are held at 12 / 21 by lane/a-ci-reds-social's cut (boot.js's own import() of friend-link.js made it a bundle entry, splitting 1 sign-in and 3 town chunks; arriveByLink now comes from the game half, which already holds friend-link.js: -0.6 KB). The rest, per module minified gzip against 45e08b217: lane/c-social +9.5 KB (windows/clan.js 3.0, clan-intents 1.4, text/clan 1.0, friend-link 0.8, ground-presence 0.6, hearthrise data 0.5, presence-strip 0.5, the Friends window 0.5, hearth-fire 0.5, live-event-sections 0.3, clans and chat-channels data 0.4) and windows.css +0.7 (its Clan, Friends and fire styles); lane/c-first-hour +4.9 KB (the-path 2.2, hero-create 1.5, account-coach 0.9, how-to-play 0.5, launcher-coach split out of launcher +0.4, back-in-town 0.4, slot-offer -0.9, text/slots -0.4) and app.css +0.2 (the creation step); the approved cuts -2.7 KB (boss-forge, bosses and rested gone). Windows load with the game half like every window; none is a lazy candidate on its own"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 900803,
+        "on": "2026-11-22",
+        "why": "set/v0.2.144 at 674e92e1e after lane/c-company parts 1 and 2 (FB-6: src/core/upgrade-pick.js, the company plan and the one Start in carry-on.js, Needs you and its four providers, company-pane.js, hunt-after rows, the tally's company counters) and lane/c-settle-flush: town 873.8 -> 879.7 KB gzip, modules held at 12 / 21. The company is the Start every return lands on, so it loads with the town."
       }
     ]
   }

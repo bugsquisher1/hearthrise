@@ -124,7 +124,9 @@ Six faults were planted in the real tree, one at a time. Each time `--check` was
 THE TREE PUT BACK: exit 0
 ```
 
-The same faults are planted in memory by `graph.mjs --selftest` (61 proofs) so CI proves it on every run. A wrong sign is the one fault the code cannot show. The measurement catches it.
+The same faults are planted in memory by `graph.mjs --selftest` (61 proofs) and `lab.mjs --selftest` (20 proofs), so CI proves it on every run. A wrong sign is the one fault the code cannot show. The measurement catches it.
+
+The checker was then broken on purpose, eleven ways, one at a time: the undeclared check skipped, a declaration needing no evidence, a new finding no longer failing, a minus read no longer flipping the direction, a sign miss counted as a hit, a wrong lever move unchecked, ghost edges never found, a lost home unnoticed, `propose` forgetting the undeclared outcomes, `ask` printing no reach, a lever moved down not turned over. The selftests exited 1 on all eleven and 0 with the files put back.
 
 ---
 

@@ -168,9 +168,9 @@ Totals: 16 keep, 15 retire, 2 re-cut.
 - **Confirmed:** the base tier (the item's base numbers) is fixed by the ground.
 - **Depth raises two things only:**
   - **Rare odds:** ×1 at depth 1, rising to ×3 at depth 20 (a starting value).
-  - **Trait rank:** depths 1 to 4 roll rank I, 5 to 8 rank II, up to 17 to 20 rank V.
+  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five).
 - **Never the base numbers.** If depth raised them, one ground would hold the best gear forever, and moving on would be pointless. That was Tyler's worry, and this rule answers it.
-- **Why move on, then?** The next ground's base tier is higher. A plain item there beats a rank V Rare's base here, while the Trait still makes a good Rare worth keeping for a while. Both feel good: the old Rare had a life, then you outgrew it.
+- **Why move on, then?** The next ground's base tier is higher. A whole kit from there beats a whole kit from here, Traits and all (section 8: every Trait on a hero together is held to one tier). A single good Rare still outlives a few bases, and carry-over moves its Trait onto a new one. Both feel good: the old Rare had a life, then you outgrew it.
 
 ### 3.4 What the player sees
 
@@ -217,7 +217,7 @@ The rule for every batch (CLAUDE.md section 10): write a sample of about 5, play
 | 1 | **Ground bands and drop tables** | Muster plus the next 4 grounds: floor, middle, top, base tier, Rare odds, a drop table each | Every hunting ground | Wave 1 finish (R10) | The band is the answer to "why move on". Everything else reads it |
 | 2 | **Monster roles per ground** | 5 roles (Brute, Skirmisher, Caster, Shield, Swarm) on Muster's four monsters plus one more ground | Every monster | Wave 2 | Roles make every seat matter. V3 needs them |
 | 3 | **Move evolution branches** | 5 moves × about 8 rows (rank points, 2 branch picks, a final form) | Every move | Wave 3 | A point every Level needs somewhere to go (RD-Q4) |
-| 4 | **Traits** | 5 rule Traits, each with ranks I to V, on different slots | About 40, in batches of 20 | Wave 4 (V7 on the sample in wave 3) | No Trait may be top on every seat and ground |
+| 4 | **Traits** | 5 rule Traits, each with ranks I to III, on different slots (written: section 8) | About 40, in batches of 20 | Wave 4 (V7 on the sample in wave 3) | No Trait may be top on every seat and ground |
 | 5 | **Signatures** | 5, each changing one sample move from row 3 | 1 or 2 per major move | Wave 4 | They depend on the evolutions |
 | 6 | **Recipes and tool rows** | One trade's ladder: 5 recipes and its tool (breaks after 12 h of use) | Ten trades | Wave 5 (R12 earlier) | Trades make what hunting burns. Recipes need the drop tables first |
 | 7 | **Premium and Crowns store items** | 5 Crown items: one mount look, one wardrobe set, one never-breaking tool, extra save slots, Premium time | The store | Wave 5. **Prices are Tyler's** | Cosmetic and time only. No power, no XP boosts |
@@ -257,3 +257,45 @@ Each sample goes through the Lab before it grows: rows 1 and 2 through V1 and V3
 **Why not halls?** Halls are short party boss checks. The Catacombs are a place to farm, and a boss room would throw away the map and the armor's reason to exist. **Why not cut them?** Armor has no home of its own, and the Tower already holds weapons. This gives a clean split, weapons up top and armor down below, at almost no new build cost.
 
 **When:** wave 2, alongside R10's next grounds on the scale. Their bands sit high (the old Level 165 to 185 range) and are measured like every other ground. The Tower stays in wave 7, unchanged.
+
+---
+
+## 8. Plain gear in steps and the first five Traits (2026-11-22, lane/g-gear-steps; Tyler: "we aren't using the old tier item levels")
+
+**How it plays:** on a scale ground a piece of gear is one number, its item Level. A whole kit at item Level 60 makes a hero's gear count as Level 60. Muster Barrows drops item Level 60 at every depth, worn from Level 50. A Rare from Muster can also carry a Trait, a rule like "when your target is a boss, your hits land harder", and the deeper you hold, the higher its rank. A plain piece from the next ground still beats it, so you keep a good Rare for a while and then move on.
+
+**The table** (`src/data/gear-steps.js`; levers `gear.step-tier`, `gear.slot-weights`, `gear.trait-budget`, `gear.traits`, `gear.ground-tier`):
+
+- A tier is `tierSteps` = 20 item Levels. Tier 0 is the starting kit. Muster Barrows is tier 3 (`DANGER_GROUNDS.muster_barrows.gearLevel` 60).
+- A worn piece adds its item Level times its slot's weight to the gear part. The 13 weights sum to one: weapon 20%, body 12%, pants 9%, shield 8%, helmet and necklace 7%, boots, gloves and cape 6%, belt and each ring 5%, earrings 4%. A two-handed weapon carries the shield's 8% too. The engine's `weightGear` (R9) then sets how much of the hero the gear part is.
+- `wearAhead` = 10: a piece is worn from its item Level minus 10.
+- **Ranks are three, not five** (this replaces section 3.3's I to V). 04 section 10 caps rank 1 to rank 3 at under a third of a tier, so five ranks would sit about 1.5 steps apart, too close to feel. Ranks are worth 4, 7 and 10 steps on the cell that suits them best, rolled at depths 1, 8 and 15 and up. A Trait's steps are steps of the gear part, the same unit as a whole kit's item Level, and are not weighted by slot, so a rank is worth the same on a ring as on a weapon.
+- All conditional steps on one hero at once: at most 20, one tier. So a whole kit a tier up always beats a whole kit a tier down, Traits and all (60 + at most 20 against 80 + its own). One piece is different on purpose: a rank III Trait is worth more than its slot's next base (a weapon's tier is 20 x 20% = 4 gear steps), so a good Rare lives several tiers. A Trait's average over every ground: at most half its best case. No Trait in the best kit on more than 40% of cells. Pity on the Rare roll: on.
+
+**The five sample Traits.** Hidden: nothing rolls, drops, plays or shows them until wave 4, and `tests/gear-steps.mjs` holds their shape and that they stay hidden. Each "when" is one of the bar's own conditions (`src/data/condition-metrics.js`), so a player who can read a slot can read a Trait.
+
+| Trait | Slot | When | Raises | Rolls on | How it plays |
+|---|---|---|---|---|---|
+| File Breaker | Weapon | an area attack would hit 3 or more monsters | that attack | Muster Barrows | The area hero's weapon for packed pulls like the Barrow Pikemen's files. Dead weight on a boss or a thin ground |
+| Captain's Due | Cape | your target is a boss | your hits | Muster Barrows | Built for Captain Hask and the halls. Off for almost every kill on a ground, which is why it may be strong there |
+| Last File | Shield | your HP is at 40% or less | defense | Muster Barrows | The front hero's last stand. Barely fires on Steady, earns its place on Bold |
+| Keeper's Carry | Helmet | the hero you heal is at half HP or less | your heal | Catacombs, Bone Wing | The healer's helmet for saves, not for topping up |
+| Floodmark | Boots | a monster is casting at you | defense | Catacombs, Flooded Wing | For grounds with casters. Worth nothing where nobody casts |
+
+**The five guards on the sample:**
+
+1. **Equal budget at best case:** one step table for every Trait (`traitSteps`). Each row names the seat and ground it is sized on (`best`), so V7 measures it there.
+2. **Conditional by construction:** no row may use the always-true condition (`in_fight`). Each "when" is false on most kills: a boss, a crowd of three, a low hero, a caster.
+3. **No stacking:** each row has a stacking key, and two Traits with one key count the larger. Every sample key and slot is its own.
+4. **Dominance check:** planned for V7 (wave 3). With one Trait a slot the sample can only ask whether each Trait is ever worth its slot, so the full check runs when the pool reaches 20.
+5. **Pity:** `pity.rare` on. The roller (wave 4) owns its curve.
+
+**Walk-through (Muster's gear, today's data only):**
+
+| Step | What the player holds or can reach | Doable? |
+|---|---|---|
+| 1. A company of Level 55 enters Muster Barrows on the scale | Muster is the one scale ground (`DANGER_GROUNDS`), Levels 55 to 75 (its pack) | Yes, once R1's client half ships |
+| 2. A drop of item Level 60 is worn at once | `wearAhead` 10: worn from Level 50 | Owed: no drop table reads `gearLevel` yet (R10) |
+| 3. The piece moves the held step | The gear part, read by the power step | Owed: R9 |
+| 4. A Rare drops with File Breaker, Captain's Due or Last File | `traitPool('muster_barrows')` | Owed: the roller, wave 4 |
+| 5. A Catacomb Trait drops | Needs the Bone Wing and Flooded Wing as grounds (section 7) | Owed: wave 2 |

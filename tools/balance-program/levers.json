@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "732b7ea06fdb9ea8",
+ "authored": "3aa9e1d42b4fd998",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 174,
+  "levers": 179,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -80,16 +80,16 @@
    "spawn": 11,
    "monster-rewards": 13,
    "rare-drops": 6,
-   "equipment": 9,
+   "equipment": 14,
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
    "economy": 28
   },
   "byClass": {
-   "global": 76,
-   "archetype": 24,
-   "content": 46,
+   "global": 78,
+   "archetype": 26,
+   "content": 47,
    "exception-intentional": 17,
    "exception-accidental": 11
   },
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 16,
    "variant": 5,
-   "not-playable:not-built": 5,
+   "not-playable:not-built": 10,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 63,
+   "asserted": 68,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 655,
-  "typed": 15661,
-  "files": 220,
-  "lever": 280,
+  "bindings": 657,
+  "typed": 15688,
+  "files": 221,
+  "lever": 282,
   "notLever": 375,
   "unclaimed": 0
  },
@@ -1099,15 +1099,15 @@
     "asserts": [],
     "mentions": [
      "tests/alpha-windows-hunts.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/roles.mjs",
      "tests/hunt-core/sewer.mjs",
-     "tests/hunt-core/targeting.mjs",
-     "tests/hunt-scene-live.mjs"
+     "tests/hunt-core/targeting.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -2308,15 +2308,15 @@
     "asserts": [],
     "mentions": [
      "tests/alpha-windows-hunts.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/roles.mjs",
      "tests/hunt-core/sewer.mjs",
-     "tests/hunt-core/targeting.mjs",
-     "tests/hunt-scene-live.mjs"
+     "tests/hunt-core/targeting.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6626,7 +6626,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 73,
+     "line": 75,
      "text": "powerStep: 0.0035,",
      "binding": "DANGER"
     }
@@ -6702,19 +6702,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 74,
+     "line": 76,
      "text": "pullStep: 0.00175,",
      "binding": "DANGER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 76,
+     "line": 78,
      "text": "pullMax: 8,",
      "binding": "DANGER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 79,
+     "line": 81,
      "text": "stepMax: 4000,",
      "binding": "DANGER"
     }
@@ -6779,13 +6779,13 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 80,
+     "line": 82,
      "text": "readyPm: 800,",
      "binding": "DANGER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 77,
+     "line": 79,
      "text": "respawnMs: 15000,",
      "binding": "DANGER"
     }
@@ -6853,7 +6853,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 81,
+     "line": 83,
      "text": "startMargin: 20,",
      "binding": "DANGER"
     }
@@ -6920,7 +6920,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 96,
+     "line": 100,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6989,19 +6989,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 103,
+     "line": 107,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 104,
+     "line": 108,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 105,
+     "line": 109,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7065,7 +7065,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 84,
+     "line": 86,
      "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120 });",
      "binding": "PAY"
     }
@@ -7131,8 +7131,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 90,
-     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710 }),",
+     "line": 94,
+     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -7166,9 +7166,10 @@
     ],
     "mentions": [
      "tests/danger-client.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8277,7 +8278,7 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 26,
+     "line": 23,
      "text": "rareRoll: Object.freeze({ sides: 100, maxRounds: 64 }),",
      "binding": "PARTY"
     }
@@ -8837,7 +8838,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8935,7 +8936,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9095,6 +9096,376 @@
     }
    ],
    "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "gear.step-tier",
+   "category": "equipment",
+   "name": "A gear tier in steps, and how far ahead gear is worn",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 39,
+     "text": "tierSteps: 20,",
+     "binding": "GEAR_STEPS"
+    },
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 40,
+     "text": "wearAhead: 10,",
+     "binding": "GEAR_STEPS"
+    }
+   ],
+   "definition": "a base tier is exactly tierSteps item Levels (tierLevel(t) = t x tierSteps, tier 0 the starting kit); a piece of item Level iL is worn from hero Level iL - wearAhead",
+   "range": "tierSteps whole, about 20 (04 section 1: a tier +5.1% to +10.5% of power across powerStep's search range); wearAhead 0 to one tier",
+   "touches": "how much a base upgrade moves the held step (R9 done when a tier moves it about 20) and how early a ground's drops can be worn",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-2 the tier and wear ahead",
+      "reads": [
+       "GEAR_STEPS",
+       "tierLevel"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the power step (R9) reads it; no engine path does yet",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (04 section 1 worked value; wearAhead JUDGMENT, half a tier)"
+  },
+  {
+   "id": "gear.slot-weights",
+   "category": "equipment",
+   "name": "Gear slot weights",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 43,
+     "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
+     "binding": "GEAR_STEPS"
+    }
+   ],
+   "definition": "a worn piece of item Level iL adds iL x slotPm / 1000 steps to the gear part; the weights sum to 1000 so a whole kit at X is X; a two-handed weapon carries the shield's weight too",
+   "range": "whole permille, every slot above 0, summing to exactly 1000 (GS-1)",
+   "touches": "what an empty or old slot costs a hero, so which drop is the upgrade that matters",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-1 the slot weights",
+      "reads": [
+       "GEAR_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the power step (R9) reads it",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (JUDGMENT: the weapon a fifth, jewelry small)"
+  },
+  {
+   "id": "gear.trait-budget",
+   "category": "equipment",
+   "name": "Trait steps by rank and the Trait guards",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 49,
+     "text": "traitSteps: Object.freeze([4, 7, 10]),",
+     "binding": "GEAR_STEPS"
+    },
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 50,
+     "text": "conditionalStepsMax: 20,",
+     "binding": "GEAR_STEPS"
+    },
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 51,
+     "text": "traitAverageSharePm: 500,",
+     "binding": "GEAR_STEPS"
+    },
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 52,
+     "text": "dominanceMaxPm: 400,",
+     "binding": "GEAR_STEPS"
+    },
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 53,
+     "text": "rankDepths: Object.freeze([1, 8, 15]),",
+     "binding": "GEAR_STEPS"
+    }
+   ],
+   "definition": "a Trait of rank 1, 2, 3 is worth traitSteps on its best cell; all conditional steps on a hero at once at most conditionalStepsMax; a Trait's average over every ground at most traitAverageSharePm of its best; no Trait in the best kit on more than dominanceMaxPm of cells; rank by depth from rankDepths",
+   "range": "rank 1 to rank 3 under a third of a tier; the cap at least rank 3 and at most a tier; shares inside (0, 1000) (GS-3)",
+   "touches": "how much a Rare is worth over a plain piece, and how far a lucky kit can run from an unlucky one",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-3 the Trait budget",
+      "reads": [
+       "GEAR_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no roller or fight reads Traits until wave 4 (V7 sizes them on the engine)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (04 section 10: 6 steps of spread on a 20-step tier)"
+  },
+  {
+   "id": "gear.traits",
+   "category": "equipment",
+   "name": "Traits: the rule, its condition and its source",
+   "sites": [],
+   "definition": "each Trait raises offense, defense or heal by its rank's steps while its `when` (a bar condition) holds; it rolls on its source ground",
+   "range": "a `when` value inside its condition's picker (GS-4); never the always-true condition",
+   "touches": "which hero wants which Rare on which ground (hidden until wave 4)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "mixed: ",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-4 and GS-5 the rows",
+      "reads": [
+       "TRAITS"
+      ]
+     }
+    ],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "hidden: nothing rolls or plays them",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the sample Traits (when values, slot, source)",
+    "homes": [
+     "src/data/gear-steps.js#TRAITS"
+    ]
+   },
+   "flags": [],
+   "evidence": "STATED (a sample of five, CLAUDE.md section 10)"
+  },
+  {
+   "id": "gear.ground-tier",
+   "category": "equipment",
+   "name": "The base tier a scale ground drops",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 94,
+     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank",
+   "range": "a whole tier (GS-5); the next ground's base is a tier up",
+   "touches": "why a company moves on: the next ground's plain piece beats this ground's Rare base (12-targets 3.3)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-5 a whole tier and its pool",
+      "reads": [
+       "DANGER_GROUNDS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/danger-client.mjs",
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 3,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no drop table reads it yet (R10)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (Muster Barrows is a Level 55-75 ground)"
   },
   {
    "id": "imbue.parts",
@@ -9604,7 +9975,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10056,14 +10427,14 @@
     "mentions": [
      "tests/alpha-windows-hunts.mjs",
      "tests/boss-call-window.mjs",
+     "tests/gear-steps.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/party-defense.mjs",
-     "tests/hunt-core/roles.mjs",
-     "tests/hunt-core/sewer.mjs"
+     "tests/hunt-core/roles.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10171,7 +10542,7 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 21,
+     "line": 18,
      "text": "maxSize: 4,",
      "binding": "PARTY"
     }
@@ -12977,6 +13348,13 @@
    "typed": 1,
    "bindings": 1
   },
+  "src/data/gear-steps.js#TRAITS": {
+   "pin": "keys",
+   "keys": [
+    "value"
+   ],
+   "bindings": 1
+  },
   "src/data/imbuements.js#IMBUE_ITEMS": {
    "pin": "keys",
    "keys": [
@@ -14264,10 +14642,11 @@
    "pin": "count",
    "keys": [
     "floorStep",
+    "gearLevel",
     "refStep",
     "topStep"
    ],
-   "typed": 3,
+   "typed": 4,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {
@@ -14504,6 +14883,33 @@
     "·"
    ],
    "typed": 1,
+   "bindings": 1
+  },
+  "src/data/gear-steps.js#GEAR_STEPS": {
+   "pin": "count",
+   "keys": [
+    "belt",
+    "body",
+    "boots",
+    "cape",
+    "conditionalStepsMax",
+    "dominanceMaxPm",
+    "earrings",
+    "gloves",
+    "helmet",
+    "necklace",
+    "pants",
+    "rankDepths",
+    "ring1",
+    "ring2",
+    "shield",
+    "tierSteps",
+    "traitAverageSharePm",
+    "traitSteps",
+    "weapon",
+    "wearAhead"
+   ],
+   "typed": 23,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {

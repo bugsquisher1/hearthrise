@@ -4,6 +4,7 @@ import { L, at, K, P, V, NP, flag, rows, home, field, fields } from './dsl.mjs';
 import { KILL, SURVIVE, PACE, GOLD } from './combat.mjs';
 
 const GEAR = 'src/data/gear-tiers.js';
+const GS = 'src/data/gear-steps.js';
 const ITEMS = 'src/data/items.js';
 const ITEM_ROWS = home(ITEMS + '#ITEMS', 'keys');
 const MIG = 'supabase/migrations/';
@@ -90,6 +91,49 @@ export const GEAR_ECONOMY = [
     flags: [flag('ineffective', 'The Armor track works inside the 60% cap, so a capped front hero gains nothing from it', 'COMPUTED from the cap rule and 12-balance-pass 3.6 (MEASURED for armor points)'),
       flag('contradictory', 'Past Level 110 a ladder is keyed on the piece\'s Level band, not its tier, because every piece past Dawnsteel is still tier 7; the unique bands are shut (open: false)', '44 P-X34, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
+  /* PLAIN GEAR IN STEPS AND THE TRAITS (lane/g-gear-steps, 04 section 10, 12-targets 3.3 and 8). The scale grounds' gear: a piece is its
+     item Level, a tier is tierSteps of it, a Trait is a rule worth its rank's steps while its `when` holds. Read by the engine's power
+     step (R9) once it lands; nothing reads them today, so every row is not-built. */
+  L('gear.step-tier', 'equipment', 'global', 'A gear tier in steps, and how far ahead gear is worn', {
+    at: [at(GS, 'tierSteps: 20,'), at(GS, 'wearAhead: 10,')],
+    def: 'a base tier is exactly tierSteps item Levels (tierLevel(t) = t x tierSteps, tier 0 the starting kit); a piece of item Level iL is worn from hero Level iL - wearAhead',
+    range: 'tierSteps whole, about 20 (04 section 1: a tier +5.1% to +10.5% of power across powerStep\'s search range); wearAhead 0 to one tier',
+    touches: 'how much a base upgrade moves the held step (R9 done when a tier moves it about 20) and how early a ground\'s drops can be worn', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-2 the tier and wear ahead']], testReads: ['GEAR_STEPS', 'tierLevel'],
+    perturb: NP('not-built', 'the power step (R9) reads it; no engine path does yet'),
+    ev: 'STATED (04 section 1 worked value; wearAhead JUDGMENT, half a tier)' }),
+  L('gear.slot-weights', 'equipment', 'archetype', 'Gear slot weights', {
+    at: [at(GS, 'weapon: 200, shield: 80, body: 120')],
+    def: 'a worn piece of item Level iL adds iL x slotPm / 1000 steps to the gear part; the weights sum to 1000 so a whole kit at X is X; a two-handed weapon carries the shield\'s weight too',
+    range: 'whole permille, every slot above 0, summing to exactly 1000 (GS-1)',
+    touches: 'what an empty or old slot costs a hero, so which drop is the upgrade that matters', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-1 the slot weights']], testReads: ['GEAR_STEPS'],
+    perturb: NP('not-built', 'the power step (R9) reads it'),
+    ev: 'STATED (JUDGMENT: the weapon a fifth, jewelry small)' }),
+  L('gear.trait-budget', 'equipment', 'global', 'Trait steps by rank and the Trait guards', {
+    at: [at(GS, 'traitSteps: Object.freeze([4, 7, 10]),'), at(GS, 'conditionalStepsMax: 20,'), at(GS, 'traitAverageSharePm: 500,'), at(GS, 'dominanceMaxPm: 400,'), at(GS, 'rankDepths: Object.freeze([1, 8, 15]),')],
+    def: 'a Trait of rank 1, 2, 3 is worth traitSteps on its best cell; all conditional steps on a hero at once at most conditionalStepsMax; a Trait\'s average over every ground at most traitAverageSharePm of its best; no Trait in the best kit on more than dominanceMaxPm of cells; rank by depth from rankDepths',
+    range: 'rank 1 to rank 3 under a third of a tier; the cap at least rank 3 and at most a tier; shares inside (0, 1000) (GS-3)',
+    touches: 'how much a Rare is worth over a plain piece, and how far a lucky kit can run from an unlucky one', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-3 the Trait budget']], testReads: ['GEAR_STEPS'],
+    perturb: NP('not-built', 'no roller or fight reads Traits until wave 4 (V7 sizes them on the engine)'),
+    ev: 'STATED (04 section 10: 6 steps of spread on a 20-step tier)' }),
+  L('gear.traits', 'equipment', 'content', 'Traits: the rule, its condition and its source', {
+    rows: rows('the sample Traits (when values, slot, source)', [home(GS + '#TRAITS', 'keys')]),
+    def: 'each Trait raises offense, defense or heal by its rank\'s steps while its `when` (a bar condition) holds; it rolls on its source ground',
+    range: 'a `when` value inside its condition\'s picker (GS-4); never the always-true condition',
+    touches: 'which hero wants which Rare on which ground (hidden until wave 4)', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-4 and GS-5 the rows']], testReads: ['TRAITS'],
+    perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
+    ev: 'STATED (a sample of five, CLAUDE.md section 10)' }),
+  L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
+    at: [at('src/data/danger.js', 'gearLevel: tierLevel(3)')],
+    def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
+    range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
+    touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-5 a whole tier and its pool']], testReads: ['DANGER_GROUNDS'],
+    perturb: NP('not-built', 'no drop table reads it yet (R10)'),
+    ev: 'STATED (Muster Barrows is a Level 55-75 ground)' }),
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {

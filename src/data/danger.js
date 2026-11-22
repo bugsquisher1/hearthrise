@@ -51,7 +51,7 @@ export const DANGER = Object.freeze({
   readyPm: 800,
 });
 
-export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 36, coolPulls: 10 });
+export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });
 
 /* The risk stances, safest first. 'steady' is the default a plan starts on (02 package 3). */
 export const RISKS = Object.freeze({

@@ -83,18 +83,18 @@ const CASES = {
     const { CLIMB, RISKS } = M.dangerData;
     const st = RISKS.steady, clean = st.cleanPm, between = Math.floor((st.fallPm + st.cleanPm) / 2), under = st.fallPm - 1;
     const w = world(M, []);
-    M.danger.openDanger(w, 'steady', 100);
+    M.danger.openDanger(w, 'steady', 1000);
     const inst = instOf(M, w);
     const sc = subStep(0);
     const steps = [];
     const pull = (low) => { w.low = low; M.danger.pullEnds(inst, sc); steps.push(w.danger); };
     /* two clean pulls climb one, two more climb two; a pull between holds and resets the climb; two clean climb one again */
     for (const low of [clean, 1000, clean, 990, between, clean, clean]) pull(low);
-    const want = [100, 101, 101, 103, 103, 103, 104];
+    const want = [1000, 1001, 1001, 1003, 1003, 1003, 1004];
     if (CLIMB.cleanRun !== 2) return 'fixture: the rule case is written for two clean pulls a climb, the data says ' + CLIMB.cleanRun;
     if (JSON.stringify(steps) !== JSON.stringify(want)) return 'the climb walked ' + JSON.stringify(steps) + ', the rule ' + JSON.stringify(want);
     pull(under);
-    const fell = 104 - CLIMB.fallSteps;
+    const fell = 1004 - CLIMB.fallSteps;
     if (w.danger !== fell) return 'a pull under the trigger (' + under + ') left the step at ' + w.danger + ', not ' + fell;
     /* after a fall back: CLIMB.coolPulls clean pulls climb nothing (the party steadies), then the climb starts again at one step and doubles */
     if (!(CLIMB.coolPulls > 0)) return 'fixture: the rule case is written for a cool-down after a fall back, the data says ' + CLIMB.coolPulls;

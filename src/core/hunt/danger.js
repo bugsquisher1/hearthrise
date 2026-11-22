@@ -105,6 +105,10 @@ export function noteHurt(inst, u) {
   if (pm < w.low) w.low = pm;
 }
 
+/** THE FALL BACK INSIDE A PULL (pull-cycle.js runPhase, breakOff): on the scale, a hero under the stance's trigger, or dead, breaks the
+    pull off at once, so the fall back comes before the blow that would kill (RD-Q3 a). Never off the scale. */
+export const breaksOff = (world) => dangerOn(world) && world.low < RISKS[world.risk].fallPm;
+
 /** A pull begins (pull-cycle.js startPull): its margin starts whole. */
 export function pullBegins(world) {
   if (dangerOn(world)) world.low = 1000;

@@ -41,7 +41,7 @@ import { holderTank, turnTanks, pickInForce } from './targeting.js';
 import { aimOf } from './shooters.js';
 import { towerOf, towerPull, towerCleared } from './tower.js';
 import { healTaken } from './heal-cut.js';
-import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf } from './danger.js';
+import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf, breaksOff } from './danger.js';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -364,6 +364,19 @@ function tickHeroes(inst, sc) {
   }
 }
 
+/* THE FALL BACK INSIDE A PULL (danger.js breaksOff; redesign 02 package 3, Tyler's RD-Q3 a: Careful and Steady fall back and do not die).
+   On the Danger scale a hero under the stance's trigger, or dead, ends the pull where it stands: the step falls (pullEnds), every pack on
+   the party drops its targets, heals and walks home (leash.js resetPack, as the leash and a leader's death do), the heroes drop theirs, and
+   the party rests where it stands until it is ready; then it pulls the same pocket again, made at the lower step (fitPull). What a player
+   sees: the party breaks off, the monsters turn and walk back to their spots whole, the party catches its breath and goes again. */
+function breakOff(inst, sc) {
+  const w = inst.world;
+  pullEnds(inst, sc);
+  for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);
+  for (const h of heroes(inst)) h.target = null;
+  w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;
+}
+
 /** Phase-AI hook: travel, pull, fight, regroup; the pocket route (PC-03..13). */
 export function runPhase(inst, sc) {
   if (!cycling(inst)) return;
@@ -389,7 +402,7 @@ export function runPhase(inst, sc) {
       /* (a pull the leash took home ends too: its margin is read like any pull's) */
       pullEnds(inst, sc);
       w.phase = PHASE.TRAVEL;
-    }
+    } else if (breaksOff(w)) breakOff(inst, sc);
     return;
   }
   if (w.phase === PHASE.REGROUP) {

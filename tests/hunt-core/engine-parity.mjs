@@ -219,6 +219,7 @@ const WRITERS = [
   ['src/core/hunt/pull-cycle.js', "if (gone) { w.units = w.units.filter((u) => u.side !== 'mon' || u.alive || u.deadMs < HUNT_TUNING.corpseMs); staleIndex(inst); }", 'clearCorpses drops the index'],
   /* the Danger scale's pull re-formed at its step's size (lane/v1-climb): the next line drops the index */
   ['src/core/hunt/pull-cycle.js', 'w.units = w.units.filter((u) => !gone.has(u.id));', 'fitPull drops the index'],
+  ['src/core/hunt/pull-cycle.js', 'for (const h of heroes(inst)) h.target = null;', 'a hero\'s target, in no list (breakOff; its resetPack drops the index)'],
   ['src/core/hunt/roles.js', 'if (m) h.target = m.id;', 'a hero\'s target, in no list'],
   ['src/core/hunt/targeting.js', 'm.target = id;', 'retarget drops the index'],
   ['src/core/hunt/targeting.js', 'if (!u.alive || !fighting) { u.target = null; continue; }', 'a hero\'s target, in no list'],

@@ -50,13 +50,18 @@ const variants = [
   { id: 'high', L: L2, risks: RISKS },
   { id: 'above', L, risks: ['steady'], start: ABOVE },
 ];
+/* --start-from <report.json> [--margin 20]: each cell starts at the step that report's same cell held, less the margin (a company coming back
+   to the step it held before: V2's watched session), in place of step 0 */
+const FROM = arg('start-from') ? JSON.parse((await import('node:fs')).readFileSync(arg('start-from'), 'utf8')) : null, MARGIN = Number(arg('margin', 20));
+const startOf = (id, v) => (FROM && FROM.cells[id] && Number.isFinite(FROM.cells[id].held.mean) ? Math.max(0, Math.round(FROM.cells[id].held.mean) - MARGIN) : v.start || 0);
 const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
   const b = buildCell(D, K, { L: v.L, gear: 'mid', styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
-  const cell = { ...b.cell, options: { risk, danger: v.start || 0 }, hours: HOURS, seeds: 1 };
-  cells.push({ id, variant: v.id, risk, L: v.L, start: v.start || 0 });
+  const start = startOf(id, v);
+  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1 };
+  cells.push({ id, variant: v.id, risk, L: v.L, start });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
 }
 
@@ -200,4 +205,5 @@ if (jf) writeFileSync(jf, JSON.stringify(report, null, 1) + '\n');
 /* --raw <file>: every seed's pull log and its heroes' deaths and ends, to read again without playing again */
 const rf = arg('raw');
 if (rf) writeFileSync(rf, JSON.stringify(Object.fromEntries(Object.entries(out).map(([id, o]) => [id, { danger: o.result.party.danger || [], hours: o.result.party.hours,
-  heroes: o.result.heroes.map((h) => ({ style: h.style, deaths: h.deaths, ended: h.ended, hours: h.hours, xp: h.levelXpPerH })) }]))) + '\n');
+  heroes: o.result.heroes.map((h) => ({ style: h.style, level: h.level, deaths: h.deaths, ended: h.ended, hours: h.hours, wallHours: h.wallHours, xp: h.levelXpPerH,
+    levelXp: h.raw.levelXp, xpLostLevel: h.raw.xpLostLevel })) }]))) + '\n');

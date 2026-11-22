@@ -516,8 +516,10 @@ function mdExp(M, id, out, o = {}) {
     out('\n' + id + ', ' + o + ', ' + ((M.groups.find((q) => q.id === g) || {}).label || g) + (dth ? ' (deaths in 1,000 hours; base ' + (((x.points[0].effects[g] || {})[o] || {}).b) + ')' : rel ? ' (ratio to the base)' : ' (change from the base)') + '\n');
     out('| ' + names.join(' | ') + ' | measured | singles predict | gap |');
     out('|' + names.map(() => '---').join('|') + '|---|---|---|');
-    const key = (p) => names.map((n) => String(p.levers[n]).padStart(6)).join('');
-    for (const p of [...x.points].sort((a, b) => key(a).localeCompare(key(b)))) {
+    const key = (p) => names.map((n) => p.levers[n].toFixed(3).padStart(8)).join('');
+    /* fix=lever:value,...: only the points where those factors sit at those levels (a slice of a three-factor grid) */
+    const fix = Object.fromEntries(String(o.fix || arg('fix') || '').split(',').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, Number(v)]; }));
+    for (const p of [...x.points].filter((q) => Object.entries(fix).every(([k, v]) => q.levers[k] === v)).sort((a, b) => key(a).localeCompare(key(b)))) {
       const i = p.inter && p.inter[g] && p.inter[g][o];
       if (!Object.keys(p.effects[g] || {}).length) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | refused by the engine | | |'); continue; }
       if (p.moved.length > 1 && !i) { out('| ' + names.map((n) => 'x' + p.levers[n]).join(' | ') + ' | ' + eff(p) + ' | no single reading to compare (a lever alone was refused, or its base is zero here) | |'); continue; }
@@ -555,7 +557,7 @@ export function genBlock(M, spec) {
   const [kind, ...rest] = spec.trim().split(/\s+/);
   const o = Object.fromEntries(rest.map((kv) => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; }));
   const L = [], out = (x) => L.push(...String(x).split('\n'));
-  const lists = { groups: o.groups ? o.groups.split(',') : undefined, outcomes: o.outcomes ? o.outcomes.split(',') : undefined, group: o.group };
+  const lists = { groups: o.groups ? o.groups.split(',') : undefined, outcomes: o.outcomes ? o.outcomes.split(',') : undefined, group: o.group, fix: o.fix };
   if (kind === 'matrix') mdMatrix(M, out, lists);
   else if (kind === 'lever') mdLever(M, o.id, out, lists);
   else if (kind === 'exp') mdExp(M, o.id, out, lists);

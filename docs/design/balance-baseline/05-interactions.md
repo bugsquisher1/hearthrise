@@ -94,6 +94,21 @@ The grid is party XP at x0.8, x1, x1.2 against tier XP at x0.8, x1, x1.2. MEASUR
 - **The same slack means party XP cannot fix the four on Normal.** At Levels 30 and 110 the four earns 0.48 and 0.51 of what its heroes earn alone. Party XP would need x2 to close that, and x2 would also double the four on Deadly, where a head already earns 3.3 to 3.5 times what it earns on Normal. The gap is a spawn ceiling, and an XP multiplier is the wrong shape to close it.
 - JUDGMENT: "which four runs which tier" is not a balance question in this build. It has one answer. It becomes a question only if the four can die on the hardest tier, and section 7 shows how far away that is.
 
+---
+
+## 7. The armor curve with the tier blow dial and the coin line
+
+The last balance pass proposed the armor curve at x2.4 and found the first-week bands, the drop tables and a lone tank's supply bill moved with it. The grid is the armor curve at x1, x1.5, x2.4 against the tier blow dial at x0.9, x1, x1.25 and coin a kill at x0.75, x1, x1.25. MEASURED, run 44969087150, 26 points, 4 seeds. The slices below hold coin at x1.
+
+<!-- GEN: exp id=armor-tier-coin fix=coinPerKill:1 groups=hammer:dangerous,four:deadly outcomes=takenPerH,deathsPer1000h,storePerH,netPerH -->
+<!-- /GEN -->
+
+- **The armor curve is a tier dial for one seat.** For the lone hammer on Dangerous, the curve at x2.4 raises damage taken by 18%, the store bill by 48% and deaths from 94 to 374 in 1,000 hours. Pairing it with the tier dial at x0.9 brings damage taken back to 0.97 of the base. So on this seat "armor curve x2.4" and "tier blows x1.1" are nearly the same change, written in two different files.
+- **On the cliff, the two do not add.** The curve at x2.4 with the tier dial at x1.25: the single readings predict about 4,300 deaths in 1,000 hours and the joint point measures 15,400. Both readings mean "dead inside the hour", so the number matters less than the lesson: next to a cliff, two changes that each look survivable are not survivable together.
+- **For the four it is a different lever.** The same x2.4 raises the four's damage taken on Deadly by 29%, its store bill by 2%, and its deaths not at all. With the tier dial at x1.25 on top, the four takes 2.17 times the damage and still does not die. The seat the Level pace is timed on does not feel this lever. The seat that feels it is the lone melee hero one tier up.
+- **Why the curve reaches so little at home.** On Normal at its own Level a MID hero's armor already sits at the 60% mitigation cap (sensitivity page, section 7.3), so the curve has nothing to cut until the attacker is well above the hero's Level. A harder tier raises the attacker's Level, which is why the curve only bites there.
+- **Coin does not interact with either.** Coin a kill moves gold in and nothing else, at every point of the grid. The joint readings are the sums of the singles to within half a percent. It can pay for the supply bill the curve creates, but only on average: the bill lands on the lone melee hero on a harder tier (minus 37,600 gold an hour at x2.4), and a coin line pays every seat the same.
+
 <<FILL:EXPERIMENTS>>
 
 <<FILL:LOOPS>>

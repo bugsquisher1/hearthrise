@@ -237,7 +237,7 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/hero-color-intents.js': { read: 1, rule: 1 },
   'src/session/outfit-intents.js': { rule: 1 },
   'src/session/recipe-intents.js': { rule: 1 },
-  'src/session/party-intents.js': { rule: 9 },
+  'src/session/party-intents.js': { rule: 8 },
   'src/session/preset-intents.js': { rule: 1 },
   'src/session/title-intents.js': { rule: 1 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
@@ -305,7 +305,6 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/party-intents.js', 'disbandParty', 'hr_hunt_party_disband', []],
   ['src/session/party-intents.js', 'inviteOwn', 'hr_hunt_party_invite_own', [1]],
   ['src/session/party-intents.js', 'invitePlayer', 'hr_hunt_party_invite_player', ['11111111-0000-4000-8000-00000000000a', null]],
-  ['src/session/party-intents.js', 'listParty', 'hr_hunt_party_list', [true]],
   ['src/session/party-intents.js', 'setHoldSeat', 'hr_party_hold_set', [null]],
   ['src/session/party-intents.js', 'setLeaveTogether', 'hr_party_leave_together_set', [true]],
   /* afterLeave wraps the hero's own Leave party (CharacterSession._settled holds the rule): its arguments are made from the hero */

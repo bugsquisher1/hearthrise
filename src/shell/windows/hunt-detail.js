@@ -94,7 +94,7 @@ export function goHtml() {
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
     + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'
-    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool is-link hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
+    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool is-link hw-invite-here" data-hs-act="party-invite"></button><span class="hw-bring"></span></div>'
     + '<p class="hw-bring-none"></p></section>';
 }
 
@@ -104,7 +104,7 @@ const goLineHtml = (p) => '<button type="button" class="hw-go" role="radio" aria
 
 /**
  * Go as: one line per setup (`v.setups`, hunt-go.js setupsOf), the chosen one (`v.chosen`) marked; Before you
- * go (`v.before`); and the party block (`v.partyBlock`: { why, find, bring: [{ slot, name }], none } or null).
+ * go (`v.before`); and the party block (`v.partyBlock`: { why, invite, bring: [{ slot, name }], none } or null).
  * `v.off` turns every control here off (a press in flight, a hunt running, a member who cannot start).
  */
 export function patchGo(det, ctx, v) {
@@ -136,9 +136,9 @@ export function patchGo(det, ctx, v) {
   prop(pb, 'hidden', !v.partyBlock);
   if (!v.partyBlock) return;
   text(pb.querySelector('.hw-hd-party-why'), v.partyBlock.why);
-  const find = pb.querySelector('.hw-find-here');
-  text(find, v.partyBlock.find);
-  prop(find, 'disabled', v.off);
+  const invite = pb.querySelector('.hw-invite-here');
+  text(invite, v.partyBlock.invite);
+  prop(invite, 'disabled', v.off);
   rows(pb.querySelector('.hw-bring'), v.partyBlock.bring, {
     key: (h) => String(h.slot),
     build: (h) => element(ctx.doc, '<button type="button" class="hh-tool" data-hs-act="bring" data-slot="' + h.slot + '"></button>'),

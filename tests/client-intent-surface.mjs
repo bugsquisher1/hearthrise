@@ -122,10 +122,8 @@ export const CLIENT_RPCS = Object.freeze({
   /* The Roll of Honor (2027-02-12-leaderboard-heroes.sql): a board id and a row count; places, names and numbers are the server’s. */
   hr_leaderboard: 'one board of the Roll of Honor: its top heroes and this account\'s own heroes on it, a read (honor-roll.js readBoard)',
   /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
-  hr_hunt_party_join: 'take a free seat in an open party by its id (CharacterSession.joinParty)',
   hr_hunt_party_leave: 'leave this character’s party (CharacterSession.leaveParty)',
   hr_hunt_party_kick: 'the leader removes the member in a seat (CharacterSession.kickSeat)',
-  hr_hunt_party_finder: 'open parties with a free seat, by hunt and missing weapon type, a read (CharacterSession.findParties)',
   /* The party UI's asks (CONFLICTS.md 2026-10-18 party UI): staged, refused as http_404 until the server lands them. */
   hr_hunt_party_invite: 'invite a character by its display name; the server resolves it (CharacterSession.inviteByName)',
   hr_hunt_party_accept: 'accept an invite to this character by its id (CharacterSession.answerInvite)',
@@ -135,7 +133,6 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite_own: 'seat one of this account’s own characters, by slot, in this character’s party at once (party-intents.js inviteOwn)',
   hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
-  hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server’s. */
   hr_boss_call: 'a series of called fights (the count bounded by the server, bad_fights): every seat pays the first fight, its own stamina and the server\'s fee, and enters the room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
   hr_boss_call_view: 'the call as the server prices it (one fight\'s stamina and fee, the slider\'s top, each count\'s total), read while the ground\'s page is open (boss-quote.js readCall)',

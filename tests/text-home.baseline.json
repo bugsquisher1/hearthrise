@@ -94,7 +94,6 @@
     "src/shell/windows/market/index.js": 4,
     "src/shell/windows/market/ledger.js": 5,
     "src/shell/windows/market/sell.js": 54,
-    "src/shell/windows/party-finder.js": 23,
     "src/shell/windows/party-roster.js": 14,
     "src/shell/windows/party.js": 26,
     "src/shell/windows/report.js": 13,

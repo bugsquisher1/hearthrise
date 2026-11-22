@@ -8,7 +8,7 @@
 //               Kick / Disband; in town, this window's Your party tab (same roster, same Leave)
 //   start       the leader's "Enter with party" in the Hunts window, where the
 //               ground is chosen
-// So this window holds what has no other home, as three tabs:
+// So this window holds what has no other home, as two tabs:
 //   Your party    shown only while THIS character sits in a party, and the tab
 //                 it opens on then (./party-roster.js; Tyler live v0.2.53: a party
 //                 formed in town had no screen, the board being a hunt widget):
@@ -16,8 +16,8 @@
 //   Invites       invites waiting for THIS character (the server's
 //                 `party_invites`): Join / Decline (the toast offers the same
 //                 two answers anywhere in the game)
-//   Find a party  the finder (./party-finder.js), filtered by the weapon a
-//                 party lacks, defaulting to this character's own
+// There is no party finder (GR-69, FB-12): a party forms by an invite, or from
+// the account's own heroes (Bring, in the Hunts window).
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
@@ -26,11 +26,19 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { runIntent } from '../intent-words.js';
 import { nameOf } from '../../session/item-sections.js';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js';
 import { rosterHtml, patchRoster, actRoster } from './party-roster.js';
 import { t } from '../../render/player-text.js';
 
-const TABS = Object.freeze([['party', 'Party'], ['invites', 'Invites'], ['find', 'Find a party']]);
+const TABS = Object.freeze([['party', 'Party'], ['invites', 'Invites']]);
+
+const SCRATCH = new WeakMap();
+
+/** The Party window's scratch for one character: the intent in flight, its answer, the open tab. */
+function partyScratch(cs) {
+  let s = SCRATCH.get(cs);
+  if (!s) { s = { pending: false, msg: '', tab: null, tabFor: undefined }; SCRATCH.set(cs, s); }
+  return s;
+}
 
 /** The skeleton (built once per opening). */
 export function renderParty() {
@@ -39,12 +47,10 @@ export function renderParty() {
     /* "Only players you invite can join" needs a way to invite (panel 2026-11-01): a name, one intent, its answer in words. */
     + '<div class="hw-add hw-invite-name"><input type="text" class="hh-num hw-invite-in" maxlength="24" placeholder="A player’s name" aria-label="A player’s name">'
     + '<button type="button" class="hh-tool" data-hs-act="invite-name">Invite</button></div>'
-    + '<p class="hs-note hw-invite-how"></p>'
     + '<section class="hw-pane" data-pane="party">' + rosterHtml() + '</section>'
     + '<section class="hw-pane" data-pane="invites">'
     + '<ul class="hw-ledger hw-invites"></ul>'
     + '<p class="hh-empty hw-invites-none"></p></section>'
-    + '<section class="hw-pane" data-pane="find">' + finderHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -84,24 +90,21 @@ renderParty.patch = function patchParty(body, ctx) {
   /* The window's answer was about the party as it stood ("Invite sent to Bram." after Wren joined Bram, friends' panel 2026-11-01): a seat coming or going retires it. */
   const seatsKey = partyKey + ':' + (mine ? mine.seats.length : 0);
   if (sc.msgSeats !== seatsKey) { if (sc.msgSeats !== undefined && !sc.pending) sc.msg = ''; sc.msgSeats = seatsKey; }
-  /* The tab the player picked (Your party only while in one); until then Your party while in one, Invites when
-     one is waiting, else the finder. */
+  /* The tab the player picked (Your party only while in one); until then Your party while in one, else Invites. */
   const picked = sc.tab === 'party' && !mine ? null : sc.tab;
-  const tab = picked || (mine ? 'party' : inv.length ? 'invites' : 'find');
+  const tab = picked || (mine ? 'party' : 'invites');
   for (const b of root.querySelectorAll('.hw-tab')) {
     attr(b, 'aria-selected', String(b.getAttribute('data-tab') === tab));
     if (b.getAttribute('data-tab') === 'party') prop(b, 'hidden', !mine);
     if (b.getAttribute('data-tab') === 'invites') text(b, inv.length ? 'Invites (' + inv.length + ')' : 'Invites');
   }
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === tab);
-  /* On every tab (party panel 11-03: it opened on the finder and never said how to invite; the how-to was a tab away). The Invites tab says the rest in its own empty line. */
+  /* On every tab (party panel 11-03: the how-to was a tab away). The Invites tab says the rest in its own empty line. */
   cls(root.querySelector('.hw-invite-name'), 'is-on', true);
-  text(root.querySelector('.hw-invite-how'), tab === 'find' ? (ctx.isPhone && ctx.isPhone() ? 'Type a name, or hold a player’s name' : 'Type a name, or right-click a player') + ' → Invite to party' : '');
   prop(root.querySelector('[data-hs-act="invite-name"]'), 'disabled', sc.pending);
   cls(root, 'is-pending', sc.pending);
   patchRoster(root, ctx, sc, mine);
   patchInvites(root, ctx, sc, inv);
-  patchFinder(root, ctx, sc);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
@@ -127,5 +130,5 @@ renderParty.act = function actParty(ctx, body, action, ev, el) {
       () => (yes ? 'Joined the party' : 'Invite declined'));
     return true;
   }
-  return actRoster(ctx, action, repaint, sc, el) || actFinder(ctx, body, action, el, repaint);
+  return actRoster(ctx, action, repaint, sc, el);
 };

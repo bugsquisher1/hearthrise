@@ -9,9 +9,6 @@
 //               lowest (user_id, slot); items go round-robin from a seeded
 //               start on the instance's `r` stream (src/core/party-split.js,
 //               the one split). A solo hunt is a party of one.
-//   finder      what the party finder filters on: the weapon TYPE a member has
-//               equipped, server-read (role comes from the weapon, never the
-//               outfit: hunt-roles.js WEAPON_ROLES).
 // Any role mix is allowed (Tyler 2026-10-16: four tanks is a party).
 //
 // PURE ESM. Data only.
@@ -24,7 +21,6 @@ export const PARTY = Object.freeze({
      relic, the highest wins, ties re-roll (at most maxRounds rounds), a winner waits until
      everyone has won (src/core/party-split.js rareRoll). */
   rareRoll: Object.freeze({ sides: 100, maxRounds: 64 }),
-  finder: Object.freeze(['weapon_type']),
 });
 
 /* LEAVE TOGETHER (Tyler 2026-10-22): every hero's own box, default on, kept per hero on the server
@@ -43,6 +39,5 @@ export function validate() {
   if (PARTY.lootSplit !== 'even_value') out.push('PARTY.lootSplit must be even_value (the only split party-split.js implements)');
   const rr = PARTY.rareRoll;
   if (!rr || !Number.isInteger(rr.sides) || rr.sides < 2 || !Number.isInteger(rr.maxRounds) || rr.maxRounds < 1) out.push('PARTY.rareRoll needs whole sides >= 2 and maxRounds >= 1');
-  if (!PARTY.finder.every((f) => f === 'weapon_type')) out.push('PARTY.finder names a filter the server does not implement');
   return out;
 }

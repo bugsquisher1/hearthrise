@@ -139,6 +139,10 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         // SV-2
         const quote = await txt(page, '.hw-stam-quote');
         if (!/Adds 2 h for 1,400/.test(quote || '') || !/Blocks today: 1 of 2/.test(quote || '')) fails.push('SV-2 the quote line reads ' + JSON.stringify(quote));
+        /* the quote stands under its stamina line on the tab's 8 px rhythm (visual pass 2: a bare paragraph, the browser's 16 px above and below) */
+        const gap = await page.evaluate(() => { const p = '[data-hs-win="shop"] [data-pane="services"] ', a = document.querySelector(p + '.hw-stam-now'), b = document.querySelector(p + '.hw-stam-quote');
+          return a && b ? Math.round(b.getBoundingClientRect().top - a.getBoundingClientRect().bottom) : null; });
+        if (gap === null || gap > 8) fails.push('SV-2 the quote stands ' + gap + ' px under the stamina line');
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="stam-ask"]', 'SV-2');
         await page.waitForTimeout(150);
         if (sent(s, 'hr_time_buy').length) fails.push('SV-2 Buy sent a purchase before the confirmation');

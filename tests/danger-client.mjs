@@ -101,7 +101,7 @@ const pickOf = (danger) => {
   const btns = STANCE_IDS.map((id) => el({ 'data-risk': id })), note = el(), depth = el();
   const box = Object.assign(el(), { querySelectorAll: () => btns, querySelector: (q) => (q === '.hw-stance-note' ? note : q === '.hw-stance-depth' ? depth : null) });
   pane.patchStance({ querySelector: () => box }, { character: csOf(danger) }, { hunt: M, pending: false, follower: false });
-  return { pressed: btns.filter((b) => b.a['aria-pressed'] === 'true').map((b) => b.a['data-risk']), note: note.textContent };
+  return { pressed: btns.filter((b) => b.a['aria-pressed'] === 'true').map((b) => b.a['data-risk']), note: note.textContent, depth: depth.textContent };
 };
 const none = pickOf({ risk: null, held: {}, playing: null });
 check('DC-9', none.pressed.join() === DEFAULT_RISK && DEFAULT_RISK === 'steady' && none.note === HUNTS_TEXT.stance_line_steady && !/Pick a Risk/.test(none.note),
@@ -109,6 +109,10 @@ check('DC-9', none.pressed.join() === DEFAULT_RISK && DEFAULT_RISK === 'steady' 
 const bold = pickOf({ risk: 'bold', held: {}, playing: null });
 check('DC-9', bold.pressed.join() === 'bold' && bold.note === HUNTS_TEXT.stance_line_bold, 'the server\'s stance wins: ' + JSON.stringify(bold));
 check('DC-9', pickOf(undefined).pressed.length === 0, 'no section, nothing pressed');
+
+// DC-10 (visual pass 2: 'Held depth: Depth 1 of 20' said depth twice): the depth this hero last held reads as the report's cause line does
+const held = pickOf({ risk: null, held: { [M]: 590 }, playing: null }).depth;
+check('DC-10', /^Held Depth \d+ of 20 last time\.$/.test(held) && !/depth\W+depth/i.test(held), 'the held line reads ' + JSON.stringify(held));
 
 console.log(fails ? 'danger-client: ' + fails + ' RED' : 'danger-client: all green');
 process.exit(fails ? 1 : 0);

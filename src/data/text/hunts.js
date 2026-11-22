@@ -152,7 +152,8 @@ export const HUNTS_TEXT = Object.freeze({
   stance_leader: 'Risk: set by the party leader',
   /* the pick is off until the server's `danger` section has come (say-why SW-2) */
   stance_reading: 'Reading your Risk…',
-  depth_held: 'Held depth: Depth {depth} of {of}',
+  /* said as the report's cause line says it (visual pass 2: "Held depth: Depth 1 of 20" said depth twice) */
+  depth_held: 'Held Depth {depth} of {of} last time.',
   depth_new: 'First time here. The party starts at Depth 1 and works its way deeper.',
   tier_set_by: 'Set by {leader}: {tier}',
   tier_leader_picks: 'Tier: set by the party leader',

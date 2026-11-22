@@ -977,6 +977,11 @@ async function checks(overrides, shots, opts) {
         if (castNote !== 'Sewer Kobold casts Muck Fling. Rat King casts Tail Lash and Squeal.') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
         const pp = await party();
         if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Invite a player' || !/^Play other heroes from Characters to bring them/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        /* Invite a player is a link: its words start on the section's edge with the lines around it, as Hunt prep's do (visual pass 2: a
+           boxed button's 10 px padding stood it 8 px in from "Players: 1 to 4") */
+        const inset = await page.evaluate((w) => { const a = document.querySelector(w + '.hw-invite-here'), why = document.querySelector(w + '.hw-hd-party-why');
+          return a && why ? Math.round(a.getBoundingClientRect().left + parseFloat(getComputedStyle(a).paddingLeft) - why.getBoundingClientRect().left) : null; }, W);
+        if (inset === null || inset > 2) fails.push('AW-28 Invite a player\'s words stand ' + inset + ' px in from the section\'s edge');
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
         /* Invite a player: the Party window, its name box on screen; no read is sent (there is no party finder: 1059-no-party-finder.sql). */

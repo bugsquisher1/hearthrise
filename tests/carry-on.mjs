@@ -467,6 +467,11 @@ async function wordsArm() {
   if (!/^Wren: Meadowbrook Thicket, Normal\. From Storage: 40 Cooked Shrimp\. Short of last time: 5 Cooked Shrimp\. .*Bless again: 450 gp\. Runs its loot plan first\. Stops gathering\.$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
   if (txt[1] !== 'Bryn stays in town: no stamina left.' || txt[2] !== 'Tess waits for Marlow to start the party\'s hunt.' || txt[3] !== 'Dorn stays where you left it.') bad.push('CO-WORDS the other lines read ' + JSON.stringify(txt.slice(1)));
   if (txt.some((s) => /[;—–]/.test(s))) bad.push('CO-WORDS a line has a semicolon or a dash: ' + JSON.stringify(txt));
+  /* a Danger scale ground has no tier (visual pass 2: "The Muster Barrows, Normal."): the line names the hero's Risk, Steady where none is read */
+  const scale = I.planOf({ go: 2, gold: 0, heroes: [
+    { slot: 0, state: 'go', name: 'Wren', hunt: 'muster_barrows', tier: 'normal' }, { slot: 1, state: 'go', name: 'Bryn', hunt: 'muster_barrows', tier: 'normal' }] });
+  const onRisk = S.carryLinesOf(scale, (slot) => (slot === 0 ? 'bold' : null)).map((l) => l.text);
+  if (onRisk[0] !== 'Wren: The Muster Barrows, Bold.' || onRisk[1] !== 'Bryn: The Muster Barrows, Steady.') bad.push('CO-WORDS a scale ground reads ' + JSON.stringify(onRisk));
   if (S.againAllWords(2) !== 'Hunt again, both' || S.againAllWords(3) !== 'Hunt again, all three' || S.againAllWords(4) !== 'Hunt again, all four') bad.push('CO-WORDS the end card reads ' + [2, 3, 4].map(S.againAllWords).join(' / '));
   if (I.scopeOf([1, 1]) !== undefined || I.scopeOf([6]) !== undefined || JSON.stringify(I.scopeOf([3, 0])) !== '[0,3]' || I.scopeOf(null) !== null) bad.push('CO-WORDS the scope rule lets a bad slot list through');
   return bad;

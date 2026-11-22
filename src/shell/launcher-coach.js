@@ -447,14 +447,12 @@ export function ringPlan(card, at) {
   }
   switch (card.anchor) {
     case 'hunt_picker': {
-      /* the ground the card enters, or the one its words name (ring.hunt: the first Dangerous run); a card naming none rings nothing in the window */
-      const hunt = (card.done && card.done.hunt) || g.hunt || null;
+      /* the ground the card enters; a card naming none rings nothing in the window (no card rings a tier since the Level 8 offer retired, D-1 1.4) */
+      const hunt = (card.done && card.done.hunt) || null;
       if (!hunt) return [];
-      /* a card that names a tier (ring.tier) rings it on that ground's page until it is pressed; then, as every hunt card, Enter while the
-         ground is the picked one and on screen; else its line (a phone shows the list first); on a phone showing ANOTHER ground's page, the
-         way back to the list */
-      const tier = g.tier ? [inWin('hunts', '.hw-tiers.is-on [data-tier="' + g.tier + '"][data-hunt="' + hunt + '"][aria-pressed="false"]:not([hidden])')] : [];
-      return [...tier, inWin('hunts', '.hw-hunt-enter[data-hunt="' + hunt + '"]:not([disabled])'),
+      /* Enter while the ground is the picked one and on screen; else its line (a phone shows the list first); on a phone showing ANOTHER
+         ground's page, the way back to the list */
+      return [inWin('hunts', '.hw-hunt-enter[data-hunt="' + hunt + '"]:not([disabled])'),
         inWin('hunts', '.hw-hunt[data-hunt="' + hunt + '"]'), '[data-hs-win="hunts"]:not(:has(.hw-hunt-enter[data-hunt="' + hunt + '"])) .hs-win-head .hs-back'];
     }
     case 'hunt_topbar': return ['[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([disabled])'];

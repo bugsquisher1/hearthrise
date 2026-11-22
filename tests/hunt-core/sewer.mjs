@@ -15,8 +15,10 @@
 //   tutorial-town-chain    sell or keep, Blessings (the server's numbers), Tamsin's weight per role, paid, setups
 //   tutorial-reactive      ate, drank, a beating, more heroes, hunt together, upgrades, storage, stamina, a death,
 //                          paid Blessings, juice, a house, own runes: each on its own fact and worded from it
-//   first-dangerous-run    ONE card offers the first Dangerous run at Level 8 to a hero in armor on head and body (server facts), names a ground
-//                          of its range with the tier, rings its Dangerous press, and never comes back once read or taken
+//   no-tier-offer-by-level no card offers a harder tier for a Level and its armor or rings a tier press (D-1 1.4, the Level 8 card retired);
+//                          Harder tiers names the choice once and passes a hero the server shows on a harder tier
+//   safe-to-close          "It is safe to close the game" once for the account, fifteen minutes into the party's first hunt past the Cellar,
+//                          with the server's stamina hours; never alone, in the Cellar, early, again, or under an hour
 //   tutorial-second-hero   a second hero skips the knowledge cards and keeps the ones that set its own state
 //   tutorial-no-wall       no Got it recorder or shell facts: never a wall; no card names an empty slot
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
@@ -272,13 +274,12 @@ function walkChain(M, T, extra) {
   const save = (slots) => set({ slots, stored: slots.map((s) => (s ? { type: s.type, id: s.id, conditions: s.conditions } : null)) });
   const RATS = 'cellar_giant_rats', WOLVES = 'thicket_gray_wolves';
   const press = {
-    /* TAMSIN FIRST (designer 2026-11-10): her rats taken before the first hunt, counted in it, paid on the way back with a helmet to wear */
-    tamsins_rats: () => set({ tally: tallyFact([[RATS, 0]], []) }),
+    /* TAMSIN'S RATS (designer 2026-11-10): taken on entry (GR-78, the take FB-6 builds), counted in the first hunt, paid on the way back with a helmet to wear */
     rats_count: () => set({ tally: tallyFact([[RATS, 25, true]], []) }),
     tamsin_owes: () => set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS]), upgrades: ['bronze_helm'] }),
     equip_upgrades: () => set({ upgrades: [] }),
     back_down: () => set({ huntId: 'mill_cellar', endReason: null }),
-    to_the_cellar: () => set({ huntId: 'mill_cellar', visited: new Set([...f.visited, 'mill_cellar']) }),
+    to_the_cellar: () => set({ huntId: 'mill_cellar', visited: new Set([...f.visited, 'mill_cellar']), tally: tallyFact([[RATS, 0]], []) }),
     first_kill: () => set({ levelXp: 3 }),
     first_level: () => L(2),
     plant_land: () => set({ skillXp: { ...f.skillXp, farming: 28 }, landPlanted: true }),
@@ -346,25 +347,24 @@ const cases = {
   },
   'what-next-one-goal': async (M) => {
     /* WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17: eight sentences, the Farm first and the third hero not named; blind 20-hour panel: "a five-sentence paragraph"). The walk-through, one lone sword
-       and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in. */
+       and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in.
+       Every hero slot is free since FB-5 (Tyler 2026-11-21): a hero not yet made is a goal, a slot never is. */
     const roster = (n) => Array.from({ length: n }, (_, i) => ({ slot: i, level: 10, name: 'H' + i, open: i === 0, hunting: false }));
-    const at = (charLevel, more) => M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 90, land: { planted: 0, ready: {} }, inParty: false, gold: 0, slotCost: 50000, slotsOwned: 2, roster: roster(2), visited: new Set(), staminaMs: 28800000, refill: null, tally: { held: 1 }, home: null, partyGround: M.hl.partyGroundFor(charLevel), ...more });
+    const at = (charLevel, more) => M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 90, land: { planted: 0, ready: {} }, inParty: false, gold: 0, slotsOwned: 4, roster: roster(4), visited: new Set(), staminaMs: 28800000, refill: null, tally: { held: 1 }, home: null, partyGround: M.hl.partyGroundFor(charLevel), ...more });
     const THICKET = 'meadowbrook_thicket', WICK = 'wickstead', GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
     const walk = [
       /* Level, the facts of the stop, what the card's one line must say */
       ['one hero, a free slot', 10, { roster: roster(1), gold: 15000, visited: new Set([THICKET]) }, 'Create your free second hero in Characters'],
-      ['two heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, Level 16'],
-      ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Next goal: a third hero slot, 50,000 gp'],
-      ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'Buy a third hero slot for 50,000 gp'],
-      /* an empty slot with the purse for the next one: the free hero, never a sale (lane/c-hollow-proofs: at 15,000 gp the purse was too short for any
-         offer, so the mutant that sells a slot past an empty one escaped once its plant could load) */
-      ['the purse is there, one slot empty', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) }, 'Create your free second hero in Characters'],
-      ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
-      ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
-      ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
-      ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Take a task on Tamsin\'s tally (Q)'],
+      ['four heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, Level 16'],
+      ['the Glade walked, 41k: the Farmstead the purse covers, never a slot', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Buy the Fieldworth Farmstead in the House'],
+      /* an empty slot with a full purse: the hero not yet made, never a sale */
+      ['the purse is there, one hero made', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) }, 'Create your free second hero in Characters'],
+      ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
+      ['sixteen Levels under names no dare', 16, { gold: 1000, visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
+      ['out of stamina, gold in hand', 20, { gold: 9000, visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
+      ['no task held, past the Sewer', 27, { gold: 1000, visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Take a task on Tamsin\'s tally (Q)'],
       /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
-      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak, made in Crafting'],
+      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak, made in Crafting'],
     ];
     for (const [what, lv, more, want] of walk) {
       const g = at(lv, more);
@@ -397,7 +397,7 @@ const cases = {
     const { coachHtml, actCoach } = await import(pathToFileURL(join(M.root, 'src/shell/launcher-coach.js')).href + V);
     const reader = { read: () => null, record: { residue: {} }, setResidue: () => {} };
     const html = coachHtml(reader, hunter, false);
-    if (!/<span class="hs-coach-text">Next goal: a third hero slot, 50,000 gp/.test(html) || !/data-hs-act="coach-more"/.test(html) || !/class="hs-coach-also" hidden/.test(html) || !html.includes('Plant a seed on the Farm')) return 'the card draws ' + html;
+    if (!/<span class="hs-coach-text">Find a party for Mosslight Glade/.test(html) || !/data-hs-act="coach-more"/.test(html) || !/class="hs-coach-also" hidden/.test(html) || !html.includes('Plant a seed on the Farm')) return 'the card draws ' + html;
     /* More works where What next stands (played 11-04: in town the card sits inside the row's <nav>, so a press on More reached nothing), and stays open through a repaint of that row */
     const also = { hidden: true }, more = { textContent: 'More', setAttribute() {} };
     const ptr = { getAttribute: () => hunter.id, classList: { toggle() { throw new Error('toggled the window line'); } }, querySelector: (q) => (q === ':scope > .hs-coach-more' ? more : q === ':scope > .hs-coach-also' ? also : null) };
@@ -539,26 +539,23 @@ const cases = {
     if (id(meals(8, 2 * 3600000)) === 'food_when') return 'Eat on time came at 8 meals in 2 hours (4 an hour): the audit\'s hero, who is not spending food';
     if (id(meals(6, 10 * 60000)) !== 'food_when') return 'a hero eating 6 times in 10 minutes is on ' + id(meals(6, 10 * 60000)) + ', not Eat on time';
     if (id(fed({ read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro', 'food_when']) })) === 'food_when') return 'Got it does not pass Eat on time';
-    /* the first card on a new hero is Tamsin's rats, then the Cellar: the style waits until home from that first hunt
-       (designer 2026-11-12, first-30 play: before any hunt it sent the hero into the bag, not to the Cellar) */
-    if (id(tutAt(M, K, 1)) !== 'tamsins_rats') return 'a new hero starts on ' + id(tutAt(M, K, 1));
+    /* the first card on a new hero is the Cellar's, ringing Hunts (designer D-1 1.3 rule 1: her rats are taken on entry, GR-78): the style waits
+       until home from that first hunt (designer 2026-11-12, first-30 play: before any hunt it sent the hero into the bag, not to the Cellar) */
+    if (id(tutAt(M, K, 1)) !== 'to_the_cellar') return 'a new hero starts on ' + id(tutAt(M, K, 1));
     /* short over the town (it fits 667x375 without covering the bar), the five ways inside the bag */
     const sc = M.tut.cardFor(M.tut.HUNT_TUTORIAL.find((r) => r.id === 'styles'), tutAt(M, K, 1));
     if (sc.text.split(' ').length > 10 || !sc.text.includes('Equip') || !(sc.textIn || '').includes('then Equip')) return 'the style card reads ' + JSON.stringify([sc.text, sc.textIn]);
-    if (id(tutAt(M, K, 1, { read: new Set(['styles']) })) !== 'tamsins_rats') return 'after the style card comes ' + id(tutAt(M, K, 1, { read: new Set(['styles']) }));
-    /* Tamsin's rats never wall the first hunt: Got it, or the Take, and the Cellar's card follows */
-    if (id(tutAt(M, K, 1, { read: new Set(['styles', 'tamsins_rats']) })) !== 'to_the_cellar') return 'Got it on Tamsin\'s rats leads to ' + id(tutAt(M, K, 1, { read: new Set(['styles', 'tamsins_rats']) }));
-    if (id(tutAt(M, K, 1, { read: new Set(['styles']), tally: tallyFact([['cellar_giant_rats', 0]], []) })) !== 'to_the_cellar') return 'her rats taken, the next card is not the Cellar';
+    if (id(tutAt(M, K, 1, { read: new Set(['styles']) })) !== 'to_the_cellar') return 'after the style card comes ' + id(tutAt(M, K, 1, { read: new Set(['styles']) }));
     const back = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3, read: new Set(seen.concat('styles')), blessings: tutAt(M, K, floor).blessings });
     if (id(back) !== 'bless') return 'back from the Cellar the first card is ' + id(back) + ', not the Blessings';
     /* the bow: the worn set says nothing is loaded (fact `ammo`); unknown says nothing */
     const B = tutKit(M, null, 'practice_bow', null);
     const bow = (more) => tutAt(M, B, 1, { ammo: null, ...(more || {}) });
-    const town = bow({ visited: new Set(['mill_cellar']), read: new Set(['styles', 'tamsins_rats']) }), said = M.tut.cardFor(M.tut.currentCard(town), town);
+    const town = bow({ visited: new Set(['mill_cellar']), read: new Set(['styles']) }), said = M.tut.cardFor(M.tut.currentCard(town), town);
     if (said.id !== 'load_shot' || !said.text.includes('Bronze Arrows → Put on the bar') || !said.hooks.some((h) => h.includes('data-item="bronze_arrows"'))) return 'a bow with nothing loaded in town reads ' + JSON.stringify(said);
     /* and before the first kill that would never come */
     if (id(bow({ huntId: 'mill_cellar', visited: new Set(['mill_cellar']), read: new Set(['styles']) })) !== 'load_shot_hunt') return 'a bow with nothing loaded in a hunt is on ' + id(bow({ huntId: 'mill_cellar', visited: new Set(['mill_cellar']) }));
-    const S = { read: new Set(['styles', 'tamsins_rats']) };
+    const S = { read: new Set(['styles']) };
     if (id(bow({ ...S, ammo: 'bronze_arrows' })) !== 'to_the_cellar') return 'a loaded bow is on ' + id(bow({ ...S, ammo: 'bronze_arrows' }));
     if (id(bow({ ...S, ammo: undefined })) !== 'to_the_cellar') return 'a worn set the server never sent walls the coach: ' + id(bow({ ...S, ammo: undefined }));
     if (id(bow({ ...S, slots: [...B.slots, { type: 'attack_with_item', id: 'bronze_arrows', conditions: [], enabled: true, usable: true, count: 50 }] })) !== 'to_the_cellar') return 'arrows on the bar still read as nothing to shoot';
@@ -571,9 +568,9 @@ const cases = {
     if (!offer.text.includes(' → Spells → ') || /Runes →/.test(offer.text)) return 'the spell offer names a tab that is not there: ' + offer.text;
     return null;
   },
-  /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes, played: the quit minute was 9). Her Cellar rats are taken before the first hunt, counted
-     inside it, paid with a helmet the hero wears at once, and the invitation to close the game comes on the second trip down. Every card is read
-     off the server's tally: the held row's own done, the day's pays. */
+  /* TAMSIN'S RATS (designer 2026-11-10, the first ten minutes, played: the quit minute was 9). Her Cellar rats are taken on entry (GR-78), counted
+     inside the first hunt, paid with a helmet the hero wears at once, and the invitation to close the game comes on the second trip down. Every card
+     is read off the server's tally: the held row's own done, the day's pays. */
   'tamsin-first': async (M) => {
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const { ringPlan } = await imp('src/shell/launcher-coach.js');
@@ -597,13 +594,14 @@ const cases = {
     const said = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
     const id = (f) => (said(f) || {}).id || null;
     const inCellar = { huntId: 'mill_cellar', visited: new Set(['mill_cellar']) };
-    /* 1. before the first hunt, and only then */
+    /* 1. THE FIRST CARD RINGS HUNTS (designer D-1 1.3 rule 1): her rats are taken on entry, so no card sends a new hero to her board, and the
+       first card says the Path's start row word for word */
     const ask = said(at(1));
-    if (!ask || ask.id !== 'tamsins_rats' || !ask.text.includes(rats.label) || !ask.gotIt) return 'a new hero in town reads ' + JSON.stringify(ask && [ask.id, ask.text]);
-    const way = ringPlan(ask, { open: (w) => w === 'tally', weight: false });
-    if (!way[0] || !way[0].includes('[data-hs-act="take"][data-task="' + RATS + '"]')) return 'her card rings ' + JSON.stringify(way) + ', not the Take on her rats';
-    if (ringPlan(ask, { open: () => false })[0] !== '.hs-launchers [data-hs-open="tally"]') return 'with her window shut the card does not ring her icon';
-    if (id(at(3, { visited: new Set(['mill_cellar']) })) === 'tamsins_rats') return 'a hero who has hunted is sent back to her rats';
+    const start = (await imp('src/data/the-path.js')).THE_PATH.find((r) => r.id === 'start');
+    if (!ask || ask.id !== 'to_the_cellar' || ask.text !== start.line || start.card !== ask.id) return 'a new hero in town reads ' + JSON.stringify(ask && [ask.id, ask.text]) + ', not the Path\'s ' + JSON.stringify(start.line);
+    if (ringPlan(ask, { open: () => false })[0] !== '.hs-launchers [data-hs-open="hunts"]') return 'with Hunts shut the first card does not ring the Hunts icon: ' + JSON.stringify(ringPlan(ask, { open: () => false }));
+    const toBoard = M.tut.HUNT_TUTORIAL.filter((c) => c.ring && c.ring.task === RATS);
+    if (toBoard.length) return 'a card still sends a hero to her board for the rats taken on entry: ' + toBoard.map((c) => c.id).join(', ');
     /* 2. in the Cellar the count has a card, and "Out to the brook" keeps for the second trip */
     if (id(at(3, { ...inCellar, tally: tallyFact([[RATS, 4]], []) })) !== 'rats_count') return 'her count running, the Cellar reads ' + id(at(3, { ...inCellar, tally: tallyFact([[RATS, 4]], []) }));
     /* 3. the count done: ahead of every lesson, even for a hero who pressed nothing; the server's done, never this build's count */
@@ -738,10 +736,10 @@ const cases = {
     /* the panel's order (2026-10-31): the style before any hunt, Blessings first on the way back, the food sums once the hero has eaten.
        The panel again (2026-11-01, "about ten tips before hunt 2"): what the first two hunts need comes first; the spell offer and the
        Help page wait for the Thicket, where a hero has time to read, and Cook and Decide once for the second return */
-    /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes): her rats before the first hunt, her count while it runs, "Tamsin owes you" when it is
-       done, the helmet worn in town, then back down, and "Out to the brook" only on that second trip */
+    /* TAMSIN'S RATS (designer 2026-11-10, the first ten minutes): taken on entry (GR-78), so the first card is the Cellar's (D-1 1.3 rule 1); her count while
+       it runs, "Tamsin owes you" when it is done, the helmet worn in town, then back down, and "Out to the brook" only on that second trip */
     /* PLANT YOUR LAND IN TOWN (audit 2026-11-18 A4): home from the first hunt, before back down, never two minutes into it */
-    const want = ['tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'bar_intro', 'rats_count', 'tamsin_owes', 'styles', 'equip_upgrades', 'plant_land', 'back_down', 'earn_the_thicket',
+    const want = ['to_the_cellar', 'first_kill', 'first_level', 'bar_intro', 'rats_count', 'tamsin_owes', 'styles', 'equip_upgrades', 'plant_land', 'back_down', 'earn_the_thicket',
       'leave_cellar', 'bless', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
       'loot_rules', 'cook_catch', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
@@ -1263,20 +1261,19 @@ const cases = {
     if (!g12.includes(bowLine)) return 'ranger at Level 12 with a Crafting 15 bow on the bench: What next reads ' + JSON.stringify(g12) + ', wanted ' + JSON.stringify(bowLine);
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
-    if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('Buy a third hero slot for 15,000 gp')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
-    if (!goal(8, { gold: 8000, slotCost: 15000, slotsOwned: 2 }).includes('Next goal: a third hero slot, 15,000 gp')) return 'at 8,000 gp What next names no price: ' + goal(8, { gold: 8000, slotCost: 15000, slotsOwned: 2 });
-    /* THE SHARE AT THE REAL LADDER (lane/c-slots-lower): under half the next hero the house's deed speaks, from half the hero does, and the fourth reads the same way */
+    /* NO HERO SLOT IS A GOAL (FB-5, Tyler 2026-11-21: all four slots free): rich or poor, What next names no slot and no price for one; the House's
+       deed speaks at its own price and never under it; a hero not yet made is the goal instead (freeHeroLine) */
     const cottage = { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } };
-    const under = goal(8, { gold: 12499, slotCost: 25000, slotsOwned: 2, home: cottage }), half = goal(8, { gold: 12500, slotCost: 25000, slotsOwned: 2, home: cottage });
-    if (!under.includes('Buy the Cottage in the House') || /hero slot,/.test(under)) return 'at 12,499 gp of a 25,000 gp hero What next reads ' + under;
-    if (!half.includes('Next goal: a third hero slot, 25,000 gp') || half.includes('Buy the Cottage')) return 'at 12,500 gp of a 25,000 gp hero What next reads ' + half;
-    if (/hero slot,/.test(goal(20, { gold: 37499, slotCost: 75000, slotsOwned: 3 }))) return 'the fourth hero speaks under half its price';
-    if (!goal(20, { gold: 37500, slotCost: 75000, slotsOwned: 3 }).includes('Next goal: a fourth hero slot, 75,000 gp')) return 'at 37,500 gp the fourth hero reads ' + goal(20, { gold: 37500, slotCost: 75000, slotsOwned: 3 });
-    if (/hero slot/.test(goal(12, { gold: 16000, slotCost: null, slotsOwned: 5 }))) return 'with no slot for sale What next offers one';
-    if (/hero slot,/.test(goal(5, { gold: 400, slotCost: 15000, slotsOwned: 2 }))) return 'at 400 gp the third hero is held up as a goal';
-    if (!goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 }).includes('Buy a fourth hero slot for 40,000 gp')) return 'the fourth hero reads ' + goal(20, { gold: 45000, slotCost: 40000, slotsOwned: 3 });
+    const four = [{ slot: 0 }, { slot: 1 }, { slot: 2 }, { slot: 3 }];
+    for (const gold of [400, 12500, 45000, 2000000]) {
+      const g = goal(20, { gold, slotsOwned: 4, roster: four, home: cottage });
+      if (/hero slot/.test(g)) return 'at ' + gold + ' gp What next names a hero slot: ' + g;
+      if (g.includes('Buy the Cottage in the House') !== (gold >= cottage.next.gold)) return 'at ' + gold + ' gp of an 8,000 gp Cottage What next reads ' + g;
+    }
+    const made = goal(12, { gold: 16000, slotsOwned: 4, roster: [{ slot: 0 }] });
+    if (!made.includes('Create your free second hero in Characters')) return 'one hero made of four, What next reads ' + made;
     /* a deed the purse covers, once no hero is for sale; its materials are said, never hidden behind a price */
-    const deed = goal(30, { gold: 9000, slotCost: null, slotsOwned: 5, home: { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } } });
+    const deed = goal(30, { gold: 9000, slotsOwned: 4, home: { owned: true, next: { name: 'Cottage', gold: 8000, items: [{ id: 'normal_log', qty: 40 }] } } });
     if (!deed.includes('Buy the Cottage in the House')) return 'the house line reads ' + deed;
     /* the Weighhouse by its own gate, Leaderboards from the Level the gear runs thin: one read each, the icon ringed, after the chain */
     const chainDone = walkChain(M, T).pop().facts;
@@ -1313,100 +1310,87 @@ const cases = {
     const towerSec = { hunt: 'the_burning_tower', rules: { room_size: 5, landing_every: 10, floor_limit_ms: 180000, landing_limit_ms: 600000, floor_top: 300 }, best_floor: 0, checkpoints: [0] };
     const towerOf = (sec) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(10) }, level: srvLevel(M, M.xp.charXpForLevel(10)), tower: sec })[k], slot: 0 }).towerBest;
     if (towerOf(towerSec) !== 0 || towerOf({ ...towerSec, best_floor: 23 }) !== 23 || towerOf(undefined) !== null) return 'through the envelope the Tower reads ' + JSON.stringify([towerOf(towerSec), towerOf(undefined)]);
-    /* WHAT GOLD BUYS (blind panel 11-03, 15k and "nothing says what's next"): once the purse can pay for the next hero, one read naming what exists at the server's prices, ahead of the House's own card; the House opens from it */
+    /* NO GOLD CARD (FB-5): "Spend your gold" spoke at half a hero slot's price, and no slot is sold now. What next keeps naming the deed and the smith. */
+    if (M.tut.HUNT_TUTORIAL.some((c) => c.id === 'purse_goal')) return 'the gold card is back: it spoke at half a hero slot\'s price, and every slot is free';
     const DEED = { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'copper_ore', qty: 20 }, { id: 'normal_log', qty: 30 }] };
     const CHEST = { name: 'Millrace Crate', gold: 1500, items: [{ id: 'normal_log', qty: 40 }] };
-    const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST, ...more });
-    const purse = say(rich(M.tut.ROLL_LEVEL, 15000));
-    if (!purse || purse.id !== 'purse_goal' || purse.text !== 'Buy a House deed' || !purse.gotIt || M.tut.coachWindow(purse) !== 'house') return 'with 15,000 gp the card reads ' + JSON.stringify(purse);
-    /* The hero is a saving goal now (lane/c-gold-matters): the card comes at the What next line's share of its price (a half) and says what is short, never "enough". */
-    if ((say(rich(M.tut.ROLL_LEVEL, 7499)) || {}).id === 'purse_goal') return 'the gold card came before the purse is a start on the next hero';
-    const saving = say(rich(M.tut.ROLL_LEVEL, 7500));
-    if (!saving || saving.id !== 'purse_goal' || saving.text !== 'Buy a House deed') return 'saving for a hero the gold card reads ' + JSON.stringify(saving && saving.text);
-    if ((say(rich(M.tut.ROLL_LEVEL, 15000, {}, 'purse_goal')) || {}).id === 'purse_goal') return 'Got it does not pass the gold card';
-    if ((say(rich(M.tut.ROLL_LEVEL, 99999, { slotCost: null, slotsOwned: 5 })) || {}).id === 'purse_goal') return 'with no hero on offer the gold card still offers one';
-    if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
-    if ((say(rich(10, 15000)) || {}).id !== 'purse_goal') return 'at Level 10 with 15,000 gp the House\'s own card stands ahead of the gold card: ' + (say(rich(10, 15000)) || {}).id;
-    if ((say(rich(10, 15000, {}, 'purse_goal')) || {}).id !== 'home') return 'past the gold card at Level 10 the card is ' + (say(rich(10, 15000, {}, 'purse_goal')) || {}).id;
-    /* KLAPPA'S CLUB, THEN GOLD (walk-through 11-03: a club hero at Level 5 with the next hero's price): one card at a time, the club's first, and the gold waits while its hands are empty
-       mid-job; a sword hero goes straight to the gold; a second hero keeps the club, its own state, and skips the gold, a read another hero has had */
-    const clubRich = { ...atClub, gold: 15000, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST };
+    const rich = (lv, gold, more, ...read) => ({ ...atL(lv, 'weighhouse', 'roll_of_honor', 'pull_goal', ...read), gold, slotsOwned: 4, home: { owned: false, next: DEED }, chest: CHEST, ...more });
+    /* KLAPPA'S CLUB FIRST (walk-through 11-03: a club hero at Level 5 with a full purse): the club's card, and it holds while its hands are empty mid-job;
+       a second hero keeps the club, its own state */
+    const clubRich = { ...atClub, gold: 15000, slotsOwned: 4, home: { owned: false, next: DEED }, chest: CHEST };
     if ((say(R(clubRich)) || {}).id !== 'klappas_club') return 'a rich club hero at Level 5 meets ' + (say(R(clubRich)) || {}).id + ' before the club';
-    if ((say(R({ ...clubRich, weapon: null, carried: { ...clubRich.carried, klappas_club: 1 } })) || {}).id !== 'klappas_club') return 'the gold card cut in with the hero\'s hands empty mid-reforge';
-    if ((say(R(clubRich, 'klappas_club')) || {}).id !== 'purse_goal') return 'past the club a rich hero meets ' + (say(R(clubRich, 'klappas_club')) || {}).id;
-    if ((say(R({ ...clubRich, weapon: 'klappas_club' })) || {}).id !== 'purse_goal') return 'with the club worn a rich hero meets ' + (say(R({ ...clubRich, weapon: 'klappas_club' })) || {}).id;
-    if ((say(R({ ...clubRich, weapon: 'practice_sword' })) || {}).id !== 'purse_goal') return 'a rich sword hero meets ' + (say(R({ ...clubRich, weapon: 'practice_sword' })) || {}).id;
+    if ((say(R({ ...clubRich, weapon: null, carried: { ...clubRich.carried, klappas_club: 1 } })) || {}).id !== 'klappas_club') return 'another card cut in with the hero\'s hands empty mid-reforge';
     const vetClub = { ...clubRich, roster: [{ slot: 0, level: kclub.reqLv, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL + 1, name: 'Old', open: false, hunting: false }], self: 0 };
     if ((say(R(vetClub)) || {}).id !== 'klappas_club') return 'a second hero with the club meets ' + (say(R(vetClub)) || {}).id;
-    if ((say(R(vetClub, 'klappas_club')) || {}).id === 'purse_goal') return 'a second hero is told what gold buys again';
     /* A CARD THAT ASKS NEVER WALLS: Hunt together (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt) finishes on its Got it, and what is behind it comes */
     const walled = { ...rich(M.tut.ROLL_LEVEL, 15000), roster: [{ slot: 0, level: 16, name: 'A', open: true, hunting: false }, { slot: 1, level: 1, name: 'Bree', open: true, hunting: false }], self: 0 };
     if ((say(walled) || {}).id !== 'party_own') return 'the Hunt together setup put up ' + (say(walled) || {}).id;
-    if ((say({ ...walled, read: new Set([...walled.read, 'party_own']) }) || {}).id !== 'purse_goal') return 'Got it does not pass Hunt together: ' + (say({ ...walled, read: new Set([...walled.read, 'party_own']) }) || {}).id;
+    if ((say({ ...walled, read: new Set([...walled.read, 'party_own']) }) || {}).id === 'party_own') return 'Got it does not pass Hunt together';
     if (say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }) && say({ ...atL(M.tut.ROLL_LEVEL, 'weighhouse'), huntId: 'mosslight_glade' }).id === 'roll_of_honor') return 'the Leaderboards card is up in a hunt';
     const eligibility = readFileSync(join(M.root, 'supabase/migrations/2027-02-13-market-eligibility.sql'), 'utf8');
     if (!eligibility.includes('min_level int not null default ' + M.tut.WEIGHHOUSE_LEVEL)) return 'What next says the Weighhouse opens at Level ' + M.tut.WEIGHHOUSE_LEVEL + ', and its migration does not';
     return null;
   },
-  /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
-     it stays up while an open plot is bare and a seed is held; a full field, no seed, or a harvest's XP finishes it. The
-     facts' `empty` is the server's field: open plots (under the cap, not an extra) holding no crop. */
-  /* THE FIRST DANGEROUS RUN (lane/a-next-steps; board "2026-11-15 The audit's balance findings" F5: food has no stakes on Normal from Level 1 to 15, and
-     Dangerous from Level 5 costs real food and gives more XP): ONE card at Level 8, to a hero the server shows in armor on head and body, naming a ground of
-     its range that has the tier (the last one it hunted first), ringing that ground's Dangerous press; never again once read or taken, and "How hard can you
-     hunt?" is not said after it. Every fact through the real envelope (equipment, hunt_tier, the hunt's ended tier). */
-  'first-dangerous-run': async (M) => {
+  /* NO HARDER TIER IS OFFERED BY LEVEL (designer D-1 1.4; FB-5 retired DANGER_LEVEL and DANGER_KIT): no card offers a tier for a hero's Level and its
+     armor, and none rings a tier press; the first offer is the tier-risk rule's (FB-7's first_harder_tier on the Path). "Harder tiers" still names
+     the choice once at its Level and passes by a hero the server shows on a harder tier. Every fact through the real envelope (hunt_tier, the
+     hunt's ended tier). */
+  'no-tier-offer-by-level': async (M) => {
     const T = tutKit(M, 'tank');
     const chainDone = walkChain(M, T).pop().facts;
     const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const tsb = await imp('src/session/tutorial-sections.js');
-    const L = await imp('src/shell/launcher-coach.js');
     const DRESSED = { weapon: 'practice_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody' };
-    /* the facts the envelope gives (tutorialFactsOf), over a hero who has walked the chain */
     const envFacts = (o) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(o.lv) }, level: srvLevel(M, M.xp.charXpForLevel(o.lv)), equipment: o.eq,
       ...(o.tiers === undefined ? {} : { hunt_tier: o.tiers }),
       ...(o.last ? { hunt: { session_id: 's-1', hunt_id: o.last, ended: true, session: { end_reason: 'stamina', ...(o.lastTier ? { tier: o.lastTier } : {}) }, hero: {}, pose: { units: [] } } } : {}) })[k], slot: 0 });
-    const at = (o, ...read) => { const e = envFacts(o); return { ...chainDone, levelXp: e.levelXp, charLevel: e.charLevel, armourWorn: e.armourWorn, tierTaken: e.tierTaken, lastHunt: e.lastHunt,
+    const at = (o, ...read) => { const e = envFacts(o); return { ...chainDone, levelXp: e.levelXp, charLevel: e.charLevel, tierTaken: e.tierTaken,
       huntId: null, visited: new Set([...(chainDone.visited || []), ...(o.last ? [o.last] : [])]), read: new Set([...chainDone.read, 'weighhouse', 'roll_of_honor', ...read]) }; };
     const id = (o, ...read) => (say(at(o, ...read)) || {}).id;
     const base = { lv: 8, eq: DRESSED, tiers: { picks: {}, playing: null } };
-    const offer = say(at(base));
-    if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try Dangerous' || !offer.gotIt
-      || offer.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter'
-      || offer.textIn !== 'Press Meadowbrook Thicket, then Dangerous, then Enter' || M.tut.coachIcon(offer, () => false) !== 'hunts')
-      return 'at Level 8 in helm and body the offer reads ' + JSON.stringify(offer && { id: offer.id, title: offer.title, text: offer.text, textIn: offer.textIn });
-    /* the ring: the named ground's Dangerous press, unpressed, then its Enter */
-    const ring = L.ringPlan(offer, { open: (w) => w === 'hunts' });
-    if (!ring[0] || !ring[0].includes('[data-tier="dangerous"][data-hunt="meadowbrook_thicket"][aria-pressed="false"]') || !ring[1].includes('.hw-hunt-enter[data-hunt="meadowbrook_thicket"]')) return 'the offer rings ' + JSON.stringify(ring);
-    /* the ground it last hunted, when it has the tier and the Level is in its band */
-    if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('→ Wickstead →')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
-    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
-    /* the ground just hunted beats the highest one hunted (lane/c-hollow-proofs: back from Wickstead both read Wickstead, so the mutant that
-       drops the last hunt escaped once its plant could load): been to Wickstead, back from the Thicket, the offer names the Thicket */
-    const backLow = at({ ...base, last: 'meadowbrook_thicket' });
-    backLow.visited = new Set([...backLow.visited, 'wickstead']);
-    if (!(say(backLow) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Thicket, having hunted Wickstead, the offer names ' + JSON.stringify((say(backLow) || {}).text);
-    /* not before its Level, not without armor on head and body, not unknown */
-    if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
-    if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
-    if (id({ ...base, eq: { ...DRESSED, body: undefined } }) === 'first_dangerous') return 'the offer came with no armor on the body';
-    if (id({ ...base, tiers: undefined }) === 'first_dangerous') return 'the offer came with no hunt_tier section (the picker shows no tier)';
-    /* never again: read, a pick on any ground, the running hunt's, the last hunt's */
-    if (id(base, 'first_dangerous') === 'first_dangerous') return 'Got it does not pass the offer';
-    if (id({ ...base, tiers: { picks: { wickstead: 'dangerous' }, playing: null } }) === 'first_dangerous') return 'a Dangerous pick on another ground does not pass the offer';
-    if (id({ ...base, tiers: { picks: {}, playing: 'deadly' } }) === 'first_dangerous') return 'a Deadly hunt running does not pass the offer';
-    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'dangerous' }) === 'first_dangerous') return 'a last hunt on Dangerous does not pass the offer';
-    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'normal' }) !== 'first_dangerous') return 'a last hunt on Normal passes the offer';
-    /* "How hard can you hunt?" is not said after it */
-    if (id({ ...base, lv: 10 }, 'first_dangerous') === 'pull_goal') return 'How hard can you hunt? came after the offer was read';
-    if (id({ ...base, lv: 10, tiers: { picks: { meadowbrook_thicket: 'dangerous' }, playing: null } }) === 'pull_goal') return 'How hard can you hunt? came to a hero who took Dangerous';
-    if (id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } }) !== 'pull_goal') return 'a hero never offered the run lost How hard can you hunt?: ' + id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } });
-    /* the Hunts window records a harder pick as the offer's read (so Normal again never brings it back) */
-    const hw = readFileSync(join(M.root, 'src/shell/windows/hunts.js'), 'utf8');
-    if (!hw.includes('if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });')) return 'the Hunts window no longer records a harder pick as the offer read';
+    const rings = M.tut.HUNT_TUTORIAL.filter((c) => c.ring && c.ring.tier);
+    if (rings.length || 'DANGER_KIT' in M.tut || 'FIRST_DANGEROUS' in M.tut) return 'the Level 8 offer is back: ' + JSON.stringify(rings.map((c) => c.id));
+    for (const lv of [8, 9]) { const c = say(at({ ...base, lv })); if (c && /Dangerous|Deadly/.test(c.text)) return 'at Level ' + lv + ' in helm and body a card offers a tier: ' + c.text; }
+    /* "Harder tiers" once at its Level, never to a hero the server shows on a harder tier: a pick, the running hunt's, the last hunt's */
+    if (id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } }) !== 'pull_goal') return 'Harder tiers is gone at its Level: ' + id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } });
+    if (id({ ...base, lv: 10 }, 'pull_goal') === 'pull_goal') return 'Got it does not pass Harder tiers';
+    if (id({ ...base, lv: 10, tiers: { picks: { meadowbrook_thicket: 'dangerous' }, playing: null } }) === 'pull_goal') return 'Harder tiers came to a hero who picked Dangerous';
+    if (id({ ...base, lv: 10, tiers: { picks: {}, playing: 'deadly' } }) === 'pull_goal') return 'Harder tiers came to a hero hunting Deadly';
+    if (id({ ...base, lv: 10, last: 'meadowbrook_thicket', lastTier: 'dangerous' }) === 'pull_goal') return 'a last hunt on Dangerous does not pass Harder tiers';
+    if (id({ ...base, lv: 10, last: 'meadowbrook_thicket', lastTier: 'normal' }) !== 'pull_goal') return 'a last hunt on Normal passes Harder tiers';
+    /* the server's tier is the record: the Hunts window marks no read for a pick */
+    if (readFileSync(join(M.root, 'src/shell/windows/hunts.js'), 'utf8').includes('FIRST_DANGEROUS')) return 'the Hunts window still records the retired offer';
     return null;
   },
+  /* IT IS SAFE TO CLOSE THE GAME (designer D-1, the Path's safe_to_close row; FB-5): once for the account, on the party's first hunt past the Cellar
+     fifteen minutes in, with the hours the server's stamina holds. Never alone, never in the Cellar, never before fifteen minutes, never again once
+     read, and passed by under an hour (Stamina low speaks then). The Path's row names the card. */
+  'safe-to-close': async (M) => {
+    const T = tutKit(M, 'tank');
+    const done = walkChain(M, T).pop().facts;
+    const SEWER = 'millrace_sewer', lv = M.HUNTS.millrace_sewer.band[0] + 1;
+    const party = (more) => ({ ...done, levelXp: M.xp.charXpForLevel(lv), charLevel: lv, huntId: SEWER, sessionId: 's-1', visited: new Set([...done.visited, SEWER]),
+      inParty: true, huntMs: 15 * 60000, staminaMs: 7.4 * 3600000, ...(more || {}) });
+    const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
+    const id = (more) => (say(party(more)) || {}).id || null;
+    const c = say(party());
+    if (!c || c.id !== 'safe_to_close' || c.text !== 'It is safe to close the game. Your party hunts for about 7 more hours.') return 'fifteen minutes into the first party hunt the card reads ' + JSON.stringify(c && [c.id, c.text]);
+    if ((say(party({ staminaMs: 1.6 * 3600000 })) || {}).text !== 'It is safe to close the game. Your party hunts for about 2 more hours.') return 'the hours are not the server\'s stamina: ' + JSON.stringify((say(party({ staminaMs: 1.6 * 3600000 })) || {}).text);
+    if ((say(party({ staminaMs: 1.2 * 3600000 })) || {}).text !== 'It is safe to close the game. Your party hunts for about 1 more hour.') return 'one hour reads ' + JSON.stringify((say(party({ staminaMs: 1.2 * 3600000 })) || {}).text);
+    if (id({ staminaMs: 0.9 * 3600000 }) === 'safe_to_close') return 'under an hour of stamina the card still says hours';
+    if (id({ inParty: false }) === 'safe_to_close') return 'a hero alone is told the party hunts on';
+    if (id({ huntMs: 14 * 60000 }) === 'safe_to_close') return 'the card came before fifteen minutes';
+    if (id({ huntId: 'mill_cellar' }) === 'safe_to_close') return 'the card came in the Cellar';
+    if (id({ read: new Set([...done.read, 'safe_to_close']) }) === 'safe_to_close') return 'the card came again once read';
+    if (id({ huntId: null }) === 'safe_to_close') return 'the card came in town';
+    const path = (await import(pathToFileURL(join(M.root, 'src/data/the-path.js')).href + V)).THE_PATH.find((r) => r.id === 'safe_to_close');
+    if (!path || path.card !== 'safe_to_close' || path.scope !== 'account') return 'the Path\'s safe_to_close row does not name the card: ' + JSON.stringify(path);
+    return null;
+  },
+  /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
+     it stays up while an open plot is bare and a seed is held; a full field, no seed, or a harvest's XP finishes it. The
+     facts' `empty` is the server's field: open plots (under the cap, not an extra) holding no crop. */
   'tutorial-plant-every-plot': async (M) => {
     const T = tutKit(M, 'tank');
     /* in town, home from the first hunt (the card waits for town: audit 2026-11-18 A4), the weapon card read */
@@ -1645,7 +1629,7 @@ const cases = {
     const ctxOf = (cs) => ({ character: cs, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     const draw = (cs) => renderLaunchers(ctxOf(cs));
     const press = (cs, act) => renderLaunchers.act(ctxOf(cs), { ownerDocument: null, querySelector: () => null }, act, { type: 'click' });
-    const FULL = 'Hunts → Mill Cellar → Enter';
+    const FULL = 'Open Hunts and pick the Mill Cellar.';
     let cs = hero(env(), {});
     if (!draw(cs).includes(FULL) || !draw(cs).includes('data-hs-act="coach-min"')) return 'the coach shows no minimize control: ' + draw(cs);
     if (typeof renderLaunchers.act !== 'function') return 'the launcher row answers no coach press';
@@ -2135,24 +2119,25 @@ const mutants = [
     edits: [['src/session/tutorial-sections.js', "    hid: hid ? new Set(Array.from(hid).filter((id) => typeof id === 'string' && ID.test(id))) : null,\n", '    hid: null,\n']] },
   { name: 'a hidden card passes by the cards after it too', case: 'tutorial-got-it-moves-on',
     edits: [['src/data/hunt-tutorial.js', '    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;\n', '    if (facts.hid instanceof Set && facts.hid.size && rows.indexOf(r) >= Math.min(...[...facts.hid].map((h) => rows.findIndex((x) => x.id === h)).filter((i) => i >= 0))) continue;\n']] },
-  { name: 'the first Dangerous run is offered to a hero in the practice kit', case: 'first-dangerous-run',
-    edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }, { kind: 'danger_kit' }] }),", "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }] }),"]] },
-  { name: 'a last hunt on Dangerous does not count as taken', case: 'first-dangerous-run',
+  /* (RETIRED 2026-11-21 with the Level 8 offer, D-1 1.4: offered to a hero in the practice kit, comes back after it is taken, How hard can you hunt?
+     said again after it, rings no Dangerous press, names the lowest ground, the Hunts window forgets it was taken. Their subjects are gone; the case
+     below holds that no card offers a tier by Level and that Harder tiers passes a hero on a harder tier.) */
+  { name: 'safe to close comes to a hero alone', case: 'safe-to-close',
+    edits: [['src/data/hunt-tutorial.js', "when: [HUNTING, { kind: 'in_party' }, { kind: 'hunt_age'", "when: [HUNTING, { kind: 'hunt_age'"]] },
+  { name: 'safe to close types its hours', case: 'safe-to-close',
+    edits: [['src/data/hunt-tutorial.js', "t('coach.safe_to_close', { count: Math.round(f.staminaMs / 3600000) })", "t('coach.safe_to_close', { count: 8 })"]] },
+  { name: 'safe to close comes in the first minutes', case: 'safe-to-close',
+    edits: [['src/data/hunt-tutorial.js', 'const SAFE_TO_CLOSE_MS = 15 * 60000;', 'const SAFE_TO_CLOSE_MS = 0;']] },
+  { name: 'a last hunt on Dangerous does not count as taken', case: 'no-tier-offer-by-level',
     edits: [['src/session/tutorial-sections.js', '|| hard(tiers.playing) || hard(h && h.tier);', '|| hard(tiers.playing);']] },
-  { name: 'the first Dangerous run comes back after it is taken', case: 'first-dangerous-run',
-    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', orGotIt({ kind: 'tier_taken' }), {", "'hunt_picker', orGotIt(READ), {"]] },
-  { name: 'How hard can you hunt? is said again after the offer', case: 'first-dangerous-run',
-    edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [READ, { kind: 'card_read', card: FIRST_DANGEROUS }, { kind: 'tier_taken' }] }", 'READ']] },
-  { name: 'the offer rings no Dangerous press', case: 'first-dangerous-run',
-    edits: [['src/shell/launcher-coach.js', "const tier = g.tier ? [inWin(", "const tier = false ? [inWin("]] },
-  { name: 'the offer names the lowest ground, not the one just hunted', case: 'first-dangerous-run',
-    edits: [['src/data/hunt-tutorial.js', 'return fits.find((g) => g.hunt === f.lastHunt) || ', 'return ']] },
-  { name: 'the Hunts window forgets the offer was taken', case: 'first-dangerous-run',
-    edits: [['src/shell/windows/hunts.js', '    if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });\n', '']] },
+  { name: 'Harder tiers comes back after a harder tier is taken', case: 'no-tier-offer-by-level',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'any', of: [READ, { kind: 'tier_taken' }] }", "'hunt_picker', READ"]] },
   { name: 'her Cellar task is 120 rats again (27 minutes of a ground the game sends a hero out of at 16)', case: 'tamsin-first',
     edits: [['src/data/tally-tasks.js', "label: 'Giant Rats', count: 25, gold: 25,", "label: 'Giant Rats', count: 120, gold: 100,"]] },
-  { name: 'her rats are asked of a hero who has already hunted', case: 'tamsin-first',
-    edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, { kind: 'unhunted' }], ring: { task: RATS.id }", 'when: [IN_TOWN], ring: { task: RATS.id }']] },
+  { name: 'the first card rings her board again, not Hunts', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', "    'hunt_picker', { kind: 'enter', hunt: CELLAR },", "    'tally', { kind: 'enter', hunt: CELLAR },"]] },
+  { name: 'the first card says words of its own, not the Path\'s start row', case: 'tamsin-first',
+    edits: [['src/data/hunt-tutorial.js', '    PATH_LINE.to_the_cellar,', "    'Hunts → Mill Cellar → Enter',"]] },
   { name: 'the count done says nothing (Tamsin owes you never shows)', case: 'tamsin-first',
     edits: [['src/data/hunt-tutorial.js', '(ts) => !!ts[p.task] && ts[p.task].done === true),', '() => false),']] },
   { name: 'Out to the brook is back on the first trip, over her running count', case: 'tamsin-first',
@@ -2199,8 +2184,6 @@ const mutants = [
     edits: [['src/shell/launcher-coach.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
-  { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Klub',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Klub',\n"]] },
   /* QA gate 2026-11-17: a free Tower fall raised "Defeated" and a Bless upsell; the Tower had no tip */
   { name: 'a free-death mode raises the death card', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },
@@ -2211,8 +2194,6 @@ const mutants = [
   { name: 'the Tower card comes with the switch off', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => true,'],
       ['src/data/hunt-tutorial.js', '  tower_climbed: (p, f) => known(f.towerBest, (b) => b > 0),', '  tower_climbed: (p, f) => (f.towerBest || 0) > 0,']] },
-  { name: 'the gold card never comes', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when:", "'strip', { kind: 'partied' }, { reactive: true, when:"]] },
   { name: 'Cash in says nothing of the party on a member\'s screen', case: 'tutorial-town-chain',
@@ -2275,18 +2256,16 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "fresh_hunt: (p, f) => !f.back || f.back !== f.sessionId,", "fresh_hunt: () => true,"]] },
   { name: 'the envelope never says which hunt the player came back to', case: 'tutorial-reactive',
     edits: [['src/session/tutorial-sections.js', "huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,", "huntId: open ? open.huntId : null,"]] },
-  { name: 'What next forgets the third hero', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', 'if (offer && offer.purse >= offer.slot) {', 'if (false) {']] },
+  { name: 'What next forgets a hero not yet made', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "  if (free) { lines.push(free); ids.push('free_hero'); }", "  if (false) { lines.push(free); ids.push('free_hero'); }"]] },
   { name: 'What next is a paragraph again (panel 2026-11-03)', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', "text: lines[0], also: lines.slice(1) }", "text: lines.join(' '), also: [] }"]] },
-  { name: 'the deed speaks over the hero the purse is saving for (played 11-04)', case: 'what-next-one-goal',
-    edits: [['src/data/hunt-tutorial.js', "if (purse === null || (offer && purse >= offer.slot * SAVING_FROM)) return null;", "if (purse === null) return null;"]] },
+  { name: 'the deed speaks at a price the purse cannot pay', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', 'return deed && purse >= deed.gold ? t(', 'return deed ? t(']] },
   { name: 'the next step up names a ground already hunted', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'if (step && !visited(step.hunt)) {', 'if (step) {']] },
   { name: 'the next step up reaches past its dare', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'r.band[0] - level <= STEP_UP.mostUnder', 'r.band[0] - level <= 99']] },
-  { name: 'an empty slot is sold another slot', case: 'what-next-one-goal',
-    edits: [['src/data/hunt-tutorial.js', 'return purse !== null && slot && nth && !emptySlot(f) ? { purse, slot, nth } : null;', 'return purse !== null && slot && nth ? { purse, slot, nth } : null;']] },
   { name: 'the stamina line offers what the purse cannot pay', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;\n', '']] },
   { name: 'More reaches nothing in the town row (played 11-04)', case: 'what-next-one-goal',
@@ -2301,8 +2280,6 @@ const mutants = [
     edits: [['src/shell/away-recap.js', '(was && was.s === h.sessionId) || !a', '!a']] },
   { name: 'the coach keeps its goals to itself', case: 'what-next-one-goal',
     edits: [['src/shell/launcher-coach.js', "const also = Array.isArray(card.also) && card.also.length ? card.also : null;", "const also = null;"]] },
-  { name: 'What next offers a slot the server is not selling', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "const slot = Number.isSafeInteger(f.slotCost) && f.slotCost > 0 ? f.slotCost : null;", "const slot = 15000;"]] },
   { name: 'More than one hero walls a hero who wants one', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),", "'characters', { kind: 'heroes', atLeast: 2 },"]] },
   { name: 'the Leaderboards card is gone', case: 'tutorial-reactive',

@@ -27,8 +27,9 @@
 //         a press on the World shuts it; a key that opens a window shuts it; a pick of the window already on top shuts it and
 //         leaves that window open; the arrows walk its lines; an envelope that changes nothing, and a row redrawn for a reason under
 //         the open menu (its card read), both leave the keyboard on the same line
-//   TB-5  THE COACH'S RING STILL LANDS (1440x900 and 922x423): a new hero's "Tamsin's rats" rings the Town icon, the menu opened
-//         rings Tamsin's line, and her window opened from there carries the card; never two rings at once; the row draws the ring
+//   TB-5  THE COACH'S RING STILL LANDS (1440x900 and 922x423): a hero home from the first hunt meets "Plant your land", a card that lives
+//         at a town station (designer D-1 1.3 rule 2; the first card rings Hunts in the row since her rats are taken on entry): it rings the
+//         Town icon, the menu opened rings the Farm's line, and the Farm opened from there carries the card; never two rings at once; the row draws the ring
 //         itself, so no paint rewrites the markup the row already has (2.5 s round a repeated envelope, the menu shut and open; a card
 //         that moved on may redraw it)
 //   TB-6  A PHONE'S MENU IS A SHEET (922x423 and 667x375): it stands at the right edge under the row, as tall as the screen allows,
@@ -59,12 +60,22 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 20000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const SIZES = [{ width: 1440, height: 900, touch: false }, { width: 922, height: 423, touch: true }, { width: 667, height: 375, touch: true }];
 
-/* A hero in town who has hunted nothing yet, with Tamsin's board offering her rats: the "Tamsin's rats" card is the coach's. */
+/* A hero in town who has hunted nothing yet, with Tamsin's board open to her. */
 function fresh(e) {
   for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party', 'hunt_bests']) delete e[k];
   e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 });
   for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'inner_flame', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 };
   e.tally = { held: [], paid_today: 0, per_day: 10, held_max: 3, weight: null, order: [], recent: [], day_ends_at: '2099-01-01T00:00:00Z' };
+}
+/* ...home from the first hunt at Level 2, the land open and nothing planted: "Plant your land" is the coach's, and the Farm lives in the
+   Town menu (src/data/shell-windows.js group 'town'). */
+const LEVEL_2_XP = (await src('src/core/xp.js')).charXpForLevel(2);
+function homeFromCellar(e) {
+  fresh(e);
+  e.state.level_xp = LEVEL_2_XP;
+  e.skills.farming = { xp: 0, level: 1 };
+  e.farm_land = { cap: 4, plot_level: 1, plots: [] };
+  e.inventory = Object.assign({}, e.inventory, { turnip_seed: 8 });   // the account kit's seeds (src/data/start-kit.js ACCOUNT_KIT)
 }
 function town(e) {
   for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events']) delete e[k];
@@ -240,13 +251,13 @@ async function checks(overrides, shots, firstRed = false) {
       if (firstRed && fails.length) return fails;
     }
     for (const size of SIZES.slice(0, 2)) { // TB-5
-      const { ctx, page, up, s } = await open(size, fresh, { coach: { read: ['styles'] } });
+      const { ctx, page, up, s } = await open(size, homeFromCellar, { coach: { read: ['styles'] } });
       if (!up) { fails.push('TB-5 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
       await page.waitForTimeout(600);
       const card = await page.evaluate(() => { const p = document.querySelector('.hs-launchers .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
-      if (card !== 'tamsins_rats') { fails.push('TB-5 [' + tag(size) + '] CONTROL: the new hero\'s card is ' + card + ', not tamsins_rats'); await ctx.close(); continue; }
+      if (card !== 'plant_land') { fails.push('TB-5 [' + tag(size) + '] CONTROL: the hero home from the Cellar meets ' + card + ', not plant_land'); await ctx.close(); continue; }
       const r0 = await ringed(page);
-      if (r0.join() !== 'group:' + groupOf('tally')) fails.push('TB-5 [' + tag(size) + '] with the menu shut the ring is on ' + JSON.stringify(r0) + ', want the ' + groupOf('tally') + ' icon alone');
+      if (r0.join() !== 'group:' + groupOf('farm')) fails.push('TB-5 [' + tag(size) + '] with the menu shut the ring is on ' + JSON.stringify(r0) + ', want the ' + groupOf('farm') + ' icon alone');
       /* The row draws the ring itself, where the coach would put it, so a paint finds the row unchanged and leaves it be: rings
          that only the coach set (src/shell/launcher.js ringCoach) make every paint rebuild the row. Watched 2.5 s round an envelope that
          repeats the last one. */
@@ -275,19 +286,19 @@ async function checks(overrides, shots, firstRed = false) {
       if (moved0) fails.push('TB-5 [' + tag(size) + '] Hunts opened and shut, the row came back and the coach had to ring it: ' + moved0);
       const still0 = await rebuilt();
       if (still0) fails.push('TB-5 [' + tag(size) + '] with the menu shut a repeated envelope rebuilt the row with the markup it already had: ' + still0);
-      const moved1 = await churn(() => tryPress(page, '[data-hs-group="' + groupOf('tally') + '"]', size.touch));
+      const moved1 = await churn(() => tryPress(page, '[data-hs-group="' + groupOf('farm') + '"]', size.touch));
       if (moved1) fails.push('TB-5 [' + tag(size) + '] the menu opened and the coach had to move its ring: ' + moved1);
       const r1 = await ringed(page);
-      if (r1.join() !== 'tally') fails.push('TB-5 [' + tag(size) + '] with the menu open the ring is on ' + JSON.stringify(r1) + ', want Tamsin\'s line alone');
+      if (r1.join() !== 'farm') fails.push('TB-5 [' + tag(size) + '] with the menu open the ring is on ' + JSON.stringify(r1) + ', want the Farm\'s line alone');
       const still1 = await rebuilt();
       if (still1) fails.push('TB-5 [' + tag(size) + '] with the menu open a repeated envelope rebuilt the row with the markup it already had: ' + still1);
       if (shots) await page.screenshot({ path: join(shots, 'ring-' + tag(size) + '.png') });
-      if (!(await tryPress(page, '.hs-launch-menu [data-hs-open="tally"]', size.touch))) fails.push('TB-5 [' + tag(size) + '] the open menu holds no line for her tally');
-      else if (!(await opened(page, 'tally'))) fails.push('TB-5 [' + tag(size) + '] Tamsin\'s line did not open her tally');
+      if (!(await tryPress(page, '.hs-launch-menu [data-hs-open="farm"]', size.touch))) fails.push('TB-5 [' + tag(size) + '] the open menu holds no line for the Farm');
+      else if (!(await opened(page, 'farm'))) fails.push('TB-5 [' + tag(size) + '] the Farm\'s line did not open the Farm');
       else {
         await page.waitForTimeout(400);
-        const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="tally"] > .hs-win-coach .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
-        if (inWin !== 'tamsins_rats') fails.push('TB-5 [' + tag(size) + '] her window holds the card ' + inWin);
+        const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="farm"] > .hs-win-coach .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
+        if (inWin !== 'plant_land') fails.push('TB-5 [' + tag(size) + '] the Farm holds the card ' + inWin);
       }
       await ctx.close();
       if (firstRed && fails.length) return fails;

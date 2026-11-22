@@ -289,19 +289,15 @@ const cases = {
     if (snap.blowsPm !== 20 || snap.armorPm !== 50) return 'rungs 2 and 5 snap to ' + snap.blowsPm + ' and ' + snap.armorPm;
     return null;
   },
-  /* THE COACH (What next, and the gold card): named at twice the price, so it never eats the food money, and only for a ladder never begun. */
+  /* THE COACH (What next): named at twice the price, so it never eats the food money, and only for a ladder never begun. (The gold card that named it
+     too spoke at half a hero slot's price; every slot is free since FB-5, so that card is cut and What next is the smith's one line.) */
   'the-coach-names-the-smith': (M) => {
-    const { nextGoal, cardFor } = M.tutorial;
+    const { nextGoal } = M.tutorial;
     const said = (gold, temper) => JSON.stringify(nextGoal({ charLevel: 20, gold, temper, inParty: false, visited: new Set() }));
     const rung = { piece: 'Iron Sword', gold: 2000, needs: '10 Tempering Salts' };
     if (!said(4000, rung).includes('Temper your Iron Sword for 2,000 gp: Shop → Services')) return 'twice the price in hand says ' + said(4000, rung);
     if (said(3999, rung).includes('Temper your')) return 'under twice the price the coach still names the smith';
     if (said(99999, null).includes('Temper your')) return 'with no first rung to buy the coach still names the smith';
-    const facts = { gold: 30000, slotCost: 25000, slotsOwned: 2, temper: rung, home: { owned: true }, chest: null };
-    const card = M.tutorial.HUNT_TUTORIAL.find((c) => c.id === 'purse_goal');
-    const with_ = cardFor(card, facts), without = cardFor(card, { ...facts, temper: null });
-    if (with_.text !== 'Temper your Iron Sword for 2,000 gp: Shop → Services') return 'the gold card reads ' + with_.text;
-    if (without.text.includes('Temper')) return 'with no first rung the gold card names the smith: ' + without.text;
     return null;
   },
   /* The two offers the design sells: five rungs, doubling, on the two tiers with a ladder, and the rows say exactly that. */
@@ -372,7 +368,6 @@ const mutants = [
   { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/abilities.js', '  n = temperedAmount(n, u.blowsPm, sc.rng);\n', '']] },
   { name: 'a rung-0 hero carries a zero, so its snapshot changed', case: 'the-snapshot-carries-only-a-rung', edits: [[MB, '...(blowsPm ? { blowsPm } : {})', 'blowsPm']] },
   { name: 'the coach spends the food money', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', 'f.gold < r.gold * 2) return null;', 'f.gold < r.gold) return null;']] },
-  { name: 'the gold card never names the smith', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', "return { text: smith ? t('coach.goal_temper'", "return { text: false ? t('coach.goal_temper'"]] },
   { name: 'a rung takes no material', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', 'gold, items: itemsOf(tier, i), req_property_tier: 0,', 'gold, items: Object.freeze({}), req_property_tier: 0,']] },
   { name: 'a full ladder is 10%, past the ruling', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 20;']] },
 ];

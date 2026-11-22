@@ -233,8 +233,9 @@ const DANGLING_DOTS = ({ root, px }) => {
 };
 /* TW-19 (page side): each coach body as the town draws it (a .hs-pointer: its title, then the words), at every card width from a
    phone's to the desktop's: [] when the last line always holds two words or more. */
-const COACH_BODIES = [COACH_TEXT.tamsins_rats.replace('{label}', 'Giant Rats').replace('{count}', '25'),
-  COACH_TEXT.tamsins_rats_in.replace('{label}', 'Giant Rats').replace('{count}', '25').replace('{ground}', 'Mill Cellar')];
+/* Her cards since her rats are taken on entry (GR-78, FB-5 retired the rats card): the wolves' card in town and inside her window */
+const COACH_BODIES = [COACH_TEXT.tamsins_task.replace('{label}', 'Gray Wolves').replace('{count}', '200'),
+  COACH_TEXT.tamsins_task_in_any.replace('{label}', 'Gray Wolves')];
 const LONE_LAST_WORD = (bodies) => {
   const out = [];
   for (const body of bodies) {

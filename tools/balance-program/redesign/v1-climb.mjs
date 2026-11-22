@@ -41,12 +41,25 @@ const { loadGridData, buildCell } = await imp('tools/balance-program/progression
 const { loadKits } = await imp('tools/balance-program/grid-kit.mjs');
 const { DANGER, CLIMB, RISKS: RISK_ROWS } = await imp('src/data/danger.js');
 const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+/* THE PAY FROM A HELD START (lane/r4, 2026-11-22): each hero's Level XP an hour read only from --pay-from hours (default the settle hour)
+   to the end of the four, as a multiple of the hours table at the Level it stood at mid-window (danger.js hoursForLevel), so the opening
+   climb never counts. Off the danger log's clock: cell.mjs `trace` keeps Level XP and paid hours a window */
+const { hoursForLevel } = await imp('src/core/hunt/danger.js');
+const { charXpForLevel, charLevelFromXp } = await imp('src/core/xp.js');
+const PAY_FROM_H = Number(arg('pay-from', SETTLE_H));
+/* --candidate <id> (lane/r4): play a Lab candidate (tools/balance-program/candidates/<id>.json) on its scratch copy in place of the tree;
+   the cells are built from the tree (the same kits), the engine is the candidate's */
+const CAND = arg('candidate');
+const TREE = CAND ? await (async () => { const C = await imp('tools/balance-program/candidates.mjs'); return C.treeOf(C.readCandidate(CAND)); })() : { root: ROOT, done: () => {} };
+const tableRate = (lv) => (charXpForLevel(lv + 1) - charXpForLevel(lv)) / hoursForLevel(lv);
 
 /* ── the plan ── */
 const variants = [
   { id: 'base', L, risks: RISKS },
   { id: 'levels', L: L + 3, risks: RISKS },
   { id: 'weapon', L, step: 'step:weapon', risks: RISKS },
+  /* lane/r4: every armor piece one gear band back (with `weapon`, the two halves of one gear tier) */
+  { id: 'armor', L, step: 'step:armor', risks: RISKS },
   { id: 'high', L: L2, risks: RISKS },
   { id: 'above', L, risks: ['steady'], start: ABOVE },
 ];
@@ -60,7 +73,7 @@ for (const v of variants) for (const risk of v.risks) {
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
   const b = buildCell(D, K, { L: v.L, gear: 'mid', styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
   const start = startOf(id, v);
-  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1 };
+  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true };
   cells.push({ id, variant: v.id, risk, L: v.L, start });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
 }
@@ -74,7 +87,7 @@ function playAll(list, n) {
     let alive = Math.max(1, Math.min(n, queue.length));
     const total = queue.length;
     for (let i = 0, k = alive; i < k; i++) {
-      const w = fork(join(ROOT, 'tools', 'balance-sim', 'worker.mjs'), [ROOT], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+      const w = fork(join(ROOT, 'tools', 'balance-sim', 'worker.mjs'), [TREE.root], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
       const feed = () => { const j = queue.shift(); if (!j) { w.kill(); return; } w.cur = j; w.send({ type: 'job', job: j.job }); };
       w.on('message', (m) => {
         if (m.type === 'ready') { feed(); return; }
@@ -126,6 +139,15 @@ function readSeed(res, start) {
   });
   const deaths = res.heroes.reduce((a, h) => a + h.deaths, 0);
   const wipe = res.heroes.every((h) => h.ended && h.ended.died);
+  /* the held pay: per hero, the trace from PAY_FROM_H to the four's end; the seed's figure is the heroes' mean multiple */
+  const payEnd = Math.min(endMs, HOURS * H), payFrom = PAY_FROM_H * H;
+  const atT = (tr, t) => { let last = [0, 0, 0]; for (const e of tr) { if (e[0] > t) break; last = e; } return last; };
+  const pays = payEnd > payFrom ? res.heroes.map((h) => {
+    const tr = h.xpTrace || [], a = atT(tr, payFrom), b = atT(tr, payEnd), hrs = b[2] - a[2];
+    if (!(hrs > 0)) return null;
+    const mid = charLevelFromXp(charXpForLevel(h.level) + (a[1] + b[1]) / 2);
+    return (b[1] - a[1]) / hrs / tableRate(mid);
+  }).filter((x) => x !== null) : [];
   const firstNear = (target) => { const e = log.find((x) => x.to >= target); return e ? e.ms / H : null; };
   return {
     held: wt ? wsum / wt : null, halves: halves.map((x) => (x.t ? x.s / x.t : null)), timeAt, wt,
@@ -134,6 +156,7 @@ function readSeed(res, start) {
     fallsPerH: wt ? settled.filter((e) => e.why === 'fall' || e.why === 'death').length / (wt / H) : null,
     near, deaths, wipe, huntedH: res.party.hours, max: Math.max(start, ...log.map((e) => e.to)),
     reach: firstNear, xpPerH: res.party.levelXpPerHeroPerH, killsPerH: res.party.killsPerH, pullsPerH: res.party.pullsPerH,
+    payX: pays.length ? pays.reduce((s, x) => s + x, 0) / pays.length : null, payH: Math.max(0, payEnd - payFrom) / H,
     heroesLost: res.heroes.filter((h) => h.deaths > 0).length, fourH: wt / H, firstDeathH: firstDeath ? firstDeath.ms / H : null,
   };
 }
@@ -148,7 +171,8 @@ process.stderr.write('V1: ' + jobs.length + ' seed jobs (' + cells.length + ' ce
 const { out, errors } = await playAll(jobs, WORKERS);
 if (errors.length) { console.error('V1 harness errors:\n' + errors.map((e) => '  ' + e.id + ': ' + e.error).join('\n')); }
 
-const report = { ground: GROUND, levels: [L, L + 3, L2], seeds: SEEDS, hours: HOURS, settleFromH: SETTLE_H, levers: { DANGER, CLIMB, RISKS: RISK_ROWS }, cells: {}, wallS: 0 };
+const report = { ground: GROUND, levels: [L, L + 3, L2], seeds: SEEDS, hours: HOURS, settleFromH: SETTLE_H, levers: { DANGER, CLIMB, RISKS: RISK_ROWS }, cells: {}, wallS: 0, candidate: CAND || 'C0' };
+TREE.done();
 for (const c of cells) {
   const seeds = [];
   for (let s = 0; s < SEEDS; s++) { const o = out[c.id + '#' + s]; if (o) seeds.push({ s, ...readSeed(o.result, c.start) }); }
@@ -159,6 +183,7 @@ for (const c of cells) {
   report.cells[c.id] = {
     ...c, seedsRead: seeds.length,
     /* perSeed keeps a seed's place (null: no settled four-hour of its own), so the power moves below pair the same dice */
+    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 100) / 100 : null, sd: Math.round(sd(p) * 100) / 100, n: p.length, perSeed: p.map((x) => Math.round(x * 100) / 100), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
     held: { mean: r1(mean(held)), sd: r1(sd(held)), se: r1(sd(held) / Math.sqrt(Math.max(1, held.length))), perSeed: seeds.map((x) => (x.held === null ? null : r0(x.held))) },
     drift: r1(mean(seeds.map((x) => (x.halves[1] !== null && x.halves[0] !== null ? x.halves[1] - x.halves[0] : 0)))),
     within10: r1(100 * within(10)), within20: r1(100 * within(20)),
@@ -198,6 +223,8 @@ for (const [id, c] of Object.entries(report.cells)) {
     + String(c.deaths).padStart(7) + String(c.wipes).padStart(6) + ('  ' + c.nearWipes + ' (' + c.nearWithDeath + '/' + c.nearWarned + '/' + c.nearFellAfter + ')').padEnd(30)
     + String(c.fourH).padStart(5) + '  ' + JSON.stringify(c.whys) + (c.firstDeathH.length ? ' first deaths at h ' + c.firstDeathH.join(',') : ''));
 }
+console.log('\npay from a held start (hour ' + PAY_FROM_H + ' to the four\'s end), Level XP a hunted hero-hour as a multiple of the hours table');
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + String(c.payX.mean).padStart(5) + 'x  sd ' + c.payX.sd + '  n ' + c.payX.n + '  window ' + c.payX.windowH + ' h  seeds ' + c.payX.perSeed.join(' '));
 console.log('\npower moves (paired seeds): the held step at the changed power minus at base');
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
 console.log('\nwall ' + report.wallS + ' s');

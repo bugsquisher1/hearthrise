@@ -116,7 +116,11 @@ const SEED = '-4611686018427387904';
    and tally chain holds, kills as pinned (207 / 486 / 139 / 104): proof, the four scenarios played on this tree with the world string set aside, both
    other chains compared to the 11-21 pin (all HOLD, and no tier hunt wrote a danger field). No scenario plans a stance.
    RE-PINNED 2026-11-22 (lane/v1-climb merged with set/v0.2.144), THE WORLD STRING ONLY again: against the set's pin, timeline and tally hold at
-   every settle and kills as pinned; only the six blank Danger fields move the world chain. */
+   every settle and kills as pinned; only the six blank Danger fields move the world chain.
+   RE-PINNED 2026-11-22 (lane/v1-climb wave 1), THE STORED WORLD STRING ONLY: every pack carries its Danger count of the fallen (danger.js
+   PERSISTED pack `down`, 0 on every tier hunt: only a pack row falling on the scale counts). Timeline, tally and kills hold at every
+   settle of the four scenarios (207 / 486 / 139 / 104), compared to the pin before; the scale's pay, coin and cleared-pull rule run only
+   on a world with a stance, and no scenario plans one. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

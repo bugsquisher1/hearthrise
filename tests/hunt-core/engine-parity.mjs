@@ -108,7 +108,9 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-22 (lane/c-hunt-report, build plan FB-7, GR-66), A READING, NOT A PLAY: every WORLD hash and every kill count held at all 48 settles
    of the four scenarios (the re-pin moved 0 world lines); the TIMELINE and the TALLY moved at every settle. Cause: a blow at a hero now carries the HP it
    left and the hero's max (src/core/hunt/damage.js landHit `hp`, `max`), which the timeline hashes, and the settle's analyzer proposes the hunt report's
-   counters (accrue-hunt.js analyzerOf `report`: lowest health, close calls, rule uses and waits, the bar and gear), which the tally hashes. */
+   counters (accrue-hunt.js analyzerOf `report`: lowest health, close calls, rule uses and waits, the bar and gear), which the tally hashes.
+   Re-pinned again the same day, THE TALLY ONLY (world and timeline held): report.js reportProposal writes the report in the database's shape,
+   its maps in key order. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

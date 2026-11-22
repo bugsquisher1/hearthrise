@@ -5936,6 +5936,11 @@ const DB_MUTANTS = [
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The
    C2 settle file's are kept verbatim (its self-check is the proof that applied it). */
 const SQL_MUTANTS = [
+  /* lane/c-hunt-report FB-7 (1053-hunt-report.sql): the file's §5 refuses a shape check that lets an unnamed key (or the database's own
+     `dry`) through from the edge, a fold that forgets a window's close calls, and a fold that keeps the later of two equal falls. */
+  { file: '1053-hunt-report.sql', name: '[hunt report] the edge may propose any key', find: '      else return false;\n    end case;', replace: '      else null;\n    end case;' },
+  { file: '1053-hunt-report.sql', name: '[hunt report] the fold keeps only the newer close calls', find: "    'close', nullif(coalesce((a->>'close')::bigint, 0) + coalesce((b->>'close')::bigint, 0), 0),", replace: "    'close', nullif(coalesce((b->>'close')::bigint, 0), 0)," },
+  { file: '1053-hunt-report.sql', name: '[hunt report] a tie keeps the later blow', find: "and (b->'low'->>'at')::bigint < (a->'low'->>'at')::bigint) then b->'low'", replace: "and (b->'low'->>'at')::bigint > (a->'low'->>'at')::bigint) then b->'low'" },
   /* lane/a-analyzer-coins (2026-11-18): the file's §2 refuses an analyzer that leaves the cover sale out of either figure. */
   { file: '2027-05-15-analyzer-cover-coins.sql', name: '[analyzer coins] the coins leave out the loot sold to pay the store', find: '  v_coins := v_coins + v_cover;\n', replace: '' },
   { file: '2027-05-15-analyzer-cover-coins.sql', name: '[analyzer coins] the loot value prices the units sold to pay the store', find: ' - floor(coalesce((v_covered->>l.key)::numeric, 0))', replace: '' },

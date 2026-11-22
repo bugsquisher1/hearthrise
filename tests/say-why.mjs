@@ -369,9 +369,6 @@ export const REASONS = Object.freeze({
     { cond: '(!running && !!why)', words: ": [why || (running ? 'Working on it now'", where: 'the row\'s own line, a short input\'s places linked (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
     { cond: 'running', words: "'Working on it now'", where: 'the row says it is running' },
   ],
-  'src/shell/windows/party-finder.js': [
-    { cond: 'inParty', words: "'Already in a party'", where: 'the finder line' },
-  ],
   'src/shell/windows/party.js': [],
   'src/shell/windows/chat.js': [
     { cond: '!can', words: "placeholder", where: 'the field\'s placeholder says what the tab is for (a read-only tab has no send)' },

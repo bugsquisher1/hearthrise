@@ -61,7 +61,6 @@ import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, 
 import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js';
 import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js';
-import { openFinderOn } from './party-finder.js';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js';
 import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js';
 import { callFromGround } from '../../data/boss-calls.js';
@@ -344,7 +343,7 @@ function patchPage(det, ctx, sc, v) {
     before,
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
       why: party ? t('hunts.party_lead', { n: party.seats.length }) : heroWords(r),
-      find: party ? t('hunts.party_finder') : t('hunts.party_find'),
+      invite: t('hunts.party_invite'),
       bring: freeHeroes(cs, ctx.peers()), away: partiedHeroes(cs, ctx.peers()), others: openOthers(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
@@ -451,8 +450,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'loot-more') { sc.allLoot = sc.pick; repaint(); return true; }
   /* Go as is the ground's Setup, "Go here at the next Start" the plan's ground, and the Risk on a Danger scale ground (company-pane.js): one intent each. */
   if (PLAN_ACTS.includes(action)) return actPlan(ctx, sc, repaint, action, el);
-  /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
-  if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
+  /* Invite a player: the Party window, whose name box sends the invite (there is no party finder: GR-69, FB-12). */
+  if (action === 'party-invite') { ctx.show('hunt-party'); return true; }
   /* Hunt prep (the door under Go as), opened from here so its Back comes back to this ground (window-manager.js from) */
   if (action === 'go-prep') { ctx.wm.open('hunt-prep'); return true; }
   if (action === 'bring') {

@@ -8,7 +8,7 @@
 //   HOTKEYS      the Settings window's hotkeys list beyond the window keys
 //                (parity SH-10), display only. Hunts are idle, so no key casts.
 //   WEAPON_WORDS each weapon TYPE (hunt-roles.js WEAPON_ROLES keys) in words,
-//                for the party board and the party finder's filter
+//                for the party board and the Hunt prep lines
 //   BAR_SLOTS    the bottom bar's tablets: rows x columns (parity BB-02, the
 //                action set's 20 slots, rule-subjects ACTION_SET_LIMITS).
 //   BAR_ANSWER_MS how long the bar and its panel wait for the server's answer

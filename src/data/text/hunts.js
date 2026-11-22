@@ -133,8 +133,7 @@ export const HUNTS_TEXT = Object.freeze({
   bag_empty: 'Hunt bag: empty',
   bag_holds: 'Hunt bag: {items}',
   party_lead: 'Party leader, {n} heroes',
-  party_finder: 'Open the party finder',
-  party_find: 'Find a party',
+  party_invite: 'Invite a player',
   /* @sentence: how a second hero joins; the Characters screen is a step a label can't name */
   party_others: 'Play other heroes from Characters to bring them',
   party_bring: 'Bring {name}',

@@ -33,19 +33,17 @@
 //   PF-KEEP     a member unseen 9 minutes keeps the seat, 11 loses it; the
 //               leader dropped hands the lead on (a party of three); a hunter is never dropped;
 //               the last one swept closes the party
-//   PF-LISTED   (2026-10-29-party-security.sql, Security reopen #1) no seat without an invite or
-//               a listing: an unlisted party refuses the finder's Join and is not listed; only
-//               the leader lists it; then Join seats
-//   PF-BLOCK    (#1, #3) a block either way, with the inviter or any member, refuses the invite,
-//               the accept and the Join, and the finder hides that party
+//   (PF-LISTED retired with the party finder, 1059-no-party-finder.sql: no listing, no Join by id; a seat is an accepted invite)
+//   PF-BLOCK    (#1, #3) a block either way, with the inviter or any member, refuses the invite
+//               and the accept
 //   PF-KICK-HUNT (#2) a kicked hunter leaves its hunt: a stale session gets leave_at (the next
 //               settle ends it, so it is out of every later split), a walking one pends at its
 //               live horizon (2026-10-31-live-horizon.sql: no door ends a hunt at once), and its
 //               seat goes now
 //   PF-RESTART  (#60) the real Start twice on one party instance: the second hunt plays the
 //               leader's NEW density pick and none of the first hunt's strikes
-//   PF-ROLE     (2027-02-18-party-truth.sql, blind panel 2026-11-01) a seat's weapon is what it wears NOW, in the view and
-//               the finder, with no re-forming; the frozen column is gone; a swap nudges the seat-mate's open client
+//   PF-ROLE     (2027-02-18-party-truth.sql, blind panel 2026-11-01) a seat's weapon is what it wears NOW, in the view,
+//               with no re-forming; the frozen column is gone; a swap nudges the seat-mate's open client
 //   PF-CROSS    two friends' crossing invites: a party of one gives way to a Join, its invites with it; company refuses
 //   PF-NOTICE   a decline, a leave, a removal, a Disband and a lost seat each reach the other account, by name; none to
 //               the actor's own account; an hour and 16 rows at most; no client reads the table
@@ -89,7 +87,7 @@ const TOWN = '2026-10-30-town-activity-yields.sql';
 const STAM = '2026-10-28-hunt-enter-after-stamina.sql';
 /* 2026-10-31-live-horizon.sql restates SEC's hr_hunt_party_kick: the kick mutants plant there. */
 const LIVE = '2026-10-31-live-horizon.sql';
-/* Party start / finder: their mutants plant there. */
+/* Party start (2026-12-07-party-finder.sql's seat readiness): their mutants plant there. */
 const FINDER = '2026-12-07-party-finder.sql';
 /* 2027-01-19-play-cap.sql restates hr_party_seat_ready and hr_hunt_party_start last (the play cap): their mutants plant there. */
 const PLAY = '2027-01-19-play-cap.sql';
@@ -129,9 +127,6 @@ const start = (db, uid, hunt) => as(db, uid, 'select public.hr_hunt_party_start(
 const disband = (db, uid) => as(db, uid, 'select public.hr_hunt_party_disband(0, $1::uuid)', [idem()]);
 const leave = (db, uid, slot = 0) => as(db, uid, 'select public.hr_hunt_party_leave($1, $2::uuid)', [slot, idem()]);
 const kick = (db, uid, seat) => as(db, uid, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seat, idem()]);
-const joinParty = (db, uid, party) => as(db, uid, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]);
-const list = (db, uid, on) => as(db, uid, 'select public.hr_hunt_party_list(0, $1, $2::uuid)', [on, idem()]);
-const finder = async (db, uid) => ((await as(db, uid, 'select public.hr_hunt_party_finder(0, null, null)')) || {}).parties || [];
 async function accept(db, uid) {
   const inv = await one(db, "select public.hr_state_of($1, 0)->'party_invites'", [uid]);
   return as(db, uid, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inv && inv[0] && inv[0].id, idem()]);
@@ -286,18 +281,13 @@ const ARMS = {
     await as(db, B, 'select public.hr_hunt_party_decline(0, $1::uuid, $2::uuid)', [inv[0].id, idem()]);
     await db.query('select public.hr_hunt_party_sweep(200)');
     if (await partyOf(db, A) || !(await closed(pid))) p.push('the inviter sits on in its party of one after the decline and a sweep');
-    /* A LISTING IS WORTH WAITING FOR: a joiner leaves a listed party; it stays for the next */
+    /* A JOINER WHO LEAVES leaves a party of one with nothing to wait for (no listing since 1059-no-party-finder.sql): the sweep closes it */
     await gate();
     await invite(db, A, 'Flow C'); await accept(db, C);
     pid = await partyOf(db, A);
-    await list(db, A, true);
     await leave(db, C);
     await db.query('select public.hr_hunt_party_sweep(200)');
-    if (await partyOf(db, A) !== pid) p.push('a listed party was closed under its leader');
-    await gate();
-    await list(db, A, false);
-    await db.query('select public.hr_hunt_party_sweep(200)');
-    if (await partyOf(db, A)) p.push('a listing taken down left a party of one');
+    if (await partyOf(db, A) || !(await closed(pid))) p.push('a party a joiner left sits on with one seat and nothing to wait for');
     /* THE BROWSER CLOSED: A and B hunt; B goes home and its browser closes (unseen, swept); A hunts on, so the party waits */
     await gate();
     await invite(db, A, 'Flow B'); await accept(db, B);
@@ -451,35 +441,15 @@ const ARMS = {
     return same ? [] : ['a second apply moved the schema, a body, an ACL or a baseline row'];
   },
 
-  'PF-LISTED': async (db) => {
-    const p = [];
-    await world(db);
-    await invite(db, A, 'Flow C');
-    await accept(db, C);
-    const pid = await partyOf(db, A);
-    if (err(await joinParty(db, B, pid)) !== 'not_listed' || await partyOf(db, B)) p.push('a join with no invite and no listing was not refused `not_listed`');
-    if ((await finder(db, B)).length !== 0) p.push('the finder shows an unlisted party');
-    if (err(await list(db, C, true)) !== 'not_leader') p.push('a member listed the party');
-    if (err(await list(db, A, true)) !== 'ok') p.push('the leader could not list the party');
-    if ((await one(db, 'select public.hr_hunt_party_view($1, 0)', [A])).listed !== true) p.push('the party section does not say listed');
-    if ((await finder(db, B)).length !== 1) p.push('the finder hides a listed party');
-    if (err(await joinParty(db, B, pid)) !== 'ok' || await partyOf(db, B) !== pid) p.push('a listed party refused the finder’s Join');
-    return p;
-  },
-
   'PF-BLOCK': async (db) => {
     const p = [];
     await world(db);
     await invite(db, A, 'Flow C');
     await accept(db, C);
-    const pid = await partyOf(db, A);
-    await list(db, A, true);
     if (err(await invite(db, A, 'Flow B')) !== 'ok') p.push('HARNESS: the invite before the block was refused');
     await db.query('insert into public.chat_blocks (blocker_id, blocked_id) values ($1, $2)', [C, B]);   // a MEMBER blocks B
     if (err(await invite(db, A, 'Flow B')) !== 'unavailable') p.push('an invite across a member’s block was not refused');
     if (err(await accept(db, B)) !== 'unavailable' || await partyOf(db, B)) p.push('an accept across a member’s block seated B');
-    if (err(await joinParty(db, B, pid)) !== 'unavailable') p.push('a join across a member’s block was not refused');
-    if ((await finder(db, B)).length !== 0) p.push('the finder shows B a party across a block');
     await db.query('delete from public.chat_blocks where blocker_id = $1', [C]);
     await db.query('insert into public.chat_blocks (blocker_id, blocked_id) values ($1, $2)', [B, A]);   // B blocks the INVITER
     if (err(await invite(db, A, 'Flow B')) !== 'unavailable') p.push('an invite to a player who blocked the inviter was not refused');
@@ -732,14 +702,6 @@ const ARMS = {
     if (await one(db, 'select public.hr_hunt_weapon_of($1, 0)', [B]) !== 'ranged') p.push('HARNESS: the bow plays ' + await one(db, 'select public.hr_hunt_weapon_of($1, 0)', [B]));
     if ((await seen(A, 'Flow B')).weapon !== 'ranged') p.push('the leader\'s view of B after a swap to a bow reads ' + JSON.stringify((await seen(A, 'Flow B')).weapon));
     if ((await seen(B, 'Flow B')).weapon !== 'ranged') p.push('B\'s own view after the swap reads ' + JSON.stringify((await seen(B, 'Flow B')).weapon));
-    /* The finder: the seat's weapon, and the filter "a party without this weapon". */
-    await list(db, A, true);
-    const rows = await finder(db, C);
-    const row = rows.find((r) => r.id === pid);
-    if (!row || (row.seats.find((s) => s.name === 'Flow B') || {}).weapon !== 'ranged') p.push('the finder lists B as ' + JSON.stringify(row && row.seats));
-    const lacking = async (w) => (((await as(db, C, 'select public.hr_hunt_party_finder(0, null, $1)', [w])) || {}).parties || []).some((r) => r.id === pid);
-    if (await lacking('ranged')) p.push('the finder says the party lacks the bow B now wears');
-    if (!(await lacking('staff'))) p.push('the finder hides a party that wears no staff');
     /* Nothing can read a photograph again. */
     if (await one(db, "select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'hunt_party_members' and column_name = 'weapon_type'")) p.push('hunt_party_members.weapon_type survives');
     /* A swap reaches the seat-mate's open client, a town read nobody asks for otherwise; a ring or a same-item write sends nothing. */
@@ -1109,11 +1071,8 @@ MUTANTS.push(
   { arm: 'PF-TOWN', fn: 'hr_hunt_enter_check', why: 'a gathering member refuses the start',
     find: "  if v_st.active_kind not in ('gather', 'artisan', 'training') and v_st.active_kind <> 'idle' then",
     repl: "  if v_st.active_kind <> 'idle' then" },
-  { arm: 'PF-LISTED', file: TRUTH, why: 'the finder’s Join seats in an unlisted party',
-    find: "  if p_need_listed and not v_p.listed then return jsonb_build_object('ok', false, 'error', 'not_listed'); end if;\n", repl: '' },
-  { arm: 'PF-LISTED', file: TRUTH, why: 'the finder lists unlisted parties',
-    find: '               where p.closed_at is null and p.listed and (p_hunt is null', repl: '               where p.closed_at is null and (p_hunt is null' },
-  { arm: 'PF-BLOCK', file: TRUTH, why: 'a join or an accept ignores a member’s block',
+  /* hr_party_join_for is 1059-no-party-finder.sql's 3-argument splice of TRUTH's body: planted in the chain end's live body. */
+  { arm: 'PF-BLOCK', fn: 'hr_party_join_for', why: 'an accept ignores a member’s block',
     find: "  if exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_uid\n               and public.hr_social_blocked(p_uid, m.user_id)) then",
     repl: '  if false then' },
   { arm: 'PF-BLOCK', file: INV, why: 'an invite ignores a member’s block',
@@ -1133,10 +1092,6 @@ MUTANTS.push(
   { arm: 'PF-ROLE', fn: 'hr_hunt_party_view', why: 'the view reads a fixed weapon, not what is worn',
     find: "    select m.user_id, m.slot, m.seat::int as seat, public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,",
     repl: "    select m.user_id, m.slot, m.seat::int as seat, 'shield'::text as weapon, h.id as sid," },
-  { arm: 'PF-ROLE', file: TRUTH, why: 'the finder lists a fixed weapon',
-    find: "jsonb_build_object('seat', m.seat, 'weapon', public.hr_hunt_weapon_of(m.user_id, m.slot),", repl: "jsonb_build_object('seat', m.seat, 'weapon', 'shield'," },
-  { arm: 'PF-ROLE', file: TRUTH, why: 'the finder filters on no weapon',
-    find: 'and public.hr_hunt_weapon_of(m.user_id, m.slot) = p_weapon))', repl: 'and false))' },
   /* hr_party_nudge_trg runs OWN's body (the hunt_sessions branch went to hr_hunt_nudge_trg): its mutants plant there. */
   { arm: 'PF-ROLE', file: OWN, why: 'a swap of weapon reaches no seat-mate\'s screen',
     find: "    if v_party is null then return null; end if;\n  elsif tg_table_name = 'hunt_party_members' then", repl: "    return null;\n  elsif tg_table_name = 'hunt_party_members' then" },
@@ -1199,12 +1154,11 @@ MUTANTS.push(
   { arm: 'PF-ALONE', file: ALONE, why: 'the sweep never closes a party alone now (a declined invite, a listing taken down)',
     find: '     where p.closed_at is null and public.hr_party_alone(p.id)\n     order by p.created_at, p.id\n     limit greatest',
     repl: '     where false\n     order by p.created_at, p.id\n     limit greatest' },
-  { arm: 'PF-ALONE', file: ALONE, why: 'a party waiting on a live invite is closed',
+  /* hr_party_alone runs 1059-no-party-finder.sql's splice of ALONE's body (no listing to wait for): planted in the live body. */
+  { arm: 'PF-ALONE', fn: 'hr_party_alone', why: 'a party waiting on a live invite is closed',
     find: '\n                     and not exists (select 1 from public.hunt_party_invites i\n                                      where i.party_id = p.id and i.created_at > now() - public.hr_party_invite_ttl()) end',
     repl: ' end' },
-  { arm: 'PF-ALONE', file: ALONE, why: 'a listed party is closed under its leader',
-    find: '                else c.n = 1 and not p.listed\n', repl: '                else c.n = 1\n' },
-  { arm: 'PF-ALONE', file: ALONE, why: 'a party is closed under its running hunt',
+  { arm: 'PF-ALONE', fn: 'hr_party_alone', why: 'a party is closed under its running hunt',
     find: '                     and not exists (select 1 from public.hunt_sessions h where h.instance_id = p.id and h.ended_at is null)\n', repl: '' },
   { arm: 'PF-ALONE', file: ALONE, why: '[A9] the deferred after-hunt start reads a party of one (the browser closed)',
     find: '    perform public.hr_party_close_if_alone(public.hr_hunt_party_of(v_s.user_id, v_s.slot), false);\n', repl: '' },

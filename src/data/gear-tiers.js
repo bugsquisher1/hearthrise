@@ -19,7 +19,14 @@
 // Hand-authored entries in items.js intentionally WIN over anything
 // generated here (they're spread first), so historical ids keep their exact
 // stats and values and old saves stay valid.
+//
+// THE GEAR CURVE (src/data/gear-curve.js, balance program 44 R10): the weapon
+// numbers below are its samples, and every generated weapon row reads them
+// through it (curveAt at the tier's Level), so the tiers and the line past
+// Dawnsteel are one formula.
 // ============================================================
+
+import { curveAt } from './gear-curve.js';
 
 /* ── GEAR IS WORN BY LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level"; then "Supplies/runes
    stick to skill level"). Every piece of equipment, armor of every weight, shields, spellbooks, weapons, capes and
@@ -73,7 +80,11 @@ export const ARMOUR_SLOTS = [
    Every style climbs the same seven rungs so no build stalls. Swords are the
    balanced baseline; warhammers trade accuracy for raw damage; bows and
    staves are crafted from wood and carry their style's attack/strength.
-   `names` lets a family keep its established early-game names.              */
+   `names` lets a family keep its established early-game names.
+   `atk` and `str` are the GEAR CURVE's samples (src/data/gear-curve.js): the
+   numbers the family's plain piece carries at each tier's Level. The tier-7
+   pair is the line's anchor, so the weapon line past Dawnsteel reads it from
+   here and never types it again (WEAPON_LINES below).                       */
 export const WEAPON_FAMILIES = [
   {
     key: 'sword', label: 'Sword', weaponType: 'sword', skill: 'smithing', mat: 'bar',
@@ -155,6 +166,17 @@ export const WEAPON_FAMILIES = [
   },
 ];
 
+/* ── THE WEAPON LINES: each family as one row of the gear curve (src/data/gear-curve.js). Its samples are the family's `atk` and
+   `str` at the tier Levels, under the style fields the engine rolls it on (src/core/member.js deriveProfile: Melee, Ranged or Magic);
+   a unique pays out of the damage number (`pay`) and may buy more of the accuracy one (`acc`). The armor half adds its lines here
+   in the same shape. */
+const STYLE_FIELDS = Object.freeze({ ranged: ['rangeAtkB', 'rangeStrB'], magic: ['magicAtkB', 'magicStrB'] });
+export const WEAPON_LINES = Object.freeze(Object.fromEntries(WEAPON_FAMILIES.map((fam) => {
+  const [acc, pay] = STYLE_FIELDS[fam.weaponType] || ['atkB', 'strB'];
+  return [fam.key, Object.freeze({ key: 'weapon:' + fam.key, levels: Object.freeze(MATERIAL_TIERS.map((m) => m.level)), acc, pay,
+    fields: Object.freeze({ [acc]: Object.freeze(fam.atk.slice()), [pay]: Object.freeze(fam.str.slice()) }) })];
+})));
+
 /* ── The off-hand SPELLBOOK (Tyler 2026-10-19: Mage = wand + spellbook). Worn in the
    `shield` slot (src/data/gathering.js EQUIP_SLOTS, labelled Offhand). Fixed stats
    (gear ruling): Magic accuracy and damage, a little defence. Worn by Level like every
@@ -234,15 +256,26 @@ const ARMOUR_LINES = [
     fields: (def, i) => ({ magicAtkB: Math.round(def * 0.6), magicStrB: Math.round(def * 0.1) + 1, atkB: -Math.round(def * 0.25), rangeAtkB: -Math.round(def * 0.2) }) },
 ];
 
+/* ── THE ARMOR LINES: each weight and slot as one row of the gear curve (src/data/gear-curve.js), keyed as GEAR_LADDERS keys it
+   ('plate:helmet'). Its samples are the armor its plain piece carries at each tier's Level, so tiers 1 to 7 keep their built armor
+   and the curve writes armor from Level 110 only (the designer's D-3 ruling 5: a ladder tier is worth 9 to 18% less damage on purpose,
+   on the veto list as D3-1). The line past Dawnsteel scales the armor alone; a weight's off-style penalties are its identity. */
+export const ARMOUR_CURVE_LINES = Object.freeze(Object.fromEntries(ARMOUR_LINES.flatMap((line) => ARMOUR_SLOTS.map((slotDef) => {
+  const key = line.key + ':' + slotDef.slot;
+  return [key, Object.freeze({ key, levels: Object.freeze(MATERIAL_TIERS.map((m) => m.level)),
+    fields: Object.freeze({ defB: Object.freeze(slotDef.def.map((d) => Math.max(1, Math.round(d * line.defMul)))) }) })];
+}))));
+
 // ── Generate the gear items ──────────────────────────────────────────
 export const GEAR_ITEMS = (() => {
   const out = {};
 
-  // Armour — every archetype × every slot × every tier (the combat triangle).
+  // Armour — every archetype × every slot × every tier (the combat triangle), its armor the gear curve's sample at the tier's Level.
   ARMOUR_LINES.forEach((line) => {
     ARMOUR_SLOTS.forEach((slotDef) => {
+      const curve = ARMOUR_CURVE_LINES[line.key + ':' + slotDef.slot];
       MATERIAL_TIERS.forEach((mat, i) => {
-        const def = Math.max(1, Math.round(slotDef.def[i] * line.defMul));
+        const def = curveAt(curve, mat.level).defB;
         const item = {
           n: line.name(mat, slotDef, line, i),
           icon: line.icon,
@@ -265,10 +298,12 @@ export const GEAR_ITEMS = (() => {
     });
   });
 
-  // Weapons — every family at every tier it names.
+  // Weapons — every family at every tier it names, each the gear curve's sample at the tier's Level.
   WEAPON_FAMILIES.forEach((fam) => {
+    const line = WEAPON_LINES[fam.key];
     MATERIAL_TIERS.slice(0, fam.ids.length).forEach((mat, i) => {
       if (!fam.ids[i]) return;   // the practice kit holds this rung
+      const nums = curveAt(line, mat.level);
       const item = {
         n: fam.names[i],
         icon: fam.weaponType === 'ranged' ? '🏹' : fam.weaponType === 'magic' ? '🪄' : fam.weaponType === 'hammer' ? '🔨' : '⚔️',
@@ -281,15 +316,15 @@ export const GEAR_ITEMS = (() => {
            pair below. Only those: the post-140 audit's C6 found every bow, crossbow, wand and staff also carrying a Melee pair
            that copied its own numbers, which combat never read but the item card showed as "Melee accuracy/damage" and the
            doll ranked on. tests/style-gear.mjs SG-9 holds it. */
-        ...(fam.weaponType === 'ranged' || fam.weaponType === 'magic' ? {} : { atkB: fam.atk[i], strB: fam.str[i] }),
+        ...(fam.weaponType === 'ranged' || fam.weaponType === 'magic' ? {} : { atkB: nums.atkB, strB: nums.strB }),
         rarity: mat.rarity,
         tier: mat.tier,
         /* Worn by the hero's Level at the tier's level, whatever the style (LEVEL_REQ, Tyler 2026-10-24). */
         reqSkill: LEVEL_REQ,
         reqLv: mat.level,
       };
-      if (fam.weaponType === 'ranged') { item.rangeAtkB = fam.atk[i]; item.rangeStrB = fam.str[i]; }
-      if (fam.weaponType === 'magic')  { item.magicAtkB = fam.atk[i]; item.magicStrB = fam.str[i]; }
+      if (fam.weaponType === 'ranged') { item.rangeAtkB = nums.rangeAtkB; item.rangeStrB = nums.rangeStrB; }
+      if (fam.weaponType === 'magic')  { item.magicAtkB = nums.magicAtkB; item.magicStrB = nums.magicStrB; }
       if (fam.discipline) item.discipline = fam.discipline;
       if (fam.twoHanded) item.twoHanded = true;
       out[fam.ids[i]] = item;

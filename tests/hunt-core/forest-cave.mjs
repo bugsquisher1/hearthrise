@@ -557,10 +557,13 @@ const mutants = [
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "grid = gridOfMap(ground.map);", "grid = (() => { const g = gridOfMap(ground.map), walk = g.walk.slice(); walk[walk.indexOf(1)] = 0; return { ...g, walk }; })();"]] },
   /* tripled since the income dial (lane/d-supply-prices): the food a lone tank buys at the floor did not shrink with its coin, so doubled no longer
      out-netted the Warrens' four */
-  { name: 'the glade\'s coin tripled and its XP x5 (it out-earns the Warrens in both)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 575, gp: [15, 42]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 645, gp: [12, 39]'],
-      ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 1130, gp: [24, 69]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 1965, gp: [36, 108]'],
-      ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 2280, gp: [39, 120]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 1280, gp: [24, 78]']] },
+  /* coin x8 (was x3): on the x2.4 armor curve (the designer's D-3, lane/c-pace) the lone tank at the Glade's floor eats twice the store bill
+     (net -6,388 g/h against -3,024 on the old curve, the same Level XP), so tripled coin no longer out-earns the Warrens' 3,530 and the
+     planted defect read as a fair step */
+  { name: 'the glade\'s coin x8 and its XP x5 (it out-earns the Warrens in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 575, gp: [40, 112]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 645, gp: [32, 104]'],
+      ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 1130, gp: [64, 184]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 1965, gp: [96, 288]'],
+      ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 2280, gp: [104, 320]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 1280, gp: [64, 208]']] },
   { name: 'the glade\'s coin halved and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [2, 7]'],
       ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [5, 12]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [7, 19]'],

@@ -1,7 +1,7 @@
 {
  "schema": "hearthrise.balance-patch/1",
- "name": "The gear curve past tier 7 (60 G-4, 44 R10 and R11, 47 C20): a band every +24%, the line linear in the band's Level",
- "why": "From Level 110 a MID or BiS hero's weapon and armor are the line (the Dawnsteel row x the band Level / 110) at the band at or under its Level: 110, 136, 169, 210, 260, 322, 400 and on by +24%. LOW wears one band back. HYPOTHESIS: the band size until one band is played; uniques spending a budget (R11) and jewelry as a 6% share are not modelled",
+ "name": "The gear curve (44 R10, GR-4): BUILT on lane/c-pace in src/data/gear-curve.js, a band every +17% from Level 110, the line linear in the band's Level",
+ "why": "From Level 110 a MID or BiS hero's weapon and armor are the line (the tier-7 sample x the band Level / 110) at the band at or under its Level: 110, 129, 151, 176, 206, 241, 282, 330, 386 and on by +17% (src/data/gear-curve.js GEAR_CURVE bandStep 1.17, bandAt). LOW wears one band back. The plan step plays the same bands the game's curve now answers, so this patch and bp-gear-step-117.json are one step: GR-4's row can name either, and both read as built once lane/c-pace merges. Weapons: +17% MEASURED (12-balance-pass.md 3.6). Armor: still the probe's open item (D-3); the armor lines join src/data as rows of the same curve in the armor half",
  "kind": "derivation",
  "targets": [
   "pace",
@@ -11,7 +11,7 @@
  "plan": {
   "gearCurve": {
    "from": 110,
-   "step": 1.24
+   "step": 1.17
   }
  }
 }

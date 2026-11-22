@@ -6767,9 +6767,13 @@ jobs:
       # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
       # line on every late ground (the engine's own rolls), wins somewhere and stays hidden; the unique armor bands are shut until a piece
       # is real, and the smith's row reads the server's bands. Seconds each; the proofs plant in memory (TU7 on a copy of src/).
-      - name: Past Dawnsteel - the armor and weapon lines, the unique Tempering bands
+      # THE GEAR CURVE (lane/c-pace, balance program 44 R10/R11): the tiers are src/data/gear-curve.js's samples, the line goes on from
+      # Dawnsteel, a band is one +17% step with no last band, and a unique spends its line at the exchange rates (weapon-line WL11).
+      - name: Past Dawnsteel - the gear curve, the armor and weapon lines, the unique Tempering bands
         if: ${{ !cancelled() }}
         run: |
+          node tests/gear-curve.mjs
+          node tools/mutant-gate.mjs node tests/gear-curve.mjs --mutate
           node tests/armor-line.mjs
           node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
           node tests/weapon-line.mjs

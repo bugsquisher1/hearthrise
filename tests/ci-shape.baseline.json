@@ -710,6 +710,8 @@
     "node tools/mutant-gate.mjs node tools/gen-temper.mjs --selftest": "client-guards-3",
     "node tests/temper-buy.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate": "client-guards-3",
+    "node tests/gear-curve.mjs": "client-guards-3",
+    "node tools/mutant-gate.mjs node tests/gear-curve.mjs --mutate": "client-guards-3",
     "node tests/armor-line.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate": "client-guards-3",
     "node tests/weapon-line.mjs": "client-guards-3",

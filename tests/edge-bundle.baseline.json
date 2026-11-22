@@ -153,6 +153,11 @@
         "bytes": 3150368,
         "on": "2026-11-21",
         "why": "cut locked in (16467 bytes)"
+      },
+      {
+        "bytes": 3163305,
+        "on": "2026-11-21",
+        "why": "lane/c-pace (FB-8 stage 1, 44 R10/R11 and D-3) merged over set/v0.2.144: src/data/gear-curve.js the gear curve and its exchange rates (8.8 KB, the formula of record), gear-tiers.js WEAPON_LINES and ARMOUR_CURVE_LINES (every gear row read through the curve), core-model.js's armor curve x2.4 note and Krell's hall Shark note (+12.9 KB in all); no row the edge serves moved but the armor k and the hall card"
       }
     ]
   }

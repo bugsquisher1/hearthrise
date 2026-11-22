@@ -549,6 +549,15 @@ function listTable(M, name) {
   else if (name === 'byLevel') { L.push('| Lever | Outcome | Step | Elasticity by Level | |', '|---|---|---|---|---|'); for (const x of F.byLevel) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.at + ' | ' + Object.entries(x.byLevel).map(([g, v]) => gl(g) + ': ' + f2(v)).join(', ') + ' | ' + (x.flip ? 'changes sign' : '') + ' |'); }
   else if (name === 'byStyle') { const pc = (v, o) => (kindOf(o) === 'rel' ? pct(v) : num(v, 0)); L.push('| Lever | Outcome | Step | Rises for | Falls for |', '|---|---|---|---|---|'); for (const x of F.byStyle) L.push('| ' + x.lever + ' | ' + x.outcome + ' | x' + x.m + ' | ' + Object.entries(x.up).map(([g, v]) => gl(g) + ' ' + pc(v, x.outcome)).join(', ') + ' | ' + Object.entries(x.down).map(([g, v]) => gl(g) + ' ' + pc(v, x.outcome)).join(', ') + ' |'); }
   else if (name === 'redundant') { L.push('| Lever | Lever | Cosine of the effect vectors | Size of each |', '|---|---|---|---|'); for (const x of F.redundant) L.push('| ' + x.a + ' | ' + x.b + ' | ' + x.cos + ' | ' + x.normA + ' / ' + x.normB + ' |'); }
+  else if (name === 'rank') {
+    /* each core outcome's strongest levers over all cells: the largest of the three elasticities, resolved ones only */
+    L.push('| Outcome | Strongest levers (largest elasticity of low, local, high) |', '|---|---|');
+    for (const o of CORE) {
+      const rows = Object.entries(M.elast).map(([id, e]) => { const x = e.all[o]; if (!x || !x.anyResolved) return null; const vs = [x.lo, x.local, x.hi].filter(finite); if (!vs.length) return null; const best = vs.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a)); return { id, best }; })
+        .filter(Boolean).sort((a, b) => Math.abs(b.best) - Math.abs(a.best)).slice(0, 7);
+      L.push('| ' + o + (kindOf(o) === 'rel' ? '' : kindOf(o) === 'deaths' ? ' (deaths in 1,000 h a unit of ln)' : ' (absolute a unit of ln)') + ' | ' + rows.map((x) => x.id + ' ' + (kindOf(o) === 'rel' ? f2(x.best) : num(x.best, Math.abs(x.best) >= 10 ? 0 : 2))).join(', ') + ' |');
+    }
+  }
   else throw new Error('analyze: no list ' + name);
   if (L.length === 2) L.push('| none | ' + L[0].split('|').slice(2, -1).map(() => '').join(' | ') + ' |');
   return L;

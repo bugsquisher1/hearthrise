@@ -157,7 +157,126 @@ Store gold as a share of gold in, alone, MID, Normal.
 
 The supply bill is a tax on three ways (bow, Mage, Healer) and close to nothing for the rest. Any lever that moves casts, arrows or prices is a lever on those three and no one else. The harness sells every drop at once and never runs out of gold, so gold here is an upper bound (hard constraint HC-5 in `03-targets.md`).
 
-<<FILL:REST>>
+---
+
+## 4. The matrix
+
+MEASURED. Runs 44969087150, 44971044252, 44972398698 and 44976040886, 4 seeds, 2,592 hero-hours a point. One row a lever, one column an outcome. Each cell is the LOCAL elasticity. Where the ends of the ladder differ from it, the low and high elasticities follow in brackets. A `.` means nothing resolved at any step. Rows are sorted by their largest elasticity.
+
+For the outcomes read as absolute changes the number is the change for one unit of ln(multiplier), which is a multiplier of 2.7: deaths in 1,000 hours for `deathsPer1000h`, share of health for `lowHpP10`, gold an hour for `netPerH`.
+
+### 4.1 Every cell
+
+<!-- GEN: matrix group=all outcomes=dps,killsPerH,takenPerH,deathsPer1000h,lowHpP10,levelXpPerH,netLevelXpPerH,incomePerH,storePerH,netPerH -->
+<!-- /GEN -->
+
+### 4.2 Lone heroes (the eight ways, MID, Normal)
+
+<!-- GEN: matrix group=party:1 outcomes=killsPerH,levelXpPerH,takenPerH,lowHpP10,incomePerH,storePerH,netPerH -->
+<!-- /GEN -->
+
+### 4.3 The four (MID, Normal)
+
+<!-- GEN: matrix group=party:4 outcomes=killsPerH,levelXpPerH,takenPerH,lowHpP10,incomePerH,storePerH,netPerH -->
+<!-- /GEN -->
+
+### 4.4 The four on Deadly
+
+<!-- GEN: matrix group=four:deadly outcomes=killsPerH,levelXpPerH,takenPerH,lowHpP10,incomePerH,storePerH,netPerH -->
+<!-- /GEN -->
+
+---
+
+## 5. Ranked by influence
+
+The strongest levers on each outcome, over every cell. The number is the largest of a lever's low, local and high elasticities.
+
+<!-- GEN: list name=rank -->
+<!-- /GEN -->
+
+<<FILL:RANKNOTES>>
+
+---
+
+## 6. The six lists Tyler asked for
+
+Each list is drawn by a fixed rule, written in `analyze.mjs` (`FINDING_RULES`), so a re-run names the same things.
+
+### 6.1 Levers with large effects on outcomes they are not for
+
+Rule: an elasticity of 0.5 or more on an outcome outside the lever's purpose. Damage, kills, XP and gold in count as one outcome for a lever that is for any of them.
+
+<!-- GEN: list name=sideEffect -->
+<!-- /GEN -->
+
+<<FILL:SIDENOTES>>
+
+### 6.2 Levers that do not move what they are for
+
+Rule: the largest elasticity on an intended outcome is under 0.05, or nothing resolved.
+
+<!-- GEN: list name=intendedMiss -->
+<!-- /GEN -->
+
+And the levers that moved nothing at all.
+
+<!-- GEN: list name=dead -->
+<!-- /GEN -->
+
+And the steps the engine or the game's own validators refused.
+
+<!-- GEN: list name=refused -->
+<!-- /GEN -->
+
+<<FILL:MISSNOTES>>
+
+### 6.3 Levers whose effect changes sharply with Level
+
+Rule: for a rate, the high-step elasticity differs between two Levels by more than 0.3 and by more than a factor of two, or changes sign.
+
+<!-- GEN: list name=byLevel -->
+<!-- /GEN -->
+
+<<FILL:LEVELNOTES>>
+
+### 6.4 Levers that pull opposite ways across combat styles
+
+Rule: at one step the outcome rises for one lone way and falls for another, both resolved and both past 2% (300 gold an hour for net gold).
+
+<!-- GEN: list name=byStyle -->
+<!-- /GEN -->
+
+<<FILL:STYLENOTES>>
+
+### 6.5 Redundant levers
+
+Rule: two levers whose effect vectors (every cell, every core rate outcome, at the lowest and the highest step) have a cosine of 0.9 or more.
+
+<!-- GEN: list name=redundant -->
+<!-- /GEN -->
+
+<<FILL:REDUNDANTNOTES>>
+
+### 6.6 Levers that cannot be tuned independently
+
+This is the subject of `05-interactions.md`, section 12, which measures it with joint experiments. In short: every lever on the fight is coupled to at least four others, and every reward lever is clean.
+
+---
+
+## 7. The structural findings
+
+<<FILL:STRUCTURE>>
+
+---
+
+## 8. Large steps: where the local slope lies
+
+Rule: the low-step and high-step elasticities differ by 0.25 or more and by 30% of the larger, both resolved.
+
+<!-- GEN: list name=nonlinear -->
+<!-- /GEN -->
+
+<<FILL:NONLINEARNOTES>>
 
 ---
 

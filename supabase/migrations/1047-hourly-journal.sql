@@ -71,12 +71,15 @@ set local lock_timeout = '5s';
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
 -- md5 of prosrc with carriage returns removed: the image this file was written against (the replayed chain on set/v0.2.144), or its own.
+-- The two helpers this file only CALLS are named without their arguments (to_regproc): tests/live-hash-drift.mjs's sweep takes
+-- every quoted `public.name(args)` in a file with a loop pin as a pin, and apply-order-honesty then read this staged file as
+-- the last toucher of hr_cron_ensure and hr_utc_day_start, applied bodies it never reads.
 do $mig$
 declare v_r record; v_md5 text;
 begin
   if to_regclass('public.player_ledger') is null or to_regclass('public.hr_ledger_config') is null
-     or to_regclass('public.player_ledger_rollup') is null or to_regprocedure('public.hr_cron_ensure(text,text,text)') is null
-     or to_regprocedure('public.hr_utc_day_start(timestamptz)') is null then
+     or to_regclass('public.player_ledger_rollup') is null or to_regproc('public.hr_cron_ensure') is null
+     or to_regproc('public.hr_utc_day_start') is null then
     raise exception 'PRECONDITION: the journal, its config, its rollup or the cron helper is missing'; end if;
   for v_r in select * from (values
     ('public.hr_ledger_immutable()', '677a4bd4e9f3a3fb2d43a369e3408b01', '3818b2021b57770a747b3a0bd6de989f'),

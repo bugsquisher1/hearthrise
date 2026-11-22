@@ -16,8 +16,10 @@
 --   name, Level, clan tag and party size; friends and clan mates first, then nearest the caller's hero's Level. A party any of whose heroes
 --   is quiet, any of whose accounts is blocked either way, or any not admitted is left off the list AND the total. The caller's own
 --   instance is never listed. 30 a minute. Refusals: not_signed_in, bad_slot, bad_hunt, rate_limited.
--- hr_presence_quiet_set(p_quiet boolean) -> { ok, quiet, changed }   CLIENT. Quiet presence for the ACCOUNT: every hero of it, through
---   hr_set_presence_quiet__ungated (each change journalled once, kind presence, as before). 6 a minute.
+-- hr_presence_quiet_set(p_slot int, p_quiet boolean) -> { ok, quiet, changed, envelope }   CLIENT. Quiet presence for the ACCOUNT: every
+--   hero of it, through hr_set_presence_quiet__ungated (each change journalled once, kind presence, as before). 6 a minute. p_slot names
+--   the hero on screen, one of the account's: the answer carries ITS envelope (hr_state_of, rule 11: the switch reads back from the
+--   `presence` section with no second read). Refusals: not_signed_in, bad_slot, bad_intent, no_character, rate_limited.
 -- hr_presence_view(p_user, p_slot) -> { quiet }   the section `presence`: true only when every hero of the account is quiet.
 -- hunt_sessions_open_hunt (NEW index): the open sessions of one ground.
 --
@@ -98,21 +100,25 @@ begin
 end $fn$;
 
 -- ── §2 QUIET PRESENCE FOR THE ACCOUNT ────────────────────────────────────────
-create or replace function public.hr_presence_quiet_set(p_quiet boolean)
+create or replace function public.hr_presence_quiet_set(p_slot int, p_quiet boolean)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_uid uuid := auth.uid(); v_slot int; v jsonb; v_changed boolean := false;
 begin
-  -- GROUND-PRESENCE (1045-ground-presence.sql): one switch for every hero of the account (MM-20: "a player who turns it on").
+  -- GROUND-PRESENCE (1045-ground-presence.sql): one switch for every hero of the account (MM-20: "a player who turns it on"). The answer
+  -- carries the envelope of p_slot, the hero on screen (rule 11): the switch reads back from its `presence` section, no second read.
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   perform public.hr_access_check();
+  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
   if p_quiet is null then return jsonb_build_object('ok', false, 'error', 'bad_intent'); end if;
+  if not exists (select 1 from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot) then
+    return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
   if not public.hr_rate_ok(v_uid, 'presence:quiet', 6, interval '1 minute') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   for v_slot in select ps.slot from public.player_state ps where ps.user_id = v_uid order by ps.slot loop
     v := public.hr_set_presence_quiet__ungated(v_slot, p_quiet);
     if coalesce(v->>'ok', '') <> 'true' then return jsonb_build_object('ok', false, 'error', coalesce(v->>'error', 'refused')); end if;
     v_changed := v_changed or coalesce((v->>'changed')::boolean, false);
   end loop;
-  return jsonb_build_object('ok', true, 'quiet', p_quiet, 'changed', v_changed);
+  return jsonb_build_object('ok', true, 'quiet', p_quiet, 'changed', v_changed, 'envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 create or replace function public.hr_presence_view(p_user uuid, p_slot int)
@@ -128,7 +134,7 @@ insert into public.hr_state_sections (key, fn, note) values
 do $grants$
 declare v_sig text;
 begin
-  foreach v_sig in array array['public.hr_ground_presence(integer,text)', 'public.hr_presence_quiet_set(boolean)'] loop
+  foreach v_sig in array array['public.hr_ground_presence(integer,text)', 'public.hr_presence_quiet_set(integer,boolean)'] loop
     execute format('revoke all on function %s from public, anon, service_role', v_sig);
     execute format('grant execute on function %s to authenticated', v_sig);
   end loop;
@@ -138,13 +144,14 @@ delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and pr
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_ground_presence', 'p_slot integer, p_hunt text', 'authenticated',
    'added 1045-ground-presence (FB-12, MM-20): the other parties hunting a ground, by leader name, Level, clan tag and size, capped at 6; quiet, blocked and not-admitted parties left off; 30/min; moves no value'),
-  ('hr_presence_quiet_set', 'p_quiet boolean', 'authenticated',
-   'added 1045-ground-presence (FB-12, MM-20): quiet presence for every hero of the account (hr_set_presence_quiet__ungated each, journalled on change); 6/min; moves no value');
+  ('hr_presence_quiet_set', 'p_slot integer, p_quiet boolean', 'authenticated',
+   'added 1045-ground-presence (FB-12, MM-20): quiet presence for every hero of the account (hr_set_presence_quiet__ungated each, journalled on change); answers with the envelope of p_slot, the hero on screen (rule 11); 6/min; moves no value');
 
 -- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe row rolled back ───────
 -- (a) the grants; the section; the index
 -- (b) THE STRIP: A reads B's party (a friend) and C's; C turns quiet for its account and leaves the list and the total; D, whom A blocked,
---     is never on it; A's own party is never on it; a friend sorts first
+--     is never on it; A's own party is never on it; a friend sorts first. C's switch answers with its hero's envelope, already quiet, and
+--     refuses a slot the account holds no hero in
 do $$
 declare
   c_u constant uuid[] := array['000000c0-0000-4000-a000-0000a2e50001', '000000c0-0000-4000-a000-0000a2e50002',
@@ -153,7 +160,7 @@ declare
   c_hunt constant text := 'mill_cellar'; c_food constant text := 'cooked_shrimp';
   v jsonb; v_i int; v_sig text;
 begin
-  foreach v_sig in array array['public.hr_ground_presence(integer,text)', 'public.hr_presence_quiet_set(boolean)'] loop
+  foreach v_sig in array array['public.hr_ground_presence(integer,text)', 'public.hr_presence_quiet_set(integer,boolean)'] loop
     if not has_function_privilege('authenticated', v_sig::regprocedure, 'execute') or has_function_privilege('anon', v_sig::regprocedure, 'execute') then
       raise exception 'ground-presence §3(a): % is not authenticated''s alone', v_sig; end if;
   end loop;
@@ -191,8 +198,13 @@ begin
        or exists (select 1 from jsonb_array_elements(v->'parties') p where p->>'name' in (public.hr_character_name(c_u[1], 0), public.hr_character_name(c_u[4], 0))) then
       raise exception 'ground-presence §3(b): the strip read %', v; end if;
     perform set_config('request.jwt.claim.sub', c_u[3]::text, true);
-    v := public.hr_presence_quiet_set(true);
+    if public.hr_presence_quiet_set(1, true)->>'error' is distinct from 'no_character' or public.hr_presence_quiet_set(null, true)->>'error' is distinct from 'bad_slot' then
+      raise exception 'ground-presence §3(b): the switch carried a hero the account does not hold'; end if;
+    v := public.hr_presence_quiet_set(0, true);
     if coalesce(v->>'ok', '') <> 'true' or not (public.hr_presence_view(c_u[3], 0)->>'quiet')::boolean then raise exception 'ground-presence §3(b): quiet read %', v; end if;
+    -- rule 11: the answer IS the hero's envelope, already quiet (the client takes it like a load, no second read)
+    if v->'envelope'->>'ok' is distinct from 'true' or (v->'envelope'->'presence'->>'quiet') is distinct from 'true' then
+      raise exception 'ground-presence §3(b): the switch did not answer with the hero''s quiet envelope: %', left((v->'envelope')::text, 200); end if;
     perform set_config('request.jwt.claim.sub', c_u[1]::text, true);
     v := public.hr_ground_presence(0, c_hunt);
     if exists (select 1 from jsonb_array_elements(v->'parties') p where p->>'name' = public.hr_character_name(c_u[3], 0))

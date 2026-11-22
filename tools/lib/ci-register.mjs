@@ -43,6 +43,10 @@ export function headerSteps(file, text) {
     if (s) {
       const [job, name] = s[1].split('|').map((x) => x.trim());
       if (!job || !name || !/^[A-Za-z0-9_-]+$/.test(job)) { errors.push({ file, line: i + 1, message: `"${l}" is not "// ci-step: <job> | <step name>"` }); cur = null; return; }
+      /* The name is written as a plain YAML scalar (`- name: <name>`). A ": " or " #" inside it, or a YAML indicator first,
+         makes GitHub refuse the WHOLE workflow ("a workflow file issue": no job runs, every push fails), while our own
+         lenient parser reads it fine (2026-11-22, tests/needs-you.mjs). Refuse it here, where the author can fix it. */
+      if (/: | #|:$/.test(name) || /^[-?:,[\]{}#&*!|>'"%@`]/.test(name)) { errors.push({ file, line: i + 1, message: `ci-step name "${name}" is not a safe plain YAML value: GitHub would refuse the whole workflow. No ": " or " #" inside it and no YAML indicator first; use a dash in place of the colon` }); cur = null; return; }
       cur = { file, line: i + 1, job, name, run: [] };
       steps.push(cur);
     } else if (r) {

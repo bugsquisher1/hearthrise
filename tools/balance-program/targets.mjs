@@ -9,7 +9,9 @@
 //
 // A READER is one of: a standing band id of standards.mjs BANDS (never a dropped or retired one), an OTHER_STANDARDS id (X2..X28,
 // never a retired one), table:NAME (a named non-function export of standards.mjs), guard:ID (a line of guard-cells.mjs LINES),
-// or MISSING alone (a coverage gap, which must name its gap). Nothing here judges a cell: this file checks the spec, the matrix reads it.
+// reader:ID (a Balance Lab reader of tools/balance-program/readers.mjs, phase 2: readerState 'lab', or 'proxy' where the reader says so),
+// or MISSING alone (a coverage gap, which must name its gap and `until`: what must exist before it can have a reader). Nothing here judges
+// a cell: this file checks the spec, the matrix and the Lab's readers read it.
 // mutant-anchors: none — --selftest plants faults on in-memory targets; no tracked file is patched
 // ci-step: economy-selftests | Balance targets - a reader that does not exist, a malformed target and a planted fault are each caught
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
@@ -23,13 +25,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as STD from './standards.mjs';
 import { LINES as GUARD_LINES } from './guard-cells.mjs';
+import { READERS } from './readers.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const TARGETS_FILE = join(HERE, 'targets.json');
 
 const CLASSES = ['HARD', 'SOFT', 'HYPOTHESIS'];
 const BASES = ['ruled', 'ruled-sitting', 'ruled-call', 'designer', 'built', 'proposed'];
-const STATES = ['graded', 'report', 'proxy', 'other-tool', 'table', 'unread', 'missing'];
+const STATES = ['graded', 'report', 'proxy', 'other-tool', 'table', 'unread', 'missing', 'lab'];
 const CONFLICT_STATES = ['open', 'reader-mismatch'];
 const SOURCE_KINDS = ['old-ruling', 'overhaul-book', 'designer-ruling', 'measurement'];
 const FORMS = ['rule', 'range', 'proposal'];
@@ -37,13 +40,14 @@ const DATE = /^20\d\d-\d\d-\d\d$/;
 
 /** The reader context from the live tables (a selftest passes its own). */
 export function liveContext() {
-  return { STD, guardIds: new Set(GUARD_LINES.map((l) => l.id)) };
+  return { STD, guardIds: new Set(GUARD_LINES.map((l) => l.id)), readerIds: new Set(READERS.map((r) => r.id)) };
 }
 
 /** What a reader string resolves to: { kind, ok, why }. */
 export function resolveReader(id, ctx) {
   const { STD: S, guardIds } = ctx;
   if (id === 'MISSING') return { kind: 'missing', ok: true };
+  if (id.startsWith('reader:')) { const r = id.slice(7); return ctx.readerIds && ctx.readerIds.has(r) ? { kind: 'reader', ok: true } : { kind: 'reader', ok: false, why: 'unknown reader: readers.mjs holds no ' + r }; }
   if (id.startsWith('guard:')) { const g = id.slice(6); return guardIds.has(g) ? { kind: 'guard', ok: true } : { kind: 'guard', ok: false, why: 'unknown reader: no balance guard line ' + g }; }
   if (id.startsWith('table:')) {
     const n = id.slice(6), v = S[n];
@@ -102,6 +106,8 @@ export function validate(doc, ctx = liveContext()) {
     const missing = t.readers.length === 1 && t.readers[0] === 'MISSING';
     if (missing !== (t.readerState === 'missing')) out.push(at + ': readerState ' + t.readerState + ' does not match readers ' + t.readers.join(', '));
     if (missing && !(typeof t.gap === 'string' && t.gap.trim())) out.push(at + ': a MISSING reader must name its gap');
+    if (missing && !(typeof t.until === 'string' && t.until.trim())) out.push(at + ': a MISSING reader must say what must exist first (until)');
+    if (t.readerState === 'lab' && !t.readers.some((r) => r.startsWith('reader:'))) out.push(at + ': readerState lab, but no reader is a Balance Lab reader (reader:ID)');
     const resolved = t.readers.map((r) => [r, resolveReader(r, ctx)]);
     for (const [r, v] of resolved) { if (!v.ok) out.push(at + ': ' + v.why); else if (r !== 'MISSING') targetReaders.add(r); }
     const bands = resolved.filter(([, v]) => v.ok && v.kind === 'band').map(([, v]) => v.band);
@@ -186,6 +192,9 @@ function selftest() {
     ['an export that does not exist', /exports no NOPE/, (d) => { first(d).readers = ['table:NOPE']; }],
     ['MISSING beside a reader', /MISSING stands alone/, (d) => { first(d).readers = ['P1', 'MISSING']; }],
     ['MISSING with no gap', /must name its gap/, (d) => { const t = d.targets.find((x) => x.readerState === 'missing'); delete t.gap; }],
+    ['MISSING with no until', /what must exist first/, (d) => { const t = d.targets.find((x) => x.readerState === 'missing'); delete t.until; }],
+    ['a Lab reader that does not exist', /readers.mjs holds no RD-NOPE/, (d) => { first(d).readers = ['reader:RD-NOPE']; }],
+    ['a lab state with no Lab reader', /readerState lab, but no reader/, (d) => { const t = d.targets.find((x) => x.readerState === 'lab'); t.readers = ['P1']; }],
     ['graded on report-only bands', /no reader is a band that grades/, (d) => { const t = d.targets.find((x) => x.readerState === 'graded'); t.readers = ['S3.mid']; }],
     ['a date that is not a date', /date yesterday/, (d) => { d.targets[0].date = 'yesterday'; }],
     ['a class outside the three', /class MAYBE/, (d) => { d.targets[0].class = 'MAYBE'; }],

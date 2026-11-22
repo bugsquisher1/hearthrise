@@ -54,6 +54,9 @@ export const HUNT_TUNING = Object.freeze({
      earns a shrinking share of its Level XP (hunt-grounds.js underFloorSharePm, read at each kill). Measured: a Level 1 behind three Level 37s in the Warrens stood at full
      HP, took no blow and earned 190k XP/h. A party that all pushes together, or a low friend on a ground in its range, is untouched. */
   partyShareRangePm: 667,
+  /* THE DEATH EXPLANATION'S WINDOW: the time before a fall the player's "why it died" reads (src/hunt-view/death-explain.js), and the
+     Balance Lab's "short of mana at a death" reads the same (tools/balance-sim/sustain-reads.mjs). A reading, never a played number. */
+  explainWindowMs: 10000,
 });
 
 /** Every problem with the table, as strings. Empty = valid. */

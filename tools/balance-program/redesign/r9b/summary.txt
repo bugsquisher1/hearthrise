@@ -1,0 +1,23 @@
+THE POWER STEP AT LEVEL 60, Muster Barrows, the Steady mixed four (MID kits), held step from hour 6 of 12, paired seeds; one tier = 20 steps of power
+  base held                                    566.8 +- 2.6 se, median 568, n 12
+  one tier back, both halves                   -86.7 +- 3 se, median -91, n 12   shows 434% of 20
+  one tier ahead, both halves                  34.5 +- 4.3 se, median 29.5, n 12   shows 173% of 20
+  weapon band back (shipped + step) -65.2 +- 6.3 se, median -67.5, n 12
+  armor band back (shipped + step)  -55 +- 11 se, median -71.5, n 12
+  one gear band back, both halves   -120.2 (sum of the two cells' means)
+
+STANCE PAY FROM A HELD START (start = R4's held - 20, pay read from hour 1 to the four's end; multiple of the hours table)
+  base:careful     L60  held 395.4  pay 0.55x (sd 0, 7 h)  deaths 0
+  base:steady      L60  held 571.1  pay 0.83x (sd 0.03, 7 h)  deaths 0
+  base:bold        L60  held 615  pay 0.96x (sd 0.01, 5.3 h)  deaths 3
+  base: Careful / Steady   0.67x  (seeds 0.67 0.65 0.66 0.71 0.68 0.65; band 0.55 to 0.70)
+  levels:careful   L63  held 402.8  pay 0.55x (sd 0.01, 7 h)  deaths 0
+  levels:steady    L63  held 575.2  pay 0.85x (sd 0.03, 7 h)  deaths 0
+  levels:bold      L63  held 624.7  pay 1.01x (sd 0.03, 4 h)  deaths 5
+  levels: Careful / Steady 0.64x  (seeds 0.65 0.64 0.67 0.61 0.63 0.66; band 0.55 to 0.70)
+  high:careful     L70  held 448.9  pay 0.57x (sd 0.02, 7 h)  deaths 0
+  high:steady      L70  held 598.5  pay 0.96x (sd 0.05, 7 h)  deaths 0
+  high:bold        L70  held 654.8  pay 1.18x (sd 0.05, 4 h)  deaths 4
+  high: Careful / Steady   0.59x  (seeds 0.57 0.57 0.61 0.60 0.60 0.60; band 0.55 to 0.70)
+
+REVERTED (lane/r9b): heals stepped by the healer's gear made the curve steeper both ways (back -86.7, ahead +34.5 against -65.2 / +20.8 unstepped), so the engine keeps heals unstepped. These reports are the evidence; the code they measured is not on the branch.

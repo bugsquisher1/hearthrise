@@ -1,6 +1,6 @@
 # 04. The mathematical design strategy
 
-Written 2026-11-21 on `lane/rd-math`, on `set/v0.2.144` at 0ddcd6448. This is deliverable 6 of the reset request of 2026-11-21, and it answers the request's sections 3, 4 and 6. Read `01-identity.md` and `02-architecture.md` first (branch `lane/rd-vision`). Docs and four small probe patches only. No game code or data was changed.
+Written 2026-11-21 on `lane/rd-math`, on `set/v0.2.144` at 0ddcd6448. This is deliverable 6 of the reset request of 2026-11-21, and it answers the request's sections 3, 4 and 6. Read `01-identity.md` and `02-architecture.md` first (branch `lane/rd-vision`). Docs, six small probe patches and one script that plays them. No game code or data was changed.
 
 Everything here is a recommendation for review. Nothing is final and no number is a ruling. Every number is a starting value or a range to search, and section 14 says how each one gets settled.
 
@@ -25,14 +25,14 @@ Everything here is a recommendation for review. Nothing is final and no number i
 | A fixed gear step and a fixed Level gap cannot both hold past about Level 150 (K-9) | Gear is a straight line, so a 20 Level gap is a shrinking share | The contest reads the gap in steps. A 20 step gap is the same ratio at every Level |
 | A four earns more XP but less gold a head (K-8) | XP has a party table and a tier dial. Coin has neither | One pay rule for XP, coin and loot quality, read off the same step |
 | A four's damage barely moves its pace | Kills are capped by the respawn | Pulls come on readiness and the company climbs. Power becomes depth |
-| The harder tiers are a cliff | One hero takes it all, rest is free, and three hand-picked dials sit tens of steps apart (COMPUTED: blows at 1.17 and 1.33 times Normal are about 45 and 80 steps at a 0.35% step) | Small steps, a fall back, monsters that reach the party, and damage that costs time and gold before it costs a life |
+| The harder tiers are a cliff | One hero takes it all, damage costs nothing until it kills, and three hand-picked dials sit tens of steps apart (COMPUTED: blows at 1.17 and 1.33 times Normal are about 45 and 80 steps at a 0.35% step) | Small steps, a fall back, monsters that reach the party, and damage that costs time and gold before it costs a life |
 | Armor capped at 60% is worthless past Level 30 | A cap on a curve that the gear outgrows | Defense is steps in the same contest. No cap, no wall |
 | One multiple cannot fit the Level table at both ends | The reward is a power of Level fitted to a moving kill rate | Hours for a Level are the law. The reward is derived from them |
 | Skill fades to 14% of a hit at Level 1,000 | Skill cost is geometric, gear is linear | Skill is steps on the same clock as Level |
 | A health-only boss is decided by the clock | Damage is the only thing the fight tests | Threat that grows through the fight tests damage and sustain together |
 | Unlock and Talent damage is invisible | A percent of damage reaches pace only through the fight share | The same: power becomes depth, and depth pays a fixed ratio |
 
-**What I measured for this page** (section 9, the real engine, four probes): how much of a damage gain reaches pace today, what more incoming damage costs today, and what changes when rest costs time.
+**What I measured for this page** (section 9, the real engine, six small runs). The share of a damage gain that reaches pace is close to the share of the hour spent fighting: 0.51 to 0.58 for a lone hero, and 0.00 to 0.25 for a four on Normal. A quarter more incoming damage costs a four nothing and takes a lone hero on a harder tier from no deaths to dying most hours, with the whole edge inside about one gear tier of power. Slowing rest tenfold moved pace by under 2%, which corrected one of my own assumptions.
 
 **The three things I most want reviewed.** The step as the unit (section 1). Progress stored as a Level and a share of it, so no number grows without bound (section 5). Dropping the separate hit chance contest (section 2), which disagrees with one line of `02-architecture.md` and is the designer's call.
 
@@ -113,7 +113,7 @@ Levers: `powerStep`, `weightGear`, `weightSkill`, `rollSpread`, `conditionalStep
 - **Three sources, three prices.** Regeneration is paid in time. A healer's spells are paid in mana, which is time or drinks. Supplies are paid in gold. Each covers a designed share of the reference company's incoming damage on Steady: `sustainFree`, `sustainHealer`, and the rest from supplies.
 - **Mana in seconds.** A pool is so many seconds of full casting (`manaSeconds`) and comes back at a share a minute (`manaRegen`). A move's cost is a share of reference mana, so it never needs re-sizing with Level.
 - **Food and drink restore a share of reference health or mana.** One row for each quality, not a ladder for each tier. Its price is seconds of the wage (section 10).
-- **Rest costs time.** Out of a fight a hero recovers at `restRate`. Today that is 6% of health a second, so rest is close to free and damage taken has no price away from the edge (MEASURED, section 9).
+- **Rest costs time, by a rule and a rate.** The next pull waits until the party is ready, and out of a fight a hero recovers at `restRate`. Both are needed. Today damage taken has no price away from the edge, and slowing the rate alone does not create one, because the engine pulls again without waiting (MEASURED, section 9, probes B and C). The readiness threshold belongs to the stance.
 
 Because deeper monsters hit by `s ^ depth` and take longer to kill, a company one step deeper needs about two steps more sustain each kill. So the supply bill climbs smoothly with depth. That is the slope the cliff lacks: the bill is felt long before a death.
 
@@ -281,9 +281,49 @@ Levers: `fightShare`, `moveSeconds`, `killRateCeiling`. Three.
 
 ## 9. What the probes measured
 
-Four patches under `tools/balance-program/redesign/patches/`, each played by the matrix's own diff on a scratch copy. The matrix subset at Levels 30, 60 and 110, two seeds of one hour, the same dice before and after. The summary is `tools/balance-program/redesign/model-probes.json`, written by `model-probes.mjs`. These runs are on the overhaul's starting build and are evidence about model shape, never a baseline to protect. Two seeds of one hour is thin: read directions, not digits.
+Four patches under `tools/balance-program/redesign/patches/` and two side runs, each played by the matrix's own diff on a scratch copy. The matrix subset at Levels 30, 60 and 110, two seeds of one hour, the same dice before and after. The summary is `tools/balance-program/redesign/model-probes.json`, written by `model-probes.mjs`. These runs are on the overhaul's starting build and are evidence about model shape, never a baseline to protect. Two seeds of one hour is thin: read directions, not digits.
 
-PROBE_RESULTS_PLACEHOLDER
+Cells read: the lone MID hammer and the standard MID four, on each tier. Deaths use the matrix's default rule, where a dead hero stands up again, so a death count here is a rate of dying and not a count of ended hunts. The lone hammer on Deadly at Level 60 already dies in the unpatched tree and is left out.
+
+**Probe A. Hero damage times 1.25: how much reaches pace.** MEASURED.
+
+| Cell | Seconds to kill today | Level XP an hour | Share of the gain that arrived |
+|---|---|---|---|
+| Lone hammer, Normal, Levels 30 / 60 / 110 | 3.8 / 4.7 / 6.7 | +12.5% / +12.1% / +13.7% | 0.53 / 0.51 / 0.58 |
+| Lone hammer, Dangerous and Deadly | 11 to 17 | +13.5% to +20.8% | 0.57 to 0.85 |
+| The four, Normal, Levels 30 / 60 / 110 | 0.14 / 5.8 / 0.44 | +0.1% / +5.7% / +1.3% | 0.00 / 0.25 / 0.06 |
+| The four, Dangerous and Deadly, Levels 30 / 60 / 110 | 1.0 to 1.8 / 11 to 12 / 1.9 to 2.0 | +4.4 to 6.8% / +18.5 to 18.9% / +3.7% | 0.19 to 0.29 / 0.76 to 0.77 / 0.16 |
+
+The lone hammer on Normal spends 0.58, 0.62 and 0.76 of its hour fighting (kills an hour times seconds to kill), and 0.53, 0.51 and 0.58 of a damage gain arrived. So the identity of section 8 holds on today's engine: the share that arrives is close to the fight share, a little under it. The four shows the other end. Where its kills take under two seconds it gets almost nothing from 25% more damage. Where they take 6 to 12 seconds, on the one ground of the three built for a party, it gets most of it. The time a kill takes is the lever, and today each ground sets it by accident.
+
+**Probe B. Monster blows times 1.25: what incoming damage costs.** MEASURED.
+
+| Cell | Level XP an hour | Store bill | Deaths in 1,000 hours |
+|---|---|---|---|
+| The four, every tier, every Level | 0.998 to 1.004 | 1.00 to 1.04 | 0, before and after |
+| Lone hammer, Normal | 0.998 to 1.003 | none, before and after | 0, before and after |
+| Lone hammer, Dangerous, Levels 30 / 110 | 0.998 / 0.994 | 1.79 / 1.69 | 0 to 746 / 0 to 1,695 |
+| Lone hammer, Deadly, Levels 30 / 110 | 0.85 / 0.94 | 1.54 / 1.41 | 0 to 28,571 / 885 to 20,000 |
+
+A quarter more incoming damage costs a four nothing it can see: no pace, a few percent of supplies, two to four points of low health. A lone hero on a harder tier goes from never dying to dying most hours. Nothing sits between those two results. Two side runs at times 1.08 and 1.16 (`mon-108.json`, `mon-116.json`, Levels 30 and 110) show how thin the line is. The lone hammer on Dangerous at Level 110 read 0, 735, 562 and 1,695 deaths in 1,000 hours at times 1.00, 1.08, 1.16 and 1.25. At Level 30 it read 0, 0, 0 and 746. So the whole edge fits inside a move of 8 to 9% of the blow, which is about 22 steps at a 0.35% step and close to one gear tier. At the first of those moves its typical low health went from 0.387 to 0.382 while its worst tenth of fights went from 0.291 to 0.244. Typical low health does not see the edge coming and the worst tenth does. The fall back of package 3 should read the tail, and the slope test of section 14 measures this width.
+
+**Probes C and D. Rest at a tenth of today's rate.** MEASURED, and it corrects an assumption of mine.
+
+| Cell | Level XP an hour, C over today | Typical low health, today to C | D over C: pace with blows times 1.25 |
+|---|---|---|---|
+| Lone hammer, Normal, Levels 30 / 60 / 110 | 1.00 / 0.99 / 0.98 | 0.92 to 0.53 / 0.91 to 0.52 / 0.90 to 0.50 | 1.01 / 1.00 / 1.02 |
+| The four, every tier | 0.99 to 1.00 | down 0 to 4 points | 1.00 |
+| Lone hammer, Dangerous, Levels 30 / 110 | 1.01 / 1.00 | 0.42 to 0.37 / 0.39 to 0.35 | 1.00 / 1.00, with deaths from 0 to 613 and 0 to 3,636 |
+
+I expected slow rest to turn damage taken into lost time. It does not. The engine starts the next pull after a short regroup whether or not the hero has recovered, so a hero with slow rest hunts at half health at the same pace and begins to buy food (the lone hammer's store bill on Normal goes from nothing to a small one). The rest rate is a survival lever today and a dead lever for pace. By the test of section 13 that is a design finding and not a number: "damage costs time" needs a rule that a pull waits for the party to be ready, which is the pull on readiness of package 3. A slower number alone will not do it.
+
+**The armor step, in pace.** MEASURED on the same runs, the lone hammer's MID kit against the same kit with armor one state back, on Normal. Today: 1.000, 1.003 and 1.004 at Levels 30, 60 and 110. With slow rest: 0.994, 0.998 and 0.985. An armor step is worth nothing in pace in either tree.
+
+**What the probes say about the model.**
+1. The fight share predicts what damage is worth. The model sets it by design. Supported.
+2. Incoming damage has no price until it kills. The model prices it in supplies and time. The need is confirmed.
+3. A slower rest rate does not create that price. The readiness rule does, and it is an engine change, not a lever. This changed section 3.
+4. The margin signal must be the tail of low health, not its typical value.
 
 ## 10. Equipment
 
@@ -537,7 +577,7 @@ The owner's direction of 2026-11-21: build the best combination of formulas from
 
 **Open, and the designer's to decide:** whether blows can miss. How many hours a Level should take. The length of the hunting day. Whether the early Levels get a bonus. The role rows. Whether `payStepCoin` should be below the XP ratio and by how much.
 
-**SPECULATIVE until played:** every starting value on this page. That a four holds deep enough to out-earn its heroes with no party bonus. That the edge is wider than a gear tier once rest costs time and monsters reach the party. That a constant step feels good in the first hour.
+**SPECULATIVE until played:** every starting value on this page. That a four holds deep enough to out-earn its heroes with no party bonus. That the edge is wider than a gear tier once pulls wait for readiness and monsters reach the party. Today it is about one tier wide for a lone hero (section 9). That a constant step feels good in the first hour.
 
 **Not checked.**
 - I ran no part of the new model. The engine does not have it. The probes of section 9 test two of its claims on today's engine and nothing more.

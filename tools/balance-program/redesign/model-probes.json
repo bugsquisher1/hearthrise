@@ -40,8 +40,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.998,
+    "store": 1.049,
+    "lowHp": [
+     0.903,
+     0.879
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.004,
+    "store": 1.052,
+    "lowHp": [
+     0.879,
+     0.838
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "30|mid|4:hbmh|deadly",
@@ -76,8 +98,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1.002,
+    "store": 1.026,
+    "lowHp": [
+     0.875,
+     0.831
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1,
+    "store": 1.043,
+    "lowHp": [
+     0.831,
+     0.789
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "30|mid|4:hbmh|normal",
@@ -112,8 +156,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1,
+    "store": 1.001,
+    "lowHp": [
+     0.985,
+     0.982
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1,
+    "store": 1.034,
+    "lowHp": [
+     0.982,
+     0.979
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "30|mid|1:h|dangerous",
@@ -148,8 +214,30 @@
      746.3
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1.007,
+    "store": 2.084,
+    "lowHp": [
+     0.415,
+     0.368
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.998,
+    "store": 1.473,
+    "lowHp": [
+     0.368,
+     0.315
+    ],
+    "deaths": [
+     0,
+     613.5
+    ]
+   }
   },
   {
    "key": "30|mid|1:h|deadly",
@@ -184,8 +272,30 @@
      28571.4
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.947,
+    "store": 1.362,
+    "lowHp": [
+     0.311,
+     0.226
+    ],
+    "deaths": [
+     0,
+     7407.4
+    ]
+   },
+   "DoverC": {
+    "pace": 0.945,
+    "store": 1.159,
+    "lowHp": [
+     0.226,
+     0.172
+    ],
+    "deaths": [
+     7407.4,
+     25000
+    ]
+   }
   },
   {
    "key": "30|mid|1:h|normal",
@@ -220,8 +330,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1.002,
+    "store": null,
+    "lowHp": [
+     0.923,
+     0.527
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.008,
+    "store": 5.89,
+    "lowHp": [
+     0.527,
+     0.525
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "60|mid|4:hbmh|dangerous",
@@ -256,8 +388,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.996,
+    "store": 1.002,
+    "lowHp": [
+     0.796,
+     0.782
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.997,
+    "store": 1.028,
+    "lowHp": [
+     0.782,
+     0.761
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "60|mid|4:hbmh|deadly",
@@ -292,8 +446,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.994,
+    "store": 1.022,
+    "lowHp": [
+     0.767,
+     0.76
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.001,
+    "store": 1.031,
+    "lowHp": [
+     0.76,
+     0.731
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "60|mid|4:hbmh|normal",
@@ -328,8 +504,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1,
+    "store": 1.005,
+    "lowHp": [
+     0.96,
+     0.957
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.004,
+    "store": 1.018,
+    "lowHp": [
+     0.957,
+     0.945
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "60|mid|1:h|dangerous",
@@ -364,8 +562,30 @@
      13333.3
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.994,
+    "store": 1.267,
+    "lowHp": [
+     0.324,
+     0.299
+    ],
+    "deaths": [
+     0,
+     2105.3
+    ]
+   },
+   "DoverC": {
+    "pace": 0.909,
+    "store": 1.343,
+    "lowHp": [
+     0.299,
+     0.039
+    ],
+    "deaths": [
+     2105.3,
+     33333.3
+    ]
+   }
   },
   {
    "key": "60|mid|1:h|deadly",
@@ -400,8 +620,30 @@
      2000000000000
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.927,
+    "store": 1.008,
+    "lowHp": [
+     0.098,
+     0.189
+    ],
+    "deaths": [
+     18181.8,
+     40000
+    ]
+   },
+   "DoverC": {
+    "pace": 3190889.439,
+    "store": 9090909.091,
+    "lowHp": [
+     0.189,
+     0
+    ],
+    "deaths": [
+     40000,
+     2000000000000
+    ]
+   }
   },
   {
    "key": "60|mid|1:h|normal",
@@ -436,8 +678,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.988,
+    "store": null,
+    "lowHp": [
+     0.914,
+     0.518
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.002,
+    "store": 3.111,
+    "lowHp": [
+     0.518,
+     0.494
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "110|mid|4:hbmh|dangerous",
@@ -472,8 +736,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1.001,
+    "store": 1.012,
+    "lowHp": [
+     0.906,
+     0.889
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.001,
+    "store": 1.012,
+    "lowHp": [
+     0.889,
+     0.854
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "110|mid|4:hbmh|deadly",
@@ -508,8 +794,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1.002,
+    "store": 1.029,
+    "lowHp": [
+     0.876,
+     0.849
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1,
+    "store": 1.019,
+    "lowHp": [
+     0.849,
+     0.806
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "110|mid|4:hbmh|normal",
@@ -544,8 +852,30 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 1,
+    "store": 1.001,
+    "lowHp": [
+     0.984,
+     0.983
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.999,
+    "store": 1.005,
+    "lowHp": [
+     0.983,
+     0.983
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   },
   {
    "key": "110|mid|1:h|dangerous",
@@ -580,8 +910,30 @@
      1694.9
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.995,
+    "store": 1.866,
+    "lowHp": [
+     0.387,
+     0.345
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 0.998,
+    "store": 1.431,
+    "lowHp": [
+     0.345,
+     0.298
+    ],
+    "deaths": [
+     0,
+     3636.4
+    ]
+   }
   },
   {
    "key": "110|mid|1:h|deadly",
@@ -616,8 +968,30 @@
      20000
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.974,
+    "store": 1.543,
+    "lowHp": [
+     0.341,
+     0.264
+    ],
+    "deaths": [
+     885,
+     7407.4
+    ]
+   },
+   "DoverC": {
+    "pace": 0.992,
+    "store": 1.206,
+    "lowHp": [
+     0.264,
+     0.188
+    ],
+    "deaths": [
+     7407.4,
+     28571.4
+    ]
+   }
   },
   {
    "key": "110|mid|1:h|normal",
@@ -652,9 +1026,68 @@
      0
     ]
    },
-   "C": null,
-   "DoverC": null
+   "C": {
+    "pace": 0.984,
+    "store": null,
+    "lowHp": [
+     0.901,
+     0.499
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   },
+   "DoverC": {
+    "pace": 1.024,
+    "store": 2.125,
+    "lowHp": [
+     0.499,
+     0.494
+    ],
+    "deaths": [
+     0,
+     0
+    ]
+   }
   }
  ],
- "armorSteps": []
+ "armorSteps": [
+  {
+   "L": 30,
+   "tree": "today",
+   "armorStepPace": 1,
+   "armorStepTaken": 0.952
+  },
+  {
+   "L": 30,
+   "tree": "rest-slow",
+   "armorStepPace": 0.994,
+   "armorStepTaken": 1
+  },
+  {
+   "L": 60,
+   "tree": "today",
+   "armorStepPace": 1.003,
+   "armorStepTaken": 1.002
+  },
+  {
+   "L": 60,
+   "tree": "rest-slow",
+   "armorStepPace": 0.998,
+   "armorStepTaken": 0.991
+  },
+  {
+   "L": 110,
+   "tree": "today",
+   "armorStepPace": 1.004,
+   "armorStepTaken": 0.974
+  },
+  {
+   "L": 110,
+   "tree": "rest-slow",
+   "armorStepPace": 0.985,
+   "armorStepTaken": 0.971
+  }
+ ]
 }

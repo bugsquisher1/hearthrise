@@ -31,7 +31,7 @@
 //   GM-W-CHAT     global, local, party, past the door
 //   GM-W-WHISPER  both directions
 //   GM-W-FRIEND   both directions
-//   GM-W-PARTY    invite, seat, list, seek across the wall; own heroes still party
+//   GM-W-PARTY    invite and seat across the wall; own heroes still party
 //   GM-W-HEARTH   a burn is refused and leaves no colour and no line
 //   GM-W-FINDS    no Hearthfind rolled; a server line, a notice and a find row go nowhere, and never fail the writer
 //   GM-W-BOARDS   a walled hero at any Level is on no board; a real one at less is
@@ -206,7 +206,7 @@ const ARMS = {
   'GM-DOOR': async (W, say) => {
     const { k } = W;
     const deny = ['hr_chat_send', 'hr_whisper_send', 'hr_friend_request', 'hr_friend_answer', 'hr_friend_remove', 'hr_block_set', 'hr_hunt_party_invite', 'hr_hunt_party_invite_player',
-      'hr_hunt_party_join', 'hr_hunt_party_list', 'hr_party_seek', 'hr_hearth_burn', 'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock',
+      'hr_hearth_burn', 'hr_claim_discord_gift', 'hr_companion_grant', 'hr_buy_gem_unlock',
       'hr_town_works_give', 'hr_town_show', 'hr_crier_send', 'hr_boss_call', 'hr_nothing_decided_yet'];
     for (const n of deny) {
       const r = await k.call(GM, 'select public.hr_server_now()', [], { path: '/rpc/' + n, door: true });
@@ -597,7 +597,7 @@ const ARMS = {
     await k.fresh();
   },
   'GM-W-PARTY': async (W, say) => {
-    const { k, hunt } = W;
+    const { k } = W;
     /* A walled leader inviting a real hero, and the door before it. */
     const d = await k.call(GM, 'select public.hr_hunt_party_invite_player(0, $1::uuid, 0, $2::uuid)', [A, key()], { door: true });
     if (!d || d.raised !== 'hr_gm_walled') say('the door let a cross-wall invite through: ' + js(d).slice(0, 200));
@@ -607,25 +607,16 @@ const ARMS = {
     const inn = await k.call(A, 'select public.hr_hunt_party_invite_player(0, $1::uuid, 0, $2::uuid)', [GM, key()]);
     if (!inn || inn.raised !== 'gm_walled') say('a real hero invited the Game Master: ' + js(inn).slice(0, 200));
     if (await k.one('select count(*)::int from public.hunt_party_invites where to_user = $1 or from_user = $1', [GM])) say('a cross-wall invite stands');
-    /* A seat across the wall, by the writer every join goes through; a walled party is never listed, and neither is a seeker. */
+    /* A seat across the wall, by the writer every join goes through (the finder, its listing and the seek are gone: 1059-no-party-finder.sql). */
     const real = await k.one('select public.hr_party_open($1::uuid, 0)', [A]);
     const seat = await k.row('select public.hr_party_seat_into($1::uuid, $2::uuid, 0)', [real, GM]);
     if (!seat || seat.raised !== 'gm_walled') say('a walled hero took a real party\'s seat: ' + js(seat));
-    const join = await k.past(GM, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [real, key()]);
-    if (!join || !(join.raised === 'gm_walled' || join.ok === false)) say('a walled hero joined a real party: ' + js(join).slice(0, 200));
     if (await k.one('select count(*)::int from public.hunt_party_members where party_id = $1 and user_id = $2', [real, GM])) say('a walled hero sits in a real party');
     const mine = await k.one('select public.hr_party_open($1::uuid, 0)', [GM]);
     const own = await k.row('select public.hr_party_seat_into($1::uuid, $2::uuid, 1)', [mine, GM]);
     if (own && own.raised) say('the wall refused a walled hero its own party: ' + js(own));
     const in2 = await k.row('select public.hr_party_seat_into($1::uuid, $2::uuid, 1)', [mine, A]);
     if (!in2 || in2.raised !== 'gm_walled') say('a real hero took a walled party\'s seat: ' + js(in2));
-    const listed = await k.row('update public.hunt_parties set listed = true where id = $1 returning 1', [mine]);
-    if (!listed || listed.raised !== 'gm_walled') say('a walled party was listed: ' + js(listed));
-    const seek = await k.row(`insert into public.party_seekers (user_id, slot, hunt_id, expires_at) values ($1, 0, $2, now() + interval '1 hour') returning 1`, [GM, hunt]);
-    if (!seek || seek.raised !== 'gm_walled') say('a walled hero sought a party: ' + js(seek));
-    /* Control: the real party still lists, and the wall isn't refusing everyone. */
-    const ok = await k.row('update public.hunt_parties set listed = true where id = $1 returning 1', [real]);
-    if (ok !== 1) say('a real party was refused a listing: ' + js(ok));
     await k.db.query('delete from public.hunt_party_members where party_id = any ($1)', [[real, mine]]);
     await k.db.query('delete from public.hunt_parties where id = any ($1)', [[real, mine]]);
     await k.fresh();
@@ -858,8 +849,6 @@ const MUTANTS = [
   { id: 'friend_link_row', arm: 'GM-W-FRIEND', why: 'a friend link crosses', edits: [[WALL('friend_links', "'user_lo', 'user_hi'"), '']] },
   { id: 'party_seat', arm: 'GM-W-PARTY', why: 'a seat crosses', edits: [['create or replace trigger hr_gm_wall before insert on public.hunt_party_members for each row execute function public.hr_gm_party_guard();\n', '']] },
   { id: 'party_invite', arm: 'GM-W-PARTY', why: 'an invite crosses', edits: [['create or replace trigger hr_gm_wall before insert on public.hunt_party_invites for each row execute function public.hr_gm_party_guard();\n', '']] },
-  { id: 'party_listed', arm: 'GM-W-PARTY', why: 'a walled party is listed', edits: [["create or replace trigger hr_gm_wall_relist before update of listed on public.hunt_parties for each row when (new.listed) execute function public.hr_gm_wall_guard('leader_user');\n", '']] },
-  { id: 'party_seeker', arm: 'GM-W-PARTY', why: 'a walled hero seeks', edits: [[WALL('party_seekers', "'user_id'"), '']] },
   { id: 'hearth_row', arm: 'GM-W-HEARTH', why: 'a walled hero colours the Hearth for everyone', edits: [[WALL('hearth_flames', "'user_id'"), '']] },
   { id: 'hearthfind_rolls', arm: 'GM-W-FINDS', why: 'a walled hero bumps the Nth-ever counter', edits: [["    'gm', public.hr_gm_section(p_user, v_st.slot),\n", '']] },
   { id: 'find_in_feed', arm: 'GM-W-FINDS', why: 'a walled find is in the feed', edits: [['create or replace trigger hr_gm_wall before insert on public.world_finds for each row execute function public.hr_gm_wall_quiet();\n', '']] },

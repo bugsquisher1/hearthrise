@@ -7,7 +7,7 @@
 //
 // What the S1 server projects (supabase/migrations/2026-10-23-hunt-party.sql,
 // hr_hunt_party_view; ONE shape, also read by hunt-sections.js partyOf):
-//   party   { id, hunt, max, open, listed, leader: unit, self: unit, leader_seat, self_seat,
+//   party   { id, hunt, max, open, leader: unit, self: unit, leader_seat, self_seat,
 //             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
 //                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro,
 //                         away, seat_ms, outfit }], leader_densities }   (away / seat_ms: 2026-10-28-party-flow.sql;
@@ -18,14 +18,12 @@
 //           leave_together: THIS hero's own "Leave if anyone leaves the hunt or dies" (Tyler 2026-10-22),
 //             player_state.party_leave_together, set only by its own hr_party_leave_together_set (2026-12-18)
 //   (a solo hunt is a party of one with id null: no party membership here)
-// The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
 // fixture is tests/fixtures/party-envelope.json):
 //   party_invites  [{ id, party, hunt, from }]      invites to THIS character
 //   party_notices  [{ id, kind, who, hunt }]        what another player's move did to THIS character (2027-02-18-party-truth.sql)
 //   account       { max_concurrent }               the account's concurrent-play
 //                                                   limit (read by AccountSession.limit)
-// The finder's answer (hr_hunt_party_finder) is read by finderRows.
 //
 // The role is ALWAYS roleForWeapon(weapon, pick) from src/data/hunt-roles.js:
 // the server's `role` is only the pick, kept when the weapon allows it.
@@ -131,19 +129,6 @@ export function noticesOf(cs) {
   for (const n of v.slice(0, 8)) {
     if (!isObj(n) || typeof n.id !== 'string' || !UUID.test(n.id) || typeof n.kind !== 'string') continue;
     out.push({ id: n.id, kind: n.kind, who: name(n.who), hunt: typeof n.hunt === 'string' && HUNT.test(n.hunt) ? n.hunt : null });
-  }
-  return out;
-}
-
-/** The finder's answer as rows: [{ id, hunt, max, seats: [{ seat, weapon, role, name }] }]. */
-export function finderRows(body) {
-  if (!isObj(body) || body.ok !== true || !Array.isArray(body.parties)) return null;
-  const out = [];
-  for (const p of body.parties.slice(0, 50)) {
-    if (!isObj(p) || typeof p.id !== 'string' || !UUID.test(p.id)) continue;
-    const seats = (Array.isArray(p.seats) ? p.seats.slice(0, 8) : []).map(seatOf).filter(Boolean);
-    out.push({ id: p.id, hunt: typeof p.hunt === 'string' && HUNT.test(p.hunt) ? p.hunt : null,
-      max: Number.isInteger(p.max) ? p.max : null, seats });
   }
   return out;
 }

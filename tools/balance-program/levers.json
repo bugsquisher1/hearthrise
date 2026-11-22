@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "732b7ea06fdb9ea8",
+ "authored": "47d10280926a0008",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 174,
+  "levers": 176,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -84,10 +84,10 @@
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
-   "economy": 28
+   "economy": 30
   },
   "byClass": {
-   "global": 76,
+   "global": 78,
    "archetype": 24,
    "content": 46,
    "exception-intentional": 17,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 75,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 20,
+   "not-playable:outside-hunt": 22,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 16,
    "variant": 5,
@@ -106,21 +106,21 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 63,
+   "asserted": 65,
    "mentioned only": 91,
    "none": 20
   },
   "flags": {
    "redundant": 41,
-   "ineffective": 36,
-   "contradictory": 40
+   "ineffective": 35,
+   "contradictory": 41
   }
  },
  "census": {
-  "bindings": 655,
-  "typed": 15661,
-  "files": 220,
-  "lever": 280,
+  "bindings": 656,
+  "typed": 15662,
+  "files": 221,
+  "lever": 281,
   "notLever": 375,
   "unclaimed": 0
  },
@@ -6681,9 +6681,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/tally.mjs",
+     "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6758,9 +6759,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/tally.mjs",
+     "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6832,9 +6834,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/tally.mjs",
+     "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6899,9 +6902,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/tally.mjs",
+     "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8277,7 +8281,7 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 26,
+     "line": 23,
      "text": "rareRoll: Object.freeze({ sides: 100, maxRounds: 64 }),",
      "binding": "PARTY"
     }
@@ -10171,7 +10175,7 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 21,
+     "line": 18,
      "text": "maxSize: 4,",
      "binding": "PARTY"
     }
@@ -10482,19 +10486,13 @@
    "sites": [
     {
      "file": "src/data/time-blocks.js",
-     "line": 37,
-     "text": "base: 500,",
-     "binding": "TIME_BLOCKS"
-    },
-    {
-     "file": "src/data/time-blocks.js",
      "line": 39,
-     "text": "perLevel: 125,",
+     "text": "priceHourPm: 2000,",
      "binding": "TIME_BLOCKS"
     }
    ],
-   "definition": "block n of the UTC day costs ceil((500 + 125 x L) x 1.5^(n - 1)); each adds 2 h of stamina, 2 a day, banked to the cap + a day's blocks",
-   "range": "A LEVER UNTIL wage(L) EXISTS: base and perLevel are today's refill base (1,000 + 250 a Level for 4 h) pro rata to 2 h; the target is 2 h x 2.0 hours of wage x wage(L) x 1.5^n (04 section 11, band 1.5 to 2.5 a block hour). RULED (Tyler 2026-11-22), not levers: 2 h a block, x1.5 a block, 2 a day. SQL twin hr_time_block_price (1058, generated)",
+   "definition": "block n of the UTC day costs ceil(2 h x priceHourPm / 1000 x wage(levelStep(L)) x 1.5^(n - 1)) (src/core/wage.js blockPrice): 4 then 6 hours of the hero's wage; each adds 2 h of stamina, 2 a day, banked to the cap + a day's blocks",
+   "range": "04 section 11: 2.0 hours of wage a block hour (band 1.5 to 2.5); validate refuses 1.0 or less (a block hour would sell for what it pays). RULED (Tyler 2026-11-22), not levers: 2 h a block, x1.5 a block, 2 a day; a per-hero cost reads the hero's Level (Tyler 2026-11-22). SQL twin hr_time_block_price (1058, generated)",
    "touches": "a gold sink and the hours past the 10 h day (14 h at most, 16 h with Premium)",
    "outcomes": [],
    "formulas": [],
@@ -10508,7 +10506,7 @@
     "asserts": [
      {
       "file": "tests/hunting-blocks.mjs",
-      "what": "the day, two blocks at x1.5, the third refused",
+      "what": "the wage twin at every step, the day, two blocks at x1.5 priced on the wage, the third refused",
       "reads": [
        "TIME_BLOCKS",
        "blockPrice"
@@ -10527,14 +10525,114 @@
     "note": "a block is bought in town or mid-hunt, never by a cell; tools/balance-program/stamina-day.mjs models the day",
     "existingPatches": []
    },
-   "flags": [
+   "flags": [],
+   "evidence": "MEASURED (lane/w-wage 2026-11-22, tools/balance-program/redesign/w/fit.mjs: the first block costs 2.0x the gross gold its 2 h pay on Steady at Levels 60, 63 and 70)"
+  },
+  {
+   "id": "econ.wage-base",
+   "category": "economy",
+   "name": "The wage at step 0",
+   "sites": [
     {
-     "kind": "ineffective",
-     "why": "On today's refill base the first block costs about a third of the coin its 2 h earn at Levels 13 to 25, short of 04 section 11's \"pretty pricey\" (the first block costs more than its hours earn back) until wage(L) prices it",
-     "ev": "stamina-refill.js WHY THIS PRICE; JUDGMENT"
+     "file": "src/data/wage.js",
+     "line": 39,
+     "text": "wageBase: 3800,",
+     "binding": "WAGE"
     }
    ],
-   "evidence": "STATED (Tyler 2026-11-22: 2 h, x1.5, cap 2; the price is today's base until wage(L))"
+   "definition": "wage(step) = floor(wageBase x (1 + payStepCoin)^step) (src/core/wage.js): gold one reference hunted hero-hour pays (coin + loot at the store's price, no Rares)",
+   "range": "set so wage(60/63/70) meets the Steady four's pay on the Danger scale (pay / wage 0.99 to 1.01). SQL twin hr_wage (1058, generated)",
+   "touches": "every price written in hours of wage: bought hunting and work blocks (at the hero's Level), 13-market V and fees (at depth, wave 4)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunting-blocks.mjs",
+      "what": "HB-WAGE: the server's wage is the JS wage at every step",
+      "reads": [
+       "WAGE",
+       "wage"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gold-intents.mjs",
+     "tests/hunting-blocks.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a price, never read by a cell; tools/balance-program/redesign/w/fit.mjs reads it against the measured pay",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (v1-climb.mjs, Muster Barrows, Steady, held start, 6 seeds x 8 h: 4,797 / 4,906 / 5,055 gold an hour at Levels 60 / 63 / 70)"
+  },
+  {
+   "id": "econ.wage-step",
+   "category": "economy",
+   "name": "The wage's growth a step",
+   "sites": [
+    {
+     "file": "src/data/wage.js",
+     "line": 41,
+     "text": "payStepCoin: 0.004,",
+     "binding": "WAGE"
+    }
+   ],
+   "definition": "the wage grows (1 + payStepCoin) a step; a hero's Level is its step (levelStep), a good's band or item step is its depth",
+   "range": "04 section 11: 0.2% to 0.5%. Not the engine's PAY.payStepCoin (0.7%, coin a Danger step deeper inside one ground); one number once bands are absolute (wave 2)",
+   "touches": "how prices in hours of wage grow with Level and depth",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunting-blocks.mjs",
+      "what": "HB-WAGE: never falling, held at the last step",
+      "reads": [
+       "WAGE",
+       "wage"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gold-intents.mjs",
+     "tests/hunting-blocks.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a price, never read by a cell; fit.mjs fits it",
+    "existingPatches": []
+   },
+   "flags": [
+    {
+     "kind": "contradictory",
+     "why": "Two coin ratios a step: this one across grounds (0.4%) and the engine's depth pay inside one ground (0.7%); 04 means one",
+     "ev": "src/data/wage.js; 04 section 11"
+    }
+   ],
+   "evidence": "MEASURED (the Lab's pinned baseline, four on Normal on its own ground, Levels 20-400, fitted in logs weighted by the Level hours table: 0.39%)"
   },
   {
    "id": "econ.blessing-price",
@@ -14722,12 +14820,20 @@
   "src/data/time-blocks.js#TIME_BLOCKS": {
    "pin": "count",
    "keys": [
-    "base",
     "blockMin",
     "growthNum",
-    "perLevel"
+    "priceHourPm"
    ],
-   "typed": 4,
+   "typed": 3,
+   "bindings": 1
+  },
+  "src/data/wage.js#WAGE": {
+   "pin": "count",
+   "keys": [
+    "payStepCoin",
+    "wageBase"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/blessings.js#BLESSING_RULES": {

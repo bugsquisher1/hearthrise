@@ -529,7 +529,8 @@ export const REFUSAL_WORDS = Object.freeze({
   no_invite: 'Invite gone',
   already_hunting: 'Party already hunting',
   away: 'Player away',
-  not_listed: 'Party not open, ask for an invite',
+  /* the Shop's refusal of a row it does not sell (hr-accrue catalogue.js offerRefusal); the party finder's use went with it (FB-12) */
+  not_listed: 'Not sold here',
   not_in_party: 'Not in a party',
   /* One Global with a slow mode (1041-social-clans.sql, 31-1); the Clan tab. */
   slow_mode: 'Global is busy, wait a moment',

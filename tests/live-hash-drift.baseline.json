@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2085,
+  "replay_ms": 4079,
   "counts": {
-    "tracked_names": 1058,
-    "entries": 891
+    "tracked_names": 1059,
+    "entries": 884
   },
   "functions": [
     {
@@ -1466,6 +1466,7 @@
       "touched_by": [
         "1004-tick-pack-heroes.sql",
         "1032-approved-cuts.sql",
+        "1059-no-party-finder.sql",
         "2026-08-11-grant-hygiene.sql",
         "2026-08-16-client-write-grant-sweep-5.sql",
         "2026-08-16-client-write-grant-sweep.sql",
@@ -9316,6 +9317,7 @@
         "restate"
       ],
       "touched_by": [
+        "1059-no-party-finder.sql",
         "2026-10-25-party-invites.sql",
         "2026-10-29-party-security.sql"
       ],
@@ -9326,11 +9328,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "eac230fac4b49b41fd18ef795925188e",
-        "norm_len": 2470,
+        "md5": "f6449fa5172490457b528fae52736f84",
+        "norm_len": 2463,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-no-party-finder.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1059-no-party-finder.sql."
     },
     {
       "sig": "hr_hunt_party_decline(p_slot integer, p_invite uuid, p_idem uuid)",
@@ -9376,34 +9379,6 @@
       "replay": {
         "md5": "7cd0bfde55b8def5e96b96be13c5e312",
         "norm_len": 2399,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_hunt_party_finder(p_slot integer, p_hunt text, p_weapon text)",
-      "name": "hr_hunt_party_finder",
-      "tracked_by": [
-        "chain",
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2026-10-23-hunt-party.sql",
-        "2026-10-25-settle-hooks.sql",
-        "2026-10-29-party-security.sql",
-        "2026-12-07-party-finder.sql",
-        "2027-02-18-party-truth.sql"
-      ],
-      "live": {
-        "md5": "39ecc0684bfc5530902d484677552e59",
-        "norm_len": 3617,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "39ecc0684bfc5530902d484677552e59",
-        "norm_len": 3617,
         "source": "computed-from-replay"
       },
       "agree": true
@@ -9483,30 +9458,6 @@
       "agree": true
     },
     {
-      "sig": "hr_hunt_party_join(p_slot integer, p_party uuid, p_idem uuid)",
-      "name": "hr_hunt_party_join",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2026-10-23-hunt-party.sql",
-        "2026-10-29-party-security.sql"
-      ],
-      "live": {
-        "md5": "da43d47939081660fadbb2dcf0acc87b",
-        "norm_len": 1423,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "da43d47939081660fadbb2dcf0acc87b",
-        "norm_len": 1423,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
       "sig": "hr_hunt_party_kick(p_slot integer, p_seat integer, p_idem uuid)",
       "name": "hr_hunt_party_kick",
       "tracked_by": [
@@ -9556,30 +9507,6 @@
       "replay": {
         "md5": "c9c8dc6c9fd9e443b2ff4ee2dc3f86b6",
         "norm_len": 2816,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_hunt_party_list(p_slot integer, p_listed boolean, p_idem uuid, p_hunt text)",
-      "name": "hr_hunt_party_list",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2026-10-29-party-security.sql",
-        "2026-12-07-party-finder.sql"
-      ],
-      "live": {
-        "md5": "76122ad3a6c1a76ea8bc42fcd71e3a35",
-        "norm_len": 3335,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "76122ad3a6c1a76ea8bc42fcd71e3a35",
-        "norm_len": 3335,
         "source": "computed-from-replay"
       },
       "agree": true
@@ -9673,6 +9600,7 @@
       ],
       "touched_by": [
         "1025-own-heroes-apart.sql",
+        "1059-no-party-finder.sql",
         "2026-10-23-hunt-party.sql",
         "2026-10-25-settle-hooks.sql",
         "2026-10-27-core-bodies.sql",
@@ -9695,12 +9623,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "1508241b4ca891ee0923586d13da79d3",
-        "norm_len": 9899,
+        "md5": "7adf5381c7520d793bf835b811f055af",
+        "norm_len": 9860,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1025-own-heroes-apart.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+      "why": "STAGED for the v0.2.144 release by 1025-own-heroes-apart.sql, 1059-no-party-finder.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1059-no-party-finder.sql."
     },
     {
       "sig": "hr_hunt_party_warn(p_slot integer, p_hunt text, p_idem uuid)",
@@ -13484,6 +13412,7 @@
         "restate"
       ],
       "touched_by": [
+        "1059-no-party-finder.sql",
         "2027-05-11-party-alone.sql"
       ],
       "live": {
@@ -13493,11 +13422,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "d477bdadb487564eac0c1136aeed5d2a",
-        "norm_len": 1070,
+        "md5": "6f3200ff77a2945710859b8414e285b4",
+        "norm_len": 1089,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-no-party-finder.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1059-no-party-finder.sql."
     },
     {
       "sig": "hr_party_away(p_user uuid, p_slot integer, p_joined timestamp with time zone)",
@@ -13855,28 +13785,26 @@
       "why": "STAGED for the v0.2.144 release by 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
-      "sig": "hr_party_join_for(p_uid uuid, p_slot integer, p_party uuid, p_need_listed boolean)",
+      "sig": "hr_party_join_for(p_uid uuid, p_slot integer, p_party uuid)",
       "name": "hr_party_join_for",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1059-no-party-finder.sql",
         "2026-10-29-party-security.sql",
         "2027-02-18-party-truth.sql"
       ],
-      "live": {
-        "md5": "9cc3b5612deb09cc8e9d80828d8485d3",
-        "norm_len": 2349,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
+      "live": null,
       "replay": {
-        "md5": "9cc3b5612deb09cc8e9d80828d8485d3",
-        "norm_len": 2349,
+        "md5": "0be27f4e4b265208c1f87889234dc57f",
+        "norm_len": 2321,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-no-party-finder.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-no-party-finder.sql."
     },
     {
       "sig": "hr_party_last_seen(p_user uuid, p_joined timestamp with time zone)",
@@ -14372,117 +14300,6 @@
       "replay": {
         "md5": "180158e7992871e43673eb4be7dd3cf6",
         "norm_len": 1059,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_party_seek(p_slot integer, p_hunt text, p_on boolean, p_idem uuid)",
-      "name": "hr_party_seek",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "2026-12-07-party-finder.sql"
-      ],
-      "live": {
-        "md5": "a00df2c8d2ef7dc77d28924a0008af62",
-        "norm_len": 3038,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "a00df2c8d2ef7dc77d28924a0008af62",
-        "norm_len": 3038,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_party_seek_end()",
-      "name": "hr_party_seek_end",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "2026-12-07-party-finder.sql"
-      ],
-      "live": {
-        "md5": "c7fb11e987f53ffc8abc343d4d350ed6",
-        "norm_len": 376,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "c7fb11e987f53ffc8abc343d4d350ed6",
-        "norm_len": 376,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_party_seek_live(p_user uuid, p_created timestamp with time zone, p_expires timestamp with time zone)",
-      "name": "hr_party_seek_live",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "2026-12-07-party-finder.sql"
-      ],
-      "live": {
-        "md5": "bed62cfc870e869533817c72be61b7f0",
-        "norm_len": 545,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "bed62cfc870e869533817c72be61b7f0",
-        "norm_len": 545,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_party_seek_ttl()",
-      "name": "hr_party_seek_ttl",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "2026-12-07-party-finder.sql"
-      ],
-      "live": {
-        "md5": "bf6a96229412379948773efc10d25713",
-        "norm_len": 190,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "bf6a96229412379948773efc10d25713",
-        "norm_len": 190,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_party_seek_view(p_user uuid, p_slot integer)",
-      "name": "hr_party_seek_view",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "2026-12-07-party-finder.sql",
-        "2027-02-10-settle-plan-cache.generated.sql"
-      ],
-      "live": {
-        "md5": "6f67c5151d5bbb30ac469b325753f1a6",
-        "norm_len": 734,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "6f67c5151d5bbb30ac469b325753f1a6",
-        "norm_len": 734,
         "source": "computed-from-replay"
       },
       "agree": true
@@ -18233,8 +18050,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "a3e29595bf0447ca442dd233c04807b6",
-        "norm_len": 763,
+        "md5": "c9a127ea0d09a2069be2ba347225b3fc",
+        "norm_len": 1064,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -20477,6 +20294,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_wage(p_step integer)",
+      "name": "hr_wage",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1058-hunting-blocks-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "50e8fc02866d791cec92f6af2b48c446",
+        "norm_len": 731,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks-catalogue.generated.sql."
     },
     {
       "sig": "hr_wallet_credit(p_uid uuid, p_slot integer, p_gems bigint, p_key text, p_expires_at timestamp with time zone)",

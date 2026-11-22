@@ -4,8 +4,8 @@
 // PURE. One ledger per server link (src/session/server.js), so one per signed-in
 // account: every CharacterSession, the party intents, the account's own asks
 // (create a hero, open a character) and the social sends share it. An ASK is
-// what a press waits on: an intent, or a read the player asked for (the party
-// finder, opening a character). Background traffic (the hunt poll, a frame's
+// what a press waits on: an intent, or a read the player asked for (opening a
+// character). Background traffic (the hunt poll, a frame's
 // gap-closing hello, the residue put, town moves) is never tracked.
 //
 //   track(verb, run)   run() is the whole ask: the server's answer AND, for an

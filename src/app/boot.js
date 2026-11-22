@@ -229,7 +229,7 @@ function startApp(win) {
        link carries THIS login's token only (auth.tokensFor), never another account's a later sign-in left on the device */
     const tokens = auth.tokensFor(auth.userId());
     const tokenForCall = async () => { const t = await tokens.fresh(); timing.sending(); return t; };
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: tokens.renew, watch: connection,
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, publishableKey: SUPABASE_CONFIG.publishableKey, token: tokenForCall, renew: tokens.renew, held: tokens.held, watch: connection,
       stale: () => fresh.check(true) });
     account = new G.AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new G.SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });

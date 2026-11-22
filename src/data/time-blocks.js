@@ -7,19 +7,21 @@
 // Bought town work (later, FB-10) is the same rule with its own row and a cap of 4. Blocks REPLACE the stamina
 // refill (src/data/stamina-refill.js, 4 h, 6 a day), whose verb 1058-hunting-blocks.sql retires.
 //
-// THE RULE (the server computes it from the generated catalogue hr_time_blocks, tools/gen-time-blocks.mjs; the
-// client only shows the server's quote):
+// THE RULE (src/core/wage.js blockPrice; the server computes it from the generated catalogue hr_time_blocks and its twin
+// hr_time_block_price, tools/gen-time-blocks.mjs; the client only shows the server's quote):
 //   n      = blocks of THIS kind the hero bought this server (UTC) day + 1     refused past perDay: `block_limit`
-//   price  = ceil((base + perLevel x Level) x growthNum^(n-1) / growthDen^(n-1))
+//   price  = ceil(blockMin / 60 x priceHourPm / 1000 x wage(L) x (growthNum / growthDen)^(n-1))
 //   adds   = blockMin of stamina, whole, at the pool's own instant; refused when the pool would pass its cap plus
 //            perDay blocks (`stamina_full`): bought time banks above the cap, never past one day's worth of it
-// Level is the hero's Level (hr_level_of) at the instant of the purchase.
+// L is the hero's Level (hr_level_of) at the instant of the purchase; wage(L) is the gold one reference hunted hour pays at
+// that Level (src/core/wage.js, its levers in src/data/wage.js).
 //
-// THE PRICE IS A LEVER (tools/balance-program/levers/gear-economy.mjs econ.hunt-block) UNTIL wage(L) EXISTS. The
-// target (04 section 11) is block hours x 2.0 hours of wage x wage(L) x 1.5^n, "pretty pricey": the first block
-// costs more coin than its hours earn back. There is no wage(L) in src/ yet, so `base` and `perLevel` price a block
-// on TODAY's base gold: the stamina refill's (1,000 + 250 a Level for 4 h), pro rata to 2 h. Worked: a Level 10
-// hero's first block costs 500 + 1,250 = 1,750 gold and its second 2,625; a Level 50 hero's 6,750 and 10,125.
+// "PRETTY PRICEY" (Tyler 2026-11-22; 04 section 11): a hunted hour pays about one hour of wage, so a block hour priced at
+// priceHourPm 2,000 (2.0 hours of wage) makes the day's first block cost about twice what its 2 h pay, and the second three
+// times. A player buys XP, drops and remains with it, never more gold. Worked at the calibrated wage (src/data/wage.js): a
+// Level 60 hero's first block costs 4 x wage(60) = 19,312 gold and its second 6 x wage(60) = 28,968, where a Steady hour at
+// Level 60 pays about 4,800 (tools/balance-program/redesign/w/fit.mjs). The price reads the hero's LEVEL, never its depth
+// (Tyler 2026-11-22: "some things, like stamina, should be based off of level"): src/core/wage.js levelStep.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -33,36 +35,31 @@ export const TIME_BLOCKS = Object.freeze({
     /* Each block of the day costs growthNum / growthDen of the one before it (Tyler: x1.5). */
     growthNum: 3,
     growthDen: 2,
-    /* LEVER until wage(L): gold of the day's first block, before the Level term (today's refill base, pro rata to 2 h). */
-    base: 500,
-    /* LEVER until wage(L): gold per Level on that price. */
-    perLevel: 125,
+    /* LEVER (econ.hunt-block): one block hour's price in permille of an hour of wage (04 section 11: 2.0, band 1.5 to 2.5). */
+    priceHourPm: 2000,
   }),
 });
 
 /* The ruled numbers that are not levers (validate refuses a row that moves them). */
 export const RULED = Object.freeze({ hunt: Object.freeze({ blockMin: 120, perDay: 2, growthNum: 3, growthDen: 2 }) });
 
-/** The gold block n (1 for the day's first) of `kind` costs a hero of Level `level`, or null past the day's cap. Integers in, integer out. */
-export function blockPrice({ kind, level, n }) {
-  const R = TIME_BLOCKS[kind];
-  const k = Math.floor(n);
-  if (!R || !(k >= 1) || k > R.perDay) return null;
-  const lv = Math.max(1, Math.floor(level));
-  const num = BigInt(R.base + R.perLevel * lv) * BigInt(R.growthNum) ** BigInt(k - 1);
-  const den = BigInt(R.growthDen) ** BigInt(k - 1);
-  return Number((num + den - 1n) / den);
-}
+/* THE KINDS THE SERVER SELLS. hr_time_buy (1058-hunting-blocks.sql) adds STAMINA for every row of hr_time_blocks, so a kind
+   joins this table only with a verb that adds what it sells: a town-work row here before FB-10's own verb would sell hunting
+   time at the work price. Work blocks are priced by the same rule today (src/core/wage.js blockPriceOf, the R12 hook). */
+export const SOLD_KINDS = Object.freeze(['hunt']);
 
 /** Every problem with the table (the shipped one by default), as strings. Empty = valid. */
 export function validate(table = TIME_BLOCKS) {
   const out = [];
   for (const [kind, R] of Object.entries(table)) {
     if (!/^[a-z]{1,16}$/.test(kind)) out.push(kind + ': a kind is a lower-case word');
-    for (const k of ['blockMin', 'perDay', 'growthNum', 'growthDen', 'base', 'perLevel']) {
+    if (!SOLD_KINDS.includes(kind)) out.push(kind + ': no verb sells this kind yet (hr_time_buy adds stamina for every row)');
+    for (const k of ['blockMin', 'perDay', 'growthNum', 'growthDen', 'priceHourPm']) {
       if (!Number.isInteger(R[k]) || R[k] <= 0) out.push(kind + '.' + k + ' must be a positive integer, got ' + R[k]);
     }
     if (R.growthNum < R.growthDen) out.push(kind + ': a later block never costs less than the one before it');
+    /* bought time never prints gold: a block hour costs more than the hour of wage a reference hunted hour pays (04 section 11) */
+    if (Number.isInteger(R.priceHourPm) && R.priceHourPm <= 1000) out.push(kind + '.priceHourPm ' + R.priceHourPm + ' would sell an hour for no more than it pays');
     const ruled = RULED[kind];
     if (ruled) for (const [k, v] of Object.entries(ruled)) if (R[k] !== v) out.push(kind + '.' + k + ' is ruled at ' + v + ' (Tyler 2026-11-22), got ' + R[k]);
   }

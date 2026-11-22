@@ -349,6 +349,12 @@ const cases = {
     /* WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17: eight sentences, the Farm first and the third hero not named; blind 20-hour panel: "a five-sentence paragraph"). The walk-through, one lone sword
        and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in. */
     const roster = (n) => Array.from({ length: n }, (_, i) => ({ slot: i, level: 10, name: 'H' + i, open: i === 0, hunting: false }));
+    /* THE STAMINA LINE (lane/w-wage): the server's `time_blocks` quote of a Level 20 hero's first hunting block, its price from the one
+       rule (src/core/wage.js blockPrice: hours of the hero's wage) and its length from the bought-time row, so no price here goes stale */
+    const { blockPrice } = await import(pathToFileURL(join(M.root, 'src/core/wage.js')).href + V);
+    const { TIME_BLOCKS } = await import(pathToFileURL(join(M.root, 'src/data/time-blocks.js')).href + V);
+    const BLOCK = { available: true, price: blockPrice({ kind: 'hunt', level: 20, n: 1 }), blockMs: TIME_BLOCKS.hunt.blockMin * 60000 };
+    const TOP_UP = 'Press + beside stamina: ' + BLOCK.blockMs / 3600000 + ' h for ' + BLOCK.price.toLocaleString('en-US') + ' gp';
     const at = (charLevel, more) => M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 90, land: { planted: 0, ready: {} }, inParty: false, gold: 0, slotCost: 50000, slotsOwned: 2, roster: roster(2), visited: new Set(), staminaMs: 28800000, refill: null, tally: { held: 1 }, home: null, partyGround: M.hl.partyGroundFor(charLevel), ...more });
     const THICKET = 'meadowbrook_thicket', WICK = 'wickstead', GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
     const walk = [
@@ -363,7 +369,7 @@ const cases = {
       ['the purse is there, the recruits ready', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]), recruits: { ready: true, count: 3, level: 10 } }, 'Open All characters and recruit 3 heroes'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
       ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
-      ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
+      ['out of stamina, gold in hand', 20, { gold: BLOCK.price + 3000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: BLOCK }, TOP_UP],
       ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Take a task on Tamsin\'s tally (Q)'],
       /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
       ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak, made in Crafting'],
@@ -392,9 +398,10 @@ const cases = {
     const cellar = at(3, { visited: new Set(['mill_cellar']) });
     if (M.hl.partyGroundFor(3) !== null || [cellar.text, ...cellar.also].some((t) => /^Find a party for/.test(t))) return 'a lone Level 3 hears a party pitch: ' + JSON.stringify(cellar);
     /* a stamina quote the purse can't pay, or a hero with plenty left, says nothing */
-    const q = { available: true, price: 6000, restoreMs: 14400000 };
-    const tops = (more) => whatNext(at(20, { visited: new Set([GLADE, WARRENS]), refill: q, ...more })).includes('beside stamina');
-    if (tops({ gold: 5999, staminaMs: 60000 }) || tops({ gold: 9000, staminaMs: 1800000 }) || tops({ gold: 9000, staminaMs: 60000, refill: { available: false, why: 'refill_limit', price: null, restoreMs: null } }) || !tops({ gold: 6000, staminaMs: 60000 })) return 'the stamina line speaks at the wrong time';
+    const tops = (more) => whatNext(at(20, { visited: new Set([GLADE, WARRENS]), refill: BLOCK, ...more })).includes('beside stamina');
+    if (tops({ gold: BLOCK.price - 1, staminaMs: 60000 }) || tops({ gold: BLOCK.price + 3000, staminaMs: 1800000 })
+        || tops({ gold: BLOCK.price + 3000, staminaMs: 60000, refill: { available: false, why: 'block_limit', price: null, blockMs: BLOCK.blockMs } })
+        || !tops({ gold: BLOCK.price, staminaMs: 60000 })) return 'the stamina line speaks at the wrong time';
     /* the card draws one goal and keeps the rest behind More; shut until pressed */
     const { coachHtml, actCoach } = await import(pathToFileURL(join(M.root, 'src/shell/launcher-coach.js')).href + V);
     const reader = { read: () => null, record: { residue: {} }, setResidue: () => {} };
@@ -2293,6 +2300,11 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', 'r.band[0] - level <= STEP_UP.mostUnder', 'r.band[0] - level <= 99']] },
   { name: 'an empty slot is sold another slot', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'return purse !== null && slot && nth && !emptySlot(f) ? { purse, slot, nth } : null;', 'return purse !== null && slot && nth ? { purse, slot, nth } : null;']] },
+  /* THE RETIRED REFILL (lane/w-wage; R8 215f80457 moved the line to bought blocks): a stamina line that still reads the refill's 4 h quote
+     (`restoreMs`) never names the block the server sells */
+  { name: 'the stamina line reads the retired refill quote, not the block', case: 'what-next-one-goal',
+    edits: [['src/data/hunt-tutorial.js', '!Number.isSafeInteger(q.blockMs)', '!Number.isSafeInteger(q.restoreMs)'],
+      ['src/data/hunt-tutorial.js', 'hours: Math.round(q.blockMs / 3600000)', 'hours: Math.round(q.restoreMs / 3600000)']] },
   { name: 'the stamina line offers what the purse cannot pay', case: 'what-next-one-goal',
     edits: [['src/data/hunt-tutorial.js', 'if (!Number.isSafeInteger(f.gold) || f.gold < q.price) return null;\n', '']] },
   { name: 'More reaches nothing in the town row (played 11-04)', case: 'what-next-one-goal',

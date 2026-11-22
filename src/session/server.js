@@ -104,6 +104,7 @@ function looksStale(status, body) {
  * @param {string} o.url        the project URL
  * @param {string} o.publishableKey    the project's public key
  * @param {() => string|null|Promise<string|null>} o.token   the signed-in user's access token, valid for the call
+ * @param {() => string|null} [o.held]   the token in hand now, unexpired, with no wait (auth.tokensFor held): a keepalive call sends with it at once
  * @param {(bad: string) => string|null|Promise<string|null>} [o.renew]  a new token after a 401, or null
  * @param {typeof fetch} [o.fetch]
  * @param {() => void} [o.stale]  told when an answer looks like a stale client's
@@ -113,6 +114,7 @@ export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
   const doFetch = o.fetch || ((...a) => globalThis.fetch(...a));
   let banned = false;
+  const held = () => { try { return o.held() || null; } catch (e) { return null; } };
   const send = (path, payload, jwt, keep) => {
     const body = JSON.stringify(payload || {});
     return doFetch(base + path, {
@@ -124,8 +126,12 @@ export function createServerLink(o) {
     });
   };
   async function post(path, payload, keep) {
-    let jwt = null;
-    try { jwt = await o.token(); } catch (e) { jwt = null; }
+    /* A GOODBYE LEAVES IN THE CALLER'S OWN TURN (AR-6, 2026-11-22): a page being closed can be torn down as soon as its pagehide
+       work returns. Behind `await o.token()` the fetch only started after the handler and its microtasks,
+       so on a slow or busy machine the page died first and the last-seen stamp never left: the away card then counted the hunt the player
+       had watched. A keepalive call sends with the token in hand (o.held), at once; only with none does it wait for one. */
+    let jwt = keep && o.held ? held() : null;
+    if (!jwt) { try { jwt = await o.token(); } catch (e) { jwt = null; } }
     if (!jwt) return { ok: false, status: 0, error: 'no_token', closed: false };
     let res;
     const ask = o.watch ? o.watch.asked() : 0;

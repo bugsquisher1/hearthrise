@@ -26,9 +26,14 @@
 //             (monsters.js monsterRangeOf); a role's range plays only on a row with none. Inside MONSTER_RANGE.
 //   splash    and on whom: a blow that also lands on every other hero within `splash.r` tiles of its target (Chebyshev) at `splash.pm`
 //             permille of the blow, each its own roll against that hero (damage.js resolveAttacks). Absent: one target.
-//   answer    what beats it, in words (the bestiary's and the hunt report's line when they read it); the engine never reads it.
+//   blowPm    and how hard: its largest blow is this share of its row's at the step (absent: all of it). A role that reaches the back
+//             row is sized against the back row: a Wight's full blow, written for a front in heavy armor, took a medium-armored bow
+//             from over the Steady line to dead in one blow (4 deaths in 32 Steady days, every one a Wight on the bow; RD-Q3 a: Careful
+//             and Steady never die), so a stalker lands half (MEASURED: w2/summary.txt).
+//   targets, answer  the tooltip labels ("Targets: front row", "Countered by: shields, armor"): short genre labels, never sentences
+//             (Tyler's voice rule for text outside lore). The engine never reads them.
 // tests/hunt-core/monster-roles.mjs `data` holds every row to these rules (a reach the engine plays, a range inside MONSTER_RANGE, a
-// splash of r >= 1 and pm 1..1000, an answer) and every monster row's `role` to a row here.
+// splash of r >= 1 and pm 1..1000, both labels) and every monster row's `role` to a row here.
 //
 // THE TWO ROWS: a hero stands in the front row or the back row. The plan sets it (the hero's `row` setting, 'front' or 'back',
 // hunt-spawn.js heroSetup); with none set, a hero that fights beside its target (hunt-roles.js `melee`) is in the front and every other in
@@ -50,12 +55,12 @@
 export const ROWS = Object.freeze(['front', 'back']);
 
 export const MONSTER_ROLES = Object.freeze({
-  brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, answer: 'Armor and a shield in the front row' }),
-  shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, answer: 'A Challenge turns it, and armor in the back row' }),
+  brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: shields, armor' }),
+  shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor' }),
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
-    answer: 'Kill it first, and a healer for the back row' }),
-  swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, answer: 'Blows that hit a crowd, and armor on every hero' }),
-  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, answer: 'A Challenge turns it for a while, and a healer' }),
+    targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing' }),
+  swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor' }),
+  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 500, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights */
-  warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, answer: 'Kill it first' }),
+  warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire' }),
 });

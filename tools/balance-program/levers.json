@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "dcc556ff37ecb8b5",
+ "authored": "f5a988f52bda4496",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 666,
-  "typed": 15710,
+  "typed": 15711,
   "files": 226,
   "lever": 285,
   "notLever": 381,
@@ -7347,29 +7347,29 @@
   {
    "id": "roles.table",
    "category": "monster-stats",
-   "name": "Monster roles (reach, range, splash, held)",
+   "name": "Monster roles (reach, range, splash, held, blow)",
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 54,
-     "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, answer: 'A Challenge turns it, and armor in the back row' }),",
+     "line": 59,
+     "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor' }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 55,
+     "line": 60,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 58,
-     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, answer: 'A Challenge turns it for a while, and a healer' }),",
+     "line": 63,
+     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, blowPm: 500, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),",
      "binding": "MONSTER_ROLES"
     }
    ],
-   "definition": "a monster row names a role; on the scale its reach picks whom it aims at (front row nearest, back row farthest, the least max HP, the least crowded front hero) and keeps to it while no Challenge holds it; a Challenge holds it heldPm of its hold (absent: all); a role with a range shoots from that many tiles on a row with none of its own; a splash lands pm permille of the blow on each hero within r tiles of the target",
-   "range": "range 0 or MONSTER_RANGE (2 to 6); splash r 1 or more, pm 1 to 1000; heldPm 0 to 1000. Content the designer owns (04 section 6: \"six role rows\"); the optimizer never moves it",
+   "definition": "a monster row names a role; on the scale its reach picks whom it aims at (front row nearest, back row farthest, the least max HP, the least crowded front hero) and keeps to it while no Challenge holds it; a Challenge holds it heldPm of its hold (absent: all); its largest blow is blowPm of its row (absent: all); a role with a range shoots from that many tiles on a row with none of its own; a splash lands pm permille of the blow on each hero within r tiles of the target",
+   "range": "range 0 or MONSTER_RANGE (2 to 6); splash r 1 or more, pm 1 to 1000; heldPm and blowPm 0 to 1000. Content the designer owns (04 section 6: \"six role rows\"); the optimizer never moves it",
    "touches": "who takes the damage (V3: the front seat's share) and so which lineup holds deepest on a mix; MEASURED tools/balance-program/redesign/w2/summary.txt",
    "outcomes": [
     "takenPerH",
@@ -15101,11 +15101,12 @@
   "src/data/monster-roles.js#MONSTER_ROLES": {
    "pin": "count",
    "keys": [
+    "blowPm",
     "heldPm",
     "pm",
     "range"
    ],
-   "typed": 4,
+   "typed": 5,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {

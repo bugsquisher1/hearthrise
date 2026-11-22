@@ -10,6 +10,8 @@
 //   range   a role's range plays only on the scale and only on a row with none of its own (its own wins).
 //   splash  on the scale a caster's blow also lands on a hero beside its target, never on one farther off; off the scale only on its
 //           target.
+//   redive  unheld, a role turns back to its reach; a Challenge holds a stalker half its hold, a brute all of it.
+//   blow    on the scale a stalker's largest blow is its role's blowPm share; off the scale the row's whole.
 //   play    THE ONE ENGINE (CLAUDE.md section 6): two Melee heroes on the scale, the puller set to the back row and the other to the front
 //           (row SETTINGS, through the settle's boundary): brutes turn off the puller onto the front hero (the re-aim), which the puller
 //           takes without the role; the hunt plays the same, digit for digit, in one window and in 10 s windows with the world through JSON
@@ -56,7 +58,7 @@ const CASES = {
       if (!REACHES.includes(r.reach)) bad.push('role ' + id + ' reach ' + r.reach + ' is none the engine plays (' + REACHES.join(', ') + ')');
       if (!(Number.isInteger(r.range) && (r.range === 0 || (r.range >= B.min && r.range <= B.max)))) bad.push('role ' + id + ' range ' + r.range + ' is not 0 or ' + B.min + '..' + B.max);
       if (r.splash !== undefined && !(Number.isInteger(r.splash.r) && r.splash.r >= 1 && Number.isInteger(r.splash.pm) && r.splash.pm > 0 && r.splash.pm <= 1000)) bad.push('role ' + id + ' splash is not { r >= 1, pm 1..1000 }');
-      if (typeof r.answer !== 'string' || !r.answer) bad.push('role ' + id + ' says nothing of what answers it');
+      if (!/^Targets: \S/.test(r.targets || '') || !/^Countered by: \S/.test(r.answer || '')) bad.push('role ' + id + ' labels are not "Targets: ..." and "Countered by: ..."');
     }
     for (const [id, m] of Object.entries(M.MONSTERS)) if (m && m.role !== undefined && !Object.prototype.hasOwnProperty.call(ROLES, m.role)) bad.push('monster ' + id + ' names no role row: ' + m.role);
     if (bad.length) return bad.join('; ');
@@ -177,6 +179,24 @@ const CASES = {
     if (!(off[0] > 0) || off[1] !== 0 || off[2] !== 0) return 'off the scale the blow splashed or missed: ' + JSON.stringify(off);
     return null;
   },
+  /* a stalker's largest blow on the scale is its role's blowPm of its row's (every roll at its largest); off the scale the row's whole */
+  blow(M) {
+    const once = (scale) => {
+      const h = hero(M, 1, 11, 3, { role: 'mage', maxHp: 50000, hp: 50000 });
+      const w = world(M, [h, mon(M, 10, 0, 12, 3, { kind: 'cairn_wight', target: 1, swingLeftMs: 0 })]);
+      if (scale) onScale(M, w);
+      const sc = subStep(0);
+      let n = 0;
+      sc.rng = M.rng.rngFrom(() => (n++ % 2 === 0 ? 0.01 : 0.99));
+      M.damage.resolveAttacks(instOf(M, w), sc);
+      return 50000 - h.hp;
+    };
+    const on = once(true), off = once(false), pm = M.roleData.MONSTER_ROLES.stalker.blowPm;
+    if (!(off > 1)) return 'CONTROL: the Wight landed ' + off + ' off the scale';
+    /* (the roll is 0.99 of each largest blow, so the two land within one point of the share) */
+    if (Math.abs(on - (off * pm) / 1000) > 1) return 'a stalker on the scale landed ' + on + ', not ' + pm + ' permille of ' + off;
+    return null;
+  },
   play(M) {
     const SPAN = 6 * 60000;
     const run = (plan, role, cuts) => withRole(M, 'rat', role, () => withRole(M, 'slime', role, () => {
@@ -231,7 +251,9 @@ const MUTANTS = [
   { name: 'a role range beats the row\'s own', case: 'range', edits: [['src/core/hunt/shooters.js', 'monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) || roleRange(inst, m)', 'roleRange(inst, m) || monsterRangeOf((inst.monsters || MONSTERS)[m.kind])']] },
   { name: 'no splash', case: 'splash', edits: [['src/core/hunt/damage.js', '      const sp = splashOn(inst, u, t);', '      const sp = { heroes: [] };']] },
   { name: 'the splash reaches any distance', case: 'splash', edits: [['src/core/hunt/monster-roles.js', ' && cheb(h, t) <= role.splash.r)', ')']] },
-  { name: 'the splash is the whole blow', case: 'splash', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((monsterMaxHit(blowRow) * sp.pm) / 1000))', 'monsterMaxHit(blowRow) * 3']] },
+  { name: 'a role never softens a blow', case: 'blow', edits: [['src/core/hunt/damage.js', 'return roll(inst, sc, u, t, accuracy, roleMaxHit(inst, u, maxHit), critChance);', 'return roll(inst, sc, u, t, accuracy, maxHit, critChance);']] },
+  { name: 'the blow share plays off the scale', case: 'blow', edits: [['src/core/hunt/monster-roles.js', '  const role = roleOf(inst, m);\n  return role && Number.isInteger(role.blowPm) ?', '  const role = MONSTER_ROLES[(MONSTERS[m.kind] || {}).role];\n  return role && Number.isInteger(role.blowPm) ?']] },
+  { name: 'the splash is the whole blow', case: 'splash', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000))', 'monsterMaxHit(blowRow) * 3']] },
   { name: 'a sample row loses its role', case: 'data', edits: [['src/data/grounds/muster_barrows/pack.js', "      role: 'stalker',\n", '']] },
   { name: 'a role row names no reach', case: 'data', edits: [['src/data/monster-roles.js', "reach: 'weakest', range: 0,", "reach: 'random', range: 0,"]] },
 ];

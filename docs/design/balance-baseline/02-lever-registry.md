@@ -46,7 +46,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 666 (in 226 files, 15710 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 666 (in 226 files, 15711 typed numbers) |
 | Claimed by a lever | 285 |
 | Claimed by a not-a-lever reason | 381 |
 | Unclaimed | 0 |
@@ -278,7 +278,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `mon.scaled-danger` Scaled-hunt exceptions | Monster HP, damage, armor, resistances and behavior | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.run-xp` Run ground party table | Party bonuses and interactions | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.under-floor` Under-floor Level share | Party bonuses and interactions | every matrix cell seats one Level (mixed-Level cells are owed: 13-build-plan MM-19, OC1 to OC3) |
-| not-in-runs | `roles.table` Monster roles (reach, range, splash, held) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe with --styles (lineups) against the roles-off candidate. No matrix run plans a stance |
+| not-in-runs | `roles.table` Monster roles (reach, range, splash, held, blow) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe with --styles (lineups) against the roles-off candidate. No matrix run plans a stance |
 | outside-hunt | `damage.permanent-cap` Cap on permanent perks | Base damage coefficients | the kits hold no House rooms or renown, so no cell carries a permanent perk to cap |
 | outside-hunt | `econ.bank` Bank and key ring | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.bench-tax` Public bench tax | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
@@ -345,7 +345,7 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
 | `skill.curve` Combat skill curve | 9 | 0 | 78 | NOT PLAYABLE (harness-fixed) | global |
 | `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 78 | patch | exception-accidental |
-| `roles.table` Monster roles (reach, range, splash, held) | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
+| `roles.table` Monster roles (reach, range, splash, held, blow) | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
 | `danger.climb` The climb and the fall back | 8 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `danger.stances` Risk stance thresholds | 8 | 11 | 78 | NOT PLAYABLE (player-policy) | archetype |
 | `danger.start` Danger start margin | 8 | 11 | 78 | NOT PLAYABLE (sql-only) | global |

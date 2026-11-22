@@ -48,7 +48,7 @@ import { temperedAmount } from '../temper.js';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
-import { splashOn } from './monster-roles.js';
+import { splashOn, roleMaxHit } from './monster-roles.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
 import { noteHurt, breaksOff, powerPm } from './danger.js';
@@ -219,9 +219,10 @@ function focusBack(u, t) {
 /* A unit that swings waits the one basic-attack interval for its next, slowed by a Chill on it as it swings (slowed). */
 export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }
 
+/* (a monster's swing, its only caller: on the Danger scale its ROLE's share of the blow, monster-roles.js roleMaxHit; the row's off it) */
 function swing(inst, sc, u, t, accuracy, maxHit, critChance) {
   restart(u);
-  return roll(inst, sc, u, t, accuracy, maxHit, critChance);
+  return roll(inst, sc, u, t, accuracy, roleMaxHit(inst, u, maxHit), critChance);
 }
 /* The dice of one blow (a swing, or each target of an area shot), clock untouched. */
 function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
@@ -272,7 +273,7 @@ export function resolveAttacks(inst, sc) {
       const sp = splashOn(inst, u, t);
       for (const h of sp.heroes) {
         if (breaksOff(inst.world)) break;
-        if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((monsterMaxHit(blowRow) * sp.pm) / 1000)), 0);
+        if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000)), 0);
       }
       continue;
     }

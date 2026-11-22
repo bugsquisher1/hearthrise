@@ -1,11 +1,13 @@
 // ============================================================
 // src/core/hunt/monster-roles.js — MONSTER ROLES AND THE PARTY'S TWO ROWS (wave 2, lane/w2-roles-rows)
 //
-// Every number and word is src/data/monster-roles.js's (its header has the design). This file answers four questions, each only on
+// Every number and word is src/data/monster-roles.js's (its header has the design). This file answers these questions, each only on
 // the Danger scale (danger.js dangerOn): a tier hunt gets null / 0 / [] from every one, so it plays exactly as before.
 //   roleOf      the role row monster unit `m` plays (its MONSTERS row's `role`, through the instance's one door), or null
 //   rowOf       the row a hero stands in: its `row` setting, else front for a hero that fights beside its target, back for the rest
+//   roleRange   the tiles a role shoots from (shooters.js rangeOf, on a row with no range of its own)
 //   reachPick   whom a role's reach takes (shooters.js aimOf, the one door every monster's aim goes through), or null for no match
+//   reaimOf     whom an engaged monster turns to, unheld, to keep to its reach (targeting.js chooseTargets, every sub-step)
 //   splashOn    the other heroes a blow at `t` also lands on (damage.js resolveAttacks)
 // Nothing here draws a die or persists a field: a role is read off the monster's row and a row off the hero's role and settings at
 // every boundary (combat-sim.js syncUnit), so a viewed hunt and a closed one aim the same way on every runtime.
@@ -96,6 +98,13 @@ export function reaimOf(inst, m) {
   if (keep) return rowOf(cur) === keep ? null : pick;
   const p = inst.world.units.find((u) => u.id === pick);
   return p.maxHp < cur.maxHp ? pick : null;
+}
+
+/** The largest blow monster `m` lands on the scale: `maxHit` (its row's, at the step) x its role's `blowPm` (absent: all of it). A role
+    that reaches the back is sized against the back row, whose armor is not a front's. Off the scale `maxHit` as it is. */
+export function roleMaxHit(inst, m, maxHit) {
+  const role = roleOf(inst, m);
+  return role && Number.isInteger(role.blowPm) ? Math.max(1, Math.floor((maxHit * role.blowPm) / 1000)) : maxHit;
 }
 
 /** The other living heroes a blow by monster `m` at hero `t` also lands on (its role's splash: within `r` tiles of `t`), in id order,

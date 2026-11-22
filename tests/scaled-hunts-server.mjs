@@ -27,7 +27,8 @@
 //   SH-VIEWED  HUNT VIEWED: the same hunt settled at the player door's 16 s cadence lands the same bank, Level XP, gold and world
 //   SH-OUT     the hours run out mid-hunt: the window stops where the bank ends (spent to 0, never past), the next settle restarts the
 //              world on the ground's own rows, and the hunt goes on to the end of the span
-//   SH-SWITCH  the switch off mid-hunt: the next window plays unscaled and spends nothing
+//   SH-SWITCH  the switch off mid-hunt plays from its seed horizon (1053-lever-gates.sql): every window starting before it keeps the
+//              scale and spends, the first past it plays unscaled and spends nothing more
 //   SH-PARTY   a party scales to its LEADER: the leader's bank pays one hour per hour whatever the party's size, the member's isn't
 //              touched; when the leader changes to a hero with no hours, the next window is the ground's own
 //   SH-FEATURE THE SERVER SWITCH (2027-03-21-feature-switches.sql): `scaled_hunts` off, the purchase and the switch refuse feature_off,
@@ -164,6 +165,9 @@ async function cutsTo(db, M, cuts, o = {}) {
   }
   return claims;
 }
+/* A FIXTURE'S OWN SWITCH OR BUY MID-HUNT stands for one made before the window it means (1053-lever-gates.sql holds a lever pulled
+   mid-hunt to its seed horizon: FLUSH-HORIZON and SH-SWITCH prove that), so the arm drops the hold it would have made. */
+const noHold = (db) => db.query('delete from public.hunt_scale_holds');
 const every = (from, step, span) => Array.from({ length: Math.ceil(span / step) }, (_, i) => Math.min(from + (i + 1) * step, from + span));
 
 const DB_ARMS = {
@@ -258,6 +262,7 @@ const DB_ARMS = {
        A scaled kill against the Cellar's own kill is tests/scaled-hunts.mjs loot-scales' (the engine, the ground's own rows as its yardstick). */
     await db.query('rollback to savepoint sh_paths');
     await switchOf(db, UID, 'mill_cellar', false);
+    await noHold(db);
     await cutsTo(db, M, [h.from + 6 * 60000]);
     const own = await snap();
     const lx0 = BigInt(await one(db, 'select public.hr_char_xp_for_level(20)::text'));
@@ -294,12 +299,20 @@ const DB_ARMS = {
     const h = await scaledHunter(db, M, { buys: [[UID, 'mill_cellar', 1]] });
     await cutsTo(db, M, [h.from + 60000]);
     if ((await instOf(db, h.inst)).scale_level !== 20) bad.push('CONTROL: the first minute was not scaled');
+    const nowMs = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
     const r = await switchOf(db, UID, 'mill_cellar', false);
-    const b1 = await bankOf(db, UID);
-    const claims = await cutsTo(db, M, [h.from + 3 * 60000]);
     if (!r || r.ok !== true || r.scaled_hunts.grounds.mill_cellar.on !== false) bad.push('the switch answered ' + JSON.stringify(r));
-    if (claims.some((c) => c !== null) || (await instOf(db, h.inst)).scale_level !== null) bad.push('after the switch the windows claimed ' + JSON.stringify(claims));
-    if (await bankOf(db, UID) !== b1) bad.push('the switch off still spent ' + (b1 - await bankOf(db, UID)) + ' ms');
+    const until = await one(db, 'select (extract(epoch from until) * 1000)::bigint::text from public.hunt_scale_holds where instance_id = $1', [h.inst]);
+    if (Number(until) !== nowMs + 34000) bad.push('the switch held the scale until ' + until + ', want the seed horizon ' + (nowMs + 34000));
+    /* the server clock pinned 3 min on (main installs the pinnable now()): the windows reach past the horizon */
+    await db.query("select set_config('hr.test_now', $1, true)", [new Date(nowMs + 180000).toISOString()]);
+    const b0 = await bankOf(db, UID);
+    await cutsTo(db, M, [nowMs + 180000]);
+    const end = (await q(db, 'select end_reason as r, (extract(epoch from ended_at) * 1000)::bigint::text as at from public.hunt_sessions where id = $1', [h.sid]))[0];
+    /* unscaled, a Level 20 hero's Cellar ends at once (outgrown): it does so only at the first window past the horizon, after the scaled ones spent */
+    if (!end || end.r !== 'outgrown' || !(Number(end.at) >= nowMs + 34000)) bad.push('the switch off played unscaled before its horizon (the hunt ended ' + JSON.stringify(end) + ', horizon ' + (nowMs + 34000) + '): it acted on the past');
+    if (!(b0 - await bankOf(db, UID) > 0)) bad.push('the windows before the horizon spent nothing: they did not keep the scale');
+    if ((await instOf(db, h.inst)).scale_level !== null) bad.push('past the horizon the instance still records Level ' + (await instOf(db, h.inst)).scale_level);
     return bad;
   },
 
@@ -340,6 +353,7 @@ const DB_ARMS = {
     if (e0.scaled_hunts != null || (e0.features || []).includes('scaled_hunts')) bad.push('off: the envelope projects ' + JSON.stringify({ s: e0.scaled_hunts, f: e0.features }));
     await flip('accounts', [UID]);
     const e1 = await env(UID), on = await buy(db, UID, EXITLESS, 1);
+    await noHold(db);
     if (!on || on.ok !== true || !e1.scaled_hunts || !(e1.features || []).includes('scaled_hunts')) bad.push('on for the account: the purchase answered ' + JSON.stringify(on) + ', features ' + JSON.stringify(e1.features));
     await cutsTo(db, M, [h.from + 2 * 60000]);
     if ((await instOf(db, h.inst)).scale_level !== 20) bad.push('on for the account: the hunt did not scale');
@@ -373,7 +387,8 @@ const DB_ARMS = {
     await db.query('savepoint sh_forge');
     const cases = [
       ['a claim of another Level', async (c) => { c.settle.scale = { level: 49 }; }, 'scale_moved'],
-      ['a claim with the switch off', async () => { await db.query('update public.player_scaled_hours set use_on = false where user_id = $1', [UID]); }, 'scale_moved'],
+      /* (the switch's own hold dropped: noHold, the rule then reads it off for this window) */
+      ['a claim with the switch off', async () => { await db.query('update public.player_scaled_hours set use_on = false where user_id = $1', [UID]); await noHold(db); }, 'scale_moved'],
       ['more swings than the bank holds', async () => { await db.query('update public.player_scaled_hours set banked_ms = 2000, spent_ms = bought_ms - 2000 where user_id = $1', [UID]); }, 'scale_over'],
       ['a scaled window that claims nothing', async (c) => { delete c.settle.scale; }, 'value_over'],
     ];

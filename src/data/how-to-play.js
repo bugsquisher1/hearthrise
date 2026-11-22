@@ -45,6 +45,7 @@ export const HOW_YOU_FIGHT_LEAD = 'No classes. Every weapon is yours. The one in
 const SLOW_ALONE = 'Best in a party. Slow alone.';
 const RUNE_STORE = 'Uses runes. The store sells them for 1 gold each as you cast.';
 export const WAND_FIRST_HUNT_GOLD = 100;
+/** @param {string} set @param {string} name @param {string} does @param {string} uses @param {{ tag?: string, mark?: string, cost?: string }} [more] */
 const pick = (set, name, does, uses, more = {}) => Object.freeze({ set, name, does, uses, tag: more.tag || null, mark: more.mark || null, cost: more.cost || null });
 export const STARTER_PICKS = Object.freeze([
   pick('tank', 'Sword and shield', 'Holds monsters off the party', 'Uses food', { tag: SLOW_ALONE }),

@@ -18,7 +18,7 @@
 //
 // mutant-anchors: supabase/migrations/1038-start-kits.sql supabase/migrations/1039-account-coach.sql
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay, closeReplays } from './schema-replay.mjs';
+import { bootReplay, closeReplays, chainFiles } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { ACCOUNT_KIT, HERO_KIT, STARTER_SETS, START_CURRENCY } from '../src/data/start-kit.js';
 import { ITEMS } from '../src/data/items.js';
@@ -28,6 +28,9 @@ const COACH = '1039-account-coach.sql';
 const LIVE = '00000000-0000-4000-8000-0000000fb501';
 const NEW = '00000000-0000-4000-8000-0000000fb502';
 const PRACTICE = new Set(Object.values(STARTER_SETS).flat());
+/* The live heroes' rows as FB-5's last file (the coach, 1039) left them: a later lane's own change to player_state (1040-rested-bank-cut.sql
+   drops columns) is never read as the coach seed writing a hero (the set after run 44959863591, 2026-11-21) */
+const AFTER_COACH = `create temp table zz_sk_after as select md5(string_agg(to_jsonb(ps)::text, '|' order by ps.slot)) as heroes from public.player_state ps where ps.user_id = '${LIVE}' and ps.slot < 2;`;
 const PLANT = `
 insert into auth.users (id) values ('${LIVE}') on conflict do nothing;
 insert into public.profiles (id) values ('${LIVE}') on conflict do nothing;
@@ -98,8 +101,7 @@ export async function rules(db) {
   const coach = (await db.query('select read, taught from public.account_coach where user_id = $1', [LIVE])).rows[0];
   const want = ['bar_intro', 'first_eat', 'styles'];
   arm('K-COACH', coach && [...coach.read].sort().join() === want.join() && [...coach.taught].sort().join() === want.join(), 'the live account is taught ' + JSON.stringify(coach));
-  const heroesNow = await one(db, `select md5(string_agg(to_jsonb(ps)::text, '|' order by ps.slot)) from public.player_state ps where ps.user_id = $1 and ps.slot < 2`, [LIVE]);
-  arm('K-COACH', heroesNow === await one(db, 'select heroes from zz_sk_live'), 'the seed wrote the live heroes\' rows');
+  arm('K-COACH', await one(db, 'select heroes from zz_sk_after') === await one(db, 'select heroes from zz_sk_live'), 'the seed wrote the live heroes\' rows');
   return fails;
 }
 
@@ -116,9 +118,16 @@ const MUTANTS = [
 ];
 
 async function boot(file, patch) {
-  const r = await bootReplay(Object.assign({ seedBefore: new Map([[KITS, PLANT]]) },
+  const order = (await chainFiles()).map(([n]) => n);
+  if (order.indexOf(COACH) < 0) throw Object.assign(new Error('start-kits: ' + COACH + ' is not in the chain'), { harness: true });
+  const next = order[order.indexOf(COACH) + 1];
+  const seeds = new Map([[KITS, PLANT]]);
+  if (next) seeds.set(next, AFTER_COACH);
+  const r = await bootReplay(Object.assign({ seedBefore: seeds },
     patch ? { patches: new Map([[file, patch]]), fullChain: 'the kits (1038) and the coach (1039) both read the planted live account; the guard reads the chain end' } : {}));
-  return r.db || r;
+  const db = r.db || r;
+  if (!next) await db.exec(AFTER_COACH);   // the coach is the chain's last file
+  return db;
 }
 
 async function main() {

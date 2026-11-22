@@ -285,7 +285,7 @@ function startApp(win) {
        at a time." because the server had not said yet); unsaid, nothing is said */
     const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster);
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
-      + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
+      + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '.</p>' + (playLine ? '<p class="auth-lead">' + playLine + '</p>' : '')
       + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
@@ -315,10 +315,17 @@ function startApp(win) {
       slot,
       colorOf: (t) => tokens.getPropertyValue('--' + t),
       create: (name, colors, key, set, at = slot) => account.create(at, name, colors, key, set),
-      done: () => { track('character_created'); return play(slot); },
+      /* the roster is read again after the step (art review 2026-11-21 #7: an end card counted the heroes still to make from a list read before
+         them), and every hero it made opens beside the first, up to the server's at-once limit (#10) */
+      done: async () => {
+        track('character_created');
+        const a = account, read = await a.roster();
+        if (a !== account) return false;
+        roster = read;
+        rosterSlots = read.filter((r) => r.exists).map((r) => r.slot);
+        return play(slot, rosterSlots);
+      },
       back: () => showCharacters(),
-      /* the account's hero slots, the line the Characters screen just read from the server (never typed numbers) */
-      slots: G.playLineOf(account.statedLimit(), account.limit(), roster),
       /* heroes two to four come pre-filled (chapter 08 section 2.1): every empty slot from this one, and the first hero's look to copy */
       company: G.companyOf(roster, slot),
     });

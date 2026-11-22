@@ -63,8 +63,8 @@ export function refusalText(r) {
 
 /**
  * The picks as the renderer wants them: per BASE_REGIONS index, the dye token's colour. Pure.
- * @param colors  { head, body, legs, feet } dye indices
- * @param colorOf (tokenName) -> '#rrggbb'  (a --dye-N token's value)
+ * @param {{ head: number, body: number, legs: number, feet: number }} colors  the dye indices
+ * @param {(token: string) => string} colorOf  a --dye-N token's value, '#rrggbb'
  */
 export function previewDyes(colors, colorOf) {
   return BASE_REGIONS.map((g) => String(colorOf('dye-' + colors[g]) || '').trim() || null);
@@ -88,12 +88,11 @@ export function pickCardsHtml(picked) {
       + '</button>').join('') + '</div>';
 }
 
-/** The "How this hero fights" column: the rule, the account's hero slots on their own line (`slots`: the Characters screen's line, the
-    SERVER'S numbers, slot-offer.js playLineOf; '' while it has not said, and nothing is shown), then the cards to pick from. Pure. */
-export function howYouFightHtml(slots = '', picked = null) {
+/** The "How this hero fights" column: the rule, then the cards to pick from (the account's hero slots are the Characters screen's line, not
+    this step's: art review 2026-11-21 #4, the room is the cards'). Pure. */
+export function howYouFightHtml(picked = null) {
   return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">' + t('heroes.create_pick') + '</h2>'
     + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p>'
-    + (slots ? '<p class="hero-how-slots">' + esc(slots) + '</p>' : '')
     + pickCardsHtml(picked)
     + '<p class="hero-how-more" hidden>' + t('heroes.create_more') + '</p></section>';
 }
@@ -159,11 +158,10 @@ function previewer(card, colors, colorOf, pickedOf) {
 /**
  * Render the creation step into `card` (the characters card).
  * @param card  the .auth-card element
- * @param o { slot, colorOf (token) -> '#rrggbb', create (name, colors, key, set, slot?) -> Promise<{ ok, reason, nameReason }>,
- *            done () (the hero exists: play it), back () (return to the characters), dyes (the strips and preview: outfits.js HERO_DYES_SHOWN),
- *            slots (the Characters screen's hero-slot line, the server's numbers; '' or none: not shown),
- *            company (companyOf: heroes two to four pre-filled, made with one press; null: one hero, picked from nothing) }
- * @returns { colors () the picked indices, destroy () }
+ * @param o  the step's hooks: slot; colorOf (token) -> '#rrggbb'; create (name, colors, key, set, slot?) -> Promise of ok, reason, nameReason;
+ *            done () (the hero exists: play it); back () (return to the characters); dyes (the strips and preview: outfits.js HERO_DYES_SHOWN);
+ *            company (companyOf: heroes two to four pre-filled, made with one press; null: one hero, picked from nothing)
+ * @returns an object with colors () (the picked indices) and destroy ()
  */
 export function renderHeroCreate(card, o) {
   if (!o.company) return renderOne(card, o);
@@ -201,7 +199,7 @@ function renderOne(card, o) {
     + '<label class="auth-field">' + t('heroes.create_name') + '<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="' + t('heroes.create_name_hint') + '"></label>'
     + (dyes && copy ? '<button type="button" class="hh-tool hero-copy" aria-pressed="false">' + esc(t('heroes.company_copy', { name: copy.name })) + '</button>' : '')
     + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
-    + '</div>' + howYouFightHtml(typeof o.slots === 'string' ? o.slots : '', picked) + '</div>'
+    + '</div>' + howYouFightHtml(picked) + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">' + t('controls.back') + '</button>'
     + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">' + t('heroes.create_go') + '</button></div>';
@@ -312,7 +310,7 @@ function renderCompany(card, o, alone) {
     + '<p class="auth-lead">' + t('heroes.company_lead') + '</p>'
     + '<ol class="hero-party">' + c.slots.map((slot, i) => '<li class="hero-member" data-member="' + i + '">'
       + '<input type="text" class="hero-name" data-member="' + i + '" maxlength="20" autocomplete="off" spellcheck="false" aria-label="' + t('heroes.create_name') + '" placeholder="' + t('heroes.create_name_hint') + '">'
-      + '<select class="hero-member-way" data-member="' + i + '" aria-label="' + t('heroes.create_pick') + '">' + options(sets[i]) + '</select></li>').join('') + '</ol>'
+      + '<select class="hh-select hero-member-way" data-member="' + i + '" aria-label="' + t('heroes.create_pick') + '">' + options(sets[i]) + '</select></li>').join('') + '</ol>'
     + '<p class="hero-party-healer">' + healerWords(sets) + '</p>'
     + (c.copyFrom.base ? '<label class="hero-party-copy"><input type="checkbox" class="hero-copy-on" checked> ' + esc(t('heroes.company_copy', { name: c.copyFrom.name })) + '</label>' : '')
     + '<p class="auth-message" role="status" aria-live="polite"></p>'

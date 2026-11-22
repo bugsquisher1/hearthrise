@@ -2722,7 +2722,7 @@ const MUTANTS = [
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
   ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
   ['the pick is not sent (ACC-5)', 'src/session/account-session.js', "        p_set: typeof set === 'string' ? set.slice(0, 32) : null, p_idem: key || newIdem() });", "        p_set: null, p_idem: key || newIdem() });"],
-  ['a hero is handed no coach (ACC-5)', 'src/session/account-session.js', '    cs.accountCoach = this.coach;\n', ''],
+  ['a hero is handed no coach (ACC-5)', 'src/session/account-session.js', 'Object.assign(cs, { accountCoach: this.coach, accountRoster: () => this._roster });', 'Object.assign(cs, { accountRoster: () => this._roster });'],
   ['the roster never says a hero is hunting', 'src/session/account-session.js', '    doing: doingOf(body),\n', '    doing: null,\n'],
   ['a stale coach answer takes a card back (ACC-COACH)', 'src/session/account-coach.js', '|| b.v < this.v) return false;', ') return false;'],
   ['a mark resends what the account already holds (ACC-COACH)', 'src/session/account-coach.js', "const add = set ? ids(cardIds).filter((id) => !set.has(id)) : [];", 'const add = set ? ids(cardIds) : [];'],

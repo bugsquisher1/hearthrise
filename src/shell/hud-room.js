@@ -211,10 +211,10 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
       const left = col.length ? Math.min(...col.map((q) => q.left)) : gap;
       const top = col.length ? Math.max(...col.map((q) => q.top + q.height)) + gap : hb.top;
       const bars = barsAtHome().filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left);
-      /* whatever else stands in the column is the card's floor: a window, a panel the player moved there, the players-online line. The card never lies on or behind one.
-         Chat at its home is not: it stands open from the start and yields the column to the card, shrinking under it or sliding past it (shell.js capDock). */
+      /* whatever else stands in the column is the card's floor: a window, Chat at its home among them, a panel the player moved there, the players-online line. The card never
+         lies on or behind one, and the game never moves Chat for it (D-1 1.3 rule 5): with no room over Chat the card folds to its title under the hunt bar (is-coach-tight). */
       const online = screenHud.querySelector('[data-hs-widget="online"]:not(.is-under-dock)');
-      const wins = shown.filter((e) => !inCol(e)).concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving):not(.is-home)')), online && online.offsetWidth ? [online] : []).map(rel)
+      const wins = shown.filter((e) => !inCol(e)).concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)')), online && online.offsetWidth ? [online] : []).map(rel)
         .filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left && q.top + q.height > top);
       const floor = Math.min(bars.length ? Math.min(...bars.map((q) => q.top)) : worldHud.clientHeight, ...wins.map((q) => q.top)) - gap;
       if (floor - top >= COACH_MIN_ROOM) at = { x: Math.round(left - hb.left), y: Math.round(top - hb.top), h: Math.floor(floor - top) };

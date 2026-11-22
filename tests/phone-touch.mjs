@@ -608,6 +608,14 @@ async function coachFits(page, tag, fails, phone) {
        else it ends above the action bar with its fold in reach and its words scroll to their end under a wheel. The town's card is never capped. */
     /* lane/b-ui-wave2 (set/v0.2.139) docked the TOWN card too, under the Tally in the right column (max-height --coach-h), so the town's card is
        judged as the hunt's: on screen above the action bar, its fold in reach, its words scrolled to their end. (Was: "the town's card is never capped".) */
+    /* CHAT AT HOME IS THE CARD'S FLOOR (D-1 1.3 rule 5; art review 2026-11-21 #8): with no room above Chat the hunt card folds to its title under the hunt
+       bar (hud-room.js is-coach-tight), so it has no words to scroll: its title stays on screen, clear of Chat, and nothing moved Chat for it */
+    if (!c.text) {
+      const chat = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'); return w ? window.__r(w) : null; });
+      const on = !!chat && c.card.left < chat.right && chat.left < c.card.right && c.card.top < chat.bottom && chat.top < c.card.bottom;
+      if (!window_onScreen(c.card, page.viewportSize()) || on) fails.push('PH-6 [' + tag + '] the folded desktop coach is off screen or on Chat: ' + JSON.stringify({ card: c.card, chat }));
+      return;
+    }
     if (!c.hub || !window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) { fails.push('PH-6 [' + tag + '] the desktop coach card runs over the action bar or off the screen: ' + JSON.stringify(c.card)); return; }
     if (!c.dash) { fails.push('PH-6 [' + tag + '] the fold of the desktop coach is off screen or covered'); return; }
     /* whole where the column has the room: a desktop card's words scroll only once it has filled its room down to the action bar */
@@ -2268,7 +2276,10 @@ const MUTANTS = [
   ['PH-7 the ring\'s XP grows past the disc', 'src/styles/hunt.css', '  .hb-xp { font-size-adjust: var(--f-ui-aspect); }\n', '  .hb-xp { font-size-adjust: .7; }\n'],
   ['PH-26 a wide font pans the tabs', 'src/styles/hunt.css', '  .ha-analyzer .ha-tabs .ha-tab { font-size-adjust: var(--f-ui-aspect); }\n', ''],
   ['PH-27 a wide font cuts a card', 'src/styles/shell.css', '  .hs-pointer:not(.is-min) > .hs-coach-text { font-size-adjust: var(--f-ui-aspect); }\n', ''],
-  ['PH-28 a wide font cuts How you fight', 'src/styles/app.css', '  .hero-how-lead, .hero-way { font-size-adjust: var(--f-ui-aspect); }\n', ''],
+  /* RETIRED 2026-11-21 (FB-5, run 44959863591): "a wide font cuts How you fight". Since D-1's six cards the ways run on in a scrolled step with
+     its cue, so a wider font lengthens the scroll and cuts nothing. Measured at twice the English (HOW_TWICE): the first way ends 139 px (667x375)
+     and 154 px (844x390) above the step's foot with or without the rule, and the lead 59 and 74 px, of which the wide font takes 19. No rule here
+     reads the font's width any more; PH-7, PH-26 and PH-27 keep their own font-size-adjust lines. */
   ['PH-27 the tip never goes', 'src/styles/shell.css', "  .hs-pointer:not(.is-min) > .hs-coach-text::after { content: ''; display: block; height: 1lh; margin: -1lh -14px 0 0; background: var(--bg-2); }\n", ''],
   ['PH-28 the lead stays in the column', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px; margin: 0; line-height: 1.3; }\n', ''],
   ['PH-28 the longer lead runs past the step', 'src/styles/app.css', '  .hero-how-lead { position: absolute; left: 0; top: 42px; width: 200px;', '  .hero-how-lead { position: absolute; left: 0; top: 66px; width: 150px;'],

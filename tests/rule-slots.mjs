@@ -33,7 +33,8 @@
 // ci-run: node tests/rule-slots.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/rule-slots.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, writeFileSync, existsSync, cpSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -42,6 +43,7 @@ import { readSlots, readCandidate, listCandidates, compose, candidatePatch, chec
 import { GENERIC, PROPERTIES, genericProblems, propertyProblems, callersOf } from '../tools/balance-program/slot-contracts.mjs';
 import { PATCH_SCHEMA, plantScratch, patchEdits, checkOverlays, shippedNameOf, KnobGone, readKnobs } from '../tools/balance-program/matrix-scratch.mjs';
 import { paired, aheadOf, chanceCount, groupRead, planOf, sameBytes } from '../tools/balance-program/variants.mjs';
+import { combinePatches, playJobs } from '../tools/balance-program/balance-matrix.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -272,6 +274,19 @@ async function selftest() {
   /* a ref candidate plays through lane/bl-baseline's materialize; with none on the tree it says so, and a planted one is called with the ref */
   const refC = checkCandidate(C({ id: 'ref', base: { ref: 'lane/v1-climb' } }), reg);
   check('a ref candidate with no materialize on the tree is refused by name', await (async () => { try { await treeOf(refC, reg, { module: join(ROOT, 'tools/balance-program/baseline/no-such-tree.mjs') }); return false; } catch (e) { return /baseline\.mjs --materialize/.test(e.message); } })());
+  {
+    const dir = mkdtempSync(join(tmpdir(), 'rule-slots-ref-')), stand = join(dir, 'tree.mjs');
+    writeFileSync(stand, "import { mkdirSync, writeFileSync } from 'node:fs';\nimport { join } from 'node:path';\n"
+      + "export function materialize({ game, into, harnessRoot }) { mkdirSync(into, { recursive: true }); writeFileSync(join(into, 'asked.json'), JSON.stringify({ game, harnessRoot })); return { game: { ref: game, sha: 'planted-' + game } }; }\n");
+    try {
+      const t = await treeOf(refC, reg, { module: stand });
+      const asked = JSON.parse(readFileSync(join(t.root, 'asked.json'), 'utf8'));
+      check('a ref candidate is played through materialize: the ref, this checkout as the harness, a fresh folder the run removes', asked.game === 'lane/v1-climb' && resolve(asked.harnessRoot) === ROOT && t.ref.sha === 'planted-lane/v1-climb' && (t.done(), !existsSync(t.root)), JSON.stringify(asked));
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+  /* a patch combined with a base (balance-matrix.mjs combinePatches, the --diff on a proposal base) keeps both sides' overlays */
+  const both = combinePatches(candidatePatch(readCandidate('armor-hit-ratio', reg), reg), candidatePatch(readCandidate('party-even-share', reg), reg));
+  check('a candidate laid on a base keeps both overlays (balance-matrix combinePatches)', (both.overlays || []).map((o) => o.slot).join() === 'armor,party-xp', JSON.stringify(both.overlays));
 
   /* 4. NUMBERS ON AN OVERLAY: a knob whose line the overlay took away is refused by name; a line edit on the overlay's own text applies */
   const even = readCandidate('party-even-share', reg);
@@ -287,7 +302,6 @@ async function selftest() {
   /* 5. THE IDENTITY PROOF BITES: one cell's whole answer, byte for byte, on C0 (the tree), C0-copy and the hit-ratio family (scratch) */
   const { loadGridData } = await import('../tools/balance-program/progression-grid.mjs');
   const { loadKits } = await import('../tools/balance-program/grid-kit.mjs');
-  const { playJobs } = await import('../tools/balance-program/balance-matrix.mjs');
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   const plan = planOf(D, K, { only: [60], blocks: ['ways'], seeds: 1, hours: 0.25 });
   const cell = plan.cells.find((c) => c.styles[0] === 'hammer') || plan.cells[0];

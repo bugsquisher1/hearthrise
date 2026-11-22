@@ -345,7 +345,9 @@ export function combinePatches(a, b) {
   if (!b) return a;
   const knobs = { ...(a.knobs || {}) };
   for (const [k, m] of Object.entries(b.knobs || {})) knobs[k] = (knobs[k] || 1) * m;
-  return { ...b, name: (a.name || 'base') + ' + ' + (b.name || 'patch'), knobs, edits: [...(a.edits || []), ...(b.edits || [])], plan: { ...(a.plan || {}), ...(b.plan || {}) }, targets: b.targets || [] };
+  /* overlays (Balance Lab phase 3): the base's, then the change's; two on one file are refused by the plant (matrix-scratch.mjs checkOverlays) */
+  const overlays = [...(a.overlays || []), ...(b.overlays || [])];
+  return { ...b, name: (a.name || 'base') + ' + ' + (b.name || 'patch'), knobs, edits: [...(a.edits || []), ...(b.edits || [])], ...(overlays.length ? { overlays } : {}), plan: { ...(a.plan || {}), ...(b.plan || {}) }, targets: b.targets || [] };
 }
 const optsOf = () => ({ only: arg('only') ? arg('only').split(',').map(Number) : null, blocks: arg('blocks') ? arg('blocks').split(',') : null,
   seeds: arg('seeds') ? Number(arg('seeds')) : null, hours: arg('hours') ? Number(arg('hours')) : null, workers: workersOf(), say: (s) => console.error(s),
@@ -360,7 +362,7 @@ export async function playOnBase(D, K, run, base, o) {
   const s = await plantScratch(patch);
   try { return { ...(await playRun(D, K, run, s.root, { ...o, plan: patch.plan })), applied: s.applied }; } finally { s.done(); }
 }
-export const baseHash = (base) => (base ? createHash('sha256').update(matrixHash() + JSON.stringify(base.patch) + [...new Set(base.patch.edits.map((e) => e.file))].map((f) => existsSync(join(ROOT, f)) ? readFileSync(join(ROOT, f), 'utf8') : '').join('\0')).digest('hex').slice(0, 16) : matrixHash());
+export const baseHash = (base) => (base ? createHash('sha256').update(matrixHash() + JSON.stringify(base.patch) + [...new Set([...base.patch.edits.map((e) => e.file), ...(base.patch.overlays || []).map((o) => o.from)])].map((f) => existsSync(join(ROOT, f)) ? readFileSync(join(ROOT, f), 'utf8') : '').join('\0')).digest('hex').slice(0, 16) : matrixHash());
 export const cacheFileOf = (run, base) => (run.id === 'subset' ? (base ? join(HERE, 'balance-matrix-' + base.name + '.json') : SUBSET_FILE) : run.id === 'full' ? (base ? join(HERE, 'balance-matrix-full-' + base.name + '.json') : MATRIX_FILE)
   : join(HERE, 'balance-matrix-' + run.id + (base ? '-' + base.name : '') + '.json'));
 

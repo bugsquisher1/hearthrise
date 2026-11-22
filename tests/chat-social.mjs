@@ -1213,15 +1213,18 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
           alpha: m ? Number(m[1]) : 1, px: line ? parseFloat(getComputedStyle(line).fontSize) : 0, floating: w.classList.contains('is-floating'), grip: !!(grip && grip.offsetWidth) };
       });
       await closeAll();
-      /* the hunt's coach card docks in the left column over Chat's home and Chat yields to it, even folded (hud-room.js dockCoach,
-         shell.js capDock): this rule is Chat's grip, so the player turns the tips off ("Don't show tips", kept in the residue) and the
-         column is the Party panel's and Chat's alone, as the rule's 40 px grow was measured */
+      /* this rule is Chat's grip, so the player turns the tips off ("Don't show tips", kept in the residue) where the card shows that
+         press, and the column is the Party panel's and Chat's alone, as the rule's 40 px grow was measured. The game never moves Chat
+         for the card (D-1 1.3 rule 5, lane/c-first-hour ed344328c, hud-room.js dockCoach): with no room over Chat at its home (this
+         four-seat party at 1440x900) the card folds to its title under the hunt bar (is-coach-tight), out of Chat's column, with no
+         words and no foot by design (shell.css), so there is no "Don't show tips" to press. Shown, the press must land. */
       /* a press on a widget the chat lies over is CW-8's red (the chat never covers a widget), never a thrown harness (rehearsal
          44866483507: under both CW-8 mutants the chat's title covered the folded tips and the 30 s click threw) */
       const pressWidget = (el) => el.click({ timeout: 3000 }).then(() => true, (e) => { fails.push('CW-8 [' + tag + '] a press on the hunt bar\'s tips did not land' + guardLines(e)); return false; });
       const folded = await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer.is-min [data-hs-act="coach-open"]');
       if (folded && await pressWidget(folded)) await page.waitForTimeout(300);
-      const tipsOff = await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer [data-hs-act="coach-off"]');
+      const tight = await page.evaluate(() => !!document.querySelector('[data-hs-widget="hunt-topbar"].is-coach-tight'));
+      const tipsOff = tight ? null : await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer [data-hs-act="coach-off"]');
       if (tipsOff && await pressWidget(tipsOff)) await page.waitForTimeout(400);
       await page.keyboard.press('Enter');
       await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-log.is-talk.is-on li'), null, 3000);
@@ -1360,6 +1363,10 @@ const PAGE_MUTANTS = [
   ['a failed answer leaves the last lines up (ON-4)', 'src/shell/widgets/online.js', "  rows(el.querySelector('.hs-online-by'), lines, {", "  if (lines.length) rows(el.querySelector('.hs-online-by'), lines, {"],
   ['the chat stands over the widgets above its column (CW-8)', 'src/shell/shell.js', 'const tops = homes.length ? Array.from(', 'const tops = false ? Array.from('],
   ['the chat keeps its height under a widget (CW-8)', 'src/shell/hud.js', 'const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);', 'const max = at.max === null ? Infinity : at.max;'],
+  /* the press is skipped only where the card is tight by design: a card that is NOT tight and hides its foot is still red */
+  ['an open hunt card that is not tight hides its Don\'t show tips (CW-8)', 'src/styles/shell.css',
+    ':is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; }',
+    ':is(.hs-launchers, .hs-win-coach, .hs-widget.is-hunt-topbar) > .hs-pointer:not(.is-min) > .hs-coach-foot { grid-area: 3 / 1 / 4 / 3; margin: 0; white-space: normal; display: none; }'],
   ['a log is not kept at its foot (CW-9)', 'src/shell/windows/chat.js', '    keepPinned(list);', '    void keepPinned;'],
   ['another screen lays out a chat line (CW-1)', 'src/styles/app.css', '.hero-body { display: flex;', '.hc-body, .hero-body { display: flex;'],
   ['a friend row keeps the name it was built with (FR-2)', 'src/shell/windows/friends.js', "  markPlayer(el, target(p));\n  text(el.querySelector('.hf-who'), p.name);",

@@ -1,0 +1,8 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "party-even-share",
+ "why": "No party table, an even share at partyPay 1.0 (04-math-strategy.md section 7), in place of the class table and the +15% alone: what a party and a hero alone earn without a table",
+ "base": "tree",
+ "variants": [{ "slot": "party-xp", "family": "even-share" }],
+ "assumptions": ["04 expects a four to out-earn its heroes apart by holding deeper; today's engine has no climb, so this reads only the table's share of party pace"]
+}

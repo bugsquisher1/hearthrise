@@ -1,0 +1,8 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "C0",
+ "why": "Today's game: the tree with nothing laid over it. The column every other candidate is played beside, never the judge (07-balance-lab.md section 1: targets judge)",
+ "base": "tree",
+ "variants": [],
+ "assumptions": ["The tree at the commit that plays it"]
+}

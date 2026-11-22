@@ -572,8 +572,11 @@ const DB_MUTANTS = [
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],
   ['premium', 'public.hr_premium_view(uuid,integer)', "'active'", "'is_active'"],
   ['account', 'public.hr_account_view(uuid,integer)', "'max_concurrent'", "'max'"],
-  ['account', 'public.hr_account_view(uuid,integer)', "'cost_gold', c.cost_gold", "'cost', c.cost_gold"],
-  ['account', 'public.hr_account_view(uuid,integer)', "'hero_slot_offer', (", "'slot_offer', ("],
+  /* (RETIRED 2026-11-21, FB-5, run 44959863591: the 'cost_gold' and 'hero_slot_offer' renames. No client reader is left: account-session.js
+     slotOffer went with the slot buy, and no src/ file names either key. 1036-four-starter-slots.sql makes every slot a starter, so the view never
+     builds a priced offer for cost_gold to sit in. That the server offers nothing stays guarded where it is the subject: hero-slot-buy.mjs HS-OWN
+     reads hero_slot_offer === null strictly, so a renamed key, undefined there, is red: its mutant "the account view renames its slot offer"
+     plants exactly this rename.) */
   // lane S2
   ['name', 'public.hr_character_name_view(uuid,integer)', 'select to_jsonb(public.hr_character_name(p_user, p_slot))', 'select to_jsonb(null::text)'],
   ['bag_rules', 'public.hr_bag_rules_view(uuid,integer)', "'loot', coalesce(", "'loot_rules', coalesce("],

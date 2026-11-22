@@ -103,8 +103,8 @@ const OWN = '2027-04-09-own-hunt-nudge.sql';
 const ONCE = '2027-04-10-own-hunt-nudge-once.sql';
 /* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
 const TRUTH = '2027-02-18-party-truth.sql';
-/* 2027-04-26-party-stamina-truth.sql restates hr_hunt_party_view last (a seat's low stamina is its pool, not the stored column): its mutants plant there. */
-const POOL = '2027-04-26-party-stamina-truth.sql';
+/* 2027-04-26-party-stamina-truth.sql writes hr_hunt_party_view's seat and stamina lines (a seat's low stamina is its pool, not the stored column),
+   and 1025-own-heroes-apart.sql splices its leave_together line in place: those mutants plant in the chain end's live body (`fn`). */
 /* 2027-02-20-party-leader-starts.sql restates hr_hunt_enter last: only the leader starts. */
 const LEAD = '2027-02-20-party-leader-starts.sql';
 /* 2027-05-11-party-alone.sql restates the kick, leave and sweep bodies last (and hr_hunt_after_start): their mutants plant there. */
@@ -1129,7 +1129,7 @@ MUTANTS.push(
 
 /* The party says what the server knows (2027-02-18-party-truth.sql, blind panel 2026-11-01). */
 MUTANTS.push(
-  { arm: 'PF-ROLE', file: POOL, why: 'the view reads a fixed weapon, not what is worn',
+  { arm: 'PF-ROLE', fn: 'hr_hunt_party_view', why: 'the view reads a fixed weapon, not what is worn',
     find: "    select m.user_id, m.slot, m.seat::int as seat, public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,",
     repl: "    select m.user_id, m.slot, m.seat::int as seat, 'shield'::text as weapon, h.id as sid," },
   { arm: 'PF-ROLE', file: TRUTH, why: 'the finder lists a fixed weapon',
@@ -1178,9 +1178,9 @@ MUTANTS.push(
      (an anchored replace), so the body that runs is text no single file holds. */
   { arm: 'PF-END-WHY', fn: 'hr_hunt_view', why: 'a cascaded hero is named as the cause',
     find: "         and o.end_reason <> all (array['party_member_died', 'party_member_left'])\n", repl: '' },
-  { arm: 'PF-END-WHY', file: POOL, why: 'a seat\'s whole stamina pool is shown',
+  { arm: 'PF-END-WHY', fn: 'hr_hunt_party_view', why: 'a seat\'s whole stamina pool is shown',
     find: 'case when v_stam <= 900000 then', repl: 'case when v_stam is not null then' },
-  { arm: 'PF-END-WHY', file: POOL, why: 'a seat in town is read too: its stored pool warns the party',
+  { arm: 'PF-END-WHY', fn: 'hr_hunt_party_view', why: 'a seat in town is read too: its stored pool warns the party',
     find: 'v_stam := case when v_r.sid is not null then public.hr_stamina_of(', repl: 'v_stam := case when true then public.hr_stamina_of(' },
 );
 
@@ -1211,10 +1211,10 @@ MUTANTS.push(
 
 /* A seat's low stamina is its POOL (2027-04-26-party-stamina-truth.sql; the full-game audit's F7, 2026-11-15). */
 MUTANTS.push(
-  { arm: 'PF-STAMINA-POOL', file: POOL, why: '[F7] the party reads the stored column again, so a rested seat reads empty',
+  { arm: 'PF-STAMINA-POOL', fn: 'hr_hunt_party_view', why: '[F7] the party reads the stored column again, so a rested seat reads empty',
     find: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, v_r.settled_to) end;',
     repl: 'then (select q.stamina_ms from public.player_state q where q.user_id = v_r.user_id and q.slot = v_r.slot) end;' },
-  { arm: 'PF-STAMINA-POOL', file: POOL, why: 'a hunting seat is rested to now(): a settle running behind hides the warning',
+  { arm: 'PF-STAMINA-POOL', fn: 'hr_hunt_party_view', why: 'a hunting seat is rested to now(): a settle running behind hides the warning',
     find: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, v_r.settled_to) end;', repl: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, now()) end;' },
 );
 

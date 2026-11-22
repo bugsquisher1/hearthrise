@@ -370,6 +370,13 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/friends.js': [
     { cond: '!e || !!e.off', words: 'e.label', where: 'an off entry reads its reason as its label' },
+    /* lane/c-social (GR-72, MM-20); the reasons added on lane/a-ci-reds-social */
+    { cond: '!st.link', words: "t(st.linkFailed ? 'clan.link_none' : 'clan.link_wait')", where: 'Copy link: until the server\'s code is in, the empty link field reads "Getting your link…", or "No link right now. Open this window again later." when the ask was refused' },
+    { cond: 'st.pending || !p', words: "t('clan.quiet_wait')", where: 'Quiet presence: until the server\'s presence section has come, the line under the switch reads "Waiting for the server."' },
+  ],
+  'src/shell/windows/clan.js': [
+    { cond: 'st.pending || full', words: "text(b, full ? t('clan.full')", where: 'Join on a full clan: the press reads "Clan full", beside its row\'s "12 of 12 members"' },
+    { cond: '!quoted', words: "t('clan.found_wait')", where: 'Found a clan before the server quotes the price: the press reads "Waiting for the price"' },
   ],
   'src/shell/widgets/party-hold.js': [],
   'src/shell/widgets/party-leave.js': [

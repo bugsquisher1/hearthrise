@@ -42,6 +42,17 @@
 // own text is proven installed. Everything else is left alone, and the guard
 // stays silent rather than accusing.
 //
+// The mirror case (2026-11-22): a file that restates a body BYTE FOR BYTE as the
+// toucher before it installs nothing new, so production matching the chain says
+// nothing about whether the LATER file ran either. A generated catalogue restates
+// its trigger function in every forward file (hr_live_events_guard: 2027-03-22,
+// 2027-05-01, 2027-05-07, then 1042, staged, whose honest note this rule called
+// stale-staged off a live body measured the day before 1042 was written). The
+// evidence walks back over every such identical restatement to the first file of
+// the run. Only a literal create the static reader can compare counts as the
+// same; anything else (an anchored patch, a file it cannot read) leaves the
+// evidence on the last toucher, the loud direction.
+//
 // "Production carries it" is true in two shapes, both taken from the baseline
 // itself, never re-derived here:
 //   hash      live.md5 === replay.md5 — identical normalised bodies.
@@ -77,10 +88,11 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { loadApplyOrder, knownFiles } from '../tools/lib/apply-order.mjs';
+import { loadApplyOrder, knownFiles, MIG_DIR } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const BASELINE_FILE = join(ROOT, 'tests', 'live-hash-drift.baseline.json');
@@ -111,14 +123,62 @@ export function claimOf(note) {
   return { kind: 'applied', at: ap };
 }
 
+// ── AN IDENTICAL RESTATEMENT (the mirror case in the header) ───────────────
+/* A migration's text by file name, or null when it cannot be read (the reader the guard runs with; the selftest plants its own). */
+const textCache = new Map();
+export function migrationText(file) {
+  if (!textCache.has(file)) {
+    let t = null;
+    try { t = readFileSync(join(ROOT, MIG_DIR, file), 'utf8'); } catch { t = null; }
+    textCache.set(file, t);
+  }
+  return textCache.get(file);
+}
+
+/**
+ * Every LITERAL `create [or replace] function public.<name>(` a file makes, as text: from the head to the `;` after its dollar-quoted
+ * body, whitespace collapsed. Comments outside the body go; comments INSIDE it stay, because they are prosrc and the baseline's md5
+ * reads them (a file that only re-words a comment in the body did install something new). Pure.
+ * @param {string|null} sql
+ * @param {string} name
+ * @returns {string[]}
+ */
+export function restatementsOf(sql, name) {
+  const src = String(sql || '').replace(/\r\n/g, '\n');
+  const out = [];
+  const head = new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${name}\\s*\\(`, 'gi');
+  for (const m of src.matchAll(head)) {
+    if (src.slice(src.lastIndexOf('\n', m.index) + 1, m.index).includes('--')) continue;   // a comment that names it
+    const tag = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g;
+    tag.lastIndex = m.index;
+    const open = tag.exec(src);
+    if (!open) continue;
+    const close = src.indexOf(open[0], open.index + open[0].length);
+    if (close < 0) continue;
+    const after = close + open[0].length;
+    const semi = src.indexOf(';', after);
+    const bare = (s) => s.replace(/--[^\n]*/g, ' ');
+    out.push((bare(src.slice(m.index, open.index)) + src.slice(open.index, after) + bare(src.slice(after, semi < 0 ? src.length : semi + 1)))
+      .replace(/\s+/g, ' ').trim());
+  }
+  return out;
+}
+
+/** Does file `b` restate `name` exactly as file `a` did (both literal, the same text)? Never true for a body it cannot read. */
+export function sameRestatement(name, a, b, text = migrationText) {
+  const x = restatementsOf(text(a), name), y = restatementsOf(text(b), name);
+  return x.length > 0 && x.length === y.length && x.every((s, i) => s === y[i]);
+}
+
 // ── THE PER-FILE VERDICT, DERIVED FROM THE BASELINE ────────────────────────
 /**
  * @param {object} order the apply order (tools/lib/apply-order.mjs loadApplyOrder: the old JSON's shape)
  * @param {object} base  the parsed live-hash-drift.baseline.json
+ * @param {(file: string) => (string|null)} [text]  a migration's text (the identical-restatement walk-back)
  * @returns {{evidence:Map<string,{how:string,fn:string}[]>, absent:Map<string,string[]>,
  *            orphans:string[], replayed:Set<string>}}
  */
-export function derive(order, base) {
+export function derive(order, base, text = migrationText) {
   const replayed = [...(order.pre_schema || []), ...(order.order || [])];
   const idx = new Map(replayed.map((f, i) => [f, i]));
   /* excluded and RETIRED files are accounted for: a retired catalogue is history the replay skips, not an orphan */
@@ -131,25 +191,28 @@ export function derive(order, base) {
   for (const e of base.functions || []) {
     const touched = e.touched_by || [];
     for (const f of touched) if (!known.has(f)) orphans.add(f);
-    const inOrder = touched.filter((f) => idx.has(f));
-    if (!inOrder.length) continue;
-    const last = inOrder.reduce((a, f) => (idx.get(f) > idx.get(a) ? f : a));
+    const chain = touched.filter((f) => idx.has(f)).sort((a, f) => idx.get(a) - idx.get(f));
+    if (!chain.length) continue;
+    const last = chain[chain.length - 1];
     if (!e.live) { absent.set(last, [...(absent.get(last) || []), e.name]); continue; }
     let how = null;
     if (e.replay && e.live.md5 === e.replay.md5) how = 'hash';
     else if (/\bCODE-IDENTICAL\b/.test(String(e.why || ''))) how = 'codediff';
     if (!how) continue;   // a divergence nobody has explained proves nothing either way
-    evidence.set(last, [...(evidence.get(last) || []), { how, fn: e.name }]);
+    /* the mirror case: an identical restatement installs nothing new, so the evidence is the first file of the identical run's */
+    let at = chain.length - 1;
+    while (at > 0 && sameRestatement(e.name, chain[at - 1], chain[at], text)) at -= 1;
+    evidence.set(chain[at], [...(evidence.get(chain[at]) || []), { how, fn: e.name }]);
   }
   return { evidence, absent, orphans: [...orphans].sort(), replayed: new Set(replayed) };
 }
 
 // ── THE CLASSIFIER — pure, so the selftest needs no files ──────────────────
-export function classify(order, base) {
+export function classify(order, base, text = migrationText) {
   const findings = [];
   const say = (key, detail) => findings.push({ key, detail });
   const notes = order._order_notes || {};
-  const { evidence, absent, orphans } = derive(order, base);
+  const { evidence, absent, orphans } = derive(order, base, text);
 
   for (const f of orphans) {
     say(`orphan-file ${f}`,
@@ -165,7 +228,7 @@ export function classify(order, base) {
     const why = ev.map((x) => `${x.fn} (${x.how})`).join(', ');
     say(`stale-staged ${file}`,
       `the note claims STAGED / NOT APPLIED, and the live-hash baseline proves this file is the `
-      + `LAST file in the apply order touching ${why} with production carrying the body the chain `
+      + `LAST file in the apply order (or the first of an identical restatement run that ends it) touching ${why} with production carrying the body the chain `
       + 'builds. It is APPLIED. An operator reading this file to decide what still has to be run '
       + 'would re-apply it. Correct the note to APPLIED with the evidence — do not weaken this '
       + 'guard, and do not re-apply the migration to make the prose true.');
@@ -235,6 +298,22 @@ async function selftest() {
     + `and ${Object.keys(order._order_notes).length} note(s)`);
 
   const liveFile = [...d.evidence.keys()].sort()[0];
+  /* THE MIRROR PAIR: two planted files at the end of the order touching one planted body that production carries (live = replay),
+     each file's text planted in memory beside the real reader. */
+  const FIRST = '9999-99-97-planted-first.sql', AGAIN = '9999-99-97-planted-again.sql';
+  const RESTATE = (ret, note) => 'create or replace function public.hr_selftest_restated()\nreturns trigger language plpgsql as $fn$\nbegin\n'
+    + (note ? '  -- ' + note + '\n' : '') + '  return ' + ret + ';\nend $fn$;\nrevoke all on function public.hr_selftest_restated() from public;\n';
+  const restated = (notes, texts) => () => {
+    const o = clone(order); const b = clone(base);
+    o.order = [...o.order, FIRST, AGAIN];
+    Object.assign(o._order_notes, notes);
+    b.functions = [...b.functions, {
+      sig: 'hr_selftest_restated()', name: 'hr_selftest_restated', tracked_by: ['restate'], touched_by: [FIRST, AGAIN],
+      live: { md5: 'b'.repeat(32), norm_len: 64, measured: '2026-11-20', source: 'measured-live' },
+      replay: { md5: 'b'.repeat(32), norm_len: 64, source: 'computed-from-replay' }, agree: true,
+    }];
+    return [o, b, (f) => (f in texts ? texts[f] : migrationText(f))];
+  };
   const CASES = {
     staged_note_for_a_live_migration: {
       what: 'the deployment record calls a migration STAGED that production is measurably '
@@ -303,6 +382,41 @@ async function selftest() {
         return [o, base];
       },
     },
+    identical_restatement_is_not_evidence: {
+      what: 'THE MIRROR CONTROL (2026-11-22, 1042). A staged file restating a live body BYTE FOR BYTE installs nothing new: production '
+          + 'carrying that body proves the earlier file ran, not this one, so its honest STAGED note stays silent',
+      expect: null,
+      make: restated({ [FIRST]: 'APPLIED 2026-11-07 (the apply tool).', [AGAIN]: 'STAGED, NOT APPLIED (the next release).' },
+        { [FIRST]: RESTATE('new'), [AGAIN]: '-- a forward file of the generator\n' + RESTATE('new') }),
+    },
+    changed_restatement_is_evidence: {
+      what: 'the walk-back stops at a CHANGE: a staged last toucher whose body differs from the one before it, with production '
+          + 'carrying the chain end, is applied and its STAGED note is the lie',
+      expect: `stale-staged ${AGAIN}`,
+      make: restated({ [FIRST]: 'APPLIED 2026-11-07 (the apply tool).', [AGAIN]: 'STAGED, NOT APPLIED (the next release).' },
+        { [FIRST]: RESTATE('new'), [AGAIN]: RESTATE('null') }),
+    },
+    a_comment_inside_the_body_is_a_change: {
+      what: 'a comment INSIDE the body is prosrc (the baseline md5 reads it): a file that only re-words one still installed a new body',
+      expect: `stale-staged ${AGAIN}`,
+      make: restated({ [FIRST]: 'APPLIED 2026-11-07 (the apply tool).', [AGAIN]: 'STAGED, NOT APPLIED (the next release).' },
+        { [FIRST]: RESTATE('new'), [AGAIN]: RESTATE('new', 'the range, held by the database too') }),
+    },
+    identical_run_all_staged_is_a_lie: {
+      what: 'the walk-back moves the verdict, never drops it: when EVERY file of an identical run claims STAGED, production carrying '
+          + 'the body proves the first of them ran',
+      expect: `stale-staged ${FIRST}`,
+      make: restated({ [FIRST]: 'STAGED, NOT APPLIED (planted).', [AGAIN]: 'STAGED, NOT APPLIED (the next release).' },
+        { [FIRST]: RESTATE('new'), [AGAIN]: RESTATE('new') }),
+    },
+    unreadable_restatement_stays_loud: {
+      what: 'a toucher the static reader cannot compare (an anchored patch: no literal create) is never "the same": the evidence '
+          + 'stays on the last toucher, the loud direction',
+      expect: `stale-staged ${AGAIN}`,
+      make: restated({ [FIRST]: 'APPLIED 2026-11-07 (the apply tool).', [AGAIN]: 'STAGED, NOT APPLIED (the next release).' },
+        { [FIRST]: RESTATE('new'), [AGAIN]: "do $p$ declare v_def text := pg_get_functiondef('public.hr_selftest_restated()'::regprocedure); "
+          + "begin execute v_def; end $p$;\n" }),
+    },
     prose_about_staging_after_an_applied_lead: {
       what: 'THE SECOND NEGATIVE CONTROL. An honest note may discuss staging later in its body '
           + '("SAFE with a staged client deploy"). Only the LEADING claim is the claim',
@@ -318,9 +432,9 @@ async function selftest() {
 
   let bad = 0;
   for (const [id, c] of Object.entries(CASES)) {
-    const [o, b] = c.make();
+    const [o, b, text] = c.make();
     let got;
-    try { got = classify(o, b).findings; }
+    try { got = classify(o, b, text).findings; }
     catch (e) {
       console.error(`  x  ${id} — UNEXPECTED ${e.harness ? 'HARNESS ' : ''}ERROR: `
         + `${String(e.message).split('\n')[0]}\n     ${c.what}`);

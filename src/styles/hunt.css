@@ -35,7 +35,7 @@
    goes to 0 px and the dot with it, so no line starts or ends on one (v0.2.131 gate: "Level 22" over "· uncommon").
    The word spacing makes the space as wide as " · " in the same font. */
 .hh-sep { word-spacing: .45em; background: linear-gradient(currentColor, currentColor) 50% 55% / 2px 2px no-repeat; }
-.hh-sep-t { font-size: 0; word-spacing: 0; }
+.hh-sep-t { font-size: 0; font-size-adjust: none; word-spacing: 0; }
 .hh-icon { width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
 

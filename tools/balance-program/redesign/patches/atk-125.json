@@ -1,0 +1,7 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Redesign probe A: hero attack x1.25",
+  "why": "Reads how much of a damage gain reaches Level pace, by party size and tier (docs/design/redesign/04-math-strategy.md)",
+  "knobs": { "playerAttack": 1.25 },
+  "targets": ["pace"]
+}

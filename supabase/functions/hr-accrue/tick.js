@@ -52,7 +52,7 @@
 //               CARRIES the effective mark (`greatest(accrued_to,
 //               shadow_accrued_to)`), which is the only way to read a table
 //               `hr_engine` is revoked from. Nothing is written by the probe.
-//   state/ver   `hr_state_of(user, slot)` in this request's own transaction.
+//   state/ver   `hr_tick_town_state(user, slot)` in this request's own transaction.
 //   seed        `hr_seed(user, slot, 'accrue:' || <watermark>)`, per window.
 //   now         `now()`, Postgres's clock.
 //   shard       pinned to 0, because `hr_shard_of` is `select 0` and the driver
@@ -116,7 +116,7 @@ import { probeStep, MAX_PROBES_PER_FIRE } from './tick-probe.js';
    journalled NOTHING: a 48 h parity read that is empty by construction while
    every dashboard stays green.
 
-   So the channel is a property of the CHARACTER, read from `hr_state_of` in
+   So the channel is a property of the CHARACTER, read from `hr_tick_town_state` in
    this request, and this table is the one place that maps it to the code that
    settles it. A kind with no entry here is SKIPPED by name — never fenced under
    another channel's spelling, which is the shape that made S-8 invisible.
@@ -828,7 +828,7 @@ async function seedLadder(exec, sel, labels) {
 async function tickOne(exec, holder, sel, body, maxWindows = 1) {
   /* (0) THE SERVER CLOCK. Every instant this function names comes from here or
          from the fence; none of them comes from the body. */
-  const read0 = await exec('select now()::timestamptz as now', []);
+  const read0 = await exec("select now()::timestamptz as now, to_regprocedure('public.hr_tick_town_state(uuid,integer)') is not null as narrow", []);
   /* THE DRIVER HANDS BACK A `Date`, NOT A STRING (T-1). `postgres` parses OID
      1184 into a JS Date and index.ts gives it no `types` override, so
      `String(...)` here spells `Mon Sep 21 2026 17:58:04 GMT+0000 (…)` — which
@@ -841,25 +841,21 @@ async function tickOne(exec, holder, sel, body, maxWindows = 1) {
   const nowIso = new Date(read0[0].now).toISOString();
 
   /* (1) THE STATE, FROM THE DATABASE, IN THIS REQUEST. Not one field of it
-         comes from the body — `hr_state_of` is the same projection the player's
-         own envelope is built from, and `version` is the number `hr_apply`
-         refuses a stale copy of.
+         comes from the body: `hr_tick_town_state` (1048-narrow-town-read.sql)
+         is the town engine's inputs, each by `hr_state_of`'s own definition,
+         and `version` is the number `hr_apply` refuses a stale copy of.
 
          ⚠ THIS READ MOVED AHEAD OF THE PROBE (Security S-8, 2026-09-23), and
            the order is the finding. The probe IS the lease check, and the fence
            looks a lease up by `(user, slot, channel)` — so the probe cannot be
            asked until this driver knows which channel the character is on, and
            the only server-side answer to that is `active_kind` on this
-           projection. `hr_engine` is revoked from `player_state`, so there is
-           no cheaper read of it.
-
-           The cost is one `hr_state_of` for a character that turns out to be
-           unleased, where the old order cost none. That is bounded: the body's
-           roster is clamped to MAX_ROSTER and the branch already sits behind
-           the tick bearer. It buys the property S-8 is about — a character is
-           never asked about under a channel that is not its own. */
+           read. `hr_engine` is revoked from `player_state`. The cost is one
+           read for a character that turns out to be unleased, bounded by
+           MAX_ROSTER behind the tick bearer. A database before 1048 (read0's
+           `narrow`) is read whole, as before: either deploy order is safe. */
   const [row] = await exec(
-    'select public.hr_state_of($1::uuid, $2::int) as state,'
+    `select public.${read0[0].narrow === true ? 'hr_tick_town_state' : 'hr_state_of'}($1::uuid, $2::int) as state,`
     + ' public.hr_offline_cap_ms($1::uuid, $2::int) as cap_ms,'
     + ' now()::timestamptz as now',
     [sel.userId, sel.slot]);

@@ -50,11 +50,11 @@ const PULSE_DB = `select pg_database_size(current_database()) db_bytes,
     (select rolconnlimit from pg_roles where rolname = 'hr_engine_login') engine_cap,
     (select count(*) from pg_stat_activity where state = 'active' and backend_type = 'client backend') active,
     (select max(used_conns) from public.hr_db_samples where at > now() - interval '24 hours') peak_conns,
-    (select count(*) from public.player_ledger where at > now() - interval '24 hours') ledger_rows_24h,
-    (select kind || ':' || count(*) from public.player_ledger where at > now() - interval '24 hours' and item_id is null
+    (select coalesce(sum(coalesce(folded, 1)), 0) from public.player_ledger where at > now() - interval '24 hours') ledger_rows_24h,
+    (select kind || ':' || sum(coalesce(folded, 1)) from public.player_ledger where at > now() - interval '24 hours' and item_id is null
         and coalesce(gold, 0) = 0 and coalesce(xp, 0) = 0 and coalesce(qty, 0) = 0 and coalesce(gems_in, 0) = 0
         and coalesce(gold_in, 0) = 0 and coalesce(xp_in, 0) = 0 and coalesce(qty_in, 0) = 0
-      group by kind order by count(*) desc limit 1) idle_kind`;
+      group by kind order by sum(coalesce(folded, 1)) desc limit 1) idle_kind`;
 const PULSE_TICK = `select extract(epoch from now() - max(at)) last_s, count(*) fires from public.hr_tick_cron_log where at > now() - interval '10 minutes'`;
 const PULSE_NET = `select count(*) posts, count(*) filter (where status_code >= 500) e5xx, count(*) filter (where timed_out or status_code is null) timed_out
   from net._http_response where created > now() - interval '10 minutes'`;

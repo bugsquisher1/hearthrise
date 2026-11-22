@@ -447,8 +447,16 @@ const ARMS = {
     return out;
   },
 
-  'TT-AGAIN': async (db, X, mutant) => {
+  'TT-AGAIN': async (chainEnd, X, mutant) => {
     const out = [];
+    /* JUDGED ON THE CHAIN AS IT STOOD BEFORE 1038-start-kits.sql (as hero-colors.mjs HC-AGAIN): that file moved hr_create_hero to (…, p_idem,
+       p_set default null), and COLORS, re-applied here after this file, names the four-argument create in its §0. An applied file is never re-run
+       after a later file moves what its precondition reads; its second apply is a property of its own era (tests/schema-drift.mjs re-applies only
+       the staged tail). */
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: '1037-first-hour-kit-lines.generated.sql' });
+    void chainEnd;
+    await db.exec('begin');   // the arm's savepoints, as on the shared chain-end database; this replay is thrown away after
     const text = mutant && mutant.sql ? plantSql(MIG(FILE), mutant.sql) : MIG(FILE);
     const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) m from pg_proc p
       where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_title_kills', 'hr_titles_view', 'hr_title_of', 'hr_title_buy', 'hr_title_wear', 'hr_inspect') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');

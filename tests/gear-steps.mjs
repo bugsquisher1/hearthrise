@@ -84,6 +84,9 @@ export function problems(d) {
   const rd = G.rankDepths || [];
   if (rd.length !== ts.length || rd[0] !== 1 || !rd.every((x, i) => Number.isInteger(x) && x <= d.DEPTHS && (i === 0 || x > rd[i - 1]))) out.push('GS-3 rankDepths is not one rising start a rank from depth 1');
   if (!G.pity || G.pity.rare !== true) out.push('GS-3 the Rare roll has no pity');
+  /* the piece's rarity criterion (13-market.md 2.3): a Rare one Trait, a Very Rare two, and every Trait on one slot only */
+  const tb = G.traitsByRarity || {};
+  if (tb.rare !== 1 || tb.very_rare !== 2 || Object.keys(tb).length !== 2) out.push('GS-3 traitsByRarity is not a Rare 1, a Very Rare 2');
   /* GS-4 */
   const metrics = new Map(d.METRICS.map((m) => [m.id, m]));
   const itemNames = new Set(Object.values(d.ITEMS).map((i) => String(i.n || '').toLowerCase()));
@@ -155,6 +158,8 @@ const MUTANTS = [
   ['GS-3 average share at 1000', (d) => { d.GEAR_STEPS.traitAverageSharePm = 1000; }],
   ['GS-3 rank depths not from 1', (d) => { d.GEAR_STEPS.rankDepths = [2, 8, 15]; }],
   ['GS-3 no pity', (d) => { d.GEAR_STEPS.pity = { rare: false }; }],
+  ['GS-3 a Very Rare with three Traits', (d) => { d.GEAR_STEPS.traitsByRarity.very_rare = 3; }],
+  ['GS-4 a Trait on two slots', (d) => { d.TRAITS.floodmark.slot = ['boots', 'helmet']; }],
   ['GS-4 an item\'s name', (d) => { d.TRAITS.floodmark.name = Object.values(d.ITEMS)[0].n; }],
   ['GS-4 a filler word', (d) => { d.TRAITS.floodmark.name = 'Dark Floodmark'; }],
   ['GS-4 always on', (d) => { d.TRAITS.last_file.when = { metric: 'in_fight', op: 'eq', value: true }; }],

@@ -32,6 +32,9 @@
 //   dominanceMaxPm 400       no Trait in the best kit on more than 40% of slot, seat and ground cells (04 guard 4)
 //   rankDepths 1/8/15        the depth each rank starts at on a 20-depth band (12-targets 3.3, re-cut to three ranks here)
 //
+// THE PIECE: one account-owned row (slot, base, tier, Traits and ranks, rarity, find line, escrow state) and its market rules, in
+// docs/design/redesign/12-targets.md section 8 and 13-market.md section 2.3. Temper stays with the hero's slot, never the piece.
+//
 // TRAITS ARE HIDDEN. Five sample rows (CLAUDE.md section 10: a sample of about 5 before any pool). Nothing rolls them, no drop table
 // names them, no fight reads them and no screen shows them: half-built features stay hidden. tests/gear-steps.mjs holds the rows'
 // shape and that only src/data/danger.js imports this file.
@@ -55,6 +58,9 @@ export const GEAR_STEPS = Object.freeze({
   traitAverageSharePm: 500,
   dominanceMaxPm: 400,
   rankDepths: Object.freeze([1, 8, 15]),
+  /* how many Traits a piece of each rarity carries (02 package 2: a Very Rare's second Trait waits until one Trait a piece has been
+     played). Two Traits on one piece never share a stacking key */
+  traitsByRarity: Object.freeze({ rare: 1, very_rare: 2 }),
   /* 04 guard 5: the Rare roll rises after each miss so the long-run rate is the stated one (the roller's, wave 4) */
   pity: Object.freeze({ rare: true }),
 });

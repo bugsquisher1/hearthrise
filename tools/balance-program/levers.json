@@ -9104,13 +9104,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 39,
+     "line": 46,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 40,
+     "line": 47,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -9179,7 +9179,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 43,
+     "line": 50,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -9247,31 +9247,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 49,
+     "line": 56,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 50,
+     "line": 57,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 51,
+     "line": 58,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 52,
+     "line": 59,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 53,
+     "line": 60,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }

@@ -529,7 +529,7 @@ jobs:
         run: node tests/danger-client.mjs
       # PLAIN GEAR IN STEPS AND THE FIRST FIVE TRAITS (designer, lane/g-gear-steps): the slot weights sum to one, a tier is tierSteps,
       # the Trait budget holds 04 section 10's guards, each Trait is a rule in the bar's own conditions, and the sample stays hidden.
-      - name: Gear steps - slot weights, the tier, five hidden Traits (31 mutants)
+      - name: Gear steps - slot weights, the tier, five hidden Traits (33 mutants)
         if: ${{ !cancelled() }}
         run: |
           node tests/gear-steps.mjs

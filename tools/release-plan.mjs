@@ -47,6 +47,9 @@
 //   A note it cannot class REFUSES the plan (UNCLASSED): a guessed edge point is the failure this tool exists to stop.
 //   The edge goes right after the last 'before' file. A planned 'after' file that sorts before a planned 'before' file is an EDGE
 //   COLLISION, and so is a 'before!' file that is not the last 'before': the plan is refused, naming the pair.
+// EDGE MISMATCH. The one deploy is packed from today's src/ whole. A held or blocked file classed before or after (its note pairs it
+//   with that deploy) leaves the database and the engine on two designs (1054's note: every settle holds world_shape_pending). It is
+//   OWED and printed, and --strict fails on it; it is not a refusal, because the plan itself is sound.
 //
 // Exit: 0 a plan (owed files listed) · 1 refused (or --strict with anything owed) · 2 harness.
 // mutant-anchors: none — --mutate switches the reader's rules off in memory (RULES below), never a file
@@ -63,7 +66,7 @@ const harness = (msg) => { const e = new Error(msg); e.harness = true; return e;
 /* Every rule is switchable so --mutate can prove each one bites (a rule nobody can turn off unnoticed is a rule that is tested). */
 export const RULES = {
   collision: true, immediate: true, unclassed: true, blocked: true, ordering: true, missing: true, carried: true,
-  folded: true, image: true, fateDerive: true, staleFate: true, inherit: true, tokenAgree: true, afterAnchor: true,
+  folded: true, image: true, paired: true, fateDerive: true, staleFate: true, inherit: true, tokenAgree: true, afterAnchor: true,
 };
 
 const noteText = (n) => (Array.isArray(n) ? n.join(' ') : String(n || ''));
@@ -284,6 +287,13 @@ export function planOf({ chain, notes, fateRows, from = 1009, keep = [] }, rules
   }
   for (const [f, n] of blockedBy) owed.push(`${f}: BLOCKED, needs ${n.file} (${n.kind}), which is ${out.get(n.file) === 'blocked' ? 'blocked' : out.get(n.file) === 'retire' ? 'retired' : 're-cut'}`);
 
+  /* EDGE-PAIRED AND HELD: the release deploys ONE hr-accrue, packed from today's src/ whole. A held or blocked file whose note pairs it with
+     that deploy (before / after, not either) leaves the database and the engine on two designs: 1054's own note says every settle then holds
+     world_shape_pending. Owed (and --strict fails), never silent: ship the file, or the edge must be built without its src change. */
+  const paired = rules.paired ? [...out.keys()].filter((f) => info.get(f).edge.cls === 'before' || info.get(f).edge.cls === 'after')
+    .map((f) => ({ file: f, edge: info.get(f).edge.cls, why: info.get(f).edge.why })) : [];
+  for (const x of paired) owed.push(`${x.file}: EDGE-PAIRED BUT HELD (${x.edge}: ${x.why}). The release's hr-accrue is packed from today's src/, which already holds this file's engine half: ship the file, or revert its src half before the deploy`);
+
   /* the same staged set with no fates: why the fates are needed (information only, never a refusal) */
   const unfated = { collisions: [] };
   {
@@ -298,7 +308,7 @@ export function planOf({ chain, notes, fateRows, from = 1009, keep = [] }, rules
     edgeAfter: lastBefore ? lastBefore.file : null,
     held: held.map((f) => ({ file: f, fate: fate.get(f).fate, why: fate.get(f).why })),
     blocked: [...blockedBy].map(([f, n]) => ({ file: f, needs: n.file, kind: n.kind })),
-    refusals: [...new Set(refusals)], owed, unfated,
+    refusals: [...new Set(refusals)], owed, unfated, paired,
     files: staged.map((f) => ({ file: f, edge: info.get(f).edge.cls, why: info.get(f).edge.why, needs: info.get(f).needs })),
   };
 }
@@ -320,6 +330,7 @@ function render(p) {
   }
   if (p.held.length) { lines.push('', `HELD (${p.held.length}, out of this release):`); for (const h of p.held) lines.push(`  ${h.fate.padEnd(7)} ${h.file}`); }
   if (p.blocked.length) { lines.push('', `BLOCKED (${p.blocked.length}, a planned file that needs a held one):`); for (const b of p.blocked) lines.push(`  ${b.file}  needs ${b.needs} (${b.kind})`); }
+  if (p.paired.length) { lines.push('', `EDGE MISMATCH (${p.paired.length}): held or blocked, but paired with the one hr-accrue deploy, which is packed from today's src/:`); for (const x of p.paired) lines.push(`  ! ${x.file} (${x.edge}: ${x.why})`); }
   if (p.owed.length) { lines.push('', 'OWED:'); for (const o of p.owed) lines.push('  - ' + o); }
   if (p.unfated.collisions.length) { lines.push('', `WITHOUT THE FATES the staged set collides at the edge (${p.unfated.collisions.length}): ${p.unfated.collisions.slice(0, 4).join('; ')}${p.unfated.collisions.length > 4 ? ' ...' : ''}`); }
   if (p.refusals.length) { lines.push('', `REFUSED (${p.refusals.length}):`); for (const r of p.refusals) lines.push('  x ' + r); }
@@ -390,6 +401,10 @@ export const CASES = [
   ['a file pinned on a held file\'s image is blocked', () => planOf({ chain: ['1009-a.sql', '1010-b.sql'],
     notes: { '1009-a.sql': N('EDGE: none.'), '1010-b.sql': N('One insertion, pinned pre (1009\'s image) and post. EDGE: none.') }, fateRows: fatesFrom(FATES([['1009 a', 'Retire']])) }, RULES),
   (p) => p.blocked.some((b) => b.file === '1010-b.sql' && b.kind === 'pinned on its body')],
+  ['a held file paired with the edge is owed as a mismatch; a held either-file is not', () => planOf({ chain: ['1009-a.sql', '1010-b.sql', '1011-c.sql'],
+    notes: { '1009-a.sql': N('EDGE: apply first, then deploy.'), '1010-b.sql': N('EDGE: none.'), '1011-c.sql': N('EDGE: apply first, then deploy.') },
+    fateRows: fatesFrom(FATES([['1009 a', 'Retire'], ['1010 b', 'Retire']])) }, RULES),
+  (p) => p.paired.map((x) => x.file).join() === '1009-a.sql' && p.owed.some((o) => /1009-a.*EDGE-PAIRED BUT HELD/.test(o)) && p.edgeAfter === '1011-c.sql'],
 ];
 
 function runCases(rules) {
@@ -442,7 +457,7 @@ async function main(argv) {
     for (const f of r.failures) console.log(`  x ${f.file}: ${String(f.error).split('\n')[0].slice(0, 300)}`);
     if (r.failures.length) code = 1;
   }
-  if (argv.includes('--strict') && (p.held.length || p.blocked.length)) code = 1;
+  if (argv.includes('--strict') && (p.held.length || p.blocked.length || p.paired.length)) code = 1;
   process.exit(code);
 }
 

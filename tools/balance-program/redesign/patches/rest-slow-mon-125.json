@@ -1,0 +1,10 @@
+{
+  "schema": "hearthrise.balance-patch/1",
+  "name": "Redesign probe D: probe C with monster blows x1.25",
+  "why": "Read against probe C: does incoming damage cost pace once rest costs time (docs/design/redesign/04-math-strategy.md)",
+  "knobs": { "monsterDamage": 1.25 },
+  "edits": [
+    { "file": "src/data/hunt-tuning.js", "from": "oocRegenPermillePerS: 60,", "to": "oocRegenPermillePerS: 6," }
+  ],
+  "targets": ["pace", "survival"]
+}

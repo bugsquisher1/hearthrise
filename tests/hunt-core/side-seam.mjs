@@ -66,17 +66,16 @@ const bothWays = (inst, fn) => {
 const GROUP = Object.freeze({ id: 't_seam_group', n: 'Seam Group', shape: 'group', range: 1, windupMs: 1600, cdMs: 10000, hitPm: 1500, element: null });
 const MEND = Object.freeze({ id: 't_seam_mend', n: 'Seam Mend', shape: 'mend', range: 3, windupMs: 1200, cdMs: 6000, hitPm: 1000, element: null });
 function withSpells(M, rows, kinds, fn) {
-  const S = M;
-  const T = S.MS.MONSTER_SPELLS; const keep = [];
-  const live = S.MS.SPELL_SWITCH.live; const span = S.MS.SPELL_STAGGER.spanPm;
-  S.MS.SPELL_SWITCH.live = true; S.MS.SPELL_STAGGER.spanPm = 0;
+  const T = M.MS.MONSTER_SPELLS; const keep = [];
+  const live = M.MS.SPELL_SWITCH.live; const span = M.MS.SPELL_STAGGER.spanPm;
+  M.MS.SPELL_SWITCH.live = true; M.MS.SPELL_STAGGER.spanPm = 0;
   for (const r of rows) T[r.id] = Object.assign({}, r);
   for (const [k, ids] of Object.entries(kinds)) {
     keep.push([k, Object.prototype.hasOwnProperty.call(M.MONSTERS[k], 'spells'), M.MONSTERS[k].spells]);
     M.MONSTERS[k].spells = ids;
   }
   try { return fn(); } finally {
-    S.MS.SPELL_SWITCH.live = live; S.MS.SPELL_STAGGER.spanPm = span;
+    M.MS.SPELL_SWITCH.live = live; M.MS.SPELL_STAGGER.spanPm = span;
     for (const r of rows) delete T[r.id];
     for (const [k, had, v] of keep) { if (had) M.MONSTERS[k].spells = v; else delete M.MONSTERS[k].spells; }
   }
@@ -167,7 +166,6 @@ const cases = {
   /* A MONSTER'S SPELLS: 10 a ground rat holding 1 (a group strike), 11 a ground rat holding the company's monster 5 (the same strike),
      12 a ground slime mender in the pocket (its packmate 10 is hurt; the company's monster 5 is more hurt). */
   'spells-know-sides': (M) => {
-    const S = M;
     return withSpells(M, [GROUP, MEND], { rat: [GROUP.id], slime: [MEND.id] }, () => {
       const units = [
         H(M, 1, 12, 3, 'tank'),
@@ -182,8 +180,8 @@ const cases = {
       for (let i = 0; i <= 20; i++) {
         sc.atMs = i * 100;
         M.movement.occupancy(inst);
-        S.spells.castSpells(inst, sc);
-        S.spells.dropCasts(inst, sc);
+        M.spells.castSpells(inst, sc);
+        M.spells.dropCasts(inst, sc);
       }
       const struck = [...new Set(sc.events.filter((e) => e.type === 'dmg' && e.ability === GROUP.id && e.u === 10).map((e) => e.t))].sort((a, b) => a - b);
       if (JSON.stringify(struck) !== '[1,5]') return 'a ground monster\'s group strike landed on ' + JSON.stringify(struck) + ', want its foes [1,5] (never the turncoat 3)';
@@ -215,7 +213,6 @@ const cases = {
   },
 
   'a-shooter-aims-at-foes': (M) => {
-    const S = M;
     const inst = fightOf(M, [
       H(M, 1, 12, 3, 'tank'),
       placed(H(M, 3, 18, 1, 'melee_dps'), GROUND),
@@ -224,8 +221,8 @@ const cases = {
     ]);
     inst.monsters = Object.assign({}, M.MONSTERS, { t_seam_shooter: Object.assign({}, M.MONSTERS.rat, { range: 4 }) });
     const m = inst.world.units[3];
-    if (!S.shooters.rangeOf(inst, m)) return 'the fixture shooter does not shoot';
-    const aim = S.shooters.aimOf(inst, m, null);
+    if (!M.shooters.rangeOf(inst, m)) return 'the fixture shooter does not shoot';
+    const aim = M.shooters.aimOf(inst, m, null);
     return aim === 5 ? null : 'the shooter aimed at ' + aim + ', want the farthest foe in its area (5), never the farther turncoat (3)';
   },
 };

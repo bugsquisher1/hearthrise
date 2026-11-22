@@ -16,10 +16,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 if (!process.argv.includes('--mm41')) { console.error('engine-checks: --mm41'); process.exit(2); }
 /* 1. where the engine fixes the sides: a raw read of the unit's kind field outside src/core/hunt/sides.js (93 in 22 modules on
-   2026-11-21; the side seam, lane/w1-side-seam, routes each through sides.js: an enemy/ally test by side, or a kind test) */
-const dir = join(ROOT, 'src/core/hunt'), rx = /side === 'mon'|side === 'hero'|side !== 'hero'|side !== 'mon'|livingOf\(inst, 'mon'\)|livingOf\(inst, 'hero'\)|heroes\(inst\)/g;
+   2026-11-21, pull-cycle.js's party helper `heroes(inst)` among them; the side seam, lane/w1-side-seam, routes each through sides.js:
+   an enemy/ally test by side, or a kind test, the party helper's by kind: the pull cycle's party is hunt structure) */
+const dir = join(ROOT, 'src/core/hunt'), rx = /side === 'mon'|side === 'hero'|side !== 'hero'|side !== 'mon'|livingOf\(inst, 'mon'\)|livingOf\(inst, 'hero'\)/g;
 const bySide = /\bisEnemy\(|\bisAlly\(|\bsideOf\(|\b(foesOf|engagedFoesOf|targetedFoesOf|alliesByIdOf|livingOf)\(|\bengaged\(inst, /g;
-const byKind = /\bisHero\(|\bisMonster\(|\b(engagedMonstersOf|livingMonstersOf|livingHeroesOf|heroUnitsOf|heroesByIdOf)\(/g;
+const byKind = /\bisHero\(|\bisMonster\(|\b(engagedMonstersOf|livingMonstersOf|livingHeroesOf|heroUnitsOf|heroesByIdOf)\(|\bheroes\(inst\)/g;
 let total = 0; const by = []; let sides = 0, kinds = 0;
 for (const f of readdirSync(dir).filter((x) => x.endsWith('.js') && x !== 'sides.js' && x !== 'unit-index.js')) {
   const src = readFileSync(join(dir, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');

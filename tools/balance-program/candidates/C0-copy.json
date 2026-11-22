@@ -7,8 +7,7 @@
  "variants": [
   { "slot": "armor", "family": "copy" },
   { "slot": "party-xp", "family": "copy" },
-  { "slot": "death-cost", "family": "copy" },
-  { "slot": "hero-power", "family": "copy" }
+  { "slot": "death-cost", "family": "copy" }
  ],
  "assumptions": []
 }

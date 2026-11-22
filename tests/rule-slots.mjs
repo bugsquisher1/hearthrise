@@ -200,7 +200,8 @@ const MUTANTS = [
   ['armor', 'deterministic', 'const HIT_K = 0.5;', 'const HIT_K = 0.5; let calls = 0;\nconst tick = () => calls++ % 2;', 'ward, keepPm: 0, heavy', 'ward: ward + tick(), keepPm: 0, heavy'],
   ['armor', 'static', 'const HIT_K = 0.5;', 'const HIT_K = 0.5; const BY_LEVEL = [0, 1]; const pick = (level) => BY_LEVEL[level];'],
   ['armor', 'static', 'const HIT_K = 0.5;', 'const HIT_K = 0.5 + Math.random() * 0;'],
-  ['armor', 'static', "from '../data/core-model.js';", "from '../data/core-model.js?v=9.9.9';"],
+  /* a stamped import, built from two halves so the repo's own ?v= scans (tools/pack-edge.mjs versionQueryGuard) never read it as one */
+  ['armor', 'static', "from '../data/core-model.js';", "from '../data/core-model.js" + '?' + "v=9.9.9';"],
   ['armor', 'inherited', 'const HIT_K = 0.5;', 'const HIT_K = 0.5;\nexport const steadyPmOf = () => 0;'],
   ['armor', 'surface', "export * from './mitigation.shipped.js';", "export { steadyPmOf, NO_MITIGATION } from './mitigation.shipped.js';"],
   ['party-xp', 'orderFree', 'return { permille: PARTY_PAY,', "return { permille: PARTY_PAY + (roles[0] === 'tank' ? 1 : 0),"],

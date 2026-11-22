@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler's rulings of 2026-11-22, 04 section 11). NEW table hr_time_blocks (one row a kind of bought time; 'hunt' today: a 2 h block, 2 a day, x1.5 each, priced 500 + 125 a Level, the price a LEVER until wage(L)), generated from src/data/time-blocks.js (tools/gen-time-blocks.mjs --check holds it equal), and the internal SQL twin hr_time_block_price(kind, level, n), pinned to the JS price at five Levels for every block of the day. No grant, no client verb, no value moves. ORDER: 1058 in its name, before 1058-hunting-blocks.sql (which reads it). EDGE: none."
+}

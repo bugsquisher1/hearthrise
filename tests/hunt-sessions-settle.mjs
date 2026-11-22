@@ -4971,7 +4971,8 @@ const DB_ARMS = {
         params = [params[0], params[1], JSON.stringify(st), ...params.slice(3)];
       }
       const rows = await exec(text, params);
-      if (text === M.HS.HUNT_READ_SQL) {
+      /* both reads: the tick's and a viewed ask's (HUNT_READ_WATCHED_SQL, the same statement plus the watched mark) */
+      if (text === M.HS.HUNT_READ_SQL || text === M.HS.HUNT_READ_WATCHED_SQL) {
         for (const r of rows) { const i = r.inst && r.inst.instance; if (i) { i.world = swapS(i.world, OLD, NEW); delete i.world_shape; } }
       }
       return rows;

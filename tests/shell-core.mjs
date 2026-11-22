@@ -912,6 +912,43 @@ async function runTests(mods) {
     const upEnded = AR.awayRecapOf(env(T0 + H2, true));
     ok(typeof AR.awayLineNow(env(T0 + H2, true), upEnded) === 'string', 'a card about a hunt that ended while away stays');
   });
+  /* THE SERVER'S WATCHED MARK (AR-6 follow-up, 1060-watched-stamp.sql): a crash or an OS kill loses the goodbye, and the page's last stamp is
+     then its last in-view renewal, up to ten minutes before the close. The return is judged from the later of that stamp and the mark the
+     server took at the last viewed ask (the `watched` section), so the watched minutes are never counted as away. */
+  t('R3w a lost goodbye: the return counts from the server\'s watched mark, never from a renewal ten minutes old', () => {
+    const T0 = 1_800_000_000_000, MIN = 60 * 1000, H2 = 2 * 3600 * 1000;
+    /* the page's last stamp: the in-view renewal at T0; the player watched nine minutes more, then the tab died with no goodbye */
+    const renewal = { s: 's-1', at: T0, xp: XP.charXpForLevel(6), lv: 6, gold: 814, sp: 100, kills: 100 };
+    const XP_SEEN = XP.charXpForLevel(7) + 40, XP_NOW = XP.charXpForLevel(12) + 7;
+    const mark = { s: 's-1', at: T0 + 9 * MIN, xp: XP_SEEN, lv: 7, h: 'meadowbrook_thicket', gold: 1500, sp: 300, kills: 400 };
+    const back = (now, watched, residue = renewal) => ({ record: { residue: { awaySeen: residue } }, writes: [],
+      setResidue(f, v) { this.writes.push([f, v]); return true; }, serverNow: () => now,
+      read: (k) => ({ name: 'Brannoc', state: { level_xp: XP_NOW, gold: 99999 }, level: { xp: XP_NOW, level: 12, into: 7, need: 5000 },
+        hunt: { session_id: 's-1', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 644, coins: 1956, waste: 400 } }, watched })[k] });
+    const line = AR.awayRecapOf(back(T0 + H2, mark));
+    ok(line && /^Away 1 h 51 min\. Brannoc hunted Meadowbrook Thicket\. Level 7 to 12, /.test(line.text)
+      && line.facts.xp === XP_NOW - XP_SEEN && line.facts.gold === (1956 - 1500) - (400 - 300) && line.facts.kills === 244 && line.at === T0 + 9 * MIN,
+      'the absence and its numbers count from the server\'s mark, not the renewal: ' + JSON.stringify(line && { text: line.text, facts: line.facts, at: line.at }));
+    ok(line && line.facts.xp < XP_NOW - renewal.xp && line.id === 'away:s-1:' + (T0 + 9 * MIN), 'the nine watched minutes are not counted as away: ' + JSON.stringify(line && line.id));
+    /* a landed goodbye is later than the last ask: the page's own stamp wins, as before */
+    const bye = { ...renewal, at: T0 + 9 * MIN + 10 * 1000, xp: XP_SEEN + 5, lv: 7 };
+    const byeLine = AR.awayRecapOf(back(T0 + H2, mark, bye));
+    ok(byeLine && byeLine.at === bye.at && byeLine.facts.xp === XP_NOW - bye.xp, 'a goodbye that landed is the later stamp and is judged from: ' + JSON.stringify(byeLine && byeLine.facts));
+    /* no mark (a hero being watched, a server before 1060), or a malformed one: the page's own stamp, as before */
+    for (const w of [null, undefined, { s: 's-1', at: 'x', xp: 1 }, { s: 's-1', at: T0 + MIN, xp: -1 }, [mark]]) {
+      const own = AR.awayRecapOf(back(T0 + H2, w));
+      ok(own && own.at === T0 && own.facts.xp === XP_NOW - renewal.xp, 'no usable mark (' + JSON.stringify(w) + '): the renewal decides: ' + JSON.stringify(own && own.facts));
+    }
+    /* the mark's own session is a hunt the page stamped, so the return is no "return no stamp covers"; it is judged, and settled */
+    ok(AR.backWithNoStamp(back(T0 + H2, mark, null)) === false && AR.awaySettled(back(T0 + H2, mark, null)) === true,
+      'a hunt only the server marked is a stamped hunt, judged at once');
+    const onlyServer = AR.awayRecapOf(back(T0 + H2, mark, null));
+    ok(onlyServer && onlyServer.at === T0 + 9 * MIN, 'with no page stamp at all, the server\'s mark is the baseline: ' + JSON.stringify(onlyServer && onlyServer.at));
+    /* the page renews ITS OWN stamp by its own clock: the mark never stands in for it (stampAway reads only the residue) */
+    const due = back(T0 + 10 * MIN, mark);
+    ok(AR.stampAway(due) === true && due.writes[0][1].at === T0 + 10 * MIN, 'the page\'s renewal is due by its own stamp, whatever the server marked: ' + JSON.stringify(due.writes));
+  });
   /* A NEW HERO'S FIRST RETURN (designer 2026-11-10, the first ten minutes): its first away line speaks after 3 minutes, every later one after 10. */
   t('R3e a new hero\'s first away line speaks after 3 minutes away, and only on its first return', () => {
     const T0 = 1_800_000_000_000, MIN = 60 * 1000;

@@ -112,17 +112,19 @@ function patchNone(body, ctx, st, r) {
       text(el.querySelector('.hcl-who-name'), tagged(c));
       text(el.querySelector('.hcl-sub'), [t('clan.members', { n: whole(c.members), cap: c.cap === null ? '?' : whole(c.cap) }),
         t(c.policy === 'invite' ? 'clan.policy_invite' : 'clan.policy_open'), c.leader ? t('clan.leader', { name: c.leader }) : ''].filter(Boolean).join(' · '));
-      const b = el.querySelector('button');
+      const b = el.querySelector('button'), full = c.cap !== null && c.members >= c.cap;
       prop(b, 'hidden', c.policy === 'invite' && !c.invited);
-      prop(b, 'disabled', st.pending || (c.cap !== null && c.members >= c.cap));
+      text(b, full ? t('clan.full') : t('clan.join'));   // a full clan's press says so, beside its "12 of 12 members"
+      prop(b, 'disabled', st.pending || full);
     },
   });
   const empty = body.querySelector('.hcl-empty');
   cls(empty, 'is-on', st.list !== null && !list.length);
   text(empty, st.query ? t('clan.list_no_match') : t('clan.list_empty'));
   const go = body.querySelector('[data-hs-act="found"]');
-  text(go, t('clan.found_go', { gold: r.price === null ? '?' : whole(r.price) }));
-  prop(go, 'disabled', st.pending || r.price === null);
+  const quoted = r.price !== null;   // the founding price is the server's (hr_clan_roster): until it says one, the press says it waits
+  text(go, quoted ? t('clan.found_go', { gold: whole(r.price) }) : t('clan.found_wait'));
+  prop(go, 'disabled', st.pending || !quoted);
   prop(body.querySelector('[data-hs-act="search"]'), 'disabled', st.pending);
 }
 

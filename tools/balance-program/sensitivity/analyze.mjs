@@ -360,12 +360,14 @@ export function noiseTable(P) {
 
 /* ── THE NAMED FINDINGS (Phase 4's six lists), read off the matrix by fixed rules so a re-run names the same things ───────────── */
 const KEY_OUTS = Object.freeze(['dps', 'killsPerH', 'takenPerH', 'levelXpPerH', 'netLevelXpPerH', 'incomePerH', 'storePerH', 'netPerH']);
+const THROUGHPUT = Object.freeze(['dps', 'killsPerH', 'levelXpPerH', 'incomePerH', 'netLevelXpPerH']);
+const SIDE_OUTS = Object.freeze(['dps', 'killsPerH', 'takenPerH', 'levelXpPerH', 'netLevelXpPerH', 'incomePerH', 'storePerH', 'suppliesPerH']);
 export const FINDING_RULES = Object.freeze({
   dead: 'no core outcome resolved in any group at any step',
   intendedMiss: 'the largest elasticity on an intended outcome is under 0.05, or nothing resolved on it',
-  sideEffect: 'an outcome the lever is not for moves with an elasticity of 0.5 or more (rate outcomes, all cells)',
-  byLevel: 'the high-step elasticity differs between two Levels by more than 0.3 and by more than a factor of two, or changes sign, both resolved',
-  byStyle: 'at one step the outcome rises for one lone way and falls for another, both resolved',
+  sideEffect: 'an outcome the lever is not for moves with an elasticity of 0.5 or more (damage, kills, damage taken, XP, XP after deaths, gold in, the store bill, supplies. All cells). Damage, kills, XP and gold in count as one thing for a lever that is for any of them',
+  byLevel: 'for a rate outcome, the high-step elasticity differs between two Levels by more than 0.3 and by more than a factor of two, or changes sign, both resolved',
+  byStyle: 'at one step the outcome rises for one lone way and falls for another, both resolved and both past 2% (300 gold an hour for net gold)',
   redundant: 'two levers whose effect vectors (every cell, every core rate outcome, lowest and highest step) have a cosine of 0.9 or more, or -0.9 or less',
   nonlinear: 'the low-step and high-step elasticities differ by 0.25 or more and by 30% of the larger, both resolved',
 });
@@ -381,21 +383,30 @@ export function findings(M) {
     for (const o of CORE) {
       const r = E.all[o];
       if (!r || !r.anyResolved || kindOf(o) !== 'rel') continue;
-      if (!lv.intends.includes(o) && best(r) >= 0.5) out.sideEffect.push({ lever: id, outcome: o, lo: r.lo, local: r.local, hi: r.hi });
+      /* a side effect: not what the lever is for, and not just the same throughput under another name (damage, kills, XP and gold in move as one when nobody dies) */
+      const sameThing = THROUGHPUT.includes(o) && lv.intends.some((x) => THROUGHPUT.includes(x)) && !(o === 'netLevelXpPerH' && E.all.levelXpPerH && Math.abs(best(r) - best(E.all.levelXpPerH)) > 0.2);
+      if (SIDE_OUTS.includes(o) && !lv.intends.includes(o) && !sameThing && best(r) >= 0.5) out.sideEffect.push({ lever: id, outcome: o, lo: r.lo, local: r.local, hi: r.hi });
       if (KEY_OUTS.includes(o) && r.rLo && r.rHi && finite(r.lo) && finite(r.hi) && Math.abs(r.hi - r.lo) >= 0.25 && Math.abs(r.hi - r.lo) >= 0.3 * Math.max(Math.abs(r.hi), Math.abs(r.lo))) out.nonlinear.push({ lever: id, outcome: o, lo: r.lo, local: r.local, hi: r.hi, steps: [E._steps.lo, E._steps.hi] });
     }
     for (const o of KEY_OUTS) {
-      const per = levels.map((g) => ({ g, r: E[g] && E[g][o] })).filter((x) => x.r && x.r.rHi && finite(x.r.hi));
+      const rel = kindOf(o) === 'rel';
+      const per = !rel ? [] : levels.map((g) => ({ g, r: E[g] && E[g][o] })).filter((x) => x.r && x.r.rHi && finite(x.r.hi));
       if (per.length >= 2) {
         const hi = per.reduce((a, b) => (b.r.hi > a.r.hi ? b : a)), lo = per.reduce((a, b) => (b.r.hi < a.r.hi ? b : a));
         const flip = hi.r.hi > 0 && lo.r.hi < 0, wide = Math.abs(hi.r.hi - lo.r.hi) > 0.3 && Math.max(Math.abs(hi.r.hi), Math.abs(lo.r.hi)) > 2 * Math.min(Math.abs(hi.r.hi), Math.abs(lo.r.hi));
         if (flip || wide) out.byLevel.push({ lever: id, outcome: o, at: E._steps.hi, byLevel: Object.fromEntries(per.map((x) => [x.g, x.r.hi])), flip });
       }
+      /* the step where the two sides are furthest apart, each side past the floor (2% for a rate, 300 gold an hour for net gold) */
+      const floor = rel ? 0.02 : 300;
+      let bestSplit = null;
       for (const m of Object.keys(lv.steps)) {
-        const es = ways.map((g) => ({ g, e: lv.steps[m][g] && lv.steps[m][g][o] })).filter((x) => x.e && x.e.r && x.e.k !== 'd');
+        const es = ways.map((g) => ({ g, e: lv.steps[m][g] && lv.steps[m][g][o] })).filter((x) => x.e && x.e.r && x.e.k !== 'd' && Math.abs(x.e.e) >= floor);
         const up = es.filter((x) => x.e.e > 0), down = es.filter((x) => x.e.e < 0);
-        if (up.length && down.length) { out.byStyle.push({ lever: id, outcome: o, m: Number(m), up: Object.fromEntries(up.map((x) => [x.g, x.e.e])), down: Object.fromEntries(down.map((x) => [x.g, x.e.e])) }); break; }
+        if (!up.length || !down.length) continue;
+        const size = Math.min(Math.max(...up.map((x) => x.e.e)), Math.max(...down.map((x) => -x.e.e)));
+        if (!bestSplit || size > bestSplit.size) bestSplit = { size, lever: id, outcome: o, m: Number(m), up: Object.fromEntries(up.map((x) => [x.g, x.e.e])), down: Object.fromEntries(down.map((x) => [x.g, x.e.e])) };
       }
+      if (bestSplit) out.byStyle.push(bestSplit);
     }
   }
   out.redundant = M.pairs.filter((p) => Math.abs(p.cos) >= 0.9 && p.normA >= 0.05 && p.normB >= 0.05);

@@ -4,12 +4,11 @@
 //
 //   OUTCOMES          [id, label, category, unit, better]: every number the baseline keeps, one value a SEED, so a cell carries its own
 //                     run-to-run noise (four seeds: mean, standard deviation, standard error). `better` is a direction HINT ('up',
-//                     'down' or null): it never judges a change, the bands do (compare.mjs); it only says which way a move reads
+//                     'down' or null): it never judges a change: BL-3's new-game targets do (compare.mjs); it only says which way a move reads
 //   CATEGORIES        Tyler's eight report groups, in his order. The first four hold per-seed outcomes; equipment value, hunting
 //                     ground viability, solo and party and long-term scaling are VIEWS across cells (compare.mjs views)
 //   seedOutcomes      one seed's answer (tools/balance-sim/cell.mjs runCell, the full answer, not the matrix's slim seed) -> { id: number }
 //   cellStats         a cell's seeds -> { id: [n, mean, sd] } and the pooled deaths and hours a Poisson reading needs
-//   bandCategory      a standards.mjs band row -> the category its judgment reports under
 //
 // Every number is read off the engine's own answer. Nothing here plays or computes a fight. A field cell.mjs does not emit is not
 // invented: the coverage report (docs/design/balance-baseline/06-coverage.md) lists it as a gap.
@@ -143,19 +142,4 @@ export function cellStats(seeds) {
   const stats = {};
   for (const [id] of OUTCOMES) stats[id] = moments(seeds.map((s) => s[id])).map((x) => (finite(x) ? Number(x.toPrecision(6)) : x));
   return { stats, deaths: sum(seeds.map((s) => s.deaths)), hh: Number(sum(seeds.map((s) => s._hh)).toFixed(3)), wall: Number(sum(seeds.map((s) => s._wall)).toFixed(3)) };
-}
-
-/** The category a standards.mjs band row reports under (its group, its party, its ground; P11 and P12 read the long run). */
-export function bandCategory(row) {
-  if (String(row.way || '').startsWith('G:')) return 'grounds';
-  const id = String(row.band || '');
-  if (/^P(6|7)\./.test(id)) return 'party';
-  if (/^P1[12]\./.test(id)) return 'scaling';
-  const g = row.group;
-  if (g === 'pace') return 'progression';
-  if (g === 'survival' || g === 'death') return 'survival';
-  if (g === 'gold' || g === 'drops') return 'economy';
-  if (g === 'gear') return 'equipment';
-  if (g === 'talent' || g === 'buff') return 'combat';
-  return 'other';
 }

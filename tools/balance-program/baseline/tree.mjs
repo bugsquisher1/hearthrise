@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/baseline/tree.mjs — A GAME TREE TO MEASURE, AND WHAT IT IS (lane/bl-baseline, deliverables 1 and 8).
 //
-// THE OVERLAY. A measurement is (a game tree) x (one harness). The game tree is any commit: the pinned baseline (branch baseline/v0.2.143),
+// THE OVERLAY. A measurement is (a game tree) x (one harness). The game tree is any commit: the pinned baseline (branch baseline/overhaul-start),
 // a set tip, a lane. The harness is THIS checkout's tools: the matrix, the cell runner, the kit builder, the skill lines, the bands, and the
 // settle driver tests/hunt-core/fixtures/play-ground.mjs. materialize() exports the game commit with `git archive` into a folder and lays
 // the HARNESS paths over it, so every tool run there reads ONE tree's data and engine (ROOT is the folder) with the same harness on both
@@ -23,6 +23,9 @@ export const TREE_FILE = '.baseline-tree.json';
 export const TREE_SCHEMA = 'hearthrise.balance-baseline-tree/1';
 /* the harness: laid over the game tree from this checkout */
 export const HARNESS = Object.freeze(['tools/balance-program', 'tools/balance-sim', 'tools/lib', 'tests/_is-main.mjs', 'tests/hunt-core/fixtures/play-ground.mjs', 'tests/fixtures/balance-calibration.json']);
+/* inside the harness paths, the GAME's own: the designer's staged item lines past Dawnsteel (the kit builder reads them; a candidate that
+   re-cuts them, as FB-8's gear curve does, is measured with its own) */
+export const TREE_OWN = Object.freeze(['tools/balance-sim/staged']);
 /* the game: exported from the commit (tools and tests come along: the cell runner reads the commit's own fixtures and generators) */
 export const GAME_PATHS = Object.freeze(['src', 'supabase/functions', ':(glob)supabase/migrations/*.generated.sql', 'supabase/config.toml', 'tests', 'tools', 'package.json']);
 
@@ -55,6 +58,8 @@ export function hashFiles(root, files) {
   return { files: files.length, sha256: h.digest('hex') };
 }
 export const hashPaths = (root, paths) => hashFiles(root, paths.flatMap((p) => filesUnder(root, p)));
+/** The harness's own files (HARNESS less TREE_OWN): one hash, equal on both sides of a fair comparison. */
+export const hashHarness = (root) => hashFiles(root, HARNESS.flatMap((p) => filesUnder(root, p)).filter((f) => !TREE_OWN.some((o) => f === o || f.startsWith(o + '/'))));
 
 /** Export `game` into `into` and lay the harness over it. Answers the folder's tree record. */
 export function materialize({ game, into, label = null, harnessRoot, patches = [] }) {
@@ -69,16 +74,23 @@ export function materialize({ game, into, label = null, harnessRoot, patches = [
   rmSync(join(into, TAR), { force: true });
   /* what the harness replaces of the tree's own (a settle driver that differs is named: the pair must still be one engine contract) */
   const replaced = {};
+  const keep = join(into, '.baseline-tree-own');
+  for (const p of TREE_OWN) if (existsSync(join(into, p))) cpSync(join(into, p), join(keep, p), { recursive: true });
   for (const p of HARNESS) {
     const own = hashPaths(into, [p]), ours = hashPaths(harnessRoot, [p]);
     replaced[p] = { tree: own.files ? own.sha256.slice(0, 16) : null, harness: ours.sha256.slice(0, 16), same: own.sha256 === ours.sha256 };
     rmSync(join(into, p), { recursive: true, force: true });
     if (existsSync(join(harnessRoot, p))) cpSync(join(harnessRoot, p), join(into, p), { recursive: true });
   }
+  for (const p of TREE_OWN) {
+    rmSync(join(into, p), { recursive: true, force: true });
+    if (existsSync(join(keep, p))) cpSync(join(keep, p), join(into, p), { recursive: true });
+  }
+  rmSync(keep, { recursive: true, force: true });
   let harnessSha = 'unknown', dirty = null, standardsSha = null;
   try { harnessSha = git(harnessRoot, ['rev-parse', 'HEAD']).trim(); dirty = git(harnessRoot, ['status', '--porcelain', '--', ...HARNESS]).trim().length > 0; } catch { /* not a checkout */ }
   try { standardsSha = git(harnessRoot, ['log', '-1', '--format=%H', '--', 'tools/balance-program/standards.mjs']).trim() || null; } catch { /* not a checkout */ }
-  const rec = { schema: TREE_SCHEMA, game: { ref: game, sha, label }, harness: { sha: harnessSha, dirty, overlay: hashPaths(harnessRoot, HARNESS), standardsCommit: standardsSha },
+  const rec = { schema: TREE_SCHEMA, game: { ref: game, sha, label }, harness: { sha: harnessSha, dirty, overlay: hashHarness(harnessRoot), standardsCommit: standardsSha }, treeOwn: TREE_OWN,
     replaced, patches, at: new Date().toISOString().slice(0, 16) + 'Z' };
   writeFileSync(join(into, TREE_FILE), JSON.stringify(rec, null, 1) + '\n');
   return rec;
@@ -118,7 +130,7 @@ export async function manifest(root) {
     hashes: {
       srcData: hashPaths(root, ['src/data']), engine: hashPaths(root, ['src/core']), edgeSettle: hashPaths(root, ['supabase/functions/hr-accrue']),
       catalogues: { ...hashFiles(root, catalogues), list: catalogues.map((f) => f.split('/').pop()) }, configToml: hashPaths(root, ['supabase/config.toml']),
-      config: { sha256: sha256(JSON.stringify(config)) }, standards: hashPaths(root, ['tools/balance-program/standards.mjs']), harness: hashPaths(root, HARNESS),
+      config: { sha256: sha256(JSON.stringify(config)) }, standards: hashPaths(root, ['tools/balance-program/standards.mjs']), harness: hashHarness(root), staged: hashPaths(root, TREE_OWN),
     },
     config: { build: config.build, combat: config.combat, tierDials: config.tierDials, switches: config.switches, groundTiersSha256: sha256(JSON.stringify(config.groundTiers)) },
     node: process.version, platform: process.platform,

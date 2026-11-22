@@ -1,0 +1,204 @@
+# ============================================================================
+# balance-baseline — THE PINNED BALANCE BASELINE, OR ONE CANDIDATE AGAINST IT,
+# ON THE SAME SCENARIOS, SEEDS, ENGINE AND HARNESS.
+#
+# tools/balance-program/baseline.mjs (lane/bl-baseline; docs/design/balance-
+# baseline/01-baseline.md and 08-regression.md). A game commit (the pin
+# baseline/overhaul-start, a set tip, a lane) is exported with this branch's
+# harness laid over it, and the baseline's scenarios (1,281 cells, 4 seeds,
+# 1 to 8 hours a seed by Level) play in 16 shards; a determinism job plays
+# 16 cells twice; the join writes one results file (the manifest, every
+# seed's outcomes, the band rows judged on that tree, the views, the
+# calibration) and, for a candidate, the side-by-side report against the
+# committed pin. A MEASUREMENT, never a gate, and never on a lane, set,
+# release or main push. Too heavy for a PC.
+#
+# Run it:   edit tools/balance-program/baseline/target.json (game, label,
+#           patch, base), commit, then
+#           git push origin HEAD:refs/heads/balance-baseline/<label>
+#           (or, once main holds this file: gh workflow run balance-baseline.yml
+#           -f game=<ref> -f label=<label> [-f patch=a.json,b.json] [-f base=proposed])
+# Read:     gh run download <id> --dir <dir> --name baseline-results
+#           node tools/balance-program/baseline.mjs --report <dir>/results.json.gz
+#           node tools/balance-program/baseline.mjs --compare <dir>/results.json.gz
+# ============================================================================
+name: balance-baseline
+
+on:
+  push:
+    branches: ['balance-baseline/**']
+  workflow_dispatch:
+    inputs:
+      game:
+        description: 'the game commit or branch to measure'
+        required: true
+        default: 'baseline/overhaul-start'
+      label:
+        description: 'a name for the results'
+        required: true
+        default: 'overhaul-start'
+      patch:
+        description: 'patch files laid on the game, comma-separated (tools/balance-program/patches/...), or blank'
+        required: false
+        default: ''
+      base:
+        description: 'a proposal base (proposed, or proposal ids) or today'
+        required: false
+        default: 'today'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balance-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SPEC: tools/balance-program/baseline/overhaul-start/spec.json
+
+jobs:
+  target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      game: ${{ steps.t.outputs.game }}
+      label: ${{ steps.t.outputs.label }}
+      patch: ${{ steps.t.outputs.patch }}
+      base: ${{ steps.t.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: t
+        env:
+          IN_GAME: ${{ github.event.inputs.game }}
+          IN_LABEL: ${{ github.event.inputs.label }}
+          IN_PATCH: ${{ github.event.inputs.patch }}
+          IN_BASE: ${{ github.event.inputs.base }}
+        run: |
+          node -e '
+            const t = require("./tools/balance-program/baseline/target.json");
+            const pick = (k) => (process.env["IN_" + k.toUpperCase()] || t[k] || "").trim();
+            const ok = (v) => /^[A-Za-z0-9._\/,+-]*$/.test(v);
+            const out = { game: pick("game"), label: pick("label"), patch: pick("patch"), base: pick("base") || "today" };
+            for (const [k, v] of Object.entries(out)) if (!ok(v)) { console.error("target " + k + " is not a ref, name or list: " + v); process.exit(2); }
+            if (!out.game) { console.error("target: no game"); process.exit(2); }
+            for (const [k, v] of Object.entries(out)) console.log(k + "=" + v);
+          ' >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  shard:
+    needs: target
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    env:
+      SHARD: ${{ matrix.shard }}
+      GAME: ${{ needs.target.outputs.game }}
+      LABEL: ${{ needs.target.outputs.label }}
+      PATCH: ${{ needs.target.outputs.patch }}
+      BASE: ${{ needs.target.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: The game commit with this harness laid over it
+        run: node tools/balance-program/baseline.mjs --materialize "$GAME" --into "$RUNNER_TEMP/tree" --label "$LABEL"
+      - name: Play shard ${{ matrix.shard }} of 16 of the baseline scenarios
+        run: |
+          set -o pipefail
+          EXTRA=()
+          if [ -n "$PATCH" ]; then EXTRA+=(--patch "$PATCH"); fi
+          if [ -n "$BASE" ] && [ "$BASE" != "today" ]; then EXTRA+=(--base "$BASE"); fi
+          node "$RUNNER_TEMP/tree/tools/balance-program/baseline.mjs" --shard "$SHARD/16" --spec "$GITHUB_WORKSPACE/$SPEC" --workers 4 --out "$GITHUB_WORKSPACE/shard-$SHARD.json.gz" "${EXTRA[@]}"
+      - name: Upload the shard
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-shard-${{ matrix.shard }}
+          path: shard-*.json.gz
+          retention-days: 30
+
+  determinism:
+    needs: target
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GAME: ${{ needs.target.outputs.game }}
+      LABEL: ${{ needs.target.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: The game commit with this harness laid over it
+        run: node tools/balance-program/baseline.mjs --materialize "$GAME" --into "$RUNNER_TEMP/tree" --label "$LABEL"
+      - name: Sixteen cells, seed 0, played twice in fresh workers in opposite orders
+        run: node "$RUNNER_TEMP/tree/tools/balance-program/baseline.mjs" --determinism --spec "$GITHUB_WORKSPACE/$SPEC" --cells 16 --workers 4 --out "$GITHUB_WORKSPACE/determinism.json"
+      - name: Upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-determinism
+          path: determinism.json
+          retention-days: 30
+
+  join:
+    needs: [target, shard, determinism]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GAME: ${{ needs.target.outputs.game }}
+      LABEL: ${{ needs.target.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: The game commit with this harness laid over it
+        run: node tools/balance-program/baseline.mjs --materialize "$GAME" --into "$RUNNER_TEMP/tree" --label "$LABEL"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: baseline-shard-*
+          path: shards
+      - uses: actions/download-artifact@v4
+        with:
+          name: baseline-determinism
+          path: det
+        continue-on-error: true
+      - name: Join the shards (manifest, bands on this tree, views, calibration, determinism against the shards)
+        run: |
+          set -o pipefail
+          DET=()
+          if [ -f det/determinism.json ]; then DET=(--determinism-file "$GITHUB_WORKSPACE/det/determinism.json"); fi
+          node "$RUNNER_TEMP/tree/tools/balance-program/baseline.mjs" --join "$GITHUB_WORKSPACE/shards" --spec "$GITHUB_WORKSPACE/$SPEC" --label "$LABEL" --run-id "$GITHUB_RUN_ID" --out "$GITHUB_WORKSPACE/results.json.gz" "${DET[@]}" 2>&1 | tee report.txt
+      - name: Against the committed pin (a candidate only)
+        if: ${{ !cancelled() && hashFiles('results.json.gz') != '' && hashFiles('tools/balance-program/baseline/overhaul-start/results.json.gz') != '' }}
+        run: |
+          set -o pipefail
+          node tools/balance-program/baseline.mjs --compare results.json.gz --json compare.json 2>&1 | tee compare.txt
+      - name: Upload
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-results
+          path: |
+            results.json.gz
+            report.txt
+            compare.txt
+            compare.json
+          retention-days: 90

@@ -10,8 +10,9 @@
 // FROM THIS CHECKOUT (git):
 //   node tools/balance-program/baseline.mjs --materialize <ref> --into <dir> [--label L]    the game commit + this harness, in a folder
 //   node tools/balance-program/baseline.mjs --report [<results.json.gz>]                      the baseline (default: the committed pin), by category
-//   node tools/balance-program/baseline.mjs --compare <candidate.json.gz> [--baseline <f>] [--targets a,b] [--json f] [--all-views]
-//                                                                         the candidate side by side with the baseline, Tyler's eight groups
+//   node tools/balance-program/baseline.mjs --compare <candidate.json.gz> [--baseline <f>] [--targets <BL-3 targets.json>] [--intent a,b]
+//                                        [--json f] [--all-views]     the candidate side by side with the baseline, Tyler's eight groups:
+//                                                                         each new-game target toward or away, plain movement where none is set
 //   node tools/balance-program/baseline.mjs --local <ref> [--patch a.json,b.json] [--base proposed] --only 30,60 | --blocks four,ways
 //                                                                         the whole loop on this PC for a SMALL slice (refused unsliced:
 //                                                                         the full scenario list plays on GitHub, balance-baseline.yml)
@@ -20,12 +21,12 @@
 //   --plan --spec <f>                              cells, seed jobs and hours by block (no play)
 //   --shard i/n --spec <f> --out <f> [--patch a.json,b.json] [--base <proposals>] [--workers N]   one GitHub job's share
 //   --determinism --spec <f> --out <f> [--cells N] the same cells, seed 0, played twice in fresh workers in opposite orders: byte-identical
-//   --join <dir> --spec <f> --out <results.json.gz> [--label L] [--run-id N]   the shards as one results file: the manifest, the
-//                                                  standards.mjs band rows judged on this tree, the views, the calibration (Krell, C-2)
+//   --join <dir> --spec <f> --out <results.json.gz> [--label L] [--run-id N]   the shards as one results file: the manifest, every
+//                                                  seed's outcomes, the views, the calibration (Krell, C-2), the determinism check
 //   --selftest                                     the proofs (below)
 //
-// SELFTEST: the outcome reader on a planted seed; the noise rule and the Poisson rule bite both ways; a planted band toward, away and both
-// reads IMPROVEMENT, REGRESSION and TRADEOFF, an unbanded move MOVED, a copy WITHIN NOISE; time to the top on a planted flat rate is the
+// SELFTEST: the outcome reader on a planted seed; the noise rule and the Poisson rule bite both ways; planted new-game targets read toward,
+// away and both as IMPROVEMENT, REGRESSION and TRADEOFF, a move with no target MOVED, one outside the intent UNEXPECTED, a copy WITHIN NOISE; time to the top on a planted flat rate is the
 // curve's sum; the spec of this tree holds no staged ground and every planned cell stands on an open one with its Level's hours; a join of
 // shards from two scenarios or two trees is refused; one real cell played twice is byte-identical and the comparator sees a planted change;
 // the overlay exports the commit's game and lays this checkout's harness over it.
@@ -45,7 +46,7 @@ import { isMain } from '../../tests/_is-main.mjs';
 import { playRun, playJobs, baseOf, combinePatches, printToolReds } from './balance-matrix.mjs';
 import { loadGridData } from './progression-grid.mjs';
 import { loadKits } from './grid-kit.mjs';
-import { judgeMatrix, METRIC_IDS, toolReds } from './matrix-metrics.mjs';
+import { METRIC_IDS, toolReds } from './matrix-metrics.mjs';
 import { plantScratch, checkPatch } from './matrix-scratch.mjs';
 import { dataView } from './balance-matrix.mjs';
 import { printCalibration } from './matrix-calibration.mjs';
@@ -53,13 +54,13 @@ import { readC2 } from './calibrate.mjs';
 import { OUTCOME_IDS, seedOutcomes, cellStats, moments } from './baseline/outcomes.mjs';
 import { deriveSpec, baselineRun, planHook, scenarioHash, hoursOfCell, SPEC_SCHEMA } from './baseline/scenarios.mjs';
 import { materialize, manifest, treeRecord, TREE_FILE, HARNESS } from './baseline/tree.mjs';
-import { RESULT_SCHEMA, hydrate, computeViews, compareDocs, printCompare, printBaseline, judgeMove, judgeRates, noiseTable } from './baseline/compare.mjs';
+import { RESULT_SCHEMA, TARGET_SCHEMA, hydrate, computeViews, compareDocs, printCompare, printBaseline, judgeMove, judgeRates, noiseTable, loadTargets } from './baseline/compare.mjs';
 import { planMatrix } from './matrix-plan.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
 /* the committed pin: its spec and its results (01-baseline.md) */
-export const PIN_DIR = join(HERE, 'baseline', 'v0.2.143');
+export const PIN_DIR = join(HERE, 'baseline', 'overhaul-start');
 export const PIN_SPEC = join(PIN_DIR, 'spec.json');
 export const PIN_RESULTS = join(PIN_DIR, 'results.json.gz');
 export const SHARD_SCHEMA = 'hearthrise.balance-baseline-shard/1';
@@ -95,6 +96,8 @@ async function changeOf(patchList, baseSpec) {
   return { patch, names: [...(base ? ['base ' + base.name] : []), ...patchList] };
 }
 const listArg = (k) => (arg(k) ? arg(k).split(',').map((s) => s.trim()).filter(Boolean) : []);
+/* BL-3's new-game targets (compare.mjs TARGET_SCHEMA): --targets <file>; none given, every change reads as plain movement */
+const targetsOf = () => (arg('targets') ? loadTargets(JSON.parse(readFileSync(resolve(arg('targets')), 'utf8'))) : []);
 
 /* ── ONE SHARD: plays its cells on this tree (or its patched copy), keeps every seed's outcomes and the matrix's metrics ──────── */
 export async function playShard(spec, o = {}) {
@@ -174,7 +177,6 @@ export async function joinRun(dir, spec, o = {}) {
   let V = D;
   if (ch.patch) { const s = await plantScratch(ch.patch); try { V = await dataView(D, s.root); } finally { s.done(); } }
   const ok = j.cells.filter((c) => !c.error && c.m);
-  const bands = judgeMatrix(V, K, ok.filter((c) => c.block !== 'c2' && c.block !== 'c3'));
   const doc0 = { outcomeIds: OUTCOME_IDS, cells: j.cells.map((c) => (c.error ? c : { ...c, m: slimM(c.m) })) };
   const hy = hydrate(doc0);
   const views = computeViews(hy.cells, { spec, toNext: (L) => V.XP.charXpForLevel(L + 1) - V.XP.charXpForLevel(L) });
@@ -196,7 +198,7 @@ export async function joinRun(dir, spec, o = {}) {
   return { schema: RESULT_SCHEMA, label: o.label || (man.tree.game.label || man.tree.game.ref), at: new Date().toISOString().slice(0, 16) + 'Z',
     scenario: { id: spec.id, hash: j.first.scenarioHash, spec }, manifest: { ...man, change: j.first.change || null },
     runtime: { ...j.runtime, heroHours, run: o.runId || null, errors: j.cells.filter((c) => c.error).length },
-    outcomeIds: OUTCOME_IDS, cells: doc0.cells, bands, views, calibration: { krell: j.calibration, c2 }, determinism: detCheck };
+    outcomeIds: OUTCOME_IDS, cells: doc0.cells, views, calibration: { krell: j.calibration, c2 }, determinism: detCheck };
 }
 
 /* ── THE COMMANDS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -218,9 +220,9 @@ async function main() {
     const base = hydrate(readDoc(resolve(arg('baseline', arg('report') || PIN_RESULTS))));
     if (!arg('compare')) { printBaseline(base, { allViews: has('all-views') }); if (base.calibration && base.calibration.krell) { console.log(''); printCalibration(base.calibration.krell, console.log); } return 0; }
     const cand = hydrate(readDoc(resolve(arg('compare'))));
-    const cmp = compareDocs(base, cand, { targets: listArg('targets') });
+    const cmp = compareDocs(base, cand, { targets: targetsOf(), intent: listArg('intent') });
     printCompare(cmp, base, cand, { allViews: has('all-views'), top: Number(arg('top', 8)) });
-    if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ baseline: base.label, candidate: cand.label, categories: cmp.categories, bands: cmp.bands, views: cmp.views, cells: cmp.cells, onlyA: cmp.onlyA, onlyB: cmp.onlyB, groundMoved: cmp.groundMoved }) + '\n');
+    if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ baseline: base.label, candidate: cand.label, categories: cmp.categories, targets: cmp.targets, views: cmp.views, cells: cmp.cells, onlyA: cmp.onlyA, onlyB: cmp.onlyB, groundMoved: cmp.groundMoved }) + '\n');
     return 0;
   }
   if (arg('local')) return local();
@@ -282,7 +284,7 @@ async function local() {
     node(['--shard', '0/1', '--spec', spec, '--out', join(shards, 'shard-0.json'), '--workers', String(arg('workers', 4)), ...slice]);
     node(['--join', shards, '--spec', spec, '--out', out, '--label', arg('label', arg('local'))]);
     if (existsSync(PIN_RESULTS) && !has('no-compare')) {
-      const cmp = compareDocs(hydrate(readDoc(PIN_RESULTS)), hydrate(readDoc(out)), { targets: listArg('targets') });
+      const cmp = compareDocs(hydrate(readDoc(PIN_RESULTS)), hydrate(readDoc(out)), { targets: targetsOf(), intent: listArg('intent') });
       printCompare(cmp, hydrate(readDoc(PIN_RESULTS)), hydrate(readDoc(out)), { top: Number(arg('top', 8)) });
     }
     console.log('\nresults: ' + out);
@@ -312,22 +314,26 @@ async function selftest() {
     && judgeMove({ mean: 100, se: 0 }, { mean: 100.5, se: 0 }).flag === 'noise' && judgeMove({ mean: 7, se: 1 }, { mean: 7, se: 1 }).flag === 'noise');
   check('the Poisson rule: 0 against 0 deaths is noise, 0 against 12 in 100 hours is a move, 3 against 4 in 100 hours is noise',
     judgeRates({ k: 0, t: 100 }, { k: 0, t: 100 }).flag === 'noise' && judgeRates({ k: 0, t: 100 }, { k: 12, t: 100 }).flag === 'moved' && judgeRates({ k: 3, t: 100 }, { k: 4, t: 100 }).flag === 'noise');
-  /* 3. the verdicts on planted docs */
-  const row = (vals) => [...OUTCOME_IDS.map((id) => (id in vals ? vals[id] : 1)), 1, 1];
-  const pdoc = (label, bands, xp) => ({ schema: RESULT_SCHEMA, label, scenario: { hash: 'h' }, outcomeIds: OUTCOME_IDS, bands, views: [],
-    cells: [{ key: 'k1', block: 'pace', L: 30, gear: 'mid', party: 1, comp: 'h', tier: 'normal', ground: 'g', styles: ['hammer'], seeds: [row({ levelXpPerH: xp }), row({ levelXpPerH: xp * 1.001 }), row({ levelXpPerH: xp * 0.999 }), row({ levelXpPerH: xp })] }] });
-  const band = (id, group, status, dist, way = 'hammer') => ({ way, band: id, group, at: 'a', value: dist, status, dist });
-  const A = hydrate(pdoc('A', [band('S1.mid', 'survival', 'off', 0.2), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0)], 1000));
-  const verdict = (bands, xp) => compareDocs(A, hydrate(pdoc('B', bands, xp))).categories;
-  const v1 = verdict([band('S1.mid', 'survival', 'ok', 0), band('G-1', 'gold', 'RED', 1), band('P2', 'pace', 'ok', 0)], 1000);
-  const v2 = verdict([band('S1.mid', 'survival', 'ok', 0), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0), band('S2.mid', 'survival', 'ok', 0)], 1000);
-  const both = compareDocs(hydrate(pdoc('A', [band('S1.mid', 'survival', 'off', 0.2), band('S2.mid', 'survival', 'ok', 0)], 1000)), hydrate(pdoc('B', [band('S1.mid', 'survival', 'ok', 0), band('S2.mid', 'survival', 'RED', 0.5)], 1000))).categories;
-  const xpMoved = verdict([band('S1.mid', 'survival', 'off', 0.2), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0)], 1100);
-  const same = verdict([band('S1.mid', 'survival', 'off', 0.2), band('G-1', 'gold', 'ok', 0), band('P2', 'pace', 'ok', 0)], 1000);
-  check('verdicts: a band toward its range IMPROVEMENT, away REGRESSION, both TRADEOFF, an unbanded move beyond noise MOVED, a copy WITHIN NOISE ('
-    + [v1.survival.verdict, v1.economy.verdict, both.survival.verdict, xpMoved.progression.verdict, same.progression.verdict].join(', ') + ')',
-    v1.survival.verdict === 'IMPROVEMENT' && v1.economy.verdict === 'REGRESSION' && both.survival.verdict === 'TRADEOFF' && xpMoved.progression.verdict === 'MOVED, NO BAND JUDGES IT'
-    && same.progression.verdict === 'WITHIN NOISE' && Object.values(same).every((c) => c.verdict === 'WITHIN NOISE') && v2.survival.verdict === 'IMPROVEMENT');
+  /* 3. the verdicts on planted docs, against planted NEW-GAME targets (BL-3's shape): toward, away, both, none, unread, unexpected */
+  const row = (vals, j = 0) => [...OUTCOME_IDS.map((id) => (id in vals ? vals[id] : 1) * (1 + j)), 1, 1];
+  const cellOf = (key, way, vals) => ({ key, block: 'pace', L: 30, gear: 'mid', party: 1, comp: way, tier: 'normal', ground: 'g', styles: [way], seeds: [row(vals), row(vals, 0.001), row(vals, -0.001), row(vals)] });
+  const pdoc = (label, h, m) => ({ schema: RESULT_SCHEMA, label, scenario: { hash: 'h' }, outcomeIds: OUTCOME_IDS, views: [], cells: [cellOf('k1', 'hammer', h), cellOf('k2', 'mage', m)] });
+  const A = hydrate(pdoc('A', { levelXpPerH: 1000 }, {}));
+  const T = loadTargets({ schema: TARGET_SCHEMA, targets: [
+    { id: 'T1', kind: 'soft', category: 'progression', on: 'levelXpPerH', where: { way: 'hammer' }, lo: 1050, hi: 1200 },
+    { id: 'T2', kind: 'hard', category: 'economy', on: 'netPerH', where: { way: 'hammer' }, lo: 0.9, hi: null },
+    { id: 'T3', kind: 'soft', category: 'survival', on: 'takenPerH', where: { way: 'hammer' }, lo: null, hi: 0.95 },
+    { id: 'T4', kind: 'soft', category: 'survival', on: 'takenPerH', where: { way: 'mage' }, lo: null, hi: 1.5 },
+    { id: 'T5', kind: 'hypothesis', category: 'progression', on: 'view:timeToTop', lo: null, hi: 100 }] });
+  const c = compareDocs(A, hydrate(pdoc('B', { levelXpPerH: 1100, netPerH: 0.5, takenPerH: 0.9, dps: 1.3 }, { takenPerH: 2 })), { targets: T, intent: ['progression', 'survival'] }).categories;
+  const cr = compareDocs(A, hydrate(pdoc('B', { levelXpPerH: 1100 }, {})), { targets: T });
+  const same = compareDocs(A, hydrate(pdoc('A2', { levelXpPerH: 1000 }, {})), { targets: T }).categories;
+  const refusedT = (t) => { try { loadTargets({ schema: TARGET_SCHEMA, targets: [t] }); return false; } catch { return true; } };
+  check('verdicts against new-game targets: toward IMPROVEMENT, away and a hard target newly out REGRESSION, both TRADEOFF, a move with no target MOVED (no target), outside the intent UNEXPECTED, a target with nothing to read UNREAD, a copy WITHIN NOISE ('
+    + [c.progression.verdict, c.economy.verdict, c.survival.verdict, c.combat.verdict].join(', ') + ')',
+    c.progression.verdict === 'IMPROVEMENT' && c.economy.verdict === 'REGRESSION' && c.economy.newlyOut === 1 && c.economy.unexpected && c.survival.verdict === 'TRADEOFF' && !c.survival.unexpected
+    && c.combat.verdict === 'MOVED (no target)' && c.combat.unexpected && cr.targets.some((x) => x.unread && x.target.id === 'T5') && Object.values(same).every((x) => x.verdict === 'WITHIN NOISE')
+    && refusedT({ id: 'x', kind: 'soft', category: 'progression', on: 'levelXpPerH' }) && refusedT({ id: 'x', kind: 'soft', category: 'nowhere', on: 'levelXpPerH', lo: 1 }) && !refusedT({ id: 'x', kind: 'hard', category: 'survival', on: 'deathsPer1000h', hi: 5 }));
   /* 4. time to the top on a flat planted rate is the curve's own sum */
   {
     const spec = { levels: [1, 5, 10], spine: [1, 5, 10], liveTop: 10 };

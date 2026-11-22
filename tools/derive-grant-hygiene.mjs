@@ -492,7 +492,6 @@ export const PATCHES = [
     add: `    -- ── ADDED 2026-11-22 — "WEAR UPGRADES", THE SERVER'S PICK (lane/c-company FB-6) ──
     -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
     -- removals do not move. The function is 1051-company-start.sql's.
-    --
     -- SELF-VALIDATING, NO NEW TARGET: p_uid is the engine's VERIFIED subject, the
     -- same parameter it already passes to hr_apply, and every line names one of
     -- that account's own heroes. Each hero's lines go on as ONE hr_apply equip

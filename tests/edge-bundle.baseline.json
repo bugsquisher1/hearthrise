@@ -163,6 +163,11 @@
         "bytes": 3190461,
         "on": "2026-11-22",
         "why": "lane/c-company FB-6 follow-up: the upgrade pick moved to src/core/upgrade-pick.js (designer D-2: the server makes it) and the engine verb company-wear.js wears it at the company's Start; both files are new to the bundle, every file they import was already vendored"
+      },
+      {
+        "bytes": 3190470,
+        "on": "2026-11-22",
+        "why": "lane/c-company FB-6 follow-up: two comment lines of src/core/upgrade-pick.js reworded so pack-edge reads no import in them (+9 bytes)"
       }
     ]
   }

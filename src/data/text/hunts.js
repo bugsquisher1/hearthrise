@@ -155,7 +155,7 @@ export const HUNTS_TEXT = Object.freeze({
   depth_held: 'Held depth: Depth {depth} of {of}',
   depth_new: 'First time here. The party starts at Depth 1 and works its way deeper.',
   /* the server's estimate at the plan's Risk (1060-gold-estimate-catalogue.generated.sql), shown under the depth line */
-  gold_about: 'About {gold} gold an hour, before supplies.',
+  gold_about: 'Est. {gold} gold/hr (before supplies)',
   tier_set_by: 'Set by {leader}: {tier}',
   tier_leader_picks: 'Tier: set by the party leader',
   tier_kept_party: 'Tier applies to the whole party, saved for this ground',

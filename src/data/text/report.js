@@ -37,8 +37,8 @@ export const REPORT_TEXT = Object.freeze({
   depth_deep: 'The deepest it went was Depth {deep} of {of}.',
   fell_none: 'Never fell back.',
   /* THE EARNED LINE (src/shell/hunt-report.js earnedLine): the server's gold an hour and store supplies an hour, beside the Hunts window's estimate */
-  earned: 'Earned {gold} gold an hour. Supplies used {supplies} gold an hour.',
-  earned_only: 'Earned {gold} gold an hour.',
+  earned: 'Gold/hr: {gold} · Supplies/hr: {supplies}',
+  earned_only: 'Gold/hr: {gold}',
   fell_one: 'Fell back once, with {name} down to {pct}% from a {monster}.',
   fell_one_died: 'Fell back once, when {name} died to a {monster}.',
   fell_many: 'Fell back {count} times. Last time {name} was down to {pct}% from a {monster}.',

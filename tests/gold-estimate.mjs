@@ -20,12 +20,12 @@
 //              Steady on Muster Barrows is 4,900; Careful under Steady under Bold; past the top it stops; under the floor, off the scale or
 //              for an unknown Risk there is none
 //   GE-READ    the section reads exactly what the server sent, and a missing, negative, fractional or string value reads null
-//   GE-HUNTS   the Hunts window draws "About 4,900 gold an hour, before supplies." under the Risk pick at the plan's Risk (Steady when the
+//   GE-HUNTS   the Hunts window draws "Est. 4,900 gold/hr (before supplies)" under the Risk pick at the plan's Risk (Steady when the
 //              plan names none, Bold's own number on Bold), and nothing before the section comes or under the floor
-//   GE-REPORT  the end card keeps the server's per-hour gold and supplies through the residue, and its risk block ends on "Earned 4,812 gold
+//   GE-REPORT  the end card keeps the server's per-hour gold and supplies through the residue, and its risk block ends on "Gold/hr: 4,812 · Supplies/hr: 950
 //              an hour. Supplies used 950 gold an hour." on a scale ground; the return card says the same, from the stored card or from the
 //              analyzer while it reads that session; none off the scale, none for an unrated hunt
-//   GE-WORDS   the player sees gold, never the word wage; plain sentences (no semicolon, dash or colon)
+//   GE-WORDS   the player sees gold, never the word wage; genre labels (no semicolon or dash; a colon only as Label: value, never joining clauses, Tyler 2026-11-14)
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
@@ -58,7 +58,7 @@ const HUNT_VIEW = Object.freeze({ session_id: 's7', ended: true, session: { id: 
   entered_at: new Date(START).toISOString(), end_reason: 'stamina', risk_end: 'steady', danger_end: 632, tally: { kills: 50, report: REPORT } } });
 const HERO = Object.freeze({ kills: 50, xp: { level: 9000 }, coins: 7000, loot_value: 2624, waste: 1900, balance: 7724,
   per_hour: { xp: 4500, gold: 4812, waste: 950, balance: 3862 } });
-const EARNED = 'Earned 4,812 gold an hour. Supplies used 950 gold an hour.';
+const EARNED = 'Gold/hr: 4,812 · Supplies/hr: 950';
 
 /* the Hunts window's Risk pick, as tests/danger-client.mjs DC-9 draws it: a box with its buttons and lines */
 const el = (a = {}) => ({ a: Object.assign({}, a), textContent: '', hidden: false, disabled: false,
@@ -98,9 +98,9 @@ const ARMS = {
   'GE-HUNTS': async (X) => {
     const out = [];
     const steady = goldLineOf(X, { danger: { risk: null, held: {}, playing: null }, gold_estimate: GOLD });
-    if (steady !== 'About 4,900 gold an hour, before supplies.') out.push('a plan with no Risk reads ' + JSON.stringify(steady));
+    if (steady !== 'Est. 4,900 gold/hr (before supplies)') out.push('a plan with no Risk reads ' + JSON.stringify(steady));
     const bold = goldLineOf(X, { danger: { risk: 'bold', held: {}, playing: null }, gold_estimate: GOLD });
-    if (bold !== 'About 6,200 gold an hour, before supplies.') out.push('Bold reads ' + JSON.stringify(bold));
+    if (bold !== 'Est. 6,200 gold/hr (before supplies)') out.push('Bold reads ' + JSON.stringify(bold));
     if (goldLineOf(X, { danger: { risk: 'steady', held: {}, playing: null } }) !== '') out.push('a line before the section came');
     if (goldLineOf(X, { gold_estimate: GOLD }) !== '') out.push('a line before the danger section came (no Risk known)');
     if (goldLineOf(X, { danger: { risk: 'steady', held: {}, playing: null }, gold_estimate: UNDER }) !== '') out.push('a line under the band floor');
@@ -128,15 +128,15 @@ const ARMS = {
     if (X.REC.earnRatesOf(csOf({ hunt_analyzer: { tier: 'basic', session: { id: 's9', hunt: M }, hero: HERO } }), 's8') !== null) out.push('another session\'s rates were read');
     const unrated = Object.assign({}, HERO); delete unrated.per_hour;
     if (X.REC.earnRatesOf(csOf({ hunt_analyzer: { tier: 'basic', session: { id: 's8', hunt: M }, hero: unrated } }), 's8') !== null) out.push('an unrated hunt has rates');
-    if (X.REP.earnedLine({ goldH: 4812, wasteH: null }) !== 'Earned 4,812 gold an hour.' || X.REP.earnedLine(null) !== '') out.push('no supplies or no rates read wrong');
+    if (X.REP.earnedLine({ goldH: 4812, wasteH: null }) !== 'Gold/hr: 4,812' || X.REP.earnedLine(null) !== '') out.push('no supplies or no rates read wrong');
     const forged = X.HSUM.sanitizeSummary({ id: 's7', goldH: 'lots', wasteH: Infinity });
     if (forged.goldH !== null || forged.wasteH !== null) out.push('the residue kept a forged rate: ' + JSON.stringify(forged));
     return out;
   },
   'GE-WORDS': async (X) => {
     const out = [];
-    const words = [X.HT.HUNTS_TEXT.gold_about, X.RT.REPORT_TEXT.earned, X.RT.REPORT_TEXT.earned_only, EARNED, 'About 4,900 gold an hour, before supplies.'];
-    if (words.some((w) => typeof w !== 'string' || /wage/i.test(w) || /[;—–:]/.test(w))) out.push('a line says wage or is not plain: ' + JSON.stringify(words));
+    const words = [X.HT.HUNTS_TEXT.gold_about, X.RT.REPORT_TEXT.earned, X.RT.REPORT_TEXT.earned_only, EARNED, 'Est. 4,900 gold/hr (before supplies)'];
+    if (words.some((w) => typeof w !== 'string' || /wage/i.test(w) || /[;—–]/.test(w) || /:s+[a-z]/.test(w))) out.push('a line says wage or is not plain: ' + JSON.stringify(words));
     return out;
   },
 };

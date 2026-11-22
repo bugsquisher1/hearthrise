@@ -1007,7 +1007,7 @@ Everything on this page is printed from `tools/balance-program/sensitivity/data/
 node tools/balance-program/sensitivity/sensitivity.mjs --plan
 node tools/balance-program/sensitivity/sensitivity.mjs --coverage
 
-# play it again on GitHub: one job a lever, one a chunk of an experiment (about 190 runner-hours)
+# play it again on GitHub: one job a lever, one a chunk of an experiment (about 120 runner-hours)
 git push origin HEAD:refs/heads/balance-sensitivity/<name>
 gh run download <run id> --dir <dir> --pattern 'sens-*'
 

@@ -352,13 +352,14 @@ const cases = {
     const THICKET = 'meadowbrook_thicket', WICK = 'wickstead', GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
     const walk = [
       /* Level, the facts of the stop, what the card's one line must say */
-      ['one hero, a free slot', 10, { roster: roster(1), gold: 15000, visited: new Set([THICKET]) }, 'Create your free second hero in Characters'],
+      /* one hero first (Tyler RD-Q6 a): the server's recruit press, once ready, leads the line */
+      ['one hero, the recruits ready', 10, { roster: roster(1), gold: 15000, visited: new Set([THICKET]), recruits: { ready: true, count: 3, level: 10 } }, 'Recruit 3 heroes in All characters'],
       ['two heroes, the Glade unwalked', 10, { gold: 15000, visited: new Set([THICKET, WICK]) }, 'Next step up: Mosslight Glade, Level 16'],
       ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Next goal: a third hero slot, 50,000 gp'],
       ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'Buy a third hero slot for 50,000 gp'],
-      /* an empty slot with the purse for the next one: the free hero, never a sale (lane/c-hollow-proofs: at 15,000 gp the purse was too short for any
+      /* an empty slot with the purse for the next one: the recruits, never a sale (lane/c-hollow-proofs: at 15,000 gp the purse was too short for any
          offer, so the mutant that sells a slot past an empty one escaped once its plant could load) */
-      ['the purse is there, one slot empty', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]) }, 'Create your free second hero in Characters'],
+      ['the purse is there, the recruits ready', 18, { gold: 50000, roster: roster(1), visited: new Set([THICKET, WICK, GLADE]), recruits: { ready: true, count: 3, level: 10 } }, 'Recruit 3 heroes in All characters'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
       ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
@@ -1096,15 +1097,16 @@ const cases = {
     if ((backNow({ supplies: [{ item: 'thin_turnip_juice', source: 'store', count: 1 }] }) || {}).id === 'first_drink') return 'on a return "Your hero just drank" is up';
     if ((say(R({ ...inThicket, ...sid, back: 's-back', supplies: own(3) }, 'first_eat')) || {}).id === 'fight_settings') return 'on a return "Taking a beating?" is up';
     if ((say(R({ ...inThicket, sessionId: 's-next', back: 's-back', supplies: own(2), carried: { cooked_shrimp: 18 } })) || {}).id !== 'first_eat') return 'the next hunt never says "Your hero just ate"';
-    /* more than one hero: 5 minutes into a hunt past the Cellar, one hero on an account that owns an empty slot */
-    const one = { roster: [{ slot: 0, level: 6, name: 'Corliss', open: true, hunting: true }], slotsOwned: 2, playLimit: 4, name: 'Corliss' };
+    /* THE RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): one hero whose server section says the recruit press is ready */
+    const one = { roster: [{ slot: 0, level: 6, name: 'Corliss', open: true, hunting: true }], slotsOwned: 4, playLimit: 4, name: 'Corliss',
+      recruits: { ready: true, count: 3, level: 6 } };
     const more = say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }));
-    if (!more || more.id !== 'more_heroes' || more.text !== 'Character list → Create hero') return 'the heroes card reads ' + JSON.stringify(more && more.text);
-    if ((say(R({ ...inThicket, ...one, huntMs: 4 * 60000 })) || {}).id === 'more_heroes') return 'the heroes card came before 5 minutes';
+    if (!more || more.id !== 'more_heroes' || more.text !== 'All characters → Recruit 3 heroes') return 'the recruits card reads ' + JSON.stringify(more && more.text);
+    if ((say(R({ ...inThicket, ...one, recruits: { ready: false, count: 3, level: 1 } })) || {}).id === 'more_heroes') return 'the recruits card came before the press was ready';
+    if ((say(R({ ...inThicket, ...one, recruits: null })) || {}).id === 'more_heroes') return 'the recruits card came with no offer from the server';
     /* a card that asks never walls (played 2026-11-01: it sat ahead of the Thicket's lessons in every hunt past 5 minutes) */
-    if (!more.gotIt || (say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }, 'more_heroes')) || {}).id === 'more_heroes') return 'Got it does not pass the heroes card';
-    if ((say(R({ ...inThicket, ...one, huntMs: 10 * 60000, huntId: 'mill_cellar' })) || {}).id === 'more_heroes') return 'the heroes card came in the Cellar';
-    if ((say(R({ ...inThicket, ...one, roster: [...one.roster, { slot: 1, level: 1, name: 'Bree', open: false, hunting: false }], huntMs: 6e5 })) || {}).id === 'more_heroes') return 'with 2 heroes the heroes card is still up';
+    if (!more.gotIt || (say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }, 'more_heroes')) || {}).id === 'more_heroes') return 'Got it does not pass the recruits card';
+    if ((say(R({ ...inThicket, ...one, roster: [...one.roster, { slot: 1, level: 6, name: 'Bree', open: false, hunting: false }], huntMs: 6e5 })) || {}).id === 'more_heroes') return 'with 2 heroes the recruits card is still up';
     /* two of the account's heroes in town and no party: hunt together, the other hero's tab */
     const town = steps.find((s) => s.id === 'save_setup').facts;
     const two = { roster: [{ slot: 0, level: 9, name: 'Corliss', open: true, hunting: false }, { slot: 2, level: 1, name: 'Bree', open: true, hunting: false }], slotsOwned: 2, playLimit: 4 };
@@ -2076,26 +2078,29 @@ const cases = {
     const srv = M.tut.HUNT_TUTORIAL.find((r) => r.done && r.done.kind !== 'read' && r.done.kind !== 'any');
     if (L.coachHtml(hero(town(), { read: [] }), srv).includes('coach-close')) return srv.id + ' (finished by the server) offers a close';
 
-    /* D4 MORE THAN ONE HERO: 5 minutes into the Thicket, one hero, two slots owned: the server's play limit and the
-       roster's slots in the words; Character list (a phone: Heroes, its sheet's), then Create hero ringed; a second hero finishes it */
-    const thicket = (sessionMs) => Object.assign(JSON.parse(JSON.stringify(base)), {
+    /* D4 THE RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): one hero in the Thicket whose server section says the recruit press is ready:
+       All characters, then its one press, ringed; a press not ready yet, or no section, is no card; a second hero finishes it */
+    const thicket = (sessionMs, ready) => Object.assign(JSON.parse(JSON.stringify(base)), {
       state: { active_kind: 'combat', active_id: 'meadowbrook_thicket', gold: 5200, level_xp: M.xp.charXpForLevel(6) },
       hunt: { ...base.hunt, hunt_id: 'meadowbrook_thicket', ended: false },
       hunt_analyzer: { ...base.hunt_analyzer, hunt_ms: sessionMs, hero: { ...base.hunt_analyzer.hero, supplies: [] } },
-      hunt_settings: { ...base.hunt_settings, slots: [], bar: [] }, equipment: worn, inventory: kept, skills: { ...base.skills, farming: { xp: 28, level: 1, frac: 0 } } });
-    const solo = hero(thicket(6 * 60000), { read: KNOWN });
+      hunt_settings: { ...base.hunt_settings, slots: [], bar: [] }, equipment: worn, inventory: kept, skills: { ...base.skills, farming: { xp: 28, level: 1, frac: 0 } },
+      recruits: ready === undefined ? null : { ready, at: 5, level: 6, first: 0, slots: [1, 2, 3], sets: ['tank', 'healer', 'ranger'] } });
+    const solo = hero(thicket(6 * 60000, true), { read: KNOWN });
     const rows1 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: false }];
+    /* the shell's facts count the slots the roster owns, not the heroes in them (the What next line's empty-slot rule reads it) */
+    const owned = L.coachFactsOf(solo, acct([solo], rows1, 4));
+    if (!owned || owned.slotsOwned !== 2 || !Array.isArray(owned.roster) || owned.roster.length !== 1) return 'the shell\'s facts read ' + JSON.stringify(owned && { slotsOwned: owned.slotsOwned, roster: owned.roster });
     const d4 = card(solo, acct([solo], rows1, 4));
-    if (!d4 || d4.id !== 'more_heroes' || d4.text !== 'Character list → Create hero')
-      return '5 minutes into the Thicket with one hero the coach shows ' + JSON.stringify(d4 && [d4.id, d4.text]);
+    if (!d4 || d4.id !== 'more_heroes' || d4.text !== 'All characters → Recruit 3 heroes')
+      return 'one hero in the Thicket with the recruit press ready, the coach shows ' + JSON.stringify(d4 && [d4.id, d4.text]);
     const d4ring = L.ringPlan(d4, at(null));
-    /* Create hero, then the strip's Character list (a desktop), the Heroes sheet's (a phone, its strip shows only Heroes), then Heroes (UI-10) */
-    if (JSON.stringify(d4ring) !== JSON.stringify(['.char-pick[data-app="create"]', '.char-tool[data-app="characters"]', '[data-hs-win="characters"] [data-app="characters"]', '.char-tool.is-all']))
-      return 'More than one hero rings ' + JSON.stringify(d4ring);
-    if ((card(hero(thicket(4 * 60000), { read: KNOWN }), acct([solo], rows1, 4)) || {}).id === 'more_heroes') return 'the more-heroes card came before 5 minutes in the Thicket';
-    if ((card(solo, acct([solo], rows1, null)) || {}).id === 'more_heroes') return 'the more-heroes card stated a play limit the server never sent';
-    const rows2 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: true, level: 1, name: 'Wren' }];
-    if ((card(solo, acct([solo], rows2, 4)) || {}).id === 'more_heroes') return 'a second hero on the roster did not finish "More than one hero"';
+    /* the press in All characters, then the strip's All characters (a phone's strip calls it Heroes, UI-10) */
+    if (JSON.stringify(d4ring) !== JSON.stringify(['[data-hs-act="recruit-go"]', '.char-tool.is-all'])) return 'the recruits card rings ' + JSON.stringify(d4ring);
+    if ((card(hero(thicket(6 * 60000, false), { read: KNOWN }), acct([solo], rows1, 4)) || {}).id === 'more_heroes') return 'the recruits card came before the press was ready';
+    if ((card(hero(thicket(6 * 60000), { read: KNOWN }), acct([solo], rows1, 4)) || {}).id === 'more_heroes') return 'the recruits card came with no offer from the server';
+    const rows2 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: true, level: 6, name: 'Wren' }];
+    if ((card(solo, acct([solo], rows2, 4)) || {}).id === 'more_heroes') return 'a second hero on the roster did not finish the recruits card';
 
     /* D5 HUNT TOGETHER: two of the account's heroes playing, both in town, no party: the other hero's tab is ringed */
     const a0 = hero(town({ equipment: worn, inventory: kept }), { read: [...KNOWN, 'loot_rules'] });

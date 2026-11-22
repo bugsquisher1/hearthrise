@@ -315,9 +315,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
     'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
     { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'recruits_ready' }],
-      /* the strip's Character list on a desktop; on a phone, whose strip shows only Heroes, Heroes and then its sheet's Character list (UI-10);
-         in the window, its one press */
-      hooks: ['.char-tool.is-all', '.char-tool[data-app="characters"]', '[data-hs-act="recruit-go"]'] }),
+      /* the strip's All characters (a phone's strip calls it Heroes, UI-10), then in that window its one press */
+      hooks: ['.char-tool.is-all', '[data-hs-act="recruit-go"]'] }),
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
@@ -1181,10 +1180,11 @@ function emptySlot(f) {
   const heroes = Array.isArray(f.roster) ? f.roster.length : null;
   return heroes !== null && Number.isInteger(f.slotsOwned) && f.slotsOwned > heroes ? heroes : null;
 }
-/* The hero already paid for: the best thing an empty slot can do, doubling what the account earns for no gold. */
+/* THE RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): once the server's recruit press is ready, the rest of the company is the best thing on the
+   line, doubling what the account earns for no gold. An empty slot alone says nothing: a hero is never made there by hand. */
 function freeHeroLine(f) {
-  const heroes = emptySlot(f);
-  return heroes === null || !ORDINAL[heroes + 1] ? null : t('coach.goal_free_hero', { nth: ORDINAL[heroes + 1] });
+  const r = f.recruits;
+  return r && r.ready === true && Number.isInteger(r.count) && r.count > 0 ? t('coach.goal_recruits', { count: r.count }) : null;
 }
 /* The house's next deed the purse covers, its materials said. Gold's first job is the next hero (lane/c-gold-matters): a deed speaks when no hero is on offer, or the hero is too far off to save for. */
 function deedLine(f, offer) {
@@ -1263,7 +1263,7 @@ function madeWords(lv, first, role) {
  * WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17, about 41k: eight sentences, the Farm first, the third hero not named at all; blind 20-hour panel: "What next is a five-sentence paragraph"):
  * every goal that holds, in order of what is worth doing first, the first of them the card's words and the rest behind its More. The order: what is wrong now (no armor), a hero already paid for, a
  * hero the purse can pay, stamina the purse can buy, the next step up, a harvest, Tamsin's next hour, then what takes waiting: a deed, the saving, a party, the gear, the ground, the land, the skill.
- * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally } (skillLevel: the
+ * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally, recruits } (recruits: the server's recruit press, { ready, count, level } or null; skillLevel: the
  * role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } },
  * or null when the server has not sent it; inParty: the hero sits in a party of 2+; roster: the account's heroes; visited: a Set of the grounds this hero has hunted; refill: the server's next
  * stamina quote; tally: { held }; training: the running training session, { skill, level, hoursToNext } from the server's
@@ -1291,7 +1291,7 @@ export function nextGoal(facts) {
     ids.push('armour');
   }
   const free = freeHeroLine(facts);
-  if (free) { lines.push(free); ids.push('free_hero'); }
+  if (free) { lines.push(free); ids.push('recruits'); }
   const offer = heroOffer(facts);
   if (offer && offer.purse >= offer.slot) {
     lines.push(t('coach.goal_slot', { nth: offer.nth, gold: gp(offer.slot) }));

@@ -95,6 +95,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_party_lead_set: 'pin (or unpin) the leader of a party of this account\'s own heroes: an own hero\'s slot or null; the server refuses any other party (company-intents.js setPartyLead)',
   hr_company_line_set: 'one plan line for the caller\'s whole company: wear_upgrades on or off, if_one_falls hunt_on or all_home; a line and a word, no slot, value or price (carry-on-intents.js setCompanyLine; 1051-company-start.sql)',
   hr_carry_on: 'ONE press sends the caller\'s own heroes back to their last hunt through the existing doors: the slots (or none for the account), the Blessings gold the plan showed (it only refuses: quote_changed) and a key; no ground, count, item or price (carry-on-intents.js carryOn)',
+  /* Tyler RD-Q6 a (1053-recruits.sql): a GRANT once an account. The Level, XP, jobs, slots, kit and colors are the server's. */
+  hr_recruit_company: 'the recruit press, once an account: a name the player typed (or none: the server names that recruit) for each recruit and a key; no Level, XP, slot, job or count (recruit-intents.js recruitCompany)',
   hr_bank_move_many: 'move many whole stacks between the bag and the home storage in one call, value-neutral, all or nothing (storage-intents.js moveStorageMany)',
   /* Tyler 2026-11-02 "Yes, add a press" (2027-02-21-hunt-carry-in.sql): an item id and a count; catalogue, stock and the open hunt are the server’s. */
   hr_hunt_restock: 'carry a hunt supply from this hero\'s bag into its running hunt, value-neutral, one key moves once (carry-intents.js carryIntoHunt)',

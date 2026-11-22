@@ -228,7 +228,7 @@ export function pointerCardOf(cs, sh) {
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotsOwned: f.slotsOwned, home: f.home,
-    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper,
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper, recruits: f.recruits,
     training: trainingRunOf(cs), partyGround: f.partyGround });
 }
 

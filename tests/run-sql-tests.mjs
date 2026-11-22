@@ -683,6 +683,9 @@ const ALSO_LINTED = [
   /* THE RESTED BANK CUT (lane/c-formula-steps, 2026-11-21; Tyler S-9 c): HR_APPLY_CHAIN's newest link (the chain end read
      back, minus the bank) and hr_accrue_read restated; its drops are linted here. */
   '1040-rested-bank-cut.sql',
+  /* THE NARROW TOWN READ (lane/c-settle-cost FB-4, 2026-11-21): the engine grant
+     (hr_tick_town_state, hr_engine only; the detector entry is 1032's link 25) and its revokes are linted here. */
+  '1043-narrow-town-read.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -1070,6 +1073,8 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // link 25 (lane/c-approved-cuts) — the old dungeons and the scrip leave: ONE block of c_engine_allow (hr_quartermaster_buy and
   // hr_dungeon_settle with their claim comments; the file drops both functions) is REPLACED by a two-line note. Its declared
   // removals are FROZEN in tests/chain-removals/1032-approved-cuts.mjs. Its base is link 24's TARGET. It is the new last toucher.
+  // (lane/c-settle-cost FB-4 adds one INSERTION to the same link: hr_tick_town_state at the head of c_engine_allow, for
+  // 1043-narrow-town-read.sql; ONE staged file restates the detector, so its removals do not move.)
   '1032-approved-cuts.sql',
 ];
 

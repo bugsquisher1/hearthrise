@@ -53,6 +53,10 @@
 //                             not once a reference (3 a closed save inlined). 0 on the town fixture, which reads no party
 //   member_reads_a_settle     hr_hunt_member_read calls a landed settle (median): exact, 0%. One a member (1041-settle-plans.sql's
 //                             offset-0 fences: unfenced, the instance read made 6 a member)
+//   state_reads_a_settle      hr_state_of calls a landed settle (median): exact, 0%. THE NARROW TOWN READ (1043-narrow-town-read.sql):
+//                             the world tick reads a town hero's engine inputs (hr_tick_town_state), never the whole hero, so the
+//                             town fixture reads 0 (it read 1 a settle); a watched save's commit still answers with the asker's
+//                             envelope
 //   settle_cpu_ms_a_hero_hour the settle's time a hero-hour (PGlite and the engine, both in this process), as CPU time and not wall
 //                             time (cpuMs below: a loaded box doubles the wall), in THIS run's calibration: the baseline holds the
 //                             writer's ms and its calibration_ms, and a run scales the cap by its own (a fixed SQL + JSON workload, the
@@ -83,7 +87,8 @@ const POLLS = 24;            // watched door: landed settles 16 s apart (6.4 min
 const POLL_MS = 16000;       // src/session/config.js's viewed-hunt poll (tools/beta-load.mjs C.huntPollMs)
 const EARLY = [3, 5];        // 0.6 early asks a poll (tools/beta-load.mjs C.earlyAsksPerPoll), spread evenly
 const TOL = Object.freeze({ statements_a_settle: 0, statements_a_hero_hour: 0.02, round_trips_a_hero_hour: 0.02,
-  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, party_reads_a_settle: 0, member_reads_a_settle: 0, settle_cpu_ms_a_hero_hour: 1.0 });
+  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, party_reads_a_settle: 0, member_reads_a_settle: 0, state_reads_a_settle: 0,
+  settle_cpu_ms_a_hero_hour: 1.0 });
 const METRICS = Object.keys(TOL);
 const uidOf = (i) => '00000000-0000-4000-8000-0000003c' + String(i).padStart(4, '0');
 const idem = () => crypto.randomUUID();
@@ -134,21 +139,24 @@ const tuples = async (db) => Object.fromEntries((await q(db, `select relname, (n
   from pg_stat_xact_user_tables where schemaname = 'public'`)).map((r) => [r.relname, r.n]));
 
 /* The party reads and member reads this transaction has made so far (pg_stat_xact_user_functions, track_functions = all, set by
-   measureAll): { party, member }. */
+   measureAll): { party, member, state } (state: hr_state_of, the whole hero). */
 const partyReads = async (db) => {
   const r = (await q(db, `select coalesce(sum(calls) filter (where funcname = 'hr_hunt_instance_read'), 0)::int as party,
-      coalesce(sum(calls) filter (where funcname = 'hr_hunt_member_read'), 0)::int as member
+      coalesce(sum(calls) filter (where funcname = 'hr_hunt_member_read'), 0)::int as member,
+      coalesce(sum(calls) filter (where funcname = 'hr_state_of'), 0)::int as state
     from pg_stat_xact_user_functions where schemaname = 'public'`))[0];
-  return { party: Number(r.party), member: Number(r.member) };
+  return { party: Number(r.party), member: Number(r.member), state: Number(r.state) };
 };
 /** The edge's exec as index.ts runs it (one pooled transaction a statement), counted: payload statements and round trips.
-    THE PLANT `read_inlined` (--selftest): the settle read as it was before read once, its `r` CTE inlined into each reference. */
+    THE PLANT `read_inlined` (--selftest): the settle read as it was before read once, its `r` CTE inlined into each reference.
+    THE PLANT `town_whole_read`: the world tick reading a town hero whole again (hr_state_of for 1043's hr_tick_town_state). */
 function countedExec(db, mode, stat, plant = null) {
   const base = makeExec(db);
   return async (text, params) => {
     stat.stmts += 1; stat.trips += tripsOf(mode);
-    const sent = plant === 'read_inlined' ? String(text).replace('r as materialized (select g.allowed', 'r as (select g.allowed') : text;
+    let sent = plant === 'read_inlined' ? String(text).replace('r as materialized (select g.allowed', 'r as (select g.allowed') : text;
     if (plant === 'read_inlined' && text === sent && /hr_hunt_instance_read/.test(String(text))) throw new Error('read_inlined: the settle read has no materialized r to inline');
+    if (plant === 'town_whole_read') sent = String(text).replace('public.hr_tick_town_state(', 'public.hr_state_of(');
     return base(sent, params);
   };
 }
@@ -423,7 +431,7 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
     rows.push(Object.keys(t1).reduce((x, t) => x + (t1[t] - (t0[t] || 0)), 0));
     per.push(stat.stmts - s0);
     const rN = await partyReads(db);
-    reads.push({ party: rN.party - r0.party, member: rN.member - r0.member });
+    reads.push({ party: rN.party - r0.party, member: rN.member - r0.member, state: rN.state - r0.state });
   }
   if (per.length < (minSettles || n)) {
     const why = fx.sids.length ? (await q(db, 'select end_reason as r, count(*)::int as n from public.hunt_sessions where id = any ($1::uuid[]) group by 1', [fx.sids])).map((x) => `${x.r} x${x.n}`).join(', ') : 'the bench stopped';
@@ -434,7 +442,7 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
   const led = await ledgerOf(db, fx) - led0;
   return { statements_a_settle: med(per), statements_a_hero_hour: r1(stat.stmts / heroHours), round_trips_a_hero_hour: r1(stat.trips / heroHours),
     ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), party_reads_a_settle: med(reads.map((x) => x.party)),
-    member_reads_a_settle: med(reads.map((x) => x.member)), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
+    member_reads_a_settle: med(reads.map((x) => x.member)), state_reads_a_settle: med(reads.map((x) => x.state)), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
 }
 
 /* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job
@@ -617,6 +625,13 @@ async function main() {
       const hit = inl.red.filter((x) => x.startsWith(`${fx} party_reads_a_settle:`));
       arm(`MUTANT read_inlined (the party read once a reference, not once a settle): ${fx} is red`, hit.length === 1,
         hit.length ? hit[0].slice(fx.length + 1) : 'NOT red on party_reads_a_settle');
+    }
+    /* THE NARROW TOWN READ: the tick reading a town hero whole again is red on the town fixture */
+    if (!only || 'town_hour_bench'.includes(only)) {
+      const twr = judge(await measureAll(db, M, { plant: 'town_whole_read', only: 'town_hour_bench' }), base, calibration);
+      const hit = twr.red.filter((x) => x.startsWith('town_hour_bench state_reads_a_settle:'));
+      arm('MUTANT town_whole_read (the tick reads a town hero whole again): town_hour_bench is red', hit.length === 1,
+        hit.length ? hit[0].slice('town_hour_bench '.length) : 'NOT red on state_reads_a_settle');
     }
     /* ...and with the member read copied into each reference again (the offset-0 fences gone) */
     const unf = judge(await measureAll(db, M, { plant: 'member_unfenced', only }), base, calibration);

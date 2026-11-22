@@ -2653,6 +2653,16 @@ jobs:
           node tests/ledger-hours.mjs
           node tools/mutant-gate.mjs node tests/ledger-hours.mjs --mutate
 
+      # THE NARROW TOWN READ (1043-narrow-town-read.sql, FB-4). The world tick reads a town hero through hr_tick_town_state, not
+      # hr_state_of: for an artisan on a counted run with Storage, buffs and a tool carry, a Game Master gatherer with a carried
+      # fight, and an idle hero over its HP cap, the town engine's inputs and the tick's keys are identical from both reads.
+      # --mutate: 7 planted omissions in the read, each red on its hero. MEASURED locally on a cached chain: 4 s plain, 6 s --mutate.
+      - name: Narrow town read — the tick's read gives the town engine what the whole hero gives it
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-read.mjs
+          node tools/mutant-gate.mjs node tests/town-read.mjs --mutate
+
       # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
       # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
       # exists because of Security finding F2 (2026-09-13, Deep Seam review):

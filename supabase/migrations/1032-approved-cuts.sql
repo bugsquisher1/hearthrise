@@ -110,7 +110,7 @@ begin
   if v_md5 not in ('da61e5f17e005006466464900f8100ac', 'c2f9a557ce4b6f3eb51a110d5167bdd8') then
     raise exception 'PIN: hr_server_now moved (md5 %): re-derive this restatement from the new body', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure;
-  if v_md5 not in ('e941ed280b7c9e6fbd4fd20f87b4ee11', '1cf0b8fa714f8b567abb7d52bbdda7f0') then
+  if v_md5 not in ('e941ed280b7c9e6fbd4fd20f87b4ee11', 'b7c071cdb80609ed1327772229859153') then
     raise exception 'PIN: hr_assert_grant_hygiene is neither link 24''s body nor this file''s own: md5 % - re-derive (tools/derive-grant-hygiene.mjs)', v_md5; end if;
 
   -- NOTHING STRANDED (measured 0 live). A value held in a cut thing would be lost with it: refuse and let a human decide.
@@ -703,6 +703,15 @@ declare
   --   no target the caller is not already authorised for. Re-derive that for
   --   the whole list every time it changes.
   c_engine_allow constant text[] := array[
+    -- ── ADDED 2026-11-21 — THE NARROW TOWN READ (lane/c-settle-cost FB-4) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
+    -- removals do not move. The function is 1043-narrow-town-read.sql's.
+    --
+    -- READ-ONLY: a STABLE projection of ONE character the caller names, each field
+    -- by hr_state_of's own definition (which hr_engine already reads whole for the
+    -- same character): the town engine's inputs, the pointer and the version. It
+    -- writes nothing and refuses every client role and hr_tick by its body too.
+    'hr_tick_town_state(uuid,integer)',
     -- ── ADDED 2026-11-19 — THE DEFERRED LEASE (lane/c-server-cost) ────────
     -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
     -- link with an EMPTY declared-removals list.
@@ -1578,7 +1587,7 @@ begin
   -- (b) THE THREE RESTATED BODIES.
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure) <> 'e04ff4a811d10d931ba8125ad2aa8b0d'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_server_now()'::regprocedure) <> 'c2f9a557ce4b6f3eb51a110d5167bdd8'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) <> '1cf0b8fa714f8b567abb7d52bbdda7f0' then
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) <> 'b7c071cdb80609ed1327772229859153' then
     raise exception 'approved-cuts §7(b): a restated body is not this file''s image'; end if;
   if exists (select 1 from pg_proc p where p.oid in ('public.hr_state_of(uuid,integer)'::regprocedure, 'public.hr_server_now()'::regprocedure)
               and (not p.prosecdef or p.prorettype <> 'jsonb'::regtype or p.proconfig is null)) then

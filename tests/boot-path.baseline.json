@@ -184,6 +184,12 @@
         "gzipBytes": 920236,
         "on": "2026-11-23",
         "why": "L7 report ledger: healing by source, damage taken by seat and supplies per depth lines on the end and return cards"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920357,
+        "on": "2026-11-23",
+        "why": "bar-draft condition words moved to the text home (t() rows in text/bar.js), +0.1 KB"
       }
     ]
   }

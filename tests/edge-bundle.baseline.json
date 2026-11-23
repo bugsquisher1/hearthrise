@@ -383,6 +383,11 @@
         "bytes": 3740177,
         "on": "2026-11-23",
         "why": "cut locked in (13339 bytes)"
+      },
+      {
+        "bytes": 3744324,
+        "on": "2026-11-23",
+        "why": "+4,147 B: tuning pass (Muster monster formula switch on, power weights, pay floor/coin, store kit refs, Bold fall, band margin rule) merged onto the named-pieces cut"
       }
     ]
   }

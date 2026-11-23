@@ -29,6 +29,7 @@
 //   Healer: <spell> under P%                          the healer's slot, the lowest ally under P%
 //   Party: a tank, a healer and two more              a tank, a healer and every pair of kinds (36), at the hall's floor
 //   Party: a tank, a healer and a third hero          a tank, a healer and one more of every kind, at the hall's floor
+//   Party: a tank, a healer, a K1 and a K2             that four (K1, K2 gear.mjs STYLES kinds), at the hall's floor
 //   Party: a tank and a healer                        the two, at the hall's floor (the card the audit read)
 //   Two heroes: Level L or higher                     the tank and the healer alone, at Level L
 //
@@ -99,6 +100,8 @@ export function readCard(X, hall) {
       for (let i = 0; i < kinds.length; i++) for (let j = i; j < kinds.length; j++) plan.parties.push({ line, party: ['tank', 'healer', kinds[i], kinds[j]], L: floor });
     }
     else if (line === 'Party: a tank, a healer and a third hero') for (const s of Object.keys(STYLES)) plan.parties.push({ line, party: ['tank', 'healer', s], L: floor });
+    /* a named four (lane/tuning-pass, the designer 2026-11-23: at the floor only some fours win, so the card names the one that does) */
+    else if ((m = /^Party: a tank, a healer, an? ([a-z]+) and an? ([a-z]+)$/.exec(line)) && STYLES[m[1]] && STYLES[m[2]]) plan.parties.push({ line, party: ['tank', 'healer', m[1], m[2]], L: floor });
     else if (line === 'Party: a tank and a healer') plan.parties.push({ line, party: ['tank', 'healer'], L: floor });
     else if ((m = /^Two heroes: Level (\d+) or higher$/.exec(line))) plan.parties.push({ line, party: ['tank', 'healer'], L: Number(m[1]) });
     else plan.unread.push(line);
@@ -205,22 +208,24 @@ function floorFails(X, hall, plan, o = {}) {
 
 /* ── THE PROOF ──────────────────────────────────────────────────────────────── */
 const PACK = 'src/data/grounds/krells_hold/pack.js';
-const LINES = "'Party: a tank, a healer and two more'] },";
+const LINES = "'Party: a tank, a healer, a hammer and a mage'] },";
 const MUTANTS = [
   /* the card the audit read (F22): a tank and a healer, nothing about a third */
   { name: 'the card says a tank and a healer (the audit\'s card)', edits: [[PACK, LINES, "'Party: a tank and a healer'] },"]], want: /HA-WIN krells_hold's card says "Party: a tank and a healer" and tank \+ healer at Level 85/ },
+  /* the card before the tuning pass (lane/tuning-pass): at 85 only some pairs win (krell-after.txt: other damage pairs 40 to 63%, a third tank 5%) */
+  { name: 'the card says a tank, a healer and two more (red at 85)', edits: [[PACK, LINES, "'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
   { name: 'a party line nobody measured', edits: [[PACK, LINES, "'Party: four mages'] },"]], want: /HA-READ krells_hold's card says "Party: four mages"/ },
   /* the card F22 shipped, true until cloth's Magic damage cut (lane/d-mage-110): a third tank or a sword alone runs out of time at 85 */
   { name: 'the card asks for a third hero (the F22 card)', edits: [[PACK, LINES, "'Party: a tank, a healer and a third hero'] },"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and a third hero" and tank \+ healer \+ tank at Level 85/ },
-  { name: 'two heroes from Level 106 (the F22 card)', edits: [[PACK, LINES, "'Two heroes: Level 106 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 106 or higher" and tank \+ healer at Level 106/ },
+  { name: 'two heroes from Level 106 (the F22 card)', edits: [[PACK, LINES, "'Two heroes: Level 106 or higher', 'Party: a tank, a healer, a hammer and a mage'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 106 or higher" and tank \+ healer at Level 106/ },
   /* the line the first fix shipped: measured in Krell's own tier 7, which nobody wears before his first win */
-  { name: 'two heroes from Level 88', edits: [[PACK, LINES, "'Two heroes: Level 88 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
+  { name: 'two heroes from Level 88', edits: [[PACK, LINES, "'Two heroes: Level 88 or higher', 'Party: a tank, a healer, a hammer and a mage'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
   /* THE FOOD IS THE FLOOR (HA-FLOOR, lane/c-engine-reds): the card before the spell rule, Swordfish, where every party wins on Lobster. This
      was the "Salted Lobster" mutant that ESCAPED HA-WIN (staging run 44870672285); its twin "the first fix's card (Salted Lobster, two heroes
      from 88)" is retired with it: on the Lobster card it is the "two heroes from Level 88" mutant above. */
   { name: 'the card\'s food is Salted Swordfish (one step dearer than every party needs)', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_swordfish',"]], want: /HA-FLOOR krells_hold's card asks for Salted Swordfish, and every party it names also wins on Salted Lobster/ },
   /* one step under the floor: deaths under his enrage */
-  { name: 'the card\'s food is Salted Trout', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_trout',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
+  { name: 'the card\'s food is Salted Trout', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_trout',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer, a hammer and a mage"/ },
   { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
   { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
   /* HIS HEALTH IS THE HALL KIND'S LEVER since the hall's switch (lane/hall-formula: src/core/hunt/hall-formula.js; his row's hand `hp` is read

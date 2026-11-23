@@ -14,11 +14,15 @@
 //                     4 to 6 deaths): Bold's number is a WATCHED session's. Over a 10 h day Bold earns under Steady (12-targets.md C-4), which
 //                     the Bold line under the pick already says.
 //          Steady is 1000 by definition: the wage is a Steady hour.
+// RE-MEASURED (lane/tuning-pass, the designer, 2026-11-23; docs/design/redesign/29-tuning-pass.md 3.3): an hour HUNTED, the gold a hero-hour
+//          (coin and loot at the store's price) over Steady's on the tuned tree, 8 seeds x 10 h: Careful 0.77 (Muster Barrows) and 0.74
+//          (Hask's Ford), Bold 1.23 and 1.14; the means, 760 and 1190. The estimate is an hour hunted, so Bold's day cost (its deaths) is the
+//          Bold line's to say, not a factor's.
 // STARTING VALUES, NOT RULINGS: the designer's to move (12-targets.md C-5 puts Careful at 0.55x to 0.70x of Steady). In band is enough.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
 export const GOLD_ESTIMATE = Object.freeze({
-  riskPm: Object.freeze({ careful: 630, steady: 1000, bold: 1270 }),
+  riskPm: Object.freeze({ careful: 760, steady: 1000, bold: 1190 }),
 });

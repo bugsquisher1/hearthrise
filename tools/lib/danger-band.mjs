@@ -12,7 +12,10 @@
 //   topStep      the BIS four at the ground's top Level, to the nearest rule.topTo, held to refStep + PAY.gapMax (the pay stops there too)
 //   floorStep    the LOW four (a fresh company at the entry Level): its LOWEST seed's held step less rule.floorUnder, down to rule.floorTo
 //                (12-targets 3.1: depth 1 is where a fresh company holds). R10 cut it as 2 x refStep - topStep, which put Muster's floor
-//                160 steps over its fresh four (24-content-pipeline.md G3)
+//                160 steps over its fresh four (24-content-pipeline.md G3). THE MARGIN IS NEVER MORE THAN ONE DEPTH (lane/tuning-pass,
+//                the designer, 2026-11-23; 29-tuning-pass.md, NG-3): under the amount pipeline a band is about one tier wide (27 K-6), so
+//                a depth is 5 own steps, not 20, and floorUnder's 10 put a fresh four at depth 4. The margin is min(floorUnder, one depth
+//                of the band it cuts), one depth = (topStep - lowest seed) / (depths - 2), so the lowest fresh seed sits at depth 2
 //   refKillsHead the MID four's kills a head an hour at its held reference, to the nearest 5; omitted (PAY.refKillsHead reads) when
 //                not over PAY.refKillsHead, the server's one ceiling a kill
 // The floor needs the LOW cell: no band is cut without it. C-3 (12-targets: Steady dies never) is the open gate: any death in any of
@@ -39,8 +42,12 @@ export function depthOf(step, band, depths) {
 /** The lowest held step any seed of a cell reached (its per-seed holds; the mean when a report carries none). */
 export const lowestSeed = (c) => (Array.isArray(c.held.perSeed) && c.held.perSeed.length ? Math.min(...c.held.perSeed) : c.held.mean);
 
+/** The margin under the fresh four's lowest seed (danger.js BAND_RULE floorUnder, never more than one depth of the band whose top is
+    `topStep`, with `depths` depths: the lowest seed then sits at depth 2). */
+export const floorMarginOf = (F, rule, topStep, depths) => (Number.isFinite(topStep) && depths > 2 && topStep > lowestSeed(F)
+  ? Math.min(rule.floorUnder, (topStep - lowestSeed(F)) / (depths - 2)) : rule.floorUnder);
 /** The floor a fresh company's cell gives (danger.js BAND_RULE). */
-export const floorOf = (F, rule) => Math.floor((lowestSeed(F) - rule.floorUnder) / rule.floorTo) * rule.floorTo;
+export const floorOf = (F, rule, topStep, depths) => Math.floor((lowestSeed(F) - floorMarginOf(F, rule, topStep, depths)) / rule.floorTo) * rule.floorTo;
 
 /**
  * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level).
@@ -52,7 +59,7 @@ export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = nu
   const R = steadyCell(ref), T = steadyCell(top), F = steadyCell(floor);
   const refStep = round(R.held.mean, rule.refTo);
   const topStep = Math.min(round(T.held.mean, rule.topTo), refStep + pay.gapMax);
-  const floorStep = floorOf(F, rule);
+  const floorStep = floorOf(F, rule, topStep, depths);
   const kills = round(R.killsPerH / 4, 5);
   const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}) };
   const notes = [], info = [];

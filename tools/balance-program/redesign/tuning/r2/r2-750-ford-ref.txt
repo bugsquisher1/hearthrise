@@ -1,0 +1,71 @@
+
+V1 on hasks_ford (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful      533.3 +- 2.5      0.3  49.1  81.8   44.8    4.8     0.6    192.5      0     0  0 (0/0/0)                       6  {"hold":8611,"climb":2675,"fall":260}
+base:steady       591.5 +- 2.9      0.9  58.7  88.3   39.9    4.3     0.6      170      0     0  0 (0/0/0)                       6  {"hold":7505,"climb":2458,"fall":236}
+base:bold         631.3 +- 1.7      0.3  16.4  28.6   13.5    1.8     0.2    151.7      5     0  89 (5/14/89)                  1.2  {"hold":6705,"climb":2159,"fall":226,"death":5} first deaths at h 3.7,2.5,5.2,3.6,1.1
+levels:steady     592.5 +- 1.8      1.9  61.5  89.1   39.2    3.9     0.6    169.5      0     0  0 (0/0/0)                       6  {"hold":7507,"climb":2441,"fall":218}
+back:steady       586.1 +- 1.4     -1.1  56.1  87.6   38.9    4.6     0.6    169.5      0     0  1 (0/0/1)                       6  {"hold":7519,"climb":2392,"fall":251}
+up:steady         605.6 +- 3        4.9  57.9  88.8   39.9    3.6     0.6    169.4      0     0  1 (0/0/1)                       6  {"hold":7459,"climb":2492,"fall":210}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       0.71x  sd 0.01  n 6  window 6 h  seeds 0.71 0.71 0.71 0.71 0.7 0.73
+  base:steady        1.06x  sd 0.02  n 6  window 6 h  seeds 1.02 1.08 1.06 1.06 1.09 1.07
+  base:bold          1.31x  sd 0.02  n 2  window 1.2 h  seeds 1.32 1.29
+  levels:steady      1.08x  sd 0.01  n 6  window 6 h  seeds 1.06 1.08 1.09 1.09 1.07 1.07
+  back:steady           1x  sd 0.01  n 6  window 6 h  seeds 0.99 1 1 1 1.01 0.98
+  up:steady           1.2x  sd 0.02  n 6  window 6 h  seeds 1.22 1.22 1.19 1.2 1.17 1.21
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L52  coin 9610 +- 98  income 12040 +- 176  store 2395  kit share 0.2 (meal 0, drink 726, charge 661, shot 1007)  loot by band: common 527, uncommon 195, scarce 1708, other 0  n 6
+  base:steady       L52  coin 12750 +- 169  income 16261 +- 201  store 2992  kit share 0.18 (meal 140, drink 1109, charge 733, shot 1010)  loot by band: common 717, uncommon 259, scarce 2535, other 0  n 6
+  base:bold         L52  coin 14796 +- 257  income 18832 +- 409  store 4171  kit share 0.22 (meal 487, drink 1379, charge 928, shot 1377)  loot by band: common 831, uncommon 293, scarce 2911, other 0  n 6
+  levels:steady     L55  coin 12795 +- 84  income 16330 +- 167  store 2984  kit share 0.18 (meal 138, drink 1105, charge 731, shot 1010)  loot by band: common 725, uncommon 258, scarce 2552, other 0  n 6
+  back:steady       L52  coin 12201 +- 97  income 15546 +- 186  store 3035  kit share 0.2 (meal 147, drink 1130, charge 739, shot 1018)  loot by band: common 685, uncommon 246, scarce 2414, other 0  n 6
+  up:steady         L52  coin 14122 +- 187  income 17963 +- 214  store 2931  kit share 0.16 (meal 123, drink 1080, charge 723, shot 1005)  loot by band: common 794, uncommon 280, scarce 2767, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+  levels:steady        1.3 steps (sd 2.5, se 1, n 6)
+  back:steady         -5.3 steps (sd 2.5, se 1, n 6)
+  up:steady           14.3 steps (sd 5.6, se 2.3, n 6)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:careful      hammer 1  bow 0  mage 0  healer 0
+  base:steady       hammer 1  bow 0  mage 0  healer 0
+  base:bold         hammer 0.507  bow 0.486  mage 0  healer 0.006
+  levels:steady     hammer 1  bow 0  mage 0  healer 0
+  back:steady       hammer 1  bow 0  mage 0  healer 0
+  up:steady         hammer 1  bow 0  mage 0  healer 0
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:careful      hammer dps 13.42 land 59.05% hit 37.08 (2585.5/h) | bow dps 15.04 land null% hit null (0/h) | mage dps 18.18 land null% hit null (0/h) | healer dps 7.67 land null% hit null (0/h)
+                    banded_pikeman(null) 548.7/h 5.4 s 93 | fordsunk(null) 182.4/h 5.2 s 97 | bannerman(null) 62.1/h 6 s 188 | ledger_wight(null) 122.8/h 3.7 s 124
+                    broke off by: fall:banded_pikeman@0 116, fall:fordsunk@0 97, fall:bannerman@0 34, fall:ledger_wight@0 13
+  base:steady       hammer dps 16.91 land 59.32% hit 42.05 (3342.67/h) | bow dps 14.9 land null% hit null (0/h) | mage dps 18.56 land null% hit null (0/h) | healer dps 8.2 land null% hit null (0/h)
+                    banded_pikeman(null) 503.8/h 5.2 s 113 | fordsunk(null) 224/h 7.8 s 161 | bannerman(null) 54.8/h 6.4 s 211 | ledger_wight(null) 150.9/h 6.1 s 237
+                    broke off by: fall:ledger_wight@0 154, fall:fordsunk@0 54, fall:banded_pikeman@0 28
+  base:bold         hammer dps 16.43 land 59.3% hit 45.44 (3262.83/h) | bow dps 16.76 land 76.32% hit 52.19 (1051.5/h) | mage dps 21.21 land null% hit null (0/h) | healer dps 9.16 land 78.52% hit 49.98 (14.17/h)
+                    banded_pikeman(null) 448.1/h 6.5 s 115 | fordsunk(null) 202.4/h 10.8 s 151 | bannerman(null) 48.6/h 11.3 s 248 | ledger_wight(null) 136.5/h 7.1 s 225
+                    broke off by: fall:ledger_wight@0 92, fall:fordsunk@1 58, fall:ledger_wight@1 40, fall:fordsunk@0 13, fall:banded_pikeman@0 13, fall:banded_pikeman@1 9, death:ledger_wight@0 5, fall:bannerman@1 1
+  levels:steady     hammer dps 16.97 land 58.63% hit 43.35 (3349/h) | bow dps 14.93 land null% hit null (0/h) | mage dps 18.55 land null% hit null (0/h) | healer dps 8.2 land null% hit null (0/h)
+                    banded_pikeman(null) 503.5/h 5.2 s 117 | fordsunk(null) 225.5/h 7.8 s 166 | bannerman(null) 54.7/h 6.4 s 214 | ledger_wight(null) 151.9/h 6.1 s 246
+                    broke off by: fall:ledger_wight@0 142, fall:fordsunk@0 54, fall:banded_pikeman@0 22
+  back:steady       hammer dps 16.4 land 59.25% hit 42.73 (3298.17/h) | bow dps 14.53 land null% hit null (0/h) | mage dps 18.21 land null% hit null (0/h) | healer dps 7.98 land null% hit null (0/h)
+                    banded_pikeman(null) 498.2/h 5.5 s 119 | fordsunk(null) 213.9/h 7.8 s 163 | bannerman(null) 54.5/h 6.7 s 227 | ledger_wight(null) 144.6/h 6.1 s 240
+                    broke off by: fall:ledger_wight@0 156, fall:fordsunk@0 49, fall:banded_pikeman@0 46
+  up:steady         hammer dps 17.84 land 58.98% hit 41.33 (3396/h) | bow dps 15.69 land null% hit null (0/h) | mage dps 19.25 land null% hit null (0/h) | healer dps 8.58 land null% hit null (0/h)
+                    banded_pikeman(null) 506.4/h 5 s 108 | fordsunk(null) 233.2/h 7.9 s 162 | bannerman(null) 54.7/h 6.2 s 197 | ledger_wight(null) 156.8/h 6.1 s 236
+                    broke off by: fall:ledger_wight@0 129, fall:fordsunk@0 51, fall:banded_pikeman@0 30
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:careful      abs 39.6 (depth 6)  free 254  spell 746  food 0  taken 9.43 pm/s
+  base:steady       abs 46.1 (depth 10)  free 166  spell 803  food 31  taken 13.83 pm/s
+  base:bold         abs 51.2 (depth 14)  free 137  spell 763  food 100  taken 14.19 pm/s
+  levels:steady     abs 46.4 (depth 11)  free 170  spell 799  food 31  taken 13.66 pm/s
+  back:steady       abs 45.6 (depth 10)  free 169  spell 798  food 32  taken 13.86 pm/s
+  up:steady         abs 48 (depth 12)  free 159  spell 814  food 27  taken 13.81 pm/s
+
+wall 238 s

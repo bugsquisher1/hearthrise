@@ -56,9 +56,13 @@ export const STORE_KIT = Object.freeze({
   storeCeiling: 1.5,
   /* LEVER (econ.store-lines; 09 4.3's line shares): the share of a kit-hour each line the store sells takes */
   lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),
-  /* LEVER (econ.store-rates): the reference four's store use a hunted hero-hour, MEASURED at Level 60 on Steady (see the header) */
-  refRestore: 12660,
-  refCharges: 1390,
+  /* LEVER (econ.store-rates): the reference four's store use a hunted hero-hour, MEASURED at Level 60 on Steady (see the header).
+     RE-MEASURED (lane/tuning-pass, 2026-11-23, 29-tuning-pass.md; the owed re-read CONFLICTS 11-22 "the store's reference burn is stale"):
+     on the amount pipeline and Muster's monster formula the Steady four restores 1,728 HP and 15,228 mana and spends 1,503 charges a
+     hero-hour (tools/balance-program/redesign/tuning/final/c0-muster-ref.json, 8 seeds x 10 h), so 16,950 and 1,500 (were 12,660 and 1,390).
+     With the coin level cut to 6100 for EL-PAY the kit read 0.307 of the hour on the old rates, 0.29 on these */
+  refRestore: 16950,
+  refCharges: 1500,
   /* NOT A LEVER: supabase/functions/hr-accrue/catalogue.js SHOP_BUYBACK_RATE, the share of the store's list the shop bids for a crafted
      partner (tests/econ-levers.mjs holds the two equal; the edge module is not importable from data) */
   buyback: 0.5,

@@ -24,7 +24,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
 | Level scaling | 9 | 7 | 0 | 0 | 2 | 4 | 3 | 6 |
 | Weapon power and attack frequency | 6 | 2 | 3 | 1 | 0 | 1 | 0 | 2 |
-| Spell coefficients, costs, cooldowns and areas | 14 | 6 | 1 | 6 | 1 | 1 | 2 | 4 |
+| Spell coefficients, costs, cooldowns and areas | 15 | 6 | 1 | 7 | 1 | 1 | 3 | 5 |
 | Healing and shielding | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | Armor and mitigation | 6 | 3 | 2 | 0 | 1 | 3 | 1 | 2 |
 | Resistances | 5 | 2 | 0 | 2 | 1 | 0 | 2 | 2 |
@@ -40,13 +40,13 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 46 | 31 | 2 | 12 | 1 | 0 | 41 | 34 |
-| **All** | **240** | 127 | 32 | 51 | 30 | 31 | 126 | 131 |
+| **All** | **241** | 127 | 32 | 52 | 30 | 31 | 127 | 132 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 761 (in 261 files, 17046 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 761 (in 261 files, 17062 typed numbers) |
 | Claimed by a lever | 334 |
 | Claimed by a not-a-lever reason | 427 |
 | Unclaimed | 0 |
@@ -271,6 +271,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `roads.nodes` The Roads sample's nodes: crossroads, waystones and vows, in steps and move modifiers | Equipment stats and progression | dark behind TALENT_RULES.live. Alloc-run.mjs measures the five allocations |
 | not-built | `roads.rules` The Roads: a point a Level, vow slots, borrowed moves, the idle point's cost | Equipment stats and progression | dark behind TALENT_RULES.live. The Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-built | `spell.answers` The answers to a wind-up: Parried's window and the push bound | Spell coefficients, costs, cooldowns and areas | no played bar slots Parry or Stagger yet: both are the player's picks, off every default bar (23 section 9 step 8 re-runs the move table) |
 | not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
 | not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
 | not-built | `temper.steps` Temper on steps: ranks by Level, price in hours of wage, the re-seat | Equipment stats and progression | the switch temper_steps is off and the Temper Kit is not an item. T1 measured with tools/balance-program/candidates/temper-5.json |

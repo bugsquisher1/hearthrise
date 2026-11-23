@@ -79,6 +79,7 @@ try {
 
   /* ── CW-3 ── */
   await page.fill('.hero-name', 'Marlow');
+  await page.click('.hero-way[data-hero-set="club"]');   // the pick at creation (GR-24): nothing is picked for the player, as local-world's createHero
   await page.click('.hero-confirm');
   await page.waitForSelector('#panel-world[data-slot="0"] .world-stage canvas');
   await page.waitForSelector('.hs-launchers');

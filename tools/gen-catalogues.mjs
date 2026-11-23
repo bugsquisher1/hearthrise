@@ -1594,8 +1594,12 @@ const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
    both the shield's (their versions read Melee), land in it, the same create or replace.
    THE HAMMER'S RUNE STRIKE (lane/c-spell-rule, Tyler 2026-11-21, call 32-5): 2027-05-25-tank-runes-rune-spells (STAGED on set/v0.2.142, applied first) is the file
    before this one and this one carries it (every spell before, unchanged); Quarry Blow on the Earth family, the club's (its versions read Melee), lands in
-   it, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1029-spell-rule-rune-spells.generated.sql');
+   it, the same create or replace.
+   WAVE 3'S ANSWERS (lane/moves-wave-3, 2026-11-23; docs/design/redesign/23-spell-audit.md section 4): 1029-spell-rule-rune-spells (STAGED) stays as written,
+   applied before 1058-hunting-blocks-hunt-sessions-catalogue (whose hr_hunt_abilities moves: its self-check compares the two at its own place), so the
+   forward file is a NEW one after 1058: Quarry Blow leaves, Stagger joins on the Earth family (the club's, its rework) and Gash on the Rupture family
+   (the axes'), both reading Melee; every other spell unchanged, the same create or replace. */
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1069-wave3-moves-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1631,14 +1635,15 @@ const sqlRuneSpells = `-- ══════════════════
 -- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql) and hr_hunt_rune_store_state + hr_hunt_slot_check
 -- (2027-03-08-rune-ladder-slots.sql), which hr_hunt_settings_view's \`usable\` reads: { ability: { skill,
 -- runes: { item: the level in that skill its version needs }, store: { store row: the level its version needs } } }.
--- Server-only. New in this file (lane/c-spell-rule, the hammer's rune strike, Tyler 2026-11-21, call 32-5): Quarry Blow on
--- the Earth family, the club's (its versions read MELEE: skill 'melee'), so a hammer's slot naming it with a rune of its family
--- (carried, or the store's) is accepted and read usable. Carried from 2027-05-25-tank-runes-rune-spells.generated.sql (STAGED on
--- set/v0.2.142, applied first): Frost Slam, Shelter and every spell before them; no other spell's runes or store rows move.
+-- Server-only. New in this file (lane/moves-wave-3, systems-engineer, 2026-11-23; docs/design/redesign/23-spell-audit.md wave 3):
+-- Quarry Blow leaves (reworked into Stagger), Stagger joins on the Earth family (the club's) and Gash on the Rupture family (the
+-- axes'), both reading MELEE (skill 'melee'), so a hammer's or an axes' slot naming one with a rune of its family (carried, or the
+-- store's) is accepted and read usable. Carried from 1029-spell-rule-rune-spells.generated.sql (STAGED, applied first): every
+-- other spell's runes and store rows, unchanged.
 --
--- APPLY ORDER: right after 1028-spell-rule-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Quarry Blow,
---              and this file's self-check compares the two), before the hr-accrue deploy and the client that offers
---              the spell. SAFE TO RE-RUN (create or replace).
+-- APPLY ORDER: after 1058-hunting-blocks-hunt-sessions-catalogue.generated.sql (its hr_hunt_abilities carries Stagger and Gash
+--              and no Quarry Blow, and this file's self-check compares the two), before the hr-accrue deploy and the client
+--              that offers the spells. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════
 
 create or replace function public.hr_hunt_rune_spells()

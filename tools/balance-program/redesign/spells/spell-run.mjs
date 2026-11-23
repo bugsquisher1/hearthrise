@@ -51,7 +51,8 @@ const ADD = {
   frost_slam: { family: 'ice', after: 'challenge', cond: AOE(2) },
   shelter: { family: 'earth', after: 'challenge', cond: [] },            // its suggested trigger (a monster's cast warning) never fires here
   shelter_trig: { id: 'shelter', family: 'earth', after: 'challenge', cond: [{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'any' }] },
-  quarry_blow: { family: 'earth', after: 'turning_cut', cond: [] },
+  /* (Quarry Blow, measured in M.txt, is reworked into Stagger: lane/moves-wave-3; the plan now adds the row the game has) */
+  stagger: { family: 'earth', after: 'turning_cut', cond: [] },
   /* the Challenge re-slotted on a condition (plan T2): only while the tank itself is healthy, or only while the back-row healer is hit */
   challenge_selfok: { id: 'challenge', family: null, after: null, cond: [{ metric: 'self_hp_pct', op: 'gte', value: 60 }] },
   challenge_backhit: { id: 'challenge', family: null, after: null, cond: [{ metric: 'ally_hp_pct', op: 'lt', value: 95, subject: 'healer' }] },
@@ -65,7 +66,7 @@ const allSeats = (base, id) => cellOf(base + '-' + id + '@all', base, BASES[base
 const PLANS = {
   /* hammer 0, bow 1, mage 2, healer 3 */
   M: [cellOf('M', 'M'),
-    ko('M', 0, 'power_strike'), ko('M', 0, 'turning_cut'), add('M', 0, 'quarry_blow'),
+    ko('M', 0, 'power_strike'), ko('M', 0, 'turning_cut'), add('M', 0, 'stagger'),
     ko('M', 1, 'flame_volley'), ko('M', 1, 'raking_shot'), ko('M', 1, 'hunters_mark'), ko('M', 1, 'precision_shot'),
     ko('M', 2, 'fireball'), ko('M', 2, 'hoarfrost'), ko('M', 2, 'frost_lance'), ko('M', 2, 'arcane_barrier'),
     ko('M', 3, 'green_sickness'), ko('M', 3, 'spring_tide'), ko('M', 3, 'circle_of_renewal'), ko('M', 3, 'greater_mend'), ko('M', 3, 'protective_ward'),

@@ -57,8 +57,9 @@ const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself; 2027-01-13-spell-content.sql, lane b-spell-content, Tyler
    2026-10-23), then the area spells' five conditions and Chill (2027-04-15-area-conditions.sql, lane/b-area-engine, Tyler 2026-11-08),
-   then the Roads' four bar tests (lane/bar-metrics, 2026-11-22): the last full replace of the rows. */
-const METRICS_MIGRATION = 'supabase/migrations/1061-bar-metrics.sql';
+   then the Roads' four bar tests (lane/bar-metrics, 2026-11-22), then wave 3's "my target is winding up" and its moves (lane/moves-wave-3,
+   2026-11-23): the last full replace of the rows. */
+const METRICS_MIGRATION = 'supabase/migrations/1070-wave3-moves.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
@@ -653,6 +654,25 @@ const cases = {
     if (holds(c('item_qty', 'eq', 7, 'item'), slot('consume', 'cooked_shrimp')) !== true) bad.push(['the slot item of a food slot']);
     return bad.length ? 'wrong: ' + JSON.stringify(bad) : null;
   },
+  /* WAVE 3'S TEST (lane/moves-wave-3, 23-spell-audit.md section 7): my own target is winding up, a spell or a heavy blow (its persisted
+     `cast` with time left), the moment Stagger and Parry answer. Another monster's wind-up, a landed one, or no target reads false. */
+  'winding-up-metric': (M) => {
+    const h = hero(M, 1, 12, 3, { target: 10 });
+    const windup = (left) => ({ s: 'heavy_blow', ms: 1600, left, kind: 'cone', x: 13, y: 3, dx: -1, dy: 0, r: 0, len: 2 });
+    const rat = mon(M, 10, 0, 13, 3, { target: 1, cast: windup(800) });
+    const other = mon(M, 11, 0, 13, 4, { target: 1, cast: null });
+    const inst = instOf(M, world(M, [h, rat, other]));
+    const holds = (cond) => M.cond.holds({ inst, u: h, h: null, slot: ab('stagger'), atMs: 1000 }, cond);
+    if (!holds(c('target_winding_up', 'eq', true)) || holds(c('target_winding_up', 'eq', false))) return 'my target winding up read as not';
+    rat.cast = windup(0);
+    if (holds(c('target_winding_up', 'eq', true))) return 'a wind-up with no time left read as winding up';
+    rat.cast = null; other.cast = windup(800);
+    if (holds(c('target_winding_up', 'eq', true))) return 'another monster\'s wind-up read as my target\'s';
+    h.target = 11;
+    if (!holds(c('target_winding_up', 'eq', true))) return 'the other monster, now my target, did not read as winding up';
+    h.target = null;
+    return holds(c('target_winding_up', 'eq', true)) ? 'no target read as winding up' : null;
+  },
   /* THE ROADS' FOUR BAR TESTS (lane/bar-metrics, 18-roads-review §3 item 4): my target's health, a running Hunter's Mark, the stacks
      of a stacking status on it, and my last move on the slot's own lane (any lane for a supply slot or a stop rule). */
   'roads-metrics': (M) => {
@@ -676,8 +696,8 @@ const cases = {
     h.target = 10;
     /* THE LAST MOVE by lane: an offense slot reads the last offense cast (a Mark between two strikes breaks no rotation), a supply slot
        and a stop rule the last cast of any lane */
-    h.lastMove = { offense: 'quarry_blow', support: 'hunters_mark', any: 'hunters_mark' };
-    if (!holds(c('last_move', 'eq', 'quarry_blow'))) return 'an offense slot did not read the last offense move';
+    h.lastMove = { offense: 'stagger', support: 'hunters_mark', any: 'hunters_mark' };
+    if (!holds(c('last_move', 'eq', 'stagger'))) return 'an offense slot did not read the last offense move';
     if (!holds(c('last_move', 'eq', 'hunters_mark'), { slot: slot('consume', 'cooked_shrimp') })) return 'a supply slot did not read the last move of any lane';
     /* the engine writes it: a fired cast is the last move on its lane and on any lane */
     const sc = Object.assign(subStep(7000), { rng: M.rng.createRng(M.rng.hashSeed('roads', 1)) });
@@ -1319,6 +1339,9 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),"]] },
   { name: 'a Mark is read with no clock (a run-out Mark still holds)', case: 'roads-metrics', edits: [['src/core/hunt/conditions.js', 'int(t.markPm) > 0 && int(t.markUntil) > cx.atMs', 'int(t.markPm) > 0']] },
   { name: 'the last move is read off any lane for every slot', case: 'roads-metrics', edits: [['src/core/hunt/conditions.js', "cx.u.lastMove[row ? row.lane : 'any']", "cx.u.lastMove.any"]] },
+  /* lane/moves-wave-3: my target's wind-up */
+  { name: 'a landed wind-up still reads as winding up', case: 'winding-up-metric', edits: [['src/core/hunt/conditions.js', 'return !!t && isObj(t.cast) && int(t.cast.left) > 0; },', 'return !!t && isObj(t.cast); },']] },
+  { name: 'any monster\'s wind-up reads as my target\'s', case: 'winding-up-metric', edits: [['src/core/hunt/conditions.js', 'target_winding_up: (cx) => { const t = foeTarget(cx);', "target_winding_up: (cx) => { const t = cx.inst.world.units.find((x) => x.alive && x.cast && sideOf(x) !== sideOf(cx.u));"]] },
   { name: 'a cast never writes the last move (no rotation)', case: 'roads-rotation-span', edits: [['src/core/hunt/abilities.js', '{ [row.lane]: row.id, any: row.id });', '{});']] },
   { name: 'the last move is not persisted (a settle cut forgets it)', case: 'roads-rotation-span', edits: [['src/core/hunt/abilities.js', ", ['lastMove', 'json']]),", ']),']] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },

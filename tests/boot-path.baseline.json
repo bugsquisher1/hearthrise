@@ -295,9 +295,15 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 957667,
+        "gzipBytes": 958090,
         "on": "2026-11-23",
-        "why": "lane/monster-roles-ford-wings merged over the set (050a9b999): the Ford and Catacomb wing rows carry roles and spells, the Ford's drop chances at its rows' kill rate, REF_HERO's regenerated rows, formulaStep and rowsKillsHead on the danger rows"
+        "why": "Parry, Gash, Stagger rows, the target_winding_up bar condition and its text (lane/moves-wave-3)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958238,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings merged over the set (3329b4bb0): the Ford and Catacomb wing rows carry roles and spells, the Ford's drop chances at its rows' kill rate, REF_HERO's regenerated rows, formulaStep, refHeld and rowsKillsHead on the danger rows"
       }
     ]
   }

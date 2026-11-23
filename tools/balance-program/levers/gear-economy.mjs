@@ -146,7 +146,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays Traits until wave 4'),
     ev: 'STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
-    at: [at('src/data/danger.js', 'muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5,')],
+    at: [at('src/data/danger.js', "gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'),")],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
     range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
     touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
@@ -200,7 +200,7 @@ export const GEAR_ECONOMY = [
   L('roads.nodes', 'equipment', 'content', 'The Roads sample\'s nodes: crossroads, waystones and vows, in steps and move modifiers', {
     at: [at('src/data/talents.js', "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),"), at('src/data/talents.js', "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),"),
       at('src/data/talents.js', "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),"), at('src/data/talents.js', "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),"),
-      at('src/data/talents.js', "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),""),
+      at('src/data/talents.js', "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),"),
       /* (lane/roads-countries) the whole map: one anchor in each country and the borders */
       at('src/data/talents.js', "opt('heavy_strike', 'Heavy Strike',"), at('src/data/talents.js', "opt('wide_turn', 'Wide Turn',"), at('src/data/talents.js', "opt('deep_cuts', 'Deep Cuts',"), at('src/data/talents.js', "opt('aimed_shot', 'Aimed Shot',"), at('src/data/talents.js', "opt('chilling_lance', 'Chilling Lance',"), at('src/data/talents.js', "opt('wide_wounds', 'Wide Wounds',")],
     def: 'each node\'s effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status\'s strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)',

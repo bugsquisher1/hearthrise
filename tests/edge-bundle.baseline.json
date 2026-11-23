@@ -438,6 +438,11 @@
         "bytes": 3792645,
         "on": "2026-11-23",
         "why": "lane/monster-roles-ford-wings merged over the set (050a9b999): the Ford and both Catacomb wings on the formula with roles and spells, formulaStep, rowsKillsHead kept on coin and loot, drop-rate.js rowsKillsHour, REF_HERO regenerated with its rows, the corridor pull's area veto (+9,832 B over the set)"
+      },
+      {
+        "bytes": 3792781,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings: the Flooded Wing's depth reading pinned at its reference four's hold (refHeld 455, the band's grain), new-ground's cut and its anchor rule (+136 B)"
       }
     ]
   }

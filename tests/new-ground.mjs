@@ -107,16 +107,20 @@ ok(h2 && /topStep: 710, refKillsHead: 235, (?:rowsKillsHead: \d+, )?gearLevel/.t
 /* NG-7 (lane/depth-reading-fix, 12-targets 3.1a): a formula ground's cut keeps its chosen refStep, caps the top at it + gapMax and pins the
    MID four's hold as refHeld; a rows ground's cut carries no refHeld (its refStep is that hold) */
 {
-  const ev = evidenceOf('muster_barrows', PINS.muster_barrows), held = Math.round(ev.ref.cells['base:steady'].held.mean / BAND_RULE.refTo) * BAND_RULE.refTo;
+  const ev = evidenceOf('muster_barrows', PINS.muster_barrows), held = Math.round(ev.ref.cells['base:steady'].held.mean / BAND_RULE.topTo) * BAND_RULE.topTo;
   const f = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, null, { anchorStep: 560 }), r = cut(ev);
   ok(f.band.refStep === 560 && f.band.refHeld === held && r.band.refStep === held && r.band.refHeld === undefined, 'NG-7 the anchor is not kept beside the measured hold: formula ' + JSON.stringify(f.band) + ', rows ' + JSON.stringify(r.band));
   ok(f.band.topStep <= 560 + PAY.gapMax, 'NG-7 the top ' + f.band.topStep + ' is past the anchor + gapMax (the pay stops there)');
-  /* (lane/monster-roles-ford-wings) one bridge a ground: a formula ground anchored at its own formulaStep cuts refStep from the hold, and a
-     four that holds on its anchor pins no refHeld (refHeldOf reads refStep) */
+  /* (lane/monster-roles-ford-wings) a formula ground anchored at its own formulaStep cuts refStep from the hold, a four that holds on its
+     anchor pins no refHeld (refHeldOf reads refStep), and a hold off refStep at the band's grain is pinned (the Flooded Wing: 453.5 is
+     refStep 450 to the pay's grain, the reading's middle 455) */
   ok(anchorOf({ monsters: 'formula', refStep: 440, formulaStep: 520 }) === null && anchorOf({ monsters: 'formula', refStep: 590 }) === 590
     && anchorOf({ monsters: 'rows', refStep: 590 }) === null, 'NG-7 the anchor a cut keeps is not the formula ground\'s own refStep alone');
   const on = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, null, { anchorStep: held });
   ok(on.band.refStep === held && on.band.refHeld === undefined, 'NG-7 a four holding on its anchor pinned a refHeld: ' + JSON.stringify(on.band));
+  const c1 = ev.ref.cells['base:steady'], fine = { ...ev, ref: { ...ev.ref, cells: { ...ev.ref.cells, 'base:steady': { ...c1, held: { ...c1.held, mean: 603.5 } } } } };
+  const fc = bandFromReports(fine, PAY, DEPTHS, BAND_RULE, null).band;
+  ok(fc.refStep === 600 && fc.refHeld === 605, 'NG-7 a hold off the pay\'s grain was not pinned at the band\'s: ' + JSON.stringify(fc));
   const c0 = ev.ref.cells['base:steady'], over = { ...ev, ref: { ...ev.ref, cells: { ...ev.ref.cells, 'base:steady': { ...c0, held: { ...c0.held, mean: 720 } } } } };
   const out = bandFromReports(over, PAY, DEPTHS, BAND_RULE, null, { anchorStep: 590 });
   ok(out.verdict === 'REVIEW' && out.notes.some((x) => /depth reading has no middle point/.test(x)), 'NG-7 a hold outside the band was not a note: ' + out.verdict + ' ' + out.notes.join(' | '));

@@ -63,6 +63,7 @@
    "refStep": 450,
    "floorStep": 410,
    "topStep": 465,
+   "refHeld": 455,
    "print": "db1bf83de76b3192",
    "verdict": "OPEN",
    "levels": {

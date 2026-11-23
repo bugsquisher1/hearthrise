@@ -204,9 +204,10 @@ export const DANGER_GROUNDS = Object.freeze({
                       pay's reference, where the MEASURED reference company holds; the two part where that company is not the formula's.
                       The wings' Level 175 company holds 60 to 80 steps under the anchor its monsters were measured at (520, 500), so held at
                       one step every stance paid under PAY.floor there and Careful out-earned Steady. Muster's refStep is its anchor by hand
-                      (tests/danger-band-pins.json says why), the Ford's measured company holds on its anchor. ONE of formulaStep and
-                      refHeld a ground (tools/lib/danger-band.mjs anchorOf, tools/gen-danger.mjs refuses both): refHeld where the pay stays
-                      on the anchor and the four holds near it (Muster, 20 over), formulaStep where the pay cannot (the wings, 60 to 80 under)
+                      (tests/danger-band-pins.json says why), the Ford's measured company holds on its anchor. Three readers, two
+                      overrides (tools/lib/danger-band.mjs): the pay reads refStep, the monsters formulaStep ?? refStep, the depth reading
+                      refHeld ?? refStep. Muster's pay stays on its anchor and its four holds 20 over (refHeld); the wings' pay cannot sit
+                      on theirs (formulaStep), and the Flooded Wing's reading needs the hold at the band's grain too (refHeld 455)
        rowsKillsHead  THE KILL RATE A GROUND'S ROWS WERE WRITTEN AT, their coin and their drop chances (danger.js rowsKeptOf): the Ford's,
                       on its hand rows, 235 a head an hour; on the formula it kills 135, and its hour's coin fell to 0.43 of the wage
                       (EL-PAY). On the scale each kill pays that ratio more of both, so the hour stands where its rows put it. The rows
@@ -219,7 +220,7 @@ export const DANGER_GROUNDS = Object.freeze({
   muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
   catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
-  catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

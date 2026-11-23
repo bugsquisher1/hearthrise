@@ -72,7 +72,8 @@ Written 2026-11-22 from the data in `src/data/`, the redesign in `docs/design/re
 | 10-hour day and Hunting blocks | Yes | Built, staged on the server |
 | Monster roles | Yes | A sample (Muster Barrows, one Krell's Hold monster) |
 | Personal loot | Yes | Designed |
-| The moves pass and wave 3 answers | Yes | Designed |
+| The moves pass | Yes | Partly built (Challenge, Shelter, Hunter's Mark, Precision Shot) |
+| Wave 3 answers (Stagger, Parry, Gash) | Yes | Designed |
 | The Roads, all seven weapon countries | Yes | Designed. Four countries laid out |
 | Traits (15 of 40) | Yes | Data built and hidden |
 | Signatures (23 of 46) | Yes | Designed |

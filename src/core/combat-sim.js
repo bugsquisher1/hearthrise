@@ -67,6 +67,7 @@ import { sessionPayOf } from '../data/session-modes.js';
 import { dangerOn, dangerDial, openDanger, riskOf } from './hunt/danger.js';
 import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
+import { traitSwing } from './trait-roll.js';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js';
@@ -304,10 +305,11 @@ export function bornHpOf(u, evs) {
  *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
  *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }
- * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number}} ctx
+ * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number, traitDrops?: any}} ctx
  *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
  *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled),
+ *        traitDrops? (the server's Trait roll, src/core/trait-roll.js traitSwing: DARK, nothing hands one while GEAR_STEPS.traitsLive is false),
  *        sessionMode? (the instance's frozen mode id, src/data/session-modes.js; absent = the default, an unknown id throws),
  *        towerFloor? (the Burning Tower, src/core/hunt/tower.js: the floor whose room stands, or stands next, at this span's start: the
  *        server's read, hr_hunt_instance_read `tower_floor`; required on the Tower's ground, never read elsewhere) }
@@ -515,7 +517,10 @@ export function simulateHuntInstance(inst, ctx) {
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
       /* A KEYED HALL'S BOSS pays his rows as the hall's DAILY PRIZE (boss-halls.js; hunt-rewards.js payPrize): the room names him. */
       const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call, ...(scale ? { tier: scale } : {}),
-        ...(fullPay ? {} : { pay }), ...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
+        ...(fullPay ? {} : { pay }), ...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ...(train ? { train } : {}), emit: (e) => worldEvents.push(e),
+        /* THE TRAIT ROLL (src/core/trait-roll.js), DARK: only on the scale and only when the server hands one (ctx.traitDrops; none while
+           GEAR_STEPS.traitsLive is false). Each hero's own stream for the swing, seed domain t:<unit> (action-rules.js SEED_DOMAIN) */
+        ...(ctx.traitDrops && scale && !train ? { traitDrops: traitSwing(ctx.traitDrops, ctx.ground, world.danger, (u) => createRng(seedOf(ctx, 't:' + u, sw))) } : {}) });
       /* THE BURNING TOWER: each hero standing when its room fell cleared the floor (tower.js towerCleared's `floor` event names them). */
       if (tw) for (const e of r.events) if (e.type === 'floor') for (const id of Object.keys(e.by)) { const m = byUnit.get(Number(id)); if (m) out.get(m.key).floors.push(e.floor); }
       /* THE ROOM'S BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */

@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-23",
- "digest": "e16778f5646bfa6fadae8d714ec3e1e3e474037b9c7b10e1706ac3a8b1202057",
+ "digest": "5acd7d8a4bc9eaeafe14f82095a200daf118b97061061b7dc0f5cd43c1c39654",
  "counts": {
   "relations": 342,
-  "functions": 898,
+  "functions": 899,
   "policies": 119,
   "indexes": 483,
   "triggers": 120,
@@ -582,6 +582,7 @@
    "hr_danger_hours_for(p_level integer)",
    "hr_danger_level_xp_max(p_level integer)",
    "hr_danger_of(p_instance uuid)",
+   "hr_danger_prove(p_instance uuid, p_world text, p_window_ms bigint)",
    "hr_danger_view(p_user uuid, p_slot integer)",
    "hr_danger_world(p_world text)",
    "hr_day_budget_check(p_user uuid, p_slot integer, p_gold_in bigint, p_xp_in bigint, p_qty_in bigint, p_gems_in bigint)",

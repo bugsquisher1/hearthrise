@@ -64,8 +64,11 @@ const equipOffer = (item) => ({ id: "equip." + item, table: "equip", name: ITEMS
 /** A legacy seed-counter bundle of `count`: the store's ask for the stack, a vendor price list only. */
 const bundleOffer = (item, count) => ({ id: "seed." + item, table: "seed", name: ITEMS[item].n, cost: [gold(storeAsk(ITEMS[item].v, count))],
   grant: [{ kind: "item", id: item, amount: count }], repeatable: true });
-/** A property deed: `hoursPm` milli-hours of wage at its tier's step, its materials, the tier it grants. */
-function propertyOffer(id, hoursPm, items) {
+/** Every deed's price in milli-hours of wage at its tier's step (the property ladder's one price home; tests/wage-prices.mjs reads it). */
+export const PROPERTY_HOURS_PM = Object.freeze({ homestead: 31, farmstead: 1865, manor: 10332, keep: 37402, castle: 135516 });
+/** A property deed: its PROPERTY_HOURS_PM at its tier's step, its materials, the tier it grants. */
+function propertyOffer(id, items) {
+  const hoursPm = PROPERTY_HOURS_PM[id];
   const tier = PROPERTY_TIERS.findIndex((t) => t.id === id);
   if (tier < 1) throw new Error('shops: no bought property tier ' + id);
   return { id: "property." + id, table: "property", name: PROPERTY_TIERS[tier].name,
@@ -134,11 +137,11 @@ export const SHOP_OFFERS = [
      THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
   /* PRICED IN HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; homestead-tiers.js says how): milli-hours at the tier's own step, whose
      list prices are the 2026-11-22 deeds, 2,500,000 / 600,000 / 150,000 / 25,000 / 400. */
-  propertyOffer('castle', 135516, { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
-  propertyOffer('farmstead', 1865, { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
-  propertyOffer('homestead', 31, { copper_ore: 20, normal_log: 30 }),
-  propertyOffer('keep', 37402, { bear_pelt: 5, big_bones: 20, iron_fitting: 12, maple_plank: 50, steel_bar: 35, timber_beam: 12 }),
-  propertyOffer('manor', 10332, { iron_fitting: 6, iron_ore: 40, silk_thread: 8, timber_beam: 6, willow_plank: 35 }),
+  propertyOffer('castle', { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
+  propertyOffer('farmstead', { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
+  propertyOffer('homestead', { copper_ore: 20, normal_log: 30 }),
+  propertyOffer('keep', { bear_pelt: 5, big_bones: 20, iron_fitting: 12, maple_plank: 50, steel_bar: 35, timber_beam: 12 }),
+  propertyOffer('manor', { iron_fitting: 6, iron_ore: 40, silk_thread: 8, timber_beam: 6, willow_plank: 35 }),
   /* Every room rung, from its one home (homestead-tiers.js ROOM_RUNGS), in id order. */
   ...ROOM_OFFERS,
   bundleOffer('bronze_arrows', 50),
@@ -161,9 +164,9 @@ export const DERIVED_PRICES = [
     "name": "Bank space, gold rung",
     "where": "src/legacy.js bankGoldCost() → buyBankSpaceGold()",
     "currency": "gold",
-    "formula": "round(BANK_SPACE.gold.base * BANK_SPACE.gold.growth ^ G.bank.goldBuys)",
+    "formula": "wageListPrice(round(BANK_BASE_HOURS_PM * BANK_GROWTH ^ rungs owned), 1) (src/data/gold-ladders.js bankRungPrice)",
     "params": {
-      "base": 3000,
+      "baseHoursPm": 232,
       "growth": 1.32,
       "slots": 20
     },

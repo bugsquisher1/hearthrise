@@ -38,13 +38,13 @@ import { wageListPrice } from './wage.js';
 /* A server-wide project reads the base wage (the header). */
 const WORKS_STEP = 1;
 const gold = (hoursPm) => wageListPrice(hoursPm, WORKS_STEP);
-const stage = (atHoursPm, art, label, line) => Object.freeze({ at: gold(atHoursPm), art, label, line });
+const stage = (atHoursPm, art, label, line) => Object.freeze({ atHoursPm, at: gold(atHoursPm), art, label, line });
 
 export const TOWN_WORKS = Object.freeze({
   weighhouse: Object.freeze({
     name: 'The Weighhouse', about: 'Havora is raising the Weighhouse on the east bank. Every gift goes toward the building, and the biggest givers go on its plaque.',
     aboutDone: 'Havora raised the Weighhouse on the east bank, and the biggest givers stand on its plaque.',
-    map: 'town_common', minGift: gold(8), perDay: gold(1933), perMinute: 20,
+    map: 'town_common', hoursPm: Object.freeze({ minGift: 8, perDay: 1933, perActive: 1547 }), minGift: gold(8), perDay: gold(1933), perMinute: 20,
     gifts: Object.freeze([1000, 5000]), plaqueTop: 10,
     /* 1.547 hours of wage a weekly active account (20,000), 19.333 at least (250,000; was a fixed 1,000,000, which only a server of
        hundreds ever finished). */

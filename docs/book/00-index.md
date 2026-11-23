@@ -126,29 +126,30 @@ Every place the docs, the code and Tyler's rulings disagree, found while writing
 27. **Hire stamina.** S-1 (newest) says once every 24 hours, for 12 hours, with its own stamina pool. The older 25-1 amendment (on-call 2 hours a day default, 4 max) is superseded but still in the record.
 28. **Setup slots.** S-3 a ruled paid setup slots (15,000 and 40,000 gold). 02 package 9 makes plans free, and `1049-setups-free.sql` is built. The redesign is newer.
 29. **House rooms.** Tyler approved cutting the house speed rungs and the Cellar's food rungs (2026-11-21). They're still in `perks.js` and `homestead-tiers.js`, and the Shrine's flame speed has nothing to speed up once the flame isn't a skill.
-30. **The stamina "day".** The design talks about a 10-hour hunting day. The data is a pool that refills minute for minute while a hero isn't hunting. Same hours, different feel. Worth saying one way on screen.
+30. **The tank's fall-back line.** Tyler ruled the Challenge holder falls back at 15% on Steady, and 17, 19 and 23 use that (`holderLinePm` 600, near fall-back at 30% and 42%). The built data (`danger.js HOLDER`, merged 2026-11-22) uses 800: 20% on Steady and 36% on Careful, because the tank died on Steady at 600 and Steady must never die. The Greater Mend re-size the docs size nodes on was also tested and not adopted.
+31. **The stamina "day".** The design talks about a 10-hour hunting day. The data is a pool that refills minute for minute while a hero isn't hunting. Same hours, different feel. Worth saying one way on screen.
 
 ### Missing files the game already points at
 
-31. The Path reads seven files that don't exist: `src/data/company.js` (the rest-plan and party-ready cards, so the rest-plan card is off today), `talents.js`, `tier-risk.js`, `world-boss.js`, `on-call.js`, `social-open.js` and `market-open.js`.
-32. **Mossback.** The world boss has an event row every 28 days, but no monster row and no `world-boss.js`. Tyler said wait on art.
+32. The Path reads seven files that don't exist: `src/data/company.js` (the rest-plan and party-ready cards, so the rest-plan card is off today), `talents.js`, `tier-risk.js`, `world-boss.js`, `on-call.js`, `social-open.js` and `market-open.js`.
+33. **Mossback.** The world boss has an event row every 28 days, but no monster row and no `world-boss.js`. Tyler said wait on art.
 
 ### Content that can't be reached
 
-33. **Three open grounds with no map.** Bramble Edge, Goblin Warren and Ridge Camp are in `OPEN_HUNTS` but not in `OPEN_GROUNDS`. R10 keeps or cuts them.
-34. **Emberheart.** The Hearthfind's three monsters (Elk King, Grim Reaper, Green Dragon) stand on no ground.
-35. **Named items with no source.** Dragonrend, Widow's Fang, Hollow Sigil Ring, Fangdart Recurve, the Crown of the Fallen King, the Chitin set, the Watchknight set and the Quiet Coat have no source in the catalogue. Others drop only from monsters on no ground.
-36. **Two monsters named "Barrow Knight".** One on Muster Barrows, one on no ground.
+34. **Three open grounds with no map.** Bramble Edge, Goblin Warren and Ridge Camp are in `OPEN_HUNTS` but not in `OPEN_GROUNDS`. R10 keeps or cuts them.
+35. **Emberheart.** The Hearthfind's three monsters (Elk King, Grim Reaper, Green Dragon) stand on no ground.
+36. **Named items with no source.** Dragonrend, Widow's Fang, Hollow Sigil Ring, Fangdart Recurve, the Crown of the Fallen King, the Chitin set, the Watchknight set and the Quiet Coat have no source in the catalogue. Others drop only from monsters on no ground.
+37. **Two monsters named "Barrow Knight".** One on Muster Barrows, one on no ground.
 
 ### Player text that's out of date
 
-37. The in-game help says stamina is "Max: 8 hours, 12 with premium". It's 10 and 12.
-38. The help's Gold note says "Shop: gloves, belts, jewelry and tools". The store sells no gear past the starter pieces.
-39. Today's screens say "Crafting" and "Runecrafting". The redesign renames them Woodcrafting, Runecutting and Artificing, and `work-day.js` still lists the old names.
-40. A `gems` currency sits in the starting purse and the account wallet. Crowns are the only premium currency in the design.
+38. The in-game help says stamina is "Max: 8 hours, 12 with premium". It's 10 and 12.
+39. The help's Gold note says "Shop: gloves, belts, jewelry and tools". The store sells no gear past the starter pieces.
+40. Today's screens say "Crafting" and "Runecrafting". The redesign renames them Woodcrafting, Runecutting and Artificing, and `work-day.js` still lists the old names.
+41. A `gems` currency sits in the starting purse and the account wallet. Crowns are the only premium currency in the design.
 
 ### Reference docs that are stale
 
-41. **SYSTEMS_MAP section 1** says 4 weapon families and about 70 items. The data has 7 families and 180 generated pieces.
-42. **SYSTEMS_MAP section 3** describes Inner Flame as the regeneration skill. That changes in 0.3.
-43. **SYSTEMS_MAP section 4** says Mining and Woodcutting are gathered during hunts and the gathering engine isn't shipped. Gathering is town work, and the redesign says hunters no longer gather.
+42. **SYSTEMS_MAP section 1** says 4 weapon families and about 70 items. The data has 7 families and 180 generated pieces.
+43. **SYSTEMS_MAP section 3** describes Inner Flame as the regeneration skill. That changes in 0.3.
+44. **SYSTEMS_MAP section 4** says Mining and Woodcutting are gathered during hunts and the gathering engine isn't shipped. Gathering is town work, and the redesign says hunters no longer gather.

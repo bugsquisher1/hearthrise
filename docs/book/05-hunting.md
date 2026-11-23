@@ -79,7 +79,7 @@ You pick one Risk setting in your plan. That's the only difficulty choice in the
 | **Bold** | 12% | 30% | Yes | More while you watch. Less over a whole day, because deaths cost time |
 
 - The fall back happens inside the pull, the moment a hero crosses the line. No monster swings again and the party breaks off.
-- The hero holding the Challenge reads a lower line: 15% on Steady, 27% on Careful (chapter 4).
+- The hero holding the Challenge reads a lower line: 20% on Steady, 36% on Careful (chapter 4).
 - After a death on Bold, the party plays Steady for the rest of that hunt.
 - Your first hunts run on Steady and don't show the choice. You meet it at the Sewer.
 

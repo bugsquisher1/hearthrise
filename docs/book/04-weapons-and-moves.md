@@ -49,7 +49,7 @@ A hero can pick up any weapon. The weapon decides the hero's "way" (the game's w
 
 | Move | Lane · cooldown · mana · supply | Unlock | What it does |
 |---|---|---|---|
-| **Challenge** | Support · 8 s · free | Known | Taunts monsters onto you |
+| **Challenge** | Support · 8 s · free | Known | Taunts monsters onto you. Party only |
 | **Frost Slam** | Support · 6 s · 6 · Ice rune | Melee 12 | Hits every monster around you and Chills them. Party only |
 | **Shelter** | Support · 30 s · 25 · Earth rune | Melee 20 | Shields the whole party within 8 tiles. Party only |
 | **Flame Strike** | Offense · 8 s · 10 · Fire rune | Known | A strong fire hit (shared with Sword) |
@@ -123,15 +123,15 @@ A designer measured every move on the real engine before the Roads were written.
 
 | Move | Change | Why |
 |---|---|---|
-| **Challenge** | Its suggested condition becomes "my HP is at least 60%". The hero holding Challenge falls back at a lower line (15% on Steady, 27% on Careful) | Pulling every blow onto one hero tripped the fall back early. As measured, the Challenge made a four hold far shallower |
-| **Shelter** | Suggested condition becomes "the party has at least 2 heroes under 80%" | Its old trigger waited for a monster to cast, and nothing cast on the early grounds. It never fired |
-| **Greater Mend** | Made smaller | Without it a four held far shallower and earned 48% less XP. It was half the game |
+| **Challenge** | **Built.** Party only, and a new slot starts on "my HP is at least 60%". The hero holding it falls back at a lower line: 20% on Steady, 36% on Careful | Pulling every blow onto one hero tripped the fall back early. As measured, the Challenge made a four hold far shallower |
+| **Shelter** | **Built.** Suggested condition becomes "the party has at least 2 heroes under 80%" | Its old trigger waited for a monster to cast, and nothing cast on the early grounds. It never fired |
+| **Greater Mend** | A smaller Greater Mend was tested and **not adopted**. It cut the party's healing instead of spreading it | Without it a four holds far shallower and earns 48% less XP. It's half the game |
 | **Undertow** | Cut. Its "alone" idea becomes a shared rule: some strikes deal double damage while you hunt alone. Green Sickness gets it | It only cast alone, and everyone has a party from Level 5 |
-| **Hunter's Mark** | Marks your own target if it isn't marked, else the healthiest monster in reach | Picks a better target |
-| **Precision Shot** | Shoots a Shooter, Caster or Stalker in range first, else your target | Picks the back-row threat |
+| **Hunter's Mark** | **Built.** Marks your own target if it isn't marked, else the healthiest monster in reach | Picks a better target |
+| **Precision Shot** | **Built.** Shoots a Shooter, Caster or Stalker in range first, else your target | Picks the back-row threat |
 | **Updraft** | Removed | A fourth area spell on the wand |
 
-Not final: Frost Slam may fold into the Challenge as "Cold Challenge" if it can't earn its own road. Circle of Renewal may become a branch. Every number is re-measured after the pass.
+Not final: Tyler ruled the holder's line at 15% on Steady. The build uses 20%, because at 15% the tank died on Steady in the measured runs and Steady must never die. Frost Slam may fold into the Challenge as "Cold Challenge" if it can't earn its own road. Circle of Renewal may become a branch. Every number is re-measured after the pass.
 
 ## 4.5 Wave 3: answers to wind-ups
 **[New in 0.3]** (lane W3)

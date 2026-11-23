@@ -163,6 +163,7 @@ A vow is a big gain on a condition and a cost that always bites.
 - Every vow is good somewhere and bad somewhere else. Across all grounds it comes out about even.
 - "Spend as suggested" **never** takes a vow. It walks past and offers the vow on your return card as one of your three choices.
 - A vow's cost never lowers max health.
+- "Near fall-back" on a node or vow means a hero's health is within 15 points of the line where the party falls back (chapter 5).
 
 Examples:
 - **Hold Fast** (Shield): enemies on you can't switch targets · −3% damage dealt.

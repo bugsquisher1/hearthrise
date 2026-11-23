@@ -82,11 +82,11 @@ Tooltip voice throughout. Crossroads I text is from `16-talent-branches.md`, unc
 | | Crossroads II | **Ready Shelter**: Casts on its own when an ally drops below 30% health, +10 s cooldown · **Long Shelter** (Suggested): Shields last 4 s longer |
 | | Open road | +1 Shelter rank per point |
 | To Hold Fast (after Challenge's first fork) | Milestone x3 | +2% max health / +2% max health / +2% armor |
-| | **Vow: Hold Fast** | Requires Level 30. Enemies attacking you can't switch targets. You deal 25% less damage. Best for: keeping a pack off your back row |
+| | **Vow: Hold Fast** | Requires Level 30 · Enemies attacking you can't switch targets · −25% damage dealt Best for: keeping a pack off your back row |
 | To Bodyguard (from Shelter) | Milestone x3 | +2% armor / +2% ward / +2% max health |
-| | **Vow: Bodyguard** | Requires Level 30. 30% of the damage dealt to allies within 2 tiles is dealt to you instead. You can't be healed above 80% health. Best for: parties whose damage dealers can't take a hit |
+| | **Vow: Bodyguard** | Requires Level 30 · Take 30% of damage dealt to allies within 2 tiles · Max health from healing: 80% Best for: parties whose damage dealers can't take a hit |
 | To Cold Iron (from Frost Slam) | Milestone x3 | +2% ward / +2% armor / +2% ward |
-| | **Vow: Cold Iron** | Requires Level 30. Enemies that hit you are Chilled for 2 s. You deal 15% less damage. Best for: packs that stay on you, melee-heavy grounds |
+| | **Vow: Cold Iron** | Requires Level 30 · When hit: Chill the attacker for 2s · −15% damage dealt Best for: packs that stay on you, melee-heavy grounds |
 
 Shield borders Sword (Flame Strike and Power Strike lie just over it), Club, and Restoration.
 
@@ -122,13 +122,13 @@ Shield borders Sword (Flame Strike and Power Strike lie just over it), Club, and
 | | Crossroads II | **Cold Undertow**: Applies Chill for 2 s · **Deep Pull** (Suggested): +30% damage vs enemies below 50% health |
 | (each move above) | Open road | +1 rank of that move per point |
 | To Watchful Healing (from Greater Mend) | Milestone x3 | +2% healing done x2 / +2% max mana |
-| | **Vow: Watchful Healing** | Requires Level 30. Requires: staff. Heals cast while an enemy winds up heal 40% more. Heals cast at any other time heal 15% less. Best for: grounds full of casters and big wind-ups |
+| | **Vow: Watchful Healing** | Requires Level 30 · Requires staff · +40% healing while an enemy is winding up · −15% healing at other times Best for: grounds full of casters and big wind-ups |
 | To Still Mind (from Protective Ward) | Milestone x3 | +2% mana regeneration x2 / +2% max mana |
-| | **Vow: Still Mind** | Requires Level 30. If you haven't cast for 3 s, +100% mana regeneration. Your spells cost 30% more mana. Best for: long hunts with quiet gaps between pulls |
+| | **Vow: Still Mind** | Requires Level 30 · +100% mana regen after 3s without casting · +30% spell mana cost Best for: long hunts with quiet gaps between pulls |
 | To Fast Renewal (from Circle of Renewal) | Milestone x3 | +2% healing done / +2% max mana / +2% healing done |
-| | **Vow: Fast Renewal** | Requires Level 30. Requires: staff. Your heals over time tick twice as fast. Your instant heals cost 40% more mana. Best for: steady area damage |
+| | **Vow: Fast Renewal** | Requires Level 30 · Requires staff · Heals over time tick 2× as fast · +40% mana cost on instant heals Best for: steady area damage |
 | To Battle Healer (from Green Sickness) | Milestone x3 | +2% max health / +2% ward / +2% max mana |
-| | **Vow: Battle Healer** | Requires Level 30. Requires: staff. Undertow works in a party. Undertow and Green Sickness deal 30% more damage. Your heals cost 25% more mana. Best for: parties that need more damage than healing |
+| | **Vow: Battle Healer** | Requires Level 30 · Requires staff · Undertow usable in a party · +30% Undertow and Green Sickness damage · +25% heal mana cost Best for: parties that need more damage than healing |
 
 Restoration borders Shield (the road to Bodyguard and Shelter) and Destruction (the road to Arcane Barrier).
 
@@ -140,12 +140,12 @@ Each region gets 2 to 4 vows, 20 in all. These six are examples. The other seven
 
 | Vow | Region | Tooltip | Cost | Best on | Weak on |
 |---|---|---|---|---|---|
-| **Single Combat** | Sword | Your single-target attacks deal 20% more damage | Attacks that hit more than one enemy deal 40% less | Bosses, Brutes | Swarms |
-| **Open Wounds** | Dual Axe | Requires: axes. Bleed can stack to 10 | Each Bleed stack deals 40% less damage | Long fights, bosses | Fast pulls where Bleed never builds up |
-| **Crushing Blows** | Club | Your attacks ignore 30% of armor | Your cooldowns are 25% longer | High-armor Brutes | Swarms, low-armor enemies |
-| **Long Range** | Ranged | Requires: bow or crossbow. You attack from 2 tiles farther back | Enemies that reach you deal 25% more damage to you | Parties with a tank, Shooters | Solo vs Stalkers |
-| **Marked Prey** | Ranged | Requires: bow or crossbow. Hunter's Mark lasts until the target dies | You deal 30% less damage to unmarked enemies | Bosses, one big target at a time | Packs |
-| **Cold Focus** | Destruction | Requires: wand. Your frost spells deal 20% more damage and Chill lasts 2 s longer | You can't cast fire spells | Caster grounds, protecting a party | Fire-weak grounds, big packs (no Fireball) |
+| **Single Combat** | Sword | +20% single-target damage | −40% damage on attacks that hit 2+ enemies | Bosses, Brutes | Swarms |
+| **Open Wounds** | Dual Axe | Requires axes · Bleed stacks up to 10 | −40% damage per Bleed stack | Long fights, bosses | Fast pulls where Bleed never builds up |
+| **Crushing Blows** | Club | Attacks ignore 30% of armor | +25% cooldowns | High-armor Brutes | Swarms, low-armor enemies |
+| **Long Range** | Ranged | Requires bow or crossbow · +2 attack range | +25% damage taken from enemies in melee range | Parties with a tank, Shooters | Solo vs Stalkers |
+| **Marked Prey** | Ranged | Requires bow or crossbow · Hunter's Mark lasts until the target dies | −30% damage vs unmarked enemies | Bosses, one big target at a time | Packs |
+| **Cold Focus** | Destruction | Requires wand · +20% frost spell damage · +2s Chill duration | Can't cast fire spells | Caster grounds, protecting a party | Fire-weak grounds, big packs (no Fireball) |
 
 **Stacking.** Vows follow the stacking keys in `15-signature-candidates.md`. Open Wounds sets the Bleed cap to 10, and Signature #29 doesn't add to it. Cold Focus's Chill is the one Chill key, so it restarts the Chill and doesn't add a second one. No vow repeats a branch, a Trait or a Signature (checked against 14, 15 and 16 on 2026-11-22).
 

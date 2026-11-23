@@ -30,6 +30,11 @@ import { STARTER_SETS, START_CURRENCY } from './start-kit.js';
 import { WEIGHT_ORDER, weightSentence } from './armour-weights.js';
 import { DEATH_XP_LOSS, DEATH_HOURS } from './hunt-sessions.js';
 import { BLESSING } from './blessings.js';
+import { STAMINA_MAX_MS } from './hunt-sessions.js';
+import { RULED } from './time-blocks.js';
+import { DEPTHS } from './danger.js';
+import { TALENT_RULES } from './talents.js';
+import { RECRUITS } from './recruits.js';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -45,8 +50,9 @@ export const HOW_YOU_FIGHT_LEAD = 'No classes. Every weapon is yours. The one in
    2026-11-19), the other four none. `cost`: the D-1 cost line. The wand's {gold} is C1's net gold to Level 5, rounded to 25,
    100 until C1 reads (PLAYED once: 251 gold spent on runes and drinks against 146 earned), and {purse} the account kit's gold. */
 const SLOW_ALONE = 'Best in a party. Slow alone.';
-const RUNE_STORE = 'Uses runes. The store sells them for 1 gold each as you cast.';
-export const WAND_FIRST_HUNT_GOLD = 100;
+/* THE KIT IS CRAFTED (Tyler's supplies ruling, 20-v030-the-roads.md 1.4; lane/first-hour-rewrite): runes are made in town, and the store's are
+   the fallback a hunt buys as it casts. No price is typed here: the store prices at the buyer's step (src/data/store-kit.js). */
+const RUNE_STORE = 'Uses runes. Make them in town, or the store sells them as you cast.';
 /** @param {string} set @param {string} name @param {string} does @param {string} uses @param {{ tag?: string, mark?: string, cost?: string }} [more] */
 const pick = (set, name, does, uses, more = {}) => Object.freeze({ set, name, does, uses, tag: more.tag || null, mark: more.mark || null, cost: more.cost || null });
 export const STARTER_PICKS = Object.freeze([
@@ -54,9 +60,10 @@ export const STARTER_PICKS = Object.freeze([
   pick('dual_axes', 'Hatchets', 'Hits hardest, up close', 'Uses food', { cost: RUNE_STORE }),
   pick('club', 'Club', 'Hits hardest, up close', 'Uses food', { mark: 'Good first hero' }),
   pick('ranger', 'Bow and crossbow', 'Shoots from range', 'Free Bronze Arrows, uses food'),
+  /* the old line's "costs about 100 gold more than it earns" was a stub never measured on the wage (kit 0.2 to 0.3 of pay, 12-targets); no
+     number is said until one is measured */
   pick('mage', 'Wand and spellbook', 'Casts spells', 'Uses mana and drinks', {
-    cost: 'Casting costs gold. Each Fireball uses 1 rune and some mana. The store sells both as you go. Your first hunt will cost about '
-      + WAND_FIRST_HUNT_GOLD + ' gold more than it earns. You start with ' + START_CURRENCY.gold + '.' }),
+    cost: 'Each Fireball uses 1 rune and some mana. Make runes in town, or the store sells them as you cast. You start with ' + START_CURRENCY.gold + ' gold.' }),
   pick('healer', 'Staff', 'Heals the party', 'Uses mana and drinks', { tag: SLOW_ALONE, cost: RUNE_STORE }),
 ]);
 /* Heroes two to four are RECRUITS (Tyler RD-Q6 a, 2026-11-22): their jobs are src/data/recruits.js RECRUITS.jobs, the server's to pick. */
@@ -85,7 +92,16 @@ export const HELP_NOTES = Object.freeze([
   note('away', 'Offline hunting',
     'Hunts keep running with the game closed\nEnds on: no stamina, death, no gold for supplies, Leave hunt'),
   note('stamina', 'Stamina',
-    'Hunting: one minute of stamina a minute\nOutside a hunt: refills minute for minute, even offline\nMax: 8 hours, 12 with premium\nBeta: every hero has premium'),
+    'Hunting: one minute of stamina a minute\nOutside a hunt: refills minute for minute, even offline\nMax: ' + STAMINA_MAX_MS.free / 3600000
+    + ' hours, ' + STAMINA_MAX_MS.premium / 3600000 + ' with premium\nMore: buy a hunting block, ' + RULED.hunt.blockMin / 60 + ' hours, '
+    + RULED.hunt.perDay + ' a day'),
+  /* THE DANGER SCALE (02 package 3, 12-targets 2.6; lane/first-hour-rewrite) */
+  note('depth', 'Depth and Risk',
+    'Depth: how hard a hunt is, from 1 to ' + DEPTHS + '\nThe party climbs while pulls go well and falls back before a death\nDeeper: more XP, gold and loot a kill\n'
+    + 'Risk: Careful, Steady or Bold, set once a ground\nSteady: the default\nBold: deeper and better pay, the only Risk that can die'),
+  /* THE ROADS (17-talent-tree.md; the Talents tab while the server offers it) */
+  note('talents', 'Talents',
+    'A Talent point every Level from ' + TALENT_RULES.opensAt + '\nCharacter → Talents → Spend as suggested\nA fork: pick one of its options, or keep the suggested one'),
   note('weapon', 'Weapons and styles',
     'No classes: the weapon sets the style\nSword and shield: hold monsters\nAxes or hammer: hit hard\nBow or crossbow: shoot from range\nWand and spellbook: cast spells\nStaff: heal\nSwitch: equip another weapon from the bag'),
   note('supplies', 'Food and drink',
@@ -106,9 +122,9 @@ export const HELP_NOTES = Object.freeze([
   note('town', 'Work in town',
     'Between hunts: chop, mine, fish, cook, smith, craft and bind runes\nGathering and crafting (G): press a skill, then a job\nGathering: keeps going offline\nCrafting: uses the bag\nStarting a hunt stops the job\nAfter the hunt: back to the job, wait or train'),
   note('heroes', 'Several heroes',
-    'All 4 hero slots are yours from the start\nAll 4 heroes play at once\nOwn heroes join the party at once'),
+    'All 4 hero slots are yours from the start\nLevel ' + RECRUITS.atLevel + ': ' + RECRUITS.count + ' recruits join in one press\nAll 4 heroes play at once\nOwn heroes join the party at once'),
   note('death', 'Death',
-    'The hunt ends, the hero returns to town\nCost: ' + Math.round(DEATH_XP_LOSS * 100) + '% of Level XP, at most ' + DEATH_HOURS + ' hours of progress, can take a Level\nBlessing: Shop → Services, free below Level ' + BLESSING.freeUntilLevel),
+    'Only on Bold: Careful and Steady fall back first\nThe hunt ends, the hero returns to town\nCost: ' + Math.round(DEATH_XP_LOSS * 100) + '% of Level XP, at most ' + DEATH_HOURS + ' hours of progress, can take a Level\nBlessing: Shop → Services, free below Level ' + BLESSING.freeUntilLevel),
 ]);
 
 /** Every problem with the tables, as strings. Empty = valid. */

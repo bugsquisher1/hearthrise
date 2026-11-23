@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "8d9c77b0a504b933",
+ "authored": "56a4bc01d4b33716",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 239,
+  "levers": 240,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 9,
@@ -82,14 +82,14 @@
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 45,
+   "economy": 46,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
    "global": 127,
    "archetype": 32,
-   "content": 50,
+   "content": 51,
    "exception-intentional": 19,
    "exception-accidental": 11
   },
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 34,
+   "not-playable:outside-hunt": 35,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 43,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 130,
+   "asserted": 131,
    "mentioned only": 89,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 759,
-  "typed": 17023,
+  "bindings": 760,
+  "typed": 17037,
   "files": 260,
-  "lever": 333,
+  "lever": 334,
   "notLever": 426,
   "unclaimed": 0
  },
@@ -12149,31 +12149,31 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 33,
+     "line": 34,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 34,
+     "line": 35,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 35,
+     "line": 36,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 36,
+     "line": 37,
      "text": "temperStepsMax: 5,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 37,
+     "line": 38,
      "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
@@ -15372,6 +15372,55 @@
    "evidence": "STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)"
   },
   {
+   "id": "econ.faction-stock",
+   "category": "economy",
+   "name": "The quartermasters' stock (the two sides' pieces)",
+   "sites": [
+    {
+     "file": "src/data/factions.js",
+     "line": 78,
+     "text": "export const FACTION_STOCK = Object.freeze({",
+     "binding": "FACTION_STOCK"
+    }
+   ],
+   "definition": "one row a piece a side: its standing mark in company hero-minutes (40 / 120 / 200 / 400 / 600 h), its kind, and for a hall or mount piece wageHoursPm (20 and 30 wage hours) priced ceil(wageHoursPm / 1000 x wage(levelStep(top Level))) at the company's highest Level (src/data/factions.js stockPrice); outfit pieces free; looks only, 0 power steps (ledger row 17)",
+   "range": "the designer's (25-factions.md section 2.4; lane/factions-morrow-hills: the company's top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1067, generated, pinned at four Levels). The paid rows are CLOSED until the hall's wall and mounts show them",
+   "touches": "a once-per-company looks sink; under 1% of minted coin either way (25 section 3)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/faction-ground-balance.mjs",
+      "what": "FG-PRICE: the wage hours at the Level, rounded up, growing with it; FG-STOCK: no power key",
+      "reads": [
+       "FACTION_STOCK",
+       "stockPrice"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/faction-ground-balance.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a piece is claimed or bought in town, never by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (25-factions.md section 2.4 starting values)"
+  },
+  {
    "id": "econ.reset-price",
    "category": "economy",
    "name": "Talent reset price",
@@ -16999,7 +17048,7 @@
   },
   {
    "at": "src/data/factions.js#*",
-   "why": "faction swap timing and outfit hours: no power, gold or XP in these rows"
+   "why": "faction swap timing, the day fuse, the week cap and the sides: no power, gold or XP in these rows (the gold of the stock is econ.faction-stock)"
   },
   {
    "at": "src/data/boss-halls.js#namedWaveOf",
@@ -20369,6 +20418,15 @@
     "xpPerHour"
    ],
    "typed": 31,
+   "bindings": 1
+  },
+  "src/data/factions.js#FACTION_STOCK": {
+   "pin": "count",
+   "keys": [
+    "mark",
+    "wageHoursPm"
+   ],
+   "typed": 14,
    "bindings": 1
   },
   "src/data/talent-reset.js#TALENT_RESET": {

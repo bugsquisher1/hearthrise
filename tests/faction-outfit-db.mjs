@@ -7,7 +7,7 @@
 //   node tests/faction-outfit-db.mjs            the guard
 //   node tests/faction-outfit-db.mjs --mutate   every planted defect must turn its arm red (--only a,b: those alone)
 //
-// mutant-anchors: supabase/migrations/2027-05-19-faction-outfit-path.sql supabase/migrations/2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql supabase/migrations/2027-04-22-faction-standing.sql src/data/outfits.js
+// mutant-anchors: supabase/migrations/1068-faction-company.sql supabase/migrations/2027-05-19-faction-outfit-path.sql supabase/migrations/2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql supabase/migrations/2027-04-22-faction-standing.sql src/data/outfits.js
 //
 //   FO-PLAY   as the client calls it, signed in: a hero past Krell with the standing claims the Flamebearer, wears it (hr_outfit_set),
 //             reloads (hr_load, the browser's read: worn and owned), and its party mate's party view and the town look show it; claims
@@ -22,7 +22,8 @@
 //             exactly when every piece it names is claimed
 //   FO-GRANT  the reader is no client's, the client outfit and faction verbs are exactly the listed seven (the swap cancel 2027-05-28 one of them; an unlisted one is red, verb_unlisted); hr_outfits_pieces_shape refuses a premium look, a bundle look, an
 //             empty, a null, a malformed and a fifth piece
-//   FO-AGAIN  both files applied a second time at the chain end move nothing (bodies, rows, the column, the CHECK); the catalogue
+//   FO-AGAIN  both files applied a second time at their own chain position (1068-faction-company.sql restates the reader on the
+//             company's claims after them) move nothing (bodies, rows, the column, the CHECK); the catalogue
 //             refuses to land while the reader is the one before the hand file (every hero would own every look)
 //   FO-DATA   src/data/outfits.js: valid; a staged look has no sheet and says so the day one lands; an add-on look starts with its
 //             outfit's piece; a piece twice is refused; no look shows two add-ons (the designer 2026-11-18: both held, one shown); earnedOnly holds a pieces row back as it holds a bundle row; the looks and
@@ -86,8 +87,8 @@ async function joined(db, uid, side) {
   if (!v || v.ok !== true) throw harness('a probe join was refused: ' + JSON.stringify(v));
 }
 /* Standing on a side, a fixture (the settle's credit is faction-standing-db's subject; the table only rises). */
-const standing = (db, uid, side, ms) => db.query(`insert into public.hr_faction_standing as s (user_id, slot, faction, ms) values ($1, 0, $2, $3)
-  on conflict (user_id, slot, faction) do update set ms = greatest(s.ms, excluded.ms)`, [uid, side, ms]);
+const standing = (db, uid, side, ms) => db.query(`insert into public.hr_faction_company_standing as s (user_id, faction, ms) values ($1, $2, $3)
+  on conflict (user_id, faction) do update set ms = greatest(s.ms, excluded.ms)`, [uid, side, ms]);
 
 async function ctx(db) {
   const rule = (await q(db, 'select join_monster, swap_ms, cooldown_ms from public.hr_faction_rule where id'))[0];
@@ -144,10 +145,10 @@ const ARMS = {
     v = v && v.ok === true ? await wear(db, A, 'flamebearer_shield') : v;
     if (!v || v.ok !== true || v.outfit.worn !== 'flamebearer_shield') bad.push('FO-PLAY the Hearth Shield\'s look answered ' + JSON.stringify(v));
     /* THE SWAP: the week passed and the ten hours credited are fixtures; the start and the finish are the verbs */
-    await db.query('update public.hr_faction_members set changed_at = now() - make_interval(secs => $2::bigint / 1000.0 + 1) where user_id = $1 and slot = 0', [A, X.rule.cooldown_ms]);
+    await db.query('update public.hr_faction_companies set changed_at = now() - make_interval(secs => $2::bigint / 1000.0 + 1) where user_id = $1', [A, X.rule.cooldown_ms]);
     v = await as(db, A, 'select public.hr_faction_swap_start(0, $1, $2::uuid)', [ember, idem()]);
     if (!v || v.ok !== true) bad.push('FO-PLAY the swap start answered ' + JSON.stringify(v));
-    await db.query('update public.hr_faction_members set swap_ms = $2 where user_id = $1 and slot = 0', [A, X.rule.swap_ms]);
+    await db.query('update public.hr_faction_companies set swap_ms = $2 where user_id = $1', [A, X.rule.swap_ms]);
     v = await as(db, A, 'select public.hr_faction_swap_finish(0, $1::uuid)', [idem()]);
     if (!v || v.ok !== true || !v.faction || v.faction.faction !== ember) bad.push('FO-PLAY the swap finish answered ' + JSON.stringify(v && (v.faction ? v.faction.faction : v)));
     /* STILL WORN: reload, the mate, the town; both looks still owned; the outfit's own look still wearable */
@@ -254,7 +255,7 @@ const ARMS = {
       if (await one(db, "select has_function_privilege($1, 'public.hr_outfit_owned(uuid,integer)', 'execute')", [role])) bad.push(`FO-GRANT ${role} executes hr_outfit_owned`);
     }
     for (const role of ['anon', 'authenticated']) {
-      if (await one(db, "select has_table_privilege($1, 'public.hr_outfits', 'select,insert,update,delete') or has_table_privilege($1, 'public.hr_faction_claims', 'select,insert,update,delete')", [role])) {
+      if (await one(db, "select has_table_privilege($1, 'public.hr_outfits', 'select,insert,update,delete') or has_table_privilege($1, 'public.hr_faction_company_claims', 'select,insert,update,delete')", [role])) {
         bad.push(`FO-GRANT ${role} reaches the outfit catalogue or the claims`);
       }
     }
@@ -385,10 +386,10 @@ const FINISH = 'public.hr_faction_swap_finish(integer,uuid)';
 export const MUTANTS = {
   claims_ignored: { arm: 'FO-ADDON', why: 'every hero owns every faction look', db: [OWNED, '                      then o.pieces <@ v_held\n', '                      then true\n'] },
   any_piece: { arm: 'FO-ADDON', why: 'one piece of a look owns it', db: [OWNED, '                      then o.pieces <@ v_held\n', '                      then o.pieces && v_held\n'] },
-  anyones_claims: { arm: 'FO-ADDON', why: 'another hero\'s claims own a look', db: [OWNED, 'from public.hr_faction_claims c where c.user_id = p_user and c.slot = p_slot;', 'from public.hr_faction_claims c where c.slot = p_slot;'] },
+  anyones_claims: { arm: 'FO-ADDON', why: 'another company\'s claims own a look', db: [OWNED, 'from public.hr_faction_company_claims c where c.user_id = p_user;', 'from public.hr_faction_company_claims c;'] },
   switch_takes_looks: { arm: 'FO-ADDON', why: 'the switch off takes an earned look away', db: [OWNED, '                      then o.pieces <@ v_held\n', "                      then o.pieces <@ v_held and public.hr_feature_on('factions', p_user)\n"] },
   swap_drops_claims: { arm: 'FO-PLAY', why: 'a swap takes the old side\'s looks away',
-    db: [FINISH, '  update public.hr_faction_members set faction = m.swap_to,', '  delete from public.hr_faction_claims where user_id = v_uid and slot = p_slot;\n  update public.hr_faction_members set faction = m.swap_to,'] },
+    db: [FINISH, '  update public.hr_faction_companies set faction = m.swap_to,', '  delete from public.hr_faction_company_claims where user_id = v_uid;\n  update public.hr_faction_companies set faction = m.swap_to,'] },
   bundle_door_moved: { arm: 'FO-DOORS', why: 'the bundle door owns the Key Warden for everyone', db: [OWNED, 'then exists (select 1 from public.player_cosmetics c', 'then true or exists (select 1 from public.player_cosmetics c'] },
   premium_door_moved: { arm: 'FO-DOORS', why: 'a free hero owns the premium outfits', db: [OWNED, 'else not o.premium or public.hr_premium_active(p_user, p_slot, now()) end);', 'else true end);'] },
   reader_to_client: { arm: 'FO-GRANT', why: 'a client can read any hero\'s owned list', ddl: 'grant execute on function public.hr_outfit_owned(uuid, integer) to authenticated' },
@@ -418,7 +419,9 @@ async function plant(db, m) {
 }
 
 async function runArm(name, mutant) {
-  const { db } = await bootReplay();
+  /* FO-AGAIN asks whether the two files are idempotent where they are the chain end (1068-faction-company.sql restates the reader
+     on the company's claims since, and schema-drift proves that file's own second apply) */
+  const { db } = await bootReplay(name === 'FO-AGAIN' ? { upTo: CATALOGUE } : undefined);
   try {
     /* the factions open, as the Coordinator opens them (2027-04-23-faction-section.sql) */
     await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'factions'");

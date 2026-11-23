@@ -192,6 +192,7 @@ export const LEVER_MOVES = Object.freeze({
   'mf.ref': [['~mon.hp', 'the measured reference scales every formula number: its damage a second scales health, its armor share the blows'], ['~mon.atk', 'the same'], ['~mon.aim', 'aim lands hit on the reference hero of refLevel'], ['~mon.evasion', 'evasion the same']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
+  'econ.faction-stock': [['+sink.other', 'a paid hall or mount piece is gold out, once a company, priced at its top Level (src/data/factions.js stockPrice)']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],
   'econ.offline-cap': [['+stamina', 'the cap on the hours a hunt runs unwatched, and no formula in the register writes it']],
   /* GEAR IN STEPS (src/data/gear-steps.js, lane/g-gear-steps): no formula in the register writes the step model yet */

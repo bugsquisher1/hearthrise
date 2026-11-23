@@ -154,6 +154,7 @@ function supAdd(r, step, g, ms) {
  */
 export function ledgerWalk(events, scale) {
   const ends = events.filter((e) => e.type === 'danger' && nat(e.step) !== null && nat(e.to) !== null);
+  /** @type {{ seats: any, at: any, close?: (reportOf: any, ids: any) => void }} */
   const walk = { seats: scale.seats || null, at: ends.length ? ends[0].step : nat(scale.step) };
   const from = nat(scale.fromMs), to = nat(scale.toMs);
   walk.close = (reportOf, ids) => {

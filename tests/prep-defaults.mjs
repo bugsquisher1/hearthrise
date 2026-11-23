@@ -194,7 +194,8 @@ export async function rules(base) {
     h.env.skills = Object.assign({}, h.env.skills, { melee: { xp: 0, level: 10 } });
     h.tell();
     const one = spellLines(centre);
-    if (one.length !== 1 || one[0].text !== 'Basil: New spell Turning Cut' || one[0].button !== 'Add to bar' || JSON.stringify(one[0].spells) !== '["turning_cut"]') return 'Melee 10 raised ' + JSON.stringify(one.map((a) => [a.text, a.button, a.spells]));
+    /* (lane/roads-wave3) a sword's Melee 10 opens Parry beside Turning Cut: ONE prompt names both */
+    if (one.length !== 1 || one[0].text !== 'Basil: New spells Parry, Turning Cut' || one[0].button !== 'Add to bar' || JSON.stringify(one[0].spells) !== '["parry","turning_cut"]') return 'Melee 10 raised ' + JSON.stringify(one.map((a) => [a.text, a.button, a.spells]));
     h.tell(); h.env.skills = Object.assign({}, h.env.skills, { melee: { xp: 0, level: 11 } }); h.tell();
     if (spellLines(centre).length !== 1) return 'the prompt repeated: ' + spellLines(centre).length + ' lines';
     /* another weapon's move: a wand crossing Melee 10 is told nothing */
@@ -203,7 +204,7 @@ export async function rules(base) {
     w.env.skills = Object.assign({}, w.env.skills, { melee: { xp: 0, level: 10 } }); w.tell();
     if (spellLines(cw).length) return 'a wand was told of a sword\'s move';
     /* the bar holds it already (set up early, it waits): nothing */
-    const held = hero({ slots: [{ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and' }] });
+    const held = hero({ slots: [{ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and' }, { action: { type: 'ability', id: 'parry' }, conditions: [], join: 'and' }] });
     const ch = AL.createAlertCenter(accountOf(held), { track: () => {}, clock: () => 0 });
     held.env.skills = Object.assign({}, held.env.skills, { melee: { xp: 0, level: 10 } }); held.tell();
     /* never raised at all: not on screen, and not kept as shown (a line raised and retired in the same read still went out) */
@@ -227,7 +228,8 @@ export async function rules(base) {
     const sent = h.calls.filter((c) => c[0] === 'hr_action_set_options');
     if (!r.ok || sent.length !== 1 || opened) return 'Add answered ' + JSON.stringify(r) + ' after ' + sent.length + ' intent(s), Hunt prep opened ' + opened + 'x';
     const want = before.slice();
-    want[1] = BS.moveSlot('turning_cut', 'sword');
+    want[1] = BS.moveSlot('parry', 'sword');
+    want[3] = BS.moveSlot('turning_cut', 'sword');
     if (JSON.stringify(sent[0][2].slots) !== JSON.stringify(want)) return 'Add sent ' + ids(sent[0][2].slots) + ', want ' + ids(want);
     if (JSON.stringify(serverBar(h)) !== JSON.stringify(want)) return 'the server\'s bar reads ' + ids(serverBar(h));
     h.tell();

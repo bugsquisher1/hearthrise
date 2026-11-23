@@ -21,7 +21,8 @@
 // good reads the wage at the STEP of the property tier that gates it (PROPERTY_TIERS `step`, the Level that tier is meant for; a room
 // rung the higher of its room's opening tier and its own `tier` gate), so a deeper rung is priced in what a company that deep earns
 // and moving the wage's levers moves every price with the pay. STARTING VALUES (JUDGMENT): each row's hours are its 2026-11-22 gold
-// over the wage at its step, to two figures (every price within 4% of what it was), the tier steps read off what each tier's
+// over the wage at its step, to two figures (every price within 4% of what it was; the Library's Shelf rounds up to 4.2 h, since
+// tests/craft-wages.mjs W-BENCH holds a bench room's first rung at a week's money, 60,000 g), the tier steps read off what each tier's
 // materials come from (the Thicket's pelts and copper 10, iron and willow 30, steel and bear 55, Krell's chains and runewood 90).
 // The designer moves hours, never gold. The first rows (steps 1 to 10) re-state the off-scale grounds' pay (about 1/30 of the wage at
 // Level 1 today): read them again when the first grounds join the Danger scale.
@@ -139,7 +140,7 @@ export const ROOM_RUNGS = Object.freeze({
     rung("Forge — The Deep Forge", 56000, { ember_bar: 30, iron_fitting: 40, rake_tine: 20 }, 4),
   ]),
   library: roomLadder('library', [
-    rung("Library — Shelf", 4100, { oak_plank: 80, silk_thread: 15, timber_beam: 8 }),
+    rung("Library — Shelf", 4200, { oak_plank: 80, silk_thread: 15, timber_beam: 8 }),
     rung("Library — Reading Room", 6200, { silk_thread: 25, timber_beam: 12, willow_plank: 60 }),
     rung("Library — The Library", 9000, { maple_plank: 60, silk_thread: 30, timber_beam: 15 }),
     rung("Library — The Scriptorium", 14000, { magic_essence: 10, silk_thread: 40, timber_beam: 20 }, 3),

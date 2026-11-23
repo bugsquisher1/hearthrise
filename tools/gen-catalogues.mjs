@@ -196,7 +196,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    (STAGED) is the file before this one and this one carries it whole. hr_items loses the 29 cut named pieces (sourceless, or dropped only on
    grounds that never opened; no player can hold one) and two rows are renamed (Spidersilk Cape, Banishing Censer); hr_item_slots loses their
    slot rows. ORDER: after 1033 and every staged file that reads hr_items. */
-const OUT = join(ROOT, 'supabase', 'migrations', '1065-named-pieces-items-catalogue.generated.sql');
+/* lane/prices-wage-hours (2026-11-23): the training items' book and the starting purse move with their prices in hours of wage, in a NEW
+   forward file after 1065 (still the named-pieces lane's) and BEFORE 1072's hunt-sessions catalogue, whose self-check reads hr_items.value
+   against the training items' new price. The next change moves OUT again. */
+const OUT = join(ROOT, 'supabase', 'migrations', '1071-prices-wage-hours-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

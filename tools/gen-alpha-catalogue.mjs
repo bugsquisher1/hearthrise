@@ -64,7 +64,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    seed or Blessing row moves. hr_stamina_refill reads the row at the purchase and the quote projects it, so no body and no edge waits on it. */
 /* THE STORE'S DERIVED PRICES (lane/econ-levers, 2026-11-22), FOLDED INTO this still-STAGED forward file: the crafted supplies' price list follows
    src/data/store-kit.js, and every store rune's crafted partner gets its price-list row (the buy-back cap). Nothing new is sold. */
-export const OUT_NAME = '1009-approved-rows-alpha-catalogue.generated.sql';
+/* ONE STORE CEILING (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md K-3): tools, outfitter pieces, plain jewels and seeds at
+   src/data/store-kit.js storeAsk. A NEW forward file, not a fold into 1009: its self-check reads hr_hunt_vendor_value, whose bids
+   1072-prices-wage-hours-hunt-sessions-catalogue re-issues against these prices, so it must replay after 1072 (a cheaper seed's old bid
+   would read over half its new price at 1009's place). The same full delete+insert replace. */
+export const OUT_NAME = '1073-prices-wage-hours-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */

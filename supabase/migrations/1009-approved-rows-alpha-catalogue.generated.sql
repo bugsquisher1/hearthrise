@@ -4,7 +4,7 @@
 --
 --   hr_shop_supply_offers   src/data/supply-basics.js SUPPLY_SHOP_OFFERS
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
---   digest 34916f0c7a4ba3e80e4bdbbbad36de1af7a811f59e88b8b00c11f5f613bf21c8
+--   digest ec0966ff8accae979365e5ca961cc7310178f5151c401ad5ef1be0c11b040d5a
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
@@ -115,28 +115,28 @@ insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
   ('supply.etched_rupture_rune', 'etched_rupture_rune', 'ammo', 2),
   ('supply.carved_rupture_rune', 'carved_rupture_rune', 'ammo', 3),
   ('supply.graven_rupture_rune', 'graven_rupture_rune', 'ammo', 5),
-  ('supply.bronze_axe', 'bronze_axe', 'tool', 90),
-  ('supply.bronze_pickaxe', 'bronze_pickaxe', 'tool', 90),
-  ('supply.leather_gloves', 'leather_gloves', 'gear', 120),
-  ('supply.bronze_belt', 'bronze_belt', 'gear', 165),
-  ('supply.traveler_cape', 'traveler_cape', 'gear', 225),
-  ('supply.copper_studs', 'copper_studs', 'gear', 90),
-  ('supply.copper_ring', 'copper_ring', 'gear', 180),
-  ('supply.hunter_necklace', 'hunter_necklace', 'gear', 270),
-  ('supply.bronze_rimmed_shield', 'bronze_rimmed_shield', 'gear', 105),
-  ('supply.banded_signet', 'banded_signet', 'gear', 390),
-  ('supply.fang_studs', 'fang_studs', 'gear', 195),
-  ('supply.wolfbone_torc', 'wolfbone_torc', 'gear', 390),
-  ('supply.seam_jasper_band', 'seam_jasper_band', 'gear', 1500),
-  ('supply.turnip_seed', 'turnip_seed', 'seed', 8),
-  ('supply.carrot_seed', 'carrot_seed', 'seed', 15),
-  ('supply.wheat_seed', 'wheat_seed', 'seed', 23),
-  ('supply.potato_seed', 'potato_seed', 'seed', 30),
-  ('supply.tomato_seed', 'tomato_seed', 'seed', 45),
-  ('supply.pumpkin_seed', 'pumpkin_seed', 'seed', 75),
-  ('supply.goldenroot_seed', 'goldenroot_seed', 'seed', 135),
-  ('supply.emberfruit_seed', 'emberfruit_seed', 'seed', 240),
-  ('supply.moonbloom_seed', 'moonbloom_seed', 'seed', 420);
+  ('supply.bronze_axe', 'bronze_axe', 'tool', 120),
+  ('supply.bronze_pickaxe', 'bronze_pickaxe', 'tool', 120),
+  ('supply.leather_gloves', 'leather_gloves', 'gear', 160),
+  ('supply.bronze_belt', 'bronze_belt', 'gear', 220),
+  ('supply.traveler_cape', 'traveler_cape', 'gear', 300),
+  ('supply.copper_studs', 'copper_studs', 'gear', 120),
+  ('supply.copper_ring', 'copper_ring', 'gear', 240),
+  ('supply.hunter_necklace', 'hunter_necklace', 'gear', 360),
+  ('supply.bronze_rimmed_shield', 'bronze_rimmed_shield', 'gear', 140),
+  ('supply.banded_signet', 'banded_signet', 'gear', 3000),
+  ('supply.fang_studs', 'fang_studs', 'gear', 3000),
+  ('supply.wolfbone_torc', 'wolfbone_torc', 'gear', 3000),
+  ('supply.seam_jasper_band', 'seam_jasper_band', 'gear', 12000),
+  ('supply.turnip_seed', 'turnip_seed', 'seed', 5),
+  ('supply.carrot_seed', 'carrot_seed', 'seed', 10),
+  ('supply.wheat_seed', 'wheat_seed', 'seed', 15),
+  ('supply.potato_seed', 'potato_seed', 'seed', 20),
+  ('supply.tomato_seed', 'tomato_seed', 'seed', 30),
+  ('supply.pumpkin_seed', 'pumpkin_seed', 'seed', 50),
+  ('supply.goldenroot_seed', 'goldenroot_seed', 'seed', 150),
+  ('supply.emberfruit_seed', 'emberfruit_seed', 'seed', 300),
+  ('supply.moonbloom_seed', 'moonbloom_seed', 'seed', 800);
 
 delete from public.hr_stamina_refill_rule;
 insert into public.hr_stamina_refill_rule (id, base, per_level, max_min, per_day, step_num, step_den)
@@ -151,7 +151,7 @@ begin
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
-        from public.hr_shop_supply_offers) is distinct from 'dc9898cc7a6239b212ae9fb7e9eceb04' then
+        from public.hr_shop_supply_offers) is distinct from '91c7a506a58b12710a8e9ac84fb647e1' then
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)

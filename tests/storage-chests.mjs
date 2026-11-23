@@ -36,8 +36,12 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../src/data/homestead-tiers.js';
+import { OUT_FILE as CATALOGUE } from '../tools/gen-storage-chests.mjs';
 
 const MIG = '2026-11-28-storage-chests.sql';
+/* The replay runs to the NEWEST catalogue file, not to the verb's: the chests' gold is hours of wage since lane/prices-wage-hours
+   (2026-11-23), re-issued by a forward file, and S1 judges the server's rows against the data as the chain ends. */
+const UP_TO = CATALOGUE;   // always at or after MIG in the apply order (a generator writes forward files only)
 
 const GATE_BLIND = [
   ['declare v_md5 text;\nbegin\n  if to_regclass(\'public.account_bank\') is null then',
@@ -101,7 +105,7 @@ const patchList = (mutate) => {
 
 async function run(mutate) {
   problems.length = 0;
-  const { db } = await bootReplay({ patches: mutate ? new Map([[MIG, patchList(mutate)]]) : undefined, upTo: MIG });
+  const { db } = await bootReplay({ patches: mutate ? new Map([[MIG, patchList(mutate)]]) : undefined, upTo: UP_TO });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const as = (uid) => q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
   const gate = () => q('delete from public.hr_rate_counters');

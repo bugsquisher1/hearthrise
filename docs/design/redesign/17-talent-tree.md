@@ -95,7 +95,13 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Challenge | 0 ± 3.7. Re-measure after the holder line (on the tank's own bar it cost 62.7 held, `23` section 3) | No penalty | 20 |
 | Hoarfrost | 15.8 ± 2.4 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
 | Protective Ward | 16.1 ± 3.9 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
-| Greater Mend | about 50 before the heal rule. Re-measure after its re-size (`healPm` 2540) | Re-measure under the heal rule. Target: 10 or less | 150 at V 10, 80 at V 5 |
+| Power Strike | 4.2 (pace, `18` section 7) | −30% | 50 at a border, 30 at Havora |
+| Flame Strike | 6.3 (pace) | −30% | 70 at a border, 50 at Havora |
+| Rend | 7.1 (pace) | −30% | 80 at a border, 60 at Havora |
+| Circle of Renewal | 7.1 ± 2.0 (held) | −30% | 80 at a border, 60 at Havora |
+| Turning Cut | 11.0 (pace, ± 1.4) | −50% at a border. Not offered at Havora | 80 |
+| Raking Shot | 0 (adds nothing measurable to a melee borrower) | No penalty | 20 |
+| Greater Mend | 97.4 ± 3.9 before the heal rule (`18` section 7: a sword in a four with no healer, 7-tile reach). Re-measure after its re-size (`healPm` 2540) | Re-measure under the heal rule. Target: 10 or less | 150 at V 10, 80 at V 5 |
 | Every other borrowable move | Not measured | Lab | Lab |
 
 **The Hearth, the support's country** (2026-11-22, replaces the generalist). The wraps are the party's support, not an all-rounder. They borrow like every weapon: 2 slots, the standard bands. Country, kit, borders and balance rule: `22-fists-support.md`.
@@ -443,3 +449,25 @@ Borrowing: the Sword · Shield town is reachable at Level 29, but Turning Cut's 
 - Builds: Bleed Axe takes Gash, Armor Breaker and Crush and Bleed take Stagger.
 - Walk-through: Level 5 suggests Long Hold. Still doable: it's an option on the same crossroads.
 - Open question added on Frost Slam.
+
+## Changes from the full map
+
+2026-11-23, lane/roads-countries (game designer). Every country and border is now data in `src/data/talents.js` (269 nodes, 171 options), each option on a piece the engine plays. Where this doc names an option the engine can't play, it is re-written to keep its job:
+
+- **Nothing held** (Strong Shelter and Strong Ward, `29-tuning-pass.md` 3.8). Quick Slam and Wide Slam pay in Chill, since Frost Slam lands no blow, so their "−20% damage" never bit.
+- **No target-health or monster-type reads.** Finishing, Opening, Clean Sweep, Reaping, Picked and Aimed (vs marked) become what the hit leaves behind: Sickness, Weakened, Sapped, Armor Break, Chill, a second hit later, or the overkill carried to the next enemy.
+- **Bleed's cap and tick speed have no seam.** Its picks and the axe's four waystones move Bleed's length and strength. Spread is Jagged Rend (target Sick). Vows: Open Wounds (crits lay 2 stacks), Frenzy (kills ready Rend sooner), Bleed Out (Bleed +40%), Clean Cuts (overkill carried).
+- **Hunter's Mark's own numbers have no seam.** Its picks are what marking does for the archer: Hunter's Focus, Quick Mark, Calm Mark, Stalking Mark, Ready Mark, Sharp Mark.
+- **Weapon and stance vows.** Single Combat, Braced and Point Blank hold alone, Long Range in a party. Duelist's Guard and Marked Prey ride a cast. Cold Focus and Fire Focus pay in the other element's damage.
+- **Hybrids that repeated a country option at no cost** are re-written to join the two countries (Barbed Arrows, Frost Arrows, Mana Arrows, Wide Wounds, Hamstring, Cold Shoulder, Rime Plate, Second Strike, Tempered Strikes, Pressing Guard, Shield Wall, Covering Strike).
+- **Towns wait on the Lab.** A town move with no measured value (Power Strike, Flame Strike, Turning Cut, Rend, Raking Shot, Circle of Renewal) shows and lends nothing until it is measured. Four towns wait whole: Club · Dual Axe, Dual Axe · Ranged, Restoration · Sword, Sword · Club. Their hybrids and vows work now.
+- **Shared roads are walked by every weapon that casts the move.** After Shelter, a Shield hero's suggested road goes on to Power Strike and Flame Strike in Sword (section 13). A club hero goes on to Power Strike, an axe or sword hero to Turning Cut.
+- **Quarry Blow and Undertow have no road.** Stagger replaces one in wave 3 and the other is cut.
+
+## Changes from the town values
+
+2026-11-23, lane/roads-borrow-values (systems), measured in `18-roads-review-measured.md` section 7.
+
+- **Every town move has a value.** Power Strike, Flame Strike, Turning Cut, Rend, Raking Shot and Circle of Renewal are measured (table in section 3), so all four waiting towns lend. Greater Mend is measured again and stays past the last band, not offered until V4.
+- **A pick that lends nothing is refused.** A town or crossing pick whose move has no band answers `not_offered` (the spend, a saved build, the server's twin), so no point buys nothing. A map with an unmeasured town move, or a town that lends nothing at all, doesn't generate.
+- **Open (CONFLICTS 2026-11-23):** four town sides still get nothing (Shield at Shield · Restoration, Dual Axe at Club · Dual Axe, Sword at Sword · Club, Destruction at Destruction · Restoration), and four more lend a move the engine can't cast for them yet (Shelter to a healer, Raking Shot to an axe, Challenge to a mage and to a sword).

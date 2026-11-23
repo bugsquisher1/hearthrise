@@ -62,7 +62,9 @@
    "module": "src/core/action-rules.js",
    "formula": "P28",
    "rule": ["deathXpLoss", "levelDeathLoss"],
-   "offPath": {},
+   "offPath": {
+    "levelDeathShare": "the Hunts window's death warning line (src/shell/hunt-list.js, LVL-0): read by the page, never by the engine"
+   },
    "contract": [
     { "id": "lossShape", "says": "deathXpLoss answers whole losses above 0 keyed by level or a combat skill (zeros omitted), for heroes of Level 1 to 100,000" },
     { "id": "neverUnderLevel1", "says": "a death never takes more Level XP than the hero holds (Level 1 is the floor)" },

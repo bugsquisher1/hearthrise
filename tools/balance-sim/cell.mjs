@@ -502,6 +502,9 @@ export async function loadCellRunner(root) {
         /* cell.roadsBySeat [{ nodeId: value } | null]: each seat's Roads build (src/core/talents.js; tools/balance-program/redesign/roads/
            alloc-run.mjs), handed to heroSetup as the settle hands hr_talents_view's nodes (play-ground.mjs opts.roads) */
         if (Array.isArray(cell.roadsBySeat)) opts.roads = (role, i) => cell.roadsBySeat[i] || null;
+        /* cell.borrowedBySeat [[ability id] | null]: each seat's own borrow list (heroSetup `borrowed`: the native row on the native weapon's
+           blow, no penalty; lane/roads-borrow-values measures a town move's V0 on it), handed as play-ground.mjs opts.borrowed */
+        if (Array.isArray(cell.borrowedBySeat)) opts.borrowed = (role, i) => cell.borrowedBySeat[i] || null;
         /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         if (run) Object.assign(opts, { ground: opts.ground || ground, sessionMode: ground.mode, tower: { floor: run.floor }, dropEnded: true });

@@ -1159,7 +1159,7 @@ export function render(src) {
 --   the server, never STAMINA_MAX_MS; hunt-sessions.js is in the hr-accrue payload, so its bytes move: deploy either side of the apply).
 --   FOLDED IN (lane/moves-wave-3, systems-engineer, 2026-11-23, while this file was STAGED; docs/design/redesign/23-spell-audit.md wave 3):
 --   hr_hunt_abilities loses quarry_blow and gains stagger (the club's Earth rune strike, its rework), parry (the sword's) and gash (the axes'
---   Rupture rune ring). No default bar names any of them. 1067-wave3-moves-rune-spells.generated.sql, after this file, carries their runes.
+--   Rupture rune ring). No default bar names any of them. 1069-wave3-moves-rune-spells.generated.sql, after this file, carries their runes.
 -- CARRIED FROM 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
 --   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the

@@ -55,10 +55,10 @@ const COND = '2027-04-15-area-conditions.sql';
 const RUNES = '2027-04-15-area-spells-rune-spells.generated.sql';
 const FILES = Object.freeze([COND, CAT, RUNES]);
 const sqlOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-/* THE METRICS A LATER FULL REPLACE ADDS (1061-bar-metrics.sql, lane/bar-metrics: the Roads' four; then 1068-wave3-moves.sql, lane/moves-wave-3:
+/* THE METRICS A LATER FULL REPLACE ADDS (1061-bar-metrics.sql, lane/bar-metrics: the Roads' four; then 1070-wave3-moves.sql, lane/moves-wave-3:
    "my target is winding up", the newest full replace, carrying 1061's rows): the area batch rightly writes the rows of its day, so AS-4 holds it
    to the data less these, read off the newest file's own ⟦metrics⟧ block (as the shape is read off the catalogue of its day). */
-const LATEST_METRICS = '1068-wave3-moves.sql';
+const LATEST_METRICS = '1070-wave3-moves.sql';
 const metricIdsOf = (sql) => { const m = /-- ⟦metrics⟧\n([\s\S]*?)-- ⟦\/metrics⟧/.exec(sql); return m ? [...m[1].matchAll(/^  \('([a-z_]+)'/gm)].map((x) => x[1]) : []; };
 const LATER_METRICS = Object.freeze(metricIdsOf(sqlOf(LATEST_METRICS)).filter((id) => !metricIdsOf(sqlOf(COND)).includes(id)));
 /* THE WORLD SHAPE A CATALOGUE FILE WRITES ({ version, shape, fields } off its hr_hunt_world_shape insert), or null. AS-4 judges the area batch

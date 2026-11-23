@@ -114,11 +114,12 @@ async function pure() {
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
   const plan = (equipment, bag, skills = lv1, level = 5) => upgradePlan({ equipment, bag: bag.map(([id, qty]) => ({ id, qty: qty || 1 })), skills, level });
   const ops = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
-  /* A melee hero wears the outfitter's belt (heavy, -1 Ranged/Magic accuracy); a bow hero does not (its accuracy would drop). */
+  /* A melee hero wears the outfitter's belt (heavy: -1 Magic accuracy, the gear formula's, src/data/gear-stats.generated.js); a wand hero
+     does not (its accuracy would drop). */
   const sword = plan({ weapon: 'bronze_sword' }, [['leather_gloves'], ['bronze_belt']]);
   if (ops(sword) !== '{"belt":"bronze_belt","gloves":"leather_gloves"}') fails.push('AW-21 a sword hero would put on ' + ops(sword));
-  const bow = plan({ weapon: 'shortbow' }, [['leather_gloves'], ['bronze_belt']]);
-  if (ops(bow) !== '{"gloves":"leather_gloves"}') fails.push('AW-21 a bow hero would put on ' + ops(bow) + ' (the heavy belt costs Ranged accuracy)');
+  const wand = plan({ weapon: 'practice_wand' }, [['leather_gloves'], ['bronze_belt']]);
+  if (ops(wand) !== '{"gloves":"leather_gloves"}') fails.push('AW-21 a wand hero would put on ' + ops(wand) + ' (the heavy belt costs Magic accuracy)');
   /* Two copper rings fill both ring slots; the one-line preview names the change. */
   const rings = plan({ weapon: 'bronze_sword' }, [['copper_ring', 2]]);
   if (ops(rings) !== '{"ring1":"copper_ring","ring2":"copper_ring"}' || upgradeWords(rings) !== 'Upgrade: Copper Ring ×2 (+1 Melee accuracy each)') fails.push('AW-21 two rings: ' + ops(rings) + ' / ' + upgradeWords(rings));
@@ -594,7 +595,7 @@ async function planRules(base) {
     const hands = plan({ weapon: 'bronze_sword' }, [['practice_shield'], ['ironbound_shield']], { melee: { level: 99 }, defense: { level: 99 } }, 30);
     if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would put a shield on: ' + ops2(hands));
     const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
-    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Upgrade: Iron Sword (+3 Melee accuracy)') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
+    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Upgrade: Iron Sword (+4 Melee accuracy)') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
     if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
     /* A BANE IS A PLUS (designer re-read 2026-11-11: Level 16 in the Practice Sword with 6 Bramble Blades in the bag): the blade goes on and its preview names the bane, the
        engine's clamped number; a worn bane is never traded away for plain numbers, and the tooltip says what the bane is. */
@@ -776,7 +777,7 @@ async function planRules(base) {
      nothing moves a worn piece to another weight. */
   const heavyIn = (worn, bag, chosen) => UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody', ...worn }, bag: bagOf(bag), skills: lv1, level: 9, prefer: 'heavy', chosen });
   const moved = heavyIn({ gloves: 'leather_gloves' }, ['bronze_gauntlets'], 'heavy');
-  if (ops2(moved) !== '{"gloves":"bronze_gauntlets"}' || UP.upgradeWords(moved) !== 'Upgrade: Bronze Gauntlets (+11 health, -1 Melee accuracy)')
+  if (ops2(moved) !== '{"gloves":"bronze_gauntlets"}' || UP.upgradeWords(moved) !== 'Upgrade: Bronze Gauntlets (+11 health, -0.2% critical chance)')
     fails.push('AW-21 a heavy hero\'s worn Leather Gloves with Bronze Gauntlets in the bag: ' + ops2(moved) + ' / ' + UP.upgradeWords(moved));
   const stays = [beltOf(['bronze_belt'], 'studded_belt'), ops2(heavyIn({ boots: 'bronze_boots' }, ['leather_boots'], 'heavy')), ops2(heavyIn({ boots: 'leather_boots' }, ['bronze_boots'], null))];
   if (stays.some((s) => s !== '{}')) fails.push('AW-21 a lower tier, the reverse, or no weight chosen moved a worn piece: ' + JSON.stringify(stays));
@@ -785,7 +786,7 @@ async function planRules(base) {
   const bow = { weapon: 'practice_bow' };
   const once = UP.upgradePlan({ equipment: bow, bag: bagOf(['leather_boots', 'bronze_boots']), skills: lv1, level: 5, prefer: 'heavy', chosen: 'heavy' });
   const twice = UP.upgradePlan({ equipment: { ...bow, ...once.ops }, bag: bagOf(['leather_boots']), skills: lv1, level: 5, prefer: 'heavy', chosen: 'heavy' });
-  if (ops2(once) !== '{"boots":"bronze_boots"}' || ops2(twice) !== '{}' || UP.upgradeWords(once) !== 'Upgrade: Bronze Boots (+2 Defense, -1 Ranged accuracy)')
+  if (ops2(once) !== '{"boots":"bronze_boots"}' || ops2(twice) !== '{}' || UP.upgradeWords(once) !== 'Upgrade: Bronze Boots (+2 Defense)')
     fails.push('AW-21 a heavy bow hero\'s bare boots take ' + ops2(once) + ' (' + UP.upgradeWords(once) + '), then ' + ops2(twice));
   /* NO HERO STAYS BARE FOR WANT OF A CHOICE (played 2026-11-04: Marlow fought a night in nothing over 140 pieces; Sorrel, a hammer, was bare at hour 16): her pick, else what the hero wears most, else its role's. */
   const weightIs = [['medium', { weapon: 'practice_sword', body: 'bronze_platebody' }, 'tank', 'medium'], [null, { weapon: 'practice_sword', body: 'leather_body', boots: 'leather_boots' }, 'tank', 'medium'], [null, kit, 'melee_dps', 'heavy'], [null, kit, 'ranger', 'medium'], [null, kit, 'healer', 'light'], [null, kit, null, null]];

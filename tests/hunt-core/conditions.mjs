@@ -59,7 +59,7 @@ const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
    2026-10-23), then the area spells' five conditions and Chill (2027-04-15-area-conditions.sql, lane/b-area-engine, Tyler 2026-11-08),
    then the Roads' four bar tests (lane/bar-metrics, 2026-11-22), then wave 3's "my target is winding up" and its moves (lane/moves-wave-3,
    2026-11-23): the last full replace of the rows. */
-const METRICS_MIGRATION = 'supabase/migrations/1068-wave3-moves.sql';
+const METRICS_MIGRATION = 'supabase/migrations/1070-wave3-moves.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),

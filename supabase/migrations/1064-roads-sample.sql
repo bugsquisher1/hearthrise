@@ -21,8 +21,10 @@
 --    hero_talent_builds (user_id, slot, hunt_id, nodes, saved_at)       a saved build per hunt (17 section 14: "applied at the Start")
 --    hero_talent_log (id, user_id, slot, at, verb, node, pick, n, level, meta)  APPEND-ONLY journal: every spend, suggested walk, save, reset
 -- §2 INTERNAL (owner-only): hr_talent_points(L), hr_talent_spent(nodes), hr_talent_spend_problem(nodes, node, pick, L) (the twin of
---    src/core/talents.js spendProblem: unknown_node, owned, not_reachable, bad_pick, no_points, vow_level, vow_slots, needs_crossroads,
---    borrow_max), hr_talent_build_problem(nodes) (a whole saved build: every node, value, link, need, the borrow and vow counts),
+--    src/core/talents.js spendProblem: unknown_node, owned, not_reachable, bad_pick, not_offered (a town's or the crossing's pick whose
+--    move has no opening Level: no measured value inside the bands, so the point would lend nothing), no_points, vow_level, vow_slots,
+--    needs_crossroads, borrow_max), hr_talent_build_problem(nodes) (a whole saved build: every node, value, link, need, an unoffered
+--    borrow, the borrow and vow counts),
 --    hr_talents_view(user, slot) THE SECTION `talents` (hr_state_sections): null while hr_talent_rules.live is false, else
 --    { live, level, points, spent, nodes, borrowed: [{ move, opens_at, open }], vow_slots, builds: { hunt: nodes }, reset: the quote }
 -- §3 CLIENT VERBS (authenticated), each refusing talents_closed while the switch is off, keyed (hr_intent_replay before and under the
@@ -143,7 +145,7 @@ $fn$;
 
 create or replace function public.hr_talent_spend_problem(p_nodes jsonb, p_node text, p_pick text, p_level integer)
 returns text language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare r public.hr_talent_rules%rowtype; n public.hr_talent_nodes%rowtype; v_borrow text; v_vows int;
+declare r public.hr_talent_rules%rowtype; n public.hr_talent_nodes%rowtype; v_borrow text; v_opens int; v_vows int;
 begin
   -- ROADS (1064-roads-sample.sql): the twin of src/core/talents.js spendProblem, read from the generated catalogue
   select * into r from public.hr_talent_rules where id;
@@ -154,8 +156,11 @@ begin
   if not exists (select 1 from unnest(n.after_ids) a join public.hr_talent_nodes x on x.id = a where x.kind = 'start' or p_nodes ? a) then
     return 'not_reachable'; end if;
   if n.kind in ('crossroads', 'border', 'hybrid', 'crossing', 'final', 'milepost') then
-    select o.borrow into v_borrow from public.hr_talent_options o where o.node_id = p_node and o.option_id = p_pick;
+    select o.borrow, o.opens_at into v_borrow, v_opens from public.hr_talent_options o where o.node_id = p_node and o.option_id = p_pick;
     if not found then return 'bad_pick'; end if;
+    -- a pick that lends a move with no opening Level (no measured V0 inside the bands: gen-talents writes opens_at null) lends nothing,
+    -- so it is never bought (lane/roads-borrow-values; src/core/talents.js offered)
+    if v_borrow is not null and v_opens is null then return 'not_offered'; end if;
   elsif p_pick is not null then return 'bad_pick';
   end if;
   if public.hr_talent_spent(p_nodes) + 1 > public.hr_talent_points(p_level) then return 'no_points'; end if;
@@ -190,6 +195,9 @@ begin
     elsif x.kind in ('crossroads', 'border', 'hybrid', 'crossing', 'final', 'milepost') then
       if jsonb_typeof(kv.value) <> 'string' or not exists (select 1 from public.hr_talent_options o where o.node_id = kv.key and o.option_id = kv.value #>> '{}') then
         return 'bad_pick'; end if;
+      if exists (select 1 from public.hr_talent_options o where o.node_id = kv.key and o.option_id = kv.value #>> '{}'
+                  and o.borrow is not null and o.opens_at is null) then
+        return 'not_offered'; end if;
     elsif kv.value <> 'true'::jsonb then return 'bad_pick';
     end if;
     if not exists (select 1 from unnest(x.after_ids) a join public.hr_talent_nodes p on p.id = a where p.kind = 'start' or p_nodes ? a) then
@@ -472,11 +480,12 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
 -- (a) CLOSED: with the switch off the section is null and every verb refuses talents_closed, nothing written.
 -- (b) THE PATH: with the switch on (inside the probe) a Level 6 hero spends the first stone off the Great Hearth; a stone past an unowned
 --     one is not_reachable; a crossroads with a made-up pick bad_pick; a vow under Level 30 vow_level; past the points no_points; an
---     unknown node unknown_node; each refused spend writes nothing. The same key answers the same receipt and spends nothing.
+--     unknown node unknown_node; a town pick whose move has no opening Level (planted) not_offered; each refused spend writes nothing.
+--     The same key answers the same receipt and spends nothing.
 -- (c) THE TWIN: hr_talent_spend_problem agrees with the generated catalogue's suggested order at every step (each legal at its Level).
 -- (d) SPEND AS SUGGESTED: a Level 40 hero's every point is spent, along the order for its discipline, never a vow; the log has one row.
--- (e) SAVED BUILDS: a whole build saves for a hunt of the catalogue; a floating node is not_reachable, an unknown hunt unknown_hunt;
---     null deletes it; the section lists it.
+-- (e) SAVED BUILDS: a whole build saves for a hunt of the catalogue; a floating node is not_reachable, a town pick that lends nothing
+--     not_offered, an unknown hunt unknown_hunt; null deletes it; the section lists it.
 -- (f) THE RESET MOVES THE POINTS: the first reset is free and clears the build (log 'reset' with the points back); the section reads 0 spent.
 -- (g) GRANTS: the four verbs are the signed-in client's and in the baseline, the internals no client's, the section is the view;
 --     grant hygiene is quiet.
@@ -531,6 +540,13 @@ begin
     v := public.hr_talent_spend(0, 'challenge.r4', null, '000000c0-0000-4000-a000-0000001c641a');
     if v->>'error' is distinct from 'no_points' or (select spent from public.hero_talents where user_id = v_u) <> 5 then
       raise exception 'VERIFY(b): a sixth point at Level 6 answered %', v; end if;
+    -- a town pick that lends nothing (planted: Shelter's opening Level taken away, as gen-talents writes an unmeasured move) is refused
+    -- not_offered and writes nothing; it is asked before the points, so the hero's full purse does not hide it
+    update public.hr_talent_options set opens_at = null where node_id = 'border.shield_restoration.town' and option_id = 'use_shelter';
+    v := public.hr_talent_spend(0, 'border.shield_restoration.town', 'use_shelter', '000000c0-0000-4000-a000-0000001c641b');
+    if v->>'error' is distinct from 'not_offered' or (select spent from public.hero_talents where user_id = v_u) <> 5
+       or (select count(*) from public.hero_talent_log where user_id = v_u) <> 5 then
+      raise exception 'VERIFY(b): a town pick that lends nothing answered %', v; end if;
     -- (c) the twin agrees with the generated order, every step legal at the Level that holds its points
     for v_disc in select distinct discipline from public.hr_talent_suggest loop
       v_b := '{}'::jsonb; v_n := 0;
@@ -563,6 +579,10 @@ begin
     v := public.hr_talent_build_save(0, (select hunt_id from public.hr_hunt_grounds order by hunt_id limit 1), '{"shelter.x2": "long_shelter"}'::jsonb,
                                      '000000c0-0000-4000-a000-0000001c6431');
     if v->>'error' is distinct from 'not_reachable' then raise exception 'VERIFY(e): a floating node answered %', v; end if;
+    v := public.hr_talent_build_save(0, (select hunt_id from public.hr_hunt_grounds order by hunt_id limit 1),
+                                     '{"challenge.r1": true, "challenge.r2": true, "challenge.r3": true, "challenge.x1": "long_hold", "border.shield_restoration.town": "use_shelter"}'::jsonb,
+                                     '000000c0-0000-4000-a000-0000001c6434');
+    if v->>'error' is distinct from 'not_offered' then raise exception 'VERIFY(e): a saved town pick that lends nothing answered %', v; end if;
     v := public.hr_talent_build_save(0, 'no_such_hunt', '{}'::jsonb, '000000c0-0000-4000-a000-0000001c6432');
     if v->>'error' is distinct from 'unknown_hunt' then raise exception 'VERIFY(e): an unknown hunt answered %', v; end if;
     v := public.hr_talent_build_save(0, (select hunt_id from public.hr_hunt_grounds order by hunt_id limit 1), null, '000000c0-0000-4000-a000-0000001c6433');

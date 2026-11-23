@@ -1599,7 +1599,7 @@ const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
    applied before 1058-hunting-blocks-hunt-sessions-catalogue (whose hr_hunt_abilities moves: its self-check compares the two at its own place), so the
    forward file is a NEW one after 1058: Quarry Blow leaves, Stagger joins on the Earth family (the club's, its rework) and Gash on the Rupture family
    (the axes'), both reading Melee; every other spell unchanged, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1067-wave3-moves-rune-spells.generated.sql');
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1069-wave3-moves-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];

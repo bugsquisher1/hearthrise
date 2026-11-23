@@ -250,6 +250,30 @@
         "gzipBytes": 953675,
         "on": "2026-11-23",
         "why": "talent-effects engine pieces (heal-rules, reactions, react-queue, cast-targets) ride core/hunt into the town stage, +6.0 KB gzip; the talents switch stays off but the engine is one path"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955184,
+        "on": "2026-11-23",
+        "why": "+1.5 KB gzip: the whole Roads map as data (src/data/talents.js, 269 nodes), read by the talents window on the town stage"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955213,
+        "on": "2026-11-23",
+        "why": "Hask's Ford drop chances re-derived at three significant digits (refKillsHead 235), lane/ci-reds-client-1123"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955229,
+        "on": "2026-11-23",
+        "why": "six measured town borrow values and the not_offered refusal in talents data/core (lane/roads-borrow-values)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955922,
+        "on": "2026-11-23",
+        "why": "two town modules for named events: render/source-names.js and text/fight.js (lane/client-talent-floaters)"
       }
     ]
   }

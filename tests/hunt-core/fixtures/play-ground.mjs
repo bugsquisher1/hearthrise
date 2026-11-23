@@ -114,7 +114,7 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads, borrowed) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25), unless
        opts.start gives its own Level XP and skill XP (a career run carries them from one run to the next). */
     const st = (start && start(role, i, L)) || {};
@@ -132,7 +132,11 @@ export async function loadPlay(root) {
         bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: leaveTogether === true,
         /* opts.roads ((role, seat) -> { nodeId: value } | null): the hero's Roads build as hr_talents_view projects it and the settle hands
            it to heroSetup (hunt-settle.js memberInput `_talents`), at the hero's Level */
-        ...(roads ? { talents: roads(role, i), level: XP.charLevelFromXp(Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L)) } : {}) }),
+        ...(roads ? { talents: roads(role, i), level: XP.charLevelFromXp(Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L)) } : {}),
+        /* opts.borrowed ((role, seat) -> [ability id] | null): moves of another weapon on the hero's own borrow list (heroSetup `borrowed`,
+           the engine's path a lent move plays: its native row and its native weapon's blow, src/core/borrow-blow.js), with no build and so
+           no penalty (lane/roads-borrow-values: a town move's V0 at full power) */
+        ...(borrowed && borrowed(role, i) ? { borrowed: borrowed(role, i) } : {}) }),
     };
   };
   const run = (huntId, L, roles, opts = {}) => {
@@ -140,7 +144,8 @@ export async function loadPlay(root) {
     const ground = opts.ground || G.HUNT_GROUNDS[huntId], grid = gridOfMap(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
-      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold, typeof opts.roads === 'function' ? opts.roads : null));
+      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold, typeof opts.roads === 'function' ? opts.roads : null,
+      typeof opts.borrowed === 'function' ? opts.borrowed : null));
     /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
        (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });

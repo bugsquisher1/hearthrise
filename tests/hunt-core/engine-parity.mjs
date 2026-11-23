@@ -138,7 +138,12 @@ const SEED = '-4611686018427387904';
    Steady from step 0), so every blow, spell, tick, heal and shell of it goes through the amount pipeline (src/core/hunt/amount.js; 27 D-1 to D-8).
    Cause of the pin: no scenario played the scale, so the pipeline had no byte-identity pin; its mutant (one pipeline blow one point higher) moves it.
    The pipeline runs only on the scale: warrens-4, glade-4, glade-1-kite and sewer-2 held world, timeline, tally and kills (203 / 479 / 134 / 104),
-   diffed against the pin before this lane; muster-steps-4 172 kills. */
+   diffed against the pin before this lane; muster-steps-4 172 kills.
+   RE-PINNED 2026-11-23 (lane/stage3-pipeline merged with set/v0.2.144), TWO CAUSES, EACH PROVED: (1) glade-4's timeline at settle 12 alone, back to
+   lane/e2-e3-statuses' shield_break pin (3d02e7105c3b): the set's merge took lane/tower-boss-formula's baseline, which predates it, so the set
+   itself reads this one red (played on an archive of origin/set/v0.2.144: "glade-4: the timeline moved at settle 12"); warrens-4, glade-1-kite
+   and sewer-2 hold the set's pin to the byte. (2) muster-steps-4, every settle: the set's merged engine (Temper on steps, the Tower's scale, level
+   costs) moves the scale scenario's world, timeline and tally; kills held (172). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

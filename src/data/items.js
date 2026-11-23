@@ -143,7 +143,7 @@ export const ITEMS={
   coppercaps_cauldron:{n:'Coppercap\'s Cauldron',icon:'🥘',v:7500,type:'trophy',tag:'trophy',rarity:'legendary'},
   /* Old Grayjaw's Rare (loot redesign 2026-10-23): a cape for any build, more guard than the Traveler Cape and a
      little crit, at the Woollen Cloak's gate, short of the Houndskin Cloak (slot-ladders.js); the tier-2 cape value. */
-  grayjaws_ruff:{n:'Grayjaw\'s Ruff',icon:'🦸',v:310,type:'armor',slot:'cape',armourClass:'cape',steadyPm: 50,statPlus: { critB: 0.01 }, tier:2,rarity:'uncommon',reqSkill:'level',reqLv:12},
+  grayjaws_ruff:{n:'Grayjaw\'s Ruff',icon:'🦸',v:310,type:'armor',slot:'cape',armourClass:'cape',steadyPm: 50,tier:2,rarity:'uncommon',reqSkill:'level',reqLv:12},
   cracked_spellstone:{n:'Cracked Spellstone',icon:'🔮',v:260},plague_ichor:{n:'Plague Ichor',icon:'🧪',v:180},swarm_heart:{n:'Swarm Heart',icon:'💚',v:650},
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
   wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
@@ -156,9 +156,9 @@ export const ITEMS={
      steel 12 and mithril 18), Chief's Blade attack 15 (atkB 13, iron's rung) —
      rather than inventing a tier, because `tier` also drives the rarity border
      and the ladder guards, and these two are drops, not rungs. */
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',statPlus: { atkB: 5, strB: 4 }, reqSkill:'level',reqLv:30},
+  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',reqSkill:'level',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',statPlus: { atkB: 5, strB: 4 }, reqSkill:'level',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',steadyPm: 90,statPlus: { atkB: 2 }, reqSkill:'level',reqLv:30},
+  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',reqSkill:'level',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',steadyPm: 90,reqSkill:'level',reqLv:30},
   /* defB 2 -> 1, its ladder value: at 2 the tier-2 Studded Boots stopped no more damage (balance ruling 2026-10-25 §9; tests/hunt-core/first-week-bands.mjs armor-rungs).
      v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
   leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots'},
@@ -181,13 +181,13 @@ export const ITEMS={
      user of the companion equipment slot), was cut with the slot (Tyler,
      2026-10-22). */
   traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',steadyPm: 15,reqSkill:'level',reqLv:1},
-  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',statPlus: { atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 }, reqSkill:'level',reqLv:1},
-  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',statPlus: { atkB: 2, rangeAtkB: 2, magicAtkB: 2 }, reqSkill:'level',reqLv:1},
+  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',reqSkill:'level',reqLv:1},
+  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',reqSkill:'level',reqLv:1},
   /* Wave 4 (audit fix): Gold ore/bar was a near dead-end — an entire mining tier
      with one necklace as its only sink. These give gold_bar real demand and flesh
      out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */
-  gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',statPlus: { atkB: 2, strB: 2, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1 }, reqSkill:'level',reqLv:30},
-  gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',statPlus: { atkB: 3, strB: -1, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1 }, reqSkill:'level',reqLv:30},
+  gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',reqSkill:'level',reqLv:30},
+  gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',reqSkill:'level',reqLv:30},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves'},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt'},
   /* No piece sells under its lower-tier twin (drop-tables sale-ladder): the outfitter's belt and gloves carry their Shop book,
@@ -244,7 +244,7 @@ export const ITEMS={
   tomato_seed:{n:'Tomato Seed',icon:'🌱',v:30,seed:'tomato'},pumpkin_seed:{n:'Pumpkin Seed',icon:'🌱',v:50,seed:'pumpkin'},
   bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword'},
   // The premium login reward (premium.js): weaker than Bronze, v:0 so it mints no gold (no gear binds: Tyler 2026-10-23).
-  oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,type:'weapon',slot:'weapon',weaponType:'sword',statPlus: { atkB: -2, strB: -2 }, reqSkill:'level',reqLv:1},
+  oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,type:'weapon',slot:'weapon',weaponType:'sword',reqSkill:'level',reqLv:1},
   /* THE PRACTICE KIT (Tyler 2026-10-20: every new hero starts with all six starter sets, so
      every role can be tried on day one). Granted ONLY by the start kit (src/data/start-kit.js).
      Worth nothing (v:0): a fresh hero's kit sells for no gold, so a new character mints none.
@@ -252,7 +252,7 @@ export const ITEMS={
      Shortbow, Apprentice Wand / Primer / Staff), so the first purchase is a sidegrade with a
      sell value, never a downgrade. The role is the weapon's (hunt-roles.js WEAPON_ROLES). */
   practice_sword:{n:'Practice Sword',icon:'⚔️',v:0,type:'weapon',slot:'weapon',weaponType:'sword',tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,type:'offhand',slot:'shield',offhand:'shield',statPlus: { defB: 1 }, tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,type:'offhand',slot:'shield',offhand:'shield',tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_club:{n:'Practice Club',icon:'🏏',v:0,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_bow:{n:'Practice Bow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
@@ -261,8 +261,9 @@ export const ITEMS={
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   /* Klappa's Klub (Tyler 2026-11-03, the tribute to Andy; style-gear.js holds the reforge): the club hero's rung between the Practice Club and the
-     Iron Warhammer: the Iron Warhammer's damage at Level 5, its accuracy three under (statsAs, tests/style-gear.mjs SG-7). */
-  klappas_club:{n:'Klappa\'s Klub',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,statsAs:'iron_warhammer',statPlus: { atkB: -3 }, tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
+     Iron Warhammer: the formula's club at its own Level 5, between the two (tests/style-gear.mjs SG-7; it was the Iron Warhammer's damage with
+     its accuracy three under, an offset the redesign retired, docs/design/redesign/28-named-pieces.md). */
+  klappas_club:{n:'Klappa\'s Klub',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword'},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword'},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword'},
@@ -392,16 +393,16 @@ export const ITEMS={
     armourClass:'plate', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
   verdite_platelegs: {n:'Verdite Platelegs', icon:'👖', v:1980, type:'armor', slot:'pants',
-    statPlus: { defB: -1 }, armourClass:'plate', rarity:'rare', tier:4,
+    armourClass:'plate', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
   verdite_blade: {n:'Verdite Blade', icon:'⚔️', v:900, type:'weapon', slot:'weapon',
-    weaponType:'sword', statPlus: { atkB: -2, strB: -2 }, rarity:'rare', tier:4,
+    weaponType:'sword', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
   /* The band's capstone, and the only sink for the gem: a Heartgarnet is one
      swing at the Mining-56 geode, so the best weapon before Mithril asks a
      smith to have MINED for it rather than to have bought bars. */
   heartgarnet_maul: {n:'Heartgarnet Maul', icon:'🔨', v:990, type:'weapon', slot:'weapon',
-    weaponType:'hammer', statPlus: { atkB: 1, strB: 2 }, rarity:'epic', tier:4,
+    weaponType:'hammer', rarity:'epic', tier:4,
     reqSkill:'level', reqLv:42},
 
   /* ── Recipe outputs: crafting (planks) ── */
@@ -729,12 +730,12 @@ export const ITEMS={
      2026-09-12: tier 8 shares 88 rather than opening a rung above it), which is
      the form BOTH readers see: gearWieldReq prefers an explicit reqLv over the
      array, and gen-catalogues mirrors it into hr_items for hr_apply §EQUIPMENT. */
-  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', statPlus: { defB: 15, rangeAtkB: 11, magicAtkB: 22 }, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   statPlus: { defB: 30, rangeAtkB: 23, magicAtkB: 45 }, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  abyssal_greaves:       {n:'Abyssal Leg Plates',  icon:'🦿', v:198000, type:'armor', slot:'pants',  statPlus: { defB: 21, rangeAtkB: 16, magicAtkB: 32 }, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', statPlus: { defB: 8, rangeAtkB: 6, magicAtkB: 12 }, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   statPlus: { defB: 10, rangeAtkB: 8, magicAtkB: 15 }, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   steadyPm: 285, statPlus: { atkB: 6, strB: -2, rangeStrB: -2, magicStrB: -2 }, rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  abyssal_greaves:       {n:'Abyssal Leg Plates',  icon:'🦿', v:198000, type:'armor', slot:'pants',  armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   steadyPm: 285, rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
 
   /* ── DUNGEON SIGNATURE LOOT (b268 — the boss ecosystem, increment 1) ──────
      Every solo dungeon has a named end-boss (see src/dungeons.js DUNGEONS[id].boss)
@@ -752,24 +753,24 @@ export const ITEMS={
      strength, Codex = magic+crit, etc.) so they read as a reward, not a reskin. */
 
   // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)
-  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 4, strB: 11, critB: 0.02 }, reqSkill:'level', reqLv:35, rarity:'unique'},
+  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  type:'weapon', slot:'weapon', weaponType:'sword', reqSkill:'level', reqLv:35, rarity:'unique'},
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', statPlus: { magicAtkB: -2, magicStrB: -1, critB: 0.04 }, reqSkill:'level', reqLv:45, rarity:'unique'},
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', reqSkill:'level', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // obsidian_keep — The Ashen King (Lv 65)
-  ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 5, strB: 16, critB: 0.03 }, reqSkill:'level', reqLv:65, rarity:'unique'},
+  ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, type:'weapon', slot:'weapon', weaponType:'sword', reqSkill:'level', reqLv:65, rarity:'unique'},
 
   // voidbringer — The Riftmaw (Lv 80)
-  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', statPlus: { magicAtkB: 3, magicStrB: 6, critB: 0.06 }, reqSkill:'level', reqLv:80, rarity:'unique'},
+  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', reqSkill:'level', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
-  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 6, strB: 11, critB: 0.06 }, reqSkill:'level', reqLv:95, rarity:'legendary'},
+  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, type:'weapon', slot:'weapon', weaponType:'sword', reqSkill:'level', reqLv:95, rarity:'legendary'},
   elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
 
 
@@ -848,7 +849,7 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
 });
 
 /* EVERY PIECE'S STATS ARE DERIVED (lane/gear-catalogue-steps, 2026-11-22; src/data/gear-profiles.js, src/core/gear-stats.js): the rows
-   above and the ground packs' carry no base stat by hand, only a named piece's stated `statPlus`; tools/gen-gear.mjs writes
+   above and the ground packs' carry no base stat by hand and no offset (28-named-pieces.md); tools/gen-gear.mjs writes
    each one's stats and they land here (the item modules spread above already carry theirs). The copies below take them from their base. */
 for (const [id, row] of Object.entries(withGearStats(ITEMS))) ITEMS[id] = row;
 

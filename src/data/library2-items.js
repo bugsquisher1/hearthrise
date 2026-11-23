@@ -82,21 +82,20 @@ const BANE_GEAR = {
   // ITEM-NEW-02 · hammer T4 · vs Undead. Warhammer T4 curve (14/28) × 0.85.
   lazlos_maul: {
     n: "Lazlo's Maul", icon: '🔨', v: priced(110, 4), type: 'weapon', slot: 'weapon',
-    weaponType: 'hammer', statPlus: { atkB: 1, strB: 1 }, tier: 4, rarity: 'epic',
+    weaponType: 'hammer', tier: 4, rarity: 'epic',
     reqSkill: 'level', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
     n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
-    weaponType: 'ranged', twoHanded: true, statPlus: { rangeAtkB: -7, rangeStrB: -6 },
-    tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
+    weaponType: 'ranged', twoHanded: true,     tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
     bane: BANE('dragon'), effects: ['bane'],
   },
   // ITEM-NEW-04 · sword T2 · vs Plant. Sword T2 curve (7/6) × 0.85. Cheap and
   // early on purpose: T2 is where the bane grammar is taught.
   bramble_blade: {
     n: 'Bramble Blade', icon: '⚔️', v: priced(100, 2), type: 'weapon', slot: 'weapon',
-    weaponType: 'sword', statPlus: { atkB: -2, strB: -2 }, tier: 2, rarity: 'uncommon',
+    weaponType: 'sword', tier: 2, rarity: 'uncommon',
     reqSkill: 'level', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
   },
   // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Staff T5 curve (21/29) × 0.85.
@@ -106,8 +105,7 @@ const BANE_GEAR = {
   // nothing else. Flagged in the change contract.
   void_censer: {
     n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
-    weaponType: 'magic', statPlus: { magicAtkB: 2, magicStrB: 3 },
-    tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
+    weaponType: 'magic',     tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
     /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
     discipline: 'restoration',
     bane: BANE('extra_dimensional'), effects: ['bane'],
@@ -115,7 +113,7 @@ const BANE_GEAR = {
   // ITEM-NEW-07 · hammer T3 · vs Vermin. Warhammer T3 curve (9/19) × 0.85.
   rat_stick: {
     n: 'Rat Stick', icon: '🔨', v: priced(110, 3), type: 'weapon', slot: 'weapon',
-    weaponType: 'hammer', statPlus: { atkB: 1 }, tier: 3, rarity: 'rare',
+    weaponType: 'hammer', tier: 3, rarity: 'rare',
     reqSkill: 'level', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
   },
 };
@@ -199,7 +197,7 @@ const ARMOUR_SETS = {
      Designer/Coordinator: this is the one card to re-read at integration. */
   quiet_coat: {
     n: 'Quiet Coat', icon: '🧥', v: priced(300, 6, 0.70), type: 'armor', slot: 'body',
-    statPlus: { defB: -1, atkB: 1, magicAtkB: -1, magicStrB: 19 }, armourClass: 'cloth', rarity: 'legendary', tier: 6,
+    armourClass: 'cloth', rarity: 'legendary', tier: 6,
     reqSkill: 'level', reqLv: 75,
     
     awayEffect: 'first_strike_deny',

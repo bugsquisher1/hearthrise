@@ -80,15 +80,13 @@ export const BOSS_CALLS = Object.freeze({
 export const CALL_ITEMS = Object.freeze(withGearStats({
   /* tier 2, worn at Level 15. A tooth is long and thin: it lands more and bites less than an Iron Sword (8 / 5 against 7 / 6),
      and it does 10% more to Vermin (the special catalogue's bane at tier 2: the Mill Cellar and the Sewer are vermin grounds) */
-  kingstooth: Object.freeze({ n: 'Kingstooth', icon: '🗡️', v: 600, type: 'weapon', slot: 'weapon', weaponType: 'sword', statPlus: { strB: -2 },
-    bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),
+  kingstooth: Object.freeze({ n: 'Kingstooth', icon: '🗡️', v: 600, type: 'weapon', slot: 'weapon', weaponType: 'sword',     bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),
     tier: 2, rarity: 'rare', reqSkill: 'level', reqLv: 15 }),
   /* tier 3, worn at Level 30. A lid is thinner than a shield: 6 guard against the Coppercap Shield's 7, no swing penalty, and 10% less
      fire damage (the special catalogue's element resistance; "less from every hit" starts at tier 5, so no tier-3 piece carries
      it). The Chief's own Slag Rain and Slag Toss are fire, and so are the Goblin Digger's Blasting Charge and the Turncoat's Smoke
      Pot (src/data/monster-spells.js) */
-  cauldron_lid: Object.freeze({ n: 'Cauldron Lid', icon: '🛡️', v: 1200, type: 'offhand', slot: 'shield', offhand: 'shield', statPlus: { defB: 2 },
-    resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', reqLv: 30 }),
+  cauldron_lid: Object.freeze({ n: 'Cauldron Lid', icon: '🛡️', v: 1200, type: 'offhand', slot: 'shield', offhand: 'shield',     resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', reqLv: 30 }),
 }));
 export const CALL_ITEM_DESC = Object.freeze({
   kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. Vermin feel it most, and it lands more often than an Iron Sword',

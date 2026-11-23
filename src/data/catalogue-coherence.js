@@ -129,7 +129,12 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    Collection Log's denominator (obtainableItemIds) leaves them out, so 100% is
    still reachable. SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that
    gains a source or leaves ITEMS, and an id may never be added — a new item
-   with no source is a C1 failure, not a candidate for this list. */
+   with no source is a C1 failure, not a candidate for this list.
+   RULED CUT (the designer, lane/named-pieces 2026-11-23, docs/design/redesign/28-named-pieces.md (d)), leaving ITEMS with the catalogue
+   lane that deletes them: abyssal_greaves, alphaheart_longbow, ashcrown_greatsword, choirbone_gauntlets, crown_of_the_fallen_king,
+   dragonfang_pike, dragonrend_greatblade, fangdart_recurve, gold_amulet, gold_ring, hollow_sigil_ring, nightstalker_pelt,
+   plaguewarden_greaves, quiet_coat, regent_helm, slagheart_platebody, voidmaw_scepter, warden_girdle, wartusk_cleaver, whispering_codex,
+   widows_fang, wyrmgilt_mantle. */
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
   'abyssal_greaves', 'alphaheart_longbow',
@@ -217,9 +222,8 @@ export const UNREACHABLE = Object.freeze({
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
-    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
-    'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
+    'void_censer', 'barrowking_mantle', 'jarls_rimetorc',
     'keystone',
     'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
@@ -234,6 +238,9 @@ export const UNREACHABLE = Object.freeze({
     'hollow_sigil', 'abyssal_pearl',
     /* A copy of the Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
     'bronze_sword',
+    /* The old roster's uniques whose creature left the plan and whose one mark was a stat bump on its tier's piece (the designer,
+       lane/named-pieces 2026-11-23, docs/design/redesign/28-named-pieces.md (d)); their sourceless twins wait in AWAITING_ROSTER. */
+    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
   ]),
 });
 /* Every row outside `staged`. It only falls: lower it in the commit that sources or cuts an item. */

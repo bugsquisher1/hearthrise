@@ -182,7 +182,8 @@ const ARMS = {
     const twelve = Array.from({ length: 12 }, (_, i) => ({ at: i + 1, from: 650, to: 632, pm: 200, monster: 'rat', name: 'Bran' }));
     if (!/Fell back 12\+ times \(last /.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: twelve }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('the cap is not said');
     /* off the scale, or a forged step-sized depth in the residue: no line */
-    if (X.HR.reportFacts(X.RS.reportFrom(SCALE), { hunt: 'mill_cellar', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has depth facts');
+    /* (lane/scale-early-grounds) a ground off the scale for good: the Tower (the Cellar joined the scale) */
+    if (X.HR.reportFacts(X.RS.reportFrom(SCALE), { hunt: 'the_burning_tower', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has depth facts');
     if (X.W.causeLine(null) !== '') out.push('no facts make a line');
     const forged = X.HSUM.sanitizeSummary({ id: 's7', report: Object.assign({}, f, { depth: Object.assign({}, want, { held: 632, deep: 650 }) }) });
     if (forged.report.depth !== null) out.push('the residue kept a raw step as a depth: ' + JSON.stringify(forged.report.depth));
@@ -222,7 +223,7 @@ const ARMS = {
     /* a depth held five minutes is no hour to read: left out even with room for it */
     const brief = X.W.ledgerLines(X.HR.depthFacts(X.RS.reportFrom(Object.assign({}, LEDGER, { sup: { 630: [4180, 3600000], 650: [900, 300000] } })), { hunt: MUSTER, risk: 'steady', step: 632 }));
     if (brief.some((l) => l.includes(`Depth ${B650}:`))) out.push('a depth held five minutes reads an hour: ' + JSON.stringify(brief));
-    if (X.HR.reportFacts(X.RS.reportFrom(LEDGER), { hunt: 'mill_cellar', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has a ledger');
+    if (X.HR.reportFacts(X.RS.reportFrom(LEDGER), { hunt: 'the_burning_tower', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has a ledger');
     /* a forged residue: shares past a whole, a depth past the band */
     const forged = X.HSUM.sanitizeSummary({ id: 's7', hunt: MUSTER, report: Object.assign({}, f, { depth: Object.assign({}, f.depth, { heal: [['mend', 5000]], sup: [[99, 5], [14, 4180]] }) }) });
     if (JSON.stringify(forged.report.depth.heal) !== '[]' || JSON.stringify(forged.report.depth.sup) !== '[[14,4180]]') out.push('the residue kept a forged ledger: ' + JSON.stringify(forged.report.depth));

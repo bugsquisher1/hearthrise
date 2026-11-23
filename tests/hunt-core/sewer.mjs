@@ -1397,20 +1397,22 @@ const cases = {
     const base = { lv: 8, eq: DRESSED, tiers: { picks: {}, playing: null } };
     const offer = say(at(base));
     if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try Dangerous' || !offer.gotIt
-      || offer.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter'
-      || offer.textIn !== 'Press Meadowbrook Thicket, then Dangerous, then Enter' || M.tut.coachIcon(offer, () => false) !== 'hunts')
+      /* (lane/scale-early-grounds) the Thicket is on the Danger scale and plays no tier: the lowest tier ground at Level 8 is the Sewer */
+      || offer.text !== 'Hunts → The Sewer → Dangerous → Enter'
+      || offer.textIn !== 'Press The Sewer, then Dangerous, then Enter' || M.tut.coachIcon(offer, () => false) !== 'hunts')
       return 'at Level 8 in helm and body the offer reads ' + JSON.stringify(offer && { id: offer.id, title: offer.title, text: offer.text, textIn: offer.textIn });
     /* the ring: the named ground's Dangerous press, unpressed, then its Enter */
     const ring = L.ringPlan(offer, { open: (w) => w === 'hunts' });
-    if (!ring[0] || !ring[0].includes('[data-tier="dangerous"][data-hunt="meadowbrook_thicket"][aria-pressed="false"]') || !ring[1].includes('.hw-hunt-enter[data-hunt="meadowbrook_thicket"]')) return 'the offer rings ' + JSON.stringify(ring);
+    if (!ring[0] || !ring[0].includes('[data-tier="dangerous"][data-hunt="millrace_sewer"][aria-pressed="false"]') || !ring[1].includes('.hw-hunt-enter[data-hunt="millrace_sewer"]')) return 'the offer rings ' + JSON.stringify(ring);
     /* the ground it last hunted, when it has the tier and the Level is in its band */
     if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('→ Wickstead →')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
-    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ The Sewer →')) return 'back from the Cellar (on the scale) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    if (!(say(at({ ...base, last: 'meadowbrook_thicket' })) || {}).text.includes('→ The Sewer →')) return 'back from the Thicket (on the scale) the offer names ' + JSON.stringify((say(at({ ...base, last: 'meadowbrook_thicket' })) || {}).text);
     /* the ground just hunted beats the highest one hunted (lane/c-hollow-proofs: back from Wickstead both read Wickstead, so the mutant that
        drops the last hunt escaped once its plant could load): been to Wickstead, back from the Thicket, the offer names the Thicket */
-    const backLow = at({ ...base, last: 'meadowbrook_thicket' });
+    const backLow = at({ ...base, last: 'millrace_sewer' });
     backLow.visited = new Set([...backLow.visited, 'wickstead']);
-    if (!(say(backLow) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Thicket, having hunted Wickstead, the offer names ' + JSON.stringify((say(backLow) || {}).text);
+    if (!(say(backLow) || {}).text.includes('→ The Sewer →')) return 'back from the Sewer, having hunted Wickstead, the offer names ' + JSON.stringify((say(backLow) || {}).text);
     /* not before its Level, not without armor on head and body, not unknown */
     if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
     if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
@@ -1420,8 +1422,8 @@ const cases = {
     if (id(base, 'first_dangerous') === 'first_dangerous') return 'Got it does not pass the offer';
     if (id({ ...base, tiers: { picks: { wickstead: 'dangerous' }, playing: null } }) === 'first_dangerous') return 'a Dangerous pick on another ground does not pass the offer';
     if (id({ ...base, tiers: { picks: {}, playing: 'deadly' } }) === 'first_dangerous') return 'a Deadly hunt running does not pass the offer';
-    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'dangerous' }) === 'first_dangerous') return 'a last hunt on Dangerous does not pass the offer';
-    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'normal' }) !== 'first_dangerous') return 'a last hunt on Normal passes the offer';
+    if (id({ ...base, last: 'millrace_sewer', lastTier: 'dangerous' }) === 'first_dangerous') return 'a last hunt on Dangerous does not pass the offer';
+    if (id({ ...base, last: 'millrace_sewer', lastTier: 'normal' }) !== 'first_dangerous') return 'a last hunt on Normal passes the offer';
     /* "How hard can you hunt?" is not said after it */
     if (id({ ...base, lv: 10 }, 'first_dangerous') === 'pull_goal') return 'How hard can you hunt? came after the offer was read';
     if (id({ ...base, lv: 10, tiers: { picks: { meadowbrook_thicket: 'dangerous' }, playing: null } }) === 'pull_goal') return 'How hard can you hunt? came to a hero who took Dangerous';

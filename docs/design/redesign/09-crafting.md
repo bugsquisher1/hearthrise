@@ -587,6 +587,41 @@ store bid   = floorShare x V, falling a fixed step for each unit the store alrea
 
 About nineteen global levers, counting pairs as one. `04`'s `supplyShare` becomes derived, so the net is about fifteen. Content tables beside them: the line shares, the stage shares, and the kind rows. A balance number keyed by a recipe, an item or a ground has nowhere to live, the same rule as `04` section 12.
 
+### 4.8 Built (lane/trade-formulas, 2026-11-22)
+
+**How it plays:** players never see this section. It is the one rule every town-work number comes from, so a new good is a data row and a new band is a number.
+
+**What exists.** `src/core/trades.js` is the rule and `src/data/trades.js` holds the levers of 4.7 that had no home and the kind rows. The levers this page shares stay where they were: `kitWork`, `townWageShare`, `storeCeiling` and the meal and charge shares in `src/data/store-kit.js`, one band in `GEAR_STEPS.tierSteps`, the contest curve's `powerStep` in `src/data/danger.js`, the wage in `src/data/wage.js`, the work day in `src/data/work-day.js`. `tools/gen-trades.mjs` writes `1063-trade-formulas-catalogue.generated.sql` (STAGED): the server's copy and 16 internal twins, each pinned to the JS. `tests/trade-formulas.mjs` holds the rule to this page's numbers and sweeps the twins on the replayed chain (36 mutants). `tools/balance-program/redesign/trades/measure.mjs` prices the engine's measured burn and plays the job.
+
+**The formula table, as built.** L is the company's trade Level, R the recipe's, b the band, q the quality rung (0 Plain, 1 Fine, 2 Master). Every number is whole (permille, micro-hours, milliseconds) and every price is one rounding of an exact product, so the server's twins land on the same gold.
+
+| Quantity | Formula | At the starting values |
+|---|---|---|
+| A kit kind's work | `kitWork` x line share x its split x its kit-hours | a meal or a drink 0.14 work-hours, any charge 0.28, an imbuement 0.53 (20 / 3 kit-hours) |
+| Stage split | gather 0.5, refine 0.2, make 0.3; a chain with no refine step gives its share to the make | |
+| A raw unit | the gathering behind one meal | 0.07 work-hours, 14.3 an hour at yield 1 and speed 1 |
+| Materials | round(the material work the stage shares give / one unit's work), at least 1; V follows the counts | a meal is 1 fish, a honing stone 2 bars, a bar 1 ore, an arrow an arrowhead and a shaft, a Temper kit 7 bars |
+| A part | its share of a host kind's work, made in its own trade | an arrowhead is half an arrow (Smithing), a haft half a tool (Woodcrafting) |
+| Hunted inputs | cover x share x kit-hours, in hour-units (13-market 3.2) | a draught 1.25 hour-units of common parts, a rune 0.15 of remains, an imbuement 6.67 of rare parts and 1.0 of remains |
+| A recipe | (kind, rung); rung r opens at Level 1 + 10 (r - 1); its band is the job's | 37 kinds, 350 recipes, every band |
+| Yield | 750 + 250 x min(L - R, 15) / 15, + 100 with the Mastery, + the bench up to 100, at most 1250 | 750 on a new rung, 1000 fifteen Levels on, 1200 with both |
+| Fine, Master | Master first: 500 x (L - R) / (99 - R), Mastery only; then Fine: 100 + 500 x (L - R) / (99 - R) | |
+| Speed | 1000 + 250 x L / 99 | 1002 at Level 1, 1126 at 50, 1250 at 99 |
+| Trade XP | worked ms x the XP factor / 10^6 (XP is seconds of work); full within 20 Levels of R, then down in a straight line to 250 over 20 more | |
+| The trade table | h(n) = h1 x 1.045^(n - 1), 1,000 hours to 99 | 6.6 hours to Level 10, 104 to 50, 669 to 90, the last Level 44 |
+| V | floor(work x `townWageShare` x wage(item step) x life), item step = 20 b + 5 q; a tool's quality is life (+25% a rung), not step | a meal at band 3 is 572 / 584 / 596 gold, a charge 1,145 |
+| Job fee | ceil(0.25 x the Plain V x count), finished goods only | a chain pays it once, on its whole V |
+| Store ask | ceil(`storeCeiling` x V of the Plain good at (the hero's band step - 20)), meals, drinks and charges only | a meal 794 and a charge 1,587 for a Level 60 hero |
+| Store bid | floor(0.4 x V), at most 1 hour of wage an account a day | |
+| Behind a band | floor(1000 / 1.0035^steps) | 932 a band (20 steps) behind, 705 at 100 |
+| Tools | life 12 x (1 + 0.25 q) work-hours; speed full at or above the job's band, the contest curve behind it; the store rents one a tier behind at `storeCeiling` | 12 / 15 / 18 hours, 0.023 hours of wage a work-hour |
+| The job's bound | attempts = min(count, floor(elapsed x speed x tool / own work)); units at most the attempts (twice for gathering over 1000); sets back at most the attempts over 1000; XP exact | what the server re-checks a proposed settle against |
+| The settle | one seeded pass (`src/core/rng.js`): gathering makes a unit with the yield's chance under 1000 and a second with (yield - 1000)'s over it; making loses the set on a miss under 1000 and hands it back with chance 1 - 1000 / yield over it; then Master, Fine, Plain | the same seed lands the same goods |
+
+**Choices this page left open, made here (JUDGMENT, each a lever the Lab can move).** Ten rungs ten Levels apart, an XP window of 20 and a floor of 0.25. The raw unit read off the meal, so no unit size is typed. The job fee on finished goods only: charged at every stage it came to 55% of an arrow's V (bar, arrowhead, shaft and arrow each paid), against section 5.6's arithmetic, which charges `jobFee` once on the kit's value. Quality as item steps for a good and as life for a tool (3.7). The meal line split half food, half drink. The camp pot as four draught kit-hours, opening at rung 5. Hunted inputs in hour-units: how many physical parts an hour-unit is belongs to the drop formulas, not to this page.
+
+**Not built: the job slice (section 6).** No verb, engine or client reads the catalogue yet, and the live town work (`src/data/recipes.js`, `gathering.js`, `hr_activities`) is untouched until the slice replaces it. The slice's contract, so it is plumbing: a `trade_jobs` row (account, hero, kind, rung, band, count, start on the server's clock, a seed drawn by the server, the fee paid, the inputs held, the tool's band, quality and wear, and the milliseconds of an unfinished attempt carried across a stop, or a stop at the work day's end loses up to one attempt: 32 minutes on an imbuement). `hr_trade_job_start(slot, kind, rung, band, count, price, idem)` under the hero lock and the trade key: refuses `bad_kind`, `rung_locked` (the company's Level under R), `band_locked` (no depth record at that band), `work_cap`, `quote_changed` (the fee re-quoted by `hr_trade_job_fee`), `short_inputs`; debits the inputs and burns the fee through `hr_apply`. The settle runs `settleJob` from the stored seed and `hr_apply` admits it only inside `hr_trade_job_bound` (attempts and XP exact, units and sets back at most). Banded stacks keyed (kind, band, quality); the store's good a tier behind in strength and price at once, inside the hunt; Mastery verbs; the tool swap; Weighhouse orders. All of it is money: `13-security-list.md` S-8.
+
 ---
 
 ## 5. The supply and demand lifecycle

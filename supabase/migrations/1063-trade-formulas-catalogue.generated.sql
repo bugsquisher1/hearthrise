@@ -19,7 +19,7 @@
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
 -- missing and their rows rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
--- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-7): V anchors the job fee, the store's
+-- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-8): V anchors the job fee, the store's
 -- ask and bid and the market's bands once the job slice reads it.
 -- REVERSIBLE: drop the functions and the three tables.
 -- ════════════════════════════════════════════════════════════════════════

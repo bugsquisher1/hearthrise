@@ -129,7 +129,7 @@ export const COUNTRY_ROADS = Object.freeze({
   sword: Object.freeze(['power_strike', 'flame_strike']),
   club: Object.freeze(['turning_cut']),
   dual_axe: Object.freeze(['rend']),
-  ranged: Object.freeze(['precision_shot', 'hunters_mark']),
+  ranged: Object.freeze(['precision_shot', 'hunters_mark', 'raking_shot', 'flame_volley']),
   destruction: Object.freeze(['frost_lance']),
 });
 
@@ -396,6 +396,32 @@ const RANGED_NODES = [
       opt('ready_mark', 'Ready Mark', 'Kills: Mark ready 2 s sooner', [react('mark_reset', 'kill', 'reset', { move: 'hunters_mark', ms: 2000, capMs: 4000 })], 'party'),
       opt('sharp_mark', 'Sharp Mark', 'After Mark: +4% damage for 4 s', [step('offense', 11, 'sharp_mark', 'cast:hunters_mark:4000')])],
     way('Quick Hand', 'Hunter\'s Mark −1 s cooldown', [mod('hunters_mark', { cdMs: -1000 })])),
+  /* Clean Sweep reads the target's health line and Close Rake the line's length, which have no seam */
+  ...road(RA, 'raking_shot', 'hunters_mark.x1',
+    [opt('twice_raked', 'Twice Raked', 'Hits again for 60% 2 s later · −30% damage',
+      [react('rake_echo', 'hit', 'echo', { of: 'raking_shot', pm: 600, ms: 2000 }), mod('raking_shot', { outPm: -300 })], true),
+      opt('pinning_rake', 'Pinning Rake', 'Target only · +50% damage', [mod('raking_shot', { pick: 'target', outPm: 500 })]),
+      opt('bleeding_rake', 'Bleeding Rake', '1 Bleed stack · −10% damage',
+        [react('rake_bleed', 'hit', 'status', { of: 'raking_shot', status: 'bleed' }), mod('raking_shot', { outPm: -100 })], 'party')],
+    way('Barbed Tips', 'Raking Shot +5% damage', [mod('raking_shot', { outPm: 50 })]),
+    [opt('crippling_rake', 'Crippling Rake', 'Chill 2 s · −15% damage',
+      [react('rake_chill', 'hit', 'status', { of: 'raking_shot', status: 'chill', ms: 2000 }), mod('raking_shot', { outPm: -150 })], 'solo'),
+      opt('thrifty_rake', 'Thrifty Rake', '−40% mana · −15% damage', [mod('raking_shot', { manaPm: -400, outPm: -150 })], true),
+      opt('wounding_rake', 'Wounding Rake', 'Sapped 6 s · −15% damage',
+        [react('rake_sap', 'hit', 'status', { of: 'raking_shot', status: 'sapped' }), mod('raking_shot', { outPm: -150 })], 'party')],
+    way('Loose String', 'Raking Shot −2 mana', [mod('raking_shot', { mana: -2 })])),
+  /* Full Volley reads a hit count and Spare Arrows the ammo, which have no seam */
+  ...road(RA, 'flame_volley', 'raking_shot.x1',
+    [opt('wide_volley', 'Wide Volley', '5×5 area · −25% damage', [mod('flame_volley', { side: 2, outPm: -250 })], true),
+      opt('searing_volley', 'Searing Volley', 'Sick 6 s · −25% damage',
+        [react('volley_sicken', 'hit', 'status', { of: 'flame_volley', status: 'sickness' }), mod('flame_volley', { outPm: -250 })], 'party'),
+      opt('burning_volley', 'Burning Volley', 'Burning ground 4 s · −20% damage', [mod('flame_volley', { ground: 'burning_ground', outPm: -200 })])],
+    way('Light Quiver', 'Flame Volley −3 mana', [mod('flame_volley', { mana: -3 })]),
+    [opt('heavy_volley', 'Heavy Volley', '+25% damage · +3 mana', [mod('flame_volley', { outPm: 250, mana: 3 })], true),
+      opt('echoing_volley', 'Echoing Volley', 'Hits again for 30% 2 s later · −10% damage',
+        [react('volley_echo', 'hit', 'echo', { of: 'flame_volley', pm: 300, ms: 2000 }), mod('flame_volley', { outPm: -100 })]),
+      opt('focused_volley', 'Focused Volley', 'Target only · +60% damage', [mod('flame_volley', { pick: 'target', outPm: 600 })], 'solo')],
+    way('Hot Pitch', 'Flame Volley +5% damage', [mod('flame_volley', { outPm: 50 })])),
 ];
 
 /* ── DESTRUCTION (17 section 5: four moves; Frost Lance is the wand's first road, 17 section 13). The wand's offense lane runs 78% full:

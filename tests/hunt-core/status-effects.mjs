@@ -153,7 +153,9 @@ const cases = {
     on(h, 'guarded');
     if (P.fx.effectPm(h, 'takenPm') !== -100) return 'one Guarded read ' + P.fx.effectPm(h, 'takenPm');
     on(h, 'guard_b');
-    return P.fx.effectPm(h, 'takenPm') === -300 ? null : 'Guarded and a second guard on an add key capped 300 read ' + P.fx.effectPm(h, 'takenPm');
+    const cap = P.ST.STATUS_KEYS.hero_takes_less.capPm;
+    if (!(cap < 350)) return 'fixture: the hero_takes_less cap ' + cap + ' no longer bites on -100 and -250';
+    return P.fx.effectPm(h, 'takenPm') === -cap ? null : 'Guarded and a second guard on an add key capped ' + cap + ' read ' + P.fx.effectPm(h, 'takenPm');
   }),
   'heal-over-time': (M) => {
     const h = hero(M, 1, 4, 3, { hp: 950, maxHp: 1000 });

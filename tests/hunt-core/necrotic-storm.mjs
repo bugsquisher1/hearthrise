@@ -415,7 +415,7 @@ const mutants = [
   { name: 'the guard does not lower the cut', case: 'withered-cuts',
     edits: [['src/core/hunt/status.js', "  if (row.healCutPm) return isHero(unit) && row.guard ? heroElementPermille(unit.resistPm, row.guard) : 1000;\n", '  if (row.healCutPm) return 1000;\n']] },
   { name: 'a monster is cut the hero\'s 30%', case: 'withered-cuts',
-    edits: [['src/core/hunt/status-effects.js', ' : row.healCutPm.monster;', ' : row.healCutPm.hero;']] },
+    edits: [['src/core/hunt/status-effects.js', ' : row.healCutPm.monster),', ' : row.healCutPm.hero),']] },
   { name: 'a necrotic blow never Withers', case: 'element-rules',
     edits: [['src/core/hunt/damage.js', '  if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);\n', '']] },
   { name: 'a storm blow burns no mana', case: 'element-rules',

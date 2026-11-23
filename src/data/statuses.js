@@ -136,10 +136,6 @@ export const STATUSES = Object.freeze({
     tick: Object.freeze([1, 1]), everyMs: 1000, durationMs: 6000, maxStacks: 1, blowPm: 150, tierPermille: TIERS, heals: true }),
 });
 
-/** A row's stacking key (STATUS_KEYS). */
-export const keyOf = (row) => row.key;
-/** How a row's key counts its stacks: 'strongest' or 'add'. */
-export const combineOf = (row) => STATUS_KEYS[row.key].combine;
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */
 export const ticks = (row) => Array.isArray(row.tick);
 

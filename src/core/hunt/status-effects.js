@@ -20,15 +20,23 @@ import { isHero } from './sides.js';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const rowOfStack = (st) => (st && own(STATUSES, st.s) ? STATUSES[st.s] : null);
+const n = (v) => (Number.isInteger(v) ? v : 0);
 
-/** One stack's value of `field` on unit `u`, permille (0 when its row has none). */
+/* ONE READER A FIELD: a stack's value of it, permille, on unit `u` */
+const VALUE = Object.freeze({
+  takenPm: (u, row) => n(row.takenPm),
+  dealtPm: (u, row) => n(row.dealtPm),
+  armorPm: (u, row) => n(row.armorPm),
+  slowPm: (u, row, st) => slowAt(row, st.scale),
+  healCutPm: (u, row, st) => (!row.healCutPm ? 0
+    : isHero(u) ? Math.floor((row.healCutPm.hero * (Number.isInteger(st.scale) ? st.scale : 1000)) / 1000) : row.healCutPm.monster),
+});
+
+/** One stack's value of `field` on unit `u`, permille (0 when its row has none; throws on a field no reader knows). */
 export function stackValue(u, row, st, field) {
-  if (field === 'slowPm') return slowAt(row, st.scale);
-  if (field === 'healCutPm') {
-    if (!row.healCutPm) return 0;
-    return isHero(u) ? Math.floor((row.healCutPm.hero * (Number.isInteger(st.scale) ? st.scale : 1000)) / 1000) : row.healCutPm.monster;
-  }
-  return Number.isInteger(row[field]) ? row[field] : 0;
+  const f = VALUE[field];
+  if (!f) throw new Error('status-effects: no reader for ' + field);
+  return f(u, row, st);
 }
 
 /** Unit `u`'s value of one effect `field` now, permille: its keys summed, each counted by its combine rule. 0 with none. */

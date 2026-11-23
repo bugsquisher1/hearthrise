@@ -83,6 +83,11 @@ const partyText = (root) => {
 };
 const ENGINE_DIRS = ['src/core', 'supabase/functions/hr-accrue'];
 const CLIENT_DIRS = ['src/shell', 'src/hunt-view', 'src/session'];
+/* THE BAR'S VOCABULARY (lane/e2-e3-statuses): a status's `hidden` keeps it out of the effects a player may name and the server's
+   catalogue (1061-bar-metrics). Its reader is src/data/condition-metrics.js (EFFECT_IDS, the stacks subjects), the copy under test,
+   which the bar editor imports: the engine reads a hidden row like any other. */
+const CATALOGUED = Object.freeze({ status: ['hidden'] });
+const catalogueText = (root) => strip(readFileSync(join(root, 'src/data/condition-metrics.js'), 'utf8'));
 
 const walk = (root, d) => {
   const out = [];
@@ -129,6 +134,7 @@ const cases = {
       for (const k of keys) {
         if (k === 'id') continue;
         const ok = display.includes(k) ? reads(client, k) : (suggested || []).includes(k) ? reads(suggest, k)
+          : (CATALOGUED[kind] || []).includes(k) ? reads(catalogueText(M.root), k)
           : (VERSIONED[kind] || []).includes(k) ? reads(versioned, k) && calls
             : (LISTED[kind] || []).includes(k) ? reads(listed, k) && lists
               : (SHAPED[kind] || []).includes(k) ? reads(shaped, k) && shapes
@@ -190,6 +196,11 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', '    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n', '']] },
   { name: '[party rule] partyOnly stops reading the row', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', 'export const partyOnly = (row, role) => !!row && (row.party === true || (Array.isArray(row.party) && row.party.includes(role)));', 'export const partyOnly = (row, role) => !!row && role === \'tank\';']] },
+  { name: '[e2] the bar\'s vocabulary stops reading hidden (a hidden status reaches the picker and the server)', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/condition-metrics.js', '.filter((s) => s.maxStacks > 1 && !s.hidden && !s.ground));', '.filter((s) => s.maxStacks > 1 && !s.ground));'],
+      ['src/data/condition-metrics.js', '.filter((s) => !s.hidden && !s.ground).map((s) => s.id));', '.filter((s) => !s.ground).map((s) => s.id));']] },
+  { name: '[e2] the status reader stops reading dealtPm by its field', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/status-effects.js', '  dealtPm: (u, row) => n(row.dealtPm),', "  dealtPm: (u, row) => n(row['dealt' + 'Pm']),"]] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',
     edits: [['src/core/hunt/abilities.js', "['markUntil', 'int'], ['lastMove', 'json']]),", "['markUntil', 'int'], ['lastMove', 'json'], ['slowUntil', 'int']]),"]] },
 ];

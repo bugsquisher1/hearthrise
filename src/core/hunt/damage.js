@@ -69,13 +69,15 @@ export const PERSISTED = Object.freeze({
 
 /* WHAT A UNIT'S STATUSES DO TO A BLOW AND A CLOCK (status-effects.js effectPm, by stacking key): takenPm (Sickness +, a hero's guard -),
    dealtPm (Weakened -, a hero's boon +), armorPm (Armor Break: a monster's defence), slowPm (Chill, at the rune tier it landed with). */
+const takenPmOf = (u) => effectPm(u, 'takenPm');
+const slowPmOf = (u) => effectPm(u, 'slowPm');
 
 /** A clock of `ms` that unit `u` starts NOW, slowed by its live slowing statuses (a wiki formula, Chill's slowPm 300 = 30%):
       slowed = ceil(ms x (1000 + slowPm) / 1000 / stepMs) x stepMs   (stepMs: hunt-tuning.js, 100 ms),
     so a chilled 2 s swing waits 2.6 s and a chilled 1.6 s windup 2.1 s. Fixed as it starts: a slow that lands later
     stretches the next one. Unslowed it is `ms`. */
 export function slowed(u, ms) {
-  const pm = effectPm(u, 'slowPm');
+  const pm = slowPmOf(u);
   if (!pm) return ms;
   const step = HUNT_TUNING.stepMs;
   return Math.ceil((ms * (1000 + pm)) / (1000 * step)) * step;
@@ -157,7 +159,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
      markUntil, and a target under a status that moves what it takes (status-effects.js takenPm: Green Sickness +, a hero's guard -)
      that much more or less, added together and folded into the one multiplier hurt applies (`ability.mult`). A DEALER under a status
      that moves what it deals (dealtPm: Weakened -, a boon +) moves it after, its own factor (never under 1 permille). */
-  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + effectPm(target, 'takenPm');
+  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
   const dealtPm = source ? effectPm(source, 'dealtPm') : 0;
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
   let mult = markPm ? Math.floor((base * Math.max(1, 1000 + markPm)) / 1000) : base;

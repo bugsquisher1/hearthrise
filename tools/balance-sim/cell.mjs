@@ -207,7 +207,8 @@ export async function loadCellRunner(root) {
       const g = guideOf(cell.ground), own = (cell.supply || 'store') === 'own';
       const bar = playedBar(role, { magic: runeMagic(role, i), tierOf: tierOfFor(role, i), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
         storeDrink: g ? storeOf('mana', g.magic.mana.id) : 'thin_turnip_juice', arrows: role === 'ranger' && spends(kits[i].ammo) ? kits[i].ammo : null });
-      const add = cell.addSlots && cell.addSlots[role];
+      /* cell.addSlotsBySeat [{ after, slots } | null]: the same, seat by seat (two seats of one role, lane/roads-review-measure) */
+      const add = (Array.isArray(cell.addSlotsBySeat) && cell.addSlotsBySeat[i]) || (cell.addSlots && cell.addSlots[role]);
       if (!add) return bar;
       const at = bar.findIndex((s) => s.action.type === 'ability' && s.action.id === add.after);
       bar.splice(at < 0 ? bar.length : at + 1, 0, ...JSON.parse(JSON.stringify(add.slots)));

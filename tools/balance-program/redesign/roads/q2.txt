@@ -1,0 +1,32 @@
+
+ROADS q2 on muster_barrows L60 steady, held start 570, 8 seeds x 8 h, held read from hour 1 (mean +- se over seeds)
+N                          held 380.5 +- 5.6   deaths 0 (0 seeds)  xp/hd-h 141655.9 +- 659.5 gold/hd-h 4955.7 +- 37.4 store/hd-h 10525.7 +- 180.8 heal/h 0 +- 0           drinks/h 128.3 +- 1.4
+     hammer  heal/h 0        self/h 11102.1  dps 19.8    mana/h 6222.8  drinks/h 0     store/h 11885.6 shieldIn/h 0       taken/h 56120.8  deaths 0
+     bow     heal/h 0        self/h 0        dps 22.4    mana/h 10373.9 drinks/h 0.3   store/h 16011.7 shieldIn/h 0       taken/h 24814.4  deaths 0
+     mage    heal/h 0        self/h 0        dps 30      mana/h 28264.3 drinks/h 128   store/h 12980.6 shieldIn/h 1950.4  taken/h 2997.3   deaths 0
+     sword   heal/h 0        self/h 1415.3   dps 14.5    mana/h 7593.1  drinks/h 0     store/h 1224.9 shieldIn/h 0       taken/h 19807.6  deaths 0
+N+GM@ham:600+GM@sw:600     held 544.7 +- 7.9   deaths 0 (0 seeds)  xp/hd-h 196093.3 +- 9193 gold/hd-h 4639.5 +- 70.9 store/hd-h 11735.3 +- 164.9 heal/h 81681.6 +- 1863.7 drinks/h 567.6 +- 11.4
+   vs N (paired): held 164.3 +- 8.8  xp 54437.4 +- 8862.2  gold -316.2 +- 90.2  store 1209.6 +- 225.6  heal(all) 130745.4 +- 3701.6  shield 445.6 +- 342.5  deaths 0 +- 0  drinks 439.4 +- 11.8
+     hammer  heal/h 41376.9  self/h 45266.5  dps 22.9    mana/h 34299.8 drinks/h 197.9 store/h 9478.6 shieldIn/h 0       taken/h 96344.6  deaths 0  LENT greater_mend__club_600_r7 casts/h 1132 +- 23 mana/h 28299.5
+     bow     heal/h 0        self/h 0        dps 26.7    mana/h 11984.9 drinks/h 11.9  store/h 16327.6 shieldIn/h 0       taken/h 43094.9  deaths 0
+     mage    heal/h 0        self/h 0        dps 36.4    mana/h 32548.3 drinks/h 165.2 store/h 15410.3 shieldIn/h 2396    taken/h 5509.1   deaths 0
+     sword   heal/h 40304.8  self/h 16314.6  dps 17.9    mana/h 33686.6 drinks/h 192.7 store/h 5724.5 shieldIn/h 0       taken/h 49747.8  deaths 0  LENT greater_mend__sword_600_r7 casts/h 990.5 +- 29 mana/h 24763.6
+N+GM@sw:1000               held 488 +- 2.8     deaths 0 (0 seeds)  xp/hd-h 148071.1 +- 1430.9 gold/hd-h 4554.1 +- 62.9 store/hd-h 10916.6 +- 76.4 heal/h 72208.4 +- 763.7 drinks/h 392.8 +- 2.3
+   vs N (paired): held 107.6 +- 5  xp 6415.3 +- 1822.8  gold -401.6 +- 68.2  store 390.9 +- 222.1  heal(all) 97438.3 +- 1203.4  shield 806.8 +- 292.2  deaths 0 +- 0  drinks 264.5 +- 3
+     hammer  heal/h 0        self/h 5536.1   dps 22      mana/h 5872.3  drinks/h 0     store/h 4691.3 shieldIn/h 0       taken/h 77842.4  deaths 0
+     bow     heal/h 0        self/h 0        dps 25.9    mana/h 11830.9 drinks/h 10.6  store/h 17148.3 shieldIn/h 0       taken/h 36110.3  deaths 0
+     mage    heal/h 0        self/h 0        dps 35.5    mana/h 32954.6 drinks/h 168.2 store/h 15576.6 shieldIn/h 2757.1  taken/h 5665.1   deaths 0
+     sword   heal/h 72208.4  self/h 32211.1  dps 16.8    mana/h 36245.4 drinks/h 214   store/h 6250.3 shieldIn/h 0       taken/h 47483    deaths 0  LENT greater_mend__sword_1000_r7 casts/h 1103 +- 9.9 mana/h 27574.6
+S                          held 611.2 +- 4.2   deaths 0 (0 seeds)  xp/hd-h 257126.4 +- 7449.2 gold/hd-h 4654.1 +- 68.2 store/hd-h 11758.9 +- 47.9 heal/h 154907.1 +- 1022.2 drinks/h 530.1 +- 2
+     sword   heal/h 0        self/h 3389.4   dps 22.5    mana/h 9861.8  drinks/h 0     store/h 2355.2 shieldIn/h 20505.4 taken/h 129267.5 deaths 0
+     bow     heal/h 0        self/h 0        dps 27.7    mana/h 12058   drinks/h 12.4  store/h 15435.6 shieldIn/h 6516.9  taken/h 48581.3  deaths 0
+     mage    heal/h 0        self/h 0        dps 37.8    mana/h 32334   drinks/h 163.6 store/h 15187.3 shieldIn/h 1907    taken/h 5520.9   deaths 0
+     healer  heal/h 154907.1 self/h 32       dps 17.2    mana/h 51142.5 drinks/h 354.1 store/h 14057.6 shieldIn/h 4.6     taken/h 38       deaths 0
+S+GM@sw:600                held 627.9 +- 3.7   deaths 0 (0 seeds)  xp/hd-h 270004.5 +- 6406.1 gold/hd-h 4599.8 +- 31.4 store/hd-h 12262.4 +- 56.4 heal/h 142185 +- 1617.7 drinks/h 643.9 +- 4
+   vs S (paired): held 16.6 +- 7.4  xp 12878.1 +- 12770.7  gold -54.3 +- 85.2  store 503.5 +- 72.8  heal(all) 17264.5 +- 1500.5  shield 382 +- 398  deaths 0 +- 0  drinks 113.8 +- 4
+     sword   heal/h 11515.9  self/h 33397.4  dps 22.7    mana/h 29115.8 drinks/h 154.5 store/h 5356.8 shieldIn/h 20403.1 taken/h 141853.3 deaths 0  LENT greater_mend__sword_600_r7 casts/h 778.1 +- 7.2 mana/h 19452.9
+     bow     heal/h 0        self/h 0        dps 27.8    mana/h 12064.6 drinks/h 12.4  store/h 15354.1 shieldIn/h 6787.5  taken/h 51486    deaths 0
+     mage    heal/h 0        self/h 0        dps 37.8    mana/h 32545.5 drinks/h 165.4 store/h 15208.4 shieldIn/h 2123.8  taken/h 6777.5   deaths 0
+     healer  heal/h 130669.1 self/h 10.6     dps 17.3    mana/h 47077.6 drinks/h 311.6 store/h 13130.3 shieldIn/h 1.5     taken/h 20.6     deaths 0
+
+wall 227 s on 7 workers; mean seed 37 s for 8 h

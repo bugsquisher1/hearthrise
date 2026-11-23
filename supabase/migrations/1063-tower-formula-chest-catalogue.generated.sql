@@ -13,7 +13,7 @@
 --   table, a Tower landing's key is the highest Tower row at or under it); hr_chest_stokes (3: a stoke count's multiplier and its price
 --   in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family weight, the per-call clamp);
 --   hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
---   weapon a family: 28 rows; a key short of its 7 is refused chest_not_ready); hr_chest_weapon_families (105
+--   weapon a family: 28 rows; a key short of its 7 is refused chest_not_ready); hr_chest_weapon_families (92
 --   weapon items and their family); hr_chest_outfits (12: the super-rare outfits, each outfit's bundle item and its chance on every
 --   key in permille, src/data/chests.js CHEST_OUTFITS; lane/c-sweeps-coat-drop, the Sweep's Coat). All rewritten whole: no player row
 --   points at any of them (the key, Cinders and bundle items are hr_items rows).
@@ -244,26 +244,19 @@ insert into public.hr_chest_weapons (key_id, family, item_id) values
   ('platinum', 'crossbow', 'flue_watch_crossbow');
 delete from public.hr_chest_weapon_families;
 insert into public.hr_chest_weapon_families (item_id, family) values
-  ('alphaheart_longbow', 'bow'),
   ('apprentice_staff', 'staff'),
   ('apprentice_wand', 'wand'),
-  ('ashcrown_greatsword', 'sword'),
   ('bierguard_sword', 'sword'),
   ('bonesetters_staff', 'staff'),
   ('bramble_blade', 'sword'),
   ('bronze_sword', 'sword'),
-  ('captains_ribblade', 'sword'),
   ('chandlers_wand', 'wand'),
-  ('chief_blade', 'sword'),
   ('coalbearers_sword', 'sword'),
   ('cordwood_hatchets', 'hatchets'),
   ('dawn_hatchets', 'hatchets'),
   ('dawn_sword', 'sword'),
   ('dawn_warhammer', 'warhammer'),
   ('demoncaller_staff', 'staff'),
-  ('dragonfang_pike', 'sword'),
-  ('dragonrend_greatblade', 'sword'),
-  ('dragonrib_bow', 'bow'),
   ('drovers_crossbow', 'crossbow'),
   ('duskwood_bow', 'bow'),
   ('duskwood_crossbow', 'crossbow'),
@@ -272,8 +265,6 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('ember_hatchets', 'hatchets'),
   ('ember_sword', 'sword'),
   ('ember_warhammer', 'warhammer'),
-  ('emberfang_blade', 'sword'),
-  ('fangdart_recurve', 'bow'),
   ('ferrymans_bow', 'bow'),
   ('first_keepers_staff', 'staff'),
   ('firstfell_hatchets', 'hatchets'),
@@ -336,11 +327,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('verdite_blade', 'sword'),
   ('vigil_bow', 'bow'),
   ('void_censer', 'staff'),
-  ('voidmaw_scepter', 'wand'),
-  ('wartusk_cleaver', 'sword'),
   ('westwood_hatchets', 'hatchets'),
-  ('whispering_codex', 'wand'),
-  ('widows_fang', 'sword'),
   ('willow_crossbow', 'crossbow'),
   ('willow_longbow', 'bow'),
   ('willow_staff', 'staff'),

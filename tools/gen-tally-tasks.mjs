@@ -59,7 +59,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE APPROVED CUTS (lane/c-approved-cuts, 2026-11-20; build plan L10): the three boss-forged body pieces leave hr_items
    (1033-approved-cuts-items-catalogue), so the tier book loses their rows in this forward file, the same full rewrite of the same
    tables. No task, piece, material or gold moves. ORDER: after 1033. */
-export const OUT_FILE = '1034-approved-cuts-tally.generated.sql';
+/* THE NAMED PIECES CUT (lane/named-pieces, 2026-11-23, 28-named-pieces.md): the cut named pieces leave hr_items and hr_item_slots
+   (1065-named-pieces-items-catalogue), so the tier book loses their rows in this forward file, the same full rewrite of the same tables.
+   No task, piece, material or gold moves. ORDER: after 1065. */
+export const OUT_FILE = '1066-named-pieces-tally.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

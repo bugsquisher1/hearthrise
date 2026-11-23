@@ -368,7 +368,7 @@ const mutants = [
   { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },
   { name: 'a food reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
   /* (guard 20, a shield's: on the to-hit ratio a 4-point guard is about the cloak's own 7%, so only a cape that guards like a shield shows in the damage) */
-  { name: 'a cape guards like a shield again: damage taken falls by a quarter', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 20,']] },
+  { name: 'a cape guards like a shield again: damage taken falls by a quarter', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70 }', 'reqLv: 22, defB: 20 }']] },
   { name: 'the unready hero is safe: a hero in no armor takes 60% less from every blow', case: 'risk-ladder', expect: 'fifteen Levels under',
     edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 600, ward: 0, keepPm: 0 });']] },
   { name: 'the unready hero is nearly safe: a hero in no armor takes 35% less, still dying now and then (25% until the 11-19 step: the monsters hit a tenth harder, and at 25% the practice set still died twice an hour)', case: 'risk-ladder', expect: 'fifteen Levels under',

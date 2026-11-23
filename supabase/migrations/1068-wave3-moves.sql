@@ -1,7 +1,7 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1065-wave3-moves.sql — WAVE 3'S BAR TEST AND MOVES (lane/moves-wave-3, Systems 2026-11-23).
+-- supabase/migrations/1068-wave3-moves.sql — WAVE 3'S BAR TEST AND MOVES (lane/moves-wave-3, Systems 2026-11-23).
 --
--- STATUS: supabase/migration-notes/1065-wave3-moves.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1068-wave3-moves.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
@@ -21,10 +21,11 @@
 -- engine's. Every value is bounded (a bool, a move one of the catalogue's ability ids, an effect one of the player-met statuses).
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- Any time after 1061-bar-metrics.sql (the last full replace of these rows). It must apply BEFORE the client that offers the three
--- moves (the bar check would refuse a slot on the new test, or a last move naming them), and with or before the hr-accrue deploy whose
--- engine evaluates target_winding_up (an older engine drops a slot naming a metric it lacks: conditions.js heroSlots keeps only valid
--- slots). Beside 1065-wave3-moves-rune-spells.generated.sql, independent of it.
+-- After 1061-bar-metrics.sql (the last full replace of these rows) and 1058-hunting-blocks-hunt-sessions-catalogue.generated.sql (the
+-- hr_hunt_abilities its self-check (d) reads). It must apply BEFORE the client that offers the three moves (the bar check would refuse a
+-- slot on the new test, or a last move naming them), and with or before the hr-accrue deploy whose engine evaluates target_winding_up (an
+-- older engine drops a slot naming a metric it lacks: conditions.js heroSlots keeps only valid slots). After 1067-wave3-moves-rune-spells
+-- .generated.sql, independent of it.
 -- REVERSIBILITY: re-apply the ⟦metrics⟧ block of 1061-bar-metrics.sql.
 -- ════════════════════════════════════════════════════════════════════════
 

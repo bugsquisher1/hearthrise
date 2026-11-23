@@ -192,7 +192,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    loses the three pieces' body rows; hr_start_kit is upserted without hearth_tokens (1032-approved-cuts.sql drops that column) and
    the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1032-approved-cuts.sql (the
    column and the two tables are gone first) and after 1028-spell-rule-hunt-sessions-catalogue (the Shop's bids on the four leave there, as in 1012 and 1021). */
-const OUT = join(ROOT, 'supabase', 'migrations', '1033-approved-cuts-items-catalogue.generated.sql');
+/* THE NAMED PIECES CUT (lane/named-pieces, game designer 2026-11-23; docs/design/redesign/28-named-pieces.md): 1033-approved-cuts-items-catalogue
+   (STAGED) is the file before this one and this one carries it whole. hr_items loses the 29 cut named pieces (sourceless, or dropped only on
+   grounds that never opened; no player can hold one) and two rows are renamed (Spidersilk Cape, Banishing Censer); hr_item_slots loses their
+   slot rows. ORDER: after 1033 and every staged file that reads hr_items. */
+const OUT = join(ROOT, 'supabase', 'migrations', '1065-named-pieces-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1595,7 +1599,7 @@ const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
    applied before 1058-hunting-blocks-hunt-sessions-catalogue (whose hr_hunt_abilities moves: its self-check compares the two at its own place), so the
    forward file is a NEW one after 1058: Quarry Blow leaves, Stagger joins on the Earth family (the club's, its rework) and Gash on the Rupture family
    (the axes'), both reading Melee; every other spell unchanged, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1065-wave3-moves-rune-spells.generated.sql');
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1067-wave3-moves-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];

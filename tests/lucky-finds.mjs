@@ -281,7 +281,7 @@ const moveLucky = (ms, from, to) => {
 };
 const MUTATIONS = {
   ch_x10:           { rule: 'd', mk: () => withRow('kobold', (ms) => { lastOf(ms, 'kobold').ch *= 10; }) },
-  on_elk_king:      { rule: 'b', mk: () => withRow(null, (ms) => moveLucky(ms, 'broodmother', 'elk_king')) },
+  on_elk_king:      { rule: 'b', mk: () => withRow(null, (ms) => moveLucky(ms, 'draconia', 'elk_king')) },
   wartusk_cleaver:  { rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'goblin_warlord').id = 'wartusk_cleaver'; }) },
   emberheart:       { rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'drake').id = 'emberheart'; }) },
   /* (c) is the GROUND side of the cap. Until v0.2.120 this planted a v:13600 T6 staff on a T1 ground (its old vendor bid 1904g);
@@ -292,7 +292,7 @@ const MUTATIONS = {
   t1_gold_cut:      { rule: 'c', mk: () => withRow(null, (ms) => { ms.mandrake.gp = [0, 0.2]; }) },
   oak_staff:        { rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'witchs_apprentice').id = 'oak_staff'; }) },
   crown_fallen_king:{ rule: 'a', mk: () => withRow(null, (ms) => { lastOf(ms, 'draconia').id = 'crown_of_the_fallen_king'; }) },
-  widows_fang:      { rule: 'f', mk: () => withRow(null, (ms) => { lastOf(ms, 'giant_spider').id = 'widows_fang'; }) },
+  tier_far:         { rule: 'f', mk: () => withRow(null, (ms) => { lastOf(ms, 'giant_spider').id = 'dawnbound_amulet'; }) },
   lucky_first:      { rule: 'e', mk: () => withRow(null, (ms) => { ms.zombie.drops.unshift(ms.zombie.drops.pop()); }) },
   /* the loot-band exemption stays narrow: a plain (unbanded) second row of a lucky item is still a shortcut source */
   plain_second_source: { rule: 'a', mk: () => withRow(null, (ms) => { ms.drain_rat.drops.push({ id: 'iron_helm', ch: 0.001 }); }) },

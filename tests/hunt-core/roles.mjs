@@ -284,13 +284,13 @@ const cases = {
     return f('no_such_weapon') === null ? null : 'an unknown weapon got a role';
   },
   /* EVERY MAGIC WEAPON NAMES ITS DISCIPLINE (roadmap p23, audit m03): none falls to the Mage by default. The four
-     hand-authored drops: the Demoncaller staff and the Void Censer heal, the Whispering Codex and the Voidmaw
-     Scepter strike. */
+     hand-authored drops: the Demoncaller staff and the Banishing Censer heal; a ladder wand strikes (the Whispering Codex and
+     the Voidmaw Scepter were cut, docs/design/redesign/28-named-pieces.md). */
   'every-magic-weapon-has-a-discipline': (M) => {
     const RW = M.roleData.roleWeaponOf;
     const loose = Object.keys(M.ITEMS).filter((id) => M.ITEMS[id] && M.ITEMS[id].weaponType === 'magic' && !['destruction', 'restoration'].includes(M.ITEMS[id].discipline));
     if (loose.length) return 'magic weapons with no discipline: ' + loose.join(', ');
-    const want = { demoncaller_staff: 'staff', void_censer: 'staff', whispering_codex: 'wand', voidmaw_scepter: 'wand' };
+    const want = { demoncaller_staff: 'staff', void_censer: 'staff', oak_wand: 'wand', duskwood_wand: 'wand' };
     for (const [id, key] of Object.entries(want)) if (RW(M.ITEMS[id]) !== key) return id + ' plays ' + RW(M.ITEMS[id]) + ', want ' + key;
     return M.ITEMS.demoncaller_staff.twoHanded === true ? null : 'the Demoncaller staff is one-handed (a staff fills both hands, Tyler 10-19)';
   },
@@ -337,8 +337,8 @@ const cases = {
 const mutants = [
   { name: '[spell-content] a dropped staff plays the Mage again', case: 'every-magic-weapon-has-a-discipline',
     edits: [['src/data/wave3-uniques.js', "weaponType:'magic',discipline:'restoration',twoHanded:true,", "weaponType:'magic',twoHanded:true,"]] },
-  { name: '[spell-content] the Codex heals', case: 'every-magic-weapon-has-a-discipline',
-    edits: [['src/data/items.js', "whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction',", "whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'restoration',"]] },
+  { name: '[spell-content] the Banishing Censer names no discipline', case: 'every-magic-weapon-has-a-discipline',
+    edits: [['src/data/library2-items.js', "    /* a censer is a healer's tool: Restoration (roadmap p23, m03) */\n    discipline: 'restoration',\n", '']] },
   { name: 'the tank plants wherever the pull leaves him (before 2026-10-25)', case: 'tank-plants-on-open-ground',
     edits: [[R, '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '']] },
   { name: 'the room counts the slots, not the way round to them', case: 'tank-plants-on-open-ground',

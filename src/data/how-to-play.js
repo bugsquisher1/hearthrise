@@ -19,7 +19,8 @@
 // No number is restated that the game holds elsewhere except the ruled ones
 // (8 h free stamina, 4 heroes at once, all 4 slots free from the start); copy only. The armor
 // weights' words and numbers are read from src/data/armour-weights.js, the
-// death's share from src/data/hunt-sessions.js DEATH_XP_LOSS.
+// death's share and hours from src/data/hunt-sessions.js DEATH_XP_LOSS and DEATH_HOURS, the Blessing's free Level from
+// src/data/blessings.js BLESSING (lane/level-costs: one Blessing).
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -27,7 +28,8 @@ import { ITEMS } from './items.js';
 import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js';
 import { STARTER_SETS, START_CURRENCY } from './start-kit.js';
 import { WEIGHT_ORDER, weightSentence } from './armour-weights.js';
-import { DEATH_XP_LOSS } from './hunt-sessions.js';
+import { DEATH_XP_LOSS, DEATH_HOURS } from './hunt-sessions.js';
+import { BLESSING } from './blessings.js';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -106,7 +108,7 @@ export const HELP_NOTES = Object.freeze([
   note('heroes', 'Several heroes',
     'All 4 hero slots are yours from the start\nAll 4 heroes play at once\nOwn heroes join the party at once'),
   note('death', 'Death',
-    'The hunt ends, the hero returns to town\nCost: ' + Math.round(DEATH_XP_LOSS * 100) + '% of Level XP, can take a Level\nBlessings: Shop → Services, free below Level 30'),
+    'The hunt ends, the hero returns to town\nCost: ' + Math.round(DEATH_XP_LOSS * 100) + '% of Level XP, at most ' + DEATH_HOURS + ' hours of progress, can take a Level\nBlessing: Shop → Services, free below Level ' + BLESSING.freeUntilLevel),
 ]);
 
 /** Every problem with the tables, as strings. Empty = valid. */

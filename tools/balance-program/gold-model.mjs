@@ -25,7 +25,7 @@ const ROOT = resolve(HERE, '..', '..');
 const data = (f) => import(pathToFileURL(join(ROOT, 'src', 'data', f)).href);
 const REF = JSON.parse(readFileSync(join(HERE, 'ref.json'), 'utf8'));
 const { STAMINA_REFILL } = await data('stamina-refill.js');
-const { blessingPrice } = await data('blessings.js');
+const { blessingPrice } = await import(pathToFileURL(join(ROOT, 'src', 'core', 'wage.js')).href);
 const { TEMPER_TIERS } = await data('temper.js');
 const { SINK_RULES } = await data('gold-sinks.js');
 const { TOWN_WORKS } = await data('town-works.js');
@@ -66,7 +66,8 @@ const TALLY_SHARE = 0.02;                       /* REAL: 249,155 of 14.27M */
 const refillStep = (i) => (STAMINA_REFILL.stepDen + STAMINA_REFILL.stepNum * i) / STAMINA_REFILL.stepDen;
 const refillDay = (L, n) => { let s = 0; const b = STAMINA_REFILL.base + STAMINA_REFILL.perLevel * L; for (let i = 0; i < Math.floor(n); i++) s += b * refillStep(i); return s + b * refillStep(Math.floor(n)) * (n - Math.floor(n)); };
 const deathsAnHour = (lone, L) => (lone ? (L <= 15 ? 0.089 : L <= 30 ? 0.032 : 0.02) : (L <= 30 ? 0.02 : L <= 44 ? 0.011 : L <= 64 ? 0.004 : 0.001)); /* REAL section 2 and 8; past the data ASSUMED */
-const blessSet = (L) => blessingPrice(1, L) + blessingPrice(2, L) + blessingPrice(3, L);
+/* the ONE Blessing (lane/level-costs, 2026-11-22): hours of the wage at the hero's Level */
+const blessSet = (L) => blessingPrice(L);
 
 function cell(pl, L) {
   const lone = pl.seat === 'lone';
@@ -170,7 +171,7 @@ function offers() {
   for (const L of [30, 50, 80]) { const sk = Math.round(L * 0.9), fee = TRAINING_RULES.feeBase + TRAINING_RULES.feePerLevel * sk; line('The yard, an hour (skill ' + sk + ')', L, fee, '30,000 skill XP, no stamina', (fee / net(L)).toFixed(2) + ' h an hour trained', 'READ FROM DATA'); }
   line('Training item, 12 h', 50, TRAINING_GEAR.gold[12], '+30,000 skill XP an hour for 12 h', (TRAINING_GEAR.gold[12] / net(50) / 12).toFixed(1) + ' h an hour doubled', 'READ FROM DATA');
   line('House dummy, first skill', 50, SINK_RULES.house_dummy.prices[0], 'the yard with no fee', 'saves ' + (TRAINING_RULES.feeBase + TRAINING_RULES.feePerLevel * 45) + ' an hour: ' + Math.round(SINK_RULES.house_dummy.prices[0] / (TRAINING_RULES.feeBase + TRAINING_RULES.feePerLevel * 45)) + ' trained hours to pay back', 'READ FROM DATA');
-  for (const L of [50, 80, 105]) line('Blessings, all three', L, blessSet(L), 'keeps 75% of a death (6% of Level XP)', 'a death is ' + (L === 50 ? 'about 7' : L === 80 ? 'about 17' : 'about 27') + ' hunt hours of XP at the REAL pace; the set is ' + (blessSet(L) / net(L)).toFixed(2) + ' h of gold', 'READ FROM DATA; hours ASSUMED from LEVEL_PACE x 0.35');
+  for (const L of [50, 80, 105]) line('The Blessing', L, blessSet(L), 'cuts a death by its share (the lesser of 6% of Level XP and 7.5 h of progress)', 'a death is ' + (L === 50 ? 'about 7' : L === 80 ? 'about 17' : 'about 27') + ' hunt hours of XP at the REAL pace; the set is ' + (blessSet(L) / net(L)).toFixed(2) + ' h of gold', 'READ FROM DATA; hours ASSUMED from LEVEL_PACE x 0.35');
   for (const [t, L] of [[3, 50], [5, 80], [7, 105]]) line('Hallmark fee, tier ' + t + ', one piece', L, HALLMARK[t], 'two perks kept at this tier (about +1% a perk, PROPOSED)', (HALLMARK[t] / net(L) / 2).toFixed(1) + ' h a 1%', 'RULED price, PROPOSED size');
   console.log('\nTown Works takes at most ' + k(TOWN_WORKS.weighhouse.perDay) + ' a day an account and the whole project is ' + k(TOWN_WORKS.weighhouse.stages.at(-1).at) + '.');
 }

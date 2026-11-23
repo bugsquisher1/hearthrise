@@ -7868,6 +7868,22 @@ jobs:
           node tests/hunting-blocks.mjs
           node tools/mutant-gate.mjs node tests/hunting-blocks.mjs --mutate
 
+      # PER-HERO COSTS BY LEVEL (1063-level-costs*.sql, lane/level-costs; Tyler 2026-11-22: per-hero costs read the wage at the hero's
+      # Level): a death takes the lesser of 6% of the Level XP and 7.5 hours of progress at the hero's Level, the same on the tick door
+      # (browser closed) and the player door (hunt viewed) at Level 200, blessed and not; the ONE Blessing is an hour of the wage at the
+      # hero's Level (free under 30) and halves one death; the Talent reset is priced 0.5 h of the wage x2 a paid reset, first free,
+      # Premium's first of the day free, and DARK (no client role). The catalogue is GENERATED (tools/gen-level-costs.mjs --check holds it
+      # to src/data, --selftest proves each refusal). --mutate (12): the bound without the hours, at Level 1 or open with no row, the Blessing at the Level 1
+      # wage, no reset growth, a quarter cut, a Blessing never used up, no price check, a second Blessing, no free first, Premium every
+      # time, a reset at an unquoted price.
+      - name: Per-hero costs by Level - the death in hours, one Blessing at the wage, the reset dark, both paths (12 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-level-costs.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-level-costs.mjs --selftest
+          node tests/level-costs.mjs
+          node tools/mutant-gate.mjs node tests/level-costs.mjs --mutate
+
       # THE STORE PRICED AT THE BUYER'S STEP (1061-store-step-catalogue.generated.sql, 1062-store-step.sql, lane/econ-followups; Tyler
       # 2026-11-22: goods are priced by depth): a store use costs its row at the depth the hunt stands at as each window opens (the wage's
       # unit), off the scale at the hero's Level. The twin is the JS at every step; a four falling back from step 760 on Muster is billed

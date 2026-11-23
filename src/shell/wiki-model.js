@@ -24,8 +24,8 @@ import { MONSTERS } from '../data/monsters.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 import { OPEN_GROUNDS } from '../data/hunt-grounds.js';
 import { shownBand } from './hunt-list.js';
-import { DEATH_XP_LOSS } from '../data/hunt-sessions.js';
-import { BLESSING_CUT_PERMILLE } from '../data/blessings.js';
+import { DEATH_XP_LOSS, DEATH_HOURS } from '../data/hunt-sessions.js';
+import { BLESSING } from '../data/blessings.js';
 import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel } from '../core/xp.js';
 import { COMBAT_BALANCE, WEAKNESS_BONUS, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js';
 import { TO_HIT } from '../data/to-hit.js';
@@ -117,7 +117,8 @@ export function formulaPages(heroLevel = null) {
   const rolls = playerCombatRolls(mon, { skills, equipment: {}, items: {} });
   const scale = B.monsterDamageScaleByTier[mon.tier] || B.monsterAttackDamageScale;
   const deathXp = charXpForLevel(DEATH_EXAMPLE_LEVEL);
-  const oneCut = BLESSING_CUT_PERMILLE[0];
+  /* the ONE Blessing (lane/level-costs, 2026-11-22) */
+  const oneCut = BLESSING.cutPm;
   return [
     { id: 'hit',
       terms: { base: TO_HIT.base, min: TO_HIT.min, max: TO_HIT.max, weak: WEAKNESS_BONUS.accuracy },
@@ -136,7 +137,7 @@ export function formulaPages(heroLevel = null) {
     { id: 'skill_xp', rows: COMBAT_SKILLS.length ? xpRows(SKILL_TABLE, (l) => skillXpForLevel(COMBAT_SKILLS[0], l)) : [],
       cap: Object.keys(SKILLS_DEF).some(isCapped) ? MAX_LEVEL : null },
     { id: 'death',
-      terms: { share: DEATH_XP_LOSS, cuts: BLESSING_CUT_PERMILLE },
+      terms: { share: DEATH_XP_LOSS, hours: DEATH_HOURS, cuts: [BLESSING.cutPm] },
       example: { inputs: { level: DEATH_EXAMPLE_LEVEL, xp: deathXp, cut: oneCut },
         result: levelDeathLoss(deathXp), blessed: levelDeathLoss(deathXp, DEATH_XP_LOSS * (1000 - oneCut) / 1000) } },
   ];

@@ -71,6 +71,8 @@ async function load(root) {
   M.abilities = await imp('src/data/abilities.js');
   M.rules = await imp('src/data/rule-subjects.js');
   M.blessings = await imp('src/data/blessings.js');
+  /* the ONE Blessing's price (lane/level-costs): hours of the wage at the hero's Level */
+  M.wage = await imp('src/core/wage.js');
   M.sessions = await imp('src/data/hunt-sessions.js');
   M.coreModel = await imp('src/data/core-model.js');
   M.runes = await imp('src/data/runes.js');
@@ -248,13 +250,12 @@ function tallyFact(held, paid, weight = true) {
 }
 /* The facts of that hero at Level L, in town, everything else fresh (`more` overrides). */
 function tutAt(M, T, L, more) {
-  const lr = M.blessings.BLESSING_RULES;
+  const lr = M.blessings.BLESSING;
   return { levelXp: M.xp.charXpForLevel(L), charLevel: L, skillLevel: L, skillXp: { farming: 0, cooking: 0, melee: 0 }, huntId: null, endReason: null,
     visited: new Set(), unitKinds: new Set(), self: 0, name: 'Corliss', slots: T.slots, stored: [], discipline: T.discipline, role: T.role,
     stance: M.rules.ROLE_DEFAULTS[T.role].stance, store: T.store, carried: { ...M.kit.START_INVENTORY }, bag: { ...M.kit.START_INVENTORY },
     stacks: Object.keys(M.kit.START_INVENTORY).length, bagCap: 100, bankStacks: 0, lootRules: {}, weapon: T.weapon,
-    blessings: { held: 0, of: M.blessings.BLESSING_TIERS.length, freeUntil: lr.freeUntilLevel, best: Math.max(...M.blessings.BLESSING_TIERS.map((t) => t.xpLossReductionPermille)),
-      prices: M.blessings.BLESSING_TIERS.map((t) => M.blessings.blessingPrice(t.tier, L)) },
+    blessings: { held: 0, of: 1, freeUntil: lr.freeUntilLevel, best: lr.cutPm, prices: [M.wage.blessingPrice(L)] },
     death: null, supplies: [], huntMs: 0, hpMax: M.vit.maxHpFor(L, 0), presets: 0, landPlanted: false, land: { ready: {} }, home: null, gold: 500,
     staminaMs: 8 * 3600000, tally: tallyFact([], [], false), inParty: false, partied: false,
     read: new Set(), roster: null, slotsOwned: null, playLimit: null, sellable: 0, upgrades: [], ...(more || {}) };
@@ -267,7 +268,7 @@ function walkChain(M, T, extra) {
   const out = [];
   const set = (more) => { f = { ...f, ...more }; };
   const L = (n) => set({ levelXp: M.xp.charXpForLevel(n), charLevel: n, skillLevel: n, hpMax: M.vit.maxHpFor(n, 0),
-    blessings: { ...f.blessings, prices: M.blessings.BLESSING_TIERS.map((t) => M.blessings.blessingPrice(t.tier, n)) } });
+    blessings: { ...f.blessings, prices: [M.wage.blessingPrice(n)] } });
   const read = (id) => (f.read instanceof Set ? set({ read: new Set([...f.read, id]) }) : null);
   const at = (id, pct) => (s) => (s && s.id === id ? { ...s, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: pct }] } : s);
   const save = (slots) => set({ slots, stored: slots.map((s) => (s ? { type: s.type, id: s.id, conditions: s.conditions } : null)) });
@@ -719,7 +720,7 @@ const cases = {
         if (!M.cm.METRICS.some((m) => m.id === 'self_hp_pct')) return s.id + ': the condition the card names is not in the registry';
       } else if (d.kind === 'blessed') {
         /* free at the Level the card asks it (the Thicket's floor, under the free limit) and in town */
-        if (!town(s) || !(M.blessings.BLESSING_RULES.freeUntilLevel > H.meadowbrook_thicket.band[0])) return s.id + ': Blessings are not free in town when the card asks';
+        if (!town(s) || !(M.blessings.BLESSING.freeUntilLevel > H.meadowbrook_thicket.band[0])) return s.id + ': Blessings are not free in town when the card asks';
       } else if (d.kind === 'pull') {
         if (can.inHunt !== M.grounds.HUNT_GROUNDS[d.ground].hunt) return s.id + ': not hunting ' + d.ground;
         const pk = M.grounds.HUNT_GROUNDS[d.ground].pockets[d.pocket];
@@ -1022,7 +1023,7 @@ const cases = {
     const steps = walkChain(M, T);
     const said = (id) => (steps.find((s) => s.id === id) || {}).card;
     const bless = said('bless');
-    if (!bless || bless.text !== 'Shop → Services → Bless all three') return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
+    if (!bless || bless.text !== 'Shop → Services → Bless') return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
     if (!tam || tam.textIn !== 'Pick heavy armor, then Take Gray Wolves' || tam.text !== 'Open Tamsin\'s tally → Take 200 Gray Wolves') return 'Tamsin\'s card reads ' + JSON.stringify(tam && [tam.text, tam.textIn]);
     /* a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
@@ -1130,11 +1131,11 @@ const cases = {
     /* a death, through the real envelope (death_log + blessings, the death popup's own numbers) */
     const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
     const tsb = await imp('src/session/tutorial-sections.js');
-    const tiers = (held, L) => M.blessings.BLESSING_TIERS.map((t) => ({ tier: t.tier, permille: t.xpLossReductionPermille, price: M.blessings.blessingPrice(t.tier, L), held }));
+    const tiers = (held, L) => [{ tier: 1, permille: M.blessings.BLESSING.cutPm, price: M.wage.blessingPrice(L), held }];
     const deathEnv = (L, saved, held) => ({ state: { level_xp: M.xp.charXpForLevel(L) }, level: srvLevel(M, M.xp.charXpForLevel(L)), name: 'Corliss',
       hunt: { session_id: 's', hunt_id: 'mosslight_glade', ended: true, session: { end_reason: 'died' }, hero: {}, pose: { units: [] } },
       death_log: [{ id: 1, at: '2026-10-25T00:30:00Z', hunt: 'mosslight_glade', monster: 'rook_the_poacher', xp: 0, xp_lost: { level: 10 }, saved }],
-      blessings: { held: [], permille: 0, free_until: M.blessings.BLESSING_RULES.freeUntilLevel, tiers: tiers(held, L) } });
+      blessings: { held: [], permille: 0, free_until: M.blessings.BLESSING.freeUntilLevel, tiers: tiers(held, L) } });
     const died = (e, sh) => { const c = tsb.pointerCardOf({ read: (k) => e[k], slot: 0 }, sh); return c || {}; };
     /* a return, through the real envelope: the open hunt's session against the shell's `back` */
     const hungry = { state: { level_xp: M.xp.charXpForLevel(6) }, level: srvLevel(M, M.xp.charXpForLevel(6)), hunt: { session_id: 's-b', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
@@ -1156,7 +1157,7 @@ const cases = {
     if (died(towerFall).id === 'first_death') return 'a free Tower fall put up the death card';
     /* Level 31, past the guide: the paid Blessings card, the server's prices */
     const paid = died(deathEnv(31, null, false), { read: [] });
-    const total = M.blessings.BLESSING_TIERS.reduce((n, t) => n + M.blessings.blessingPrice(t.tier, 31), 0);
+    const total = M.wage.blessingPrice(31);
     if (paid.id !== 'bless_paid' || paid.text !== 'Shop → Services → Bless' || !(total > 0)) return 'at Level 31 the Blessing card reads ' + JSON.stringify(paid.text) + ' (' + paid.id + ')';
     /* the day-one cards wait for the chain: Level 9, a task held, in town: Tamsin's card, not the house */
     const homeNext = { owned: false, next: { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'normal_log', qty: 30 }, { id: 'copper_ore', qty: 20 }] } };

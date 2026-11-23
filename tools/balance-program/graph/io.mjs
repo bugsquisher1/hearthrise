@@ -160,7 +160,7 @@ export const FORMULA_IO = Object.freeze({
   'E33': f(['src/core/bench-tax.js#feeMgOf,taxFor,dueNext,canPayNext,payCraft,craftsCovered'], [['+sale.price', 'the cut is a share of what the output sells for']], ['sink.bench']),
   'E34': f(['src/data/gold-ladders.js#bankRungPrice'], [], ['sink.bank']),
   'E36': f(['src/data/gold-sinks.js#SINK_RULES'], [['+hero.level', 'a priced-by-Level sink reads base + perLevel x Level']], ['sink.town']),
-  'E37': f(['src/data/blessings.js#blessingPrice'], [['+hero.level', 'the Level arrives as the argument']], ['blessing.price', ['blessing.cut', 'the three tiers\' cuts are rows of the same file']]),
+  'E37': f(['src/core/wage.js#blessingPrice'], [['+hero.level', 'the Level arrives as the argument']], ['blessing.price', ['blessing.cut', 'the one Blessing\'s cut is a field of the same row (src/data/blessings.js BLESSING)']]),
   'E38': f(['src/data/temper.js#TEMPER_TIERS,TEMPER_MATERIALS,TEMPER_TIER_RUNG_PM'], [], ['sink.temper', ['temper.rungs', 'a rung is what the gold buys']]),
   'E39': f(['src/data/shops.js#HERO_SLOTS'], [], ['sink.slots']),
   'E40': f(NO_HOME, [], [['sink.other', 'the Hallmark fee by jewel tier']], { note: 'SQL only: supabase/migrations/2027-03-14-jewelry-hallmark.sql' }),

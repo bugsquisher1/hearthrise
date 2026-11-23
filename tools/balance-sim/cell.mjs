@@ -16,8 +16,9 @@
 //   'reenter'  (the default, kept for the legacy tables and guards that read it): a death ends the hunt and the next segment is
 //              a NEW hunt on a new seed at the cell's Level, so a hero that dies stands up again; its deaths are deaths a hunted hour.
 // Either way the party's hours book only the time hunted (a hunt that ended in its first seconds books those seconds).
-// `blessings` (0 to 3, src/data/blessings.js): each death's Level XP loss is cut by the held tiers' share and the tiers are
-// bought again (a death uses them up): `xpLostLevelBlessed` and `blessingGold` beside the raw loss.
+// `blessings` (0, or any count above it for the ONE Blessing, src/data/blessings.js BLESSING; lane/level-costs 2026-11-22): each
+// death's Level XP loss is cut by the Blessing's share and the Blessing is bought again at the hero's Level (src/core/wage.js
+// blessingPrice; a death uses it up): `xpLostLevelBlessed` and `blessingGold` beside the raw loss.
 //
 // HP between settles: the engine emits every blow and every heal (food, spells), but not regeneration. Inside a
 // window the tracked HP is the window-start HP (the settle's own `delta.hp`) minus blows plus heals plus a constant
@@ -73,6 +74,7 @@ export async function loadCellRunner(root) {
   const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
   const SB = await import(u('src/data/supply-basics.js'));
   const BL = await import(u('src/data/blessings.js'));
+  const WG = await import(u('src/core/wage.js') + v);
   const BUFF = await import(u('src/core/buffs.js') + v);
   /* THE SUSTAIN COUNTERS (Balance Lab phase 2): the played tree's own tally, asked for its sustain block (src/core/hunt/tally.js header). A
      tree from before the counters (baseline.mjs --materialize of an older commit) has none: its heroes carry `sustain: null` */
@@ -267,10 +269,10 @@ export async function loadCellRunner(root) {
     if (cell.deathRule !== undefined && !['real', 'reenter'].includes(cell.deathRule)) throw new Error('balance-sim: no death rule ' + cell.deathRule);
     /* Blessings held at each hunt's start (bought again after a death uses them up): the cut on a death's Level XP loss, and their price */
     const blessings = Number.isInteger(cell.blessings) ? cell.blessings : 0;
-    if (blessings < 0 || blessings > BL.BLESSING_CUT_PERMILLE.length) throw new Error('balance-sim: blessings is 0 to ' + BL.BLESSING_CUT_PERMILLE.length);
-    /* `blessedShare` (the ladder of the sitting's S-5: past the third Blessing each further one halves what a blessed death takes) overrides the table's */
-    const blessedShare = Number.isFinite(cell.blessedShare) ? cell.blessedShare : 1 - (blessings ? BL.BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
-    const blessingsPrice = (L) => { let g = 0; for (let t = 1; t <= blessings; t++) g += BL.blessingPrice(t, L) || 0; return g; };
+    if (blessings < 0) throw new Error('balance-sim: blessings is 0 or more (any count above 0 holds the one Blessing)');
+    /* `blessedShare` (a what-if: what a blessed death leaves) overrides the Blessing's own cut */
+    const blessedShare = Number.isFinite(cell.blessedShare) ? cell.blessedShare : 1 - (blessings ? BL.BLESSING.cutPm : 0) / 1000;
+    const blessingsPrice = (L) => (blessings ? WG.blessingPrice(L) : 0);
     const engineBuffs = (cell.buffs || []).filter((b) => b.type !== 'level_xp');
     const levelXpPm = Math.round(10 * (cell.buffs || []).filter((b) => b.type === 'level_xp').reduce((a, b) => a + (Number(b.magnitude) || 0), 0));
     for (let seed = 0; seed < cell.seeds; seed++) {

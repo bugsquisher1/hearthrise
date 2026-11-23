@@ -752,6 +752,7 @@
   "player_scaled_hours",
   "player_skills",
   "player_state",
+  "player_talent_resets",
   "player_titles",
   "player_training_gear",
   "player_workers",
@@ -1158,16 +1159,6 @@
    "class": "seeded",
    "replay": 134,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
-  },
-  "hr_blessing_rule": {
-   "class": "seeded",
-   "replay": 1,
-   "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql from src/data/blessings.js): the free-below level. Rebuilt from repo, never restored."
-  },
-  "hr_blessing_tiers": {
-   "class": "seeded",
-   "replay": 3,
-   "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql from src/data/blessings.js): the three tiers (protection, price). The same three rows; the protection reads 250 / 500 / 750 permille since 2027-03-25-death-share-alpha-catalogue.generated.sql (Tyler 2026-11-10; 320 / 630 / 950 before), so the count does not move. Rebuilt from repo, never restored."
   },
   "hr_boss_calls": {
    "class": "seeded",
@@ -1851,6 +1842,11 @@
    "class": "operational",
    "note": "1047-hourly-journal.sql: the hourly journal fold's one row: from_at (rows written before it keep their detail), the hour and hero it has reached, and running counts. Server-only, RLS on, no grant. Lost, hr_ledger_hours_fold recreates it at the restore's hour: the hours between keep their detail rows (more rows, never less value) until the 90-day prune. No player value: the hour rows themselves are player_ledger rows."
   },
+  "hr_level_costs": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1063-level-costs-catalogue.generated.sql, tools/gen-level-costs.mjs from src/data/hunt-sessions.js DEATH_HOURS, src/data/blessings.js BLESSING and src/data/talent-reset.js TALENT_RESET): the one row of per-hero costs by Level (a death's hours, the Blessing's cut, price and free Level, the reset's price, growth and cap). Empty, the death bound and the Blessing and reset prices answer null: the settle refuses a death catalogue_missing and no Blessing or reset can be bought, no gold moves. Rebuilt from repo, never restored."
+  },
   "hr_level_curve": {
    "class": "seeded",
    "replay": 16,
@@ -2477,7 +2473,7 @@
   "player_blessings": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER VALUE (2026-10-25-blessings.sql) — held blessing tiers, bought with gold (paid column), used up by a death. Losing a row loses gold a player spent; restoring it without the ledger is safe (a tier is held once)."
+   "note": "PLAYER VALUE (2026-10-25-blessings.sql; 1063-level-costs.sql: ONE Blessing a hero, tier always 1) - the held Blessing, bought with gold (paid column), used up by a death. Losing a row loses gold a player spent; restoring it without the ledger is safe (one Blessing is held once)."
   },
   "player_boss_loot_day": {
    "class": "restore_only",
@@ -2558,6 +2554,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — gold, gems, hearth_tokens, hp, the activity pointer, accrued_to, version. 35 rows / 376 kB. THE row every write locks. Since the cutover this table has no second copy anywhere in the world: there is no client blob to fall back on, by design (server-authority.md §2a-iv)."
+  },
+  "player_talent_resets": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE (1063-level-costs.sql, lane/level-costs) - a hero's lifetime count of Talent resets: its first reset is free once ever, so a lost row hands a hero a second free reset (a few hours of wage at most). Written only by hr_talent_reset (DARK until Talents exist, so empty today). Restoring it without the ledger is safe (a count, never gold)."
   },
   "player_titles": {
    "class": "restore_only",

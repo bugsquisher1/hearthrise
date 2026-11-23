@@ -13,17 +13,17 @@ const MIG = 'supabase/migrations/';
 export const GEAR_ECONOMY = [
   /* ── 15. EQUIPMENT STATS AND PROGRESSION ───────────────────────────────────────────────────────────────────────────────────── */
   L('gear.material-tiers', 'equipment', 'archetype', 'Gear tiers: their Levels and value', {
-    at: [at(GEAR, 'export const MATERIAL_TIERS')],
+    at: [at(GEAR, 'export const MATERIAL_TIERS'), at(GEAR, 'export const ARMOUR_SLOTS'), at(GEAR, "  { key: 'plate', vmul: 1.00, icon"), at(GEAR, "  { key: 'leather', vmul: 0.70, icon"), at(GEAR, "  { key: 'cloth', vmul: 0.70, icon")],
     def: 'seven tiers worn from Levels 1, 15, 30, 45, 60, 75, 88 (smith and craft levels the same), each with a value multiplier',
     range: 'Levels rising; no tier 8. Gear is worn by Level (P35, SQL hr_item_requirement_unmet)',
     touches: 'when an upgrade arrives, book values (sale gold)', out: [...KILL, ...SURVIVE], f: ['P16', 'P35', 'C-GEAR-WEAPON', 'C-GEAR-ARMOR'],
     perturb: P('the kits pick the Level\'s tier (grid-kit.mjs)', 'gearBandStep'),
     flags: [flag('ineffective', 'The ladder ends at tier 7 (Level 88); past Level 110 kill speed falls on today\'s gear', '44 Levels table (88, 111, 300), MEASURED there')],
     ev: 'CONFIRMED (read)' }),
-  L('gear.armor-table', 'equipment', 'content', 'Armor points by slot and tier', {
-    at: [at(GEAR, 'export const ARMOUR_SLOTS')],
-    def: 'a hand table per slot (plate): helm 3..44, platebody 6..90, platelegs 4..64, boots and belt 2..30, gauntlets 1..23, times the line\'s defMul',
-    range: 'rising by tier',
+  L('gear.armor-table', 'equipment', 'global', 'Gear stat budget: the curves and the slot split', {
+    at: [at('src/data/gear-profiles.js', 'export const GEAR_CURVES'), at('src/data/gear-profiles.js', 'export const GEAR_SLOT_PM'), at('src/data/gear-profiles.js', 'export const GEAR_EVEN_SHARE_PM')],
+    def: 'a whole kit\'s offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder\'s hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); on a Danger-scale ground every piece is read at the ground\'s base item Level',
+    range: 'coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels',
     touches: 'damage taken by gear state', out: SURVIVE, f: ['C-GEAR-ARMOR'],
     perturb: P('the kits read the table'),
     flags: [flag('ineffective', 'A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap', '12-balance-pass item 6, MEASURED')],

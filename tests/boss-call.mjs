@@ -542,9 +542,9 @@ const MUTANTS = [
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
   { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace('ch: .00141', 'ch: .5')]], want: /BC-ROW/ },
   /* A CALL-ONLY PIECE IS NEVER A COPY, AND IS ITS TIER'S SIZE (coherence pass 2026-11-15 C1, C2; lane/d-coherence-fixes, re-landed by lane/a-honesty-rescue) */
-  { name: 'Kingstooth back to the Iron Sword\'s numbers', edits: [['src/data/boss-calls.js', "weaponType: 'sword', atkB: 8, strB: 5,", "weaponType: 'sword', atkB: 7, strB: 6,"]], want: /BC-ROW/ },
-  { name: 'the Cauldron Lid back to the Coppercap Shield\'s guard', edits: [['src/data/boss-calls.js', "offhand: 'shield', defB: 6,", "offhand: 'shield', defB: 7,"]], want: /BC-ROW/ },
-  { name: 'the Cauldron Lid cuts every hit at tier 3', edits: [['src/data/boss-calls.js', "offhand: 'shield', defB: 6,", "offhand: 'shield', defB: 6, steadyPm: 50,"]], want: /BC-ROW/ },
+  { name: 'Kingstooth back to the Iron Sword\'s numbers', edits: [['src/data/gear-stats.generated.js', '"kingstooth": f({ atkB: 8, strB: 5 }),', '"kingstooth": f({ atkB: 8, strB: 7 }),']], want: /BC-ROW/ },
+  { name: 'the Cauldron Lid back to the Coppercap Shield\'s guard', edits: [['src/data/gear-stats.generated.js', '"cauldron_lid": f({ defB: 6 }),', '"cauldron_lid": f({ defB: 7 }),']], want: /BC-ROW/ },
+  { name: 'the Cauldron Lid cuts every hit at tier 3', edits: [['src/data/boss-calls.js', "offhand: 'shield', statPlus: { defB: 2 },", "offhand: 'shield', statPlus: { defB: 2 }, steadyPm: 50,"]], want: /BC-ROW/ },
   { name: 'Kingstooth\'s bane past its tier\'s size', edits: [['src/data/boss-calls.js', "class: 'vermin', mult: 1.1 }", "class: 'vermin', mult: 1.2 }"]], want: /BC-ROW/ },
   { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' }],"]], want: /BC-ROW/ },
   { name: 'a loss that pays: his table rolled on a hero\'s death', edits: [['src/core/hunt-rewards.js', DOOR_DEATH, DOOR_DEATH.replace('      const k = unitOf(ev.u);\n', '      ' + PAY_HERE + '\n      const k = unitOf(ev.u);\n')]], want: /BC-DEATH|BC-WAVE|BC-RECORD/ },

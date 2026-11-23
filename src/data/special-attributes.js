@@ -13,8 +13,10 @@
 // (DESIGN_STANDARDS §9: sample, play, then expand). The only src/ file that imports this one is a shipped row's home pack
 // (tests/special-attributes.mjs SA1). Its other readers are the measuring tool (tools/balance-sim/special-table.mjs).
 //
-// PURE ESM. Data only. Imports nothing.
+// PURE ESM. Data only. Imports only src/data/gear-profiles.js (each row's derived stats).
 // ============================================================================
+
+import { withGearStats } from './gear-profiles.js';
 
 /** The gear tiers a special piece exists at. Tier 1 has none: a Rare drop takes 10 to 20 hours and tier 1 is outgrown in about 5. */
 export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);
@@ -83,23 +85,23 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
    catalogue-coherence files it under. `text` is the item card's description (once shipped, lore only: the card's stat
    lines say what it does, tests/special-attributes.mjs SA7). `shipped: true`: the row is a real item, read from here by
    its home pack. ── */
-export const SPECIAL_SAMPLE = Object.freeze({
+const SAMPLE = {
   krells_tollgate: Object.freeze({
-    row: Object.freeze({ n: 'Krell\'s Tollgate', icon: '🛡️', v: 43200, type: 'offhand', slot: 'shield', offhand: 'shield', defB: 15,
+    row: Object.freeze({ n: 'Krell\'s Tollgate', icon: '🛡️', v: 43200, type: 'offhand', slot: 'shield', offhand: 'shield',
       resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
     base: null, attr: Object.freeze(['resist_element', 'ember']),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
     text: 'Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it.',
   }),
   banded_legguards: Object.freeze({
-    row: Object.freeze({ n: 'Banded Legguards', icon: '🛡️', v: 79200, type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32,
+    row: Object.freeze({ n: 'Banded Legguards', icon: '🛡️', v: 79200, type: 'armor', slot: 'pants', armourClass: 'plate',
       resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_physical', 'physical']),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
     text: 'Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
   }),
   mudlarks_mitts: Object.freeze({
-    row: Object.freeze({ n: 'Mudlark\'s Mitts', icon: '🎽', v: 735, type: 'armor', slot: 'gloves', defB: 4, armourClass: 'leather', rangeAtkB: 4, critB: 0.016, magicAtkB: -1,
+    row: Object.freeze({ n: 'Mudlark\'s Mitts', icon: '🎽', v: 735, type: 'armor', slot: 'gloves', armourClass: 'leather',
       rangedPlus: 2, tier: 4, rarity: 'epic', reqSkill: 'level', reqLv: 45 }),
     base: 'snakeskin_gloves', attr: Object.freeze(['skill', 'ranged']),
     source: Object.freeze({ monster: 'mudlark', ground: 'the_slake', how: 'rare' }), use: 'worn',
@@ -107,7 +109,7 @@ export const SPECIAL_SAMPLE = Object.freeze({
   }),
   /* The wave-3 sword, re-fitted to tier 2 (the id and the name stay; its old row in wave3-uniques.js is untouched until the sample is approved). */
   widows_fang: Object.freeze({
-    row: Object.freeze({ n: 'Widow\'s Fang', icon: '🗡️', v: 200, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 7, strB: 6, critB: 0.06,
+    row: Object.freeze({ n: 'Widow\'s Fang', icon: '🗡️', v: 200, type: 'weapon', slot: 'weapon', weaponType: 'sword', statPlus: Object.freeze({ critB: 0.06 }),
       tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15 }),
     base: 'iron_sword', attr: Object.freeze(['crit', null]),
     source: Object.freeze({ monster: 'cistern_spider', ground: 'millrace_sewer', how: 'rare' }), use: 'worn',
@@ -116,10 +118,15 @@ export const SPECIAL_SAMPLE = Object.freeze({
   /* The wave-3 staff, re-fitted to the tier-6 staff's numbers (the id and the name stay; its old row is untouched, as above). */
   demoncaller_staff: Object.freeze({
     row: Object.freeze({ n: 'Demoncaller', icon: '🪄', v: 13000, type: 'weapon', slot: 'weapon', weaponType: 'magic', discipline: 'restoration', twoHanded: true,
-      magicAtkB: 28, magicStrB: 38, bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
+      bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
       tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75 }),
     base: 'runewood_staff', attr: Object.freeze(['bane', 'undead']),
     source: Object.freeze({ monster: 'provost', ground: 'pyre_field', how: 'rare' }), use: 'worn',
     text: 'It hits the Undead 10% harder. The Provosts carried these to call the burned back up. The soldiers they called had another name for them.',
   }),
-});
+};
+/* THE SAMPLE AS IT SHIPS: each row's base stats DERIVED (src/data/gear-profiles.js; tools/gen-gear-catalogue.mjs writes them under
+   'special:<id>', since a hidden row's id can be a live item's too): a row with a `base` is that standard piece at its item Level (the
+   attribute on top), one without sits on its ladder by its stated `statPlus`. */
+export const SPECIAL_SAMPLE = Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>
+  [id, Object.freeze({ ...s, row: withGearStats({ [id]: s.row }, 'special:')[id] })])));

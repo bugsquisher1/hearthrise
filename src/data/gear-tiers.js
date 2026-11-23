@@ -3,9 +3,16 @@
 //
 // One table drives every piece of tiered gear in Hearthrise. Hand-authoring
 // ~70 armour/weapon entries guarantees drift (a missing tier, a stat that
-// doesn't follow the curve). Instead the material ladder and the per-slot stat
-// curves live here as data, and the items are GENERATED from them. (The recipe
-// half was deleted with crafted gear in the 2026-10-14 demolition.)
+// doesn't follow the curve). Instead the material ladder lives here as data,
+// and the items are GENERATED from it. (The recipe half was deleted with
+// crafted gear in the 2026-10-14 demolition.)
+//
+// THE STATS ARE THE ONE FORMULA'S (lane/gear-catalogue-steps, 2026-11-22): a
+// piece's base stats are derived from its slot, its item Level and its family
+// or weight (src/data/gear-profiles.js, src/core/gear-stats.js), written by
+// tools/gen-gear-catalogue.mjs and read back through withGearStats. No row or
+// table here types a stat: a new tier is one MATERIAL_TIERS row, a new family
+// one WEAPON_FAMILIES row and its profile.
 //
 // Design rules this encodes:
 //   • Seven material tiers spanning levels 1 → 88, so a player is never more
@@ -16,9 +23,8 @@
 //   • The top two tiers are original to Hearthrise: EMBERFORGED and DAWNSTEEL
 //     — the game's own name read as a promise (hearth → ember, rise → dawn).
 //
-// Hand-authored entries in items.js intentionally WIN over anything
-// generated here (they're spread first), so historical ids keep their exact
-// stats and values and old saves stay valid.
+// Hand-authored entries in items.js keep their own names and values over the
+// generated twin; their stats are the twin's (the formula's).
 // ============================================================
 
 /* ── GEAR IS WORN BY LEVEL (Tyler 2026-10-24: "I think all gear should just be hero level"; then "Supplies/runes
@@ -31,6 +37,8 @@
    server reads the same row (hr_items.req_skill = 'level', hr_apply through hr_item_requirement_unmet, the hero's
    Level from player_state.level_xp), so the screen and the refusal agree. */
 export const LEVEL_REQ = 'level';
+
+import { withGearStats } from './gear-profiles.js';
 
 /* ── The material ladder ───────────────────────────────────────────────
    level  = the hero LEVEL the tier's gear is worn at (Tyler 2026-10-24; the designer's ladder 1/15/30/45/60/75/88)
@@ -55,29 +63,28 @@ export const MATERIAL_TIERS = [
 ];
 
 /* ── Armour slots ─────────────────────────────────────────────────────
-   def   = defence bonus per tier (index 0 = tier 1). These curves were fitted
-           to the values the original hand-made pieces already used, so
-           iron_helm(5) / steel_helm(10) / iron_platebody(12) / steel_platebody(22)
-           sit exactly on the line the generated pieces continue.
+   Each slot's armor is its share of the formula's defense budget (src/data/gear-profiles.js: the slot's
+   GEAR_STEPS.slotPm, the line's profile, the tier's item Level); the hand table that stood here is gone.
    bars  = bars consumed; lvOff = levels above the tier gate it unlocks       */
 export const ARMOUR_SLOTS = [
-  { key: 'helm',      slot: 'helmet', label: 'Helm',      def: [3, 5, 10, 16, 24, 33, 44],  bars: 2, vmul: 120, lvOff: 5 },
-  { key: 'platebody', slot: 'body',   label: 'Platebody', def: [6, 12, 22, 34, 50, 68, 90], bars: 5, vmul: 300, lvOff: 10 },
-  { key: 'platelegs', slot: 'pants',  label: 'Platelegs', def: [4, 8, 15, 24, 35, 48, 64],  bars: 4, vmul: 220, lvOff: 8 },
-  { key: 'boots',     slot: 'boots',  label: 'Boots',     def: [2, 4, 7, 11, 16, 22, 30],   bars: 2, vmul: 80,  lvOff: 2 },
-  { key: 'gauntlets', slot: 'gloves', label: 'Gauntlets', def: [1, 3, 5, 8, 12, 17, 23],    bars: 1, vmul: 70,  lvOff: 1 },
-  { key: 'belt',      slot: 'belt',   label: 'Belt',      def: [2, 4, 7, 11, 16, 22, 30],   bars: 1, vmul: 80,  lvOff: 3 },
+  { key: 'helm',      slot: 'helmet', label: 'Helm',      bars: 2, vmul: 120, lvOff: 5 },
+  { key: 'platebody', slot: 'body',   label: 'Platebody', bars: 5, vmul: 300, lvOff: 10 },
+  { key: 'platelegs', slot: 'pants',  label: 'Platelegs', bars: 4, vmul: 220, lvOff: 8 },
+  { key: 'boots',     slot: 'boots',  label: 'Boots',     bars: 2, vmul: 80,  lvOff: 2 },
+  { key: 'gauntlets', slot: 'gloves', label: 'Gauntlets', bars: 1, vmul: 70,  lvOff: 1 },
+  { key: 'belt',      slot: 'belt',   label: 'Belt',      bars: 1, vmul: 80,  lvOff: 3 },
 ];
 
 /* ── Weapon families ──────────────────────────────────────────────────
    Every style climbs the same seven rungs so no build stalls. Swords are the
    balanced baseline; warhammers trade accuracy for raw damage; bows and
    staves are crafted from wood and carry their style's attack/strength.
+   A family's accuracy and damage are its profile's (src/data/gear-profiles.js GEAR_PROFILES, keyed as
+   src/core/gear-stats.js profileKeyOf reads the row: weaponType, hands, discipline), never a number here.
    `names` lets a family keep its established early-game names.              */
 export const WEAPON_FAMILIES = [
   {
     key: 'sword', label: 'Sword', weaponType: 'sword', skill: 'smithing', mat: 'bar',
-    atk: [4, 7, 12, 18, 25, 33, 42], str: [3, 6, 10, 15, 20, 27, 35],
     vmul: 100, lvOff: 5, bars: 2, planks: 1,
     names: ['Bronze Sword', 'Iron Sword', 'Steel Sword', 'Mithril Sword', 'Rune Sword', 'Emberforged Sword', 'Dawnsteel Sword'],
     ids:   ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword', 'rune_sword', 'ember_sword', 'dawn_sword'],
@@ -86,8 +93,6 @@ export const WEAPON_FAMILIES = [
      rung above it is too (designer 2026-10-22, the style ladder): no shield beside a crusher. */
   {
     key: 'warhammer', label: 'Warhammer', weaponType: 'hammer', skill: 'smithing', mat: 'bar', twoHanded: true,
-    /* tiers 2 and 3 pay the ruling's +5-8% (balance 10-25 §8; first-week-bands weapon-rungs): the box-sweepers kill with Turning Cut, so a rung reaches them through its basic blows alone */
-    atk: [3, 7, 9, 14, 19, 25, 32], str: [7, 16, 23, 28, 39, 52, 68],
     vmul: 110, lvOff: 8, bars: 3, planks: 2,
     names: ['Stone Maul', 'Iron Warhammer', 'Steel Warhammer', 'Mithril Warhammer', 'Rune Warhammer', 'Emberforged Warhammer', 'Dawnsteel Warhammer'],
     ids:   ['stone_maul', 'iron_warhammer', 'steel_warhammer', 'mithril_warhammer', 'rune_warhammer', 'ember_warhammer', 'dawn_warhammer'],
@@ -95,7 +100,6 @@ export const WEAPON_FAMILIES = [
   {
     /* A BOW FILLS BOTH HANDS (Tyler 2026-10-23, SHIELDS: a bow can't carry a shield; a crossbow and a shield can). */
     key: 'bow', label: 'Bow', weaponType: 'ranged', skill: 'crafting', mat: 'plank', twoHanded: true,
-    atk: [5, 9, 14, 20, 27, 35, 45], str: [3, 6, 10, 15, 21, 28, 36],
     vmul: 105, lvOff: 5, planks: 3, thread: 2,
     names: ['Shortbow', 'Longbow', 'Willow Longbow', 'Maple Bow', 'Yew Bow', 'Runewood Bow', 'Duskwood Bow'],
     ids:   ['shortbow', 'longbow', 'willow_longbow', 'maple_bow', 'yew_bow', 'runewood_bow', 'duskwood_bow'],
@@ -107,7 +111,6 @@ export const WEAPON_FAMILIES = [
   {
     key: 'staff', label: 'Staff', weaponType: 'magic', skill: 'crafting', mat: 'plank',
     discipline: 'restoration', twoHanded: true,
-    atk: [3, 6, 10, 15, 21, 28, 36], str: [5, 9, 14, 21, 29, 38, 49],
     vmul: 100, lvOff: 6, planks: 2, essence: 1,
     names: ['Apprentice Staff', 'Oak Staff', 'Willow Staff', 'Maple Staff', 'Yew Staff', 'Runewood Staff', 'Duskwood Staff'],
     ids:   ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff', 'yew_staff', 'runewood_staff', 'duskwood_staff'],
@@ -119,7 +122,6 @@ export const WEAPON_FAMILIES = [
   {
     key: 'wand', label: 'Wand', weaponType: 'magic', skill: 'crafting', mat: 'plank',
     discipline: 'destruction',
-    atk: [4, 7, 12, 18, 25, 33, 42], str: [4, 8, 13, 19, 27, 35, 45],
     vmul: 90, lvOff: 6, planks: 1, essence: 1,
     names: ['Apprentice Wand', 'Oak Wand', 'Willow Wand', 'Maple Wand', 'Yew Wand', 'Runewood Wand', 'Duskwood Wand'],
     ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand', 'duskwood_wand'],
@@ -132,13 +134,6 @@ export const WEAPON_FAMILIES = [
      bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
   {
     key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
-    /* tiers 2 to 4 as the warhammer's note above; the pair stays about even. Steel is 14/16 (was 14/14, lane/d-spell-tuning; 14/15 lands the
-       same biggest hit as 14/14): its rung over Iron read +5.3 to +5.5% Level XP an hour at the Warrens against a +5% bar, so any change to
-       the fight's dice turned it red (+4.2 to +4.5% with the monsters' spells); two points of strength read +7.4% on the same dice.
-       Tier 4 is 19/21 (was 18/16, lane/b-phase0-tier4): at 18/16 the made Mithril pair paid +2.7% over the Steel at Level 45 in the Warrens
-       (first-week-bands weapon-rungs, the bar is +5%). MERGED 2026-11-10 (lane/b-area-set): the two lanes moved tier 4's strength apart
-       (18 to stay above the new Steel, 21 for its own rung); 21 holds both reasons, and weapon-rungs judges the pair on these numbers. */
-    atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],
     vmul: 100,
     /* tiers 5 to 7 (designer 2026-11-13, lane/d-barrow-data): Rares on the Barrow March beside the other weapons of their tier
        (the Barrow Knights at 5, the Pyre Field's Provost at 6, Krell's hall prize at 7) */
@@ -147,7 +142,6 @@ export const WEAPON_FAMILIES = [
   },
   {
     key: 'crossbow', label: 'Crossbow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',   // wood-named, as the bow line is
-    atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],
     vmul: 100,
     /* tiers 5 to 7 as the hatchets' (Captain Hask at 5, beside his Yew Bow) */
     names: [null, 'Oak Crossbow', 'Willow Crossbow', 'Maple Crossbow', 'Yew Crossbow', 'Runewood Crossbow', 'Duskwood Crossbow'],
@@ -156,11 +150,10 @@ export const WEAPON_FAMILIES = [
 ];
 
 /* ── The off-hand SPELLBOOK (Tyler 2026-10-19: Mage = wand + spellbook). Worn in the
-   `shield` slot (src/data/gathering.js EQUIP_SLOTS, labelled Offhand). Fixed stats
-   (gear ruling): Magic accuracy and damage, a little defence. Worn by Level like every
+   `shield` slot (src/data/gathering.js EQUIP_SLOTS, labelled Offhand). Its stats are the
+   spellbook profile's (src/data/gear-profiles.js): Magic accuracy and damage, a little defence. Worn by Level like every
    piece of gear (LEVEL_REQ, Tyler 2026-10-24). Six tiers, the same rungs as the wand. */
 export const SPELLBOOKS = Object.freeze({
-  magicAtk: [1, 2, 4, 6, 8, 11, 14], magicStr: [2, 3, 5, 8, 11, 15, 19], def: [1, 2, 3, 5, 7, 9, 12],
   vmul: 80,
   names: ['Apprentice Primer', 'Oakboard Spellbook', 'Willowleaf Spellbook', 'Maplebound Spellbook', 'Yewclasp Spellbook', 'Runewood Codex', 'Duskwood Codex'],
   ids:   ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex', 'duskwood_codex'],
@@ -196,60 +189,53 @@ const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
        crit; a mild magic penalty.
      • CLOTH (robes, magic): the least defence, but the only armour that boosts
        magic accuracy AND magic damage; poor for melee/ranged.
-   The whole triangle is DATA: getPlayerCombatRolls already sums the active style's
+   The whole triangle is DATA (each line's profile in src/data/gear-profiles.js): the rolls sum the active style's
    accuracy field (atkB / rangeAtkB / magicAtkB) and damage field across every
    equipped item, so an item carrying a negative magicAtkB literally lowers a
    mage's hit rate. No combat-code change. Plate keeps its exact ids (save-safe);
    the penalty fields are added to it. */
 const ARMOUR_LINES = [
-  { key: 'plate', vmul: 1.00, defMul: 1.00, icon: '🛡️',
+  { key: 'plate', vmul: 1.00, icon: '🛡️',
     id: (mat, slot) => mat.id + '_' + slot.key,          // UNCHANGED existing ids
-    name: (mat, slot) => mat.name + ' ' + slot.label,
-    fields: (def, i) => ({ rangeAtkB: -Math.round(def * 0.25), magicAtkB: -Math.round(def * 0.5) }) },
-  { key: 'leather', vmul: 0.70, defMul: 0.55, icon: '🎽', craftMat: 'plank',
+    name: (mat, slot) => mat.name + ' ' + slot.label },
+  { key: 'leather', vmul: 0.70, icon: '🎽', craftMat: 'plank',
     tierNames: ['Leather', 'Studded Leather', 'Boarhide', 'Snakeskin', 'Wyvernhide', 'Dragonhide', 'Dawnhide'],
     tierIds:   ['leather', 'studded', 'boarhide', 'snakeskin', 'wyvernhide', 'dragonhide', 'dawnhide'],
     slotLabels: { helmet: 'Hood', body: 'Body', pants: 'Chaps', boots: 'Boots', gloves: 'Bracers', belt: 'Belt' },
     id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
-    name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
-    fields: (def, i) => ({ rangeAtkB: Math.round(def * 0.5), critB: 0.004 * (i + 1), magicAtkB: -Math.round(def * 0.15) }) },
+    name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot] },
   /* `craftMat: 'plank'` since b497 — it said `'cloth'` for the line's whole
      life, naming a tiered material this game has never had. Nothing reads the
      field, which is exactly why the lie survived: it described the intent, and
      the recipe generator below silently shipped an UNTIERED cloth cost instead.
      It now names what the recipe actually consumes. */
-  { key: 'cloth', vmul: 0.70, defMul: 0.30, icon: '🧥', craftMat: 'plank',
+  { key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',
     tierNames: ['Apprentice', 'Adept', 'Scholar', 'Warlock', 'Sorcerer', 'Archmage', 'Duskweave'],
     tierIds:   ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage', 'duskweave'],
     slotLabels: { helmet: 'Hat', body: 'Robe Top', pants: 'Robe Bottom', boots: 'Slippers', gloves: 'Gloves', belt: 'Sash' },
     id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
     name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
-    /* CLOTH'S DAMAGE IS A PREMIUM, NOT THE HIT (designer 2026-11-15, lane/d-mage-110; the board's "2026-11-15 The Mage at 110 and
-       up"): each piece adds 1 Magic damage plus a tenth of its plate twin's defence. It was 0.4 of that defence, which climbs
-       faster than any weapon: a tier-7 set added 113 to the Duskwood wand and codex's 64, so the Mage's basic blow hit 1.8 times
-       a warhammer's from Level 50 up and a lone Mage earned 1.4-1.8 times the pace on every ground from the Slake to the Pauper
-       Vaults. Now a set adds 7 / 9 / 14 / 16 / 22 / 27 / 33 by tier (tier 1 unchanged), the Mage's blow is 1.19-1.28 times the
-       warhammer's at each tier's Level (tests/style-gear.mjs SG-8), and a level of Magic is worth what a level of Melee is.
-       Cloth still carries damage (ruling 2 above); making it count for every weapon is still the open engine piece. */
-    fields: (def, i) => ({ magicAtkB: Math.round(def * 0.6), magicStrB: Math.round(def * 0.1) + 1, atkB: -Math.round(def * 0.25), rangeAtkB: -Math.round(def * 0.2) }) },
+    /* CLOTH'S DAMAGE IS A PREMIUM, NOT THE HIT (designer 2026-11-15, lane/d-mage-110): a set's Magic damage stays a small share of
+       its armor (the cloth profile's magicStrB, src/data/gear-profiles.js), so the Mage's blow sits near the warhammer's at each tier's
+       Level (tests/style-gear.mjs SG-8) and a level of Magic is worth what a level of Melee is. Cloth still carries damage (ruling 2
+       above); making it count for every weapon is still the open engine piece. */ },
 ];
 
 // ── Generate the gear items ──────────────────────────────────────────
 export const GEAR_ITEMS = (() => {
   const out = {};
+  /* every row's base stats are the formula's (withGearStats below, src/data/gear-stats.generated.js) */
 
   // Armour — every archetype × every slot × every tier (the combat triangle).
   ARMOUR_LINES.forEach((line) => {
     ARMOUR_SLOTS.forEach((slotDef) => {
       MATERIAL_TIERS.forEach((mat, i) => {
-        const def = Math.max(1, Math.round(slotDef.def[i] * line.defMul));
         const item = {
           n: line.name(mat, slotDef, line, i),
           icon: line.icon,
           v: round5(slotDef.vmul * mat.value * line.vmul),
           type: 'armor',
           slot: slotDef.slot,
-          defB: def,
           armourClass: line.key,          // heavy / leather / cloth — read by UI + item flyout
           rarity: mat.rarity,
           tier: mat.tier,
@@ -257,9 +243,6 @@ export const GEAR_ITEMS = (() => {
           reqSkill: LEVEL_REQ,
           reqLv: mat.level,
         };
-        // Fold in the archetype's per-style accuracy/damage fields (the triangle).
-        const f = line.fields(slotDef.def[i], i);
-        Object.keys(f).forEach((k) => { if (f[k]) item[k] = f[k]; });
         out[line.id(mat, slotDef, line, i)] = item;
       });
     });
@@ -277,19 +260,13 @@ export const GEAR_ITEMS = (() => {
         slot: 'weapon',
         weaponType: fam.weaponType,
         /* A weapon carries ITS OWN style's accuracy and damage, the fields the combat engine rolls it on (src/core/member.js
-           deriveProfile): every melee kind the Melee pair here, a bow or crossbow the Ranged pair and a wand or staff the Magic
-           pair below. Only those: the post-140 audit's C6 found every bow, crossbow, wand and staff also carrying a Melee pair
-           that copied its own numbers, which combat never read but the item card showed as "Melee accuracy/damage" and the
-           doll ranked on. tests/style-gear.mjs SG-9 holds it. */
-        ...(fam.weaponType === 'ranged' || fam.weaponType === 'magic' ? {} : { atkB: fam.atk[i], strB: fam.str[i] }),
+           deriveProfile): its family's profile names only those (src/data/gear-profiles.js; tests/style-gear.mjs SG-9). */
         rarity: mat.rarity,
         tier: mat.tier,
         /* Worn by the hero's Level at the tier's level, whatever the style (LEVEL_REQ, Tyler 2026-10-24). */
         reqSkill: LEVEL_REQ,
         reqLv: mat.level,
       };
-      if (fam.weaponType === 'ranged') { item.rangeAtkB = fam.atk[i]; item.rangeStrB = fam.str[i]; }
-      if (fam.weaponType === 'magic')  { item.magicAtkB = fam.atk[i]; item.magicStrB = fam.str[i]; }
       if (fam.discipline) item.discipline = fam.discipline;
       if (fam.twoHanded) item.twoHanded = true;
       out[fam.ids[i]] = item;
@@ -302,12 +279,11 @@ export const GEAR_ITEMS = (() => {
     out[id] = {
       n: SPELLBOOKS.names[i], icon: '📕', v: round5(SPELLBOOKS.vmul * mat.value),
       type: 'offhand', slot: 'shield', offhand: 'spellbook', discipline: 'destruction',
-      magicAtkB: SPELLBOOKS.magicAtk[i], magicStrB: SPELLBOOKS.magicStr[i], defB: SPELLBOOKS.def[i],
       rarity: mat.rarity, tier: mat.tier, reqSkill: LEVEL_REQ, reqLv: mat.level,
     };
   });
 
-  return out;
+  return withGearStats(out);
 })();
 
 /* THE LADDERS, tier by tier (the loot bands, 2026-10-23): each armour line x slot, each weapon family and the

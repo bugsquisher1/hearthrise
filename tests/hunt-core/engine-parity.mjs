@@ -127,7 +127,11 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-22 (lane/bar-metrics), A UNIT'S lastMove ONLY: a hero carries the last ability it cast per lane (abilities.js PERSISTED,
    the bar's last_move test), so the stored world, the timeline's unit book and the run's member summary moved. Compared against the base
    tree with lastMove stripped (warrens-4, sewer-2): every settle's events, track, unit book and member share, and the run's totals, are
-   byte-identical; kills 207 / 486 / 139 / 104 held. */
+   byte-identical; kills 207 / 486 / 139 / 104 held.
+   RE-PINNED 2026-11-22 (lane/gear-catalogue-steps), DATA ONLY: glade-4 moved at its last settle (kills 479 as pinned); warrens-4, glade-1-kite and
+   sewer-2 hold. Cause: every piece's stats are now the one gear formula's (src/data/gear-profiles.js, src/core/gear-stats.js), so the four's
+   ladder pieces under Dawnsteel moved a point or two (the per-tier hand tables are gone). Proof: src/data/gear-stats.generated.js written back
+   with the OLD catalogue's stats for every id, over this tree's src/core and hr-accrue (the scale view included): every pin holds (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

@@ -337,7 +337,7 @@ const mutants = [
   { name: '[spell-content] a dropped staff plays the Mage again', case: 'every-magic-weapon-has-a-discipline',
     edits: [['src/data/wave3-uniques.js', "weaponType:'magic',discipline:'restoration',twoHanded:true,", "weaponType:'magic',twoHanded:true,"]] },
   { name: '[spell-content] the Codex heals', case: 'every-magic-weapon-has-a-discipline',
-    edits: [['src/data/items.js', "weaponType:'magic', discipline:'destruction', magicAtkB:18,", "weaponType:'magic', discipline:'restoration', magicAtkB:18,"]] },
+    edits: [['src/data/items.js', "weaponType:'magic', discipline:'destruction', statPlus: { magicAtkB: -1, critB: 0.04 },", "weaponType:'magic', discipline:'restoration', statPlus: { magicAtkB: -1, critB: 0.04 },"]] },
   { name: 'the tank plants wherever the pull leaves him (before 2026-10-25)', case: 'tank-plants-on-open-ground',
     edits: [[R, '  if (plantOpen(inst, h, onMe, near, zone)) return;\n', '']] },
   { name: 'the room counts the slots, not the way round to them', case: 'tank-plants-on-open-ground',

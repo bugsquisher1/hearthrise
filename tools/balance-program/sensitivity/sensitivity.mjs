@@ -287,8 +287,8 @@ async function selftest() {
     const dbl = (j) => JSON.stringify(JSON.parse(j, (_k, v) => (typeof v === 'number' ? v * 2 : v)));
     const s2 = await plantScratch(pointPatch(ROOT, { spellPower: 2, healPower: 2, shieldPower: 2, weaponDamage: 2, weaponAccuracy: 2, armorValue: 2, runePrice: 2, regroup: 2 }).patch);
     try {
-      const checks = [['src/data/abilities.js', 'ABILITIES', ['hitPm', 'healPm', 'healHpPm', 'shieldPm'], 20], ['src/data/gear-tiers.js', 'WEAPON_FAMILIES', ['atk', 'str'], 10],
-        ['src/data/gear-tiers.js', 'ARMOUR_SLOTS', ['def'], 6], ['src/data/supply-basics.js', 'BASIC_AMMO_PREMIUM', null, 1], ['src/data/hunt-tuning.js', 'HUNT_TUNING', ['regroupMs'], 1]];
+      const checks = [['src/data/abilities.js', 'ABILITIES', ['hitPm', 'healPm', 'healHpPm', 'shieldPm'], 20], ['src/data/gear-profiles.js', 'GEAR_PROFILES', ['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB'], 10],
+        ['src/data/gear-profiles.js', 'GEAR_CURVES', ['defense'], 1], ['src/data/supply-basics.js', 'BASIC_AMMO_PREMIUM', null, 1], ['src/data/hunt-tuning.js', 'HUNT_TUNING', ['regroupMs'], 1]];
       for (const [file, name, keys, least] of checks) {
         const a = (await imp(ROOT, file))[name], b = (await imp(s2.root, file))[name];
         const va = keys ? under(a, keys) : [JSON.stringify(a)], vb = keys ? under(b, keys) : [JSON.stringify(b)];

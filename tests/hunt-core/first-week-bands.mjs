@@ -323,9 +323,12 @@ const mutants = [
     edits: GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2').replace(/aim: \d+/, 'aim: 20')]) },
   { name: 'armor reads the hero\'s Level again: a swing ten Levels under lands no harder than at the floor', case: 'risk-ladder',
     edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, isMonster(source) ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
-  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
-  { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
-  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },
+  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"leather_boots": f({ defB: 1,', '"leather_boots": f({ defB: 2,']] },
+  { name: 'Studded leather is thin as cloth: its rung stops being worth finding', case: 'armor-rungs', edits: [
+    ['src/data/gear-stats.generated.js', '"studded_body": f({ defB: 7,', '"studded_body": f({ defB: 3,'], ['src/data/gear-stats.generated.js', '"studded_pants": f({ defB: 5,', '"studded_pants": f({ defB: 2,'],
+    ['src/data/gear-stats.generated.js', '"studded_helmet": f({ defB: 3,', '"studded_helmet": f({ defB: 2,'], ['src/data/gear-stats.generated.js', '"studded_belt": f({ defB: 2,', '"studded_belt": f({ defB: 1,'],
+    ['src/data/gear-stats.generated.js', '"studded_boots": f({ defB: 2,', '"studded_boots": f({ defB: 1,'], ['src/data/gear-stats.generated.js', '"studded_gloves": f({ defB: 2,', '"studded_gloves": f({ defB: 1,']] },
+  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"iron_platebody": f({ defB: 12,', '"iron_platebody": f({ defB: 6,']] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
@@ -337,13 +340,13 @@ const mutants = [
   /* (at 7/10 the Iron rung paid over +5% once every cast became a share of the blow, lane/c-spell-rule: the weaker rung the guard must catch is 7/8, a point of
      strength over the Bronze 3/7, which pays under +5% on any rule) */
   { name: 'the Iron Warhammer at 7/8: its upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:8},"]] },
-  { name: 'the Steel Warhammer is cut to 9/18: over the Iron it pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 18, 28, 39, 52, 68],']] },
+    edits: [['src/data/gear-stats.generated.js', '"iron_warhammer": f({ atkB: 6, strB: 13 }),', '"iron_warhammer": f({ atkB: 6, strB: 8 }),']] },
+  { name: 'the Steel Warhammer is cut to 10/14: over the Iron it pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-stats.generated.js', '"steel_warhammer": f({ atkB: 10, strB: 21 }),', '"steel_warhammer": f({ atkB: 10, strB: 14 }),']] },
   /* (was the 7/7 hatchets: on the to-hit ratio, 2026-11-20, a weapon's accuracy no longer sits on a ceiling, so 7/7 over 4/4 pays its +5%; a rung
      that is the tier below's numbers is the defect the case exists for) */
   { name: 'the Iron Hatchets are the Bronze ones again (4/4): their upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 4, 14, 19, 25, 33, 42], str: [4, 4, 16, 21, 22, 29, 38],']] },
+    edits: [['src/data/gear-stats.generated.js', '"iron_hatchets": f({ atkB: 8, strB: 7 }),', '"iron_hatchets": f({ atkB: 4, strB: 4 }),']] },
   /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
   { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },

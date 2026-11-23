@@ -40,6 +40,8 @@ const KNOB_PLAN = Object.freeze({
 });
 
 /* the number-picking helpers of a family: (line) -> [{ index, value }] of the numbers the family scales on that line */
+/* a weapon profile's line in src/data/gear-profiles.js (its numbers are permille of the offense budget; the formula sizes every tier) */
+const WEAPON_PROFILE = (l) => /^\s*(sword|warhammer|hatchets|fists|bow|crossbow|staff|wand|spellbook): Object\.freeze\(\{ curve: 'offense'/.test(l);
 const after = (re) => (line) => [...line.matchAll(re)].map((m) => ({ index: m.index + m[0].length - m[1].length, value: m[1] }));
 const listAfter = (re) => (line) => {
   const m = re.exec(line);
@@ -78,12 +80,12 @@ export const FAMILIES = Object.freeze([
   { id: 'drinkPrice', group: 'Supplies', label: 'Store reference restore', what: 'HP and mana a reference hero restores from the store an hour (src/data/store-kit.js refRestore): a meal or drink\'s derived price goes as its inverse',
     file: 'src/data/store-kit.js', lines: (l) => /^\s*refRestore: \d+,/.test(l), pick: after(/refRestore: (\d+)/g), min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
   /* THE SECOND PASS: gear tables, the rune price, what gear sells for, the wait between pulls and the Blessings' cut */
-  { id: 'weaponDamage', group: 'Equipment', label: 'Weapon damage by tier', what: 'The damage bonus of every weapon family at every tier (src/data/gear-tiers.js str rows). The gear term of a blow, apart from skill',
-    file: 'src/data/gear-tiers.js', lines: (l) => /^\s*atk: \[[\d, ]+\], str: \[/.test(l), pick: listAfter(/\bstr: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
-  { id: 'weaponAccuracy', group: 'Equipment', label: 'Weapon accuracy by tier', what: 'The accuracy bonus of every weapon family at every tier (src/data/gear-tiers.js atk rows). How often a blow lands',
-    file: 'src/data/gear-tiers.js', lines: (l) => /^\s*atk: \[[\d, ]+\], str: \[/.test(l), pick: listAfter(/\batk: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
-  { id: 'armorValue', group: 'Equipment', label: 'Armor points by slot and tier', what: 'The armor points of every slot at every tier (src/data/gear-tiers.js ARMOUR_SLOTS def rows). What the mitigation curve is fed',
-    file: 'src/data/gear-tiers.js', lines: (l) => /^\s*\{ key: '\w+',\s+slot: '\w+',.*\bdef: \[/.test(l), pick: listAfter(/\bdef: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['takenPerH'] },
+  { id: 'weaponDamage', group: 'Equipment', label: 'Weapon damage by tier', what: 'The damage bonus of every weapon family (src/data/gear-profiles.js: each weapon profile\'s damage, every tier through the gear formula). The gear term of a blow, apart from skill',
+    file: 'src/data/gear-profiles.js', lines: WEAPON_PROFILE, pick: after(/\b(?:strB|rangeStrB|magicStrB): (\d+)/g), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
+  { id: 'weaponAccuracy', group: 'Equipment', label: 'Weapon accuracy by tier', what: 'The accuracy bonus of every weapon family (src/data/gear-profiles.js: each weapon profile\'s accuracy, every tier through the gear formula). How often a blow lands',
+    file: 'src/data/gear-profiles.js', lines: WEAPON_PROFILE, pick: after(/\b(?:atkB|rangeAtkB|magicAtkB): (\d+)/g), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
+  { id: 'armorValue', group: 'Equipment', label: 'Armor points by slot and tier', what: 'The armor points of every slot at every tier (src/data/gear-profiles.js GEAR_CURVES defense: the whole kit\'s armor budget the formula splits by slot and weight). What the mitigation curve is fed',
+    file: 'src/data/gear-profiles.js', lines: (l) => /^\s*defense: Object\.freeze\(\{ c0: /.test(l), pick: after(/\bc\d: ([\d.]+)/g), float: true, steps: WIDE, intends: ['takenPerH'] },
   { id: 'runePrice', group: 'Supplies', label: 'Store charge floor', what: 'A store shot or cast costs at least this x its crafted partner\'s book (src/data/supply-basics.js BASIC_AMMO_PREMIUM): the floor that sets the derived rune and arrow prices at the reference',
     file: 'src/data/supply-basics.js', lines: (l) => /^export const BASIC_AMMO_PREMIUM = [\d.]+;/.test(l), pick: after(/BASIC_AMMO_PREMIUM = ([\d.]+)(?=;)/g), float: true, steps: WIDE, intends: ['storePerH', 'netPerH'] },
   { id: 'gearSaleRate', group: 'Rewards', label: 'What dropped gear sells for', what: 'The share of book value a dropped piece sells for, by tier (src/data/loot-bands.js VENDOR_GEAR_RATES). Gold in from loot',

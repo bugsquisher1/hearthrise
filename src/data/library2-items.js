@@ -56,6 +56,7 @@
 // ============================================================
 
 import { MAX_BANE_MULT } from './core-model.js';
+import { withGearStats } from './gear-profiles.js';
 
 /* The generator's own value expression, so a hand-authored rung and a generated
    one can never price differently. Kept local rather than exported from
@@ -81,13 +82,13 @@ const BANE_GEAR = {
   // ITEM-NEW-02 · hammer T4 · vs Undead. Warhammer T4 curve (14/28) × 0.85.
   lazlos_maul: {
     n: "Lazlo's Maul", icon: '🔨', v: priced(110, 4), type: 'weapon', slot: 'weapon',
-    weaponType: 'hammer', atkB: 12, strB: 24, tier: 4, rarity: 'epic',
+    weaponType: 'hammer', statPlus: { atkB: 2, strB: 2 }, tier: 4, rarity: 'epic',
     reqSkill: 'level', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
     n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
-    weaponType: 'ranged', twoHanded: true, rangeAtkB: 30, rangeStrB: 24,
+    weaponType: 'ranged', twoHanded: true, statPlus: { rangeAtkB: -7, rangeStrB: -5 },
     tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
     bane: BANE('dragon'), effects: ['bane'],
   },
@@ -95,7 +96,7 @@ const BANE_GEAR = {
   // early on purpose: T2 is where the bane grammar is taught.
   bramble_blade: {
     n: 'Bramble Blade', icon: '⚔️', v: priced(100, 2), type: 'weapon', slot: 'weapon',
-    weaponType: 'sword', atkB: 6, strB: 5, tier: 2, rarity: 'uncommon',
+    weaponType: 'sword', statPlus: { atkB: -2, strB: -2 }, tier: 2, rarity: 'uncommon',
     reqSkill: 'level', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
   },
   // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Staff T5 curve (21/29) × 0.85.
@@ -105,7 +106,7 @@ const BANE_GEAR = {
   // nothing else. Flagged in the change contract.
   void_censer: {
     n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
-    weaponType: 'magic', magicAtkB: 18, magicStrB: 25,
+    weaponType: 'magic', statPlus: { magicAtkB: 2, magicStrB: 3 },
     tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
     /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
     discipline: 'restoration',
@@ -114,7 +115,7 @@ const BANE_GEAR = {
   // ITEM-NEW-07 · hammer T3 · vs Vermin. Warhammer T3 curve (9/19) × 0.85.
   rat_stick: {
     n: 'Rat Stick', icon: '🔨', v: priced(110, 3), type: 'weapon', slot: 'weapon',
-    weaponType: 'hammer', atkB: 8, strB: 16, tier: 3, rarity: 'rare',
+    weaponType: 'hammer', statPlus: { atkB: 1, strB: 1 }, tier: 3, rarity: 'rare',
     reqSkill: 'level', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
   },
 };
@@ -135,19 +136,18 @@ const BANE_GEAR = {
    together would be a trap.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Leather T4 (defMul 0.55, vmul 0.70) — the exact generated numbers. */
-const chitin = (slot, base, def, vmul) => ({
+/* Leather T4: the Snakeskin piece of its slot, to the number (`statsAs`: tools/gen-gear-catalogue.mjs gives it that row's derived
+   stats, src/data/gear-profiles.js, lane/gear-catalogue-steps). */
+const chitin = (slot, vmul) => ({
   n: 'Chitin ' + slot.label, icon: '🪲', v: priced(vmul, 4, 0.70), type: 'armor',
-  slot: slot.slot, defB: def, armourClass: 'leather', rarity: 'epic', tier: 4,
-  reqSkill: 'level', reqLv: 45,
-  rangeAtkB: Math.round(base * 0.5), critB: 0.016, magicAtkB: -Math.round(base * 0.15),
+  slot: slot.slot, armourClass: 'leather', rarity: 'epic', tier: 4,
+  reqSkill: 'level', reqLv: 45, statsAs: 'snakeskin_' + slot.slot,
 });
-/* Plate T5 (defMul 1.00, vmul 1.00). */
-const watch = (slot, base, vmul) => ({
+/* Plate T5: the Rune piece of its slot, to the number (`statsAs`, as above). */
+const watch = (slot, vmul) => ({
   n: 'Watchknight ' + slot.label, icon: '🛡️', v: priced(vmul, 5), type: 'armor',
-  slot: slot.slot, defB: base, armourClass: 'plate', rarity: 'legendary', tier: 5,
-  reqSkill: 'level', reqLv: 60,
-  rangeAtkB: -Math.round(base * 0.25), magicAtkB: -Math.round(base * 0.5),
+  slot: slot.slot, armourClass: 'plate', rarity: 'legendary', tier: 5,
+  reqSkill: 'level', reqLv: 60, statsAs: 'rune_' + slot.key,
   /* The review book's set identity is "damage taken WHILE AWAY reduced". That
      needs src/core/away.js AWAY_SCOPE and is not built, so it is declared and
      dormant. The pieces still ship PLAYABLE because they are honest plate at
@@ -158,9 +158,9 @@ const watch = (slot, base, vmul) => ({
 });
 
 const SL = {
-  helmet: { slot: 'helmet', label: 'Helm' }, body: { slot: 'body', label: 'Cuirass' },
-  pants: { slot: 'pants', label: 'Leg Plates' }, boots: { slot: 'boots', label: 'Boots' },
-  gloves: { slot: 'gloves', label: 'Gauntlets' }, belt: { slot: 'belt', label: 'Belt' },
+  helmet: { slot: 'helmet', key: 'helm', label: 'Helm' }, body: { slot: 'body', key: 'platebody', label: 'Cuirass' },
+  pants: { slot: 'pants', key: 'platelegs', label: 'Leg Plates' }, boots: { slot: 'boots', key: 'boots', label: 'Boots' },
+  gloves: { slot: 'gloves', key: 'gauntlets', label: 'Gauntlets' }, belt: { slot: 'belt', key: 'belt', label: 'Belt' },
 };
 const SLC = {
   helmet: { slot: 'helmet', label: 'Hood' }, body: { slot: 'body', label: 'Body' },
@@ -170,20 +170,20 @@ const SLC = {
 
 const ARMOUR_SETS = {
   // ITEM-NEW-32 · Chitin Weave (6) — leather T4 from Vermin chitin, not pelts.
-  chitin_helmet: chitin(SLC.helmet, 16, 9, 120),
-  chitin_body:   chitin(SLC.body, 34, 19, 300),
-  chitin_pants:  chitin(SLC.pants, 24, 13, 220),
-  chitin_boots:  chitin(SLC.boots, 11, 6, 80),
-  chitin_gloves: chitin(SLC.gloves, 8, 4, 70),
-  chitin_belt:   chitin(SLC.belt, 11, 6, 80),
+  chitin_helmet: chitin(SLC.helmet, 120),
+  chitin_body:   chitin(SLC.body, 300),
+  chitin_pants:  chitin(SLC.pants, 220),
+  chitin_boots:  chitin(SLC.boots, 80),
+  chitin_gloves: chitin(SLC.gloves, 70),
+  chitin_belt:   chitin(SLC.belt, 80),
 
   // ITEM-NEW-33 · Watchknight Shell (6) — plate T5, forged from Deathsteel.
-  watchknight_helmet: watch(SL.helmet, 24, 120),
-  watchknight_body:   watch(SL.body, 50, 300),
-  watchknight_pants:  watch(SL.pants, 35, 220),
-  watchknight_boots:  watch(SL.boots, 16, 80),
-  watchknight_gloves: watch(SL.gloves, 12, 70),
-  watchknight_belt:   watch(SL.belt, 16, 80),
+  watchknight_helmet: watch(SL.helmet, 120),
+  watchknight_body:   watch(SL.body, 300),
+  watchknight_pants:  watch(SL.pants, 220),
+  watchknight_boots:  watch(SL.boots, 80),
+  watchknight_gloves: watch(SL.gloves, 70),
+  watchknight_belt:   watch(SL.belt, 80),
 
   /* ITEM-NEW-34 · Quiet Coat — cloth T6 body, the generated block exactly
      (def 68 × 0.30 = 20; magicAtkB 41, magicStrB 27, atkB −17, rangeAtkB −14).
@@ -199,9 +199,9 @@ const ARMOUR_SETS = {
      Designer/Coordinator: this is the one card to re-read at integration. */
   quiet_coat: {
     n: 'Quiet Coat', icon: '🧥', v: priced(300, 6, 0.70), type: 'armor', slot: 'body',
-    defB: 20, armourClass: 'cloth', rarity: 'legendary', tier: 6,
+    statPlus: { defB: -1, atkB: 1, magicAtkB: -1, magicStrB: 19 }, armourClass: 'cloth', rarity: 'legendary', tier: 6,
     reqSkill: 'level', reqLv: 75,
-    magicAtkB: 41, magicStrB: 27, atkB: -17, rangeAtkB: -14,
+    
     awayEffect: 'first_strike_deny',
   },
 
@@ -278,9 +278,9 @@ const SUPPLY_CHAINS = Object.fromEntries([
      no use; the wipe made removing them free. */
 ]);
 
-export const LIB2_ITEMS = {
+export const LIB2_ITEMS = withGearStats({
   ...BANE_GEAR, ...ARMOUR_SETS, ...SUPPLY_CHAINS,
-};
+});
 
 /* ══════════════════════════════════════════════════════════════════════════
    6 · FLAVOUR. One line per item, medieval voice, original IP.

@@ -24,6 +24,7 @@
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
+import { wagePrice } from '../data/wage.js';
 
 /* Plot tier → crop unlock set. Lv 1 is the starting state; the price of each
    tier above it is PLOT_TIER_PRICES below. */
@@ -56,24 +57,27 @@ export const MAX_PLOT_LEVEL = PLOT_TIERS.length - 1; // 5
    payment until it left the catalogue with every source it had, 2026-10-23;
    the server stopped taking it with lane/c-dead-plot-deed, 2026-11-07.)
 
-   `farming` is the farming level required; `gold` the price.
+   `farming` is the farming level required; `gold` the price, DERIVED: `hoursPm` milli-hours of wage at step 1
+   (src/data/wage.js wagePrice; lane/prices-wage-hours 2026-11-23, 27-formula-overhaul.md T-5: the land is the account's and
+   has no step of its own, so it reads the base wage). The hours re-state the 2026-11-22 gold to two figures.
    tools/gen-farm-catalogues.mjs generates hr_plot_tier from this table, and
    tests/plot-tier-parity.mjs holds it equal to the server catalogue, so the
    client can never quote a price the server does not charge.
 
    TARGET CURVE for a player who farms nightly:
-     tier 2  farming  5 +    500g — first evening (≈4 turnip harvests)
-     tier 3  farming 25 +  5,000g — days 3–5
-     tier 4  farming 45 + 25,000g — week 2–3
-     tier 5  farming 70 + 100,000g — the long tail toward 99
+     tier 2  farming  5 +    505g — first evening (≈4 turnip harvests)
+     tier 3  farming 25 +  5,044g — days 3–5
+     tier 4  farming 45 + 24,569g — week 2–3
+     tier 5  farming 70 + 99,569g — the long tail toward 99
    THE SERVER PRICES IT. These numbers are a MIRROR for the UI and the
    pre-flight refusal; hr_farm_upgrade_plot re-reads its own catalogue under a
    row lock and is the only thing that may move plot_level or spend anything. */
+const plotTier = (hoursPm, farming) => Object.freeze({ hoursPm, gold: wagePrice(hoursPm, 1), farming });
 export const PLOT_TIER_PRICES = Object.freeze({
-  2: Object.freeze({ gold: 500,    farming: 5  }),
-  3: Object.freeze({ gold: 5000,   farming: 25 }),
-  4: Object.freeze({ gold: 25000,  farming: 45 }),
-  5: Object.freeze({ gold: 100000, farming: 70 }),
+  2: plotTier(39, 5),
+  3: plotTier(390, 25),
+  4: plotTier(1900, 45),
+  5: plotTier(7700, 70),
 });
 
 /** The price of the NEXT tier, or null at max. Shape mirrors hr_plot_tier. */

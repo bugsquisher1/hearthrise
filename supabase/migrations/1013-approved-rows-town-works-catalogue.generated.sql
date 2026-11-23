@@ -36,7 +36,7 @@ alter table public.hr_town_works drop constraint if exists hr_town_works_per_act
 alter table public.hr_town_works add constraint hr_town_works_per_active_ck check (per_active between 0 and 1000000000);
 
 insert into public.hr_town_works (project_id, map_id, ord, name, min_gift, per_day, per_minute, plaque_top, stage_at, stage_lines, per_active) values
-  ('weighhouse', 'town_common', 1, 'The Weighhouse', 100, 25000, 20, 10, array[0, 25000, 75000, 150000, 250000]::bigint[], array[null, 'has its footings.', 'has its frame.', 'has its walls.', 'is finished.']::text[], 20000)
+  ('weighhouse', 'town_common', 1, 'The Weighhouse', 104, 24569, 20, 10, array[0, 24569, 75000, 150000, 245689]::bigint[], array[null, 'has its footings.', 'has its frame.', 'has its walls.', 'is finished.']::text[], 19397)
 on conflict (project_id) do update set map_id = excluded.map_id, ord = excluded.ord, name = excluded.name, min_gift = excluded.min_gift, per_day = excluded.per_day,
   per_minute = excluded.per_minute, plaque_top = excluded.plaque_top, stage_at = excluded.stage_at, stage_lines = excluded.stage_lines, per_active = excluded.per_active;
 
@@ -47,7 +47,7 @@ begin
   if (select array_agg(w.project_id order by w.project_id) from public.hr_town_works w) is distinct from array['weighhouse']::text[] then
     raise exception 'town-works-catalogue §4: the table holds a project the data file does not'; end if;
   if (select string_agg(w.project_id || ':' || w.per_active || ':' || array_to_string(w.stage_at, '/'), ',' order by w.project_id collate "C") from public.hr_town_works w)
-       is distinct from 'weighhouse:20000:0/25000/75000/150000/250000' then
+       is distinct from 'weighhouse:19397:0/24569/75000/150000/245689' then
     raise exception 'town-works-catalogue §4: a project''s goal (per_active, stages) is not the data file''s'; end if;
   select w.project_id into v from public.hr_town_works w
    where exists (select 1 from generate_subscripts(w.stage_at, 1) i where i > 1 and w.stage_at[i] <= w.stage_at[i - 1]) limit 1;

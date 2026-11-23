@@ -36,13 +36,21 @@
 // balance so both halves can read it. It does not author balance. Changing a
 // number here is a Designer call.
 // ════════════════════════════════════════════════════════════════════════
+import { wagePrice } from './wage.js';
 
 /* Currencies + the starting HP. `hp` is NOT a free parameter: a new character is
    Level 1 with nothing worn, so it starts at full health, src/core/vitals.js
    maxHpFor(1, 0) (= VITALS.hpBase). Max HP is never stored: it is derived from
-   Level and armour (CORE_MODEL.md §3). The generator asserts the identity. */
+   Level and armour (CORE_MODEL.md §3). The generator asserts the identity.
+   THE STARTING PURSE IS HOURS OF WAGE AT LEVEL 1 (27-formula-overhaul.md E-11, lane/prices-wage-hours
+   2026-11-23): START_GOLD_HOURS_PM milli-hours of wage(1) (src/data/wage.js wagePrice), never typed, so the
+   wage's levers move it with every price it buys. 39 is the 2026-11-22 500 g to two figures (505 g): the
+   store's first meals and the first seeds, about two of a fresh hero's first thirty minutes of coin on the
+   Mill Cellar (183 g, MEASURED with tools/qa/local-world.mjs, lane/prices-wage-hours). The account's purse
+   gets it once (ACCOUNT_KIT below). */
+export const START_GOLD_HOURS_PM = 39;
 export const START_CURRENCY = Object.freeze({
-  gold: 500,
+  gold: wagePrice(START_GOLD_HOURS_PM, 1),
   gems: 0,
   hp: 150,
   bankCap: 100,

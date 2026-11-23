@@ -30,11 +30,11 @@ comment on table public.hr_sink_rules is
 
 delete from public.hr_sink_rules;
 insert into public.hr_sink_rules (sink_id, scope, offers, prices, free, price_base, price_per_level, per_day, seconds, book_s, gap_s, min_level, max_letters, per_minute) values
-  ('crier', 'account', '{}'::text[], array[1000, 2000, 4000, 8000, 16000]::bigint[], 0, null, null, 5, null, null, 30, 10, 120, 3),
+  ('crier', 'account', '{}'::text[], array[996, 1940, 4009, 8018, 15518]::bigint[], 0, null, null, 5, null, null, 30, 10, 120, 3),
   ('hero_colors', 'hero', '{}'::text[], '{}'::bigint[], 0, 1500, 50, 10, null, null, null, null, null, null),
-  ('house_dummy', 'account', array['melee', 'ranged', 'magic', 'defense']::text[], array[150000, 250000, 400000, 600000]::bigint[], 0, null, null, null, null, null, null, null, null, null),
-  ('powder', 'account', array['cinnabar', 'quicklime', 'borax']::text[], array[2000, 4000, 6000, 8000, 10000]::bigint[], 0, null, null, 5, 30, 300, null, null, null, 10),
-  ('round', 'account', array['round']::text[], array[5000, 10000, 20000]::bigint[], 0, null, null, 3, 45, 180, null, null, null, 10);
+  ('house_dummy', 'account', array['melee', 'ranged', 'magic', 'defense']::text[], array[155172, 245689, 400861, 594826]::bigint[], 0, null, null, null, null, null, null, null, null, null),
+  ('powder', 'account', array['cinnabar', 'quicklime', 'borax']::text[], array[1940, 4009, 5949, 8018, 9957]::bigint[], 0, null, null, 5, 30, 300, null, null, null, 10),
+  ('round', 'account', array['round']::text[], array[5044, 9957, 19397]::bigint[], 0, null, null, 3, 45, 180, null, null, null, 10);
 
 -- §4 SELF-CHECK: the ladders climb, no row sells a setup slot, nothing sold is a named flame, and no client can write or read the table.
 do $$
@@ -47,7 +47,7 @@ begin
     raise exception 'gold-sinks-catalogue §4: a setup slot is for sale, and saving a setup is free'; end if;
   if to_regprocedure('public.hr_setup_slot_buy(integer,bigint,uuid)') is not null then
     raise exception 'gold-sinks-catalogue §4: hr_setup_slot_buy still sells a setup slot (apply 1049-setups-free.sql first)'; end if;
-  if (select prices from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from array[150000, 250000, 400000, 600000]::bigint[]
+  if (select prices from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from array[155172, 245689, 400861, 594826]::bigint[]
      or (select scope from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from 'account'
      or (select offers from public.hr_sink_rules where sink_id = 'house_dummy') is distinct from array['melee', 'ranged', 'magic', 'defense']::text[] then
     raise exception 'gold-sinks-catalogue §4: house_dummy is not the account ladder in src/data/gold-sinks.js'; end if;

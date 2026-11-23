@@ -15,6 +15,7 @@ import { CATACOMB_TEXT } from './catacomb.js';
 import { CHRONICLE_TEXT } from './chronicle.js';
 import { CLAN_TEXT } from './clan.js';
 import { COACH_TEXT } from './coach.js';
+import { COMBAT_TEXT } from './combat.js';
 import { CONTROLS_TEXT } from './controls.js';
 import { CRIERS_TEXT } from './criers.js';
 import { DEATH_TEXT } from './death.js';
@@ -53,6 +54,7 @@ export const TEXT = Object.freeze({
   chronicle: CHRONICLE_TEXT,
   clan: CLAN_TEXT,
   coach: COACH_TEXT,
+  combat: COMBAT_TEXT,
   controls: CONTROLS_TEXT,
   criers: CRIERS_TEXT,
   death: DEATH_TEXT,

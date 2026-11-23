@@ -10,7 +10,7 @@
 --
 --   digest: 4ef83d6279563b380411417315b754aa876795be9c3bec8865e13ded275d0133
 --   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
---   634 vendor values, 49 store supplies paid per use, 5 target modes,
+--   636 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 22-8: Call out costs stamina only, no
@@ -1666,6 +1666,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('chitin_gloves', 55),
   ('chitin_helmet', 94),
   ('chitin_pants', 173),
+  ('chitinweave_cloak', 228),
   ('choirbone', 3800),
   ('cistern_venom_gland', 8),
   ('coal', 2),
@@ -2190,6 +2191,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('wraith_veil', 294),
   ('wraithglass_drops', 112),
   ('wyrm_gilding', 5200),
+  ('wyrmgilt_mantle', 630),
   ('wyvernhide_belt', 58),
   ('wyvernhide_body', 217),
   ('wyvernhide_boots', 58),
@@ -2265,7 +2267,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 634
+     or (select count(*) from public.hr_hunt_vendor_value) <> 636
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

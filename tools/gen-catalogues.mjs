@@ -193,7 +193,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    the grant-source check no longer reads the dropped hr_dungeon_loot / hr_qm_offers. ORDER: after 1032-approved-cuts.sql (the
    column and the two tables are gone first) and after 1028-spell-rule-hunt-sessions-catalogue (the Shop's bids on the four leave there, as in 1012 and 1021). */
 /* THE NAMED PIECES CUT (lane/named-pieces, game designer 2026-11-23; docs/design/redesign/28-named-pieces.md): 1033-approved-cuts-items-catalogue
-   (STAGED) is the file before this one and this one carries it whole. hr_items loses the 31 cut named pieces (sourceless, or dropped only on
+   (STAGED) is the file before this one and this one carries it whole. hr_items loses the 29 cut named pieces (sourceless, or dropped only on
    grounds that never opened; no player can hold one) and two rows are renamed (Spidersilk Cape, Banishing Censer); hr_item_slots loses their
    slot rows. ORDER: after 1033 and every staged file that reads hr_items. */
 const OUT = join(ROOT, 'supabase', 'migrations', '1065-named-pieces-items-catalogue.generated.sql');

@@ -10,7 +10,7 @@
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
 --   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (4 Remains goods by band)
 --   hr_temper_rules (1 row, kit_item null: Temper Kits are owed, a rank is refused kits_owed), hr_temper_slots (13 slots)
---   hr_item_levels (322 gear rows: the iL a scale ground's drop carries, else its Level requirement)
+--   hr_item_levels (324 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
 --   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp; hr_temper_rank_mh, hr_temper_rank_cap,
@@ -265,6 +265,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('chitin_gloves', 40),
   ('chitin_helmet', 40),
   ('chitin_pants', 40),
+  ('chitinweave_cloak', 76),
   ('coalbearers_sword', 88),
   ('coffer_guards_helm', 160),
   ('copper_ring', 1),
@@ -519,6 +520,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('woodwards_hood', 160),
   ('woolen_cloak', 12),
   ('wraithglass_drops', 40),
+  ('wyrmgilt_mantle', 88),
   ('wyvernhide_belt', 60),
   ('wyvernhide_body', 60),
   ('wyvernhide_boots', 60),
@@ -739,7 +741,7 @@ do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
   if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 4
-     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 322
+     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 324
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
   foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels',
@@ -1224,5 +1226,5 @@ begin
     (10, 200, 143095::bigint)) p(st, il, g) loop
     if public.hr_carry_fee(v_r.st, v_r.il) <> v_r.g then raise exception 'VERIFY(q): a carry of % steps onto item Level % costs % in SQL, % in JS', v_r.st, v_r.il, public.hr_carry_fee(v_r.st, v_r.il), v_r.g; end if;
   end loop;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 4 fuels, 13 Temper slots, 322 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 4 fuels, 13 Temper slots, 324 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

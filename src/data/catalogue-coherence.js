@@ -130,7 +130,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    still reachable. SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that
    gains a source or leaves ITEMS, and an id may never be added — a new item
    with no source is a C1 failure, not a candidate for this list.
-   CUT 2026-11-23 (the designer, lane/named-pieces, docs/design/redesign/28-named-pieces.md (d)): 22 of these rows left ITEMS,
+   CUT 2026-11-23 (the designer, lane/named-pieces, docs/design/redesign/28-named-pieces.md (d)): 21 of the rows named there left ITEMS,
    hr_items and this list together (the named pieces whose only mark was a stat bump). */
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
@@ -156,7 +156,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'warboss_standard', 'warden_seal',
   'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants',
-  'willow_rod', 'woolen_cloak', 'wyrm_gilding',
+  'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
   'yew_rod',
   /* The Hearth Token (the IAP bond) and the three boss-forged body pieces left ITEMS with the old dungeons, the
      gem rows and the bond (2026-11-20, plan L10). */
@@ -215,7 +215,7 @@ export const UNREACHABLE = Object.freeze({
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
     'wraithglass_drops', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul',
-    'void_censer', 'barrowking_mantle', 'jarls_rimetorc',
+    'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'chitinweave_cloak',
     /* lucky finds that took the cut pieces' rows (lane/named-pieces 2026-11-23): the Panther's Ruby Signet, Elder Cinder's Dawnlit Mantle, Draconia's Dawnbound Amulet, the Mountain Troll's Rubyfire Studs */
     'ruby_signet', 'dawnlit_mantle', 'dawnbound_amulet', 'rubyfire_studs',
     'keystone',
@@ -247,9 +247,9 @@ export const UNREACHABLE = Object.freeze({
 /* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
    (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
-/* 55 -> 50 (lane/named-pieces, 2026-11-23): nine named pieces cut from `later` and `cut`, and four sourceless pieces took four of their lucky rows (55 -> 50) (28-named-pieces.md). */
+/* 55 -> 51 (lane/named-pieces, 2026-11-23): nine named pieces cut from `later` and `cut`, and four sourceless pieces took four of their lucky rows (55 -> 51; the Chitinweave Cloak stays, a cape rung) (28-named-pieces.md). */
 /* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
-export const UNREACHABLE_CEILING = 50;
+export const UNREACHABLE_CEILING = 51;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 98669eb20a55ba807421055a900eef73366be07b8a16e1b91fa24552538cde20
---   rows: 677 items (27 untradeable) ·
---         387 item-slot pairs · 14 equip slots ·
+--   catalogue digest: d1e0240e8f08f3b0e67c34feb008850a3b2a1a5934d78d81c7a8913c1ef8efe9
+--   rows: 679 items (27 untradeable) ·
+--         389 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
 --         0 runes
 --
@@ -306,6 +306,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('chitin_gloves','Chitin Bracers',true,'armor',735,'level',45,null,false,'medium',false),
   ('chitin_helmet','Chitin Hood',true,'armor',1260,'level',45,null,false,'medium',false),
   ('chitin_pants','Chitin Chaps',true,'armor',2310,'level',45,null,false,'medium',false),
+  ('chitinweave_cloak','Chitinweave Cloak',true,'armor',15200,'level',76,null,false,null,false),
   ('choirbone','Choirbone',true,null,3800,null,null,null,false,null,false),
   ('cistern_venom_gland','Cistern Venom Gland',true,null,40,null,null,null,false,null,false),
   ('coal','Coal',true,null,10,null,null,null,false,null,false),
@@ -862,6 +863,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('wraith_veil','Wraith Veil',true,null,420,null,null,null,false,null,false),
   ('wraithglass_drops','Wraithglass Drops',true,'jewelry',1500,'level',50,null,false,null,false),
   ('wyrm_gilding','Wyrm Gilding',true,null,5200,null,null,null,false,null,false),
+  ('wyrmgilt_mantle','Wyrmgilt Mantle',true,'armor',90000,'level',88,null,false,null,false),
   ('wyvernhide_belt','Wyvernhide Belt',true,'armor',2520,'level',60,null,false,'medium',false),
   ('wyvernhide_body','Wyvernhide Body',true,'armor',9450,'level',60,null,false,'medium',false),
   ('wyvernhide_boots','Wyvernhide Boots',true,'armor',2520,'level',60,null,false,'medium',false),
@@ -956,6 +958,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('chitin_gloves','gloves'),
   ('chitin_helmet','helmet'),
   ('chitin_pants','pants'),
+  ('chitinweave_cloak','cape'),
   ('coalbearers_sword','weapon'),
   ('coarse_whetstone','ammo'),
   ('coffer_guards_helm','helmet'),
@@ -1254,6 +1257,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('woodwards_hood','helmet'),
   ('woolen_cloak','cape'),
   ('wraithglass_drops','earrings'),
+  ('wyrmgilt_mantle','cape'),
   ('wyvernhide_belt','belt'),
   ('wyvernhide_body','body'),
   ('wyvernhide_boots','boots'),
@@ -2226,7 +2230,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '98669eb20a55ba807421055a900eef73366be07b8a16e1b91fa24552538cde20', now())
+  values (true, 'd1e0240e8f08f3b0e67c34feb008850a3b2a1a5934d78d81c7a8913c1ef8efe9', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2254,11 +2258,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 677 then raise exception 'hr_items has % rows, generator emitted 677', v_n; end if;
+  if v_n <> 679 then raise exception 'hr_items has % rows, generator emitted 679', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '8024eb7dabac497482e7cdf55807e651' then
-    raise exception 'hr_items names differ from src/data (expected digest 8024eb7dabac497482e7cdf55807e651)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'db4f68b7ad5f1c040e80b8b5046d567e' then
+    raise exception 'hr_items names differ from src/data (expected digest db4f68b7ad5f1c040e80b8b5046d567e)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2352,8 +2356,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 322 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 322', v_n;
+  if v_n <> 324 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 324', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2462,7 +2466,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 98669eb20a55ba807421055a900eef73366be07b8a16e1b91fa24552538cde20',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d1e0240e8f08f3b0e67c34feb008850a3b2a1a5934d78d81c7a8913c1ef8efe9',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

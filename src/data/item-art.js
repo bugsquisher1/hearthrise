@@ -156,7 +156,7 @@ export const SHIPPED = Object.freeze({
     'banded_signet', 'bat_wing',
     'bear_claw', 'bear_pelt', 'big_bones', 'bone_chips', 'bones',
     'bronze_bar', 'brute_plate', 'captain_medal', 'chalked_earth_rune', 'chalked_fire_rune', 'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune', 'chalked_water_rune',
-    'choirbone', 'coal', 'coarse_whetstone',
+    'chitinweave_cloak', 'choirbone', 'coal', 'coarse_whetstone',
     'copper_ring', 'copper_studs', 'copper_whetstone', 'cracked_spellstone',
     'dark_sigil', 'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet',
     'dawnforged_signet', 'dawnlit_mantle', 'dawnstone_ore', 'death_steel',
@@ -186,7 +186,7 @@ export const SHIPPED = Object.freeze({
     'war_crown', 'warband_bulwark', 'warboss_standard', 'warden_seal',
     'warlord_badge', 'warlords_torc', 'willow_log',
     'willow_plank', 'wolf_pelt', 'wolfbone_torc', 'woolen_cloak', 'wraith_veil',
-    'wraithglass_drops', 'wyrm_gilding', 'yew_log',
+    'wraithglass_drops', 'wyrm_gilding', 'wyrmgilt_mantle', 'yew_log',
     'yew_plank',
   ]),
   weapons: Object.freeze([

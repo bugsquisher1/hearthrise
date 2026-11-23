@@ -503,6 +503,7 @@ export const ITEM_DESC = {
   'wyvernhide_gloves': 'Wyvernhide arm guards, hard as scale but still flexible enough for a fast draw',
   'wyvernhide_helmet': 'A wyvern-scale hood, tougher than any plain leather',
   'wyvernhide_pants': 'Sturdy wyvernhide leggings for a ranger who hunts things that fly',
+  'wyrmgilt_mantle': 'A cape gilded with wyrm gold. It softens every hit you take',
   'yew_bow': 'A yew bow, and bowyers say yew is the best wood there is for a bow',
   'yew_log': 'A yew log with hard, tight grain. Master crafters want it',
   'yew_plank': 'A top-quality yew plank for the best builds',

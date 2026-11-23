@@ -704,7 +704,10 @@ export const ITEMS={
   warden_seal:    {n:"Warden's Seal",   icon:'🔱', v:4400, tier:7},
   wyrm_gilding:   {n:'Wyrm Gilding',    icon:'✨', v:5200, tier:7},
 
-  /* The six tier-8 "Hunt-forged" pieces and the five dungeon boss weapons were CUT (the designer, lane/named-pieces 2026-11-23,
+  /* The cape ladder's tier-8 rung (a cloak's rule is its Steady armor; tests/hunt-core/temper.mjs a-cape-steps-like-armor). */
+  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   steadyPm: 285, rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
+
+  /* The five other tier-8 "Hunt-forged" pieces and the five dungeon boss weapons were CUT (the designer, lane/named-pieces 2026-11-23,
      docs/design/redesign/28-named-pieces.md (d)): their sources are gone and each was its tier's piece plus a stat bump. The dungeon
      trophies and materials below stay where their own fates say (catalogue-coherence.js). */
   // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)

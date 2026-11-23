@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 00d8d10288d7e9161bc7df04a0fc3bdbc57c35842feb81a89fd21becce846850
+--   digest: 1d316960ca5cfb3326cffcc7c5355c4b590b3f8bf0ea6bec9a0368f9b2b0cdf2
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   634 vendor values, 49 store supplies paid per use, 5 target modes,
+--   636 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -865,7 +865,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bear', 95, 485, '{"bear_pelt":1,"bear_claw":1,"big_bones":1,"raw_bear_meat":1}'::jsonb),
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
   ('briarcoat_wolf', 7, 90, '{"wolf_pelt":1,"bones":1,"briar_burr":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1,"bronze_gauntlets":1,"apprentice_gloves":1}'::jsonb),
-  ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1}'::jsonb),
+  ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
   ('brook_bear', 26, 311, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
   ('cairn_wight', 49, 1500, '{"grave_dust":1,"urn_shard":1,"rune_platelegs":1,"wyvernhide_pants":1,"sorcerer_pants":1,"yew_staff":1,"yew_wand":1,"yew_spellbook":1}'::jsonb),
   ('captain_hask', 401, 13319, '{"big_bones":1,"grave_dust":1,"hasks_coin":1,"rune_belt":1,"wyvernhide_belt":1,"sorcerer_belt":1,"yew_bow":1,"yew_crossbow":1}'::jsonb),
@@ -1696,6 +1696,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('chitin_gloves', 55),
   ('chitin_helmet', 94),
   ('chitin_pants', 173),
+  ('chitinweave_cloak', 228),
   ('choirbone', 3800),
   ('cistern_venom_gland', 8),
   ('coal', 2),
@@ -2220,6 +2221,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('wraith_veil', 294),
   ('wraithglass_drops', 112),
   ('wyrm_gilding', 5200),
+  ('wyrmgilt_mantle', 630),
   ('wyvernhide_belt', 58),
   ('wyvernhide_body', 217),
   ('wyvernhide_boots', 58),
@@ -2295,7 +2297,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 634
+     or (select count(*) from public.hr_hunt_vendor_value) <> 636
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

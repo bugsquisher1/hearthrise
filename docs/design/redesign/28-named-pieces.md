@@ -19,7 +19,7 @@ What this does NOT do: invent a home for a piece whose creature is gone. The 46 
 
 ## 2. The rulings, all 96 rows
 
-81 rows typed an offset by hand, plus 15 crafted jewel grades that copied their plain row's. Counts: **(a) 0, (b) 1, (c) 63, (d) 32.** (Second pass the same day: the Trollhide Cape and the Dragonrib Bow had no home at their Level and were cut; two names were changed; every (d) row is now deleted, section 5.)
+81 rows typed an offset by hand, plus 15 crafted jewel grades that copied their plain row's. Counts: **(a) 0, (b) 1, (c) 65, (d) 30.** (Second pass the same day: the Trollhide Cape and the Dragonrib Bow had no home at their Level and were cut; the Chitinweave Cloak and the Wyrmgilt Mantle went back to (c), since they are the cape ladder's tier-6 and tier-8 rungs and a cloak's rule is its Steady armor (tests/hunt-core/temper.mjs holds eight cape tiers); two names were changed; every (d) row is now deleted, section 5.)
 
 "Source today" is `src/data/catalogue-coherence.js`: a reachable door, `greenhaven` or `later` (a source on paper, no open ground), or `none` (AWAITING_ROSTER).
 
@@ -114,7 +114,7 @@ A bane ("10% more to vermin") is a matchup rule: it says which ground a weapon s
 
 ### 2.6 Cut (d)
 
-Each of these was its tier's piece plus a bump, and the creature, dungeon or system that dropped it is gone. Five were the deleted dungeons' boss weapons (2026-10-14). Six were the tier-8 "hunt-forged" kit with a third more armor than Dawnsteel and no plate penalty, which is exactly the flat number the redesign cuts. Two names use filler words (Void, Fallen).
+Each of these was its tier's piece plus a bump, and the creature, dungeon or system that dropped it is gone. Five were the deleted dungeons' boss weapons (2026-10-14). Five were the tier-8 "hunt-forged" kit with a third more armor than Dawnsteel and no plate penalty (its cape stays, a ladder rung), which is exactly the flat number the redesign cuts. Two names use filler words (Void, Fallen).
 
 | # | Row | Name | Slot, item Level | Source today | Ruling | Becomes |
 |---|---|---|---|---|---|---|
@@ -130,7 +130,7 @@ Each of these was its tier's piece plus a bump, and the creature, dungeon or sys
 | 76 | `fangdart_recurve` | Fangdart Recurve | bow, 36 | none | (d) | Cut. Crit for damage |
 | 77 | `alphaheart_longbow` | Alphaheart Longbow | bow, 50 | none | (d) | Cut. Crit |
 | 78 | `nightstalker_pelt` | Nightstalker's Pelt | body, 62 | none | (d) | Cut. Leather that fought like cloth |
-| 79 | `chitinweave_cloak` | Chitinweave Cloak | cape, 76 | later (Broodmother) | (d) | Cut. Crit |
+| 79 | `chitinweave_cloak` | Chitinweave Cloak | cape, 76 | later (Broodmother) | (c) | The cape ladder's tier-6 rung, Steady 220. Its crit is cut (it was (d) in the first pass) |
 | 80 | `gold_ring` | Gold Ring | ring, 30 | none | (d) | Cut. A melee-leaning copy of the Seam Jasper Band |
 | 81 | `gold_amulet` | Gold Amulet | necklace, 30 | none | (d) | Cut. Same |
 | 82 | `captains_ribblade` | Captain's Ribblade | sword, 30 | later (Death Knight) | (d) | Cut. A tier's sword plus 5 / 4 |
@@ -142,7 +142,7 @@ Each of these was its tier's piece plus a bump, and the creature, dungeon or sys
 | 88 | `abyssal_greaves` | Abyssal Leg Plates | legs, 88 | none | (d) | Cut. Tier-8 kit |
 | 89 | `choirbone_gauntlets` | Choirbone Gauntlets | gloves, 88 | none | (d) | Cut. Tier-8 kit |
 | 90 | `warden_girdle` | Warden's Girdle | belt, 88 | none | (d) | Cut. Tier-8 kit |
-| 91 | `wyrmgilt_mantle` | Wyrmgilt Mantle | cape, 88 | none | (d) | Cut. Tier-8 kit |
+| 91 | `wyrmgilt_mantle` | Wyrmgilt Mantle | cape, 88 | none | (c) | The cape ladder's tier-8 rung, Steady 285. Its aim bonus is cut (it was (d) in the first pass) |
 | 92 | `wartusk_cleaver` | Wartusk Cleaver | sword, 35 | none (Grimtusk's dungeon) | (d) | Cut |
 | 93 | `whispering_codex` | Whispering Codex | wand, 45 | none (the Pale Archivist's dungeon) | (d) | Cut |
 | 94 | `ashcrown_greatsword` | Ashcrown Greatsword | sword, 65 | none (the Ashen King's dungeon) | (d) | Cut |
@@ -185,7 +185,7 @@ Verified by `node tools/gen-gear.mjs` (the table above is its output, rounded) a
 
 ## 5. Owed, not done here
 
-- **Done in the second pass (2026-11-23):** the 31 cut ITEMS rows (30 above with the special sample already gone, plus the Trollhide Cape and the Dragonrib Bow) left ITEMS, their monsters' drop rows, descriptions, art lists and the coherence lists, and `hr_items` loses them in the lane's catalogue migration. Nobody can hold one: every one was sourceless or on a ground that never opened. The hearthfind kill-rate guard keeps the four tier-8 pieces it measured with as a test-local kit. Five cut pieces were lucky finds on old-roster creatures (no open ground spawns any of them), and the lucky-find guard holds four a tier, so four sourceless pieces with art and lore took the rows: the Panther's Ruby Signet (it already drops rubies), Elder Cinder's Dawnlit Mantle (it drops Dawnstone), Draconia's Dawnbound Amulet (dragon gem and dawnsteel), and the Mountain Troll's Rubyfire Studs. Two pieces were renamed: Spidersilk Cape and Banishing Censer.
+- **Done in the second pass (2026-11-23):** the 29 cut ITEMS rows (the (d) rows above but the special sample, already gone) left ITEMS, their monsters' drop rows, descriptions, art lists and the coherence lists, and `hr_items` loses them in the lane's catalogue migration. Nobody can hold one: every one was sourceless or on a ground that never opened. The hearthfind kill-rate guard keeps the four tier-8 pieces it measured with as a test-local kit. Five cut pieces were lucky finds on old-roster creatures (no open ground spawns any of them), and the lucky-find guard holds four a tier, so four sourceless pieces with art and lore took the rows: the Panther's Ruby Signet (it already drops rubies), Elder Cinder's Dawnlit Mantle (it drops Dawnstone), Draconia's Dawnbound Amulet (dragon gem and dawnsteel), and the Mountain Troll's Rubyfire Studs. Two pieces were renamed: Spidersilk Cape and Banishing Censer.
 - **Jewel perks** (Keen, Surge, Follow-through, Steady, Focus, `src/data/jewelry.js`) are the other half of phase A item 3. They are chances and shares, not stat offsets, so this lane didn't touch them. They belong with the Trait pool's ring and earring rows.
 - **Homes:** the Barrow King's champion goes onto Muster Barrows for its mantle's Trait to drop.
 - **The staged weapon line past Dawnsteel** (`tools/balance-sim/staged/weapon-line.js`) carries crit and bane uniques built on the special-attribute plan. They hold no offset, so they aren't in this table, but their crit is the same flat number and goes in the same sort.

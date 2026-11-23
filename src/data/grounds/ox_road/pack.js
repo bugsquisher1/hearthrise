@@ -78,7 +78,7 @@ export default definePack({
         /* 0.02 to 0.0163 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the ground's reference group kills Teamsters faster, a Hatchets every 0.65 h a hero, under the Scarce band's 0.75;
            0.0163 to 0.0128 (lane/c-spell-rule, 2026-11-21): every cast a share of the blow, its lone tank kills faster again (0.67 h a hero) */
         { id: 'dawn_hatchets', ch: 0.0128, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00104, band: 'rare' }],
-      hp: 163, atk: 109, aim: 129, evasion: 36, def: 5, xp: 1411, gp: [24, 72], formula: true },
+      hp: 163, atk: 109, aim: 131, evasion: 37, def: 5, xp: 1411, gp: [24, 72], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: one of Gault's living runners, carrying live coals in a tin from one of his fires to the next. He throws one at you, and
@@ -86,7 +86,7 @@ export default definePack({
       spells: ['hot_coal'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'runners_tin', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_wand', ch: 0.0285, band: 'scarce' }, { id: 'duskwood_codex', ch: 0.00256, band: 'rare' }], // the wand 0.026 -> 0.0285 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Runners met: 1.60 h)
-      hp: 157, atk: 144, aim: 178, evasion: 37, def: 5, xp: 1648, gp: [23, 69], formula: true },
+      hp: 157, atk: 144, aim: 180, evasion: 37, def: 5, xp: 1648, gp: [23, 69], formula: true },
     yoke_ox: {
       name: 'Yoke Ox', icon: '🐂', tier: 6, level: 119, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy: a dead ox still in its yoke, dragging a wagon. It puts its head down and runs straight through whoever it's facing and
@@ -95,7 +95,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'ox_shoe', ch: 0.08, band: 'uncommon' },
         /* 0.038 to 0.0326 (lane/c-spell-rule, 2026-11-21): the spell rule's faster lone tank read a Warhammer every 0.73 h a hero, under the band's 0.75 */
         { id: 'dawn_warhammer', ch: 0.0326, band: 'scarce' }, { id: 'duskwood_crossbow', ch: 0.00256, band: 'rare' }],
-      hp: 257, atk: 107, aim: 113, evasion: 55, def: 29, xp: 2499, gp: [38, 113], formula: true },
+      hp: 257, atk: 107, aim: 114, evasion: 56, def: 29, xp: 2499, gp: [38, 113], formula: true },
     drover: {
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: Gault's living man who walks the dead teams up the road. He jabs a fallen one with his goad, says the words, and it gets
@@ -105,7 +105,7 @@ export default definePack({
         /* 0.045 to 0.0416 (lane/c-tohit-ratio, 2026-11-20): a Staff every 0.74 h a hero on the to-hit ratio, under the Scarce band's 0.75;
            0.0416 to 0.0328 (lane/c-spell-rule, 2026-11-21): 0.67 h a hero under the spell rule */
         { id: 'duskwood_staff', ch: 0.0328, band: 'scarce' }],
-      hp: 218, atk: 136, aim: 151, evasion: 41, def: 10, xp: 1940, gp: [32, 96], formula: true },
+      hp: 218, atk: 136, aim: 153, evasion: 42, def: 10, xp: 1940, gp: [32, 96], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No trick, just the hardest
@@ -113,7 +113,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'waybill', ch: 0.1, band: 'uncommon' },
         /* 0.0056 to 0.0049 (lane/c-spell-rule, 2026-11-21): a Sword every 9.92 h a hero under the spell rule, under the Rare band's 10 */
         { id: 'dawn_sword', ch: 0.0049, band: 'rare' }],
-      hp: 360, atk: 140, aim: 153, evasion: 63, def: 40, xp: 3732, gp: [53, 159], formula: true },
+      hp: 360, atk: 140, aim: 155, evasion: 63, def: 40, xp: 3732, gp: [53, 159], formula: true },
   },
   roster: { dead_teamster: 'swarm', coal_runner: 'glass', yoke_ox: 'heavy', drover: 'regular', wagonmaster: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */

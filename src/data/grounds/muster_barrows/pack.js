@@ -140,7 +140,7 @@ export default definePack({
         { id: 'rune_sword', everyHours: 1.08, ch: 0.016, band: 'scarce' },
         /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
         { id: 'runebound_shield', everyHours: 15.7, ch: 0.0011, band: 'rare' }],
-      hp: 211, atk: 25, aim: 45, evasion: 25, def: 2, xp: 989, gp: [16, 50], formula: true },
+      hp: 211, atk: 25, aim: 45, evasion: 26, def: 2, xp: 989, gp: [16, 50], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -167,7 +167,7 @@ export default definePack({
         { id: 'rune_warhammer', everyHours: 0.694, ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' },
         { id: 'rune_hatchets', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
-      hp: 484, atk: 45, aim: 55, evasion: 46, def: 21, xp: 2768, gp: [38, 113], formula: true },
+      hp: 484, atk: 45, aim: 55, evasion: 47, def: 21, xp: 2768, gp: [38, 113], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak

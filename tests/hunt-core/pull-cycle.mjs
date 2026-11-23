@@ -321,6 +321,25 @@ const cases = {
     if (at[8] !== 2) return 'at 8 the leader pulled ' + at[8] + ' tile(s) from the pull tile, want 2 (the ring\'s edge)';
     return at[7] === 0 ? null : 'at 7 (a gap in the ring) the leader pulled ' + at[7] + ' tile(s) from the pull tile, want 0 (walked in)';
   },
+  /* A FULL BOX THAT CLOSES A CORRIDOR (lane/monster-roles-ford-wings, 2026-11-23): the Catacombs' Flooded Vault rings its pull tile
+     in a three-wide corridor at the plank bridge's mouth, so its far edge is a walk round the whole map. The leader coming over the
+     bridge pulls from the ring's near edge inside the pack area; he never walks out of it for a roomier edge (he did, the party
+     followed him back and forth, and every Steady hunt there ended no_fight) */
+  'corridor-box-pull': (M) => {
+    const wing = M.grounds.HUNT_GROUNDS.catacomb_flooded_wing;
+    if (!wing) return 'CONTROL: no Flooded Wing ground';
+    /* its vault alone, the party set down on the bridge (tests/hunt-core/forest-cave.mjs one-choke: the bridge is x 28, y 27 to 32) */
+    const vault = wing.pockets.findIndex((pk) => pk.pull && pk.pull[0] === 28 && pk.pull[1] === 19);
+    if (vault < 0) return 'CONTROL: the Flooded Wing has no vault pocket pulled at (28, 19)';
+    const g = { ...wing, route: [vault], start: [[28, 30]] };
+    const { grid } = M.hg.huntGroundOf(wing.hunt);
+    const inst = Object.assign(inst2(M, M.hs.newHuntWorld(g, grid, [Object.assign({ role: 'tank' }, strong, { def: 0 })], { density: 8 }), g), { grid });
+    if (!firstPull(M, inst, 1200)) return 'a full box in the vault\'s corridor drew no pull in 120 s (the leader walked off for another edge)';
+    const k = inst.world.units[0], room = g.pockets[vault].room;
+    if (!(k.x >= room[0] && k.x <= room[2] && k.y >= room[1] && k.y <= room[3])) return 'the leader pulled the vault from ' + k.x + ',' + k.y + ', outside its pack area';
+    const far = cheb(k, { x: 28, y: 19 });
+    return far <= 2 ? null : 'the leader pulled the vault ' + far + ' tiles from its pull tile, want the ring\'s edge (2)';
+  },
   /* engine contract #4/#5 for this lane's fields: a 4-hero party world, cut and JSON-decoded at EVERY swing,
      replays the uncut world event for event and byte for byte, and stays inside the world bound. */
   'party-world-survives-every-cut': (M) => {
@@ -360,6 +379,8 @@ const mutants = [
     edits: [[P, '  for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);', '  for (const m of packMonsters(inst, p)) m.target = (heroes(inst).find((h) => h.alive && h.id !== k.id) || k).id;']] },
   { name: 'the leader is the first hero by id', case: 'pull-on-approach', edits: [['src/core/hunt-spawn.js', 'leader: pickLeader(units),', 'leader: 1,']] },
   { name: 'a full box walls the leader off (no pull from the edge)', case: 'full-box-pull', edits: [[P, ' || arrived || walled)) {', ' || arrived)) {']] },
+  { name: 'a walled leader walks out of the pack area for a roomier edge', case: 'corridor-box-pull',
+    edits: [[P, '(x, y) => tiles.has(tileKey(inst.grid, x, y)), (x, y) => !inArea(inst, p, x, y));', '(x, y) => tiles.has(tileKey(inst.grid, x, y)));']] },
   { name: 'the leader pulls at any monster in its way, gap or not', case: 'full-box-pull',
     edits: [[P, '    && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);', ';']] },
   { name: 'a kiting leader walks into the pack', case: 'kiter-pulls-from-range',

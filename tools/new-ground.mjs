@@ -30,7 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bandFromReports, packPrint, rewriteRow } from './lib/danger-band.mjs';
+import { bandFromReports, packPrint, rewriteRow, anchorOf } from './lib/danger-band.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -81,10 +81,10 @@ const prev = DANGER_GROUNDS[G] ? Object.keys(DANGER_GROUNDS).find((k) => DANGER_
 const abs = DANGER_GROUNDS[G] ? { band: bandAbs(G), prevTopPm: prev && bandAbs(prev) ? bandAbs(prev).topPm : null, refLevel: DANGER_GROUNDS[G].refLevel, sustain: SUSTAIN } : null;
 /* a ground on the monster formula keeps its refStep (the monsters' and the pay's anchor, chosen by hand) and pins the MID four's hold as
    refHeld, the depth reading's middle point (tools/lib/danger-band.mjs, lane/depth-reading-fix) */
-const anchorStep = DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters === 'formula' ? DANGER_GROUNDS[G].refStep : null;
+const anchorStep = anchorOf(DANGER_GROUNDS[G]);
 const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE, abs, { anchorStep });
 const { _lowDepth, ...band } = cut.band;
-const print = packPrint(ground, MONSTERS, monstersOn, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters);
+const print = packPrint(ground, MONSTERS, monstersOn, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].formulaStep);
 const row = DANGER_GROUNDS[G];
 console.log('\n' + G + ' on the Danger scale (the Steady mixed four, v1-climb.mjs): ' + cut.verdict);
 console.log('  MID  Level ' + cut.cells.ref.L + ': held ' + cut.cells.ref.held + ', ' + cut.cells.ref.killsPerH + ' kills an hour');

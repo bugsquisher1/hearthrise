@@ -228,7 +228,10 @@ export function valueName(m, id) {
 }
 
 /* Whose effect, as the subject of a sentence (an effect test reads "my target lacks Burn", "I have Shielded"). */
-const EFFECT_WHO = Object.freeze({ target: 'my target', self: 'I', ally: 'the ally I would heal' });
+const EFFECT_WHO = Object.freeze({ target: 'bar.cond_who_target', ally: 'bar.cond_who_ally' });
+const whoOf = (subject) => (subject === 'self' ? 'I' : t(EFFECT_WHO[subject] || EFFECT_WHO.target));
+/* A yes/no test denied: its " is " read " is not " (every true/false `say` and `tip` holds " is "). */
+const denied = (s) => s.replace(' is ', ' ' + t('bar.cond_is_not') + ' ');
 
 /** One condition as a plain sentence, word for word what Configure action's picker reads (Tyler 2026-11-08, "at or above 2
     what?"): "my HP is at most 50%", "the HP of the lowest ally is below 60%", "it would hit at least 2 monsters", "the party
@@ -236,11 +239,11 @@ const EFFECT_WHO = Object.freeze({ target: 'my target', self: 'I', ally: 'the al
 export function conditionWords(c) {
   const m = METRIC.get(c.metric);
   if (!m) return c.metric;
-  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? m.say : m.say.replace(' is ', ' is not ');
+  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? m.say : denied(m.say);
   /* "my last move is Rend" */
   if (m.value === 'move') return m.say + ' ' + opWords(c.op, m) + ' ' + valueName(m, c.value);
   if (m.value === 'effect') {
-    const who = EFFECT_WHO[c.subject] || EFFECT_WHO.target;
+    const who = whoOf(c.subject);
     const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : opWords(c.op, m);
     return who + ' ' + verb + ' ' + valueName(m, c.value);
   }
@@ -250,8 +253,6 @@ export function conditionWords(c) {
   return m.say + (m.subjectAfter ? '' : subject) + ' ' + opWords(c.op, m) + ' ' + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');
 }
 
-/* A comparison in a tooltip's few words: "below 30%", "3+", "at most 5". */
-const TIP_OP = Object.freeze({ lt: 'below', lte: 'at most', gt: 'above', gte: 'at least', eq: 'exactly', ne: 'not' });
 /** One condition as its short label (condition-metrics.js `tip`), the slot's tooltip: "Target health below 30%", "Target is Marked",
     "Target Bleed stacks 3+", "Last move: Rend". A test with no `tip` reads its sentence (conditionWords). */
 export function conditionTip(c) {
@@ -259,10 +260,10 @@ export function conditionTip(c) {
   if (!m || !m.tip) return conditionWords(c);
   const key = m.subject ? (c.subject && Object.prototype.hasOwnProperty.call(m.subject, c.subject) ? c.subject : Object.keys(m.subject)[0]) : null;
   const tip = key ? m.tip.replace('{who}', m.subject[key]) : m.tip;
-  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? tip : tip.replace(' is ', ' is not ');
-  if (m.value === 'move' || m.value === 'effect') return tip + ': ' + (c.op === 'ne' || c.op === 'lacks_effect' ? 'not ' : '') + valueName(m, c.value);
-  if (m.value === 'count' && c.op === 'gte') return tip + ' ' + c.value + '+';
-  return tip + ' ' + (TIP_OP[c.op] || c.op) + ' ' + c.value + (m.value === 'pct' ? '%' : '');
+  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? tip : denied(tip);
+  if (m.value === 'move' || m.value === 'effect') return t(c.op === 'ne' || c.op === 'lacks_effect' ? 'bar.cond_tip_named_not' : 'bar.cond_tip_named', { label: tip, name: valueName(m, c.value) });
+  if (m.value === 'count' && c.op === 'gte') return t('bar.cond_tip_count_plus', { label: tip, value: c.value });
+  return t('bar.cond_tip_' + c.op, { label: tip, value: c.value, unit: m.value === 'pct' ? '%' : '' });
 }
 
 

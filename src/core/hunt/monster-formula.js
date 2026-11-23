@@ -96,7 +96,10 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   const ref = refCompany(g.refLevel);
   const take = F.REF.takePm / 1000, land = F.REF.hit;
   const swingS = COMBAT_BALANCE.tickMs / 1000;
-  const hp = R.secondsToKill * enc.killMult * ref.dpsFight;
+  /* ITS ARMOR (the role's `armor`): a share of every hero blow, so its health is written net of it and secondsToKill holds at any armor;
+     an answer that strips armor (Armor Break) is then a real gain in kill time, never a wash */
+  const armorPm = Math.max(0, Math.min(900, Math.round(1000 * (R.armor || 0))));
+  const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);
   /* the windup's share and size, after the two global death-risk dials */
   const w = R.windup && R.windupShare > 0 && R.windupSize > 0 ? Math.min(1, R.windupShare) : 0;
   /* steady: (1 - w) x pressure x the reference health a second = land x take x (maxHit + 1) / 2 / swing; the role's maxHitPm is a cap
@@ -122,7 +125,7 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   }
   if (R.mend && R.mend.seconds > 0) derive(own.mend, 'mf_' + roleId + '_mend', R.mend.spell, (R.mend.seconds * ref.dpsFight) / SPELL_MEAN, R.mend.everyS);
   return { hp, maxHit, top, steadyShare: wantTop > 0 ? Math.min(1, (top + 1) / (wantTop + 1)) : 1, spells: Object.freeze(spells),
-    rampPm: Math.round(1000 * (enc.rampPerMinute || 0)) };
+    rampPm: Math.round(1000 * (enc.rampPerMinute || 0)), armorPm };
 }
 
 /**
@@ -140,11 +143,21 @@ export function formulaRow(row, groundId) {
   const L = g.refLevel;
   const out = { ...row, hp: Math.max(1, Math.round(s.hp / m)), atk: r3(s.maxHit / m / scaleOf(row)), level: L,
     aim: Math.max(1, Math.round(aimFor(F.REF.hit, L))), evasion: Math.max(1, Math.round(evasionFor(F.REF.heroHit, L, 1))),
-    def: Math.max(0, Math.round(F.REF.defPerLevel * L)), formula: 'role' };
+    def: Math.max(0, Math.round(F.REF.defPerLevel * L)), armorPm: s.armorPm, formula: 'role' };
   const ids = Object.keys(s.spells);
   if (ids.length) { out.spells = ids; out.spellRows = s.spells; } else delete out.spells;
   if (s.rampPm > 0) out.rampPm = s.rampPm; else delete out.rampPm;
   return Object.freeze(out);
+}
+
+/**
+ * A MONSTER'S ARMOR NOW, permille of a hero blow it takes off (damage.js hurt): its derived row's `armorPm` (a formula ground's; 0 for a
+ * hand row, whose flat `def` is all it has). THE ONE DOOR an armor answer moves: a status that strips armor (Armor Break, the statuses
+ * lane) scales what this answers, never a second damage-taken key.
+ */
+export function monsterArmorPm(inst, m) {
+  const row = inst && m && (inst.monsters || {})[m.kind];
+  return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 0;
 }
 
 /* (ground, base) -> table: the unscaled catalogue's once a ground, as huntPlayOf's own GROUND_DROPS; any other base is built fresh */

@@ -400,9 +400,9 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe with --styles (lineups) against the roles-off candidate; no matrix run plans a stance'),
     ev: 'MEASURED (lane/w2-roles-rows, v1-climb.mjs 8 seeds x 12 h a lineup, roles on and off)' }),
   /* MONSTERS FROM THE FORMULA (lane/monster-formula; 04 section 6): on a ground whose switch is on, a monster is its role and the step */
-  L('mf.role-dials', 'monster-stats', 'archetype', 'Role power dials (seconds to kill, pressure, wind-up share and size)', {
-    at: [at(MR, '    secondsToKill: ', { count: 6 })],
-    def: 'a formula monster at a gap of 0 (the ground\'s reference company on its reference step): health = secondsToKill x the company\'s damage a fighting second; it deals pressure x the reference hero\'s health a second, windupShare of it as wind-ups of windupSize of that health each (one every windupSize / (windupShare x pressure) s), the rest as steady blows (src/core/hunt/monster-formula.js roleStats)',
+  L('mf.role-dials', 'monster-stats', 'archetype', 'Role power dials (armor, seconds to kill, pressure, wind-up share and size)', {
+    at: [at(MR, '    armor: ', { count: 6 })],
+    def: 'a formula monster at a gap of 0 (the ground\'s reference company on its reference step): its armor takes that share off every hero blow (damage.js hurt through monster-formula.js monsterArmorPm, the one door an armor answer such as Armor Break moves); health = (1 - armor) x secondsToKill x the company\'s damage a fighting second; it deals pressure x the reference hero\'s health a second, windupShare of it as wind-ups of windupSize of that health each (one every windupSize / (windupShare x pressure) s), the rest as steady blows (src/core/hunt/monster-formula.js roleStats)',
     range: 'secondsToKill 0.5 to 60, pressure 0 to 0.1, windupShare 0 to 0.9, windupSize 0 to 0.5 (tests/hunt-core/monster-formula.mjs data). Content the designer owns (04 section 6: "those are content rows"); a wind-up must stay under the Steady line\'s cushion (about 0.25 of a hero\'s health at its top) or Steady dies (12-targets C-3)',
     touches: 'held depth, the supply bill, deaths by stance, kills an hour and the front seat\'s share of the damage on every formula ground', out: [...KILL, ...SURVIVE, 'takenPerH'], f: ['C-MON-STATS'],
     tests: [['tests/hunt-core/monster-formula.mjs', 'derive, data']], testReads: ['MONSTER_ROLES', 'roleStats'],

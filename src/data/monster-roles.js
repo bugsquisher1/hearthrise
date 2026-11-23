@@ -68,6 +68,8 @@ export const ROWS = Object.freeze(['front', 'back']);
      windupSize     how big ONE wind-up is: a share of the target's reference health (mean hit). Its frequency follows:
                     one wind-up every windupSize / (windupShare x pressure) seconds. Big and rare kills, small and often bleeds
      windup         the wind-up's shape and warning (a monster-spells.js row without its number and cooldown, which the formula writes)
+     armor          the share of a hero's blow its armor takes off (after the blow's element and the row's own defense): what an armor
+                    answer (Armor Break, a hammer) works on. Its health is written net of it, so secondsToKill holds at any armor
      mend           a Warder's heal on its own side: `seconds` of the reference company's damage undone a mend, every `everyS` seconds
    Starting values are the Lab's (tools/balance-program/redesign/mf, lane/monster-formula); bands in tools/balance-program/levers/world.mjs
    `mf.*`. A tier ground never reads them. */
@@ -75,22 +77,22 @@ const windup = (row) => Object.freeze({ ...row, element: row.element === undefin
 
 export const MONSTER_ROLES = Object.freeze({
   brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: shields, armor',
-    secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,
+    armor: 0.3, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,
     windup: windup({ n: 'Heavy Blow', shape: 'cone', len: 2, range: 1, windupMs: 1600 }) }),
   shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',
-    secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),
+    armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
     targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing',
-    secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,
+    armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,
     windup: windup({ n: 'Hex', shape: 'group', range: 6, windupMs: 2000 }) }),
   swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor',
-    secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),
+    armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),
   stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',
-    secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),
+    armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights. On a formula ground its heal is
      the formula's (`mend`) */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire',
-    secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
+    armor: 0.25, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
     mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
 });
 

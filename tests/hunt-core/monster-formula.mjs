@@ -61,7 +61,10 @@ const CASES = {
     let winds = 0;
     for (const [id, R] of Object.entries(ROLES)) {
       const s = M.mf.roleStats(id, g, 'pull');
-      if (!close(s.hp, R.secondsToKill * F.encounters.pull.killMult * ref.dpsFight, 1e-9)) return id + ': health ' + s.hp + ', not secondsToKill x the company (' + R.secondsToKill * ref.dpsFight + ')';
+      const net = 1 - Math.round(1000 * (R.armor || 0)) / 1000;
+      if (!(R.armor > 0 && R.armor < 0.9)) return id + ': armor ' + R.armor + ' is not a share in (0, 0.9)';
+      if (s.armorPm !== Math.round(1000 * R.armor)) return id + ': armorPm ' + s.armorPm + ', not the role armor';
+      if (!close(s.hp, R.secondsToKill * F.encounters.pull.killMult * ref.dpsFight * net, 1e-9)) return id + ': health ' + s.hp + ', not secondsToKill x the company net of its armor (' + R.secondsToKill * ref.dpsFight * net + ')';
       const boss = M.mf.roleStats(id, g, 'boss');
       if (!close(boss.hp, s.hp * F.encounters.boss.killMult, 1e-9)) return id + ': a boss has ' + boss.hp + ' health, not killMult x ' + s.hp;
       const w = R.windup && R.windupShare > 0 ? R.windupShare : 0;
@@ -130,6 +133,21 @@ const CASES = {
     for (const step of [0, g.floorStep, g.refStep, g.topStep]) for (const h of [1, 2, 3]) {
       if (JSON.stringify(M.danger.dangerDial(ground, step, h)) !== JSON.stringify(M.danger.dangerDial(ground, step))) return 'off the switch the dial moved with the party\'s size (' + h + ' heroes, step ' + step + ')';
     }
+    return null;
+  },
+  /* ARMOR (the role's armor, monsterArmorPm): a hero's blow on a formula monster lands net of it; a hand row has none (its flat def only) */
+  armor(M) {
+    const t = M.mf.formulaTable('muster_barrows', M.MONSTERS);
+    const k = t && t.muster_knight;
+    if (!k || !(k.armorPm > 0)) return 'CONTROL: the Barrow Knight has no derived armor';
+    const rng = { chance: () => false, int: (a) => a };
+    const N = 100000;
+    const hit = (monsters) => M.hunt.damage.hurt({ world: { risk: 'steady', units: [] }, ground: { id: 'muster_barrows' }, monsters, tier: null },
+      { side: 'mon', id: 2, kind: 'muster_knight', alive: true, hp: 1e9, maxHp: 1e9 }, N, { side: 'hero', id: 1 }, null, null, rng).dmg;
+    const hand = hit(M.MONSTERS), f = hit(t);
+    const want = Math.floor(((N - M.combat.defenceReduction(k)) * (1000 - k.armorPm)) / 1000);
+    if (f !== want) return 'a blow of ' + N + ' on the formula Knight landed ' + f + ', its armor ' + k.armorPm + ' says ' + want;
+    if (hand !== N - M.combat.defenceReduction(M.MONSTERS.muster_knight)) return 'a blow on the hand Knight lost more than its flat defense: ' + hand;
     return null;
   },
   switch(M) {
@@ -234,7 +252,10 @@ async function playOffCase(root) {
 }
 
 const MUTANTS = [
-  { name: 'health ignores secondsToKill', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight;', 'const hp = 4 * enc.killMult * ref.dpsFight;']] },
+  { name: 'health ignores secondsToKill', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);', 'const hp = 4 * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);']] },
+  { name: 'health ignores armor', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight;']] },
+  { name: 'armor never reaches the blow', case: 'armor', edits: [['src/core/hunt/damage.js', '  if (arm > 0 && n > 0) n = Math.floor((n * (1000 - arm)) / 1000);\n', '']] },
+  { name: 'armor plays on a hand row', case: 'armor', edits: [['src/core/hunt/monster-formula.js', 'return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 0;', 'return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 300;']] },
   { name: 'the steady blow carries the wind-up share too', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const steadyDps = (1 - w) * R.pressure * ref.hp;', 'const steadyDps = R.pressure * ref.hp;']] },
   { name: 'a wind-up comes on a fixed clock', case: 'derive', edits: [['src/core/hunt/monster-formula.js', '(R.windupSize / (w * R.pressure)) * F.windupScale.every);', '12 * F.windupScale.every);']] },
   { name: 'a boss is a pull monster', case: 'derive', edits: [['src/core/hunt/monster-formula.js', "const enc = F.encounters[kind] || F.encounters.pull;", 'const enc = F.encounters.pull;']] },
@@ -258,7 +279,7 @@ const R = makeReport('hunt-core/monster-formula');
 const ON = plant([MUSTER_ON], PLAY_TREES);
 try {
   const M = await load(ROOT), Mon = await load(ON.root);
-  const which = (cn) => (cn === 'dial' || cn === 'switch' || cn === 'ramp' ? Mon : M);
+  const which = (cn) => (cn === 'dial' || cn === 'switch' || cn === 'ramp' || cn === 'armor' ? Mon : M);
   for (const [cn, fn] of Object.entries(CASES)) {
     let why = null;
     try { why = fn(which(cn)); } catch (e) { why = 'threw ' + (e && e.stack || e); }
@@ -272,7 +293,7 @@ try {
   R.ok(!why, 'play-off: ' + why);
 } finally { ON.done(); }
 for (const mu of MUTANTS) {
-  const on = mu.edits.some((e) => e === MUSTER_ON) || mu.case === 'switch' || mu.case === 'ramp';
+  const on = mu.edits.some((e) => e === MUSTER_ON) || mu.case === 'switch' || mu.case === 'ramp' || mu.case === 'armor';
   const edits = on && !mu.edits.includes(MUSTER_ON) ? [MUSTER_ON, ...mu.edits] : mu.edits;
   const p = plant(edits);
   try {

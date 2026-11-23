@@ -59,4 +59,4 @@ the formula readers (lane/monster-formula): per seat dps (dealt a hunted second)
                     barrow_pikeman(swarm) 181.1/h 35.7 s 349 | muster_knight(brute) 90.1/h 45.6 s 638 | cairn_wight(stalker) 91.7/h 47.6 s 450 | captain_hask(brute) 6.1/h 116.9 s 2083
                     broke off by: fall:cairn_wight@1 14, fall:muster_knight@1 14, fall:muster_knight@2 11, fall:captain_hask@0 6, fall:barrow_pikeman@1 6, fall:barrow_pikeman@0 5, fall:muster_knight@0 5, death:muster_knight@0 4, fall:captain_hask@2 4, fall:muster_knight@3 3, fall:captain_hask@1 3, death:muster_knight@1 2, fall:barrow_pikeman@2 2
 
-wall 714 s
+wall 443 s

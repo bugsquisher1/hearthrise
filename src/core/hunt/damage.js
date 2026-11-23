@@ -49,7 +49,7 @@ import { swingRow, crossLines, guardPmOf } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit } from './monster-roles.js';
-import { rampPm } from './monster-formula.js';
+import { rampPm, monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
 import { noteHurt, breaksOff, powerPm } from './danger.js';
@@ -128,6 +128,9 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   /* A HIT THAT LANDS PART OF A WEAKNESS (`weakPm`, abilities.js: the fist line's strikes, half): the monster's bonus over 1000 at that
      share, a resistance in full (a wiki formula: weak = 1000 + floor((el - 1000) x weakPm / 1000) when el > 1000). */
   if (isMonster(target)) n = Math.floor((n * weakShare(el, ability)) / 1000) - defenceReduction(rowOf(inst, target.kind));
+  /* A FORMULA MONSTER'S ARMOR (monster-formula.js monsterArmorPm, its role's `armor`): a share of the blow; 0 on a hand row */
+  const arm = isMonster(target) ? monsterArmorPm(inst, target) : 0;
+  if (arm > 0 && n > 0) n = Math.floor((n * (1000 - arm)) / 1000);
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
   /* A CALLED BOSS BEHIND HIS ADDS takes his guard's share of every blow (boss-phases.js); any other monster all of it. */
   if (isMonster(target)) n = Math.floor((n * guardPmOf(inst, target)) / 1000);

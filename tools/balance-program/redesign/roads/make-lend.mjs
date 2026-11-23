@@ -24,6 +24,7 @@
 import { writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -76,5 +77,5 @@ const candidate = {
     'An ally heal keeps the native caster\'s 7-tile reach where the cell names it (the engine otherwise gives a melee borrower 1 tile)',
   ],
 };
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) writeFileSync(join(HERE, 'roads-lend.json'), JSON.stringify(candidate, null, 1) + '\n');
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) console.log('wrote roads-lend.json: ' + LEND.length + ' borrowed rows');
+if (isMain(import.meta.url)) writeFileSync(join(HERE, 'roads-lend.json'), JSON.stringify(candidate, null, 1) + '\n');
+if (isMain(import.meta.url)) console.log('wrote roads-lend.json: ' + LEND.length + ' borrowed rows');

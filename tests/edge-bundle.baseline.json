@@ -338,6 +338,11 @@
         "bytes": 3465586,
         "on": "2026-11-23",
         "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
+      },
+      {
+        "bytes": 3565133,
+        "on": "2026-11-23",
+        "why": "lane/roads-sample: +~64 KB, the Roads sample the settle grants (src/data/talents.js 33 KB, src/core/talents.js 19 KB, src/core/hunt/talent-rows.js 10 KB); the rest (~33 KB) was already over on set 7865133b2 (ci-reds-db LANE DONE: left to owners)"
       }
     ]
   }

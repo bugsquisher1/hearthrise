@@ -34,21 +34,21 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 28 | 9 | 7 | 4 | 8 | 7 | 10 | 14 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
-| Equipment stats and progression | 20 | 7 | 4 | 9 | 0 | 0 | 11 | 14 |
+| Equipment stats and progression | 24 | 10 | 4 | 10 | 0 | 0 | 15 | 18 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 37 | 24 | 2 | 10 | 1 | 0 | 32 | 25 |
-| **All** | **208** | 104 | 28 | 49 | 27 | 31 | 94 | 99 |
+| **All** | **212** | 107 | 28 | 50 | 27 | 31 | 98 | 103 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 708 (in 244 files, 15970 typed numbers) |
-| Claimed by a lever | 305 |
-| Claimed by a not-a-lever reason | 403 |
+| Top-level bindings in the rule code that hold a typed number | 723 (in 247 files, 16053 typed numbers) |
+| Claimed by a lever | 314 |
+| Claimed by a not-a-lever reason | 409 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 16 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -264,6 +264,10 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `loot.pity` Personal loot pity: growth and the base share | Rare-drop probabilities | the roller is lane/drop-formula's. The switch personal_loot is off |
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
+| not-built | `roads.borrow-bands` The Roads: borrowing priced by value, and the Level a borrow opens at | Equipment stats and progression | dark behind TALENT_RULES.live |
+| not-built | `roads.near-fall` Near fall-back: how close to the stance's line a Roads condition fires | Equipment stats and progression | dark behind TALENT_RULES.live |
+| not-built | `roads.nodes` The Roads sample's nodes: crossroads, waystones and vows, in steps and move modifiers | Equipment stats and progression | dark behind TALENT_RULES.live. Alloc-run.mjs measures the five allocations |
+| not-built | `roads.rules` The Roads: a point a Level, vow slots, borrowed moves, the idle point's cost | Equipment stats and progression | dark behind TALENT_RULES.live. The Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
 | not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
 | not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |

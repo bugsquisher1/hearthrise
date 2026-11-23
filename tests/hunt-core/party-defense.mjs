@@ -105,6 +105,7 @@ R.ok(!why2, 'lone-tank-holds: ' + why2);
 /* lone-tank-holds' own proof: the measure sees a monster turn on the Healer when one can (her peel drawing any
    free monster, every swing) */
 const LONE_MUTANTS = [
+  /* (the Challenge's reach is CHALLENGE.radius, or a Roads build's tauntRadius: targeting.js tauntReach) */
   { name: 'the Challenge takes nothing back: a monster the peel drew stays on the Healer',
     edits: [['src/core/hunt/targeting.js', 'return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= tauntReach(k) && (holds || onNonTank(m)));', 'return [];']] },
   { name: 'the Healer\'s peel draws any unheld monster, every swing',

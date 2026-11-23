@@ -23,7 +23,7 @@
 // ============================================================
 
 import { TALENT_RULES, TALENT_NODES, NODE_INDEX, BORROW_BANDS, BORROW_OPEN, BORROW_VALUES, COUNTRY_ROADS, HEARTH, MOD_WHOLE, MOD_NUMBERS, PICK_KINDS } from '../data/talents.js';
-import { ABILITIES, disciplineAbilities, heals, abilitySkill } from '../data/abilities.js';
+import { ABILITIES, heals, abilitySkill } from '../data/abilities.js';
 import { POWER_LEDGER, ramp } from '../data/power-ledger.js';
 import { HUNT_TUNING } from '../data/hunt-tuning.js';
 
@@ -219,7 +219,9 @@ const MEMO = new Map();
 const keyOf = (nodes) => Object.keys(nodes).sort().map((k) => k + '=' + nodes[k]).join(',');
 
 /** The moves a hero of `discipline` casts: its discipline's (Mend included) and its borrowed ones. */
-const castable = (discipline, borrowed) => new Set([...disciplineAbilities(discipline), ...borrowed]);
+/* (read off the rows' own disciplines: the bar's list is hunt-spawn.js heroSetup's to read, the engine's one reader of it) */
+const nativeMoves = (discipline) => Object.keys(ABILITIES).filter((id) => ABILITIES[id].disciplines.includes(discipline));
+const castable = (discipline, borrowed) => new Set([...nativeMoves(discipline), ...borrowed]);
 const groupOf = (g, moves) => [...moves].filter((m) => own(ABILITIES, m) && (g === '*heal' ? heals(ABILITIES[m]) : g === '*spell' ? abilitySkill(ABILITIES[m]) === 'magic' && ABILITIES[m].mana > 0 : m === g));
 
 /**
@@ -234,7 +236,7 @@ export function grantsOf(nodesIn, discipline, level) {
   if (hit) return hit;
   const k = ramp(L);
   /* THE BORROWED MOVES open at L: each town or crossing pick, at its band's opening Level, at most maxBorrowed, never a native one */
-  const native = new Set(disciplineAbilities(discipline));
+  const native = new Set(nativeMoves(discipline));
   const borrowed = [], penalty = {};
   for (const [id, v] of Object.entries(nodes)) {
     const n = NODE_INDEX[id], m = borrowOf(n, v);

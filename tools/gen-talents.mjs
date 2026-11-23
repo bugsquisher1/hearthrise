@@ -77,12 +77,15 @@ export function rowsOf(d) {
         b = d.T.spend(b, id, p);
         suggest.push({ disc, plan, seq: i + 1, node: id, pick: p });
       });
+      /* the walk's end is a whole legal build at the Level that holds it (the saved-build rules, src/core/talents.js buildProblems) */
+      const probs = d.T.buildProblems(b, order.length + d.TD.TALENT_RULES.pointFrom - 1);
+      if (probs.length) throw new Error('gen-talents: the suggested walk of ' + disc + '/' + plan + ' ends on an illegal build: ' + JSON.stringify(probs));
     }
     open.push({ disc, node: d.T.suggestedOpen(disc) });
   }
   const disciplines = Object.entries(d.ROLE_KEYS).filter(([, r]) => r && r.discipline).map(([k, r]) => ({ key: k, disc: r.discipline }));
   const R = d.TD.TALENT_RULES;
-  return { rules: { live: R.live === true, pointFrom: R.pointFrom, vowSlots: [...R.vowSlots], maxBorrowed: R.maxBorrowed, savedMax: R.savedBuildsMax },
+  return { held: d.T.heldRules(d.nodes), rules: { live: R.live === true, pointFrom: R.pointFrom, vowSlots: [...R.vowSlots], maxBorrowed: R.maxBorrowed, savedMax: R.savedBuildsMax },
     nodes, options, suggest, open, disciplines };
 }
 
@@ -93,6 +96,10 @@ export function buildSql(r) {
   const sugValues = r.suggest.map((s) => `  (${q(s.disc)}, ${q(s.plan)}, ${s.seq}, ${q(s.node)}, ${q(s.pick)})`).join(',\n');
   const openValues = r.open.map((o) => `  (${q(o.disc)}, ${q(o.node)})`).join(',\n');
   const discValues = r.disciplines.map((x) => `  (${q(x.key)}, ${q(x.disc)})`).join(',\n');
+  /* the held rules, eight a comment line */
+  const heldLines = [];
+  for (let i = 0; i < r.held.length; i += 8) heldLines.push('--   ' + r.held.slice(i, i + 8).join(', '));
+  const heldText = heldLines.join('\n');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE ROADS' SERVER CATALOGUE  (GENERATED — DO NOT EDIT)
 --
@@ -107,6 +114,8 @@ export function buildSql(r) {
 --   hr_talent_options      ${r.options.length} options, each lent move with the Level it opens at
 --   hr_talent_suggest      ${r.suggest.length} steps of "Spend as suggested" (${r.open.length} disciplines x ${PLANS.join(', ')}), never a vow
 --   hr_talent_open         ${r.open.length} open roads, hr_talent_disciplines ${r.disciplines.length} role keys
+-- HELD: ${r.held.length} rules the engine plays as nothing yet (src/core/talents.js heldRules; 0 steps, listed so a live switch is a decision):
+${heldText}
 -- ORDER: 1064 in its name, before 1064-roads-sample.sql. Idempotent: tables made if missing and their rows rewritten whole, so a second
 -- apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added here. Catalogue tables, RLS on, no policy, no grant to any client role.

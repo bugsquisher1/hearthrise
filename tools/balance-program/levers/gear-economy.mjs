@@ -179,6 +179,41 @@ export const GEAR_ECONOMY = [
     tests: [['tests/hunt-core/status-effects.mjs', 'aura-party-rule: reach, one per key, the ally\'s cap, the power step, never cast']], testReads: ['AURAS'],
     perturb: NP('not-built', 'no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)'),
     ev: 'MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)' }),
+  /* THE ROADS SAMPLE (lane/roads-sample, 17-talent-tree.md v3, 19 L8): every number on a node is a lever of the build slice; the rules,
+     the borrow bands and near fall-back are its dials. All dark behind TALENT_RULES.live */
+  L('roads.rules', 'equipment', 'global', 'The Roads: a point a Level, vow slots, borrowed moves, the idle point\'s cost', {
+    at: [at('src/data/talents.js', 'pointSharePm: 333,')],
+    def: 'one point a Level from pointFrom; vows at vowSlots Levels; at most maxBorrowed borrowed moves; an unspent point, or a rank stone on a move never cast, costs pointSharePm of a step on offense and defense, never ramped (src/core/talents.js grantsOf, the ledger\'s ranks slice)',
+    range: 'pointSharePm 333 (19 row 2: a third of a Level\'s step); vow slots 30 / 50 / 200 (R8); 2 borrows (17 section 3)',
+    touches: 'how much a hero loses by not spending, how many vows a build holds and when', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'path-rules, idle-points, walk-through']], testReads: ['TALENT_RULES'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live; the Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs'),
+    ev: 'STATED (17-talent-tree.md v3 section 2, 19-power-ledger.md row 2)' }),
+  L('roads.borrow-bands', 'equipment', 'global', 'The Roads: borrowing priced by value, and the Level a borrow opens at', {
+    at: [at('src/data/talents.js', 'Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),'), at('src/data/talents.js', 'openFloor: 20, openLevel'), at('src/data/talents.js', '  shelter: 8.5,')],
+    def: 'a borrowed move\'s penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)',
+    range: 'bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3',
+    touches: 'which hybrid builds exist at which Level, and how much a borrowed move adds', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'borrow-opens']], testReads: ['BORROW_VALUES'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live'),
+    ev: 'MEASURED (18-roads-review-measured.md section 3, 23-spell-audit.md)' }),
+  L('roads.nodes', 'equipment', 'content', 'The Roads sample\'s nodes: crossroads, waystones and vows, in steps and move modifiers', {
+    at: [at('src/data/talents.js', "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),"), at('src/data/talents.js', "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),"),
+      at('src/data/talents.js', "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),"), at('src/data/talents.js', "effects: [rule('challenge_self_heal'), mod('*heal', { outPm: -30 })] }),")],
+    def: 'each node\'s effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always (src/data/talents.js, src/core/talents.js grantsOf)',
+    range: 'crossroads options within 3 steps on any ground, waystones at most 3 on their best cell, vows +10 best / -8 worst (17 section 9)',
+    touches: 'which build is best on which ground, and the gap between the best saved build and the suggested road', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'ramp-and-caps, engine-rows, real-settle-both-paths']], testReads: ['TALENT_NODES'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live; alloc-run.mjs measures the five allocations'),
+    ev: 'STATED (17-talent-tree.md v3 sections 5 to 7; the Lab sizes them)' }),
+  L('roads.near-fall', 'equipment', 'global', 'Near fall-back: how close to the stance\'s line a Roads condition fires', {
+    at: [at('src/core/hunt/talent-rows.js', 'export const NEAR_FALL_PM = 150;')],
+    def: 'a hero is near fall-back when its HP is under its stance\'s fall line (the holder\'s x HOLDER.linePm) plus NEAR_FALL_PM permille (src/core/hunt/talent-rows.js holds)',
+    range: '150 (17 section 5: 15 points over the line)',
+    touches: 'how often Last Stand and every near-fall node fires on each stance', out: SURVIVE, f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'ramp-and-caps']], testReads: ['near_fall'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live'),
+    ev: 'STATED (17-talent-tree.md v3 section 5)' }),
 
   /* THE INNER FLAME, TEMPER ON STEPS, IMBUEMENTS, CARRY-OVER AND PERSONAL LOOT (lane/flame-temper-build, 21-flame-temper-imbue-loot.md;
      all dark: four hr_flags switches in 1063-flame-temper.sql; the server reads each through 1063-flame-temper-catalogue.generated.sql) */

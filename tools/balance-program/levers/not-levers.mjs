@@ -73,6 +73,10 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/catacomb-wings.js#WINGS', why: 'each wing\'s rooms (pocket indexes into the Unmarked Catacombs\' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms\' monsters are the pack\'s rows' },
   { at: 'src/data/catacomb-wings.js#weightsOf', why: 'the pack convention\'s spawn weight: the head-count of a box at a pull of 4 (a hunts.js display weight)' },
   { at: 'src/data/statuses.js#slowAt', why: 'rounding (+500 / 1000)' }, { at: 'src/core/hunt/heal-cut.js#healCutPmOf', why: 'a bound: a heal cut never takes a heal whole (999 of 1000)' }, { at: 'src/data/gear-tiers.js#round5', why: 'rounding to fives' },
+  /* the Roads (lane/roads-sample): units, rounding, a memo bound, a road's stone numbering */
+  { at: 'src/core/hunt/talent-rows.js#scaled', why: 'a unit conversion (two permilles in millionths)' }, { at: 'src/core/hunt/talent-rows.js#moddedRow', why: 'a unit conversion (two permilles in millionths)' },
+  { at: 'src/core/talents.js#borrowBand', why: 'rounding (an epsilon under a whole openRound)' }, { at: 'src/core/talents.js#grantsOf', why: 'a memo bound (2048 grants kept): a cache size, no outcome reads it' },
+  { at: 'src/data/talents.js#road', why: 'a road\'s rank stones numbered 1 to 5 (17 section 2\'s shape): ids, no value' },
   /* engine plumbing: units, rounding, randomness, hashing, geometry, budgets */
   { at: 'src/core/rng.js#*', why: 'the seeded random stream' }, { at: 'src/core/combat-sim.js#seedOf', why: 'a seed' }, { at: 'src/core/member.js#frozenKey', why: 'a hash' },
   { at: 'src/core/hunt-track.js#*', why: 'the hunt track\'s size limits and hash' }, { at: 'src/core/hunt/world-state.js#*', why: 'world state codec' }, { at: 'src/core/hunt/events.js#*', why: 'the event format version' },

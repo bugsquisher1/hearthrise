@@ -59,6 +59,7 @@ const cases = {
   },
   'path-rules': (M) => {
     const T = M.T;
+    if (M.TD.TALENT_RULES.pointFrom !== 2 || T.vowSlotsAt(29) !== 0 || T.vowSlotsAt(50) !== 2) return 'the vow slots: ' + M.TD.TALENT_RULES.vowSlots;
     if (T.pointsAt(1) !== 0 || T.pointsAt(2) !== 1 || T.pointsAt(60) !== 59) return 'a point a Level from 2: ' + [1, 2, 60].map(T.pointsAt);
     if (T.spendProblem({}, 'challenge.r2', null, 60) !== 'not_reachable') return 'a stone past an unowned one was bought';
     if (T.spendProblem({}, 'challenge.r1', null, 60) !== null) return 'the first stone off the Hearth was refused: ' + T.spendProblem({}, 'challenge.r1', null, 60);
@@ -122,7 +123,7 @@ const cases = {
     const T = M.T;
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'vow.last_stand': true };
     const sh = T.grantsOf(b, 'shield', 200), re = T.grantsOf(b, 'restoration', 200);
-    if (!sh.when.some((r) => r.key === 'last_stand') || !sh.ledger.some((r) => r.key === 'vow.last_stand')) return 'a Shield vow did nothing on a shield';
+    if (!sh.when.some((r) => r.key === 'last_stand' && r.when === 'near_fall') || !sh.ledger.some((r) => r.key === 'vow.last_stand')) return 'a Shield vow did nothing on a shield';
     if (re.when.some((r) => r.key === 'last_stand') || re.ledger.some((r) => r.key === 'vow.last_stand')) return 'a Shield vow counted on a staff';
     return null;
   },
@@ -142,7 +143,7 @@ const cases = {
     const T = M.T;
     const sh = T.borrowBand('shelter', 'border');
     if (!sh || sh.penaltyPm !== 300 || sh.opensAt !== 90) return 'Shelter at a border: ' + JSON.stringify(sh);
-    if (T.borrowBand('greater_mend', 'border') !== null) return 'an unmeasured Greater Mend is offered';
+    if (M.TD.BORROW_VALUES.greater_mend !== null || T.borrowBand('greater_mend', 'border') !== null) return 'an unmeasured Greater Mend is offered';
     if (T.borrowBand('hoarfrost', 'havora') !== null) return 'Hoarfrost is offered at Havora';
     if (T.borrowBand('hunters_mark', 'border').opensAt !== 30 || T.borrowBand('fireball', 'border').opensAt !== 80) return 'the table\'s Levels moved';
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter', havora: 'use_fireball' };

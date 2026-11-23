@@ -7,7 +7,7 @@
 // section): the tab is hidden while the server sends none (the switch off). One press is ONE intent (src/session/talent-intents.js);
 // what changes is only what the answer's envelope says.
 // ════════════════════════════════════════════════════════════════════════
-import { talentsOf, spendSuggested } from '../../../session/talent-intents.js';
+import { talentsOf, spendSuggested, spendTalent } from '../../../session/talent-intents.js';
 import { equipmentOf } from '../../../session/item-sections.js';
 import { wornRoleKey } from '../../../data/hunt-roles.js';
 import { ITEMS } from '../../../data/items.js';
@@ -44,13 +44,19 @@ export function patchTalents(body, ctx, sc) {
   const f = tl && tl.fork;
   text(root.querySelector('.hw-tl-fork'), f ? 'Next fork: ' + f.n : '');
   text(root.querySelector('.hw-tl-cost'), f ? (f.cost === 1 ? 'Your next point' : whole(f.cost) + ' points away') : '');
+  /* the fork is the hero's very next point: each option can be taken here (one intent), else the card only reads ahead */
+  const now = !!f && f.cost === 1 && tl.left > 0;
   rows(root.querySelector('.hw-tl-options'), f ? f.options : [], {
-    key: (o) => o.id,
-    build: () => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span></li>'),
+    key: (o) => f.id + ':' + o.id,
+    build: (o) => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
+      + '<button type="button" class="hh-tool" data-hs-act="tl-take" data-node="' + f.id + '" data-pick="' + o.id + '">Take</button></li>'),
     patch: (li, o) => {
       cls(li, 'is-current', o.suggested);
       text(li.querySelector('b'), o.suggested ? o.n + ' (Suggested)' : o.n);
       text(li.querySelector('small'), o.tip);
+      const b = li.querySelector('button');
+      prop(b, 'hidden', !now);
+      prop(b, 'disabled', sc.pending);
     },
   });
   prop(root.querySelector('[data-hs-act="tl-suggested"]'), 'disabled', !tl || !tl.left || sc.pending);
@@ -59,9 +65,16 @@ export function patchTalents(body, ctx, sc) {
 
 /** One press on the tab; true when it was the tab's. */
 export function actTalents(ctx, sc, action, ev, el, repaint) {
-  if (action !== 'tl-suggested' || ev.type !== 'click') return false;
-  void el;
-  runIntent(sc, repaint, () => spendSuggested(ctx.account, ctx.character, PLAN), 'Spending…',
-    (r) => (r.spent === 1 ? '1 point spent' : whole(r.spent || 0) + ' points spent'), ctx.character);
-  return true;
+  if (ev.type !== 'click') return false;
+  if (action === 'tl-suggested') {
+    runIntent(sc, repaint, () => spendSuggested(ctx.account, ctx.character, PLAN), 'Spending…',
+      (r) => (r.spent === 1 ? '1 point spent' : whole(r.spent || 0) + ' points spent'), ctx.character);
+    return true;
+  }
+  if (action === 'tl-take') {
+    const node = el.getAttribute('data-node'), pick = el.getAttribute('data-pick');
+    runIntent(sc, repaint, () => spendTalent(ctx.account, ctx.character, node, pick), 'Taking…', () => 'Taken', ctx.character);
+    return true;
+  }
+  return false;
 }

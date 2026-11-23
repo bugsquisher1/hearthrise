@@ -185,6 +185,11 @@ export const LEVER_MOVES = Object.freeze({
   'gear.trait-rank-gate': [['+gear.special', 'a later entry Level opens a higher Trait rank on the ground (gear-steps.js maxRankAt), so more steps a found Trait can carry']],
   'ledger.aura': [['+gear.special', 'an aura is a party ledger row on every ally in reach (src/core/hunt/auras.js auraRowsOn), counted by clampLedger as the slices are']],
   'ledger.ramp-slices': [['+gear.special', 'a higher slice cap or an earlier ramp lets more conditional steps count on a hero at once (power-ledger.js clampLedger)']],
+  /* lane/roads-sample (17-talent-tree.md v3): dark behind TALENT_RULES.live; a build is ledger rows and move modifiers (src/core/talents.js grantsOf) */
+  'roads.rules': [['+gear.special', 'a dearer idle point (pointSharePm) takes more steps off a hero who leaves points unspent, as a ledger cost (talents.js grantsOf, the ranks slice)']],
+  'roads.borrow-bands': [['+gear.special', 'a smaller penalty or an earlier opening Level lets a borrowed move land more, sooner (talents.js borrowBand, talent-rows.js moddedRow)']],
+  'roads.nodes': [['+gear.special', 'a bigger node number is more steps or a stronger move modifier on the hero that owns it, inside the build slice (talents.js grantsOf)']],
+  'roads.near-fall': [['+gear.special', 'a wider near-fall band holds a near-fall row (Last Stand) more of the time (talent-rows.js holds)']],
   /* lane/flame-temper-build (21-flame-temper-imbue-loot.md): all dark behind hr_flags; the roller and the bench read them later */
   'flame.levers': [['+drop.base', 'a taller fire multiplies the Rare and Very Rare chance by (1 + luck) (inner-flame.js luckPm), read by the roller (wave 4)'],
     ['+sink.other', 'Remains burned on the fire are taken off the market (hr_flame_burn)']],

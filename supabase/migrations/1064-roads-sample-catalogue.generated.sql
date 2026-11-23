@@ -12,6 +12,13 @@
 --   hr_talent_options      64 options, each lent move with the Level it opens at
 --   hr_talent_suggest      270 steps of "Spend as suggested" (7 disciplines x party, solo), never a vow
 --   hr_talent_open         7 open roads, hr_talent_disciplines 12 role keys
+-- HELD: 45 rules the engine plays as nothing yet (src/core/talents.js heldRules; 0 steps, listed so a live switch is a decision):
+--   bodyguard_share, challenge_echo, challenge_guard_back_row, challenge_holds_stalkers, challenge_self_heal, challenge_shields, chill_on_hit_taken, chill_weaker
+--   chill_windups, cleanse, damage_to_heal, free_heal_near_fall, frost_slam_single_strong, frozen_ground, heal_by_row, heal_in_near_fall
+--   heal_in_shielded, heal_in_taunting, heal_more_near_fall, heal_more_on_taunting, heal_more_on_windup, heal_over_time, heal_range, heal_split
+--   mana_back_near_fall, mana_on_cast, mana_to_healed, mend_near_fall_split, mend_over_time, mend_shared, no_switch_off_holder, regen_when_still
+--   shelter_heals, shelter_near_fall_bonus, shelter_on_near_fall, shelter_self_heavy, shelter_two_lowest, shield_duration, sick_deal_less, sickness_single_strong
+--   sickness_splash, ward_on_most_held, ward_refund, ward_tank_bonus, ward_two
 -- ORDER: 1064 in its name, before 1064-roads-sample.sql. Idempotent: tables made if missing and their rows rewritten whole, so a second
 -- apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added here. Catalogue tables, RLS on, no policy, no grant to any client role.

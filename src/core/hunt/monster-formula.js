@@ -73,6 +73,10 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
  * THE DERIVED STATS of role `roleId` at a gap of 0 on ground row `g`, for an encounter `kind` ('pull' or 'boss'): { hp, maxHit (the
  * row's biggest blow, before the role's maxHitPm), top (the blow that lands after it), spells: { id: spell row }, armorPm } at the
  * REFERENCE STEP (not yet over the dial), plus `steadyShare` (the share of the dialed steady pressure blowCap lets through). Pure.
+ * @param {string} roleId
+ * @param {{ refLevel: number }} g
+ * @param {string} [kind]
+ * @param {{ windup?: any, mend?: any }} [own]
  */
 export function roleStats(roleId, g, kind = 'pull', own = {}) {
   const R = MONSTER_ROLES[roleId];

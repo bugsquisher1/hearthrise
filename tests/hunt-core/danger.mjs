@@ -750,7 +750,7 @@ const MUTANTS = [
   { name: 'loot does not follow depth', case: 'loot', edits: [['src/core/hunt/danger.js', '  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);', '  dial.dropPm = 1000;']] },
   { name: 'loot pays the step a pull, not an hour', case: 'loot', edits: [['src/core/hunt/danger.js', 'const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;', 'const LOOT_STEP = PAY.payStepLoot;']] },
   { name: 'a bigger pull drops more of the table', case: 'loot', edits: [['src/core/hunt/danger.js', '  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);', '  dial.dropPm = 1000 * depthRatio(ground, s, LOOT_STEP);']] },
-  { name: 'the kill\'s rolls never read the depth', case: 'loot', edits: [['src/core/hunt-rewards.js', "lootPm: row.lootPm, depthPm }, rng);", 'lootPm: row.lootPm }, rng);']] },
+  { name: 'the kill\'s rolls never read the depth', case: 'loot', edits: [['src/core/hunt-rewards.js', 'rollDropTable(row.drops, { depthPm, dropMult:', 'rollDropTable(row.drops, { dropMult:']] },
   { name: 'depth scales a certainty', case: 'loot', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch);\n', '']] },
   /* lane/moves-pass-1: the holder's line */
   { name: 'the holder reads the stance\'s own line', case: 'holder', edits: [['src/core/hunt/danger.js', 'const marginOf = (pm, seat, hs) => (hs !== null && seat === hs && pm < 1000 ?', 'const marginOf = (pm, seat, hs) => (false && hs !== null && seat === hs && pm < 1000 ?']] },

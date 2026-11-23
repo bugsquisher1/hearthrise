@@ -438,6 +438,11 @@
         "bytes": 3812776,
         "on": "2026-11-23",
         "why": "lane/gear-phase-b: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B). The settle reads 124 new gear rows: their generated stats (gear-stats.generated.js, about 15 KB), the four step-tier data rows and their builders (gear-tiers.js, shields.js, slot-ladders.js) and base-drops.js, the homes' base drop rows the settle rolls on a kill"
+      },
+      {
+        "bytes": 3813349,
+        "on": "2026-11-23",
+        "why": "lane/gear-phase-b merged with set/v0.2.144 050a9b999: the base's own growth since this lane's raise, lane/first-hour-rewrite's tutorial and text data the edge vendors (src/data/hunt-tutorial.js, text/hunts.js), +573 bytes; no file of this lane moved"
       }
     ]
   }

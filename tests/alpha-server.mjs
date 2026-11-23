@@ -451,11 +451,11 @@ async function blessArm(db, { H, M }, attended) {
    text; step (7), the resume, is one call of hr_hunt_resume). 2027-04-25-boss-daily.sql and 2027-04-24-boss-call-series.sql spliced it, and
    2027-04-24-tower-climb.sql (it applies after the whole v0.2.135 set) restates that image WHOLE with its TOWER-CLIMB arms, so that is
    the last author now. */
-export const MEMBER_LAST = '1005-lever-horizon.sql';   // (restated whole there, after the 2027-05-17 scaled splices: tests/patch-chain-guard.mjs PATCH-1)
+export const MEMBER_LAST = '1062-store-step.sql';   // (restated whole there, lane/econ-followups, after 1005-lever-horizon.sql's restatement and 1053/1056's splices)
 /* ...and its last author once a PATCH counts (staleAnchors `patches`): 2027-05-17-scaled-best.sql and then 2027-05-17-scaled-loot.sql
    splice it in place after tower-climb's restatement (the scaled mark on the member's own row, then the scaled item bound). The memberPlant
    mutants never read this (they plant into the live body), the anchor selftest does. */
-const MEMBER_PATCH_LAST = '1056-danger-scale.sql';   // (1005-lever-horizon.sql's store re-check, 1053-hunt-report.sql's report fold, then 1056-danger-scale.sql's scale bound)
+const MEMBER_PATCH_LAST = '1062-store-step.sql';   // (1053-hunt-report.sql's report fold and 1056-danger-scale.sql's scale bound, then 1062's whole restatement: no patch since)
 /* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
    pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
    hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */

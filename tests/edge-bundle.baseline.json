@@ -278,6 +278,11 @@
         "bytes": 3341027,
         "on": "2026-11-23",
         "why": "watched stamp: viewed asks record the hero's numbers (+2,177 B)"
+      },
+      {
+        "bytes": 3353117,
+        "on": "2026-11-23",
+        "why": "lane/ledger-l1-l3: the power ledger's clamp (src/core/power-ledger.js) and its ramp and slices (src/data/power-ledger.js), read by the power step in src/core/hunt/danger.js; gear-steps.js maxRankAt and carry-over rule (19-power-ledger.md L1, L3)"
       }
     ]
   }

@@ -230,7 +230,7 @@ function fitPull(inst, sc, p) {
     const max = Math.max(1, atTier((inst.monsters || MONSTERS)[m.kind], inst.tier).hp || 1);
     if (max !== m.maxHp) { m.hp = Math.max(1, Math.round((max * m.hp) / Math.max(1, m.maxHp))); m.maxHp = max; }
   }
-  pullBegins(w, sc ? sc.atMs : null);
+  pullBegins(w);
 }
 
 function startPull(inst, sc, k, p) {
@@ -243,6 +243,9 @@ function startPull(inst, sc, k, p) {
   staleIndex(inst);
   clearGoal(k);
   inst.world.phase = PHASE.FIGHT;
+  /* THE PULL'S AGE (on the Danger scale): phaseMs counts up through a fight as it counts down through a regroup, the clock a ramping
+     monster reads (monster-formula.js rampPm); off the scale it stands where the regroup left it */
+  if (dangerOn(inst.world)) inst.world.phaseMs = 0;
   sc.emit(makeEvent('pull', sc.atMs, { pocket: p }));
 }
 
@@ -398,6 +401,7 @@ export function runPhase(inst, sc) {
   if (!k) return;
   if (w.phase === PHASE.TRAVEL) { travel(inst, sc, k); return; }
   if (w.phase === PHASE.FIGHT) {
+    if (dangerOn(w)) w.phaseMs += sc.dtMs;
     const p = pocketNow(inst);
     if (!packMonsters(inst, p).length) {
       /* THE BURNING TOWER (tower.js): the room is down, the heroes standing clear the floor and the stair opens (the respawn below). */

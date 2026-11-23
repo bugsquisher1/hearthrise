@@ -40,8 +40,7 @@ import { isHero, isMonster } from './sides.js';
    still down until its normal respawn (fitPull): never re-formed whole, so kill, break off, re-kill pays nothing twice (wave 1). */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([]),
-  /* pullAt: the ms its pull began (pullBegins), the clock a ramping monster reads (monster-formula.js rampPm); null before the first */
-  world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int'], ['pullAt', 'int?'],
+  world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int'],
     ['lowHero', 'int?'], ['lowBy', 'str']]),
   pack: Object.freeze([['down', 'int']]),
 });
@@ -260,7 +259,6 @@ export function openDanger(world, risk, step) {
   world.cool = 0;
   world.lowHero = null;
   world.lowBy = '';
-  world.pullAt = null;
 }
 
 /** The heroes standing in a world (a formula ground's pull is sized to them: dangerDial). */
@@ -327,11 +325,8 @@ function wholeMargin(w) {
 }
 
 /** A pull begins (pull-cycle.js startPull): its margin starts whole. */
-export function pullBegins(world, atMs) {
-  if (!dangerOn(world)) return;
-  wholeMargin(world);
-  /* the pull's clock: a ramping monster's growth reads it (monster-formula.js rampPm) */
-  world.pullAt = Number.isSafeInteger(atMs) ? atMs : null;
+export function pullBegins(world) {
+  if (dangerOn(world)) wholeMargin(world);
 }
 
 /**

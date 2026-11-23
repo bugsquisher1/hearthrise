@@ -11,7 +11,8 @@
 //           a kill the same coin as the switch off; off the switch the dial is what it was for every party size.
 //   switch  the ground's one data switch: off, no derived row or table; on, every monster of the ground plays its derived row with its
 //           content (name, drops, coin, XP) its own, and no other monster moves.
-//   ramp    a boss's blow and wind-up grow by its encounter's rampPerMinute a minute of its pull (the pull's clock, danger.js pullBegins);
+//   ramp    a boss's blow and wind-up grow by its encounter's rampPerMinute a minute of its pull (the pull's age: pull-cycle.js counts phaseMs
+//           up through a fight on the scale, persisted, so every settle cut ramps alike);
 //           nothing else ramps; off the scale the clock is never set.
 //   data    every role carries its dials inside their bands, a wind-up shape exactly when it has a wind-up share; every scale ground names
 //           its reference Level and its switch; on every scale ground the derived spell rows land inside the spell bounds unclamped (a
@@ -22,7 +23,7 @@
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, loadCore, plant, makeReport } from './fixtures/h1.js';
+import { ROOT, loadCore, plant, makeReport, member, groundRow, gridOf, T0 } from './fixtures/h1.js';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
@@ -151,15 +152,33 @@ const CASES = {
     const want = Math.round(1000 * M.roleData.MONSTER_FORMULA.encounters.boss.rampPerMinute);
     if (!(want > 0)) return 'CONTROL: a boss does not ramp';
     if (hask.rampPm !== want) return 'the boss carries rampPm ' + hask.rampPm + ', not ' + want;
-    const inst = { monsters: { captain_hask: hask, muster_knight: knight }, world: { risk: 'steady', pullAt: 1000 } };
-    if (M.mf.rampPm(inst, { kind: 'captain_hask' }, 1000) !== 1000) return 'the boss ramps at the pull\'s start';
-    if (M.mf.rampPm(inst, { kind: 'captain_hask' }, 61000) !== 1000 + want) return 'a minute into the pull the boss stands at ' + M.mf.rampPm(inst, { kind: 'captain_hask' }, 61000) + ', not ' + (1000 + want);
-    if (M.mf.rampPm(inst, { kind: 'muster_knight' }, 61000) !== 1000) return 'a pull monster ramps';
-    if (M.mf.rampPm({ ...inst, world: { risk: 'steady', pullAt: null } }, { kind: 'captain_hask' }, 61000) !== 1000) return 'a boss ramps with no pull clock';
-    const w = { risk: 'steady' }; M.danger.pullBegins(w, 5000);
-    if (w.pullAt !== 5000) return 'a pull on the scale does not start its clock';
-    const off = { risk: '' }; M.danger.pullBegins(off, 5000);
-    if (off.pullAt !== undefined) return 'a pull off the scale starts a clock';
+    const at = (phase, phaseMs) => ({ monsters: { captain_hask: hask, muster_knight: knight }, world: { risk: 'steady', phase, phaseMs } });
+    const hk = { kind: 'captain_hask' };
+    if (M.mf.rampPm(at('fight', 0), hk) !== 1000) return 'the boss ramps at the pull\'s start';
+    if (M.mf.rampPm(at('fight', 60000), hk) !== 1000 + want) return 'a minute into the pull the boss stands at ' + M.mf.rampPm(at('fight', 60000), hk) + ', not ' + (1000 + want);
+    if (M.mf.rampPm(at('fight', 60000), { kind: 'muster_knight' }) !== 1000) return 'a pull monster ramps';
+    if (M.mf.rampPm(at('regroup', 60000), hk) !== 1000) return 'a boss ramps outside a fight (the regroup\'s countdown)';
+    /* the pull's age on the real cycle (the fixture's two heroes, 6 minutes in 10 s windows, the world through JSON at every cut): every
+       stored world caught in a fight on the scale is a whole number of sub-steps into it, some past the first; off the scale none moved */
+    const ages = (plan) => {
+      const ms = [member(M, 'a', { seat: 0, maxHp: 60, hp: 60, maxHit: 12 }), member(M, 'b', { seat: 1, maxHp: 60, hp: 60, maxHit: 12 })];
+      if (plan) for (const x of ms) x.hero = { ...x.hero, ...plan };
+      const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('mf-ramp', 3, d, i), monsters: M.MONSTERS, ground: groundRow(), grid: gridOf(M) };
+      let w = null, next = T0;
+      const out = [];
+      for (let t = T0 + 10000; t <= T0 + 360000; t += 10000) {
+        w = w ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))) : null;
+        const r = M.cs.simulateHuntInstance({ world: w, nextSwingAtMs: next, members: ms }, { ...ctx, toMs: t });
+        w = r.world; next = r.nextSwingAtMs;
+        if (!w) break;
+        if (w.phase === 'fight') out.push(w.phaseMs);
+      }
+      return out;
+    };
+    const on = ages({ risk: 'steady', danger: 0 }), off = ages(null);
+    if (!on.length || !off.length) return 'CONTROL: no stored world caught in a fight (on ' + on.length + ', off ' + off.length + ')';
+    if (!on.some((x) => x > 0) || on.some((x) => x % 100 !== 0)) return 'a fight on the scale does not age its pull by sub-steps: ' + on.slice(0, 12).join(' ');
+    if (off.some((x) => x !== 0)) return 'a fight off the scale aged its pull: ' + off.slice(0, 12).join(' ');
     return null;
   },
   data(M) {
@@ -225,7 +244,8 @@ const MUTANTS = [
   { name: 'the switch is always on', case: 'switch', edits: [['src/core/hunt/monster-formula.js', "return g && g.monsters === 'formula' && Number.isInteger(g.refStep)", 'return g && Number.isInteger(g.refStep)']] },
   { name: 'a derived row drops its content', case: 'switch', edits: [MUSTER_ON, ['src/core/hunt/monster-formula.js', 'const out = { ...row, hp:', 'const out = { role: row.role, tier: row.tier, hp:']] },
   { name: 'a boss never ramps', case: 'ramp', edits: [['src/core/hunt/monster-formula.js', 'if (s.rampPm > 0) out.rampPm = s.rampPm; else delete out.rampPm;', 'delete out.rampPm;']] },
-  { name: 'the pull clock never starts', case: 'ramp', edits: [['src/core/hunt/danger.js', '  world.pullAt = Number.isSafeInteger(atMs) ? atMs : null;\n', '']] },
+  { name: 'a fight never ages its pull', case: 'ramp', edits: [['src/core/hunt/pull-cycle.js', '    if (dangerOn(w)) w.phaseMs += sc.dtMs;\n', '']] },
+  { name: 'a pull ages off the scale too', case: 'ramp', edits: [['src/core/hunt/pull-cycle.js', '    if (dangerOn(w)) w.phaseMs += sc.dtMs;\n', '    w.phaseMs += sc.dtMs;\n']] },
   { name: 'a role row loses its pressure', case: 'data', edits: [['src/data/monster-roles.js', 'secondsToKill: 2.5, pressure: ', 'secondsToKill: 2.5, pressur: ']] },
 ];
 /* the engine half, each planted with the switch on (play) or off (play-off) */

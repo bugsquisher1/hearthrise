@@ -136,7 +136,7 @@ function land(inst, sc, u, sp) {
   const id = u.cast.s;
   const row = swingRow(u, atTier(rowOf(inst, u.kind), inst.tier));   // the instance's row (a scaled hunt's), as a swing reads it (damage.js)
   /* (a ramping boss's wind-up grows with its pull as its blow does: monster-formula.js rampPm, 1000 for every other monster) */
-  const ramp = rampPm(inst, u, sc.atMs);
+  const ramp = rampPm(inst, u);
   const [lo, top] = spellHit(ramp === 1000 ? monsterMaxHit(row) : Math.floor((monsterMaxHit(row) * ramp) / 1000), sp);
   const t = mends(sp) ? unitById(inst, u.cast.t) : null;
   /* (a pack reset takes the caster out of the fight too, which drops the cast before it lands: dropCasts) */

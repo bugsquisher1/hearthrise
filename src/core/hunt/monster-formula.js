@@ -165,11 +165,12 @@ export function formulaTable(groundId, base) {
 
 /**
  * THE RAMP (MONSTER_FORMULA.encounters rampPerMinute, on a derived row's `rampPm`): a ramping monster's blows and wind-ups stand at
- * 1000 + rampPm x the minutes its pull has been fought (world.pullAt, danger.js pullBegins), in permille. 1000 for any other monster.
+ * 1000 + rampPm x the minutes its pull has been fought (the pull's age: pull-cycle.js counts phaseMs up through a fight on the scale), in
+ * permille. 1000 for any other monster, and outside a fight. Read off the persisted world, so every cut of the settle windows ramps alike.
  */
-export function rampPm(inst, m, atMs) {
+export function rampPm(inst, m) {
   const row = inst && m && (inst.monsters || {})[m.kind];
   const w = inst && inst.world;
-  if (!row || !(row.rampPm > 0) || !w || !Number.isSafeInteger(w.pullAt) || !Number.isFinite(atMs) || atMs <= w.pullAt) return 1000;
-  return 1000 + Math.floor((row.rampPm * (atMs - w.pullAt)) / 60000);
+  if (!row || !(row.rampPm > 0) || !w || w.phase !== 'fight' || !Number.isSafeInteger(w.phaseMs) || w.phaseMs <= 0) return 1000;
+  return 1000 + Math.floor((row.rampPm * w.phaseMs) / 60000);
 }

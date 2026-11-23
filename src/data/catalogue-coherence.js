@@ -130,41 +130,34 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    still reachable. SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that
    gains a source or leaves ITEMS, and an id may never be added — a new item
    with no source is a C1 failure, not a candidate for this list.
-   RULED CUT (the designer, lane/named-pieces 2026-11-23, docs/design/redesign/28-named-pieces.md (d)), leaving ITEMS with the catalogue
-   lane that deletes them: abyssal_greaves, alphaheart_longbow, ashcrown_greatsword, choirbone_gauntlets, crown_of_the_fallen_king,
-   dragonfang_pike, dragonrend_greatblade, fangdart_recurve, gold_amulet, gold_ring, hollow_sigil_ring, nightstalker_pelt,
-   plaguewarden_greaves, quiet_coat, regent_helm, slagheart_platebody, voidmaw_scepter, warden_girdle, wartusk_cleaver, whispering_codex,
-   widows_fang, wyrmgilt_mantle. */
+   CUT 2026-11-23 (the designer, lane/named-pieces, docs/design/redesign/28-named-pieces.md (d)): 22 of these rows left ITEMS,
+   hr_items and this list together (the named pieces whose only mark was a stat bump). */
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
-  'abyssal_greaves', 'alphaheart_longbow',
-  'ashcrown_greatsword', 'bone_needle',
+  'bone_needle',
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'crown_of_the_fallen_king',
   'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
-  'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
+  'dragon_relic',
   'duskwood_rod', 'elderscale_heart',
-  'fangdart_recurve', 'gold_amulet',
-  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
+  'heartgarnet_maul',
   'lexarch_seal',
   'maple_rod',
-  'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
-  'slagheart_core', 'slagheart_platebody',
+  'slagheart_core',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
-  'verdite_platelegs', 'void_essence', 'voidmaw_scepter',
+  'verdite_platelegs', 'void_essence',
   'voidwoven_sigil',
-  'warboss_standard', 'warden_girdle', 'warden_seal',
-  'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
-  'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
-  'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
+  'warboss_standard', 'warden_seal',
+  'watchknight_belt', 'watchknight_body', 'watchknight_boots',
+  'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants',
+  'willow_rod', 'woolen_cloak', 'wyrm_gilding',
   'yew_rod',
   /* The Hearth Token (the IAP bond) and the three boss-forged body pieces left ITEMS with the old dungeons, the
      gem rows and the bond (2026-11-20, plan L10). */
@@ -222,7 +215,7 @@ export const UNREACHABLE = Object.freeze({
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
-    'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
+    'wraithglass_drops', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc',
     'keystone',
     'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
@@ -238,9 +231,6 @@ export const UNREACHABLE = Object.freeze({
     'hollow_sigil', 'abyssal_pearl',
     /* A copy of the Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
     'bronze_sword',
-    /* The old roster's uniques whose creature left the plan and whose one mark was a stat bump on its tier's piece (the designer,
-       lane/named-pieces 2026-11-23, docs/design/redesign/28-named-pieces.md (d)); their sourceless twins wait in AWAITING_ROSTER. */
-    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
   ]),
 });
 /* Every row outside `staged`. It only falls: lower it in the commit that sources or cuts an item. */

@@ -19,7 +19,7 @@ What this does NOT do: invent a home for a piece whose creature is gone. The 46 
 
 ## 2. The rulings, all 96 rows
 
-81 rows typed an offset by hand, plus 15 crafted jewel grades that copied their plain row's. Counts: **(a) 0, (b) 1, (c) 65, (d) 30.**
+81 rows typed an offset by hand, plus 15 crafted jewel grades that copied their plain row's. Counts: **(a) 0, (b) 1, (c) 63, (d) 32.** (Second pass the same day: the Trollhide Cape and the Dragonrib Bow had no home at their Level and were cut; two names were changed; every (d) row is now deleted, section 5.)
 
 "Source today" is `src/data/catalogue-coherence.js`: a reachable door, `greenhaven` or `later` (a source on paper, no open ground), or `none` (AWAITING_ROSTER).
 
@@ -72,8 +72,8 @@ A cape's own rule is its Steady armor (`steadyPm`), which every cape keeps. The 
 | 39 | `grayjaws_ruff` | Grayjaw's Ruff | cape, 12 | Old Grayjaw | (c) | Steady 50 against the Woollen Cloak's 30 at the same Level, so it stays the better cape. Its crit is cut |
 | 40 | `houndskin_cloak` | Houndskin Cloak | cape, 22 | Glade Poacher, Crafting | (c) | Plain cape, Steady 70 |
 | 41 | `warband_bulwark` | Warband Bulwark | cape, 30 | Crafting 30 | (c) | Plain cape, Steady 110 |
-| 42 | `trollhide_cape` | Trollhide Cape | cape, 40 | later | (c) | Plain cape, Steady 150. Its natural home is Carter's Rest, the troll ground (owed, section 5) |
-| 43 | `shadowsilk_cape` | Shadowsilk Cape | cape, 60 | later | (c) | Plain cape, Steady 185. Its name uses a filler word and is owed a rename (section 5) |
+| 42 | `trollhide_cape` | Trollhide Cape | cape, 40 | later (Mountain Troll) | (d) | Cut. Its one lore home, Carter's Rest, opens at Level 88, so a Level 50 cape there drops outgrown. The tier-4 cape rung has no source either way |
+| 43 | `shadowsilk_cape` | Spidersilk Cape (was Shadowsilk) | cape, 60 | later | (c) | Plain cape, Steady 185. Renamed: "Shadow" is a filler word, and its own text says it is spider silk off a loom, like the Spidersilk Choker |
 | 44 | `dawnlit_mantle` | Dawnlit Mantle | cape, 88 | none | (c) | The cape capstone, Steady 255 |
 
 ### 2.4 Shields (c)
@@ -103,8 +103,8 @@ A bane ("10% more to vermin") is a matchup rule: it says which ground a weapon s
 | 56 | `bramble_blade` | Bramble Blade | sword, 15 | Turncoat | (c) | The Iron Sword's numbers and its plant bane |
 | 57 | `rat_stick` | Rat Stick | hammer, 30 | greenhaven | (c) | The tier's warhammer and its vermin bane |
 | 58 | `lazlos_maul` | Lazlo's Maul | hammer, 45 | later | (c) | The tier's warhammer and its undead bane |
-| 59 | `void_censer` | Void Censer | staff, 60 | later | (c) | The tier's staff and its bane. Filler word in the name, owed a rename |
-| 60 | `dragonrib_bow` | Dragonrib Bow | bow, 75 | later | (c) | The tier's bow and its dragon bane. Its natural home is Wyvern Roost (owed) |
+| 59 | `void_censer` | Banishing Censer (was Void Censer) | staff, 60 | later | (c) | The tier's staff and its bane against things from outside (extra-dimensional). Renamed: "Void" is a filler word, and a censer that drives those things off banishes them |
+| 60 | `dragonrib_bow` | Dragonrib Bow | bow, 75 | later (Draconia) | (d) | Cut. Its one lore home, Wyvern Roost, opens at Level 125, past the bow's tier, and its creature left the plan |
 | 61 | `demoncaller_staff` | Demoncaller | staff, 68 | none | (c) | Plain staff. Its future is its special-attribute twin (the Provost, Pyre Field, undead bane) |
 | 62 | `klappas_club` | Klappa's Klub | hammer, 5 | Smithing 1 (reforge) | (c) | The formula's club at its own Level 5: 4 aim and 8 damage, between the Practice Club's 3 / 6 and the Iron Warhammer's 6 / 13. It was the Iron Warhammer's damage with its aim cut, a stat bump with a trade. Andy's club keeps its name, its reforge and its tutorial card |
 | 63 | `oak_practice_blade` | Oak Practice Blade | sword, 1 | premium login reward | (c) | The practice sword's numbers (it was 2 under). A login keepsake, not power. Premium is Tyler's |
@@ -185,10 +185,9 @@ Verified by `node tools/gen-gear.mjs` (the table above is its output, rounded) a
 
 ## 5. Owed, not done here
 
-- **Deleting the 30 cut rows.** They stay in ITEMS until a catalogue lane removes them with the `hr_items` change and their art, flavour text and test lists (`item-flavour-coverage.mjs`, `lucky-finds.mjs`). The seven with a paper source moved from `later` to `cut` in `catalogue-coherence.js`, and the 22 sourceless ones are named in AWAITING_ROSTER's comment. The `cut` list says Tyler approves cuts. This is old content the redesign never used.
+- **Done in the second pass (2026-11-23):** the 31 cut ITEMS rows (30 above with the special sample already gone, plus the Trollhide Cape and the Dragonrib Bow) left ITEMS, their monsters' drop rows, descriptions, art lists and the coherence lists, and `hr_items` loses them in the lane's catalogue migration. Nobody can hold one: every one was sourceless or on a ground that never opened. The hearthfind kill-rate guard keeps the four tier-8 pieces it measured with as a test-local kit.
 - **Jewel perks** (Keen, Surge, Follow-through, Steady, Focus, `src/data/jewelry.js`) are the other half of phase A item 3. They are chances and shares, not stat offsets, so this lane didn't touch them. They belong with the Trait pool's ring and earring rows.
-- **Homes:** the Trollhide Cape fits Carter's Rest and the Dragonrib Bow fits Wyvern Roost. The Barrow King's champion goes onto Muster Barrows for its mantle's Trait to drop.
-- **Renames:** Shadowsilk Cape and Void Censer use filler words (`DESIGN_STANDARDS.md`).
+- **Homes:** the Barrow King's champion goes onto Muster Barrows for its mantle's Trait to drop.
 - **The staged weapon line past Dawnsteel** (`tools/balance-sim/staged/weapon-line.js`) carries crit and bane uniques built on the special-attribute plan. They hold no offset, so they aren't in this table, but their crit is the same flat number and goes in the same sort.
 - **Bane size.** A bane today is up to +40% (`MAX_BANE_MULT`), far past a Trait's 3.5%. It needs its size in the power ledger with the rest of the conditional numbers (`27` G-3).
 

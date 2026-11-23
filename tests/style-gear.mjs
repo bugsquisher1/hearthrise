@@ -238,7 +238,7 @@ function mutate() {
   /* SG-9: the C6 rows back (a generated wand and a generated bow, a hand-written boss wand), and a melee weapon with a Magic pair */
   run('the Oak Wand carries its Melee pair again (the C6 card: "Melee accuracy 7")', 'SG-9', () => { const a = setField('oak_wand', 'atkB', 7); const b = setField('oak_wand', 'strB', 8); return () => { b(); a(); }; });
   run('the Duskwood Bow carries a Melee damage copy', 'SG-9', () => setField('duskwood_bow', 'strB', 36));
-  run('the Whispering Codex\'s hand copy back (atkB 15)', 'SG-9', () => setField('whispering_codex', 'atkB', 15));
+  run('the Banishing Censer carries a Melee copy (atkB 15)', 'SG-9', () => setField('void_censer', 'atkB', 15));
   run('an Iron Sword with a Magic pair', 'SG-9', () => setField('iron_sword', 'magicAtkB', 3));
   run('Klappa\'s Club worn from Level 1', 'SG-7', () => setField('klappas_club', 'reqLv', 1));
   run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', 7));

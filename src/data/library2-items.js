@@ -86,12 +86,6 @@ const BANE_GEAR = {
     reqSkill: 'level', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
-  dragonrib_bow: {
-    n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
-    weaponType: 'ranged', twoHanded: true,
-    tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
-    bane: BANE('dragon'), effects: ['bane'],
-  },
   // ITEM-NEW-04 · sword T2 · vs Plant. Sword T2 curve (7/6) × 0.85. Cheap and
   // early on purpose: T2 is where the bane grammar is taught.
   bramble_blade: {
@@ -99,13 +93,13 @@ const BANE_GEAR = {
     weaponType: 'sword', tier: 2, rarity: 'uncommon',
     reqSkill: 'level', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
   },
-  // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Staff T5 curve (21/29) × 0.85.
+  // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Named the Banishing Censer (lane/named-pieces 2026-11-23: "Void" is a filler word). Staff T5 curve (21/29) × 0.85.
   // The review book also gives it "reveals the hidden element weakness"; that is
   // `reveal_hidden_weak` and it is NOT live — the element axis does not exist.
   // The censer therefore ships on its bane alone and its description promises
   // nothing else. Flagged in the change contract.
   void_censer: {
-    n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
+    n: 'Banishing Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
     weaponType: 'magic',
     tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
     /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
@@ -197,13 +191,6 @@ const ARMOUR_SETS = {
      approved specifically to un-strand three others. It is honest cloth armour
      at its tier and its description says exactly that and nothing more.
      Designer/Coordinator: this is the one card to re-read at integration. */
-  quiet_coat: {
-    n: 'Quiet Coat', icon: '🧥', v: priced(300, 6, 0.70), type: 'armor', slot: 'body',
-    armourClass: 'cloth', rarity: 'legendary', tier: 6,
-    reqSkill: 'level', reqLv: 75,
-    
-    awayEffect: 'first_strike_deny',
-  },
 
   // ITEM-NEW-43 · Deathsteel Ingot — gives `death_steel` (live orphan, Death
   // Knight 25%) its first recipe. Material tier 5, priced on the bar curve
@@ -290,7 +277,6 @@ export const LIB2_ITEMS = withGearStats({
    ══════════════════════════════════════════════════════════════════════════ */
 export const LIB2_DESC = {
   lazlos_maul: 'Lazlo was a gravedigger who made this maul for the dead that climbed back out. He cast the head from old coffin fittings',
-  dragonrib_bow: 'A bow made from a wyrm\'s rib and strung with the same wyrm\'s sinew',
   bramble_blade: 'A short blade wrapped in thorny vine that\'s still alive. Hacking through hedges keeps it sharp',
   void_censer: 'A censer that smokes even when it\'s empty. The smoke always drifts toward something that doesn\'t belong',
   rat_stick: 'It\'s a stick, weighted at one end and worn smooth at the other, and it\'s really good for killing rats',
@@ -309,7 +295,6 @@ export const LIB2_DESC = {
   watchknight_gloves: 'Death-steel gauntlets with joints fine enough that you can still hold a cup in them',
   watchknight_belt: 'A heavy death-steel belt. Once you buckle it on, you won\'t take it off much',
 
-  quiet_coat: 'A long coat woven from void shell. It doesn\'t make a sound, and neither do you while you\'re wearing it',
 
   rune_essence: 'Pale stone mined from the essence rock. Every blank rune gets cut out of this',
   rune_blank: 'A square chip of stone with nothing on it yet. Runecrafting puts the mark on it',

@@ -74,16 +74,15 @@ const EQUIPMENT = Object.freeze({
   gloves: 'choirbone_gauntlets',
   cape: 'wyrmgilt_mantle',
 });
-/* THE KIT'S NUMBERS, FROZEN HERE (lane/named-pieces 2026-11-23): these four tier-8 pieces were never obtainable and are ruled CUT
-   (docs/design/redesign/28-named-pieces.md (d)); the catalogue now sizes them as plain pieces. The pinned rates were measured on their
-   old numbers, so the band character keeps those numbers as a test-local kit until the three Emberheart sources are re-measured on a
-   kit a player can wear (they are `later` content: no open ground spawns them). Changing a number here changes what is measured. */
-const strip = (it) => Object.fromEntries(Object.entries(it).filter(([k]) => !['defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB'].includes(k)));
+/* THE KIT, FROZEN HERE (lane/named-pieces 2026-11-23): these four tier-8 pieces were never obtainable and were CUT from the catalogue
+   (docs/design/redesign/28-named-pieces.md (d)). The pinned rates were measured on them, so the band character wears them as a test-local
+   kit, row for row as they shipped, until the three Emberheart sources are re-measured on a kit a player can wear (they are
+   `later` content: no open ground spawns them). Changing a number here changes what is measured. */
 const KIT = Object.freeze({ ...ITEMS,
-  dragonfang_pike: { ...strip(ITEMS.dragonfang_pike), atkB: 48, strB: 46, critB: 0.06 },
-  slagheart_platebody: { ...strip(ITEMS.slagheart_platebody), defB: 120 },
-  choirbone_gauntlets: { ...strip(ITEMS.choirbone_gauntlets), defB: 31 },
-  wyrmgilt_mantle: { ...strip(ITEMS.wyrmgilt_mantle), atkB: 6 },
+  dragonfang_pike: { n: 'Dragonfang Pike', type: 'weapon', slot: 'weapon', weaponType: 'sword', reqSkill: 'level', reqLv: 95, iL: 95, rarity: 'legendary', atkB: 48, strB: 46, critB: 0.06 },
+  slagheart_platebody: { n: 'Slagheart Platebody', type: 'armor', slot: 'body', armourClass: 'plate', rarity: 'unique', tier: 8, reqSkill: 'level', reqLv: 88, iL: 88, defB: 120 },
+  choirbone_gauntlets: { n: 'Choirbone Gauntlets', type: 'armor', slot: 'gloves', armourClass: 'plate', rarity: 'unique', tier: 8, reqSkill: 'level', reqLv: 88, iL: 88, defB: 31 },
+  wyrmgilt_mantle: { n: 'Wyrmgilt Mantle', type: 'armor', slot: 'cape', steadyPm: 285, rarity: 'unique', tier: 8, reqSkill: 'level', reqLv: 88, iL: 88, atkB: 6 },
 });
 
 function measure(monsterId) {

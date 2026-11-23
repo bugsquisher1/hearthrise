@@ -138,9 +138,9 @@ function live() {
 const MUTANTS = [
   ['GSF-1', 'a ladder piece keeps an armor point by hand', (o) => { o.items = { ...o.items, rune_platebody: { ...o.items.rune_platebody, defB: o.items.rune_platebody.defB + 1 } }; }],
   ['GSF-1', 'the generated table drifts from the formula', (o) => { o.table = o.table.replace('"dawn_sword": f({', '"dawn_sword": f({ atkB: 1 }), "dawn_sword~planted": f({'); }],
-  ['GSF-2', 'a named row types its damage', (o) => { o.sources['src/data/wave3-uniques.js'] = o.sources['src/data/wave3-uniques.js'].replace("weaponType:'sword',rarity:", "weaponType:'sword',strB:9,rarity:"); }],
-  ['GSF-2', 'a named row states an offset again', (o) => { o.sources['src/data/wave3-uniques.js'] = o.sources['src/data/wave3-uniques.js'].replace("weaponType:'sword',rarity:", "weaponType:'sword',statPlus: { critB: 0.02 }, rarity:"); }],
-  ['GSF-2', 'a loaded row carries an offset', (o) => { o.items = { ...o.items, dragonrend_greatblade: { ...o.items.dragonrend_greatblade, statPlus: { strB: 7 } } }; }],
+  ['GSF-2', 'a named row types its damage', (o) => { o.sources['src/data/wave3-uniques.js'] = o.sources['src/data/wave3-uniques.js'].replace("twoHanded:true,rarity:'epic'", "twoHanded:true,magicStrB:9,rarity:'epic'"); }],
+  ['GSF-2', 'a named row states an offset again', (o) => { o.sources['src/data/wave3-uniques.js'] = o.sources['src/data/wave3-uniques.js'].replace("twoHanded:true,rarity:'epic'", "twoHanded:true,statPlus: { critB: 0.02 }, rarity:'epic'"); }],
+  ['GSF-2', 'a loaded row carries an offset', (o) => { o.items = { ...o.items, demoncaller_staff: { ...o.items.demoncaller_staff, statPlus: { strB: 7 } } }; }],
   ['GSF-8', 'a fixed Trait made for another slot', (o) => { o.traits = { ...o.traits, file_breaker: { ...o.traits.file_breaker, fixedOn: { jarls_rimetorc: 1 } } }; }],
   ['GSF-8', 'a fixed Trait on no item', (o) => { o.traits = { ...o.traits, captains_due: { ...o.traits.captains_due, fixedOn: { barrow_kings_mantle: 1 } } }; }],
   ['GSF-8', 'a rank 4', (o) => { o.traits = { ...o.traits, captains_due: { ...o.traits.captains_due, fixedOn: { barrowking_mantle: 4 } } }; }],

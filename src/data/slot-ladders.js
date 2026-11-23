@@ -138,8 +138,7 @@ export const SLOT_ITEMS = withGearStats({
      plan's rule): the ladder's cut between the Houndskin's 70 and the Trollhide's 150, and a point of damage for each style. Ships plain until
      the cloak's perks (Slip, Stride) are hooked. */
   warband_bulwark: { n: 'Warband Bulwark', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, steadyPm: 110 },
-  trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, steadyPm: 150 },
-  shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, steadyPm: 185 },
+  shadowsilk_cape: { n: 'Spidersilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, steadyPm: 185 },
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, steadyPm: 255 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
@@ -253,8 +252,7 @@ export const SLOT_DESC = {
   woolen_cloak: 'A plain wool cloak that keeps the rain off. It\'s the first cloak most people ever own',
   warband_bulwark: 'Bear pelts sewn over a steel frame and worn on your back. Every hit you take lands a little softer',
   houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with bear hide, cut short for the swing',
-  trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
-  shadowsilk_cape: 'A cape of shadow silk woven on a spider\'s loom. It doesn\'t move, even when you\'re running',
+  shadowsilk_cape: 'A cape of spider silk, woven tight on a cave loom. It doesn\'t move, even when you\'re running',
   dawnlit_mantle: 'A cape woven from duskwood thread with strands of dawnsteel through it. The hem shines when the sun\'s up',
 
   wolfbone_torc: 'A wolf bone necklace bound in bronze. Hunters keep count of their kills on it',

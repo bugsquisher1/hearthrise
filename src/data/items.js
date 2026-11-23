@@ -148,17 +148,9 @@ export const ITEMS={
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
   wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
   void_chitin:{n:'Void Chitin',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Shadow Pelt',icon:'🐈‍⬛',v:480},
-  /* b542 — `captains_ribblade` and `chief_blade` (next line but one) are the two
-     boss-drop weapons that carried NEITHER a tier nor a gate, so neither reader
-     had anything to gate on: the client's tier fallback needs a tier and
-     hr_items.req_lv was NULL. Ruling 2026-09-12 puts them on the ladder rung
-     their attack bonus already sits on — Ribblade attack 30 (atkB 19, between
-     steel 12 and mithril 18), Chief's Blade attack 15 (atkB 13, iron's rung) —
-     rather than inventing a tier, because `tier` also drives the rarity border
-     and the ladder guards, and these two are drops, not rungs. */
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',reqSkill:'level',reqLv:30},
+  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',reqSkill:'level',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',steadyPm: 90,reqSkill:'level',reqLv:30},
+  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},
   /* defB 2 -> 1, its ladder value: at 2 the tier-2 Studded Boots stopped no more damage (balance ruling 2026-10-25 §9; tests/hunt-core/first-week-bands.mjs armor-rungs).
      v 90 -> 35, its ladder value (gear-tiers.js leather boots, tier 1): at 90 it outsold the tier-2 Studded Boots (75). */
   leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots'},
@@ -171,7 +163,7 @@ export const ITEMS={
      the STAT rather than a tier, because these rows never sat on the tier
      ladder; since Tyler 2026-10-24 the number is the hero's LEVEL, like every
      piece of gear (gear-tiers.js LEVEL_REQ; it was Defense):
-       alpha_cloak / gold_ring / gold_amulet → 30 (defB 5 / atkB+strB 3 / atkB 4
+       alpha_cloak / gold_ring / gold_amulet → 30 (cut 2026-11-23, 28-named-pieces.md; were defB 5 / atkB+strB 3 / atkB 4
          +defB 2 — steel's rung, the strongest non-tier cape and jewelry shipped);
        copper_ring / hunter_necklace / traveler_cape → 1. reqLv 1 restricts
          nobody (the gate is `level < req_lv`); it is what keeps the column NON-NULL across the whole slot
@@ -186,8 +178,6 @@ export const ITEMS={
   /* Wave 4 (audit fix): Gold ore/bar was a near dead-end — an entire mining tier
      with one necklace as its only sink. These give gold_bar real demand and flesh
      out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */
-  gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',reqSkill:'level',reqLv:30},
-  gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',reqSkill:'level',reqLv:30},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves'},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt'},
   /* No piece sells under its lower-tier twin (drop-tables sale-ladder): the outfitter's belt and gloves carry their Shop book,
@@ -714,63 +704,21 @@ export const ITEMS={
   warden_seal:    {n:"Warden's Seal",   icon:'🔱', v:4400, tier:7},
   wyrm_gilding:   {n:'Wyrm Gilding',    icon:'✨', v:5200, tier:7},
 
-  /* The Hunt-forged kit. Stats continue the ARMOUR_SLOTS curves in
-     gear-tiers.js at the same ~1.33× step Dawnsteel takes over Emberforged, so
-     the ladder stays one line rather than a bespoke spike. `rarity:'unique'` is
-     the top band in rarity.js and is explicit, so it wins over value-derived
-     mythic — these are the rarest objects in the game and should read that way.
-     `tier: 8` is one above the seven-rung material ladder; nothing indexes gear
-     tier as an array, and clan-seat's TIER_MULT clamps, so it is safe.
-     ⚠ b542 — "nothing indexes gear tier as an array" WAS FALSE, and it cost the
-     economy the whole gate: legacy.js `_TIER_WIELD_LV` is an array of 8 with no
-     index 8, so `_TIER_WIELD_LV[8]` was undefined → `||0` → no requirement, and
-     hr_items.req_lv was NULL because this row never authored one. All six are
-     tradeable, so a level-1 buyer could wear a 120-def platebody off the market.
-     They now carry the gate AS DATA (Level 88, the ladder's top rung — ruling
-     2026-09-12: tier 8 shares 88 rather than opening a rung above it), which is
-     the form BOTH readers see: gearWieldReq prefers an explicit reqLv over the
-     array, and gen-catalogues mirrors it into hr_items for hr_apply §EQUIPMENT. */
-  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  abyssal_greaves:       {n:'Abyssal Leg Plates',  icon:'🦿', v:198000, type:'armor', slot:'pants',  armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   armourClass:'plate', rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   steadyPm: 285, rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
-
-  /* ── DUNGEON SIGNATURE LOOT (b268 — the boss ecosystem, increment 1) ──────
-     Every solo dungeon has a named end-boss (see src/dungeons.js DUNGEONS[id].boss)
-     and 1-2 original signature drops that only fall from that boss.
-
-     NO BOUND GEAR (Tyler 2026-10-23: "Nah no bound gear in this game"): signature
-     gear trades like every other piece, ground drops, named pieces, boss-forge and
-     dungeon gear alike. It supersedes the 2026-08-09 rule that made signature gear
-     bind-on-pickup. Only the non-gear Hearthfind trophies stay bound (bop + v:0,
-     their no-tradeable-value guard, below).
-
-     Weapon reqLv is set explicitly to the dungeon's combat-level gate (no `tier`,
-     so gearWieldReq reads reqLv directly). Stats slot each weapon between the
-     same-tier craftables and the next rung, with a distinct identity (Wartusk =
-     strength, Codex = magic+crit, etc.) so they read as a reward, not a reskin. */
-
+  /* The six tier-8 "Hunt-forged" pieces and the five dungeon boss weapons were CUT (the designer, lane/named-pieces 2026-11-23,
+     docs/design/redesign/28-named-pieces.md (d)): their sources are gone and each was its tier's piece plus a stat bump. The dungeon
+     trophies and materials below stay where their own fates say (catalogue-coherence.js). */
   // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)
-  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  type:'weapon', slot:'weapon', weaponType:'sword', reqSkill:'level', reqLv:35, rarity:'unique'},
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', reqSkill:'level', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
-  // obsidian_keep — The Ashen King (Lv 65)
-  ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, type:'weapon', slot:'weapon', weaponType:'sword', reqSkill:'level', reqLv:65, rarity:'unique'},
-
   // voidbringer — The Riftmaw (Lv 80)
-  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', reqSkill:'level', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
-  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, type:'weapon', slot:'weapon', weaponType:'sword', reqSkill:'level', reqLv:95, rarity:'legendary'},
   elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
 
 

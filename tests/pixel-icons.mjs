@@ -86,7 +86,7 @@ export function checkFactionList(list, sides = STANDING_SIDES, pieces = Object.k
     share a shelf (src/data/catalogue-coherence.js reachableSources); it gets its own when it opens. A new pair is a finding. */
 const KNOWN_TWINS = [
   ['graypelt_cloak', 'woolen_cloak'], ['skulkers_shiv', 'bronze_knife'],
-  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['torn_company_badge', 'warlord_badge']];
+  ['torn_company_badge', 'warlord_badge']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

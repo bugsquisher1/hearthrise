@@ -255,7 +255,6 @@ insert into public.hr_tally_materials (task_id, ord, item_id, qty) values
 
 delete from public.hr_tally_tiers;
 insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
-  ('abyssal_greaves', 'pants', 8),
   ('adept_belt', 'belt', 2),
   ('adept_body', 'body', 2),
   ('adept_boots', 'boots', 2),
@@ -295,10 +294,8 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('chitin_gloves', 'gloves', 4),
   ('chitin_helmet', 'helmet', 4),
   ('chitin_pants', 'pants', 4),
-  ('choirbone_gauntlets', 'gloves', 8),
   ('coffer_guards_helm', 'helmet', 6),
   ('cranemans_helm', 'helmet', 4),
-  ('crown_of_the_fallen_king', 'helmet', 7),
   ('dawn_belt', 'belt', 7),
   ('dawn_boots', 'boots', 7),
   ('dawn_gauntlets', 'gloves', 7),
@@ -356,13 +353,9 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('mithril_helm', 'helmet', 4),
   ('mithril_platebody', 'body', 4),
   ('mithril_platelegs', 'pants', 4),
-  ('nightstalker_pelt', 'body', 5),
-  ('plaguewarden_greaves', 'pants', 5),
   ('porters_boots', 'boots', 6),
   ('pothunters_hood', 'helmet', 7),
-  ('quiet_coat', 'body', 6),
   ('ratters_hood', 'helmet', 2),
-  ('regent_helm', 'helmet', 8),
   ('rune_belt', 'belt', 5),
   ('rune_boots', 'boots', 5),
   ('rune_gauntlets', 'gloves', 5),
@@ -377,7 +370,6 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('scholar_pants', 'pants', 3),
   ('scribes_slippers', 'boots', 6),
   ('sewermans_boots', 'boots', 4),
-  ('slagheart_platebody', 'body', 8),
   ('snakeskin_belt', 'belt', 4),
   ('snakeskin_body', 'body', 4),
   ('snakeskin_boots', 'boots', 4),
@@ -409,7 +401,6 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('verdite_helm', 'helmet', 4),
   ('verdite_platebody', 'body', 4),
   ('verdite_platelegs', 'pants', 4),
-  ('warden_girdle', 'belt', 8),
   ('warlock_belt', 'belt', 4),
   ('warlock_body', 'body', 4),
   ('warlock_boots', 'boots', 4),
@@ -424,7 +415,6 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('watchknight_helmet', 'helmet', 5),
   ('watchknight_pants', 'pants', 5),
   ('woodwards_hood', 'helmet', 6),
-  ('wraithsilk_shroud', 'body', 5),
   ('wyvernhide_belt', 'belt', 5),
   ('wyvernhide_body', 'body', 5),
   ('wyvernhide_boots', 'boots', 5),
@@ -444,8 +434,8 @@ begin
      or (select count(*) from public.hr_tally_materials) <> 30
      or (select held_max from public.hr_tally_config) <> 3
      or (select paid_per_day from public.hr_tally_config) <> 3
-     or (select count(*) from public.hr_tally_tiers) <> 176
-     or (select sum(tier) from public.hr_tally_tiers) <> 759 then
+     or (select count(*) from public.hr_tally_tiers) <> 166
+     or (select sum(tier) from public.hr_tally_tiers) <> 691 then
     raise exception 'tally-catalogue: the rows are not the generated set'; end if;
   select t.task_id into v_bad from public.hr_tally_tasks t
    where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)
@@ -481,5 +471,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 11 tasks (21485 g in all), 123 pieces on 11 grounds, 30 materials, 176 worn tiers; all green';
+  raise notice 'tally-catalogue: 11 tasks (21485 g in all), 123 pieces on 11 grounds, 30 materials, 166 worn tiers; all green';
 end $$;

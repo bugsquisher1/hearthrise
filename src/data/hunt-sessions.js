@@ -149,8 +149,9 @@ export const DEATH_XP_LOSS = 0.06;
 
 /* THE DEATH IN HOURS (lane/level-costs, 2026-11-22; 04-math-strategy.md section 5 deathHours; Tyler 2026-11-22: a per-hero cost reads
    the hero's LEVEL). A death's Level XP is the LESSER of the share above and DEATH_HOURS reference hours of progress at the hero's Level
-   (action-rules.js levelHourXp). The share binds to Level 61 (a young hero never falls back to Level 1), the hours from 62 (the same
-   weight at every Level). 7.5 is parity with the share at Level 60, where the stances were measured (12-targets.md C-4). Server copy:
+   (action-rules.js levelHourXp). The share binds to Level 63 (a young hero never falls back to Level 1), the hours from 64 (the same
+   weight at every Level). 7.5 was parity with the share at Level 60 on the hours table the stances were measured on (12-targets.md
+   C-4); core-model.js LEVEL_HOURS (lane/formula-overhaul) moved parity to Level 63, the lever held at 7.5. Server copy:
    hr_level_costs.death_hours_pm (tools/gen-level-costs.mjs), bound hr_death_xp_mode_max. LEVER level.death-hours, a starting value. */
 export const DEATH_HOURS = 7.5;
 

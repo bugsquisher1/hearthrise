@@ -1758,6 +1758,11 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tests/drop-formula.mjs
+      - name: Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/drop-formula.mjs
       # tests/econ-levers.mjs
       - name: Economy levers set together - a typed store price, a second coin ratio, the kit out of 0.2-0.3 of pay, the wage off the pay, Careful off C-5
         if: ${{ !cancelled() }}

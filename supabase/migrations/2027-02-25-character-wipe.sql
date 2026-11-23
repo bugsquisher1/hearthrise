@@ -123,6 +123,9 @@ declare
     'player_skills', 'player_state', 'player_workers',
     /* a hero's lifetime count of Talent resets (1063-level-costs.sql): its first reset is free once ever, a wiped hero starts at none */
     'player_talent_resets',
+    /* the company's flame, each hero's Temper ranks, worn imbuements and loot pity (1063-flame-temper.sql): an account's and its heroes',
+       earned by heroes the wipe clears; a wiped account lights its flame again from Level 1 and its heroes start with no Temper or pity */
+    'company_flame', 'hero_temper', 'hero_worn_imbue', 'hero_pity',
     'session_claims', 'social_presence', 'town_bodies', 'town_moves', 'town_positions', 'town_seen', 'town_snapshot', 'world_finds'];
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
   c_keep constant text[] := array[
@@ -186,7 +189,10 @@ declare
     /* the social catalogue (1040-social-catalogue.generated.sql): the clan rules, Global's batch and slow mode, the friend link's window */
     'hr_clan_rules', 'hr_chat_global_rule', 'hr_chat_slow_mode', 'hr_friend_link_rule',
     /* the Great Hearth's rule (1042-hearthrise-live-events-catalogue.generated.sql) */
-    'hr_hearth_fire_rule'];
+    'hr_hearth_fire_rule',
+    /* the flame, Temper, imbuement, loot-pity and carry-over catalogues (1063-flame-temper-catalogue.generated.sql) */
+    'hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels', 'hr_imbue_rules',
+    'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

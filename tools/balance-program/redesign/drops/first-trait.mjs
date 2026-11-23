@@ -12,12 +12,12 @@
 //   cells: depth 1, the reference step, depth 20; party 1 and 4; flame luck 0, +200 (own drops, 21 1.2), +360 (kept full); pity on and off
 // ════════════════════════════════════════════════════════════════════════
 import { writeFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
 import { HUNT_GROUNDS } from '../../../../src/data/hunt-grounds.js';
 import { DANGER_GROUNDS } from '../../../../src/data/danger.js';
 import { createRng, hashSeed } from '../../../../src/core/rng.js';
 import { traitSwing, rollKillFor } from '../../../../src/core/trait-roll.js';
 import { depthOf } from '../../../../src/core/drop-rate.js';
+import { isMain } from '../../../../tests/_is-main.mjs';
 
 /** The step of `depth` on a ground's band (the lowest step that reads it). */
 export function stepAtDepth(groundId, depth) {
@@ -53,8 +53,7 @@ export function firstTraitHours({ groundId, step, n = 4, luckPm = 0, samples = 1
   return { p10: q(0.1), p50: q(0.5), p90: q(0.9), mean: hours.reduce((a, b) => a + b, 0) / hours.length, rarities };
 }
 
-const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
-if (isMain) {
+if (isMain(import.meta.url)) {
   const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
   const groundId = arg('--ground', 'muster_barrows');
   const samples = Number(arg('--samples', 1000)), seed = Number(arg('--seed', 1));

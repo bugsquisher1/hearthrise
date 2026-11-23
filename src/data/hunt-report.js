@@ -15,6 +15,10 @@
 //   rulesShown   the rules block's lines on the end card (fired first, then never fired)
 //   fallsMax     the Danger scale's fall backs one report keeps, the last ones (src/core/hunt/report.js `falls`); the server's
 //                hr_hunt_limits.report_falls_max is generated from this row and bounds the shape and the fold (1057-danger-falls.sql)
+//   supStep      THE LEDGER (19-power-ledger L7): the Danger steps one supplies bucket spans (src/core/hunt/report.js `sup`, keyed by the
+//                bucket's first step); a depth on a band is about 12 steps, so a bucket reads as one depth
+//   ledgerShown  the healing sources the Healing line names (the largest first; the rest are left out of the line, not of the shares)
+//   supShown     the depths the Supplies/hr lines name (those held longest), each held at least supMinMs
 //
 // PURE ESM. Data only (tests/hunt-core/tally.mjs report-word reads every threshold through the one word).
 // ════════════════════════════════════════════════════════════════════════
@@ -27,6 +31,10 @@ export const HUNT_REPORT = Object.freeze({
   barMax: 16,
   rulesShown: 6,
   fallsMax: 12,
+  supStep: 10,
+  ledgerShown: 3,
+  supShown: 2,
+  supMinMs: 900000,
 });
 
 /** Why a slot whose conditions held could not fire (src/core/hunt/events.js rule_wait `why`), and the never-fired reason a slot with

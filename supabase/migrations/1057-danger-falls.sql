@@ -88,9 +88,9 @@ begin
   if not exists (select 1 from public.hr_hunt_world_shape w where w.id and w.fields->'world' ? 'lowHero' and w.fields->'world' ? 'lowBy') then
     raise exception 'PRECONDITION: apply 1054-danger-scale-hunt-sessions-catalogue.generated.sql as R2 regenerated it (the world''s lowHero / lowBy)'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_report_ok(jsonb)', 'a735dfe0e7d1cc0431ae6acef76d6848', '22bd7049bbb08fb8bc36d4712a4ef87b'),
-    ('public.hr_hunt_report_add(jsonb,jsonb)', '48ed840a0601e1a005eeccf866c2035c', '47b1f9998dc9dad5b3e13b2f65461f74'),
-    ('public.hr_hunt_view(uuid)', 'cd3f12fac63713be3c9d853b40106784', 'a4b298b03086e0e318b238c67360434a'),
+    ('public.hr_hunt_report_ok(jsonb)', 'a735dfe0e7d1cc0431ae6acef76d6848', 'eb6ef8137b56fc6acdb8d486c78b2746'),
+    ('public.hr_hunt_report_add(jsonb,jsonb)', '48ed840a0601e1a005eeccf866c2035c', 'ac10b01bb463d158d5ab755633ec318a'),
+    ('public.hr_hunt_view(uuid)', 'cd3f12fac63713be3c9d853b40106784', '32668b16635573452a939532e2c9ec9f'),
     ('public.hr_hunt_analyzer_basic(jsonb)', '039309e15bfe6d18c2314216f7075b26', '8d5fe398a14f4b44e0133e477b1ff2a4'),
     ('public.hr_danger_freeze()', '57f421e32f561527e25422a967ea96f1', 'f236ffa1d6854e55d198025ba05c5cc1')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
@@ -162,6 +162,24 @@ begin
                         or (g.value #>> '{}') !~ '^[0-9]{1,4}$') then return false; end if;
       when 'deep' then
         null;  -- DANGER-FALLS: proved above
+      when 'heal', 'took' then
+        -- THE LEDGER (19-power-ledger L7, folded in while staged): the company's healing by source { id: n } (at most 16) and damage taken by
+        -- seat { one digit: n } (at most 10), whole numbers of at most 12 digits
+        if jsonb_typeof(v_v) <> 'object' then return false; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) > case when v_k = 'heal' then 16 else 10 end
+           or exists (select 1 from jsonb_each(v_v) h where h.key !~ case when v_k = 'heal' then '^[a-z0-9_]{1,64}$' else '^[0-9]$' end
+                        or jsonb_typeof(h.value) <> 'number' or (h.value #>> '{}') !~ '^[0-9]{1,12}$') then return false; end if;
+      when 'sup' then
+        -- THE LEDGER: the hero's store bill and time by step bucket { step: [gold, ms] } (at most 32, each a step of the scale)
+        if jsonb_typeof(v_v) <> 'object' then return false; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) > 32
+           or exists (select 1 from jsonb_each(v_v) u where u.key !~ '^[0-9]{1,4}$' or jsonb_typeof(u.value) <> 'array') then return false; end if;
+        if exists (select 1 from jsonb_each(v_v) u where jsonb_array_length(u.value) <> 2
+                     or jsonb_typeof(u.value->0) is distinct from 'number' or (u.value->>0) !~ '^[0-9]{1,12}$'
+                     or jsonb_typeof(u.value->1) is distinct from 'number' or (u.value->>1) !~ '^[0-9]{1,12}$') then return false; end if;
+        -- (keys are whole numbers by now: the cast cannot raise)
+        if exists (select 1 from jsonb_object_keys(v_v) k where k::int > coalesce((select r.step_max from public.hr_danger_rules r where r.id), -1)) then
+          return false; end if;
       when 'falls' then
         -- DANGER-FALLS (1057-danger-falls.sql): [{ at, from, to, hero?, pm, monster }], 1..report_falls_max of them
         if jsonb_typeof(v_v) <> 'array' then return false; end if;
@@ -197,7 +215,7 @@ declare
   a jsonb := case when jsonb_typeof(p_a) = 'object' then p_a else '{}'::jsonb end;
   b jsonb := case when jsonb_typeof(p_b) = 'object' then p_b else '{}'::jsonb end;
   v_low jsonb; v_fired jsonb; v_waits jsonb; v_dry jsonb; v_inner jsonb; v_k text; v_av jsonb; v_bv jsonb;
-  v_falls jsonb; v_max int;
+  v_falls jsonb; v_max int; v_heal jsonb; v_took jsonb; v_sup jsonb;
 begin
   v_low := case when jsonb_typeof(b->'low') is distinct from 'object' then a->'low'
                 when jsonb_typeof(a->'low') is distinct from 'object' then b->'low'
@@ -245,13 +263,42 @@ begin
         order by u.at, u.o) d
       order by d.at desc limit v_max) k;
   end if;
+  -- THE LEDGER (19-power-ledger L7, folded in while staged): `heal` and `took` added key by key (old keys first, then new by name, up to
+  -- 16 and 10), `sup` each bucket's [gold, ms] added (up to 32); read only when a side has the key
+  if jsonb_typeof(a->'heal') = 'object' or jsonb_typeof(b->'heal') = 'object' then
+    select jsonb_object_agg(k, v) into v_heal from (
+      select k, sum(n) as v from (
+        select key as k, (value #>> '{}')::numeric as n, 0 as o from jsonb_each(case when jsonb_typeof(a->'heal') = 'object' then a->'heal' else '{}'::jsonb end)
+        union all
+        select key, (value #>> '{}')::numeric, 1 from jsonb_each(case when jsonb_typeof(b->'heal') = 'object' then b->'heal' else '{}'::jsonb end)) u
+      group by k order by min(o), k limit 16) f;
+  end if;
+  if jsonb_typeof(a->'took') = 'object' or jsonb_typeof(b->'took') = 'object' then
+    select jsonb_object_agg(k, v) into v_took from (
+      select k, sum(n) as v from (
+        select key as k, (value #>> '{}')::numeric as n, 0 as o from jsonb_each(case when jsonb_typeof(a->'took') = 'object' then a->'took' else '{}'::jsonb end)
+        union all
+        select key, (value #>> '{}')::numeric, 1 from jsonb_each(case when jsonb_typeof(b->'took') = 'object' then b->'took' else '{}'::jsonb end)) u
+      group by k order by min(o), k limit 10) f;
+  end if;
+  if jsonb_typeof(a->'sup') = 'object' or jsonb_typeof(b->'sup') = 'object' then
+    select jsonb_object_agg(k, jsonb_build_array(g, ms)) into v_sup from (
+      select k, sum(g) as g, sum(ms) as ms from (
+        select key as k, (value->>0)::numeric as g, (value->>1)::numeric as ms, 0 as o
+          from jsonb_each(case when jsonb_typeof(a->'sup') = 'object' then a->'sup' else '{}'::jsonb end)
+        union all
+        select key, (value->>0)::numeric, (value->>1)::numeric, 1
+          from jsonb_each(case when jsonb_typeof(b->'sup') = 'object' then b->'sup' else '{}'::jsonb end)) u
+      group by k order by min(o), k limit 32) f;
+  end if;
   return jsonb_strip_nulls(jsonb_build_object(
     'low', v_low,
     'close', nullif(coalesce((a->>'close')::bigint, 0) + coalesce((b->>'close')::bigint, 0), 0),
     'fired', v_fired, 'waits', v_waits,
     'bar', coalesce(b->'bar', a->'bar'), 'gear', coalesce(b->'gear', a->'gear'),
     'dry', v_dry,
-    'deep', greatest((a->>'deep')::bigint, (b->>'deep')::bigint), 'falls', v_falls));
+    'deep', greatest((a->>'deep')::bigint, (b->>'deep')::bigint), 'falls', v_falls,
+    'heal', v_heal, 'took', v_took, 'sup', v_sup));
 end $fn$;
 revoke execute on function public.hr_hunt_report_add(jsonb, jsonb) from public, anon, authenticated, service_role;
 
@@ -320,7 +367,15 @@ begin
                                            where o.instance_id = s.instance_id and o.seat = (f.e->>'hero')::int
                                              and o.entered_at <= to_timestamp((f.e->>'at')::double precision / 1000)
                                            order by o.entered_at desc, o.id limit 1))) else '{}'::jsonb end order by f.n), '[]'::jsonb)
-                                   from jsonb_array_elements(t.report->'falls') with ordinality f(e, n))) end) end
+                                   from jsonb_array_elements(t.report->'falls') with ordinality f(e, n))) end
+                            -- THE LEDGER (19-power-ledger L7, folded in while staged): `seats` { seat: name }, each seat that took damage named
+                            -- by the character that held it last in this instance (the server's names, never the edge's)
+                            || case when jsonb_typeof(t.report->'took') is distinct from 'object' then '{}'::jsonb else jsonb_build_object('seats', (
+                                 select coalesce(jsonb_object_agg(k.seat, k.name) filter (where k.name is not null), '{}'::jsonb) from (
+                                   select q.key as seat, (select public.hr_character_name(o.user_id, o.slot) from public.hunt_sessions o
+                                          where o.instance_id = s.instance_id and o.seat = q.key::int
+                                          order by o.entered_at desc, o.id limit 1) as name
+                                     from jsonb_object_keys(t.report->'took') q(key) where q.key ~ '^[0-9]$') k)) end) end
               from public.hunt_session_tally t where t.session_id = s.id))
     -- CALL-SERIES (2027-04-24-boss-call-series.sql): a Call out series, the server's own count and bill; no other hunt gains a key.
     || case when s.call_fights is null then '{}'::jsonb else jsonb_build_object('call', jsonb_build_object(
@@ -459,9 +514,17 @@ begin
       c_good || '{"falls": [{"at": 1, "from": 6, "to": 0, "pm": 10, "monster": "rat", "name": "x"}]}',
       c_good || '{"falls": [{"at": -1, "from": 6, "to": 0, "pm": 10, "monster": "rat"}]}',
       c_good || '{"falls": [{"at": 1.5, "from": 6, "to": 0, "pm": 10, "monster": "rat"}]}',
-      c_good || '{"falls": [5]}']::jsonb[] loop
+      c_good || '{"falls": [5]}',
+      -- THE LEDGER (19-power-ledger L7): a source that is no id, a seat of two digits, a count that is no whole number, a bucket past the
+      -- scale, a bucket that is no pair, too many sources
+      '{"heal": {"Mend": 5}}', '{"took": {"10": 5}}', '{"took": {"1": -5}}', '{"heal": {"mend": 1.5}}', '{"took": []}',
+      jsonb_build_object('sup', jsonb_build_object((v_smax + 1)::text, jsonb_build_array(1, 1))), '{"sup": {"600": [1]}}',
+      '{"sup": {"600": [1, "2"]}}', '{"sup": {"600": {"g": 1}}}', '{"sup": {"6x": [1, 1]}}',
+      (select jsonb_build_object('heal', jsonb_object_agg('h' || g, 1)) from generate_series(1, 17) g)]::jsonb[] loop
     if public.hr_hunt_report_ok(v_bad) then raise exception 'VERIFY(b): a bad report passed: %', v_bad; end if;
   end loop;
+  if not public.hr_hunt_report_ok('{"heal": {"mend": 40, "greater_mend": 30}, "took": {"0": 64, "1": 20}, "sup": {"600": [4180, 3600000], "610": [0, 5]}}'::jsonb) then
+    raise exception 'VERIFY(b): a good ledger was refused'; end if;
   if public.hr_hunt_report_ok(jsonb_build_object('deep', 606, 'falls', (select jsonb_agg(c_good->'falls'->0 || jsonb_build_object('at', g)) from generate_series(1, v_max + 1) g))) then
     raise exception 'VERIFY(b): a report of % falls passed', v_max + 1; end if;
 
@@ -472,6 +535,12 @@ begin
   if (v->>'deep')::int <> 610 or jsonb_array_length(v->'falls') <> 3 or (v->'falls'->1->>'at')::bigint <> 1800000030000
      or v->'falls'->2->>'monster' <> 'unknown' or v->'falls'->0 <> c_good->'falls'->0 then
     raise exception 'VERIFY(c): the fold answered %', v; end if;
+  -- THE LEDGER: counts added key by key, each bucket's gold and time added, a side without the keys moving nothing
+  v := public.hr_hunt_report_add('{"heal": {"mend": 40}, "took": {"0": 64}, "sup": {"600": [100, 1000]}}'::jsonb,
+                                 '{"heal": {"mend": 2, "shelter": 7}, "took": {"0": 1, "1": 20}, "sup": {"600": [5, 10], "610": [1, 2]}}'::jsonb);
+  if v->'heal' <> '{"mend": 42, "shelter": 7}'::jsonb or v->'took' <> '{"0": 65, "1": 20}'::jsonb
+     or v->'sup' <> '{"600": [105, 1010], "610": [1, 2]}'::jsonb then raise exception 'VERIFY(c): the ledger folded to %', v; end if;
+  if public.hr_hunt_report_add(c_good, c_good) ?| array['heal', 'took', 'sup'] then raise exception 'VERIFY(c): a report with no ledger gained one'; end if;
   if public.hr_hunt_report_add(c_good, '{}'::jsonb) <> c_good or public.hr_hunt_report_add('{}'::jsonb, c_good) <> c_good then
     raise exception 'VERIFY(c): folding nothing moved the falls'; end if;
   v_x := '{"low": {"pm": 140, "by": "rat", "blow": "gnaw", "at": 1800000000000}, "close": 2}'::jsonb;
@@ -494,7 +563,12 @@ begin
       'gear', jsonb_build_object('w', 9999, 'a', 9999, 'n', 9999),
       'deep', v_smax,
       'falls', (select jsonb_agg(jsonb_build_object('at', 999999999999000 + i * 100 + f, 'from', v_smax, 'to', v_smax, 'hero', 9, 'pm', v_fmax - 1,
-                 'monster', repeat('z', 64))) from generate_series(1, v_max) f)) from generate_series(1, 32) g);
+                 'monster', repeat('z', 64))) from generate_series(1, v_max) f),
+      -- THE LEDGER at its widest (each window new sources and buckets: the fold keeps the first 16 and 32)
+      'heal', (select jsonb_object_agg(lpad(i::text || h::text, 64, 'h'), 999999999999) from generate_series(1, 16) h),
+      'took', (select jsonb_object_agg(k::text, 999999999999) from generate_series(0, 9) k),
+      'sup', (select jsonb_object_agg((v_smax - i * 100 - b)::text, jsonb_build_array(999999999999, 999999999999)) from generate_series(1, 32) b))
+      from generate_series(1, 32) g);
     if not public.hr_hunt_report_ok(v_bad) then raise exception 'VERIFY(c): the widest good window was refused'; end if;
     v_x := public.hr_hunt_report_add(v_x, v_bad || jsonb_build_object('dry',
              (select jsonb_object_agg(lpad(i::text || d::text, 64, 'd'), 999999999999999) from generate_series(1, 40) d)));

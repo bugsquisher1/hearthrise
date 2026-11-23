@@ -12,6 +12,9 @@
 //                      are the Danger scale's (1057-danger-falls.sql): the deepest step, and each fall back or death oldest first, the
 //                      last HUNT_REPORT.fallsMax; `pm` the hero's HP permille at the break-off (0: it died), `name` the server's name
 //                      for the seat (null when it sent none). Off the scale `deep` is null and `falls` empty.
+//                      THE LEDGER (19-power-ledger L7, the scale's too): `heal` {source: n} the company's healing by ability or item, `took`
+//                      [[seat, n, name]] each seat's damage taken (`name` the server's, hr_hunt_view `seats`; null when it sent none), `sup`
+//                      [[step, gold, ms]] the hero's store supplies and its time at each held step bucket (HUNT_REPORT.supStep wide).
 //   huntReportOf(cs)   the `hunt` section's session report (the newest session, ended or running), or null
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_REPORT } from '../data/hunt-report.js';
@@ -40,6 +43,23 @@ function counts(v, max) {
   return out;
 }
 
+/* THE LEDGER'S SEATS: [[seat, n, name]] off `took` { seat: n } and the server's `seats` { seat: name }, a seat of one digit. */
+function tookOf(v, names) {
+  const out = [];
+  if (!isObj(v)) return out;
+  for (const [k, n] of Object.entries(v).slice(0, 10)) if (/^[0-9]$/.test(k) && nat(n) !== null) out.push([Number(k), n, isObj(names) ? named(names[k]) : null]);
+  return out;
+}
+/* THE LEDGER'S SUPPLIES BY STEP: [[step, gold, ms]] off `sup` { step: [gold, ms] }, at most 32 buckets. */
+function supOf(v) {
+  const out = [];
+  if (!isObj(v)) return out;
+  for (const [k, x] of Object.entries(v).slice(0, 32)) {
+    if (/^[0-9]{1,4}$/.test(k) && Array.isArray(x) && nat(x[0]) !== null && nat(x[1]) !== null) out.push([Number(k), x[0], x[1]]);
+  }
+  return out;
+}
+
 /** The server's report object, typed (see the header), or null when it holds nothing. */
 export function reportFrom(raw) {
   if (!isObj(raw) || !Object.keys(raw).length) return null;
@@ -57,6 +77,7 @@ export function reportFrom(raw) {
     gear: g && nat(g.w) !== null && nat(g.a) !== null && nat(g.n) !== null ? { w: g.w, a: g.a, n: g.n } : null,
     dry: counts(raw.dry, 32), dealt: counts(raw.dealt, 64), healed: counts(raw.healed, 64),
     deep: nat(raw.deep), falls: fallsOf(raw.falls),
+    heal: counts(raw.heal, 16), took: tookOf(raw.took, raw.seats), sup: supOf(raw.sup),
   };
 }
 

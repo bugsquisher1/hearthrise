@@ -23,6 +23,9 @@
 //        report `falls` and `deep` on both doors (the engine names each fall's hero by seat and its monster; the server folds them), byte for
 //        byte; there are falls (control), at most report_falls_max of them, each a seat of the four and a monster of the ground, the deepest
 //        step the start; and the `hunt` section names each fall's hero by the character that held the seat.
+//        THE LEDGER (19-power-ledger L7, folded into 1057 while staged): the same doors store the same `heal` (the company's healing by
+//        source), `took` (its damage taken by seat) and `sup` (each hero's store bill and time by step bucket), byte for byte; the first two
+//        alike on every seat, every seat's time adds to the hours hunted, and the `hunt` section names each seat that took damage.
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
@@ -130,9 +133,10 @@ async function byDefault(boot) {
   return problems;
 }
 
-/* DZ-6: each seat's stored report, its `falls` and `deep`, on one door */
+/* DZ-6: each seat's stored report, its `falls` and `deep` and the ledger's `heal`, `took`, `sup`, on one door */
 async function fallsOf(db) {
-  return (await db.query(`select s.seat, s.id, t.report->'falls' as falls, t.report->'deep' as deep from public.hunt_sessions s
+  return (await db.query(`select s.seat, s.id, t.report->'falls' as falls, t.report->'deep' as deep, t.report->'heal' as heal,
+      t.report->'took' as took, t.report->'sup' as sup from public.hunt_sessions s
       join public.hunt_session_tally t on t.session_id = s.id where s.hunt_id = $1 order by s.seat`, [MUSTER])).rows;
 }
 async function fallsBothPaths(boot) {
@@ -142,7 +146,7 @@ async function fallsBothPaths(boot) {
   const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 7, windowMs: 45000 });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
   const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
-  const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep]));
+  const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep, x.heal, x.took, x.sup]));
   if (canon(a) !== canon(b)) problems.push('DZ-6 the browser closed stored ' + canon(a).slice(0, 300) + '\n      the hunt viewed ' + canon(b).slice(0, 300));
   const monsters = new Set((await closed.db.query('select monster_id from public.hr_hunt_ground_spawns where hunt_id = $1', [MUSTER])).rows.map((x) => x.monster_id));
   if (a.length !== 4) problems.push('DZ-6 CONTROL: ' + a.length + ' seats hold a report');
@@ -154,8 +158,17 @@ async function fallsBothPaths(boot) {
     for (const f of falls) {
       if (!(Number.isInteger(f.hero) && f.hero >= 0 && f.hero < 4) || !monsters.has(f.monster) || !(f.to < f.from) || !(f.pm < 1000)) problems.push('DZ-6 seat ' + x.seat + ' stored a fall ' + JSON.stringify(f));
     }
-    if (canon([{ ...x, seat: 0 }]) !== canon([{ ...a[0], seat: 0 }])) problems.push('DZ-6 seat ' + x.seat + ' holds other falls than seat 0: every hero carries the company\'s');
+    if (canon([{ ...x, seat: 0, sup: null }]) !== canon([{ ...a[0], seat: 0, sup: null }])) problems.push('DZ-6 seat ' + x.seat + ' holds other falls or another ledger than seat 0: every hero carries the company\'s');
+    /* THE LEDGER: healing and damage taken counted, the seats the four's, the time by step adding to the windows played */
+    const heal = x.heal || {}, took = x.took || {}, sup = x.sup || {};
+    if (!Object.keys(heal).length || !Object.values(heal).every((n) => Number.isInteger(n) && n > 0)) problems.push('DZ-6 seat ' + x.seat + ' stored no healing by source: ' + JSON.stringify(x.heal));
+    if (!Object.keys(took).length || Object.keys(took).some((k) => !/^[0-3]$/.test(k))) problems.push('DZ-6 seat ' + x.seat + ' stored damage taken by ' + JSON.stringify(x.took));
+    const ms = Object.values(sup).reduce((t, v) => t + (Array.isArray(v) ? v[1] : 0), 0);
+    if (!(ms > 0) || Object.keys(sup).some((k) => Number(k) % HUNT_REPORT.supStep !== 0 || Number(k) > START)) problems.push('DZ-6 seat ' + x.seat + ' stored supplies by step ' + JSON.stringify(x.sup));
   }
+  const seats = await one(closed.db, `select public.hr_hunt_view($1::uuid)->'tally'->'report'->'seats'`, [a[0].id]);
+  const named = new Map((await closed.db.query('select seat, public.hr_character_name(user_id, slot) as name from public.hunt_sessions where hunt_id = $1', [MUSTER])).rows.map((x) => [String(x.seat), x.name]));
+  if (!seats || !Object.keys(a[0].took || {}).every((k) => seats[k] && seats[k] === named.get(k))) problems.push('DZ-6 the hunt section names the seats ' + JSON.stringify(seats) + ', the seats ' + JSON.stringify([...named]));
   /* the `hunt` section names each fall's hero: the character that held the seat */
   const v = await one(closed.db, `select public.hr_hunt_view($1::uuid)->'tally'->'report'->'falls'`, [a[0].id]);
   const names = new Map((await closed.db.query('select seat, public.hr_character_name(user_id, slot) as name from public.hunt_sessions where hunt_id = $1', [MUSTER])).rows.map((x) => [x.seat, x.name]));
@@ -176,6 +189,11 @@ const MUTANTS = [
   { name: 'the fold keeps the stored falls only', fn: 'public.hr_hunt_report_add(jsonb,jsonb)', find: "then b->'falls' else '[]'::jsonb end)) u", repl: "then '[]'::jsonb else '[]'::jsonb end)) u", want: /^DZ-6/, falls: true },
   { name: 'the fold keeps every fall', fn: 'public.hr_hunt_report_add(jsonb,jsonb)', find: 'order by d.at desc limit v_max) k;', repl: 'order by d.at desc) k;', want: /^DZ-6/, falls: true },
   { name: 'the shape refuses every fall', fn: 'public.hr_hunt_report_ok(jsonb)', find: "        if jsonb_typeof(v_v) <> 'array' then return false; end if;\n        if jsonb_array_length(v_v) < 1", repl: "        return false;\n        if jsonb_array_length(v_v) < 1", want: /^(DZ-6|THREW)/, falls: true },
+  /* THE LEDGER (19-power-ledger L7) */
+  { name: 'the fold forgets the supplies', fn: 'public.hr_hunt_report_add(jsonb,jsonb)', find: "'heal', v_heal, 'took', v_took, 'sup', v_sup));", repl: "'heal', v_heal, 'took', v_took));", want: /^DZ-6/, falls: true },
+  { name: 'the section names no seat', fn: 'public.hr_hunt_view(uuid)', find: "jsonb_build_object('seats', (", repl: "jsonb_build_object('seatz', (", want: /^DZ-6/, falls: true },
+  { name: 'the shape refuses the healing', fn: 'public.hr_hunt_report_ok(jsonb)', find: "      when 'heal', 'took' then", repl: "      when 'heal', 'took' then
+        return false;", want: /^(DZ-6|THREW)/, falls: true },
   { name: 'the section names nobody', fn: 'public.hr_hunt_view(uuid)', find: 'select public.hr_character_name(o.user_id, o.slot) from public.hunt_sessions o\n                                           where o.instance_id = s.instance_id and o.seat', repl: 'select null::text from public.hunt_sessions o\n                                           where o.instance_id = s.instance_id and o.seat', want: /^DZ-6/, falls: true },
 ];
 

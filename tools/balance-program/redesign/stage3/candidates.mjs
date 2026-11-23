@@ -54,5 +54,11 @@ for (const L of [30, 60, 300, 3000]) {
 }
 /* the roll to hit off on today's Muster: the switch's own reading (27 K-2) */
 write({ id: 'stage3-hit-off', why: 'the roll to hit off (AMOUNT.hitRoll false), everything else the tree', base: 'tree', edits: [hitOff], assumptions: [] });
+/* the roll to hit off with the monster side re-normalized (04 section 14 stage 1: pressurePm by bisection so the reference four holds its
+   reference step again): every monster blow now lands, so pressure falls by about the monsters' old hit rate */
+for (const p of [200, 250]) {
+  write({ id: 'stage3-hit-off-p' + p, why: 'the roll to hit off, pressurePm ' + p, base: 'tree',
+    edits: [hitOff, { file: 'src/data/amount.js', from: '  pressurePm: 450,', to: '  pressurePm: ' + p + ',' }], assumptions: [] });
+}
 /* the merged base before the pipeline (the comparison) */
 write({ id: 'stage3-before', why: 'the tree before the amount pipeline (' + BEFORE + ')', base: { ref: BEFORE }, assumptions: [] });

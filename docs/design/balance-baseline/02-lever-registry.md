@@ -20,18 +20,18 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:COUNTS (tools/balance-program/levers.mjs --write) -->
 | Category | Levers | Global | Archetype | Content | Exception | On a knob | Not playable | A test asserts it |
 |---|---|---|---|---|---|---|---|---|
-| Base damage coefficients | 12 | 11 | 1 | 0 | 0 | 4 | 7 | 3 |
+| Base damage coefficients | 14 | 13 | 1 | 0 | 0 | 4 | 9 | 5 |
 | Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
 | Level scaling | 8 | 5 | 1 | 0 | 2 | 4 | 3 | 5 |
 | Weapon power and attack frequency | 6 | 2 | 2 | 2 | 0 | 1 | 0 | 2 |
 | Spell coefficients, costs, cooldowns and areas | 14 | 6 | 1 | 6 | 1 | 1 | 2 | 4 |
 | Healing and shielding | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
-| Armor and mitigation | 5 | 2 | 2 | 0 | 1 | 3 | 0 | 1 |
+| Armor and mitigation | 6 | 3 | 2 | 0 | 1 | 3 | 1 | 2 |
 | Resistances | 5 | 2 | 0 | 2 | 1 | 0 | 2 | 2 |
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 6 | 5 | 0 | 0 | 1 | 2 | 4 | 2 |
-| Monster HP, damage, armor, resistances and behavior | 29 | 10 | 6 | 5 | 8 | 7 | 11 | 15 |
+| Monster HP, damage, armor, resistances and behavior | 30 | 11 | 6 | 5 | 8 | 7 | 12 | 16 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 18 | 9 | 1 | 2 | 6 | 3 | 7 | 10 |
 | Equipment stats and progression | 19 | 6 | 4 | 9 | 0 | 0 | 10 | 13 |
@@ -40,15 +40,15 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **207** | 100 | 29 | 50 | 28 | 31 | 94 | 96 |
+| **All** | **211** | 104 | 29 | 50 | 28 | 31 | 98 | 100 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 689 (in 238 files, 16024 typed numbers) |
-| Claimed by a lever | 299 |
-| Claimed by a not-a-lever reason | 390 |
+| Top-level bindings in the rule code that hold a typed number | 696 (in 240 files, 16043 typed numbers) |
+| Claimed by a lever | 300 |
+| Claimed by a not-a-lever reason | 396 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -265,6 +265,10 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
 | not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
 | not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
+| not-in-runs | `amount.blow-top` A hero's blow at a gap of 0, by weapon type | Base damage coefficients | played by the V1 probe. No matrix run plans a stance |
+| not-in-runs | `amount.defense-split` Armor and ward by armor weight | Armor and mitigation | played by the V1 probe. No matrix run plans a stance |
+| not-in-runs | `amount.pressure` What a monster's row blow lands at a gap of 0 | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (stage3 cells). No matrix run plans a stance |
+| not-in-runs | `amount.roll-spread` The one roll of every amount | Base damage coefficients | played by the V1 probe. No matrix run plans a stance |
 | not-in-runs | `bands.absolute` A ground's band in absolute steps | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs measures the bridge under it |
 | not-in-runs | `bands.skill-line` The reference skill line | Monster HP, damage, armor, resistances and behavior | a measured career, not a dial |
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |

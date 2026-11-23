@@ -1,19 +1,23 @@
 
-V1 on catacomb_bone_wing (8 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+V1 on catacomb_bone_wing (4 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       394.4 +- 1.8     -1.7    58  91.3   28.4    2.8     0.6      136      0     0  4 (0/0/4)                       8  {"hold":10033,"climb":2765,"fall":255}
+base:steady       515.3 +- 0.7      4.1  63.4  93.9   32.3    3.1     0.6    159.5      0     0  1 (0/0/1)                       8  {"hold":5903,"climb":1607,"fall":146}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        0.47x  sd 0  n 8  window 8 h  seeds 0.46 0.47 0.46 0.46 0.47 0.47 0.46 0.47
+  base:steady        1.53x  sd 0  n 4  window 8 h  seeds 1.53 1.53 1.53 1.52
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L165  coin 18535 +- 167  income 20099 +- 144  store 1623  kit share 0.08 (meal 246, drink 263, charge 1114, shot 0)  loot by band: common 658, uncommon 711, scarce 0, other 195  n 8
+  base:steady       L165  coin 49346 +- 308  income 52464 +- 292  store 1385  kit share 0.03 (meal 252, drink 117, charge 1016, shot 0)  loot by band: common 1567, uncommon 1278, scarce 0, other 273  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.921  bow 0.022  mage 0.025  healer 0.032
+  base:steady       hammer 0.972  bow 0.01  mage 0.008  healer 0.01
 
-wall 26 s
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 168 (depth 11)  free 205  spell 777  food 18  taken 13.69 pm/s
+
+wall 44 s

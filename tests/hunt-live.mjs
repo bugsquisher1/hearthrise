@@ -1027,7 +1027,7 @@ function rules(M) {
     // one step contest. BROWSER CLOSED: the server's commits play the scale (the world carries the stance) and land blows both ways. VIEWED:
     // the browser, holding only its peer's frozen row (the pipeline's reads ride it: member.js frozenOf), predicts every commit.
     const mk = () => {
-      const mis = [memberOf(M, 'a', 0, 'tank', 60), memberOf(M, 'b', 1, 'ranger', 60)];
+      const mis = [memberOf(M, 'a', 0, 'tank', 60), memberOf(M, 'b', 1, 'melee_dps', 60)];
       mis[0].hero = { ...mis[0].hero, risk: 'steady', danger: 0 };
       return mis;
     };
@@ -2208,6 +2208,8 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  /* LV-STEPS (lane/stage3-pipeline): the browser's peer fights on the pipeline's reads from its frozen row */
+  ["the browser's peer drops its weapon's top (LV-STEPS)", 'src/core/member.js', 'blowBp: snap.blowBp || 0,', 'blowBp: 0,', /^LV-STEPS: viewed/],
   ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '', /^LV-TANK: a tank alone: browser closed/],
   /* LV-HUD (lane/c-settle-flush): the HUD's ledger, each half planted away */
   ['the HUD ledger never counts the viewer\'s Level XP (LV-HUD)', 'src/hunt-view/hud-ledger.js', "lx: me && typeof me.levelGained === 'function' ? Math.floor(me.levelGained()) : last.lx", 'lx: last.lx', /^LV-HUD: the prediction between saves/],

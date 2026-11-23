@@ -42,7 +42,7 @@
 //                  at item Level 60 and 75 at 300, and the scale test failed on it (MEASURED, stage3 scale cells). 15 is the share's size at
 //                  the reference (1.25 x 60). A blow with an element (a spell, a necrotic or storm swing) reads ward; a plain blow reads
 //                  armor. A piece with no weight (a weapon, jewelry, a shield, a cape) counts its item Level on both
-//   critBp         D-8: a critical blow is no longer a second roll. A hero's crit chance c (gear, sets, Keen) is worth its mean,
+//   (crit)         D-8: a critical blow is no longer a second roll. A hero's crit chance c (gear, sets, Keen) is worth its mean,
 //                  1 + c x (critMult - 1), as conditional steps in the gear slice (src/core/power-ledger.js, under conditionalStepsMax)
 // Every other D-8 multiplier (the weapon weakness, bane, an element's bonus, a mark, a slow, the hero's resistances, Tempering) is turned
 // into conditional steps the same way, by src/core/hunt/amount.js stepsOf (exact, no logarithm: the browser and the edge agree to the bit).

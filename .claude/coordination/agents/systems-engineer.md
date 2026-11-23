@@ -2,6 +2,11 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-23 · lane/scale-early-grounds step 1 (the scale view only for a fight on the scale)
+1. *A view keyed by the ground, not the fight, is a hidden mode switch.* `scaleItems` answered by ground id, so a tier fight on a scale ground fought a frozen cached copy; the fix keys it on the same plan the world opens by (`combat-sim.js planOf`), one function for both, so the two can't drift.
+2. *Decide once per start point, carry it.* The browser asked `scaleItems` at three sites; now `start()` decides and the swings and slot tester read `s.items`. Fewer doors, one answer.
+3. *Touching combat-sim.js selects ~200 tests in guards-for* (version-stamp.mjs names it). Run the ones whose outcome the change can move (the tier-path class, the engine pins, the readers' guards) and let GitHub judge the rest; at 99% CPU the full list is hours.
+
 ## 2026-11-23 · lane/ci-reds-client-1123 (next run 45189052837, balance and screen side)
 1. *A data generator moved, the screen tests did not.* The gear formula (c0c39be28) changed leather and bronze numbers; hunt-summary T1/T5, AW-98 and AW-21 still quoted the hand tables. Same class across three files: sweep every literal that quotes a derived stat when a formula lands.
 2. *G14 reads model.mjs, not levers.mjs.* Two lever registries exist: the BL-2 registry (levers.mjs, numeric classes) already claimed the four strangers; the balance guard's scan needs a carrier + LEVER_KEYS + a stack class in model.mjs. A field the sweep catches by accident ("MaxPm" reads as xp) is still worth a carrier when it is a real drop lever.

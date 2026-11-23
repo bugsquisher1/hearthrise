@@ -443,6 +443,11 @@
         "bytes": 3799664,
         "on": "2026-11-23",
         "why": "lane/scale-early-grounds merged with set/v0.2.144: the Mill Cellar and the Thicket on the Danger scale (danger.js rows, monsters.js roles and drop hours, core/hunt/danger.js the coin level and the pay at the hold, bands.js the wearable strong kit, hunt-tutorial.js the tier offer skips scale grounds); no new file reached"
+      },
+      {
+        "bytes": 3801321,
+        "on": "2026-11-23",
+        "why": "lane/scale-early-grounds step 1: combat-sim.js fightItems + planOf (the scale view only for a fight on the scale, one rule with the world open), read by accrue-hunt.js and hunt-settle.js frozenAt; +1,657 B, no new module reached (gear-stats.js was already in the bundle)"
       }
     ]
   }

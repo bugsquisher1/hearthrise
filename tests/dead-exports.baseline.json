@@ -73,7 +73,6 @@
     "src/data/supplies.js SUPPLY_KINDS",
     "src/data/supplies.js bagGuideFor",
     "src/data/supplies.js supplyKindOf",
-    "src/data/supply-basics.js BASIC_AMMO_PREMIUM",
     "src/data/supply-basics.js NO_STORE_PARTNER",
     "src/data/town-criers.js validateCriers",
     "src/data/town-presence.js TOWN_VISIT",

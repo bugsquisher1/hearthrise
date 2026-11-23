@@ -64,7 +64,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    and the brackets past the ceiling re-fit to the re-pinned contract; core-model.js LEVEL_CURVE says why. Same table, 13 rows; 2027-04-07 stays history. */
 /* 1016-level-curve-new-player (renumbered from 1009 past the set's 1009-1015; lane/c-levels-7-9, 2026-11-20; Tyler ruled balance call 27-2): Levels 7-9 re-cut for the new player as played
    (life.mjs policy new), Levels 10-20 take the XP back, the total to Level 21 held. Thresholds 8-20 only fall, so the hold is NO LEVEL LOST
-   (the 11-19 route's name): a hero in a lowered gap reads its higher Level, one who would read a lower Level refuses the file. 1000 stays history. */
+   (the 11-19 route's name): a hero in a lowered gap reads its higher Level, one who would read a lower Level refuses the file. 1000 stays history.
+   Regenerated 2026-11-23 (lane/skills-time-parity, STAGED, never applied): steps 11-15 eased for the new player on the Level clock (core-model.js
+   LEVEL_CURVE says why); thresholds from 12 only fall, the same hold. */
 export const OUT_NAME = '1016-level-curve-new-player.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
@@ -105,8 +107,10 @@ export function buildSql(XP) {
 -- played (start kit, Hunt again in the Thicket) took 1.4 / 3.5 / 4.2 hours for Levels 7, 8 and 9 and
 -- reached Level 10 at 10.6 h, where both light players quit. Steps 7-9 re-cut to 21,000 / 29,000 /
 -- 34,002 XP (Level 10 at 6.0 h, none of Levels 1-15 over 4 h, tests/start-kit-pace.mjs); steps 10-20
--- take the XP back (the Glade's 16-20 most), so the total to Level 21 and every step from 21 on cost
--- what they did. Level 10 at ${l10} XP, Level 50 at ${l50}. LIVE CHARACTERS: nothing is
+-- take the XP back (the Glade's 16-20 most), and every step from 21 on costs what it did. EASED 2026-11-23
+-- (lane/skills-time-parity): the combat skills on the Level clock leave a new player's skills near its Level,
+-- so steps 11-15 cost 872 to 4,360 XP less (Level 15 -> 16 in 4.40 h, the red line 4.5) and every threshold
+-- from Level 12 falls by up to 13,080 XP. Level 10 at ${l10} XP, Level 50 at ${l50}. LIVE CHARACTERS: nothing is
 -- stored per Level, so a hero's Level is read from its Level XP. Only thresholds 8-20 move and all
 -- fall: §2 holds every hero's Level as the rows this file replaces made it and refuses the whole file
 -- if one would read LOWER (no Level is lost); a hero in a lowered gap reads its higher Level at once,

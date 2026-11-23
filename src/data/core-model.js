@@ -64,7 +64,12 @@
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
    318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
    LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): Levels 8 and 9 took a new player 3.5 and 4.2 h
-   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1016-level-curve-new-player. */
+   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1016-level-curve-new-player.
+   STEPS 11-15 EASED 2026-11-23 (lane/skills-time-parity, the dial of tests/start-kit-pace.mjs SK-2): on the Level clock a new player's skills sit
+   near its Level (melee 8 and Defense 7 at Level 10, where the old skill curve gave 20 and 16), so it kills slower and Level 15 -> 16 took 4.64 h
+   (the band's red line 4.5). The rise across 10-15 is 3,758 a Level (was 4,630), steps 11-15 cost 872 to 4,360 XP less and step 16 on what it
+   did (bracket 15's rise takes the difference), so every threshold from Level 12 only falls (13,080 XP from Level 16 on): no live hero loses a
+   Level. Level 15 -> 16 in 4.40 h, Level 10 at 6.63 h (5 to 7). Forward file 1016-level-curve-new-player, regenerated (STAGED). */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([
@@ -77,8 +82,8 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 7, rise: 8000, bend: 0 }),
     Object.freeze({ from: 8, rise: 5002, bend: 0 }),
     Object.freeze({ from: 9, rise: 30000, bend: 0 }),
-    Object.freeze({ from: 10, rise: 4630, bend: 0 }),
-    Object.freeze({ from: 15, rise: 74323, bend: 0 }),
+    Object.freeze({ from: 10, rise: 3758, bend: 0 }),
+    Object.freeze({ from: 15, rise: 78683, bend: 0 }),
     Object.freeze({ from: 16, rise: 300, bend: 0 }),
     Object.freeze({ from: 21, rise: 14454, bend: 657 }),
     Object.freeze({ from: 50, rise: 78689, bend: 162 }),

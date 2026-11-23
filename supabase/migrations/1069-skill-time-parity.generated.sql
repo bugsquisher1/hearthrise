@@ -653,13 +653,7 @@ begin
   ('inner_flame', 60, 6372244, 60, 59, 60),
   ('inner_flame', 100, 111081907, 100, 99, 100),
   ('inner_flame', 200, 28443447742, 200, 199, 200),
-  ('inner_flame', 475, 8989277201256977, 475, 474, 475),
-  ('inner_flame', 476, 9390403656728948, 476, 476, 476),
-  ('inner_flame', 477, 9390403656728948, 476, 476, 476),
-  ('inner_flame', 1000, 9390403656728948, 476, 476, 476),
-  ('inner_flame', 9999, 9390403656728948, 476, 476, 476),
-  ('inner_flame', 10000, 9390403656728948, 476, 476, 476),
-  ('inner_flame', 10001, 9390403656728948, 476, 476, 476)) w(s, l, x, lv, below, above)
+  ('inner_flame', 475, 8989277201256977, 475, 474, 475)) w(s, l, x, lv, below, above)
    where public.hr_skill_xp_for_level(w.s, w.l) <> w.x
       or public.hr_skill_level(w.s, w.x) <> w.lv
       or public.hr_skill_level(w.s, w.x - 1) <> w.below

@@ -98,6 +98,9 @@ export function buildSql(C, XP) {
   for (const skill of ['melee', 'defense', F.skill]) {
     for (const l of levels) {
       const x = XP.skillXpForLevel(skill, l);
+      /* Inner Flame's last row lies past 2^53 (the walk's own stop, as the old table's did): the browser cannot hold x - 1 or x + 1 there,
+         so that boundary is no probe (no hero reaches it) */
+      if (!Number.isSafeInteger(x + 1)) continue;
       want.push(`('${skill}', ${l}, ${x}, ${XP.skillLevelFromXp(skill, x)}, ${XP.skillLevelFromXp(skill, x - 1)}, ${XP.skillLevelFromXp(skill, x + 1)})`);
     }
   }

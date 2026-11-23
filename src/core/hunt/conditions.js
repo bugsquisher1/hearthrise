@@ -52,7 +52,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, VALUE_IDS } from '../../data/condition-metrics.js';
 import { ABILITIES, suggestedTrigger, areaSpec } from '../../data/abilities.js';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js';
 import { SUPPLIES } from '../../data/supplies.js';
@@ -221,7 +221,8 @@ function conditionProblem(c, stop) {
   if (!m.ops.includes(c.op) || !OPERATORS[c.op]) return 'bad_op';
   if (m.range) { if (!Number.isInteger(c.value) || c.value < m.range[0] || c.value > m.range[1]) return 'bad_value'; }
   else if (m.value === 'bool') { if (typeof c.value !== 'boolean') return 'bad_value'; }
-  else if (m.value === 'effect') { if (!EFFECT_IDS.includes(c.value)) return 'bad_value'; }
+  /* a named value (an effect, a move): one of its kind's ids, the server's `vals` */
+  else if (VALUE_IDS[m.value]) { if (!VALUE_IDS[m.value].includes(c.value)) return 'bad_value'; }
   if (m.subject) {
     if (c.subject !== undefined && !Object.prototype.hasOwnProperty.call(m.subject, c.subject)) return 'bad_subject';
     if (stop && c.subject === 'item') return 'bad_subject';
@@ -349,7 +350,7 @@ export function attackOrder(rows) {
 }
 /* The two passes of a shot: `act(own)` answers a slot's pick on carried stock only (own = true), then with the store. */
 export function shotPasses(inst, u, h, rows, act, sc) {
-  return pickSlot(inst, u, h, rows, act(true), null, 'attack') || pickSlot(inst, u, h, rows, act(false), sc, 'attack');
+  return pickSlot(inst, u, h, rows, act(true), null, 'attack', sc && sc.atMs) || pickSlot(inst, u, h, rows, act(false), sc, 'attack');
 }
 
 /**
@@ -536,6 +537,12 @@ function elementVs(cx) {
   return elementPermille(MONSTERS[t.kind], el);
 }
 
+/* The hero's own target, while it stands and is a foe (sides.js), else null. */
+function foeTarget(cx) {
+  const t = Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
+  return t && t.alive && sideOf(t) !== sideOf(cx.u) ? t : null;
+}
+
 const EVAL = Object.freeze({
   self_hp_pct: (cx) => share(cx.u.hp, cx.u.maxHp),
   self_mana_pct: (cx) => share(cx.u.mana, cx.u.maxMana),
@@ -579,6 +586,25 @@ const EVAL = Object.freeze({
     const pct = Number(String(c.subject || 'under_50').slice(6)) || 50;
     return alliesOf(cx.inst, cx.u).filter((a) => int(a.maxHp) > 0 && int(a.hp) * 100 < pct * int(a.maxHp)).length;
   },
+  /* THE ROADS' FOUR (condition-metrics.js): what the hero's own target is, and what the hero cast last. Every one reads persisted state
+     (hp, markPm / markUntil, statuses, lastMove) at the sub-step's instant, so a viewed hunt and a closed one test the same thing. */
+  target_hp_pct: (cx) => { const t = foeTarget(cx); return t ? share(t.hp, t.maxHp) : null; },
+  /* a Mark still running at this instant (damage.js landHit reads the same: markUntil after now); no instant known, no Mark */
+  target_marked: (cx) => { const t = foeTarget(cx); return !!t && Number.isInteger(cx.atMs) && int(t.markPm) > 0 && int(t.markUntil) > cx.atMs; },
+  target_stacks: (cx, c) => {
+    const t = foeTarget(cx);
+    const id = c.subject || Object.keys(METRIC.get('target_stacks').subject)[0];
+    return t && Array.isArray(t.statuses) ? t.statuses.filter((st) => st.s === id).length : 0;
+  },
+  /* THE LAST MOVE ON THE SLOT'S OWN LANE (an ability slot: a rotation reads its lane, so a Mark or a Challenge between two strikes
+     never breaks "after Quarry Blow"), else on any lane (a supply slot, a stop rule). '' before the first such cast: "my last move is
+     not Rend" holds, "is Rend" does not. */
+  last_move: (cx) => {
+    const a = cx.slot && cx.slot.action;
+    const row = a && a.type === 'ability' ? ABILITIES[a.id] : null;
+    const m = isObj(cx.u.lastMove) ? cx.u.lastMove[row ? row.lane : 'any'] : null;
+    return typeof m === 'string' ? m : '';
+  },
   effect_missing: (cx, c) => {
     const s = c.subject || 'target';
     const who = s === 'self' ? cx.u
@@ -616,6 +642,7 @@ export function holds(cx, c) {
   if (m.value === 'count') return compare(c.op, int(v), c.value);
   if (m.value === 'bool') return compare(c.op, v === true, c.value === true);
   if (m.value === 'effect') return c.op === 'has_effect' ? v.includes(c.value) : !v.includes(c.value);
+  if (m.value === 'move') return compare(c.op, v, c.value);
   return false;
 }
 
@@ -639,7 +666,7 @@ export function suggestedConditions(action) {
 }
 
 /**
- * Test a slot for hero `u`: its own conditions, joined (none = always). Answers
+ * Test a slot for hero `u` at instant `atMs` (the sub-step's: a Mark is read against it): its own conditions, joined (none = always). Answers
  * { pass, mask (bit i = condition i held), cx } — `cx.aim` / `cx.ally` are the
  * aim and the ally its conditions found, which the action then uses. Every
  * condition is evaluated (no short-circuit), so `mask` is the whole truth. A slot
@@ -648,8 +675,8 @@ export function suggestedConditions(action) {
  * abilities.js targetFor, bestAim). A food, drink, heal or shield slot is never
  * held back by its ignore list.
  */
-export function testSlot(inst, u, h, slot) {
-  const cx = { inst, u, h, slot, aim: null, ally: null };
+export function testSlot(inst, u, h, slot, atMs) {
+  const cx = { inst, u, h, slot, aim: null, ally: null, atMs };
   if (Array.isArray(slot.ignore) && slot.ignore.length && Number.isInteger(u.target) && aimsAtMonsters(slot)) {
     const t = inst.world.units.find((x) => x.id === u.target);
     if (ignores(slot, t)) return { pass: false, mask: 0, cx };
@@ -664,13 +691,13 @@ export function testSlot(inst, u, h, slot) {
 
 /**
  * THE ONE PICK: walk `rows` (slotsFor) in order; the first whose conditions pass
- * and for which `act(slot, cx, row)` answers a pick (non-null) wins. Answers
+ * and for which `act(slot, cx, row)` answers a pick (non-null) wins; `atMs` is the instant its tests read (sc.atMs by default). Answers
  * { pick, rule, mask } or null. `act` says whether the action can happen now.
  */
-export function pickSlot(inst, u, h, rows, act, sc, lane) {
+export function pickSlot(inst, u, h, rows, act, sc, lane, atMs = sc ? sc.atMs : undefined) {
   let wait = null;
   for (const row of rows) {
-    const t = testSlot(inst, u, h, row.slot);
+    const t = testSlot(inst, u, h, row.slot, atMs);
     if (!t.pass) continue;
     const pick = act(row.slot, t.cx, row);
     if (pick && !pick.why) {
@@ -743,7 +770,7 @@ export function checkStopRules(inst, sc) {
     if (!rules || !rules.length || !h.hs || typeof h.hs.ruleStop === 'string') continue;
     const hold = Object.assign({}, u.ruleHold || {});
     for (const r of rules) {
-      const t = testSlot(inst, u, h, { action: { type: 'stop', id: '' }, conditions: r.conditions, join: r.join === 'or' ? 'or' : 'and' });
+      const t = testSlot(inst, u, h, { action: { type: 'stop', id: '' }, conditions: r.conditions, join: r.join === 'or' ? 'or' : 'and' }, sc.atMs);
       if (t.pass) hold[r.id] = int(hold[r.id]) + sc.dtMs; else delete hold[r.id];
       if (t.pass && hold[r.id] >= int(r.forMs)) {
         h.hs.ruleStop = r.id;

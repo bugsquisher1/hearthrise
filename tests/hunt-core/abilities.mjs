@@ -920,7 +920,15 @@ const cases = {
     /* the area conditions, picked: each starts on a test that can hold, in plain words */
     const said = ['party_hp_pct', 'enemy_casting', 'in_fight', 'target_weak', 'target_resists'].map((id) => conditionWords(conditionFor(id)));
     const want = ['the party’s HP is below 50%', 'the pack has at least 1 monster casting at me', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
-    return JSON.stringify(said) === JSON.stringify(want) ? null : 'the area conditions read ' + JSON.stringify(said);
+    if (JSON.stringify(said) !== JSON.stringify(want)) return 'the area conditions read ' + JSON.stringify(said);
+    /* THE ROADS' FOUR (lane/bar-metrics): the sentence the picker reads and the short label the slot's title reads (conditionTip) */
+    const { conditionTip } = M.shell.draft;
+    const roads = [{ metric: 'target_hp_pct', op: 'lt', value: 30 }, { metric: 'target_marked', op: 'eq', value: true }, { metric: 'target_stacks', op: 'gte', value: 3, subject: 'bleed' },
+      { metric: 'last_move', op: 'eq', value: 'rend' }, { metric: 'last_move', op: 'ne', value: 'quarry_blow' }];
+    const words = roads.map((c) => [conditionWords(c), conditionTip(c)]);
+    const wantWords = [['my target’s HP is below 30%', 'Target health below 30%'], ['my target is Marked', 'Target is Marked'],
+      ['my target has at least 3 Bleed stacks', 'Target Bleed stacks 3+'], ['my last move is Rend', 'Last move: Rend'], ['my last move is not Quarry Blow', 'Last move: not Quarry Blow']];
+    return JSON.stringify(words) === JSON.stringify(wantWords) ? null : 'the Roads\' tests read ' + JSON.stringify(words);
   },
   /* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"):
      every worn set that plays Melee damage keeps the slot (a sword alone, two axes, a club or hammer, bare hands) and every other one drops it
@@ -1108,7 +1116,7 @@ const mutants = [
   { name: '[spell-content] a version costs version I\'s mana', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = versionOf(row, 1);']] },
   { name: '[spell rule] a cast reads a fixed blow, not its hero\'s', case: 'output-grows-with-the-blow-not-mana',
-    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, hitRange(10, row));']] },
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));', '  const dmg = () => roll(sc, hitRange(10, row));']] },
   { name: '[spell rule] a cast grows with its skill level too (the retired lvPm, twice over the blow)', case: 'output-grows-with-the-blow-not-mana',
     edits: [['src/core/hunt/abilities.js', '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = Math.floor((v.outPm * s.pm * (1000 + 10 * (skillLevel(h, row) - 1))) / 1000000);']] },
   { name: 'a store rune fires at full power (r07)', case: 'spell-casts-the-spent-runes-version',
@@ -1132,7 +1140,7 @@ const mutants = [
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',
-    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blowOf(u, row), u.maxHp, pm) || {});', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
   { name: 'a sized version is read as the row', case: 'version-output-scales-numbers',
     edits: [['src/data/abilities.js', '  return Number.isInteger(mana) ? { mana, outPm: versionStep(n) } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
@@ -1180,7 +1188,7 @@ const mutants = [
   { name: 'the mark never wears off', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
   { name: 'bleed lands from a blow of 1 whatever the caster', case: 'bleed-scales-with-the-casters-blow',
-    edits: [['src/core/hunt/abilities.js', '    const hit = Number.isInteger(u.maxHit) && u.maxHit > 0 ? u.maxHit : 1;', '    const hit = 1;']] },
+    edits: [['src/core/hunt/abilities.js', '    const hit = Number.isInteger(own) && own > 0 ? own : 1;', '    const hit = 1;']] },
   { name: 'a rune names a family that is not one of the seven', case: 'rows-validate',
     edits: [['src/data/stonecraft.js', 'ammoPerShot: 1, family, runeTier: t.tier });', "ammoPerShot: 1, family: family === 'rupture' ? 'blood' : family, runeTier: t.tier });"]] },
   { name: 'a rune casts a sixth tier', case: 'rows-validate',

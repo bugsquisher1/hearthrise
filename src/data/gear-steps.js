@@ -41,8 +41,9 @@
 // THE PIECE: one account-owned row (slot, base, tier, Traits and ranks, rarity, find line, escrow state) and its market rules, in
 // docs/design/redesign/12-targets.md section 8 and 13-market.md section 2.3. Temper stays with the hero's slot, never the piece.
 //
-// TRAITS ARE HIDDEN. The 40 rows are src/data/traits.js (lane/traits-20). Nothing rolls them, no drop table names them, no fight reads them
-// and no screen shows them: half-built features stay hidden. tests/gear-steps.mjs holds the rows' shape and who may import either file.
+// TRAITS ARE HIDDEN. The 40 rows are src/data/traits.js (lane/traits-20). The roller is built (src/core/trait-roll.js, lane/drop-formula) and
+// DARK: `traitsLive` is false, so nothing hands the settle a roll, no drop table names a Trait, no fight reads them and no screen shows them
+// (half-built features stay hidden). tests/gear-steps.mjs holds the rows' shape and who may import either file.
 //
 // PURE ESM. Data only. Imports only src/data/traits.js (re-exported below) and src/data/power-ledger.js (the ramp's Level).
 // ════════════════════════════════════════════════════════════════════════
@@ -85,8 +86,13 @@ export const GEAR_STEPS = Object.freeze({
   /* how many Traits a piece of each rarity carries (02 package 2: a Very Rare's second Trait waits until one Trait a piece has been
      played). Two Traits on one piece never share a stacking key */
   traitsByRarity: Object.freeze({ rare: 1, very_rare: 2 }),
-  /* 04 guard 5: the Rare roll rises after each miss so the long-run rate is the stated one (the roller's, wave 4) */
-  pity: Object.freeze({ rare: true }),
+  /* 04 guard 5: each rarity's roll rises after each miss so the long-run rate is the stated one (src/core/trait-roll.js pityChance, its
+     curve; src/data/drop-hours.js the hours it holds). One switch a rarity */
+  pity: Object.freeze({ rare: true, very_rare: true }),
+  /* TRAITS ROLL ONLY WHEN THIS IS TRUE (wave 4, with the piece table and its Security review). The roller exists (src/core/trait-roll.js) and
+     the settle carries it, but nothing hands the settle a roll while this is false: tests/drop-formula.mjs DF-6 holds that no server or client
+     file does, and content-coherence CC-1 / CC-3 turn their warnings red the day it flips */
+  traitsLive: false,
 });
 
 /** The item Level of base tier `tier` (tier 0 is the starting kit). */

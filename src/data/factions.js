@@ -1,78 +1,154 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/factions.js — THE TWO FACTIONS: WHO MAY JOIN, WHAT STANDING IS, WHAT A SWAP COSTS, WHAT STANDING BUYS (Tyler 2026-11-14;
-//   the board's "2026-11-14 The Morrow Hills" §6, lane/d-next-region; server half supabase/migrations/2027-04-22-faction-standing.sql).
+// src/data/factions.js — THE TWO SIDES: WHO MAY JOIN, WHAT STANDING IS, WHAT A SWAP COSTS, WHAT EACH QUARTERMASTER KEEPS
+//   (docs/design/redesign/25-factions.md, game designer, lane/factions-morrow-hills 2026-11-23; server half
+//   supabase/migrations/1065-faction-company.sql and its catalogue, tools/gen-factions.mjs).
 //
-// The First Flame and the Last Ember. Neither is evil, Havora belongs to neither, no gate or price anywhere reads a faction, and there is
-// NO STAT BUFF: standing buys looks only. The sides themselves (their ids) are the ground shape's vocabulary, src/data/grounds/shape.js
-// STANDING_SIDES, because a hunt row names the side its ground pays (`standingFor`). Their words come with the client lane, from the one
-// text home (the designer: Holly's and Harry's names live in ONE row each, and no id here spells either).
+// The First Flame and the Last Ember. Neither is evil, Havora belongs to neither, and a side gives NO POWER: no stat, no step, no
+// modifier, no rule (19-power-ledger.md row 17, 0 steps; validateFactions refuses a row that names any key outside its shape). The sides'
+// ids are the ground shape's vocabulary (src/data/grounds/shape.js STANDING_SIDES): a hunt row names the side its ground pays.
 //
-// STANDING: one point a settled hunting minute on a ground whose `standingFor` is the hero's side, credited by the server's settle, never
-// by a browser. Kept per side and never lost, so a hero who swaps keeps both totals. The server stores milliseconds (a 10 s settle is a
-// sixth of a point) and a point is a whole minute of them.
-// JOINING: once, after the hero's first kill of `joinAfter`, counted by the server (player_progress ev:kill_monster:<id>).
-// SWAPPING (Tyler: "like 10 hours of hunting something with a week cooldown"): start a swap, hunt `swapMinutes` on grounds that pay the
-// NEW side (they pay no standing meanwhile), then finish it. A swap can't start within `swapCooldownDays` of the hero's last change.
-// THE DAY'S CEILING: a hero is credited at most `dayCapMinutes` of standing and swap time together per UTC day. 24 h: the 12 h premium
-// pool and six 4 h refills (stamina-refill.js) let a hero hunt the whole day, so the ceiling is the clock's, a fuse that holds even if a
-// window were ever counted twice.
+// THE COMPANY HOLDS THE SIDE (25 section 2.1): one side for all of an account's heroes, picked once, after any hero of the company has a
+// server-counted kill of `joinAfter`. Parties and grounds stay open to both sides; only the standing credit reads a side.
+// STANDING (25 section 2.3): one point a settled hero-minute on a ground whose `standingFor` is the company's side, credited by the
+// server's settle, never by a browser, added to the company's total for that side. Kept per side, never spent, never lost on a swap.
+// THE DAY'S CEILING: each HERO is credited at most `dayCapMinutes` of standing and swap time together a UTC day (a fuse: a window counted
+// twice still can't pass the clock).
+// SWAPPING (25 section 2.2): start a swap, hunt `swapHeroMinutes` (company hero-minutes) on the NEW side's grounds, which pay swap time,
+// not standing, then finish it. 40 hero-hours is one day for a four, four for a lone hero. Locked `swapCooldownDays` from joining or the
+// last swap. Cancel loses the swap time.
+// THE WEEK (25 section 2.5, ships with the social layer): each side's score is the mean of its companies' standing that week, each
+// company capped at `frontCapHeroMinutes`. Held here and in the server's rule row so the week's close reads one number.
+//
+// THE QUARTERMASTER (25 section 2.4): each side's stock, one row a piece, unlocked once at its standing `mark` (hero-minutes, so the
+// server never converts). Outfit pieces are free. A hall or mount piece costs gold: `wageHoursPm` thousandths of an hour of the WAGE AT
+// THE COMPANY'S TOP LEVEL (src/data/wage.js, the Level step every per-hero cost reads: stockPrice below, hr_faction_piece_price its SQL
+// twin). DESIGN CALL (lane/factions-morrow-hills): a company piece is bought once for every hero, so it reads the company's highest
+// Level, not the pressing hero's: which hero presses Buy never changes the price, and no one logs into a low alt to shop. The pressing
+// hero pays. Looks only. A row with `opensWith` is CLOSED until the system that shows it ships (the hall's wall, mounts): the catalogue
+// carries it, every verb refuses it, and the page lists none of it.
 //
 // THE GROUND RULE (factionGroundProblems, held by tests/faction-ground-balance.mjs): every hunt row names a region; every ground of a region
 // after `standingAfter` pays one side and no ground before it pays any; each such region OPENS as many grounds for one side as the other;
-// a keyed hall counts with its ground; a region kit that lists a ground agrees on its region. The design put this check in
-// catalogue-coherence.js, which the page loads: it lives here so the client's module graph doesn't grow for a rule only a guard reads.
+// a keyed hall counts with its ground; a region kit that lists a ground agrees on its region.
 //
-// PURE ESM. Data, a validator and the ground rule. Never imported by the engine or the page (tests/faction-ground-balance.mjs FG-EDGE).
+// PURE ESM. Data, a validator, the price and the ground rule. Never imported by the engine or the page (tests/faction-ground-balance.mjs
+// FG-EDGE).
 // ════════════════════════════════════════════════════════════════════════
 import { REGIONS, STANDING_SIDES } from './grounds/shape.js';
 import { HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from './hunts.js';
 import { HUNT_GROUNDS } from './hunt-grounds.js';
 import { MONSTERS } from './monsters.js';
 import { REGION_KITS } from './world/region-kits.js';
+import { PEOPLE_TEXT } from './text/people.js';
+import { wage, wageStep } from './wage.js';
 
 export const FACTION_RULES = Object.freeze({
-  /* The monster whose first server-counted kill opens joining: Lord Krell, his hall in Krell's Hold (src/data/grounds/krells_hold). */
+  /* The monster whose first server-counted kill, by ANY hero of the company, opens joining: Lord Krell, his hall in Krell's Hold. */
   joinAfter: 'lord_krell',
   /* Every region AFTER this one pays standing on every ground (Tyler: "after krell is killed, each new zone has equal amounts"). */
   standingAfter: 'barrow_march',
-  swapMinutes: 600,
+  /* LEVER: company hero-minutes on the new side's grounds a swap takes (40 h: a four's day, a lone hero's four). */
+  swapHeroMinutes: 2400,
+  /* LEVER: days from joining or the last swap before a swap may start. */
   swapCooldownDays: 7,
+  /* FUSE: a hero's standing and swap time together, a UTC day. */
   dayCapMinutes: 24 * 60,
+  /* LEVER: a company's most hero-minutes counted toward its side's week (40 h, under a lone hero's own week, so bought hours can't move it). */
+  frontCapHeroMinutes: 2400,
 });
 
-/* WHAT STANDING BUYS: each side's outfit and two add-ons, claimed once each at its standing (hours, the designer's proposed numbers).
-   The mark by the name plate comes with joining and is no claim. Looks only: the art lane makes them, the outfit catalogue serves them:
-   each piece dresses the looks of src/data/outfits.js STAGED_OUTFITS that name it (the outfit alone, and with each set of its add-ons),
-   owned while every piece a look names is claimed (hr_outfit_owned, 2027-05-19-faction-outfit-path.sql; tools/gen-outfits.mjs refuses a
-   piece no look is owned by). */
-export const FACTION_OUTFITS = Object.freeze({
-  flamebearer: Object.freeze({ side: 'first_flame', hours: 25 }),
-  flamebearer_shield: Object.freeze({ side: 'first_flame', hours: 100 }),
-  flamebearer_light: Object.freeze({ side: 'first_flame', hours: 300 }),
-  emberkeeper: Object.freeze({ side: 'last_ember', hours: 25 }),
-  emberkeeper_lantern: Object.freeze({ side: 'last_ember', hours: 100 }),
-  emberkeeper_coal: Object.freeze({ side: 'last_ember', hours: 300 }),
+/* THE SIDES (one row each, keyed by STANDING_SIDES). `face` names the src/data/text/people.js row who asks a company to join. */
+export const FACTIONS = Object.freeze({
+  first_flame: Object.freeze({ face: 'holly' }),
+  last_ember: Object.freeze({ face: 'venn' }),
 });
+
+/* THE KINDS a stock row may be: what the piece dresses, and whether it is free. */
+export const STOCK_KINDS = Object.freeze({
+  outfit: Object.freeze({ wear: true, paid: false }),
+  outfit_addon: Object.freeze({ wear: true, paid: false }),
+  hall_banner: Object.freeze({ wear: false, paid: true }),
+  mount_cloth: Object.freeze({ wear: false, paid: true }),
+});
+
+const H = 60;
+/* THE QUARTERMASTERS' STOCK (25 section 2.4). Marks in company hero-minutes; wageHoursPm in thousandths of a wage hour. */
+export const FACTION_STOCK = Object.freeze({
+  flamebearer: Object.freeze({ side: 'first_flame', mark: 40 * H, kind: 'outfit' }),
+  flame_banner: Object.freeze({ side: 'first_flame', mark: 120 * H, kind: 'hall_banner', wageHoursPm: 20000, opensWith: 'hall_wall' }),
+  flamebearer_shield: Object.freeze({ side: 'first_flame', mark: 200 * H, kind: 'outfit_addon' }),
+  flame_saddlecloth: Object.freeze({ side: 'first_flame', mark: 400 * H, kind: 'mount_cloth', wageHoursPm: 30000, opensWith: 'mounts' }),
+  flamebearer_light: Object.freeze({ side: 'first_flame', mark: 600 * H, kind: 'outfit_addon' }),
+  emberkeeper: Object.freeze({ side: 'last_ember', mark: 40 * H, kind: 'outfit' }),
+  ember_banner: Object.freeze({ side: 'last_ember', mark: 120 * H, kind: 'hall_banner', wageHoursPm: 20000, opensWith: 'hall_wall' }),
+  emberkeeper_lantern: Object.freeze({ side: 'last_ember', mark: 200 * H, kind: 'outfit_addon' }),
+  ember_saddlecloth: Object.freeze({ side: 'last_ember', mark: 400 * H, kind: 'mount_cloth', wageHoursPm: 30000, opensWith: 'mounts' }),
+  emberkeeper_coal: Object.freeze({ side: 'last_ember', mark: 600 * H, kind: 'outfit_addon' }),
+});
+
+/* THE WEARABLE PIECES (the outfit catalogue's view: src/data/outfits.js STAGED_OUTFITS names them, tools/gen-outfits.mjs and
+   tests/pixel-icons.mjs read them): every stock row whose kind is worn, its mark in whole hours. */
+export const FACTION_OUTFITS = Object.freeze(Object.fromEntries(Object.entries(FACTION_STOCK)
+  .filter(([, p]) => STOCK_KINDS[p.kind] && STOCK_KINDS[p.kind].wear)
+  .map(([id, p]) => [id, Object.freeze({ side: p.side, hours: p.mark / H })])));
+
+/* A row's own keys. ANY other key is refused: a side or a piece that names a stat, a step, a modifier or a rule-table key would be
+   power, and factions take no slice (19-power-ledger.md row 17). */
+const FACTION_KEYS = new Set(['face']);
+const STOCK_KEYS = new Set(['side', 'mark', 'kind', 'wageHoursPm', 'opensWith']);
 
 const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
-/** Every problem with the rules and the pieces, as sentences. Empty = valid. Pure. */
-export function validateFactions(rules = FACTION_RULES, outfits = FACTION_OUTFITS) {
+/** Is a stock row open (served and claimable)? A row with `opensWith` waits for the system that shows it. Pure. */
+export const stockOpen = (p) => !!p && !p.opensWith;
+
+/**
+ * The gold piece `id` costs a company whose top hero is Level `level`: ceil(wageHoursPm / 1000 x wage(L)), the wage at that Level step
+ * (src/core/wage.js levelStep is wageStep). 0 for a free piece, null for no such piece. Exact integers, like hr_faction_piece_price.
+ */
+export function stockPrice(id, level, stock = FACTION_STOCK) {
+  const p = own(stock, id) ? stock[id] : null;
+  if (!p || !own(STOCK_KINDS, p.kind)) return null;
+  if (!STOCK_KINDS[p.kind].paid) return 0;
+  const L = Math.max(1, Math.floor(Number(level) || 1));
+  return Number((BigInt(p.wageHoursPm) * BigInt(wage(wageStep(L))) + 999n) / 1000n);
+}
+
+/** Every problem with the rules, the sides and the stock, as sentences. Empty = valid. Pure. */
+export function validateFactions(rules = FACTION_RULES, outfits = FACTION_OUTFITS, sides = FACTIONS, stock = FACTION_STOCK) {
   const out = [];
   if (typeof rules.joinAfter !== 'string' || !/^[a-z0-9_]{1,40}$/.test(rules.joinAfter)) out.push('joinAfter is not a monster id');
   if (!REGIONS.includes(rules.standingAfter)) out.push('standingAfter ' + rules.standingAfter + ' is not a region (shape.js REGIONS)');
-  if (!whole(rules.swapMinutes, 1, 100000)) out.push('swapMinutes is not a whole number of minutes');
+  if (!whole(rules.swapHeroMinutes, 1, 100000)) out.push('swapHeroMinutes is not a whole number of minutes');
   if (!whole(rules.swapCooldownDays, 0, 365)) out.push('swapCooldownDays is not a whole number of days');
   if (!whole(rules.dayCapMinutes, 1, 24 * 60)) out.push('dayCapMinutes is not a whole number of minutes in one day');
-  const per = Object.fromEntries(STANDING_SIDES.map((s) => [s, 0]));
-  for (const [id, p] of Object.entries(outfits)) {
-    if (!/^[a-z0-9_]{1,32}$/.test(id)) out.push(id + ' is not a piece id');
-    if (/holly|harry/i.test(id)) out.push(id + ' spells a hero\'s name, which lives in the text home only');
-    if (!p || !STANDING_SIDES.includes(p.side)) { out.push(id + ' names no side'); continue; }
-    if (!whole(p.hours, 1, 100000)) out.push(id + ' takes no whole number of hours');
-    per[p.side] += 1;
+  if (!whole(rules.frontCapHeroMinutes, 1, 100000)) out.push('frontCapHeroMinutes is not a whole number of minutes');
+  for (const s of STANDING_SIDES) if (!own(sides, s)) out.push(s + ' has no FACTIONS row');
+  for (const [id, f] of Object.entries(sides)) {
+    if (!STANDING_SIDES.includes(id)) out.push(id + ' is a FACTIONS row and no side (shape.js STANDING_SIDES)');
+    for (const k of Object.keys(f || {})) if (!FACTION_KEYS.has(k)) out.push(`${id} names ${k}: a side gives no stat, step, modifier or rule (ledger row 17)`);
+    if (!f || !own(PEOPLE_TEXT, f.face)) out.push(id + ' has no face in src/data/text/people.js');
   }
-  for (const [s, n] of Object.entries(per)) if (!n) out.push(s + ' has no piece to claim');
+  const open = Object.fromEntries(STANDING_SIDES.map((s) => [s, 0]));
+  for (const [id, p] of Object.entries(stock)) {
+    if (!/^[a-z0-9_]{1,32}$/.test(id)) out.push(id + ' is not a piece id');
+    if (/holly|harry|venn|rowe/i.test(id)) out.push(id + ' spells a person\'s name, which lives in the text home only');
+    for (const k of Object.keys(p || {})) if (!STOCK_KEYS.has(k)) out.push(`${id} names ${k}: a piece gives no stat, step, modifier or rule (ledger row 17)`);
+    if (!p || !STANDING_SIDES.includes(p.side)) { out.push(id + ' names no side'); continue; }
+    if (!whole(p.mark, 1, 1000000)) out.push(id + ' unlocks at no whole number of hero-minutes');
+    const kind = own(STOCK_KINDS, p.kind) ? STOCK_KINDS[p.kind] : null;
+    if (!kind) { out.push(id + ' is of no kind (' + p.kind + ')'); continue; }
+    if (kind.paid && !whole(p.wageHoursPm, 1, 1000000)) out.push(id + ' is a paid piece with no whole price in wage-hour thousandths');
+    if (!kind.paid && 'wageHoursPm' in p) out.push(id + ' is a free piece with a price');
+    if ('opensWith' in p && !(typeof p.opensWith === 'string' && /^[a-z0-9_]{1,32}$/.test(p.opensWith))) out.push(id + ' opens with no system id');
+    if (stockOpen(p)) open[p.side] += 1;
+  }
+  for (const [s, n] of Object.entries(open)) if (!n) out.push(s + ' has no open piece to claim');
+  for (const [id, p] of Object.entries(outfits)) {
+    const row = own(stock, id) ? stock[id] : null;
+    if (!row || row.side !== p.side || row.mark !== p.hours * H) out.push(id + ' is a wearable piece the stock does not hold as it says');
+  }
   return out;
 }
 
@@ -80,14 +156,15 @@ export function validateFactions(rules = FACTION_RULES, outfits = FACTION_OUTFIT
  * The ground rule's problems, as sentences (FG-* names the clause). Empty = holds. Every input defaults to the data, so a guard can hand
  * it a planted copy. `grounds` are the hunt rows of walkable grounds (HUNTS: base and packs, staged included); `rooms` every other row.
  * @param {{grounds?: readonly any[], rooms?: readonly any[], regions?: readonly string[], rules?: typeof FACTION_RULES,
- *   kits?: Record<string, any>, maps?: Record<string, string>, monsters?: Record<string, any>, outfits?: typeof FACTION_OUTFITS}} [o]
+ *   kits?: Record<string, any>, maps?: Record<string, string>, monsters?: Record<string, any>, outfits?: typeof FACTION_OUTFITS,
+ *   sides?: typeof FACTIONS, stock?: Record<string, any>}} [o]
  */
 export function factionGroundProblems(o = {}) {
   const grounds = o.grounds || HUNTS, rooms = o.rooms || [...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS];
   const regions = o.regions || REGIONS, rules = o.rules || FACTION_RULES, kits = o.kits || REGION_KITS;
   const maps = o.maps || Object.fromEntries(Object.entries(HUNT_GROUNDS).map(([id, g]) => [id, g.map]));
   const monsters = o.monsters || MONSTERS;
-  const out = validateFactions(rules, o.outfits || FACTION_OUTFITS).map((p) => 'FG-RULES ' + p);
+  const out = validateFactions(rules, o.outfits || FACTION_OUTFITS, o.sides || FACTIONS, o.stock || FACTION_STOCK).map((p) => 'FG-RULES ' + p);
   const after = regions.indexOf(rules.standingAfter);
   const pays = (h) => regions.indexOf(h.region) > after;
   for (const h of [...grounds, ...rooms]) {

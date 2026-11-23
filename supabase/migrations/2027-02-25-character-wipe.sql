@@ -98,6 +98,8 @@ declare
     'hr_live_event_notices',
     /* a hero's side, its standing, its days, its claims and the journal of them (2027-04-22-faction-standing.sql) */
     'hr_faction_members', 'hr_faction_standing', 'hr_faction_days', 'hr_faction_claims', 'hr_faction_ledger',
+    /* a company's side, its standing per side and the pieces it claimed or bought (1065-faction-company.sql) */
+    'hr_faction_companies', 'hr_faction_company_standing', 'hr_faction_company_claims',
     /* a hero's Burning Tower best and its climbs (2027-04-24-tower-climb.sql), and its place on the mode boards (2027-04-30-tower-board.sql) */
     'tower_progress', 'tower_runs', 'hr_mode_board', 'hr_mode_board_last',
     /* a hero's Hearth Chest warmth, key count and default stokes, the journal of its keys used, and its Key Ring (2027-04-27-tower-chest.sql) */

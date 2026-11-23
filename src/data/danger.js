@@ -162,8 +162,13 @@ export const DANGER_GROUNDS = Object.freeze({
      strong company one tier ahead at the top, each a rating in Levels); floorStep, refStep and topStep are the BRIDGE, the own step each of
      those companies holds on this ground's rows, measured by tools/new-ground.mjs. "Depth N" is cut evenly in absolute steps through them.
      refHeld (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): the own step the reference company HOLDS, the bridge's middle point
-     (src/core/bands.js refHeldOf). Only a formula ground carries it (tools/new-ground.mjs --write): its refStep anchors the monsters and
-     the pay, so it is chosen, and the four holds over it. Pay, the top and the monsters read refStep; a rows ground's refStep is its hold.
+     (src/core/bands.js refHeldOf). Only a formula ground carries it (tools/new-ground.mjs --write): its refStep anchors the monsters, so it
+     is chosen, and the four holds off it. The monsters and the top read refStep; THE PAY READS THE HOLD (lane/scale-early-grounds: where the
+     reference company's kills a head and coin level were measured, so a kill there pays the hours table and the wage; src/core/hunt/danger.js
+     payRowOf, the store's depth src/core/wage.js depthStep and the server's hr_danger_grounds.ref_step the same). A rows ground's refStep is
+     its hold.
+     coinPm (lane/scale-early-grounds; src/core/hunt/danger.js coinLevelOf): the ground's own coin level, measured by tools/new-ground.mjs when
+     the reference hour (coin and loot at the store's price) sits outside EL-PAY's 0.95 to 1.05 of the wage at refLevel; absent, PAY.coinPm.
      monsters (lane/monster-formula; 04-math-strategy.md section 6): the ground's ONE DATA SWITCH for its monsters: 'rows' (today's hand-typed stats, grown by the step) or 'formula' (each monster's role and
      the step: src/core/hunt/monster-formula.js derives its health, blows and wind-ups from src/data/monster-roles.js against the reference
      company at refLevel on refStep, and the pull is sized to the party). A switch flipped moves the ground's band: re-measure it
@@ -201,12 +206,30 @@ export const DANGER_GROUNDS = Object.freeze({
      (the Ford's Steady four held 92 steps under its reference, the wings' Careful out-earned Steady).
      THE FLOOR ON THE ARRIVING COMPANY (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): one tier back (the Ford's mithril kit at
      Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). refHeld 610 (the MID four held 608.9).
-     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold */
+     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold
+     coinPm 7000 (lane/scale-early-grounds): the pay reads the hold (610), 20 steps under the anchor it read, so the reference hour's coin fell
+     14%; its own coin level puts it back on the wage, 1.01 of wage(60) (8 seeds x 10 h, grounds/muster_barrows-ref.json). Level XP at the
+     hold: 0.88 of the hours table (tests/level-curve.mjs C7, Level held; was 1.06 read at the anchor) */
   muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, coinPm: 7000, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 565, topStep: 675, refKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'rows' }),
   catacomb_bone_wing: ground({ refStep: 520, floorStep: 475, topStep: 580, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
-  meadowbrook_thicket: ground({ refStep: 70, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 110, coinPm: 28600, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
-  mill_cellar: ground({ refStep: 70, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 60, coinPm: 123500, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
+  /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds, 2026-11-23; 27-formula-overhaul.md stage 6, the sample of two). Each monster
+     carries the role the hunt-grounds.js header gives it (src/data/monsters.js), the ground plays the formula, its band is cut by
+     tools/new-ground.mjs --hold-level (a company AT its Level: under about Level 20 a measuring day grows several, and the Cellar's hunt ends
+     at 5), its drops are authored in hours (tools/gen-drop-hours.mjs on src/data/monsters.js), and every piece it drops is its one base,
+     tier 0, the starting kit (the Thicket's next-tier Rares left it; Grayjaw's Ruff is its own piece, `pieces`).
+       refStep 70  the monsters' anchor, CHOSEN: low, so a first hunt (the server opens it at step 0) climbs into the band in a few pulls, and
+                   high enough that a Level 3 four holds over step 0 (at 40 it held 30, its fresh Level 1 four at 0)
+       refHeld     where the reference four holds, the pay's reference too (src/core/hunt/danger.js payRowOf)
+       coinPm      THE GROUND'S COIN LEVEL (src/core/hunt/danger.js coinLevelOf, a bridge until stage 9 writes coin in hours): the old rows' coin
+                   (a rat's 1 gold) under the wage's hour (13,035 at Level 3), measured so the reference hour, coin and loot, is the wage at
+                   refLevel. Without it the kit, sized in wage hours, cost the Cellar's four 4.2 times what the hunt paid
+       floorStep 0 the fresh four (the start kit at the entry Level) holds at the bottom of the scale on both grounds (tools/lib/danger-band.mjs
+                   floorOf: never under step 0)
+     MEASURED (tools/balance-program/redesign/grounds, 4 seeds, Levels held, the Steady mixed four): Cellar LOW 1 held 3, MID 3 held 55, BIS 4
+     held 108; Thicket LOW 5 held 2, MID 10 held 113, BIS 15 held 189 (the pay cap). No death in any cell. */
+  meadowbrook_thicket: ground({ refStep: 70, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 110, coinPm: 38400, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  mill_cellar: ground({ refStep: 70, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 60, coinPm: 114400, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 500, floorStep: 430, topStep: 565, refKillsHead: 205, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
 });
 

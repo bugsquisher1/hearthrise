@@ -85,7 +85,7 @@
    "topStep": 110,
    "refKillsHead": 135,
    "refHeld": 60,
-   "coinPm": 123500,
+   "coinPm": 114400,
    "print": "ff25ab6ca245b9fc",
    "verdict": "OPEN",
    "levels": {
@@ -95,7 +95,7 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/grounds/mill_cellar-ref.json",
+    "tools/balance-program/redesign/grounds/c-targets/mill_cellar.json",
     "tools/balance-program/redesign/grounds/mill_cellar-top.json",
     "tools/balance-program/redesign/grounds/mill_cellar-floor.json"
    ]
@@ -106,7 +106,7 @@
    "topStep": 190,
    "refKillsHead": 125,
    "refHeld": 110,
-   "coinPm": 28600,
+   "coinPm": 38400,
    "print": "a2b49562c89b72d9",
    "verdict": "OPEN",
    "levels": {
@@ -116,7 +116,7 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/grounds/meadowbrook_thicket-ref.json",
+    "tools/balance-program/redesign/grounds/c-targets/meadowbrook_thicket.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-floor.json"
    ]

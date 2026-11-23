@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "22b6f2eeac743783",
+ "authored": "d6d54a1baa4a138c",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -13598,7 +13598,7 @@
     {
      "file": "src/data/trades.js",
      "line": 55,
-     "text": "xp: Object.freeze({ window: 20, floor: 0.25 }),",
+     "text": "xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),",
      "binding": "TRADE_LEVERS"
     }
    ],
@@ -18599,7 +18599,7 @@
     "span",
     "speedAt99",
     "steps",
-    "window",
+    "windowLevels",
     "xpPerHour"
    ],
    "typed": 31,

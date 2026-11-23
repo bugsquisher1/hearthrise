@@ -486,7 +486,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('outside-hunt', 'town work is not a hunt cell; measure.mjs plays the job over seeds'),
     ev: 'STATED (09-crafting.md section 4.4 start values)' }),
   L('econ.trade-table', 'economy', 'global', 'Trade XP to 99', {
-    at: [at('src/data/trades.js', 'table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),'), at('src/data/trades.js', 'xp: Object.freeze({ window: 20, floor: 0.25 }),')],
+    at: [at('src/data/trades.js', 'table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),'), at('src/data/trades.js', 'xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),')],
     def: 'hours for Level n = h1 x 1.045^(n - 1), 1,000 hours to 99 (6.6 to Level 10, 104 to 50, 669 to 90); XP is seconds of work; full XP on a rung within 20 Levels of its own, falling to a quarter over the next 20',
     range: '09 4.5 and 4.7: hoursTo99 600 to 1,500. The XP window and floor are JUDGMENT (09 names them, gives no value). SQL twin hr_trade_xp, hr_trade_level, hr_trade_xp_pm (1063, generated)',
     touches: 'how long a company takes to 99 in a trade (39 days of four heroes\' full work days, 09 2.6)', out: [], f: [],

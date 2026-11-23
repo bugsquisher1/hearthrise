@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 16019,
+  "replay_ms": 1979,
   "counts": {
-    "tracked_names": 1108,
-    "entries": 933
+    "tracked_names": 1125,
+    "entries": 950
   },
   "functions": [
     {
@@ -4928,8 +4928,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "717425b8c79159feca9fcc040f67df54",
-        "norm_len": 3328,
+        "md5": "3129b343724046c0d88aa31db8c94923",
+        "norm_len": 1722,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -5027,6 +5027,25 @@
       "replay": {
         "md5": "bdec6fdbc303df8354f653fd068dc055",
         "norm_len": 493,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1056-danger-scale.sql."
+    },
+    {
+      "sig": "hr_danger_prove(p_instance uuid, p_world text, p_window_ms bigint)",
+      "name": "hr_danger_prove",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1056-danger-scale.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "f05a6945d7d4d5754b6105f1ed3885db",
+        "norm_len": 3118,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -8505,6 +8524,7 @@
         "restate"
       ],
       "touched_by": [
+        "1056-danger-scale.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-11-16-hunt-density-bounds.sql",
         "2026-12-11-hunt-deploy-no-forfeit.sql",
@@ -8523,11 +8543,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "79ea06c28174d95f11d03965bdbd8be5",
-        "norm_len": 21130,
+        "md5": "e688f0dc73c2113603045d2547f2a5ec",
+        "norm_len": 21825,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1056-danger-scale.sql."
     },
     {
       "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
@@ -20407,6 +20428,42 @@
       "agree": true
     },
     {
+      "sig": "hr_trade_behind_pm(p_steps integer)",
+      "name": "hr_trade_behind_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "eb5f3da8266011d0f22eb894fa9bb36d",
+        "norm_len": 807,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_fine_pm(p_level integer, p_r integer)",
+      "name": "hr_trade_fine_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "5fe87259820591bd00ffbe418b83a5da",
+        "norm_len": 644,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
       "sig": "hr_trade_is(p_skill text)",
       "name": "hr_trade_is",
       "tracked_by": [
@@ -20423,6 +20480,60 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_trade_job_bound(p_kind text, p_rung integer, p_level integer, p_mastery boolean, p_bench_pm integer, p_tool_pm integer, p_count integer, p_elapsed_ms bigint)",
+      "name": "hr_trade_job_bound",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "18a845effc0cda9c10b2278bd432e5c2",
+        "norm_len": 1951,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_job_fee(p_kind text, p_band integer, p_count integer)",
+      "name": "hr_trade_job_fee",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "436bd0003ce20509ec5ed06f2d0a7af6",
+        "norm_len": 888,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_level(p_xp bigint)",
+      "name": "hr_trade_level",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "33ab95c7d7b47dd9c1468bda249a176a",
+        "norm_len": 421,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
     },
     {
       "sig": "hr_trade_lock(p_user uuid)",
@@ -20443,6 +20554,24 @@
       "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
     },
     {
+      "sig": "hr_trade_master_pm(p_level integer, p_r integer, p_mastery boolean)",
+      "name": "hr_trade_master_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "aa1ed37a89b2a3ab91b4fe8d8507b335",
+        "norm_len": 667,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
       "sig": "hr_trade_row_sync()",
       "name": "hr_trade_row_sync",
       "tracked_by": [
@@ -20459,6 +20588,186 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+    },
+    {
+      "sig": "hr_trade_speed_pm(p_level integer)",
+      "name": "hr_trade_speed_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "713d88c98272137938a43e9066caacd7",
+        "norm_len": 470,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_store_ask(p_kind text, p_hero_step integer)",
+      "name": "hr_trade_store_ask",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "39e609ace29a911d138daeb8c4825478",
+        "norm_len": 877,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_store_bid(p_kind text, p_band integer, p_q integer)",
+      "name": "hr_trade_store_bid",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "3c3a569708501f91c77d85ebbc9ea3ff",
+        "norm_len": 602,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_store_step(p_hero_step integer)",
+      "name": "hr_trade_store_step",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "0f99324c6925430b20f0741f38253688",
+        "norm_len": 524,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_tool_life_ms(p_q integer)",
+      "name": "hr_trade_tool_life_ms",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "3eb0f24acaf1470f74372634a0e2fbfa",
+        "norm_len": 534,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_tool_rent(p_kind text, p_hero_step integer)",
+      "name": "hr_trade_tool_rent",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "192bcb702b6f027cd2f3bed325a70e80",
+        "norm_len": 837,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_tool_speed_pm(p_tool_band integer, p_job_band integer)",
+      "name": "hr_trade_tool_speed_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a47e7c6b7576f50b0c3ff1058e2a41f0",
+        "norm_len": 593,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_value(p_kind text, p_band integer, p_q integer)",
+      "name": "hr_trade_value",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "299cd15f15fbddc839b768cb9d2dab94",
+        "norm_len": 1099,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_xp_pm(p_level integer, p_r integer)",
+      "name": "hr_trade_xp_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "97fdaad31f1d224ccc123a554fd91cef",
+        "norm_len": 739,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_yield_pm(p_level integer, p_r integer, p_mastery boolean, p_bench_pm integer)",
+      "name": "hr_trade_yield_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "f256967bb6ca1f398871d3eec45a63f5",
+        "norm_len": 839,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
     },
     {
       "sig": "hr_training_fee(p_level integer)",

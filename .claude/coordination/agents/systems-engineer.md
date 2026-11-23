@@ -2,6 +2,14 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-23 · lane/roads-borrow-values (the six towns' owed V0, and the refusal that keeps a town from lending nothing)
+1. *Measure a borrow on the engine's own path once the engine has one.* 18's clones read the borrower's blow; 17 since ruled the native blow and `borrow-blow.js` plays it. `cell.borrowedBySeat` -> play-ground `opts.borrowed` -> `heroSetup` `borrowed` lends the native row with no build (no idle points to confound the pair). A move already on the role's played bar keeps its own slot and conditions.
+2. *A measurement that reads zero casts is an engine gap, not a value.* Raking Shot never fired off a bow: `castShotOf` looses only what the worn weapon shoots, and its unlock reads Ranged 10, which a sword never trains. Measured with 17's rule as a scratch seam (`roads-lend-rules.json`), the gap is in CONFLICTS. Greater Mend is the same story for reach: 1 tile +20.2, 7 tiles +97.4.
+3. *A noisy value at a band edge is not a hold.* Greater Mend at +20.2 ± 3.3 would have been "not offered" by 0.2 steps; the ruled reach puts it at 97, so the V4 hold is data, not luck.
+4. *Refuse in the order the server asks.* `not_offered` sits right after `bad_pick`, before `no_points`, in both twins, and the test asks it at Level 5 so a full purse can't hide it (mutant "asked after the points").
+5. *A class bigger than the brief gets a shrinking list, not a red build.* Four town sides lend nothing because both moves are the hero's own or unoffered: town-values holds them as a list that only shrinks; the engine-castability half (Shelter's Melee unlock on a healer, a taunt off a tank) is reported, not guarded, because the predicate would copy engine rules into a test.
+6. *The set's levers row had a stray quote* (c2c70a5f6 gear-economy.mjs:203), so `levers --check` could not load; fixed here and re-written with the new BORROW_VALUES keys named in roads.borrow-bands.
+
 ## 2026-11-22 · lane/e2-e3-statuses (E2 statuses as rows, E3 auras and shields)
 1. *Prove a migration by switching the one new reading off.* The general status system moved glade-4's timeline only; with the new `shield_break` emit disabled every pin held at all 48 settles, which separates "the engine is the same" from "the engine now says one more thing".
 2. *A hidden row must stay out of the server's catalogue.* `EFFECT_IDS` feeds the bar's SQL vals (1061); a new status id would turn conditions.mjs red without a migration. Rows carry `hidden: true`; the engine reads them, the picker and the server do not, until the move ships.

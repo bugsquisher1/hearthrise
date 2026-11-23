@@ -25,8 +25,10 @@
 // ci-run: node tools/gen-talents.mjs --check
 // ci-run: node tools/mutant-gate.mjs node tools/gen-talents.mjs --selftest
 //
-// REFUSES (throws, nothing written): a map src/data/talents.js validate() refuses; a suggested order the rules cannot walk from an empty
-// build to its end (every step legal at a Level that has the points); an id outside [a-z_0-9.].
+// REFUSES (throws, nothing written): a map src/data/talents.js validate() refuses (a BORROW_VALUES row that is not a measured V0 among
+// them: a town never lends an unsized move); a border town that lends nothing (every move it names without a band, so its pick is refused
+// not_offered and its hybrid sits behind a point that buys nothing; lane/roads-borrow-values); a suggested order the rules cannot walk
+// from an empty build to its end (every step legal at a Level that has the points); an id outside [a-z_0-9.].
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -60,11 +62,20 @@ export function rowsOf(d) {
       needs: (n.needs && n.needs.crossroadsIn) || null, seq: i + 1 };
   });
   const options = [];
-  for (const n of d.nodes) for (const o of d.T.optionsOf(n)) {
-    if (!ID.test(o.id)) throw new Error('gen-talents: option id ' + o.id);
-    const b = o.effects.find((e) => e.kind === 'borrow');
-    const band = b ? d.T.borrowBand(b.move, n.kind === 'crossing' ? 'havora' : 'border') : null;
-    options.push({ node: n.id, id: o.id, borrow: b ? b.move : null, opensAt: band ? band.opensAt : null });
+  for (const n of d.nodes) {
+    const mine = [];
+    for (const o of d.T.optionsOf(n)) {
+      if (!ID.test(o.id)) throw new Error('gen-talents: option id ' + o.id);
+      const b = o.effects.find((e) => e.kind === 'borrow');
+      const band = b ? d.T.borrowBand(b.move, n.kind === 'crossing' ? 'havora' : 'border') : null;
+      mine.push({ node: n.id, id: o.id, borrow: b ? b.move : null, opensAt: band ? band.opensAt : null });
+    }
+    /* A TOWN THAT LENDS NOTHING (lane/roads-borrow-values): every move it names unmeasured or past the last band, so its pick is refused
+       not_offered and its hybrid sits behind a point no hero can buy; or, if a hand edit let one through, a point that buys nothing */
+    if (n.kind === 'border' && !mine.some((o) => o.borrow && o.opensAt !== null)) {
+      throw new Error('gen-talents: border town ' + n.id + ' lends nothing (' + mine.map((o) => o.borrow).join(', ') + ': no measured value inside the bands)');
+    }
+    options.push(...mine);
   }
   const suggest = [], open = [];
   for (const disc of d.DISCIPLINE_IDS) {
@@ -216,6 +227,10 @@ begin
                  and not exists (select 1 from public.hr_talent_options o where o.node_id = s.node_id and o.option_id = s.pick))
      or exists (select 1 from public.hr_talent_suggest s join public.hr_talent_nodes n on n.id = s.node_id where n.kind = 'vow') then
     raise exception 'VERIFY(c): a pickable node without options, a suggested pick its node does not offer, or a suggested vow'; end if;
+  -- every border town lends a move (an option with an opening Level), so no hybrid sits behind a point that buys nothing
+  if exists (select 1 from public.hr_talent_nodes n where n.kind = 'border'
+              and not exists (select 1 from public.hr_talent_options o where o.node_id = n.id and o.borrow is not null and o.opens_at is not null)) then
+    raise exception 'VERIFY(d): a border town lends nothing'; end if;
   raise notice 'gen-talents: % nodes, % options, % suggested steps; all green', ${r.nodes.length}, ${r.options.length}, ${r.suggest.length};
 end $mig$;
 `;
@@ -237,10 +252,13 @@ async function selftest() {
   plant('a suggested order that skips a stone', (d) => { const f = base.T.suggestedOrder; d.T.suggestedOrder = (x, p) => f(x, p).filter(([id]) => id !== 'challenge.r2'); });
   plant('a suggested order that takes a vow', (d) => { const f = base.T.suggestedOrder; d.T.suggestedOrder = (x, p) => [...f(x, p).slice(0, 4), ['vow.last_stand', true], ...f(x, p).slice(4)]; });
   plant('a node id the catalogue cannot hold', (d) => { d.nodes = [...d.nodes, { ...d.nodes[1], id: 'Bad Id' }]; });
+  /* lane/roads-borrow-values: a town move with no measured value (BORROW_VALUES row null), and a town whose every move has no band */
+  plant('a town move with no measured value', (d) => { d.TD = { ...base.TD, validate: (n, o) => base.TD.validate(n, { ...o, values: { ...base.TD.BORROW_VALUES, rend: null } }) }; });
+  plant('a town that lends nothing', (d) => { d.T.borrowBand = (m, w) => (m === 'rend' || m === 'raking_shot' ? null : base.T.borrowBand(m, w)); });
   const sql = buildSql(rowsOf(base));
-  for (const k of ['VERIFY(a)', 'VERIFY(b)', 'VERIFY(c)', 'hr_talent_rules', 'hr_talent_suggest', 'hr_talent_disciplines']) if (!sql.includes(k)) bites.push('the file does not carry ' + k);
+  for (const k of ['VERIFY(a)', 'VERIFY(b)', 'VERIFY(c)', 'VERIFY(d)', 'hr_talent_rules', 'hr_talent_suggest', 'hr_talent_disciplines']) if (!sql.includes(k)) bites.push('the file does not carry ' + k);
   if (bites.length) { console.error('gen-talents --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-talents --selftest: 6 refusals bite, the file carries its self-check');
+  console.log('gen-talents --selftest: 8 refusals bite, the file carries its self-check');
 }
 
 if (isMain(import.meta.url)) {

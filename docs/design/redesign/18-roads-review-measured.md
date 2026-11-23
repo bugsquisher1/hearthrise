@@ -154,6 +154,25 @@ So the town's cost is 1/3 step against a measured gain of 6 to 39 steps: **18 to
 | Death risk at Steady | Not producible (section 5) |
 | Gold following depth | Today's engine doesn't (section 1) |
 
+## 7. The towns' owed values (2026-11-23, lane/roads-borrow-values)
+
+Six town moves had no V0, so four towns lent nothing while a hero still paid a point on the town to reach its hybrid. Each is measured by section 3's method: the move at full power in a four that lacks it, Muster Barrows, Level 60, Steady, held start 570, 8 seeds × 8 h, paired against its own base. One thing changed since sections 1 to 3: the borrow is the engine's own (`heroSetup` `borrowed`, which reads the native weapon's reference blow, `src/core/borrow-blow.js`), not a clone on the borrower's blow, because 17 ruled the native blow and the engine plays it now. V0 = the larger of the held gain and the pace gain ÷ 0.7%, never under 0.
+
+| Move | Borrower, base | Casts / h | Held vs base | XP / hero-h vs base | V0 | Border / Havora | Opens at |
+|---|---|---|---|---|---|---|---|
+| Power Strike | axes, Y (axes, bow, mage, healer) | 410 | +1.4 ± 3.3 | +2.9% ± 1.1 | 4.2 | −30% / −50% | 50 / 30 |
+| Flame Strike | hammer, M | 404 | +3.4 ± 2.7 | +4.4% ± 1.1 | 6.3 | −30% / −50% | 70 / 50 |
+| Rend | hammer, M | 433 | +2.2 ± 2.9 | +5.0% ± 1.1 | 7.1 | −30% / −50% | 80 / 60 |
+| Circle of Renewal | sword, N | 249 | +7.1 ± 2.0 | +3.8% ± 1.1 | 7.1 | −30% / −50% | 80 / 60 |
+| Turning Cut | tank, T (tank, bow, mage, healer) | 387 | −2.4 ± 2.5 | +7.7% ± 1.0 | 11.0 | −50% / not offered | 80 |
+| Raking Shot | sword, NB (its own arrows, Ranged held at 10) | 104 | −3.8 ± 3.9 | −0.6% ± 1.4 | 0 | none / −30% | 20 / 20 |
+| Greater Mend | sword, N (7-tile reach) | 1,421 | **+97.4 ± 3.9** | +41.7% ± 4.6 | 97.4 | past the last band: not offered | V4 |
+
+- **Turning Cut** sits at 11.0 ± 1.4, astride the 10 line. It takes the −50% band. In band is enough.
+- **Raking Shot adds nothing a melee hero can use.** Its 4-tile line only starts from the monster beside the borrower, so it fires 104 times an hour and moves neither depth nor pace. It's free at a border and opens at 20: a cheap pick that does little.
+- **Greater Mend** with the engine's 1-tile reach reads +20.2 ± 3.3; with 17's 7 tiles, +97.4. Either way it is past 20, so it stays unoffered until V4, as 19 says.
+- **Two of these needed 17's rules the engine doesn't play yet** (`roads-lend-rules.json`): a borrowed shot looses its own arrows (the engine only lets a bow loose one, `abilities.js castShotOf`), and Raking Shot's unlock reads Ranged 10, which a sword never trains. Without them Raking Shot never fires. Greater Mend's reach is the third. These gaps, and four town sides that lend nothing at all, are in CONFLICTS 2026-11-23.
+
 ## Files
 
-`tools/balance-program/redesign/roads/`: `make-lend.mjs` (writes `roads-lend.json`, the candidate), `check-lend.mjs` (proves the plant), `roads-run.mjs` (the cells: plans q1, q2, q3, q3f, time), `summarize.mjs` → `summary.txt`, and each plan's `.json` (per seed) and `.txt`.
+`tools/balance-program/redesign/roads/`: `make-lend.mjs` (writes `roads-lend.json`, the candidate, and `roads-lend-rules.json`, the same with 17's borrow rules the engine lacks), `check-lend.mjs` (proves both plant), `roads-run.mjs` (the cells: plans q1, q2, q3, q3f, time, v0, v0rules), `summarize.mjs` → `summary.txt`, `v0.mjs` → `v0-values.txt` (section 7), and each plan's `.json` (per seed) and `.txt`.

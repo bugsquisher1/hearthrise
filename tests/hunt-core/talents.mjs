@@ -8,6 +8,7 @@
 //   vow-weapon       a vow counts only on its own weapon
 //   idle-points      19 row 2: an unspent point, or a rank on a move never cast, costs a third of a step, never ramped
 //   borrow-opens     17 section 3: priced by value, opens at max(20, 200 V / 14) rounded up to 10, never a native move, none unmeasured
+//   town-values      every town move measured, every town lends a move, a pick that lends nothing refused not_offered (spend, saved build)
 //   engine-rows      the cast path reads the hero's modified rows (cooldown, hold, reach); a build's conditional row holds only on its condition
 //   real-settle-both-paths  the real settle grants a build (heroSetup -> member -> syncUnit), and 10-minute and 100-second windows agree
 //   no-build-no-change a hero with no build writes no field and reads the shared rows (the switch off plays as before)
@@ -143,7 +144,7 @@ const cases = {
     const T = M.T;
     const sh = T.borrowBand('shelter', 'border');
     if (!sh || sh.penaltyPm !== 300 || sh.opensAt !== 90) return 'Shelter at a border: ' + JSON.stringify(sh);
-    if (M.TD.BORROW_VALUES.greater_mend !== null || T.borrowBand('greater_mend', 'border') !== null) return 'an unmeasured Greater Mend is offered';
+    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered before V4 (measured past the last band)';
     if (T.borrowBand('hoarfrost', 'havora') !== null) return 'Hoarfrost is offered at Havora';
     if (T.borrowBand('hunters_mark', 'border').opensAt !== 30 || T.borrowBand('fireball', 'border').opensAt !== 80) return 'the table\'s Levels moved';
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter', havora: 'use_fireball' };
@@ -155,6 +156,45 @@ const cases = {
     if (!fb.borrowed.includes('fireball') || fb.mods.fireball.penaltyPm !== 500) return 'Fireball through Havora: ' + JSON.stringify(fb);
     const row = M.TR.moddedRow(M.AB.ABILITIES.fireball, fb.mods.fireball);
     if (row.hitPm !== Math.floor(M.AB.ABILITIES.fireball.hitPm / 2)) return 'the penalty did not reach what it lands: ' + row.hitPm;
+    return null;
+  },
+  /* EVERY TOWN LENDS A MEASURED MOVE (lane/roads-borrow-values; 17 section 3): a hero spends a point on a border town to reach its hybrid,
+     so a town move with no measured V0 is a point that buys nothing. Every move a town names has a measured value (validate refuses a row
+     that is not one), every town lends at least one move at a border, and a pick that lends nothing (no band: Greater Mend past the last
+     one until V4) is refused not_offered at the spend, before the points (the server's order), and in a saved build */
+  'town-values': (M) => {
+    const TD = M.TD, T = M.T;
+    const towns = TD.TALENT_NODES.filter((n) => n.kind === 'border');
+    if (towns.length !== TD.BORDERS.length) return towns.length + ' towns for ' + TD.BORDERS.length + ' borders';
+    for (const n of towns) {
+      const moves = n.options.map((o) => (o.effects.find((e) => e.kind === 'borrow') || {}).move);
+      for (const m of moves) {
+        const v = Object.prototype.hasOwnProperty.call(TD.BORROW_VALUES, m) ? TD.BORROW_VALUES[m] : undefined;
+        if (!(typeof v === 'number' && Number.isFinite(v) && v >= 0)) return n.id + ': ' + m + ' has no measured value (' + v + ')';
+      }
+      if (!moves.some((m) => T.borrowBand(m, 'border'))) return n.id + ' lends nothing: ' + moves.join(', ');
+    }
+    if (!TD.validate(TD.TALENT_NODES, { values: { ...TD.BORROW_VALUES, rend: null } }).some((s) => /rend has no measured V0/.test(s))) return 'validate passed an unmeasured town move';
+    /* A SIDE THAT GETS NOTHING: a hero of one of the town's two countries for whom every move it names is its own weapon's or not offered
+       still pays a point for nothing. OPEN with the designer (CONFLICTS 2026-11-23, lane/roads-borrow-values): these four, a list that
+       only shrinks (a new one is red; one that now lends is taken off) */
+    const NOTHING = ['border.shield_restoration.town:shield', 'border.club_dual_axe.town:dual_axe', 'border.sword_club.town:sword', 'border.destruction_restoration.town:destruction'];
+    const nothing = [];
+    for (const n of towns) for (const d of n.countries) {
+      const moves = n.options.map((o) => (o.effects.find((e) => e.kind === 'borrow') || {}).move);
+      if (!moves.some((m) => !M.AB.ABILITIES[m].disciplines.includes(d) && T.borrowBand(m, 'border'))) nothing.push(n.id + ':' + d);
+    }
+    const grew = nothing.filter((s) => !NOTHING.includes(s)), stale = NOTHING.filter((s) => !nothing.includes(s));
+    if (grew.length) return 'a town lends nothing to a hero of one of its countries: ' + grew.join(', ');
+    if (stale.length) return 'a town side now lends: take it off NOTHING: ' + stale.join(', ');
+    const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold' };
+    const town = 'border.shield_restoration.town';
+    if (T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered at a border: no town pick lends nothing to try';
+    if (T.spendProblem(b, town, 'use_greater_mend', 60) !== 'not_offered') return 'a town pick that lends nothing answered ' + T.spendProblem(b, town, 'use_greater_mend', 60);
+    if (T.spendProblem(b, town, 'use_greater_mend', 5) !== 'not_offered') return 'not_offered is asked after the points: ' + T.spendProblem(b, town, 'use_greater_mend', 5);
+    if (T.spendProblem(b, town, 'use_shelter', 60) !== null) return 'the town\'s lending pick was refused: ' + T.spendProblem(b, town, 'use_shelter', 60);
+    if (!T.buildProblems({ ...b, [town]: 'use_greater_mend' }, 60).some((p) => p.node === town && p.why === 'not_offered')) return 'a saved build kept a town pick that lends nothing';
+    if (T.buildProblems({ ...b, [town]: 'use_shelter' }, 60).length) return 'a saved build with a lending pick reads ' + JSON.stringify(T.buildProblems({ ...b, [town]: 'use_shelter' }, 60));
     return null;
   },
   /* THE WHOLE MAP (lane/roads-countries; 17 sections 4 to 7): every weapon a country, every live move a road but the two 17 and 23 retire
@@ -296,6 +336,13 @@ const mutants = [
   { name: 'unspent points cost nothing', case: 'idle-points', edits: [[T, '  if (idle > 0) {\n', '  if (idle < 0) {\n']] },
   { name: 'a borrow opens at once', case: 'borrow-opens', edits: [[T, '    if (!band || L < band.opensAt) continue;', '    if (!band) continue;']] },
   { name: 'a borrow pays no penalty', case: 'borrow-opens', edits: [[TR, "  const f = (1000 + (mod.outPm || 0)) * (1000 - (mod.penaltyPm || 0));", '  const f = (1000 + (mod.outPm || 0)) * 1000;']] },
+  { name: 'a town move left unmeasured', case: 'town-values', edits: [['src/data/talents.js', '  rend: 7.1,\n', '  rend: null,\n']] },
+  { name: 'validate takes an unmeasured value', case: 'town-values', edits: [['src/data/talents.js', "if (!(typeof v === 'number' && Number.isFinite(v) && v >= 0)) out.push('borrow '", "if (false) out.push('borrow '"]] },
+  { name: 'the spend buys a pick that lends nothing', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", '']] },
+  { name: 'not_offered asked after the points', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", ''],
+    [T, "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n", "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n  if (!offered(n, pick)) return 'not_offered';\n"]] },
+  { name: 'a saved build keeps a pick that lends nothing', case: 'town-values', edits: [[T, "    if (!offered(n, v)) out.push({ node: id, why: 'not_offered' });\n", '']] },
+  { name: 'a town lends a club hero only its own moves', case: 'town-values', edits: [['src/data/talents.js', "...border('club', 'dual_axe', ['rend', 'turning_cut'],", "...border('club', 'dual_axe', ['power_strike', 'turning_cut'],"]] },
   { name: 'a pick whose move never reads its field', case: 'every-node-lands', edits: [['src/data/talents.js', "[mod('rend', { statusMs: 3000 })]", "[mod('power_strike', { statusMs: 3000 })]"]] },
   { name: 'a reaction on a move that lands no blow', case: 'every-node-lands', edits: [['src/data/talents.js', "{ of: 'turning_cut', pm: 10, to: 'self' }", "{ of: 'challenge', pm: 10, to: 'self' }"]] },
   { name: 'a shared road is never walked', case: 'whole-map', edits: [[T, ".flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));", ".flatMap(() => []);"]] },

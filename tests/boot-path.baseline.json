@@ -292,6 +292,12 @@
         "gzipBytes": 957515,
         "on": "2026-11-23",
         "why": "first-hour rewrite: new coach cards (talent_point, depth, fell_back, risk_pick) and tutorial sections feeding them (lane/first-hour-rewrite)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958090,
+        "on": "2026-11-23",
+        "why": "Parry, Gash, Stagger rows, the target_winding_up bar condition and its text (lane/moves-wave-3)"
       }
     ]
   }

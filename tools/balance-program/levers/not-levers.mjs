@@ -52,6 +52,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/jewelry.js#fmtPct', why: 'a percent formatter' }, { at: 'src/data/jewelry.js#guaranteeJobs', why: 'a words builder' },
   { at: 'src/data/jewelry.js#ODDS_SCALE', why: 'the odds unit (a 10,000)' }, { at: 'src/data/armour-weights.js#pct', why: 'a percent formatter' }, { at: 'src/data/chests.js#CHEST_ITEM_DESC', why: 'item words' },
   { at: 'src/data/live-events.js#LIVE_EVENT_SHOWN', why: 'when the event banner shows' }, { at: 'src/data/gold-sinks.js#ROUND_SHOW', why: 'the round\'s show (art timing)' }, { at: 'src/data/hearth.js#BURN_SHOW', why: 'the burn\'s show (art timing)' },
+  { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'unit conversions for the help text (ms an hour, minutes an hour): the numbers shown are STAMINA_MAX_MS and RULED, read, not set here' },
   { at: 'src/data/factions.js#*', why: 'faction swap timing, the day fuse, the week cap and the sides: no power, gold or XP in these rows (the gold of the stock is econ.faction-stock)' },
   { at: 'src/data/boss-halls.js#namedWaveOf', why: 'a words builder' }, { at: 'src/data/clans.js#*', why: 'clan names, tags and invite days (the founding gold is econ.clans)' },
   { at: 'src/data/danger.js#DEPTHS', why: 'how many depths a ground\'s band is cut into for the player\'s "Depth N of 20" words (12-targets 3.1): display, the server and the engine read steps' },

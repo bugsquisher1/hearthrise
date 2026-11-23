@@ -130,6 +130,9 @@ export const METRICS = Object.freeze([
   Object.freeze({ id: 'target_hp_pct', say: 'my target’s HP', tip: 'Target health', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
   /* the hero's own target carries a Hunter's Mark still running (abilities.js `mark`: markUntil, read at the sub-step's instant) */
   Object.freeze({ id: 'target_marked', say: 'my target is Marked', tip: 'Target is Marked', value: 'bool', ops: Object.freeze(['eq']) }),
+  /* THE WIND-UP ANSWERS' TEST (docs/design/redesign/23-spell-audit.md section 7, wave 3: Stagger and Parry start on it): the hero's own
+     target is winding up a spell or a heavy blow now (monster-spells.js `cast`, persisted with the world), the moment either answers */
+  Object.freeze({ id: 'target_winding_up', say: 'my target is winding up', tip: 'Target winding up', value: 'bool', ops: Object.freeze(['eq']) }),
   /* the stacks of one stacking status on the hero's own target: "my target has at least 3 Bleed stacks" */
   Object.freeze({ id: 'target_stacks', say: 'my target has', tip: 'Target {who}', subjectAfter: true, value: 'count', ops: NUM,
     range: Object.freeze([0, STACK_MAX]), subject: STACKS }),

@@ -430,6 +430,14 @@ export const COMBAT = [
     perturb: P(),
     flags: [flag('contradictory', 'Chill carries its own tier ladder (1000..1667) where every other tiered effect reads the rune step (1000..1400)', '44 X-TIER-LADDER-TWINS, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
+  L('spell.answers', 'spells', 'content', 'The answers to a wind-up: Parried\'s window and the push bound', {
+    at: [at('src/data/statuses.js', "key: 'parried', durationMs: 2000,"), at(ABIL, 'pushMaxMs: 4000')],
+    def: 'Parry (the sword\'s) lays Parried on its target: that monster\'s next blow inside durationMs, a swing or a wind-up\'s landing, lands nothing and spends the stack; Stagger (the hammer\'s) ends its target\'s wind-up and holds its next swing back the row\'s pushMs, never past ABILITY_RULES.pushMaxMs (docs/design/redesign/23-spell-audit.md section 4, wave 3)',
+    range: 'durationMs whole sub-steps (validate); pushMaxMs whole sub-steps, a bound (two swings), not a balance value',
+    touches: 'blows taken from the monsters a sword or a hammer answers, so damage taken, supplies and deaths of a party that slots them', out: ['takenPerH', 'deathsPer1000h', 'suppliesPerH'], f: ['C-STATUS', 'C-AREA'],
+    tests: [['tests/hunt-core/abilities.mjs', 'parry-spends-the-next-blow, stagger-ends-a-wind-up, wave3-both-paths']], testReads: ['STATUSES', 'ABILITY_RULES'],
+    perturb: NP('not-built', 'no played bar slots Parry or Stagger yet: both are the player\'s picks, off every default bar (23 section 9 step 8 re-runs the move table)'),
+    ev: 'CONFIRMED (read; tests/hunt-core/abilities.mjs)' }),
   L('spell.default-bar', 'spells', 'archetype', 'When the default bar casts', {
     at: [at('src/data/rule-subjects.js', 'const SPARE_MANA = '), at('src/data/rule-subjects.js', 'const SICKNESS_WHEN = ')],
     rows: rows('the other default triggers', [home('src/data/rule-subjects.js#UNDERTOW_WHEN', 'count'), home('src/data/rule-subjects.js#RAKING_WHEN', 'count'), home('src/data/rule-subjects.js#HOARFROST_WHEN', 'count')]),

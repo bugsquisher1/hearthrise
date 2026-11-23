@@ -50,7 +50,7 @@ import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit, rowOf as standsIn } from './monster-roles.js';
 import { monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
-import { applyStatus, statusRow } from './status.js';
+import { applyStatus, statusRow, spendFlag } from './status.js';
 import { effectPm } from './status-effects.js';
 import { noteHurt, breaksOff } from './danger.js';
 import { stepsOn, blowAmount, manaOn } from './amount.js';
@@ -374,6 +374,9 @@ export function resolveAttacks(inst, sc) {
       /* THE DANGER SCALE'S FALL BACK (danger.js breaksOff): once a hero is under the stance's line, no monster swings again in this pull;
          the party breaks off at the next sub-step (pull-cycle.js breakOff). Off the scale it never holds. */
       if (breaksOff(inst)) continue;
+      /* A PARRIED BLOW (statuses.js `parry`, the sword's Parry): the swing is made and its clock restarts, but it lands nothing, nor its
+         splash; the stack is spent on it (status.js spendFlag) and the screen shows a miss. Draws nothing. */
+      if (spendFlag(u, 'parry', sc)) { restart(u, inst); sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id, parried: true })); continue; }
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);

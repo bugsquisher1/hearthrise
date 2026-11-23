@@ -13,10 +13,12 @@
 //   LOADS     a guard is picked when its source names a changed file (outside
 //             tests/ and tools/ .mjs, which reach a guard only by IMPORTS) in a string —
 //             an import or a path (`from '../src/core/member.js'`, `'src/core/
-//             member.js'`, `join(SRC, 'member.js')`) — matched on the basename +
-//             extension, never on a bare mention.
+//             member.js'`, `join(SRC, 'member.js')`) — the whole file name, and every
+//             directory the string spells is the tail of the file's own (namesPath),
+//             never on a bare mention.
 //   IMPORTS   a picked .mjs under tests/ or tools/ is itself a dependency: every
-//             file that IMPORTS it is picked too, transitively (a changed
+//             file whose import RESOLVES to it (importsOf, relative to the importer;
+//             never a basename: local-world.mjs is not world.mjs) is picked too, transitively (a changed
 //             tests/_chrome.mjs re-proves every page guard that boots Chromium).
 //   MIGRATION a changed supabase/migrations/*.sql picks the two replay guards and the self-check guard (town-hp-whole was applied before GitHub read it);
 //             so does a changed apply note or retirement (supabase/migration-notes/, supabase/migrations-retired/), with the
@@ -30,7 +32,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, posix } from 'node:path';
 
 // ── the CI gate's command shape (shared with ci-shape and guard-anchors) ────
 const GATE_FILE = 'tools/mutant-gate.mjs';
@@ -53,19 +55,61 @@ export function guardFileOf(cmd) {
 const REFERABLE = /\.(js|mjs|ts|sql|css|html|json|sh)$/;
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** A string literal naming `path` by basename + extension, or null for a stem too short to mean anything. */
+/** A string literal ending in `path`'s basename + extension (its whole file name, never a suffix of another's: `local-world.mjs`
+    is not `world.mjs`), or null for a stem too short to mean anything. Group 1 is the literal's directory part. */
 export function refPattern(path) {
   if (!REFERABLE.test(path)) return null;
   const stem = basename(path).replace(/\.(generated\.)?(js|mjs|ts|sql|css|html|json|sh)$/, '');
   if (stem.length < 4) return null;
   /* An import or a path string of the file, not any mention: `from '../src/core/member.js'`, `'src/core/member.js'`. */
-  return new RegExp(`['"\`][^'"\`]*${esc(stem)}\\.(?:generated\\.)?(?:js|mjs|ts|sql|css|html|json|sh)`);
+  /* The name starts the literal or follows a non-name character (`/`, `}` of a template, `(`): never `-`, `_`, `.` or a letter. */
+  return new RegExp(`['"\`]([^'"\`\\n]*?)(?<![\\w.-])${esc(stem)}\\.(?:generated\\.)?(?:js|mjs|ts|sql|css|html|json|sh)`, 'g');
 }
 
-/** An ESM import of `path` (static or dynamic), by basename. */
-function importPattern(path) {
-  const stem = basename(path).replace(/\.mjs$/, '');
-  return new RegExp(`(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*)['"\`][^'"\`]*\\b${esc(stem)}\\.mjs['"\`]`);
+/** The directory a literal names, as path segments a real path must end with: `../src/core/` -> ['src', 'core'];
+    `${SRC}/core/` -> ['core'], a route glob's `src/` after its stars -> ['src'], `http://127.0.0.1:8080/` -> [] (only the
+    trailing run of plain segments binds: a template's fill, a glob, a host or a sentence before them is unknown). */
+function literalDirs(dir) {
+  if (!dir.endsWith('/')) return [];                          // `${D}tick.js`, `(boot.js`: no directory spelled
+  const segs = dir.split('/');
+  const out = [];
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const s = segs[i];
+    if (s === '' && i === segs.length - 1) continue;          // the trailing slash
+    if (!/^[\w.@-]+$/.test(s) || s === '.' || s === '..') break;
+    out.unshift(s);
+  }
+  return out;
+}
+
+/**
+ * LOADS by the real path (2026-11-23, lane/ci-reds-orphans): `src` holds a string literal naming `path` — its own file name,
+ * and every directory the literal spells is the tail of `path`'s own (`'../src/core/member.js'` and `join(SRC, 'member.js')`
+ * name src/core/member.js; `'tools/qa/local-world.mjs'` does not name tools/balance-program/levers/world.mjs).
+ */
+export function namesPath(src, path) {
+  const re = refPattern(path);
+  if (!re) return false;
+  const own = path.split('/').slice(0, -1);
+  for (const m of src.matchAll(re)) {
+    const dirs = literalDirs(m[1]);
+    if (dirs.length <= own.length && dirs.every((d, i) => own[own.length - dirs.length + i] === d)) return true;
+  }
+  return false;
+}
+
+/* A static (`from '…'`, `import '…'`) or dynamic (`import('…')`) import of a relative .mjs specifier. */
+const IMPORT_SPEC = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"`])(\.{1,2}\/[^'"`\n]*?\.mjs)\1/g;
+
+/** The repo paths `importer`'s source imports, each specifier resolved against the importer's own directory; a `./` one also
+    against the repo root (a probe string evaluated from the root: `import('./tests/activity-seam.mjs')` in artisan-accrual). */
+export function importsOf(importer, src) {
+  const out = new Set();
+  for (const m of src.matchAll(IMPORT_SPEC)) {
+    out.add(posix.normalize(posix.join(posix.dirname(importer), m[2])));
+    if (m[2].startsWith('./')) out.add(posix.normalize(m[2]));
+  }
+  return out;
 }
 
 const isHelperModule = (p) => /^(tests|tools)\/.+\.mjs$/.test(p);
@@ -82,7 +126,7 @@ const isChainFile = (f) => f.startsWith('supabase/migrations/') || f.startsWith(
  *        the mutants that anchor on it; a lane's plain shortlist keeps the default, no hubs)
  * @returns {Map<string,string>} picked path -> why
  */
-export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}) {
+export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [], names = namesPath, imports = importsOf } = {}) {
   const pick = new Map();
   const queue = [];
   const add = (t, why) => { if (pick.has(t)) return; pick.set(t, why); if (isHelperModule(t)) queue.push(t); };
@@ -95,18 +139,20 @@ export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}
        a new one is a new migration, judged by the MIGRATION rule and guard-anchors' per-object
        migration scope — not by re-proving all ~85 replay guards. */
     if (isChainRegistry(f)) continue;
-    const re = refPattern(f);
-    if (!re) continue;
-    const hits = [...sources].filter(([t, s]) => t !== f && re.test(s)).map(([t]) => t);
+    if (!refPattern(f)) continue;
+    const hits = [...sources].filter(([t, s]) => t !== f && names(s, f)).map(([t]) => t);
     /* A HUB (play.html, named by every page guard) — the caller judges it another way. */
     if (hits.length > hubAt) { hubs.push(f); continue; }
     for (const t of hits) add(t, `loads ${basename(f)}`);
   }
   /* IMPORTS: a picked helper module carries its importers with it. */
+  /* By the real path the import resolves to (2026-11-23): a basename match pulled every tests/*-world.mjs (they import
+     tools/qa/local-world.mjs) into a diff that touched tools/balance-program/levers/world.mjs. */
+  const importsBy = new Map();
+  const importsOfT = (t, s) => { if (!importsBy.has(t)) importsBy.set(t, imports(t, s)); return importsBy.get(t); };
   for (let i = 0; i < queue.length; i++) {
     const h = queue[i];
-    const re = importPattern(h);
-    for (const [t, s] of sources) if (t !== h && re.test(s)) add(t, `imports ${basename(h)} (${pick.get(h)})`);
+    for (const [t, s] of sources) if (t !== h && importsOfT(t, s).has(h)) add(t, `imports ${basename(h)} (${pick.get(h)})`);
   }
   if (changed.some(isChainFile)) {
     for (const t of ['tests/schema-drift.mjs', 'tests/apply-order-honesty.mjs', 'tests/selfcheck-no-global-dml.mjs', 'tests/migration-names.mjs']) if (sources.has(t)) add(t, 'migration changed');

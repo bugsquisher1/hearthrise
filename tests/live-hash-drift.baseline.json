@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3865,
+  "replay_ms": 38150,
   "counts": {
     "tracked_names": 1137,
     "entries": 962
@@ -10602,6 +10602,7 @@
       ],
       "touched_by": [
         "1029-spell-rule-rune-spells.generated.sql",
+        "1069-wave3-moves-rune-spells.generated.sql",
         "2027-02-21-rune-spells.generated.sql",
         "2027-03-08-rune-ladder-rune-spells.generated.sql",
         "2027-03-24-undertow-rune-spells.generated.sql",
@@ -10615,12 +10616,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "9cff766450b5db9fe055ce6e07947f48",
-        "norm_len": 4996,
+        "md5": "041e7e3ff626003545c862f506fcd346",
+        "norm_len": 5309,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1029-spell-rule-rune-spells.generated.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+      "why": "STAGED for the v0.2.144 release by 1029-spell-rule-rune-spells.generated.sql, 1069-wave3-moves-rune-spells.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1069-wave3-moves-rune-spells.generated.sql."
     },
     {
       "sig": "hr_hunt_rune_state(p_user uuid, p_slot integer, p_session uuid, p_ability text, p_own jsonb)",

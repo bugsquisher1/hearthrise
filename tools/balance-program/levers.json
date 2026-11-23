@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f981552d1c2dafd5",
+ "authored": "b8540d7d585e6592",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 675,
-  "typed": 15799,
+  "bindings": 677,
+  "typed": 15807,
   "files": 233,
   "lever": 290,
-  "notLever": 385,
+  "notLever": 387,
   "unclaimed": 0
  },
  "problems": [],
@@ -6932,7 +6932,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 186,
+     "line": 190,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7001,19 +7001,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 193,
+     "line": 197,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 194,
+     "line": 198,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 195,
+     "line": 199,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7077,12 +7077,12 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 100,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 7000 });",
+     "line": 104,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });",
      "binding": "PAY"
     }
    ],
-   "definition": "a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground's reference step held to gapMax; coin is the roll x the pull's share x PAY.coinPm / 1000 x (1 + WAGE.payStepCoin)^gap (one coin ratio, econ.wage-step); under the reference both read the pay floor",
+   "definition": "a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground's reference step held to gapMax; coin is the roll x the pull's share x PAY.coinPm / 1000 x ((1 + WAGE.payStepCoin) x (1 + powerStep))^gap (danger.js COIN_STEP: a pull pays its own length back, so an HOUR a step deeper pays the one coin ratio, econ.wage-step); under the reference both read the pay floor",
    "range": "payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company's kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table",
    "touches": "Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1's row pay read ~22x",
    "outcomes": [
@@ -7143,8 +7143,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 100,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 7000 });",
+     "line": 104,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });",
      "binding": "PAY"
     }
    ],
@@ -7210,7 +7210,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 155,
+     "line": 159,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -7283,8 +7283,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 100,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 7000 });",
+     "line": 104,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });",
      "binding": "PAY"
     }
    ],
@@ -7355,7 +7355,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 119,
+     "line": 123,
      "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });",
      "binding": "POWER"
     }
@@ -7517,7 +7517,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 119,
+     "line": 123,
      "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });",
      "binding": "POWER"
     }
@@ -9883,7 +9883,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 155,
+     "line": 159,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -9957,7 +9957,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 155,
+     "line": 159,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }

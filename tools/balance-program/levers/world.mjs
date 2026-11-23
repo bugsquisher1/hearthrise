@@ -332,7 +332,7 @@ export const WORLD = [
     ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
   L('danger.pay', 'monster-rewards', 'global', 'Pay by depth', {
     at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120,')],
-    def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x PAY.coinPm / 1000 x (1 + WAGE.payStepCoin)^gap (one coin ratio, econ.wage-step); under the reference both read the pay floor',
+    def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x PAY.coinPm / 1000 x ((1 + WAGE.payStepCoin) x (1 + powerStep))^gap (danger.js COIN_STEP: a pull pays its own length back, so an HOUR a step deeper pays the one coin ratio, econ.wage-step); under the reference both read the pay floor',
     range: 'payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company\'s kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table',
     touches: 'Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1\'s row pay read ~22x',
     out: [...PACE, ...GOLD], f: ['P01', 'P02', 'C-TIER'],
@@ -340,7 +340,7 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)'),
     ev: 'MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)' }),
   L('danger.coin-level', 'monster-rewards', 'global', 'The scale\'s coin level', {
-    at: [at(DZ, 'floor: 0.5, coinPm: 7000 });')],
+    at: [at(DZ, 'floor: 0.5, coinPm: 6400 });')],
     def: 'a scale kill\'s coin is its row\'s roll x coinPm / 1000, before the pull\'s share and the depth ratio (src/core/hunt/danger.js dangerDial)',
     range: 'set TOGETHER with the store (econ.store-kit) and the wage (econ.wage-base): a whole-gold store use can price a Steady four\'s kit at 0.2 to 0.3 of its pay only where an hour pays about 16,000 gold at Level 60 (the old tier paid 12,776 there, the scale at 1000 paid 4,797). The server\'s coin bound reads it (hr_danger_grounds.coin_pm_max, 1055)',
     touches: 'every coin a scale kill pays, and through the wage every price in hours of wage', out: GOLD, f: ['C-TIER'],

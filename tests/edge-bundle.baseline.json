@@ -293,6 +293,11 @@
         "bytes": 3385050,
         "on": "2026-11-23",
         "why": "lane/ledger-l1-l3: the power ledger's clamp and slices (src/core/power-ledger.js, src/data/power-ledger.js) read by the power step, gear-steps.js maxRankAt and carry-over, re-raised on the merged set"
+      },
+      {
+        "bytes": 3393787,
+        "on": "2026-11-23",
+        "why": "L7+L10: coin a pull steps with power so gold/hr follows depth; heal/took/sup report counters"
       }
     ]
   }

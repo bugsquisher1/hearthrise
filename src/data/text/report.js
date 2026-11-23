@@ -47,6 +47,13 @@ export const REPORT_TEXT = Object.freeze({
   /* THE EARNED LINE (src/shell/hunt-report.js earnedLine): the server's gold an hour and store supplies an hour, beside the Hunts window's estimate */
   earned: 'Gold/hr: {gold} · Supplies/hr: {supplies}',
   earned_only: 'Gold/hr: {gold}',
+  /* THE LEDGER LINES (19-power-ledger L7; src/shell/hunt-report.js ledgerLines): the company's healing by source, damage taken by seat and
+     the store's supplies an hour at each depth it held, from the server's report counters. {list} is parts joined by " · " */
+  ledger_heal: 'Healing: {list}',
+  ledger_took: 'Damage taken: {list}',
+  ledger_part: '{what} {pct}%',
+  ledger_seat: 'Seat {n}',
+  ledger_sup: 'Supplies/hr at Depth {depth}: {gold}',
 
   /* THE RULES BLOCK */
   rules_head: 'What the bar did',

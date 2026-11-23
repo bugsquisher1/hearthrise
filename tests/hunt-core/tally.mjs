@@ -246,6 +246,52 @@ const cases = {
     if ('falls' in R.reportProposal(R.emptyReport(), null, null) || 'deep' in M.tally.tallyEvents(WINDOW, ROSTER).heroes[1].report) return 'a hunt off the scale reads a depth';
     return null;
   },
+  /* THE LEDGER (19-power-ledger L7), on the Danger scale only (the roster's `scale`): the company's healing by source and damage taken by
+     seat, every hero alike; each hero's own store bill and time by the step bucket it stood at, the step walked off the window's pull ends.
+     Any cut of the windows folds to the same; off the scale none of it is counted; the proposal keeps the database's shape. */
+  'report-ledger': async (M) => {
+    const R = await import(pathToFileURL(join(M.root, 'src/core/hunt/report.js')).href + M.V);
+    const { HUNT_REPORT } = await import(pathToFileURL(join(M.root, 'src/data/hunt-report.js')).href + M.V);
+    const W = HUNT_REPORT.supStep;
+    const w = [
+      ev('heal', 1000, { u: 2, t: 1, amount: 40, ability: 'mend' }),
+      ev('dmg', 1200, { u: 8, t: 1, amount: 64 }),
+      ev('eat', 1300, { u: 1, item: 'salted_fish', source: 'store', gold: 7 }),
+      ev('danger', 2000, { step: 6 * W + 3, to: 7 * W, low: 600, why: 'climb', risk: 'steady' }),
+      ev('heal', 2500, { u: 1, t: 1, amount: 10, item: 'salted_fish' }),
+      ev('heal', 2600, { u: 9, t: 8, amount: 99, spell: 'ooze' }),
+      ev('dmg', 2700, { u: 9, t: 2, amount: 20 }),
+      ev('dmg', 2800, { u: 1, t: 8, amount: 300 }),
+      ev('drink', 2900, { u: 2, item: 'tea', source: 'store', gold: 3 }),
+      ev('eat', 2950, { u: 2, item: 'tea', source: 'own' }),
+    ];
+    const scale = (from, to) => ({ step: 7 * W, fromMs: from, toMs: to, seats: { 1: 0, 2: 3 } });
+    const roster = (from, to) => Object.assign({}, ROSTER, { scale: scale(from, to) });
+    const want = {
+      1: { heal: { mend: 40, salted_fish: 10 }, took: { 0: 64, 3: 20 }, sup: { [6 * W]: [7, 1000], [7 * W]: [0, 2000] } },
+      2: { heal: { mend: 40, salted_fish: 10 }, took: { 0: 64, 3: 20 }, sup: { [6 * W]: [0, 1000], [7 * W]: [3, 2000] } },
+    };
+    const pick = (r) => JSON.stringify({ heal: r.heal, took: r.took, sup: r.sup });
+    const whole = M.tally.tallyEvents(w, roster(1000, 4000));
+    for (const id of [1, 2]) if (pick(whole.heroes[id].report) !== JSON.stringify(want[id])) return 'hero ' + id + ' reads ' + pick(whole.heroes[id].report) + ', not ' + JSON.stringify(want[id]);
+    /* any cut: each window its own span and end step (the world's after it) */
+    for (let i = 1; i < w.length; i++) {
+      const cut = w[i].atMs, acc = { 1: M.tally.emptyTally(), 2: M.tally.emptyTally() };
+      const parts = [[w.slice(0, i), 1000, cut, w.slice(0, i).some((e) => e.type === 'danger') ? 7 * W : 6 * W + 3], [w.slice(i), cut, 4000, 7 * W]];
+      for (const [part, from, to, end] of parts) {
+        const t = M.tally.tallyEvents(part, Object.assign({}, ROSTER, { scale: { step: end, fromMs: from, toMs: to, seats: { 1: 0, 2: 3 } } }));
+        for (const id of [1, 2]) if (t.heroes[id]) M.tally.addTally(acc[id], t.heroes[id]);
+      }
+      for (const id of [1, 2]) if (pick(acc[id].report) !== JSON.stringify(want[id])) return 'cut at ' + cut + ', hero ' + id + ' folds to ' + pick(acc[id].report);
+    }
+    /* off the scale: nothing */
+    const off = M.tally.tallyEvents(w, ROSTER).heroes[1].report;
+    if ('heal' in off || 'took' in off || 'sup' in off) return 'a hunt off the scale counts a ledger: ' + pick(off);
+    /* the proposal: the database's shape (ids, seats of one digit, [gold, ms] pairs, buckets on the scale) */
+    const p = R.reportProposal(Object.assign({}, whole.heroes[1].report, { heal: { mend: 40, Bad: 3 }, took: { 0: 64, 12: 5 }, sup: { [6 * W]: [7, 1000], 99999: [1, 1], x: [1, 1] } }), null, null);
+    if (JSON.stringify({ heal: p.heal, took: p.took, sup: p.sup }) !== JSON.stringify({ heal: { mend: 40 }, took: { 0: 64 }, sup: { [6 * W]: [7, 1000] } })) return 'the proposal reads ' + JSON.stringify({ heal: p.heal, took: p.took, sup: p.sup });
+    return null;
+  },
   /* AN-11 THE PROPOSAL IS IN THE DATABASE'S SHAPE (1053-hunt-report.sql hr_hunt_report_ok refuses any other, and a refused window counts
      toward a forfeit): ids [a-z0-9_] (a rule's 24 long), reasons [a-z_], at most 32 rules and 8 reasons a rule; a good report goes through
      whole, empty parts left out. */
@@ -451,6 +497,21 @@ const mutants = [
     edits: [['src/core/hunt/report.js', "...(nat(ev.hero) !== null ? { hero: ev.hero } : {}), pm", 'pm']] },
   { name: 'the proposal keeps a fall that climbs', case: 'report-danger',
     edits: [['src/core/hunt/report.js', '&& f.to <= f.from &&', '&&']] },
+  /* THE LEDGER (19-power-ledger L7) */
+  { name: 'the ledger counts a monster\'s mend', case: 'report-ledger',
+    edits: [['src/core/hunt/report.js', "  if (ev.type === 'heal' && ids.has(ev.u)) {", "  if (ev.type === 'heal') {"]] },
+  { name: 'the seats are credited to the hero struck only', case: 'report-ledger',
+    edits: [['src/core/hunt/report.js', "every(ev, (r) => { r.took = r.took || {}; bump(r.took, String(seat), n); });", "{ const r = reportOf(ev.t, ev); r.took = r.took || {}; bump(r.took, String(seat), n); }"]] },
+  { name: 'the supplies are booked at the window\'s end step', case: 'report-ledger',
+    edits: [['src/core/hunt/report.js', "  } else if (ev.type === 'danger' && nat(ev.to) !== null) scale.at = ev.to;", '  }']] },
+  { name: 'the time ignores the pull ends', case: 'report-ledger',
+    edits: [['src/core/hunt/report.js', 'if (t > at) spans.push([step, t - at]); at = t; step = e.to;', 'void t;']] },
+  { name: 'the fold drops the earlier window\'s supplies', case: 'report-ledger',
+    edits: [['src/core/hunt/report.js', 'for (const src of [x.sup, y.sup]) for', 'for (const src of [y.sup]) for']] },
+  { name: 'the ledger is counted off the scale', case: 'report-ledger',
+    edits: [['src/core/hunt/tally.js', 'const walk = roster && roster.scale ? ledgerWalk(events, roster.scale) : null;', "const walk = ledgerWalk(events, (roster && roster.scale) || { step: 0 });"]] },
+  { name: 'the proposal keeps a source and a seat the database refuses', case: 'report-ledger',
+    edits: [['src/core/hunt/report.js', 'const heal = capped12(r.heal, ID64, 16), took = capped12(r.took, SEAT, 10);', 'const heal = capped12(r.heal, /./, 16), took = capped12(r.took, /./, 10);']] },
   { name: 'a window that does not close is let through', case: 'regen-closes-the-window',
     edits: [['src/core/hunt/tally.js', "    if (regen < 0) throw new Error(", "    if (false) throw new Error("]] },
 ];

@@ -182,7 +182,7 @@ export const LEVER_MOVES = Object.freeze({
     ['+sink.other', 'market prices and fees are written in hours of wage too (wave 4)']],
   'econ.wage-step': [['+refill.price', 'the wage grows by it a Level step, and a block is priced at the hero\'s step'],
     ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)'],
-    ['+kill.coin', 'the one coin ratio (lane/econ-levers): a pull a step deeper on the scale pays (1 + payStepCoin) more coin (dangerDial coinPm)']],
+    ['+kill.coin', 'the one coin ratio (lane/econ-levers): an hour a step deeper on the scale pays (1 + payStepCoin) more coin, a pull (1 + payStepCoin)(1 + powerStep) (dangerDial coinPm, COIN_STEP)']],
   'econ.work-day': [['+town.skill', 'more minutes of town work a UTC day are more gathering and bench runs (work-day.js freeMin, hr_work_day)']],
   'econ.work-premium': [['+town.skill', 'Premium\'s extra minutes are more town work a day (work-day.js premiumExtraMin)']],
   /* THE GOLD ESTIMATE (src/data/gold-estimate.js, lane/gold-per-hour): a printed number only; no fight, purse or clock reads it */

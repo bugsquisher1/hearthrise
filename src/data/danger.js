@@ -97,7 +97,11 @@ export const DANGER = Object.freeze({
 //               whole-gold store use can price a Steady four's kit at 0.2 to 0.3 of its pay. The coin ratio a step is the wage's payStepCoin
 //               (0.4%): the engine's own 0.7% coin ratio is retired, one coin ratio a step (04 section 11). Evidence:
 //               tools/balance-program/redesign/econ/.
-export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 7000 });
+//   coinPm 6400  RE-SET (lane/ledger-l10, 19-power-ledger L10, 2026-11-22): the coin ratio is now an HOUR's (danger.js COIN_STEP: a pull a
+//               step deeper also pays its own length back), so the Steady four at Level 60, holding 619 over the reference 590 on this tree,
+//               read 1.094 of wage(60) at 7000; at 6400 it reads 1.014 (Level 63 1.022), the anchor back in band. Measured: v1-climb.mjs
+//               base/levels/high from the econ starts, 6 seeds x 8 h, before and after (CONFLICTS 2026-11-22 L10 names what stays out of band).
+export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });
 
 // THE POWER STEP ON THE SCALE (lane/r9-power-step, 2026-11-22; 04-math-strategy.md sections 1, 2 and 10; 02 package 2; 12-targets 3.3).
 // A hero's GEAR PART is the gear table's (src/data/gear-steps.js, lane/g-gear-steps): each worn piece adds its item Level x its slot's

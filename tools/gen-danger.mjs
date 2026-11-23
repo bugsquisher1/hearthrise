@@ -11,7 +11,7 @@
 //                       default_risk (DEFAULT_RISK: the stance a hunt on the scale plays when its plan names none; 1057-danger-falls.sql)
 //   hr_danger_stances   per stance: rank (0 the safest), fall_pm, clean_pm, after_death (the stance a death settles to, never bolder)
 //   hr_danger_grounds   per ground the scale opens on: ref_step, share_pm_max (the most of a row's health one monster carries at any step),
-//                       coin_pm_max (the most of a row's coin one kill pays: that share x PAY.coinPm x the depth ratio at the gap ceiling, at the wage's coin ratio)
+//                       coin_pm_max (the most of a row's coin one kill pays: that share x PAY.coinPm x the depth ratio at the gap ceiling, at danger.js COIN_STEP, the wage's coin ratio an hour)
 //   hr_danger_hours_for(level)     danger.js hoursForLevel
 //   hr_danger_level_xp_max(level)  ceil(danger.js levelShareXp at the gap ceiling): the most one kill alone pays a hero of that Level
 //

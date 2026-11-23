@@ -80,8 +80,8 @@ function basePull(ground) {
  *   dmgPm  each monster's blow, the same share
  *   aimPm, lvPm  1000: its aim and its Level stay the row's, so the step's growth is the ratio exactly, once on health and once on blow
  *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
- *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at the wage's coin ratio (hunt-rewards.js payKill), so a pull of
- *          any size pays the as-built pull's coin times the scale's gold level (lane/econ-levers: one coin ratio a step, src/data/wage.js)
+ *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at COIN_STEP (hunt-rewards.js payKill), so a pull of any size
+ *          pays the as-built pull's coin times the scale's gold level, and an HOUR a step deeper pays the wage's coin ratio more
  */
 export function dangerDial(ground, step) {
   const s = stepOn(ground, step);
@@ -90,8 +90,15 @@ export function dangerDial(ground, step) {
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
   return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
-    xpPm: 1000, coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };
+    xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
 }
+/* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
+   carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
+   wage's payStepCoin a PULL, coin an HOUR rose only (1 + payStepCoin) / (1 + powerStep), 0.05% a step, and loot (a kill's rows, no depth
+   term) fell with the kills: +38 held steps moved gold +59 +- 63 a hero-hour (measured, tools/balance-program/redesign/roads l10). A pull
+   pays the step's length back too, so an hour a step deeper pays payStepCoin more: one coin ratio a step, per hour, across grounds (the
+   wage) and inside one. At the reference step it is 1: the reference hour is unchanged. One multiplication, exactly rounded everywhere. */
+const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33: the spec leaves pow's last bit to each engine). */

@@ -19,8 +19,8 @@
 //         and odd cuts (world and pity through JSON at every cut); and every other output (events, items, gold, world) is the hunt's
 //         without the roll, digit for digit: the roller draws on its own streams only
 //   DF-6  DARK: GEAR_STEPS.traitsLive is false and no src or server file but the roller and its two engine readers names `traitDrops`
-//         (nothing hands the settle a roll); a made piece (drop-hours.js made) rolls at its part's hours over the rung's, from its
-//         ground's cell, only in a made slot
+//         (nothing hands the settle a roll); a made piece (drop-hours.js made, data until the bench verb) is a cape or a jewel, a slot no
+//         scale ground drops, named by a part a scale ground does drop
 //
 //   node tests/drop-formula.mjs            the guard and every planted mutant (each caught by its case)
 //
@@ -244,21 +244,16 @@ const CASES = {
       if (/\btraitDrops\b/.test(code)) return rel + ' names traitDrops: it hands the settle a Trait roll while Traits are dark';
       if (/trait-roll\.js/.test(code)) return rel + ' imports the Trait roller';
     }
-    /* the made piece: a cape made with a Muster part rolls Rare at partHours / 40, from Muster's cape cell */
+    /* the made piece (drop-hours.js made, the rule as data until the bench verb lands): its slots are the bench's, never a dropped slot, and
+       its part names an item field the scale grounds' parts carry */
     const made = M.DH.DROP_HOURS.made;
-    if (!made.slots.includes('cape') || made.slots.includes('weapon')) return 'the made slots are not the bench\'s (cape and jewelry)';
-    const rng = M.rng.createRng(7);
-    let hits = 0, n = 20000;
-    const cell = Object.keys(M.GS.TRAITS).filter((id) => M.GS.TRAITS[id].source === 'muster_barrows' && M.GS.TRAITS[id].slot === 'cape');
-    for (let i = 0; i < n; i++) {
-      const pc = M.TR.rollMadePiece({ groundId: 'muster_barrows', slot: 'cape', partHours: 2 }, rng);
-      if (!pc) continue;
-      hits += 1;
-      if (!cell.includes(pc.traits[0].id)) return 'a made cape rolled ' + pc.traits[0].id + ', not Muster\'s cape cell';
+    if (JSON.stringify([...made.slots].sort()) !== JSON.stringify(['cape', 'earrings', 'necklace', 'ring'])) return 'the made slots are not the bench ones (cape and jewelry): ' + made.slots.join(', ');
+    for (const gid of Object.keys(M.D.DANGER_GROUNDS)) {
+      const g = M.grounds.HUNT_GROUNDS[gid];
+      if (g && made.slots.some((s) => M.DR.traitSlotsDropped(g, M.GS.GEAR_STEPS.traitSlots).includes(s))) return gid + ' drops a piece in a made slot: the made rule and the drop rule would both roll it';
     }
-    const want = n * (2 / M.DH.DROP_HOURS.rarity.rare.everyHours + 2 / M.DH.DROP_HOURS.rarity.very_rare.everyHours);
-    if (!cell.length || !near(hits, want, 0.12)) return 'made capes rolled ' + hits + ' Traits in ' + n + ', want about ' + want.toFixed(0);
-    if (M.TR.rollMadePiece({ groundId: 'muster_barrows', slot: 'weapon', partHours: 2 }, rng)) return 'a made weapon rolled a Trait (weapons drop)';
+    const parts = M.PACKS.filter((p) => M.D.DANGER_GROUNDS[p.id]).flatMap((p) => Object.values(p.items || {})).filter((it) => it && it[made.part]);
+    if (!parts.length) return 'no scale ground drops a part carrying ' + made.part + ': no made piece could name its ground';
     return null;
   },
 };
@@ -277,7 +272,6 @@ const MUTANTS = [
   { name: 'the roll draws on the kill\'s r stream', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs)', 'ctx.rng, atMs)']] },
   { name: 'pity kept on the swing, not carried', case: 'DF-5', edits: [['src/core/trait-roll.js', 'pity: drops.pity || (drops.pity = {}),', 'pity: {},']] },
   { name: 'a server file hands the settle a roll', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', 'export const traitDrops = null;\nexport const SEED_DOMAIN =']] },
-  { name: 'a made piece rolls at a kill\'s odds', case: 'DF-6', edits: [['src/core/trait-roll.js', 'const p = Math.min(1, (partHours / DROP_HOURS.rarity[rarity].everyHours)', 'const p = Math.min(1, (1 / DROP_HOURS.rarity[rarity].everyHours)']] },
 ];
 
 async function main() {

@@ -37,7 +37,7 @@
 //         cell (GEAR_STEPS.traitRoll, G8), so a Trait whose home never drops its slot (no monster or ground drop row of an item in that
 //         slot) is one nobody can find. A warning while Traits are hidden, red once GEAR_STEPS.traitsLive is true. Capes and jewelry are
 //         made at a bench, not dropped: a Trait in a made slot (src/data/drop-hours.js made) rolls on a piece made with a part its home
-//         drops (src/core/trait-roll.js rollMadePiece), so it counts as rollable wherever its home drops one
+//         drops (the rule is data until the bench verb lands), so it counts as rollable wherever its home drops one
 // The contract for talents.js and signatures.js (CC-5..CC-7) is 24-content-pipeline.md section 4, written so the Roads sample lane
 // (20-v030-the-roads.md R-S) builds to it. Until then both read as missing, and CC-5 warns once per system.
 // ════════════════════════════════════════════════════════════════════════

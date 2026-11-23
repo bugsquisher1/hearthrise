@@ -30,7 +30,6 @@
 import { GEAR_STEPS, TRAITS } from '../data/gear-steps.js';
 import { DANGER_GROUNDS } from '../data/danger.js';
 import { DROP_HOURS, chanceOf } from '../data/drop-hours.js';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js';
 import { killsHeadHour, depthOf, depthRarePm, traitSlotsDropped } from './drop-rate.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -123,10 +122,12 @@ export function rollKillFor(tr, key, unit, n, rng, atMs) {
 }
 
 /**
- * THE SWING'S ROLL (combat-sim.js, once a swing on the scale): the server's `traitDrops` ({ luckPm, pity, found }, the objects the caller reads back; `hours` and `pityOn` are the Lab's what-if dials,
- * never the server's:
- * caller reads back) with the swing's ground, step, depth and odds, and `rngOf(unit)`: each hero's stream for the swing, made once and
- * drawn on for every kill in it. Null off the scale (no reference kill rate, no band, no pool).
+ * THE SWING'S ROLL (combat-sim.js, once a swing on the scale): the server's `traitDrops` ({ luckPm, pity, found }: the objects the caller
+ * reads back; `hours` and `pityOn` are the Lab's what-if dials, never the server's) with the swing's ground, step, depth and odds, and
+ * `rngOf(unit)`: each hero's stream for the swing, made once and drawn on for every kill in it. Null off the scale (no reference kill
+ * rate, no band, no pool).
+ * A MADE PIECE (drop-hours.js made: capes and jewelry) rolls by the same rules at the bench, at its part's hours over the rung's; its roll
+ * lands with the bench verb that consumes the part (wave 4/5), so no function here serves it yet.
  */
 export function traitSwing(drops, ground, step, streamOf) {
   if (!drops || !ground || !own(DANGER_GROUNDS, ground.id) || !Number.isInteger(step)) return null;
@@ -140,34 +141,4 @@ export function traitSwing(drops, ground, step, streamOf) {
     hours: drops.hours || null, pityOn: drops.pityOn || GEAR_STEPS.pity, luckPm: drops.luckPm || {}, pity: drops.pity || (drops.pity = {}), found: drops.found || (drops.found = []),
     rngOf: (unit) => { if (!streams.has(unit)) streams.set(unit, streamOf(unit)); return streams.get(unit); },
   };
-}
-
-/**
- * A MADE PIECE'S ROLL (drop-hours.js made: a cape or a jewel made with `groundId`'s part, whose drop row says `partHours`). One draw a
- * rarity, rarest first, at partHours / the rung's hours x the flame's luck, never pity, never depth: odds and rank as at the ground's
- * reference step. Answers { rarity, slot, traits, ground, depth, iL } or null (no Trait: a plain piece).
- */
-export function rollMadePiece({ groundId, slot, partHours, luckPm }, rng) {
-  const ground = HUNT_GROUNDS[groundId];
-  const row = own(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null;
-  if (!ground || !row || !DROP_HOURS.made.slots.includes(slot) || !(partHours > 0)) return null;
-  const luck = Number.isFinite(luckPm) && luckPm > 0 ? luckPm : 0;
-  const depth = depthOf(groundId, row.refStep);
-  const cell = Object.keys(TRAITS).filter((id) => TRAITS[id].source === groundId && TRAITS[id].slot === slot).sort();
-  if (!cell.length) return null;
-  for (const rarity of DROP_HOURS.rolls) {
-    const p = Math.min(1, (partHours / DROP_HOURS.rarity[rarity].everyHours) * ((1000 + luck) / 1000));
-    if (rng.next() >= p) continue;
-    const first = pick(cell, rng);
-    const ids = [first];
-    if (rarity === 'very_rare') {
-      const partners = veryRarePairs(TRAITS, GEAR_STEPS.veryRareBanned, groundId, slot).filter((pr) => pr.includes(first)).map((pr) => (pr[0] === first ? pr[1] : pr[0]));
-      if (!partners.length) continue;
-      ids.push(pick(partners, rng));
-    }
-    const traits = ids.map((id) => ({ id, rank: rankRoll(depth, row.maxRank, luck, rng) }));
-    if (traits.some((t) => t.rank < 1)) return null;
-    return { rarity, slot, traits, ground: groundId, depth, iL: row.gearLevel };
-  }
-  return null;
 }

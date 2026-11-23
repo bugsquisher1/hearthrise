@@ -305,10 +305,11 @@ export function bornHpOf(u, evs) {
  *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
  *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }
- * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number}} ctx
+ * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number, traitDrops?: any}} ctx
  *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
  *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled),
+ *        traitDrops? (the server's Trait roll, src/core/trait-roll.js traitSwing: DARK, nothing hands one while GEAR_STEPS.traitsLive is false),
  *        sessionMode? (the instance's frozen mode id, src/data/session-modes.js; absent = the default, an unknown id throws),
  *        towerFloor? (the Burning Tower, src/core/hunt/tower.js: the floor whose room stands, or stands next, at this span's start: the
  *        server's read, hr_hunt_instance_read `tower_floor`; required on the Tower's ground, never read elsewhere) }

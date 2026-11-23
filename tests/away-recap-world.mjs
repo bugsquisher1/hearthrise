@@ -301,9 +301,11 @@ try {
     await p.reload();
     if (!(await p.page.$('.hs-launchers'))) await p.page.click('[data-app="play"][data-slot="0"]');
     await p.page.waitForSelector('.hs-launchers');
-    /* Hask's Ford, 33 Levels over: the one confirm, then Enter */
+    /* The Slake, 38 Levels over, a tier ground: the one confirm, then Enter. (Hask's Ford until lane/monster-roles-ford-wings: on the Danger
+       scale a Steady hunt falls back before it dies, and the Ford plays the monster formula, whose step 0 a hunt opens on is far under any
+       company, so a Level 12 hero hunts on there and never dies) */
     await p.page.click('[data-hs-open="hunts"]');
-    await p.page.click('.hw-hunt[data-hunt="hasks_ford"]');
+    await p.page.click('.hw-hunt[data-hunt="the_slake"]');
     await p.page.click('.hw-hunt-enter');
     await p.page.waitForTimeout(500);
     if (!(await p.page.$('[data-hs-act="leave"]'))) await p.page.click('.hw-hunt-enter');
@@ -319,7 +321,7 @@ try {
     const line = await cardOf(q, 30000);
     await q.shot('ar10-yard-took-over');
     step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
-      !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford · Killed by .+ · Death cost: [\d,]+ Level XP/.test(line)
+      !!line && /Yardley The Slake Level 12 → 1[12]/.test(line) && /Yardley died in The Slake · Killed by .+ · Death cost: [\d,]+ Level XP/.test(line)
       && /\bBlessing saved [\d,]+ Level XP[^·]*, used up/.test(line) && /Yardley: training Melee at the yard · Still training/.test(line) && /Open Training/.test(line), line);
     await q.close();
   }

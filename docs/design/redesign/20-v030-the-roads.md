@@ -28,10 +28,11 @@
 | **Wave 2: depth pay** | Yes | BUILT on Muster | Goes to every ground with R10 |
 | **Wave 2: personal loot** | Yes | DESIGNED (02 package 4) | Per-hero drop rates: NOT DESIGNED |
 | **Wave 2: plan copying between players** | Yes, as a share code | DESIGNED | Copying between your own heroes is BUILT |
-| **The Roads** (talent map, rank stones, crossroads, vows, borders, borrowing) | Yes, all seven weapon countries | DESIGNED (17 v3, 19) | Shield, Restoration, Club, Dual Axe laid out. Sword, Ranged, Destruction: NOT DESIGNED at node level |
+| **The moves pass** (`23-spell-audit.md`) | Yes, before any road is written past the sample | DESIGNED | The Challenge's condition and the tank's 15% line on Steady, Shelter's condition, Greater Mend's re-size, Undertow and Updraft cut, the Mark and Precision Shot targets. Wave 3 adds Stagger, Parry and Gash |
+| **The Roads** (talent map, rank stones, crossroads, vows, borders, borrowing) | Yes, all seven weapon countries | DESIGNED (17 v3, 19) | Shield, Restoration, Club, Dual Axe laid out, with the moves pass applied. Sword, Ranged, Destruction: NOT DESIGNED at node level. Stagger, Parry and Gash roads open with wave 3 |
 | **Traits dropping** | Yes, on open grounds | Data BUILT and hidden (`traits.js`, 40 rows). Roll, engine and screens DESIGNED | 15 Traits roll in v0.3.0 (Muster 6, Pyre Field 4, Krell's Hold 5). The other 25 roll when their ground opens |
 | **Very Rare (two Traits)** | **No**, next patch | DESIGNED | See section 2 |
-| **Signatures** | Yes, **24 of 46** | DESIGNED (15) | Every Signature whose home is open in v0.3.0, except the loot hooks. List in 1.3 |
+| **Signatures** | Yes, **23 of 46** | DESIGNED (15) | Every Signature whose home is open in v0.3.0, except the loot hooks and #30 (it waits on Brand). List in 1.3 |
 | **Wage and economy** | Yes | Wage, store prices and block prices BUILT. The rest DESIGNED | Still to do: store priced at the buyer's step, uses under 1 gold, an equal charge bill per style, bought work blocks, sinks priced in wage hours |
 | **Crafted kit basics** | Yes: **the kit trades** | Company trades BUILT (R12 slice 1). Recipes on hours of work DESIGNED (09) | Decided in 1.4 |
 | **Inner Flame as luck** | Yes | Fuels and the burn BUILT (old). Luck DESIGNED (02 2b). Room curve NOT DESIGNED | |
@@ -45,11 +46,11 @@
 
 - **Every open ground moves to the Danger scale, and the tier path is removed.** A first hour on tiers followed by a scale at Level 55 would teach two systems, and one would then be thrown away. Bramble Edge, Goblin Warren and Ridge Camp get kept or cut in R10. A ground that's kept goes on the scale.
 - **Risk is taught at the first party ground, not before.** The Mill Cellar shows depth only, and plays Steady (`DEFAULT_RISK`, built).
-- **The Roads ship whole for every live weapon.** A hero with no country would have no talents, which isn't a patch called The Roads. The Hearth is the center only. The fist generalist waits for `FIST_LINE.live`.
+- **The Roads ship whole for every live weapon.** A hero with no country would have no talents, which isn't a patch called The Roads. The Hearth is the center only. The support (the wraps, `22-fists-support.md`) waits for `FIST_LINE.live`, then ships as R-X3.
 - **Traits roll only on grounds that are open.** The four staged grounds (Carter's Rest, Ox Road, Wyvern Roost, Unmarked Catacombs) bring their Traits and Signatures when their art lands. Their bands are designed now in R10, so they arrive with no rebalance.
 - **No market in v0.3.0.** Trait pieces are kept, carried over or sold to the store. Remains burn or sell to the store. The book ships on its own (section 2).
 
-### 1.3 The 24 Signatures in v0.3.0
+### 1.3 The 23 Signatures in v0.3.0
 
 | Home | Signatures (numbers from `15`) |
 |---|---|
@@ -58,10 +59,10 @@
 | The Slake | 17 Bargeman's Pole, 20 Greened Bracers, 22 Slake Waders, 34 Sergeant's Sash |
 | Pyre Field | 4 Charred Sabre, 9 Lurcher's Collar, 11 Provost's Longbow, 24 Stoker's Ring |
 | Krell's Hold, Lord Krell | 3 Grave Guard's Mail, 13 Hall Fire Wand, 35 Gatekeeper's Plate, 44 Pyre Priest's Hood |
-| The Tower, Hearth Chest | 16 Lamplighter's Robe, 19 Passing Bell, 30 Raft Builder's Earrings, 37 Lychgate Leggings |
+| The Tower, Hearth Chest | 16 Lamplighter's Robe, 19 Passing Bell, 37 Lychgate Leggings |
 
-- **Sample of five first** (CLAUDE.md section 10): 1, 5, 6, 17, 36. Between them they cover Chill, a cooldown reset, a cooldown cut, a timed damage cut and a shield. They're played and read before the other 19 are built.
-- **Out of v0.3.0:** 39 Tollman's Gloves and 40 Hearth Mason's Cloak (they change drops and need the market and Security), plus every Signature whose home is a staged ground. A Signature whose engine piece slips moves to v0.3.x. It doesn't hold the release.
+- **Sample of five first** (CLAUDE.md section 10): 1, 5, 6, 17, 36. Between them they cover a first-blow cut, a cooldown reset, a cooldown cut, a timed damage cut and a shield. They're played and read before the other 18 are built. #1 and #17 are read after the holder line and Greater Mend's re-size, since both moves change.
+- **Out of v0.3.0:** 39 Tollman's Gloves and 40 Hearth Mason's Cloak (they change drops and need the market and Security), 30 Raft Builder's Earrings (Updraft is cut and Brand isn't live), plus every Signature whose home is a staged ground. 22 Slake Waders is now the alone Signature, still homed on the Slake. The support's 8 (`22` section 7.1) ship with R-X3. A Signature whose engine piece slips moves to v0.3.x. It doesn't hold the release.
 
 ### 1.4 Crafting: the kit trades are in, the rest of the professions wait
 
@@ -99,8 +100,9 @@
 | **Masteries, salvage, Weighhouse orders** | Trade Levels are already on the company (R12). Masteries add no steps | None needed |
 | **Ratio defenses, the wider move list, jobs** | v0.3.0 keeps today's hit math. A later ratio change must hold every ground's held depth (C-2) on a parity run before it ships | V1 parity cell |
 | **The four staged grounds** | Bands, gear Levels and Trait pools are written in R10 now. Their Traits and Signatures are already sized inside the slices | Band reader (C-10, C-11) |
+| **Factions** (the First Flame and the Last Ember, `25-factions.md`) | 0 power steps: ledger row 17, no slice. Standing pays only on Morrow Hills grounds, which are staged, so nothing shows in v0.3.0. The `factions` switch stays off and `2027-05-27-arm-factions.sql` stays held. Join, standing and the quartermaster ship with the Morrow Hills. The side channel and the week on the Hills ship with ladders and chat. Their two gold lines are under 1% of minted coin, read on and off | Sink reader, on and off. FG guard |
 | **World boss, halls as bar checks, ladders, events** | Rewards are gear inside the gear slice and buffs inside the clan slice. Ledger row 16: a new source takes a slice or is refused | Ledger |
-| **The fist generalist (the Hearth's borrows)** | Borrowing is sized in value bands, so fists' third slot is one row (L13) | V12 |
+| **The support (the wraps, the Hearth)** | Its auras and debuffs sit on stacking keys and count at their party sum inside the slices (`22-fists-support.md` 4.2), so it arrives with no rebalance. Recommended for v0.3.0 after E3 as R-X3. It slips to v0.3.1 without holding the release | V12 (22 run F7) |
 | **Build preview and theorycrafting tools** | Display only. They don't move numbers | None |
 | **Premium, Crowns, the $15 box** | Tyler's. The 12 h day is BUILT behind the Premium flag. The Roads' reset price and saved build slots have a Premium hook set to zero. No step comes from Premium | 04 section 12, read in days |
 
@@ -180,13 +182,14 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | # | Lane | Owner | Depends on | Size | Done when |
 |---|---|---|---|---|---|
 | L1 | Ramp and slices: `src/data/power-ledger.js` (`rampLevel` 200, build 14, consumable 6, Temper 5, **clan 4, zero**), `ramp()` and `sliceCap()` in core, the engine clamps each slice | Systems | Nothing | M | A hero at Levels 10, 30, 60, 200 reads 19's caps |
-| L2 | Wear ahead: `min(10, floor(L / 6))`, client and server | Systems + Backend | Nothing | S | Level 10 can't wear item Level 20. Level 55 wears 60 |
+| L2 | DROPPED (Tyler 2026-11-22: "Gear scaling with level seems wrong right? I don't want to punish people who are theory crafting or getting lucky with drops"). `wearAhead` stays 10 at every Level | | | | |
 | E1 | Bar metrics and near fall-back (19 L4, L5): `target_hp_pct`, `target_marked`, `target_bleed_stacks`, `last_cast`, `hp_near_fall` | Systems | Nothing | M | Each metric tested on all three stances |
 | E2 | Statuses as data rows: **Poison**, hero deals more for N s, hero takes less for N s, monster deals less, heals over time, can't cast | Systems | Nothing | M | Each status ticks or applies on the dummy, viewed and closed |
 | L10 | Gold follows depth: why +50 held steps moved gold by −4 ± 64 | Systems | Nothing | M | V13 passes, or the cause is written and fixed |
 | R10 | **Every open ground on the scale, and the tier path removed:** bands (floor, middle, top) for all open grounds plus the four staged ones, `gearLevel`, Rare odds by depth, the next ground's floor just under this one's top, `needs_outgrown` trigger, first hunt starts at the floor. Bramble Edge, Goblin Warren and Ridge Camp kept or cut. Delete `hunt-tiers` reads, the tier picker and the tier text | Designer (data) + Systems + Backend | L10 for the coin column | XL | C-10 and C-11 read on 3 grounds. No tier row anywhere. A fresh Level 1 hero sees "Depth 1 of 20" in the Cellar |
 | LAB | The Lab, continuously: V2, V4 (the heal rule), V13 now. V5, V7, V9 with the Roads sample. V6, V8, V10, V11 after R10 | Matrix | Each run's tool | M, standing | Each V reads pass or names its fix |
-| A1 | **Art: rare and unique icons.** A standout frame for Rare and Signature pieces, then 24 Signature icons (sample 5 first: the 1.3 sample), then Trait-piece looks | Art Director + Asset Director | Nothing | L | The sample of 5 is read on the inventory screen before the rest are made |
+| MV | **The moves pass, now** (`23` section 9, items 1 to 5; `19` L4b and L14): the Challenge's condition "my HP is at least 60%", then the holder line (`holderLinePm` 600, the tank falls back at 15% on Steady). Shelter's condition. Greater Mend 2540 and Circle 2080 as a Lab variant first. Undertow cut into `aloneHitPm` on Green Sickness. The Mark and Precision Shot targets. Updraft's row removed | Systems + Designer | Nothing | M | V14 re-run: the Challenge positive on the tank's four, no live move below zero. R-S waits on it |
+| A1 | **Art: rare and unique icons.** A standout frame for Rare and Signature pieces, then 23 Signature icons (sample 5 first: the 1.3 sample), then Trait-piece looks | Art Director + Asset Director | Nothing | L | The sample of 5 is read on the inventory screen before the rest are made |
 
 ### Band 2: after Band 1 merges
 
@@ -194,11 +197,12 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 |---|---|---|---|---|---|
 | E3 | Shields (one per hero, the bigger one replaces), auras (party scope, counted once), and the pair check stub | Systems | E2 | M | Two auras in a party count once. Shield replace rule tested |
 | E4 | Triggers: cooldown reset or cut from another move, mana back on kill, hit or heal, a free cast that can't chain, a heal on a shield break | Systems | E1, E2 | M | "A free cast can't set off another" tested |
-| C2 | Roles on every monster on open grounds, plus a Caster body and a Warder body | Designer | R10 | L | V3 on three role mixes |
+| C2 | Roles on every monster on open grounds, plus a Caster body and a Warder body | Designer | R10 | L | V3 on three role mixes. The "casting" nodes, vows and Traits fire on Muster Barrows and Hask's Ford |
+| W3 | **Wave 3 answers** (`23` section 7): wind-ups on monster blows, the `winding_up` condition, Stagger (Quarry Blow's row reworked: ends a wind-up), Parry (sword), Gash (axes), Silenced | Systems, then Designer (rows) | E2, MV | L | Each fires on the dummy. V14 re-run with them on the bars |
 | P1 | **Personal loot:** each hero rolls its own drops from the kills it took part in, drop rates set per hero, loot write per seat | Backend + Systems | R10 | L | A viewed and a closed four store the same loot per seat |
 | W1 | Wage remainder: store priced at the buyer's step, uses under 1 gold (an accumulator), an equal charge bill per style (the hammer's charge row) | Systems + Backend | Nothing (wage BUILT) | M | Kit is 0.2 to 0.3 of pay for every style |
 | B1 | Bought work blocks (`SOLD_KINDS` adds `work`, 4 a day) and a standing "buy up to N" rule in the plan | Backend | W1 | M | A hero buys 4 work blocks and a 5th is refused. The plan rule buys without a press |
-| R-S | **The Roads sample:** `src/data/talents.js` with the Hearth, Shield, Restoration and Shield · Restoration; server spend, vow (never taken by the standing rule), reset priced in wage hours, a free reset on new content; "Spend as suggested" as a standing rule | Designer + Backend | L1, E1 | L | 17's Shield walk-through plays on the dummy. V5 and V7 pass |
+| R-S | **The Roads sample:** `src/data/talents.js` with the Hearth, Shield, Restoration and Shield · Restoration; server spend, vow (never taken by the standing rule), reset priced in wage hours, a free reset on new content; "Spend as suggested" as a standing rule | Designer + Backend | L1, E1, MV | L | 17's Shield walk-through plays on the dummy. V5 and V7 pass |
 
 ### Band 3: gear and the flame
 
@@ -207,7 +211,7 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | T1 | **Traits drop:** the server roll inside the settle, a Trait piece as one row (base, Trait, rank, the kill that made it), rank by depth capped by the ground's entry Level, the engine reads Traits inside the gear slice, a return card line and the drop moment | Backend + Systems | L1, E1, P1, R10 | XL | A Muster hunt rolls rank I only. Viewed and closed roll the same. GS tests pass |
 | F1 | **Inner Flame as luck:** the flame row on the account, height burns down in the settle, the drop roll reads it, the default stoke rule, the room curve, the flame on the return card | Backend + Systems + Designer (room curve) | T1 | L | Unfed drops stay at base rates. A full flame stays inside `kitSpreadMax` (V10) |
 | K1 | **Kit trades:** recipes on hours of work for Cooking, Smithing, Woodcrafting, Runecutting and gathering, banded by step. Store basics a tier behind at 1.5×. Sample of 5 recipes first, then batches of 20 or fewer | Designer + Backend | W1, R12 (BUILT) | L | Labor ratio read at 10, 12 and 14 h days. The store kit stays the floor |
-| TP | Temper on steps: ranks 1 to 5, a gear step a rank, slot-weighted, × ramp, priced in `temperHours`, needs a Smithing Temper kit. Carries up | Designer + Backend | L1, K1 | M | Temper cap 5 holds on a full kit. The old rungs are gone |
+| TP | Temper on steps: ranks 1 to 5, a gear step a rank, slot-weighted, rank r opens at Level 40r (`21` D-2, never × ramp), priced in `temperHours`, needs a Smithing Temper kit. Carries up | Designer + Backend | L1, K1 | M | Temper cap 5 holds on a full kit. The old rungs are gone |
 | CO | Carry-over (Artificing): one Trait moved to a new base of the same slot and the same or a higher tier, the old piece destroyed, priced in wage hours at depth | Backend | T1, K1 | M | Carry onto a lower tier is refused. Journalled |
 | IM | Imbuements on steps (Artificing): 2 steps each, 3 a hero, 20 hunted hours, made from the imbuement parts monsters drop | Designer + Backend | L1, K1 | M | Consumable slice 6 clamps |
 | SN | Sinks priced in wage hours: Talent resets, Blessings and the death cost at a Level step | Designer | W1 | S | Read on the gold ledger: sinks 85 to 90% of minted coin with no castle |
@@ -217,7 +221,7 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | # | Lane | Owner | Depends on | Size | Done when |
 |---|---|---|---|---|---|
 | E5 | Borrowing (19 L6): off-weapon rows from the server's borrow list, borrowed heals on Mend's clock, Magic at Mend's rate | Systems + Backend | V4 pass, R-S | L | Borrowed Greater Mend is 10 steps or less |
-| R-X1 | Roads: Sword, Club, Dual Axe countries plus their borders | Designer | R-S, C2 | L | Library test (V6) on 3 role mixes |
+| R-X1 | Roads: Sword, Club, Dual Axe countries plus their borders, with Parry's, Stagger's and Gash's roads | Designer | R-S, C2, W3 | L | Library test (V6) on 3 role mixes |
 | R-X2 | Roads: Ranged and Destruction countries plus the remaining borders (9 in total) | Designer | R-X1 | L | V6 on every country. No build tops more than 25% of cells |
 | R-UI | The Roads screen: Country, Road and Node zoom with fixed labels, open on where you are, route preview with a cost badge, four node states, phone sheet, Restoration at about 2.5× the space | Systems (client) + Art Director | R-S | L | Desktop and 922×423 shots read by the art director |
 | A2 | Art: the Roads map (countries, trunks, stones, towns, vows as standing stones) | Art Director | R-UI layout | L | Sample read before the full map |
@@ -228,7 +232,7 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | # | Lane | Owner | Depends on | Size | Done when |
 |---|---|---|---|---|---|
 | S1 | Signatures sample: 1, 5, 6, 17, 36, with their drop homes and the reveal | Designer + Systems | E2, E3, E4, T1, A1 sample | M | Played and read. Each inside 10 steps on its best cell |
-| S2 | The other 19 Signatures from 1.3 | Designer + Systems | S1 read | L | V10 lucky against unlucky kit within 20 steps |
+| S2 | The other 18 Signatures from 1.3 | Designer + Systems | S1 read | L | V10 lucky against unlucky kit within 20 steps |
 | H1 | **The first-hour rewrite:** Path rows re-cut (Roads point at 2, first crossroads at 5, the Hearth card, first cook, Risk at the Sewer, tier rows deleted), `src/data/company.js` flag export, recruits arrive with points spent as suggested, coach and What next text in Tyler's voice, Level estimates measured on `local-world` | Designer + Systems | R10, R-S, F1, K1 | L | Section 3.2 plays end to end on a fresh account |
 | SH | Plan copying between players: a share code for a plan and a build | Systems | R-S | S | A code pasted on a second account rebuilds the plan |
 | WN | In-game "What's new": one card on first sign-in to v0.3.0, plus a "you start fresh" line for returning players | Designer (text) + Systems | H1 | S | Shown once an account |
@@ -276,3 +280,17 @@ v0.3.0 ships when every line below is true.
 - R10 is the widest lane and blocks most of the others, so it gets started first.
 - T1 is the largest new server surface.
 - V4 (the heal rule) decides whether borrowing heals ships at all. If it fails, Greater Mend stays unborrowable in v0.3.0, which is the ledger's own fallback.
+- The Challenge made a tank's four 63 steps shallower (`23` section 3). MV lands before R-S so the Shield country isn't built on it.
+
+## Changes from the spell audit
+
+2026-11-22, from `23-spell-audit.md`, and Tyler's rulings the same day (Updraft cut, the tank falls back at 15% on Steady).
+
+- 1.1: a "moves pass" row. The Roads row notes the pass and the wave 3 roads.
+- Signatures: 24 to 23. #30 Raft Builder's Earrings out (Updraft cut, Brand not live). #22 is now the alone Signature. The support's 8 ship with R-X3. S2 is 18.
+- Sample of five: #1 now covers a first-blow cut, not Chill. #1 and #17 read after their moves change.
+- Band 1: lane MV, the moves pass, new. R-S depends on it.
+- Band 2: lane W3, wave 3 answers (blow wind-ups, Stagger, Parry, Gash, Silenced), new. C2's done-when names the casting conditions it brings alive.
+- Band 4: R-X1 waits on W3 and carries Parry's, Stagger's and Gash's roads.
+- A1: 23 Signature icons.
+- Known risks: the Challenge line.

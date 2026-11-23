@@ -30,6 +30,7 @@ import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS } from '..
 import { WAGE } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
+import { ledgerSteps } from '../power-ledger.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -44,6 +45,12 @@ export const PERSISTED = Object.freeze({
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const clampStep = (s) => Math.max(0, Math.min(DANGER.stepMax, Number.isInteger(s) ? s : 0));
+/* THE TOP OF THE GROUND (lane/r10-more-grounds; 12-targets.md 3.2): no step past its band's topStep (DANGER_GROUNDS), so the climb stops at
+   depth 20 on every stance and a start held from before plays there; a ground with no row is held only by the scale's stepMax. */
+const stepOn = (ground, s) => {
+  const row = ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
+  return Math.min(row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax, clampStep(s));
+};
 
 /** True when this world plays the Danger scale (its plan named a stance). The server freezes a stance only on a ground of
     DANGER_GROUNDS (hr_danger_grounds); the engine plays what it was handed. */
@@ -73,18 +80,25 @@ function basePull(ground) {
  *   dmgPm  each monster's blow, the same share
  *   aimPm, lvPm  1000: its aim and its Level stay the row's, so the step's growth is the ratio exactly, once on health and once on blow
  *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
- *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at the wage's coin ratio (hunt-rewards.js payKill), so a pull of
- *          any size pays the as-built pull's coin times the scale's gold level (lane/econ-levers: one coin ratio a step, src/data/wage.js)
+ *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at COIN_STEP (hunt-rewards.js payKill), so a pull of any size
+ *          pays the as-built pull's coin times the scale's gold level, and an HOUR a step deeper pays the wage's coin ratio more
  */
 export function dangerDial(ground, step) {
-  const s = clampStep(step);
+  const s = stepOn(ground, step);
   const n0 = basePull(ground);
   const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
   return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
-    xpPm: 1000, coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };
+    xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
 }
+/* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
+   carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
+   wage's payStepCoin a PULL, coin an HOUR rose only (1 + payStepCoin) / (1 + powerStep), 0.05% a step, and loot (a kill's rows, no depth
+   term) fell with the kills: +38 held steps moved gold +59 +- 63 a hero-hour (measured, tools/balance-program/redesign/roads l10). A pull
+   pays the step's length back too, so an hour a step deeper pays payStepCoin more: one coin ratio a step, per hour, across grounds (the
+   wage) and inside one. At the reference step it is 1: the reference hour is unchanged. One multiplication, exactly rounded everywhere. */
+const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33: the spec leaves pow's last bit to each engine). */
@@ -95,10 +109,11 @@ function powStep(r, n) {
 }
 
 /* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
-   held to PAY.gapMax above; under the reference it is never held (a shallower hold earns less a kill, so depth always pays). */
+   held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held
+   (a shallower hold earns less a kill, so depth always pays). */
 function gapOf(ground, step) {
   const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
-  return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
+  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
 }
 /* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. Under the
    reference it never falls past PAY.floor (12-targets 2.1): a shallower hold costs its kills an hour, not twice. */
@@ -108,7 +123,8 @@ function depthRatio(ground, step, rate) {
 }
 
 /* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js POWER, the gear table src/data/gear-steps.js through it) ── */
-/* A piece's item Level: its row's `iL`; until R10 writes one on scale drops, its `reqLv` STANDS IN (src/data/danger.js POWER note). */
+/* A piece's item Level: its row's `iL` (every scale ground's drop carries its ground's: src/data/danger.js scaleItemLevels); a piece no
+   scale ground drops has none, and its `reqLv` stands in. */
 const itemLevelOf = (it) => {
   const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : it.reqLv)));
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -162,9 +178,12 @@ export function powerPm(inst, source, target, pm) {
   const base = Number.isFinite(pm) ? pm : 0;
   if (!inst || !dangerOn(inst.world)) return base;
   const row = groundRow(inst.ground);
+  /* the gear base, plus the conditional steps that hold now, each slice held to its cap (src/core/power-ledger.js: 0 until a source writes) */
   let steps = 0;
   if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
   else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
+  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));
+  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense'));
   if (!steps) return base;
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }
@@ -188,6 +207,14 @@ export function hoursForLevel(level) {
   return SPANS[SPANS.length - 1][1];
 }
 
+/* THE KILLS A HEAD AN HOUR THE HOURS TABLE IS SPLIT OVER: the ground's own, measured at its reference step (DANGER_GROUNDS refKillsHead,
+   lane/r10-more-grounds: a Steady four on Hask's Ford kills 220 a head an hour where Muster's kills 120), else PAY.refKillsHead. Never under
+   it (tools/gen-danger.mjs refuses one), so the server's one ceiling a kill (hr_danger_level_xp_max) bounds every ground. */
+const refKillsOf = (ground) => {
+  const row = groundRow(ground);
+  return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;
+};
+
 /**
  * ONE HERO'S LEVEL XP FOR ONE KILL, ALONE (xp-share.js divides it by the heroes at the kill): the share of its own Level the hours
  * table gives one kill at the reference rate, times the depth ratio. 04 section 5: "a kill pays a share of the killer's own Level".
@@ -195,7 +222,7 @@ export function hoursForLevel(level) {
 export function levelShareXp(level, step, ground) {
   const L = Number.isInteger(level) && level >= 1 ? level : 1;
   const toNext = charXpForLevel(L + 1) - charXpForLevel(L);
-  return (toNext / (hoursForLevel(L) * PAY.refKillsHead)) * depthRatio(ground, step, PAY.payStepXp);
+  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);
 }
 
 /** A world opening on the scale: its stance and the step its plan starts at, nothing climbed yet. */
@@ -282,7 +309,7 @@ export function pullEnds(inst, sc, cleared = false) {
       if (w.clean >= CLIMB.cleanRun) { why = 'climb'; to = from + w.climb; w.climb = Math.min(CLIMB.climbMax, w.climb * 2); w.clean = 0; }
     }
   } else { w.clean = 0; w.climb = 1; }
-  w.danger = clampStep(to);
+  w.danger = stepOn(inst.ground, to);
   /* A FALL BACK NAMES ITS CAUSE (R2): the hero that broke the pull off (its seat, when it has one) and the monster whose blow did it */
   const cause = why === 'fall' || why === 'death'
     ? { ...(Number.isSafeInteger(w.lowHero) ? { hero: w.lowHero } : {}), monster: w.lowBy || 'unknown' } : null;

@@ -17,6 +17,10 @@
 // gold an hour, before supplies": "Earned 4,800 gold an hour. Supplies used 900 gold an hour.", the server's per-hour counters (the analyzer's
 // per_hour.gold, coins and loot, and per_hour.waste, store supplies) as the card stored them; the return card shows the same line.
 //   earnedLine(rates)          { goldH, wasteH } in words, '' when the server rated no hour
+// THE LEDGER LINES (19-power-ledger L7) close the risk block on a Danger scale ground, after the earned line, and the return card shows them
+// too: "Healing: Mend 41% · Greater Mend 38% · Shelter 21%", "Damage taken: Bran 64% · Ivo 20%", "Supplies/hr at Depth 12: 4,180", the
+// server's report counters (the depth facts' `heal`, `took`, `sup`, src/hunt-view/hunt-report.js ledgerFacts).
+//   ledgerLines(d)             the ledger's lines (strings), none off the scale or with nothing counted
 //
 //   riskLines(r, xpH)          the risk block's lines (strings), the word first. Pure but for the words.
 //   rulesLines(r, prev)        the rules block's lines, the change line last. Pure but for the words.
@@ -62,6 +66,20 @@ export function riskLines(r, xpH, rates) {
   if (cause) out.push({ text: cause });
   const earned = cause ? earnedLine(rates) : '';
   if (earned) out.push({ text: earned });
+  if (cause) for (const l of ledgerLines(r.depth)) out.push({ text: l });
+  return out;
+}
+
+/** THE LEDGER LINES (see the header) from the depth facts: healing by source, damage taken by seat (two or more seats), supplies an hour by depth. */
+export function ledgerLines(d) {
+  if (!d) return [];
+  const out = [];
+  const list = (parts) => parts.join(' · ');
+  if (Array.isArray(d.heal) && d.heal.length) out.push(t('report.ledger_heal', { list: list(d.heal.map(([src, pm]) => t('report.ledger_part', { what: what(src), pct: pct(pm) }))) }));
+  if (Array.isArray(d.took) && d.took.length > 1) {
+    out.push(t('report.ledger_took', { list: list(d.took.map(([name, seat, pm]) => t('report.ledger_part', { what: name || t('report.ledger_seat', { n: seat + 1 }), pct: pct(pm) }))) }));
+  }
+  for (const [depth, g] of Array.isArray(d.sup) ? d.sup : []) out.push(t('report.ledger_sup', { depth, gold: whole(g) }));
   return out;
 }
 

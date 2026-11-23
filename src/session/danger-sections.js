@@ -7,11 +7,14 @@
 //   onScale(hunt)         the ground plays the scale (src/data/danger.js DANGER_GROUNDS); everywhere else the tier path is unchanged
 //   depthOf(hunt, step)   { depth, of }: the step as "Depth N of 20" on the ground's band (data/danger.js floorStep..topStep, 12-targets.md 3.1), never the raw step (Tyler 2026-11-22: "is it going
 //                         to be easy for players to understand?"); null off the scale or for a step that is not a number
+//   heldAtTop(d, hunt)    the server's held step on that ground is its band's top (12-targets.md 3.2: outgrown)
+//   nextScaleGround(hunt) { hunt, name } of the next open ground on the scale (the lowest band start over this one's), or null
 //
 // A read of the envelope only, REPLACED by each envelope (CLAUDE.md §6): nothing here is a gate the server trusts, and a missing section
 // reads as unknown (null), never a default.
 // ════════════════════════════════════════════════════════════════════════
 import { DANGER_GROUNDS, RISKS, DEPTHS } from '../data/danger.js';
+import { HUNT_INDEX } from '../data/hunts.js';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -32,6 +35,26 @@ export function depthOf(hunt, s) {
   if (!onScale(hunt) || step(s) === null) return null;
   const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);
   return { depth: Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1)))), of: DEPTHS };
+}
+
+/** THE TOP OF THE GROUND (12-targets.md 3.2; lane/r10-more-grounds): the hero's held step on `hunt` (the server's, `held`) stands at the
+    band's top, depth 20. The engine climbs no step past it and pays no more there, so a company held there has outgrown the ground. */
+export function heldAtTop(d, hunt) {
+  return !!d && onScale(hunt) && step(d.held[hunt]) !== null && d.held[hunt] >= DANGER_GROUNDS[hunt].topStep;
+}
+
+/** THE NEXT SCALE GROUND after `hunt`: of the OPEN grounds the scale opens on (hunts.js, not staged), the one whose band starts at the lowest
+    Level over this one's start. Derived, never a typed chain, so a ground added to DANGER_GROUNDS joins the road by itself. Null at the end. */
+export function nextScaleGround(hunt) {
+  const from = onScale(hunt) && HUNT_INDEX[hunt] ? HUNT_INDEX[hunt].band[0] : null;
+  if (from === null) return null;
+  let best = null;
+  for (const id of Object.keys(DANGER_GROUNDS)) {
+    const h = HUNT_INDEX[id];
+    if (!h || h.staged === true || !Array.isArray(h.band) || !(h.band[0] > from)) continue;
+    if (!best || h.band[0] < best.band[0] || (h.band[0] === best.band[0] && id < best.id)) best = h;
+  }
+  return best ? { hunt: best.id, name: best.name } : null;
 }
 
 /** The `danger` section, bounded; null when the server sent none. */

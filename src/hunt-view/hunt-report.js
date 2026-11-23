@@ -16,11 +16,15 @@
 //                         risk_end / danger_end, an open one's `danger` section), `deep` the deepest the report counted, `n` the
 //                         falls back the report keeps (the last HUNT_REPORT.fallsMax), `last` the newest one's hero, HP permille (0:
 //                         it died) and monster. Null off the scale.
+//                         THE LEDGER (19-power-ledger L7) rides it: `heal` [[source, pm]] the company's healing by source (the largest
+//                         HUNT_REPORT.ledgerShown, each a share of all of it), `took` [[name, seat, pm]] each seat's share of the damage
+//                         taken, largest first, `sup` [[depth, gold an hour]] the store supplies at the depths held longest (at least
+//                         HUNT_REPORT.supMinMs each, HUNT_REPORT.supShown of them, shallowest first).
 //   changedSlot(cur, prev) the change line's facts: the first bar slot of `cur` whose rule the last hunt on this ground did not play,
 //                         with its share now and then (when the old hunt had one for the same thing), or null
 // ════════════════════════════════════════════════════════════════════════
 import { riskWord } from '../core/hunt/report.js';
-import { NEVER_TRUE, WAIT_REASONS } from '../data/hunt-report.js';
+import { NEVER_TRUE, WAIT_REASONS, HUNT_REPORT } from '../data/hunt-report.js';
 import { onScale, depthOf, STANCE_IDS } from '../session/danger-sections.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -39,7 +43,26 @@ export function depthFacts(rep, o = {}) {
   if (!held && !deep) return null;
   const falls = rep && Array.isArray(rep.falls) ? rep.falls : [], f = falls.length ? falls[falls.length - 1] : null;
   return { risk: STANCE_IDS.includes(o.risk) ? o.risk : null, held: held ? held.depth : null, deep: deep ? deep.depth : null,
-    of: (held || deep).of, n: falls.length, last: f ? [f.name || '', f.pm, f.monster] : null };
+    of: (held || deep).of, n: falls.length, last: f ? [f.name || '', f.pm, f.monster] : null, ...ledgerFacts(rep, o.hunt) };
+}
+
+/* THE LEDGER'S FACTS (the header's `heal`, `took`, `sup`): shares in permille of the whole, the server's counters only. */
+function ledgerFacts(rep, hunt) {
+  const permille = (n, all) => Math.round((n * 1000) / all);
+  const heals = Object.entries((rep && rep.heal) || {}).filter(([, n]) => n > 0), healAll = heals.reduce((a, [, n]) => a + n, 0);
+  const heal = heals.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, HUNT_REPORT.ledgerShown).map(([src, n]) => [src, permille(n, healAll)]);
+  const took0 = ((rep && rep.took) || []).filter((x) => x[1] > 0), tookAll = took0.reduce((a, x) => a + x[1], 0);
+  const took = took0.slice().sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([seat, n, name]) => [name || '', seat, permille(n, tookAll)]);
+  const at = new Map();
+  for (const [step, g, ms] of (rep && rep.sup) || []) {
+    const d = depthOf(hunt, step + Math.floor(HUNT_REPORT.supStep / 2));
+    if (!d) continue;
+    const x = at.get(d.depth) || [0, 0];
+    at.set(d.depth, [x[0] + g, x[1] + ms]);
+  }
+  const sup = [...at.entries()].filter(([, x]) => x[1] >= HUNT_REPORT.supMinMs).sort((a, b) => b[1][1] - a[1][1] || a[0] - b[0]).slice(0, HUNT_REPORT.supShown)
+    .sort((a, b) => a[0] - b[0]).map(([depth, [g, ms]]) => [depth, Math.round((g * 3600000) / ms)]);
+  return { heal, took, sup };
 }
 
 /* The reason a rule that never fired waited most (a tie to the first in WAIT_REASONS), else its condition was never true. */

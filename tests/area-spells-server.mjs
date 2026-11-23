@@ -55,6 +55,10 @@ const COND = '2027-04-15-area-conditions.sql';
 const RUNES = '2027-04-15-area-spells-rune-spells.generated.sql';
 const FILES = Object.freeze([COND, CAT, RUNES]);
 const sqlOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+/* THE METRICS A LATER FULL REPLACE ADDS (1061-bar-metrics.sql, lane/bar-metrics: the Roads' four): the area batch rightly writes the rows of its
+   day, so AS-4 holds it to the data less these, read off that file's own ⟦metrics⟧ block (as the shape is read off the catalogue of its day). */
+const metricIdsOf = (sql) => { const m = /-- ⟦metrics⟧\n([\s\S]*?)-- ⟦\/metrics⟧/.exec(sql); return m ? [...m[1].matchAll(/^  \('([a-z_]+)'/gm)].map((x) => x[1]) : []; };
+const LATER_METRICS = Object.freeze(metricIdsOf(sqlOf('1061-bar-metrics.sql')).filter((id) => !metricIdsOf(sqlOf(COND)).includes(id)));
 /* THE WORLD SHAPE A CATALOGUE FILE WRITES ({ version, shape, fields } off its hr_hunt_world_shape insert), or null. AS-4 judges the area batch
    at its own chain point against ITS row, as jewel G-IDEM is judged at its chain point: the engine's SHAPE is today's, and once a later forward
    catalogue moves the shape (lane/b-tank-runes' shieldBy, 2027-05-25) the area files rightly write the shape of their day. */
@@ -262,7 +266,8 @@ async function rowsOnly(patch, reorder) {
       if (k === 'effect_missing') { if (!now.vals || now.vals.filter((v) => !was.vals.includes(v)).join() !== 'chill') problems.push('AS-4 effect_missing offers ' + short(now.vals)); delete was.vals; delete now.vals; }
       if (!same(was, now)) problems.push('AS-4 the metric ' + k + ' moved: ' + short(was, 120) + ' -> ' + short(now, 120));
     }
-    if (Object.keys(a).sort().join() !== METRICS.map((m) => m.id).sort().join()) problems.push('AS-4 the server\'s metrics are not src/data/condition-metrics.js METRICS');
+    if (!LATER_METRICS.length) problems.push('AS-4 HARNESS: 1061-bar-metrics.sql adds no metric to the area batch\'s');
+    if (Object.keys(a).sort().join() !== METRICS.map((m) => m.id).filter((id) => !LATER_METRICS.includes(id)).sort().join()) problems.push('AS-4 the server\'s metrics are not src/data/condition-metrics.js METRICS (less the ' + LATER_METRICS.join(', ') + ' a later file adds)');
   }
   { // the abilities: the four, and nothing of an older row but its order
     const b = byKey(before.data.hr_hunt_abilities, 'ability_id'), a = byKey(after.data.hr_hunt_abilities, 'ability_id');

@@ -404,7 +404,7 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 **2. Why it is better.** The target is a Level 900 that feels as earned as Level 90 and a reason to hunt somewhere new. EVIDENCE: on a straight-line gear curve a +17% step and a 15 to 25 Level gap cannot both hold past about Level 150 (tension K-9). Nothing reads past Level 400 today (LONG-1, LONG-2). A playtester climbed 182 Tower floors in 52 minutes and said floors 100 to 170 "felt the same" (2026-11-18), which is what a curve does when its steps are not one unit.
 
-**3. What it replaces.** GR-6's Level law as a table fitted at two points, and the seat multiples under it (S-11 c, tension K-7). Bestiary trophies and charms as damage multipliers. The Luck bar's hours. Room perks. The Blessing ladder (S-5, GR-7). Titles, the chronicle and the honor roll as three separate records. Factions and their skills (2026-11-14), paused because they fail the purpose test today. Kept: uncapped Level, Level 200 as a big deal, trades at 99, the home as a showcase others can visit (2026-10-14), modes after launch (2026-08-18).
+**3. What it replaces.** GR-6's Level law as a table fitted at two points, and the seat multiples under it (S-11 c, tension K-7). Bestiary trophies and charms as damage multipliers. The Luck bar's hours. Room perks. The Blessing ladder (S-5, GR-7). Titles, the chronicle and the honor roll as three separate records. Faction skills (2026-11-14), cut. Factions stay, as the company's side with no power (`25-factions.md`). Kept: uncapped Level, Level 200 as a big deal, trades at 99, the home as a showcase others can visit (2026-10-14), modes after launch (2026-08-18).
 
 **4. How it interacts.** The step is defined by the math lane and used by packages 2, 3 and 5. Records feed the social ladders (package 7). The bestiary is where Trait pools are learned (package 2). The hall is where the trades live (package 5).
 
@@ -414,7 +414,7 @@ Everything else was either already in packages 1 and 2 or is cut above. (JUDGMEN
 
 **7. Cost.** M. Most of it is curves and data. Records are a new ranked surface with a server write. Merging the three record systems and removing damage from the bestiary are S each.
 
-**8. Open questions.** How many hours should a Level take at 50, 200 and 1,000? Is formula depth enough between regions, or does each band need a hand-made beat? Does the hall need upkeep or only build costs? Do factions come back once there is a reason for two sides?
+**8. Open questions.** How many hours should a Level take at 50, 200 and 1,000? Is formula depth enough between regions, or does each band need a hand-made beat? Does the hall need upkeep or only build costs? (Whether factions come back: yes, `25-factions.md`.)
 
 ## 7. Social and endgame
 
@@ -576,7 +576,7 @@ One verdict each. The reason is in the package named.
 | Stamina | Keep, as a hunting day of 10 hours, 12 with Premium, and let a hero buy up to 2 more blocks a day with gold | It gives the day its shape and gives trades their time. A bought block of hunting or of town work costs hours of wage at the hero's Level, pricey, and more for each block of that kind bought that day | 9 |
 | Blessings | Keep, simplify | One price that grows with Level | 6 |
 | Training yard | Merge into town work | One more thing a resting hero can do | 5 |
-| Factions | Pause | No decision and no plug today | 6 |
+| Factions | Keep, redesigned (`25-factions.md`) | One side for the whole company. Standing on the Morrow Hills grounds unlocks looks, plus a side chat channel and a weekly tally on the Hills. 0 power steps. Faction skills cut | 6, 7 |
 | Titles, chronicle, honor roll | Merge into records | One place for what a company has done | 6 |
 
 The owner approved the packages behind this table on 2026-11-22, so its verdicts stand. A cut of anything not named here is still his to approve.

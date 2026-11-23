@@ -84,6 +84,8 @@ const PLANS = {
   q3f: [cellOf('M', 'M'), cellOf('M+GM@ham:400', 'M', [[0, 'greater_mend', 400, 7]]), cellOf('M+GM@ham:200', 'M', [[0, 'greater_mend', 200, 7]]),
     cellOf('NM', 'NM'), cellOf('NM+FB@ham:500', 'NM', [[0, 'fireball', 500, 0]]), cellOf('M+CH@ham:1000', 'M', [[0, 'challenge', 1000, 0]]), cellOf('M+CH@ham:700', 'M', [[0, 'challenge', 700, 0]]),
     cellOf('M+SH@heal:400', 'M', [[3, 'shelter', 400, 0]])],
+  /* L10 (19 section 5): gold an hour against held depth, the same four ~50 steps apart (a borrowed Greater Mend buys the depth) */
+  l10: [cellOf('M', 'M'), cellOf('M+GM@ham:1000', 'M', [[0, 'greater_mend', 1000, 7]])],
   /* Q5: one cell, timed */
   time: [cellOf('M', 'M')],
 };

@@ -33,6 +33,7 @@
 
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
+import { CATACOMB_WING_GROUNDS } from './catacomb-wings.js';
 import { ITEMS, foodClassOf } from './items.js';
 import { isRune as isRuneItem } from './runes.js';
 
@@ -226,7 +227,9 @@ const BASE_BAG_GUIDES = Object.freeze({
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
 });
 /* A ground pack names its own bag (src/data/grounds/<id>/pack.js `bagGuide`: { tier, melee, ranged, magic }, this table's row shape). */
-export const BAG_GUIDE_BY_HUNT = Object.freeze(foldRows('bag guide', BASE_BAG_GUIDES, GROUND_PACKS, (p) => (p.bagGuide ? { [p.id]: p.bagGuide } : {})));
+/* then the Catacombs' wings (src/data/catacomb-wings.js `bagGuide`: the whole ground's bag, carried, its monsters the same rows) */
+export const BAG_GUIDE_BY_HUNT = Object.freeze(foldRows('bag guide', foldRows('bag guide', BASE_BAG_GUIDES, GROUND_PACKS, (p) => (p.bagGuide ? { [p.id]: p.bagGuide } : {})),
+  [{ id: 'catacomb-wings' }], () => Object.fromEntries(Object.entries(CATACOMB_WING_GROUNDS).filter(([, g]) => g.bagGuide).map(([id, g]) => [id, g.bagGuide]))));
 
 /* A single-monster fight is guided by its monster's tier (melee measured:
    heals an hour at entry level, tier 2 Wolf lv 15 10.6, tier 3 Dire Wolf lv 30

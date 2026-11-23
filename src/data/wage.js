@@ -13,7 +13,7 @@
 // CALIBRATED (lane/w-wage, then lane/econ-levers, 2026-11-22; tools/balance-program/redesign/w/fit.mjs prints the whole table):
 //   THE LEVEL. A reference hour on Steady, the mixed MID four on the Danger scale's one ground (Muster Barrows) from a held start,
 //     6 seeds x 8 h (MEASURED, v1-climb.mjs): Level 60 pays 16,276 an hour, Level 63 16,562, Level 70 17,143 (pay / wage 0.99 to 1.01).
-//     It moves WITH the scale's coin level (src/data/danger.js PAY.coinPm, 7000): lane W set 3,800 on the coin of 1000 (4,797 / 4,906 /
+//     It moves WITH the scale's coin level (src/data/danger.js PAY.coinPm, 6400 since lane/ledger-l10 made its step ratio an hour's): lane W set 3,800 on the coin of 1000 (4,797 / 4,906 /
 //     5,055), where a whole-gold store use could not price the kit at its share of the wage (src/data/store-kit.js says why). One lever
 //     set, never moved alone (tests/econ-levers.mjs EL-PAY reads the kept reading against it).
 //   THE SLOPE. The same four on its own ground across Levels 20 to 400, the Lab's pinned baseline (overhaul-start, Normal, 8 seeds a

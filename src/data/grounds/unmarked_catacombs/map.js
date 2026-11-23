@@ -29,8 +29,9 @@ export default Object.freeze({
   name: 'Unmarked Catacombs',
   kind: 'hunt',
   /* the hunting ground first (the map's own), then the descent's two wings fought in its rooms (src/data/hunt-grounds.js TOWER_GROUNDS: the
-     Flooded Vault and the Bone Room, one pocket each; lane/c-catacombs) */
-  hunts: Object.freeze(['unmarked_catacombs', 'unmarked_flooded_wing', 'unmarked_bone_wing']),
+     Flooded Vault and the Bone Room, one pocket each; lane/c-catacombs), then the two wings as hunting grounds on the Danger scale, each
+     three of these rooms (src/data/catacomb-wings.js, lane/r10-more-grounds) */
+  hunts: Object.freeze(['unmarked_catacombs', 'unmarked_flooded_wing', 'unmarked_bone_wing', 'catacomb_bone_wing', 'catacomb_flooded_wing']),
   outdoor: false,
   light: 'cellar',
   ground: 'unmarked_catacombs_ground',

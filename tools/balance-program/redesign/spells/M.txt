@@ -1,0 +1,111 @@
+
+SPELLS M on muster_barrows L60 steady, held start 570, 6 seeds x 8 h, held read from hour 1 (mean +- se over seeds)
+M                              held 621.3 +- 3.4   deaths 0  xp/hd-h 280175.8 +- 7932.7 kills/h 417.3 +- 3.6   gold/hd-h 16625.2 +- 69.2 store/hd-h 5059.8 +- 13.9
+     hammer  dps 26.2    heal/h 0        deaths 0  casts/h mend 32.8, power_strike 437.3, turning_cut 363.4
+     bow     dps 28.2    heal/h 0        deaths 0  casts/h flame_volley 282.1, hunters_mark 285.1, precision_shot 437.8, raking_shot 291.4
+     mage    dps 38.5    heal/h 0        deaths 0  casts/h arcane_barrier 12.2, fireball 319.6, frost_lance 456.3, hoarfrost 229.7
+     healer  dps 17.5    heal/h 152620.8 deaths 0  casts/h circle_of_renewal 171.7, greater_mend 790.5, green_sickness 280.2, protective_ward 277.1, spring_tide 35.9
+M-power_strike@0               held 609.8 +- 1.3   deaths 0  xp/hd-h 251811.7 +- 1230.9 kills/h 404.7 +- 1.5   gold/hd-h 15955.3 +- 39.6 store/hd-h 5019.8 +- 11
+   vs M (paired): held -11.5 +- 3.1  xp -10.1 +- 2.7%  kills/h -12.7 +- 4.2  gold -669.9 +- 98.3  store -40 +- 9.2  drinks -2.6 +- 2.2  taken -185.7 +- 1518
+     hammer  dps 22.7    heal/h 0        deaths 0  casts/h mend 32.1, turning_cut 365.9
+     bow     dps 28      heal/h 0        deaths 0  casts/h flame_volley 274.4, hunters_mark 286.3, precision_shot 441.2, raking_shot 288.8
+     mage    dps 38.4    heal/h 0        deaths 0  casts/h arcane_barrier 17.4, fireball 313.3, frost_lance 461.3, hoarfrost 226.9
+     healer  dps 17.5    heal/h 153316.8 deaths 0  casts/h circle_of_renewal 170.5, greater_mend 797.6, green_sickness 272.6, protective_ward 276.8, spring_tide 35.2
+M-turning_cut@0                held 611.6 +- 3.4   deaths 0  xp/hd-h 242736.8 +- 5713.7 kills/h 387 +- 4.6     gold/hd-h 15137.7 +- 57.2 store/hd-h 5027.6 +- 30
+   vs M (paired): held -9.7 +- 6  xp -13.4 +- 4.2%  kills/h -30.3 +- 5.4  gold -1487.5 +- 99.5  store -32.2 +- 24.1  drinks -6.5 +- 3.8  taken -2753.7 +- 2378.8
+     hammer  dps 16.9    heal/h 0        deaths 0  casts/h mend 28.7, power_strike 556.9
+     bow     dps 28.1    heal/h 0        deaths 0  casts/h flame_volley 278.4, hunters_mark 286.3, precision_shot 442.2, raking_shot 296.1
+     mage    dps 38.1    heal/h 0        deaths 0  casts/h arcane_barrier 15.5, fireball 312.3, frost_lance 464.8, hoarfrost 224.7
+     healer  dps 17.5    heal/h 150715.8 deaths 0  casts/h circle_of_renewal 172.5, greater_mend 784.9, green_sickness 274.9, protective_ward 278.2, spring_tide 33.2
+M+quarry_blow@0                held 614.9 +- 2.5   deaths 0  xp/hd-h 279856.5 +- 4993.2 kills/h 429.7 +- 3.3   gold/hd-h 17331.5 +- 54  store/hd-h 5136.7 +- 20.9
+   vs M (paired): held -6.4 +- 3.3  xp -0.1 +- 3.3%  kills/h 12.3 +- 6.3  gold 706.3 +- 102.7  store 76.9 +- 20  drinks -3.7 +- 3.8  taken -213.3 +- 2673.8
+     hammer  dps 31      heal/h 0        deaths 0  casts/h mend 30, power_strike 391.2, quarry_blow 407.3, turning_cut 364.3
+     bow     dps 28.1    heal/h 0        deaths 0  casts/h flame_volley 279.2, hunters_mark 284.8, precision_shot 441.6, raking_shot 293.3
+     mage    dps 38.3    heal/h 0        deaths 0  casts/h arcane_barrier 15.8, fireball 315.3, frost_lance 458.7, hoarfrost 225.5
+     healer  dps 17.3    heal/h 152521.3 deaths 0  casts/h circle_of_renewal 171.1, greater_mend 791.2, green_sickness 277.9, protective_ward 276.9, spring_tide 34.9
+M-flame_volley@1               held 614.1 +- 3.8   deaths 0  xp/hd-h 250200.7 +- 3390.8 kills/h 391.5 +- 4.3   gold/hd-h 15675.3 +- 23.6 store/hd-h 4628.5 +- 35.5
+   vs M (paired): held -7.2 +- 5.2  xp -10.7 +- 3.1%  kills/h -25.8 +- 5  gold -950 +- 85.8  store -431.3 +- 39.1  drinks -7.9 +- 5.8  taken 600.3 +- 3098.9
+     hammer  dps 26.5    heal/h 0        deaths 0  casts/h mend 31.5, power_strike 439.3, turning_cut 368.3
+     bow     dps 21.5    heal/h 0        deaths 0  casts/h hunters_mark 285.9, precision_shot 494.4, raking_shot 340.3
+     mage    dps 38.6    heal/h 0        deaths 0  casts/h arcane_barrier 17.2, fireball 321, frost_lance 460.8, hoarfrost 233.5
+     healer  dps 17.5    heal/h 153628   deaths 0  casts/h circle_of_renewal 171.6, greater_mend 801.3, green_sickness 280.5, protective_ward 277.5, spring_tide 34.6
+M-raking_shot@1                held 614.7 +- 2.4   deaths 0  xp/hd-h 253862.5 +- 1918.1 kills/h 393.3 +- 2.1   gold/hd-h 15810.4 +- 40.6 store/hd-h 4808.1 +- 18.8
+   vs M (paired): held -6.6 +- 3.8  xp -9.4 +- 2.7%  kills/h -24 +- 4.8  gold -814.8 +- 52.3  store -251.7 +- 27.4  drinks -4.7 +- 4  taken 2713.3 +- 2311.5
+     hammer  dps 26.5    heal/h 0        deaths 0  casts/h mend 34.2, power_strike 438.7, turning_cut 367.8
+     bow     dps 23.3    heal/h 0        deaths 0  casts/h flame_volley 282.9, hunters_mark 286.4, precision_shot 510.9
+     mage    dps 38.6    heal/h 0        deaths 0  casts/h arcane_barrier 18.2, fireball 320.4, frost_lance 460.1, hoarfrost 232.3
+     healer  dps 17.4    heal/h 155225.8 deaths 0  casts/h circle_of_renewal 173.4, greater_mend 806.7, green_sickness 278.7, protective_ward 278.1, spring_tide 35.5
+M-hunters_mark@1               held 616.1 +- 2.8   deaths 0  xp/hd-h 261148.3 +- 7288.8 kills/h 401.3 +- 3.9   gold/hd-h 16012.4 +- 101.2 store/hd-h 4980.2 +- 15.9
+   vs M (paired): held -5.2 +- 1.8  xp -6.8 +- 1.7%  kills/h -16 +- 2.2  gold -612.9 +- 70.1  store -79.6 +- 24.9  drinks -15.7 +- 3.4  taken 640.2 +- 1787.6
+     hammer  dps 25.3    heal/h 0        deaths 0  casts/h mend 31.8, power_strike 439.9, turning_cut 360.5
+     bow     dps 27.2    heal/h 0        deaths 0  casts/h flame_volley 273.2, precision_shot 443.4, raking_shot 289.2
+     mage    dps 37      heal/h 0        deaths 0  casts/h arcane_barrier 15, fireball 310, frost_lance 462.8, hoarfrost 222.3
+     healer  dps 16.9    heal/h 153375.8 deaths 0  casts/h circle_of_renewal 171.8, greater_mend 795.1, green_sickness 270.7, mend 0, protective_ward 276.8, spring_tide 35.9
+M-precision_shot@1             held 615.2 +- 4.2   deaths 0  xp/hd-h 260771 +- 8109.7   kills/h 404.3 +- 1.9   gold/hd-h 16169.1 +- 73.6 store/hd-h 4789.6 +- 18.8
+   vs M (paired): held -6 +- 5.3  xp -6.9 +- 3.9%  kills/h -13 +- 4.9  gold -456.1 +- 107.3  store -270.3 +- 29.2  drinks -14.3 +- 4.4  taken 327 +- 2697
+     hammer  dps 26.4    heal/h 0        deaths 0  casts/h mend 33.1, power_strike 439, turning_cut 361.8
+     bow     dps 24.6    heal/h 0        deaths 0  casts/h flame_volley 278.8, hunters_mark 286.1, raking_shot 303.2
+     mage    dps 38.5    heal/h 0        deaths 0  casts/h arcane_barrier 15.3, fireball 315.2, frost_lance 460.8, hoarfrost 227.5
+     healer  dps 17.5    heal/h 153067.3 deaths 0  casts/h circle_of_renewal 170.5, greater_mend 796.6, green_sickness 273.5, protective_ward 277.1, spring_tide 35
+M-fireball@2                   held 611.2 +- 2.9   deaths 0  xp/hd-h 240136 +- 5517.6   kills/h 382.5 +- 4     gold/hd-h 15026.1 +- 57.7 store/hd-h 4670.8 +- 21.2
+   vs M (paired): held -10.1 +- 2.8  xp -14.3 +- 1.8%  kills/h -34.8 +- 3.5  gold -1599.1 +- 49.9  store -389 +- 21.2  drinks -75 +- 3.8  taken -3561.8 +- 2124.1
+     hammer  dps 26.5    heal/h 0        deaths 0  casts/h mend 29.3, power_strike 439.7, turning_cut 370.8
+     bow     dps 28.4    heal/h 0        deaths 0  casts/h flame_volley 288, hunters_mark 286.6, precision_shot 436.1, raking_shot 296.9
+     mage    dps 27.3    heal/h 0        deaths 0  casts/h arcane_barrier 15, frost_lance 518, hoarfrost 264.4
+     healer  dps 17.5    heal/h 150014.3 deaths 0  casts/h circle_of_renewal 169.9, greater_mend 780.1, green_sickness 283.1, protective_ward 276.8, spring_tide 34.3
+M-hoarfrost@2                  held 605.5 +- 2.5   deaths 0  xp/hd-h 249985.2 +- 3369.5 kills/h 412.3 +- 2.9   gold/hd-h 16064.5 +- 83.5 store/hd-h 4819.2 +- 21.6
+   vs M (paired): held -15.8 +- 2.4  xp -10.8 +- 2.6%  kills/h -5 +- 6  gold -560.7 +- 123  store -240.7 +- 22.2  drinks -43.5 +- 3.8  taken 7485.8 +- 2597.7
+     hammer  dps 26.4    heal/h 0        deaths 0  casts/h mend 34.3, power_strike 436.8, turning_cut 369.2
+     bow     dps 28.3    heal/h 0        deaths 0  casts/h flame_volley 282, hunters_mark 285.7, precision_shot 439.8, raking_shot 295.4
+     mage    dps 34.5    heal/h 0        deaths 0  casts/h arcane_barrier 16.5, fireball 320.3, frost_lance 469.8
+     healer  dps 17.5    heal/h 159322.3 deaths 0  casts/h circle_of_renewal 174.3, greater_mend 828.7, green_sickness 279.6, protective_ward 277.8, spring_tide 37.3
+M-frost_lance@2                held 611.6 +- 2     deaths 0  xp/hd-h 250088.7 +- 2435.6 kills/h 397 +- 2.2     gold/hd-h 15781.3 +- 92.9 store/hd-h 4378.1 +- 24.8
+   vs M (paired): held -9.7 +- 2.9  xp -10.7 +- 2.6%  kills/h -20.3 +- 5  gold -843.9 +- 113.8  store -681.7 +- 19.6  drinks -110.7 +- 3.5  taken 652.7 +- 2361.1
+     hammer  dps 26.4    heal/h 0        deaths 0  casts/h mend 32.2, power_strike 439.9, turning_cut 363.4
+     bow     dps 28      heal/h 0        deaths 0  casts/h flame_volley 275.2, hunters_mark 286.7, precision_shot 441.2, raking_shot 289.8
+     mage    dps 33.3    heal/h 0        deaths 0  casts/h arcane_barrier 17.3, fireball 318, hoarfrost 231.9
+     healer  dps 17.5    heal/h 153750.8 deaths 0  casts/h circle_of_renewal 171.6, greater_mend 800.5, green_sickness 272.9, protective_ward 278.1, spring_tide 34.7
+M-arcane_barrier@2             held 614.6 +- 1.5   deaths 0  xp/hd-h 270106.7 +- 4452.3 kills/h 419.5 +- 2.7   gold/hd-h 16568 +- 83.9  store/hd-h 5037.1 +- 9.3
+   vs M (paired): held -6.7 +- 4.1  xp -3.6 +- 3.9%  kills/h 2.2 +- 5.9  gold -57.2 +- 94.2  store -22.7 +- 17.6  drinks -2.4 +- 3.2  taken 1042.3 +- 2543.2
+     hammer  dps 26.4    heal/h 0        deaths 0  casts/h mend 31.3, power_strike 435.9, turning_cut 365.5
+     bow     dps 28.1    heal/h 0        deaths 0  casts/h flame_volley 280, hunters_mark 284.8, precision_shot 439.1, raking_shot 290.6
+     mage    dps 38.5    heal/h 0        deaths 0  casts/h fireball 317.5, frost_lance 458.3, hoarfrost 227.9
+     healer  dps 17.5    heal/h 153901.2 deaths 0  casts/h circle_of_renewal 172.1, greater_mend 796.9, green_sickness 278, protective_ward 278.1, spring_tide 35.8
+M-green_sickness@3             held 612.4 +- 1.9   deaths 0  xp/hd-h 256039.3 +- 5507.4 kills/h 404.5 +- 3.2   gold/hd-h 16023.4 +- 81.1 store/hd-h 4599.4 +- 9.6
+   vs M (paired): held -8.9 +- 2.2  xp -8.6 +- 1.4%  kills/h -12.8 +- 2.9  gold -601.9 +- 55.2  store -460.4 +- 14.1  drinks -80.1 +- 2.3  taken -670.7 +- 1571.8
+     hammer  dps 25.9    heal/h 0        deaths 0  casts/h mend 30.4, power_strike 437.4, turning_cut 365.8
+     bow     dps 27.6    heal/h 0        deaths 0  casts/h flame_volley 280.2, hunters_mark 285.8, precision_shot 438.5, raking_shot 293.3
+     mage    dps 37.6    heal/h 0        deaths 0  casts/h arcane_barrier 15.3, fireball 319.6, frost_lance 458.7, hoarfrost 231.2
+     healer  dps 15.1    heal/h 152578.3 deaths 0  casts/h circle_of_renewal 171.2, greater_mend 797.6, protective_ward 277.5, spring_tide 34.3
+M-spring_tide@3                held 610 +- 3.5     deaths 0  xp/hd-h 264493.2 +- 7679.4 kills/h 425.3 +- 3.1   gold/hd-h 16560.4 +- 98.6 store/hd-h 4958.4 +- 11.7
+   vs M (paired): held -11.3 +- 5.3  xp -5.6 +- 4.3%  kills/h 8 +- 3.1  gold -64.8 +- 135.7  store -101.4 +- 12.7  drinks -36.2 +- 1.9  taken -5136.7 +- 545.7
+     hammer  dps 26.3    heal/h 0        deaths 0  casts/h mend 39.1, power_strike 436.4, turning_cut 363.5
+     bow     dps 28.1    heal/h 0        deaths 0  casts/h flame_volley 278.4, hunters_mark 284.8, precision_shot 439.3, raking_shot 289.8
+     mage    dps 38.3    heal/h 0        deaths 0  casts/h arcane_barrier 15.3, fireball 316, frost_lance 457.1, hoarfrost 227.2
+     healer  dps 17.4    heal/h 144645.8 deaths 0  casts/h circle_of_renewal 179.3, greater_mend 851.5, green_sickness 276.9, protective_ward 277.3
+M-circle_of_renewal@3          held 613.1 +- 4.3   deaths 0  xp/hd-h 275541.2 +- 9788.9 kills/h 433.2 +- 3.6   gold/hd-h 16667.9 +- 101.7 store/hd-h 4772.9 +- 15.2
+   vs M (paired): held -8.2 +- 6.8  xp -1.7 +- 5.1%  kills/h 15.8 +- 3.2  gold 42.7 +- 136.5  store -286.9 +- 21.2  drinks -67.6 +- 1.8  taken -8296.2 +- 1059.6
+     hammer  dps 26      heal/h 0        deaths 0  casts/h mend 33.4, power_strike 436.2, turning_cut 360.6
+     bow     dps 28.2    heal/h 0        deaths 0  casts/h flame_volley 282.4, hunters_mark 284.4, precision_shot 437.5, raking_shot 288.4
+     mage    dps 38.4    heal/h 0        deaths 0  casts/h arcane_barrier 10.6, fireball 317.3, frost_lance 455.1, hoarfrost 228.1
+     healer  dps 17.4    heal/h 141393.7 deaths 0  casts/h greater_mend 869.7, green_sickness 279.6, protective_ward 277.1, spring_tide 39.2
+M-greater_mend@3               held 414.4 +- 3.1   deaths 0  xp/hd-h 144959.3 +- 933.9  kills/h 510.5 +- 1.6   gold/hd-h 14816.1 +- 76.3 store/hd-h 3842.8 +- 31.6
+   vs M (paired): held -206.9 +- 4.5  xp -48.3 +- 2.6%  kills/h 93.2 +- 2.7  gold -1809.2 +- 67.5  store -1217 +- 30.3  drinks -253.6 +- 3.4  taken -93285.8 +- 1880.8
+     hammer  dps 23.2    heal/h 0        deaths 0  casts/h mend 68.9, power_strike 409.3, turning_cut 326.1
+     bow     dps 25.3    heal/h 0        deaths 0  casts/h flame_volley 252.8, hunters_mark 272.7, precision_shot 396.7, raking_shot 266.4
+     mage    dps 34.1    heal/h 0        deaths 0  casts/h arcane_barrier 19.8, fireball 292.5, frost_lance 418.6, hoarfrost 217
+     healer  dps 15.5    heal/h 36985.2  deaths 0  casts/h circle_of_renewal 132.9, green_sickness 249.2, protective_ward 258.3, spring_tide 33.4
+M-protective_ward@3            held 605.2 +- 2.6   deaths 0  xp/hd-h 260432.8 +- 6074.7 kills/h 430.3 +- 3     gold/hd-h 16668.2 +- 83.6 store/hd-h 4683.6 +- 16.5
+   vs M (paired): held -16.1 +- 3.9  xp -7 +- 3.7%  kills/h 13 +- 6  gold 43 +- 87.7  store -376.2 +- 21.5  drinks -68.2 +- 4.1  taken 20066 +- 3040.5
+     hammer  dps 26.2    heal/h 0        deaths 0  casts/h mend 37.9, power_strike 435.9, turning_cut 362.8
+     bow     dps 28.1    heal/h 0        deaths 0  casts/h flame_volley 277.6, hunters_mark 284.4, precision_shot 440.4, raking_shot 290.1
+     mage    dps 38.4    heal/h 0        deaths 0  casts/h arcane_barrier 15.6, fireball 315.6, frost_lance 457.8, hoarfrost 225.4
+     healer  dps 17.4    heal/h 170918.3 deaths 0  casts/h circle_of_renewal 183.6, greater_mend 899.6, green_sickness 276.6, mend 0.1, spring_tide 38.2
+M-mend@all                     held 608.7 +- 3.9   deaths 0  xp/hd-h 263913.7 +- 8294   kills/h 424.8 +- 2.9   gold/hd-h 16655 +- 98    store/hd-h 5057.6 +- 19
+   vs M (paired): held -12.6 +- 6  xp -5.8 +- 4.8%  kills/h 7.5 +- 4.9  gold 29.8 +- 143.6  store -2.3 +- 17.9  drinks -8.2 +- 3.1  taken -4642.2 +- 2155.9
+     hammer  dps 26.3    heal/h 0        deaths 0  casts/h power_strike 436.4, turning_cut 363.4
+     bow     dps 28.1    heal/h 0        deaths 0  casts/h flame_volley 278.7, hunters_mark 284.8, precision_shot 440.7, raking_shot 290.5
+     mage    dps 38.3    heal/h 0        deaths 0  casts/h arcane_barrier 14.8, fireball 315.7, frost_lance 457.9, hoarfrost 225.6
+     healer  dps 17.4    heal/h 149919.2 deaths 0  casts/h circle_of_renewal 170.7, greater_mend 774.4, green_sickness 277.1, protective_ward 276.2, spring_tide 35.3
+
+wall 604 s on 8 workers

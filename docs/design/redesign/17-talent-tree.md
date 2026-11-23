@@ -28,7 +28,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 
 **The window is called Talents.** It shows **the Roads**: a map of the country around Havora, with the Great Hearth in the middle of town and roads leading out of it.
 
-- **The Great Hearth is the start.** Every hero owns it for free. It holds Mend's road and the Havora crossing, and becomes the fist line's country when that line goes live.
+- **The Great Hearth is the start.** Every hero owns it for free. It holds Mend's road and the Havora crossing. The Hearth, the support's country, sits beside it (`22-fists-support.md`, 2026-11-22).
 - **Seven countries, one per weapon** (the seven `DISCIPLINES` in `src/data/abilities.js`). Where they sit is art. Which countries touch is a data list (section 6), so a new country adds borders and never cuts one.
 - **Shared moves sit where their weapons meet.** Turning Cut lives in Club. Flame Strike and Power Strike live in Sword. A Shield hero reaches them through Havora.
 
@@ -59,7 +59,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 
 ## 3. Breaking the weapon lock
 
-**Border towns** let a hero use one move from the other country with any weapon. **The Havora crossing** offers any move from any country, one price band harsher. **Max 2 borrowed moves**, counting the crossing. Fist heroes: 3.
+**Border towns** let a hero use one move from the other country with any weapon. **The Havora crossing** offers any move from any country, one price band harsher. **Max 2 borrowed moves**, counting the crossing.
 
 **Priced by value** (measured in `18-roads-review-measured.md` section 3). V0 is what the move adds at full power, in held steps (an offense move: its pace gain ÷ 0.7%):
 
@@ -92,11 +92,13 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Frost Lance | about 4 (pace) | No penalty | 60 |
 | Fireball | about 8 (pace) | −50% (−30% measured just over the cap) | 80 |
 | Shelter | 8.5 ± 4.2 (doesn't follow its power) | −30% | 120 |
-| Challenge | 0 ± 3.7 | No penalty | 20 |
-| Greater Mend | about 50 before the heal rule | Re-measure under the heal rule. Target: 10 or less | 150 at V 10, 80 at V 5 |
+| Challenge | 0 ± 3.7. Re-measure after the holder line (on the tank's own bar it cost 62.7 held, `23` section 3) | No penalty | 20 |
+| Hoarfrost | 15.8 ± 2.4 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
+| Protective Ward | 16.1 ± 3.9 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
+| Greater Mend | about 50 before the heal rule. Re-measure after its re-size (`healPm` 2540) | Re-measure under the heal rule. Target: 10 or less | 150 at V 10, 80 at V 5 |
 | Every other borrowable move | Not measured | Lab | Lab |
 
-**The Hearth, home of the generalist** (when `FIST_LINE` goes live). Fist heroes borrow one band softer (a move worth 4 to 10 has no penalty, 10 to 20 is −30%) and may hold 3 borrowed moves. Their own strikes land 10% under the other weapons' shares. Target: a fist seat is top 3 in no cell and bottom 3 in no cell.
+**The Hearth, the support's country** (2026-11-22, replaces the generalist). The wraps are the party's support, not an all-rounder. They borrow like every weapon: 2 slots, the standard bands. Country, kit, borders and balance rule: `22-fists-support.md`.
 
 ## 4. Node counts
 
@@ -106,55 +108,55 @@ Per move: 5 rank stones, 2 crossroads, 2 waystones. Dual Axe has 2 extra wayston
 |---|---|---|---|---|---|---|
 | The Hearth | Mend, Havora crossing | 5 | 2 | 2 | 0 | 10 |
 | Shield | 3 | 15 | 6 | 6 | 4 | 31 |
-| Sword | 2 | 10 | 4 | 4 | 4 | 22 |
-| Club | 2 | 10 | 4 | 4 | 4 | 22 |
-| Dual Axe | 1 | 5 | 2 | 4 | 4 | 15 |
+| Sword | 3 (Parry in wave 3) | 15 | 6 | 6 | 4 | 31 |
+| Club | 2 (Stagger, Turning Cut) | 10 | 4 | 4 | 4 | 22 |
+| Dual Axe | 2 (Gash in wave 3) | 10 | 4 | 6 | 4 | 24 |
 | Ranged | 4 | 20 | 8 | 8 | 4 | 40 |
 | Destruction | 4 | 20 | 8 | 8 | 4 | 40 |
-| Restoration | 6 | 30 | 12 | 12 | 4 | 58 |
+| Restoration | 5 (Undertow cut) | 25 | 10 | 10 | 4 | 49 |
 | 9 borders | 9 towns | 0 | 9 hybrid | 0 | 9 hybrid | 27 |
-| **Total** | **23** | **115** | **55** | **48** | **37** | **265** |
+| **Total** | **24** | **120** | **57** | **50** | **37** | **274** |
 
-Plus 23 open roads, 23 final forms (a hero takes one) and the Mileposts.
+Plus 24 open roads, 24 final forms (a hero takes one) and the Mileposts. Parry's and Gash's roads (9 + 9 points) count once their rows exist. Until then the total is 256.
 
-- 115 rank stones against 480 milestones in v2 (24%). 150 of 265 nodes are choices (57%, up from 24%).
-- A pure healer owns Restoration and Mend by about Level 69, then spends into neighbors and open roads.
-- The map is full at about Level 266. From then the choices are which move gets the rank, and the Mileposts.
+- 120 rank stones against 480 milestones in v2 (25%). 154 of 274 nodes are choices (56%, up from 24%).
+- A pure healer owns Restoration and Mend by about Level 60, then spends into neighbors and open roads.
+- The map is full at about Level 275. From then the choices are which move gets the rank, and the Mileposts.
 
 ## 5. Four countries laid out
 
-Tooltip labels only. Numbers are full size (Level 200). "Near fall-back" means a hero's health is within 15 points of the stance's fall-back line (Careful 60%, Steady 40%, Bold 27%). Crossroads options sit within 3 steps of each other on any ground.
+Tooltip labels only. Numbers are full size (Level 200). "Near fall-back" means a hero's health is within 15 points of the stance's fall-back line (Careful 60%, Steady 40%, Bold 27%). The hero holding the Challenge has a lower line (Steady 15%, Careful 27%, `23` section 3), so its near fall-back is Steady 30%, Careful 42%. Crossroads options sit within 3 steps of each other on any ground.
 
 ### Shield
 
 | Road | Node | Tooltip |
 |---|---|---|
-| **Challenge** (known from Level 1) | Rank stone x3 | +1 Challenge rank |
-| | Crossroads I | **Wide Challenge** (Suggested, party): Taunts up to 3 nearby enemies · −50% taunt duration · **Hard Challenge** (Suggested, solo): Taunted enemy: −6% damage to you · Casts when solo · **Guarding Challenge**: Casts when an enemy attacks a back-row ally · Party only |
+| **Challenge** (known from Level 1. Suggested condition: my HP is at least 60%) | Rank stone x3 | +1 Challenge rank |
+| | Crossroads I | **Long Hold** (Suggested, party): Taunt holds 12 s (from 8 s) · +4 s cooldown · **Hard Challenge** (Suggested, solo): Taunted enemy: −6% damage to you · Casts when solo · **Guarding Challenge**: Casts when an enemy attacks a back-row ally · Party only |
 | | Waystone | **Challenge range +1 tile** |
 | | Rank stone x2 | +1 Challenge rank |
 | | Crossroads II | **Drawing Challenge**: Taunted Stalkers stay for the full taunt · **Mended** (Suggested): +6% healing received while you hold a taunt · **Echoing Challenge**: Recasts when a taunt ends early · +4 s cooldown |
 | | Waystone | **Challenge: −2% damage taken for 4 s** |
-| **Frost Slam** (Melee 12, party only) | Rank stone x3 | +1 Frost Slam rank |
-| | Crossroads I | **Long Frost** (Suggested): Chill 6 s (from 4 s) · +2 s cooldown · **Pinning Frost**: Target only · +50% Chill · **Slowing Frost**: Chill slows wind-ups 2× · −50% Chill on attacks |
+| **Frost Slam** (Melee 12, party only. Re-measured after the holder line: under +4 steps, it becomes the Challenge option Cold Challenge and this road goes) | Rank stone x3 | +1 Frost Slam rank |
+| | Crossroads I | **Long Frost** (Suggested): Chill 6 s (from 4 s) · +2 s cooldown · **Pinning Frost**: Target only · +50% Chill · **Slowing Frost**: Chill slows wind-ups 2× · −50% Chill on attacks (dead where nothing winds up) |
 | | Waystone | **Frost Slam usable solo · −30% Chill** |
 | | Rank stone x2 | +1 Frost Slam rank |
 | | Crossroads II | **Cold Ground** (Suggested): Frozen ground 4 s · Chills enemies on it · **Quick Slam**: −3 s cooldown · −20% damage · **Wide Slam**: +1 tile radius · −15% damage |
 | | Waystone | **Frost Slam radius +1 tile** |
-| **Shelter** (Melee 20, party only) | Rank stone x3 | +1 Shelter rank |
+| **Shelter** (Melee 20, party only. Suggested condition: the party has at least 2 heroes under 80%) | Rank stone x3 | +1 Shelter rank |
 | | Crossroads I | **Steady Shelter** (Suggested): −40% shield · −15 s cooldown · **Deep Shelter**: 2 lowest-health allies only · +80% shield · **Stone Wall**: +100% shield on you · −30% on allies |
 | | Waystone | **Shelter −5 s cooldown** |
 | | Rank stone x2 | +1 Shelter rank |
 | | Crossroads II | **Ready Shelter**: Casts when an ally is near fall-back · +10 s cooldown · **Long Shelter** (Suggested): +4 s shield duration · **Bright Shelter**: +6% healing received while shielded |
 | | Waystone | **Shelter: +10% shield on allies near fall-back** |
 
-Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a lone Shield hero three live nodes. Answering (needs a block) is held until a block exists.
+Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a lone Shield hero three live nodes. Answering and Riposte come back on Parry's road (Sword, below).
 
 ### Restoration
 
 | Road | Node | Tooltip |
 |---|---|---|
-| **Greater Mend** | Crossroads I | **Light Mending**: −40% mana · −25% healing · **Deep Mending**: +40% healing on allies near fall-back · **Split Mending** (Suggested): 30% of the heal also lands on the next lowest-health ally |
+| **Greater Mend** (its node numbers follow the Lab re-size, `healPm` 2540) | Crossroads I | **Light Mending**: −40% mana · −25% healing · **Deep Mending**: +40% healing on allies near fall-back · **Split Mending** (Suggested): 30% of the heal also lands on the next lowest-health ally |
 | | Crossroads II | **Thrifty Mending** (Suggested): 50% mana back on allies near fall-back · **Lingering Mending**: 25% of the heal again over 4 s · **Reaching Mending**: +3 tiles range |
 | | Waystones | **Greater Mend range +1 tile** / **Greater Mend −2 mana** |
 | **Circle of Renewal** | Crossroads I | **Lasting Circle** (Suggested): Heals over 6 s · +30% healing · **Tight Circle**: Allies within 3 tiles only · +40% healing · **Light Circle**: −40% mana · −25% healing |
@@ -163,31 +165,28 @@ Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a 
 | **Spring Tide** (Magic 20) | Crossroads I | **Ebb Tide**: −50% healing, cooldown and mana · **High Tide** (Suggested): Healing past full health stays as a shield · **Turning Tide**: +50% healing on allies near fall-back · −25% on the rest |
 | | Crossroads II | **Rising Tide** (Suggested): −15 s cooldown · **Clearing Tide**: Removes 1 harmful effect from each ally healed · **Deep Tide**: +30% healing · +20 s cooldown |
 | | Waystones | **Spring Tide: +2% mana to you** / **Spring Tide −10 s cooldown** |
-| **Green Sickness** | Crossroads I | **Lingering Sickness** (Suggested): Sickness 10 s (from 6 s) · −30% damage · **Single Dose**: Target only · Sickness 20% (from 10%) · **Draining Sickness**: Heals the lowest-health ally for 20% of damage dealt |
+| **Green Sickness** (double damage while alone, the alone rule) | Crossroads I | **Lingering Sickness** (Suggested): Sickness 10 s (from 6 s) · −30% damage · **Single Dose**: Target only · Sickness 20% (from 10%) · **Draining Sickness**: Heals the lowest-health ally for 20% of damage dealt |
 | | Crossroads II | **Weakening Sickness** (Suggested): Sick enemies: −6% damage dealt · **Wide Sickness**: Also hits enemies next to the target · −20% damage · **Fast Sickness**: −3 s cooldown · −20% damage |
 | | Waystones | **Sickness +1 s** / **Green Sickness −2 mana** |
 | **Protective Ward** | Crossroads I | **Tank Ward** (Suggested): +40% shield · Ally with the most enemies on them only · **Twin Ward**: Shields 2 allies · −40% shield each · **Lasting Ward**: Unused shield returns as mana on recast · −20% shield |
 | | Crossroads II | **Quick Ward** (Suggested): −30% cooldown · −20% shield · **Mending Ward**: +6% healing received while the ward holds · **Deep Ward**: +30% shield · +6 s cooldown |
 | | Waystones | **Ward +1 s** / **Ward: +10% shield on your tank** |
-| **Undertow** (solo only) | Crossroads I | **Heavy Undertow** (Suggested): Target: −6% damage for 4 s · −20% damage · **Riptide**: Also hits enemies next to the target · −40% damage · **Drowning Pull**: 30% of damage dealt heals you · −20% damage |
-| | Crossroads II | **Cold Undertow**: Chill 2 s · **Deep Pull** (Suggested): +30% damage vs targets below 50% health · **Dragging Undertow**: Pulls the target 2 tiles toward you |
-| | Waystones | **Undertow range +1 tile** / **Undertow −2 s cooldown** |
 | (each move) | Rank stones | 3 before crossroads I, 2 before II. +1 rank of that move |
 
-Wide Circle and Fast Circle are cut: Circle's 8-tile radius already covers the party, and the heal lane runs about 77% full.
+Wide Circle and Fast Circle are cut: Circle's 8-tile radius already covers the party, and the heal lane runs about 77% full. Undertow's road is cut with the move (`23` section 4): it cast only alone, and a company joins at Level 5.
 
 ### Club
 
 | Road | Node | Tooltip |
 |---|---|---|
-| **Quarry Blow** | Crossroads I | **Breaking Blow** (Suggested): Sickness 6 s · −30% damage · **Rockfall**: Hits the 3×3 area around the target · −50% damage · **Cold Stone**: +40% damage vs Chilled targets |
-| | Crossroads II | **Long Sickness** (Suggested): +3 s Sickness from Quarry Blow · **Heavy Quarry**: +30% damage · +3 s cooldown · **Cold Quarry**: Chill 2 s |
-| | Waystones | **Quarry Blow −2 mana** / **Quarry Blow: −5% enemy armor for 4 s** |
-| **Turning Cut** (Melee 10) | Crossroads I | **Wide Turn** (Suggested): Hits up to 2 tiles away · −25% damage · **Close Turn**: +40% damage · 3 targets max · **Bleeding Turn**: 1 Bleed stack on each target · −30% damage |
+| **Stagger** (wave 3, replaces Quarry Blow. Ends the target's wind-up) | Crossroads I | **Long Stagger** (Suggested): Next swing pushed back 2 s (from 1 s) · **Shaken**: A wind-up it ends: target −10% damage for 4 s · **Wide Stagger**: Also ends wind-ups next to the target · −30% damage |
+| | Crossroads II | **Heavy Stagger** (Suggested): +30% damage · +3 s cooldown · **Laid Open**: A wind-up it ends: next ally hit on the target +20% · **Sure Blow**: A wind-up it ends: 50% of its mana back |
+| | Waystones | **Stagger −2 mana** / **Stagger: −5% enemy armor for 4 s** (Armor Break key) |
+| **Turning Cut** (Melee 10) | Crossroads I | **Wide Turn** (Suggested): Hits up to 2 tiles away · −25% damage · **Close Turn**: +40% damage · 3 targets max · **Heavy Turn**: +30% damage · +2 s cooldown |
 | | Crossroads II | **Mending Turn** (Suggested): +1% health per enemy hit · max 5% · **Guarded Turn**: −2% damage taken per enemy hit for 3 s · max 6% · **Reaping Turn**: +20% damage vs targets below 30% health |
 | | Waystones | **Turning Cut +1 max target** / **Turning Cut −2 mana** |
 
-The club's offense lane runs 83% full, so it has no cooldown cuts. Fast Turn and the −1 s waystones are cut.
+The club's offense lane runs 78% full with Stagger, so it has no cooldown cuts. Fast Turn and the −1 s waystones are cut. Stagger's road is written now so its rows are ready, but it opens with blow wind-ups in wave 3. Until then the club has one road of its own.
 
 ### Dual Axe
 
@@ -196,10 +195,20 @@ The club's offense lane runs 83% full, so it has no cooldown cuts. Fast Turn and
 | **Rend** | Crossroads I | **Deep Cuts** (Suggested): Bleed lasts 50% longer · **Spread**: Bleed jumps to 1 nearby enemy when the target dies · **Quick Rend**: −30% cooldown · −20% Bleed damage |
 | | Crossroads II | **Deep Wounds** (Suggested): +20% damage vs 5+ Bleed stacks · **Fast Bleed**: Bleed ticks 20% faster · **Fresh Cuts**: Rend hits refresh all Bleed stacks |
 | | Waystones (4) | **Bleed stack cap +1** / **Bleed ticks 10% faster** / **First hit on a new target: +1 Bleed stack** / **Kills on bleeding enemies: +2% health** |
+| **Gash** (wave 3. Every monster beside you: a light hit and 1 Bleed stack) | Crossroads I, II, waystones | Written in R-X1 with its row |
 
-The axe's offense lane runs about 58% full, so Quick Rend stays. It is the axe's one "faster" option.
+The axe's offense lane runs about 58% full, so Quick Rend stays. It is the axe's one "faster" option. With Gash the lane runs 83%.
 
-**Sword, Ranged and Destruction** take their crossroads from `16-talent-branches.md`, with these v3 changes: Quick Strike becomes **Cheap Strike** (−40% mana · −20% damage), since sword and club lanes are full. Finishing Strike, Opening Strike, Aimed Shot, Clean Sweep, Reaping Turn, Deep Pull, Deep Wounds, Spell Mark and Tempered Strikes work as passives now and become bar conditions when the four bar metrics land (section 11).
+### Sword: Parry (wave 3)
+
+Parry: support lane, 10 s, your target's next blow within 2 s lands 0. Suggested condition: my target is winding up a blow. It needs blow wind-ups, so it opens in wave 3.
+
+| Road | Node | Tooltip |
+|---|---|---|
+| **Parry** | Crossroads I | **Riposte** (Suggested): A blow you Parry: your next hit on that monster +30% · **Answering**: A blow you Parry: Power Strike ready again · **Long Parry**: Catches a blow within 3 s (from 2 s) |
+| | Crossroads II, waystones | Written in R-X1 |
+
+**Sword, Ranged and Destruction** take their crossroads from `16-talent-branches.md`, with these v3 changes: Quick Strike becomes **Cheap Strike** (−40% mana · −20% damage), since sword and club lanes are full. Finishing Strike, Opening Strike, Aimed Shot, Clean Sweep, Reaping Turn, Deep Wounds, Spell Mark and Tempered Strikes work as passives now and become bar conditions when the four bar metrics land (section 11).
 
 **Bleed cap:** 5, then 6 with the waystone or Signature #29, 7 with both. Open Wounds sets 10, and nothing adds to it.
 
@@ -209,13 +218,13 @@ Nine rows. A new country adds rows and never cuts one.
 
 | Border | Town (pick 1) | Hybrid crossroads (pick 1 of 3) | Hybrid vow |
 |---|---|---|---|
-| **Club · Dual Axe** | Use Rend with any weapon / Use Quarry Blow with any weapon | **Crushing Cuts**: Rend: 2 Bleed stacks on Sick enemies · **Torn Armor**: Bleeding enemies: −10% armor · **Heavy Bleed**: Quarry Blow +5% damage per Bleed stack | **Butcher**: Bleed kills: Quarry Blow ready again · +10% Rend mana cost |
+| **Club · Dual Axe** | Use Rend with any weapon / Use Stagger with any weapon | **Crushing Cuts**: Rend: 2 Bleed stacks on enemies with Armor Break · **Torn Armor**: Bleeding enemies: −10% armor · **Heavy Bleed**: Stagger +5% damage per Bleed stack | **Butcher**: Bleed kills: Stagger ready again · +10% Rend mana cost |
 | **Dual Axe · Ranged** | Use Rend with any weapon / Use Raking Shot with any weapon · Uses arrows | **Barbed Arrows**: Precision Shot: 1 Bleed stack · **Marked Wounds**: Bleed ticks 20% faster on marked enemies · **Open Shot**: Precision Shot +3% damage per Bleed stack | **Blood Trail**: Ranged attacks: 1 Bleed stack · −3% ranged damage |
 | **Ranged · Destruction** | Use Hunter's Mark with any weapon / Use Frost Lance with any weapon | **Frost Arrows**: Precision Shot: Chill 2 s · −15% damage · **Spell Mark**: Fireball +15% damage vs marked enemies · **Mana Arrows**: Precision Shot +20% damage · +6 mana | **Spellbow**: Ranged attacks deal frost damage · +3 mana per ranged attack |
 | **Destruction · Shield** | Use Hoarfrost with any weapon / Use Challenge with any weapon | **Cold Shoulder**: Taunted enemies: +15% frost damage taken · **Frost Shelter**: Shelter: Chill attackers of shielded allies 2 s · **Rime Plate**: −1% damage taken per Chilled enemy within 2 tiles · max 6% | **Winter Guard**: Chilled enemies: −6% damage to allies within 3 tiles · −3% damage dealt |
 | **Shield · Restoration** | Use Greater Mend with any weapon / Use Shelter with any weapon | **Healing Shelter**: Shelter heals 50% of the shield · **Guarded Mend**: +20% Greater Mend on taunting allies · **Taunting Guard**: Challenge: shield of 2% max health per enemy taunted | **Shield Priest**: Challenge cast: heal yourself 3% max health · −3% healing on others |
 | **Restoration · Sword** | Use Circle of Renewal with any weapon / Use Flame Strike with any weapon | **Mending Strike**: Flame Strike heals the lowest-health ally for 25% of damage dealt · **Mana Strike**: Power Strike hits: +2% mana · **Second Strike**: After a heal: next Flame Strike +20% damage | **Mending Blade**: 10% of melee damage heals the lowest-health ally · −3% spell healing |
-| **Sword · Club** | Use Flame Strike with any weapon / Use Quarry Blow with any weapon | **Tempered Strikes**: Power Strike after Quarry Blow: +25% damage · **Cutting Weight**: Turning Cut +15% damage vs Sick enemies · **Iron Rhythm**: Turning Cut hits: +1 mana | **Smith's Arm**: Power Strike and Quarry Blow share a cooldown · +20% damage on both |
+| **Sword · Club** | Use Flame Strike with any weapon / Use Stagger with any weapon | **Tempered Strikes**: Power Strike on a target Stagger just stopped: +25% damage · **Cutting Weight**: Turning Cut +15% damage vs Sick enemies · **Iron Rhythm**: Turning Cut hits: +1 mana | **Smith's Arm**: Stagger ends a wind-up: next Power Strike +40% · Power Strike +2 s cooldown |
 | **Destruction · Restoration** (new) | Use Frost Lance with any weapon / Use Greater Mend with any weapon | **Cold Mercy**: Frost Lance heals the lowest-health ally for 20% of damage dealt · **Sick Fire**: Fireball +15% damage vs Sick enemies · **Still Water**: Hoarfrost: allies in the area +6% healing received | **Hedge Healer**: Wand: borrowed Greater Mend at full power · −3% spell damage |
 | **Sword · Shield** (new) | Use Turning Cut with any weapon / Use Challenge with any weapon | **Guard Cut**: Turning Cut hits: −2% damage taken for 3 s · **Pressing Guard**: Challenge: next Power Strike +20% damage · **Second Front**: Challenge taunts only enemies on allies · Party only | **Off Tank**: Sword alone: taunted enemy −6% damage to you · −3% damage dealt |
 
@@ -233,12 +242,12 @@ Every hybrid vow also reads: Requires a crossroads in both countries.
 | **Bodyguard** | Shield | Take 30% of damage dealt to back-row allies within 2 tiles · −3% damage dealt · Party only | Casters, Stalkers | Brutes |
 | **Cold Iron** | Shield | Hit in melee: Chill the attacker 2 s · −3% damage dealt | Brutes, Swarms | Shooters, Casters |
 | **Last Stand** | Shield | Near fall-back: −20% damage taken for 4 s · 30 s cooldown · −3% damage dealt | Solo, bosses, Bold | Swarms |
-| **Watchful Healing** | Restoration | Enemy winding up: +20% healing · −3% healing | Casters | Brutes |
+| **Watchful Healing** | Restoration | Enemy winding up: +20% healing · −3% healing | Casters | Brutes, and every ground with no wind-ups (Muster Barrows, Hask's Ford until C2) |
 | **Still Mind** | Restoration | 3 s without casting: +50% mana regen · +10% spell mana cost | Brutes, few big pulls | Swarms, Casters |
-| **Battle Healer** | Restoration | Undertow usable in a party · +20% Undertow and Green Sickness damage · −3% healing | Parties that need damage | Deadly grounds |
+| **Battle Healer** | Restoration | Green Sickness +20% damage · −3% healing | Parties that need damage | Deadly grounds |
 | **Lifeline** | Restoration | Ally near fall-back: next heal instant, no mana · 10 s per ally · −3% healing | Bold, big single hits | Swarms |
 | **Crushing Blows** | Club | Brutes: attacks ignore 20% armor · −3% damage dealt | Brutes | Swarms, Casters |
-| **Aftershock** | Club | Quarry Blow hits again after 2 s for 40% · −3% damage dealt | Brutes, Warders | Stalkers |
+| **Aftershock** | Club | Stagger also hits monsters beside the target · −3% damage dealt | Casters, tight packs | Stalkers |
 | **Lingering Blows** | Club | Hits refresh Sickness · −3% damage dealt | Bosses, Brutes | Swarms |
 | **Braced** | Club | All your attacks on cooldown: −6% damage taken · +10% mana cost | Solo melee | Parties with a tank |
 | **Open Wounds** | Dual Axe | Bleed stacks up to 10 · −3% damage dealt | Bosses, Brutes | Swarms |
@@ -260,7 +269,7 @@ Every hybrid vow also reads: Requires a crossroads in both countries.
 
 Plus the 9 hybrid vows in section 6. Percent conversions: 18 steps on all damage is +6.5%, on one move about +20%. 8 steps is −3% damage dealt or +3% damage taken.
 
-**Cut or held from v2:** Riposte (needs a block, held). Unbroken (a lethal hit never comes on Steady, replaced by Last Stand). Fast Renewal, Ground Breaker, Front Line, Twin Rend, Echo Cast, Volley Stance (repeats, short-hunt picks or cooldown cuts on full lanes).
+**Cut or held from v2:** Riposte (back as a Parry option, wave 3). Unbroken (a lethal hit never comes on Steady, replaced by Last Stand). Fast Renewal, Ground Breaker, Front Line, Twin Rend, Echo Cast, Volley Stance (repeats, short-hunt picks or cooldown cuts on full lanes).
 
 **Stacking.** Every vow is a rule row on a key from `15-signature-candidates.md`. Winter Guard and Weakening Sickness share "monster deals less damage": the largest counts. Cold Focus and Fire Focus can't both be held.
 
@@ -270,16 +279,16 @@ A build has four layers: the map (crossroads, waystones, borrowed moves, vows, f
 
 | Build | Weapon and countries | Key nodes | Vows | Traits | Signature |
 |---|---|---|---|---|---|
-| **Bleed Axe** | Axes. Club border | Rend: Deep Cuts, Deep Wounds. Turning Cut: Bleeding Turn. Waystone: Bleed stack cap +1 | Open Wounds, Bleed Out | #4 Worrier, #21 Scorched Grip, #30 Lime Pit | #7 Floodwater Hatchets |
+| **Bleed Axe** | Axes. Club border | Rend: Deep Cuts, Deep Wounds. Gash (wave 3). Waystone: Bleed stack cap +1 | Open Wounds, Bleed Out | #4 Worrier, #21 Scorched Grip, #30 Lime Pit | #7 Floodwater Hatchets |
 | **Frost Lock Mage** | Wand | Hoarfrost: Deep Hoarfrost. Frost Lance: Shatter. Arcane Barrier: Thick Barrier | Cold Focus, Still Mind | #5 Snuffed, #18 Floodmark, #16 Full Wick | #15 Catacomb Shroud |
 | **Shield-Heal** | Staff. Shield border | Greater Mend: Split Mending. Protective Ward: Twin Ward. Town: Use Shelter with any weapon | Lifeline, Still Mind | #23 Behind the Bar, #29 Crag Shelter, #6 Last File | #36 Cairn Belt |
 | **Mark Sniper** | Bow | Hunter's Mark: Long Mark. Precision Shot: Aimed Shot | Long Range, Marked Prey | #22 Slate Hand, #34 Lookout's Promise, #2 Soft Scale | #9 Lurcher's Collar |
-| **Armor Breaker** | Club. Sword country for Power Strike | Quarry Blow: Breaking Blow, Heavy Quarry. Power Strike: Heavy Strike | Crushing Blows, Aftershock | #3 Ram's Head, #37 Hask's Bargain, #27 Captain's Due | #8 Stable Troll's Maul |
+| **Armor Breaker** | Club. Sword country for Power Strike | Stagger: Shaken, Heavy Stagger. Waystone: −5% enemy armor. Power Strike: Heavy Strike. Sickness from a healer's Green Sickness | Crushing Blows, Aftershock | #3 Ram's Head, #37 Hask's Bargain, #27 Captain's Due | #8 Stable Troll's Maul |
 | **Battle Priest** | Sword. Restoration border | Flame Strike: Finishing Strike. Power Strike: Guard Strike. Town: Use Circle of Renewal. Hybrid: Mending Strike | Mending Blade, Pressing Attack | #14 Goaded, #11 Pyre Tender, #39 Bolting Team | #18 Brewer's Apron |
 | **Frost Warden** | Sword and shield. Destruction border | Challenge: Hard Challenge. Frost Slam: Long Frost. Town: Use Hoarfrost. Hybrid: Rime Plate | Winter Guard, Cold Iron | #25 Numbed, #7 Bailey Stand, #5 Snuffed | #42 Night Carter's Boots |
 | **Bleed Ranger** | Bow. Dual Axe border | Raking Shot: Clean Sweep. Precision Shot: Piercing Shot. Hybrid: Open Shot | Blood Trail, Long Range | #4 Worrier, #19 Ledge Footing, #2 Soft Scale | #12 Wyvern Barb Crossbow |
 | **Spellbow** | Bow. Destruction border | Hunter's Mark: Long Mark. Town: Use Frost Lance. Hybrid: Frost Arrows | Spellbow, Marked Prey | #16 Full Wick, #22 Slate Hand, #13 Slack Water | #11 Provost's Longbow |
-| **Crush and Bleed** | Club. Dual Axe border | Quarry Blow: Breaking Blow. Town: Use Rend. Hybrid: Heavy Bleed | Butcher, Lingering Blows | #4 Worrier, #30 Lime Pit, #3 Ram's Head | #43 Bull's Tooth |
+| **Crush and Bleed** | Club. Dual Axe border | Stagger: Long Stagger. Town: Use Rend. Hybrid: Heavy Bleed | Butcher, Lingering Blows | #4 Worrier, #30 Lime Pit, #3 Ram's Head | #43 Bull's Tooth |
 | **Hedge Healer** (new) | Wand and staff. Destruction · Restoration | Frost Lance: Chilling Lance. Town: Use Greater Mend. Hybrid: Cold Mercy | Hedge Healer, Cold Focus | #5 Snuffed, #16 Full Wick | none yet |
 | **Lone Wall** (new, solo) | Sword and shield | Challenge: Hard Challenge. Waystone: Frost Slam usable solo. Shelter: Stone Wall | Last Stand, Hold Fast | #7 Bailey Stand, #25 Numbed | #3 Grave Guard's Mail |
 
@@ -365,7 +374,7 @@ Sword and shield, "Spend as suggested" on, plan solo until Level 5 (the company 
 |---|---|---|---|---|
 | 1 | none | The Hearth | nothing | Points come with Levels |
 | 2 to 4 | 1 to 3 | Hearth | Challenge rank stones 1 to 3 | The first stone touches the Hearth. Challenge known from Level 1 |
-| 5 | 4 | Rank 3 | **Challenge crossroads I** | Next to rank 3. Party plan, so Wide Challenge is suggested |
+| 5 | 4 | Rank 3 | **Challenge crossroads I** | Next to rank 3. Party plan, so Long Hold is suggested |
 | 6 | 5 | Crossroads I | Waystone: Challenge range +1 tile | Off crossroads I |
 | 7 to 8 | 6 to 7 | Crossroads I | Challenge rank stones 4 to 5 | The road goes on |
 | 9 | 8 | Rank 5 | **Challenge crossroads II**: Mended | Next to rank 5 |
@@ -411,3 +420,26 @@ Borrowing: the Sword · Shield town is reachable at Level 29, but Turning Cut's 
 - Does the heal rule land a borrowed Greater Mend at 10 steps or less? If not, which of Magic scaling or Mend's cooldown next.
 - Is Level 200 the right point for full size, or does mid-game theorycraft want 120 to 150? `19-power-ledger.md` section 3.
 - Is 4 vows a country enough with Mileposts adding more later?
+- Does Frost Slam clear +4 steps once the holder line lands, or does it fold into the Challenge as Cold Challenge (`23` section 4)?
+
+## Changes from the spell audit
+
+2026-11-22, from `23-spell-audit.md` section 8, and Tyler's rulings the same day (Updraft cut, the tank falls back at 15% on Steady).
+
+- Borrow table: Hoarfrost (V0 15.8) and Protective Ward (V0 16.1) added, both −50% at a border, not offered at Havora, open at 120. Challenge and Greater Mend flagged for re-measure.
+- Node counts: Sword gets Parry, Dual Axe gets Gash (wave 3), Restoration loses Undertow. 24 moves, 274 points (256 until wave 3). Healer owns its country by about Level 60. Map full at about 275.
+- Near fall-back: the Challenge holder's line is Steady 15%, Careful 27%.
+- Challenge: suggested condition "my HP is at least 60%". Wide Challenge becomes Long Hold.
+- Frost Slam: re-measure, Cold Challenge fallback. Slowing Frost flagged dead where nothing winds up.
+- Shelter: suggested condition "2+ heroes under 80%".
+- Greater Mend: numbers follow the re-size. Green Sickness: the alone rule.
+- Undertow's road cut.
+- Quarry Blow's road becomes Stagger's: Breaking Blow, Rockfall, Cold Stone, Long Sickness, Heavy Quarry, Cold Quarry out. Long Stagger, Shaken, Wide Stagger, Heavy Stagger, Laid Open, Sure Blow in. Waystones renamed.
+- Turning Cut: Bleeding Turn cut, Heavy Turn in. Club lane note now 78%.
+- Gash road placed on Dual Axe. Parry road placed on Sword, with Riposte and Answering back as options.
+- Passives list: Deep Pull out.
+- Borders: Club · Dual Axe and Sword · Club now use Stagger. Crushing Cuts keys to Armor Break, Heavy Bleed and Butcher to Stagger. Tempered Strikes and Smith's Arm rewritten.
+- Vows: Battle Healer is Green Sickness +20%. Aftershock: Stagger hits beside the target. Watchful Healing weak where nothing winds up. Riposte no longer held.
+- Builds: Bleed Axe takes Gash, Armor Breaker and Crush and Bleed take Stagger.
+- Walk-through: Level 5 suggests Long Hold. Still doable: it's an option on the same crossroads.
+- Open question added on Frost Slam.

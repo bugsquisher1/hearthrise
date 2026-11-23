@@ -166,6 +166,30 @@
         "gzipBytes": 917009,
         "on": "2026-11-23",
         "why": "bar metrics: the 4 new bar tests (health %, Marked, stacks, last move) and the Configure picker for last_move at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 918537,
+        "on": "2026-11-23",
+        "why": "R10: new scale grounds' bands, the outgrown Ready for / Max depth reached rows, and the wings' named pieces read at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 919422,
+        "on": "2026-11-23",
+        "why": "power ledger L1-L3: power-ledger.js and maxRankAt read at town with the gear data"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920236,
+        "on": "2026-11-23",
+        "why": "L7 report ledger: healing by source, damage taken by seat and supplies per depth lines on the end and return cards"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920357,
+        "on": "2026-11-23",
+        "why": "bar-draft condition words moved to the text home (t() rows in text/bar.js), +0.1 KB"
       }
     ]
   }

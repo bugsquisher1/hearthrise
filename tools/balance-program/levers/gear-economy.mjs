@@ -136,13 +136,31 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays Traits until wave 4'),
     ev: 'STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
-    at: [at('src/data/danger.js', 'gearLevel: tierLevel(3)')],
+    at: [at('src/data/danger.js', "ladderTier: 5, traits: traitPool('muster_barrows')")],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
     range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
     touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/gear-steps.mjs', 'GS-5 a whole tier and its pool']], testReads: ['DANGER_GROUNDS'],
-    perturb: NP('not-built', 'no drop table reads it yet (R10)'),
+    perturb: NP('not-built', 'read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step; no matrix RUN names a scale ground'),
     ev: 'STATED (Muster Barrows is a Level 55-75 ground)' }),
+  /* THE POWER LEDGER (lane/ledger-l1-l3, 19-power-ledger.md sections 1, 2 and 5 L1 and L3; Tyler 2026-11-22: the ramp only on what a hero
+     grows into, never on gear, Traits, Signatures or Temper) */
+  L('gear.trait-rank-gate', 'equipment', 'archetype', 'The highest Trait rank a ground rolls, by its entry Level', {
+    at: [at('src/data/danger.js', "traits: traitPool('muster_barrows'), entryLevel: 55 })")],
+    def: 'rank r rolls on a ground only if traitSteps[r-1] <= conditionalStepsMax x ramp(the ground\'s entry Level) (gear-steps.js maxRankAt): rank 1 from entry 40, rank 2 from 70, rank 3 from 100; entryLevel is the hunt\'s band floor; carry-over only onto the same slot at the same tier or higher (GEAR_STEPS.carryOver)',
+    range: 'entryLevel equal to its hunt\'s band floor (GS-5); the gate reads rampLevel',
+    touches: 'where a high-rank Trait can be found, so which ground a Trait hunter picks and what the market holds', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-3 the rank gate and carry-over, GS-5 entryLevel and maxRank']], testReads: ['DANGER_GROUNDS', 'GEAR_STEPS'],
+    perturb: NP('not-built', 'no roller reads it until wave 4'),
+    ev: 'STATED (19-power-ledger.md section 2 rule 2)' }),
+  L('ledger.ramp-slices', 'equipment', 'global', 'The power ledger: the ramp and the slice caps', {
+    at: [at('src/data/power-ledger.js', 'rampLevel: 200,'), at('src/data/power-ledger.js', 'buildStepsMax: 14,'), at('src/data/power-ledger.js', 'consumableStepsMax: 6,'), at('src/data/power-ledger.js', 'temperStepsMax: 5,'), at('src/data/power-ledger.js', 'clanStepsMax: 4,')],
+    def: 'ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it',
+    range: 'rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5',
+    touches: 'how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/danger.mjs', 'ledger: the caps at Levels 10 to 400, the clamp, the power step']], testReads: ['POWER_LEDGER', 'LEDGER_SLICES'],
+    perturb: NP('not-built', 'no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4)'),
+    ev: 'STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)' }),
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {

@@ -285,7 +285,27 @@
         "why": "lane/bar-metrics (Systems 2026-11-22): the Roads' four bar tests reach the engine (condition-metrics rows, conditions.js evaluators, a unit's lastMove) and the borrowed-blow seam (new core/borrow-blow.js, ~5 KB with its formula header; hunt-spawn borrowed, combat-sim syncUnit, abilities.js blowOf): +12,844 bytes, no new data module reached"
       },
       {
-        "bytes": 3358639,
+        "bytes": 3372297,
+        "on": "2026-11-23",
+        "why": "R10: three grounds on the Danger scale (Hask's Ford, the two Catacomb wings), refKillsHead per ground, iL on scale drops"
+      },
+      {
+        "bytes": 3385050,
+        "on": "2026-11-23",
+        "why": "lane/ledger-l1-l3: the power ledger's clamp and slices (src/core/power-ledger.js, src/data/power-ledger.js) read by the power step, gear-steps.js maxRankAt and carry-over, re-raised on the merged set"
+      },
+      {
+        "bytes": 3393787,
+        "on": "2026-11-23",
+        "why": "L7+L10: coin a pull steps with power so gold/hr follows depth; heal/took/sup report counters"
+      },
+      {
+        "bytes": 3393871,
+        "on": "2026-11-23",
+        "why": "report.js ledgerWalk JSDoc type for close (typecheck-ratchet TS2339), +84 B"
+      },
+      {
+        "bytes": 3398639,
         "on": "2026-11-23",
         "why": "lane/econ-followups +4,768: src/data/store-kit.js splits storePrice into storeTerms + storePriceOf (every list price identical) and src/data/supply-basics.js carries STORE_TERMS + storeUsePrice, the one data home of the store's price terms the server's catalogue is generated from (tools/gen-store-prices.mjs); the edge imports both modules for the store rows it already read"
       }

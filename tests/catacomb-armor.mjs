@@ -59,12 +59,15 @@ function srcTexts() {
   return out;
 }
 
+const noIL = (row) => { if (!row) return row; const { iL, ...rest } = row; void iL; return rest; };
+
 /** Every problem, as 'CAn ...' strings. `d` is the data (a copy for a mutant), `gen` the row builder. */
 export function problems(d, gen = catacombArmorItems, files = srcTexts()) {
   const out = [];
   const { rows, attrs, tiers, lean, items, now } = d;
   /* CA1 */
-  const SHIPPERS = /src[\\/]data[\\/](catacomb-armor|items|item-descriptions|chests)\.js$/;
+  /* catacomb-wings.js: the Catacombs' wings as scale grounds drop the pieces as their own rows (lane/r10-more-grounds, 12-targets 7) */
+  const SHIPPERS = /src[\\/]data[\\/](catacomb-armor|catacomb-wings|items|item-descriptions|chests)\.js$/;
   for (const [f, txt] of files) if (/from\s*['"][^'"]*catacomb-armor\.js/.test(txt) && !SHIPPERS.test(f)) out.push('CA1 ' + f + ' imports the armor outside the shipping files');
   const mine = new Set(rows.map((r) => r.id));
   const itemNames = new Set(Object.entries(items).filter(([id]) => !mine.has(id)).map(([, it]) => it && it.n).filter(Boolean));
@@ -73,7 +76,8 @@ export function problems(d, gen = catacombArmorItems, files = srcTexts()) {
   for (const r of rows) {
     const isItem = Object.prototype.hasOwnProperty.call(items, r.id);
     if (now.includes(r.key) !== isItem) out.push('CA1 ' + r.id + (isItem ? ' is an item, and its tier does not ship' : ' does not ship, and its tier does'));
-    else if (isItem && JSON.stringify(items[r.id]) !== JSON.stringify(shippedRows[r.id])) out.push('CA1 ' + r.id + ' ships as another row than its generated one');
+    /* every field the builder makes, less the item Level the Danger scale writes on a scale drop (src/data/danger.js scaleItemLevels) */
+    else if (isItem && JSON.stringify(noIL(items[r.id])) !== JSON.stringify(noIL(shippedRows[r.id]))) out.push('CA1 ' + r.id + ' ships as another row than its generated one');
     if (itemNames.has(r.name)) out.push('CA1 ' + r.id + ': another item is called ' + r.name);
   }
   /* CA2 */

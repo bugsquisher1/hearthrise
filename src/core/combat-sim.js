@@ -48,7 +48,7 @@ import { COMBAT_BALANCE } from './combat.js';
 import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js';
 import { createRng } from './rng.js';
 import { charLevelFromXp } from './xp.js';
-import { densityFor, partyPick } from '../data/hunt-grounds.js';
+import { densityFor, partyPick, HUNT_GROUNDS, monstersOn } from '../data/hunt-grounds.js';
 import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { MONSTERS } from '../data/monsters.js';
 import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js';
@@ -103,7 +103,8 @@ const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || 
  * banked, the leader past the ground's band), else null. The SAME answer on the server's settle and the browser's live view:
  *   level     the Level the ground plays at, or null (unscaled, and a scale the data can't play is unscaled too: never half a scale)
  *   monsters  the catalogue with the ground's roster on its scaled rows, the ONE door every reader of a monster row takes (world-step.js
- *             inst.monsters, hunt-rewards.js ctx.monsters); null unscaled, so an unscaled hunt reads exactly what it always read
+ *             inst.monsters, hunt-rewards.js ctx.monsters); null unscaled, so an unscaled hunt reads exactly what it always read, except
+ *             on a ground with its own drop rows (groundDropsOn: the catalogue with those rows on its monsters)
  *   tierOf    a tier pick's row: unscaled, the ground's own (hunt-tiers.js); scaled, the sheet's at the scaled floor (scaledTierRow), and a
  *             pick the scaled ground doesn't offer (Deadly) plays Normal
  *   normalOf  true for a pick that plays Normal for that reason: its frozen pull goes with it (the ground as it stands)
@@ -114,10 +115,26 @@ export function huntPlayOf(groundId, scale) {
   if (runRulesOf(groundId)) return { level: null, monsters: null, tierOf: () => null, normalOf: () => true };
   const asked = scale && Number.isInteger(scale.level) ? scale.level : null;
   const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;
-  if (level === null) return { level: null, monsters: null, tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
-  const monsters = Object.assign({}, MONSTERS, scaledMonsters(MONSTERS, groundId, level));
+  if (level === null) return { level: null, monsters: groundDropsOn(groundId, MONSTERS), tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
+  const scaled = Object.assign({}, MONSTERS, scaledMonsters(MONSTERS, groundId, level));
+  const monsters = groundDropsOn(groundId, scaled) || scaled;
   const own = (id) => scaledTierRow(groundId, id, level);
   return { level, monsters, tierOf: (id) => own(id) || tierRowOf(groundId, DEFAULT_TIER), normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };
+}
+
+/* A GROUND'S OWN DROP ROWS (src/data/hunt-grounds.js `drops`: the Catacombs' wings, src/data/catacomb-wings.js; lane/r10-more-grounds): every
+   monster that stands on the ground carries them after its own rows, so no earlier draw on the seeded stream moves (loot-bands.js), through the
+   instance's one door to a monster row. Null for a ground with none, so every other hunt reads exactly what it always read. The unscaled
+   table is built once a ground (the same rows every call, viewed or settled). */
+const GROUND_DROPS = new Map();
+function groundDropsOn(groundId, base) {
+  const g = Object.prototype.hasOwnProperty.call(HUNT_GROUNDS, groundId) ? HUNT_GROUNDS[groundId] : null;
+  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;
+  if (base === MONSTERS && GROUND_DROPS.has(groundId)) return GROUND_DROPS.get(groundId);
+  const out = Object.assign({}, base);
+  for (const id of monstersOn(g)) if (out[id]) out[id] = { ...out[id], drops: (out[id].drops || []).concat(g.drops) };
+  if (base === MONSTERS) GROUND_DROPS.set(groundId, out);
+  return out;
 }
 
 /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
@@ -422,7 +439,7 @@ export function simulateHuntInstance(inst, ctx) {
           if (tw) play.monsters = towerMonsters(ctx.towerFloor, tw);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters, ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}), ...(plan ? { density: tier.pull[0] } : {}) });
-          if (plan) openDanger(world, plan.risk, plan.step);
+          if (plan) openDanger(world, plan.risk, tier.step);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));

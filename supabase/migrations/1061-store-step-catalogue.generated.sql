@@ -8,7 +8,7 @@
 -- WHAT (lane/econ-followups, backend-architect, 2026-11-22; 04-math-strategy.md section 11, 09-crafting.md 4.6; Tyler 2026-11-22: goods
 -- are priced by depth): the rule a store use is priced by, so the server prices it at the BUYER's store step, never at the row's own.
 --   hr_store_terms     49 rows, one a store row (hr_hunt_basic_supplies' ids), rewritten whole.
---   hr_store_grounds   1 row (muster_barrows 60): each Danger scale ground's reference wage step.
+--   hr_store_grounds   4 rows (catacomb_bone_wing 160, catacomb_flooded_wing 160, hasks_ford 40, muster_barrows 60): each Danger scale ground's reference wage step.
 --   hr_store_price     internal, the twin of store-kit.js storePriceOf: greatest(floor, round(coef x hr_wage(step) [x amount] / per)),
 --                      float8 in the JS's order (each operation exactly rounded, the same bits), Math.round as floor plus one at a
 --                      fraction of a half or more; pinned at 1176 prices (every row at 24 steps, §3).
@@ -107,6 +107,9 @@ insert into public.hr_store_terms (basic_id, line, coef, amount, per, floor_gold
   ('plain_graven_rupture_rune', 'charge', '0.10500000000000001'::float8, 0, 1390, 5);
 delete from public.hr_store_grounds;
 insert into public.hr_store_grounds (hunt_id, ref_wage_step) values
+  ('catacomb_bone_wing', 160),
+  ('catacomb_flooded_wing', 160),
+  ('hasks_ford', 40),
   ('muster_barrows', 60);
 
 -- ── §2b THE PRICE'S SQL TWIN (internal) ──────────────────────────────────────
@@ -1332,5 +1335,5 @@ begin
     if v_p is distinct from v_r.price then
       raise exception 'VERIFY(d): % at step % costs % in SQL, % in src/data/store-kit.js', v_r.id, v_r.s, v_p, v_r.price; end if;
   end loop;
-  raise notice 'gen-store-prices: % store terms, % scale ground(s), the twin pinned at % prices; all green', 49, 1, 1176;
+  raise notice 'gen-store-prices: % store terms, % scale ground(s), the twin pinned at % prices; all green', 49, 4, 1176;
 end $mig$;

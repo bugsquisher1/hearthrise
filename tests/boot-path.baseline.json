@@ -286,6 +286,12 @@
         "gzipBytes": 956021,
         "on": "2026-11-23",
         "why": "re-measured talent borrow values (lane/roads-v0-remeasure)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 957515,
+        "on": "2026-11-23",
+        "why": "first-hour rewrite: new coach cards (talent_point, depth, fell_back, risk_pick) and tutorial sections feeding them (lane/first-hour-rewrite)"
       }
     ]
   }

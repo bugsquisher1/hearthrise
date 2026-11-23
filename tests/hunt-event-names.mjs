@@ -288,7 +288,7 @@ const MUTANTS = [
   ['a dot flies its dealer\'s bolt', 'EN-FLOAT', 'src/hunt-view/scene.js', 'const flies = !!bolt && !ev.dot;', 'const flies = !!bolt;'],
   ['a heal of nothing floats +0', 'EN-FLOAT', 'src/hunt-view/scene.js', "if (ev.amount > 0) addFloat(ev.t, 'heal',", "if (true) addFloat(ev.t, 'heal',"],
   ['a status is not named by its row', 'EN-NAME', 'src/render/source-names.js', '  if (Object.hasOwn(STATUSES, id)) return STATUSES[id].name;\n', ''],
-  ['an engine piece is not named', 'EN-NAME', 'src/render/source-names.js', "  if (hasText('combat.piece_' + id)) return t('combat.piece_' + id);\n", ''],
+  ['an engine piece is not named', 'EN-NAME', 'src/render/source-names.js', "  if (hasText('fight.piece_' + id)) return t('fight.piece_' + id);\n", ''],
   ['a reaction is not named by its node', 'EN-NAME', 'src/render/source-names.js', '  return reactName(id);\n', '  return null;\n'],
   ['the analyzer spells an id', 'EN-NAME', 'src/shell/widgets/bits.js', ": sourceName(id); }", ': String(id); }'],
   ['the report\'s healing reads a source as an item', 'EN-REPORT', 'src/shell/hunt-report.js', '(nameOf(uses) ? sourceName(uses) : itemName(uses))', 'itemName(uses)'],

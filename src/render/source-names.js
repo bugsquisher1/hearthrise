@@ -8,7 +8,7 @@
 //   a move              src/data/abilities.js `n`
 //   a monster's spell   src/data/monster-spells.js `n`
 //   a status            src/data/statuses.js `name` (a status is a row, and its name is the row's)
-//   an engine piece     src/data/text/combat.js piece_<id> (a blow the engine names itself: damage.js `bodyguard`, reactions.js `carry`)
+//   an engine piece     src/data/text/fight.js piece_<id> (a blow the engine names itself: damage.js `bodyguard`, reactions.js `carry`)
 //   a reaction          the Roads node or option that grants it (src/data/talents.js `n`: Draining Sickness's heal, Shield Priest's)
 //
 //   nameOf(id)       the name, or null when nothing names `id` (tests/hunt-event-names.mjs holds every id the engine emits named)
@@ -41,7 +41,7 @@ export function nameOf(id) {
   const spell = spellRow(id);
   if (spell) return spell.n;
   if (Object.hasOwn(STATUSES, id)) return STATUSES[id].name;
-  if (hasText('combat.piece_' + id)) return t('combat.piece_' + id);
+  if (hasText('fight.piece_' + id)) return t('fight.piece_' + id);
   return reactName(id);
 }
 

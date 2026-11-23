@@ -15,13 +15,13 @@ import { CATACOMB_TEXT } from './catacomb.js';
 import { CHRONICLE_TEXT } from './chronicle.js';
 import { CLAN_TEXT } from './clan.js';
 import { COACH_TEXT } from './coach.js';
-import { COMBAT_TEXT } from './combat.js';
 import { CONTROLS_TEXT } from './controls.js';
 import { CRIERS_TEXT } from './criers.js';
 import { DEATH_TEXT } from './death.js';
 import { EVENTS_TEXT } from './events.js';
 import { FACTIONS_TEXT } from './factions.js';
 import { FARM_TEXT } from './farm.js';
+import { FIGHT_TEXT } from './fight.js';
 import { HEROES_TEXT } from './heroes.js';
 import { HOUSE_TEXT } from './house.js';
 import { HUD_TEXT } from './hud.js';
@@ -54,13 +54,13 @@ export const TEXT = Object.freeze({
   chronicle: CHRONICLE_TEXT,
   clan: CLAN_TEXT,
   coach: COACH_TEXT,
-  combat: COMBAT_TEXT,
   controls: CONTROLS_TEXT,
   criers: CRIERS_TEXT,
   death: DEATH_TEXT,
   events: EVENTS_TEXT,
   factions: FACTIONS_TEXT,
   farm: FARM_TEXT,
+  fight: FIGHT_TEXT,
   heroes: HEROES_TEXT,
   house: HOUSE_TEXT,
   hud: HUD_TEXT,

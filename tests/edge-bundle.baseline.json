@@ -313,6 +313,11 @@
         "bytes": 3400543,
         "on": "2026-11-23",
         "why": "+144 B: the Catacombs' two wing ground rows name their roster ground (rosterGround), so tools/pack.mjs lints them on the whole ground's roles (pack --selftest red since lane/r10-more-grounds)"
+      },
+      {
+        "bytes": 3400814,
+        "on": "2026-11-23",
+        "why": "+271 B: catacomb-wings.js reads the Unmarked Catacombs through grounds/index.js (no pack in a generator's whole view, no wings), so gen-hunts --selftest no longer meets wing spawns of a left-out pack"
       }
     ]
   }

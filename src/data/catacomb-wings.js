@@ -31,8 +31,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import catacombs from './grounds/unmarked_catacombs/pack.js';
+import { GROUND_PACKS } from './grounds/index.js';
 import { CATACOMB_ARMOR, WING_LEAN } from './catacomb-armor.js';
+
+/* the whole ground through the packs' index, never by path: a generator's whole view (tools/pack/whole.mjs) may leave it out, then no wings */
+const catacombs = GROUND_PACKS.find((p) => p.id === 'unmarked_catacombs') || null;
 
 /* STATED: permille of kills on a wing that drop one named piece (header) */
 export const ARMOR_PM_KILL = 12;
@@ -57,7 +60,8 @@ function wingDrops(lean) {
   return Object.freeze(CATACOMB_ARMOR.map((r) => Object.freeze({ id: r.id, ch: (ARMOR_PM_KILL * w[r.slot]) / (1000 * 1000 * count(r.slot)), band: 'rare' })));
 }
 
-const g = catacombs.ground;
+const g = catacombs ? catacombs.ground : null;
+const LIVE = catacombs ? WINGS : [];
 /* spawn weights the pack's way: each pocket's head-count at a pull of 4 (the first four of its box) */
 const weightsOf = (pockets) => {
   const n = {};
@@ -67,7 +71,7 @@ const weightsOf = (pockets) => {
 const rarityOf = (id) => (catacombs.hunt.spawns.find((s) => s.monster === id) || { rarity: 'common' }).rarity;
 
 /** The wings' hunt rows (src/data/hunts.js HUNTS), staged with the pack: the pack's place and family, its own spawn weights. */
-export const CATACOMB_WING_HUNTS = Object.freeze(WINGS.map((w) => Object.freeze({
+export const CATACOMB_WING_HUNTS = Object.freeze(LIVE.map((w) => Object.freeze({
   id: w.id, region: catacombs.hunt.region, name: catacombs.hunt.name + ', ' + w.name, theme: w.theme, band: catacombs.hunt.band,
   spawns: Object.freeze(Object.entries(weightsOf(w.pockets)).map(([monster, n]) => Object.freeze({ monster, w: n, rarity: rarityOf(monster) }))),
   family: catacombs.hunt.family, art: catacombs.hunt.art, travelS: 0, pull: catacombs.hunt.pull, respawnMs: g.respawnMs,
@@ -75,7 +79,7 @@ export const CATACOMB_WING_HUNTS = Object.freeze(WINGS.map((w) => Object.freeze(
 })));
 
 /** The wings' ground rows (src/data/hunt-grounds.js HUNT_GROUNDS): the pack's map and rooms, the wing's route, its drop rows. */
-export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map((w) => [w.id, Object.freeze({
+export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(LIVE.map((w) => [w.id, Object.freeze({
   id: w.id, hunt: w.id, map: g.map, start: w.start,
   pockets: Object.freeze(w.pockets.map((p) => g.pockets[p])),
   route: Object.freeze(w.pockets.map((_, i) => i)),

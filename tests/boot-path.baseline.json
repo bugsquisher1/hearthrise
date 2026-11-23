@@ -196,6 +196,12 @@
         "gzipBytes": 920659,
         "on": "2026-11-23",
         "why": "moves pass 1: Challenge default bar, prefers targets and tooltip lines at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920683,
+        "on": "2026-11-23",
+        "why": "catacomb-wings.js reads the Unmarked Catacombs through grounds/index.js and its wing rows name their roster ground (lane/ci-reds-db: gen-hunts --selftest, pack --selftest)"
       }
     ]
   }

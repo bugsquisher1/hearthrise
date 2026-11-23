@@ -392,6 +392,16 @@ const AXE_NODES = [
   node({ id: 'rend.w3', kind: 'waystone', country: DA, move: 'rend', after: ['rend.x1'], n: 'Whetstone', tip: 'Bleed +10% damage', effects: [mod('rend', { statusPm: 100 })] }),
   node({ id: 'rend.w4', kind: 'waystone', country: DA, move: 'rend', after: ['rend.x2'], n: 'Red Hands', tip: 'Kills: heal yourself 2% max health',
     effects: [react('axe_kill_mend', 'kill', 'heal', { pm: 20, to: 'self' })] }),
+  /* THE VOWS (17 section 7): Bleed's cap (Open Wounds), its cooldowns per bleeding enemy (Frenzy), an execute line (Bleed Out) and Bleed
+     landing at once (Clean Cuts) have no seam. Each keeps its job and its best and worst cell through a piece the engine has */
+  node({ id: 'vow.open_wounds', kind: 'vow', country: DA, after: ['rend.x1'], n: 'Open Wounds', tip: 'Crits: 2 Bleed stacks · −3% damage dealt',
+    effects: [react('crit_bleed_one', 'crit', 'status', { status: 'bleed' }), react('crit_bleed_two', 'crit', 'status', { status: 'bleed' }), step('offense', -8, 'vow.open_wounds')] }),
+  node({ id: 'vow.frenzy', kind: 'vow', country: DA, after: ['rend.x1'], n: 'Frenzy', tip: 'Kills: Rend ready 2 s sooner · +3% damage taken',
+    effects: [react('frenzy_reset', 'kill', 'reset', { move: 'rend', ms: 2000, capMs: 4000 }), step('defense', -8, 'vow.frenzy')] }),
+  node({ id: 'vow.bleed_out', kind: 'vow', country: DA, after: ['rend.x1'], n: 'Bleed Out', tip: 'Bleed +40% damage · −3% damage dealt',
+    effects: [mod('rend', { statusPm: 400 }), step('offense', -8, 'vow.bleed_out')] }),
+  node({ id: 'vow.clean_cuts', kind: 'vow', country: DA, after: ['rend.x1'], n: 'Clean Cuts', tip: 'Kills carry 50% of the overkill to the nearest enemy · −3% damage dealt',
+    effects: [react('clean_carry', 'kill', 'carry', { pm: 500, r: 2, capPm: 200 }), step('offense', -8, 'vow.clean_cuts')] }),
 ];
 
 /* ── RANGED (17 section 5: four moves; Precision Shot is the bow's first road). The bow's offense lane runs 78% full: no cooldown cuts
@@ -447,6 +457,16 @@ const RANGED_NODES = [
         [react('volley_echo', 'hit', 'echo', { of: 'flame_volley', pm: 300, ms: 2000 }), mod('flame_volley', { outPm: -100 })]),
       opt('focused_volley', 'Focused Volley', 'Target only · +60% damage', [mod('flame_volley', { pick: 'target', outPm: 600 })], 'solo')],
     way('Hot Pitch', 'Flame Volley +5% damage', [mod('flame_volley', { outPm: 50 })])),
+  /* THE VOWS (17 section 7): the bow's reach, a mark's length, enemies within 2 tiles and an extra target have no seam. Long Range and Point
+     Blank are the bow's party and lone stances, Marked Prey rides the mark's cast, Hail of Arrows its two pack shots */
+  node({ id: 'vow.long_range', kind: 'vow', country: RA, after: ['precision_shot.x1'], n: 'Long Range', tip: 'In a party: +6.5% damage · +3% damage taken',
+    effects: [step('offense', 18, 'long_range', 'party'), step('defense', -8, 'vow.long_range')] }),
+  node({ id: 'vow.point_blank', kind: 'vow', country: RA, after: ['precision_shot.x1'], n: 'Point Blank', tip: 'Alone: +6.5% damage · +3% damage taken',
+    effects: [step('offense', 18, 'point_blank', 'solo'), step('defense', -8, 'vow.point_blank')] }),
+  node({ id: 'vow.marked_prey', kind: 'vow', country: RA, after: ['precision_shot.x1'], n: 'Marked Prey', tip: 'After Hunter\'s Mark: +6.5% damage for 8 s · −3% damage dealt',
+    effects: [step('offense', 18, 'marked_prey', 'cast:hunters_mark:8000'), step('offense', -8, 'vow.marked_prey')] }),
+  node({ id: 'vow.hail_of_arrows', kind: 'vow', country: RA, after: ['precision_shot.x1'], n: 'Hail of Arrows', tip: 'Raking Shot and Flame Volley +20% damage · −3% damage dealt',
+    effects: [mod('raking_shot', { outPm: 200 }), mod('flame_volley', { outPm: 200 }), step('offense', -8, 'vow.hail_of_arrows')] }),
 ];
 
 /* ── DESTRUCTION (17 section 5: four moves; Frost Lance is the wand's first road, 17 section 13). The wand's offense lane runs 78% full:
@@ -497,6 +517,16 @@ const DESTRUCTION_NODES = [
       opt('reforming_barrier', 'Reforming Barrier', 'Breaks: ready 5 s sooner',
         [react('barrier_reform', 'shield_break', 'reset', { move: 'arcane_barrier', ms: 5000, capMs: 5000 })], 'solo')],
     way('Deep Ward', 'Arcane Barrier +10% shield', [mod('arcane_barrier', { outPm: 100 })])),
+  /* THE VOWS (17 section 7): "can't cast" has no seam, so each Focus pays in the other element's damage. Held together their damage
+     cancels and two vow slots buy only a tile and 2 s of Chill: a poor trade, never a free one */
+  node({ id: 'vow.cold_focus', kind: 'vow', country: DE, after: ['frost_lance.x1'], n: 'Cold Focus', tip: 'Frost spells +20% damage · Chill +2 s · Fireball −20% damage',
+    effects: [mod('frost_lance', { outPm: 200 }), mod('hoarfrost', { outPm: 200, statusMs: 2000 }), mod('fireball', { outPm: -200 })] }),
+  node({ id: 'vow.fire_focus', kind: 'vow', country: DE, after: ['frost_lance.x1'], n: 'Fire Focus', tip: 'Fireball +20% damage · +1 tile radius · Frost spells −20% damage',
+    effects: [mod('fireball', { outPm: 200, side: 2 }), mod('frost_lance', { outPm: -200 }), mod('hoarfrost', { outPm: -200 })] }),
+  node({ id: 'vow.barrier_mage', kind: 'vow', country: DE, after: ['frost_lance.x1'], n: 'Barrier Mage', tip: 'Arcane Barrier breaks: cast it again · once per 20 s · −3% damage dealt',
+    effects: [react('barrier_recast', 'shield_break', 'cast', { move: 'arcane_barrier', clockMs: 20000 }), step('offense', -8, 'vow.barrier_mage')] }),
+  node({ id: 'vow.heavy_casting', kind: 'vow', country: DE, after: ['frost_lance.x1'], n: 'Heavy Casting', tip: '+20% spell damage · +50% cooldowns',
+    effects: [mod('*spell', { outPm: 200, cdPm: 500 })] }),
 ];
 
 /* ── THE SHIELD · RESTORATION BORDER (17 section 6): its road leaves either country's first move road at crossroads I ── */

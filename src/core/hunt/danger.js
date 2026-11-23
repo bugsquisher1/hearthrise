@@ -32,6 +32,7 @@ import { WAGE } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { ledgerSteps } from '../power-ledger.js';
+import { auraRowsOn } from './auras.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -183,8 +184,9 @@ export function powerPm(inst, source, target, pm) {
   let steps = 0;
   if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
   else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
-  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));
-  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense'));
+  /* (and the party's auras on the hero, src/core/hunt/auras.js: ledger rows by the party-row rule) */
+  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense', auraRowsOn(inst, source)));
+  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense', auraRowsOn(inst, target)));
   if (!steps) return base;
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }

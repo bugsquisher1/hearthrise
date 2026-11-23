@@ -444,7 +444,7 @@ const mutants = [
   { name: 'a hit\'s weakness share is ignored', case: 'weak-share', edits: [[D, 'el > 1000 && ability && Number.isInteger(ability.weakPm)', 'false && ability']] },
   { name: 'a weakness share also cuts a resistance', case: 'weak-share', edits: [[D, 'el > 1000 && ability && Number.isInteger(ability.weakPm)', 'el !== 1000 && ability && Number.isInteger(ability.weakPm)']] },
   { name: 'a slime is immune to ember again', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', "  const el = element === 'ember' && target.kind === 'slime' ? 0 : elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };"]] },
-  { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(rowOf(inst, target.kind));", ';']] },
+  { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceKept(inst, target);", ';']] },
   { name: 'the dealer\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(source).dealt) / 1000);\n', '']] },
   { name: 'the target\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(target).taken) / 1000);\n', '']] },
   { name: 'the shield is ignored', case: 'shield-absorbs-first', edits: [[D, '  if (absorbed) target.shield -= absorbed;', '  if (false) target.shield -= absorbed;']] },

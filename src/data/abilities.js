@@ -105,6 +105,7 @@ import { shapeProblem } from './shape-kinds.js';
 import { FIST_LINE, FIST_ELEMENTS } from './fists.js';
 import { NECROTIC_STORM } from './necrotic-storm.js';
 import { MONSTER_ROLES } from './monster-roles.js';
+import { AURAS } from './auras.js';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -353,7 +354,8 @@ export const ABILITIES = Object.freeze([
     lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
-const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'self', 'ally', 'party'];
+/* 'aura': a move that is never cast, on while slotted (src/data/auras.js: its `aura` row; src/core/hunt/auras.js) */
+const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'line', 'ring', 'self', 'ally', 'party', 'aura'];
 /* The targets that strike a SHAPE (src/core/hunt/shapes.js): an action set that skips area abilities skips them all,
    and a new slot of one starts "when it would hit at least ABILITY_RULES.areaMin". */
 export const AREA_TARGETS = Object.freeze(['area', 'line', 'ring']);
@@ -528,6 +530,12 @@ export function validate(rows = ABILITIES) {
     const partyList = Array.isArray(r.party) && r.party.length >= 1 && r.party.every((x) => typeof x === 'string' && /^[a-z_]{1,32}$/.test(x)) && new Set(r.party).size === r.party.length;
     if (r.party !== undefined && ((r.party !== true && !partyList) || r.universal)) bad('party is true or a list of hunt roles on a non-universal row, or absent');
     if (r.party !== undefined && r.alone === true) bad('a row is alone or party only, never both');
+    /* AN AURA MOVE (lane/e2-e3-statuses, E3): names its auras.js row, lands nothing itself and costs nothing (it is never cast) */
+    if (r.target === 'aura' && !(typeof r.aura === 'string' && Object.prototype.hasOwnProperty.call(AURAS, r.aura))) bad('an aura move names its auras.js row (aura)');
+    if (r.aura !== undefined && r.target !== 'aura') bad('only an aura move names an aura');
+    if (r.target === 'aura' && (NUMBER_FIELDS.some((k) => r[k] !== undefined) || r.status || r.rune || r.mana !== 0 || r.ammo)) bad('an aura move lands nothing and costs nothing');
+    /* HEALING PAST FULL KEPT AS A SHIELD (High Tide; src/core/hunt/shields.js overflowShield): a heal row's whole permille of its overflow */
+    if (r.overShieldPm !== undefined && !(Number.isInteger(r.overShieldPm) && r.overShieldPm >= 1 && r.overShieldPm <= 1000 && heals(r))) bad('overShieldPm is a heal row\'s whole permille 1..1000 of its overflow');
     /* WHAT A ROW STANDS IN FOR (`replaces`, change 3): other rows of its lane, each held by every discipline it names, none replacing
        anything itself (a clock is a row's own cooldown, never a chain of them). */
     if (r.replaces !== undefined) {

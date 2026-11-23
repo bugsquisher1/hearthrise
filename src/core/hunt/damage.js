@@ -161,6 +161,10 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
 function pipedAmount(inst, target, mean, source, element, ability, el, rng) {
   let mult = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
   if (isMonster(target)) mult = (mult * guardPmOf(inst, target)) / 1000;
+  /* a formula monster's role armor (monsterArmorPm, Armor Break moving it: armorKept) is a share of the blow on the scale too: the monster
+     formula wrote its health net of it, so secondsToKill holds and an answer that strips it is a real gain in kill time */
+  const arm = isMonster(target) ? armorKept(inst, target) : 0;
+  if (arm > 0) mult = (mult * (1000 - arm)) / 1000;
   mult = (mult * stanceOf(source).dealt * stanceOf(target).taken) / 1000000;
   return blowAmount(inst, { source, target, mean: Math.max(0, mean), mult, el: isMonster(target) ? weakShare(el, ability) : el, ward: !!element && element !== 'physical',
     answerPm: ability && ability.answerPm, markPm: ability && ability.markPm, dealerPm: ability && ability.dealerPm, slowPm: source ? slowPmOf(source) : 0,

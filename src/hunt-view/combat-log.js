@@ -88,7 +88,7 @@ function statusWords(ev, who) {
   return t('log.status_' + on + kind, { who, status: sourceName(ev.status) });
 }
 
-/* THE WORN TRAITS THAT HELD on a blow or a heal (its `tr`, src/core/hunt/trait-rules.js), named after its sentence: "... for 40 (Last File)." */
+/* THE WORN TRAITS THAT HELD on a blow or a heal (its `tr`, src/core/hunt/trait-rules.js), their names after its sentence: "... for 40 (<names>)." */
 function traitsSaid(ev, text) {
   const names = traitNames(ev);
   if (!names.length) return text;

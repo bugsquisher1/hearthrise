@@ -12,7 +12,7 @@
 // Trait, crit and answer on one blow together, and a whole kit a tier up still beats a kit a tier down:
 //   offense  the hero's blow at a monster (amount.js blowAmount)     defense  a monster's blow at the hero
 //   heal     the hero's heal or shell (amount.js healAmount)
-// A TRADE (Hask's Bargain) is two rows on one `when`: offense + tradeSteps, defense - traitSteps (a cost: never clamped).
+// A TRADE (`trade`) is two rows on one `when`: offense + tradeSteps, defense - traitSteps (a cost: never clamped).
 // THE KEY RULE (04 guard 3): of a hero's Traits of one key only the larger counts (the higher rank; a tie, the party-wide one, then the lower
 // number), so two halves of one rule never make an always-on number. A PARTY Trait (scope 'party') gives every living hero of the wearer's
 // side its row while the wearer stands, counted once a party by the ledger's party rule (an ally's whole, outside its own cap).

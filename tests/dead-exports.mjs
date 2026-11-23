@@ -52,6 +52,7 @@ const BASELINE = join(ROOT, 'tests', 'dead-exports.baseline.json');
 export const ENTRY_TOOLS = [
   ['tools/build-site.mjs', 'builds the published site (.github/workflows/pages.yml): the art constants it reads decide which files ship'],
   ['tools/gen-*.mjs', 'write the server catalogues (SQL migrations) from src/data rows, the drift-guarded second home of game data'],
+  ['tools/new-ground.mjs', 'pins the band of a Danger ground (src/data/danger.js rows) from Lab runs under BAND_RULE, the scalable path for a new ground (24-content-pipeline)'],
   ['tools/world-art/*.mjs', 'build the world atlases and art manifests under src/data/world and assets/ that the client loads'],
   ['tools/balance-lab/build.mjs', "builds Tyler's Balance Lab artifact: the real engine under the designer's dials"],
 ];

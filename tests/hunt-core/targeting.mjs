@@ -369,7 +369,7 @@ const mutants = [
   { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank',
     edits: [['src/core/hunt/abilities.js', '{ [row.id]: sc.atMs + row.cdMs }', '{ [row.id]: sc.atMs }']] },
   { name: 'the Challenge rides the offense lane (audit c16)', case: 'challenge-obeys-its-slot',
-    edits: [['src/data/abilities.js', "disciplines: ['shield'], lane: 'support',", "disciplines: ['shield'], lane: 'offense',"]] },
+    edits: [['src/data/abilities.js', "n: 'Challenge', disciplines: ['shield'], party: true, lane: 'support',", "n: 'Challenge', disciplines: ['shield'], party: true, lane: 'offense',"]] },
   { name: 'the auto-Challenge fires on its own path again (audit c18)', case: 'challenge-obeys-its-slot',
     edits: [['src/core/hunt/abilities.js', '    const pick = firstUsable(inst, u, sc, engaged(inst, u).length ? null : mends);\n',
       "    if (challengeable(inst, u).length && !(u.cds && u.cds.challenge > sc.atMs)) { challengeFrom(inst, sc, u); u.cds = Object.assign({}, u.cds, { challenge: sc.atMs + 8000 }); }\n    const pick = firstUsable(inst, u, sc, engaged(inst, u).length ? null : mends);\n"]] },

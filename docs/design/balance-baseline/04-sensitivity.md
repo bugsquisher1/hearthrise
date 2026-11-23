@@ -98,12 +98,12 @@ Each cell is on the ground the game advises for its Level and party size. That i
 | healPower | Heal spell size | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | shieldPower | Shield spell size | family, Spells | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | spellLeech | Life leech (spells) | family, Spells | x0.25, x0.5, x2, x3 |
-| foodPrice | Store food price | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
-| drinkPrice | Store mana drink price | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| foodPrice | Store price ceiling | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| drinkPrice | Store reference restore | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | weaponDamage | Weapon damage by tier | family, Equipment | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | weaponAccuracy | Weapon accuracy by tier | family, Equipment | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | armorValue | Armor points by slot and tier | family, Equipment | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
-| runePrice | Store rune price | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
+| runePrice | Store charge floor | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | gearSaleRate | What dropped gear sells for | family, Rewards | x0.5, x0.75, x1.25, x1.5, x2 |
 | regroup | Wait between pulls | family, Spawns | x0.2, x0.5, x2, x4 |
 | blessingCut | Blessings' cut of a death | family, Progression | x0.5, x0.75, x1.25 |

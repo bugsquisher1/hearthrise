@@ -25,6 +25,7 @@ import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js';
 import { STATUSES, slowAt, slowScaleAt } from '../data/statuses.js';
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js';
 import { ITEMS } from '../data/items.js';
+import { MONSTER_ROLES } from '../data/monster-roles.js';
 import { isRune } from '../data/supplies.js';
 import { WEAPON_WORDS } from '../data/hunt-hud.js';
 import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widgets/bits.js';
@@ -193,6 +194,8 @@ function targetLine(r) {
   /* a ring round the hero that lands only its status (Frost Slam): what the status does, by its own row (bar.target_status_ring_<status>) */
   if (spec && spec.shape === 'ring' && spec.r === 1 && !landsBlow(r) && r.status) return t('bar.target_status_ring_' + r.status);
   if (spec && spec.shape === 'line') return t('bar.target_line', { len: spec.len });
+  /* a strike that picks its mark (`prefers`): the roles it takes first, by their own names (monster-roles.js) */
+  if (r.target === 'enemy' && Array.isArray(r.prefers)) return t('bar.target_prefers', { roles: r.prefers.map((id) => MONSTER_ROLES[id].name).join(', ') });
   if (spec && spec.shape === 'ring') {
     const far = spec.r > 1;
     return t('bar.target_ring' + (far ? '_far' : '') + (r.maxHits ? '_max' : ''), Object.assign({}, far ? { tiles: spec.r } : null, r.maxHits ? { max: r.maxHits } : null));

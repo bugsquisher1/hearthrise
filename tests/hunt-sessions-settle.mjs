@@ -5661,7 +5661,7 @@ const MUTANTS = [
   { arm: 'REPORT', name: 'the bar as played is never sent', file: join(FN, 'accrue-hunt.js'),
     from: 'barPlayedOf(hero ? hero.slots : null)', to: 'barPlayedOf(null)' },
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrue-hunt.js'),
-    from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s) });', to: '      analyzer: null });' },
+    from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s, ledger) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
     from: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));', to: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, 0)));' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),

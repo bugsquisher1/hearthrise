@@ -98,7 +98,7 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   const swingS = COMBAT_BALANCE.tickMs / 1000;
   /* ITS ARMOR (the role's `armor`): a share of every hero blow, so its health is written net of it and secondsToKill holds at any armor;
      an answer that strips armor (Armor Break) is then a real gain in kill time, never a wash */
-  const armorPm = Math.max(0, Math.min(900, Math.round(1000 * (R.armor || 0))));
+  const armorPm = Math.max(0, Math.min(1000, Math.round(1000 * (R.armor || 0))));
   const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);
   /* the windup's share and size, after the two global death-risk dials */
   const w = R.windup && R.windupShare > 0 && R.windupSize > 0 ? Math.min(1, R.windupShare) : 0;

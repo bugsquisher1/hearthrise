@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "18d4e4596e067723",
+ "authored": "5d54be7126852576",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 683,
-  "typed": 15857,
+  "typed": 15863,
   "files": 234,
   "lever": 293,
   "notLever": 390,
@@ -7565,19 +7565,19 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 80,
+     "line": 82,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 82,
+     "line": 84,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 88,
+     "line": 90,
      "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
      "binding": "MONSTER_ROLES"
     }
@@ -7646,46 +7646,46 @@
   {
    "id": "mf.role-dials",
    "category": "monster-stats",
-   "name": "Role power dials (seconds to kill, pressure, wind-up share and size)",
+   "name": "Role power dials (armor, seconds to kill, pressure, wind-up share and size)",
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 78,
-     "text": "secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
+     "line": 80,
+     "text": "armor: 0.3, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 81,
-     "text": "secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
+     "line": 83,
+     "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 84,
-     "text": "secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 87,
-     "text": "secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
+     "line": 86,
+     "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
      "line": 89,
-     "text": "secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
+     "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 93,
-     "text": "secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
+     "line": 91,
+     "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
+     "binding": "MONSTER_ROLES"
+    },
+    {
+     "file": "src/data/monster-roles.js",
+     "line": 95,
+     "text": "armor: 0.25, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
      "binding": "MONSTER_ROLES"
     }
    ],
-   "definition": "a formula monster at a gap of 0 (the ground's reference company on its reference step): health = secondsToKill x the company's damage a fighting second; it deals pressure x the reference hero's health a second, windupShare of it as wind-ups of windupSize of that health each (one every windupSize / (windupShare x pressure) s), the rest as steady blows (src/core/hunt/monster-formula.js roleStats)",
+   "definition": "a formula monster at a gap of 0 (the ground's reference company on its reference step): its armor takes that share off every hero blow (damage.js hurt through monster-formula.js monsterArmorPm, the one door an armor answer such as Armor Break moves); health = (1 - armor) x secondsToKill x the company's damage a fighting second; it deals pressure x the reference hero's health a second, windupShare of it as wind-ups of windupSize of that health each (one every windupSize / (windupShare x pressure) s), the rest as steady blows (src/core/hunt/monster-formula.js roleStats)",
    "range": "secondsToKill 0.5 to 60, pressure 0 to 0.1, windupShare 0 to 0.9, windupSize 0 to 0.5 (tests/hunt-core/monster-formula.mjs data). Content the designer owns (04 section 6: \"those are content rows\"); a wind-up must stay under the Steady line's cushion (about 0.25 of a hero's health at its top) or Steady dies (12-targets C-3)",
    "touches": "held depth, the supply bill, deaths by stance, kills an hour and the front seat's share of the damage on every formula ground",
    "outcomes": [
@@ -7755,7 +7755,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 94,
+     "line": 96,
      "text": "mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
      "binding": "MONSTER_ROLES"
     }
@@ -7817,7 +7817,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 118,
+     "line": 120,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -7881,13 +7881,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 120,
+     "line": 122,
      "text": "pull: Object.freeze({ killMult: 1, rampPerMinute: 0 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 121,
+     "line": 123,
      "text": "boss: Object.freeze({ killMult: 8, rampPerMinute: 0.1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -7958,7 +7958,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 123,
+     "line": 125,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8020,7 +8020,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 124,
+     "line": 126,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8082,13 +8082,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 126,
+     "line": 128,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 127,
+     "line": 129,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -16471,6 +16471,7 @@
   "src/data/monster-roles.js#MONSTER_ROLES": {
    "pin": "count",
    "keys": [
+    "armor",
     "everyS",
     "heldPm",
     "maxHitPm",
@@ -16483,7 +16484,7 @@
     "windupShare",
     "windupSize"
    ],
-   "typed": 28,
+   "typed": 34,
    "bindings": 1
   },
   "src/data/monster-roles.js#MONSTER_FORMULA": {

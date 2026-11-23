@@ -46,7 +46,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 683 (in 234 files, 15857 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 683 (in 234 files, 15863 typed numbers) |
 | Claimed by a lever | 293 |
 | Claimed by a not-a-lever reason | 390 |
 | Unclaimed | 0 |
@@ -284,7 +284,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `mf.mend` A Warder's mend | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidate mf-hasks: the Bannerman) |
 | not-in-runs | `mf.ramp` Threat that grows, by encounter type | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (Captain Hask on Muster Barrows) |
 | not-in-runs | `mf.ref` The reference company a formula ground is anchored on | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
-| not-in-runs | `mf.role-dials` Role power dials (seconds to kill, pressure, wind-up share and size) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe through the candidates mf-muster / mf-hasks / mf-wing (tools/balance-program/redesign/mf). No matrix run plans a stance |
+| not-in-runs | `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe through the candidates mf-muster / mf-hasks / mf-wing (tools/balance-program/redesign/mf). No matrix run plans a stance |
 | not-in-runs | `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
 | not-in-runs | `mon.boss-rooms` Boss room clocks (halls and called bosses) | Monster HP, damage, armor, resistances and behavior | no run plays a hall. The hall grader at Levels 25, 52 and 75 is owed (13-build-plan) |
 | not-in-runs | `mon.run-rooms` Tower and Catacomb rooms | Monster HP, damage, armor, resistances and behavior | tools/balance-sim/tower-climb.mjs plays climbs apart from the matrix |
@@ -348,7 +348,7 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `gear.material-tiers` Gear tiers: their Levels and value | 13 | 19 | 76 | patch | archetype |
 | `mon.aim-evasion` Monster aim and evasion | 13 | 9 | 77 | knob `monsterAccuracy` | global |
 | `mon.level-by-tier` A Level from the art tier | 13 | 0 | 77 | patch | exception-accidental |
-| `mf.role-dials` Role power dials (seconds to kill, pressure, wind-up share and size) | 12 | 20 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | 12 | 20 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
 | `mf.ramp` Threat that grows, by encounter type | 12 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
 | `mf.ref` The reference company a formula ground is anchored on | 12 | 19 | 78 | NOT PLAYABLE (not-in-runs) | exception-intentional |
 | `mon.party-fit` Party ground monster formula | 12 | 19 | 78 | knob `partyGroundHp` | exception-intentional |

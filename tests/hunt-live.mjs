@@ -373,8 +373,12 @@ function withRows(M, rows, fn) {
 }
 
 /* THE BUG #61 PARTY'S GEAR AS IT STOOD ON 2026-10-22 (LV-PULL's balance-blind arm, like WARRENS_BEFORE_STEP): the gear formula (lane/gear-catalogue-steps,
-   src/core/gear-stats.js) re-cut these pieces by a point or two, and a Steel Sword a point stronger finished lap 1 before a blow landed, so the laps this
-   arm reads came out other than it plays them. Who pulls and holds is balance-blind: the party fights on its own day's numbers. */
+   src/core/gear-stats.js) re-cut these pieces by a point or two (Steel Sword atk 12 -> 14, str 10 -> 11). MEASURED on those numbers (lane/live-refresh-bug):
+   under "Take turns" Eddie dies at 1,044 s, and server() never ends a dead member's hunt (it seats him again as a new unit), so every closed commit from there
+   reads "off the holder"; viewed, Eddie's Melee 42 lands inside its own window (624-640 s), the server counts it from the next swing (combat-sim.js
+   syncUnit) and one blow lands a point harder than the browser's frozen Eddie, so that commit is diverged before any commit can name his key. The
+   page restarts on it (live-link.js: a diverged commit asks for a start point); run() restarts only on a matched one, so the rest read off and
+   "refreshed at none". Not a page bug. Who pulls and holds is balance-blind: the party fights on its own day's numbers. */
 const PARTY_61_GEAR = Object.freeze({
   steel_sword: { atkB: 12, strB: 10 }, iron_sword: { atkB: 7, strB: 6 }, iron_helm: { defB: 5 }, steel_helm: { defB: 10 },
   bronze_platebody: { defB: 6, rangeAtkB: -2, magicAtkB: -3 }, steel_platelegs: { defB: 15, rangeAtkB: -4, magicAtkB: -8 }, bronze_boots: { defB: 2, rangeAtkB: -1, magicAtkB: -1 },
@@ -1239,7 +1243,9 @@ function rules(M) {
          the browser on his Melee 41 rolls, and a swing he hit on the server missed in the browser 150 s on (752 s under "One tank holds" on
          the one party table; 1,024 s before it, on the board since 11-08; the rule read 736 s for a day). Each commit names the peers' keys at
          its window's start (hunt-settle.js huntPeerKeys); a key the prediction does not run restarts it from the start point (run's refresh,
-         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop). */
+         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop).
+         0 off holds only while the level's OWN window agrees: the server counts a level from the next swing, and the first commit that names it is
+         the one after (keys at the window's start). One that moves a blow first is diverged, and the page restarts on that (PARTY_61_GEAR). */
       const vm = andy(hold);
       const peerLv = () => JSON.stringify([vm[0], vm[1]].map((m) => [M.XP.charLevelFromXp(m.levelXp), M.XP.levelsOf(m.skills)]));
       let lvWas = null, moves = 0;

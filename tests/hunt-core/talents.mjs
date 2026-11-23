@@ -143,19 +143,21 @@ const cases = {
   'borrow-opens': (M) => {
     const T = M.T;
     const sh = T.borrowBand('shelter', 'border');
-    if (!sh || sh.penaltyPm !== 300 || sh.opensAt !== 90) return 'Shelter at a border: ' + JSON.stringify(sh);
+    /* the table on one method (lane/roads-v0-remeasure, 18 section 7): Shelter 1.4 free at a border, opening at the floor */
+    if (!sh || sh.penaltyPm !== 0 || sh.opensAt !== 20) return 'Shelter at a border: ' + JSON.stringify(sh);
     if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered before V4 (measured past the last band)';
-    if (T.borrowBand('hoarfrost', 'havora') !== null) return 'Hoarfrost is offered at Havora';
-    if (T.borrowBand('hunters_mark', 'border').opensAt !== 30 || T.borrowBand('fireball', 'border').opensAt !== 80) return 'the table\'s Levels moved';
+    if (T.borrowBand('protective_ward', 'havora') !== null) return 'Protective Ward is offered at Havora';
+    if (T.borrowBand('protective_ward', 'border').opensAt !== 140 || T.borrowBand('fireball', 'border').opensAt !== 60) return 'the table\'s Levels moved';
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter', havora: 'use_fireball' };
-    if (T.grantsOf(b, 'restoration', 89).borrowed.includes('shelter')) return 'Shelter opened before Level 90';
-    const g90 = T.grantsOf(b, 'restoration', 90);
-    if (!g90.borrowed.includes('shelter') || g90.mods.shelter.penaltyPm !== 300) return 'Shelter at 90: ' + JSON.stringify(g90);
+    if (T.grantsOf(b, 'restoration', 19).borrowed.includes('shelter')) return 'Shelter opened before Level 20';
+    const g20 = T.grantsOf(b, 'restoration', 20);
+    if (!g20.borrowed.includes('shelter') || (g20.mods.shelter && g20.mods.shelter.penaltyPm)) return 'Shelter at 20: ' + JSON.stringify(g20);
     if (T.grantsOf(b, 'shield', 200).borrowed.includes('shelter')) return 'a native move counted as borrowed';
+    if (T.grantsOf(b, 'restoration', 39).borrowed.includes('fireball')) return 'Fireball through Havora opened before Level 40';
     const fb = T.grantsOf(b, 'restoration', 60);
-    if (!fb.borrowed.includes('fireball') || fb.mods.fireball.penaltyPm !== 500) return 'Fireball through Havora: ' + JSON.stringify(fb);
+    if (!fb.borrowed.includes('fireball') || fb.mods.fireball.penaltyPm !== 300) return 'Fireball through Havora: ' + JSON.stringify(fb);
     const row = M.TR.moddedRow(M.AB.ABILITIES.fireball, fb.mods.fireball);
-    if (row.hitPm !== Math.floor(M.AB.ABILITIES.fireball.hitPm / 2)) return 'the penalty did not reach what it lands: ' + row.hitPm;
+    if (row.hitPm !== Math.floor((M.AB.ABILITIES.fireball.hitPm * 700) / 1000)) return 'the penalty did not reach what it lands: ' + row.hitPm;
     return null;
   },
   /* EVERY TOWN LENDS A MEASURED MOVE (lane/roads-borrow-values; 17 section 3): a hero spends a point on a border town to reach its hybrid,

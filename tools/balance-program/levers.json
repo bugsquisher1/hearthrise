@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "fceef3521620d56b",
+ "authored": "516961434b31c25f",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 760,
-  "typed": 17041,
+  "typed": 17040,
   "files": 260,
   "lever": 334,
   "notLever": 426,
@@ -12235,13 +12235,13 @@
     },
     {
      "file": "src/data/talents.js",
-     "line": 101,
-     "text": "shelter: 8.5,",
+     "line": 106,
+     "text": "shelter: 1.4,",
      "binding": "BORROW_VALUES"
     }
    ],
    "definition": "a borrowed move's penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)",
-   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 (validate refuses a missing one): the town moves power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values)",
+   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 on one method, the engine's own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values, lane/roads-v0-remeasure)",
    "touches": "which hybrid builds exist at which Level, and how much a borrowed move adds",
    "outcomes": [
     "dps",
@@ -12303,67 +12303,67 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 190,
+     "line": 192,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 252,
+     "line": 254,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 311,
+     "line": 313,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 556,
+     "line": 558,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 551,
+     "line": 553,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 325,
+     "line": 327,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 365,
+     "line": 367,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 392,
+     "line": 394,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 423,
+     "line": 425,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 488,
+     "line": 490,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 574,
+     "line": 576,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     }
@@ -19697,7 +19697,6 @@
     "circle_of_renewal",
     "fireball",
     "flame_strike",
-    "frost_lance",
     "greater_mend",
     "hoarfrost",
     "power_strike",
@@ -19706,7 +19705,7 @@
     "shelter",
     "turning_cut"
    ],
-   "typed": 11,
+   "typed": 10,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {

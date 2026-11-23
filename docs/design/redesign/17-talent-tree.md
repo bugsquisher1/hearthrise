@@ -88,13 +88,13 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 
 | Move | V0 (measured) | Band | Opens at |
 |---|---|---|---|
-| Hunter's Mark | about 2 (pace) | No penalty | 30 |
-| Frost Lance | about 4 (pace) | No penalty | 60 |
-| Fireball | about 8 (pace) | −50% (−30% measured just over the cap) | 80 |
-| Shelter | 8.5 ± 4.2 (doesn't follow its power) | −30% | 90 at a border, 70 at Havora (the formula: 200 × 5.95 ÷ 14 = 85, up to 90. Ruled 2026-11-23, `29-tuning-pass.md`: the formula, not the hand 120) |
-| Challenge | 0 ± 3.7. Re-measure after the holder line (on the tank's own bar it cost 62.7 held, `23` section 3) | No penalty | 20 |
-| Hoarfrost | 15.8 ± 2.4 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
-| Protective Ward | 16.1 ± 3.9 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
+| Hunter's Mark | 0 (−0.9% pace ± 1.4, `18` section 7, one method) | No penalty | 20 |
+| Frost Lance | 0 (−1.9% pace, −12.8 held) | No penalty | 20 |
+| Fireball | 3.8 (pace, +2.7% ± 1.3) | No penalty at a border, −30% at Havora | 60 at a border, 40 at Havora |
+| Shelter | 1.4 ± 1.6 (held, on its own trigger it casts 28 times an hour) | No penalty at a border, −30% at Havora | 20 (the formula's floor) |
+| Challenge | 0 (−5.8 held ± 2.1, taunting from a hammer) | No penalty | 20 |
+| Hoarfrost | 2.7 (pace, +1.9% ± 1.0; `23`'s 15.8 was the mage losing it, not a borrow) | No penalty at a border, −30% at Havora | 40 at a border, 30 at Havora |
+| Protective Ward | 18.4 ± 1.9 (held, 7-tile reach; the engine's 1 tile: 11.7) | −50% at a border. Not offered at Havora | 140 |
 | Power Strike | 4.2 (pace, `18` section 7) | −30% | 50 at a border, 30 at Havora |
 | Flame Strike | 6.3 (pace) | −30% | 70 at a border, 50 at Havora |
 | Rend | 7.1 (pace) | −30% | 80 at a border, 60 at Havora |

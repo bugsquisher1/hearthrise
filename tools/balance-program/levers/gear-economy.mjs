@@ -190,9 +190,9 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'dark behind TALENT_RULES.live; the Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs'),
     ev: 'STATED (17-talent-tree.md v3 section 2, 19-power-ledger.md row 2)' }),
   L('roads.borrow-bands', 'equipment', 'global', 'The Roads: borrowing priced by value, and the Level a borrow opens at', {
-    at: [at('src/data/talents.js', 'Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),'), at('src/data/talents.js', 'openFloor: 20, openLevel'), at('src/data/talents.js', '  shelter: 8.5,')],
+    at: [at('src/data/talents.js', 'Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),'), at('src/data/talents.js', 'openFloor: 20, openLevel'), at('src/data/talents.js', '  shelter: 1.4,')],
     def: 'a borrowed move\'s penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)',
-    range: 'bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 (validate refuses a missing one): the town moves power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values)',
+    range: 'bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 on one method, the engine\'s own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values, lane/roads-v0-remeasure)',
     touches: 'which hybrid builds exist at which Level, and how much a borrowed move adds', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/hunt-core/talents.mjs', 'borrow-opens, town-values']], testReads: ['BORROW_VALUES'],
     perturb: NP('not-built', 'dark behind TALENT_RULES.live'),

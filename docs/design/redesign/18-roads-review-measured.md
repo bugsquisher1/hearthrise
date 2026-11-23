@@ -173,6 +173,40 @@ Six town moves had no V0, so four towns lent nothing while a hero still paid a p
 - **Greater Mend** with the engine's 1-tile reach reads +20.2 ± 3.3; with 17's 7 tiles, +97.4. Either way it is past 20, so it stays unoffered until V4, as 19 says.
 - **Two rows needed 17's rules the engine doesn't play yet** (`roads-lend-rules.json`). Raking Shot: a borrowed shot looses its own arrows (the engine only lets a bow loose one, `abilities.js castShotOf`), and its unlock reads Ranged 10, which a sword never trains (held at 10 here). Without both it never fires. Greater Mend: its native 7-tile reach. These gaps, and four town sides that lend nothing at all, are in CONFLICTS 2026-11-23.
 
+### 7a. Every V0 on the one method (2026-11-23, lane/roads-v0-remeasure)
+
+The rows older than section 7 came from sections 1 to 3 (clones on the borrower's blow) and from `23` (Hoarfrost and Ward: what the mage or healer lost without the move, which is not a borrow at all). So the table mixed three methods. Every row of `BORROW_VALUES` is now read the section 7 way: the engine's own borrow, Muster Barrows, Level 60, Steady, held start 570, 8 seeds × 8 h, paired against its own base, on the same tree. Where the engine lacks a 17 rule the move is measured with it (`roads-lend-rules.json`: a taunt from any seat and Ward's native 7 tiles are new here), and an unlock in the move's own skill is held at the unlock (Shelter's Melee 20 on the healer, Hoarfrost's Magic 14 on the hammer). The section 7 rows ran again on this tree and read the same to the decimal.
+
+| Move | Borrower, base | Casts / h | Held vs base | XP / hero-h vs base | Old V0 | New V0 | Border / Havora | Opens at (border / Havora), old → new |
+|---|---|---|---|---|---|---|---|---|
+| Challenge | hammer, M (taunts from any seat) | 282 | −5.8 ± 2.1 | −1.9% ± 0.7 | 0 | 0 | none / −30% (no change) | 20 / 20 (no change) |
+| Hunter's Mark | sword, NB | 284 | −5.3 ± 3.5 | −0.9% ± 1.4 | 2 | 0 | none / −30% (no change) | 30 / 20 → 20 / 20 |
+| Frost Lance | hammer, NM | 448 | −12.8 ± 2.7 | −1.9% ± 0.9 | 4 | 0 | none / −30% (no change) | 60 / 40 → 20 / 20 |
+| Fireball | hammer, NM | 262 | −5.3 ± 3.4 | +2.7% ± 1.3 | 8 | 3.8 | −30% / −50% → none / −30% | 80 / 60 → 60 / 40 |
+| Shelter | healer, M (Melee held at 20; its own trigger) | 28 | +1.4 ± 1.6 | +0.5% ± 0.6 | 8.5 | 1.4 | −30% / −50% → none / −30% | 90 / 70 → 20 / 20 |
+| Hoarfrost | hammer, NM (Magic held at 14) | 211 | 0.0 ± 2.6 | +1.9% ± 1.0 | 15.8 | 2.7 | −50% / not offered → none / −30% | 120 / none → 40 / 30 |
+| Protective Ward | sword, N (7-tile reach) | 279 | +18.4 ± 1.9 | +4.3% ± 0.7 | 16.1 | 18.4 | −50% / not offered (no change) | 120 → 140 |
+| Greater Mend | sword, N (7-tile reach) | 1,421 | +97.4 ± 3.9 | +41.7% ± 4.6 | 97.4 | 97.4 | not offered (no change) | V4 |
+| Power Strike, Flame Strike, Rend, Circle, Turning Cut, Raking Shot | as section 7 | | | | as section 7 | the same | no change | no change |
+
+- **Three moves change band**: Fireball, Shelter and Hoarfrost all fall into the free band (V0 4 or less). On a borrower the offense spells read the native mage's blow but cast at the borrower's own Magic (a hammer's Magic is 1, so its rune version is the lowest), and Shelter on its own trigger (two heroes under 80%) fires 28 times an hour in a four with a healer. Hoarfrost is now offered at Havora (−30%), so the crossing lists one more option (182 rows; `1064` regenerated STAGED, the census re-pinned on that one row).
+- **Frost Lance and Hunter's Mark read below zero** on a melee borrower (Frost Lance −12.8 held: the hammer spends its global clock on a slower blow). V0 is never under 0, so both are free and open at 20.
+- **Protective Ward** at its native 7 tiles moves inside its band (16.1 to 18.4). It opens at 140 now (the formula, V 9.2 after −50%). In band is enough. At the engine's 1 tile it reads 11.7 ± 2.7.
+- **What would move these again**: the borrow engine's version rule (a borrowed spell's rune version read from a skill the borrower trains, section 7b) could lift Fireball and Hoarfrost on a high-Magic borrower. The values above are the rule the engine plays today.
+
+### 7b. What the borrow engine needs (2026-11-23, lane/roads-v0-remeasure → the borrow-engine lane)
+
+Of CONFLICTS 2026-11-23's eight town sides that buy nothing, four are the map (every move the town names is the hero's own or past the last band: Shield at Shield · Restoration, Dual Axe at Club · Dual Axe, Sword at Sword · Club, Destruction at Destruction · Restoration), the designer's. The other four are the engine: the move is offered and priced, and today's engine never casts it for that hero. Each was measured with the rule it lacks (`roads-lend-rules.json`, or the unlock held by `roads-run.mjs`), so its V0 holds once the engine plays the rule.
+
+| Town side | Move | Why it never casts today | What the engine needs (17 section 3) |
+|---|---|---|---|
+| Restoration at Shield · Restoration | Shelter | Its `unlock` (20) and its rune versions read its own skill, Melee (`abilitySkill`), which a healer holds at 1 and never trains: the slot waits `level` (`abilities.js` firstUsable) | A borrowed move's gate is the borrow's own opening Level (`borrowBand` opensAt, the Roads price), not its native skill: its unlock passes once the borrow is granted, and its versions read a skill the borrower trains (17: "Training: trains the skill its row names"; the version skill is the ruling to make). Measured with Melee held at 20 and the store rune bought for that Melee |
+| Dual Axe at Dual Axe · Ranged | Raking Shot | A cast looses only what the worn weapon shoots (`abilities.js castShotOf`, `shootsItem` by role): an axe has no arrow. Its unlock reads Ranged 10, which an axe never trains | A borrowed shot looses its own arrows (17: "Supplies: uses its own rune or arrows"; the lab's seam lets a borrower loose a carried Bronze Arrow, ammo free), and the unlock rule above |
+| Destruction at Destruction · Shield | Challenge | `targeting.js challengeable` / `inReachOf` take only a tank (`isTank`) | A borrowed Challenge taunts from any seat (17: "Taunts: from any seat, its hold × its power"): `challengeable` and `challengeFrom` read the hero's borrow list (`borrowBlows` names `challenge`), and the hold takes the borrow's penalty. One-holder-a-lap (`holderTank`) has to say whether a non-tank holder counts |
+| Sword at Sword · Shield | Challenge | The same `isTank` gate | The same rule |
+
+Beside them, two rules change a V0 but not whether a move casts: a borrowed ally heal or ward reaches as its native move (Greater Mend and Protective Ward 7 tiles; the engine gives the holder's range, `cast-targets.js reachOf`, a melee hero's 1 tile), and no borrowed heal shares Mend's clock (V4, 19's heal rule). Nothing here is built; `src/core/hunt/*` is the borrow-engine lane's.
+
 ## Files
 
 `tools/balance-program/redesign/roads/`: `make-lend.mjs` (writes `roads-lend.json`, the candidate, and `roads-lend-rules.json`, the same with 17's borrow rules the engine lacks), `check-lend.mjs` (proves both plant), `roads-run.mjs` (the cells: plans q1, q2, q3, q3f, time, v0, v0rules), `summarize.mjs` → `summary.txt`, `v0.mjs` → `v0-values.txt` (section 7), and each plan's `.json` (per seed) and `.txt`.

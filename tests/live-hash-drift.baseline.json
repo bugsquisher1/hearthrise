@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 4927,
+  "replay_ms": 4230,
   "counts": {
-    "tracked_names": 1133,
-    "entries": 958
+    "tracked_names": 1137,
+    "entries": 962
   },
   "functions": [
     {
@@ -5470,12 +5470,49 @@
       "agree": true
     },
     {
+      "sig": "hr_faction_buy(p_slot integer, p_piece text, p_price bigint, p_idem uuid)",
+      "name": "hr_faction_buy",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1068-faction-company.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d950e7583025f61cfa56f48733341629",
+        "norm_len": 4036,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1068-faction-company.sql."
+    },
+    {
+      "sig": "hr_faction_company_lock(p_user uuid)",
+      "name": "hr_faction_company_lock",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1068-faction-company.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "5e9035c178724cb282b437783c0c3a7c",
+        "norm_len": 374,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1068-faction-company.sql."
+    },
+    {
       "sig": "hr_faction_credit(p_user uuid, p_slot integer, p_hunt text, p_from timestamp with time zone, p_to timestamp with time zone)",
       "name": "hr_faction_credit",
       "tracked_by": [
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql"
       ],
       "live": {
@@ -5485,11 +5522,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "80df65988e450ea0fa6c54c319f5262a",
-        "norm_len": 2643,
+        "md5": "107dc8c4cfa56bbdeb74cca84c89d670",
+        "norm_len": 2872,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_faction_done(p_uid uuid, p_slot integer, p_idem uuid, p_intent text, p_kind text, p_faction text, p_piece text, p_standing bigint, p_swap bigint)",
@@ -5520,6 +5558,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql"
       ],
       "live": {
@@ -5529,11 +5568,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "5d7d00d9716df3c3d6cad7067a6045e8",
-        "norm_len": 2412,
+        "md5": "f36556acab48bbe2d57184e68c1abd8d",
+        "norm_len": 2469,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_faction_ledger_immutable()",
@@ -5561,10 +5601,12 @@
       "sig": "hr_faction_locked(p_verb text, p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
       "name": "hr_faction_locked",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql",
         "2027-04-23-faction-section.sql"
       ],
@@ -5575,11 +5617,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "221fcaeeb6a6a827ce5026a92cc69eb9",
-        "norm_len": 1268,
+        "md5": "6e3f041ef49f44717ba5cc0d4a4230c4",
+        "norm_len": 1444,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_faction_outfit_claim(p_slot integer, p_piece text, p_idem uuid)",
@@ -5588,6 +5631,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql"
       ],
       "live": {
@@ -5597,11 +5641,30 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "b9d88e88f55a075e28657572c2d9fede",
-        "norm_len": 2385,
+        "md5": "b00bf7f11f415ba691ea56133a411abd",
+        "norm_len": 2700,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
+    },
+    {
+      "sig": "hr_faction_piece_price(p_piece text, p_level integer)",
+      "name": "hr_faction_piece_price",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1067-faction-company-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "516c2eeadb9c4d985eabd7044e46c403",
+        "norm_len": 521,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1067-faction-company-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1067-faction-company-catalogue.generated.sql."
     },
     {
       "sig": "hr_faction_raise_only()",
@@ -5654,6 +5717,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-05-28-faction-swap-cancel.sql"
       ],
       "live": {
@@ -5663,11 +5727,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "3024b6e618513d6849d20b0343c2314a",
-        "norm_len": 1803,
+        "md5": "44fe8df7f331f8d63156145ef3a91d43",
+        "norm_len": 1771,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_faction_swap_finish(p_slot integer, p_idem uuid)",
@@ -5676,6 +5741,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql"
       ],
       "live": {
@@ -5685,11 +5751,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "799778368af927c1e63c5e30572c039b",
-        "norm_len": 2007,
+        "md5": "ed6c2535ac220ddb781c2d03c67c0357",
+        "norm_len": 1975,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_faction_swap_start(p_slot integer, p_faction text, p_idem uuid)",
@@ -5698,6 +5765,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql"
       ],
       "live": {
@@ -5707,11 +5775,30 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "28b9d7a9bdfa092ada7e39aa8f81920e",
-        "norm_len": 2601,
+        "md5": "bbb45feb5c8d573dd11ed18e9447c826",
+        "norm_len": 2572,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
+    },
+    {
+      "sig": "hr_faction_top_level(p_user uuid)",
+      "name": "hr_faction_top_level",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1068-faction-company.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "6db39afccca03593a4f021b159a65cc7",
+        "norm_len": 460,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_faction_view(p_user uuid, p_slot integer)",
@@ -5720,6 +5807,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2027-04-22-faction-standing.sql"
       ],
       "live": {
@@ -5729,11 +5817,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "8bfb24900cebbd7f9797439263f24284",
-        "norm_len": 1723,
+        "md5": "3186ebb6b10af6279d7a9f3ce14b1112",
+        "norm_len": 2057,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_farm_growth_hours(p_planted timestamp with time zone, p_waterings timestamp with time zone[], p_now timestamp with time zone)",
@@ -7326,7 +7415,7 @@
       ],
       "live": null,
       "replay": {
-        "md5": "678416e381644a4f14c97a0815b2a043",
+        "md5": "a8eacb011b4e81b72a9c2c630257c4d7",
         "norm_len": 1343,
         "source": "computed-from-replay"
       },
@@ -13791,6 +13880,7 @@
         "restate"
       ],
       "touched_by": [
+        "1068-faction-company.sql",
         "2026-10-25-character-sheet.sql",
         "2027-02-10-settle-plan-cache.generated.sql",
         "2027-04-30-sweeps-coat.sql",
@@ -13803,11 +13893,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "e96a36a681fe324d084ce26baa25ac44",
-        "norm_len": 1229,
+        "md5": "b0203ed52f5907bae64476a7bd6d2cfb",
+        "norm_len": 1345,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1068-faction-company.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1068-faction-company.sql."
     },
     {
       "sig": "hr_outfit_set(p_slot integer, p_outfit text, p_colors jsonb, p_idem uuid)",
@@ -17753,8 +17844,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "ca16e5077f5a1415412e8751ff7baaf4",
-        "norm_len": 2227,
+        "md5": "ae07975c37db3b3565493bc194634be6",
+        "norm_len": 2424,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -17883,8 +17974,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "cec966bdc8532d9e281aef5b21e31055",
-        "norm_len": 2189,
+        "md5": "726d32dc0c882a7d4f6acc4cb8ab7051",
+        "norm_len": 2516,
         "source": "computed-from-replay"
       },
       "agree": false,

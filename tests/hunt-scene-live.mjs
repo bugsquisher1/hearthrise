@@ -956,14 +956,17 @@ async function nodeRules(M) {
   }
 
   { // LV-36 A RELOAD MID-HUNT NEVER READS "1 / 415" (live v0.2.114, Corliss alone at Mosslight, up to a minute a reload).
-    // The real session over the real engine, a Level 21 tank alone at Mosslight. The page loads (a read), then asks its
+    // The real session over the real engine, a tank alone at Mosslight. The page loads (a read), then asks its
     // first settle, whose window runs from the last commit: 16 s when the page was open until the reload, two minutes
     // when it was closed or frozen and the server settled late. No start point has landed yet (the 1 HP span).
+    // The hero must live through the two minutes or nothing is read: the live case was Level 21, and since the 11-23 set
+    // (named pieces, the tuning pass) a Level 21 or 23 tank with a practice shield dies there at 64 s; 26 holds at 191 HP.
+    // A hunt that ended has no world: its hero reads 0 HP, so the CONTROL below says so instead of the harness throwing.
     const reload = async (spanMs) => {
-      const mk = () => { const m = LIVE_H.memberOf(LM, 'a', 0, 'tank', 21); m.huntId = 'mosslight_glade'; return m; };
+      const mk = () => { const m = LIVE_H.memberOf(LM, 'a', 0, 'tank', 26); m.huntId = 'mosslight_glade'; return m; };
       const mis = [mk()], twinMis = [mk()];
       const srv = LIVE_H.server(LM, mis, { hunt: 'mosslight_glade' }), twin = LIVE_H.server(LM, twinMis, { hunt: 'mosslight_glade' });
-      const heroOf = (s) => LM.WS.decodeStored(JSON.parse(s.inst.world)).units.find((u) => u.side === 'hero');
+      const heroOf = (s) => (s.inst.world ? LM.WS.decodeStored(JSON.parse(s.inst.world)).units.find((u) => u.side === 'hero') : null) || { hp: 0, maxHp: 0 };
       const FROM = LIVE_H.T0 + 60000, TO = FROM + spanMs, OFF = 3000000;
       srv.commit(FROM); twin.commit(FROM);
       /* the engine's own HP through the window, swing by swing (a twin server that commits every swing) */

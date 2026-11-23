@@ -400,9 +400,24 @@
         "why": "+190 B: factions.js stock rows and stockPrice (lane/factions-morrow-hills), read by the engine's ground side lookup"
       },
       {
-        "bytes": 3785923,
+        "bytes": 3778006,
         "on": "2026-11-23",
-        "why": "lane/monster-roles-ford-wings (merged with set/v0.2.144 e51617ff3): every scale ground on the monster formula: roles on the Ford's and the Catacombs' rows, the Ford's drop chances re-derived, src/core/hunt/danger.js dropPmAt/coinKeptOf/formulaStepOf, monster-formula's anchor, pull-cycle's in-area roomier edge, and their comments"
+        "why": "+50 B: Hask's Ford drop chances re-derived at three significant digits by gen-drop-hours --write after the tuning pass's refKillsHead 235 (lane/ci-reds-client-1123)"
+      },
+      {
+        "bytes": 3778023,
+        "on": "2026-11-23",
+        "why": "+17 B: two field-salvage chances under the faster kills of the 11-23 set (stag .0036, salamander .0037, field-salvage's 0.5 h floor; lane/ci-reds-client-1123)"
+      },
+      {
+        "bytes": 3779973,
+        "on": "2026-11-23",
+        "why": "+borrow values: six town V0 rows and the not_offered refusal (lane/roads-borrow-values) on top of the ci-reds drop chances"
+      },
+      {
+        "bytes": 3787889,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings merged over the set: Ford and both Catacomb wing rows carry roles and spells, core danger.js gains formulaStep, coinKillsHead and dropPmAt, movement veto for the corridor pull (+7,916 B over the set)"
       }
     ]
   }

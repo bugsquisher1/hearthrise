@@ -11,6 +11,11 @@
 // a seed with the real death rule, played through tools/balance-sim/worker.mjs -> cell.mjs runCell -> hr-accrue -> combat-sim.js on the
 // roads-lend candidate's scratch copy (make-lend.mjs: a borrowed move is a clone row on the borrower's discipline at a power permille).
 // A borrow is one slot added to one seat's played bar (cell.mjs addSlotsBySeat). Seeds are paired: seed s is the same dice in every cell.
+// A borrow of power 'engine' (plans v0 and v0rules, lane/roads-borrow-values) is no clone: the native id on the seat's own borrow list
+// (cell.mjs borrowedBySeat -> heroSetup `borrowed`), so it plays as the engine lends a move (its native weapon's blow, borrow-blow.js).
+//   node tools/balance-program/redesign/roads/roads-run.mjs --plan v0 --seeds 8 --hours 8 --json .../v0.json
+//   node tools/balance-program/redesign/roads/roads-run.mjs --plan v0rules --candidate tools/balance-program/redesign/roads/roads-lend-rules.json ...
+//   node tools/balance-program/redesign/roads/v0.mjs     the V0 table off both
 //
 // Read per seed: the held step (time-weighted from --settle h to the four's end, the pull in which the first hero died), deaths, Level
 // XP a hero-hour, gold a hero-hour (coin, coin + loot at the store's price), the store bill a hero-hour (supplies), and per seat the
@@ -33,10 +38,11 @@ const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
 const { loadKits } = await imp('tools/balance-program/grid-kit.mjs');
 const { heldStart } = await imp('tools/balance-program/redesign/held-four.mjs');
-const { shoppingTier, RUNE_TIERS } = await imp('tools/balance-sim/played.mjs');
+const { shoppingTier, RUNE_TIERS, playedBar } = await imp('tools/balance-sim/played.mjs');
 const { STYLES } = await imp('tools/balance-sim/styles.mjs');
 const C = await imp('tools/balance-program/candidates.mjs');
 const { lentId } = await imp('tools/balance-program/redesign/roads/make-lend.mjs');
+const { ABILITIES, abilitySkill } = await imp('src/data/abilities.js');
 const D = await loadGridData(ROOT), K = await loadKits(ROOT);
 const START = arg('start') ? Number(arg('start')) : await heldStart(ROOT, GROUND);
 
@@ -47,6 +53,9 @@ const BASES = {
   S: ['sword', 'bow', 'mage', 'healer'],       // a sword in the healer's four
   NM: ['hammer', 'bow', 'sword', 'healer'],    // no mage
   NB: ['hammer', 'sword', 'mage', 'healer'],   // no bow
+  /* lane/roads-borrow-values: the fours that lack the last town moves */
+  T: ['tank', 'bow', 'mage', 'healer'],        // no Turning Cut (a tank in front: no sword, club or axes)
+  Y: ['axes', 'bow', 'mage', 'healer'],        // no Power Strike (axes in front: no sword, club or shield)
 };
 /* how a borrowed row sits on the bar: its rune family, the slot it follows, its conditions (the native played bar's, else the row's
    suggested trigger) */
@@ -60,6 +69,13 @@ const HOW = {
   fireball: { family: 'fire', after: 'turning_cut', cond: AOE(2) },
   frost_lance: { family: 'ice', after: 'turning_cut', cond: [] },
   hunters_mark: { family: null, after: 'challenge', cond: [] },
+  /* lane/roads-borrow-values: the town moves owed a V0, each on the native played bar's conditions and in its native place */
+  flame_strike: { family: 'fire', after: 'turning_cut', cond: [] },
+  rend: { family: 'rupture', after: 'flame_strike', cond: [] },
+  power_strike: { family: null, after: 'rend', cond: [] },
+  turning_cut: { family: null, after: 'challenge', cond: AOE(2) },
+  raking_shot: { family: null, after: 'turning_cut', cond: AOE(2) },
+  circle_of_renewal: { family: 'water', after: 'power_strike', cond: [{ op: 'gte', value: 2, metric: 'allies_below', subject: 'under_90' }] },
   /* E3's samples (e3-lab.json): an aura move holds while slotted; Warm Stone takes the ally-shield target rule (an ally under 70%, unshielded) */
   t_open_fire: { family: null, after: 'greater_mend', cond: [] },
   t_open_fire_whole: { family: null, after: 'greater_mend', cond: [] },
@@ -70,7 +86,10 @@ const ownRunes = (family) => RUNE_TIERS.map(([, t]) => `${t}_${family}_rune`).re
 const DISC = { hammer: 'club', sword: 'sword', healer: 'restoration', bow: 'ranged', mage: 'destruction', tank: 'shield', axes: 'dual_axe' };
 
 /* a borrow: [seat, native id, pm, reach] */
-const cellOf = (id, base, borrows = []) => ({ id, base, borrows });
+/* `extra`: cell fields laid on every seed (a bag beside the supply policy: bagByRole) */
+const cellOf = (id, base, borrows = [], extra = null) => ({ id, base, borrows, ...(extra ? { extra } : {}) });
+/* the free Bronze Arrow on the melee seats (a borrowed shot's own arrows, roads-lend-rules.json): the base and its borrow cell alike */
+const ARROWS = { bagByRole: { melee_dps: { bronze_arrows: 1 } } };
 const PLANS = {
   /* Q1: a borrowed Greater Mend (the hammer) and Shelter (the healer) at 0 / -30 / -40%, and the engine's own melee reach */
   q1: [cellOf('M', 'M'),
@@ -92,6 +111,18 @@ const PLANS = {
     cellOf('M+SH@heal:400', 'M', [[3, 'shelter', 400, 0]])],
   /* L10 (19 section 5): gold an hour against held depth, the same four ~50 steps apart (a borrowed Greater Mend buys the depth) */
   l10: [cellOf('M', 'M'), cellOf('M+GM@ham:1000', 'M', [[0, 'greater_mend', 1000, 7]])],
+  /* V0 (lane/roads-borrow-values, 17 section 3): every town move with no measured value, at full power in a four that lacks it, against
+     its own base (18 section 3's method), lent by THE ENGINE'S OWN BORROW (heroSetup `borrowed`: the native row on the native weapon's
+     blow, 17's rule since 18 measured on clones). Greater Mend again on the sword in N (17 asks for a re-measure; its row moved since q2) */
+  v0: [cellOf('M', 'M'), cellOf('M+FS@ham', 'M', [[0, 'flame_strike', 'engine', 0]]), cellOf('M+RE@ham', 'M', [[0, 'rend', 'engine', 0]]),
+    cellOf('N', 'N'), cellOf('N+CR@sw', 'N', [[3, 'circle_of_renewal', 'engine', 0]]), cellOf('N+GM@sw', 'N', [[3, 'greater_mend', 'engine', 0]]),
+    cellOf('T', 'T'), cellOf('T+TC@tank', 'T', [[0, 'turning_cut', 'engine', 0]]),
+    cellOf('Y', 'Y'), cellOf('Y+PS@axes', 'Y', [[0, 'power_strike', 'engine', 0]])],
+  /* V0 of the two moves the engine's own borrow cannot play as 17 rules them, on roads-lend-rules.json (make-lend.mjs): a borrowed SHOT
+     (Raking Shot: the borrower looses the free Bronze Arrow it carries, the melee seats carrying one in both cells) and a borrowed ALLY
+     HEAL's native reach (Greater Mend at 7 tiles; v0's N+GM@sw is the engine's 1 tile) */
+  v0rules: [cellOf('NB', 'NB', [], ARROWS), cellOf('NB+RS@sw', 'NB', [[1, 'raking_shot', 'engine', 0]], ARROWS),
+    cellOf('N', 'N'), cellOf('N+GM@sw:reach7', 'N', [[3, 'greater_mend', 'engine', 0]])],
   /* Q5: one cell, timed */
   time: [cellOf('M', 'M')],
   /* E3 (lane/e2-e3-statuses): Open Fire on the healer as sized (build slice, ramped) and whole, and Warm Stone on the hammer (pm null: the row as it is) */
@@ -107,15 +138,30 @@ for (const c of plan) {
   const styles = BASES[c.base];
   const b = buildCell(D, K, { L, gear: 'mid', styles, tier: 'normal', ground: GROUND });
   const addSlotsBySeat = styles.map(() => null), lent = {};
+  const borrowedBySeat = styles.map(() => null), unlockRaised = {};
   for (const [seat, id, pm, reach] of c.borrows) {
-    const style = styles[seat], role = STYLES[style].role, how = HOW[id], cid = pm === null ? id : lentId(id, DISC[style], pm, reach);
+    const style = styles[seat], role = STYLES[style].role, how = HOW[id];
+    /* pm 'engine' (lane/roads-borrow-values): the ENGINE'S OWN BORROW, no clone. The native id goes on the seat's borrow list (heroSetup
+       `borrowed`: the native row, its native weapon's reference blow, src/core/borrow-blow.js) at full power; the role's played bar
+       already holding the move keeps its own slot, place and conditions, else the slot is added as HOW says */
+    const engine = pm === 'engine', cid = pm === null || engine ? id : lentId(id, DISC[style], pm, reach);
     const magic = (b.cell.skillsBySeat[seat] || {}).magic || L;
+    if (engine) borrowedBySeat[seat] = [...(borrowedBySeat[seat] || []), id];
+    /* a borrowed row's unlock reads ITS OWN skill (abilities.js abilitySkill: Raking Shot's Ranged 10, Turning Cut's Melee 10), which a
+       borrower of another weapon may never have trained: the seat holds it at the unlock, so "full power" is the move cast at all */
+    const sk = abilitySkill(ABILITIES[id]), seatSkills = b.cell.skillsBySeat[seat];
+    if (engine && ABILITIES[id].unlock && seatSkills && (seatSkills[sk] || 1) < ABILITIES[id].unlock) {
+      b.cell.skillsBySeat = b.cell.skillsBySeat.map((s, i) => (i === seat ? { ...s, [sk]: ABILITIES[id].unlock } : s));
+      unlockRaised[seat] = sk + ' ' + ABILITIES[id].unlock;
+    }
+    lent[seat] = cid;
+    if (engine && playedBar(role, { magic }).some((s) => s.action.type === 'ability' && s.action.id === id)) continue;
     const action = how.family ? { id: cid, type: 'ability', own: ownRunes(how.family), store: storeRune(how.family, shoppingTier(role, how.family, magic, 'real')), onEmpty: 'store' } : { id: cid, type: 'ability' };
     addSlotsBySeat[seat] = { after: how.after, slots: [...((addSlotsBySeat[seat] && addSlotsBySeat[seat].slots) || []), { id: 'p_' + cid, join: 'and', conditions: how.cond, action }] };
-    lent[seat] = cid;
   }
-  const cell = { ...b.cell, options: { risk: RISK, danger: START }, hours: HOURS, seeds: 1, ...(c.borrows.length ? { addSlotsBySeat } : {}) };
-  cells.push({ ...c, styles, lent });
+  const cell = { ...b.cell, options: { risk: RISK, danger: START }, hours: HOURS, seeds: 1, ...(c.borrows.length ? { addSlotsBySeat } : {}),
+    ...(borrowedBySeat.some(Boolean) ? { borrowedBySeat } : {}), ...(c.extra || {}) };
+  cells.push({ ...c, styles, lent, ...(Object.keys(unlockRaised).length ? { unlockRaised } : {}) });
   for (let s = 0; s < SEEDS; s++) jobs.push({ key: c.id + '#' + s, job: { ...cell, id: 'ROADS:' + c.id + '#' + s, seedBase: 1000 + s } });
 }
 
@@ -187,7 +233,7 @@ const KEYS = ['held', 'deaths', 'xpPerHeroH', 'incomePerHeroH', 'coinPerHeroH', 
 for (const c of cells) {
   const seeds = [];
   for (let s = 0; s < SEEDS; s++) seeds.push(readSeed(out[c.id + '#' + s], c));
-  const o = { id: c.id, base: c.base, styles: c.styles, borrows: c.borrows, perSeed: {}, seatMs: [] };
+  const o = { id: c.id, base: c.base, styles: c.styles, borrows: c.borrows, perSeed: {}, seatMs: [], ...(c.unlockRaised ? { unlockRaised: c.unlockRaised } : {}) };
   for (const k of KEYS) { o[k] = stat(seeds.map((x) => x[k])); o.perSeed[k] = seeds.map((x) => r(x[k])); }
   o.deathsTotal = seeds.reduce((a, x) => a + x.deaths, 0); o.seedsWithDeath = seeds.filter((x) => x.deaths > 0).length;
   o.firstDeathH = seeds.map((x) => r(x.firstDeathH)).filter((x) => x !== null);

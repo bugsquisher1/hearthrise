@@ -78,6 +78,9 @@ export const LEVERS = Object.freeze([
   { id: 'event-fee', cls: 'multiply', on: 'gold', size: 'open halls: a Call-out fee cut for the event', label: 'READ FROM DATA', system: 'live-events' },
   { id: 'blessings', cls: 'sink', on: 'gold', size: 'keeps 25 / 50 / 75% of a death\'s Level XP for a fee by Level', label: 'RULED (11-10)', system: 'blessings' },
   { id: 'premium-gift', cls: 'source', on: 'items', size: 'Premium\'s daily gift', label: 'RULED (24-4, amended C9)', system: 'premium' },
+  /* Booked 2026-11-23 (G14 strangers, lane/ci-reds-client-1123): the redesign's Trait faucet and the company flame's luck on it. */
+  { id: 'rare-hours', cls: 'source', on: 'items', size: 'a Rare every 40 hunted hours a hero at the reference step, a Very Rare every 400; x1 to x3 by depth; the top open rank 500 permille, at most 800', label: 'READ FROM DATA (drop-hours.js; 13-market 3.2, 12-targets 3.3, 21 D-4)', system: 'loot' },
+  { id: 'flame-luck', cls: 'multiply', on: 'items', size: 'a fed company\'s Rare and Very Rare chance x1 to x1.6 (never reached), after depth and before pity; the top open rank x the same, at most 800 permille', label: 'READ FROM DATA; DESIGNED (21 section 1, D-4, D-5); dark behind the switch inner_flame', system: 'inner-flame' },
 ]);
 
 /* THE CLASSES A LEVER MAY HOLD (balance guard G14). The four stack classes, a gold source or sink (30-plan section B's "Source" and "Sink"),
@@ -113,6 +116,7 @@ export const LEVER_KEYS = Object.freeze({
   'stamina:free': 'stamina-cap', 'stamina:premium': 'stamina-cap', 'premium:stamina': 'stamina-cap', 'premium:login': 'premium-gift',
   'refill': 'refills',
   'hero-slot': 'hero-slots',
+  'drop-hours': 'rare-hours', 'flame-luck': 'flame-luck',
 });
 
 /* WHERE every dive measures. `open` false = the ground is staged; measure.mjs plays it with gear.openAlso. */

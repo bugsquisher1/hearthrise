@@ -14,6 +14,7 @@
 //              gear, jewel) the store's ask for its book x count; the companions are the one named holdout (UNCONVERTED)
 //   WP-SINKS   every gold-sink ladder is its hours at step 1; the bank's rungs and the key ring are theirs
 //   WP-START   the starting purse, the training items and the plot tiers are their hours at step 1
+//   WP-TALLY   every task of Tamsin's on a Danger-scale ground pays sharePm of its hours of wage at the ground's refLevel
 //   WP-WORKS   the Weighhouse's smallest gift, day, goal a weekly active account and stage marks are their hours at step 1
 //   WP-CEIL    ONE store ceiling: no src/data module exports a SHOP_PREMIUM or a JEWEL_SHOP_PREMIUM again, and every plain jewel's
 //              shop price is the store's ask for its book
@@ -44,6 +45,8 @@ import { PLOT_TIER_PRICES } from '../src/core/farm.js';
 import { TOWN_WORKS } from '../src/data/town-works.js';
 import { JEWEL_SHOP_PRICE } from '../src/data/jewelry.js';
 import { ITEMS } from '../src/data/items.js';
+import { TALLY_TASKS, TALLY_RULES } from '../src/data/tally-tasks.js';
+import { DANGER_GROUNDS } from '../src/data/danger.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /* The step an account good with no tier of its own reads (the base wage): gold-sinks.js, gold-ladders.js, training.js, start-kit.js,
@@ -65,7 +68,7 @@ export function check({
   tiers = PROPERTY_TIERS, rungs = ROOM_RUNGS, chests = STORAGE_CHESTS, offers = SHOP_OFFERS, propertyHours = PROPERTY_HOURS_PM,
   supply = SUPPLY_SHOP_OFFERS, sinks = SINK_RULES, bank = BANK_LADDER, keyRing = KEY_RING_GOLD, start = START_CURRENCY.gold,
   training = TRAINING_GEAR, plots = PLOT_TIER_PRICES, works = TOWN_WORKS, jewels = JEWEL_SHOP_PRICE, sources = null,
-  priceFn = wagePrice, listFn = wageListPrice,
+  priceFn = wagePrice, listFn = wageListPrice, tally = TALLY_TASKS,
 } = {}) {
   const fails = [];
   const f = (arm, msg) => fails.push(arm + ' ' + msg);
@@ -137,6 +140,14 @@ export function check({
   }
   for (const [lv, p] of Object.entries(plots)) if (p.gold !== wageListPrice(p.hoursPm, BASE_STEP)) f('WP-START', `plot tier ${lv} costs ${p.gold} g, its hours list at ${wageListPrice(p.hoursPm, BASE_STEP)}`);
 
+  /* WP-TALLY */
+  for (const t of tally) {
+    const g = Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, t.hunt) ? DANGER_GROUNDS[t.hunt] : null;
+    if (!g) continue;
+    const want = wageListPrice(Math.round((TALLY_RULES.sharePm * t.hoursPm) / 1000), g.refLevel);
+    if (!(t.hoursPm > 0) || t.gold !== want) f('WP-TALLY', `${t.id} pays ${t.gold} g on a scale ground, ${TALLY_RULES.sharePm} permille of its ${t.hoursPm} milli-hours of wage(${g.refLevel}) list at ${want}: a typed reward`);
+  }
+
   /* WP-WORKS */
   for (const [id, w] of Object.entries(works)) {
     for (const k of ['minGift', 'perDay', 'perActive']) {
@@ -172,6 +183,7 @@ function mutants() {
   const stage = clone(TOWN_WORKS); stage.weighhouse.stages[2].at = 80000;
   const jewels = { ...JEWEL_SHOP_PRICE, banded_signet: 3000 };
   const sources = [['shops.js', 'export const SHOP_PREMIUM = 2;']];
+  const tally = clone(TALLY_TASKS); { const t = tally.find((x) => DANGER_GROUNDS[x.hunt]); if (t) t.gold = 2560; }
   return [
     ['WP-UNIT', 'the price floored where the server ceils', { priceFn: (h, st) => Math.floor((h * wage(st)) / 1000) }],
     ['WP-UNIT', 'a list price to three figures', { listFn: (h, st) => { const g = wagePrice(h, st); const p = 10 ** Math.max(0, String(g).length - 3); return Math.round(g / p) * p; } }],
@@ -187,6 +199,7 @@ function mutants() {
     ['WP-START', 'the starting purse typed at 500', { start: 500 }],
     ['WP-START', 'a training item typed', { training }],
     ['WP-START', 'a plot tier typed', { plots }],
+    ['WP-TALLY', 'a scale ground task back at its old typed gold', { tally }],
     ['WP-WORKS', 'the Weighhouse day typed', { works }],
     ['WP-WORKS', 'a Weighhouse stage typed', { works: stage }],
     ['WP-CEIL', 'a plain jewel back at its 10x premium', { jewels }],

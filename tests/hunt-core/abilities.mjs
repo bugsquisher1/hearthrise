@@ -451,6 +451,38 @@ const cases = {
     if (mk !== want) return 'a marked monster took ' + mk + ' of a blow the unmarked one took ' + un + ' of, want ' + want;
     return hit(marked, row.durMs) === un ? null : 'the mark outlived its ' + row.durMs + ' ms';
   },
+  /* THE BOW'S TWO TARGETS (lane/moves-pass-1, 23-spell-audit.md section 4). Precision Shot takes a monster whose role reaches past the
+     front (`prefers`: a Shooter, Caster or Stalker) in reach before the bow's own target, on the Danger scale where monsters play roles;
+     off it, the bow's own target. Hunter's Mark lands on the bow's own target while it is unmarked, else the healthiest unmarked in reach. */
+  'bow-picks-its-marks': async (M) => {
+    const { MONSTERS } = await import(pathToFileURL(join(M.root, 'src/data/monsters.js')).href + sourceQuery(M.root));
+    const { openDanger } = await import(pathToFileURL(join(M.root, 'src/core/hunt/danger.js')).href + sourceQuery(M.root));
+    const roles = Object.assign({}, MONSTERS, { rat: Object.assign({}, MONSTERS.rat, { role: 'brute' }), slime: Object.assign({}, MONSTERS.slime, { role: 'stalker' }) });
+    const shot = (onScale) => {
+      const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
+      const x = oneHero(M, { role: 'ranger', target: 10 }, { hs, bar: ['precision_shot'], range: 7, ammo: 'iron_arrows' },
+        [{ x: 13, y: 3, hp: 5000, maxHp: 5000 }, { x: 16, y: 3, hp: 5000, maxHp: 5000, kind: 'slime' }]);
+      x.inst.monsters = roles;
+      if (onScale) openDanger(x.w, 'steady', 0);
+      x.sc.rng = rngOf(M, 3);
+      M.abilities.castAbilities(x.inst, x.sc);
+      const c = x.sc.events.find((e) => e.type === 'cast' && e.ability === 'precision_shot');
+      return c ? c.t : null;
+    };
+    if (shot(true) !== 11) return 'on the scale Precision Shot took monster ' + shot(true) + ', not the Stalker (11) behind the bow\'s own target';
+    if (shot(false) !== 10) return 'off the scale Precision Shot took monster ' + shot(false) + ', not the bow\'s own target (10)';
+    const mark = (ownHp, markOwn) => {
+      const x = oneHero(M, { role: 'ranger', target: 10 }, { bar: ['hunters_mark'], range: 7 },
+        [{ x: 14, y: 3, hp: ownHp, maxHp: 5000 }, { x: 15, y: 3, hp: 5000, maxHp: 5000 }, { x: 15, y: 4, hp: 4000, maxHp: 5000 }]);
+      if (markOwn) { x.w.units.find((u) => u.id === 10).markUntil = 99999; }
+      M.abilities.castAbilities(x.inst, x.sc);
+      const c = x.sc.events.find((e) => e.type === 'cast' && e.ability === 'hunters_mark');
+      return c ? c.t : null;
+    };
+    if (mark(1000, false) !== 10) return 'the Mark took monster ' + mark(1000, false) + ', not the bow\'s own target (10)';
+    if (mark(1000, true) !== 11) return 'with its own target marked the Mark took monster ' + mark(1000, true) + ', not the healthiest unmarked (11)';
+    return null;
+  },
   /* MEND, THE UNIVERSAL SELF-HEAL (roadmap p21; Bible §17): every discipline's bar keeps it (it counts against none of
      the three), it heals its own caster on the heal lane with mana and no rune, it needs missing HP (at full health it
      never casts, so it never pays Magic XP for nothing), and it pays Magic at the physical builds' quarter. */
@@ -1063,6 +1095,13 @@ async function withRows(root, edits) {
 }
 
 const mutants = [
+  /* lane/moves-pass-1: the bow's two targets */
+  { name: 'Precision Shot shoots the bow\'s own target again', case: 'bow-picks-its-marks',
+    edits: [['src/data/abilities.js', "target: 'enemy', prefers: ['shooter', 'caster', 'stalker'], hitPm: 750,", "target: 'enemy', hitPm: 750,"]] },
+  { name: 'a preferred role is read off the scale too', case: 'bow-picks-its-marks',
+    edits: [['src/core/hunt/abilities.js', 'const r = monsterRoleOf(inst, m);', 'const r = MONSTER_ROLES[((inst.monsters || {})[m.kind] || {}).role];']] },
+  { name: 'the Mark takes the healthiest again', case: 'bow-picks-its-marks',
+    edits: [['src/core/hunt/abilities.js', '      if (own && !(own.markUntil > sc.atMs)) return own;\n', '']] },
   { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
     edits: [['src/data/abilities.js', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600,', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1200,']] },
   { name: "a healer's basic trains Magic at another rate", case: 'a-mage-and-a-healer-train-alike',

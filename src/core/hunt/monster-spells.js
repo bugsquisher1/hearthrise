@@ -189,7 +189,7 @@ export function castSpells(inst, sc) {
     if (u.cast) {
       u.cast.left = Math.max(0, u.cast.left - sc.dtMs);
       /* (a spell due to land after a hero went under the Danger scale's line waits: the break-off resets its caster first, danger.js breaksOff) */
-      if (u.cast.left === 0 && !breaksOff(inst.world)) land(inst, sc, u, spellRow(u.cast.s));
+      if (u.cast.left === 0 && !breaksOff(inst)) land(inst, sc, u, spellRow(u.cast.s));
       continue;
     }
     for (const id of list) {

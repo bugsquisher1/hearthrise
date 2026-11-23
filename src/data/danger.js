@@ -199,6 +199,13 @@ export const RISKS = Object.freeze({
   bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),
 });
 
+/* THE HOLDER'S LINE (docs/design/redesign/23-spell-audit.md section 3; Tyler 2026-11-22: "the tank falls back at 15% on Steady while
+   others fall back at 25%"): the hero holding the Challenge (the lap's holding tank, src/core/hunt/targeting.js holderTank) reads every
+   stance's two thresholds times linePm / 1000 (Steady 15% and 27%, Careful 27% and 39%, Bold 7.2% and 18%). A tank is meant to sit low and
+   be healed: read on the stance's own line, the move whose job is to pull every blow onto one hero broke the pull the four was winning
+   (23 section 3, MEASURED: the four held 63 steps deeper with no Challenge at all). A fall back is never a death: Steady still never dies. */
+export const HOLDER = Object.freeze({ linePm: 600 });
+
 /* THE DEFAULT STANCE (02 package 3 and package 8, "the first party ground runs on Steady"; the Coordinator 2026-11-22, lane R2): a hunt on a
    ground the scale opens on, whose leader's plan names no stance, plays this one. The server freezes it (hr_danger_rules.default_risk,
    tools/gen-danger.mjs; 1057-danger-falls.sql hr_danger_freeze), so no verb is needed first; a client shows it where the plan names none. */

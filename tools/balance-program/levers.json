@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b8540d7d585e6592",
+ "authored": "80dbf8c09b23a3f2",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 194,
+  "levers": 195,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -76,7 +76,7 @@
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 26,
+   "monster-stats": 27,
    "spawn": 11,
    "monster-rewards": 15,
    "rare-drops": 6,
@@ -88,7 +88,7 @@
   },
   "byClass": {
    "global": 91,
-   "archetype": 28,
+   "archetype": 29,
    "content": 47,
    "exception-intentional": 17,
    "exception-accidental": 11
@@ -100,13 +100,13 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 21,
+   "not-playable:not-in-runs": 22,
    "variant": 5,
    "not-playable:not-built": 13,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 83,
+   "asserted": 84,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 677,
-  "typed": 15807,
+  "bindings": 678,
+  "typed": 15809,
   "files": 233,
-  "lever": 290,
+  "lever": 291,
   "notLever": 387,
   "unclaimed": 0
  },
@@ -2000,7 +2000,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 111,
+     "line": 114,
      "text": "export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal: 1000 });",
      "binding": "ABILITY_LANES"
     }
@@ -2676,7 +2676,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 140,
+     "line": 143,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2762,7 +2762,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 142,
+     "line": 145,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2900,7 +2900,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 210,
+     "line": 221,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -2941,11 +2941,11 @@
      "tests/balance-guard.mjs",
      "tests/boss-hall-advice.mjs",
      "tests/bug-triage.mjs",
+     "tests/content-coherence.mjs",
      "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/conditions.mjs",
-     "tests/hunt-core/effect-readers.mjs"
+     "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3246,7 +3246,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 337,
+     "line": 350,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3283,12 +3283,12 @@
      "tests/area-spells-server.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-hall-advice.mjs",
+     "tests/content-coherence.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs",
-     "tests/hunt-core/effect-readers.mjs",
-     "tests/hunt-core/elements.mjs"
+     "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4454,7 +4454,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 135,
+     "line": 138,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -4952,9 +4952,10 @@
     ],
     "mentions": [
      "tests/balance-sheet.mjs",
+     "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/monster-roles.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5222,7 +5223,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5608,7 +5609,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6171,7 +6172,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 42,
+    "mentionCount": 44,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6259,7 +6260,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 43,
+    "mentionCount": 45,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7071,6 +7072,75 @@
    "evidence": "MEASURED (V1.1, v2-stance.mjs)"
   },
   {
+   "id": "danger.holder-line",
+   "category": "monster-stats",
+   "name": "The holding tank's line",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 207,
+     "text": "export const HOLDER = Object.freeze({ linePm: 600 });",
+     "binding": "HOLDER"
+    }
+   ],
+   "definition": "the lap's holding tank (targeting.js holderTank) reads every stance's fall back trigger and climb threshold times linePm / 1000 (Steady 15% and 27%); the pull's margin is the hero furthest under its own line, and a fall back names the HP it reached",
+   "range": "linePm 1..1000 permille. Tyler 2026-11-22: \"the tank falls back at 15% on Steady while others fall back at 25%\". A fall back is never a death, so Steady still never dies",
+   "touches": "how deep a four with a tank holds: the Challenge pulls every blow onto one hero, and read on the stance's own line the tank's dip broke the pull (23-spell-audit.md section 3: no Challenge held 63 steps deeper)",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "holder: the tank's line, the margin, the climb and the named HP",
+      "reads": [
+       "HOLDER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/auth-lock.mjs",
+     "tests/delta-key-allowlists.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/party-defense.mjs",
+     "tests/hunt-core/targeting.mjs",
+     "tests/hunt-live.mjs",
+     "tests/trophy-call-sites.mjs",
+     "tests/world-tick-armed-cap.mjs"
+    ],
+    "mentionCount": 12,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by spell-run.mjs (plan P) on the real engine",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h)"
+  },
+  {
    "id": "danger.pay",
    "category": "monster-rewards",
    "name": "Pay by depth",
@@ -7124,7 +7194,7 @@
      "tests/cadence-recovery-floor.mjs",
      "tests/character-window.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7191,7 +7261,7 @@
      "tests/cadence-recovery-floor.mjs",
      "tests/character-window.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7244,6 +7314,7 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
@@ -7252,7 +7323,7 @@
      "tests/lineup-v4.mjs",
      "tests/needs-you.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7336,7 +7407,7 @@
      "tests/cadence-recovery-floor.mjs",
      "tests/character-window.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7496,9 +7567,10 @@
     ],
     "mentions": [
      "tests/balance-sheet.mjs",
+     "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/monster-roles.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8048,7 +8120,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8118,7 +8190,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8239,7 +8311,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8358,7 +8430,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9559,10 +9631,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9628,10 +9701,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9721,10 +9795,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9861,10 +9936,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9930,6 +10006,7 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
@@ -9938,7 +10015,7 @@
      "tests/lineup-v4.mjs",
      "tests/needs-you.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10005,6 +10082,7 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
@@ -10013,7 +10091,7 @@
      "tests/lineup-v4.mjs",
      "tests/needs-you.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15758,6 +15836,14 @@
     "fallPm"
    ],
    "typed": 6,
+   "bindings": 1
+  },
+  "src/data/danger.js#HOLDER": {
+   "pin": "count",
+   "keys": [
+    "linePm"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/danger.js#PAY": {

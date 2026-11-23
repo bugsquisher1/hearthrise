@@ -80,6 +80,12 @@ const PLANS = {
     cellOf('T~challenge_backhit@0', 'T', [[0, ['challenge']]], [[0, 'challenge_backhit']])],
   S: [cellOf('S', 'S'), ko('S', 0, 'flame_strike'), ko('S', 0, 'power_strike'), ko('S', 0, 'turning_cut')],
   H1: [cellOf('H1', 'H1'), ko('H1', 0, 'undertow')],
+  /* THE FIRST PASS (lane/moves-pass-1, 23 section 9): every base four and the lone healer, run before and after on the same seeds
+     (compare.mjs pairs two runs' seeds); the tank's four also with the Challenge on its new suggested condition */
+  P: [cellOf('T', 'T'), cellOf('M', 'M'), cellOf('S', 'S'), cellOf('H1', 'H1'),
+    cellOf('T~challenge_selfok@0', 'T', [[0, ['challenge']]], [[0, 'challenge_selfok']])],
+  /* the tank's four alone, for a deaths read over more seeds */
+  PT: [cellOf('T', 'T'), cellOf('T~challenge_selfok@0', 'T', [[0, ['challenge']]], [[0, 'challenge_selfok']])],
 };
 const plan = PLANS[PLAN];
 if (!plan) { console.error('spell-run: no plan ' + PLAN + ' (' + Object.keys(PLANS).join(', ') + ')'); process.exit(2); }

@@ -89,6 +89,15 @@ export const GEAR_STEPS = Object.freeze({
   pity: Object.freeze({ rare: true }),
 });
 
+/* CARRY-OVER'S PRICE (systems, lane/flame-temper-build, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md section 2.3). An
+   Artificing job moves EVERY Trait of a piece, with its rank and the piece's rarity (D-6), onto a PLAIN base of the same slot and the same or a
+   higher tier (carryOver above); the old piece is destroyed and nothing rolls. For each Trait it takes partsBase + rank rare parts from the
+   Trait's home ground (its `source` pack's uncommon rows), and hoursPerStepPm / 1000 hours of wage a Trait step (traitSteps) at the new base's
+   item Level, burned; workPm / 1000 work-hours of an Artificing hero. The price rule: a carry stays under the same piece bought new at the
+   new tier (13-market 3.2): at 0.5 a rank 3 carry is 5 hours of wage. STARTING VALUES (21 levers, bands): hoursPerStepPm 500 (300 to 1000),
+   partsBase 2 (1 to 4), workPm 1000 (500 to 2000). src/core/carry-over.js quotes it; the job (hr_carry_over) is owed with trait_pieces. */
+export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });
+
 /** The item Level of base tier `tier` (tier 0 is the starting kit). */
 export const tierLevel = (tier) => tier * GEAR_STEPS.tierSteps;
 

@@ -308,7 +308,18 @@ into the bag): lane C order, like a drop row.
 
 - **Catalogue coherence** (`tests/catalogue-coherence.mjs`, W0.4) — every item has a
   source AND a use, every declared effect is live, and every skill has a consumer. Author an item with no faucet, or one nothing spends, and CI goes red.
+- **Content coherence** (`tests/content-coherence.mjs`, lane/content-pipeline): every Danger-scale ground has its band, gear base, one drop home and a Trait pool. Its band is the one `tools/new-ground.mjs` measured on its current rows (`tests/danger-band-pins.json`). Every Trait and Signature has a home that exists. Every live move has its icon, and its road and Signature once the Roads are live.
 - **Every fix/feature ships with its own test** (`CLAUDE.md` → Testing discipline).
+
+---
+
+## The redesign's content: one more of everything
+
+`docs/design/redesign/24-content-pipeline.md` has a table per content type: a ground on the Danger scale, monster and role, drop row, gear tier, Trait, Signature, move, weapon and its Roads country, Roads node, rune family, consumable or imbuement, recipe, market value. Each table gives the steps, tools, guards, Lab check and what could force a rebalance. Section 5 lists where content still costs code. The fast paths:
+
+- **A ground on the Danger scale** → author the pack (`tools/pack.mjs new` / `propose` / `check`), then `node tools/new-ground.mjs <id> --entry L --top L`. That runs the three Lab cells, cuts the band and prints the verdict. Paste the printed row (gear base, drop home and Trait pool are design calls), then run with `--write` to pin it. Then `node tools/gen-danger.mjs` for the server catalogue (lane C). Changing that ground's monsters later turns CC-2 red until it's measured again.
+- **A move or a weapon** → `node tools/content-checklist.mjs move <id>` or `weapon <discipline>` prints every step, ticked from the data.
+- **Roads nodes and Signatures** → build `src/data/talents.js` and `src/data/signatures.js` to the contract in 24 section 4, so the guard binds them the day they land.
 
 ---
 

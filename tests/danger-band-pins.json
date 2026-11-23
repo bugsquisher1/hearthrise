@@ -1,0 +1,82 @@
+{
+ "_why": "THE DANGER BANDS AS MEASURED (lane/content-pipeline, docs/design/redesign/24-content-pipeline.md section 2). Each scale ground's band and the print of the rows it was measured on (tools/lib/danger-band.mjs packPrint). Written by `node tools/new-ground.mjs <ground> ... --write`, never by hand: tests/content-coherence.mjs CC-2 reds a DANGER_GROUNDS band that differs from its pin (unless the pin carries `hand`, the reason it was set by hand) and a ground whose pack or monster rows changed since (re-measure). Seeded 2026-11-22 from R10's reports (tools/balance-program/redesign/r10).",
+ "_generated_by": "node tools/new-ground.mjs <ground> --write",
+ "grounds": {
+  "muster_barrows": {
+   "refStep": 590,
+   "floorStep": 480,
+   "topStep": 710,
+   "print": "b46ea08577d50f1c",
+   "measured": "2026-11-22",
+   "verdict": "REVIEW",
+   "levels": {
+    "entry": 55,
+    "top": 75,
+    "mid": 65
+   },
+   "evidence": [
+    "tools/balance-program/redesign/r10/muster_barrows-check.json",
+    "tools/balance-program/redesign/r10/muster_barrows-top.json",
+    "tools/balance-program/redesign/r10/muster_barrows-floor.json"
+   ],
+   "hand": "12-targets 3.1: floor 480 / middle 590 / top 710 from V1 (lane/v1-climb) and the 120-step pay cap; R10 read it back as 475/590/705, inside the band. Its LOW four (Level 55) holds 320.9, under the floor (24-content-pipeline.md gap G3)"
+  },
+  "hasks_ford": {
+   "refStep": 590,
+   "floorStep": 470,
+   "topStep": 710,
+   "refKillsHead": 220,
+   "print": "b832fc681050d1d8",
+   "measured": "2026-11-22",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 45,
+    "top": 60,
+    "mid": 52
+   },
+   "evidence": [
+    "tools/balance-program/redesign/r10/hasks_ford-check.json",
+    "tools/balance-program/redesign/r10/hasks_ford-top.json",
+    "tools/balance-program/redesign/r10/hasks_ford-floor.json"
+   ]
+  },
+  "catacomb_bone_wing": {
+   "refStep": 480,
+   "floorStep": 415,
+   "topStep": 545,
+   "refKillsHead": 155,
+   "print": "c78b59371fab46b6",
+   "measured": "2026-11-22",
+   "verdict": "STAGED",
+   "levels": {
+    "entry": 165,
+    "top": 185,
+    "mid": 175
+   },
+   "evidence": [
+    "tools/balance-program/redesign/r10/catacomb_bone_wing-final.json",
+    "tools/balance-program/redesign/r10/catacomb_bone_wing-top.json",
+    "tools/balance-program/redesign/r10/catacomb_bone_wing-floor.json"
+   ]
+  },
+  "catacomb_flooded_wing": {
+   "refStep": 440,
+   "floorStep": 370,
+   "topStep": 510,
+   "refKillsHead": 150,
+   "print": "e9b8d7f0d61e2c41",
+   "measured": "2026-11-22",
+   "verdict": "STAGED",
+   "levels": {
+    "entry": 165,
+    "top": 185,
+    "mid": 175
+   },
+   "evidence": [
+    "tools/balance-program/redesign/r10/catacomb_flooded_wing-final.json",
+    "tools/balance-program/redesign/r10/catacomb_flooded_wing-top.json",
+    "tools/balance-program/redesign/r10/catacomb_flooded_wing-floor.json"
+   ]
+  }
+ }
+}

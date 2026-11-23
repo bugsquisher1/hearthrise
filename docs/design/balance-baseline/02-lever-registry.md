@@ -39,16 +39,16 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **195** | 91 | 29 | 47 | 28 | 31 | 82 | 84 |
+| Economy sources and sinks | 43 | 28 | 3 | 11 | 1 | 0 | 38 | 30 |
+| **All** | **203** | 98 | 29 | 48 | 28 | 31 | 90 | 92 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 678 (in 233 files, 15809 typed numbers) |
-| Claimed by a lever | 291 |
-| Claimed by a not-a-lever reason | 387 |
+| Top-level bindings in the rule code that hold a typed number | 686 (in 235 files, 15864 typed numbers) |
+| Claimed by a lever | 294 |
+| Claimed by a not-a-lever reason | 392 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -203,6 +203,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `party.run-xp` Run ground party table | Its pair and three rows are ASSUMED | 44 P-X09, CONFIRMED |
 | contradictory | `party.under-floor` Under-floor Level share | A Level-keyed cut on party XP is live. Tyler's 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT | 44 P-X06, CONFIRMED |
 | contradictory | `econ.store-kit` The store's basics, priced in hours of wage | Priced once at the row's own step, not at the buyer's (04 section 3, 09 4.6): a hero far past a row's step pays that row's price. The server change is handed off | src/data/store-kit.js header. JUDGMENT |
+| contradictory | `econ.store-lag` The store a tier behind, and its floor | The live store (econ.store-kit) still prices each basic at its crafted partner's own step and gives three quarters of its effect (82 steps behind, not 20): the formula's store is not yet the hunt's | tools/balance-program/redesign/trades/measure.mjs. COMPUTED |
 | contradictory | `econ.blessing-price` Blessing prices | Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms | 44 P-X20, CONFIRMED |
 | contradictory | `econ.training` Training yard pay and fee | The fee in code (50 + 6 a level) is not the fee Tyler ruled (100 gold x skill level an hour, 2026-11-20 24-8) | 44 P-X30, CONFIRMED |
 | contradictory | `econ.companions` Companions | Added after the +20% permanent cap, on its own curve | 44 P-X27, HYPOTHESIS |
@@ -294,13 +295,21 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.house` House: property, rooms, chests, room perks | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.hunt-block` Bought hunting block price | Economy sources and sinks | a block is bought in town or mid-hunt, never by a cell. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.jewelry-crafting` Jewelry tiers, Hallmark and rolls | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.job-fee` The job fee | Economy sources and sinks | a gold sink of town work |
 | outside-hunt | `econ.refill` Stamina refill price | Economy sources and sinks | retired from play. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.shop-prices` Shop offers | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.store-lag` The store a tier behind, and its floor | Economy sources and sinks | the cells buy at the live catalogue's price (econ.store-kit) until the store moves onto this rule |
+| outside-hunt | `econ.stream-cover` The cover of each hunting stream | Economy sources and sinks | a sink size, read by the job slice |
 | outside-hunt | `econ.tally` Tally task rewards | Economy sources and sinks | the cells hold no task |
 | outside-hunt | `econ.temper-price` Tempering prices | Economy sources and sinks | the kits hold rungs without paying for them |
+| outside-hunt | `econ.tool-wear` Tools that break after 12 hours of use | Economy sources and sinks | town work |
 | outside-hunt | `econ.town-sinks` Town sinks (powder, rounds, criers, setup slots, colors, the House dummy) | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.town-work` Gathering, cooking and crafting rates | Economy sources and sinks | town work (gathering and benches) is not simulated by the matrix |
 | outside-hunt | `econ.town-works` The Weighhouse goal | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.trade-curve` Yield, quality and speed on one curve | Economy sources and sinks | town work is not a hunt cell. Measure.mjs plays the job over seeds |
+| outside-hunt | `econ.trade-kinds` The trades' kinds of good | Economy sources and sinks | content |
+| outside-hunt | `econ.trade-table` Trade XP to 99 | Economy sources and sinks | trade XP is town work |
+| outside-hunt | `econ.trade-work` Town work behind a kit-hour: the line and stage shares, the ladder, the durable goods | Economy sources and sinks | town work is not a hunt cell. Tools/balance-program/redesign/trades/measure.mjs plays the closed-form job |
 | outside-hunt | `econ.wage-base` The wage at step 0 | Economy sources and sinks | a price, never read by a cell. Tools/balance-program/redesign/w/fit.mjs reads it against the measured pay |
 | outside-hunt | `econ.wage-step` The wage's growth a step | Economy sources and sinks | a price, never read by a cell. Fit.mjs fits it |
 | outside-hunt | `econ.work-day` A hero's daily town work | Economy sources and sinks | town work is not a hunt cell. 09 section 5.8 names the labor model the Lab must add |

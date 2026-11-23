@@ -2189,6 +2189,21 @@
    "class": "operational",
    "note": "1014-works-goal-sized.sql: one row a sized Town Works project, today's goal from the weekly active accounts, written once a UTC day by hr_town_works_size_to (the first Works read of the day). A cache of a count, never player value: lost or empty, hr_town_works_goal reads the least goal until the next read sizes it again (and a project whose total has reached its goal reads done either way). Not restored."
   },
+  "hr_trade_kinds": {
+   "class": "seeded",
+   "replay": 37,
+   "note": "Generated catalogue (1063-trade-formulas-catalogue.generated.sql, tools/gen-trades.mjs from src/data/trades.js and src/core/trades.js): one row a kind of good, its work in micro-hours, its own work, inputs and hunted inputs. No verb reads it yet; once the job slice does, empty means every trade twin answers null and no job can start. Rebuilt from repo, never restored."
+  },
+  "hr_trade_levers": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1063-trade-formulas-catalogue.generated.sql, tools/gen-trades.mjs): one row, the trades' levers as whole numbers (the yield curve, quality, speed, the XP window, the job fee, the store's lag and floor, tools). Empty, every hr_trade_* twin reads nulls. Rebuilt from repo, never restored."
+  },
+  "hr_trade_xp": {
+   "class": "seeded",
+   "replay": 99,
+   "note": "Generated catalogue (1063-trade-formulas-catalogue.generated.sql, tools/gen-trades.mjs, src/core/trades.js tradeXpTable): the XP (seconds of work) to reach each trade Level, 1,000 hours to 99. Empty, hr_trade_level reads Level 1 for every total. Rebuilt from repo, never restored."
+  },
   "hr_training_gear": {
    "class": "seeded",
    "replay": 16,

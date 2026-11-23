@@ -124,6 +124,42 @@
         "gzipBytes": 911585,
         "on": "2026-11-22",
         "why": "R9 power step: +0.4 KB gzip at town, the browser's frozen peer row and member snapshot now carry gearPm (src/core/member.js, hunt/danger.js) for display parity"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 912044,
+        "on": "2026-11-22",
+        "why": "gold an hour: the Hunts window's estimate line (gold-estimate-sections.js) and the report's earned line (+0.5 KB gzip)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 913001,
+        "on": "2026-11-22",
+        "why": "wave 2 monster roles: +0.9 KB gzip at town, the role labels (Targets / Countered by) the hunt view and bestiary read"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 914554,
+        "on": "2026-11-22",
+        "why": "40 hidden Trait rows reach town through danger.js -> gear-steps.js (re-export of traits.js); data only, nothing shown until wave 4 wires drops"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 914615,
+        "on": "2026-11-23",
+        "why": "visual pass 2: label rewrites on report, Risk, services, work and carry-on lines plus their style rules at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 915665,
+        "on": "2026-11-23",
+        "why": "econ levers: store prices computed from the wage (store-kit.js) where the shop reads them at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 915843,
+        "on": "2026-11-23",
+        "why": "watched stamp: away-recap reads the server's watched section at town (+0.2 KB)"
       }
     ]
   }

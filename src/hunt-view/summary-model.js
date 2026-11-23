@@ -329,6 +329,9 @@ export function buildSummary(s, an, deaths, role, stop, line, report) {
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
     /* Level XP an hour, the server's (per_hour.xp, sent once the hunt is rated): the end card's figure under the Level XP. */
     xpH: ph ? ph.levelXp : null,
+    /* THE GOLD AN HOUR EARNED (lane/gold-per-hour), the server's: coins and loot an hour (per_hour.gold, the wage's own measure, before
+       supplies) and the store supplies an hour (per_hour.waste). The report's earned line beside the Hunts window's estimate. */
+    goldH: ph ? ph.goldAndLoot : null, wasteH: ph ? ph.waste : null,
     /* THE LEVEL LINE (levelLine): the Level the hunt began at and ended at, and the skills it raised, each the server's. */
     lvFrom: line ? line.lvFrom : null, lvTo: line ? line.lvTo : null, ups: line ? line.ups : [],
     standing: line && Array.isArray(line.standing) ? line.standing : [],

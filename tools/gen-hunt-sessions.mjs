@@ -383,7 +383,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    report_falls_max (hunt-report.js HUNT_REPORT.fallsMax), read by 1057-danger-falls.sql. */
 /* 1058-hunting-blocks-hunt-sessions-catalogue (lane/r8-hunting-day, 2026-11-22; Tyler: the hunting day is 10 h, 12 h with Premium): hr_hunt_limits'
    stamina_free_min moves 480 -> 600 (STAMINA_MAX_MS.free); 1054 (STAGED, with R2's fold: regenerated when lane/r2-danger-falls merged) is
-   carried whole. */
+   carried whole. ...AND lane/econ-levers FOLDED INTO it (2026-11-22, still STAGED): hr_hunt_basic_supplies' derived store prices
+   (src/data/store-kit.js) and the vendor values that follow the crafted partners' price list. */
 export const OUT_NAME = '1058-hunting-blocks-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;

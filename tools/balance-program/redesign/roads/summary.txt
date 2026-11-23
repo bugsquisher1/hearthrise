@@ -1,0 +1,79 @@
+
+== q1: muster_barrows L60 steady, held start 570, 8 seeds x 8 h, held from hour 1, wall 557 s on 7 workers
+cell | held | deaths (seeds) | XP/hero-h | gold/hero-h | store/hero-h | heal all/h | shield in/h | drinks/h | borrowed casts/h, mana/h, borrower heal out/h + self/h
+M | 607.2 +- 3 | 0 (0) | 255273 +- 5090 | 4719 +- 72 | 11508 +- 63 | 155427 +- 1256 | 29174 +- 178 | 523 +- 3 | -
+M+GM@ham:1000 | 657.1 +- 3.2 | 0 (0) | 304875 +- 3773 | 4715 +- 30 | 11681 +- 66 | 203015 +- 2803 | 29560 +- 58 | 569 +- 6 | hammer: 791 +- 8, 19764.8, 26308.3 + 70159.3
+   vs M: held 49.9 +- 4.2 | XP 49602 +- 6465 (19.4%) | gold -4 +- 64 (-0.1%) | store 173 +- 69 | heal 47588 +- 2851 | shield 385 +- 159 | drinks 47 +- 6 | deaths 0 +- 0
+M+GM@ham:700 | 646.3 +- 2.2 | 0 (0) | 296009 +- 4260 | 4713 +- 38 | 11967 +- 44 | 190624 +- 2076 | 29437 +- 148 | 603 +- 4 | hammer: 800 +- 8, 20004.1, 18263 + 50310.9
+   vs M: held 39.1 +- 3.9 | XP 40736 +- 7350 (16%) | gold -6 +- 72 (-0.1%) | store 459 +- 78 | heal 35197 +- 2566 | shield 263 +- 242 | drinks 81 +- 6 | deaths 0 +- 0
+M+GM@ham:600 | 640.4 +- 2.7 | 0 (0) | 293596 +- 7275 | 4732 +- 56 | 11904 +- 34 | 180966 +- 1782 | 29213 +- 253 | 602 +- 3 | hammer: 782 +- 8, 19559.5, 15440.3 + 42654.9
+   vs M: held 33.2 +- 4.1 | XP 38323 +- 9224 (15%) | gold 13 +- 77 (0.3%) | store 396 +- 61 | heal 25539 +- 2549 | shield 39 +- 340 | drinks 79 +- 5 | deaths 0 +- 0
+M+GM@ham:700:reach1 | 638 +- 2.8 | 0 (0) | 285809 +- 4499 | 4696 +- 45 | 11753 +- 64 | 181224 +- 1946 | 29468 +- 141 | 573 +- 4 | hammer: 643 +- 6, 16062.9, 2143.4 + 52842.6
+   vs M: held 30.8 +- 3.1 | XP 30536 +- 2622 (12%) | gold -23 +- 92 (-0.5%) | store 245 +- 70 | heal 25797 +- 1630 | shield 293 +- 53 | drinks 50 +- 4 | deaths 0 +- 0
+M+SH@heal:1000 | 615.8 +- 2.2 | 0 (0) | 263974 +- 4478 | 4735 +- 77 | 11630 +- 26 | 134078 +- 920 | 63139 +- 345 | 511 +- 2 | healer: 117 +- 0, 4194.4, 130946.1 + 16.5
+   vs M: held 8.5 +- 4.2 | XP 8702 +- 7200 (3.4%) | gold 16 +- 110 (0.3%) | store 122 +- 68 | heal -21349 +- 1835 | shield 33964 +- 416 | drinks -12 +- 4 | deaths 0 +- 0
+M+SH@heal:700 | 617.9 +- 2.8 | 0 (0) | 266528 +- 4647 | 4677 +- 50 | 11883 +- 60 | 144506 +- 1676 | 52878 +- 322 | 537 +- 3 | healer: 117 +- 0, 4196, 141128.3 + 9.9
+   vs M: held 10.7 +- 4.8 | XP 11255 +- 8153 (4.4%) | gold -41 +- 82 (-0.9%) | store 374 +- 70 | heal -10921 +- 1429 | shield 23704 +- 397 | drinks 14 +- 4 | deaths 0 +- 0
+M+SH@heal:600 | 614.2 +- 1.8 | 0 (0) | 263435 +- 3484 | 4733 +- 31 | 11846 +- 32 | 145621 +- 882 | 47251 +- 296 | 540 +- 2 | healer: 117 +- 0, 4200.5, 142374.8 + 20.4
+   vs M: held 6.9 +- 4.2 | XP 8163 +- 7343 (3.2%) | gold 15 +- 84 (0.3%) | store 338 +- 61 | heal -9805 +- 1039 | shield 18076 +- 315 | drinks 18 +- 4 | deaths 0 +- 0
+
+== q2: muster_barrows L60 steady, held start 570, 8 seeds x 8 h, held from hour 1, wall 227 s on 7 workers
+cell | held | deaths (seeds) | XP/hero-h | gold/hero-h | store/hero-h | heal all/h | shield in/h | drinks/h | borrowed casts/h, mana/h, borrower heal out/h + self/h
+N | 380.5 +- 5.6 | 0 (0) | 141656 +- 660 | 4956 +- 37 | 10526 +- 181 | 12517 +- 187 | 1950 +- 284 | 128 +- 1 | -
+N+GM@ham:600+GM@sw:600 | 544.7 +- 7.9 | 0 (0) | 196093 +- 9193 | 4640 +- 71 | 11735 +- 165 | 143263 +- 3647 | 2396 +- 280 | 568 +- 11 | hammer: 1132 +- 23, 28299.5, 41376.9 + 45266.5
+   vs N: held 164.3 +- 8.8 | XP 54437 +- 8862 (38.4%) | gold -316 +- 90 (-6.4%) | store 1210 +- 226 | heal 130745 +- 3702 | shield 446 +- 343 | drinks 439 +- 12 | deaths 0 +- 0
+N+GM@sw:1000 | 488 +- 2.8 | 0 (0) | 148071 +- 1431 | 4554 +- 63 | 10917 +- 76 | 109956 +- 1180 | 2757 +- 22 | 393 +- 2 | sword: 1103 +- 10, 27574.6, 72208.4 + 32211.1
+   vs N: held 107.6 +- 5 | XP 6415 +- 1823 (4.5%) | gold -402 +- 68 (-8.1%) | store 391 +- 222 | heal 97438 +- 1203 | shield 807 +- 292 | drinks 265 +- 3 | deaths 0 +- 0
+S | 611.2 +- 4.2 | 0 (0) | 257126 +- 7449 | 4654 +- 68 | 11759 +- 48 | 158329 +- 1112 | 28934 +- 283 | 530 +- 2 | -
+S+GM@sw:600 | 627.9 +- 3.7 | 0 (0) | 270005 +- 6406 | 4600 +- 31 | 12262 +- 56 | 175593 +- 1880 | 29316 +- 187 | 644 +- 4 | sword: 778 +- 7, 19452.9, 11515.9 + 33397.4
+   vs S: held 16.6 +- 7.4 | XP 12878 +- 12771 (5%) | gold -54 +- 85 (-1.2%) | store 504 +- 73 | heal 17265 +- 1501 | shield 382 +- 398 | drinks 114 +- 4 | deaths 0 +- 0
+
+== q3: muster_barrows L60 steady, held start 570, 8 seeds x 8 h, held from hour 1, wall 436 s on 7 workers
+cell | held | deaths (seeds) | XP/hero-h | gold/hero-h | store/hero-h | heal all/h | shield in/h | drinks/h | borrowed casts/h, mana/h, borrower heal out/h + self/h
+M+CH@ham:1000 | 607.2 +- 2.3 | 0 (0) | 253740 +- 2264 | 4613 +- 29 | 10621 +- 39 | 140290 +- 1063 | 27746 +- 38 | 436 +- 2 | hammer: 307 +- 1, 0, 0 + 4508.8
+M+CH@ham:700 | 613.2 +- 1.9 | 0 (0) | 262692 +- 1812 | 4658 +- 38 | 11378 +- 42 | 149363 +- 1375 | 28487 +- 21 | 503 +- 2 | hammer: 381 +- 1, 0, 0 + 3949.1
+NM | 580 +- 2.9 | 0 (0) | 185681 +- 1979 | 3819 +- 44 | 8499 +- 76 | 175026 +- 2041 | 27627 +- 16 | 404 +- 4 | -
+NM+FB@ham:1000 | 576.1 +- 3.7 | 0 (0) | 196173 +- 2469 | 4067 +- 42 | 8478 +- 71 | 169157 +- 2445 | 27571 +- 25 | 412 +- 5 | hammer: 299 +- 1, 7481.6, 0 + 2468.1
+   vs NM: held -4 +- 4.2 | XP 10492 +- 3048 (5.7%) | gold 248 +- 58 (6.5%) | store -21 +- 89 | heal -5869 +- 2901 | shield -56 +- 33 | drinks 8 +- 6 | deaths 0 +- 0
+NM+FL@ham:1000 | 578.2 +- 2.6 | 0 (0) | 190667 +- 1553 | 3937 +- 42 | 8720 +- 74 | 173036 +- 1798 | 27628 +- 24 | 435 +- 3 | hammer: 453 +- 0, 9052.8, 0 + 2554
+   vs NM: held -1.8 +- 2.2 | XP 4986 +- 1542 (2.7%) | gold 118 +- 62 (3.1%) | store 221 +- 69 | heal -1990 +- 1514 | shield 1 +- 27 | drinks 32 +- 2 | deaths 0 +- 0
+NM+FB@ham:700 | 577.5 +- 3 | 0 (0) | 193253 +- 1943 | 3974 +- 37 | 8587 +- 68 | 171255 +- 2310 | 27626 +- 32 | 417 +- 5 | hammer: 298 +- 1, 7439.4, 0 + 2580.8
+   vs NM: held -2.6 +- 2.8 | XP 7572 +- 1789 (4.1%) | gold 156 +- 72 (4.1%) | store 88 +- 52 | heal -3771 +- 2208 | shield -2 +- 33 | drinks 13 +- 5 | deaths 0 +- 0
+NM+FL@ham:700 | 579.1 +- 1.9 | 0 (0) | 190856 +- 3152 | 3921 +- 45 | 8675 +- 49 | 170954 +- 1734 | 27570 +- 49 | 431 +- 4 | hammer: 452 +- 1, 9046.3, 0 + 2431.4
+   vs NM: held -0.9 +- 3.6 | XP 5176 +- 4015 (2.8%) | gold 102 +- 71 (2.7%) | store 176 +- 63 | heal -4071 +- 2375 | shield -57 +- 40 | drinks 27 +- 5 | deaths 0 +- 0
+NB | 625.5 +- 1.9 | 0 (0) | 236403 +- 1542 | 4091 +- 38 | 9029 +- 74 | 170198 +- 1224 | 39181 +- 109 | 599 +- 3 | -
+NB+HM@sw:1000 | 624.4 +- 1.8 | 0 (0) | 240225 +- 1506 | 4144 +- 49 | 8945 +- 34 | 168886 +- 1190 | 38927 +- 76 | 601 +- 3 | sword: 287 +- 0, 2293.9, 0 + 1284.8
+   vs NB: held -1.1 +- 3.1 | XP 3822 +- 2689 (1.6%) | gold 53 +- 56 (1.3%) | store -84 +- 92 | heal -1312 +- 2138 | shield -254 +- 121 | drinks 3 +- 5 | deaths 0 +- 0
+NB+HM@sw:700 | 626 +- 1 | 0 (0) | 240968 +- 767 | 4153 +- 35 | 9077 +- 52 | 171200 +- 865 | 39096 +- 82 | 608 +- 2 | sword: 287 +- 0, 2292.3, 0 + 1500
+   vs NB: held 0.5 +- 2.5 | XP 4565 +- 2068 (1.9%) | gold 62 +- 53 (1.5%) | store 48 +- 110 | heal 1003 +- 1773 | shield -85 +- 178 | drinks 10 +- 4 | deaths 0 +- 0
+
+== q3f: muster_barrows L60 steady, held start 570, 8 seeds x 8 h, held from hour 1, wall 373 s on 7 workers
+cell | held | deaths (seeds) | XP/hero-h | gold/hero-h | store/hero-h | heal all/h | shield in/h | drinks/h | borrowed casts/h, mana/h, borrower heal out/h + self/h
+M | 607.2 +- 3 | 0 (0) | 255273 +- 5090 | 4719 +- 72 | 11508 +- 63 | 155427 +- 1256 | 29174 +- 178 | 523 +- 3 | -
+M+GM@ham:400 | 631.6 +- 2.1 | 0 (0) | 283114 +- 5251 | 4761 +- 64 | 12102 +- 44 | 174097 +- 1972 | 29295 +- 217 | 623 +- 5 | hammer: 799 +- 9, 19975.3, 10263.4 + 29832.6
+   vs M: held 24.4 +- 3.4 | XP 27841 +- 7151 (10.9%) | gold 42 +- 86 (0.9%) | store 594 +- 79 | heal 18671 +- 2783 | shield 121 +- 332 | drinks 101 +- 7 | deaths 0 +- 0
+M+GM@ham:200 | 622.9 +- 3.1 | 0 (0) | 275049 +- 6363 | 4773 +- 45 | 12353 +- 36 | 166155 +- 1097 | 29153 +- 254 | 645 +- 3 | hammer: 810 +- 5, 20261.9, 5190.1 + 15974.1
+   vs M: held 15.7 +- 4.3 | XP 19777 +- 8818 (7.7%) | gold 54 +- 72 (1.1%) | store 845 +- 63 | heal 10728 +- 1255 | shield -22 +- 340 | drinks 122 +- 3 | deaths 0 +- 0
+NM | 580 +- 2.9 | 0 (0) | 185681 +- 1979 | 3819 +- 44 | 8499 +- 76 | 175026 +- 2041 | 27627 +- 16 | 404 +- 4 | -
+NM+FB@ham:500 | 581.5 +- 3 | 0 (0) | 192338 +- 2237 | 3954 +- 26 | 8665 +- 84 | 173725 +- 2503 | 27655 +- 16 | 424 +- 5 | hammer: 300 +- 1, 7492.5, 0 + 2601.9
+   vs NM: held 1.5 +- 5.1 | XP 6657 +- 3848 (3.6%) | gold 135 +- 53 (3.5%) | store 166 +- 129 | heal -1301 +- 3833 | shield 28 +- 15 | drinks 20 +- 8 | deaths 0 +- 0
+M+CH@ham:1000 | 607.2 +- 2.3 | 0 (0) | 253740 +- 2264 | 4613 +- 29 | 10621 +- 39 | 140290 +- 1063 | 27746 +- 38 | 436 +- 2 | hammer: 307 +- 1, 0, 0 + 4508.8
+   vs M: held 0 +- 3.7 | XP -1532 +- 5012 (-0.6%) | gold -106 +- 85 (-2.2%) | store -888 +- 78 | heal -15137 +- 2240 | shield -1428 +- 176 | drinks -86 +- 5 | deaths 0 +- 0
+M+CH@ham:700 | 613.2 +- 1.9 | 0 (0) | 262692 +- 1812 | 4658 +- 38 | 11378 +- 42 | 149363 +- 1375 | 28487 +- 21 | 503 +- 2 | hammer: 381 +- 1, 0, 0 + 3949.1
+   vs M: held 6 +- 3.9 | XP 7419 +- 5887 (2.9%) | gold -61 +- 86 (-1.3%) | store -131 +- 69 | heal -6064 +- 1464 | shield -687 +- 191 | drinks -19 +- 4 | deaths 0 +- 0
+M+SH@heal:400 | 615.6 +- 2.1 | 0 (0) | 266741 +- 4949 | 4762 +- 37 | 11912 +- 67 | 148668 +- 2516 | 40350 +- 373 | 548 +- 5 | healer: 117 +- 0, 4192.6, 145429.4 + 24
+   vs M: held 8.4 +- 3.9 | XP 11468 +- 7627 (4.5%) | gold 43 +- 82 (0.9%) | store 403 +- 72 | heal -6759 +- 2881 | shield 11175 +- 433 | drinks 26 +- 6 | deaths 0 +- 0
+
+== time: muster_barrows L60 steady, held start 570, 8 seeds x 1 h, held from hour 1, wall 31 s on 1 workers
+cell | held | deaths (seeds) | XP/hero-h | gold/hero-h | store/hero-h | heal all/h | shield in/h | drinks/h | borrowed casts/h, mana/h, borrower heal out/h + self/h
+M | n/a | 0 (0) | 233161 +- 4033 | 4901 +- 200 | 11021 +- 107 | 142301 +- 2890 | 28962 +- 122 | 489 +- 6 | -
+
+== Q5: seed-to-seed spread of each metric on the base cells (cv = sd / mean), and seeds for a +-5% (95%) mean: n = (1.96 cv / 0.05)^2
+q1 M (8 h, seed 63 s): held cv 1.4% -> 1 seeds; xpPerHeroH cv 5.6% -> 5 seeds; incomePerHeroH cv 4.3% -> 3 seeds; storePerHeroH cv 1.5% -> 1 seeds; healAllPerH cv 2.3% -> 1 seeds; drinksPerH cv 1.8% -> 1 seeds; killsPerH cv 1.6% -> 1 seeds; deaths 0 in 8 seeds
+q2 N (8 h, seed 29 s): held cv 4.1% -> 3 seeds; xpPerHeroH cv 1.3% -> 1 seeds; incomePerHeroH cv 2.1% -> 1 seeds; storePerHeroH cv 4.9% -> 4 seeds; healAllPerH cv 4.2% -> 3 seeds; drinksPerH cv 3.1% -> 2 seeds; killsPerH cv 1.4% -> 1 seeds; deaths 0 in 8 seeds
+q2 S (8 h, seed 45 s): held cv 1.9% -> 1 seeds; xpPerHeroH cv 8.2% -> 11 seeds; incomePerHeroH cv 4.1% -> 3 seeds; storePerHeroH cv 1.2% -> 1 seeds; healAllPerH cv 2% -> 1 seeds; drinksPerH cv 1.1% -> 1 seeds; killsPerH cv 1.5% -> 1 seeds; deaths 0 in 8 seeds
+q3 NM (8 h, seed 41 s): held cv 1.4% -> 1 seeds; xpPerHeroH cv 3% -> 2 seeds; incomePerHeroH cv 3.3% -> 2 seeds; storePerHeroH cv 2.5% -> 1 seeds; healAllPerH cv 3.3% -> 2 seeds; drinksPerH cv 2.7% -> 2 seeds; killsPerH cv 2.3% -> 1 seeds; deaths 0 in 8 seeds
+q3 NB (8 h, seed 34 s): held cv 0.8% -> 1 seeds; xpPerHeroH cv 1.8% -> 1 seeds; incomePerHeroH cv 2.6% -> 2 seeds; storePerHeroH cv 2.3% -> 1 seeds; healAllPerH cv 2% -> 1 seeds; drinksPerH cv 1.2% -> 1 seeds; killsPerH cv 1.5% -> 1 seeds; deaths 0 in 8 seeds
+q3f M (8 h, seed 42 s): held cv 1.4% -> 1 seeds; xpPerHeroH cv 5.6% -> 5 seeds; incomePerHeroH cv 4.3% -> 3 seeds; storePerHeroH cv 1.5% -> 1 seeds; healAllPerH cv 2.3% -> 1 seeds; drinksPerH cv 1.8% -> 1 seeds; killsPerH cv 1.6% -> 1 seeds; deaths 0 in 8 seeds
+q3f NM (8 h, seed 37 s): held cv 1.4% -> 1 seeds; xpPerHeroH cv 3% -> 2 seeds; incomePerHeroH cv 3.3% -> 2 seeds; storePerHeroH cv 2.5% -> 1 seeds; healAllPerH cv 3.3% -> 2 seeds; drinksPerH cv 2.7% -> 2 seeds; killsPerH cv 2.3% -> 1 seeds; deaths 0 in 8 seeds
+time M (1 h, seed 4 s): held n/a; xpPerHeroH cv 4.9% -> 4 seeds; incomePerHeroH cv 11.6% -> 21 seeds; storePerHeroH cv 2.7% -> 2 seeds; healAllPerH cv 5.7% -> 6 seeds; drinksPerH cv 3.3% -> 2 seeds; killsPerH cv 3.6% -> 2 seeds; deaths 0 in 8 seeds

@@ -31,24 +31,24 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 24 | 8 | 4 | 4 | 8 | 7 | 6 | 10 |
+| Monster HP, damage, armor, resistances and behavior | 26 | 9 | 5 | 4 | 8 | 7 | 8 | 12 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
-| Monster XP and loot values | 14 | 5 | 1 | 2 | 6 | 3 | 3 | 6 |
-| Equipment stats and progression | 14 | 3 | 3 | 8 | 0 | 0 | 5 | 8 |
+| Monster XP and loot values | 15 | 6 | 1 | 2 | 6 | 3 | 4 | 7 |
+| Equipment stats and progression | 15 | 4 | 3 | 8 | 0 | 0 | 6 | 9 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 32 | 18 | 3 | 10 | 1 | 0 | 29 | 19 |
-| **All** | **185** | 84 | 26 | 47 | 28 | 31 | 74 | 74 |
+| Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
+| **All** | **192** | 90 | 27 | 47 | 28 | 31 | 79 | 81 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 668 (in 226 files, 15740 typed numbers) |
-| Claimed by a lever | 285 |
-| Claimed by a not-a-lever reason | 383 |
+| Top-level bindings in the rule code that hold a typed number | 673 (in 231 files, 15789 typed numbers) |
+| Claimed by a lever | 289 |
+| Claimed by a not-a-lever reason | 384 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -123,7 +123,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `rare.hearthfind` Hearthfind odds | killsPerHour is a measured constant typed on the row. It does not move when monsters do | 44 E-X39, CONFIRMED |
 | redundant | `gear.jewel-perks` Jewel perks | One word, two mechanics: the jewel Steady (misses that land) and the food buff "defense" written to steady (a damage cut) | 44 X-STEADY-TWO-MEANINGS, CONFIRMED |
 | redundant | `gear.item-stats` Item rows' stats and requirements | One field, defB, feeds two formulas by item class | 44 X-DEFB-TWO-JOBS, CONFIRMED |
-| redundant | `cons.store-supplies` Store food and drink: heal, mana and price | Five hand prices, 0.19 to 1.75 gold a hit point, nine times apart, while coin a kill is a formula | 44 S-X02, CONFIRMED |
 | redundant | `cons.food-heal-scale` The food heal scale | A scale already folded into every heal row | CONFIRMED (read: core-model.js comment and readers) |
 | redundant | `party.class-xp` Party XP by size and classes | Nine cells hand-fitted, three re-cut for one measured case each | 44 P-X08, CONFIRMED |
 | redundant | `econ.sale-rates` What gear sells for | A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb. No row for tier 8 | 44 E-X17 and E-X18, CONFIRMED |
@@ -203,7 +202,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `party.class-xp` Party XP by size and classes | Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build. The class table is live (patches/party-xp-by-size.json plays the ruling) | rulings-of-record S-10 |
 | contradictory | `party.run-xp` Run ground party table | Its pair and three rows are ASSUMED | 44 P-X09, CONFIRMED |
 | contradictory | `party.under-floor` Under-floor Level share | A Level-keyed cut on party XP is live. Tyler's 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT | 44 P-X06, CONFIRMED |
-| contradictory | `econ.wage-step` The wage's growth a step | Two coin ratios a step: this one across grounds (0.4%) and the engine's depth pay inside one ground (0.7%). 04 means one | src/data/wage.js. 04 section 11 |
+| contradictory | `econ.store-kit` The store's basics, priced in hours of wage | Priced once at the row's own step, not at the buyer's (04 section 3, 09 4.6): a hero far past a row's step pays that row's price. The server change is handed off | src/data/store-kit.js header. JUDGMENT |
 | contradictory | `econ.blessing-price` Blessing prices | Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms | 44 P-X20, CONFIRMED |
 | contradictory | `econ.training` Training yard pay and fee | The fee in code (50 + 6 a level) is not the fee Tyler ruled (100 gold x skill level an hour, 2026-11-20 24-8) | 44 P-X30, CONFIRMED |
 | contradictory | `econ.companions` Companions | Added after the +20% permanent cap, on its own curve | 44 P-X27, HYPOTHESIS |
@@ -254,6 +253,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `gear.slot-weights` Gear slot weights | Equipment stats and progression | the power step (R9) reads it |
 | not-built | `gear.step-tier` A gear tier in steps, and how far ahead gear is worn | Equipment stats and progression | the power step (R9) reads it. No engine path does yet |
 | not-built | `gear.trait-budget` Trait steps by rank and the Trait guards | Equipment stats and progression | no roller or fight reads Traits until wave 4 (V7 sizes them on the engine) |
+| not-built | `gear.trait-trade` A trade Trait's gain, and the percents a Trait card shows | Equipment stats and progression | hidden: nothing rolls or plays Traits until wave 4 |
 | not-built | `gear.traits` Traits: the rule, its condition and its source | Equipment stats and progression | hidden: nothing rolls or plays them |
 | not-built | `imbue.parts` Imbuement parts | Imbuement effects | linings (Tyler's imbuement, ruled 2026-11-18: one part + gold, cured 4 h, 12 hunted hours, 48 h a socket) are not built. The effect each part names is read by nothing |
 | not-built | `leech.rows` Spell leech and mana back | Life and mana leech | every leech row sits behind NECROTIC_STORM.live (false), and no default bar casts them |
@@ -261,9 +261,11 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
+| not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
 | not-in-runs | `danger.pay-floor` Pay floor under the reference step | Monster XP and loot values | played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9). The server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises |
 | not-in-runs | `danger.power-gear` The power step on gear | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap). No matrix run plans a stance |
+| not-in-runs | `danger.power-gear-below` The power step under the ground's gear Level | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / power-tier-ahead) |
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
@@ -278,10 +280,12 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `mon.scaled-danger` Scaled-hunt exceptions | Monster HP, damage, armor, resistances and behavior | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.run-xp` Run ground party table | Party bonuses and interactions | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.under-floor` Under-floor Level share | Party bonuses and interactions | every matrix cell seats one Level (mixed-Level cells are owed: 13-build-plan MM-19, OC1 to OC3) |
+| not-in-runs | `roles.table` Monster roles (reach, range, splash, held, blow) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe with --styles (lineups) against the roles-off candidate. No matrix run plans a stance |
 | outside-hunt | `damage.permanent-cap` Cap on permanent perks | Base damage coefficients | the kits hold no House rooms or renown, so no cell carries a permanent perk to cap |
 | outside-hunt | `econ.bank` Bank and key ring | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.bench-tax` Public bench tax | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.clans` Founding a clan | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.gold-estimate-risk` A Risk's gold an hour against Steady, as the Hunts window estimates it | Economy sources and sinks | a printed estimate, never read by a cell |
 | outside-hunt | `econ.hearth` The Hearth: fuels and burns | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.hero-slots` Hero slots | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.house` House: property, rooms, chests, room perks | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
@@ -343,11 +347,11 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 78 | patch | content |
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
 | `skill.curve` Combat skill curve | 9 | 0 | 78 | NOT PLAYABLE (harness-fixed) | global |
+| `danger.power-gear-below` The power step under the ground's gear Level | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 78 | patch | exception-accidental |
+| `roles.table` Monster roles (reach, range, splash, held, blow) | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
 | `danger.climb` The climb and the fall back | 8 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `danger.stances` Risk stance thresholds | 8 | 11 | 78 | NOT PLAYABLE (player-policy) | archetype |
-| `danger.start` Danger start margin | 8 | 11 | 78 | NOT PLAYABLE (sql-only) | global |
-| `mon.tier-danger` Harder-tier blows | 8 | 11 | 78 | knob `tierDanger` | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

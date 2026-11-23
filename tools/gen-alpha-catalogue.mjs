@@ -60,6 +60,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE REFILL STEP (lane/c-approved-rows, Tyler 2026-11-20, balance call 24-1): 2027-05-09-jewelry-sample is APPLIED history; the six daily refills climb
    x1, 1.5, 2, 2.5, 3, 3.5 (src/data/stamina-refill.js stepNum 1 / stepDen 2, was 2/15) in this forward file, the same full delete+insert replace. No shop,
    seed or Blessing row moves. hr_stamina_refill reads the row at the purchase and the quote projects it, so no body and no edge waits on it. */
+/* THE STORE'S DERIVED PRICES (lane/econ-levers, 2026-11-22), FOLDED INTO this still-STAGED forward file: the crafted supplies' price list follows
+   src/data/store-kit.js, and every store rune's crafted partner gets its price-list row (the buy-back cap). Nothing new is sold. */
 export const OUT_NAME = '1009-approved-rows-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

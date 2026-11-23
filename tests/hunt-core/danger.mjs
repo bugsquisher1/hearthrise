@@ -46,6 +46,7 @@ const load = async (root) => {
   M.dangerData = await imp('src/data/danger.js');
   M.tiers = await imp('src/data/hunt-tiers.js');
   M.coreModel = await imp('src/data/core-model.js');
+  M.wageData = await imp('src/data/wage.js');
   M.xp = await imp('src/core/xp.js');
   M.huntReport = await imp('src/data/hunt-report.js');
   M.grounds = await imp('src/data/hunt-grounds.js');
@@ -223,7 +224,8 @@ const CASES = {
       { room: [1, 1, 8, 6], spawns: [{ monster: 'slime', x: 4, y: 3 }, { monster: 'slime', x: 5, y: 3 }] },
       { room: [1, 8, 18, 8], spawns: [{ monster: 'rat', x: 9, y: 8 }, { monster: 'rat', x: 10, y: 8 }, { monster: 'rat', x: 11, y: 8 }] }] });
     const { PAY } = M.dangerData;
-    const r = 1 + DANGER.powerStep, p = (s) => (s < PAY.gapMax ? 1 + PAY.payStepCoin : 1);
+    /* one coin ratio a step (lane/econ-levers): the wage's, inside a ground as across grounds */
+    const r = 1 + DANGER.powerStep, p = (s) => (s < PAY.gapMax ? 1 + M.wageData.WAGE.payStepCoin : 1);
     const total = (s, k) => { const d = M.danger.dangerDial(g, s); return d.pull[0] * d[k]; };
     let sizes = 0;
     for (let s = 0; s < 900; s++) {
@@ -333,6 +335,12 @@ const CASES = {
       const rate = M.danger.levelShareXp(L, row.refStep, { id }) * kills * M.danger.hoursForLevel(L) / toNext;
       if (Math.abs(rate - 1) > 1e-9) return id + ' at its reference pays ' + rate + 'x the table at its own kill rate';
     }
+    /* lane/econ-levers: a pull a step deeper pays the wage's one coin ratio more coin (the floor is the floor case's) */
+    const g2 = groundRow({ id: 'muster_barrows' });
+    const pullCoin = (s) => { const d = M.danger.dangerDial(g2, s); return d.coinPm * d.pull[0]; };
+    const ratio = pullCoin(ref + 1) / pullCoin(ref);
+    if (Math.abs(ratio - (1 + M.wageData.WAGE.payStepCoin)) > 1e-9) return 'a step deeper pays coin x' + ratio + ', not the wage ratio ' + (1 + M.wageData.WAGE.payStepCoin);
+    if (!(pullCoin(ref) > 0)) return 'CONTROL: no coin at the reference';
     /* in play: every kill on the scale pays its share at a step the trace walked, over one or two heroes */
     const run = play(M, { risk: 'steady', danger: 0 }, 6 * 60000, []);
     const steps = new Set([0, ...run.danger.map((e) => e.step), ...run.danger.map((e) => e.to)]);
@@ -364,8 +372,8 @@ const CASES = {
     const gm = groundRow({ id: 'muster_barrows' });
     const d = M.danger.dangerDial(gm, 0), d1 = M.danger.dangerDial(gm, ref);
     const share = (x) => x.hpPm / (1000 * Math.pow(1 + M.dangerData.DANGER.powerStep, x.step));
-    if (Math.abs(d.coinPm / (1000 * share(d)) - PAY.floor) > 1e-9) return 'step 0 on Muster pays coin x' + d.coinPm / (1000 * share(d)) + ', not the floor';
-    if (Math.abs(d1.coinPm / (1000 * share(d1)) - 1) > 1e-9) return 'the reference step pays coin x' + d1.coinPm / (1000 * share(d1));
+    if (Math.abs(d.coinPm / (PAY.coinPm * share(d)) - PAY.floor) > 1e-9) return 'step 0 on Muster pays coin x' + d.coinPm / (PAY.coinPm * share(d)) + ', not the floor';
+    if (Math.abs(d1.coinPm / (PAY.coinPm * share(d1)) - 1) > 1e-9) return 'the reference step pays coin x' + d1.coinPm / (PAY.coinPm * share(d1));
     return null;
   },
   /* (lane/r9) THE POWER STEP: a hero's gear part rides its snapshot (danger.js gearPartPm on the gear table, src/data/gear-steps.js: item
@@ -405,7 +413,10 @@ const CASES = {
     const up = blow(instOn('steady', 'muster_barrows'), heroAt(up1), rat, N) / base;
     if (Math.abs(up - ratio) > 6e-4) return 'a tier of gear on the scale moved the blow x' + up + ', not x' + ratio;
     const back = blow(instOn('steady', 'muster_barrows'), heroAt(dn1), rat, N) / base;
-    if (Math.abs(back - 1 / ratio) > 6e-4) return 'a tier back moved the blow x' + back + ', not x' + 1 / ratio;
+    /* ONE-SIDED (lane/econ-levers): under the ground's base a gear step counts weightGearBelowPm */
+    const below = Math.pow(1 + DANGER.powerStep, Math.round((tier * POWER.weightGearBelowPm) / 1000));
+    if (!(POWER.weightGearBelowPm > 0 && POWER.weightGearBelowPm < POWER.weightGearPm)) return 'CONTROL: the weight under the base is ' + POWER.weightGearBelowPm + ', not under the weight over it';
+    if (Math.abs(back - 1 / below) > 6e-4) return 'a tier back moved the blow x' + back + ', not x' + 1 / below + ' (weightGearBelowPm)';
     /* at the hero, past the cap: a Tempering cut that alone reaches the 60% cap, then the gear's steps under it */
     const atHero = (g) => blow(instOn('steady', 'muster_barrows'), rat, { ...heroAt(g), armorPm: 999 }, N);
     const capped = blow(instOn('', 'muster_barrows'), rat, { ...heroAt(up1), armorPm: 999 }, N);
@@ -547,7 +558,10 @@ const MUTANTS = [
   { name: 'the hours jump at a target Level', case: 'pay', edits: [['src/core/hunt/danger.js', '    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);', '    if (L <= b) return ha;']] },
   { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
   { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * refKillsOf(ground));']] },
-  { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };', 'coinPm: share * 1000 };']] },
+  { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },
+  /* lane/econ-levers: one coin ratio a step, and the floor on coin too */
+  { name: 'coin climbs at the XP ratio again', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * depthRatio(ground, s, PAY.payStepXp) * PAY.coinPm };']] },
+  { name: 'the floor pays XP only', case: 'floor', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * (gapOf(ground, s) >= 0 ? powStep(1 + WAGE.payStepCoin, gapOf(ground, s)) : 1 / powStep(1 + WAGE.payStepCoin, -gapOf(ground, s))) * PAY.coinPm };']] },
   { name: 'a broken-off pack is re-formed whole', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '  if (mons.length !== size && packWhole(w.packs[p])) {', '  if (mons.length !== size) {']] },
   { name: 'a fallen pack row is never counted', case: 'down', edits: [['src/core/hunt/pull-cycle.js', '    if (Number.isInteger(u.pocket) && !isAdd(inst, u)) packDown(inst.world, u.pocket);\n', '']] },
   { name: 'a pull the leash took home counts clean', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling && cleared) {', '    if (!cooling) {']] },
@@ -585,7 +599,8 @@ const MUTANTS = [
     ['src/core/hunt/damage.js', '  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));', '  if (pm && isMonster(target)) n = Math.max(1, temperedAmount(n, pm, rng));']] },
   { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * itemLevelOf(at(slot));', '    sum += 100 * itemLevelOf(at(slot));']] },
   { name: 'a two-handed weapon leaves the off-hand weight empty', case: 'power', edits: [['src/core/hunt/danger.js', "const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;", 'const carried = null;']] },
-  { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/danger.js', '((partPm - 1000 * row.gearLevel) * POWER.weightGearPm)', '(partPm * POWER.weightGearPm)']] },
+  { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/danger.js', '  const gap = partPm - 1000 * row.gearLevel;', '  const gap = partPm;']] },
+  { name: 'the weight under the base is the weight over it', case: 'power', edits: [['src/core/hunt/danger.js', '(gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)', 'POWER.weightGearPm']] },
   { name: 'the snapshot carries no gear part', case: 'power', edits: [['src/core/member.js', '    gearPm,\n', '\n']] },
   { name: 'the frozen row drops the gear part', case: 'power', edits: [['src/core/member.js', '...jewelSnap(snap), gearPm: snap.gearPm || 0,\n', '...jewelSnap(snap),\n']] },
   { name: 'the unit never carries the gear part', case: 'power', edits: [['src/core/combat-sim.js', '  u.gearPm = Number.isInteger(snap.gearPm) ? snap.gearPm : 0;\n', '']] },

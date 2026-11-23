@@ -117,6 +117,8 @@
 //          (hr_level_block), fed a block that DISAGREES with this build's curve for the same Level XP
 //   LVL-2  no `level` block (or a broken one) draws no Level anywhere: never this build's curve as a fallback
 //   LVL-3  a hunt on screen: the pushed frame's Level replaces the load's at once, the Level XP unmoved
+//   WATCH-1 the server's watched mark (`watched`, 1060-watched-stamp.sql) is REPLACED by every envelope and read in the stamp's shape,
+//          each field the server's or dropped (the away card's baseline: shell-core R3w)
 //   LVL-4  the browser closed: the stamp keeps the server's Level, and the return line names the two
 //          Levels the server said (the hunt ran on the server meanwhile)
 //   SKL-1  a skill's bar (fill, pending segment, 'N XP to L+1', 'Mastered') draws the envelope's `skill_levels` cell
@@ -159,6 +161,8 @@ async function load(base) {
     CS: await import(u('src/session/character-sections.js')),
     GG: await import(u('src/shell/gear-gate.js')),
     AWAY: await import(u('src/shell/away-recap.js')),
+    /* the server's watched mark (WATCH-1) */
+    HS: await import(u('src/session/hunt-sections.js')),
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
     LEVEL_REQ: (await import(u('src/data/gear-tiers.js'))).LEVEL_REQ,
     /* a skill's bar and the town-work burn check (SKL-1 .. SKL-3) */
@@ -314,7 +318,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, AC, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN, TI, HI } = M;
+  const { E, R, C, A, AC, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, HS, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN, TI, HI } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -2727,6 +2731,27 @@ async function rules(M) {
     const low = tick(XP.skillXpForLevel('cooking', 99), 1), high = tick(0, 99);
     if (!low || !(low.unsure > 0) || (low.items[row.output] || 0) > 0) return 'the server says Cooking 1 and the ticker counts the cooking certain: ' + JSON.stringify(low);
     return (!!high && high.unsure === 0 && (high.items[row.output] || 0) > 0) || 'the server says Cooking 99 and the ticker counts it unsure: ' + JSON.stringify(high);
+  });
+  /* ── THE SERVER'S WATCHED MARK (1060-watched-stamp.sql, AR-6 follow-up) ──────────────────────────────────────────────────
+     The `watched` section rides the envelope like every section: REPLACED by each one (an envelope without it, or with null, drops
+     it: the browser never keeps a server number the server stopped saying), read by watchedOf in the page's stamp shape, every
+     field the server's or dropped. The away card judges a return from the later of the page's stamp and this mark (shell-core R3w). */
+  await t('WATCH-1', () => {
+    const T0 = 1_800_000_000_000;
+    const mark = { s: 's-1', at: T0, xp: 9000, lv: 7, h: 'meadowbrook_thicket', gold: 120, sp: 30, kills: 44, k: 'melee', sx: 500, sl: 3 };
+    const csOf = (rec) => ({ slot: 0, read: (k) => rec.data[k], record: { residue: {} } });
+    const a = E.applyEnvelope(null, env(1, { watched: { ...mark, extra: 'x', kills: -2, h: 'Bad Hunt' } })).record;
+    const got = HS.watchedOf(csOf(a));
+    const want = { s: 's-1', at: T0, xp: 9000, lv: 7, gold: 120, sp: 30, k: 'melee', sx: 500, sl: 3 };
+    if (JSON.stringify(got) !== JSON.stringify(want)) return 'watchedOf reads ' + JSON.stringify(got) + ', want ' + JSON.stringify(want) + ' (unknown and malformed fields dropped)';
+    const b = E.applyEnvelope(a, env(2, { watched: null })).record;
+    if (HS.watchedOf(csOf(b)) !== null) return 'a later envelope that says no mark kept the old one: ' + JSON.stringify(HS.watchedOf(csOf(b)));
+    const c = E.applyEnvelope(a, env(2, {})).record;
+    if (HS.watchedOf(csOf(c)) !== null) return 'a later envelope without the section kept the old mark (merged, not replaced)';
+    for (const bad of [{ ...mark, at: 1.5 }, { ...mark, s: 7 }, { ...mark, xp: -1 }, { ...mark, xp: '9000' }, [mark]]) {
+      if (HS.watchedOf(csOf(E.applyEnvelope(null, env(1, { watched: bad })).record)) !== null) return 'a malformed mark reads as one: ' + JSON.stringify(bad);
+    }
+    return true;
   });
   await t('LVL-0', () => {
     /* THE CLASS, HELD SHUT: outside the engine (src/core) and its data, no module takes a level curve from src/core/xp.js or reads

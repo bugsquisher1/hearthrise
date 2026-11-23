@@ -6,7 +6,7 @@
 // SERVER's plan for each hero before the press (hr_carry_on_plan, src/session/carry-on-intents.js), the press stays off until that plan
 // says a hero would go, and the answer replaces the plan. Nothing here counts, prices or predicts: every line is the server's plan in words.
 //
-//   carryLinesOf(plan)        the plan's lines, one a hero, in the player's words (pure)
+//   carryLinesOf(plan, riskOf) the plan's lines, one a hero, in the player's words (pure; riskOf(slot) a scale ground's Risk)
 //   renderCarry()             the away card's block (built once): its head, the lines, the press, its answer
 //   patchCarry(el, ctx)       the block as the plan stands; `live` (a press is on offer) for the card's one gold press
 //   followCarry(ctx, refresh) the plan is read as the card opens and again when a hero's hunt starts or ends (its key)
@@ -31,13 +31,24 @@ import { huntOf } from '../session/hunt-sections.js';
 import { carryOnPlan, carryOn, setCompanyLine } from '../session/carry-on-intents.js';
 import { companyPlanOf } from '../session/company-sections.js';
 import { TIER_NAME, DEFAULT_TIER } from '../data/hunt-tiers.js';
+import { dangerOf, onScale, STANCE_IDS } from '../session/danger-sections.js';
+import { DEFAULT_RISK } from '../data/danger.js';
 
 const itemsWords = (lines) => lines.map((l) => whole(l.qty) + ' ' + itemNameFor(l.item, l.qty)).join(', ');   // one Bone, two Bones (TK-8c)
 /* a refusal's line inside a sentence: "stays in town: no stamina left" */
 const lower = (s) => (s && /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 
-/** The plan's lines, one a hero (busy heroes say nothing here: their own block does), in slot order. Pure. */
-export function carryLinesOf(plan) {
+/* What a hero goes back on: a tier, or on a Danger scale ground (no tiers) its Risk, the server's default where its plan names none (visual
+   pass 2: "The Muster Barrows, Normal." on a ground that has no Normal). */
+const playsOn = (h, riskOf) => {
+  if (!onScale(h.hunt)) return TIER_NAME[h.tier] || TIER_NAME[DEFAULT_TIER];
+  const r = typeof riskOf === 'function' ? riskOf(h.slot) : null;
+  return t('hunts.stance_' + (STANCE_IDS.includes(r) ? r : DEFAULT_RISK));
+};
+
+/** The plan's lines, one a hero (busy heroes say nothing here: their own block does), in slot order. Pure. `riskOf(slot)`: that hero's
+    Risk (its danger section's), read only for a hero going back to a Danger scale ground. */
+export function carryLinesOf(plan, riskOf = null) {
   const out = [];
   for (const h of plan && Array.isArray(plan.heroes) ? plan.heroes : []) {
     const name = h.name || t('away.your_hero');
@@ -49,7 +60,7 @@ export function carryLinesOf(plan) {
         : t('away.carry_no', { name, why: lower(refusalWords(h.why || 'refused')) }) });
       continue;
     }
-    const parts = [t('away.carry_go', { name, ground: huntName(h.hunt), tier: TIER_NAME[h.tier] || TIER_NAME[DEFAULT_TIER] })];
+    const parts = [t('away.carry_go', { name, ground: huntName(h.hunt), tier: playsOn(h, riskOf) })];
     if (h.party) parts.push(t('away.carry_party'));
     if (h.storage.length) parts.push(t('away.carry_storage', { items: itemsWords(h.storage) }));
     if (h.short.length) parts.push(t('away.carry_short', { items: itemsWords(h.short) }));
@@ -112,7 +123,12 @@ export function renderCarry() {
 export function patchCarry(el, ctx) {
   const s = stateOf(ctx);
   const plan = s.said || s.plan;
-  const list = plan ? carryLinesOf(plan) : [];
+  const riskOf = (slot) => {
+    const c = ctx.account && typeof ctx.account.character === 'function' ? ctx.account.character(slot) : null;
+    const d = c ? dangerOf(c) : null;
+    return d ? d.risk : null;
+  };
+  const list = plan ? carryLinesOf(plan, riskOf) : [];
   const live = !!(s.plan && s.plan.go > 0);
   const shown = live || (!!s.msg && list.length > 0) || s.pending;
   prop(el, 'hidden', !shown);

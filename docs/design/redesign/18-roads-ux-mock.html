@@ -1,0 +1,1809 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Talents: the Roads (UX mock, 18-roads-review-ux.md)</title>
+<!-- The game's own tokens and faces (Charcoal & Gold, Forged Steel). Serve the repo root over http to load the fonts. -->
+<link rel="stylesheet" href="../../../src/styles/tokens.css">
+<style>
+:root { --art-px: 2px; }
+body { margin: 0; padding: 24px; background: var(--bg-0); color: var(--ink); font: var(--t-small)/1.35 var(--f-ui); }
+h1 { font: 700 var(--t-h2) var(--f-display); color: var(--gold-2); margin: 0 0 6px; letter-spacing: .04em; }
+.note { color: var(--ink-2); max-width: 1180px; margin: 0 0 20px; }
+.frame { display: block; margin: 0 0 32px; }
+.frame > h2 { font: 500 var(--t-h3) var(--f-label); color: var(--ink-3); margin: 0 0 8px; }
+
+/* ── the window: one panel component, the Forged Steel frame ───────────────────── */
+.shot { position: relative; overflow: hidden; background: var(--bg-1); box-sizing: border-box;
+  border: var(--art-6) solid transparent; border-image: url('../../../assets/ui/steel-frame.png') 6 / var(--art-6) stretch; image-rendering: pixelated; }
+.shot > * { image-rendering: auto; }
+.shot.sheet { border-width: var(--art-3); border-image: url('../../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; }
+.band { position: absolute; left: 0; right: 0; top: 0; height: 44px; display: flex; align-items: center; gap: 18px; padding: 0 14px;
+  background: var(--bg-2); border-bottom: 1px solid var(--line); box-sizing: border-box; }
+.sheet .band { height: 40px; gap: 14px; padding: 0 10px; }
+.band .title { font: 700 var(--t-h2) var(--f-display); color: var(--gold-2); letter-spacing: .06em; }
+.sheet .band .title { font-size: var(--t-lead); }
+.stat { font: var(--t-micro) var(--f-ui); color: var(--ink-2); white-space: nowrap; }
+.stat b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat b.gold { color: var(--gold-2); }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font: var(--t-micro) var(--f-ui); color: var(--ink); white-space: nowrap; }
+.toggle i { width: 30px; height: 16px; background: var(--gold-bg); box-shadow: inset 0 0 0 1px var(--gold); position: relative; border-radius: 8px; }
+.toggle i::after { content: ''; position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--gold-2); }
+.well { font: var(--t-micro) var(--f-ui); color: var(--ink); padding: 3px 10px; background: var(--bg-0); box-shadow: var(--steel-well); white-space: nowrap; }
+.well::after { content: ' \25BE'; color: var(--ink-3); }
+.spacer { flex: 1; }
+.link { font: 500 var(--t-micro) var(--f-ui); color: var(--gold-2); white-space: nowrap; }
+
+/* ── map area ─────────────────────────────────────────────────────────────────── */
+.map { position: absolute; left: 0; top: 44px; background: var(--bg-0); overflow: hidden; }
+.sheet .map { top: 40px; }
+.map svg { display: block; }
+.tools { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 8px; align-items: center; }
+.seg { display: flex; background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--steel-sep); }
+.seg span { font: 500 var(--t-micro) var(--f-label); color: var(--ink-2); padding: 4px 11px; }
+.seg span.on { color: var(--bg-0); background: var(--gold); }
+.press { font: 500 var(--t-micro) var(--f-ui); color: var(--ink); padding: 4px 11px; background: var(--fill-1, var(--bg-1)); box-shadow: var(--steel-frame); white-space: nowrap; }
+.find { font: var(--t-micro) var(--f-ui); color: var(--ink-3); padding: 4px 10px; width: 150px; background: var(--bg-0); box-shadow: var(--steel-well); }
+.filters { display: flex; gap: 4px; }
+.filters span { font: 500 var(--t-micro) var(--f-label); color: var(--ink-2); padding: 3px 8px; background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--steel-sep); }
+.filters span.on { color: var(--gold-2); box-shadow: inset 0 0 0 1px var(--gold); }
+.mini { position: absolute; right: 10px; top: 10px; background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--steel-sep); }
+
+/* ── the node card ───────────────────────────────────────────────────────────── */
+.card { position: absolute; top: 44px; right: 0; bottom: 52px; width: 318px; background: var(--bg-2); border-left: 1px solid var(--line); box-sizing: border-box; padding: 12px 14px; overflow: hidden; }
+.sheet .card { top: 40px; bottom: 46px; width: 300px; padding: 10px 12px; box-shadow: -8px 0 18px color-mix(in srgb, var(--world-shadow) 45%, transparent); }
+.card .kind { font: 500 var(--t-h3) var(--f-label); color: var(--ink-3); letter-spacing: .04em; }
+.card .name { font: 700 var(--t-lead) var(--f-display); color: var(--gold-2); margin: 1px 0 2px; letter-spacing: .03em; }
+.card .sub { font: var(--t-micro) var(--f-ui); color: var(--ink-2); }
+.head { display: flex; align-items: center; gap: 8px; font: 500 var(--t-h3) var(--f-label); color: var(--gold-3); margin: 12px 0 6px; }
+.sheet .head { margin: 8px 0 4px; }
+.head::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.opt { padding: 5px 8px 5px 10px; margin: 0 0 4px; background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--steel-sep); }
+.opt b { display: block; font: 700 var(--t-micro) var(--f-ui); color: var(--ink); }
+.opt b em { font: 500 var(--t-micro) var(--f-label); color: var(--gold-3); font-style: normal; margin-left: 6px; }
+.opt span { display: block; font: var(--t-micro) var(--f-ui); color: var(--ink-2); line-height: 1.25; }
+.opt.pick { box-shadow: inset 0 0 0 1px var(--gold), inset 4px 0 0 var(--gold); background: var(--gold-bg); }
+.row { display: flex; justify-content: space-between; font: var(--t-micro) var(--f-ui); color: var(--ink-2); line-height: 1.5; }
+.row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.row b.gold { color: var(--gold-2); }
+.row b.cost { color: var(--red-line); font-weight: 500; }
+.card .press { display: inline-block; margin-top: 10px; }
+.clist { position: absolute; left: 0; top: 0; bottom: 0; width: 196px; background: var(--bg-1); border-right: 1px solid var(--steel-sep); padding: 8px 12px; box-sizing: border-box; }
+.clist .row { line-height: 1.75; }
+.clist .row.on { color: var(--gold-2); }
+.grip { position: absolute; left: -1px; top: 50%; width: 4px; height: 40px; margin-top: -20px; background: var(--steel-btn); }
+
+/* ── foot ─────────────────────────────────────────────────────────────────────── */
+.foot { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 14px;
+  background: var(--bg-2); border-top: 1px solid var(--line); box-sizing: border-box; }
+.sheet .foot { height: 46px; padding: 0 8px; gap: 8px; }
+.primary { font: 700 var(--t-micro) var(--f-display); color: var(--bg-0); padding: 5px 16px 7px; letter-spacing: .04em; white-space: nowrap;
+  border: var(--art-3) solid transparent; border-bottom-width: var(--art-5, 10px); border-image: url('../../../assets/ui/gold-plate.png') 3 3 5 3 fill / var(--art-3) var(--art-3) var(--art-5, 10px) stretch; image-rendering: pixelated; }
+.delta { font: var(--t-micro) var(--f-ui); color: var(--ink-2); white-space: nowrap; }
+.delta b { font-weight: 700; color: var(--green); }
+.delta b.down { color: var(--red-line); }
+.delta .lbl { font: 500 var(--t-h3) var(--f-label); color: var(--ink-3); margin-right: 6px; }
+
+/* ── map glyph classes (screen-space sizes; one visual language, see 18 section 3) ─ */
+.rg { fill: var(--bg-1); stroke: var(--steel-sep); stroke-width: 1.5; }
+.rg.home { fill: var(--bg-2); }
+.havora-yard { fill: var(--bg-2); stroke: var(--steel-sep); stroke-width: 1.5; }
+.rd { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rd.trunk { stroke: var(--steel-btn); stroke-width: 5; }
+.rd.road { stroke: var(--steel-btn); stroke-width: 3; }
+.rd.side { stroke: var(--steel-edge); stroke-width: 2; stroke-dasharray: 1 5; }
+.rd.vow { stroke: var(--steel-edge); stroke-width: 2; }
+.rd.border { stroke: var(--steel-btn); stroke-width: 3; }
+.rd.own { stroke: var(--gold); }
+.rd.route { stroke: var(--gold-2); stroke-width: 3; stroke-dasharray: 7 5; }
+.rd.dim { opacity: .35; }
+.gate { stroke: var(--steel-btn); stroke-width: 2; }
+.n { stroke-width: 1.5; }
+.n.lock { fill: var(--bg-3); stroke: var(--steel-btn); }
+.n.mile.lock { fill: var(--bg-3); stroke: var(--steel-edge); stroke-width: 1; }
+.n.open { fill: var(--bg-0); stroke: var(--ink); stroke-width: 2; }
+.n.own { fill: var(--gold); stroke: var(--gold-2); }
+.n.plan { fill: var(--gold-bg); stroke: var(--gold-2); stroke-width: 2; }
+.n.passed { fill: var(--bg-0); stroke: var(--ink-3); }
+.n.vowst.lock { fill: var(--bg-3); stroke: var(--ink-2); }
+.n.cross.lock, .n.town.lock { stroke: var(--ink-3); }
+.band-cut { stroke: var(--bg-0); stroke-width: 1.5; fill: none; }
+.n.own .band-cut, .band-cut.on-own { stroke: var(--gold-3); }
+.inner { fill: none; stroke: var(--gold-3); stroke-width: 1.5; }
+.dot { fill: var(--steel); }
+.dot.own { fill: var(--bg-0); }
+.dot.open { fill: var(--ink); }
+.or { fill: var(--ink-3); }
+.sel { fill: none; stroke: var(--gold-2); stroke-width: 2; }
+.hearth-wall { fill: var(--bg-3); stroke: var(--gold-3); stroke-width: 1.5; }
+.hearth-roof { fill: var(--bg-2); stroke: var(--gold-3); stroke-width: 1.5; }
+.hearth-flame { fill: var(--scene-lit); }
+.badge { fill: var(--gold); }
+.badge-t { fill: var(--bg-0); font: 700 var(--t-micro) var(--f-ui); text-anchor: middle; }
+.lb { font-family: var(--f-ui); font-size: var(--t-micro); paint-order: stroke; stroke: var(--bg-0); stroke-width: 4px; stroke-linejoin: round; }
+.lb.move { font-family: var(--f-label); font-weight: 500; fill: var(--ink-2); }
+.lb.move.own { fill: var(--gold-2); }
+.lb.vow { fill: var(--ink); }
+.lb.vow.own { fill: var(--gold-2); }
+.lb.town { font-family: var(--f-label); font-weight: 500; fill: var(--ink-2); }
+.lb.opt { fill: var(--ink); }
+.lb.opt.passed { fill: var(--ink-3); }
+.lb.opt.own { fill: var(--gold-2); }
+.lb.stat { fill: var(--ink-3); }
+.lb.sel { fill: var(--gold-2); font-weight: 700; }
+.lb.country { font-family: var(--f-display); font-weight: 700; fill: var(--ink-3); letter-spacing: .14em; font-size: 17px; stroke-width: 5px; }
+.lb.country.big { fill: var(--gold-3); font-size: 21px; }
+.lb.count { fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+.lb.havora { font-family: var(--f-display); font-weight: 700; fill: var(--gold-2); letter-spacing: .14em; font-size: 16px; }
+.mini-rg { fill: var(--bg-2); stroke: var(--steel-sep); stroke-width: 1; }
+.mini-own { fill: none; stroke: var(--gold); stroke-width: 2; }
+.mini-view { fill: none; stroke: var(--gold-2); stroke-width: 1.5; }
+
+/* ── legend ───────────────────────────────────────────────────────────────────── */
+.legend { padding: 14px 18px; background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--steel-sep); display: inline-block; }
+.legend table { border-collapse: collapse; }
+.legend th { font: 500 var(--t-h3) var(--f-label); color: var(--ink-3); text-align: left; padding: 4px 14px 8px 0; }
+.legend td { font: var(--t-micro) var(--f-ui); color: var(--ink-2); padding: 3px 14px 3px 0; vertical-align: middle; }
+.legend td.k { color: var(--ink); font-weight: 700; }
+</style></head><body>
+<h1>Talents: the Roads, UX mock</h1>
+<p class="note">Companion to docs/design/redesign/18-roads-review-ux.md. Same geometry as 17-talent-tree-sketch.html (read from its map at run time), redrawn in three zoom tiers with one node language, screen-size labels that never shrink with zoom, and a route preview. Sample hero: Shield, Level 34, 2 points, the Shield and Restoration border town owned. Every label is at least 14.5 px (the --t-micro floor).</p>
+
+<div class="frame" id="f-desk-road"><h2>1. Desktop 1180 x 660, Road view (opens here, on your frontier), route preview to a far crossroads</h2><div class="shot"></div></div>
+<div class="frame" id="f-desk-country"><h2>2. Desktop 1180 x 660, Country view (zoomed out): roads and decisions only, progress per country</h2><div class="shot"></div></div>
+<div class="frame" id="f-desk-node"><h2>3. Desktop 1180 x 660, Node view (zoomed in): crossroads options and milestone values on the map</h2><div class="shot"></div></div>
+<div class="frame" id="f-phone-road"><h2>4. Phone 922 x 423, Road view, a crossroads tapped: the route draws, the sheet slides in from the right</h2><div class="shot sheet"></div></div>
+<div class="frame" id="f-phone-country"><h2>5. Phone 922 x 423, Country view, sheet closed: tap a country to zoom to its roads</h2><div class="shot sheet"></div></div>
+<div class="frame" id="f-legend"><h2>6. Node language: shape and size say the kind, fill says the state</h2><div class="shot legend-shot"></div></div>
+
+<!-- Geometry copied unchanged from 17-talent-tree-sketch.html; the script below reads it and redraws it. -->
+<svg width="0" height="0" style="position:absolute"><defs><g id="map"><polygon class="region r-club" points="10,250 330,230 420,420 330,600 10,620"/>
+<text class="region-name" x="150" y="460">CLUB</text>
+<polygon class="region r-dual_axe" points="10,20 560,20 520,200 330,230 10,250"/>
+<text class="region-name" x="260" y="215">DUAL AXE</text>
+<polygon class="region r-ranged" points="560,20 1590,20 1590,260 1100,280 900,200 520,200"/>
+<text class="region-name" x="820" y="180">RANGED</text>
+<polygon class="region r-destruction" points="1100,280 1590,260 1590,640 1180,620"/>
+<text class="region-name" x="1300" y="300">DESTRUCTION</text>
+<polygon class="region r-shield" points="1180,620 1590,640 1590,890 1000,890 980,650"/>
+<text class="region-name" x="1250" y="640">SHIELD</text>
+<polygon class="region r-restoration" points="560,700 980,650 1000,890 520,890"/>
+<text class="region-name" x="760" y="650">RESTORATION</text>
+<polygon class="region r-sword" points="10,620 330,600 560,700 520,890 10,890"/>
+<text class="region-name" x="230" y="640">SWORD</text>
+<g class="hearth" transform="translate(760,440)">
+    <rect x="-34" y="-20" width="68" height="40" rx="3" class="hearth-wall"/>
+    <path d="M-40,-20 L0,-46 L40,-20 Z" class="hearth-roof"/>
+    <path d="M0,10 C-9,2 -7,-6 0,-14 C2,-6 9,-3 7,4 C6,9 3,11 0,10 Z" class="hearth-flame"/>
+    <text class="town-name" y="40">HAVORA</text></g>
+<polyline class="road" points="760,440 950,560 1110,700"/>
+<polyline class="road" points="1110,700 1250,735 1380,770 1500,805 1585,835"/>
+<polyline class="road side-road" points="1205.9,724 1206.4,746.8 1209.7,766.2"/>
+<polyline class="road side-road" points="1428.4,784.1 1440.3,764.7 1453.1,749.6"/>
+<polyline class="road" points="1110,700 1200,660 1320,655 1450,675 1585,680"/>
+<polyline class="road side-road" points="1244.2,658.2 1251.1,679.9 1259.8,697.5"/>
+<polyline class="road side-road" points="1442.5,673.8 1451.7,653 1462.4,636.4"/>
+<polyline class="road" points="1110,700 1090,790 1160,860 1310,875 1470,882"/>
+<polyline class="road side-road" points="1129.2,829.2 1117.9,849 1110.8,867.4"/>
+<polyline class="road side-road" points="1322.5,875.5 1329.4,853.8 1338.2,836.2"/>
+<polyline class="road vow-road" points="1333.3,757.4 1317.8,784.3 1307.5,814.7"/>
+<polyline class="road vow-road" points="1357.8,660.8 1354.5,630 1357.4,598"/>
+<polyline class="road vow-road" points="1234.3,867.4 1229.3,836.8 1230.5,804.7"/>
+<polyline class="road vow-road" points="1491.7,802.6 1492.4,771.5 1499.4,740.3"/>
+<polyline class="road vow-road" points="1381.5,878.1 1372.2,907.7 1368.8,939.6"/>
+<polyline class="road" points="760,440 770,570 770,700"/>
+<polyline class="road" points="770,700 680,720 610,760 575,840 560,885"/>
+<polyline class="road side-road" points="710,713.3 699.3,693.2 687.6,677.3"/>
+<polyline class="road side-road" points="597.1,789.5 614.8,803.8 628.1,818.4"/>
+<polyline class="road" points="770,700 720,770 690,830 660,885"/>
+<polyline class="road side-road" points="733.1,751.6 711.7,743.7 692.4,739.8"/>
+<polyline class="road side-road" points="690.4,829.3 707.4,844.5 719.9,859.7"/>
+<polyline class="road" points="770,700 775,790 780,885"/>
+<polyline class="road side-road" points="773,754.4 751.4,761.6 733.9,770.6"/>
+<polyline class="road side-road" points="777.1,830.6 799.4,835.4 817.8,842.5"/>
+<polyline class="road" points="770,700 840,760 880,830 900,885"/>
+<polyline class="road side-road" points="821.7,744.3 811.9,764.9 806.3,783.8"/>
+<polyline class="road side-road" points="875.3,821.7 897.4,816 917,814"/>
+<polyline class="road" points="770,700 880,700 950,730 975,800 985,880"/>
+<polyline class="road side-road" points="870.3,700 876.3,722 884.3,740"/>
+<polyline class="road side-road" points="968.4,781.4 991.1,779.7 1010.8,781.2"/>
+<polyline class="road" points="770,700 700,690 640,705 590,730"/>
+<polyline class="road side-road" points="715.1,692.2 712.3,669.5 706.9,650.6"/>
+<polyline class="road side-road" points="639.6,705.2 644,727.6 644.9,747.2"/>
+<polyline class="road vow-road" points="617.6,755.6 609.7,725.6 595.5,696.9"/>
+<polyline class="road vow-road" points="954.9,743.7 980.4,726 1009.9,713.4"/>
+<polyline class="road vow-road" points="701.7,806.6 678.5,786 650.7,769.9"/>
+<polyline class="road vow-road" points="861.8,798.1 883.9,776.3 910.6,758.7"/>
+<polyline class="road vow-road" points="776,808.8 745.6,802.4 713.6,802.1"/>
+<polyline class="road" points="760,440 560,600 400,700"/>
+<polyline class="road" points="400,700 300,680 180,700 30,720"/>
+<polyline class="road side-road" points="326.5,685.3 324.9,662.5 320.6,643.3"/>
+<polyline class="road side-road" points="153.9,703.5 150.9,726.1 145.3,745"/>
+<polyline class="road" points="400,700 330,780 200,820 30,860"/>
+<polyline class="road side-road" points="314.4,784.8 302.2,765.5 289.2,750.7"/>
+<polyline class="road side-road" points="149.4,831.9 148.6,854.7 144.9,874.1"/>
+<polyline class="road vow-road" points="228,692 231,661.1 227.7,629.2"/>
+<polyline class="road vow-road" points="104.3,710.1 116.2,738.8 122.4,770.2"/>
+<polyline class="road vow-road" points="244.1,806.4 242.9,775.4 235.4,744.2"/>
+<polyline class="road vow-road" points="149.4,831.9 164,859.3 173.3,890"/>
+<polyline class="road vow-road" points="101.6,843.1 102.5,812.1 97.2,780.5"/>
+<polyline class="road" points="760,440 560,470 320,420"/>
+<polyline class="road" points="320,420 220,380 120,335 25,300"/>
+<polyline class="road side-road" points="260.8,396.3 263.4,373.7 262.7,354"/>
+<polyline class="road side-road" points="124.5,337 110,354.6 95.3,367.8"/>
+<polyline class="road" points="320,420 230,480 130,540 25,580"/>
+<polyline class="road side-road" points="237.5,475 220.3,460 203.7,449.5"/>
+<polyline class="road side-road" points="117.7,544.7 119.9,567.4 118.8,587.1"/>
+<polyline class="road side-road" points="182.6,363.2 186.2,340.7 186.3,321"/>
+<polyline class="road side-road" points="186.7,506 192.9,527.9 195.3,547.5"/>
+<polyline class="road vow-road" points="182.6,363.2 177.6,393.8 166.3,423.8"/>
+<polyline class="road vow-road" points="64.9,314.7 82.7,289.3 95.7,260"/>
+<polyline class="road vow-road" points="169.7,516.2 161.1,486.3 146.4,457.9"/>
+<polyline class="road vow-road" points="99.1,551.8 117.3,576.9 130.5,606.1"/>
+<polyline class="road vow-road" points="43.5,572.9 40.3,542.1 30.8,511.4"/>
+<polyline class="road" points="760,440 600,310 420,180"/>
+<polyline class="road" points="420,180 320,125 190,95 30,60"/>
+<polyline class="road side-road" points="347.9,140.4 353.3,118.2 354.9,98.6"/>
+<polyline class="road side-road" points="163.9,89.3 153.4,109.5 141.7,125.4"/>
+<polyline class="road side-road" points="323.9,127.1 308,143.5 292.3,155.4"/>
+<polyline class="road side-road" points="244.2,107.5 243.3,84.7 239.5,65.4"/>
+<polyline class="road side-road" points="110.4,77.6 109.2,54.8 105.2,35.5"/>
+<polyline class="road side-road" points="56.8,65.9 46.2,86.1 34.6,101.9"/>
+<polyline class="road vow-road" points="270.9,113.7 271.9,144.7 266.7,176.3"/>
+<polyline class="road vow-road" points="190.7,95.2 205.3,67.7 214.4,37"/>
+<polyline class="road vow-road" points="137.2,83.4 138.6,114.5 133.7,146.1"/>
+<polyline class="road vow-road" points="83.6,71.7 97.8,44.1 106.6,13.3"/>
+<polyline class="road vow-road" points="30,60 31.4,91 26.5,122.7"/>
+<polyline class="road" points="760,440 870,300 1000,160"/>
+<polyline class="road" points="1000,160 880,115 760,80 610,55"/>
+<polyline class="road side-road" points="924.1,131.5 926.2,108.8 925.1,89.2"/>
+<polyline class="road side-road" points="743.2,77.2 733.7,97.9 722.9,114.4"/>
+<polyline class="road" points="1000,160 1120,100 1270,70 1420,50 1580,40"/>
+<polyline class="road side-road" points="1161.1,91.8 1171.3,112.2 1182.7,128.3"/>
+<polyline class="road side-road" points="1404.3,52.1 1407.4,29.5 1412.9,10.6"/>
+<polyline class="road" points="1000,160 1080,230 1250,240 1420,230 1580,215"/>
+<polyline class="road side-road" points="1152.3,234.3 1157,256.6 1163.9,275"/>
+<polyline class="road side-road" points="1402,231.1 1406.7,208.7 1413.7,190.3"/>
+<polyline class="road" points="1000,160 1150,160 1300,150 1450,140 1580,130"/>
+<polyline class="road side-road" points="1170.9,158.6 1178.3,180.2 1187.5,197.6"/>
+<polyline class="road side-road" points="1409.6,142.7 1414.1,120.3 1420.9,101.9"/>
+<polyline class="road vow-road" points="769.6,82.8 785.7,56.2 796.6,26.1"/>
+<polyline class="road vow-road" points="1369.4,56.7 1357.5,28.1 1351.3,-3.4"/>
+<polyline class="road vow-road" points="1341.4,147.2 1335.4,177.7 1335.5,209.8"/>
+<polyline class="road vow-road" points="1366.4,233.2 1356.6,203.7 1352.7,171.9"/>
+<polyline class="road vow-road" points="636.6,59.4 639.6,90.3 636.3,122.2"/>
+<polyline class="road" points="760,440 1000,420 1200,440"/>
+<polyline class="road" points="1200,440 1320,350 1450,320 1585,300"/>
+<polyline class="road side-road" points="1267.2,389.6 1285.2,403.6 1302.4,413.2"/>
+<polyline class="road side-road" points="1446.6,320.8 1447.5,298 1451.2,278.7"/>
+<polyline class="road" points="1200,440 1340,420 1460,430 1585,420"/>
+<polyline class="road side-road" points="1312.7,423.9 1321.8,444.8 1332.3,461.5"/>
+<polyline class="road side-road" points="1471.5,429.1 1475.7,406.7 1482.2,388.1"/>
+<polyline class="road" points="1200,440 1310,500 1430,540 1585,560"/>
+<polyline class="road side-road" points="1305.4,497.5 1300.1,519.7 1298.5,539.3"/>
+<polyline class="road side-road" points="1466,544.6 1474.7,523.6 1485,506.8"/>
+<polyline class="road" points="1200,440 1230,530 1290,590 1420,605"/>
+<polyline class="road side-road" points="1228.9,526.7 1209.9,539.3 1195.4,552.6"/>
+<polyline class="road side-road" points="1329.3,594.5 1337.7,573.4 1347.7,556.4"/>
+<polyline class="road vow-road" points="1403.4,425.3 1397.9,394.7 1398.6,362.7"/>
+<polyline class="road vow-road" points="1419.3,327.1 1418.3,358.1 1423.5,389.7"/>
+<polyline class="road vow-road" points="1529.6,308.2 1517.3,279.7 1510.6,248.3"/>
+<polyline class="road vow-road" points="1311.1,592.4 1299.7,621.3 1294.1,652.9"/>
+<polyline class="road vow-road" points="1489.8,547.7 1478,576.4 1471.9,607.9"/>
+<polyline class="road" points="760,440 650,360 560,340 460,330"/>
+<polyline class="road side-road" points="706.8,401.3 714.9,380 719,360.7"/>
+<polyline class="road side-road" points="568.9,342 558.2,362.1 546.5,378"/>
+<polyline class="road" points="760,440 820,360 880,330 940,320"/>
+<polyline class="road border-road" points="200,370 180,280 170,150"/>
+<polyline class="road border-road" points="400,120 520,110 690,80"/>
+<polyline class="road border-road" points="1330,235 1350,290 1370,345"/>
+<polyline class="road border-road" points="1430,540 1450,610 1470,700"/>
+<polyline class="road border-road" points="1110,700 1000,760 880,800"/>
+<polyline class="road border-road" points="620,780 540,780 420,760"/>
+<polyline class="road border-road" points="250,690 250,610 240,510"/>
+<polyline class="road-owned" points="760,440 772.3,447.8 784.7,455.6 797,463.4 809.3,471.1 821.6,478.9 834,486.7 846.3,494.5 858.6,502.3 870.9,510.1 883.3,517.8 895.6,525.6 907.9,533.4 920.2,541.2 932.6,549 944.9,556.8 956.4,565.6 967.4,575.2 978.4,584.8 989.3,594.4 1000.3,604 1011.3,613.6 1022.2,623.2 1033.2,632.8 1044.2,642.4 1055.1,652 1066.1,661.6 1077.1,671.2 1088.1,680.8 1099,690.4 1110,700"/>
+<polyline class="road-owned" points="1110,700 1124.9,703.7 1139.8,707.5 1154.7,711.2 1169.6,714.9 1184.6,718.6 1199.5,722.4 1214.4,726.1 1229.3,729.8 1244.2,733.6 1259.1,737.4 1273.9,741.4 1288.8,745.4 1303.6,749.4 1318.5,753.4 1333.3,757.4 1348.1,761.4 1363,765.4 1377.8,769.4 1392.6,773.7 1407.3,778 1422.1,782.3 1436.9,786.6 1451.6,790.9 1466.4,795.2 1481.1,799.5 1495.9,803.8 1510.5,808.7 1524.9,813.8 1539.4,818.9 1553.9,824"/>
+<polyline class="road-owned" points="1205.9,724 1205.9,724.7 1205.9,725.4 1205.9,726.1 1205.9,726.8 1205.9,727.5 1206,728.2 1206,728.9 1206,729.6 1206,730.3 1206,731 1206,731.8 1206,732.5 1206.1,733.2 1206.1,733.9 1206.1,734.6 1206.1,735.3 1206.1,736 1206.1,736.7 1206.2,737.4 1206.2,738.1 1206.2,738.8 1206.2,739.5 1206.2,740.3 1206.2,741 1206.2,741.7 1206.3,742.4 1206.3,743.1 1206.3,743.8 1206.3,744.5 1206.3,745.2"/>
+<polyline class="road-owned" points="1110,700 1116.1,697.3 1122.2,694.6 1128.3,691.9 1134.3,689.2 1140.4,686.5 1146.5,683.8 1152.6,681.1 1158.7,678.4 1164.8,675.7 1170.9,673 1176.9,670.2 1183,667.5 1189.1,664.8 1195.2,662.1 1201.4,659.9 1208.1,659.7 1214.7,659.4 1221.4,659.1 1228,658.8 1234.7,658.6 1241.3,658.3 1248,658 1254.6,657.7 1261.3,657.4 1267.9,657.2 1274.6,656.9 1281.3,656.6 1287.9,656.3 1294.6,656.1 1301.2,655.8"/>
+<polyline class="road-owned" points="1333.3,757.4 1332.2,759.2 1331.2,761.1 1330.1,762.9 1329.1,764.7 1328,766.5 1327,768.4 1325.9,770.2 1324.9,772 1323.8,773.8 1322.8,775.6 1321.7,777.5 1320.7,779.3 1319.6,781.1 1318.6,782.9 1317.6,784.8 1316.9,786.8 1316.3,788.8 1315.6,790.8 1314.9,792.8 1314.2,794.8 1313.6,796.8 1312.9,798.7 1312.2,800.7 1311.6,802.7 1310.9,804.7 1310.2,806.7 1309.5,808.7 1308.9,810.7 1308.2,812.7 1307.5,814.7"/>
+<polyline class="road-owned" points="1110,700 1106.8,701.7 1103.7,703.4 1100.5,705.2 1097.4,706.9 1094.2,708.6 1091.1,710.3 1087.9,712.1 1084.7,713.8 1081.6,715.5 1078.4,717.2 1075.3,718.9 1072.1,720.7 1068.9,722.4 1065.8,724.1 1062.6,725.8 1059.5,727.6 1056.3,729.3 1053.2,731 1050,732.7 1046.8,734.4 1043.7,736.2 1040.5,737.9 1037.4,739.6 1034.2,741.3 1031.1,743.1 1027.9,744.8 1024.7,746.5 1021.6,748.2 1018.4,750 1015.3,751.7"/>
+<rect class="mile own" x="879.8" y="514.3" width="7" height="7"/>
+<rect class="mile own" x="996.8" y="600.5" width="7" height="7"/>
+<rect class="mile own" x="1106.5" y="696.5" width="7" height="7"/>
+<rect class="mile own" x="1138.5" y="704.5" width="7" height="7"/>
+<rect class="mile own" x="1170.4" y="712.5" width="7" height="7"/>
+<rect class="mile own" x="1202.4" y="720.5" width="7" height="7"/>
+<rect class="mile own" x="1234.3" y="728.5" width="7" height="7"/>
+<line class="fork" x1="1269.7" y1="740.3" x2="1273.6" y2="725.8"/>
+<circle class="opt own" cx="1273.6" cy="725.8" r="4.5"/>
+<line class="fork" x1="1269.7" y1="740.3" x2="1269.7" y2="740.3"/>
+<circle class="opt passed" cx="1269.7" cy="740.3" r="4.5"/>
+<line class="fork" x1="1269.7" y1="740.3" x2="1265.8" y2="754.8"/>
+<circle class="opt passed" cx="1265.8" cy="754.8" r="4.5"/>
+<rect class="cross own" x="1263.7" y="734.3" width="12" height="12" transform="rotate(45 1269.7 740.3)"/>
+<rect class="mile own" x="1298" y="745.4" width="7" height="7"/>
+<rect class="mile own" x="1329.8" y="753.9" width="7" height="7"/>
+<rect class="mile own" x="1361.6" y="762.5" width="7" height="7"/>
+<rect class="mile own" x="1393.3" y="771.4" width="7" height="7"/>
+<rect class="mile own" x="1424.9" y="780.6" width="7" height="7"/>
+<rect class="mile own" x="1456.5" y="789.8" width="7" height="7"/>
+<rect class="mile own" x="1488.2" y="799.1" width="7" height="7"/>
+<rect class="mile own" x="1519.4" y="809.6" width="7" height="7"/>
+<line class="fork" x1="1553.9" y1="824" x2="1558.9" y2="809.9"/>
+<circle class="opt passed" cx="1558.9" cy="809.9" r="4.5"/>
+<line class="fork" x1="1553.9" y1="824" x2="1553.9" y2="824"/>
+<circle class="opt own" cx="1553.9" cy="824" r="4.5"/>
+<line class="fork" x1="1553.9" y1="824" x2="1548.9" y2="838.2"/>
+<circle class="opt passed" cx="1548.9" cy="838.2" r="4.5"/>
+<rect class="cross own" x="1547.9" y="818" width="12" height="12" transform="rotate(45 1553.9 824)"/>
+<g class="open-road" transform="translate(1585,835)"><circle r="2" cx="7.5" cy="2.7"/><circle r="2" cx="15.1" cy="5.3"/><circle r="2" cx="22.6" cy="8"/></g>
+<text class="move-name" x="1186.7" y="709.2">Challenge</text>
+<rect class="mile own" x="1202.8" y="741.7" width="7" height="7"/>
+<circle class="way open" cx="1209.7" cy="766.2" r="5"/><circle class="way-dot" cx="1209.7" cy="766.2" r="1.6"/>
+<rect class="mile lock" x="1436" y="762.5" width="7" height="7"/>
+<circle class="way lock" cx="1453.1" cy="749.6" r="5"/><circle class="way-dot" cx="1453.1" cy="749.6" r="1.6"/>
+<rect class="mile own" x="1132.6" y="684.9" width="7" height="7"/>
+<rect class="mile own" x="1158.7" y="673.3" width="7" height="7"/>
+<rect class="mile own" x="1184.7" y="661.7" width="7" height="7"/>
+<rect class="mile own" x="1212.2" y="655.8" width="7" height="7"/>
+<rect class="mile own" x="1240.7" y="654.7" width="7" height="7"/>
+<rect class="mile own" x="1269.2" y="653.5" width="7" height="7"/>
+<line class="fork" x1="1301.2" y1="655.8" x2="1300.6" y2="640.8"/>
+<circle class="opt own" cx="1300.6" cy="640.8" r="4.5"/>
+<line class="fork" x1="1301.2" y1="655.8" x2="1301.2" y2="655.8"/>
+<circle class="opt passed" cx="1301.2" cy="655.8" r="4.5"/>
+<line class="fork" x1="1301.2" y1="655.8" x2="1301.8" y2="670.8"/>
+<circle class="opt passed" cx="1301.8" cy="670.8" r="4.5"/>
+<rect class="cross own" x="1295.2" y="649.8" width="12" height="12" transform="rotate(45 1301.2 655.8)"/>
+<rect class="mile open" x="1326.1" y="653" width="7" height="7"/>
+<rect class="mile lock" x="1354.3" y="657.3" width="7" height="7"/>
+<rect class="mile lock" x="1382.6" y="661.7" width="7" height="7"/>
+<rect class="mile lock" x="1410.8" y="666" width="7" height="7"/>
+<rect class="mile lock" x="1439" y="670.3" width="7" height="7"/>
+<rect class="mile lock" x="1467.4" y="672.3" width="7" height="7"/>
+<rect class="mile lock" x="1495.9" y="673.3" width="7" height="7"/>
+<rect class="mile lock" x="1524.5" y="674.4" width="7" height="7"/>
+<line class="fork" x1="1556.5" y1="678.9" x2="1557" y2="664"/>
+<circle class="opt lock" cx="1557" cy="664" r="4.5"/>
+<line class="fork" x1="1556.5" y1="678.9" x2="1556.5" y2="678.9"/>
+<circle class="opt lock" cx="1556.5" cy="678.9" r="4.5"/>
+<line class="fork" x1="1556.5" y1="678.9" x2="1555.9" y2="693.9"/>
+<circle class="opt lock" cx="1555.9" cy="693.9" r="4.5"/>
+<rect class="cross lock" x="1550.5" y="672.9" width="12" height="12" transform="rotate(45 1556.5 678.9)"/>
+<g class="open-road" transform="translate(1585,680)"><circle r="2" cx="8" cy="0.3"/><circle r="2" cx="16" cy="0.6"/><circle r="2" cx="24" cy="0.9"/></g>
+<text class="move-name" x="1227.1" y="648.9">Frost Slam</text>
+<rect class="mile lock" x="1247.1" y="674.9" width="7" height="7"/>
+<circle class="way lock" cx="1259.8" cy="697.5" r="5"/><circle class="way-dot" cx="1259.8" cy="697.5" r="1.6"/>
+<rect class="mile lock" x="1447.6" y="650.9" width="7" height="7"/>
+<circle class="way lock" cx="1462.4" cy="636.4" r="5"/><circle class="way-dot" cx="1462.4" cy="636.4" r="1.6"/>
+<rect class="mile lock" x="1100.1" y="725.3" width="7" height="7"/>
+<rect class="mile lock" x="1093.7" y="754.2" width="7" height="7"/>
+<rect class="mile lock" x="1087.3" y="783" width="7" height="7"/>
+<rect class="mile lock" x="1104.8" y="804.8" width="7" height="7"/>
+<rect class="mile lock" x="1125.7" y="825.7" width="7" height="7"/>
+<rect class="mile lock" x="1146.6" y="846.6" width="7" height="7"/>
+<line class="fork" x1="1175.5" y1="861.5" x2="1177" y2="846.6"/>
+<circle class="opt lock" cx="1177" cy="846.6" r="4.5"/>
+<line class="fork" x1="1175.5" y1="861.5" x2="1175.5" y2="861.5"/>
+<circle class="opt lock" cx="1175.5" cy="861.5" r="4.5"/>
+<line class="fork" x1="1175.5" y1="861.5" x2="1174" y2="876.5"/>
+<circle class="opt lock" cx="1174" cy="876.5" r="4.5"/>
+<rect class="cross lock" x="1169.5" y="855.5" width="12" height="12" transform="rotate(45 1175.5 861.5)"/>
+<rect class="mile lock" x="1201.4" y="861" width="7" height="7"/>
+<rect class="mile lock" x="1230.8" y="863.9" width="7" height="7"/>
+<rect class="mile lock" x="1260.1" y="866.9" width="7" height="7"/>
+<rect class="mile lock" x="1289.5" y="869.8" width="7" height="7"/>
+<rect class="mile lock" x="1319" y="872" width="7" height="7"/>
+<rect class="mile lock" x="1348.5" y="873.3" width="7" height="7"/>
+<rect class="mile lock" x="1378" y="874.6" width="7" height="7"/>
+<rect class="mile lock" x="1407.5" y="875.9" width="7" height="7"/>
+<line class="fork" x1="1440.5" y1="880.7" x2="1441.1" y2="865.7"/>
+<circle class="opt lock" cx="1441.1" cy="865.7" r="4.5"/>
+<line class="fork" x1="1440.5" y1="880.7" x2="1440.5" y2="880.7"/>
+<circle class="opt lock" cx="1440.5" cy="880.7" r="4.5"/>
+<line class="fork" x1="1440.5" y1="880.7" x2="1439.8" y2="895.7"/>
+<circle class="opt lock" cx="1439.8" cy="895.7" r="4.5"/>
+<rect class="cross lock" x="1434.5" y="874.7" width="12" height="12" transform="rotate(45 1440.5 880.7)"/>
+<g class="open-road" transform="translate(1470,882)"><circle r="2" cx="8" cy="0.3"/><circle r="2" cx="16" cy="0.7"/><circle r="2" cx="24" cy="1"/></g>
+<text class="move-name" x="1116.7" y="806.7">Shelter</text>
+<rect class="mile lock" x="1115.2" y="844.2" width="7" height="7"/>
+<circle class="way lock" cx="1110.8" cy="867.4" r="5"/><circle class="way-dot" cx="1110.8" cy="867.4" r="1.6"/>
+<rect class="mile lock" x="1325.4" y="851.8" width="7" height="7"/>
+<circle class="way lock" cx="1338.2" cy="836.2" r="5"/><circle class="way-dot" cx="1338.2" cy="836.2" r="1.6"/>
+<rect class="mile own" x="1319.3" y="772.1" width="7" height="7"/>
+<rect class="mile own" x="1310.7" y="791.3" width="7" height="7"/>
+<path class="vow own" d="M1300.5,824.7 L1300.5,808.7 Q1307.5,798.7 1314.5,808.7 L1314.5,824.7 Z"/>
+<text class="vow-name" x="1307.5" y="838.7">Hold Fast</text>
+<rect class="mile lock" x="1352.1" y="636.4" width="7" height="7"/>
+<rect class="mile lock" x="1352" y="615.5" width="7" height="7"/>
+<path class="vow lock" d="M1350.4,608 L1350.4,592 Q1357.4,582 1364.4,592 L1364.4,608 Z"/>
+<text class="vow-name" x="1357.4" y="622">Cold Iron</text>
+<rect class="mile lock" x="1227.4" y="843.2" width="7" height="7"/>
+<rect class="mile lock" x="1226.2" y="822.3" width="7" height="7"/>
+<path class="vow lock" d="M1223.5,814.7 L1223.5,798.7 Q1230.5,788.7 1237.5,798.7 L1237.5,814.7 Z"/>
+<text class="vow-name" x="1230.5" y="828.7">Bodyguard</text>
+<rect class="mile lock" x="1488.7" y="778" width="7" height="7"/>
+<rect class="mile lock" x="1491.3" y="757.3" width="7" height="7"/>
+<path class="vow lock" d="M1492.4,750.3 L1492.4,734.3 Q1499.4,724.3 1506.4,734.3 L1506.4,750.3 Z"/>
+<text class="vow-name" x="1499.4" y="764.3">Unbroken</text>
+<rect class="mile lock" x="1371.7" y="894.7" width="7" height="7"/>
+<rect class="mile lock" x="1367.5" y="915.2" width="7" height="7"/>
+<path class="vow lock" d="M1361.8,949.6 L1361.8,933.6 Q1368.8,923.6 1375.8,933.6 L1375.8,949.6 Z"/>
+<text class="vow-name" x="1368.8" y="963.6">Front Line</text>
+<rect class="mile lock" x="763.2" y="523" width="7" height="7"/>
+<rect class="mile lock" x="766.5" y="609.7" width="7" height="7"/>
+<rect class="mile lock" x="766.5" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="746.5" y="700.9" width="7" height="7"/>
+<rect class="mile lock" x="726.5" y="705.4" width="7" height="7"/>
+<rect class="mile lock" x="706.5" y="709.8" width="7" height="7"/>
+<rect class="mile lock" x="686.4" y="714.3" width="7" height="7"/>
+<line class="fork" x1="671" y1="725.1" x2="678.5" y2="738.1"/>
+<circle class="opt lock" cx="678.5" cy="738.1" r="4.5"/>
+<line class="fork" x1="671" y1="725.1" x2="671" y2="725.1"/>
+<circle class="opt lock" cx="671" cy="725.1" r="4.5"/>
+<line class="fork" x1="671" y1="725.1" x2="663.6" y2="712.1"/>
+<circle class="opt lock" cx="663.6" cy="712.1" r="4.5"/>
+<rect class="cross lock" x="665" y="719.1" width="12" height="12" transform="rotate(45 671 725.1)"/>
+<rect class="mile lock" x="649.7" y="731.8" width="7" height="7"/>
+<rect class="mile lock" x="631.9" y="742" width="7" height="7"/>
+<rect class="mile lock" x="614.1" y="752.1" width="7" height="7"/>
+<rect class="mile lock" x="601.8" y="767.2" width="7" height="7"/>
+<rect class="mile lock" x="593.6" y="786" width="7" height="7"/>
+<rect class="mile lock" x="585.4" y="804.8" width="7" height="7"/>
+<rect class="mile lock" x="577.1" y="823.6" width="7" height="7"/>
+<rect class="mile lock" x="569.5" y="842.6" width="7" height="7"/>
+<line class="fork" x1="566.5" y1="865.5" x2="580.7" y2="870.3"/>
+<circle class="opt lock" cx="580.7" cy="870.3" r="4.5"/>
+<line class="fork" x1="566.5" y1="865.5" x2="566.5" y2="865.5"/>
+<circle class="opt lock" cx="566.5" cy="865.5" r="4.5"/>
+<line class="fork" x1="566.5" y1="865.5" x2="552.3" y2="860.8"/>
+<circle class="opt lock" cx="552.3" cy="860.8" r="4.5"/>
+<rect class="cross lock" x="560.5" y="859.5" width="12" height="12" transform="rotate(45 566.5 865.5)"/>
+<g class="open-road" transform="translate(560,885)"><circle r="2" cx="-2.5" cy="7.6"/><circle r="2" cx="-5.1" cy="15.2"/><circle r="2" cx="-7.6" cy="22.8"/></g>
+<text class="move-name" x="722" y="700.7">Greater Mend</text>
+<rect class="mile lock" x="696.5" y="691" width="7" height="7"/>
+<circle class="way lock" cx="687.6" cy="677.3" r="5"/><circle class="way-dot" cx="687.6" cy="677.3" r="1.6"/>
+<rect class="mile lock" x="610.1" y="799.4" width="7" height="7"/>
+<circle class="way lock" cx="628.1" cy="818.4" r="5"/><circle class="way-dot" cx="628.1" cy="818.4" r="1.6"/>
+<rect class="mile lock" x="759.1" y="706.8" width="7" height="7"/>
+<rect class="mile lock" x="751.7" y="717.2" width="7" height="7"/>
+<rect class="mile lock" x="744.4" y="727.5" width="7" height="7"/>
+<rect class="mile lock" x="737" y="737.8" width="7" height="7"/>
+<rect class="mile lock" x="729.6" y="748.1" width="7" height="7"/>
+<rect class="mile lock" x="722.2" y="758.5" width="7" height="7"/>
+<line class="fork" x1="718.7" y1="772.5" x2="732.2" y2="779.2"/>
+<circle class="opt lock" cx="732.2" cy="779.2" r="4.5"/>
+<line class="fork" x1="718.7" y1="772.5" x2="718.7" y2="772.5"/>
+<circle class="opt lock" cx="718.7" cy="772.5" r="4.5"/>
+<line class="fork" x1="718.7" y1="772.5" x2="705.3" y2="765.8"/>
+<circle class="opt lock" cx="705.3" cy="765.8" r="4.5"/>
+<rect class="cross lock" x="712.7" y="766.5" width="12" height="12" transform="rotate(45 718.7 772.5)"/>
+<rect class="mile lock" x="709.6" y="780.4" width="7" height="7"/>
+<rect class="mile lock" x="703.9" y="791.7" width="7" height="7"/>
+<rect class="mile lock" x="698.2" y="803.1" width="7" height="7"/>
+<rect class="mile lock" x="692.5" y="814.4" width="7" height="7"/>
+<rect class="mile lock" x="686.9" y="825.8" width="7" height="7"/>
+<rect class="mile lock" x="680.8" y="836.9" width="7" height="7"/>
+<rect class="mile lock" x="674.7" y="848.1" width="7" height="7"/>
+<rect class="mile lock" x="668.7" y="859.2" width="7" height="7"/>
+<line class="fork" x1="666.1" y1="873.9" x2="679.2" y2="881"/>
+<circle class="opt lock" cx="679.2" cy="881" r="4.5"/>
+<line class="fork" x1="666.1" y1="873.9" x2="666.1" y2="873.9"/>
+<circle class="opt lock" cx="666.1" cy="873.9" r="4.5"/>
+<line class="fork" x1="666.1" y1="873.9" x2="652.9" y2="866.7"/>
+<circle class="opt lock" cx="652.9" cy="866.7" r="4.5"/>
+<rect class="cross lock" x="660.1" y="867.9" width="12" height="12" transform="rotate(45 666.1 873.9)"/>
+<g class="open-road" transform="translate(660,885)"><circle r="2" cx="-3.8" cy="7"/><circle r="2" cx="-7.7" cy="14"/><circle r="2" cx="-11.5" cy="21.1"/></g>
+<text class="move-name" x="737.5" y="735.4">Circle of Renewal</text>
+<rect class="mile lock" x="709.7" y="740.8" width="7" height="7"/>
+<circle class="way lock" cx="692.4" cy="739.8" r="5"/><circle class="way-dot" cx="692.4" cy="739.8" r="1.6"/>
+<rect class="mile lock" x="702.7" y="839.9" width="7" height="7"/>
+<circle class="way lock" cx="719.9" cy="859.7" r="5"/><circle class="way-dot" cx="719.9" cy="859.7" r="1.6"/>
+<rect class="mile lock" x="767.1" y="707.4" width="7" height="7"/>
+<rect class="mile lock" x="767.7" y="718.3" width="7" height="7"/>
+<rect class="mile lock" x="768.3" y="729.1" width="7" height="7"/>
+<rect class="mile lock" x="768.9" y="740" width="7" height="7"/>
+<rect class="mile lock" x="769.5" y="750.9" width="7" height="7"/>
+<rect class="mile lock" x="770.1" y="761.8" width="7" height="7"/>
+<line class="fork" x1="774.2" y1="776.2" x2="789.2" y2="775.3"/>
+<circle class="opt lock" cx="789.2" cy="775.3" r="4.5"/>
+<line class="fork" x1="774.2" y1="776.2" x2="774.2" y2="776.2"/>
+<circle class="opt lock" cx="774.2" cy="776.2" r="4.5"/>
+<line class="fork" x1="774.2" y1="776.2" x2="759.3" y2="777"/>
+<circle class="opt lock" cx="759.3" cy="777" r="4.5"/>
+<rect class="cross lock" x="768.2" y="770.2" width="12" height="12" transform="rotate(45 774.2 776.2)"/>
+<rect class="mile lock" x="771.3" y="783.6" width="7" height="7"/>
+<rect class="mile lock" x="771.9" y="794.4" width="7" height="7"/>
+<rect class="mile lock" x="772.5" y="805.3" width="7" height="7"/>
+<rect class="mile lock" x="773.1" y="816.2" width="7" height="7"/>
+<rect class="mile lock" x="773.6" y="827.1" width="7" height="7"/>
+<rect class="mile lock" x="774.2" y="838" width="7" height="7"/>
+<rect class="mile lock" x="774.8" y="848.9" width="7" height="7"/>
+<rect class="mile lock" x="775.4" y="859.7" width="7" height="7"/>
+<line class="fork" x1="779.4" y1="874.1" x2="794.4" y2="873.3"/>
+<circle class="opt lock" cx="794.4" cy="873.3" r="4.5"/>
+<line class="fork" x1="779.4" y1="874.1" x2="779.4" y2="874.1"/>
+<circle class="opt lock" cx="779.4" cy="874.1" r="4.5"/>
+<line class="fork" x1="779.4" y1="874.1" x2="764.4" y2="874.9"/>
+<circle class="opt lock" cx="764.4" cy="874.9" r="4.5"/>
+<rect class="cross lock" x="773.4" y="868.1" width="12" height="12" transform="rotate(45 779.4 874.1)"/>
+<g class="open-road" transform="translate(780,885)"><circle r="2" cx="0.4" cy="8"/><circle r="2" cx="0.8" cy="16"/><circle r="2" cx="1.3" cy="24"/></g>
+<text class="move-name" x="772.7" y="737.9">Spring Tide</text>
+<rect class="mile lock" x="749.4" y="757.6" width="7" height="7"/>
+<circle class="way lock" cx="733.9" cy="770.6" r="5"/><circle class="way-dot" cx="733.9" cy="770.6" r="1.6"/>
+<rect class="mile lock" x="794.4" y="831.6" width="7" height="7"/>
+<circle class="way lock" cx="817.8" cy="842.5" r="5"/><circle class="way-dot" cx="817.8" cy="842.5" r="1.6"/>
+<rect class="mile lock" x="776.8" y="705.4" width="7" height="7"/>
+<rect class="mile lock" x="787.2" y="714.2" width="7" height="7"/>
+<rect class="mile lock" x="797.5" y="723.1" width="7" height="7"/>
+<rect class="mile lock" x="807.8" y="731.9" width="7" height="7"/>
+<rect class="mile lock" x="818.2" y="740.8" width="7" height="7"/>
+<rect class="mile lock" x="828.5" y="749.6" width="7" height="7"/>
+<line class="fork" x1="841.5" y1="762.7" x2="854.5" y2="755.2"/>
+<circle class="opt lock" cx="854.5" cy="755.2" r="4.5"/>
+<line class="fork" x1="841.5" y1="762.7" x2="841.5" y2="762.7"/>
+<circle class="opt lock" cx="841.5" cy="762.7" r="4.5"/>
+<line class="fork" x1="841.5" y1="762.7" x2="828.5" y2="770.1"/>
+<circle class="opt lock" cx="828.5" cy="770.1" r="4.5"/>
+<rect class="cross lock" x="835.5" y="756.7" width="12" height="12" transform="rotate(45 841.5 762.7)"/>
+<rect class="mile lock" x="844.8" y="771" width="7" height="7"/>
+<rect class="mile lock" x="851.5" y="782.8" width="7" height="7"/>
+<rect class="mile lock" x="858.3" y="794.6" width="7" height="7"/>
+<rect class="mile lock" x="865" y="806.4" width="7" height="7"/>
+<rect class="mile lock" x="871.8" y="818.2" width="7" height="7"/>
+<rect class="mile lock" x="877.9" y="830.3" width="7" height="7"/>
+<rect class="mile lock" x="882.5" y="843.1" width="7" height="7"/>
+<rect class="mile lock" x="887.2" y="855.9" width="7" height="7"/>
+<line class="fork" x1="895.3" y1="872.2" x2="909.4" y2="867.1"/>
+<circle class="opt lock" cx="909.4" cy="867.1" r="4.5"/>
+<line class="fork" x1="895.3" y1="872.2" x2="895.3" y2="872.2"/>
+<circle class="opt lock" cx="895.3" cy="872.2" r="4.5"/>
+<line class="fork" x1="895.3" y1="872.2" x2="881.3" y2="877.3"/>
+<circle class="opt lock" cx="881.3" cy="877.3" r="4.5"/>
+<rect class="cross lock" x="889.3" y="866.2" width="12" height="12" transform="rotate(45 895.3 872.2)"/>
+<g class="open-road" transform="translate(900,885)"><circle r="2" cx="2.7" cy="7.5"/><circle r="2" cx="5.5" cy="15"/><circle r="2" cx="8.2" cy="22.6"/></g>
+<text class="move-name" x="815.5" y="729">Green Sickness</text>
+<rect class="mile lock" x="809.1" y="760" width="7" height="7"/>
+<circle class="way lock" cx="806.3" cy="783.8" r="5"/><circle class="way-dot" cx="806.3" cy="783.8" r="1.6"/>
+<rect class="mile lock" x="892.4" y="812.9" width="7" height="7"/>
+<circle class="way lock" cx="917" cy="814" r="5"/><circle class="way-dot" cx="917" cy="814" r="1.6"/>
+<rect class="mile lock" x="786.6" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="806.6" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="826.7" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="846.8" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="866.8" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="886.1" y="700.6" width="7" height="7"/>
+<line class="fork" x1="908" y1="712" x2="913.9" y2="698.2"/>
+<circle class="opt lock" cx="913.9" cy="698.2" r="4.5"/>
+<line class="fork" x1="908" y1="712" x2="908" y2="712"/>
+<circle class="opt lock" cx="908" cy="712" r="4.5"/>
+<line class="fork" x1="908" y1="712" x2="902.1" y2="725.8"/>
+<circle class="opt lock" cx="902.1" cy="725.8" r="4.5"/>
+<rect class="cross lock" x="902" y="706" width="12" height="12" transform="rotate(45 908 712)"/>
+<rect class="mile lock" x="922.9" y="716.4" width="7" height="7"/>
+<rect class="mile lock" x="941.4" y="724.3" width="7" height="7"/>
+<rect class="mile lock" x="951.4" y="740.2" width="7" height="7"/>
+<rect class="mile lock" x="958.1" y="759" width="7" height="7"/>
+<rect class="mile lock" x="964.9" y="777.9" width="7" height="7"/>
+<rect class="mile lock" x="971.5" y="796.9" width="7" height="7"/>
+<rect class="mile lock" x="974" y="816.8" width="7" height="7"/>
+<rect class="mile lock" x="976.5" y="836.7" width="7" height="7"/>
+<line class="fork" x1="982.5" y1="860.1" x2="997.4" y2="858.2"/>
+<circle class="opt lock" cx="997.4" cy="858.2" r="4.5"/>
+<line class="fork" x1="982.5" y1="860.1" x2="982.5" y2="860.1"/>
+<circle class="opt lock" cx="982.5" cy="860.1" r="4.5"/>
+<line class="fork" x1="982.5" y1="860.1" x2="967.6" y2="862"/>
+<circle class="opt lock" cx="967.6" cy="862" r="4.5"/>
+<rect class="cross lock" x="976.5" y="854.1" width="12" height="12" transform="rotate(45 982.5 860.1)"/>
+<g class="open-road" transform="translate(985,880)"><circle r="2" cx="1" cy="7.9"/><circle r="2" cx="2" cy="15.9"/><circle r="2" cx="3" cy="23.8"/></g>
+<text class="move-name" x="858.3" y="690">Protective Ward</text>
+<rect class="mile lock" x="872.4" y="717" width="7" height="7"/>
+<circle class="way lock" cx="884.3" cy="740" r="5"/><circle class="way-dot" cx="884.3" cy="740" r="1.6"/>
+<rect class="mile lock" x="986.1" y="776.3" width="7" height="7"/>
+<circle class="way lock" cx="1010.8" cy="781.2" r="5"/><circle class="way-dot" cx="1010.8" cy="781.2" r="1.6"/>
+<rect class="mile lock" x="755.5" y="694.9" width="7" height="7"/>
+<rect class="mile lock" x="744.6" y="693.4" width="7" height="7"/>
+<rect class="mile lock" x="733.6" y="691.8" width="7" height="7"/>
+<rect class="mile lock" x="722.6" y="690.2" width="7" height="7"/>
+<rect class="mile lock" x="711.6" y="688.7" width="7" height="7"/>
+<rect class="mile lock" x="700.7" y="687.1" width="7" height="7"/>
+<line class="fork" x1="693.3" y1="691.7" x2="697" y2="706.2"/>
+<circle class="opt lock" cx="697" cy="706.2" r="4.5"/>
+<line class="fork" x1="693.3" y1="691.7" x2="693.3" y2="691.7"/>
+<circle class="opt lock" cx="693.3" cy="691.7" r="4.5"/>
+<line class="fork" x1="693.3" y1="691.7" x2="689.7" y2="677.1"/>
+<circle class="opt lock" cx="689.7" cy="677.1" r="4.5"/>
+<rect class="cross lock" x="687.3" y="685.7" width="12" height="12" transform="rotate(45 693.3 691.7)"/>
+<rect class="mile lock" x="679.1" y="690.9" width="7" height="7"/>
+<rect class="mile lock" x="668.3" y="693.5" width="7" height="7"/>
+<rect class="mile lock" x="657.6" y="696.2" width="7" height="7"/>
+<rect class="mile lock" x="646.8" y="698.9" width="7" height="7"/>
+<rect class="mile lock" x="636.1" y="701.7" width="7" height="7"/>
+<rect class="mile lock" x="626.2" y="706.7" width="7" height="7"/>
+<rect class="mile lock" x="616.2" y="711.6" width="7" height="7"/>
+<rect class="mile lock" x="606.3" y="716.6" width="7" height="7"/>
+<line class="fork" x1="599.9" y1="725" x2="606.6" y2="738.5"/>
+<circle class="opt lock" cx="606.6" cy="738.5" r="4.5"/>
+<line class="fork" x1="599.9" y1="725" x2="599.9" y2="725"/>
+<circle class="opt lock" cx="599.9" cy="725" r="4.5"/>
+<line class="fork" x1="599.9" y1="725" x2="593.2" y2="711.6"/>
+<circle class="opt lock" cx="593.2" cy="711.6" r="4.5"/>
+<rect class="cross lock" x="593.9" y="719" width="12" height="12" transform="rotate(45 599.9 725)"/>
+<g class="open-road" transform="translate(590,730)"><circle r="2" cx="-7.2" cy="3.6"/><circle r="2" cx="-14.3" cy="7.2"/><circle r="2" cx="-21.5" cy="10.7"/></g>
+<text class="move-name" x="721.7" y="683.1">Undertow</text>
+<rect class="mile lock" x="709" y="667.6" width="7" height="7"/>
+<circle class="way lock" cx="706.9" cy="650.6" r="5"/><circle class="way-dot" cx="706.9" cy="650.6" r="1.6"/>
+<rect class="mile lock" x="640.2" y="722.5" width="7" height="7"/>
+<circle class="way lock" cx="644.9" cy="747.2" r="5"/><circle class="way-dot" cx="644.9" cy="747.2" r="1.6"/>
+<rect class="mile lock" x="608.7" y="731.8" width="7" height="7"/>
+<rect class="mile lock" x="601.3" y="712.2" width="7" height="7"/>
+<path class="vow lock" d="M588.5,706.9 L588.5,690.9 Q595.5,680.9 602.5,690.9 L602.5,706.9 Z"/>
+<text class="vow-name" x="595.5" y="720.9">Watchful Healing</text>
+<rect class="mile lock" x="968.7" y="728.2" width="7" height="7"/>
+<rect class="mile lock" x="987.1" y="718.2" width="7" height="7"/>
+<path class="vow lock" d="M1002.9,723.4 L1002.9,707.4 Q1009.9,697.4 1016.9,707.4 L1016.9,723.4 Z"/>
+<text class="vow-name" x="1009.9" y="737.4">Still Mind</text>
+<rect class="mile lock" x="682.5" y="789.1" width="7" height="7"/>
+<rect class="mile lock" x="665.4" y="777" width="7" height="7"/>
+<path class="vow lock" d="M643.7,779.9 L643.7,763.9 Q650.7,753.9 657.7,763.9 L657.7,779.9 Z"/>
+<text class="vow-name" x="650.7" y="793.9">Fast Renewal</text>
+<rect class="mile lock" x="873.2" y="779.8" width="7" height="7"/>
+<rect class="mile lock" x="889.6" y="766.7" width="7" height="7"/>
+<path class="vow lock" d="M903.6,768.7 L903.6,752.7 Q910.6,742.7 917.6,752.7 L917.6,768.7 Z"/>
+<text class="vow-name" x="910.6" y="782.7">Battle Healer</text>
+<rect class="mile lock" x="751.9" y="801" width="7" height="7"/>
+<rect class="mile lock" x="731.1" y="798.8" width="7" height="7"/>
+<path class="vow lock" d="M706.6,812.1 L706.6,796.1 Q713.6,786.1 720.6,796.1 L720.6,812.1 Z"/>
+<text class="vow-name" x="713.6" y="826.1">Lifeline</text>
+<rect class="mile lock" x="640.7" y="529.1" width="7" height="7"/>
+<rect class="mile lock" x="522.2" y="617.9" width="7" height="7"/>
+<rect class="mile lock" x="396.5" y="696.5" width="7" height="7"/>
+<rect class="mile lock" x="372" y="691.6" width="7" height="7"/>
+<rect class="mile lock" x="347.5" y="686.7" width="7" height="7"/>
+<rect class="mile lock" x="323" y="681.8" width="7" height="7"/>
+<rect class="mile lock" x="298.5" y="676.9" width="7" height="7"/>
+<line class="fork" x1="277.3" y1="683.8" x2="279.8" y2="698.6"/>
+<circle class="opt lock" cx="279.8" cy="698.6" r="4.5"/>
+<line class="fork" x1="277.3" y1="683.8" x2="277.3" y2="683.8"/>
+<circle class="opt lock" cx="277.3" cy="683.8" r="4.5"/>
+<line class="fork" x1="277.3" y1="683.8" x2="274.8" y2="669"/>
+<circle class="opt lock" cx="274.8" cy="669" r="4.5"/>
+<rect class="cross lock" x="271.3" y="677.8" width="12" height="12" transform="rotate(45 277.3 683.8)"/>
+<rect class="mile lock" x="249.1" y="684.4" width="7" height="7"/>
+<rect class="mile lock" x="224.5" y="688.5" width="7" height="7"/>
+<rect class="mile lock" x="199.8" y="692.6" width="7" height="7"/>
+<rect class="mile lock" x="175.2" y="696.7" width="7" height="7"/>
+<rect class="mile lock" x="150.4" y="700" width="7" height="7"/>
+<rect class="mile lock" x="125.6" y="703.3" width="7" height="7"/>
+<rect class="mile lock" x="100.8" y="706.6" width="7" height="7"/>
+<rect class="mile lock" x="76.1" y="709.9" width="7" height="7"/>
+<line class="fork" x1="54.8" y1="716.7" x2="56.8" y2="731.6"/>
+<circle class="opt lock" cx="56.8" cy="731.6" r="4.5"/>
+<line class="fork" x1="54.8" y1="716.7" x2="54.8" y2="716.7"/>
+<circle class="opt lock" cx="54.8" cy="716.7" r="4.5"/>
+<line class="fork" x1="54.8" y1="716.7" x2="52.8" y2="701.8"/>
+<circle class="opt lock" cx="52.8" cy="701.8" r="4.5"/>
+<rect class="cross lock" x="48.8" y="710.7" width="12" height="12" transform="rotate(45 54.8 716.7)"/>
+<g class="open-road" transform="translate(30,720)"><circle r="2" cx="-7.9" cy="1.1"/><circle r="2" cx="-15.9" cy="2.1"/><circle r="2" cx="-23.8" cy="3.2"/></g>
+<text class="move-name" x="341.2" y="678.2">Flame Strike</text>
+<rect class="mile lock" x="321.5" y="660.6" width="7" height="7"/>
+<circle class="way lock" cx="320.6" cy="643.3" r="5"/><circle class="way-dot" cx="320.6" cy="643.3" r="1.6"/>
+<rect class="mile lock" x="147.6" y="721" width="7" height="7"/>
+<circle class="way lock" cx="145.3" cy="745" r="5"/><circle class="way-dot" cx="145.3" cy="745" r="1.6"/>
+<rect class="mile lock" x="380.3" y="715" width="7" height="7"/>
+<rect class="mile lock" x="364.2" y="733.4" width="7" height="7"/>
+<rect class="mile lock" x="348" y="751.9" width="7" height="7"/>
+<rect class="mile lock" x="331.9" y="770.3" width="7" height="7"/>
+<rect class="mile lock" x="310.9" y="781.3" width="7" height="7"/>
+<rect class="mile lock" x="287.4" y="788.5" width="7" height="7"/>
+<line class="fork" x1="267.5" y1="799.2" x2="271.9" y2="813.6"/>
+<circle class="opt lock" cx="271.9" cy="813.6" r="4.5"/>
+<line class="fork" x1="267.5" y1="799.2" x2="267.5" y2="799.2"/>
+<circle class="opt lock" cx="267.5" cy="799.2" r="4.5"/>
+<line class="fork" x1="267.5" y1="799.2" x2="263.1" y2="784.9"/>
+<circle class="opt lock" cx="263.1" cy="784.9" r="4.5"/>
+<rect class="cross lock" x="261.5" y="793.2" width="12" height="12" transform="rotate(45 267.5 799.2)"/>
+<rect class="mile lock" x="240.6" y="802.9" width="7" height="7"/>
+<rect class="mile lock" x="217.1" y="810.2" width="7" height="7"/>
+<rect class="mile lock" x="193.6" y="817.2" width="7" height="7"/>
+<rect class="mile lock" x="169.7" y="822.8" width="7" height="7"/>
+<rect class="mile lock" x="145.9" y="828.4" width="7" height="7"/>
+<rect class="mile lock" x="122" y="834" width="7" height="7"/>
+<rect class="mile lock" x="98.1" y="839.6" width="7" height="7"/>
+<rect class="mile lock" x="74.2" y="845.3" width="7" height="7"/>
+<line class="fork" x1="53.9" y1="854.4" x2="57.3" y2="869"/>
+<circle class="opt lock" cx="57.3" cy="869" r="4.5"/>
+<line class="fork" x1="53.9" y1="854.4" x2="53.9" y2="854.4"/>
+<circle class="opt lock" cx="53.9" cy="854.4" r="4.5"/>
+<line class="fork" x1="53.9" y1="854.4" x2="50.4" y2="839.8"/>
+<circle class="opt lock" cx="50.4" cy="839.8" r="4.5"/>
+<rect class="cross lock" x="47.9" y="848.4" width="12" height="12" transform="rotate(45 53.9 854.4)"/>
+<g class="open-road" transform="translate(30,860)"><circle r="2" cx="-7.8" cy="1.8"/><circle r="2" cx="-15.6" cy="3.7"/><circle r="2" cx="-23.4" cy="5.5"/></g>
+<text class="move-name" x="328.5" y="770.5">Power Strike</text>
+<rect class="mile lock" x="299.5" y="763.4" width="7" height="7"/>
+<circle class="way lock" cx="289.2" cy="750.7" r="5"/><circle class="way-dot" cx="289.2" cy="750.7" r="1.6"/>
+<rect class="mile lock" x="145.1" y="849.6" width="7" height="7"/>
+<circle class="way lock" cx="144.9" cy="874.1" r="5"/><circle class="way-dot" cx="144.9" cy="874.1" r="1.6"/>
+<rect class="mile lock" x="226.5" y="667.6" width="7" height="7"/>
+<rect class="mile lock" x="226.3" y="646.6" width="7" height="7"/>
+<path class="vow lock" d="M220.7,639.2 L220.7,623.2 Q227.7,613.2 234.7,623.2 L234.7,639.2 Z"/>
+<text class="vow-name" x="227.7" y="653.2">Single Combat</text>
+<rect class="mile lock" x="108.9" y="726" width="7" height="7"/>
+<rect class="mile lock" x="114.9" y="746.1" width="7" height="7"/>
+<path class="vow lock" d="M115.4,780.2 L115.4,764.2 Q122.4,754.2 129.4,764.2 L129.4,780.2 Z"/>
+<text class="vow-name" x="122.4" y="794.2">Riposte</text>
+<rect class="mile lock" x="239.8" y="781.9" width="7" height="7"/>
+<rect class="mile lock" x="236.8" y="761.2" width="7" height="7"/>
+<path class="vow lock" d="M228.4,754.2 L228.4,738.2 Q235.4,728.2 242.4,738.2 L242.4,754.2 Z"/>
+<text class="vow-name" x="235.4" y="768.2">Flowing Cuts</text>
+<rect class="mile lock" x="155.8" y="847" width="7" height="7"/>
+<rect class="mile lock" x="163.7" y="866.3" width="7" height="7"/>
+<path class="vow lock" d="M166.3,900 L166.3,884 Q173.3,874 180.3,884 L180.3,900 Z"/>
+<text class="vow-name" x="173.3" y="914">Duelist's Guard</text>
+<rect class="mile lock" x="98.7" y="818.6" width="7" height="7"/>
+<rect class="mile lock" x="97.2" y="797.7" width="7" height="7"/>
+<path class="vow lock" d="M90.2,790.5 L90.2,774.5 Q97.2,764.5 104.2,774.5 L104.2,790.5 Z"/>
+<text class="vow-name" x="97.2" y="804.5">Pressing Attack</text>
+<rect class="mile lock" x="609" y="458.6" width="7" height="7"/>
+<rect class="mile lock" x="462.5" y="446.9" width="7" height="7"/>
+<rect class="mile lock" x="316.5" y="416.5" width="7" height="7"/>
+<rect class="mile lock" x="296.8" y="408.6" width="7" height="7"/>
+<rect class="mile lock" x="277.1" y="400.7" width="7" height="7"/>
+<rect class="mile lock" x="257.3" y="392.8" width="7" height="7"/>
+<rect class="mile lock" x="237.6" y="384.9" width="7" height="7"/>
+<line class="fork" x1="221.4" y1="380.6" x2="215.8" y2="394.5"/>
+<circle class="opt lock" cx="215.8" cy="394.5" r="4.5"/>
+<line class="fork" x1="221.4" y1="380.6" x2="221.4" y2="380.6"/>
+<circle class="opt lock" cx="221.4" cy="380.6" r="4.5"/>
+<line class="fork" x1="221.4" y1="380.6" x2="227" y2="366.6"/>
+<circle class="opt lock" cx="227" cy="366.6" r="4.5"/>
+<rect class="cross lock" x="215.4" y="374.6" width="12" height="12" transform="rotate(45 221.4 380.6)"/>
+<rect class="mile lock" x="198.5" y="368.4" width="7" height="7"/>
+<rect class="mile lock" x="179.1" y="359.7" width="7" height="7"/>
+<rect class="mile lock" x="159.8" y="351" width="7" height="7"/>
+<rect class="mile lock" x="140.4" y="342.3" width="7" height="7"/>
+<rect class="mile lock" x="121" y="333.5" width="7" height="7"/>
+<rect class="mile lock" x="101.2" y="325.9" width="7" height="7"/>
+<rect class="mile lock" x="81.3" y="318.5" width="7" height="7"/>
+<rect class="mile lock" x="61.4" y="311.2" width="7" height="7"/>
+<line class="fork" x1="44.9" y1="307.3" x2="39.7" y2="321.4"/>
+<circle class="opt lock" cx="39.7" cy="321.4" r="4.5"/>
+<line class="fork" x1="44.9" y1="307.3" x2="44.9" y2="307.3"/>
+<circle class="opt lock" cx="44.9" cy="307.3" r="4.5"/>
+<line class="fork" x1="44.9" y1="307.3" x2="50.1" y2="293.3"/>
+<circle class="opt lock" cx="50.1" cy="293.3" r="4.5"/>
+<rect class="cross lock" x="38.9" y="301.3" width="12" height="12" transform="rotate(45 44.9 307.3)"/>
+<g class="open-road" transform="translate(25,300)"><circle r="2" cx="-7.5" cy="-2.8"/><circle r="2" cx="-15" cy="-5.5"/><circle r="2" cx="-22.5" cy="-8.3"/></g>
+<text class="move-name" x="272.7" y="391.1">Quarry Blow</text>
+<rect class="mile lock" x="259.8" y="371.7" width="7" height="7"/>
+<circle class="way lock" cx="262.7" cy="354" r="5"/><circle class="way-dot" cx="262.7" cy="354" r="1.6"/>
+<rect class="mile lock" x="107.5" y="349.9" width="7" height="7"/>
+<circle class="way lock" cx="95.3" cy="367.8" r="5"/><circle class="way-dot" cx="95.3" cy="367.8" r="1.6"/>
+<rect class="mile lock" x="300" y="427.5" width="7" height="7"/>
+<rect class="mile lock" x="283.5" y="438.5" width="7" height="7"/>
+<rect class="mile lock" x="267" y="449.5" width="7" height="7"/>
+<rect class="mile lock" x="250.5" y="460.5" width="7" height="7"/>
+<rect class="mile lock" x="234" y="471.5" width="7" height="7"/>
+<rect class="mile lock" x="217.2" y="482.1" width="7" height="7"/>
+<line class="fork" x1="203.7" y1="495.8" x2="211.4" y2="508.6"/>
+<circle class="opt lock" cx="211.4" cy="508.6" r="4.5"/>
+<line class="fork" x1="203.7" y1="495.8" x2="203.7" y2="495.8"/>
+<circle class="opt lock" cx="203.7" cy="495.8" r="4.5"/>
+<line class="fork" x1="203.7" y1="495.8" x2="196" y2="482.9"/>
+<circle class="opt lock" cx="196" cy="482.9" r="4.5"/>
+<rect class="cross lock" x="197.7" y="489.8" width="12" height="12" transform="rotate(45 203.7 495.8)"/>
+<rect class="mile lock" x="183.2" y="502.5" width="7" height="7"/>
+<rect class="mile lock" x="166.2" y="512.7" width="7" height="7"/>
+<rect class="mile lock" x="149.2" y="522.9" width="7" height="7"/>
+<rect class="mile lock" x="132.2" y="533.1" width="7" height="7"/>
+<rect class="mile lock" x="114.2" y="541.2" width="7" height="7"/>
+<rect class="mile lock" x="95.6" y="548.3" width="7" height="7"/>
+<rect class="mile lock" x="77.1" y="555.3" width="7" height="7"/>
+<rect class="mile lock" x="58.6" y="562.4" width="7" height="7"/>
+<line class="fork" x1="43.5" y1="572.9" x2="48.9" y2="587"/>
+<circle class="opt lock" cx="48.9" cy="587" r="4.5"/>
+<line class="fork" x1="43.5" y1="572.9" x2="43.5" y2="572.9"/>
+<circle class="opt lock" cx="43.5" cy="572.9" r="4.5"/>
+<line class="fork" x1="43.5" y1="572.9" x2="38.2" y2="558.9"/>
+<circle class="opt lock" cx="38.2" cy="558.9" r="4.5"/>
+<rect class="cross lock" x="37.5" y="566.9" width="12" height="12" transform="rotate(45 43.5 572.9)"/>
+<g class="open-road" transform="translate(25,580)"><circle r="2" cx="-7.5" cy="2.8"/><circle r="2" cx="-15" cy="5.7"/><circle r="2" cx="-22.4" cy="8.5"/></g>
+<text class="move-name" x="247.4" y="458.4">Turning Cut</text>
+<rect class="mile lock" x="218" y="457.5" width="7" height="7"/>
+<circle class="way lock" cx="203.7" cy="449.5" r="5"/><circle class="way-dot" cx="203.7" cy="449.5" r="1.6"/>
+<rect class="mile lock" x="116.2" y="562.3" width="7" height="7"/>
+<circle class="way lock" cx="118.8" cy="587.1" r="5"/><circle class="way-dot" cx="118.8" cy="587.1" r="1.6"/>
+<rect class="mile lock" x="182.4" y="338.7" width="7" height="7"/>
+<circle class="way lock" cx="186.3" cy="321" r="5"/><circle class="way-dot" cx="186.3" cy="321" r="1.6"/>
+<rect class="mile lock" x="189" y="522.9" width="7" height="7"/>
+<circle class="way lock" cx="195.3" cy="547.5" r="5"/><circle class="way-dot" cx="195.3" cy="547.5" r="1.6"/>
+<rect class="mile lock" x="175.7" y="380.4" width="7" height="7"/>
+<rect class="mile lock" x="170.2" y="400.6" width="7" height="7"/>
+<path class="vow lock" d="M159.3,433.8 L159.3,417.8 Q166.3,407.8 173.3,417.8 L173.3,433.8 Z"/>
+<text class="vow-name" x="166.3" y="447.8">Crushing Blows</text>
+<rect class="mile lock" x="73.5" y="294" width="7" height="7"/>
+<rect class="mile lock" x="83.7" y="275.7" width="7" height="7"/>
+<path class="vow lock" d="M88.7,270 L88.7,254 Q95.7,244 102.7,254 L102.7,270 Z"/>
+<text class="vow-name" x="95.7" y="284">Aftershock</text>
+<rect class="mile lock" x="160.4" y="492.5" width="7" height="7"/>
+<rect class="mile lock" x="152.6" y="473.1" width="7" height="7"/>
+<path class="vow lock" d="M139.4,467.9 L139.4,451.9 Q146.4,441.9 153.4,451.9 L153.4,467.9 Z"/>
+<text class="vow-name" x="146.4" y="481.9">Lingering Blows</text>
+<rect class="mile lock" x="107.9" y="565.3" width="7" height="7"/>
+<rect class="mile lock" x="118.3" y="583.5" width="7" height="7"/>
+<path class="vow lock" d="M123.5,616.1 L123.5,600.1 Q130.5,590.1 137.5,600.1 L137.5,616.1 Z"/>
+<text class="vow-name" x="130.5" y="630.1">Braced</text>
+<rect class="mile lock" x="37.9" y="548.5" width="7" height="7"/>
+<rect class="mile lock" x="33.6" y="528" width="7" height="7"/>
+<path class="vow lock" d="M23.8,521.4 L23.8,505.4 Q30.8,495.4 37.8,505.4 L37.8,521.4 Z"/>
+<text class="vow-name" x="30.8" y="535.4">Ground Breaker</text>
+<rect class="mile lock" x="645.7" y="346.5" width="7" height="7"/>
+<rect class="mile lock" x="532.2" y="260.1" width="7" height="7"/>
+<rect class="mile lock" x="416.5" y="176.5" width="7" height="7"/>
+<rect class="mile lock" x="392.5" y="163.3" width="7" height="7"/>
+<rect class="mile lock" x="368.4" y="150.1" width="7" height="7"/>
+<rect class="mile lock" x="344.4" y="136.9" width="7" height="7"/>
+<rect class="mile lock" x="320.4" y="123.6" width="7" height="7"/>
+<line class="fork" x1="297.6" y1="119.8" x2="294.2" y2="134.4"/>
+<circle class="opt lock" cx="294.2" cy="134.4" r="4.5"/>
+<line class="fork" x1="297.6" y1="119.8" x2="297.6" y2="119.8"/>
+<circle class="opt lock" cx="297.6" cy="119.8" r="4.5"/>
+<line class="fork" x1="297.6" y1="119.8" x2="301" y2="105.2"/>
+<circle class="opt lock" cx="301" cy="105.2" r="4.5"/>
+<rect class="cross lock" x="291.6" y="113.8" width="12" height="12" transform="rotate(45 297.6 119.8)"/>
+<rect class="mile lock" x="267.4" y="110.2" width="7" height="7"/>
+<rect class="mile lock" x="240.7" y="104" width="7" height="7"/>
+<rect class="mile lock" x="213.9" y="97.8" width="7" height="7"/>
+<rect class="mile lock" x="187.2" y="91.7" width="7" height="7"/>
+<rect class="mile lock" x="160.4" y="85.8" width="7" height="7"/>
+<rect class="mile lock" x="133.7" y="79.9" width="7" height="7"/>
+<rect class="mile lock" x="106.9" y="74.1" width="7" height="7"/>
+<rect class="mile lock" x="80.1" y="68.2" width="7" height="7"/>
+<line class="fork" x1="56.8" y1="65.9" x2="53.6" y2="80.5"/>
+<circle class="opt lock" cx="53.6" cy="80.5" r="4.5"/>
+<line class="fork" x1="56.8" y1="65.9" x2="56.8" y2="65.9"/>
+<circle class="opt lock" cx="56.8" cy="65.9" r="4.5"/>
+<line class="fork" x1="56.8" y1="65.9" x2="60" y2="51.2"/>
+<circle class="opt lock" cx="60" cy="51.2" r="4.5"/>
+<rect class="cross lock" x="50.8" y="59.9" width="12" height="12" transform="rotate(45 56.8 65.9)"/>
+<g class="open-road" transform="translate(30,60)"><circle r="2" cx="-7.8" cy="-1.7"/><circle r="2" cx="-15.6" cy="-3.4"/><circle r="2" cx="-23.4" cy="-5.1"/></g>
+<text class="move-name" x="362.3" y="138.3">Rend</text>
+<rect class="mile lock" x="349.4" y="116.2" width="7" height="7"/>
+<circle class="way lock" cx="354.9" cy="98.6" r="5"/><circle class="way-dot" cx="354.9" cy="98.6" r="1.6"/>
+<rect class="mile lock" x="150.6" y="104.6" width="7" height="7"/>
+<circle class="way lock" cx="141.7" cy="125.4" r="5"/><circle class="way-dot" cx="141.7" cy="125.4" r="1.6"/>
+<rect class="mile lock" x="305.6" y="138.9" width="7" height="7"/>
+<circle class="way lock" cx="292.3" cy="155.4" r="5"/><circle class="way-dot" cx="292.3" cy="155.4" r="1.6"/>
+<rect class="mile lock" x="239.8" y="82.8" width="7" height="7"/>
+<circle class="way lock" cx="239.5" cy="65.4" r="5"/><circle class="way-dot" cx="239.5" cy="65.4" r="1.6"/>
+<rect class="mile lock" x="105.8" y="52.9" width="7" height="7"/>
+<circle class="way lock" cx="105.2" cy="35.5" r="5"/><circle class="way-dot" cx="105.2" cy="35.5" r="1.6"/>
+<rect class="mile lock" x="43.4" y="81.2" width="7" height="7"/>
+<circle class="way lock" cx="34.6" cy="101.9" r="5"/><circle class="way-dot" cx="34.6" cy="101.9" r="1.6"/>
+<rect class="mile lock" x="268.1" y="131.2" width="7" height="7"/>
+<rect class="mile lock" x="266.6" y="152.1" width="7" height="7"/>
+<path class="vow lock" d="M259.7,186.3 L259.7,170.3 Q266.7,160.3 273.7,170.3 L273.7,186.3 Z"/>
+<text class="vow-name" x="266.7" y="200.3">Open Wounds</text>
+<rect class="mile lock" x="197.1" y="73.1" width="7" height="7"/>
+<rect class="mile lock" x="204.9" y="53.7" width="7" height="7"/>
+<path class="vow lock" d="M207.4,47 L207.4,31 Q214.4,21 221.4,31 L221.4,47 Z"/>
+<text class="vow-name" x="214.4" y="61">Frenzy</text>
+<rect class="mile lock" x="134.6" y="101" width="7" height="7"/>
+<rect class="mile lock" x="133.4" y="121.9" width="7" height="7"/>
+<path class="vow lock" d="M126.7,156.1 L126.7,140.1 Q133.7,130.1 140.7,140.1 L140.7,156.1 Z"/>
+<text class="vow-name" x="133.7" y="170.1">Twin Rend</text>
+<rect class="mile lock" x="89.7" y="49.5" width="7" height="7"/>
+<rect class="mile lock" x="97.3" y="30" width="7" height="7"/>
+<path class="vow lock" d="M99.6,23.3 L99.6,7.3 Q106.6,-2.7 113.6,7.3 L113.6,23.3 Z"/>
+<text class="vow-name" x="106.6" y="37.3">Bleed Out</text>
+<rect class="mile lock" x="27.5" y="77.5" width="7" height="7"/>
+<rect class="mile lock" x="26.2" y="98.4" width="7" height="7"/>
+<path class="vow lock" d="M19.5,132.7 L19.5,116.7 Q26.5,106.7 33.5,116.7 L33.5,132.7 Z"/>
+<text class="vow-name" x="26.5" y="146.7">Clean Cuts</text>
+<rect class="mile lock" x="832.5" y="339.8" width="7" height="7"/>
+<rect class="mile lock" x="912.8" y="246.7" width="7" height="7"/>
+<rect class="mile lock" x="996.5" y="156.5" width="7" height="7"/>
+<rect class="mile lock" x="971.2" y="147" width="7" height="7"/>
+<rect class="mile lock" x="945.9" y="137.5" width="7" height="7"/>
+<rect class="mile lock" x="920.6" y="128" width="7" height="7"/>
+<rect class="mile lock" x="895.3" y="118.6" width="7" height="7"/>
+<line class="fork" x1="873.4" y1="113.1" x2="869.2" y2="127.5"/>
+<circle class="opt lock" cx="869.2" cy="127.5" r="4.5"/>
+<line class="fork" x1="873.4" y1="113.1" x2="873.4" y2="113.1"/>
+<circle class="opt lock" cx="873.4" cy="113.1" r="4.5"/>
+<line class="fork" x1="873.4" y1="113.1" x2="877.6" y2="98.7"/>
+<circle class="opt lock" cx="877.6" cy="98.7" r="4.5"/>
+<rect class="cross lock" x="867.4" y="107.1" width="12" height="12" transform="rotate(45 873.4 113.1)"/>
+<rect class="mile lock" x="843.9" y="102" width="7" height="7"/>
+<rect class="mile lock" x="818" y="94.4" width="7" height="7"/>
+<rect class="mile lock" x="792.1" y="86.9" width="7" height="7"/>
+<rect class="mile lock" x="766.1" y="79.3" width="7" height="7"/>
+<rect class="mile lock" x="739.7" y="73.7" width="7" height="7"/>
+<rect class="mile lock" x="713.1" y="69.3" width="7" height="7"/>
+<rect class="mile lock" x="686.4" y="64.8" width="7" height="7"/>
+<rect class="mile lock" x="659.8" y="60.4" width="7" height="7"/>
+<line class="fork" x1="636.6" y1="59.4" x2="634.2" y2="74.2"/>
+<circle class="opt lock" cx="634.2" cy="74.2" r="4.5"/>
+<line class="fork" x1="636.6" y1="59.4" x2="636.6" y2="59.4"/>
+<circle class="opt lock" cx="636.6" cy="59.4" r="4.5"/>
+<line class="fork" x1="636.6" y1="59.4" x2="639.1" y2="44.6"/>
+<circle class="opt lock" cx="639.1" cy="44.6" r="4.5"/>
+<rect class="cross lock" x="630.6" y="53.4" width="12" height="12" transform="rotate(45 636.6 59.4)"/>
+<g class="open-road" transform="translate(610,55)"><circle r="2" cx="-7.9" cy="-1.3"/><circle r="2" cx="-15.8" cy="-2.6"/><circle r="2" cx="-23.7" cy="-3.9"/></g>
+<text class="move-name" x="939.3" y="127.2">Hunter's Mark</text>
+<rect class="mile lock" x="922.6" y="106.9" width="7" height="7"/>
+<circle class="way lock" cx="925.1" cy="89.2" r="5"/><circle class="way-dot" cx="925.1" cy="89.2" r="1.6"/>
+<rect class="mile lock" x="730.9" y="93" width="7" height="7"/>
+<circle class="way lock" cx="722.9" cy="114.4" r="5"/><circle class="way-dot" cx="722.9" cy="114.4" r="1.6"/>
+<rect class="mile lock" x="1028" y="140.7" width="7" height="7"/>
+<rect class="mile lock" x="1059.5" y="125" width="7" height="7"/>
+<rect class="mile lock" x="1091" y="109.2" width="7" height="7"/>
+<rect class="mile lock" x="1123.1" y="95.2" width="7" height="7"/>
+<rect class="mile lock" x="1157.6" y="88.3" width="7" height="7"/>
+<rect class="mile lock" x="1192.2" y="81.4" width="7" height="7"/>
+<line class="fork" x1="1230.2" y1="78" x2="1227.3" y2="63.2"/>
+<circle class="opt lock" cx="1227.3" cy="63.2" r="4.5"/>
+<line class="fork" x1="1230.2" y1="78" x2="1230.2" y2="78"/>
+<circle class="opt lock" cx="1230.2" cy="78" r="4.5"/>
+<line class="fork" x1="1230.2" y1="78" x2="1233.1" y2="92.7"/>
+<circle class="opt lock" cx="1233.1" cy="92.7" r="4.5"/>
+<rect class="cross lock" x="1224.2" y="72" width="12" height="12" transform="rotate(45 1230.2 78)"/>
+<rect class="mile lock" x="1261.2" y="67.6" width="7" height="7"/>
+<rect class="mile lock" x="1296.1" y="62.6" width="7" height="7"/>
+<rect class="mile lock" x="1331" y="57.9" width="7" height="7"/>
+<rect class="mile lock" x="1365.9" y="53.2" width="7" height="7"/>
+<rect class="mile lock" x="1400.8" y="48.6" width="7" height="7"/>
+<rect class="mile lock" x="1435.9" y="45.3" width="7" height="7"/>
+<rect class="mile lock" x="1471" y="43.1" width="7" height="7"/>
+<rect class="mile lock" x="1506.2" y="40.9" width="7" height="7"/>
+<line class="fork" x1="1544.8" y1="42.2" x2="1543.9" y2="27.2"/>
+<circle class="opt lock" cx="1543.9" cy="27.2" r="4.5"/>
+<line class="fork" x1="1544.8" y1="42.2" x2="1544.8" y2="42.2"/>
+<circle class="opt lock" cx="1544.8" cy="42.2" r="4.5"/>
+<line class="fork" x1="1544.8" y1="42.2" x2="1545.8" y2="57.2"/>
+<circle class="opt lock" cx="1545.8" cy="57.2" r="4.5"/>
+<rect class="cross lock" x="1538.8" y="36.2" width="12" height="12" transform="rotate(45 1544.8 42.2)"/>
+<g class="open-road" transform="translate(1580,40)"><circle r="2" cx="8" cy="-0.5"/><circle r="2" cx="16" cy="-1"/><circle r="2" cx="24" cy="-1.5"/></g>
+<text class="move-name" x="1140.4" y="85.9">Precision Shot</text>
+<rect class="mile lock" x="1167.1" y="107.3" width="7" height="7"/>
+<circle class="way lock" cx="1182.7" cy="128.3" r="5"/><circle class="way-dot" cx="1182.7" cy="128.3" r="1.6"/>
+<rect class="mile lock" x="1403.7" y="27.5" width="7" height="7"/>
+<circle class="way lock" cx="1412.9" cy="10.6" r="5"/><circle class="way-dot" cx="1412.9" cy="10.6" r="1.6"/>
+<rect class="mile lock" x="1023.4" y="180" width="7" height="7"/>
+<rect class="mile lock" x="1050.3" y="203.6" width="7" height="7"/>
+<rect class="mile lock" x="1077.4" y="226.6" width="7" height="7"/>
+<rect class="mile lock" x="1113.1" y="228.7" width="7" height="7"/>
+<rect class="mile lock" x="1148.8" y="230.8" width="7" height="7"/>
+<rect class="mile lock" x="1184.5" y="232.9" width="7" height="7"/>
+<line class="fork" x1="1223.6" y1="238.4" x2="1224.5" y2="223.5"/>
+<circle class="opt lock" cx="1224.5" cy="223.5" r="4.5"/>
+<line class="fork" x1="1223.6" y1="238.4" x2="1223.6" y2="238.4"/>
+<circle class="opt lock" cx="1223.6" cy="238.4" r="4.5"/>
+<line class="fork" x1="1223.6" y1="238.4" x2="1222.8" y2="253.4"/>
+<circle class="opt lock" cx="1222.8" cy="253.4" r="4.5"/>
+<rect class="cross lock" x="1217.6" y="232.4" width="12" height="12" transform="rotate(45 1223.6 238.4)"/>
+<rect class="mile lock" x="1255.8" y="236" width="7" height="7"/>
+<rect class="mile lock" x="1291.5" y="233.9" width="7" height="7"/>
+<rect class="mile lock" x="1327.2" y="231.8" width="7" height="7"/>
+<rect class="mile lock" x="1362.9" y="229.7" width="7" height="7"/>
+<rect class="mile lock" x="1398.5" y="227.6" width="7" height="7"/>
+<rect class="mile lock" x="1434.2" y="224.8" width="7" height="7"/>
+<rect class="mile lock" x="1469.7" y="221.5" width="7" height="7"/>
+<rect class="mile lock" x="1505.3" y="218.2" width="7" height="7"/>
+<line class="fork" x1="1544.4" y1="218.3" x2="1543" y2="203.4"/>
+<circle class="opt lock" cx="1543" cy="203.4" r="4.5"/>
+<line class="fork" x1="1544.4" y1="218.3" x2="1544.4" y2="218.3"/>
+<circle class="opt lock" cx="1544.4" cy="218.3" r="4.5"/>
+<line class="fork" x1="1544.4" y1="218.3" x2="1545.8" y2="233.3"/>
+<circle class="opt lock" cx="1545.8" cy="233.3" r="4.5"/>
+<rect class="cross lock" x="1538.4" y="212.3" width="12" height="12" transform="rotate(45 1544.4 218.3)"/>
+<g class="open-road" transform="translate(1580,215)"><circle r="2" cx="8" cy="-0.7"/><circle r="2" cx="15.9" cy="-1.5"/><circle r="2" cx="23.9" cy="-2.2"/></g>
+<text class="move-name" x="1130.9" y="223">Flame Volley</text>
+<rect class="mile lock" x="1153.2" y="251.5" width="7" height="7"/>
+<circle class="way lock" cx="1163.9" cy="275" r="5"/><circle class="way-dot" cx="1163.9" cy="275" r="1.6"/>
+<rect class="mile lock" x="1402.9" y="206.8" width="7" height="7"/>
+<circle class="way lock" cx="1413.7" cy="190.3" r="5"/><circle class="way-dot" cx="1413.7" cy="190.3" r="1.6"/>
+<rect class="mile lock" x="1030.7" y="156.5" width="7" height="7"/>
+<rect class="mile lock" x="1064.9" y="156.5" width="7" height="7"/>
+<rect class="mile lock" x="1099" y="156.5" width="7" height="7"/>
+<rect class="mile lock" x="1133.2" y="156.5" width="7" height="7"/>
+<rect class="mile lock" x="1167.4" y="155.1" width="7" height="7"/>
+<rect class="mile lock" x="1201.5" y="152.8" width="7" height="7"/>
+<line class="fork" x1="1239.1" y1="154.1" x2="1238.1" y2="139.1"/>
+<circle class="opt lock" cx="1238.1" cy="139.1" r="4.5"/>
+<line class="fork" x1="1239.1" y1="154.1" x2="1239.1" y2="154.1"/>
+<circle class="opt lock" cx="1239.1" cy="154.1" r="4.5"/>
+<line class="fork" x1="1239.1" y1="154.1" x2="1240.1" y2="169"/>
+<circle class="opt lock" cx="1240.1" cy="169" r="4.5"/>
+<rect class="cross lock" x="1233.1" y="148.1" width="12" height="12" transform="rotate(45 1239.1 154.1)"/>
+<rect class="mile lock" x="1269.7" y="148.3" width="7" height="7"/>
+<rect class="mile lock" x="1303.8" y="146" width="7" height="7"/>
+<rect class="mile lock" x="1337.9" y="143.7" width="7" height="7"/>
+<rect class="mile lock" x="1372" y="141.5" width="7" height="7"/>
+<rect class="mile lock" x="1406.1" y="139.2" width="7" height="7"/>
+<rect class="mile lock" x="1440.2" y="136.9" width="7" height="7"/>
+<rect class="mile lock" x="1474.3" y="134.4" width="7" height="7"/>
+<rect class="mile lock" x="1508.3" y="131.7" width="7" height="7"/>
+<line class="fork" x1="1545.9" y1="132.6" x2="1544.8" y2="117.7"/>
+<circle class="opt lock" cx="1544.8" cy="117.7" r="4.5"/>
+<line class="fork" x1="1545.9" y1="132.6" x2="1545.9" y2="132.6"/>
+<circle class="opt lock" cx="1545.9" cy="132.6" r="4.5"/>
+<line class="fork" x1="1545.9" y1="132.6" x2="1547.1" y2="147.6"/>
+<circle class="opt lock" cx="1547.1" cy="147.6" r="4.5"/>
+<rect class="cross lock" x="1539.9" y="126.6" width="12" height="12" transform="rotate(45 1545.9 132.6)"/>
+<g class="open-road" transform="translate(1580,130)"><circle r="2" cx="8" cy="-0.6"/><circle r="2" cx="16" cy="-1.2"/><circle r="2" cx="23.9" cy="-1.8"/></g>
+<text class="move-name" x="1150.4" y="150">Raking Shot</text>
+<rect class="mile lock" x="1174.3" y="175.2" width="7" height="7"/>
+<circle class="way lock" cx="1187.5" cy="197.6" r="5"/><circle class="way-dot" cx="1187.5" cy="197.6" r="1.6"/>
+<rect class="mile lock" x="1410.3" y="118.4" width="7" height="7"/>
+<circle class="way lock" cx="1420.9" cy="101.9" r="5"/><circle class="way-dot" cx="1420.9" cy="101.9" r="1.6"/>
+<rect class="mile lock" x="777" y="61.3" width="7" height="7"/>
+<rect class="mile lock" x="785.9" y="42.4" width="7" height="7"/>
+<path class="vow lock" d="M789.6,36.1 L789.6,20.1 Q796.6,10.1 803.6,20.1 L803.6,36.1 Z"/>
+<text class="vow-name" x="796.6" y="50.1">Marked Prey</text>
+<rect class="mile lock" x="1357.9" y="33.8" width="7" height="7"/>
+<rect class="mile lock" x="1351.9" y="13.7" width="7" height="7"/>
+<path class="vow lock" d="M1344.3,6.6 L1344.3,-9.4 Q1351.3,-19.4 1358.3,-9.4 L1358.3,6.6 Z"/>
+<text class="vow-name" x="1351.3" y="20.6">Long Range</text>
+<rect class="mile lock" x="1333.8" y="164.4" width="7" height="7"/>
+<rect class="mile lock" x="1331.9" y="185.2" width="7" height="7"/>
+<path class="vow lock" d="M1328.5,219.8 L1328.5,203.8 Q1335.5,193.8 1342.5,203.8 L1342.5,219.8 Z"/>
+<text class="vow-name" x="1335.5" y="233.8">Point Blank</text>
+<rect class="mile lock" x="1356.2" y="209.7" width="7" height="7"/>
+<rect class="mile lock" x="1351.8" y="189.2" width="7" height="7"/>
+<path class="vow lock" d="M1345.7,181.9 L1345.7,165.9 Q1352.7,155.9 1359.7,165.9 L1359.7,181.9 Z"/>
+<text class="vow-name" x="1352.7" y="195.9">Volley Stance</text>
+<rect class="mile lock" x="635.2" y="76.9" width="7" height="7"/>
+<rect class="mile lock" x="635" y="97.8" width="7" height="7"/>
+<path class="vow lock" d="M629.3,132.2 L629.3,116.2 Q636.3,106.2 643.3,116.2 L643.3,132.2 Z"/>
+<text class="vow-name" x="636.3" y="146.2">Opening Shot</text>
+<rect class="mile lock" x="903.3" y="424.3" width="7" height="7"/>
+<rect class="mile lock" x="1050" y="421.8" width="7" height="7"/>
+<rect class="mile lock" x="1196.5" y="436.5" width="7" height="7"/>
+<rect class="mile lock" x="1218.9" y="419.7" width="7" height="7"/>
+<rect class="mile lock" x="1241.3" y="402.9" width="7" height="7"/>
+<rect class="mile lock" x="1263.7" y="386.1" width="7" height="7"/>
+<rect class="mile lock" x="1286.1" y="369.3" width="7" height="7"/>
+<line class="fork" x1="1312" y1="356" x2="1303" y2="344"/>
+<circle class="opt lock" cx="1303" cy="344" r="4.5"/>
+<line class="fork" x1="1312" y1="356" x2="1312" y2="356"/>
+<circle class="opt lock" cx="1312" cy="356" r="4.5"/>
+<line class="fork" x1="1312" y1="356" x2="1321" y2="368"/>
+<circle class="opt lock" cx="1321" cy="368" r="4.5"/>
+<rect class="cross lock" x="1306" y="350" width="12" height="12" transform="rotate(45 1312 356)"/>
+<rect class="mile lock" x="1334" y="342.5" width="7" height="7"/>
+<rect class="mile lock" x="1361.3" y="336.2" width="7" height="7"/>
+<rect class="mile lock" x="1388.5" y="329.9" width="7" height="7"/>
+<rect class="mile lock" x="1415.8" y="323.6" width="7" height="7"/>
+<rect class="mile lock" x="1443.1" y="317.3" width="7" height="7"/>
+<rect class="mile lock" x="1470.7" y="312.9" width="7" height="7"/>
+<rect class="mile lock" x="1498.4" y="308.8" width="7" height="7"/>
+<rect class="mile lock" x="1526.1" y="304.7" width="7" height="7"/>
+<line class="fork" x1="1557.3" y1="304.1" x2="1555.1" y2="289.3"/>
+<circle class="opt lock" cx="1555.1" cy="289.3" r="4.5"/>
+<line class="fork" x1="1557.3" y1="304.1" x2="1557.3" y2="304.1"/>
+<circle class="opt lock" cx="1557.3" cy="304.1" r="4.5"/>
+<line class="fork" x1="1557.3" y1="304.1" x2="1559.5" y2="318.9"/>
+<circle class="opt lock" cx="1559.5" cy="318.9" r="4.5"/>
+<rect class="cross lock" x="1551.3" y="298.1" width="12" height="12" transform="rotate(45 1557.3 304.1)"/>
+<g class="open-road" transform="translate(1585,300)"><circle r="2" cx="7.9" cy="-1.2"/><circle r="2" cx="15.8" cy="-2.3"/><circle r="2" cx="23.7" cy="-3.5"/></g>
+<text class="move-name" x="1253.7" y="389.7">Fireball</text>
+<rect class="mile lock" x="1280.5" y="399.2" width="7" height="7"/>
+<circle class="way lock" cx="1302.4" cy="413.2" r="5"/><circle class="way-dot" cx="1302.4" cy="413.2" r="1.6"/>
+<rect class="mile lock" x="1443.9" y="296.1" width="7" height="7"/>
+<circle class="way lock" cx="1451.2" cy="278.7" r="5"/><circle class="way-dot" cx="1451.2" cy="278.7" r="1.6"/>
+<rect class="mile lock" x="1219" y="433.3" width="7" height="7"/>
+<rect class="mile lock" x="1241.6" y="430.1" width="7" height="7"/>
+<rect class="mile lock" x="1264.1" y="426.8" width="7" height="7"/>
+<rect class="mile lock" x="1286.7" y="423.6" width="7" height="7"/>
+<rect class="mile lock" x="1309.2" y="420.4" width="7" height="7"/>
+<rect class="mile lock" x="1331.8" y="417.2" width="7" height="7"/>
+<line class="fork" x1="1358" y1="421.5" x2="1359.2" y2="406.5"/>
+<circle class="opt lock" cx="1359.2" cy="406.5" r="4.5"/>
+<line class="fork" x1="1358" y1="421.5" x2="1358" y2="421.5"/>
+<circle class="opt lock" cx="1358" cy="421.5" r="4.5"/>
+<line class="fork" x1="1358" y1="421.5" x2="1356.7" y2="436.4"/>
+<circle class="opt lock" cx="1356.7" cy="436.4" r="4.5"/>
+<rect class="cross lock" x="1352" y="415.5" width="12" height="12" transform="rotate(45 1358 421.5)"/>
+<rect class="mile lock" x="1377.2" y="419.9" width="7" height="7"/>
+<rect class="mile lock" x="1399.9" y="421.8" width="7" height="7"/>
+<rect class="mile lock" x="1422.6" y="423.7" width="7" height="7"/>
+<rect class="mile lock" x="1445.3" y="425.6" width="7" height="7"/>
+<rect class="mile lock" x="1468" y="425.6" width="7" height="7"/>
+<rect class="mile lock" x="1490.7" y="423.8" width="7" height="7"/>
+<rect class="mile lock" x="1513.4" y="421.9" width="7" height="7"/>
+<rect class="mile lock" x="1536.1" y="420.1" width="7" height="7"/>
+<line class="fork" x1="1562.3" y1="421.8" x2="1561.1" y2="406.9"/>
+<circle class="opt lock" cx="1561.1" cy="406.9" r="4.5"/>
+<line class="fork" x1="1562.3" y1="421.8" x2="1562.3" y2="421.8"/>
+<circle class="opt lock" cx="1562.3" cy="421.8" r="4.5"/>
+<line class="fork" x1="1562.3" y1="421.8" x2="1563.5" y2="436.8"/>
+<circle class="opt lock" cx="1563.5" cy="436.8" r="4.5"/>
+<rect class="cross lock" x="1556.3" y="415.8" width="12" height="12" transform="rotate(45 1562.3 421.8)"/>
+<g class="open-road" transform="translate(1585,420)"><circle r="2" cx="8" cy="-0.6"/><circle r="2" cx="15.9" cy="-1.3"/><circle r="2" cx="23.9" cy="-1.9"/></g>
+<text class="move-name" x="1299.2" y="415.8">Frost Lance</text>
+<rect class="mile lock" x="1317.7" y="439.9" width="7" height="7"/>
+<circle class="way lock" cx="1332.3" cy="461.5" r="5"/><circle class="way-dot" cx="1332.3" cy="461.5" r="1.6"/>
+<rect class="mile lock" x="1471.9" y="404.7" width="7" height="7"/>
+<circle class="way lock" cx="1482.2" cy="388.1" r="5"/><circle class="way-dot" cx="1482.2" cy="388.1" r="1.6"/>
+<rect class="mile lock" x="1217.6" y="448" width="7" height="7"/>
+<rect class="mile lock" x="1238.6" y="459.5" width="7" height="7"/>
+<rect class="mile lock" x="1259.7" y="471" width="7" height="7"/>
+<rect class="mile lock" x="1280.8" y="482.5" width="7" height="7"/>
+<rect class="mile lock" x="1301.9" y="494" width="7" height="7"/>
+<rect class="mile lock" x="1324.3" y="502.4" width="7" height="7"/>
+<line class="fork" x1="1350.5" y1="513.5" x2="1355.3" y2="499.3"/>
+<circle class="opt lock" cx="1355.3" cy="499.3" r="4.5"/>
+<line class="fork" x1="1350.5" y1="513.5" x2="1350.5" y2="513.5"/>
+<circle class="opt lock" cx="1350.5" cy="513.5" r="4.5"/>
+<line class="fork" x1="1350.5" y1="513.5" x2="1345.8" y2="527.7"/>
+<circle class="opt lock" cx="1345.8" cy="527.7" r="4.5"/>
+<rect class="cross lock" x="1344.5" y="507.5" width="12" height="12" transform="rotate(45 1350.5 513.5)"/>
+<rect class="mile lock" x="1369.8" y="517.6" width="7" height="7"/>
+<rect class="mile lock" x="1392.6" y="525.2" width="7" height="7"/>
+<rect class="mile lock" x="1415.4" y="532.8" width="7" height="7"/>
+<rect class="mile lock" x="1438.7" y="538.1" width="7" height="7"/>
+<rect class="mile lock" x="1462.5" y="541.1" width="7" height="7"/>
+<rect class="mile lock" x="1486.3" y="544.2" width="7" height="7"/>
+<rect class="mile lock" x="1510.1" y="547.3" width="7" height="7"/>
+<rect class="mile lock" x="1533.9" y="550.4" width="7" height="7"/>
+<line class="fork" x1="1561.2" y1="556.9" x2="1563.1" y2="542.1"/>
+<circle class="opt lock" cx="1563.1" cy="542.1" r="4.5"/>
+<line class="fork" x1="1561.2" y1="556.9" x2="1561.2" y2="556.9"/>
+<circle class="opt lock" cx="1561.2" cy="556.9" r="4.5"/>
+<line class="fork" x1="1561.2" y1="556.9" x2="1559.3" y2="571.8"/>
+<circle class="opt lock" cx="1559.3" cy="571.8" r="4.5"/>
+<rect class="cross lock" x="1555.2" y="550.9" width="12" height="12" transform="rotate(45 1561.2 556.9)"/>
+<g class="open-road" transform="translate(1585,560)"><circle r="2" cx="7.9" cy="1"/><circle r="2" cx="15.9" cy="2"/><circle r="2" cx="23.8" cy="3.1"/></g>
+<text class="move-name" x="1292.7" y="480.6">Hoarfrost</text>
+<rect class="mile lock" x="1297" y="514.6" width="7" height="7"/>
+<circle class="way lock" cx="1298.5" cy="539.3" r="5"/><circle class="way-dot" cx="1298.5" cy="539.3" r="1.6"/>
+<rect class="mile lock" x="1470.6" y="521.5" width="7" height="7"/>
+<circle class="way lock" cx="1485" cy="506.8" r="5"/><circle class="way-dot" cx="1485" cy="506.8" r="1.6"/>
+<rect class="mile lock" x="1202.3" y="453.8" width="7" height="7"/>
+<rect class="mile lock" x="1208.1" y="471.2" width="7" height="7"/>
+<rect class="mile lock" x="1213.8" y="488.5" width="7" height="7"/>
+<rect class="mile lock" x="1219.6" y="505.8" width="7" height="7"/>
+<rect class="mile lock" x="1225.4" y="523.2" width="7" height="7"/>
+<rect class="mile lock" x="1236.9" y="536.9" width="7" height="7"/>
+<line class="fork" x1="1253.3" y1="553.3" x2="1264" y2="542.7"/>
+<circle class="opt lock" cx="1264" cy="542.7" r="4.5"/>
+<line class="fork" x1="1253.3" y1="553.3" x2="1253.3" y2="553.3"/>
+<circle class="opt lock" cx="1253.3" cy="553.3" r="4.5"/>
+<line class="fork" x1="1253.3" y1="553.3" x2="1242.7" y2="564"/>
+<circle class="opt lock" cx="1242.7" cy="564" r="4.5"/>
+<rect class="cross lock" x="1247.3" y="547.3" width="12" height="12" transform="rotate(45 1253.3 553.3)"/>
+<rect class="mile lock" x="1262.8" y="562.8" width="7" height="7"/>
+<rect class="mile lock" x="1275.7" y="575.7" width="7" height="7"/>
+<rect class="mile lock" x="1289.5" y="586.8" width="7" height="7"/>
+<rect class="mile lock" x="1307.6" y="588.9" width="7" height="7"/>
+<rect class="mile lock" x="1325.8" y="591" width="7" height="7"/>
+<rect class="mile lock" x="1343.9" y="593.1" width="7" height="7"/>
+<rect class="mile lock" x="1362.1" y="595.2" width="7" height="7"/>
+<rect class="mile lock" x="1380.2" y="597.3" width="7" height="7"/>
+<line class="fork" x1="1401.9" y1="602.9" x2="1403.6" y2="588"/>
+<circle class="opt lock" cx="1403.6" cy="588" r="4.5"/>
+<line class="fork" x1="1401.9" y1="602.9" x2="1401.9" y2="602.9"/>
+<circle class="opt lock" cx="1401.9" cy="602.9" r="4.5"/>
+<line class="fork" x1="1401.9" y1="602.9" x2="1400.1" y2="617.8"/>
+<circle class="opt lock" cx="1400.1" cy="617.8" r="4.5"/>
+<rect class="cross lock" x="1395.9" y="596.9" width="12" height="12" transform="rotate(45 1401.9 602.9)"/>
+<g class="open-road" transform="translate(1420,605)"><circle r="2" cx="7.9" cy="0.9"/><circle r="2" cx="15.9" cy="1.8"/><circle r="2" cx="23.8" cy="2.8"/></g>
+<text class="move-name" x="1225.4" y="506.3">Arcane Barrier</text>
+<rect class="mile lock" x="1207.7" y="534.9" width="7" height="7"/>
+<circle class="way lock" cx="1195.4" cy="552.6" r="5"/><circle class="way-dot" cx="1195.4" cy="552.6" r="1.6"/>
+<rect class="mile lock" x="1333.7" y="571.3" width="7" height="7"/>
+<circle class="way lock" cx="1347.7" cy="556.4" r="5"/><circle class="way-dot" cx="1347.7" cy="556.4" r="1.6"/>
+<rect class="mile lock" x="1396.2" y="401.1" width="7" height="7"/>
+<rect class="mile lock" x="1394.6" y="380.2" width="7" height="7"/>
+<path class="vow lock" d="M1391.6,372.7 L1391.6,356.7 Q1398.6,346.7 1405.6,356.7 L1405.6,372.7 Z"/>
+<text class="vow-name" x="1398.6" y="386.7">Cold Focus</text>
+<rect class="mile lock" x="1415.1" y="344.6" width="7" height="7"/>
+<rect class="mile lock" x="1416.6" y="365.5" width="7" height="7"/>
+<path class="vow lock" d="M1416.5,399.7 L1416.5,383.7 Q1423.5,373.7 1430.5,383.7 L1430.5,399.7 Z"/>
+<text class="vow-name" x="1423.5" y="413.7">Fire Focus</text>
+<rect class="mile lock" x="1517.8" y="285.4" width="7" height="7"/>
+<rect class="mile lock" x="1511.5" y="265.4" width="7" height="7"/>
+<path class="vow lock" d="M1503.6,258.3 L1503.6,242.3 Q1510.6,232.3 1517.6,242.3 L1517.6,258.3 Z"/>
+<text class="vow-name" x="1510.6" y="272.3">Overcharge</text>
+<rect class="mile lock" x="1299.9" y="608.5" width="7" height="7"/>
+<rect class="mile lock" x="1294.3" y="628.7" width="7" height="7"/>
+<path class="vow lock" d="M1287.1,662.9 L1287.1,646.9 Q1294.1,636.9 1301.1,646.9 L1301.1,662.9 Z"/>
+<text class="vow-name" x="1294.1" y="676.9">Barrier Mage</text>
+<rect class="mile lock" x="1478.3" y="563.7" width="7" height="7"/>
+<rect class="mile lock" x="1472.4" y="583.8" width="7" height="7"/>
+<path class="vow lock" d="M1464.9,617.9 L1464.9,601.9 Q1471.9,591.9 1478.9,601.9 L1478.9,617.9 Z"/>
+<text class="vow-name" x="1471.9" y="631.9">Heavy Casting</text>
+<rect class="mile lock" x="738.8" y="423.6" width="7" height="7"/>
+<rect class="mile lock" x="721.1" y="410.7" width="7" height="7"/>
+<rect class="mile lock" x="703.3" y="397.8" width="7" height="7"/>
+<rect class="mile lock" x="685.6" y="384.9" width="7" height="7"/>
+<line class="fork" x1="671.4" y1="375.6" x2="662.6" y2="387.7"/>
+<circle class="opt lock" cx="662.6" cy="387.7" r="4.5"/>
+<line class="fork" x1="671.4" y1="375.6" x2="671.4" y2="375.6"/>
+<circle class="opt lock" cx="671.4" cy="375.6" r="4.5"/>
+<line class="fork" x1="671.4" y1="375.6" x2="680.2" y2="363.4"/>
+<circle class="opt lock" cx="680.2" cy="363.4" r="4.5"/>
+<rect class="cross lock" x="665.4" y="369.6" width="12" height="12" transform="rotate(45 671.4 375.6)"/>
+<rect class="mile lock" x="650.2" y="359.2" width="7" height="7"/>
+<rect class="mile lock" x="629.5" y="352.7" width="7" height="7"/>
+<rect class="mile lock" x="608.1" y="348" width="7" height="7"/>
+<rect class="mile lock" x="586.7" y="343.2" width="7" height="7"/>
+<rect class="mile lock" x="565.4" y="338.5" width="7" height="7"/>
+<rect class="mile lock" x="543.7" y="335.2" width="7" height="7"/>
+<rect class="mile lock" x="521.9" y="333" width="7" height="7"/>
+<rect class="mile lock" x="500.1" y="330.9" width="7" height="7"/>
+<line class="fork" x1="481.8" y1="332.2" x2="480.3" y2="347.1"/>
+<circle class="opt lock" cx="480.3" cy="347.1" r="4.5"/>
+<line class="fork" x1="481.8" y1="332.2" x2="481.8" y2="332.2"/>
+<circle class="opt lock" cx="481.8" cy="332.2" r="4.5"/>
+<line class="fork" x1="481.8" y1="332.2" x2="483.3" y2="317.3"/>
+<circle class="opt lock" cx="483.3" cy="317.3" r="4.5"/>
+<rect class="cross lock" x="475.8" y="326.2" width="12" height="12" transform="rotate(45 481.8 332.2)"/>
+<g class="open-road" transform="translate(460,330)"><circle r="2" cx="-8" cy="-0.8"/><circle r="2" cx="-15.9" cy="-1.6"/><circle r="2" cx="-23.9" cy="-2.4"/></g>
+<text class="move-name" x="717.5" y="399.1">Mend</text>
+<rect class="mile lock" x="710.9" y="378" width="7" height="7"/>
+<circle class="way lock" cx="719" cy="360.7" r="5"/><circle class="way-dot" cx="719" cy="360.7" r="1.6"/>
+<rect class="mile lock" x="555.4" y="357.3" width="7" height="7"/>
+<circle class="way lock" cx="546.5" cy="378" r="5"/><circle class="way-dot" cx="546.5" cy="378" r="1.6"/>
+<rect class="mile lock" x="790.7" y="390.9" width="7" height="7"/>
+<rect class="mile lock" x="829" y="350.3" width="7" height="7"/>
+<rect class="mile lock" x="880.3" y="325.9" width="7" height="7"/>
+<g class="town lock" transform="translate(940,320)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<text class="move-name" x="940" y="342">Havora crossing</text>
+<rect class="mile lock" x="189.6" y="335.5" width="7" height="7"/>
+<rect class="mile lock" x="182.7" y="304.4" width="7" height="7"/>
+<g class="town lock" transform="translate(179.8,276.8)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="177.3" y1="245.1" x2="162.4" y2="246.3"/>
+<circle class="opt lock" cx="162.4" cy="246.3" r="4.5"/>
+<line class="fork" x1="177.3" y1="245.1" x2="177.3" y2="245.1"/>
+<circle class="opt lock" cx="177.3" cy="245.1" r="4.5"/>
+<line class="fork" x1="177.3" y1="245.1" x2="192.3" y2="244"/>
+<circle class="opt lock" cx="192.3" cy="244" r="4.5"/>
+<rect class="cross hybrid lock" x="171.3" y="239.1" width="12" height="12" transform="rotate(45 177.3 245.1)"/>
+<rect class="cross-inner" x="174.8" y="242.6" width="5" height="5" transform="rotate(45 177.3 245.1)"/>
+<rect class="mile lock" x="171.4" y="209.9" width="7" height="7"/>
+<rect class="mile lock" x="168.9" y="178.2" width="7" height="7"/>
+<path class="vow hybrid lock" d="M163,160 L163,144 Q170,134 177,144 L177,160 Z"/>
+<text class="vow-name" x="170" y="174">Butcher</text>
+<rect class="mile lock" x="438.2" y="113" width="7" height="7"/>
+<rect class="mile lock" x="479.9" y="109.5" width="7" height="7"/>
+<g class="town lock" transform="translate(525.1,109.1)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="566.3" y1="101.8" x2="563.7" y2="87.1"/>
+<circle class="opt lock" cx="563.7" cy="87.1" r="4.5"/>
+<line class="fork" x1="566.3" y1="101.8" x2="566.3" y2="101.8"/>
+<circle class="opt lock" cx="566.3" cy="101.8" r="4.5"/>
+<line class="fork" x1="566.3" y1="101.8" x2="568.9" y2="116.6"/>
+<circle class="opt lock" cx="568.9" cy="116.6" r="4.5"/>
+<rect class="cross hybrid lock" x="560.3" y="95.8" width="12" height="12" transform="rotate(45 566.3 101.8)"/>
+<rect class="cross-inner" x="563.8" y="99.3" width="5" height="5" transform="rotate(45 566.3 101.8)"/>
+<rect class="mile lock" x="604" y="91.1" width="7" height="7"/>
+<rect class="mile lock" x="645.3" y="83.8" width="7" height="7"/>
+<path class="vow hybrid lock" d="M683,90 L683,74 Q690,64 697,74 L697,90 Z"/>
+<text class="vow-name" x="690" y="104">Blood Trail</text>
+<rect class="mile lock" x="1332.2" y="247.2" width="7" height="7"/>
+<rect class="mile lock" x="1337.9" y="262.9" width="7" height="7"/>
+<g class="town lock" transform="translate(1347.1,282.1)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="1352.9" y1="297.9" x2="1367" y2="292.7"/>
+<circle class="opt lock" cx="1367" cy="292.7" r="4.5"/>
+<line class="fork" x1="1352.9" y1="297.9" x2="1352.9" y2="297.9"/>
+<circle class="opt lock" cx="1352.9" cy="297.9" r="4.5"/>
+<line class="fork" x1="1352.9" y1="297.9" x2="1338.8" y2="303"/>
+<circle class="opt lock" cx="1338.8" cy="303" r="4.5"/>
+<rect class="cross hybrid lock" x="1346.9" y="291.9" width="12" height="12" transform="rotate(45 1352.9 297.9)"/>
+<rect class="cross-inner" x="1350.4" y="295.4" width="5" height="5" transform="rotate(45 1352.9 297.9)"/>
+<rect class="mile lock" x="1355.1" y="310.1" width="7" height="7"/>
+<rect class="mile lock" x="1360.8" y="325.8" width="7" height="7"/>
+<path class="vow hybrid lock" d="M1363,355 L1363,339 Q1370,329 1377,339 L1377,355 Z"/>
+<text class="vow-name" x="1370" y="369">Spellbow</text>
+<rect class="mile lock" x="1433" y="559.2" width="7" height="7"/>
+<rect class="mile lock" x="1439.5" y="581.8" width="7" height="7"/>
+<g class="town lock" transform="translate(1449.4,608)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="1454.7" y1="631" x2="1469.3" y2="627.7"/>
+<circle class="opt lock" cx="1469.3" cy="627.7" r="4.5"/>
+<line class="fork" x1="1454.7" y1="631" x2="1454.7" y2="631"/>
+<circle class="opt lock" cx="1454.7" cy="631" r="4.5"/>
+<line class="fork" x1="1454.7" y1="631" x2="1440" y2="634.2"/>
+<circle class="opt lock" cx="1440" cy="634.2" r="4.5"/>
+<rect class="cross hybrid lock" x="1448.7" y="625" width="12" height="12" transform="rotate(45 1454.7 631)"/>
+<rect class="cross-inner" x="1452.2" y="628.5" width="5" height="5" transform="rotate(45 1454.7 631)"/>
+<rect class="mile lock" x="1456.3" y="650.5" width="7" height="7"/>
+<rect class="mile lock" x="1461.4" y="673.5" width="7" height="7"/>
+<path class="vow hybrid lock" d="M1463,710 L1463,694 Q1470,684 1477,694 L1477,710 Z"/>
+<text class="vow-name" x="1470" y="724">Winter Guard</text>
+<rect class="mile own" x="1074.9" y="713.7" width="7" height="7"/>
+<rect class="mile own" x="1043.3" y="730.9" width="7" height="7"/>
+<g class="town own" transform="translate(1015.3,751.7)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="982.4" y1="765.9" x2="987.1" y2="780.1"/>
+<circle class="opt open" cx="987.1" cy="780.1" r="4.5"/>
+<line class="fork" x1="982.4" y1="765.9" x2="982.4" y2="765.9"/>
+<circle class="opt open" cx="982.4" cy="765.9" r="4.5"/>
+<line class="fork" x1="982.4" y1="765.9" x2="977.6" y2="751.6"/>
+<circle class="opt open" cx="977.6" cy="751.6" r="4.5"/>
+<rect class="cross hybrid open" x="976.4" y="759.9" width="12" height="12" transform="rotate(45 982.4 765.9)"/>
+<rect class="cross-inner" x="979.9" y="763.4" width="5" height="5" transform="rotate(45 982.4 765.9)"/>
+<rect class="mile lock" x="944.7" y="773.8" width="7" height="7"/>
+<rect class="mile lock" x="910.6" y="785.1" width="7" height="7"/>
+<path class="vow hybrid lock" d="M873,810 L873,794 Q880,784 887,794 L887,810 Z"/>
+<text class="vow-name" x="880" y="824">Shield Priest</text>
+<rect class="mile lock" x="587.7" y="776.5" width="7" height="7"/>
+<rect class="mile lock" x="558.9" y="776.5" width="7" height="7"/>
+<g class="town lock" transform="translate(533.7,778.9)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="505.2" y1="774.2" x2="502.8" y2="789"/>
+<circle class="opt lock" cx="502.8" cy="789" r="4.5"/>
+<line class="fork" x1="505.2" y1="774.2" x2="505.2" y2="774.2"/>
+<circle class="opt lock" cx="505.2" cy="774.2" r="4.5"/>
+<line class="fork" x1="505.2" y1="774.2" x2="507.7" y2="759.4"/>
+<circle class="opt lock" cx="507.7" cy="759.4" r="4.5"/>
+<rect class="cross hybrid lock" x="499.2" y="768.2" width="12" height="12" transform="rotate(45 505.2 774.2)"/>
+<rect class="cross-inner" x="502.7" y="771.7" width="5" height="5" transform="rotate(45 505.2 774.2)"/>
+<rect class="mile lock" x="473.3" y="766" width="7" height="7"/>
+<rect class="mile lock" x="444.9" y="761.2" width="7" height="7"/>
+<path class="vow hybrid lock" d="M413,770 L413,754 Q420,744 427,754 L427,770 Z"/>
+<text class="vow-name" x="420" y="784">Mending Blade</text>
+<rect class="mile lock" x="246.5" y="660.7" width="7" height="7"/>
+<rect class="mile lock" x="246.5" y="634.9" width="7" height="7"/>
+<g class="town lock" transform="translate(250,612.6)"><rect x="-8" y="-4" width="16" height="11"/><path d="M-10,-4 L0,-12 L10,-4 Z"/></g>
+<line class="fork" x1="247.7" y1="587" x2="232.8" y2="588.5"/>
+<circle class="opt lock" cx="232.8" cy="588.5" r="4.5"/>
+<line class="fork" x1="247.7" y1="587" x2="247.7" y2="587"/>
+<circle class="opt lock" cx="247.7" cy="587" r="4.5"/>
+<line class="fork" x1="247.7" y1="587" x2="262.6" y2="585.5"/>
+<circle class="opt lock" cx="262.6" cy="585.5" r="4.5"/>
+<rect class="cross hybrid lock" x="241.7" y="581" width="12" height="12" transform="rotate(45 247.7 587)"/>
+<rect class="cross-inner" x="245.2" y="584.5" width="5" height="5" transform="rotate(45 247.7 587)"/>
+<rect class="mile lock" x="241.6" y="557.8" width="7" height="7"/>
+<rect class="mile lock" x="239.1" y="532.2" width="7" height="7"/>
+<path class="vow hybrid lock" d="M233,520 L233,504 Q240,494 247,504 L247,520 Z"/>
+<text class="vow-name" x="240" y="534">Smith's Arm</text></g></defs></svg>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   Reads the sketch's map (same geometry), then draws each frame in screen space.
+   Tier = which kinds and labels show. Sizes are screen px and never scale with zoom.
+   ════════════════════════════════════════════════════════════════════════ */
+const NS = 'http://www.w3.org/2000/svg';
+const HAVORA = [760, 440];
+const pts = (s) => s.trim().split(/\s+/).map((p) => p.split(',').map(Number));
+const stateOf = (c) => (c.contains('own') ? 'own' : c.contains('open') ? 'open' : c.contains('passed') ? 'passed' : 'lock');
+const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+function parse() {
+  const g = document.getElementById('map');
+  const M = { regions: [], roads: [], owned: [], nodes: [], opts: [], texts: [], hearth: null };
+  for (const el of g.children) {
+    const c = el.classList, tag = el.tagName;
+    if (tag === 'polygon') M.regions.push({ id: [...c].find((k) => k.startsWith('r-')).slice(2), pts: pts(el.getAttribute('points')) });
+    else if (tag === 'polyline' && c.contains('road-owned')) M.owned.push(pts(el.getAttribute('points')));
+    else if (tag === 'polyline' && c.contains('road')) {
+      const p = pts(el.getAttribute('points'));
+      const kind = c.contains('side-road') ? 'side' : c.contains('border-road') ? 'border' : c.contains('vow-road') ? 'vow' : (near(p[0], HAVORA) < 1 ? 'trunk' : 'road');
+      M.roads.push({ kind, pts: p });
+    } else if (tag === 'rect' && c.contains('mile')) M.nodes.push({ t: 'mile', x: +el.getAttribute('x') + 3.5, y: +el.getAttribute('y') + 3.5, st: stateOf(c) });
+    else if (tag === 'circle' && c.contains('way')) M.nodes.push({ t: 'way', x: +el.getAttribute('cx'), y: +el.getAttribute('cy'), st: stateOf(c) });
+    else if (tag === 'rect' && c.contains('cross')) {
+      const m = el.getAttribute('transform').match(/rotate\(45 ([\d.]+) ([\d.]+)\)/);
+      M.nodes.push({ t: c.contains('hybrid') ? 'hcross' : 'cross', x: +m[1], y: +m[2], st: stateOf(c) });
+    } else if (tag === 'circle' && c.contains('opt')) M.opts.push({ x: +el.getAttribute('cx'), y: +el.getAttribute('cy'), st: stateOf(c) });
+    else if (tag === 'g' && c.contains('town')) {
+      const m = el.getAttribute('transform').match(/translate\(([\d.]+),([\d.]+)\)/);
+      M.nodes.push({ t: 'town', x: +m[1], y: +m[2], st: stateOf(c) });
+    } else if (tag === 'path' && c.contains('vow')) {
+      const m = el.getAttribute('d').match(/^M([\d.]+),([\d.]+)/);
+      M.nodes.push({ t: c.contains('hybrid') ? 'hvow' : 'vow', x: +m[1] + 7, y: +m[2] - 9, st: stateOf(c) });
+    } else if (tag === 'g' && c.contains('open-road')) {
+      const m = el.getAttribute('transform').match(/translate\(([\d.]+),([\d.]+)\)/);
+      const cs = [...el.querySelectorAll('circle')].map((k) => [+k.getAttribute('cx'), +k.getAttribute('cy')]);
+      M.nodes.push({ t: 'openroad', x: +m[1], y: +m[2], dots: cs.map(([dx, dy]) => [+m[1] + dx, +m[2] + dy]), st: 'lock' });
+    } else if (tag === 'text') M.texts.push({ k: [...c][0], s: el.textContent, x: +el.getAttribute('x'), y: +el.getAttribute('y') });
+  }
+  /* vow names: each vow-name text sits 14 below its stone */
+  for (const t of M.texts.filter((t) => t.k === 'vow-name')) {
+    const v = M.nodes.filter((n) => n.t === 'vow' || n.t === 'hvow').sort((a, b) => near([a.x, a.y + 23], [t.x, t.y]) - near([b.x, b.y + 23], [t.x, t.y]))[0];
+    v.name = t.s;
+  }
+  /* move names: the sketch writes its move roads, then Mend's road and the crossing road (both leave Havora), in the same order
+     as its move-name labels. Nearest-label matching mislabels Restoration's fan, so pair them by order. */
+  const fromHavora = M.roads.filter((r) => r.kind === 'trunk');
+  for (const r of fromHavora.slice(-2)) r.kind = 'road';
+  const named = M.roads.filter((r) => r.kind === 'road');
+  M.texts.filter((t) => t.k === 'move-name').forEach((t, i) => { if (named[i]) named[i].name = t.s; });
+  /* border towns by place */
+  const TOWNS = [['Club · Dual Axe', 179.8, 276.8], ['Dual Axe · Ranged', 525.1, 109.1], ['Ranged · Destruction', 1347.1, 282.1], ['Destruction · Shield', 1449.4, 608],
+    ['Shield · Restoration', 1015.3, 751.7], ['Restoration · Sword', 533.7, 778.9], ['Sword · Club', 250, 612.6], ['Havora crossing', 940, 320]];
+  for (const n of M.nodes.filter((n) => n.t === 'town')) n.name = TOWNS.find((k) => near([k[1], k[2]], [n.x, n.y]) < 2)[0];
+  /* every node knows its road: the polyline it lies on, and how far along */
+  for (const n of M.nodes) {
+    let best = null, bd = 1e9, along = 0;
+    for (const r of M.roads) { const [d, a] = projOnPoly([n.x, n.y], r.pts); if (d < bd) { bd = d; best = r; along = a; } }
+    n.road = best; n.along = along;
+  }
+  return M;
+}
+function projOnPoly(p, poly) {
+  let bd = 1e9, ba = 0, acc = 0;
+  for (let i = 0; i < poly.length - 1; i++) {
+    const [ax, ay] = poly[i], [bx, by] = poly[i + 1], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
+    let t = ((p[0] - ax) * dx + (p[1] - ay) * dy) / (L * L); t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(p[0] - (ax + t * dx), p[1] - (ay + t * dy));
+    if (d < bd) { bd = d; ba = acc + t * L; }
+    acc += L;
+  }
+  return [bd, ba];
+}
+const distToPoly = (p, poly) => projOnPoly(p, poly)[0];
+function cutPoly(poly, upto) { /* the polyline from its start to `upto` along it */
+  const out = [poly[0]]; let acc = 0;
+  for (let i = 0; i < poly.length - 1; i++) {
+    const L = near(poly[i], poly[i + 1]);
+    if (acc + L >= upto) { const t = (upto - acc) / L; out.push([poly[i][0] + t * (poly[i + 1][0] - poly[i][0]), poly[i][1] + t * (poly[i + 1][1] - poly[i][1])]); return out; }
+    acc += L; out.push(poly[i + 1]);
+  }
+  return out;
+}
+function inPoly([x, y], poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/* ── the crossroads we can name (17-talent-tree.md section 5 and 6) ───────── */
+const CROSS_OPTS = {
+  'Challenge:0': ['Wide Challenge', 'Hard Challenge', 'Guarding Challenge'],
+  'Challenge:1': ['Answering', 'Mended', 'Echoing Challenge'],
+  'Frost Slam:0': ['Long Frost', 'Pinning Frost', 'Slowing Frost'],
+  'Frost Slam:1': ['Cold Ground', 'Quick Slam', 'Wide Slam'],
+  'Shelter:0': ['Steady Shelter', 'Deep Shelter', 'Stone Wall'],
+  'Shelter:1': ['Ready Shelter', 'Long Shelter', 'Bright Shelter'],
+  'Greater Mend:0': ['Quick Mending', 'Deep Mending', 'Split Mending'],
+  'Greater Mend:1': ['Thrifty Mending', 'Lingering Mending', 'Reaching Mending'],
+  'hybrid:Shield · Restoration': ['Healing Shelter', 'Guarded Mend', 'Taunting Guard'],
+};
+
+/* ── drawing ──────────────────────────────────────────────────────────────── */
+let MEASURE;
+function textW(s, font) { MEASURE.font = font; return MEASURE.measureText(s).width; }
+const FONT = { move: "500 14.5px 'Alegreya Sans SC'", ui: "400 14.5px 'Alegreya Sans'", uib: "700 14.5px 'Alegreya Sans'", country: "700 17px Cinzel", big: "700 21px Cinzel", hav: "700 16px Cinzel" };
+
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+/* glyphs in screen px; z = the tier's glyph size factor */
+function glyph(svg, n, x, y, st, z = 1, ownedBand = false) {
+  const cls = `n ${n.t === 'vow' || n.t === 'hvow' ? 'vowst' : n.t} ${st}`;
+  if (n.t === 'mile') { const h = 4 * z; el('rect', { class: cls, x: x - h, y: y - h, width: 2 * h, height: 2 * h }, svg); }
+  else if (n.t === 'way') { el('circle', { class: cls, cx: x, cy: y, r: 6 * z }, svg); el('circle', { class: `dot ${st}`, cx: x, cy: y, r: 2 * z }, svg); }
+  else if (n.t === 'cross' || n.t === 'hcross') {
+    const h = 10 * z; el('path', { class: cls, d: `M${x},${y - h} L${x + h},${y} L${x},${y + h} L${x - h},${y} Z` }, svg);
+    if (n.t === 'hcross') { const k = 5 * z; el('path', { class: 'inner', d: `M${x},${y - k} L${x + k},${y} L${x},${y + k} L${x - k},${y} Z` }, svg); }
+    else el('circle', { class: `dot ${st === 'own' ? 'own' : st === 'open' ? 'open' : ''}`, cx: x, cy: y, r: 2 * z }, svg);
+  } else if (n.t === 'town') {
+    const w = 10 * z; el('path', { class: cls, d: `M${x - w},${y - 2 * z} L${x},${y - 11 * z} L${x + w},${y - 2 * z} L${x + w - 2 * z},${y - 2 * z} L${x + w - 2 * z},${y + 8 * z} L${x - w + 2 * z},${y + 8 * z} L${x - w + 2 * z},${y - 2 * z} Z` }, svg);
+    el('rect', { class: st === 'own' ? 'dot own' : 'dot', x: x - 2 * z, y: y + 2 * z, width: 4 * z, height: 6 * z }, svg);
+  } else if (n.t === 'vow' || n.t === 'hvow') {
+    /* a menhir: wide foot, tapered and broken-topped, one carved band (not a rounded headstone) */
+    const w = 7 * z, h = 12 * z;
+    el('path', { class: cls, d: `M${x - w},${y + h} L${x - w + 1.5 * z},${y - h + 5 * z} L${x - 2 * z},${y - h} L${x + 3 * z},${y - h + 1.5 * z} L${x + w - 1 * z},${y - h + 6 * z} L${x + w},${y + h} Z` }, svg);
+    el('line', { class: `band-cut${st === 'own' ? ' on-own' : ''}`, x1: x - w + 2.5 * z, y1: y + 1 * z, x2: x + w - 2 * z, y2: y - 1 * z }, svg);
+    if (n.t === 'hvow') el('line', { class: 'inner', x1: x, y1: y - h + 4 * z, x2: x, y2: y + h - 3 * z }, svg);
+  } else if (n.t === 'openroad') for (const [dx, dy] of n.sdots) el('circle', { class: 'or', cx: dx, cy: dy, r: 2.2 * z }, svg);
+}
+function selMark(svg, x, y, r) { /* forged corner brackets, not a dashed ring */
+  const k = 6;
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    el('path', { class: 'sel', d: `M${x + sx * r},${y + sy * (r - k)} L${x + sx * r},${y + sy * r} L${x + sx * (r - k)},${y + sy * r}` }, svg);
+  }
+}
+
+/* view: { cx, cy, s, w, h, tier, sel, route, fan } */
+function drawMap(host, M, V) {
+  const svg = el('svg', { width: V.w, height: V.h, viewBox: `0 0 ${V.w} ${V.h}` });
+  host.appendChild(svg);
+  const X = (x) => (x - V.cx) * V.s + V.w / 2, Y = (y) => (y - V.cy) * V.s + V.h / 2;
+  const PP = (p) => p.map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(' ');
+  const T = V.tier, obstacles = [], labels = [];
+  /* regions */
+  for (const r of M.regions) el('polygon', { class: `rg${V.homeLift && V.homeLift.includes(r.id) ? ' home' : ''}`, points: PP(r.pts) }, svg);
+  el('circle', { class: 'havora-yard', cx: X(760), cy: Y(440), r: Math.max(46, 70 * V.s) }, svg);
+  /* roads */
+  const showRoad = (r) => T !== 'country' || r.kind === 'trunk' || r.kind === 'road' || r.kind === 'border';
+  for (const r of M.roads) if (showRoad(r)) {
+    const kind = T === 'country' && r.kind === 'trunk' ? 'trunk' : r.kind;
+    el('polyline', { class: `rd ${kind}`, points: PP(r.pts) }, svg);
+  }
+  /* border gates: two short ticks across each border road at its town */
+  for (const n of M.nodes.filter((n) => n.t === 'town' && n.name !== 'Havora crossing')) {
+    const p = n.road.pts, a = p[0], b = p[p.length - 1], ang = Math.atan2(b[1] - a[1], b[0] - a[0]) + Math.PI / 2, L = T === 'country' ? 7 : 11;
+    for (const off of [-16, 16]) {
+      const ox = X(n.x) + Math.cos(ang - Math.PI / 2) * off, oy = Y(n.y) + Math.sin(ang - Math.PI / 2) * off;
+      el('line', { class: 'gate', x1: ox - Math.cos(ang) * L, y1: oy - Math.sin(ang) * L, x2: ox + Math.cos(ang) * L, y2: oy + Math.sin(ang) * L }, svg);
+    }
+  }
+  for (const o of M.owned) el('polyline', { class: `rd ${T === 'country' ? 'trunk' : 'road'} own`, points: PP(o) }, svg);
+  if (V.route) el('polyline', { class: 'rd route', points: PP(V.route.path) }, svg);
+  /* hearth */
+  const hx = X(760), hy = Y(440), hz = T === 'country' ? 1 : 1.25;
+  const hg = el('g', { transform: `translate(${hx},${hy}) scale(${hz})` }, svg);
+  el('rect', { class: 'hearth-wall', x: -22, y: -12, width: 44, height: 26 }, hg);
+  el('path', { class: 'hearth-roof', d: 'M-27,-12 L0,-30 L27,-12 Z' }, hg);
+  el('path', { class: 'hearth-flame', d: 'M0,9 C-8,2 -6,-5 0,-11 C2,-5 8,-2 6,4 C5,8 3,10 0,9 Z' }, hg);
+  obstacles.push([hx - 30, hy - 40, hx + 30, hy + 20]);
+  labels.push({ s: 'HAVORA', x: hx, y: hy + 36 * hz, a: 'middle', cls: 'havora', font: FONT.hav, pri: 0, fixed: true });
+  /* nodes */
+  const kindsByTier = { country: ['cross', 'hcross', 'town', 'vow', 'hvow'], road: ['mile', 'way', 'cross', 'hcross', 'town', 'vow', 'hvow', 'openroad'], node: ['mile', 'way', 'cross', 'hcross', 'town', 'vow', 'hvow', 'openroad'] };
+  const zBy = { country: { cross: 0.7, hcross: 0.7, town: 0.8, vow: 0.6, hvow: 0.6 }, road: {}, node: { cross: 1.15, hcross: 1.15, town: 1.15, vow: 1.1, hvow: 1.1, way: 1.1, mile: 1.1 } };
+  const routeSet = new Set(V.route ? V.route.nodes : []);
+  const fanned = new Set();
+  const order = ['openroad', 'mile', 'way', 'cross', 'hcross', 'town', 'hvow', 'vow'];
+  const visible = M.nodes.filter((n) => kindsByTier[T].includes(n.t) && !(T === 'country' && n.t.endsWith('vow') && n.st !== 'own' && !V.showVows)).sort((a, b) => order.indexOf(a.t) - order.indexOf(b.t));
+  for (const n of visible) {
+    const x = X(n.x), y = Y(n.y);
+    if (x < -30 || y < -30 || x > V.w + 30 || y > V.h + 30) continue;
+    let st = n.gated ? 'lock' : n.st; if (routeSet.has(n) && st !== 'own') st = 'plan';
+    if (n.t === 'openroad') n.sdots = n.dots.map(([a, b]) => { const dx = a - n.x, dy = b - n.y, L = Math.hypot(dx, dy) || 1; return [x + (dx / L) * 8 * (Math.round(L / 7.6)), y + (dy / L) * 8 * Math.round(L / 7.6)]; });
+    const z = zBy[T][n.t] || 1;
+    /* node view: crossroads fan out into their three options, named */
+    const key = n.t === 'hcross' ? `hybrid:${nearestTown(M, n)}` : `${n.road && n.road.name}:${crossIndex(M, n)}`;
+    if (T === 'node' && (n.t === 'cross' || n.t === 'hcross') && CROSS_OPTS[key]) { fan(svg, M, n, x, y, st, z, labels, obstacles, V); fanned.add(n); continue; }
+    glyph(svg, n, x, y, st, z);
+    /* only decisions block labels; a label may cross a milestone or a road (its halo keeps it legible) */
+    if (!['mile', 'way', 'openroad'].includes(n.t)) {
+      const r = { cross: 11, hcross: 11, town: 12, vow: 8, hvow: 8 }[n.t] * z;
+      obstacles.push([x - r, y - r - (n.t.endsWith('vow') ? 5 * z : 0), x + r, y + r]);
+    }
+    /* labels by tier and priority */
+    if ((n.t === 'vow' || n.t === 'hvow') && n.name && (T !== 'country' || n.st === 'own')) {
+      const dy = 12 * z + 15, w = textW(n.name, FONT.ui) / 2 + 12 * z;
+      labels.push({ s: n.name, x, y: y + dy, a: 'middle', cls: `vow${n.st === 'own' ? ' own' : ''}`, font: FONT.ui, pri: n.st === 'own' ? 2 : 4, alt: [[0, -2 * dy + 10], [w, -dy + 5], [-w, -dy + 5]] });
+    }
+    if (n.t === 'town' && T !== 'country') labels.push({ s: n.name, x, y: y + 26, a: 'middle', cls: 'town', font: FONT.move, pri: 3, alt: [[0, -40]] });
+    if (n.t === 'mile' && T === 'node' && n.stat && V.sel && Math.hypot(x - X(V.sel.x), y - Y(V.sel.y)) < 190)
+      labels.push({ s: n.stat, x: x + 8, y: y - 8, a: 'start', cls: 'stat', font: FONT.ui, pri: 7, alt: [[-16 - textW(n.stat, FONT.ui), 0], [0, 26]] });
+  }
+  /* move names: along their road, a little way out from its start, either side */
+  if (T !== 'country') for (const r of M.roads.filter((r) => r.name)) {
+    const own = M.owned.some((o) => distToPoly(r.pts[1] || r.pts[0], o) < 3);
+    const cands = [];
+    for (const d of [70, 110, 40, 150, 190]) {
+      const [px, py, ux, uy] = pointAt(r.pts, d), nx = -uy, ny = ux;
+      for (const sgn of [-1, 1]) cands.push([X(px) + nx * 15 * sgn, Y(py) + ny * 15 * sgn + 5]);
+    }
+    const [x0, y0] = cands[0];
+    labels.push({ s: r.name, x: x0, y: y0, a: 'middle', cls: `move${own ? ' own' : ''}`, font: FONT.move, pri: own ? 1 : 2, alt: cands.slice(1).map(([a, b]) => [a - x0, b - y0]) });
+  }
+  /* countries */
+  for (const t of M.texts.filter((t) => t.k === 'region-name')) {
+    const reg = M.regions.find((r) => r.id === t.s.toLowerCase().replace(' ', '_'));
+    if (T === 'country') {
+      const [cx, cy] = V.countryAt && V.countryAt[reg.id] ? V.countryAt[reg.id] : centroid(reg.pts);
+      labels.push({ s: t.s, x: X(cx), y: Y(cy), a: 'middle', cls: 'country big', font: FONT.big, pri: 0, fixed: true });
+      const own = M.nodes.filter((n) => n.st === 'own' && inPoly([n.x, n.y], reg.pts)).length;
+      labels.push({ s: `${own} of ${TOTALS[reg.id]}`, x: X(cx), y: Y(cy) + 22, a: 'middle', cls: 'count', font: FONT.ui, pri: 0, fixed: true });
+    } else labels.push({ s: t.s, x: X(t.x), y: Y(t.y), a: 'middle', cls: 'country', font: FONT.country, pri: 6 });
+  }
+  if (V.extraLabels) labels.push(...V.extraLabels(X, Y));
+  /* selection and route cost badge */
+  if (V.sel) {
+    const x = X(V.sel.x), y = Y(V.sel.y);
+    selMark(svg, x, y, T === 'node' ? 30 : 17);
+    if (V.route) {
+      const bx = x + 22, by = y - 24;
+      el('rect', { class: 'badge', x: bx - 2, y: by - 12, width: 26, height: 22 }, svg);
+      const t = el('text', { class: 'badge-t', x: bx + 11, y: by + 4 }, svg); t.textContent = V.route.cost;
+      obstacles.push([bx - 2, by - 11, bx + 24, by + 9]);
+    }
+    if (V.selLabel) labels.push({ s: V.selLabel, x, y: y + (T === 'node' ? 44 : 30), a: 'middle', cls: 'sel', font: FONT.uib, pri: 0 });
+  }
+  placeLabels(svg, labels, obstacles, V);
+  return { svg, X, Y };
+}
+function pointAt(poly, d) { /* the point `d` along a polyline and the unit direction there */
+  let acc = 0;
+  for (let i = 0; i < poly.length - 1; i++) {
+    const L = near(poly[i], poly[i + 1]), ux = (poly[i + 1][0] - poly[i][0]) / (L || 1), uy = (poly[i + 1][1] - poly[i][1]) / (L || 1);
+    if (acc + L >= d || i === poly.length - 2) { const t = Math.min(L, d - acc); return [poly[i][0] + ux * t, poly[i][1] + uy * t, ux, uy]; }
+    acc += L;
+  }
+  return [...poly[0], 1, 0];
+}
+function centroid(p) { let x = 0, y = 0; for (const q of p) { x += q[0]; y += q[1]; } return [x / p.length, y / p.length]; }
+function nearestTown(M, n) { return M.nodes.filter((k) => k.t === 'town').sort((a, b) => near([a.x, a.y], [n.x, n.y]) - near([b.x, b.y], [n.x, n.y]))[0].name; }
+function crossIndex(M, n) { return M.nodes.filter((k) => k.t === 'cross' && k.road === n.road).sort((a, b) => a.along - b.along).indexOf(n); }
+function fan(svg, M, n, x, y, st, z, labels, obstacles, V) {
+  /* NODE VIEW: a crossroads opens into a signpost: three option stones on spokes, stacked to one side, each named */
+  glyph(svg, n, x, y, st, z);
+  const key = n.t === 'hcross' ? `hybrid:${nearestTown(M, n)}` : `${n.road.name}:${crossIndex(M, n)}`;
+  const names = CROSS_OPTS[key];
+  const mine = M.opts.filter((o) => near([o.x, o.y], [n.x, n.y]) < 17);
+  const side = x > V.w * 0.62 ? -1 : 1, picked = mine.find((o) => o.st === 'own');
+  obstacles.push([x - 13, y - 13, x + 13, y + 13]);
+  [-1, 0, 1].forEach((k, i) => {
+    const qx = x + side * 46, qy = y + 24 + k * 30;
+    const ost = picked ? (i === mine.indexOf(picked) ? 'own' : 'passed') : (st === 'open' ? 'open' : st === 'plan' ? 'plan' : 'lock');
+    el('line', { class: 'gate', x1: x + side * 8, y1: y + 4, x2: qx - side * 6, y2: qy }, svg);
+    el('circle', { class: `n opt ${ost}`, cx: qx, cy: qy, r: 6 }, svg);
+    obstacles.push([qx - 7, qy - 7, qx + 7, qy + 7]);
+    labels.push({ s: names[i], x: qx + side * 12, y: qy + 5, a: side > 0 ? 'start' : 'end', cls: `opt ${ost === 'own' ? 'own' : ost === 'passed' ? 'passed' : ''}`, font: FONT.ui, pri: 1, fixed: true });
+  });
+}
+function placeLabels(svg, labels, obstacles, V) {
+  labels.sort((a, b) => a.pri - b.pri);
+  const placed = obstacles.slice();
+  const hit = (b) => placed.some((o) => !(b[2] < o[0] || b[0] > o[2] || b[3] < o[1] || b[1] > o[3]));
+  for (const L of labels) {
+    const w = textW(L.s, L.font), size = parseFloat(L.font.match(/([\d.]+)px/)[1]);
+    const tries = [[0, 0], ...(L.alt || [])];
+    for (const [dx, dy] of tries) {
+      const x = L.x + dx, y = L.y + dy, x0 = L.a === 'middle' ? x - w / 2 : L.a === 'end' ? x - w : x;
+      const b = [x0 - 2, y - size + 1, x0 + w + 2, y + 4];
+      if (b[0] < 2 || b[2] > V.w - 2 || b[1] < 2 || b[3] > V.h - 2) { if (!L.fixed) continue; }
+      if (!L.fixed && hit(b)) continue;
+      const t = el('text', { class: `lb ${L.cls}`, x, y, 'text-anchor': L.a }, svg); t.textContent = L.s;
+      placed.push(b); break;
+    }
+  }
+}
+const TOTALS = { shield: 76, sword: 56, club: 60, dual_axe: 44, ranged: 96, destruction: 96, restoration: 136 };
+
+/* ── the route to a node: its road back to the nearest owned node, then a trunk from Havora ─ */
+function routeTo(M, target) {
+  const road = target.road, path = [], nodes = [];
+  const onRoad = M.nodes.filter((n) => n.road === road && n.along <= target.along + 0.5 && n.t !== 'openroad');
+  /* walk the trunk that reaches this road's start */
+  const trunk = M.roads.find((r) => r.kind === 'trunk' && near(r.pts[r.pts.length - 1], road.pts[0]) < 2);
+  if (trunk) { path.push(...trunk.pts); nodes.push(...M.nodes.filter((n) => n.road === trunk && n.t !== 'openroad')); }
+  path.push(...cutPoly(road.pts, target.along));
+  nodes.push(...onRoad);
+  const cost = nodes.filter((n) => n.st !== 'own').length;
+  return { path, nodes, cost, miles: nodes.filter((n) => n.t === 'mile' && n.road === trunk).length, ranks: onRoad.filter((n) => n.t === 'mile').length };
+}
+
+/* ── frames ─────────────────────────────────────────────────────────────── */
+function chrome(shot, o) {
+  shot.style.width = o.W + 'px'; shot.style.height = o.H + 'px';
+  shot.innerHTML = o.html;
+}
+function mini(host, M, view, w = 168) { /* the whole ring with your owned roads and the view box */
+  const s = w / 1600, h = 900 * s, svg = el('svg', { width: w, height: h, viewBox: `0 0 ${w} ${h}` }, host);
+  for (const r of M.regions) el('polygon', { class: 'mini-rg', points: r.pts.map(([x, y]) => `${x * s},${y * s}`).join(' ') }, svg);
+  for (const o of M.owned) el('polyline', { class: 'mini-own', points: o.map(([x, y]) => `${x * s},${y * s}`).join(' ') }, svg);
+  el('rect', { class: 'mini-view', x: (view.cx - view.w / 2 / view.s) * s, y: (view.cy - view.h / 2 / view.s) * s, width: view.w / view.s * s, height: view.h / view.s * s }, svg);
+}
+
+async function main() {
+  await document.fonts.load(FONT.move); await document.fonts.load(FONT.ui); await document.fonts.load(FONT.uib); await document.fonts.load(FONT.big);
+  MEASURE = document.createElement('canvas').getContext('2d');
+  const M = parse();
+  /* milestone stat tags for node view (17 section 5, the Shield entry and Challenge) */
+  const shieldTrunk = M.roads.find((r) => r.kind === 'trunk' && near(r.pts[r.pts.length - 1], [1110, 700]) < 2);
+  ['+2% max health', '+2% armor', '+2% max health'].forEach((s, i) => { const m = M.nodes.filter((n) => n.road === shieldTrunk && n.t === 'mile').sort((a, b) => a.along - b.along)[i]; if (m) m.stat = s; });
+  for (const n of M.nodes) if (n.t === 'mile' && n.road && n.road.name && !n.stat && n.road.kind === 'road') n.stat = '+1 rank';
+  const sr = M.nodes.find((n) => n.t === 'town' && n.name === 'Shield · Restoration');
+  M.nodes.filter((n) => n.t === 'mile' && n.road === sr.road).forEach((m) => { m.stat = m.along < sr.along ? '+2% max health' : '+2% healing done'; });
+
+  const gm = M.roads.find((r) => r.name === 'Greater Mend');
+  const gmCross = M.nodes.filter((n) => n.t === 'cross' && n.road === gm).sort((a, b) => a.along - b.along)[0];
+  const route = routeTo(M, gmCross);
+  const reachLv = 34 + Math.max(0, route.cost - 2);
+  const ownN = M.nodes.filter((n) => n.st === 'own').length;
+  const hyb = M.nodes.find((n) => n.t === 'hcross' && nearestTown(M, n) === 'Shield · Restoration');
+  hyb.gated = true; /* next to an owned town, but it needs a Restoration crossroads first */
+
+  const OPTS_GM = [['Quick Mending', '−50% healing, 1 s cooldown'], ['Deep Mending', 'Only below 40% health, +60% healing'], ['Split Mending', '30% of the heal lands on the next lowest ally', 'Suggested']];
+  const optRows = (rows, pick) => rows.map(([n, d, tag], i) => `<div class="opt${i === pick ? ' pick' : ''}"><b>${n}${tag ? `<em>${tag}</em>` : ''}</b><span>${d}</span></div>`).join('');
+  const TOOLS = (tier, wide) => `<div class="tools"><div class="seg">${['Country', 'Road', 'Node'].map((t) => `<span class="${t === tier ? 'on' : ''}">${t}</span>`).join('')}</div>
+    <span class="press">Recenter</span>${wide ? `<span class="find">Find talent</span><div class="filters"><span>Vows</span><span>Crossroads</span><span>Towns</span></div>` : ''}</div>`;
+  const BAND = `<div class="band"><span class="title">Talents</span><span class="stat">Level <b>34</b></span><span class="stat">Points <b class="gold">2</b></span>
+    <span class="stat">Vows <b>1 / 1</b></span><span class="stat">Borrowed <b>1 / 2</b></span><span class="spacer"></span>
+    <span class="toggle"><i></i>Spend as suggested</span><span class="well">Build: Everyday</span><span class="link">Close</span></div>`;
+  const FOOT = `<div class="foot"><span class="delta"><span class="lbl">Draft</span>Healing <b>+4%</b> · Max health <b>+2%</b> · Mana a minute <b class="down">−3%</b></span>
+    <span class="link">Test on the dummy</span><span class="spacer"></span><span class="press">Cancel</span><span class="primary">Save · 1,240 gold</span></div>`;
+
+  /* 1. desktop road view */
+  {
+    const shot = document.querySelector('#f-desk-road .shot');
+    const W = 1180, H = 660, mw = W - 12 - 318, mh = H - 12 - 44 - 52;
+    chrome(shot, { W, H, html: `${BAND}<div class="map" style="width:${mw}px;height:${mh}px"></div>
+      <div class="card"><div class="kind">Crossroads I · Pick 1</div><div class="name">Greater Mend</div><div class="sub">Restoration · Heals one ally</div>
+      <div class="head">Options</div>${optRows(OPTS_GM, -1)}
+      <div class="head">Route</div>
+      <div class="row">Cost<b class="gold">${route.cost} points</b></div>
+      <div class="row">You have<b>2 points</b></div>
+      <div class="row">Reach at<b>Level ${reachLv}</b></div>
+      <div class="row">On the way<b>${route.miles} stats · ${route.ranks} ranks</b></div>
+      <div class="row">Opens<b>Shield · Restoration pick</b></div>
+      <span class="press">Plan route</span></div>${FOOT}` });
+    const V = { cx: 905, cy: 690, s: 1.0, w: mw, h: mh, tier: 'road', sel: gmCross, route, homeLift: ['shield', 'restoration'] };
+    drawMap(shot.querySelector('.map'), M, V);
+    shot.querySelector('.map').insertAdjacentHTML('beforeend', TOOLS('Road', true) + '<div class="mini"></div>');
+    mini(shot.querySelector('.mini'), M, V);
+  }
+  /* 2. desktop country view */
+  {
+    const shot = document.querySelector('#f-desk-country .shot');
+    const W = 1180, H = 660, mw = W - 12 - 318, mh = H - 12 - 44 - 52;
+    chrome(shot, { W, H, html: `${BAND}<div class="map" style="width:${mw}px;height:${mh}px"></div>
+      <div class="card"><div class="kind">Build</div><div class="name">Everyday</div><div class="sub">Sword and shield · ${ownN} of 635 owned</div>
+      <div class="head">Vows · 1 of 1</div><div class="row">Hold Fast<b class="gold">Shield</b></div>
+      <div class="row">Next slot<b>Level 80</b></div>
+      <div class="head">Borrowed · 1 of 2</div><div class="row">Greater Mend<b class="cost">−30% healing</b></div>
+      <div class="head">Crossroads</div><div class="row">Challenge I<b>Wide Challenge</b></div><div class="row">Challenge II<b>Mended</b></div><div class="row">Frost Slam I<b>Long Frost</b></div>
+      <div class="head">Countries</div><div class="row">Shield<b>29 of 76</b></div><div class="row">Shield · Restoration<b>3 of 7</b></div></div>${FOOT}` });
+    const V = { cx: 800, cy: 452, s: Math.min(mw / 1590, mh / 890), w: mw, h: mh, tier: 'country', homeLift: ['shield', 'restoration'],
+      countryAt: { club: [150, 440], dual_axe: [250, 130], ranged: [800, 150], destruction: [1390, 470], shield: [1300, 760], restoration: [760, 800], sword: [210, 760] } };
+    drawMap(shot.querySelector('.map'), M, V);
+    shot.querySelector('.map').insertAdjacentHTML('beforeend', TOOLS('Country', true));
+  }
+  /* 3. desktop node view */
+  {
+    const shot = document.querySelector('#f-desk-node .shot');
+    const W = 1180, H = 660, mw = W - 12 - 318, mh = H - 12 - 44 - 52;
+    const r2 = routeTo(M, gmCross);
+    chrome(shot, { W, H, html: `${BAND}<div class="map" style="width:${mw}px;height:${mh}px"></div>
+      <div class="card"><div class="kind">Hybrid crossroads · Pick 1</div><div class="name">Shield · Restoration</div><div class="sub">Mixes the two countries</div>
+      <div class="head">Options</div>${optRows([['Healing Shelter', 'Shelter heals 50% of the shield'], ['Guarded Mend', '+20% Greater Mend on taunting allies'], ['Taunting Guard', 'Challenge: +5% max health shield per enemy taunted']], -1)}
+      <div class="head">Requires</div>
+      <div class="row">Shield crossroads<b class="gold">Owned</b></div>
+      <div class="row">Restoration crossroads<b class="cost">${r2.cost} points away</b></div>
+      <span class="press">Show route</span></div>${FOOT}` });
+    const V = { cx: 1000, cy: 772, s: 2.5, w: mw, h: mh, tier: 'node', sel: hyb, homeLift: ['shield', 'restoration'] };
+    drawMap(shot.querySelector('.map'), M, V);
+    shot.querySelector('.map').insertAdjacentHTML('beforeend', TOOLS('Node', true) + '<div class="mini"></div>');
+    mini(shot.querySelector('.mini'), M, V);
+  }
+  /* 4. phone road view with the sheet */
+  {
+    const shot = document.querySelector('#f-phone-road .shot');
+    const W = 922, H = 423, mw = W - 6, mh = H - 6 - 40 - 46;
+    const PBAND = `<div class="band"><span class="title">Talents</span><span class="stat">Points <b class="gold">2</b></span><span class="stat">Vows <b>1/1</b></span><span class="spacer"></span><span class="toggle"><i></i>Suggested</span><span class="well">Everyday</span><span class="link">Close</span></div>`;
+    chrome(shot, { W, H, html: `${PBAND}<div class="map" style="width:${mw}px;height:${mh}px"></div>
+      <div class="card"><span class="grip"></span><div class="kind">Crossroads I · Pick 1</div><div class="name">Greater Mend</div>
+      ${optRows(OPTS_GM.map(([a, b, c]) => [a, b, c]), -1)}
+      <div class="row">Cost<b class="gold">${route.cost} points · Level ${reachLv}</b></div>
+      <span class="press">Plan route</span></div>
+      <div class="foot"><div class="seg"><span>Country</span><span class="on">Road</span><span>Node</span></div><span class="press">Recenter</span><span class="spacer"></span><span class="press">Cancel</span><span class="primary">Save · 1,240</span></div>` });
+    const V = { cx: 905, cy: 680, s: 0.92, w: mw - 300, h: mh, tier: 'road', sel: gmCross, route, homeLift: ['shield', 'restoration'] };
+    const host = shot.querySelector('.map');
+    const wrap = document.createElement('div'); wrap.style.cssText = `width:${mw}px;height:${mh}px;`; host.appendChild(wrap);
+    /* the map keeps the full width under the sheet; the camera frames the selection left of it */
+    V.w = mw; V.cx = 905 + 150 / V.s;
+    drawMap(wrap, M, V);
+  }
+  /* 5. phone country view, sheet closed */
+  {
+    const shot = document.querySelector('#f-phone-country .shot');
+    const W = 922, H = 423, mw = W - 6, mh = H - 6 - 40 - 46;
+    const PBAND = `<div class="band"><span class="title">Talents</span><span class="stat">Points <b class="gold">2</b></span><span class="stat">Vows <b>1/1</b></span><span class="spacer"></span><span class="toggle"><i></i>Suggested</span><span class="well">Everyday</span><span class="link">Close</span></div>`;
+    chrome(shot, { W, H, html: `${PBAND}<div class="map" style="width:${mw}px;height:${mh}px"></div>
+      <div class="foot"><div class="seg"><span class="on">Country</span><span>Road</span><span>Node</span></div><span class="press">Recenter</span><span class="press">Build</span><span class="spacer"></span><span class="press">Cancel</span><span class="primary">Save · 1,240</span></div>` });
+    const LW = 196, s = Math.min((mw - LW) / 1600, mh / 900);
+    const V = { cx: 800 - (LW / 2) / s, cy: 452, s, w: mw, h: mh, tier: 'country', homeLift: ['shield', 'restoration'],
+      countryAt: { club: [150, 430], dual_axe: [250, 120], ranged: [800, 130], destruction: [1390, 460], shield: [1330, 770], restoration: [760, 810], sword: [200, 770] } };
+    drawMap(shot.querySelector('.map'), M, V);
+    const rows = [['The Hearth', '0 of 22'], ['Shield', '29 of 76', 'on'], ['Restoration', '0 of 136'], ['Sword', '0 of 56'], ['Club', '0 of 60'], ['Dual Axe', '0 of 44'], ['Ranged', '0 of 96'], ['Destruction', '0 of 96'], ['Borders', '3 of 49', 'on']];
+    shot.querySelector('.map').insertAdjacentHTML('beforeend', `<div class="clist"><div class="head" style="margin-top:0">Countries</div>${rows.map(([a, b, on]) => `<div class="row${on ? ' on' : ''}">${a}<b>${b}</b></div>`).join('')}</div>`);
+  }
+  /* 6. legend */
+  {
+    const shot = document.querySelector('#f-legend .shot');
+    const kinds = [['mile', 'Milestone', '8 px stone', 'One stat or one rank'], ['way', 'Waystone', '12 px ringed stone', 'A small rule'], ['cross', 'Crossroads', '20 px diamond', 'Pick 1 of 3'],
+      ['hcross', 'Hybrid crossroads', '20 px double diamond', 'Pick 1 of 3, two countries'], ['town', 'Border town', '20 px house, gate ticks', 'Borrow 1 move'], ['vow', 'Vow', '14 x 24 standing stone', 'A rule with a cost'],
+      ['hvow', 'Hybrid vow', 'Split standing stone', 'Two countries'], ['openroad', 'Open road', 'Three dots', '+1 rank per point']];
+    const sts = [['lock', 'Locked'], ['open', 'Can buy'], ['plan', 'On route'], ['own', 'Owned']];
+    shot.style.display = 'inline-block'; shot.style.border = 'none';
+    let h = `<div class="legend"><table><tr><th>Node</th><th>Mark</th>${sts.map(([, l]) => `<th>${l}</th>`).join('')}<th>Does</th></tr>`;
+    for (const [t, name, mark, does] of kinds) h += `<tr><td class="k">${name}</td><td>${mark}</td>${sts.map(([s]) => `<td data-t="${t}" data-s="${s}"></td>`).join('')}<td>${does}</td></tr>`;
+    h += `</table></div>`;
+    shot.innerHTML = h;
+    for (const td of shot.querySelectorAll('td[data-t]')) {
+      const svg = el('svg', { width: 40, height: 34, viewBox: '0 0 40 34' }, td);
+      const n = { t: td.dataset.t, dots: [] };
+      if (n.t === 'openroad') n.sdots = [[12, 17], [20, 17], [28, 17]];
+      glyph(svg, n, 20, 17, td.dataset.s);
+    }
+  }
+  document.body.dataset.ready = '1';
+}
+main();
+</script>
+</body></html>

@@ -259,10 +259,22 @@ function contract(R, cs, body, tl) {
   need('hunt_setup', !!hs && typeof hs === 'object' && !Array.isArray(hs) && hk.every((k) => R.CO.groundSetupOf(cs, k) === hs[k] && Number.isInteger(hs[k]))
     && R.CO.groundSetupOf(cs, 'no_such_ground') === null,
     'groundSetupOf over ' + JSON.stringify(hs));
+  // the watched mark (1060-watched-stamp.sql `watched`, hunt-sections.js watchedOf): the last viewed ask's numbers, named on a return
+  const wm = R.HS.watchedOf(cs);
+  const hw = R.HS.huntOf(cs);
+  need('watched', !!wm && !!hw && wm.s === hw.sessionId && wm.h === hw.huntId && Number.isSafeInteger(wm.at) && wm.xp >= 0 && wm.lv >= 1
+    && Number.isSafeInteger(wm.kills) && Number.isSafeInteger(wm.gold) && Number.isSafeInteger(wm.sp),
+    'watchedOf yields ' + JSON.stringify(wm) + ' from ' + JSON.stringify(body.watched));
   // the Danger scale (1056-danger-scale.sql `danger`, danger-sections.js dangerOf): a hero that never picked a Risk, hunting a tier ground
   const dg = R.DG.dangerOf(cs);
   need('danger', !!dg && dg.risk === null && dg.playing === null && typeof dg.held === 'object',
     'dangerOf yields ' + JSON.stringify(dg) + ' from ' + JSON.stringify(body.danger));
+  // the Hunts window's gold line (1060-gold-estimate-catalogue.generated.sql `gold_estimate`, gold-estimate-sections.js goldEstimateOf): every
+  // scale ground at every Risk, the server's number or null under the band floor; the reader hands back exactly what the server sent
+  const ge = body.gold_estimate, geg = ge && ge.grounds && ge.grounds.muster_barrows;
+  need('gold_estimate', !!geg && isNum(ge.level) && ['careful', 'steady', 'bold'].every((r) => r in geg && R.GE.goldEstimateOf(cs, 'muster_barrows', r) === geg[r])
+    && R.GE.goldEstimateOf(cs, 'mill_cellar', 'steady') === null,
+    'goldEstimateOf yields ' + JSON.stringify(['careful', 'steady', 'bold'].map((r) => R.GE.goldEstimateOf(cs, 'muster_barrows', r))) + ' from ' + JSON.stringify(ge));
   // the company's plan (1051-company-start.sql): a new account's lines read the defaults (Wear upgrades on, the rest hunt on), no plan ground, no seat
   const co = R.CO.companyPlanOf(cs);
   need('company', !!co && co.wearOn === true && co.falls === 'hunt_on' && co.planHunt === null && co.joins === null && co.leadPinned === false && co.heroes >= 1,
@@ -424,7 +436,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
-  'work_day']);
+  'work_day', 'gold_estimate', 'watched']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -486,6 +498,7 @@ async function readers(root) {
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
+    GE: await import(u('src/session/gold-estimate-sections.js')),
     RC: await import(u('src/session/recruit-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
@@ -531,6 +544,11 @@ async function realBody(db, M, H) {
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
   /* THE UNMARKED CATACOMBS (2027-05-08-catacombs.sql): the descent's switch, on for everyone inside this test's transaction only */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'unmarked_catacombs'");
+  /* THE WATCHED MARK (1060-watched-stamp.sql): a viewed ask's note (the engine's own call), then half an hour with no ask, so the
+     section names it as a return's first read would */
+  await H.one(db, 'select public.hr_hunt_watch_note($1::uuid, 0)', [H.UIDS[0]]);
+  await db.query(`update public.hunt_watch set at = at - interval '30 minutes', mark = jsonb_set(mark, '{at}', to_jsonb((mark->>'at')::bigint - 1800000))
+                   where user_id = $1 and slot = 0`, [H.UIDS[0]]);
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -632,6 +650,8 @@ const DB_MUTANTS = [
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   /* lane/r12-company-trades: the Work window's work-day line reads cap_ms and left_ms (src/session/bench-sections.js workDayOf) */
   ['work_day', 'public.hr_work_day_view(uuid,integer)', "'left_ms', greatest(0, v_cap - v_t),", "'left', greatest(0, v_cap - v_t),"],
+  /* lane/gold-per-hour: the Hunts window's gold line reads grounds (src/session/gold-estimate-sections.js goldEstimateOf) */
+  ['gold_estimate', 'public.hr_gold_estimate_view(uuid,integer)', "jsonb_build_object('level', v_lv, 'grounds', v_out)", "jsonb_build_object('level', v_lv, 'ground', v_out)"],
   /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
   ['unlocked_recipes', 'public.hr_state_of(uuid,integer)', "'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),", "'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
@@ -674,6 +694,9 @@ const DB_MUTANTS = [
   ['recruits', 'public.hr_recruit_offer(uuid)', "    'ready', v_lv >= r.at_level,", "    'is_ready', v_lv >= r.at_level,"],
   ['recruits', 'public.hr_recruit_offer(uuid)', "    'slots', to_jsonb(v_free[1:r.recruit_count]),", "    'free', to_jsonb(v_free[1:r.recruit_count]),"],
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],
+  /* lane/watched-stamp: the away card judges a return from the mark's session and its Level XP */
+  ['watched', 'public.hr_hunt_watch_note(uuid,integer)', "  v_m := jsonb_build_object('s', v_s.id,", "  v_m := jsonb_build_object('session', v_s.id,"],
+  ['watched', 'public.hr_hunt_watch_note(uuid,integer)', "                            'xp', v_xp, 'lv', public.hr_char_level(v_xp))", "                            'level_xp', v_xp, 'lv', public.hr_char_level(v_xp))"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

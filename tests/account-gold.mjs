@@ -73,6 +73,7 @@ import { HARNESS } from './hunt-sessions-settle.mjs';
 import { ownHeroSlots } from './_slots.mjs';
 import { WORLD_VERSION, SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
 import { DEFAULT_SESSION_MODE } from '../src/data/session-modes.js';
+import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 
 const MIG = '2026-12-15-account-gold.sql';
 const PREV = await (async () => { const o = (await manifest()).order; return o[o.indexOf(MIG) - 1]; })();
@@ -357,7 +358,7 @@ const commit = (M, d, p) =>M.HS.commitHuntSettle(d.exec, { ...p.commit, project:
 const memberOf = (p, uid, slot) => p.commit.members.find((m) => String(m.user) === String(uid) && Number(m.slot) === slot);
 /* A bill the purse cannot pay however much a window sells on pickup, and inside the food lane's uses bound so the refusal is
    the purse's (gold_short), not too_many_uses: a window is at most hunt-settle.js HUNT_SETTLE_SPAN_MS (2 min since
-   lane/c-tick-span; was 15), whose lane allows 120 s / 2.5 s + 1 = 49 uses, and this bill is ~27 (300 / 14 over the purse). */
+   lane/c-tick-span; was 15), whose lane allows 120 s / 2.5 s + 1 = 49 uses, and this bill is a handful of the store's dearest heal (DEAR). */
 const OVER = 300;
 /* WHAT A MEMBER'S WINDOW ALREADY MOVES besides the planted bill: its coins, the loot it sold to cover a use (+) and
    the store uses the ENGINE bought itself (-), priced from the server's own catalogue. A sized bill is planted ON
@@ -373,7 +374,11 @@ async function netOf(d, m) {
   for (const [id, n] of Object.entries((m && m.hunt && m.hunt.cover) || {})) net += Number(n) * (UNITS[id] || 0);
   return net;
 }
-const addBuys = (m, n) => { m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { salted_shrimp: ((m.hunt.buys || {}).salted_shrimp || 0) + n }); };
+/* THE BILLS' ROWS at the catalogue's own prices (store prices are derived from the wage since lane/econ-levers; every bill was a typed 14 g
+   Salted Shrimp): G5 and G6 size a bill in Salted Shrimp; G4's bill over the purse is the dearest heal, so it still fits the lane's 49 uses */
+const SHRIMP = BASIC_SUPPLIES.find((b) => b.id === 'salted_shrimp');
+const DEAR = BASIC_SUPPLIES.filter((b) => b.kind === 'heal').sort((a, b) => b.price - a.price)[0];
+const addBuys = (m, n, row = SHRIMP) => { m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { [row.id]: ((m.hunt.buys || {})[row.id] || 0) + n }); };
 
 /* THE LEDGER CHAIN of one account: every gold row states purse = previous + gold, carries a gold_kind;
    the chain from the account's first gold row (a fresh account: from 0) ends at the purse. */
@@ -629,12 +634,12 @@ async function huntArms(mutate, M) {
     await hunting(d, u, [0, 1]);
     const p0 = await propose(M, d, u, 0), p1 = await propose(M, d, u, 1);
     const c0 = await netOf(d, memberOf(p0, u, 0)), c1 = await netOf(d, memberOf(p1, u, 1));
-    addBuys(memberOf(p1, u, 1), Math.floor((500 + c1 - 20) / 14));       // slot 1's bill leaves < 20
+    addBuys(memberOf(p1, u, 1), Math.floor((500 + c1 - 20) / DEAR.price), DEAR);       // slot 1's bill leaves < 20
     const r1 = await commit(M, d, p1);
     ok(r1 && r1.ok === true, `G4 ${door}: slot 1's window answered ${JSON.stringify(r1).slice(0, 300)}`);
     const left = await d.purse(u);
     /* slot 0's bill, read at 500, cannot be paid now: above what is left plus its coins */
-    addBuys(memberOf(p0, u, 0), Math.ceil((left + c0 + OVER) / 14));
+    addBuys(memberOf(p0, u, 0), Math.ceil((left + c0 + OVER) / DEAR.price), DEAR);
     const inst0 = await d.one('select instance_id from public.hunt_sessions where user_id = $1 and slot = 0', [u]);
     const sw0 = await d.one('select world_swing::text from public.hunt_instances where id = $1', [inst0]);
     const r0 = await commit(M, d, p0);
@@ -651,7 +656,7 @@ async function huntArms(mutate, M) {
         const members = JSON.parse(params[3]);
         const m = members.find((x) => Number(x.slot) === 0);
         const have = await d.purse(u);
-        m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { salted_shrimp: Math.ceil((have + Number(m.delta.gold || 0) + OVER) / 14) });
+        m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { [DEAR.id]: Math.ceil((have + Number(m.delta.gold || 0) + OVER) / DEAR.price) });
         params = [...params]; params[3] = JSON.stringify(members);
       }
       return d.exec(text, params);
@@ -679,14 +684,14 @@ async function huntArms(mutate, M) {
     const p = await propose(M, d, u, 0, from + 6 * 60000);
     const m0 = memberOf(p, u, 0), m1 = memberOf(p, u, 1);
     const c0 = await netOf(d, m0), c1 = await netOf(d, m1);
-    const n = Math.floor((c0 + c1) / 14);
-    if (ok(m0 && m1 && n * 14 > c0, `G5: the window's coins (${c0} + ${c1}) cannot make a bill slot 0 pays only with slot 1's coins`)) {
+    const n = Math.floor((c0 + c1) / SHRIMP.price);
+    if (ok(m0 && m1 && n * SHRIMP.price > c0, `G5: the window's coins (${c0} + ${c1}) cannot make a bill slot 0 pays only with slot 1's coins`)) {
       addBuys(m0, n);                                             // slot 0 (applied first) spends both heroes' coins
       const res = await commit(M, d, p);
-      say(`G5: coins ${c0} + ${c1}; slot 0's bill ${n * 14} -> ${res && (res.ok ? 'landed' : res.error)}; purse ${await d.purse(u)}`);
+      say(`G5: coins ${c0} + ${c1}; slot 0's bill ${n * SHRIMP.price} -> ${res && (res.ok ? 'landed' : res.error)}; purse ${await d.purse(u)}`);
       ok(res && res.ok === true, `G5: a bill one account's two heroes earned together answered ${JSON.stringify(res).slice(0, 300)}`);
       const c = await chain(d, u);
-      ok(!c.bad.length && c.purse === 300 + c0 + c1 - n * 14 && c.purse >= 300, `G5: the chain ${JSON.stringify(c.bad)}; purse ${c.purse}, expected ${300 + c0 + c1 - n * 14}`);
+      ok(!c.bad.length && c.purse === 300 + c0 + c1 - n * SHRIMP.price && c.purse >= 300, `G5: the chain ${JSON.stringify(c.bad)}; purse ${c.purse}, expected ${300 + c0 + c1 - n * SHRIMP.price}`);
     }
     for (const door of ['tick', 'settle']) {
       /* the rest of the hunt: the browser closed (the tick, to 10 min), then watched (the player's settle, to now) */
@@ -708,16 +713,16 @@ async function huntArms(mutate, M) {
     let p = await propose(M, d, u, 0);
     let m = memberOf(p, u, 0);
     let c0 = await netOf(d, m);
-    addBuys(m, Math.floor((100 + c0 - 80) / 14) + 1);            // would leave the purse under 80
+    addBuys(m, Math.floor((100 + c0 - 80) / SHRIMP.price) + 1);            // would leave the purse under 80
     let res = await commit(M, d, p);
     if (ok(res && res.ok === false && res.error === 'gold_short' && res.detail && res.detail.why === 'floor',
       `G6: a bill under the floor answered ${JSON.stringify(res).slice(0, 300)}`)) {
       p = await propose(M, d, u, 0);
       m = memberOf(p, u, 0); c0 = await netOf(d, m);
-      const n = Math.floor((100 + c0 - 80) / 14);
+      const n = Math.floor((100 + c0 - 80) / SHRIMP.price);
       if (n > 0) addBuys(m, n);
       res = await commit(M, d, p);
-      say(`G6: coins ${c0}; a bill of ${n * 14} keeping 80 of 100 -> ${res && (res.ok ? 'landed' : res.error + ' ' + JSON.stringify(res.detail))}; purse ${await d.purse(u)}`);
+      say(`G6: coins ${c0}; a bill of ${n * SHRIMP.price} keeping 80 of 100 -> ${res && (res.ok ? 'landed' : res.error + ' ' + JSON.stringify(res.detail))}; purse ${await d.purse(u)}`);
       ok(res && res.ok === true && await d.purse(u) >= 80, `G6: a bill that keeps the floor answered ${JSON.stringify(res && res.error)} (purse ${await d.purse(u)})`);
     }
   }

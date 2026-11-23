@@ -13,6 +13,10 @@
 // (`deep`, `falls`, 1057-danger-falls.sql) and the session's end stance; the return card (./windows/away.js) shows the same line.
 // Nothing here counts, prices or predicts: the lines say what the server counted.
 //   causeLine(d)               the cause line from the report's depth facts, '' off the scale
+// THE EARNED LINE (lane/gold-per-hour, Tyler 2026-11-22) follows the cause line on a Danger scale ground, beside the Hunts window's "About N
+// gold an hour, before supplies": "Earned 4,800 gold an hour. Supplies used 900 gold an hour.", the server's per-hour counters (the analyzer's
+// per_hour.gold, coins and loot, and per_hour.waste, store supplies) as the card stored them; the return card shows the same line.
+//   earnedLine(rates)          { goldH, wasteH } in words, '' when the server rated no hour
 //
 //   riskLines(r, xpH)          the risk block's lines (strings), the word first. Pure but for the words.
 //   rulesLines(r, prev)        the rules block's lines, the change line last. Pure but for the words.
@@ -40,7 +44,7 @@ export function blowLine(swing, spell, low, o) {
 }
 
 /** The risk block's lines, the word first. `xpH`: the hunt's Level XP an hour (the server's), for a death's hunting time. */
-export function riskLines(r, xpH) {
+export function riskLines(r, xpH, rates) {
   if (!r) return [];
   /** @type {{ word?: boolean, text: string }[]} */
   const out = [{ word: true, text: t('report.word_' + r.word) }];
@@ -56,6 +60,8 @@ export function riskLines(r, xpH) {
   }
   const cause = causeLine(r.depth);
   if (cause) out.push({ text: cause });
+  const earned = cause ? earnedLine(rates) : '';
+  if (earned) out.push({ text: earned });
   return out;
 }
 
@@ -77,7 +83,14 @@ export function causeLine(d) {
       : ['report.fell_many', 'report.fell_many_died'];
     parts.push(t(keys[pm === 0 ? 1 : 0], v));
   }
-  return parts.join(' ');
+  return parts.join(' · ');
+}
+
+/** THE EARNED LINE: the server's gold an hour (coins and loot) and its store supplies an hour, in words; '' when it rated no hour. */
+export function earnedLine(rates) {
+  if (!rates || !Number.isFinite(rates.goldH) || rates.goldH < 0) return '';
+  const g = { gold: whole(rates.goldH) };
+  return Number.isFinite(rates.wasteH) && rates.wasteH >= 0 ? t('report.earned', Object.assign(g, { supplies: whole(rates.wasteH) })) : t('report.earned_only', g);
 }
 
 /** The rules block's lines: slots that fired (bar order), then those that never fired, at most HUNT_REPORT.rulesShown, the change line last. */
@@ -116,7 +129,7 @@ function lineRows(host, doc, lines) {
 /** Both blocks for the card `cur` (a stored or live summary), `prev` the hunt before it on the same ground (the change line), or null. */
 export function patchReport(root, doc, cur, prev) {
   const r = cur && !cur.train ? cur.report || null : null;
-  const risk = riskLines(r, cur ? cur.xpH : null), rules = rulesLines(r, prev ? prev.report : null);
+  const risk = riskLines(r, cur ? cur.xpH : null, cur), rules = rulesLines(r, prev ? prev.report : null);
   cls(root.querySelector('.hsum-report-risk .hw-ledger-head'), 'is-on', risk.length > 0);
   lineRows(root.querySelector('.hsum-risk'), doc, risk);
   cls(root.querySelector('.hsum-report-rules .hw-ledger-head'), 'is-on', rules.length > 0);

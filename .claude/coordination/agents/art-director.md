@@ -1,5 +1,19 @@
 # Art Director — running log
 
+## 2026-11-22 - visual pass 2 (lane/visual-pass-2, from set/v0.2.144)
+
+Screens since R7: stamina block panel + Services, the Risk pick, the cause line (end and return cards), the Work day line, Party tabs and
+"Invite a player". Played on local-world serve with a Level 1 hero sent into Muster Barrows (dies at Depth 1, so depths are real but low).
+Lessons worth keeping:
+- **A new `<p>` with no rule gets the browser's 16 px margins.** `.hw-stam-quote` stood 16 px off its own stamina line. Measure the gap to the
+  line above, not only the size.
+- **A boxed button turned into a link keeps the box's padding** (`.hw-hd-party-do .hh-tool` 10 px): its words stand in from the column.
+- **Read the words a screen puts beside the new line.** The Carry on line said "Normal" on a ground that has no tiers; the pick said "Held
+  depth: Depth 1". Neither was in the brief.
+- Driving: a throwaway Playwright script against `local-world serve` (sign in, run a steps module, save PNGs to the scratchpad) beats the
+  pane's 800 px downscaled shots for reading 14 px text; `wait N --away` then a fresh context brings the return card (wait for
+  `[data-hs-win="away"]`, it can take a few seconds).
+
 ## 2026-11-21 - FB-5's first hour, read when it landed (lane/r-art-first-hour, from set/v0.2.144 7842bc626)
 
 Read only; findings in `docs/design/overhaul/review/09-art-first-hour.md` (3 BLOCKER, 7 FIX, 9 NOTE). Lessons worth keeping:
@@ -3959,3 +3973,13 @@ Seen, not changed: the end card's two "Recruit your party" presses (step row + s
 (Ashe's tab and row) is a thin, dim line next to the shield and cross; "Next ground: Recommended in Hunts" reads like a ground's name.
 Lessons: (1) a pick drawn by one module and routed by another needs a shared list of its actions, or a new press is born dead;
 (2) the browser pane is throttled while hidden, so real-time HUD checks run in headless Playwright on openWorld, not in the pane.
+## 2026-11-22 lane/roads-review-ux (UX review of the Roads talent map; docs and mock only, the concept kept)
+Read the 17 sketch rendered (headless Chrome, 1180x660 and 922x423, 2x crops): the 1600x900 map fitted to 860x550 draws every 12 px label
+at 6.4 px; Restoration holds 12.0 nodes per 10k map units against 3.5-5.3 elsewhere; 42 red vows and 52 gold-ringed locked waystones
+outshout the owned path. Wrote 18-roads-review-ux.md (11 problems, 10 ranked fixes: three zoom tiers with screen-size labels, open on
+the frontier, route preview with cost and Reach at Level, one node language with 4 states, road hierarchy, Restoration area x2.5, phone
+sheet and gestures, chrome to spec, build preview = Talents draft line + the existing hunt analyzer on a dummy run, no new analyzer).
+18-roads-ux-mock.html reads the sketch's own geometry and redraws it with the real tokens.css (fonts load over http only).
+Lessons: (1) a fitted overview of a dense map is not a default view: open where the player stands and let labels keep screen size;
+(2) pairing labels to roads by nearest distance mislabels a fan of roads from one hub (Greater Mend took Undertow's road): pair by
+source order or by id; (3) only decision marks should block label placement, or the 480 milestones cull every name.

@@ -14,7 +14,7 @@
 -- band (floor < reference < top, measured: tools/balance-program/redesign/r10). The engine climbs no step past a ground's top and pays no more
 -- there, so each coin ceiling below is read at min(gapMax, top - reference). A staged ground (the Catacombs' two wings) is judged by the
 -- generator and left out of the rows until it opens.
--- ORDER: 1060 in its name: after 1055 (the first cut of this catalogue, which made the tables) and 1056/1057 (their
+-- ORDER: 1061 in its name: after 1055 (the first cut of this catalogue, which made the tables) and 1056/1057 (their
 -- readers). Idempotent: the tables are made if missing and their rows rewritten whole, the functions restated, so a second apply is
 -- byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; two internal functions revoked from
@@ -72,16 +72,16 @@ alter table public.hr_danger_rules enable row level security;
 alter table public.hr_danger_stances enable row level security;
 alter table public.hr_danger_grounds enable row level security;
 revoke all on public.hr_danger_rules, public.hr_danger_stances, public.hr_danger_grounds from public, anon, authenticated, service_role;
-comment on table public.hr_danger_rules is '1060-danger-grounds-danger-catalogue.generated.sql: the Danger scale''s numbers (src/data/danger.js through tools/gen-danger.mjs). One row.';
-comment on table public.hr_danger_stances is '1060-danger-grounds-danger-catalogue.generated.sql: the risk stances, safest first (src/data/danger.js RISKS). A death settles a hunt to after_death, never bolder.';
-comment on table public.hr_danger_grounds is '1060-danger-grounds-danger-catalogue.generated.sql: the grounds the Danger scale opens on (src/data/danger.js DANGER_GROUNDS), each with its reference step; no row = a stance plays the tier there.';
+comment on table public.hr_danger_rules is '1061-danger-grounds-danger-catalogue.generated.sql: the Danger scale''s numbers (src/data/danger.js through tools/gen-danger.mjs). One row.';
+comment on table public.hr_danger_stances is '1061-danger-grounds-danger-catalogue.generated.sql: the risk stances, safest first (src/data/danger.js RISKS). A death settles a hunt to after_death, never bolder.';
+comment on table public.hr_danger_grounds is '1061-danger-grounds-danger-catalogue.generated.sql: the grounds the Danger scale opens on (src/data/danger.js DANGER_GROUNDS), each with its reference step; no row = a stance plays the tier there.';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_danger_rules;
 insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
   pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per, default_risk) values
   (true, 4000, 8, 15000, 20, 8, 2, 1500, 3500, 7000,
-   7000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[], 'steady');
+   4000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[], 'steady');
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values
   ('careful', 0, 450, 650, 'careful'),
@@ -89,15 +89,15 @@ insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death
   ('bold', 2, 120, 300, 'steady');
 delete from public.hr_danger_grounds;
 insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_max) values
-  ('hasks_ford', 590, 1001, 660),
-  ('muster_barrows', 590, 1001, 867);
+  ('hasks_ford', 590, 1001, 3501),
+  ('muster_barrows', 590, 1001, 4239);
 
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
 create or replace function public.hr_danger_hours_for(p_level int)
 returns numeric language plpgsql stable set search_path = public, pg_catalog as $fn$
 declare r public.hr_danger_rules%rowtype; v_l int := greatest(1, coalesce(p_level, 1)); n int; i int;
 begin
-  -- DANGER-SCALE (1060-danger-grounds-danger-catalogue.generated.sql): danger.js hoursForLevel, the hours Level p_level takes in the hours table (each span at its middle, straight between).
+  -- DANGER-SCALE (1061-danger-grounds-danger-catalogue.generated.sql): danger.js hoursForLevel, the hours Level p_level takes in the hours table (each span at its middle, straight between).
   select * into r from public.hr_danger_rules where id;
   if not found then return null; end if;
   n := cardinality(r.hours_at);
@@ -113,7 +113,7 @@ create or replace function public.hr_danger_level_xp_max(p_level int)
 returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
 declare r public.hr_danger_rules%rowtype; v_l int := greatest(1, coalesce(p_level, 1));
 begin
-  -- DANGER-SCALE (1060-danger-grounds-danger-catalogue.generated.sql): ceil(danger.js levelShareXp at the gap ceiling): the most one kill alone pays a hero of Level p_level.
+  -- DANGER-SCALE (1061-danger-grounds-danger-catalogue.generated.sql): ceil(danger.js levelShareXp at the gap ceiling): the most one kill alone pays a hero of Level p_level.
   select * into r from public.hr_danger_rules where id;
   if not found then return null; end if;
   return ceil((public.hr_char_xp_for_level(v_l + 1) - public.hr_char_xp_for_level(v_l))::numeric

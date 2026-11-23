@@ -97,6 +97,8 @@
 .hw-plancopy-q { margin: 0; font-weight: 700; color: var(--ink); }
 .hw-plancopy-do { display: flex; gap: 6px; margin-top: 8px; }
 .hw-plancopy-do .hw-primary { display: inline-block; }
+/* The Services tab's stamina quote: the tab's 8 px rhythm under its stamina line, not a bare paragraph's 16 px (visual pass 2). */
+.hw-stam-quote { margin: 0 0 8px; font-size: var(--t-small); color: var(--ink); }
 /* Its well and gold bar are the Forged Steel confirmation's (shell.css). */
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
@@ -510,8 +512,8 @@
 /* THE RISK on a Danger scale ground (company-pane.js stanceHtml): its name beside the pick, and its two lines as quiet as the tier's note. */
 .hw-stance { margin: 4px 0 0; }
 .hw-stance-k { font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-2); letter-spacing: .04em; }
-.hw-stance-note, .hw-stance-depth { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
-.hw-stance-note:empty, .hw-stance-depth:empty { display: none; }
+.hw-stance-note, .hw-stance-depth, .hw-stance-gold { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-stance-note:empty, .hw-stance-depth:empty, .hw-stance-gold:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
 /* Go as: the setups as lines, chosen the way a ground is (lifted, outlined in gold, the gold bar): the weapon's own
@@ -549,6 +551,8 @@
 .hw-hd-party-why { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-party-do { display: flex; flex-wrap: wrap; gap: 6px; }
 .hw-hd-party-do .hh-tool { min-height: 36px; padding: 0 10px; }
+/* Invite a player is a link: its words start on the section's edge, as Hunt prep's do (visual pass 2: a boxed button's 10 px stood it in) */
+.hw-hd-party-do .hh-tool.is-link { padding: 0 2px; }
 .hw-bring { display: contents; }
 .hw-bring-none { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-bring-none:empty { display: none; }

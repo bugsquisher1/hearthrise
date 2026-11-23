@@ -75,7 +75,7 @@ function patchInvites(root, ctx, sc, inv) {
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
   text(none, partyMembershipOf(ctx.character) ? 'No invites'
-    : 'No invites. ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' → Invite to party');
+    : 'No invites · ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' → Invite to party');
 }
 
 renderParty.patch = function patchParty(body, ctx) {

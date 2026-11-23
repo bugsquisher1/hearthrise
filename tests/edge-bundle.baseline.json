@@ -245,14 +245,44 @@
         "why": "R9 power step: danger.js gearPartPm/powerPm, damage.js stepped blows, member.js gearPm (+7,071 B on top of lane G)"
       },
       {
-        "bytes": 3311366,
+        "bytes": 3310961,
         "on": "2026-11-22",
-        "why": "lane/r10-more-grounds: the Catacombs' two wings as scale grounds (src/data/catacomb-wings.js, their drop rows ridden by combat-sim.js huntPlayOf), the band top and per-ground kill rate in core/hunt/danger.js, scale item Levels (data/danger.js scaleItemLevels, items.js)"
+        "why": "wave 2 monster roles and rows (lane/w2-roles-rows): src/data/monster-roles.js and src/core/hunt/monster-roles.js join the engine (the settle aims, shoots and splashes by role on the Danger scale), ~15.7 KB"
       },
       {
-        "bytes": 3313438,
+        "bytes": 3312573,
+        "on": "2026-11-22",
+        "why": "wave 2 roles (lane/w2-roles-rows): heldPm, blowPm and the tooltip labels on the role rows, the re-aim and blow-share readers"
+      },
+      {
+        "bytes": 3312853,
+        "on": "2026-11-22",
+        "why": "wave 2 roles (lane/w2-roles-rows): the stalker blow-share comment on the role table"
+      },
+      {
+        "bytes": 3312863,
+        "on": "2026-11-22",
+        "why": "wave 2 roles: blowPm renamed maxHitPm (it collided with statuses.js blowPm, caught by effect-readers), +10 bytes"
+      },
+      {
+        "bytes": 3324005,
+        "on": "2026-11-22",
+        "why": "40 hidden Traits (src/data/traits.js via gear-steps.js), +11,149 B, ships with the release edge deploy"
+      },
+      {
+        "bytes": 3338850,
         "on": "2026-11-23",
-        "why": "lane/r10-more-grounds: the wings' facts (scale-only, value pins, the carried party line and bag) and the folds that read them (party-class-xp.js, supplies.js, hunt-tiers.js)"
+        "why": "econ levers: store-kit.js and supply-basics.js priced from the wage, the one coin ratio and the one-sided gear weight in the engine (+14,845 B)"
+      },
+      {
+        "bytes": 3341027,
+        "on": "2026-11-23",
+        "why": "watched stamp: viewed asks record the hero's numbers (+2,177 B)"
+      },
+      {
+        "bytes": 3359200,
+        "on": "2026-11-23",
+        "why": "lane/r10-more-grounds (merged onto set/v0.2.144): the Catacombs' wings as scale grounds and their folds, the band top and per-ground kill rate, scale item Levels"
       }
     ]
   }

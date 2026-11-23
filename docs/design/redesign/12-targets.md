@@ -16,7 +16,7 @@ Each target says what the player feels, the range it must land in, and the reade
 | C-2 | **Better heroes go deeper, and I can see it.** A few Levels or one gear tier visibly moves the depth held | +3 Levels or one gear tier moves the hold 1 to 3 depths | V1 "levels" and "weapon" cells | Measured for Levels (Level 70 held 614 against 590). The gear half waits for the power step (R4, R9) |
 | C-3 | **On Careful or Steady my heroes don't die.** They pull back before it goes wrong | 0 deaths a party-day; a lone slip is under 1 in 50 party-days | V2 deaths by stance | Measured: 0 in 48 seed-days on each, after the trigger fix |
 | C-4 | **Bold pays if I watch, and costs me if I leave it.** It is a choice, not the obvious best | Bold beats Steady in a 2 h watched session; Steady beats Bold over a 10 h day; Bold dies 0.3 to 1.5 times a party-day; no wipes | V2 | Measured: Bold beats Steady in 2 h sessions in 4 of 4 cells, loses over a day in 3 of 4, 0.4 to 1.1 deaths, 0 wipes. The fourth cell (weapon one band back) is a V2 lever, see 2.1 |
-| C-5 | **Careful is the safe choice, not a punishment.** It pays less, but not so little that nobody picks it | Careful earns 0.55x to 0.70x of Steady an hour | V2 pay by stance, from a held start | Not met: 0.28x against 0.72x. Fixed by the pay floor in 2.1 and re-measured by R4 |
+| C-5 | **Careful is the safe choice, not a punishment.** It pays less, but not so little that nobody picks it | Careful earns 0.55x to 0.70x of Steady an hour | V2 pay by stance, from a held start | Met with the floor 0.5 (lane/econ-levers on R9's tree, 6 seeds x 8 h from a held start): Careful over Steady 0.65 / 0.60 / 0.57 at Levels 60 / 63 / 70 |
 | C-6 | **A party of four is worth it.** Each head earns more in a four than the same heroes alone | 1.2x to 1.6x a head, in XP and in gold | V6 | Owed. Pay by depth is the lever, so the four's deeper hold is the bonus |
 | C-7 | **A lone hero is slower but fair** (RD-Q7 a) | A lone hero earns 0.5x to 0.8x of a four's head | V6 | Owed |
 | C-8 | **The first hunt starts near where I left off.** No two hours of climbing from zero each time | A returning company is at its held depth within 15 minutes | V1 `--start-from` | Built: start = lowest held step minus 20. First ever hunt climbs about 2 h; see the ground band in section 3, which starts it at the band's floor instead |
@@ -24,6 +24,7 @@ Each target says what the player feels, the range it must land in, and the reade
 | C-10 | **Every ground has a top, and reaching it means move on.** | A good four reaches a ground's top in 1 to 3 days of play at the ground's top Level | Band reader (new) | Owed. Defined in section 3 |
 | C-11 | **The next ground pays more from its first depth.** Moving on is never a pay cut | Depth 1 of the next ground pays at least 1.1x depth 20 of the last, for a company that can hold it | Band reader | Owed |
 | C-12 | **A Level is a Level forever.** Level 200 is a big deal, and Level 400 still moves | One Level or one gear tier is the same share of depth at Level 20, 400 and past it | V8 | Owed |
+| C-13 | **Early power comes from Levels and gear** (Tyler 2026-11-22: "the buffs are way too strong too early"). Talents, vows, Traits, Signatures, borrows, Temper and consumables grow in, full at Level 200 | Level and gear are 85% or more of a hero through the first week (to about Level 28), 80% or more at Level 60 | `19-power-ledger.md` V8 | Owed. COMPUTED 90% / 90% / 80 to 86% at Levels 10 / 30 / 60 |
 
 The five hard lines (HC-1 to HC-5) stand as they are. A target with no reader by the end of stage 4 is dropped, not carried.
 
@@ -38,7 +39,8 @@ Every ruling below is the designer's and final. None is a money call.
 **How it plays:** Careful sits a few depths shallower than Steady and earns about two thirds as much an hour. It never feels like a penalty for playing safe.
 
 - **Today:** pay a kill = 1.007^(step − refStep), capped 120 steps above. Below `refStep` it falls with no floor, so Careful's shallower hold costs it twice: fewer kills and less a kill. That is the 0.28x.
-- **Ruling:** pay a kill is never below **0.85x** the hours table. Above that, depth pays as today, up to the band's top (section 3). The stance's cost is then fewer kills an hour, which is the honest cost of pulling back sooner.
+- **Ruling:** pay a kill is never below a floor of the hours table, XP and coin alike. Above that, depth pays as today, up to the band's top (section 3). The stance's cost is then fewer kills an hour, which is the honest cost of pulling back sooner.
+- **The floor is 0.5x, not the 0.85x first written** (lane/econ-levers, 2026-11-22, the check below run on 6 seeds x 8 h): Careful's shallow pulls die fast, so at 0.85 it would earn about 1.07x of Steady (COMPUTED from its measured pay with no floor); at 0.5 it earns 0.62x (MEASURED) (0.55x the table against Steady's 0.89x). `src/data/danger.js` PAY.floor, `src/core/hunt/danger.js` depthRatio, built by lane/r9 the same day (R9 read Careful over Steady 0.68 / 0.63 / 0.58 at Levels 60 / 63 / 70).
 - **Bold's edge stays as it is.** It is already a real choice (C-4). The fourth V2 cell, where Bold also wins a full day when gear is a band behind, is fixed by the ruling in 2.2 rather than by Bold's numbers: a company behind on gear runs out of mana and HP faster, and readiness then holds Bold back.
 - **Why not equal pay?** If stances paid the same an hour, no one would pick Bold, and Careful would be free. A third of Steady (today) is too far; Steady at about 1.4x Careful is a gap you feel and still choose.
 - **Check:** R4 re-measures from a held start on 4+ seeds. Careful must land at 0.55x to 0.70x of Steady (C-5). If it doesn't, the floor moves, not the stances.
@@ -173,7 +175,7 @@ Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/re
 - **Confirmed:** the base tier (the item's base numbers) is fixed by the ground.
 - **Depth raises two things only:**
   - **Rare odds:** ×1 at depth 1, rising to ×3 at depth 20 (a starting value).
-  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five).
+  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five), up to the ground's highest rank: rank II only on grounds entered at Level 70 or more, rank III at 100 or more (`19-power-ledger.md` section 2, 2026-11-22). Muster Barrows rolls rank I.
 - **Never the base numbers.** If depth raised them, one ground would hold the best gear forever, and moving on would be pointless. That was Tyler's worry, and this rule answers it.
 - **Why move on, then?** The next ground's base tier is higher. A whole kit from there beats a whole kit from here, Traits and all (section 8: every Trait on a hero together is held to one tier). A single good Rare still outlives a few bases, and carry-over moves its Trait onto a new one. Both feel good: the old Rare had a life, then you outgrew it.
 
@@ -306,3 +308,41 @@ Each sample goes through the Lab before it grows: rows 1 and 2 through V1 and V3
 | 3. The piece moves the held step | The gear part, read by the power step | Owed: R9 |
 | 4. A Rare drops with File Breaker, Captain's Due or Last File | `traitPool('muster_barrows')` | Owed: the roller, wave 4 |
 | 5. A Catacomb Trait drops | Needs the Bone Wing and Flooded Wing as grounds (section 7) | Owed: wave 2 |
+
+### 8.1 The 40 Traits (2026-11-22, lane/traits-20; Tyler picked every one in `14-trait-candidates.md`: "Sadly I like them all")
+
+**How it plays:** every slot has three or more Traits, every seat has four or more sized on it (and more it can use), and each ground drops four to six of them. A Rare rolls one from the ground you hunt. A Very Rare rolls two, and they never do the same job twice.
+
+- **Home:** `src/data/traits.js` (40 rows, numbered as in the doc), re-exported through `src/data/gear-steps.js` so a scale ground still reads its pool from `traitPool(id)`. Still hidden: nothing rolls, drops, plays or shows them, and `tests/gear-steps.mjs` GS-6 holds it.
+- **Sizes:** the steps stay the source (`traitSteps` 4 / 7 / 10). Cards show clean numbers, +1.5 / 2.5 / 3.5% (`GEAR_STEPS.shownPct`), each within a quarter of a point of its steps at `powerStep` 0.35%. In band, as ruled.
+- **Similar Traits share a stacking key**, so they never stack: Soft Scale and Ram's Head, Barred Door and Banded Oath, Tarred Through and Floodmark, First Rank and Early Start, Pyre Tender and Long Rite, Slack Water and Ledge Footing, Goaded and Bolting Team, Keeper's Carry and Stair Bearer, Full Wick with Banked Coals and Full Cellar, Numbed and Sour Vault, Captain's Due and Raised Colors. GS-5 reads the groups from the doc, so a new group there is red until its key is shared.
+- **Party-wide Traits** (Snuffed, Raised Colors, Banded Oath) give every hero the rule, and only one copy in a party counts.
+- **Hask's Bargain is the first trade Trait.** While above 90% health its offense rises by `tradeSteps` (7 / 13 / 18, shown +2.5 / 4.5 / 6.5%) and its defense falls by the rank's `traitSteps` (shown +1.5 / 2.5 / 3.5% damage taken). Net it is 3 / 6 / 8 steps, never over one rank's budget, and its gain stays under `conditionalStepsMax`. The engine reads `trade: true` as two rule rows on one `when` (wave 4).
+- **Bottom of the Quiver's exploit is closed by a start floor.** A Trait that pays for running low counts only on a hunt that started with at least twice its threshold (`startMin`, 100 arrows against 50), so carrying 50 arrows never keeps it on. GS-4 makes every future running-low Trait carry the same floor.
+
+**The Very Rare pair rule** (the roller plays it in wave 4. Its data is the keys, `GEAR_STEPS.traitSlots` and `GEAR_STEPS.veryRareBanned`, and `tests/gear-steps.mjs` GS-5 plays it to prove every slot can roll a pair):
+
+1. The first Trait comes from the ground's pool for that slot, so chasing a Trait still means choosing a ground. The second is any other Trait of the slot, from any ground.
+2. Never two of one stacking key. A pair of one key would count once, a Rare with a dead line.
+3. **No best pair.** The risk is a pair whose conditions cover each other's off time, two halves of one rule that make an always-on number. The key rule already bans the clearest cases (Full Wick with Banked Coals is "strong at any mana", First Rank with Early Start is "fresh" twice). Any other pair the dominance check finds in the best kit on more than `dominanceMaxPm` (40%) of cells goes on `veryRareBanned` and never rolls. The fix is the list, not a smaller number (04 section 10: a dominant rule is a design problem).
+4. Two is the cap (`traitsByRarity`).
+
+**The dominance-check plan** (04 guard 4, run as V7 before anything rolls):
+
+| Step | What runs | Passes when |
+|---|---|---|
+| 1. Size each Trait | Each Trait at rank 3 on its `best` cell (seat and ground) against the same kit without it, 12 seeds x 12 h, held depth read | Every Trait moves the held step by 10 +- 3. Outside that, its steps are wrong (guard 1) |
+| 2. Average share | The same Trait on every scale ground for its seat | Its average gain is at most half its best case (`traitAverageSharePm` 500, guard 2). A Trait over it gets a narrower `when`, not a smaller number |
+| 3. Best kit by cell | For each seat x ground, the kit sampler (04 section 10, wave 4) builds the best one-Trait-a-slot kit from the 40 at rank 3 | No Trait in the best kit on more than 40% of cells, and every Trait best on at least one cell |
+| 4. Pairs | The same search with Very Rares, every allowed pair a slot can hold | No pair in the best kit on more than 40% of cells. A pair over it is banned (`veryRareBanned`) |
+| 5. Stacking cap | The best whole kit per cell against `conditionalStepsMax` | No hero's conditional steps at once over 20, so a whole kit a tier up still beats a kit a tier down |
+
+The first readings to watch, from the doc's own notes: Worrier and Lime Pit (a status the hero keeps up), Full Wick, Full Cellar, First Rank and Early Start (a "fresh" or "full" state a strong party may hold all hunt), Soft Scale on Wyvern Roost (a ground built on one weakness), and Bailey Stand for hall tanks.
+
+**Walk-through (a Very Rare cape from Krell's Hold, today's data only):**
+
+| Step | What the player holds or can reach | Doable? |
+|---|---|---|
+| 1. Hunt Krell's Hold on the scale | Krell's Hold is a ground pack (`src/data/grounds/krells_hold`) | Owed: R10 opens it on the scale |
+| 2. A Very Rare cape drops | Raised Colors is the Hold's cape Trait (`traitPool('krells_hold')`) | Owed: the roller, wave 4 |
+| 3. Its second Trait | The pair rule allows Crag Shelter only, since Captain's Due shares Raised Colors' key | Data yes, roller wave 4 |

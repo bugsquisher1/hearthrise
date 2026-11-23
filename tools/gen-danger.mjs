@@ -11,7 +11,7 @@
 //                       default_risk (DEFAULT_RISK: the stance a hunt on the scale plays when its plan names none; 1057-danger-falls.sql)
 //   hr_danger_stances   per stance: rank (0 the safest), fall_pm, clean_pm, after_death (the stance a death settles to, never bolder)
 //   hr_danger_grounds   per ground the scale opens on: ref_step, share_pm_max (the most of a row's health one monster carries at any step),
-//                       coin_pm_max (the most of a row's coin one kill pays: that share x the depth ratio at the gap ceiling)
+//                       coin_pm_max (the most of a row's coin one kill pays: that share x PAY.coinPm x the depth ratio at the gap ceiling, at the wage's coin ratio)
 //   hr_danger_hours_for(level)     danger.js hoursForLevel
 //   hr_danger_level_xp_max(level)  ceil(danger.js levelShareXp at the gap ceiling): the most one kill alone pays a hero of that Level
 //
@@ -33,7 +33,7 @@ import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 1055 made the tables (applied or staged, it is history now); lane/r10-more-grounds's grounds and bands are this forward file */
-export const OUT_NAME = '1060-danger-grounds-danger-catalogue.generated.sql';
+export const OUT_NAME = '1061-danger-grounds-danger-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -44,13 +44,13 @@ export const PIN_LEVELS = Object.freeze([1, 9, 40, 60, 75, 300, 1000]);
 async function load(root) {
   const v = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
-  const [data, core, model, grounds, tuning] = await Promise.all([imp('src/data/danger.js'), imp('src/core/hunt/danger.js'), imp('src/data/core-model.js'),
-    imp('src/data/hunt-grounds.js'), imp('src/data/hunt-tuning.js')]);
-  return { data, core, model, grounds, tuning };
+  const [data, core, model, grounds, tuning, wage] = await Promise.all([imp('src/data/danger.js'), imp('src/core/hunt/danger.js'), imp('src/data/core-model.js'),
+    imp('src/data/hunt-grounds.js'), imp('src/data/hunt-tuning.js'), imp('src/data/wage.js')]);
+  return { data, core, model, grounds, tuning, wage };
 }
 
 /** The resolved rows of the data, refused on a defect. */
-export function rowsOf({ data, core, model, grounds, tuning }) {
+export function rowsOf({ data, core, model, grounds, tuning, wage }) {
   const { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } = data;
   const ids = Object.keys(RISKS);
   ids.forEach((id, rank) => {
@@ -70,7 +70,7 @@ export function rowsOf({ data, core, model, grounds, tuning }) {
   const rules = {
     step_max: DANGER.stepMax, pull_max: DANGER.pullMax, respawn_ms: DANGER.respawnMs, start_margin: DANGER.startMargin,
     climb_max: CLIMB.climbMax, clean_run: CLIMB.cleanRun, regroup_ms: tuning.HUNT_TUNING.regroupMs, power_step_ppm: ppm(DANGER.powerStep, 'powerStep'),
-    pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(PAY.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
+    pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(wage.WAGE.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
     ref_kills_head: PAY.refKillsHead, hours_at: spans.map((s) => s[0]), hours_per: spans.map((s) => s[1]), default_risk: data.DEFAULT_RISK,
   };
   for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'regroup_ms', 'gap_max', 'ref_kills_head']) {

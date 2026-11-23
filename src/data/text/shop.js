@@ -56,10 +56,10 @@ export const SHOP_TEXT = Object.freeze({
   bless_all_on: 'All Blessings on',
   bless_all_short: 'Not enough gold for the next Blessing',
   /* A bought hunting block in the Services tab (1058-hunting-blocks.sql, the `time_blocks` section): 2 h each, dearer each time, a daily cap. */
-  block_quote: 'Adds {hours} for {price}. Blocks today: {n} of {max}. Each one costs more.',
-  block_quote_short: 'Adds {hours} for {price}, need {short} more. Blocks today: {n} of {max}.',
-  block_full: 'A full day of stamina is banked',
-  block_used: 'All {max} blocks bought today. More after midnight UTC',
+  block_quote: '+{hours} for {price} · Blocks today: {n} of {max} · Price rises per block',
+  block_quote_short: '+{hours} for {price} · Need {short} more · Blocks today: {n} of {max}',
+  block_full: 'Full day of stamina banked',
+  block_used: 'All {max} blocks bought today · Resets 00:00 UTC',
   /* the Sell tab's note, one sentence a part (audit 2026-11-18 A14: two parts ran on with no stop between them) */
   spare_keeps: 'Sell spare gear keeps worn, higher-tier and Rare pieces.',
   sale_cap: 'One sale takes up to {n} of a stack.',

@@ -27,6 +27,7 @@
 // ============================================================
 
 import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS } from '../../data/danger.js';
+import { WAGE } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { makeEvent } from './events.js';
@@ -78,7 +79,8 @@ function basePull(ground) {
  *   dmgPm  each monster's blow, the same share
  *   aimPm, lvPm  1000: its aim and its Level stay the row's, so the step's growth is the ratio exactly, once on health and once on blow
  *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
- *   coinPm a kill's coin: the pull's share x the depth ratio (hunt-rewards.js payKill), so a pull of any size pays the as-built pull's coin
+ *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at the wage's coin ratio (hunt-rewards.js payKill), so a pull of
+ *          any size pays the as-built pull's coin times the scale's gold level (lane/econ-levers: one coin ratio a step, src/data/wage.js)
  */
 export function dangerDial(ground, step) {
   const s = stepOn(ground, step);
@@ -87,7 +89,7 @@ export function dangerDial(ground, step) {
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
   return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
-    xpPm: 1000, coinPm: share * depthRatio(ground, s, PAY.payStepCoin) * 1000 };
+    xpPm: 1000, coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };
 }
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
@@ -138,10 +140,12 @@ export function gearPartPm(equipment, items) {
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
-/* A gear part's power steps against the ground's base item Level at weightGear: whole steps, held inside the scale (a safe float). */
+/* A gear part's power steps against the ground's base item Level at weightGear (under the base at weightGearBelow, one-sided: lane/econ-levers):
+   whole steps, held inside the scale (a safe float). */
 function gearSteps(partPm, row) {
   if (!row || !Number.isInteger(row.gearLevel) || !Number.isInteger(partPm)) return 0;
-  const s = Math.round(((partPm - 1000 * row.gearLevel) * POWER.weightGearPm) / (1000 * 1000));
+  const gap = partPm - 1000 * row.gearLevel;
+  const s = Math.round((gap * (gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)) / (1000 * 1000));
   return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
 }
 /* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */

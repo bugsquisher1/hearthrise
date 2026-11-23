@@ -1747,6 +1747,12 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tests/econ-levers.mjs
+      - name: Economy levers set together - a typed store price, a second coin ratio, the kit out of 0.2-0.3 of pay, the wage off the pay, Careful off C-5
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/econ-levers.mjs
+          node tools/mutant-gate.mjs node tests/econ-levers.mjs --mutate
       # tests/release-plan.mjs
       - name: Release plan - every STAGED sidecar places itself, the edge point derives, no collision
         if: ${{ !cancelled() }}
@@ -6820,6 +6826,14 @@ jobs:
         run: |
           node tests/client-boot-pure.mjs
           node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate
+      # tests/gold-estimate.mjs
+      - name: Gold an hour - the Hunts window shows the server's estimate, the report and the return card what the hunt earned
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-gold-estimate.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-gold-estimate.mjs --selftest
+          node tests/gold-estimate.mjs
+          node tools/mutant-gate.mjs node tests/gold-estimate.mjs --mutate
       # tests/hunt-report.mjs
       - name: The hunt report reads the server's counters, the same card viewed and closed, plain words, bounded in the residue
         if: ${{ !cancelled() }}

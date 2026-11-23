@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 127 tables): heroes and every row keyed on one; the company's plans; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 130 tables): heroes and every row keyed on one; the company's plans; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -79,6 +79,8 @@ declare
     'hr_tick_enrolment', 'hr_tick_horizon_log', 'hr_tick_ownership', 'hr_tick_probe', 'hr_tick_shadow', 'hr_world_notices',
     'hunt_bag', 'hunt_bests', 'hunt_density', 'hunt_instances', 'hunt_parties', 'hunt_party_invites', 'hunt_party_members',
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
+    /* the last viewed ask's numbers of a hero's hunt (1060-watched-stamp.sql): its away card's baseline, gone with the hunts it marks */
+    'hunt_watch',
     /* an open hunt session's held setup to its seed horizon (1005-lever-horizon.sql): goes with the sessions it holds for */
     'hunt_setup_holds',
     /* an open hunt instance's held scale to its seed horizon (1053-lever-gates.sql): goes with the instances it holds for */

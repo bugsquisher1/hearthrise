@@ -30,8 +30,8 @@ import { huntOf } from '../../session/hunt-sections.js';
 import { spanWords, staminaFreeOf, staminaShort } from '../after-hunt.js';
 import { outgrownGroundOf } from '../back-in-town.js';
 import { refusalWords, playCapOf } from '../intent-words.js';
-import { summariesOf, depthFactsOf } from '../../hunt-view/summary-recorder.js';
-import { causeLine } from '../hunt-report.js';
+import { summariesOf, depthFactsOf, earnRatesOf } from '../../hunt-view/summary-recorder.js';
+import { causeLine, earnedLine } from '../hunt-report.js';
 import { roomOfHunt } from '../../data/boss-halls.js';
 import { trainingOf as trainedBy } from '../../data/training.js';
 import { runRulesOf } from '../../data/tower.js';
@@ -102,8 +102,10 @@ export function awayBlockOf(cs, a) {
     }
   } else if (now) why = now.stamina ? t('away.card_still_stamina', { time: now.stamina }) : t('away.card_still');
   /* THE CAUSE LINE (lane R5, ../hunt-report.js causeLine): on a Danger scale ground, where the hunt held and why it fell back, the hunt's
-     own card's facts or the open hunt's read now (summary-recorder.js depthFactsOf); '' off the scale */
-  const cause = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';
+     own card's facts or the open hunt's read now (summary-recorder.js depthFactsOf); '' off the scale. THE EARNED LINE follows it (lane/gold-per-hour,
+     ../hunt-report.js earnedLine): the server's gold an hour and supplies an hour for that session, beside the Hunts window's estimate */
+  const depthWords = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';
+  const cause = depthWords ? [depthWords, earnedLine(earnRatesOf(cs, a.session))].filter(Boolean).join(' ') : '';
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, when, stamina, go, label,
     ground: ground ? ground.hunt : null, rest,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */

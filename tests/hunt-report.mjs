@@ -63,7 +63,7 @@ const SCALE = Object.freeze(Object.assign({}, SERVER, { deep: 650, falls: [
   { at: START + 900000, from: 650, to: 632, hero: 0, pm: 230, monster: 'rat', name: 'Bran' }] }));
 const HUNT_VIEW = Object.freeze({ session_id: 's7', ended: true, session: { id: 's7', hunt_id: MUSTER, ended_at: new Date(START + 7200000).toISOString(),
   end_reason: 'stamina', risk_end: 'steady', danger_end: 632, tally: { kills: 50, report: SCALE } } });
-const CAUSE = 'Held Depth 14 of 20 on Steady. The deepest it went was Depth 15 of 20. Fell back 2 times. Last time Bran was down to 23% from a Giant Rat.';
+const CAUSE = 'Held Depth 14 of 20 (Steady) · Deepest Depth 15 of 20 · Fell back 2 times (last Bran at 23%, Giant Rat)';
 
 const ARMS = {
   'HR-FACTS': async (X) => {
@@ -103,18 +103,18 @@ const ARMS = {
     const out = [];
     const f = X.HR.reportFacts(X.RS.reportFrom(SERVER), { deaths: DEATHS, reason: 'heals_out', enteredMs: START });
     const risk = X.W.riskLines(f, 10000).map((l) => l.text), rules = X.W.rulesLines(f, null).map((l) => l.text);
-    const want = ['Near death', 'Lowest health 6%, from a Giant Rat.', '2 close calls under a quarter of health.', 'Ran out of Cooked Shrimp 1 h 15 min in.',
-      'Ran out of food, and the hunt ended.', 'Died and lost 5,000 Level XP, about 30 min of hunting.', 'Blessings saved 1,250 Level XP.'];
+    const want = ['Near death', 'Lowest health 6% (Giant Rat)', '2 close calls under 25% health', 'Out of Cooked Shrimp at 1 h 15 min',
+      'Hunt ended · Out of food', 'Death cost 5,000 Level XP (about 30 min of hunting)', 'Blessings saved 1,250 Level XP'];
     if (JSON.stringify(risk) !== JSON.stringify(want)) out.push('the risk block reads ' + JSON.stringify(risk) + '\n      want ' + JSON.stringify(want));
     if (!X.W.riskLines(f, 10000)[0].word) out.push('the word is not the first line');
-    if (rules.length !== 4 || !/^Power Strike fired 40 times and did 40% of the damage\.$/.test(rules[0]) || !/^Mend never fired because it was still cooling down\.$/.test(rules[2])
-        || !/never fired because its condition was never true\.$/.test(rules[3])) out.push('the rules block reads ' + JSON.stringify(rules));
+    if (rules.length !== 4 || rules[0] !== 'Power Strike used 40 times · 40% of damage' || rules[2] !== 'Mend never used (on cooldown)'
+        || !/ never used \(condition never met\)$/.test(rules[3])) out.push('the rules block reads ' + JSON.stringify(rules));
     const spell = X.W.riskLines(X.HR.reportFacts(X.RS.reportFrom({ low: { pm: 900, by: 'rat', blow: 'gnaw', at: 1 } }), {}), null).map((l) => l.text);
-    if (spell[0] !== 'Safe' || !/^Lowest health 90%, from Giant Rat's .+\.$/.test(spell[1]) || spell[2] !== 'No close calls.') out.push('a spell\'s fall reads ' + JSON.stringify(spell));
+    if (spell[0] !== 'Safe' || !/^Lowest health 90% \(Giant Rat, .+\)$/.test(spell[1]) || spell[2] !== 'No close calls') out.push('a spell\'s fall reads ' + JSON.stringify(spell));
     /* the change line: slot 1's rule is new since the last hunt here, and the old hunt's Power Strike did 14% */
     const prev = { rules: [['e0000old1', 'power_strike', 0, 10, '', 'd', 140], ['e0001bb02', 'mend', 1, 2, '', 'h', 500]] };
     const ch = X.W.rulesLines(f, prev).map((l) => l.text);
-    if (ch[ch.length - 1] !== 'You changed slot 1. Power Strike did 40% of the damage. It was 14%.') out.push('the change line reads ' + JSON.stringify(ch[ch.length - 1]));
+    if (ch[ch.length - 1] !== 'Slot 1 changed to Power Strike · 40% of damage (was 14%)') out.push('the change line reads ' + JSON.stringify(ch[ch.length - 1]));
     if (X.W.rulesLines(f, { rules: f.rules }).length !== 4) out.push('an unchanged bar has a change line');
     const all = [...risk, ...rules, ...spell, ...ch];
     if (all.some((s) => /[;—–:]/.test(s))) out.push('a line has a semicolon, a dash or a colon: ' + all.find((s) => /[;—–:]/.test(s)));
@@ -151,15 +151,15 @@ const ARMS = {
     const open = csOf({ hunt: { session_id: 's8', session: { id: 's8', hunt_id: MUSTER, tally: { report: SCALE } } },
       danger: { risk: 'bold', held: {}, playing: { hunt: MUSTER, from: 'bold', risk: 'steady', start: 600, step: 650, cool: 0 } } });
     const live = X.W.causeLine(X.REC.depthFactsOf(open, 's8'));
-    if (!/^Held Depth 15 of 20 on Steady, the deepest it went\. Fell back 2 times\./.test(live)) out.push('the open hunt reads ' + JSON.stringify(live));
+    if (!/^Held Depth 15 of 20 \(Steady\), deepest reached · Fell back 2 times \(last /.test(live)) out.push('the open hunt reads ' + JSON.stringify(live));
     /* one fall that was a death, a fall with no name and an unknown monster, none at all */
     const one = (fall) => X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: [fall] }), { hunt: MUSTER, risk: 'careful', step: 650 }));
-    if (one({ at: 1, from: 650, to: 530, hero: 2, pm: 0, monster: 'rat', name: 'Cole' }) !== 'Held Depth 15 of 20 on Careful, the deepest it went. Fell back once, when Cole died to a Giant Rat.') out.push('a death reads ' + JSON.stringify(one({ at: 1, from: 650, to: 530, pm: 0, monster: 'rat', name: 'Cole' })));
-    if (!/Fell back once, with a hero down to 9% from a monster\.$/.test(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' }))) out.push('a nameless fall reads ' + JSON.stringify(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' })));
-    if (!/Never fell back\.$/.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650 }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('no falls says nothing of them');
+    if (one({ at: 1, from: 650, to: 530, hero: 2, pm: 0, monster: 'rat', name: 'Cole' }) !== 'Held Depth 15 of 20 (Careful), deepest reached · Fell back once · Cole killed by Giant Rat') out.push('a death reads ' + JSON.stringify(one({ at: 1, from: 650, to: 530, pm: 0, monster: 'rat', name: 'Cole' })));
+    if (!/Fell back once · Hero at 9% \(unknown\)$/.test(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' }))) out.push('a nameless fall reads ' + JSON.stringify(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' })));
+    if (!/Never fell back$/.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650 }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('no falls says nothing of them');
     /* the cap: the server keeps the last 12, so 12 reads as "or more" */
     const twelve = Array.from({ length: 12 }, (_, i) => ({ at: i + 1, from: 650, to: 632, pm: 200, monster: 'rat', name: 'Bran' }));
-    if (!/^.*Fell back 12 times or more\./.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: twelve }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('the cap is not said');
+    if (!/Fell back 12\+ times \(last /.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: twelve }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('the cap is not said');
     /* off the scale, or a forged step-sized depth in the residue: no line */
     if (X.HR.reportFacts(X.RS.reportFrom(SCALE), { hunt: 'mill_cellar', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has depth facts');
     if (X.W.causeLine(null) !== '') out.push('no facts make a line');
@@ -204,7 +204,7 @@ const MUTANTS = [
   ['the open hunt ignores the danger section', 'HR-CAUSE', 'src/hunt-view/summary-recorder.js', 'live = p && p.hunt === s.hunt ? p : null', 'live = null'],
   ['the cap is not said', 'HR-CAUSE', 'src/shell/hunt-report.js', 'd.n >= HUNT_REPORT.fallsMax', 'd.n > HUNT_REPORT.fallsMax'],
   ['the residue keeps a step as a depth', 'HR-CAUSE', 'src/session/hunt-summaries.js', 'n >= 1 && n <= of ? n : null', 'n >= 1 ? n : null'],
-  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', "const cause = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';", "const cause = '';"],
+  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', "const depthWords = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';", "const depthWords = '';"],
   ['a report with only a low reads as none','HR-FACTS', 'src/session/report-sections.js', "if (!isObj(raw) || !Object.keys(raw).length) return null;", "if (!isObj(raw) || !raw.fired) return null;"],
 ];
 

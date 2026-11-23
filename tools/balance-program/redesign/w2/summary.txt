@@ -1,0 +1,24 @@
+WAVE 2: MONSTER ROLES AND ROWS on Muster Barrows (band 480 / ref 590 / top 710), Level 60, MID kits, Steady, 8 seeds x 12 h, held from hour 6
+roles: Pikeman swarm (front row, least crowded), Wight stalker (least max HP, held half a Challenge, blow 400 permille), Knight and Hask brute (front row)
+
+lineup                    held ON (sd)    held OFF (sd)   move (paired se)   deaths on/off   pay on/off    damage share ON | OFF
+hammer-axes-bow-mage     392.8 (6.3)     337.4 (8.7)     55.5 (4.7)         0 / 0           0.52x / 0.54x hammer 43% axes 35% bow 22% mage 0% | hammer 90% axes 5% bow 6% mage 0%
+hammer-bow-mage-healer   619.6 (11.5)    570.2 (5)       49.3 (4.7)         0 / 0           1.06x / 0.83x hammer 71% bow 26% mage 3% healer 0% | hammer 91% bow 4% mage 4% healer 2%
+tank-bow-mage-healer     627.6 (9.7)     594.4 (6.2)     33.1 (4.3)         0 / 0           0.92x / 0.8x  tank 91% bow 9% mage 0% healer 0% | tank 100% bow 0% mage 0% healer 0%
+tank-hammer-bow-healer   568.3 (5.3)     512.5 (34.9)    55.6 (13.4)        0 / 0           0.64x / 0.48x tank 87% hammer 1% bow 11% healer 1% | tank 100% hammer 0% bow 0% healer 0%
+
+spread of the held step across lineups: roles ON 234.8 steps
+
+THE SAMPLES BEFORE THIS ONE (same cells, same dice; their reports are the s1-, s2-, s3- files here):
+  s1 swarm spread over the whole party, full blows: hammer four 448.9 with 1 Steady death (hammer 32%, bow 40% of the damage); tank four
+     598.2 with the tank taking 99.7% (a Challenge held every role for good). So the swarm keeps to the front row (02 package 4: only
+     Shooters, Casters and Stalkers reach the back) and a stalker is held only half a Challenge.
+  s2 full blows: every four lost depth (hammer four -111.6, tank four -51.0, tank and hammer -5.2, no healer -65.5) and Steady died 4 times
+     in 32 days, every death a Wight on the bow (seat 2). A Wight's largest blow at step 580 is 386 against a Level 60 back-row hero's 740 HP.
+  s3 stalker blow 500 permille: +32 to +51 against no roles, 1 Steady death in 32 days (a Wight on the bow).
+  this one, blow 400 permille: 0 Steady deaths in 32 days; the falls name Wights on the back row and Knights on the front.
+
+READING: the front's share of the damage falls from 90-100% to 43-91% (V3's shape). Every four with a healer holds inside Muster's band
+(568 to 628 against 480-710) and is paid 0.64x to 1.06x the hours table at refStep 590. The lineups keep their order (tank four > hammer
+four > tank and hammer > no healer): a second front seat beside a tank still takes 1%, because the tank's Challenge holds the brutes and
+the swarm. A lineup that wins here and loses elsewhere needs a second mix on the scale (Krell's Hold: the Lookout shooter): V4, next batch.

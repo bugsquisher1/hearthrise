@@ -1,0 +1,64 @@
+
+ROADS ALLOCATIONS, tank/bow/mage/healer, steady, 6 seeds x 6 h (held step, mean; paired deltas vs suggested)
+
+shield L30 on hasks_ford (points 29, held start 570)
+  banked          held 424.5   vs suggested -10.5 +- 2.5   deaths 2  xp/hd-h 41706  spent 0/29  held rules 0
+  suggested       held 346.7                               deaths 4  xp/hd-h 43712  spent 29/29  held rules 5
+  one_move        held 346.7   vs suggested +0 +- 0        deaths 4  xp/hd-h 43712  spent 29/29  held rules 1
+  spread          held 431.8   vs suggested -1.5 +- 1.9    deaths 2  xp/hd-h 42921  spent 29/29  held rules 2
+  cand:sug+vows   held 346.7   vs suggested +0 +- 0        deaths 4  xp/hd-h 43712  spent 29/29  held rules 5
+  cand:live       held 346.7   vs suggested +0 +- 0        deaths 4  xp/hd-h 43712  spent 29/29  held rules 4
+  cand:live+vows  held 346.7   vs suggested +0 +- 0        deaths 4  xp/hd-h 43712  spent 29/29  held rules 4
+  BEST FOUND suggested: +0 +- 0 held steps over suggested = ~0% pace (ceiling 5-10%, 7-14 steps): within
+
+shield L60 on muster_barrows (points 59, held start 570)
+  banked          held 636.3   vs suggested -20.9 +- 3.5   deaths 0  xp/hd-h 269136  spent 0/59  held rules 0
+  suggested       held 657.2                               deaths 1  xp/hd-h 289072  spent 59/59  held rules 6
+  one_move        held 657.5   vs suggested +0.3 +- 4.3    deaths 0  xp/hd-h 297481  spent 59/59  held rules 1
+  spread          held 657.2   vs suggested +0 +- 0        deaths 1  xp/hd-h 289072  spent 59/59  held rules 2
+  cand:sug+vows   held 654.9   vs suggested -2.2 +- 5.6    deaths 0  xp/hd-h 295549  spent 59/59  held rules 6
+  cand:live       held 663.4   vs suggested +6.2 +- 3.5    deaths 0  xp/hd-h 300589  spent 59/59  held rules 5
+  cand:live+vows  held 662.2   vs suggested +5 +- 3.9      deaths 0  xp/hd-h 299536  spent 59/59  held rules 5
+  BEST FOUND cand:live: +6.2 +- 3.5 held steps over suggested = ~4.3% pace (ceiling 5-10%, 7-14 steps): within
+
+shield L120 on catacomb_bone_wing (points 119, held start 460)
+  banked          held 197.1   vs suggested -26 +- 1.5     deaths 4  xp/hd-h 331405  spent 0/119  held rules 0
+  suggested       held 420.1                               deaths 1  xp/hd-h 344126  spent 119/119  held rules 6
+  one_move        held 350.6   vs suggested +1.2 +- 2.1    deaths 1  xp/hd-h 344002  spent 119/119  held rules 1
+  spread          held 420.1   vs suggested +0 +- 0        deaths 1  xp/hd-h 344126  spent 119/119  held rules 2
+  cand:sug+vows   held 420.9   vs suggested +0.8 +- 1.8    deaths 0  xp/hd-h 342151  spent 119/119  held rules 6
+  cand:live       held 419.8   vs suggested -0.4 +- 1.1    deaths 1  xp/hd-h 343643  spent 119/119  held rules 5
+  cand:live+vows  held 425.3   vs suggested +5.2 +- 1.8    deaths 0  xp/hd-h 349270  spent 119/119  held rules 5
+  BEST FOUND cand:live+vows: +5.2 +- 1.8 held steps over suggested = ~3.6% pace (ceiling 5-10%, 7-14 steps): within
+
+restoration L30 on hasks_ford (points 29, held start 570)
+  banked          held 429.1   vs suggested -2.7 +- 0.6    deaths 2  xp/hd-h 42057  spent 0/29  held rules 0
+  suggested       held 258.6                               deaths 3  xp/hd-h 43793  spent 29/29  held rules 7
+  one_move        held 346.7   vs suggested +3.1 +- 1.5    deaths 4  xp/hd-h 43712  spent 29/29  held rules 3
+  spread          held 346.7   vs suggested +3.1 +- 1.5    deaths 4  xp/hd-h 43712  spent 29/29  held rules 4
+  cand:sug+vows   held 258.6   vs suggested +0 +- 0        deaths 3  xp/hd-h 43793  spent 29/29  held rules 7
+  cand:live       held 512.3   vs suggested -4.6 +- 0.1    deaths 2  xp/hd-h 41724  spent 29/29  held rules 5
+  cand:live+vows  held 512.3   vs suggested -4.6 +- 0.1    deaths 2  xp/hd-h 41724  spent 29/29  held rules 5
+  BEST FOUND cand:live: +-4.6 +- 0.1 held steps over suggested = ~-3.2% pace (ceiling 5-10%, 7-14 steps): within
+
+restoration L60 on muster_barrows (points 59, held start 570)
+  banked          held 654.5   vs suggested +4.9 +- 2.5    deaths 0  xp/hd-h 285128  spent 0/59  held rules 0
+  suggested       held 541.5                               deaths 1  xp/hd-h 273036  spent 59/59  held rules 12
+  one_move        held 649.2   vs suggested +0.2 +- 5.7    deaths 0  xp/hd-h 285469  spent 59/59  held rules 3
+  spread          held 649.2   vs suggested +0.2 +- 5.7    deaths 0  xp/hd-h 285469  spent 59/59  held rules 4
+  cand:sug+vows   held 658.1   vs suggested +10.2 +- 5.3   deaths 1  xp/hd-h 291328  spent 59/59  held rules 12
+  cand:live       held 646.4   vs suggested -1.7 +- 2      deaths 0  xp/hd-h 284395  spent 59/59  held rules 9
+  cand:live+vows  held 644.7   vs suggested -5.4 +- 3.6    deaths 0  xp/hd-h 283165  spent 59/59  held rules 9
+  BEST FOUND cand:sug+vows: +10.2 +- 5.3 held steps over suggested = ~7.1% pace (ceiling 5-10%, 7-14 steps): within
+
+restoration L120 on catacomb_bone_wing (points 119, held start 460)
+  banked          held 415.7   vs suggested -21.4 +- 4.4   deaths 0  xp/hd-h 331279  spent 0/119  held rules 0
+  suggested       held 437                                 deaths 1  xp/hd-h 370282  spent 119/119  held rules 12
+  one_move        held 350.7   vs suggested -17.1 +- 5.7   deaths 1  xp/hd-h 343799  spent 119/119  held rules 3
+  spread          held 350.7   vs suggested -17.1 +- 5.7   deaths 1  xp/hd-h 343799  spent 119/119  held rules 4
+  cand:sug+vows   held 432.9   vs suggested -4 +- 5.1      deaths 0  xp/hd-h 369341  spent 119/119  held rules 12
+  cand:live       held 424.2   vs suggested -12.9 +- 5.3   deaths 1  xp/hd-h 354170  spent 119/119  held rules 9
+  cand:live+vows  held 425.1   vs suggested -11.9 +- 3.2   deaths 2  xp/hd-h 348777  spent 119/119  held rules 9
+  BEST FOUND suggested: +0 +- 0 held steps over suggested = ~0% pace (ceiling 5-10%, 7-14 steps): within
+
+wall 1560 s on 5 workers

@@ -11,6 +11,7 @@ import { talentsOf, spendSuggested, spendTalent } from '../../../session/talent-
 import { equipmentOf } from '../../../session/item-sections.js';
 import { wornRoleKey } from '../../../data/hunt-roles.js';
 import { ITEMS } from '../../../data/items.js';
+import { ABILITIES } from '../../../data/abilities.js';
 import { rows, text, prop, cls, element } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
 import { runIntent } from '../../intent-words.js';
@@ -42,7 +43,8 @@ export function patchTalents(body, ctx, sc) {
   const tl = talentsOf(cs, roleKeyOf(cs), PLAN);
   text(root.querySelector('.hw-tl-points'), !tl ? '' : tl.left ? whole(tl.left) + (tl.left === 1 ? ' point to spend' : ' points to spend') : 'All points spent');
   const f = tl && tl.fork;
-  text(root.querySelector('.hw-tl-fork'), f ? 'Next fork: ' + f.n : '');
+  /* the road's move names the fork ("Mend, Crossroads I"): every move's road has a Crossroads I */
+  text(root.querySelector('.hw-tl-fork'), f ? 'Next fork: ' + (f.move && ABILITIES[f.move] ? ABILITIES[f.move].n + ', ' : '') + f.n : '');
   text(root.querySelector('.hw-tl-cost'), f ? (f.cost === 1 ? 'Your next point' : whole(f.cost) + ' points away') : '');
   /* the fork is the hero's very next point: each option can be taken here (one intent), else the card only reads ahead */
   const now = !!f && f.cost === 1 && tl.left > 0;

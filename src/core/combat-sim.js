@@ -199,9 +199,7 @@ function syncUnit(u, m, roles) {
      persisted, absent with nothing borrowed (abilities.js blowOf). */
   const bb = borrowBlowsOf(m.hero.borrowed, snap.level);
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
-  /* THE ROADS (src/core/talents.js grantsOf at the Level now, src/core/hunt/talent-rows.js): its ledger rows, its rows on a condition, its
-     move modifiers and the Challenge's hold and reach, the same: never persisted, absent on a hero with no build (the switch off) */
-  syncTalents(u, m.hero, snap.level);
+  syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);

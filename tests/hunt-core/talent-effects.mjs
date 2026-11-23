@@ -14,8 +14,7 @@
 //   mana-returns        Thrifty Mending, Mana Circle, Full Spring, Lasting Ward's refund on recast, Still Mind's regen
 //   echo-and-carry      a second hit lands its share later, exactly; an overkill carries to the nearest monster, capped
 //   unit-rules          Hold Fast keeps monsters on the tank, Bodyguard takes its share, Drawing Challenge holds a Stalker
-//   every-option-playable  every option and waystone row of the map reaches the engine; no rule is held (the designer re-worded the two
-//                       shell-duration nodes, lane/roads-countries)
+//   every-option-playable  every option and waystone row of the map reaches the engine; the one held rule is listed with its reason
 //   real-settle-both-paths  a tank and a healer with many pieces in a real four: 10-minute and 100-second windows play one hunt, and the
 //                       pieces fire (Mending ticks, reaction heals)
 //
@@ -435,6 +434,7 @@ const cases = {
   },
   'every-option-playable': (M) => {
     const held = M.T.heldRules();
+    /* none held since lane/tuning-pass re-worded the two shield-duration nodes (29-tuning-pass.md 3.8) */
     if (held.length) return 'rules still held: ' + held.join(', ');
     /* every option and every waystone or vow with effects reaches the engine: a mod, a reaction, healing received or a unit rule */
     for (const n of M.TD.TALENT_NODES) {

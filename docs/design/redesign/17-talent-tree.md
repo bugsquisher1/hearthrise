@@ -91,7 +91,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Hunter's Mark | about 2 (pace) | No penalty | 30 |
 | Frost Lance | about 4 (pace) | No penalty | 60 |
 | Fireball | about 8 (pace) | −50% (−30% measured just over the cap) | 80 |
-| Shelter | 8.5 ± 4.2 (doesn't follow its power) | −30% | 120 |
+| Shelter | 8.5 ± 4.2 (doesn't follow its power) | −30% | 90 at a border, 70 at Havora (the formula: 200 × 5.95 ÷ 14 = 85, up to 90. Ruled 2026-11-23, `29-tuning-pass.md`: the formula, not the hand 120) |
 | Challenge | 0 ± 3.7. Re-measure after the holder line (on the tank's own bar it cost 62.7 held, `23` section 3) | No penalty | 20 |
 | Hoarfrost | 15.8 ± 2.4 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
 | Protective Ward | 16.1 ± 3.9 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
@@ -147,7 +147,7 @@ Tooltip labels only. Numbers are full size (Level 200). "Near fall-back" means a
 | | Crossroads I | **Steady Shelter** (Suggested): −40% shield · −15 s cooldown · **Deep Shelter**: 2 lowest-health allies only · +80% shield · **Stone Wall**: +100% shield on you · −30% on allies |
 | | Waystone | **Shelter −5 s cooldown** |
 | | Rank stone x2 | +1 Shelter rank |
-| | Crossroads II | **Ready Shelter**: Casts when an ally is near fall-back · +10 s cooldown · **Long Shelter** (Suggested): +4 s shield duration · **Bright Shelter**: +6% healing received while shielded |
+| | Crossroads II | **Ready Shelter**: Casts when an ally is near fall-back · +10 s cooldown · **Strong Shelter** (Suggested): +20% shield (was Long Shelter, +4 s: a shell has no duration, ruled 2026-11-23 in `29-tuning-pass.md`) · **Bright Shelter**: +6% healing received while shielded |
 | | Waystone | **Shelter: +10% shield on allies near fall-back** |
 
 Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a lone Shield hero three live nodes. Answering and Riposte come back on Parry's road (Sword, below).
@@ -170,7 +170,7 @@ Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a 
 | | Waystones | **Sickness +1 s** / **Green Sickness −2 mana** |
 | **Protective Ward** | Crossroads I | **Tank Ward** (Suggested): +40% shield · Ally with the most enemies on them only · **Twin Ward**: Shields 2 allies · −40% shield each · **Lasting Ward**: Unused shield returns as mana on recast · −20% shield |
 | | Crossroads II | **Quick Ward** (Suggested): −30% cooldown · −20% shield · **Mending Ward**: +6% healing received while the ward holds · **Deep Ward**: +30% shield · +6 s cooldown |
-| | Waystones | **Ward +1 s** / **Ward: +10% shield on your tank** |
+| | Waystones | **Protective Ward +5% shield** (was Ward +1 s, ruled 2026-11-23) / **Ward: +10% shield on your tank** |
 | (each move) | Rank stones | 3 before crossroads I, 2 before II. +1 rank of that move |
 
 Wide Circle and Fast Circle are cut: Circle's 8-tile radius already covers the party, and the heal lane runs about 77% full. Undertow's road is cut with the move (`23` section 4): it cast only alone, and a company joins at Level 5.
@@ -390,7 +390,7 @@ Sword and shield, "Spend as suggested" on, plan solo until Level 5 (the company 
 | 23 | 22 | Rank 3 | **Shelter crossroads I**: Steady Shelter | Next to rank 3 |
 | 24 | 23 | Crossroads I | Waystone: Shelter −5 s cooldown | Off crossroads I |
 | 25 to 26 | 24 to 25 | Crossroads I | Shelter rank stones 4 to 5 | The road goes on |
-| 27 | 26 | Rank 5 | **Shelter crossroads II**: Long Shelter | Next to rank 5 |
+| 27 | 26 | Rank 5 | **Shelter crossroads II**: Strong Shelter | Next to rank 5 |
 | 28 | 27 | Crossroads II | Waystone: +10% shield on allies near fall-back | Off crossroads II |
 | 29 | 28 | Shield country | Havora to Sword: Power Strike rank stone 1 | Shield heroes wield Power Strike. Its road starts at Havora |
 | 30 | 29 | Vow slot 1 opens | Spend as suggested goes on to Power Strike stone 2. **The return card offers Hold Fast** | A vow is never taken by the rule |
@@ -448,7 +448,7 @@ Borrowing: the Sword · Shield town is reachable at Level 29, but Turning Cut's 
 
 2026-11-23, lane/roads-countries (game designer). Every country and border is now data in `src/data/talents.js` (269 nodes, 171 options), each option on a piece the engine plays. Where this doc names an option the engine can't play, it is re-written to keep its job:
 
-- **Nothing held.** A shell stands until a blow spends it, so Long Shelter is **Firm Shelter** (+25% shield · +5 s cooldown, still suggested) and Long Ward is **Thick Ward** (Ward +5% shield). Quick Slam and Wide Slam pay in Chill, since Frost Slam lands no blow.
+- **Nothing held** (Strong Shelter and Strong Ward, `29-tuning-pass.md` 3.8). Quick Slam and Wide Slam pay in Chill, since Frost Slam lands no blow, so their "−20% damage" never bit.
 - **No target-health or monster-type reads.** Finishing, Opening, Clean Sweep, Reaping, Picked and Aimed (vs marked) become what the hit leaves behind: Sickness, Weakened, Sapped, Armor Break, Chill, a second hit later, or the overkill carried to the next enemy.
 - **Bleed's cap and tick speed have no seam.** Its picks and the axe's four waystones move Bleed's length and strength. Spread is Jagged Rend (target Sick). Vows: Open Wounds (crits lay 2 stacks), Frenzy (kills ready Rend sooner), Bleed Out (Bleed +40%), Clean Cuts (overkill carried).
 - **Hunter's Mark's own numbers have no seam.** Its picks are what marking does for the archer: Hunter's Focus, Quick Mark, Calm Mark, Stalking Mark, Ready Mark, Sharp Mark.

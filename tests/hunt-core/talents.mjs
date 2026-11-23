@@ -82,7 +82,7 @@ const cases = {
     if (T.spendProblem(b, 'border.shield_restoration.x', 'guarded_mend', 60) !== null) return 'a hybrid with both crossroads refused';
     b = T.spend(b, 'havora', 'use_fireball');
     if (T.buildProblems(b, 60).length) return 'a legal build reads ' + JSON.stringify(T.buildProblems(b, 60));
-    if (!T.buildProblems({ 'shelter.x2': 'firm_shelter' }).some((p) => p.why === 'not_reachable')) return 'a saved build with a floating node passed';
+    if (!T.buildProblems({ 'shelter.x2': 'long_shelter' }).some((p) => p.why === 'not_reachable')) return 'a saved build with a floating node passed';
     if (!T.buildProblems({ 'no.such': true }).some((p) => p.why === 'unknown_node')) return 'a saved build naming no node passed';
     if (!T.buildProblems(T.spendSuggested({}, 'shield', 'party', 100), 30).some((p) => p.why === 'no_points')) return 'a build past the Level passed at Level 30';
     return null;

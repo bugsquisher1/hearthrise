@@ -32,8 +32,8 @@
 //                    scope 'warded': on an ally holding this hero's shell instead (src/core/hunt/heal-cut.js healIn). pm x ramp(L)
 //               { kind: 'unit', ... }      A UNIT RULE (UNIT_FIELDS): Hold Fast's no-switch, Bodyguard's share, Still Mind's regen
 //               { kind: 'rule', id }       A RULE THE ENGINE CANNOT PLAY: held at 0 by the engine, listed by heldRules() and in the lane's
-//                    report. The map names none (the designer, lane/roads-countries: a shell stands until a blow spends it, so the two
-//                    "longer shell" nodes became bigger ones). "Every node fires on the dummy analyzer before it ships" (17 section 9):
+//                    report. The map names none (lane/tuning-pass re-worded the two shield-duration nodes onto +% shield, and every
+//                    country lane/roads-countries added plays). "Every node fires on the dummy analyzer before it ships" (17 section 9):
 //                    TALENT_RULES.live stays false while a node the suggested path takes is held
 //   needs     a hybrid or a hybrid vow: { crossroadsIn: [country, country] } (17 section 6: "Requires a crossroads in both countries")
 //
@@ -181,7 +181,9 @@ const HEARTH_NODES = [
       opt('steady_mend', 'Steady Mend', 'Mend heals over 6 s · +25% healing', [mod('mend', { outPm: 250, hotMs: 6000, hotAll: true })], true),
       opt('shared_mend', 'Shared Mend', 'Mend also heals the nearest ally for 50%', [mod('mend', { alsoPm: 500, alsoPick: 'nearest' })])],
     way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),
-    /* crossroads II: 16 writes only one Mend crossroads; these three are this lane's, for the designer to rule (17 section 4 counts two) */
+    /* crossroads II RULED (the designer, lane/tuning-pass 2026-11-23, 29-tuning-pass.md): kept as built. Mend is every hero's heal, so its
+       second fork is the mana-against-power trade (Deep, Light: Light is the suggested pick, a hero who is not the healer wants the mana)
+       plus one pick for the hero who heals itself near fall-back (Bright). The roads Lab read best-vs-suggested inside its 7-14% band */
     [opt('deep_mend', 'Deep Mend', 'Mend +20% healing · +3 mana', [mod('mend', { outPm: 200, mana: 3 })]),
       opt('light_mend', 'Light Mend', 'Mend −40% mana · −20% healing', [mod('mend', { manaPm: -400, outPm: -200 })], true),
       opt('bright_mend', 'Bright Mend', '+6% healing received near fall-back', [healIn(60, 'near_fall')])],
@@ -196,8 +198,10 @@ const S = 'shield';
 const SHIELD_NODES = [
   ...road(S, 'challenge', 'hearth',
     [opt('long_hold', 'Long Hold', 'Taunt holds 12 s (from 8 s) · +4 s cooldown', [mod('challenge', { holdMs: 4000, cdMs: 4000 })], 'party'),
-      opt('hard_challenge', 'Hard Challenge', 'Taunted enemy: −6% damage to you · Casts when solo',
-        /* "taunted enemy" read as "while you hold a taunt": the blows a holding tank takes are its held monsters' (the ledger is per hero) */
+      opt('hard_challenge', 'Hard Challenge', '−6% damage taken while you hold a taunt · Casts when solo',
+        /* "taunted enemy" RULED (the designer, lane/tuning-pass 2026-11-23, 29-tuning-pass.md): every blow at the hero while it holds a taunt, and the
+           text says so. A holding tank's blows are its held monsters' in nearly every pull, the ledger is per hero, and a per-attacker step would
+           be a second condition a player cannot see on the bar */
         [step('defense', 17, 'taunted_less', 'taunting'), mod('challenge', { solo: true })], 'solo'),
       opt('guarding_challenge', 'Guarding Challenge', 'Casts when an enemy attacks a back-row ally · Party only',
         [react('challenge_guard_back_row', 'ally_hit', 'cast', { move: 'challenge', row: 'back' })])],
@@ -225,9 +229,9 @@ const SHIELD_NODES = [
     way('Quick Stone', 'Shelter −5 s cooldown', [mod('shelter', { cdMs: -5000 })]),
     [opt('ready_shelter', 'Ready Shelter', 'Casts when an ally is near fall-back · +10 s cooldown',
       [react('shelter_on_near_fall', 'near_fall', 'cast', { move: 'shelter' }), mod('shelter', { cdMs: 10000 })]),
-      /* (the designer, lane/roads-countries: a shell stands until a blow spends it, shields.js, so Long Shelter's "+4 s" had nothing to
-         lengthen. Its job, a shell that lasts through more blows, is now a bigger one on a slower clock) */
-      opt('firm_shelter', 'Firm Shelter', '+25% shield · +5 s cooldown', [mod('shelter', { outPm: 250, cdMs: 5000 })], true),
+      /* RULED (the designer, lane/tuning-pass 2026-11-23, 29-tuning-pass.md 3.8): a shell stands until a blow spends it, so a longer one is
+         nothing; the node is re-worded onto a built piece (the id kept, so the catalogue and the suggested path do not move) */
+      opt('long_shelter', 'Strong Shelter', '+20% shield', [mod('shelter', { outPm: 200 })], true),
       opt('bright_shelter', 'Bright Shelter', '+6% healing received while shielded', [healIn(60, 'shielded')])],
     way('Guarding Stone', 'Shelter: +10% shield on allies near fall-back', [mod('shelter', { nearFallPm: 100 })])),
   /* THE VOWS (17 section 7): beside the country's first crossroads; +18 on the condition, −8 always; never a max-health cost */
@@ -287,8 +291,7 @@ const RESTORATION_NODES = [
       opt('twin_ward', 'Twin Ward', 'Shields 2 allies · −40% shield each', [mod('protective_ward', { extra: 1, outPm: -400 })]),
       /* "on recast": the ward may be cast again on an ally holding this healer's own chipped ward, the part left coming back as mana */
       opt('lasting_ward', 'Lasting Ward', 'Unused shield returns as mana on recast · −20% shield', [mod('protective_ward', { refund: true, outPm: -200 })])],
-    /* (the designer, lane/roads-countries: a ward stands until spent, so "+1 s" became a bigger ward) */
-    way('Thick Ward', 'Ward +5% shield', [mod('protective_ward', { outPm: 50 })]),
+    way('Strong Ward', 'Protective Ward +5% shield', [mod('protective_ward', { outPm: 50 })]),
     [opt('quick_ward', 'Quick Ward', '−30% cooldown · −20% shield', [mod('protective_ward', { cdPm: -300, outPm: -200 })], true),
       opt('mending_ward', 'Mending Ward', '+6% healing received while the ward holds', [healIn(60, null, 'warded')]),
       opt('deep_ward', 'Deep Ward', '+30% shield · +6 s cooldown', [mod('protective_ward', { outPm: 300, cdMs: 6000 })])],

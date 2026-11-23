@@ -144,9 +144,11 @@ export const HUNTS_TEXT = Object.freeze({
   stance_careful: 'Careful',
   stance_steady: 'Steady',
   stance_bold: 'Bold',
-  stance_line_careful: 'Backs off early · Rare deaths · Lower pay',
-  stance_line_steady: 'Holds a safe depth · Occasional deaths',
-  stance_line_bold: 'Pushes deeper · Better pay · Expect deaths',
+  /* RD-Q3 a (Tyler 2026-11-22): Careful and Steady fall back before a death, only Bold dies (lane/first-hour-rewrite: the old lines said
+     "Rare deaths" and "Occasional deaths", which the ruling makes a bug) */
+  stance_line_careful: 'Backs off early · No deaths · Lower pay',
+  stance_line_steady: 'Holds a safe depth · No deaths',
+  stance_line_bold: 'Pushes deeper · Better pay · Can die',
   stance_saved: 'Risk saved: {stance} (from next hunt)',
   stance_next: 'Applies from next hunt',
   stance_leader: 'Risk set by party leader',

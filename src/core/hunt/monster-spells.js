@@ -22,7 +22,9 @@
 //           trains Defense (Tyler 2026-10-22). The landing restarts the caster's swing clock: the cast was its blow. A
 //           `spell_end` event (why 'landed', hits) closes the warning.
 //   dropped a caster that falls or leaves the fight (its pack reset) in its windup lands nothing: `spell_end` with why
-//           'killed' or 'reset', in the very sub-step it happened (dropCasts runs after every blow of the sub-step).
+//           'killed' or 'reset', in the very sub-step it happened (dropCasts runs after every blow of the sub-step). A hero's
+//           answer ENDS one the same way (interrupt: the hammer's Stagger, why 'interrupted'), and a PARRIED caster's landing
+//           lands nothing on anyone it covers (statuses.js `parry`, the sword's Parry: why 'parried', a `miss` on each).
 //   a MEND  (data/monster-spells.js mends; the Krell's Hold design's engine piece 3, the Pyre Priest "mends the dead in his pull")
 //           takes the same path with a packmate for its target: it starts only with one to mend (mendable: the most hurt of
 //           its own pack in range, never itself, never a boss whose HP only falls), winds up, stands and makes no swing as any
@@ -56,6 +58,7 @@ import { stepsOn } from './amount.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
 import { hasEffect } from './status-effects.js';
+import { spendFlag } from './status.js';
 import { breaksOff } from './danger.js';
 import { isEnemy, isAlly, isMonster } from './sides.js';
 
@@ -74,6 +77,16 @@ function drop(u, sc, why) {
   const s = u.cast.s;
   u.cast = null;
   sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: s, why, hits: 0 }));
+}
+
+/** THE ANSWER THAT ENDS A WIND-UP (abilities.js `interrupts`, the hammer's Stagger; docs/design/redesign/23-spell-audit.md section 4):
+    monster `u`'s live cast, a spell or a role's heavy blow, lands nothing, as a fallen caster's lands nothing: `spell_end` with why
+    'interrupted', now. Its cooldown runs on from its start (begin set it), so the spell comes back as if it had landed, and its swing
+    clock is the caller's (a push, `pushMs`). Answers whether a wind-up was ended. Draws nothing. */
+export function interrupt(u, sc) {
+  if (!u || !u.cast || typeof u.cast !== 'object') return false;
+  drop(u, sc, 'interrupted');
+  return true;
 }
 
 /**
@@ -141,9 +154,13 @@ function land(inst, sc, u, sp) {
   /* (a pack reset takes the caster out of the fight too, which drops the cast before it lands: dropCasts) */
   const mended = !!t && t.alive && isAlly(u, t) && t.pocket === u.pocket && t.hp < t.maxHp;
   const struck = s ? inst.world.units.filter((h) => isEnemy(u, h) && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id) : [];
+  /* A PARRIED CASTER (statuses.js `parry`, the sword's Parry): the landing is its blow, so it lands nothing; the stack is spent on it, every
+     hero it covered is missed and its spell_end says why. A mend, or a landing that covers nobody, strikes no hero and spends none. */
+  const parried = struck.length > 0 && spendFlag(u, 'parry', sc);
   u.cast = null;
   restart(u, inst);
-  sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: mends(sp) ? (mended ? 1 : 0) : struck.length }));
+  sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: parried ? 'parried' : 'landed', hits: mends(sp) ? (mended ? 1 : 0) : parried ? 0 : struck.length }));
+  if (parried) { for (const h of struck) sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: h.id, parried: true })); return; }
   if (mended) {
     /* (a Withered packmate takes the mend cut: heal-cut.js, the hero's Blight) */
     const got = Math.min(t.maxHp - t.hp, healTaken(t, sc.rng.int(lo, top)));

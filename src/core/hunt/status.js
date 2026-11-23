@@ -88,7 +88,22 @@ function strength(row, scale) {
   if (row.slowPm) n += slowAt(row, scale);
   if (row.healCutPm) n += Math.floor(((row.healCutPm.hero + row.healCutPm.monster) * scale) / 1000);
   if (row.silence) n += 1;
+  if (row.parry) n += 1;
   return n;
+}
+
+/**
+ * SPEND ONE STACK whose row carries `flag` (statuses.js `parry`: a blow it nulls) from `unit`: the oldest live one goes now, with a
+ * `status_off` when it was the status's last. Answers whether one was spent. Draws nothing. Read where the blow happens (damage.js
+ * resolveAttacks, monster-spells.js land), so a viewed hunt and a closed one spend it on the same blow.
+ */
+export function spendFlag(unit, flag, sc) {
+  const list = stacksOf(unit);
+  const st = list.find((s) => s.left > 0 && rowOf(s)[flag] === true && !rowOf(s).ground);
+  if (!st) return false;
+  unit.statuses = list.filter((s) => s !== st);
+  if (!countOf(unit, st.s)) sc.emit(makeEvent('status_off', sc.atMs, { t: unit.id, status: st.s }));
+  return true;
 }
 
 /**

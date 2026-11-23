@@ -385,7 +385,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    stamina_free_min moves 480 -> 600 (STAMINA_MAX_MS.free); 1054 (STAGED, with R2's fold: regenerated when lane/r2-danger-falls merged) is
    carried whole. ...AND lane/econ-levers FOLDED INTO it (2026-11-22, still STAGED): hr_hunt_basic_supplies' derived store prices
    (src/data/store-kit.js) and the vendor values that follow the crafted partners' price list. ...AND lane/bar-metrics FOLDED INTO it (2026-11-22,
-   still STAGED): hr_hunt_world_shape moves (a unit's lastMove, src/core/hunt/abilities.js PERSISTED: the bar's last_move test). */
+   still STAGED): hr_hunt_world_shape moves (a unit's lastMove, src/core/hunt/abilities.js PERSISTED: the bar's last_move test). ...AND
+   lane/moves-wave-3 FOLDED INTO it (2026-11-23, still STAGED; 23-spell-audit.md wave 3): hr_hunt_abilities loses quarry_blow and gains
+   stagger (the club's, its rework), parry (the sword's) and gash (the axes'). */
 export const OUT_NAME = '1058-hunting-blocks-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -1155,6 +1157,9 @@ export function render(src) {
 --   rests to 10 h and a full one hunts 10 h. No ground, spawn, kill bound, bid, end reason or world shape moves. ORDER: the sequence in its name,
 --   after 1056 and before 1058-hunting-blocks.sql (its self-check hunts the 10 h day). EDGE: none (the engine reads the pool and its cap from
 --   the server, never STAMINA_MAX_MS; hunt-sessions.js is in the hr-accrue payload, so its bytes move: deploy either side of the apply).
+--   FOLDED IN (lane/moves-wave-3, systems-engineer, 2026-11-23, while this file was STAGED; docs/design/redesign/23-spell-audit.md wave 3):
+--   hr_hunt_abilities loses quarry_blow and gains stagger (the club's Earth rune strike, its rework), parry (the sword's) and gash (the axes'
+--   Rupture rune ring). No default bar names any of them. 1065-wave3-moves-rune-spells.generated.sql, after this file, carries their runes.
 -- CARRIED FROM 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
 --   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the

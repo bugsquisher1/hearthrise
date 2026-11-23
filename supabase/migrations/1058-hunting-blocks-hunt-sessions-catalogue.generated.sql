@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 66b8941e9aa30bffb309154f5582a8d4c1c69fb96d3e5a0012fd1a323971eebd
+--   digest: e59d5be5bca83603b5202128a80651ef3381983b6bc64ff474282982a1026eb0
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   665 vendor values, 49 store supplies paid per use, 5 target modes,
---   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
+--   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
 --   1054-danger-scale-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_limits' stamina_free_min moves, 480 -> 600 (src/data/hunt-sessions.js
@@ -19,6 +19,9 @@
 --   rests to 10 h and a full one hunts 10 h. No ground, spawn, kill bound, bid, end reason or world shape moves. ORDER: the sequence in its name,
 --   after 1056 and before 1058-hunting-blocks.sql (its self-check hunts the 10 h day). EDGE: none (the engine reads the pool and its cap from
 --   the server, never STAMINA_MAX_MS; hunt-sessions.js is in the hr-accrue payload, so its bytes move: deploy either side of the apply).
+--   FOLDED IN (lane/moves-wave-3, systems-engineer, 2026-11-23, while this file was STAGED; docs/design/redesign/23-spell-audit.md wave 3):
+--   hr_hunt_abilities loses quarry_blow and gains stagger (the club's Earth rune strike, its rework), parry (the sword's) and gash (the axes'
+--   Rupture rune ring). No default bar names any of them. 1065-wave3-moves-rune-spells.generated.sql, after this file, carries their runes.
 -- CARRIED FROM 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
 --   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the
@@ -1026,29 +1029,31 @@ insert into public.hr_hunt_target_modes (mode) values
   ('weakest');
 delete from public.hr_hunt_abilities;
 insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active, ord) values
-  ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 15),
+  ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 17),
   ('challenge', array['shield']::text[], 'support', 8000, 0, null, 0, true, 0),
-  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 17),
-  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 12),
+  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 19),
+  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 14),
   ('flame_strike', array['shield', 'sword']::text[], 'offense', 8000, 10, 'chalked_fire_rune', 0, true, 3),
-  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 9),
-  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 13),
+  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 11),
+  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 15),
   ('frost_slam', array['shield']::text[], 'support', 6000, 6, 'chalked_ice_rune', 0, true, 1),
-  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 16),
-  ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 19),
-  ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 14),
-  ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 8),
-  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 22),
+  ('gash', array['dual_axe']::text[], 'offense', 8000, 10, 'chalked_rupture_rune', 0, true, 8),
+  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 18),
+  ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 21),
+  ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 16),
+  ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 10),
+  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 24),
+  ('parry', array['sword']::text[], 'support', 10000, 10, null, 0, true, 5),
   ('power_strike', array['club', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 4),
-  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 10),
-  ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 20),
-  ('quarry_blow', array['club']::text[], 'offense', 8000, 10, 'chalked_earth_rune', 0, true, 7),
-  ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 11),
-  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 6),
+  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 12),
+  ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 22),
+  ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 13),
+  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 7),
   ('shelter', array['shield']::text[], 'support', 30000, 25, 'chalked_earth_rune', 0, true, 2),
-  ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 18),
-  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 5),
-  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 21);
+  ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 20),
+  ('stagger', array['club']::text[], 'offense', 10000, 10, 'chalked_earth_rune', 0, true, 9),
+  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 6),
+  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 23);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max, ends_at_level) values
@@ -2349,7 +2354,7 @@ begin
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
      or (select count(*) from public.hr_hunt_kill_bounds) <> 170
-     or (select count(*) from public.hr_hunt_abilities) <> 23
+     or (select count(*) from public.hr_hunt_abilities) <> 25
      or (select count(*) from public.hr_hunt_grounds) <> 25
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> 70
@@ -2414,6 +2419,7 @@ begin
     ('fireball', 'offense', array['destruction']::text[], 'chalked_fire_rune', 0),
     ('flame_volley', 'offense', array['ranged']::text[], 'chalked_fire_rune', 3),
     ('frost_slam', 'support', array['shield']::text[], 'chalked_ice_rune', 0),
+    ('gash', 'offense', array['dual_axe']::text[], 'chalked_rupture_rune', 0),
     ('green_sickness', 'offense', array['restoration']::text[], 'chalked_poison_rune', 0),
     ('hoarfrost', 'offense', array['destruction']::text[], 'chalked_ice_rune', 0),
     ('raking_shot', 'offense', array['ranged']::text[], null::text, 2),

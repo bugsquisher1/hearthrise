@@ -1,0 +1,60 @@
+
+ROADS v0 on muster_barrows L60 steady, held start 570, 8 seeds x 8 h, held read from hour 1 (mean +- se over seeds)
+M                          held 605.2 +- 1.7   deaths 0 (0 seeds)  xp/hd-h 294349.3 +- 1735.1 gold/hd-h 16712.6 +- 94.7 store/hd-h 5106.9 +- 21.4 heal/h 186752.1 +- 1121.5 drinks/h 542.1 +- 2.7
+     hammer  heal/h 0        self/h 5532.4   dps 18.2    mana/h 6307.6  drinks/h 0     store/h 816.4  shieldIn/h 22551.4 taken/h 173922.9 deaths 0
+     bow     heal/h 0        self/h 0        dps 20.1    mana/h 11255   drinks/h 5.5   store/h 6962.1 shieldIn/h 5763.1  taken/h 40989.1  deaths 0
+     mage    heal/h 0        self/h 0        dps 23.7    mana/h 29617.3 drinks/h 140.2 store/h 4101.3 shieldIn/h 3584.5  taken/h 8329.5   deaths 0
+     healer  heal/h 186752.1 self/h 809.8    dps 10.9    mana/h 55574.5 drinks/h 396.3 store/h 8547.7 shieldIn/h 50.6    taken/h 1020     deaths 0
+M+FS@ham                   held 608.6 +- 2     deaths 0 (0 seeds)  xp/hd-h 307305.1 +- 2397.8 gold/hd-h 17390.8 +- 159.8 store/hd-h 5256.2 +- 25.2 heal/h 189355.1 +- 1464.2 drinks/h 549.5 +- 3.2
+   vs M (paired): held 3.4 +- 2.7  xp 12955.9 +- 3102.3  gold 678.2 +- 183  store 149.3 +- 33.7  heal(all) 2589.3 +- 2286.6  shield -78.5 +- 51.5  deaths 0 +- 0  drinks 7.5 +- 4.6
+     hammer  heal/h 0        self/h 5448.9   dps 20.3    mana/h 10043.1 drinks/h 0     store/h 1257.8 shieldIn/h 22674.5 taken/h 176467.4 deaths 0  LENT flame_strike casts/h 403.9 +- 0.2 mana/h 4039.4
+     bow     heal/h 0        self/h 0        dps 20.2    mana/h 11289.6 drinks/h 5.8   store/h 6975.6 shieldIn/h 5650.1  taken/h 41281.3  deaths 0
+     mage    heal/h 0        self/h 0        dps 23.7    mana/h 29789.3 drinks/h 141.5 store/h 4127.2 shieldIn/h 3524.3  taken/h 8509.8   deaths 0
+     healer  heal/h 189355.1 self/h 879.5    dps 10.9    mana/h 56159.3 drinks/h 402.3 store/h 8664.3 shieldIn/h 22.3    taken/h 1082.4   deaths 0
+M+RE@ham                   held 607.4 +- 2.3   deaths 0 (0 seeds)  xp/hd-h 309021.4 +- 2481.4 gold/hd-h 17505 +- 164.7 store/hd-h 5268.9 +- 21.1 heal/h 188820.8 +- 1230.4 drinks/h 549 +- 2.5
+   vs M (paired): held 2.2 +- 2.9  xp 14672.1 +- 3282.7  gold 792.4 +- 190.4  store 162 +- 32.3  heal(all) 2116.9 +- 2030.4  shield -198.1 +- 106.3  deaths 0 +- 0  drinks 6.9 +- 4
+     hammer  heal/h 0        self/h 5504     dps 21      mana/h 9565.4  drinks/h 0     store/h 1303.4 shieldIn/h 22682.6 taken/h 176310.5 deaths 0  LENT rend casts/h 433 +- 0.6 mana/h 3464
+     bow     heal/h 0        self/h 0        dps 20.2    mana/h 11314.4 drinks/h 6     store/h 6992.5 shieldIn/h 5513.6  taken/h 41370.9  deaths 0
+     mage    heal/h 0        self/h 0        dps 23.7    mana/h 29781.6 drinks/h 141.4 store/h 4125.5 shieldIn/h 3516.1  taken/h 8278.4   deaths 0
+     healer  heal/h 188820.8 self/h 886.4    dps 10.9    mana/h 56134.1 drinks/h 401.7 store/h 8654.3 shieldIn/h 39.1    taken/h 1099.5   deaths 0
+N                          held 451.7 +- 1.4   deaths 0 (0 seeds)  xp/hd-h 162026 +- 533.9  gold/hd-h 11360.4 +- 101.7 store/hd-h 4234.5 +- 21.4 heal/h 0 +- 0           drinks/h 134 +- 0.5
+     hammer  heal/h 0        self/h 22445    dps 14.3    mana/h 7958.5  drinks/h 0     store/h 5239.1 shieldIn/h 0       taken/h 97841.3  deaths 0
+     bow     heal/h 0        self/h 0        dps 16.9    mana/h 10515.9 drinks/h 0.4   store/h 7059.9 shieldIn/h 0       taken/h 28702.5  deaths 0
+     mage    heal/h 0        self/h 0        dps 20.1    mana/h 28934.8 drinks/h 133.7 store/h 4128.3 shieldIn/h 2959    taken/h 5874.6   deaths 0
+     sword   heal/h 0        self/h 3630.8   dps 11.4    mana/h 7879.1  drinks/h 0     store/h 510.7  shieldIn/h 0       taken/h 30838.9  deaths 0
+N+CR@sw                    held 458.7 +- 1.3   deaths 0 (0 seeds)  xp/hd-h 168150.9 +- 1473.9 gold/hd-h 11478.5 +- 95  store/hd-h 4441.2 +- 20.7 heal/h 24280.5 +- 79.5  drinks/h 225.7 +- 1.5
+   vs N (paired): held 7.1 +- 2  xp 6124.9 +- 1770.3  gold 118 +- 172.4  store 206.7 +- 30.7  heal(all) 32108.1 +- 558.7  shield -81.9 +- 14.6  deaths 0 +- 0  drinks 91.7 +- 1.5
+     hammer  heal/h 0        self/h 20030.4  dps 14.7    mana/h 7721.1  drinks/h 0     store/h 4678.5 shieldIn/h 0       taken/h 99993.9  deaths 0
+     bow     heal/h 0        self/h 0        dps 17.5    mana/h 10798.8 drinks/h 2     store/h 6861   shieldIn/h 0       taken/h 29550.5  deaths 0
+     mage    heal/h 0        self/h 0        dps 20.8    mana/h 29817.9 drinks/h 141.2 store/h 4162.8 shieldIn/h 2877.1  taken/h 6174.9   deaths 0
+     sword   heal/h 24280.5  self/h 13873    dps 11.8    mana/h 20460.6 drinks/h 82.5  store/h 2062.7 shieldIn/h 0       taken/h 34848.9  deaths 0  LENT circle_of_renewal casts/h 249.1 +- 0.8 mana/h 12453.1
+N+GM@sw                    held 471.8 +- 2.2   deaths 0 (0 seeds)  xp/hd-h 177297.8 +- 924.2 gold/hd-h 11846.1 +- 69  store/hd-h 4946.9 +- 27.5 heal/h 36364.9 +- 300.9 drinks/h 273 +- 3.3
+   vs N (paired): held 20.2 +- 3.3  xp 15271.8 +- 739.2  gold 485.7 +- 124.7  store 712.4 +- 42.1  heal(all) 56213.9 +- 1297.8  shield 19.1 +- 23.7  deaths 0 +- 0  drinks 139 +- 3.4
+     hammer  heal/h 0        self/h 19204.1  dps 15.2    mana/h 7736.1  drinks/h 0     store/h 4867.5 shieldIn/h 0       taken/h 103507.5 deaths 0
+     bow     heal/h 0        self/h 0        dps 18.5    mana/h 11236.3 drinks/h 5.6   store/h 7479.7 shieldIn/h 0       taken/h 30822.1  deaths 0
+     mage    heal/h 0        self/h 0        dps 21.9    mana/h 31115.1 drinks/h 152.4 store/h 4563   shieldIn/h 2978.1  taken/h 6220.4   deaths 0
+     sword   heal/h 36364.9  self/h 26720.6  dps 12.4    mana/h 24360.4 drinks/h 115   store/h 2877.6 shieldIn/h 0       taken/h 41939.6  deaths 0  LENT greater_mend casts/h 661.7 +- 10.2 mana/h 16543
+T                          held 656 +- 1.3     deaths 0 (0 seeds)  xp/hd-h 318137.4 +- 1709.2 gold/hd-h 18485 +- 140.5 store/hd-h 5412.2 +- 22 heal/h 207558.8 +- 865.1 drinks/h 544.4 +- 1.9
+     tank    heal/h 0        self/h 12781.4  dps 11.7    mana/h 8617    drinks/h 0     store/h 2180.7 shieldIn/h 29049.3 taken/h 238879   deaths 0
+     bow     heal/h 0        self/h 0        dps 19.5    mana/h 10360.5 drinks/h 0     store/h 6575.2 shieldIn/h 731.6   taken/h 14300.3  deaths 0
+     mage    heal/h 0        self/h 0        dps 23.7    mana/h 28917.4 drinks/h 134.6 store/h 3986.8 shieldIn/h 49.1    taken/h 108.9    deaths 0
+     healer  heal/h 207558.8 self/h 908.5    dps 11.6    mana/h 56954.4 drinks/h 409.8 store/h 8906   shieldIn/h 75.9    taken/h 1166.9   deaths 0
+T+TC@tank                  held 653.6 +- 1.5   deaths 0 (0 seeds)  xp/hd-h 342584.9 +- 1923.5 gold/hd-h 19783.8 +- 150.3 store/hd-h 5350 +- 28.4 heal/h 199789.8 +- 892.2 drinks/h 539.7 +- 2.4
+   vs T (paired): held -2.4 +- 2.5  xp 24447.5 +- 3040  gold 1298.8 +- 240.2  store -62.1 +- 44.4  heal(all) -9416 +- 1931  shield 83.8 +- 57.1  deaths 0 +- 0  drinks -4.7 +- 3.5
+     tank    heal/h 0        self/h 11089    dps 17.3    mana/h 11222.4 drinks/h 5.3   store/h 2100.5 shieldIn/h 29066.6 taken/h 228413.3 deaths 0  LENT turning_cut casts/h 386.7 +- 0.4 mana/h 3093.4
+     bow     heal/h 0        self/h 0        dps 19.6    mana/h 10438.1 drinks/h 0     store/h 6593.1 shieldIn/h 795.6   taken/h 14701.4  deaths 0
+     mage    heal/h 0        self/h 0        dps 23.7    mana/h 29172   drinks/h 136.4 store/h 4027.8 shieldIn/h 78.9    taken/h 194.9    deaths 0
+     healer  heal/h 199789.8 self/h 953.9    dps 11.5    mana/h 55728.9 drinks/h 398   store/h 8678.8 shieldIn/h 48.5    taken/h 1232     deaths 0
+Y                          held 604.3 +- 1.7   deaths 0 (0 seeds)  xp/hd-h 285509.6 +- 1551.9 gold/hd-h 16124.9 +- 94.9 store/hd-h 5272.9 +- 16.7 heal/h 191733.3 +- 1153.7 drinks/h 553.6 +- 2
+     axes    heal/h 0        self/h 5367.6   dps 16.1    mana/h 7179.4  drinks/h 0     store/h 1228.5 shieldIn/h 22613.6 taken/h 178543   deaths 0
+     bow     heal/h 0        self/h 0        dps 20.1    mana/h 11300   drinks/h 5.9   store/h 6995.5 shieldIn/h 5751.5  taken/h 40858    deaths 0
+     mage    heal/h 0        self/h 0        dps 23.7    mana/h 29805.9 drinks/h 141.9 store/h 4137.2 shieldIn/h 3530.9  taken/h 8375.9   deaths 0
+     healer  heal/h 191733.3 self/h 801.4    dps 11      mana/h 56502.9 drinks/h 405.7 store/h 8730.5 shieldIn/h 33.9    taken/h 989.4    deaths 0
+Y+PS@axes                  held 605.7 +- 1.8   deaths 0 (0 seeds)  xp/hd-h 293917.3 +- 1916.6 gold/hd-h 16679.5 +- 121.9 store/hd-h 5308 +- 22.9 heal/h 192888.9 +- 1297.4 drinks/h 558.2 +- 2.8
+   vs Y (paired): held 1.4 +- 3.3  xp 8407.6 +- 3189.2  gold 554.6 +- 190.9  store 35.1 +- 32  heal(all) 1179.1 +- 2472.3  shield 19.4 +- 60.3  deaths 0 +- 0  drinks 4.7 +- 4.1
+     axes    heal/h 0        self/h 5380.3   dps 17.6    mana/h 9595.8  drinks/h 0     store/h 1261.3 shieldIn/h 22781.4 taken/h 179622.6 deaths 0  LENT power_strike casts/h 410.4 +- 0.4 mana/h 2462.6
+     bow     heal/h 0        self/h 0        dps 20.2    mana/h 11320.8 drinks/h 6.1   store/h 7005.9 shieldIn/h 5761.8  taken/h 41249.3  deaths 0
+     mage    heal/h 0        self/h 0        dps 23.8    mana/h 29937.8 drinks/h 142.9 store/h 4163.2 shieldIn/h 3382.4  taken/h 8467.5   deaths 0
+     healer  heal/h 192888.9 self/h 812.3    dps 10.9    mana/h 56837.3 drinks/h 409.3 store/h 8801.5 shieldIn/h 23.8    taken/h 1002.4   deaths 0
+
+wall 885 s on 8 workers; mean seed 86 s for 8 h

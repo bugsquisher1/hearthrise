@@ -408,6 +408,11 @@
         "bytes": 3778023,
         "on": "2026-11-23",
         "why": "+17 B: two field-salvage chances under the faster kills of the 11-23 set (stag .0036, salamander .0037, field-salvage's 0.5 h floor; lane/ci-reds-client-1123)"
+      },
+      {
+        "bytes": 3779973,
+        "on": "2026-11-23",
+        "why": "+borrow values: six town V0 rows and the not_offered refusal (lane/roads-borrow-values) on top of the ci-reds drop chances"
       }
     ]
   }

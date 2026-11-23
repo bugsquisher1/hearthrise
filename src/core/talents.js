@@ -92,11 +92,15 @@ const countryOf = (n) => (n.country !== undefined ? n.country : null);
 /* a crossroads in `country` the build owns */
 const crossroadsIn = (nodes, country) => Object.keys(nodes).some((id) => own(NODE_INDEX, id) && NODE_INDEX[id].kind === 'crossroads' && NODE_INDEX[id].country === country);
 const borrowOf = (node, pick) => { const o = optionOf(node, pick); const b = o && o.effects.find((e) => e.kind === 'borrow'); return b ? b.move : null; };
+/* a pick that lends a move lends it only where the move has a band (a measured V0 inside the bands): a pick that lends nothing is never
+   bought, so no point is spent on a town that buys nothing (lane/roads-borrow-values). Every other pick is offered. */
+const offered = (node, pick) => { const m = borrowOf(node, pick); return !m || !!borrowBand(m, node.kind === 'crossing' ? 'havora' : 'border'); };
 const isVow = (n) => n.kind === 'vow';
 
 /**
  * WHY `id` (with option `pick`) CANNOT BE BOUGHT NOW on build `nodes` by a hero of Level `level`, or null when it can (17 section 2 and 3):
- *   unknown_node · owned (a node already held; an open road takes more) · not_reachable (touches nothing owned) · bad_pick · no_points ·
+ *   unknown_node · owned (a node already held; an open road takes more) · not_reachable (touches nothing owned) · bad_pick ·
+ *   not_offered (a town's or the crossing's pick whose move has no band there: a point that would lend nothing) · no_points ·
  *   vow_level (under the first vow slot) · vow_slots (every open slot holds a vow) · needs_crossroads (a hybrid: one in each country) ·
  *   borrow_max (a third borrowed move). The server's hr_talent_spend asks the same questions of the same catalogue.
  */
@@ -106,6 +110,7 @@ export function spendProblem(nodes, id, pick, level) {
   if (n.kind !== 'open' && own(nodes, id)) return 'owned';
   if (!n.after.some((a) => owns(nodes, a))) return 'not_reachable';
   if (PICK_KINDS.includes(n.kind) ? !optionOf(n, pick) : pick !== null && pick !== undefined) return 'bad_pick';
+  if (!offered(n, pick)) return 'not_offered';
   if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';
   if (isVow(n)) {
     if ((Number(level) || 0) < TALENT_RULES.vowSlots[0]) return 'vow_level';
@@ -134,8 +139,8 @@ export function buildProblems(nodes, level) {
   for (const [id, v] of Object.entries(norm)) {
     const n = NODE_INDEX[id];
     if (!n.after.some((a) => owns(norm, a))) out.push({ node: id, why: 'not_reachable' });
+    if (!offered(n, v)) out.push({ node: id, why: 'not_offered' });
     if (n.needs && Array.isArray(n.needs.crossroadsIn) && !n.needs.crossroadsIn.every((c) => crossroadsIn(norm, c))) out.push({ node: id, why: 'needs_crossroads' });
-    void v;
   }
   const borrows = Object.entries(norm).filter(([k, v]) => borrowOf(NODE_INDEX[k], v)).length;
   if (borrows > TALENT_RULES.maxBorrowed) out.push({ node: null, why: 'borrow_max' });

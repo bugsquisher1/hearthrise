@@ -27,7 +27,10 @@ import { fork } from 'node:child_process';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const argv = process.argv.slice(2);
 const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
-const SEEDS = Number(arg('seeds', 3)), HOURS = Number(arg('hours', 3)), WORKERS = Number(arg('workers', 4)), SKILLS = arg('skills', 'line');
+/* --from <json>: the run's own seeds, hours and skills ride with its rows */
+const FROM = arg('from') ? JSON.parse(readFileSync(resolve(arg('from')), 'utf8')) : null;
+const SEEDS = FROM ? FROM.seeds : Number(arg('seeds', 3)), HOURS = FROM ? FROM.hours : Number(arg('hours', 3)), WORKERS = Number(arg('workers', 4));
+const SKILLS = FROM ? FROM.skills : arg('skills', 'line');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
 const { loadKits } = await imp('tools/balance-program/grid-kit.mjs');
@@ -64,7 +67,7 @@ function pool(jobs, n) {
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
 /* --from <json>: read the rows a run wrote (no play), to walk them on this tree's curve */
 let rows;
-if (arg('from')) rows = JSON.parse(readFileSync(resolve(arg('from')), 'utf8')).rows;
+if (FROM) rows = FROM.rows;
 else {
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   const cells = [], jobs = [];

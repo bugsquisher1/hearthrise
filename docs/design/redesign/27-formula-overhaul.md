@@ -214,7 +214,7 @@ Built (`lane/skills-time-parity`): `src/data/core-model.js SKILL_CURVE`, `src/co
 - **Inner Flame** keeps the old geometric curve (`FLAME_SKILL_CURVE`): its Hearth fuel's XP is sized on it, and 21 retires the skill's XP.
 - **Live heroes** keep their XP and read it on the new curve: a skill under 80 reads lower (30 reads 14, 60 reads 44), over 80 higher (100 reads 136).
 
-**Old against new, the hours to a skill** (hunted hours from Level 1 on the hours formula; COMPUTED at the reference rate, MEASURED rates from `parity.mjs` on the grounds the game sends a four to, the hammer's Melee):
+**Old against new, the hours to a skill** (hunted hours from Level 1 on the hours formula; COMPUTED at the reference rate, MEASURED rates from `parity.mjs` on the grounds the game sends a four to, the hammer's Melee; the rates read on the set before this change, which moves no pay: `tools/balance-program/redesign/skills/path.json` and `reference.json`):
 
 | Skill | Old curve, reference rate | Clock, reference rate (the Level's own hours) | Old curve, measured rates | Clock, measured rates |
 |---|---|---|---|---|

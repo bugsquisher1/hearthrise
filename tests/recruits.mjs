@@ -11,6 +11,10 @@
 //              the jobs; ONE press makes three heroes in the empty slots at Level 5, each named (the typed name kept, the others the town's),
 //              each wearing its job's set with the hero kit in its bag and loading into the world; one ledger row a recruit; the answer
 //              carries the first hero's envelope with the offer gone, and every hero's section is null after it (the press is gone)
+//   RC-SHOT    the bow recruit arrives with its kit's shot in the ammo slot (the first-hour walk 2026-11-23: it fought its first party
+//              hunt with "none loaded (no attacks)"); a recruit whose weapon shoots nothing wears no ammo; the kit is held whole
+//              (1038-start-kits.sql hr_create_character__as, the shot hr_start_kit_lines.loads names). The hunt it then fights, both
+//              paths: tests/recruit-company.mjs
 //   RC-RETRY   the same key again answers the first receipt and makes nothing; a new key is refused recruits_taken; still four heroes
 //   RC-JOBS    the jobs follow the first hero's weapon (a shield hero gets a healer, a bow and a club), and a first hero far past the press's
 //              Level brings recruits at max_level, never at its own
@@ -19,7 +23,7 @@
 //   node tests/recruits.mjs            the guard
 //   node tests/recruits.mjs --mutate   every planted defect must turn its own arm red (the migration's self-check blinded)
 //
-// mutant-anchors: supabase/migrations/1053-recruits.sql
+// mutant-anchors: supabase/migrations/1053-recruits.sql supabase/migrations/1038-start-kits.sql
 // ci-step: db-replay | The recruit press, one hero first then three recruits in one press at Level 5, once an account (1053-recruits.sql)
 // ci-run: node tests/recruits.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
@@ -29,8 +33,11 @@ import { bootReplay, closeReplays } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { RECRUITS, RECRUIT_GIVEN, RECRUIT_FAMILY } from '../src/data/recruits.js';
 import { STARTER_SETS, HERO_KIT } from '../src/data/start-kit.js';
+import { ITEMS } from '../src/data/items.js';
+import { roleForWeapon, shootsItem, wornRoleKey } from '../src/data/hunt-roles.js';
 
 const FILE = '1053-recruits.sql';
+const KITS = '1038-start-kits.sql';
 const COLORS = '{"head":1,"body":2,"legs":3,"feet":0}';
 
 const one = async (db, sql, params = []) => { const r = await db.query(sql, params); return r.rows[0] ? Object.values(r.rows[0])[0] : null; };
@@ -93,9 +100,22 @@ export async function rules(db) {
   for (const h of four.slice(1)) {
     const e = await as(db, A, 'select public.hr_load($1)', [h.slot]);
     arm('RC-PLAY', e && e.ok === true && e.recruits === null, 'recruit ' + h.slot + ' loads as ' + JSON.stringify(e && (e.ok ? { recruits: e.recruits } : e)));
-    const bag = Object.fromEntries((await db.query('select item_id, qty from public.player_inventory where user_id = $1 and slot = $2', [A, h.slot])).rows.map((x) => [x.item_id, Number(x.qty)]));
-    arm('RC-PLAY', Object.entries(HERO_KIT).every(([id, q]) => bag[id] === q), 'recruit ' + h.slot + '\'s bag holds ' + JSON.stringify(bag));
+    /* the hero kit held whole: in the bag, or (a shot a bow loads) one unit of it in the ammo slot (RC-SHOT) */
+    const held = Object.fromEntries((await db.query(`select item_id, sum(qty)::int as qty from (
+        select item_id, qty from public.player_inventory where user_id = $1 and slot = $2
+        union all select item_id, 1 from public.player_equipment where user_id = $1 and slot = $2 and equip_slot = 'ammo') x group by item_id`, [A, h.slot])).rows.map((x) => [x.item_id, Number(x.qty)]));
+    arm('RC-PLAY', Object.entries(HERO_KIT).every(([id, q]) => held[id] === q), 'recruit ' + h.slot + ' holds ' + JSON.stringify(held));
   }
+  /* RC-SHOT (the first-hour walk 2026-11-23: "Bren: none loaded (no attacks)" the whole first party hunt): the bow recruit arrives with a
+     shot its bow looses in the ammo slot, one of the kit's own, and a recruit whose weapon shoots nothing wears no ammo */
+  for (const h of four.slice(1)) {
+    const worn = await one(db, "select item_id from public.player_equipment where user_id = $1 and slot = $2 and equip_slot = 'ammo'", [A, h.slot]);
+    const role = roleForWeapon(wornRoleKey(Object.fromEntries((await db.query('select equip_slot, item_id from public.player_equipment where user_id = $1 and slot = $2', [A, h.slot])).rows.map((x) => [x.equip_slot, x.item_id])), ITEMS));
+    const shoots = Object.keys(HERO_KIT).some((id) => shootsItem(role, ITEMS[id]));
+    arm('RC-SHOT', shoots ? !!worn && shootsItem(role, ITEMS[worn]) && HERO_KIT[worn] > 0 : worn === null,
+      'recruit ' + h.slot + ' (' + role + ') arrives with ' + JSON.stringify(worn) + ' in its ammo slot');
+  }
+  arm('RC-SHOT', four.slice(1).some((h) => h.weapon === weaponOf('ranger')), 'CONTROL: no recruit holds a bow, so no shot was asked of one');
   const led = Number(await one(db, "select count(*) from public.player_ledger where user_id = $1 and kind = 'admin' and intent = 'recruit' and (meta->>'level')::int = $2", [A, want]));
   arm('RC-PLAY', led === 3, 'the grant is journalled in ' + led + ' ledger rows');
   arm('RC-PLAY', (await section(db, A)) === null, 'the first hero is still offered the press: ' + JSON.stringify(await section(db, A)));
@@ -143,10 +163,16 @@ const MUTANTS = [
   ['a retried key is not replayed (RC-RETRY)', [BLIND, ['  v_r := public.hr_intent_replay(v_uid, null, p_idem, c_verb);\n', '  v_r := null;\n']], 'RC-RETRY'],
   ['the jobs ignore the first hero\'s weapon (RC-JOBS)', [BLIND, ["order by coalesce(x.role = any (coalesce(v_roles, '{}'::text[])), false), j.rank)", 'order by j.rank)']], 'RC-JOBS'],
   ['a late press brings recruits at the first hero\'s Level (RC-JOBS)', [BLIND, ["    'level', greatest(1, least(r.max_level, v_lv - r.levels_under)),", "    'level', greatest(1, v_lv - r.levels_under),"]], 'RC-JOBS'],
+  /* THE SHOT (lane/recruits-ammo-talents): the creation's load taken out of 1038, its own (b2) blinded (the hero it makes skipped) */
+  ['the bow recruit arrives with nothing loaded (RC-SHOT)', new Map([[KITS, [
+    ['    -- (b2) THE SHOT, LOADED:', '    if false then\n    -- (b2) THE SHOT, LOADED:'],
+    ["    -- (c) THE PICK IS THE SERVER'S", "    end if;\n    -- (c) THE PICK IS THE SERVER'S"],
+    ["   where l.kit = 'practice' and l.set_id = v_set and l.worn and l.loads is not null;", '   where false;']]]]), 'RC-SHOT'],
 ];
 
+/* `patch`: 1053's own [find, replace] list, or a Map of file -> list (a mutant planted in another file the press reads) */
 async function boot(patch) {
-  const r = await bootReplay(patch ? { patches: new Map([[FILE, patch]]), upTo: FILE } : {});
+  const r = await bootReplay(patch ? { patches: patch instanceof Map ? patch : new Map([[FILE, patch]]), upTo: FILE } : {});
   return r.db || r;
 }
 

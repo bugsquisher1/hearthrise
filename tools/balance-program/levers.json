@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "2f98ffe9d8ae972a",
+ "authored": "03989fab3c0cb9ca",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -10561,7 +10561,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 59,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11153,7 +11153,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11251,7 +11251,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13463,7 +13463,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14013,7 +14013,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 59,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -16765,10 +16765,6 @@
    "why": "the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys"
   },
   {
-   "at": "src/data/how-to-play.js#HELP_NOTES",
-   "why": "units in help text: milliseconds in an hour and minutes in an hour, turning STAMINA_MAX_MS and the block minutes into the hours a note prints (stamina.* and the time blocks are the levers)"
-  },
-  {
    "at": "src/core/inner-flame.js#MINUTE_MS",
    "why": "a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)"
   },
@@ -16975,6 +16971,10 @@
   {
    "at": "src/data/hearth.js#BURN_SHOW",
    "why": "the burn's show (art timing)"
+  },
+  {
+   "at": "src/data/how-to-play.js#HELP_NOTES",
+   "why": "unit conversions for the help text (ms an hour, minutes an hour): the numbers shown are STAMINA_MAX_MS and RULED, read, not set here"
   },
   {
    "at": "src/data/factions.js#*",

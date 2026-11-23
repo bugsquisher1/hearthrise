@@ -17,7 +17,6 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/party-class-xp.js#lines', why: 'a builder of the printed lines' },
   { at: 'src/data/party-class-xp.js#row', why: 'the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys' },
   /* units of the Inner Flame, Temper, imbuement and loot arithmetic (lane/flame-temper-build): a scale, never a balance choice */
-  { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'units in help text: milliseconds in an hour and minutes in an hour, turning STAMINA_MAX_MS and the block minutes into the hours a note prints (stamina.* and the time blocks are the levers)' },
   { at: 'src/core/inner-flame.js#MINUTE_MS', why: 'a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)' },
   { at: 'src/core/inner-flame.js#roomMpts', why: 'units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)' },
   { at: 'src/core/inner-flame.js#decay', why: 'units: 60 minutes x a million parts (decayPpm is the lever)' },
@@ -53,6 +52,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/jewelry.js#fmtPct', why: 'a percent formatter' }, { at: 'src/data/jewelry.js#guaranteeJobs', why: 'a words builder' },
   { at: 'src/data/jewelry.js#ODDS_SCALE', why: 'the odds unit (a 10,000)' }, { at: 'src/data/armour-weights.js#pct', why: 'a percent formatter' }, { at: 'src/data/chests.js#CHEST_ITEM_DESC', why: 'item words' },
   { at: 'src/data/live-events.js#LIVE_EVENT_SHOWN', why: 'when the event banner shows' }, { at: 'src/data/gold-sinks.js#ROUND_SHOW', why: 'the round\'s show (art timing)' }, { at: 'src/data/hearth.js#BURN_SHOW', why: 'the burn\'s show (art timing)' },
+  { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'unit conversions for the help text (ms an hour, minutes an hour): the numbers shown are STAMINA_MAX_MS and RULED, read, not set here' },
   { at: 'src/data/factions.js#*', why: 'faction swap timing, the day fuse, the week cap and the sides: no power, gold or XP in these rows (the gold of the stock is econ.faction-stock)' },
   { at: 'src/data/boss-halls.js#namedWaveOf', why: 'a words builder' }, { at: 'src/data/clans.js#*', why: 'clan names, tags and invite days (the founding gold is econ.clans)' },
   { at: 'src/data/danger.js#DEPTHS', why: 'how many depths a ground\'s band is cut into for the player\'s "Depth N of 20" words (12-targets 3.1): display, the server and the engine read steps' },

@@ -30,7 +30,9 @@
 --    access check, slot shape, the ensure fast path, the slot entitlement, the (user, slot) lock, the 6/hour creation budget. Then:
 --    the set (p_set, or the default_set row when null; an unknown set answers bad_set before any lock or budget), the hero row,
 --    the skills, the practice set (worn in its slots, the rest in the bag), the hero kit if 'hero:<slot>' is new, the account kit if
---    'account' is new (its gold through hr_purse_move under the purse's row lock), and ONE ledger row.
+--    'account' is new (its gold through hr_purse_move under the purse's row lock), THE SHOT LOADED (lane/recruits-ammo-talents,
+--    2026-11-23: a set whose worn weapon shoots moves ONE of the kit shot hr_start_kit_lines.loads names from the bag to the ammo slot,
+--    when the bag holds one; the ledger row's meta.loaded names it), and ONE ledger row.
 --    hr_create_character(p_slot integer default 0) keeps its signature and grant (every fixture and probe calls it) and now reads
 --    `select public.hr_create_character__as(p_slot, null)`: the default set.
 -- §4 hr_create_hero(p_slot, p_name, p_colors, p_idem, p_set default null) REPLACES the 4-argument hr_create_hero (dropped; its
@@ -127,6 +129,7 @@ declare
   v_acct  boolean := false;
   v_gold  bigint := 0;
   v_n     int;
+  v_shot  text;
 begin
   -- CLOSED MODE (2026-10-22-closed-mode-ungated-rpcs.sql, Security R3): no hr_rpc_gate here, so the access check is our own.
   perform public.hr_access_check();
@@ -241,12 +244,33 @@ begin
     if v_gold <> 0 then v_purse := public.hr_purse_move(v_uid, v_gold, 0); end if;
   end if;
 
+  -- THE SHOT, LOADED (lane/recruits-ammo-talents, 2026-11-23; the first-hour walk: a bow recruit fought its whole first party hunt with
+  -- "none loaded (no attacks)", its 50 Bronze Arrows in the bag): a set whose worn weapon shoots loads the kit shot the catalogue names
+  -- (hr_start_kit_lines.loads, generated from hunt-roles.js shootsItem), as an Equip of that weapon does (src/shell/bag-model.js equipOps:
+  -- a bow never goes on empty). A TRANSFER, never a mint: ONE unit leaves the bag for the ammo slot (the count hr_apply's equip
+  -- conserves), and only when the bag holds one, so a hero remade in a paid slot (no hero kit) loads nothing.
+  select l.loads into v_shot from public.hr_start_kit_lines l
+   where l.kit = 'practice' and l.set_id = v_set and l.worn and l.loads is not null;
+  if v_shot is not null then
+    delete from public.player_inventory where user_id = v_uid and slot = v_slot and item_id = v_shot and qty = 1;
+    get diagnostics v_n = row_count;
+    if v_n = 0 then
+      update public.player_inventory set qty = qty - 1 where user_id = v_uid and slot = v_slot and item_id = v_shot and qty > 1;
+      get diagnostics v_n = row_count;
+    end if;
+    if v_n = 1 then
+      insert into public.player_equipment (user_id, slot, equip_slot, item_id) values (v_uid, v_slot, 'ammo', v_shot);
+    else
+      v_shot := null;
+    end if;
+  end if;
+
   -- ONE ledger row (journal rule 6): which kits this creation paid, and the gold that entered the economy with it.
   select count(*) into v_n from public.player_inventory where user_id = v_uid and slot = v_slot;
   insert into public.player_ledger (user_id, slot, kind, intent, gold, purse, meta)
     values (v_uid, v_slot, 'admin', 'create_character', v_gold, case when v_gold <> 0 then v_purse end,
             jsonb_build_object('slot', v_slot, 'set', v_set, 'account_kit', v_acct, 'hero_kit', v_hero,
-                               'kit_gold', v_gold, 'kit_items', v_n, 'plots', v_kit.farm_plots,
+                               'kit_gold', v_gold, 'kit_items', v_n, 'plots', v_kit.farm_plots, 'loaded', v_shot,
                                'catalogue', (select digest from public.hr_catalogue_meta)));
 
   return jsonb_build_object('ok', true, 'slot', v_slot, 'created', true);
@@ -395,6 +419,23 @@ begin
     if (select gold from public.account_wallet where user_id = c_new) <> v_gold0 then
       raise exception 'VERIFY(b): the second hero paid gold'; end if;
 
+    -- (b2) THE SHOT, LOADED: a Ranger in slot 3 wears the bow and ONE of the kit's arrows in its ammo slot (hr_start_kit_lines.loads), the
+    --      rest of them in the bag: the kit's count held whole, never a mint. Every set that shoots nothing wears no ammo (a, b above).
+    v := public.hr_create_hero(3, 'Kitprobe Bow', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, gen_random_uuid(), 'ranger');
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(b2): the Ranger answered %', v; end if;
+    select jsonb_object_agg(equip_slot, item_id) into v_worn from public.player_equipment where user_id = c_new and slot = 3;
+    if (select loads from public.hr_start_kit_lines where kit = 'practice' and set_id = 'ranger' and worn and equip_slot = 'weapon') is null
+       or v_worn is distinct from ((select jsonb_object_agg(equip_slot, item_id) from public.hr_start_kit_lines where set_id = 'ranger' and worn)
+                                   || jsonb_build_object('ammo', (select loads from public.hr_start_kit_lines where set_id = 'ranger' and loads is not null))) then
+      raise exception 'VERIFY(b2): the Ranger wears %', v_worn; end if;
+    if (select qty from public.player_inventory where user_id = c_new and slot = 3 and item_id = v_worn->>'ammo')
+         is distinct from (v_hero->>(v_worn->>'ammo'))::bigint - 1 then
+      raise exception 'VERIFY(b2): the Ranger''s bag holds % of the % kit shots, one of them loaded',
+        (select qty from public.player_inventory where user_id = c_new and slot = 3 and item_id = v_worn->>'ammo'), v_hero->>(v_worn->>'ammo'); end if;
+    if exists (select 1 from public.player_equipment where user_id = c_new and slot in (0, 2) and equip_slot = 'ammo')
+       or (select meta->>'loaded' from public.player_ledger where user_id = c_new and slot = 3 and intent = 'create_character') is distinct from v_worn->>'ammo' then
+      raise exception 'VERIFY(b2): a hero that shoots nothing loaded a shot, or the Ranger''s load is not journalled'; end if;
+
     -- (c) THE PICK IS THE SERVER'S: an unknown set is refused and nothing is made; no set at all wears the default set.
     v := public.hr_create_hero(1, 'Kitprobe Bogus', '{"head":0,"body":0,"legs":0,"feet":0}'::jsonb, gen_random_uuid(), 'practice_sword');
     if v->>'error' is distinct from 'bad_set' or exists (select 1 from public.player_state where user_id = c_new and slot = 1) then
@@ -422,6 +463,14 @@ begin
       raise exception 'VERIFY(d): a new slot of a paid account got % and the purse %', v_bag, (select gold from public.account_wallet where user_id = c_old); end if;
     if (select count(*) from public.account_kits where user_id = c_old) <> 4 then
       raise exception 'VERIFY(d): the paid account holds % kit marks', (select count(*) from public.account_kits where user_id = c_old); end if;
+    -- (d2) a Ranger remade in a paid slot (slot 0: no hero kit, so no arrows) loads nothing: the load moves a unit, it never makes one.
+    v := public.hr_create_character__as(0, 'ranger');
+    if coalesce(v->>'created', '') <> 'true'
+       or exists (select 1 from public.player_equipment where user_id = c_old and slot = 0 and equip_slot = 'ammo')
+       or exists (select 1 from public.player_inventory i where i.user_id = c_old and i.slot = 0
+                   and not exists (select 1 from public.hr_start_kit_lines l where l.kit = 'practice' and l.item_id = i.item_id)) then
+      raise exception 'VERIFY(d2): a Ranger remade in a paid slot answered % and wears %', v,
+        (select jsonb_object_agg(equip_slot, item_id) from public.player_equipment where user_id = c_old and slot = 0); end if;
 
     raise exception using errcode = 'HR946', message = 'start-kits §5 complete - rolling back';
   exception when sqlstate 'HR946' then

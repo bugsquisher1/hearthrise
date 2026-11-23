@@ -37,7 +37,7 @@ import { TRADE_LEVERS, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate } from '
 import { STORE_KIT } from '../data/store-kit.js';
 import { GEAR_STEPS } from '../data/gear-steps.js';
 import { DANGER } from '../data/danger.js';
-import { wage } from '../data/wage.js';
+import { wage, powSquare } from '../data/wage.js';
 import { createRng } from './rng.js';
 
 const pm = (x) => Math.round(x * 1000);
@@ -220,12 +220,8 @@ export const storeBid = (kind, band, q = 0) => Math.floor((TRADE_PM.floorShare *
 
 /* ── TOOLS (09 3.7) ───────────────────────────────────────────────────── */
 
-/* r ^ n by squaring: the same multiplications, in the same order, as the SQL twin (and as wage.js walks the wage) */
-function powSquare(r, n) {
-  let out = 1, b = r, k = n;
-  while (k > 0) { if (k % 2 === 1) out *= b; b *= b; k = Math.floor(k / 2); }
-  return out;
-}
+/* r ^ n by squaring is the one power walk (src/data/wage.js powSquare, 26-architecture-pass F-7): the same multiplications, in the
+   same order, as hr_trade_behind_pm's loop */
 /** What a good `steps` steps behind does, in permille of one at the job's step: the contest curve (09 4.2: 93% at 20, 71% at 100). */
 export const behindPm = (steps) => Math.floor(1000 / powSquare(1 + DANGER.powerStep, Math.max(0, Math.floor(steps) || 0)));
 /** A tool's work speed in permille on a job of band `jobBand`: full at or above it, the contest curve behind it. */

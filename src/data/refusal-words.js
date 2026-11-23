@@ -200,6 +200,15 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The factions (2027-04-22-faction-standing.sql, 2027-04-23-faction-section.sql). The ones with the server's numbers are
      src/shell/faction-words.js's. feature_off is every switched-off feature's line (the training items' too), written once. */
   feature_off: 'Not open yet',
+  /* The Talents (1064-roads-sample.sql): the verbs' switch, and hr_talent_spend_problem's codes (src/core/talents.js spendProblem). */
+  talents_closed: 'Not open yet',
+  owned: 'Already taken',
+  not_reachable: 'Requires the node before it',
+  no_points: 'No points',
+  vow_level: 'Requires a higher Level',
+  vow_slots: 'No free vow slot',
+  needs_crossroads: 'Requires a crossroads in both countries',
+  borrow_max: 'Borrowed moves full',
   join_locked: 'Requires a Lord Krell kill',
   already_joined: 'Already on a side',
   same_faction: 'Already on that side',

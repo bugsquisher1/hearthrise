@@ -25,7 +25,9 @@
 --   milliseconds of that hero's window (new - old settled_to) burn its company's flame down by hr_flame_decay (Flame XP, the Level re-read
 --   each hunted hero-minute, a part carried) and count down its worn imbuements, deleting a spent one. Only hunted time: nothing in town,
 --   nothing by the clock (D-10), nothing on a death.
--- VERBS (authenticated; keyed by hr_intent_replay before and under the lock; rate-gated 'hunt'; refusals noted by hr_note_rejection):
+-- VERBS (authenticated; keyed by hr_intent_replay before and under the lock; rate-gated 'hunt'; refusals noted by hr_note_rejection).
+--   A success answers `envelope`: hr_state_of read AFTER the verb's own row writes (hr_apply's projection is taken before them), so the
+--   client takes the hero from the answer and never re-reads (rule 11, CLAUDE.md §6; tests/write-answers-state.mjs):
 --   hr_flame_burn(p_item text, p_count int, p_slot int, p_idem uuid)
 --     Remains from hero p_slot's bag onto the account's fire, never past the room (hr_flame_burn_units: the rest stay in the bag). The band
 --     is the catalogue's (hr_flame_fuel), never the client's; `top` is the account's highest hero Level. ONE hr_apply {items: -units}
@@ -351,7 +353,7 @@ begin
   if coalesce(v_a->>'replayed', 'false') = 'true' then return jsonb_build_object('ok', true, 'replayed', true); end if;
   update public.company_flame set height_mpts = (v_b->>'height')::bigint, updated_at = now() where user_id = v_uid;
   return jsonb_build_object('ok', true, 'version', v_a->'version', 'burned', v_units, 'kept', least(p_count, v_have) - v_units,
-                            'flame', public.hr_flame_view(v_uid, p_slot));
+                            'envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 create or replace function public.hr_flame_stoke_set(p_rule jsonb, p_slot int, p_idem uuid)
@@ -369,7 +371,7 @@ begin
   insert into public.company_flame (user_id) values (v_uid) on conflict (user_id) do nothing;
   perform 1 from public.company_flame where user_id = v_uid for update;
   update public.company_flame set stoke = v_rule, updated_at = now() where user_id = v_uid;
-  return jsonb_build_object('ok', true, 'flame', public.hr_flame_view(v_uid, p_slot));
+  return jsonb_build_object('ok', true, 'envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 create or replace function public.hr_temper_rank(p_slot int, p_equip_slot text, p_price bigint, p_idem uuid)
@@ -421,7 +423,7 @@ begin
   insert into public.hero_temper as h (user_id, slot, equip_slot, rank, seated_tier) values (v_uid, p_slot, p_equip_slot, v_next, v_tier)
     on conflict (user_id, slot, equip_slot) do update
       set rank = excluded.rank, seated_tier = case when h.rank = 0 then excluded.seated_tier else h.seated_tier end, updated_at = now();
-  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_fee, 'rank', v_next, 'temper_steps', public.hr_temper_steps_view(v_uid, p_slot));
+  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_fee, 'rank', v_next, 'envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 create or replace function public.hr_temper_seat(p_slot int, p_equip_slot text, p_price bigint, p_idem uuid)
@@ -464,7 +466,7 @@ begin
   if coalesce(v_a->>'ok', 'false') <> 'true' then return public.hr_note_rejection('temper_seat', p_slot, v_a || jsonb_build_object('ok', false)); end if;
   if coalesce(v_a->>'replayed', 'false') = 'true' then return jsonb_build_object('ok', true, 'replayed', true); end if;
   update public.hero_temper set seated_tier = v_tier, updated_at = now() where user_id = v_uid and slot = p_slot and equip_slot = p_equip_slot;
-  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_price, 'tier', v_tier, 'temper_steps', public.hr_temper_steps_view(v_uid, p_slot));
+  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_price, 'tier', v_tier, 'envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 create or replace function public.hr_imbue_apply(p_slot int, p_equip_slot text, p_imbue text, p_price bigint, p_idem uuid)
@@ -514,7 +516,7 @@ begin
     values (v_uid, p_slot, p_equip_slot, p_imbue, i.band, 'plain', v_life)
     on conflict (user_id, slot, equip_slot) do update
       set imbue_id = excluded.imbue_id, band = excluded.band, quality = excluded.quality, ms_left = excluded.ms_left, updated_at = now();
-  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_fee, 'imbues', public.hr_imbues_view(v_uid, p_slot));
+  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -v_fee, 'envelope', public.hr_state_of(v_uid, p_slot));
 end $fn$;
 
 do $mig$
@@ -601,6 +603,9 @@ begin
        or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_item) <> 100000 - (v->>'burned')::bigint
        or (select count(*) from public.player_ledger where user_id = v_u and kind = 'shop' and intent like 'flame\_burn:%') <> 1 then
       raise exception 'VERIFY(b): a burn to the room answered % (height %, room %)', v, (select height_mpts from public.company_flame where user_id = v_u), v_room; end if;
+    -- rule 11 (CLAUDE.md §6): the answer carries the envelope as the burn LEFT it (the flame row is written after hr_apply's projection)
+    if (v->'envelope'->'flame'->>'height')::bigint is distinct from (select height_mpts from public.company_flame where user_id = v_u) then
+      raise exception 'VERIFY(b): the burn''s envelope reads height % (the row %)', v->'envelope'->'flame'->'height', (select height_mpts from public.company_flame where user_id = v_u); end if;
     v := public.hr_flame_burn(v_item, 100000, 0, '000000c0-0000-4000-a000-0000000f1a11');
     if (select count(*) from public.player_ledger where user_id = v_u and intent like 'flame\_burn:%') <> 1 then
       raise exception 'VERIFY(b): a replayed burn moved again: %', v; end if;
@@ -624,6 +629,8 @@ begin
     v := public.hr_flame_stoke_set('{"keep": "two_thirds", "buy_per_day": 999999}'::jsonb, 0, '000000c0-0000-4000-a000-0000000f1a14');
     if coalesce(v->>'ok', '') <> 'true' or ((select stoke from public.company_flame where user_id = v_u)->>'buy_per_day')::int <> (select stoke_buy_max from public.hr_flame_rules) then
       raise exception 'VERIFY(b): the stoke rule was not clamped: %', v; end if;
+    if (v->'envelope'->'flame'->'stoke'->>'buy_per_day')::int is distinct from (select stoke_buy_max from public.hr_flame_rules) then
+      raise exception 'VERIFY(b): the stoke answered no envelope holding the clamped rule (rule 11): %', v->'envelope'->'flame'; end if;
 
     -- (c) Temper, lit
     select e.item_id, l.item_level into v_hi, v_il from public.player_equipment e join public.hr_item_levels l on l.item_id = e.item_id
@@ -656,6 +663,8 @@ begin
        or (select rank from public.hero_temper where user_id = v_u and slot = 0 and equip_slot = 'weapon') <> 1
        or (public.hr_perks_of(v_u, 0)->'temperSteps'->>'weapon')::int is distinct from 1 then
       raise exception 'VERIFY(c): rank 1 answered % (perks %)', v, public.hr_perks_of(v_u, 0)->'temperSteps'; end if;
+    if (v->'envelope'->'temper_steps'->'weapon'->>'rank')::int is distinct from 1 then
+      raise exception 'VERIFY(c): rank 1''s envelope reads %, not the rank it wrote (rule 11)', v->'envelope'->'temper_steps'->'weapon'; end if;
     -- a higher tier unseats; the seat re-seats it at the twin's price
     select l.item_id, l.item_level into v_hi, v_il from public.hr_item_levels l join public.hr_item_slots i on i.item_id = l.item_id and i.equip_slot = 'weapon'
      where l.item_level / 20 > (select seated_tier from public.hero_temper where user_id = v_u and slot = 0 and equip_slot = 'weapon')
@@ -668,6 +677,8 @@ begin
     if coalesce(v->>'ok', '') <> 'true' or (select gold from public.account_wallet where user_id = v_u) <> v_gold - v_p
        or (public.hr_perks_of(v_u, 0)->'temperSteps'->>'weapon')::int is distinct from 1 then
       raise exception 'VERIFY(c): the re-seat answered %', v; end if;
+    if (v->'envelope'->'temper_steps'->'weapon'->>'seated')::boolean is distinct from true then
+      raise exception 'VERIFY(c): the re-seat''s envelope reads %, not the seat it wrote (rule 11)', v->'envelope'->'temper_steps'->'weapon'; end if;
     v := public.hr_temper_seat(0, 'weapon', v_p, '000000c0-0000-4000-a000-0000000f1a25');
     if v->>'error' is distinct from 'already_seated' then raise exception 'VERIFY(c): a second seat answered %', v; end if;
 
@@ -686,6 +697,8 @@ begin
        or coalesce((select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_item), 0) <> 0
        or (select ms_left from public.hero_worn_imbue where user_id = v_u and slot = 0 and equip_slot = 'weapon') <> public.hr_imbue_life_ms('plain') then
       raise exception 'VERIFY(d): the apply answered %', v; end if;
+    if v->'envelope'->'imbues'->'worn'->'weapon'->>'imbue' is distinct from 'brute_edge' then
+      raise exception 'VERIFY(d): the apply''s envelope reads %, not the imbuement it wrote (rule 11)', v->'envelope'->'imbues'->'worn'; end if;
     update public.hunt_sessions set settled_to = settled_to + interval '2 hours' where id = v_s;
     if (select ms_left from public.hero_worn_imbue where user_id = v_u and slot = 0 and equip_slot = 'weapon') <> public.hr_imbue_life_ms('plain') - 7200000 then
       raise exception 'VERIFY(d): two hunted hours did not count the imbuement down'; end if;

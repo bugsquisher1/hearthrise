@@ -326,6 +326,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHmac } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
 import { isMain } from './_is-main.mjs';
 import { setGold } from './_gold.mjs';
@@ -6268,8 +6269,35 @@ async function pinDice(db) {
 const rewindDice = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
 function e2harness(msg) { return /patch anchor matched|produced identical SQL|did not land verbatim/.test(msg); }
 
+/* ONE PROCESS A SLICE OF THE ENGINE MUTANTS (next run 45189052837, db-replay-10). Each engine mutant imports a whole copy of
+   src/core, src/data and the edge (ES modules never unload): 147 copies in one process reached V8's 2 GB heap on GitHub ("Ineffective
+   mark-compacts near heap limit") the moment the engine and the catalogues grew. A child process boots its own replay, scores
+   JS_SLICE mutants and exits, so a heap holds at most one slice's copies; the parent never imports a copy and runs the database and
+   chain mutants (one module graph, the repo's) on its own replay. The verdict of every mutant is the one it had in one process. */
+const JS_SLICE = 30;
+function jsMutantsInChildren(count, pick) {
+  let bad = 0;
+  for (let a = 0; a < count; a += JS_SLICE) {
+    const part = a + ':' + Math.min(count, a + JS_SLICE);
+    const r = spawnSync(process.execPath, [...process.execArgv, fileURLToPath(import.meta.url), '--mutate', '--js-part=' + part,
+      ...(pick ? ['--mutant=' + pick] : []), ...(CLOSED ? ['--closed'] : [])], { encoding: 'utf8', maxBuffer: 1e9 });
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    const said = /js-part \d+:\d+: (\d+) mutant\(s\) survived/.exec(String(r.stdout || ''));
+    if (said && (r.status === 0 || r.status === 1)) { bad += Number(said[1]); continue; }
+    console.error(`✗ HARNESS: the engine mutants ${part} exited ${r.status}${r.signal ? ' (' + r.signal + ')' : ''} without a verdict`);
+    bad += Number(part.split(':')[1]) - a;
+  }
+  return bad;
+}
+
 async function main() {
   const { bootReplay, LAST_PATCHED } = await import('./schema-replay.mjs');
+  const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+  const picked = (list) => list.filter((m) => !pick || m.name.includes(pick));
+  const jsPart = (process.argv.find((a) => a.startsWith('--js-part=')) || '').slice(10);
+  /* the engine mutants first, each slice in its own process, before this one boots a replay of its own */
+  const jsBad = MUTATE && !jsPart ? jsMutantsInChildren(picked(MUTANTS).length, pick) : 0;
   let db;
   try { ({ db } = await bootReplay(CLOSED ? { keepClosed: true } : undefined)); } catch (e) {
     console.error(`✗ the chain would not replay: ${String(e.message).slice(0, 600)}`);
@@ -6277,10 +6305,9 @@ async function main() {
   }
   await pinDice(db);
   if (MUTATE) {
-    let bad = 0;
-    const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
-    const picked = (list) => list.filter((m) => !pick || m.name.includes(pick));
-    for (const m of picked(MUTANTS)) {
+    let bad = jsBad;
+    const [ja, jb] = jsPart ? jsPart.split(':').map(Number) : [0, 0];
+    for (const m of picked(MUTANTS).slice(ja, jb)) {
       const dir = mkdtempSync(join(tmpdir(), 'hr-s1-'));
       const offDef = m.dbOff ? String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.dbOff.fn])).split(String.fromCharCode(13)).join('') : null;
       try {
@@ -6299,6 +6326,7 @@ async function main() {
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { if (offDef) await db.exec(offDef); rmSync(dir, { recursive: true, force: true }); }
     }
+    if (jsPart) { console.log(`hunt-sessions-settle --mutate js-part ${jsPart}: ${bad} mutant(s) survived`); process.exit(bad ? 1 : 0); }
     for (const m of picked(DB_MUTANTS)) {
       const def = String(await one(db, `select pg_get_functiondef($1::regprocedure)`, [m.fn])).split(String.fromCharCode(13)).join('');
       if (def.split(m.find).length !== 2) { console.error(`✗ db mutant "${m.name}": anchor not found exactly once`); bad++; continue; }

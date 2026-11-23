@@ -106,7 +106,10 @@ begin
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '309c695dc4dfc41d7cf0effe5f9b1dd1', 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
-    if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
+    -- A RETRY AFTER 1062-store-step.sql finds hr_hunt_apply_member at 1062's image (restated whole with this file's DANGER-SCALE lines
+    -- in it, its store priced at the buyer's step): the splices below find their marker and move nothing.
+    if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = '209f8462d94db3fc386a12980342f2e8') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

@@ -53,7 +53,7 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 | Typed edges (one writes what another reads) | 342 |
 | Edges the formula register declares | 197 |
 | Calls between formula homes, read from the code | 44 |
-| Levers joined, and knobs | 195, 35 |
+| Levers joined, and knobs | 196, 35 |
 | Targets joined, and how many reach a measured outcome | 100, 37 |
 <!-- /graph:counts -->
 
@@ -215,7 +215,7 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 <!-- graph:source -->
 Measured data: sensitivity-matrix, GitHub run 44969087150,44971044252,44972398698,44976040886, tree 0,1,2,3, 68 cells, 0+4 seeds. Rule: the sensitivity lane's own rule: an effect is resolved beyond Student's t times its standard error over the seeds, and beyond half a percent.
 
-Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 164 of 195.
+Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 165 of 196.
 <!-- /graph:source -->
 
 **How a direction is predicted.** A quantity's depth is the fewest mechanics between the lever and it. Its predicted direction is the direction of its shortest paths. If two shortest paths disagree the answer is "mixed" and the graph does not call it. A longer path that disagrees is kept and printed as the counter-path. This is a reading of a graph. It knows directions, never sizes.

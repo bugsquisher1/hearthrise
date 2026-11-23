@@ -34,6 +34,9 @@
 // crafted partner is made at), over what one reference hour burns of that line, never under the crafted partner's book (B1) and never
 // under a whole gold. The old hand-typed ladder (Salted Shark 693, Graven runes 44) sat at about twice what a Steady hour on the
 // Danger scale paid (lane W: a Level 60 four burned 9,804 gold of store kit an hour against 4,797 of pay).
+// `price` is a row's LIST price (its own step): the crafted partner's price list below reads it. A USE is priced at the BUYER's store
+// step (lane/econ-followups, 2026-11-22; store-kit.js header): STORE_TERMS carries each row's step-free terms to the server
+// (tools/gen-store-prices.mjs), which charges storeUsePrice(id, the hero's depth on the Danger scale, else its Level).
 //
 // The server catalogue (lane C) is generated from BASIC_SUPPLIES; the client
 // shows `price` on the slot. tests/supplies-catalogue.mjs proves every rule
@@ -47,7 +50,7 @@ import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName, isRune, runeTierOf, versio
 import { ITEMS } from './items.js';
 import { ARTISAN_RECIPES } from './recipes.js';
 import { DRINK_ITEMS, DRINK_RECIPES } from './drinks.js';
-import { storePrice } from './store-kit.js';
+import { storePrice, storeTerms, storePriceOf } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 import { JEWEL_SHOP_PRICE } from './jewelry.js';
 
@@ -66,19 +69,23 @@ export const BASIC_AMMO_PREMIUM = 0.5;
    press, an arrow's Ranged need, a rune's tier), its own heal or mana and its book. */
 const COOK_STEP = Object.freeze(Object.fromEntries(Object.values(ARTISAN_RECIPES.cooking || {}).map((r) => [r.output, r.req])));
 const DRINK_STEP = Object.freeze(Object.fromEntries(DRINK_RECIPES.map((r) => [r.output, r.req])));
-const restorePrice = (partner, amount, key) => {
+/* A row's storePrice input: `step` the Level its crafted partner is made at (the list price's step) and the step-free rest (store-kit.js
+   storeTerms). A row's `price` is its LIST price, at its own step; a USE is priced at the buyer's store step (STORE_TERMS below). */
+const restoreInput = (partner, amount, key) => {
   const p = ITEMS[partner] || DRINK_ITEMS[partner];
   const step = key === 'heals' ? COOK_STEP[partner] : DRINK_STEP[partner];
   if (!p || !Number.isInteger(step)) throw new Error('supply-basics: ' + partner + ' has no made-at Level to price its store row');
-  return storePrice({ line: 'meal', step, amount, partnerAmount: Number(p[key]), book: Number(p.v) || 0 });
+  return { line: 'meal', step, amount, partnerAmount: Number(p[key]), book: Number(p.v) || 0 };
 };
-const chargePrice = (partner) => {
+const chargeInput = (partner) => {
   const p = ITEMS[partner];
   if (!p) throw new Error('supply-basics: ' + partner + ' is no item to price its store row');
   const rune = isRune(p);
   const step = rune ? versionLevel(runeTierOf(p)) : Number(p.reqLv) || 1;
-  return storePrice({ line: 'charge', step, book: Number(p.v) || 0, rune, ammoPremium: BASIC_AMMO_PREMIUM });
+  return { line: 'charge', step, book: Number(p.v) || 0, rune, ammoPremium: BASIC_AMMO_PREMIUM };
 };
+const restorePrice = (partner, amount, key) => storePrice(restoreInput(partner, amount, key));
+const chargePrice = (partner) => storePrice(chargeInput(partner));
 const heal = (id, n, partner, heals) => Object.freeze({ id, kind: 'heal', n, partner, heals, price: restorePrice(partner, heals, 'heals') });
 const mana = (id, n, partner, restores) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price: restorePrice(partner, restores, 'mana') });
 const shot = (id, n, partner) => Object.freeze({ id, kind: 'ammo', n, partner, price: chargePrice(partner) });
@@ -128,6 +135,22 @@ export const BASIC_SUPPLIES = Object.freeze([
 /** Null-prototype index by id. */
 export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc[b.id] = b; return acc; },
   Object.create(null)));
+
+/* THE STORE'S PRICE TERMS, id -> { step (the row's own made-at Level: its list price's), terms (store-kit.js storeTerms) }: what the
+   server's catalogue carries (tools/gen-store-prices.mjs -> hr_store_terms), so a use is priced at the BUYER's store step from the same
+   rule that sets the row's list price (lane/econ-followups, 2026-11-22; store-kit.js header). */
+const inputOf = (b) => (b.kind === 'ammo' ? chargeInput(b.partner) : restoreInput(b.partner, b.kind === 'heal' ? b.heals : b.mana, b.kind === 'heal' ? 'heals' : 'mana'));
+export const STORE_TERMS = Object.freeze(Object.assign(Object.create(null), Object.fromEntries(BASIC_SUPPLIES.map((b) => {
+  const input = inputOf(b);
+  return [b.id, Object.freeze({ step: input.step, terms: storeTerms(input) })];
+}))));
+
+/** ONE USE of store row `id` at the buyer's store step, whole gold (the server's hr_store_price; null for no such row). The client never
+    calls it to show a price: it renders the server's (hunt_settings.store); tests and the Lab read it. */
+export function storeUsePrice(id, step) {
+  const t = Object.prototype.hasOwnProperty.call(STORE_TERMS, id) ? STORE_TERMS[id] : null;
+  return t ? storePriceOf(t.terms, step) : null;
+}
 
 /* EVERY SUPPLY A HUNT SPENDS HAS A STORE FALLBACK (Tyler 2026-10-23: food, drink, a spell's rune when its slot
    names it, arrows: bought with gold per use once the carried stock runs out; out of gold for a basic supply

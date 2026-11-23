@@ -202,6 +202,12 @@
         "gzipBytes": 920727,
         "on": "2026-11-23",
         "why": "band floor: re-cut bands and Trait re-homes read at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920927,
+        "on": "2026-11-23",
+        "why": "econ follow-ups: store prices at the buyer's step shown in the shop"
       }
     ]
   }

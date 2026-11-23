@@ -313,6 +313,11 @@
         "bytes": 3404831,
         "on": "2026-11-23",
         "why": "band floor: BAND_RULE and the re-cut bands in danger.js, traitRoll in gear-steps.js"
+      },
+      {
+        "bytes": 3409599,
+        "on": "2026-11-23",
+        "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
       }
     ]
   }

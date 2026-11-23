@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "cfea9a80e0e8148c",
+ "authored": "e625a74aeea2668f",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 200,
+  "levers": 201,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -78,7 +78,7 @@
    "regen": 4,
    "monster-stats": 27,
    "spawn": 11,
-   "monster-rewards": 15,
+   "monster-rewards": 16,
    "rare-drops": 8,
    "equipment": 18,
    "imbuements": 2,
@@ -87,7 +87,7 @@
    "party": 7
   },
   "byClass": {
-   "global": 96,
+   "global": 97,
    "archetype": 29,
    "content": 47,
    "exception-intentional": 17,
@@ -100,27 +100,27 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 22,
+   "not-playable:not-in-runs": 23,
    "variant": 5,
    "not-playable:not-built": 18,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 89,
+   "asserted": 90,
    "mentioned only": 91,
    "none": 20
   },
   "flags": {
    "redundant": 40,
    "ineffective": 35,
-   "contradictory": 41
+   "contradictory": 40
   }
  },
  "census": {
-  "bindings": 691,
-  "typed": 15849,
+  "bindings": 692,
+  "typed": 15853,
   "files": 239,
-  "lever": 297,
+  "lever": 298,
   "notLever": 394,
   "unclaimed": 0
  },
@@ -6681,16 +6681,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6760,16 +6760,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6836,16 +6836,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6905,16 +6905,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6933,7 +6933,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 190,
+     "line": 212,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7002,19 +7002,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 197,
+     "line": 219,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 198,
+     "line": 220,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 199,
+     "line": 221,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7078,7 +7078,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 210,
+     "line": 232,
      "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
      "binding": "HOLDER"
     }
@@ -7189,12 +7189,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7256,12 +7256,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7280,12 +7280,12 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 159,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground's band into DEPTHS for the player's \"Depth N of 20\"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)",
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) cut the ground's band into DEPTHS for the player's \"Depth N of 20\"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)",
    "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
    "touches": "the absolute pay on that ground (each step off it is payStepXp)",
    "outcomes": [
@@ -7314,16 +7314,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/needs-you.mjs"
+     "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7346,6 +7346,61 @@
     }
    ],
    "evidence": "MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)"
+  },
+  {
+   "id": "danger.band-rule",
+   "category": "monster-rewards",
+   "name": "How every ground's band is cut from its three Lab cells",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 188,
+     "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
+     "binding": "BAND_RULE"
+    }
+   ],
+   "definition": "tools/new-ground.mjs cuts a ground's band by it (tools/lib/danger-band.mjs bandFromReports): the floor (depth 1) is the fresh LOW four's lowest seed less floorUnder, down to floorTo; refStep the MID four to refTo; topStep the BIS four to topTo, held to refStep + PAY.gapMax",
+   "range": "whole steps. floorUnder 0 to one fall back (CLIMB.fallSteps): 0 opens a first hunt on its edge, a fall back under it the climb takes a pull or two to find",
+   "touches": "where depth 1 and depth 20 sit on every ground, so the depth a player reads, the Trait rank and Rare odds by depth, and the top where pay stops climbing",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "P02"
+   ],
+   "reach": {
+    "feeds": 3,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/new-ground.mjs",
+      "what": "NG-1 and NG-3: every pinned band cuts back from its evidence, the floor under every fresh four",
+      "reads": [
+       "BAND_RULE"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/new-ground.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "a cut, not a play: tools/new-ground.mjs re-measures every ground with it",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/band-floor 2026-11-22, tools/new-ground.mjs --write, 8 seeds x 12 h, tools/balance-program/redesign/grounds): Muster Barrows' fresh four held 333 to 424 against R10's floor 480; the rule cuts 320"
   },
   {
    "id": "danger.pay-floor",
@@ -7402,12 +7457,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9311,7 +9366,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9409,7 +9464,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9732,25 +9787,25 @@
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 79,
+     "line": 86,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 80,
+     "line": 87,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 81,
+     "line": 88,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 82,
+     "line": 89,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -9963,8 +10018,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 159,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -10010,16 +10065,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/needs-you.mjs"
+     "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10038,8 +10093,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 159,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -10086,16 +10141,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/needs-you.mjs"
+     "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10474,7 +10529,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 99,
+     "line": 106,
      "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
      "binding": "CARRY"
     }
@@ -10660,13 +10715,13 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 99,
+     "line": 106,
      "text": "export const BASIC_SUPPLIES = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     },
     {
      "file": "src/data/supply-basics.js",
-     "line": 220,
+     "line": 243,
      "text": "export const SUPPLY_SHOP_OFFERS = Object.freeze([",
      "binding": "SUPPLY_SHOP_OFFERS"
     }
@@ -10711,7 +10766,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10782,7 +10837,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 56,
+     "line": 59,
      "text": "export const BASIC_EFFECT_SHARE = 0.75;",
      "binding": "BASIC_EFFECT_SHARE"
     }
@@ -10843,7 +10898,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 92,
+     "line": 99,
      "text": "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -11085,7 +11140,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12043,12 +12098,13 @@
     ],
     "mentions": [
      "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12166,12 +12222,13 @@
     ],
     "mentions": [
      "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12190,42 +12247,42 @@
    "sites": [
     {
      "file": "src/data/store-kit.js",
-     "line": 42,
+     "line": 52,
      "text": "kitWork: 0.8,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 44,
+     "line": 54,
      "text": "townWageShare: 0.25,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 46,
+     "line": 56,
      "text": "storeCeiling: 1.5,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 48,
+     "line": 58,
      "text": "lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 50,
+     "line": 60,
      "text": "refRestore: 12660,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 51,
+     "line": 61,
      "text": "refCharges: 1390,",
      "binding": "STORE_KIT"
     }
    ],
-   "definition": "every store row's gold a use is storePrice: storeShare (kitWork x townWageShare x storeCeiling = 0.3) x its line's share (meal or charge, 0.35) x wage(the step its crafted partner is made at) x the use's share of what one reference hour burns of that line (refRestore HP and mana, refCharges shots and casts, the Steady four's mean at Level 60); never under the crafted partner's floor (a meal: its book a point / the buy-back, a charge: BASIC_AMMO_PREMIUM x its book, a rune 2 with a book) nor a whole gold",
+   "definition": "every store row's gold a use is storePrice: storeShare (kitWork x townWageShare x storeCeiling = 0.3) x its line's share (meal or charge, 0.35) x wage(the buyer's store step: the hunt's depth on the Danger scale in the wage's unit, else the hero's Level; the row's own made-at step prices only its list price) x the use's share of what one reference hour burns of that line (refRestore HP and mana, refCharges shots and casts, the Steady four's mean at Level 60); never under the crafted partner's floor (a meal: its book a point / the buy-back, a charge: BASIC_AMMO_PREMIUM x its book, a rune 2 with a book) nor a whole gold",
    "range": "09-crafting.md 4.7: kitWork 0.5 to 1.2, townWageShare 0.15 to 0.35, storeCeiling 1.25 to 2.0; line shares 09 4.3. The reference rates are MEASURED (re-measure when the bar or the engine moves them). Target: a store-fed Steady four's kit takes 0.2 to 0.3 of its gross (04 section 11, 09 2.5)",
    "touches": "every store price (the supply bill on every ground) and through the price list every crafted supply's shop bid",
    "outcomes": [
@@ -12286,13 +12343,7 @@
     ],
     "existingPatches": []
    },
-   "flags": [
-    {
-     "kind": "contradictory",
-     "why": "Priced once at the row's own step, not at the buyer's (04 section 3, 09 4.6): a hero far past a row's step pays that row's price; the server change is handed off",
-     "ev": "src/data/store-kit.js header; JUDGMENT"
-    }
-   ],
+   "flags": [],
    "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): the Steady four's kit 0.26 of its gross (4,168 of 16,276), Careful 0.22, Bold 0.28; was 2.04 (9,804 of 4,797) before"
   },
   {
@@ -12302,7 +12353,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 63,
+     "line": 66,
      "text": "export const BASIC_AMMO_PREMIUM = 0.5;",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -16271,6 +16322,17 @@
     "refKillsHead"
    ],
    "typed": 5,
+   "bindings": 1
+  },
+  "src/data/danger.js#BAND_RULE": {
+   "pin": "count",
+   "keys": [
+    "floorTo",
+    "floorUnder",
+    "refTo",
+    "topTo"
+   ],
+   "typed": 4,
    "bindings": 1
   },
   "src/data/danger.js#POWER": {

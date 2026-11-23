@@ -310,9 +310,19 @@
         "why": "lane/moves-pass-1: the holder's line (danger.js marginPm, holderTank), Precision Shot's preferred roles and the Mark's own target (abilities.js targetFor), their data rows and measured notes"
       },
       {
-        "bytes": 3410091,
+        "bytes": 3404831,
         "on": "2026-11-23",
-        "why": "lane/flame-temper-build: the engine's gear part reads Temper on steps (src/core/temper-steps.js, src/data/temper.js TEMPER_STEPS), carry-over's levers beside the gear table (src/data/gear-steps.js CARRY, re-exported by src/data/danger.js), and personal loot's pity levers in src/data/party.js; about 9.7 KB, all read or re-exported by modules the edge already bundles"
+        "why": "band floor: BAND_RULE and the re-cut bands in danger.js, traitRoll in gear-steps.js"
+      },
+      {
+        "bytes": 3409599,
+        "on": "2026-11-23",
+        "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
+      },
+      {
+        "bytes": 3418745,
+        "on": "2026-11-23",
+        "why": "lane/flame-temper-build: the engine's gear part reads Temper on steps (src/core/temper-steps.js, src/data/temper.js TEMPER_STEPS), carry-over's levers beside the gear table (src/data/gear-steps.js CARRY, re-exported by src/data/danger.js), and personal loot's pity levers in src/data/party.js; about 9.1 KB, all read or re-exported by modules the edge already bundles"
       }
     ]
   }

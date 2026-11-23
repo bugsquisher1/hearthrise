@@ -33,21 +33,21 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
 | Monster HP, damage, armor, resistances and behavior | 27 | 9 | 6 | 4 | 8 | 7 | 9 | 13 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
-| Monster XP and loot values | 15 | 6 | 1 | 2 | 6 | 3 | 4 | 7 |
+| Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
 | Equipment stats and progression | 18 | 6 | 4 | 8 | 0 | 0 | 9 | 12 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 36 | 22 | 3 | 10 | 1 | 0 | 31 | 23 |
-| **All** | **200** | 96 | 29 | 47 | 28 | 31 | 87 | 89 |
+| **All** | **201** | 97 | 29 | 47 | 28 | 31 | 88 | 90 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 691 (in 239 files, 15849 typed numbers) |
-| Claimed by a lever | 297 |
+| Top-level bindings in the rule code that hold a typed number | 692 (in 239 files, 15853 typed numbers) |
+| Claimed by a lever | 298 |
 | Claimed by a not-a-lever reason | 394 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
@@ -202,7 +202,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `party.class-xp` Party XP by size and classes | Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build. The class table is live (patches/party-xp-by-size.json plays the ruling) | rulings-of-record S-10 |
 | contradictory | `party.run-xp` Run ground party table | Its pair and three rows are ASSUMED | 44 P-X09, CONFIRMED |
 | contradictory | `party.under-floor` Under-floor Level share | A Level-keyed cut on party XP is live. Tyler's 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT | 44 P-X06, CONFIRMED |
-| contradictory | `econ.store-kit` The store's basics, priced in hours of wage | Priced once at the row's own step, not at the buyer's (04 section 3, 09 4.6): a hero far past a row's step pays that row's price. The server change is handed off | src/data/store-kit.js header. JUDGMENT |
 | contradictory | `econ.blessing-price` Blessing prices | Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms | 44 P-X20, CONFIRMED |
 | contradictory | `econ.training` Training yard pay and fee | The fee in code (50 + 6 a level) is not the fee Tyler ruled (100 gold x skill level an hour, 2026-11-20 24-8) | 44 P-X30, CONFIRMED |
 | contradictory | `econ.companions` Companions | Added after the +20% permanent cap, on its own curve | 44 P-X27, HYPOTHESIS |
@@ -267,6 +266,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
 | not-built | `temper.steps` Temper on steps: ranks by Level, price in hours of wage, the re-seat | Equipment stats and progression | the switch temper_steps is off and the Temper Kit is not an item. T1 measured with tools/balance-program/candidates/temper-5.json |
+| not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |

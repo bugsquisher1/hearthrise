@@ -12,7 +12,8 @@
 //                                DROP_HOURS.chDigits (a certainty, ch 1, stays 1)
 //   depthOf(groundId, step)      the ground's "Depth N of 20" for a step (12-targets 3.1; src/core/bands.js depthAt, the one home the
 //                                browser's danger-sections.js depthOf reads too: the band cut evenly in absolute steps)
-//   depthRarePm(groundId, step)  the Rare odds at that depth over the odds at the reference's own depth, permille (x1 at depth 1 to x3 at 20)
+//   depthRarePm(groundId, step)  the Rare odds at that depth over the odds at the reference company's own depth (where it holds,
+//                                src/core/bands.js refHeldOf), permille (x1 at depth 1 to x3 at 20)
 //   traitSlotsDropped(ground)    the Trait slots (gear-steps.js traitSlots) the ground's drop rows carry a piece of: a Rare's slot comes
 //                                first (GEAR_STEPS.traitRoll.slotFirst), so only these can roll a Trait there
 //
@@ -27,7 +28,7 @@ import { MONSTERS } from '../data/monsters.js';
 import { ITEMS } from '../data/items.js';
 import { pullRows } from '../data/hunt-grounds.js';
 import { dangerDial, refKillsOf } from './hunt/danger.js';
-import { depthAt } from './bands.js';
+import { depthAt, refHeldOf } from './bands.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const rowOf = (groundId) => (own(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null);
@@ -80,11 +81,12 @@ const depthPmAt = (d) => {
   return a + ((b - a) * (d - 1)) / (DEPTHS - 1);
 };
 
-/** The Rare odds at `step` over the odds at the ground's reference step, permille (the authored hours are the reference's). */
+/** The Rare odds at `step` over the odds at the reference company's own depth, permille (the authored hours are the reference company's,
+    so it reads x1 where it holds: src/core/bands.js refHeldOf, the step the reference four holds, not the pay's anchor refStep). */
 export function depthRarePm(groundId, step) {
   const row = rowOf(groundId);
   if (!row) return 1000;
-  const d = depthOf(groundId, step), ref = depthOf(groundId, row.refStep);
+  const d = depthOf(groundId, step), ref = depthOf(groundId, refHeldOf(groundId));
   if (d === ref) return 1000;
   return (1000 * depthPmAt(d)) / depthPmAt(ref);
 }

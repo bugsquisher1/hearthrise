@@ -91,3 +91,4 @@ These older files lead with STAGED and ask for a Security review. Most are almos
 - Section 3.7's other gates: the full mutation sweep green with no waivers, census re-pins after every apply, the combat replay for any engine deploy.
 
 - **1060-watched-stamp** (2026-11-22): new `hunt_watch` table (RLS on, no policies) and `hr_hunt_watch_note`, callable only by `hr_engine` (refuses client roles in its body); the `watched` section feeds the away card. Review: no client path writes it; the engine grant is the only writer.
+- **1063 hr_flame_stoke_set idempotency** (2026-11-23, found by lane/ci-reds-db-1123): it takes `p_idem` but never replays it, so a late retry can overwrite a newer stoke rule. Review: replay on a seen `p_idem` (return the stored answer), or refuse an older write.

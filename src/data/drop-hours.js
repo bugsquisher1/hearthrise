@@ -24,8 +24,9 @@
 // `band` is each rung's [min, max]: the Lab tunes inside it, a value outside is red (tests/drop-formula.mjs DF-3).
 //
 // DEPTH RAISES THE RARE ODDS (12-targets 3.3): x1 at depth 1 to x3 at depth 20 (DEPTHS), straight in permille, Rare and Very Rare only.
-// The authored hours are the REFERENCE STEP's, so the multiplier is read against the reference's own depth: a company at refStep finds a
-// Rare every 40 h; at depth 1 about half as often, at depth 20 about 1.5x as often (Muster: 78 h / 40 h / 26 h).
+// The authored hours are the REFERENCE COMPANY's, so the multiplier is read against its own depth, where it holds (src/core/bands.js
+// refHeldOf; on a formula ground refStep is the pay's anchor and the company holds over it): the reference company finds a Rare every
+// 40 h; at depth 1 about half as often, at depth 20 about 1.5x as often (Muster, its reference at depth 10: 78 h / 40 h / 26 h).
 // THE TOP RANK (21 D-4): depth opens ranks (gear-steps.js rankDepths), the flame's luck lifts how often the top open rank lands:
 //   topRankPm x (1 + luck), at most topRankMaxPm, else one rank below
 // THE TRAIT CELL (24 G8; the designer's GEAR_STEPS.traitRoll, lane/band-floor): the roller rolls the SLOT first, among the Trait slots the

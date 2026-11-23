@@ -2129,7 +2129,7 @@
   },
   "hr_talent_options": {
    "class": "seeded",
-   "replay": 181,
+   "replay": 182,
    "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): every pickable option and the move a border or the crossing lends, with its opening Level. Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
   },
   "hr_talent_rules": {

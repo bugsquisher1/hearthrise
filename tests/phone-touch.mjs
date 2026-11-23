@@ -1920,7 +1920,8 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const tag = tagOf(SMALLEST);
       const o = await open(SMALLEST, ALPHA, (env) => reading(env, 'to_the_cellar', 0));
       if (o.up) { await coachSheet(o.page, tag, fails); await shot(o.page, 'coach-in-hunts-' + tag); await done(o, tag); } else fails.push('PH-18 [' + tag + '] the town did not mount');
-      const c = await open(SMALLEST, ALPHA, (env) => { reading(env, 'bless', charXpForLevel(5)); longBag(env);
+      /* the Blessing card comes only where a hero can die (RD-Q3 a, lane/first-hour-rewrite): this hero's plan is Bold */
+      const c = await open(SMALLEST, ALPHA, (env) => { reading(env, 'bless', charXpForLevel(5)); longBag(env); env.danger = { risk: 'bold', held: {}, playing: null };
         env.blessings = { tiers: [1, 2, 3].map((tier) => ({ tier, permille: 320, price: 0, held: false })), permille: 0, free_until: 30 }; });
       if (c.up) { await gotItRests(c.page, tag, fails); await done(c, tag); } else fails.push('PH-18 [' + tag + '] the town did not mount');
       /* The one card that still lies over a running hunt's Hunts: "Into the sewer, together", a hero in a party on the Thicket at the Sewer's Level. */

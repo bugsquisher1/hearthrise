@@ -274,6 +274,24 @@
         "gzipBytes": 955922,
         "on": "2026-11-23",
         "why": "two town modules for named events: render/source-names.js and text/fight.js (lane/client-talent-floaters)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 956019,
+        "on": "2026-11-23",
+        "why": "eleven refusal lines for Talents and faction pieces (lane/ci-reds-db-1123)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 956021,
+        "on": "2026-11-23",
+        "why": "re-measured talent borrow values (lane/roads-v0-remeasure)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 957515,
+        "on": "2026-11-23",
+        "why": "first-hour rewrite: new coach cards (talent_point, depth, fell_back, risk_pick) and tutorial sections feeding them (lane/first-hour-rewrite)"
       }
     ]
   }

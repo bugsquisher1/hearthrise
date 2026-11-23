@@ -43,6 +43,9 @@ import { DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { towerOf } from './tower-sections.js';
 import { recruitsOf } from './recruit-sections.js';
 import { SKILLS_DEF } from '../data/skills.js';
+import { talentsOf } from './talent-sections.js';
+import { dangerOf, depthOf } from './danger-sections.js';
+import { huntReportOf } from './report-sections.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -108,6 +111,25 @@ function towerFact(cs) {
 function recruitFact(cs) {
   const o = recruitsOf(cs);
   return o ? { ready: o.ready, count: o.slots.length, level: o.level } : null;
+}
+
+/* The Roads as the coach reads them: { points, left }, or null while the server sends no `talents` section (the switch off). */
+function talentFacts(cs) {
+  const tl = talentsOf(cs, null);
+  return tl ? { points: tl.points, left: tl.left } : null;
+}
+
+/* The open hunt's depth ({ depth, of }) when the `danger` section says it plays the scale, else null. */
+function depthFact(cs, open) {
+  const d = dangerOf(cs);
+  const p = d && d.playing;
+  return p && open && p.hunt === open.huntId ? depthOf(p.hunt, p.step) : null;
+}
+
+/* The newest hunt's fall backs a hero lived through (`falls` rows whose HP is over 0), or null when the server sent no report. */
+function fallsOf(cs) {
+  const r = huntReportOf(cs);
+  return r ? r.falls.filter((x) => x.pm > 0).length : null;
 }
 
 /* The house's next tier to buy, the server's prices: { owned, next: { name, gold, items } | null }, or null. */
@@ -208,6 +230,14 @@ export function tutorialFactsOf(cs, sh) {
     /* THE RECRUIT PRESS (1053-recruits.sql, Tyler RD-Q6 a): the server's offer ({ ready, count, level }), or null when there is none */
     recruits: recruitFact(cs),
     inParty: !!party && party.seats.length >= 2,
+    /* the names on this hero's party seats, the server's ([] in no party): who of the account is still outside it */
+    partyNames: party ? party.seats.map((s) => s.name).filter(Boolean) : [],
+    /* THE REDESIGN'S FIRST HOUR (lane/first-hour-rewrite): the Roads' points (null while the switch is off), the Danger scale's section
+       (null while the server sends none), the running hunt's depth as the HUD says it, and the newest hunt's fall backs a hero lived through */
+    talents: talentFacts(cs),
+    danger: dangerOf(cs),
+    depth: depthFact(cs, open),
+    falls: fallsOf(cs),
     partied: !!bests && Object.values(bests.grounds).some((g) => !!g.party),
     ...shellFacts(sh),
   };

@@ -93,20 +93,22 @@ export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGE
    the Lab has not sized (lane/roads-borrow-values). A move past the last band is measured and never offered (borrowBand null): the town's
    pick is refused `not_offered` (src/core/talents.js spendProblem, hr_talent_spend_problem). Greater Mend is past it until V4, the heal
    rule (19 bottom line (3)). */
+/* ONE METHOD FOR EVERY ROW (lane/roads-v0-remeasure, 18-roads-review-measured.md section 7): each move at full power in a four that lacks
+   it, lent by the engine's own borrow (heroSetup `borrowed`: its native weapon's blow), Muster Barrows L60 Steady, held start, 8 seeds x
+   8 h, paired against its base (tools/balance-program/redesign/roads/v0.mjs); where the engine lacks 17's rule the move is measured with
+   it (roads-lend-rules.json: a borrowed shot's own arrows, a borrowed ally heal or ward's native 7 tiles, a taunt from any seat; an unlock
+   in the move's own skill held at the unlock). Offense moves by their pace, defense by held steps. V0 = max(0, held, pace) */
 export const BORROW_VALUES = Object.freeze({
   challenge: 0,
-  hunters_mark: 2,
-  frost_lance: 4,
-  fireball: 8,
-  shelter: 8.5,
-  hoarfrost: 15.8,
-  protective_ward: 16.1,
-  /* measured again (lane/roads-borrow-values): +97.4 held, a sword in a four with no healer, at 17's 7-tile reach (the engine's 1 tile:
-     +20.2), before the heal rule. Past the last band: not offered until V4 */
+  hunters_mark: 0,
+  frost_lance: 0,
+  fireball: 3.8,
+  shelter: 1.4,
+  hoarfrost: 2.7,
+  protective_ward: 18.4,
+  /* +97.4 held, a sword in a four with no healer, at 17's 7-tile reach (the engine's 1 tile: +20.2), before the heal rule. Past the last
+     band: not offered until V4 */
   greater_mend: 97.4,
-  /* THE TOWNS' MOVES (lane/roads-borrow-values, 18-roads-review-measured.md section 7): each at full power in a four that lacks it, lent by
-     the engine's own borrow (its native weapon's blow), Muster Barrows L60 Steady, 8 seeds x 8 h, paired against its base
-     (tools/balance-program/redesign/roads/v0.mjs). Offense moves by their pace; Circle by held steps; Raking Shot adds nothing measurable */
   power_strike: 4.2,
   flame_strike: 6.3,
   turning_cut: 11,

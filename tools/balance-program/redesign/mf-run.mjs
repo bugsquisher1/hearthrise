@@ -3,7 +3,7 @@
 // tools/balance-program/redesign/mf-run.mjs — THE MONSTER FORMULA'S LAB RUN (lane/monster-formula; 04-math-strategy.md section 6).
 //
 //   node tools/balance-program/redesign/mf-run.mjs [--grounds muster,hasks,wing] [--seeds 6] [--hours 8] [--workers 6] [--only c0|mf]
-//        [--lineups] [--out tools/balance-program/redesign/mf]
+//        [--lineups] [--parties] [--out tools/balance-program/redesign/mf]
 //
 // Plays the formula (the candidates mf-muster / mf-hasks / mf-wing: each ground's switch on, src/core/hunt/monster-formula.js) against
 // today's monsters (C0, the tree) on the same dice, through tools/balance-program/redesign/v1-climb.mjs: the mixed four (hammer, bow,
@@ -34,7 +34,8 @@ const GROUNDS = {
   wing: { ground: 'catacomb_bone_wing', cand: 'mf-wing', floor: 415, low: 165, mid: 175, top: 185 },
 };
 const LINEUPS = ['hammer,axes,bow,mage', 'hammer,bow,mage,healer', 'tank,bow,mage,healer', 'tank,hammer,bow,healer'];
-const pick = (arg('grounds', 'muster,hasks,wing')).split(',');
+const PARTIES = ['hammer', 'hammer,healer'];
+const pick =(arg('grounds', 'muster,hasks,wing')).split(',');
 mkdirSync(OUT, { recursive: true });
 
 function run(label, args) {
@@ -51,8 +52,14 @@ for (const k of pick) {
     if (ONLY && ONLY !== who) continue;
     const cand = who === 'mf' ? ['--candidate', g.cand] : [];
     const base = ['--ground', g.ground, '--start', String(g.floor), ...cand];
-    run(k + '-' + who + '-low', [...base, '--gear', 'low', '--level', String(g.low), '--only', 'base']);
-    run(k + '-' + who + '-mid', [...base, '--gear', 'mid', '--level', String(g.mid), '--level2', String(g.top), '--only', 'base,high']);
+    /* --skip-base: only the --parties / --lineups cells */
+    if (!argv.includes('--skip-base')) {
+      run(k + '-' + who + '-low', [...base, '--gear', 'low', '--level', String(g.low), '--only', 'base']);
+      run(k + '-' + who + '-mid', [...base, '--gear', 'mid', '--level', String(g.mid), '--level2', String(g.top), '--only', 'base,high']);
+    }
+    /* --parties (04 section 8 encounterPerHero; 12-targets C-6, C-7): a lone hammer and a hammer with a healer on Steady at the reference
+       Level, beside the four's base cell: a head's pay alone and in a pair against a head in the four */
+    if (argv.includes('--parties')) for (const s of PARTIES) run(k + '-' + who + '-' + s.replace(/,/g, '-'), [...base, '--level', String(g.mid), '--styles', s, '--risks', 'steady', '--only', 'base']);
     if (argv.includes('--lineups')) for (const s of LINEUPS) run(k + '-' + who + '-' + s.replace(/,/g, '-'), [...base, '--level', String(g.mid), '--styles', s, '--risks', 'steady', '--only', 'base']);
   }
 }

@@ -28,7 +28,7 @@ const line = (c, hours) => {
   const g = c.gold || {}, inc = g.incomePerHeroH && g.incomePerHeroH.mean;
   const days = (c.seedsRead * (c.huntedH || hours)) / 10;
   return { held: c.held.mean, sd: c.held.sd, perDay: days ? c.deaths / days : null, wipes: c.wipes, kills: c.killsPerH, kit: inc ? g.storePerHeroH.mean / inc : null,
-    front: c.takenShare && c.takenShare[0] ? c.takenShare[0].mean : null, pay: c.payX.mean };
+    front: c.takenShare && c.takenShare[0] ? c.takenShare[0].mean : null, pay: c.payX.mean, coin: g.coinPerHeroH ? g.coinPerHeroH.mean : null };
 };
 const groups = {};
 for (const f of files) {
@@ -39,8 +39,8 @@ for (const f of files) {
     (groups[key] || (groups[key] = {}))[who] = line(c, r.hours);
   }
 }
-console.log('cell                                  | C0: held  dth/d  kills  kit   front pay  | MF: held  dth/d  kills  kit   front pay');
+console.log('cell                                  | C0: held  dth/d  kills  kit   front pay   coin | MF: held  dth/d  kills  kit   front pay   coin');
 for (const [k, v] of Object.entries(groups)) {
-  const f = (x) => (x ? String(x.held).padStart(6) + ' ' + r2(x.perDay).padStart(5) + (x.wipes ? 'w' + x.wipes : '  ') + String(x.kills).padStart(5) + '  ' + r2(x.kit).padStart(4) + '  ' + r2(x.front).padStart(4) + '  ' + r2(x.pay).padStart(4) : ''.padEnd(40));
+  const f = (x) => (x ? String(x.held).padStart(6) + ' ' + r2(x.perDay).padStart(5) + (x.wipes ? 'w' + x.wipes : '  ') + String(x.kills).padStart(5) + '  ' + r2(x.kit).padStart(4) + '  ' + r2(x.front).padStart(4) + '  ' + r2(x.pay).padStart(4) + String(x.coin).padStart(7) : ''.padEnd(47));
   console.log(k.padEnd(38) + '| ' + f(v.c0) + ' | ' + f(v.mf));
 }

@@ -81,7 +81,7 @@ export const MONSTER_ROLES = Object.freeze({
     secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
     targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing',
-    secondsToKill: 3.5, pressure: 0.014, windupShare: 0.6, windupSize: 0.08,
+    secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,
     windup: windup({ n: 'Hex', shape: 'group', range: 6, windupMs: 2000 }) }),
   swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor',
     secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),
@@ -90,7 +90,7 @@ export const MONSTER_ROLES = Object.freeze({
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights. On a formula ground its heal is
      the formula's (`mend`) */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire',
-    secondsToKill: 5, pressure: 0.01, windupShare: 0, windupSize: 0,
+    secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
     mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
 });
 

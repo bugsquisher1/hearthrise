@@ -105,7 +105,7 @@ async function playCase(root) {
 const MUTANTS = [
   { name: 'the switch is always on', case: 'off', off: true, edits: [['src/core/hunt/hall-formula.js', 'return !!r && r.hall.formula === true;', 'return !!r;']] },
   { name: 'the switch never reaches the hall row', case: 'derive', edits: [['src/data/boss-halls.js', "...(p.hall.formula === true ? { formula: true } : {})", '...{}']] },
-  { name: 'the door skips the hall table', case: 'door', edits: [['src/core/combat-sim.js', 'monsters: hallTable(groundId, MONSTERS) || groundDropsOn(groundId, MONSTERS)', 'monsters: groundDropsOn(groundId, MONSTERS)']] },
+  { name: 'the door skips the hall table', case: 'door', edits: [['src/core/hunt/play-rows.js', 'monsters: hallTable(groundId, MONSTERS) || groundDropsOn(groundId, MONSTERS)', 'monsters: groundDropsOn(groundId, MONSTERS)']] },
   { name: 'a derived row drops its content', case: 'derive', edits: [['src/core/hunt/hall-formula.js', 'return Object.freeze({ ...row, hp: s.hp,', 'return Object.freeze({ tier: row.tier, hp: s.hp,']] },
   { name: 'the hall reads the ground boss kind', case: 'derive', edits: [['src/core/hunt/hall-formula.js', "role: 'kind:' + kind,", "role: 'kind:ground',"]] },
   { name: 'the formula ignores the room\'s groupFit', case: 'derive', edits: [['src/core/hunt/hall-formula.js', "fit: r.ground.groupFit || 'party',", "fit: 'both',"]] },

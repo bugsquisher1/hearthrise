@@ -360,9 +360,14 @@
         "why": "stage 3 fight pipeline (amount.js) + talents together on the integrated tree"
       },
       {
-        "bytes": 3750694,
+        "bytes": 3693018,
         "on": "2026-11-23",
-        "why": "lane/talent-effects: the engine pieces the Roads, Signatures and Traits share (heal-rules.js, reactions.js, react-queue.js; heals over time, healing received, targeting, reactions, mana returns, a second hit, overkill carry) and the 44 option rows mapped to them"
+        "why": "play-rows.js split out of combat-sim.js (ONE-PATH 600-line rule), on top of stage 3"
+      },
+      {
+        "bytes": 3751325,
+        "on": "2026-11-23",
+        "why": "lane/talent-effects: the engine pieces the Roads, Signatures and Traits share (heal-rules.js, reactions.js, react-queue.js) and the 44 option rows mapped to them"
       }
     ]
   }

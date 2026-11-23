@@ -303,6 +303,11 @@
         "bytes": 3393871,
         "on": "2026-11-23",
         "why": "report.js ledgerWalk JSDoc type for close (typecheck-ratchet TS2339), +84 B"
+      },
+      {
+        "bytes": 3394015,
+        "on": "2026-11-23",
+        "why": "+144 B: the Catacombs' two wing ground rows name their roster ground (rosterGround), so tools/pack.mjs lints them on the whole ground's roles (pack --selftest red since lane/r10-more-grounds)"
       }
     ]
   }

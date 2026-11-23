@@ -1314,8 +1314,8 @@
   },
   "hr_danger_grounds": {
    "class": "seeded",
-   "replay": 1,
-   "note": "Generated catalogue (1055-danger-scale-danger-catalogue.generated.sql, tools/gen-danger.mjs --check holds it to src/data/danger.js DANGER_GROUNDS): the grounds the Danger scale opens on, each with its reference step. Empty, no hunt freezes a stance (every stance plays the tier) and a window on the scale refuses catalogue_missing; rebuilt from repo, never restored."
+   "replay": 2,
+   "note": "Generated catalogue (1055-danger-scale-danger-catalogue.generated.sql, rewritten whole by 1061-danger-grounds-danger-catalogue.generated.sql with Hask's Ford; tools/gen-danger.mjs --check holds it to src/data/danger.js DANGER_GROUNDS): the grounds the Danger scale opens on, each with its reference step. Empty, no hunt freezes a stance (every stance plays the tier) and a window on the scale refuses catalogue_missing; rebuilt from repo, never restored."
   },
   "hr_danger_rules": {
    "class": "seeded",

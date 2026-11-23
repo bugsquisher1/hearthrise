@@ -58,6 +58,7 @@ import { bootReplay, inventory, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { goldOf } from './_gold.mjs';
 import { OUT_NAME as ALPHA_CATALOGUE } from '../tools/gen-alpha-catalogue.mjs';
+import { SUPPLY_SHOP_OFFERS } from '../src/data/supply-basics.js';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
@@ -469,6 +470,10 @@ const READ_PATCH_LAST_INSTANCE = '1056-danger-scale.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
+/* A-DATA's price plant: the shrimp offer's row as the generator writes it, at the DATA's price (lane/econ-levers prices the store from
+   the wage, so a typed price strands the plant on the next re-price), and one gold off it (one up at a 1 g price). */
+const SHRIMP = SUPPLY_SHOP_OFFERS.find((o) => o.item === 'cooked_shrimp');
+const shrimpRow = (price) => `  ('${SHRIMP.offer}', '${SHRIMP.item}', '${SHRIMP.kind}', ${price}),`;
 const MUTANTS = [
   /* hr_apply is edited in place by anchored do-blocks, so this one names its body (`fn`) and has no file: plantLive reads it. */
   { arm: 'A-LOCK', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
@@ -496,7 +501,7 @@ const MUTANTS = [
   /* planted in the generator's CURRENT forward file (the chain's last writer of hr_shop_supply_offers): a plant in an
      older catalogue is rewritten by the newer one and never runs (the 2027-01-13 spell release's file did that to 11-22) */
   { arm: 'A-DATA', file: ALPHA_CATALOGUE, why: 'the SQL catalogue drifts from the edge price',
-    find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
+    find: shrimpRow(SHRIMP.price), repl: shrimpRow(SHRIMP.price > 1 ? SHRIMP.price - 1 : SHRIMP.price + 1) },
   { arm: 'A-DATA', file: '2026-11-25-shop-seeds.sql', why: 'shop_buy sells offers the shop section never serves (the seeds hidden)',
     find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear')), '[]'::jsonb)," },
   /* (A gear row under twice its book value is refused at APPLY, by this catalogue's own §4 and by

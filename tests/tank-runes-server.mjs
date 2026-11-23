@@ -17,14 +17,15 @@
 //   TR-2 ALONE THE TANK CASTS NEITHER (party only): the same tank and bar, alone, browser closed: every window lands and it buys neither rune.
 //   TR-3 ONLY THE TANK ROWS DIFFER: on the chain before the two files every table, constraint and function is read, the two files are applied,
 //        and all of it is read again. What moved is exactly: two abilities (the older rows' `ord` only), the world's shape with one new unit field
-//        (shieldBy, after the old ones in their order) and its journalled move, and two rune spells on skill melee.
+//        (shieldBy, after the old ones in their order; every field at the slot the tank catalogue's own insert states) and its journalled
+//        move, and two rune spells on skill melee.
 //   TR-4 BEFORE AND AFTER: before the two files the tank's two slots are refused (hr_hunt_slot_check); after, accepted.
 //   TR-5 A SECOND APPLY of the two files, in order, self-checks included, moves nothing.
 import { isMain } from './_is-main.mjs';
 import { bootReplay, manifest } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { ABILITIES, suggestedTrigger } from '../src/data/abilities.js';
-import { SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
+import { SHAPE } from '../src/core/hunt/world-state.js';
 import { OUT_NAME as SHAPE_FILE } from '../tools/gen-hunt-sessions.mjs';
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -39,6 +40,10 @@ const sqlOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8
 /* THE SHAPE THE TANK CATALOGUE WROTE (its own insert): the engine's at the time. A later catalogue moves the shape again (1054, the
    Danger scale's fields), so TR-3 holds this history file to its own shape, never to today's engine (world-state.js SHAPE). */
 const CAT_SHAPE = Number((sqlOf(CAT).match(/insert into public\.hr_hunt_world_shape \(id, version, shape, fields\) values \(true, \d+, (\d+),/) || [])[1]);
+/* ...and the unit fields it wrote, each at its slot (the same insert). Since the bar metrics' engine (lastMove, 1058) the engine's
+   world-state.js FIELDS are a later catalogue's; area-spells-server AS-8 holds the chain's newest catalogue to them. */
+const CAT_UNIT = (() => { const m = /\ninsert into public\.hr_hunt_world_shape \(id, version, shape, fields\) values \(true, \d+, \d+, '([^']+)'::jsonb\);/.exec(sqlOf(CAT));
+  try { return m ? JSON.parse(m[1]).unit || null : null; } catch { return null; } })();
 const WARRENS = 'coppercap_warrens';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 5, WINDOW_MS = 90000;
@@ -202,7 +207,9 @@ async function rowsOnly(patch, reorder) {
     const added = now.filter((n) => !was.includes(n));
     if (added.join() !== 'shieldBy' || !same(now.filter((n) => was.includes(n)), was)) problems.push('TR-3 the unit fields gained ' + (added.join() || 'nothing') + ' or lost their order, want shieldBy alone');
     if (!same(a.fields.world, b.fields.world)) problems.push('TR-3 the world fields moved');
-    if (!same(now, FIELDS.unit.map((f) => f[0]))) problems.push('TR-3 the server\'s unit fields are not world-state.js FIELDS');
+    /* each unit field at the slot the tank catalogue wrote it (the engine reads a unit by slot, so a moved slot is a different world) */
+    if (!CAT_UNIT) problems.push('TR-3 HARNESS: ' + CAT + ' writes no unit fields');
+    else if (!same(Object.entries(a.fields.unit).sort((x, y) => x[1] - y[1]), Object.entries(CAT_UNIT).sort((x, y) => x[1] - y[1]))) problems.push('TR-3 the server\'s unit fields are not the tank catalogue\'s, slot for slot');
     const mv = (after.data.hunt_world_shape_move || []).find((m) => Number(m.shape) === CAT_SHAPE);
     if (!mv || Number(mv.prev_shape) !== Number(b.shape)) problems.push('TR-3 the shape move is journalled ' + short(after.data.hunt_world_shape_move) + ', want ' + b.shape + ' -> ' + CAT_SHAPE);
   }
@@ -249,6 +256,15 @@ const MUTANTS = [
   { name: 'the rune spells read Frost Slam on Magic', patch: swap(RUNES, '"frost_slam":{"skill":"melee"', '"frost_slam":{"skill":"magic"'), want: /TR-3 the server reads frost_slam/ },
   { name: 'the rune spells lose Shelter', patch: (f, sql) => (f !== RUNES ? sql : sql.replace(/"shelter":\{[^}]*\{[^}]*\}[^}]*\{[^}]*\}\},?/, '')), want: /TR-3 .* does not apply|TR-3 the rune spells gained/ },
   { name: 'the catalogue drops shieldBy from the world fields', patch: (f, sql) => (f !== CAT ? sql : sql.replace(/"shieldBy":\d+,/, '')), want: /TR-3 .* does not apply|TR-3 the unit fields/ },
+  /* the last unit field moved to another slot, in the insert and the file's own self-check alike (so it applies), names and order kept:
+     only the slot-for-slot read sees it */
+  { name: 'the catalogue writes a unit field at another slot (names and order kept)', patch: (f, sql) => {
+    if (f !== CAT) return sql;
+    const last = Object.entries(CAT_UNIT || {}).sort((x, y) => y[1] - x[1])[0];
+    const from = last ? '"' + last[0] + '":' + last[1] + '}' : '\u0000';
+    if (sql.split(from).length !== 3) throw new Error('HARNESS: ' + CAT + ' holds ' + (sql.split(from).length - 1) + ' of ' + from + ', want 2 (insert, self-check)');
+    return sql.split(from).join('"' + last[0] + '":' + (last[1] + 40) + '}');
+  }, want: /TR-3 the server's unit fields are not the tank catalogue's/ },
   { name: 'the rune spells apply before the catalogue', reorder: (o) => { const i = o.indexOf(CAT); [o[i], o[i + 1]] = [o[i + 1], o[i]]; return o; }, want: /TR-3 HARNESS/ },
   /* the newest file that writes the world shape (gen-hunt-sessions OUT_NAME) keeps an old one: the engine holds every window (the whole chain) */
   { name: 'the server keeps the old world shape', boot: { file: SHAPE_FILE, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ',

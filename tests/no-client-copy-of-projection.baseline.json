@@ -27,6 +27,7 @@
       "farm_tend",
       "features",
       "gm",
+      "gold_estimate",
       "hallmark",
       "hearth_fire",
       "hero_slots",
@@ -83,6 +84,7 @@
       "unlocked_recipes",
       "version",
       "vitals",
+      "watched",
       "work_day"
     ],
     "state": [
@@ -113,5 +115,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-22"
+  "generatedAt": "2026-11-23"
 }

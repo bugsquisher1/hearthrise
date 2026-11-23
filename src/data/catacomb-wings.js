@@ -86,6 +86,8 @@ export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map(
   checks: Object.freeze({ dropRef: catacombs.checks.dropRef, valueToday: w.valueToday }),
   /* built for the Danger scale alone: a stance, never a tier (hunt-tiers.js GROUND_TIERS skips it, so it offers Normal only) */
   scaleOnly: true,
+  /* its roles: the whole ground's GROUND_ROSTER row, read, never copied (tools/pack.mjs lints the wing on it) */
+  rosterGround: catacombs.id,
   /* the Party window's line (party-class-xp.js PARTY_VS_ALONE): the whole ground's Normal, CARRIED (the same monster rows), owed a measure
      on the wing before it opens */
   partyVsAlone: Object.freeze({ normal: catacombs.partyVsAlone.normal }),

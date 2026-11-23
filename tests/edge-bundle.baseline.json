@@ -268,6 +268,11 @@
         "bytes": 3324005,
         "on": "2026-11-22",
         "why": "40 hidden Traits (src/data/traits.js via gear-steps.js), +11,149 B, ships with the release edge deploy"
+      },
+      {
+        "bytes": 3326182,
+        "on": "2026-11-23",
+        "why": "lane/watched-stamp: hunt-settle.js +2.2 KB, the viewed ask's watched read and commit (HUNT_READ_WATCHED_SQL, HUNT_APPLY_WATCHED_SQL, their 42883 fallback; 1060-watched-stamp.sql)"
       }
     ]
   }

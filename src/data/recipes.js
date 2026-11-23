@@ -17,6 +17,7 @@
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
 import { SLOT_RECIPES, STEP_MADE } from './slot-ladders.js';
+import { GROUND_PACKS } from './grounds/index.js';
 import { ITEMS, foodClassOf } from './items.js';
 import { STONECRAFT_RECIPES } from './stonecraft.js';
 import { DRINK_RECIPES } from './drinks.js';
@@ -308,10 +309,14 @@ const BASE_RECIPES = {
    ladder rather than as authoring order. Crafting appends the fletching rows
    (slot-ladders.js); nothing else is generated into a lane any more. A recipe a live pattern teaches takes its gate here, the one
    place every lane passes (src/data/patterns.js patternGated: the same row while the patterns are hidden). */
-/* A STEP TIER'S MADE PIECES (slot-ladders.js STEP_MADE, lane/gear-phase-b): a job joins its bench once every input is an item in this view. Its
-   part is a home ground's, and a staged pack's items are out of the served catalogue (tools/pack/whole.mjs), so the job waits with its pack.
-   tests/gear-stats.mjs GSF-9 holds that on the whole tree every one of them is served. */
-const servedMade = (list) => list.filter((r) => Object.keys(r.inputs).every((k) => Object.prototype.hasOwnProperty.call(ITEMS, k)));
+/* A STEP TIER'S MADE PIECES (slot-ladders.js STEP_MADE, lane/gear-phase-b): a job joins its bench once every input is SERVED: an item, and no
+   staged pack's (src/data/grounds, `status: 'staged'`). Its part is a home ground's; a staged pack is out of the served catalogue
+   (tools/pack/whole.mjs: hr_items, hr_activities, the bench tax), so the job waits with its pack on the server AND the browser, which never offers
+   a job the server lacks (tests/bench-tax.mjs T-RATES). The day the pack ships the job joins both. tests/gear-stats.mjs GSF-9 holds the rule;
+   catalogue-coherence counts the waiting job as the piece's door (itemSources, reachableSources with the staged grounds open). */
+const STAGED_PACK_ITEMS = Object.freeze(new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {}))));
+const madeServed = (r) => Object.keys(r.inputs).every((k) => Object.prototype.hasOwnProperty.call(ITEMS, k) && !STAGED_PACK_ITEMS.has(k));
+const servedMade = (list) => list.filter(madeServed);
 const byReq = (list) => list.map(patternGated).sort((a, b) => (a.req || 0) - (b.req || 0));
 
 export const ARTISAN_RECIPES = {

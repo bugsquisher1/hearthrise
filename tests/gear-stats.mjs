@@ -44,6 +44,7 @@ import { BASE_DROPS } from '../src/data/base-drops.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { HUNT_GROUNDS, monstersOn } from '../src/data/hunt-grounds.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { GROUND_PACKS } from '../src/data/grounds/index.js';
 import { TRAITS } from '../src/data/gear-steps.js';
 import { ITEMS, ITEM_LEVELS } from '../src/data/items.js';
 import { FIST_ITEMS } from '../src/data/fists.js';
@@ -188,7 +189,11 @@ function stepLadder(o) {
       const bench = slot === 'cape' ? 'crafting' : 'smithing';
       if (!S.made[bench].includes(r) || r.req !== (bench === 'crafting' ? m.craft : m.smith)) out.push('GSF-9 ' + r.id + ' is not ' + bench + '\'s at the tier\'s level');
       if (!Object.keys(r.inputs).some((k) => parts.has(k) && k === m.parts[slot])) out.push('GSF-9 ' + r.id + ' takes no part a body on a home of ' + m.id + ' drops');
-      if (!(S.recipes[bench] || []).some((x) => x.id === r.id)) out.push('GSF-9 ' + r.id + ' is not on its bench (an input is not an item)');
+      /* on its bench exactly when every input is served (an item, no staged pack's: src/data/recipes.js servedMade), so the browser never offers
+         a job the server lacks, and the job joins the day its pack ships */
+      const served = Object.keys(r.inputs).every((k) => !!o.items[k] && !S.stagedItems.has(k)), onBench = (S.recipes[bench] || []).some((x) => x.id === r.id);
+      if (served && !onBench) out.push('GSF-9 ' + r.id + ' is not on its bench though every input is served');
+      if (!served && onBench) out.push('GSF-9 ' + r.id + ' is on its bench while its part waits with a staged pack');
     }
   }
   return out;
@@ -200,7 +205,8 @@ function live() {
   return { GS, items: ITEMS, fists: FIST_ITEMS, sample: SPECIAL_SAMPLE, table: readFileSync(OUT, 'utf8').replace(/\r/g, ''), sources, readers, scaleItems: GS.scaleItems, scalePm: GEAR_SCALE_STAT_PM, scale: ITEM_LEVELS,
     traits: TRAITS, doc: readFileSync(join(ROOT, 'docs/design/redesign/28-named-pieces.md'), 'utf8').replace(/\r/g, ''),
     step: { materials: MATERIAL_TIERS, ladders: GEAR_LADDERS, shields: SHIELD_ITEMS, slotItems: SLOT_ITEMS, baseDrops: BASE_DROPS, made: STEP_MADE,
-      recipes: ARTISAN_RECIPES, scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS } };
+      recipes: ARTISAN_RECIPES, scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS,
+      stagedItems: new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {}))) } };
 }
 /* a copy of the step ladder's tables a mutant may edit */
 const stepCopy = (o) => { o.step = { ...o.step, materials: o.step.materials.map((m) => ({ ...m })), baseDrops: { ...o.step.baseDrops }, made: { ...o.step.made },
@@ -246,7 +252,8 @@ const MUTANTS = [
   ['GSF-9', 'a slot ladder with no rung at a step tier', (o) => { const { wolfram_helm, ...r } = o.items; void wolfram_helm; o.items = r; }],
   ['GSF-9', 'a home that does not drop its base', (o) => { const S = stepCopy(o); S.grounds = { ...S.grounds, catacomb_flooded_wing: { ...S.grounds.catacomb_flooded_wing, drops: S.grounds.catacomb_flooded_wing.drops.filter((d) => d.id !== 'rowan_bow') } }; }],
   ['GSF-9', 'a made piece with no recipe', (o) => { const S = stepCopy(o); S.made.smithing = S.made.smithing.filter((r) => r.output !== 'wolfram_ring'); }],
-  ['GSF-9', 'a made piece off its bench (its part not an item)', (o) => { const S = stepCopy(o); S.recipes = { ...S.recipes, crafting: S.recipes.crafting.filter((r) => r.output !== 'cerecloth_cloak') }; }],
+  ['GSF-9', 'a made job on its bench while its part waits with a staged pack', (o) => { const S = stepCopy(o); S.recipes = { ...S.recipes, crafting: [...S.recipes.crafting, ...S.made.crafting] }; }],
+  ['GSF-9', 'a made job kept off its bench once its pack ships', (o) => { const S = stepCopy(o); S.stagedItems = new Set(); }],
   ['GSF-10', 'the curve held at its top', (o) => { const g = o.GS; o.GS = { ...g, budgetOf: (c, iL) => g.budgetOf(c, Math.min(GEAR_CURVE_TOP, iL)) }; }],
 ];
 

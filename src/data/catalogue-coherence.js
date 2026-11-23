@@ -49,6 +49,7 @@ import { HUNT_INDEX } from './hunts.js';
 import { TRAINING_GEAR_ITEMS } from './training.js';
 import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js';
 import { STEP_MATERIALS } from './gear-tiers.js';
+import { STEP_MADE } from './slot-ladders.js';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js';
@@ -304,6 +305,11 @@ export function reachableSources(opts = {}) {
         if (need.every((id) => m.has(id))) for (const id of outs) grew = put(id, 'made by ' + skill) || grew;
       }
     }
+    /* a step tier's made piece (slot-ladders.js STEP_MADE): its job joins the bench the day its part is served (recipes.js), so it is a door
+       wherever its inputs are reachable, the staged home's part included when the planned door opens it */
+    for (const [skill, list] of Object.entries(STEP_MADE)) for (const r of list) {
+      if (!m.has(r.output) && Object.keys(r.inputs).every((id) => m.has(id))) grew = put(r.output, 'made by ' + skill) || grew;
+    }
   }
   return m;
 }
@@ -347,6 +353,8 @@ export function itemSources() {
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
+  /* a step tier's made piece whose job waits for its home's pack (recipes.js servedMade): the bench is its door all the same */
+  for (const [skill, list] of Object.entries(STEP_MADE)) for (const r of list) push(m, r.output, 'made by ' + skill);
   /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab
      lists (catalogue.js offerRefusal: `not_listed`); the other SHOP_OFFERS rows are the vendor's price list, a door
      nobody can open. Counting them hid eleven items no player could ever obtain (the farming seeds, the apprentice

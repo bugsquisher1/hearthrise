@@ -233,19 +233,23 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   const uc = await buildGrid(ROOT, 'quick', { grounds: [open], uniques: true, chest: true });
   check(uc.length === uq.length && uc.every((j) => j.id.includes(',chest') && (j.grade.gear === 'practice' || j.gear.chest === true)), 'uniques --chest: the what-if cells say ,chest and wear the chest\'s pieces');
   const late = 'carters_rest', gl = gear || await loadGear(ROOT), OPEN4 = ['carters_rest', 'ox_road', 'wyvern_roost', 'unmarked_catacombs'].filter((g) => G.HUNT_GROUNDS[g]);
+  /* the Level the what-if is read at: the last one where the seven-tier ladder's top is a sword's best ground drop. From 90 a step tier (item
+     Level 100, src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b) outranks every chest weapon, a Dawnsteel twin, so no swap is left to name
+     (their re-sort onto steps: CONFLICTS 2026-11-23). It was 110 on the seven-tier ladder */
+  const LV = 89;
   if (G.HUNT_GROUNDS[late]) {
-    const g4 = { uniques: true, openAlso: OPEN4 }, kit = gl.kitOf('sword', 110, { ground: late, ...g4 });
-    const cell = (gearOpts) => ({ cell: { ground: late, gear: gearOpts }, heroes: [{ style: 'sword', level: 110, kit: gl.kitOf('sword', 110, { ground: late, ...gearOpts }) }] });
+    const g4 = { uniques: true, openAlso: OPEN4 }, kit = gl.kitOf('sword', LV, { ground: late, ...g4 });
+    const cell = (gearOpts) => ({ cell: { ground: late, gear: gearOpts }, heroes: [{ style: 'sword', level: LV, kit: gl.kitOf('sword', LV, { ground: late, ...gearOpts }) }] });
     const plain = wornReport([cell(g4)], gl), what = wornReport([cell({ ...g4, chest: true })], gl);
     /* the what-if column of the sword's row lists every chest swap ("A for B (slot); C for D (slot)"): since the Catacombs' Platinum armor shipped
        (set/v0.2.141) a helm swap follows the weapon's, so the row is read by its columns, not by how it ends */
-    const swaps = (report) => ((report.split('\n').find((l) => l.startsWith('| ' + late + ' / sword / 110 |')) || '').split('|')[3] || '').split(';').map((x) => x.trim());
+    const swaps = (report) => ((report.split('\n').find((l) => l.startsWith('| ' + late + ' / sword / ' + LV + ' |')) || '').split('|')[3] || '').split(';').map((x) => x.trim());
     const chestWeapons = [...gl.CHEST_IDS].filter((id) => gl.ITEMS[id] && gl.ITEMS[id].type === 'weapon').map((id) => gl.ITEMS[id].n);
     check(!Object.values(kit).some((id) => gl.CHEST_IDS.has(id)) && /ground and boss drops only/.test(plain),
-      'uniques: a sword at Carter\'s Rest 110 is graded in no chest piece (row 1f: ground and boss drops only)');
+      'uniques: a sword at Carter\'s Rest ' + LV + ' is graded in no chest piece (row 1f: ground and boss drops only)');
     check(swaps(plain).some((s) => / \(weapon\)$/.test(s) && chestWeapons.some((n) => s.startsWith(n + ' for '))),
       'uniques: the report\'s what-if row names the chest weapon that sword would swap in (' + swaps(plain).join('; ') + ')');
-    check(/--chest/.test(what) && Object.values(gl.kitOf('sword', 110, { ground: late, ...g4, chest: true })).some((id) => gl.CHEST_IDS.has(id)), 'uniques --chest: the same sword wears the chest weapon');
+    check(/--chest/.test(what) && Object.values(gl.kitOf('sword', LV, { ground: late, ...g4, chest: true })).some((id) => gl.CHEST_IDS.has(id)), 'uniques --chest: the same sword wears the chest weapon');
   }
 }
 

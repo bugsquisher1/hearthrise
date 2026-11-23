@@ -3,60 +3,60 @@ V1 on muster_barrows (6 seeds x 8 h, held step read from hour 4; step 0 = the gr
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:careful      479.8 +- 3.3      5.7  51.3  83.5     21    2.1       0     79.4      0     0  0 (0/0/0)                       4  {"hold":2792,"climb":913,"fall":102}
-base:steady       618.5 +- 4.6     -0.3  75.7  97.9   12.3    1.1     1.3     56.3      0     0  1 (0/0/1)                       4  {"hold":1996,"climb":661,"fall":40}
-base:bold         674.6 +- 19.7       2  42.6  62.3    8.7    0.8     0.7     49.7      3     0  30 (3/2/30)                     2  {"hold":1660,"climb":658,"fall":57,"death":3} first deaths at h 4.1,3.5,1.5
-high:careful      511.5 +- 12.4    -4.3  51.1  86.2   22.1      2     0.2     79.6      0     0  0 (0/0/0)                       4  {"hold":2752,"climb":968,"fall":97}
-high:steady       645.9 +- 6.1     10.6  67.5  92.7   11.7    0.8     0.9     53.6      0     0  1 (0/0/1)                       4  {"hold":1900,"climb":631,"fall":35}
-high:bold         699.3 +- 1.9      2.7  23.5  30.1    2.5    0.3     0.3     48.7      4     0  18 (4/3/18)                   1.3  {"hold":1574,"climb":713,"death":4,"fall":40} first deaths at h 1,2.7,2.4,2.9
+base:careful      486.8 +- 16.5    -4.8  50.6  86.1   20.5    2.1     0.4     78.9      0     0  0 (0/0/0)                       4  {"hold":2791,"climb":893,"fall":100}
+base:steady       618.9 +- 10.1       5    68  92.4   12.1      1     1.3     54.7      0     0  0 (0/0/0)                       4  {"hold":1913,"climb":669,"fall":39}
+base:bold         667.4 +- 6.8      0.2  37.3  55.5    8.4    0.9     0.6     47.2      3     0  29 (3/4/29)                   2.3  {"hold":1566,"climb":646,"fall":45,"death":3} first deaths at h 2.8,1.2,5.7
+high:careful      509.5 +- 20.6     8.1  50.5  78.5   21.4    1.9     0.3     77.5      0     0  0 (0/0/0)                       4  {"hold":2690,"climb":926,"fall":96}
+high:steady       643.2 +- 8.9      0.7  66.4  95.7   11.5    0.8     0.9     52.6      0     0  1 (0/0/1)                       4  {"hold":1870,"climb":616,"fall":32}
+high:bold         693.9 +- 3.7      1.5  39.5  65.1    7.1    0.8     0.7     46.5      2     0  29 (2/2/29)                   2.7  {"hold":1514,"climb":663,"fall":47,"death":2} first deaths at h 3.1,1.6
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:careful       0.57x  sd 0.01  n 6  window 4 h  seeds 0.57 0.58 0.58 0.56 0.58 0.55
-  base:steady        1.13x  sd 0.02  n 6  window 4 h  seeds 1.11 1.11 1.14 1.13 1.13 1.16
-  base:bold          1.47x  sd 0.29  n 4  window 2 h  seeds 1.35 1.91 1.32 1.3
-  high:careful       0.69x  sd 0.11  n 6  window 4 h  seeds 0.64 0.91 0.66 0.65 0.64 0.65
-  high:steady        1.31x  sd 0.03  n 6  window 4 h  seeds 1.31 1.34 1.33 1.27 1.3 1.29
-  high:bold          1.58x  sd 0.01  n 2  window 1.3 h  seeds 1.57 1.59
+  base:careful       0.59x  sd 0.08  n 6  window 4 h  seeds 0.76 0.56 0.55 0.56 0.55 0.57
+  base:steady         1.1x  sd 0.04  n 6  window 4 h  seeds 1.04 1.05 1.15 1.13 1.09 1.11
+  base:bold           1.3x  sd 0.03  n 4  window 2.3 h  seeds 1.34 1.29 1.3 1.29
+  high:careful       0.68x  sd 0.15  n 6  window 4 h  seeds 0.99 0.62 0.62 0.6 0.63 0.64
+  high:steady        1.26x  sd 0.05  n 6  window 4 h  seeds 1.24 1.27 1.34 1.24 1.21 1.29
+  high:bold          1.51x  sd 0.02  n 4  window 2.7 h  seeds 1.5 1.51 1.54 1.5
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:careful      L60  coin 8939 +- 63  income 12461 +- 120  store 4281  kit share 0.34 (meal 10, drink 1637, charge 1010, shot 1624)  loot by band: common 368, uncommon 175, scarce 2977, other 0  n 6
-  base:steady       L60  coin 14730 +- 64  income 17675 +- 119  store 5054  kit share 0.29 (meal 169, drink 2140, charge 1081, shot 1664)  loot by band: common 304, uncommon 156, scarce 2485, other 0  n 6
-  base:bold         L60  coin 16985 +- 1647  income 19630 +- 1545  store 5454  kit share 0.28 (meal 487, drink 2428, charge 1182, shot 1358)  loot by band: common 268, uncommon 129, scarce 2248, other 0  n 6
-  high:careful      L70  coin 9765 +- 345  income 13515 +- 448  store 4967  kit share 0.37 (meal 10, drink 1484, charge 1022, shot 2450)  loot by band: common 386, uncommon 186, scarce 3178, other 0  n 6
-  high:steady       L70  coin 17552 +- 436  income 20367 +- 318  store 5801  kit share 0.28 (meal 173, drink 2028, charge 1091, shot 2508)  loot by band: common 286, uncommon 140, scarce 2389, other 0  n 6
-  high:bold         L70  coin 19451 +- 2937  income 22136 +- 2574  store 5819  kit share 0.26 (meal 462, drink 2272, charge 1226, shot 1860)  loot by band: common 268, uncommon 135, scarce 2282, other 0  n 6
+  base:careful      L60  coin 8844 +- 278  income 12486 +- 332  store 4279  kit share 0.34 (meal 10, drink 1632, charge 1010, shot 1627)  loot by band: common 365, uncommon 175, scarce 3100, other 0  n 6
+  base:steady       L60  coin 14327 +- 442  income 17297 +- 299  store 5085  kit share 0.29 (meal 169, drink 2161, charge 1085, shot 1669)  loot by band: common 296, uncommon 146, scarce 2527, other 0  n 6
+  base:bold         L60  coin 17034 +- 988  income 19611 +- 961  store 5584  kit share 0.28 (meal 563, drink 2577, charge 1211, shot 1232)  loot by band: common 260, uncommon 129, scarce 2188, other 0  n 6
+  high:careful      L70  coin 9644 +- 612  income 13278 +- 681  store 5007  kit share 0.38 (meal 10, drink 1508, charge 1026, shot 2462)  loot by band: common 369, uncommon 180, scarce 3085, other 0  n 6
+  high:steady       L70  coin 16921 +- 487  income 19669 +- 496  store 5816  kit share 0.3 (meal 185, drink 2032, charge 1091, shot 2508)  loot by band: common 283, uncommon 137, scarce 2328, other 0  n 6
+  high:bold         L70  coin 20039 +- 923  income 22632 +- 677  store 6156  kit share 0.27 (meal 573, drink 2387, charge 1203, shot 1993)  loot by band: common 258, uncommon 128, scarce 2207, other 0  n 6
 
 power moves (paired seeds): the held step at the changed power minus at base
-  high:careful        31.8 steps (sd 10.8, se 4.4, n 6)
-  high:steady         27.3 steps (sd 8.4, se 3.4, n 6)
-  high:bold             33 steps (sd 0, se 0, n 1)
+  high:careful        22.8 steps (sd 9.5, se 3.9, n 6)
+  high:steady         24.3 steps (sd 10.3, se 4.2, n 6)
+  high:bold           24.7 steps (sd 8.1, se 4.7, n 3)
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:careful      hammer 0.74  bow 0.203  mage 0.05  healer 0.007
-  base:steady       hammer 0.749  bow 0.194  mage 0.051  healer 0.006
-  base:bold         hammer 0.726  bow 0.176  mage 0.074  healer 0.023
-  high:careful      hammer 0.738  bow 0.208  mage 0.046  healer 0.008
-  high:steady       hammer 0.739  bow 0.2  mage 0.055  healer 0.006
-  high:bold         hammer 0.651  bow 0.228  mage 0.086  healer 0.036
+  base:careful      hammer 0.745  bow 0.203  mage 0.044  healer 0.008
+  base:steady       hammer 0.755  bow 0.192  mage 0.048  healer 0.006
+  base:bold         hammer 0.754  bow 0.141  mage 0.079  healer 0.025
+  high:careful      hammer 0.738  bow 0.206  mage 0.048  healer 0.008
+  high:steady       hammer 0.741  bow 0.2  mage 0.053  healer 0.006
+  high:bold         hammer 0.744  bow 0.157  mage 0.077  healer 0.022
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:careful      hammer dps 25.32 land 68.95% hit 24.28 (4016.5/h) | bow dps 26.22 land 40.05% hit 16.5 (1619/h) | mage dps 35.38 land 79.93% hit 26.1 (255.17/h) | healer dps 15.87 land 100% hit 96.98 (9.67/h)
-                    barrow_pikeman(swarm) 258.5/h 14.2 s 189 | muster_knight(brute) 132.2/h 32.1 s 392 | cairn_wight(stalker) 136.6/h 29.7 s 146 | captain_hask(brute) 11/h 81.2 s 1032
-                    broke off by: fall:barrow_pikeman@1 40, fall:cairn_wight@1 31, fall:muster_knight@0 15, fall:barrow_pikeman@2 5, fall:barrow_pikeman@0 5, fall:captain_hask@0 3, fall:muster_knight@1 3
-  base:steady       hammer dps 26.38 land 68.32% hit 34.26 (4597.17/h) | bow dps 27.27 land 39.97% hit 22.45 (1819.17/h) | mage dps 35.86 land 80.07% hit 43.57 (244/h) | healer dps 16.91 land 100% hit 154.67 (7.67/h)
-                    barrow_pikeman(swarm) 226.1/h 27.3 s 426 | muster_knight(brute) 108.8/h 35.4 s 603 | cairn_wight(stalker) 110.1/h 41.9 s 278 | captain_hask(brute) 7.9/h 125.4 s 2234
-                    broke off by: fall:barrow_pikeman@0 16, fall:muster_knight@0 13, fall:muster_knight@1 10, fall:cairn_wight@1 1
-  base:bold         hammer dps 26.24 land 68.58% hit 39.6 (4524/h) | bow dps 27.35 land 39.93% hit 26.36 (1908.67/h) | mage dps 36.1 land 79.18% hit 42.01 (590.33/h) | healer dps 16.99 land 91.92% hit 124.67 (75.67/h)
-                    barrow_pikeman(swarm) 181.3/h 30.4 s 555 | muster_knight(brute) 91.1/h 43.8 s 807 | cairn_wight(stalker) 90.5/h 48.8 s 344 | captain_hask(brute) 6.8/h 149 s 2810
-                    broke off by: fall:muster_knight@1 17, fall:barrow_pikeman@0 16, fall:muster_knight@0 14, fall:barrow_pikeman@2 3, fall:barrow_pikeman@1 2, fall:cairn_wight@1 2, death:muster_knight@1 2, death:barrow_pikeman@0 1, fall:captain_hask@1 1, fall:muster_knight@3 1, fall:captain_hask@0 1
-  high:careful      hammer dps 26.75 land 65.12% hit 24.34 (4160.33/h) | bow dps 28.58 land 39.95% hit 17.33 (1643.67/h) | mage dps 37.15 land 79.73% hit 28.3 (225.33/h) | healer dps 16.12 land 100% hit 107.15 (10/h)
-                    barrow_pikeman(swarm) 277/h 15 s 197 | muster_knight(brute) 131.1/h 31.1 s 388 | cairn_wight(stalker) 145.8/h 29.8 s 150 | captain_hask(brute) 9.6/h 82.3 s 1041
-                    broke off by: fall:barrow_pikeman@1 49, fall:cairn_wight@1 22, fall:muster_knight@0 11, fall:barrow_pikeman@0 9, fall:captain_hask@0 5, fall:barrow_pikeman@2 1
-  high:steady       hammer dps 27.88 land 65.03% hit 36.38 (4659.83/h) | bow dps 29.68 land 39.85% hit 24.94 (1839.67/h) | mage dps 37.42 land 80.12% hit 51.7 (242.67/h) | healer dps 17.36 land 100% hit 178.31 (7.5/h)
-                    barrow_pikeman(swarm) 216.7/h 29.1 s 485 | muster_knight(brute) 104.4/h 36.9 s 673 | cairn_wight(stalker) 105.1/h 44.1 s 329 | captain_hask(brute) 7.5/h 134.7 s 2580
-                    broke off by: fall:barrow_pikeman@0 15, fall:muster_knight@0 7, fall:muster_knight@1 6, fall:cairn_wight@1 3, fall:barrow_pikeman@1 3, fall:captain_hask@0 1
-  high:bold         hammer dps 27.45 land 65.13% hit 38.12 (4545/h) | bow dps 29.65 land 40.57% hit 29.17 (1942.33/h) | mage dps 37.57 land 79.38% hit 38.53 (752/h) | healer dps 17.19 land 89.63% hit 110.71 (108.5/h)
-                    barrow_pikeman(swarm) 175/h 30.6 s 559 | muster_knight(brute) 87.8/h 45.4 s 813 | cairn_wight(stalker) 88.6/h 48.9 s 345 | captain_hask(brute) 6.7/h 153 s 2778
-                    broke off by: fall:barrow_pikeman@0 14, fall:barrow_pikeman@1 8, fall:muster_knight@1 7, fall:muster_knight@0 5, fall:barrow_pikeman@2 4, fall:captain_hask@0 2, death:muster_knight@1 2, death:muster_knight@0 1, death:captain_hask@1 1
+  base:careful      hammer dps 19.29 land 68.7% hit 24.49 (3967.83/h) | bow dps 21.1 land 39.87% hit 16.24 (1630.5/h) | mage dps 27.67 land 79.85% hit 25.84 (223.67/h) | healer dps 12.04 land 100% hit 96.24 (10.17/h)
+                    barrow_pikeman(swarm) 259.3/h 14.5 s 188 | muster_knight(brute) 129.1/h 31.9 s 391 | cairn_wight(stalker) 138.5/h 30.4 s 149 | captain_hask(brute) 9.4/h 83.6 s 1130
+                    broke off by: fall:barrow_pikeman@1 37, fall:cairn_wight@1 28, fall:barrow_pikeman@0 13, fall:muster_knight@0 12, fall:captain_hask@0 5, fall:barrow_pikeman@2 4, fall:captain_hask@1 1
+  base:steady       hammer dps 20.31 land 68.32% hit 34.66 (4636.5/h) | bow dps 21.98 land 40.03% hit 22.37 (1824.5/h) | mage dps 28.46 land 80.37% hit 42.26 (243.83/h) | healer dps 12.84 land 100% hit 161.59 (7.33/h)
+                    barrow_pikeman(swarm) 220.4/h 28.2 s 438 | muster_knight(brute) 106.3/h 36.3 s 620 | cairn_wight(stalker) 107/h 43.2 s 287 | captain_hask(brute) 7.6/h 130.7 s 2626
+                    broke off by: fall:barrow_pikeman@0 12, fall:muster_knight@0 11, fall:muster_knight@1 11, fall:barrow_pikeman@1 2, fall:captain_hask@0 2, fall:cairn_wight@1 1
+  base:bold         hammer dps 20.15 land 68.62% hit 40.03 (4513.5/h) | bow dps 22.33 land 40.48% hit 26.72 (1883.5/h) | mage dps 28.62 land 78.85% hit 38.85 (714.5/h) | healer dps 12.9 land 92.75% hit 127.01 (82.5/h)
+                    barrow_pikeman(swarm) 176/h 32.3 s 603 | muster_knight(brute) 87.5/h 46.8 s 898 | cairn_wight(stalker) 87.6/h 53.1 s 379 | captain_hask(brute) 6.5/h 150.7 s 3533
+                    broke off by: fall:barrow_pikeman@0 17, fall:muster_knight@0 12, fall:muster_knight@1 11, fall:barrow_pikeman@2 4, death:muster_knight@1 3, fall:captain_hask@0 1
+  high:careful      hammer dps 20.6 land 65.25% hit 24.51 (4227.83/h) | bow dps 23.28 land 39.97% hit 17.41 (1662.5/h) | mage dps 29.3 land 80.23% hit 28.45 (235.17/h) | healer dps 12.31 land 100% hit 103.32 (10/h)
+                    barrow_pikeman(swarm) 269.9/h 15.6 s 205 | muster_knight(brute) 129/h 32.5 s 401 | cairn_wight(stalker) 141.3/h 30.7 s 155 | captain_hask(brute) 9.9/h 84.3 s 1147
+                    broke off by: fall:barrow_pikeman@1 42, fall:cairn_wight@1 31, fall:muster_knight@0 12, fall:captain_hask@0 6, fall:barrow_pikeman@0 5
+  high:steady       hammer dps 21.42 land 64.87% hit 36.6 (4674.67/h) | bow dps 24.09 land 39.87% hit 25.1 (1843.5/h) | mage dps 29.58 land 80.33% hit 50.29 (244.33/h) | healer dps 13.19 land 100% hit 179.11 (7.5/h)
+                    barrow_pikeman(swarm) 212.6/h 29.7 s 490 | muster_knight(brute) 102.5/h 37.7 s 688 | cairn_wight(stalker) 103.2/h 44.9 s 335 | captain_hask(brute) 7.3/h 138.1 s 2972
+                    broke off by: fall:muster_knight@1 10, fall:muster_knight@0 8, fall:barrow_pikeman@0 7, fall:barrow_pikeman@1 3, fall:cairn_wight@1 2, fall:captain_hask@0 1, fall:captain_hask@1 1
+  high:bold         hammer dps 21.35 land 65.1% hit 41.31 (4643.17/h) | bow dps 24.35 land 40.4% hit 29.32 (1882.17/h) | mage dps 29.85 land 79.2% hit 48.77 (622/h) | healer dps 13.27 land 94.57% hit 166.23 (68.67/h)
+                    barrow_pikeman(swarm) 178.4/h 33.6 s 648 | muster_knight(brute) 86.9/h 46.5 s 943 | cairn_wight(stalker) 88/h 53.8 s 421 | captain_hask(brute) 6.4/h 155.4 s 3767
+                    broke off by: fall:barrow_pikeman@0 22, fall:muster_knight@0 11, fall:muster_knight@1 6, fall:captain_hask@0 2, death:muster_knight@1 2, fall:barrow_pikeman@2 2, fall:cairn_wight@1 1, fall:barrow_pikeman@3 1, fall:barrow_pikeman@1 1, fall:captain_hask@1 1
 
-wall 583 s
+wall 498 s

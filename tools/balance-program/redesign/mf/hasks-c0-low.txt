@@ -35,4 +35,4 @@ the formula readers (lane/monster-formula): per seat dps (dealt a hunted second)
                     banded_pikeman(null) 315.3/h 6.8 s 106 | fordsunk(null) 93.9/h 10.7 s 115 | bannerman(null) 50.2/h 13.8 s 242 | ledger_wight(null) 86.2/h 7.5 s 179
                     broke off by: fall:ledger_wight@2 55, fall:ledger_wight@1 41, fall:banded_pikeman@2 28, fall:banded_pikeman@0 25, fall:bannerman@1 25, fall:banded_pikeman@1 23, fall:bannerman@2 15, fall:fordsunk@1 12, fall:ledger_wight@0 9, fall:fordsunk@0 6, fall:fordsunk@2 5, death:ledger_wight@1 3, death:banded_pikeman@0 2, death:ledger_wight@0 2, death:bannerman@1 2, death:fordsunk@1 1, death:bannerman@0 1, fall:bannerman@0 1, death:fordsunk@0 1
 
-wall 99 s
+wall 87 s

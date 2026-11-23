@@ -8,7 +8,7 @@ base:steady       587.7 +- 2.6      3.6  49.2  82.1   40.9      5     0.2    158
 base:bold           637 +- 0       -0.5   8.4  14.7    5.8    0.7     0.1    153.5     12     0  60 (12/4/60)                  0.3  {"hold":5410,"climb":1694,"death":12,"fall":245} first deaths at h 0.2,6.1,1.5,0.6,2.6,1.3
 high:careful      580.6 +- 2.1     -1.2  49.5  80.3   43.4    5.9     0.2    184.4      0     0  0 (0/0/0)                       4  {"hold":6703,"climb":1867,"fall":278}
 high:steady         648 +- 4.3      2.3    46  78.4   41.3      5     0.3    160.8      0     0  4 (0/0/4)                       4  {"hold":5644,"climb":1830,"fall":243}
-high:bold          null +- 0          0     0     0      0      0       0    151.2     12     0  47 (12/7/47)                    0  {"hold":5272,"climb":1759,"fall":208,"death":12} first deaths at h 2.2,1.4,2,2.4,2,2.7
+high:bold         688.3 +- 0       -0.8   7.4  14.8    4.2    0.6       0    152.6     10     0  49 (10/6/49)                  0.7  {"hold":5217,"climb":1878,"fall":217,"death":10} first deaths at h 1.3,2.5,0.9,3.8,0.9
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
   base:careful       0.64x  sd 0.01  n 6  window 4 h  seeds 0.62 0.65 0.66 0.63 0.62 0.64
@@ -16,7 +16,7 @@ pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as
   base:bold           1.3x  sd 0  n 1  window 0.3 h  seeds 1.3
   high:careful       1.07x  sd 0.02  n 6  window 4 h  seeds 1.08 1.05 1.1 1.06 1.05 1.07
   high:steady        1.58x  sd 0.05  n 6  window 4 h  seeds 1.55 1.52 1.62 1.6 1.66 1.55
-  high:bold          nullx  sd 0  n 0  window 0 h  seeds 
+  high:bold          2.27x  sd 0  n 1  window 0.7 h  seeds 2.27
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
   base:careful      L52  coin 8450 +- 176  income 11421 +- 95  store 2392  kit share 0.21 (meal 1, drink 703, charge 658, shot 1028)  loot by band: common 631, uncommon 234, scarce 2105, other 0  n 6
@@ -24,12 +24,12 @@ gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's pr
   base:bold         L52  coin 11774 +- 1257  income 15342 +- 1123  store 3443  kit share 0.22 (meal 218, drink 1397, charge 1010, shot 817)  loot by band: common 759, uncommon 270, scarce 2539, other 0  n 6
   high:careful      L60  coin 13063 +- 123  income 16503 +- 128  store 2151  kit share 0.13 (meal 5, drink 514, charge 628, shot 1004)  loot by band: common 723, uncommon 261, scarce 2457, other 0  n 6
   high:steady       L60  coin 18532 +- 339  income 21990 +- 203  store 2735  kit share 0.12 (meal 111, drink 868, charge 711, shot 1045)  loot by band: common 698, uncommon 253, scarce 2506, other 0  n 6
-  high:bold         L60  coin 16317 +- 895  income 20326 +- 903  store 3161  kit share 0.16 (meal 185, drink 1324, charge 1056, shot 595)  loot by band: common 858, uncommon 296, scarce 2853, other 0  n 6
+  high:bold         L60  coin 16693 +- 3856  income 20756 +- 3684  store 3163  kit share 0.15 (meal 189, drink 1237, charge 1003, shot 734)  loot by band: common 842, uncommon 301, scarce 2921, other 0  n 6
 
 power moves (paired seeds): the held step at the changed power minus at base
   high:careful        57.3 steps (sd 2.9, se 1.2, n 6)
   high:steady           60 steps (sd 3.7, se 1.5, n 6)
-  high:bold           null steps (sd 0, se 0, n 0)
+  high:bold             51 steps (sd 0, se 0, n 1)
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
   base:careful      hammer 1  bow 0  mage 0  healer 0
@@ -37,7 +37,7 @@ the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), 
   base:bold         hammer 0.393  bow 0.239  mage 0.368  healer 0
   high:careful      hammer 1  bow 0  mage 0  healer 0
   high:steady       hammer 1  bow 0  mage 0  healer 0
-  high:bold         hammer 0.497  bow 0.068  mage 0.435  healer 0
+  high:bold         hammer 0.507  bow 0.117  mage 0.375  healer 0.001
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
   base:careful      hammer dps 12.53 land 58.97% hit 32.83 (2579.33/h) | bow dps 15.08 land null% hit null (0/h) | mage dps 17.49 land null% hit null (0/h) | healer dps 6.74 land null% hit null (0/h)
@@ -55,8 +55,8 @@ the formula readers (lane/monster-formula): per seat dps (dealt a hunted second)
   high:steady       hammer dps 19.68 land 55.45% hit 39.82 (3381/h) | bow dps 18.07 land null% hit null (0/h) | mage dps 22.74 land null% hit null (0/h) | healer dps 9.41 land null% hit null (0/h)
                     banded_pikeman(null) 496.1/h 5.5 s 106 | fordsunk(null) 232.8/h 8.5 s 152 | bannerman(null) 51.9/h 6.4 s 179 | ledger_wight(null) 156.7/h 6.6 s 236
                     broke off by: fall:ledger_wight@0 113, fall:fordsunk@0 81, fall:banded_pikeman@0 49
-  high:bold         hammer dps 20.76 land 56.6% hit 42.91 (3833.83/h) | bow dps 18.66 land 41.23% hit 64.27 (302/h) | mage dps 25.11 land 72.7% hit 40.42 (938/h) | healer dps 9.74 land 53.33% hit 32.51 (0.33/h)
-                    banded_pikeman(null) 418.2/h 6.4 s 84 | fordsunk(null) 170.5/h 10.8 s 105 | bannerman(null) 48.8/h 11.1 s 196 | ledger_wight(null) 119.4/h 7.6 s 209
-                    broke off by: fall:ledger_wight@2 54, fall:banded_pikeman@2 50, fall:ledger_wight@0 20, fall:banded_pikeman@1 17, fall:banded_pikeman@0 14, fall:bannerman@2 13, fall:fordsunk@0 11, fall:ledger_wight@1 11, fall:fordsunk@1 8, fall:fordsunk@2 8, death:ledger_wight@0 4, death:ledger_wight@1 2, death:fordsunk@1 2, death:fordsunk@0 2, death:banded_pikeman@1 2, fall:bannerman@1 2
+  high:bold         hammer dps 20.42 land 56.5% hit 41.62 (3729.83/h) | bow dps 18.54 land 38.56% hit 58.98 (405.17/h) | mage dps 25.06 land 72.64% hit 39.36 (695.33/h) | healer dps 9.74 land 80.8% hit 92.19 (0.5/h)
+                    banded_pikeman(null) 445.4/h 6.3 s 89 | fordsunk(null) 183.5/h 10.3 s 113 | bannerman(null) 49.3/h 10.3 s 192 | ledger_wight(null) 130.7/h 7.4 s 213
+                    broke off by: fall:ledger_wight@2 47, fall:banded_pikeman@2 36, fall:ledger_wight@0 23, fall:banded_pikeman@1 22, fall:ledger_wight@1 21, fall:fordsunk@0 20, fall:banded_pikeman@0 13, fall:fordsunk@1 13, fall:bannerman@2 10, fall:fordsunk@2 9, death:ledger_wight@0 3, fall:bannerman@1 3, death:fordsunk@1 3, death:fordsunk@0 2, death:ledger_wight@1 2
 
-wall 204 s
+wall 207 s

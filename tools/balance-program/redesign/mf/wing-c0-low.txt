@@ -8,9 +8,9 @@ base:steady       398.5 +- 4.2      0.8    62    94   28.5    2.8       0      1
 base:bold         444.9 +- 10.1     0.1  23.4  29.8   11.7      1       0    134.1      9     0  95 (10/8/95)                  0.7  {"hold":4761,"climb":1423,"fall":240,"death":10} first deaths at h 3.7,2.1,7.5,4.5,1.2,3
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:careful       0.38x  sd 0  n 6  window 4 h  seeds 0.38 0.38 0.38 0.38 0.38 0.38
-  base:steady        0.47x  sd 0.01  n 6  window 4 h  seeds 0.47 0.47 0.47 0.46 0.47 0.49
-  base:bold           0.6x  sd 0.04  n 2  window 0.7 h  seeds 0.57 0.63
+  base:careful       0.37x  sd 0  n 6  window 4 h  seeds 0.37 0.36 0.37 0.37 0.37 0.37
+  base:steady        0.46x  sd 0.01  n 6  window 4 h  seeds 0.46 0.45 0.45 0.44 0.46 0.47
+  base:bold          0.58x  sd 0.04  n 2  window 0.7 h  seeds 0.55 0.61
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
   base:careful      L165  coin 20494 +- 90  income 21944 +- 130  store 935  kit share 0.04 (meal 3, drink 0, charge 932, shot 0)  loot by band: common 614, uncommon 652, scarce 0, other 184  n 6
@@ -35,4 +35,4 @@ the formula readers (lane/monster-formula): per seat dps (dealt a hunted second)
                     night_carter(null) 43/h 11.5 s 1188 | shrouded_pauper(null) 302.5/h 10 s 514 | bone_wall(null) 107.7/h 12.7 s 570 | vault_leech(null) 0.5/h 19.3 s 1227
                     broke off by: fall:shrouded_pauper@0 66, fall:shrouded_pauper@1 62, fall:bone_wall@0 35, fall:night_carter@1 20, fall:shrouded_pauper@2 19, fall:night_carter@2 19, fall:night_carter@0 9, fall:bone_wall@2 5, death:bone_wall@0 4, fall:bone_wall@1 4, death:shrouded_pauper@0 2, death:shrouded_pauper@1 2, death:night_carter@1 1, death:bone_wall@1 1, fall:bone_wall@3 1
 
-wall 93 s
+wall 90 s

@@ -20,11 +20,12 @@
 // ============================================================
 
 import { SUPPLIES } from '../data/supplies.js';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, DEATH_HOURS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js';
 import { CONSUMABLES } from '../data/consumables.js';
 import { COMBAT_SKILLS } from '../data/skills.js';
 import { sessionModeOf } from '../data/session-modes.js';
-import { skillLevelFromXp, skillXpForLevel } from './xp.js';
+import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js';
+import { hoursForLevel } from './hunt/danger.js';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -302,19 +303,31 @@ export function staminaStep(ms, intervalMs, hunting, maxMs) {
   return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));
 }
 
-/* ── THE PRICE OF A DEATH (Tyler 2026-11-09; hunt-sessions.js DEATH_XP_LOSS) ──
-   LEVEL: the fraction of the character's TOTAL Level XP. It may cross a Level
-   (a death can take one), never below 0 XP, which is Level 1.
+/* ── THE PRICE OF A DEATH (Tyler 2026-11-09; hunt-sessions.js DEATH_XP_LOSS, DEATH_HOURS) ──
+   LEVEL: the LESSER of the share (`fraction` of the TOTAL Level XP) and the hours
+   (DEATH_HOURS of progress at its Level, levelHourXp), both at `fraction`'s
+   strength of the full rule (a mode's smaller fraction scales both; 0 prices
+   nothing). It may take a Level, never below Level 1 (lane/level-costs).
    SKILLS: every combat skill (src/data/skills.js COMBAT_SKILLS) loses the same
    fraction of its PROGRESS toward its next level, never a level.
    Integer XP, floored. PURE: it draws no random number, and it is read off the
    state, not applied (the caller debits the same numbers it journals). The
-   server's bound is hr_death_xp_max (2027-03-25-death-share.sql), the same rule. */
+   server's bound is hr_death_xp_mode_max (1063-level-costs-catalogue), the same
+   rule with the hours rounded up, so a float's last bit never refuses a death. */
+/** The hours table's Level XP a reference hour at Level `level`: the XP that Level takes over the hours it takes. */
+export function levelHourXp(level) {
+  const L = Number.isInteger(level) && level >= 1 ? level : 1;
+  return (charXpForLevel(L + 1) - charXpForLevel(L)) / hoursForLevel(L);
+}
 export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(levelXp) || 0));
   const f = Number(fraction);
   if (!(f > 0)) return 0;
-  return Math.max(0, Math.min(Math.floor(x * f), x));
+  const share = Math.min(Math.floor(x * f), x);
+  /* the rule's strength in whole permille (1000 at the full price): the share's fraction over DEATH_XP_LOSS's, as the server reads it */
+  const pm = Math.round((f * 1e6) / Math.round(DEATH_XP_LOSS * 1000));
+  const hours = Math.floor(((DEATH_HOURS * pm) / 1000) * levelHourXp(charLevelFromXp(x)));
+  return Math.max(0, Math.min(share, hours));
 }
 export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(xp) || 0));

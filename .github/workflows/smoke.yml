@@ -7842,6 +7842,22 @@ jobs:
           node tests/hunting-blocks.mjs
           node tools/mutant-gate.mjs node tests/hunting-blocks.mjs --mutate
 
+      # PER-HERO COSTS BY LEVEL (1063-level-costs*.sql, lane/level-costs; Tyler 2026-11-22: per-hero costs read the wage at the hero's
+      # Level): a death takes the lesser of 6% of the Level XP and 7.5 hours of progress at the hero's Level, the same on the tick door
+      # (browser closed) and the player door (hunt viewed) at Level 200, blessed and not; the ONE Blessing is an hour of the wage at the
+      # hero's Level (free under 30) and halves one death; the Talent reset is priced 0.5 h of the wage x2 a paid reset, first free,
+      # Premium's first of the day free, and DARK (no client role). The catalogue is GENERATED (tools/gen-level-costs.mjs --check holds it
+      # to src/data, --selftest proves each refusal). --mutate (11): the bound without the hours or at Level 1, the Blessing at the Level 1
+      # wage, no reset growth, a quarter cut, a Blessing never used up, no price check, a second Blessing, no free first, Premium every
+      # time, a reset at an unquoted price.
+      - name: Per-hero costs by Level - the death in hours, one Blessing at the wage, the reset dark, both paths (11 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-level-costs.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-level-costs.mjs --selftest
+          node tests/level-costs.mjs
+          node tools/mutant-gate.mjs node tests/level-costs.mjs --mutate
+
       # COMPANY TRADES AND THE WORK DAY (1059-company-trades*.sql, lane/r12-company-trades; Tyler 2026-11-22 CR-Q1 a, CR-Q3 b): one company,
       # two heroes, both doors (viewed and the tick) mine into ONE trade total every hero reads; a hero's town work stops at its day's end
       # (work_cap) with the window open and with the browser closed; the server refuses a window past the day and a new job on a spent

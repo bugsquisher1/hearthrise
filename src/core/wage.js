@@ -27,10 +27,19 @@
 // 04's starting row for it is { blockMin: 120, priceHourPm: 500, growthNum: 3, growthDen: 2, perDay: 4 }: 1.0, 1.5, 2.25 and 3.375
 // hours of wage for the day's four. It joins TIME_BLOCKS only with its own verb (time-blocks.js SOLD_KINDS says why).
 //
+// THE OTHER PER-HERO COSTS (lane/level-costs, 2026-11-22; Tyler: "per-hero costs read the wage at the hero's LEVEL"), the same unit:
+//   the Blessing   ceil(hoursPm / 1000 x wage(L)), 0 under its free Level            (src/data/blessings.js BLESSING; blessingPrice)
+//   a Talent reset ceil(hoursPm / 1000 x wage(L) x (growthNum / growthDen) ^ n)      (src/data/talent-reset.js; resetPrice; n paid
+//                  resets that day, 0 for the first; null past the day's blast radius)
+// The death's price is in hours of PROGRESS, not gold: src/core/action-rules.js levelDeathLoss (hunt-sessions.js DEATH_HOURS).
+// Their SQL twins: tools/gen-level-costs.mjs (hr_blessing_price, hr_talent_reset_price), pinned at every Level its file names.
+//
 // PURE ESM, dual-runtime (src/core: the edge vendors it). No clock, no randomness.
 // ════════════════════════════════════════════════════════════════════════
 import { wage, wageStep } from '../data/wage.js';
 import { TIME_BLOCKS } from '../data/time-blocks.js';
+import { BLESSING } from '../data/blessings.js';
+import { TALENT_RESET } from '../data/talent-reset.js';
 
 /* THE CURVE (wageStep, wage) lives beside its levers in src/data/wage.js since lane/econ-levers (2026-11-22), so a data row priced in
    hours of wage (the store's basics, src/data/supply-basics.js) reads the same one function; this module re-exports it. */
@@ -53,4 +62,21 @@ export function blockPriceOf(row, level, n) {
 /** The gold block `n` of the day of `kind` (a TIME_BLOCKS row) costs a hero of Level `level`, or null (no such kind, or past the cap). */
 export function blockPrice({ kind, level, n }) {
   return blockPriceOf(Object.prototype.hasOwnProperty.call(TIME_BLOCKS, kind) ? TIME_BLOCKS[kind] : null, level, n);
+}
+
+/** The gold the Blessing costs a hero of Level `level` (`row`, a BLESSING-shaped row, the shipped one by default): free under its Level. */
+export function blessingPrice(level, row = BLESSING) {
+  const L = Math.floor(Number(level) || 1);
+  if (L < row.freeUntilLevel) return 0;
+  return Number((BigInt(row.hoursPm) * BigInt(wage(levelStep(L))) + 999n) / 1000n);
+}
+
+/** The gold a hero of Level `level` pays for a Talent reset when it has already paid for `paid` that server day (0 for the first paid
+    one), or null past the day's blast radius. Free resets (a new hero's first, Premium's daily one) are the server's call, never priced. */
+export function resetPrice(level, paid, row = TALENT_RESET) {
+  const n = Math.floor(paid);
+  if (!row || !(n >= 0) || n >= row.perDay) return null;
+  const num = BigInt(row.hoursPm) * BigInt(wage(levelStep(level))) * BigInt(row.growthNum) ** BigInt(n);
+  const den = 1000n * BigInt(row.growthDen) ** BigInt(n);
+  return Number((num + den - 1n) / den);
 }

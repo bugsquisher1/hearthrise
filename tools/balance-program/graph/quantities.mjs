@@ -126,6 +126,7 @@ export const QUANTITIES = Object.freeze([
   q('death.xpLoss', S, 'What a death takes (Level XP and skill progress)', ['deathXpLoss', 'levelDeathLoss', 'skillDeathLoss', 'DEATH_XP_LOSS']),
   q('death.mode', S, 'A session mode\'s share of a death\'s loss', ['deathLossPm', 'modeDeathShare']),
   q('blessing.price', S, 'A Blessing\'s gold price', ['blessingPrice']),
+  q('reset.price', S, 'A Talent reset\'s gold price (lane/level-costs: hours of the wage at the hero\'s Level)', ['resetPrice']),
   q('blessing.cut', S, 'The share of a death\'s loss a Blessing takes off'),
   q('stamina', S, 'The stamina bar (hunted hours a start)', ['STAMINA_MAX_MS']),
   q('refill.price', S, 'A stamina refill\'s gold price', ['refillPrice']),

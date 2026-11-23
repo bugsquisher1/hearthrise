@@ -97,10 +97,10 @@
 //              Flame dies and the death prices it as a combat skill (DEATH_XP_LOSS of its progress, never a
 //              level), the same with the browser closed (the tick's windows) and the hunt viewed (a player's
 //              irregular instants), and the bank says so
-//   DEATHXP-BLESS  Blessings cut a death by 25 / 50 / 75% (Tyler 2026-11-10): the one data row, and
-//              hr_blessing_tiers after the chain; a hero holding all three dies with the browser closed and
-//              with the hunt viewed, each door debits the share less the top cut, the death log names the
-//              three Blessings and what they kept, and they are used up
+//   DEATHXP-BLESS  the ONE Blessing cuts a death by its cut (lane/level-costs, 2026-11-22; src/data/blessings.js
+//              BLESSING): the data row and hr_level_costs after the chain; a hero holding it dies with the browser
+//              closed and with the hunt viewed, each door debits the share less the cut, the death log names the
+//              one Blessing and what it kept, and it is used up
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
 //   BOTH-PATH-MIDNIGHT  the same on a pinned server clock, a second death of the day at 23:59:40: the browser closed,
@@ -1529,6 +1529,15 @@ const ENGINE_ARMS = {
     if (lv(0) !== 0 || lv(1) !== 0 || lv(C(2)) > C(2)) problems.push('a death takes a Level 1 hero below 0 XP');
     if (sk('melee', S(10)) !== 0 || sk('melee', S(10) + 1000) !== Math.floor(1000 * f)) problems.push('a skill does not lose DEATH_XP_LOSS of its progress');
     if (sk('melee', S(11) - 1) > S(11) - 1 - S(10)) problems.push('a skill loses a level');
+    /* lane/level-costs (04 section 5 "Death"): past the crossover (Level 60 at DEATH_HOURS 7.5) a death costs DEATH_HOURS of the hours
+       table's Level XP an hour at the hero's Level, the lesser of the two prices; a mode's smaller share scales the hours alike */
+    const hx = (l) => Math.floor(M.HSD.DEATH_HOURS * M.AR.levelHourXp(l));
+    for (const at of [200, 1000]) {
+      if (!(hx(at) < Math.floor(C(at) * f))) problems.push('CONTROL: at Level ' + at + ' the hours (' + hx(at) + ') do not undercut the share');
+      if (lv(C(at)) !== hx(at)) problems.push('a Level ' + at + ' death costs ' + lv(C(at)) + ', not DEATH_HOURS of its Level (' + hx(at) + ')');
+    }
+    if (lv(C(200) + 12345) !== hx(200)) problems.push('the hours are not read at the hero\'s own Level (200)');
+    if (Math.abs(lv(C(200), f / 2) - Math.floor(hx(200) / 2)) > 1) problems.push('half the rule\'s strength does not halve the hours (' + lv(C(200), f / 2) + ')');
     return problems;
   },
 };
@@ -1947,22 +1956,19 @@ const DB_ARMS = {
     if (crossed !== 2) problems.push(`CONTROL: the death crossed a Level in ${crossed} of 2 doors (the fixture must start 1 XP into its Level and die before it climbs)`);
     return problems;
   }),
-  /* A BLESSED DEATH, BOTH DOORS (Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, replacing 32 / 63 / 95;
-     2027-03-25-death-share-alpha-catalogue.generated.sql). The ruled row is the data's one line and the replayed chain's
-     hr_blessing_tiers reads the same. A hero holding all three dies with the browser closed (the tick's windows) and with
-     the hunt viewed (a player's irregular instants): each door debits the share less the top cut, the death log names the
-     three Blessings and what they kept, and the Blessings are used up. */
+  /* A BLESSED DEATH, BOTH DOORS (lane/level-costs, 2026-11-22: ONE Blessing replaces the three tiers; 02 package 6, "one price
+     that grows with Level"). The data's cut (src/data/blessings.js BLESSING.cutPm) is the replayed chain's hr_level_costs row. A hero
+     holding the Blessing dies with the browser closed (the tick's windows) and with the hunt viewed (a player's irregular instants):
+     each door debits the share less the cut, the death log names the one Blessing and what it kept, and the Blessing is used up. */
   'DEATHXP-BLESS': async (db, M) => inTx(db, async () => {
     const problems = [];
-    const cut = [...M.BL.BLESSING_CUT_PERMILLE];
-    if (JSON.stringify(cut) !== '[250,500,750]') problems.push(`the Blessing cut row reads ${cut.join(' / ')} permille, the ruling is 250 / 500 / 750`);
-    if (JSON.stringify(M.BL.BLESSING_TIERS.map((t) => t.xpLossReductionPermille)) !== JSON.stringify(cut)) problems.push('a Blessing tier does not read the one cut row');
-    const rows = (await q(db, 'select permille from public.hr_blessing_tiers order by tier')).map((r) => Number(r.permille));
-    if (JSON.stringify(rows) !== JSON.stringify(cut)) problems.push(`hr_blessing_tiers reads ${rows.join(' / ')} after the chain, the data row ${cut.join(' / ')}`);
-    const top = rows[rows.length - 1];
+    const top = M.BL.BLESSING.cutPm;
+    if (!(top > 0 && top < 1000)) problems.push(`the Blessing's cut reads ${top} permille`);
+    const row = Number(await one(db, 'select bless_cut_pm from public.hr_level_costs where id'));
+    if (row !== top) problems.push(`hr_level_costs.bless_cut_pm reads ${row} after the chain, the data row ${top}`);
+    if (await one(db, "select to_regclass('public.hr_blessing_tiers')::text") !== null) problems.push('hr_blessing_tiers still stands after the chain');
     const h = await hunter(db, M, { ...DOOMED, levelXpOver: 1 });
-    await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at)
-                      select $1, 0, t.tier, 0, now() - interval '2 days' from public.hr_blessing_tiers t`, [UIDS[0]]);
+    await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, 1, 0, now() - interval '2 days')`, [UIDS[0]]);
     const door = async (cuts) => {
       await run(db, M, h.from, cuts);
       const s = await snapshot(db, h.sid, UIDS[0]);
@@ -1981,8 +1987,8 @@ const DB_ARMS = {
       const paid = Number((s.death_xp || {}).level || 0), kept = Number((log.saved || {}).level || 0);
       const share = paid + kept, before = Number(s.level_xp) + paid;
       if (!(share > 0) || share !== Math.floor(before * M.HSD.DEATH_XP_LOSS)) problems.push(`${name}: the unblessed share was ${share} Level XP of ${before}, not DEATH_XP_LOSS of the total`);
-      if (!(kept > 0) || kept !== Math.floor(share * top / 1000)) problems.push(`${name}: three Blessings kept ${kept} of ${share} Level XP, not floor(${share} x ${top} / 1000)`);
-      if (log.blessings !== rows.length) problems.push(`${name}: the death log names ${log.blessings} Blessing(s) used, ${rows.length} were held`);
+      if (!(kept > 0) || kept !== Math.floor(share * top / 1000)) problems.push(`${name}: the Blessing kept ${kept} of ${share} Level XP, not floor(${share} x ${top} / 1000)`);
+      if (log.blessings !== 1) problems.push(`${name}: the death log names ${log.blessings} Blessing(s) used, one was held`);
       if (s.held !== 0) problems.push(`${name}: ${s.held} Blessing(s) still held after the death`);
     }
     if (JSON.stringify([a.level_xp, a.death_xp]) !== JSON.stringify([b.level_xp, b.death_xp])) problems.push(`the two doors disagree: ${JSON.stringify([a.level_xp, a.death_xp])} with the browser closed, ${JSON.stringify([b.level_xp, b.death_xp])} with the hunt viewed`);
@@ -5617,13 +5623,18 @@ const MUTANTS = [
       + 'export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {\n'
       + '  { const zx = Math.max(0, Math.floor(Number(levelXp) || 0)); if (!(Number(fraction) > 0)) return 0; return Math.max(0, Math.min(Math.floor(zx * Number(fraction)), zx - zzC(zzL(zx)))); }' },
   { arm: 'DEATHXP-RULE', name: 'the share is still the old 2%', file: 'src/core/action-rules.js',
-    from: '  return Math.max(0, Math.min(Math.floor(x * f), x));', to: '  return Math.max(0, Math.min(Math.floor(x * 0.02), x));' },
+    from: '  const share = Math.min(Math.floor(x * f), x);', to: '  const share = Math.min(Math.floor(x * 0.02), x);' },
   { arm: 'DEATHXP-RULE', name: 'a death takes more than the whole total (below Level 1)', file: 'src/core/action-rules.js',
-    from: '  return Math.max(0, Math.min(Math.floor(x * f), x));', to: '  return Math.max(0, Math.floor(x * f) + 1);' },
+    from: '  return Math.max(0, Math.min(share, hours));', to: '  return Math.max(0, Math.floor(x * f) + 1);' },
+  /* lane/level-costs: the hours rule (hunt-sessions.js DEATH_HOURS) is what a death past Level 60 costs */
+  { arm: 'DEATHXP-RULE', name: '[level-costs] the hours rule is dropped (a Level 200 death costs the whole share again)', file: 'src/core/action-rules.js',
+    from: '  return Math.max(0, Math.min(share, hours));', to: '  return Math.max(0, share);' },
+  { arm: 'DEATHXP-RULE', name: '[level-costs] the hours are read at Level 1, not the hero\'s Level', file: 'src/core/action-rules.js',
+    from: '* levelHourXp(charLevelFromXp(x)));', to: '* levelHourXp(1));' },
   { arm: 'DEATHXP', name: 'a death prices nothing', file: 'src/core/combat-sim.js',
     from: '  const xpLost = deathXpLoss(m.state, share);', to: '  const xpLost = {};' },
-  { arm: 'DEATHXP-BLESS', name: 'the Blessing cut row is the old 32 / 63 / 95', file: 'src/data/blessings.js',
-    from: 'export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);', to: 'export const BLESSING_CUT_PERMILLE = Object.freeze([320, 630, 950]);' },
+  { arm: 'DEATHXP-BLESS', name: '[level-costs] the data\'s cut moves and the server\'s row does not', file: 'src/data/blessings.js',
+    from: '  cutPm: 500,', to: '  cutPm: 750,' },
   { arm: 'END', name: 'a death ends nothing (the hunt runs on to another end)', file: 'src/core/action-rules.js',
     from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'END', name: '[C2 dry heal line] a dry essential heal line under end ends nothing', file: 'src/core/action-rules.js',
@@ -5819,7 +5830,7 @@ const DB_MUTANTS = [
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },
   /* 1005-lever-horizon.sql: each lever's deferral, planted away */
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] a Blessing bought mid-hunt counts from now again', fn: 'public.hr_blessing_buy(integer,integer,bigint,uuid)',
-    find: 'values (v_uid, p_slot, p_tier, v_price, public.hr_hunt_lever_at(v_uid, p_slot));', replace: 'values (v_uid, p_slot, p_tier, v_price, now());' },
+    find: 'values (v_uid, p_slot, 1, v_price, public.hr_hunt_lever_at(v_uid, p_slot));', replace: 'values (v_uid, p_slot, 1, v_price, now());' },
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the settle never reads a hold (a bar, option or setup change plays at once)', fn: 'public.hr_hunt_setup_of(hunt_sessions)',
     find: 'where h.session_id = p_s.id and h.until >= p_s.settled_to', replace: 'where false' },
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the horizon is the settled point (no look-ahead held)', fn: 'public.hr_hunt_seed_horizon(uuid)',

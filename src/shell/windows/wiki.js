@@ -129,7 +129,7 @@ function formulaWords(f) {
       words: t('wiki.mon_max_words', { scale: T.scale, list: factors(Object.values(T.byTier), String) }),
       example: t('wiki.mon_max_example', { monster: I.monster, atk: I.atk, result: whole(r) }) };
     case 'death': return { name: t('wiki.death_name'),
-      words: t('wiki.death_words', { share: pc(T.share), cuts: listWords(T.cuts.map((pm, i) => t('wiki.death_cut', { pct: pm / 10, count: i + 1 })), Infinity) }),
+      words: t('wiki.death_words', { share: pc(T.share), hours: T.hours, cuts: listWords(T.cuts.map((pm, i) => t('wiki.death_cut', { pct: pm / 10, count: i + 1 })), Infinity) }),
       example: t('wiki.death_example', { level: I.level, xp: whole(I.xp), result: whole(r), blessed: whole(f.example.blessed) }) };
     default: return null;
   }

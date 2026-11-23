@@ -14,7 +14,7 @@ const mod = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { formulaStats, contractXpPerH, STAT_FORMULA } = await mod('src/data/balance-sheet.js');
 const { charXpForLevel } = await mod('src/core/xp.js');
 const { refillPrice, STAMINA_REFILL } = await mod('src/data/stamina-refill.js');
-const { blessingPrice } = await mod('src/data/blessings.js');
+const { blessingPrice } = await mod('src/core/wage.js');
 const { pricePerHour } = await mod('src/data/scaled-hunts.js');
 const { DEATH_XP_LOSS, STAMINA_MAX_MS } = await mod('src/data/hunt-sessions.js');
 const { TEMPER_TIERS } = await mod('src/data/temper.js');
@@ -31,13 +31,13 @@ for (const L of LEVELS) {
   const capMin = STAMINA_MAX_MS.free / 60000;
   const refills = [];
   for (let n = 0; n < STAMINA_REFILL.perDay; n++) { const q = refillPrice({ level: L, currentMin: 0, capMin, boughtToday: n }); refills.push(q ? q.price : null); }
-  const bless = [1, 2, 3].reduce((a, t) => a + (blessingPrice(t, L) || 0), 0);
+  const bless = blessingPrice(L);   /* the ONE Blessing (lane/level-costs, 2026-11-22) */
   let scaled = null;
   try { scaled = pricePerHour('meadowbrook_thicket', L); } catch { scaled = null; }
   rows.push({ L, hp: s.hp, xpKill: s.xp, gpMean, coinPerXp: +(gpMean / s.xp).toFixed(4), contractXpPerH: Math.round(contract), killsPerH: Math.round(killsPerH),
     coinPerH: Math.round(coinPerH), hoursALevel: xpToNext == null ? null : +(xpToNext / contract).toFixed(2),
     refill1: refills[0], refill1Over4hCoin: +(refills[0] / (4 * coinPerH)).toFixed(3), sixRefills: refills.reduce((a, b) => a + (b || 0), 0),
-    blessings3: bless, blessOverHourCoin: +(bless / coinPerH).toFixed(3), deathHours: total == null ? null : +((total * DEATH_XP_LOSS) / contract).toFixed(1),
+    blessing: bless, blessOverHourCoin: +(bless / coinPerH).toFixed(3), deathHours: total == null ? null : +((total * DEATH_XP_LOSS) / contract).toFixed(1),
     scaledHour: scaled });
 }
 

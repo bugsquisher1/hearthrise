@@ -181,6 +181,8 @@ No XP total grows without bound, nothing overflows at any Level, and the "Level 
 
 **Death.** Today a death costs 6% of all Level XP, which is 89 hunted hours at Level 300 and 759 at Level 1,000 (EVIDENCE: `44` section 1). In this model a death costs hours of progress (`deathHours`), cut by Blessings. It is the same weight at every Level, and a fall back comes first.
 
+**Built (lane/level-costs, 2026-11-22).** A death takes the lesser of two prices of the hero's Level XP: the share (6% of the total, as before) and `deathHours` = 7.5 reference hours of progress at the hero's Level (the hours table's Level XP an hour there: the XP that Level takes over the hours it takes). The share binds to Level 61 and the hours from 62, so a young hero never falls back to Level 1 (the table's first Levels take minutes, so 7.5 hours of them is every Level the hero has) and a far hero pays the same 7.5 hours at Level 62 and at Level 4,000 (the share alone was 62 hours at 200). It can take a Level, never below Level 1; each combat skill still loses 6% of its progress, never a level; a held Blessing cuts both by half. Engine `src/core/action-rules.js levelDeathLoss`, server bound `hr_death_xp_mode_max` (hours rounded up), data `src/data/hunt-sessions.js DEATH_HOURS`. MEASURED on Bold (v1-climb.mjs, Muster Barrows, the mixed MID four from a held start, 6 seeds x 10 h): a death cost 7.3 to 7.7 h at Level 60 (the share) and 7.50 h at 70 (the hours); Bold died 1.0 and 0.67 times a party-day; its deaths took **20% of its four's day of Level XP at Level 60 and 12% at Level 70** (per-seed mean 26% +- 11 and 16% +- 5, standard error); unblessed, Bold's day nets 0.68 and 0.73 of Steady's, blessed 0.77 and 0.78 (C-4: Steady beats Bold over a 10 h day at every cut).
+
 **4. Coupling.** The hours table times the reference kill rate gives the kills for a Level, which sizes every kill's pay (section 7). The hunted hours in a day turn hours into days, and that is the designer's input (package 9).
 
 **5. Validation.** A career run of the reference company from Level 1 to 400, and the scale test past it.
@@ -452,6 +454,16 @@ n                       = resets this hero has paid for this server day, 0 for t
 | 4th | 4.0 | 53% |
 
 `resetHours` starts at 0.5 (band 0.25 to 1) and `resetGrowth` at 2 (band 1.5 to 3). It grows with Level through the wage and with each reset that day through the growth, so a plan that switches builds once a day for its ground pays a small steady price and one that thrashes pays a lot. A new hero's first reset is free. With Premium each hero's first reset of the server day is free and is not counted, so the next is priced as a free hero's first. A reset moves points and never adds one, and the gold is burned, so it is a sink that grows with Level. (COMPUTED.)
+
+**Built (lane/level-costs, 2026-11-22): every per-hero cost reads the wage at the hero's Level.**
+
+```
+death (Level XP)   = min(floor(total Level XP x 0.06), floor(deathHours x (XP of Level L) / hours(L)))   deathHours 7.5; skills 6% of progress
+Blessing (gold)    = 0 under Level 30, else ceil(blessHours x wage(L))                                    blessHours 1.0; cut 50% of one death
+reset (gold)       = ceil(resetHours x wage(L) x resetGrowth ^ n)                                         resetHours 0.5, resetGrowth 2, n paid today, 16 a day
+```
+
+One Blessing replaces the three tiers ("one price that grows with Level", package 6): an hour of the hero's own wage halves what one death takes (16,365 gold at Level 60, 63,591 at 400), so it saves 3.75 hours of progress for about 1.4 hours of net coin: always worth buying for a Bold player, a real sink that grows with Level, and never a puzzle. The cut does not decide C-4: Bold's day nets under Steady's unblessed and at every cut measured (above, section 5). Free under Level 30, where a death is under 2.5 hours (the share) and a wage-priced Blessing would cost more coin than the hero's own hours pay. The reset's verb `hr_talent_reset` is built, priced, keyed and journalled, and DARK (no client role) until the Talents lane gives a reset something to move. Rules `src/core/wage.js` (blessingPrice, resetPrice), data `src/data/blessings.js`, `src/data/talent-reset.js`, server `hr_level_costs` (tools/gen-level-costs.mjs) and `1063-level-costs.sql`; guard `tests/level-costs.mjs`. Starting values, the designer's to move (`level.death-hours`, `level.blessing-cut`, `econ.blessing-price`, `econ.reset-price`).
 
 **The Crowns book as a sink.** The book moves gold between players and mints none. Its fee, 1% to list and 4% of the gold on a sale (band 3 to 10%), is burned, so every Crown sold for gold is a gold sink that grows with the money players bring. A seller at the weekly cap moves about one account-week of wage, 280 hours of wage on a 10 hour day, and burns about 14 of them. It counts in `sinkOverFaucet` like the market tax. The Crown's gold value is anchored by Premium's hours: the same hours bought as first blocks cost 20 hours of wage an account-day, about 600 a month (`10-premium.md` section 4). (COMPUTED.)
 

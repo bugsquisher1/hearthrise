@@ -22,7 +22,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 |---|---|---|---|---|---|---|---|---|
 | Base damage coefficients | 12 | 11 | 1 | 0 | 0 | 4 | 7 | 3 |
 | Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
-| Level scaling | 7 | 4 | 1 | 0 | 2 | 4 | 2 | 4 |
+| Level scaling | 8 | 6 | 0 | 0 | 2 | 4 | 2 | 5 |
 | Weapon power and attack frequency | 6 | 2 | 2 | 2 | 0 | 1 | 0 | 2 |
 | Spell coefficients, costs, cooldowns and areas | 12 | 5 | 1 | 5 | 1 | 1 | 0 | 2 |
 | Healing and shielding | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
@@ -39,16 +39,16 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **195** | 91 | 29 | 47 | 28 | 31 | 82 | 84 |
+| Economy sources and sinks | 36 | 23 | 2 | 10 | 1 | 0 | 31 | 24 |
+| **All** | **197** | 95 | 27 | 47 | 28 | 31 | 83 | 87 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 678 (in 233 files, 15809 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 680 (in 234 files, 15806 typed numbers) |
 | Claimed by a lever | 291 |
-| Claimed by a not-a-lever reason | 387 |
+| Claimed by a not-a-lever reason | 389 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -162,7 +162,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | ineffective | `cons.food-buffs` Food and drink buffs | The built protection row (a 10% cut off every blow) does nothing for a capped hero: median 0.0%, within 1% in 19 of 24 cells | 12-balance-pass section 3.8, MEASURED |
 | ineffective | `cons.food-buffs` Food and drink buffs | A +15% damage buff paid +0 to +11% pace, median +2% | 12-balance-pass section 3.8, MEASURED |
 | ineffective | `party.tank-rules` Challenge and the healer's peel | A party is close to one health bar: back heroes' armor, Defense and weight do nothing on nine grounds | 12-balance-pass section 4.1, MEASURED (R0) |
-| ineffective | `econ.blessing-price` Blessing prices | From Level 30 all three Blessings cost minutes of gold and save days of XP: never a choice | 44 Levels table (30 on), COMPUTED there |
 | ineffective | `econ.town-sinks` Town sinks (powder, rounds, criers, setup slots, colors, the House dummy) | Every gold sink is a list that ends. From Level 110 gold only piles up | 44 summary item 4, CONFIRMED |
 | ineffective | `econ.training` Training yard pay and fee | One flat rate for every skill and level, so skill 75 to 100 takes 51 to 243 yard hours a level | 44 P-X28 and Levels table, COMPUTED there |
 | ineffective | `econ.bounty` Bounty rewards | Status unknown: no client or engine surface was found reading it | 44 E53 "unknown", HYPOTHESIS |
@@ -203,7 +202,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `party.run-xp` Run ground party table | Its pair and three rows are ASSUMED | 44 P-X09, CONFIRMED |
 | contradictory | `party.under-floor` Under-floor Level share | A Level-keyed cut on party XP is live. Tyler's 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT | 44 P-X06, CONFIRMED |
 | contradictory | `econ.store-kit` The store's basics, priced in hours of wage | Priced once at the row's own step, not at the buyer's (04 section 3, 09 4.6): a hero far past a row's step pays that row's price. The server change is handed off | src/data/store-kit.js header. JUDGMENT |
-| contradictory | `econ.blessing-price` Blessing prices | Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms | 44 P-X20, CONFIRMED |
+| contradictory | `econ.blessing-price` The Blessing's price | Free under Level 30: a Level threshold that changes a price on purpose (a young hero's death is under 2.5 h, its wage-priced Blessing more than its hours pay) | 44 P-X20. Kept by the designer 2026-11-22 |
 | contradictory | `econ.training` Training yard pay and fee | The fee in code (50 + 6 a level) is not the fee Tyler ruled (100 gold x skill level an hour, 2026-11-20 24-8) | 44 P-X30, CONFIRMED |
 | contradictory | `econ.companions` Companions | Added after the +20% permanent cap, on its own curve | 44 P-X27, HYPOTHESIS |
 | contradictory | `econ.market` Market fee, cut and ceiling | 44 and 43 quote the cut as 1.5%. The newest config write on this tree sets 4% (house_tax_bp 150 -> 400) | CONFIRMED (read: 2027-01-12-market-account.sql line 310) |
@@ -295,6 +294,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.hunt-block` Bought hunting block price | Economy sources and sinks | a block is bought in town or mid-hunt, never by a cell. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.jewelry-crafting` Jewelry tiers, Hallmark and rolls | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.refill` Stamina refill price | Economy sources and sinks | retired from play. Tools/balance-program/stamina-day.mjs models the day |
+| outside-hunt | `econ.reset-price` Talent reset price | Economy sources and sinks | a reset is bought in town, never by a cell |
 | outside-hunt | `econ.shop-prices` Shop offers | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.tally` Tally task rewards | Economy sources and sinks | the cells hold no task |
 | outside-hunt | `econ.temper-price` Tempering prices | Economy sources and sinks | the kits hold rungs without paying for them |

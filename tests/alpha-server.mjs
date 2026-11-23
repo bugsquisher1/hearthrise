@@ -17,7 +17,7 @@
 //             the SQL hr_shop_supply_offers row for row; the vendor never bids
 //             more than half of one (buy-then-sell loses); the
 //             SQL stamina and blessing prices equal the data's own functions
-//             (stamina-refill.js refillPrice, blessings.js blessingPrice);
+//             (stamina-refill.js refillPrice, wage.js blessingPrice: the one Blessing);
 //   A-LOCK    the REAL edge verb vendor_sell_many refuses a locked item
 //             (`item_locked`, hr_apply's, under the lock) and sells it unlocked;
 //   A-NO-SUPPLY  the Shop sells no supplies (Tyler 2026-10-20,
@@ -76,7 +76,7 @@ async function harness() {
   const X = {
     VS: await import(u(join(FN, 'vendor-sell.js'))), SB: await import(u(join(FN, 'shop-buy.js'))),
     CAT: await import(u(join(FN, 'catalogue.js'))), SR: await import(u('src/data/stamina-refill.js')),
-    BL: await import(u('src/data/blessings.js')), SUP: await import(u('src/data/supply-basics.js')), SHOPS: await import(u('src/data/shops.js')),
+    WG: await import(u('src/core/wage.js')), SUP: await import(u('src/data/supply-basics.js')), SHOPS: await import(u('src/data/shops.js')),
     GEN: await import(u('tools/gen-alpha-catalogue.mjs')),
   };
   return { H, M, X };
@@ -155,9 +155,11 @@ const ARMS = {
     }
     // The SQL formulas are the data's own functions (each judged where its file is in the chain).
     const has = async (fn) => (await H.one(db, 'select to_regprocedure($1) is not null', [fn])) === true;
+    /* the ONE Blessing (lane/level-costs, 2026-11-22): tier 1 at the wage at the hero's Level, every other tier no Blessing */
     if (await has('public.hr_blessing_price(integer,integer)')) for (const lv of [1, 29, 30, 31, 60, 120]) for (const t of [1, 2, 3]) {
-      const s = Number(await H.one(db, 'select public.hr_blessing_price($1, $2)', [t, lv]));
-      if (s !== X.BL.blessingPrice(t, lv)) p.push(`blessing tier ${t} at level ${lv}: SQL ${s} vs data ${X.BL.blessingPrice(t, lv)}`);
+      const raw = await H.one(db, 'select public.hr_blessing_price($1, $2)', [t, lv]);
+      const want = t === 1 ? X.WG.blessingPrice(lv) : null;
+      if ((raw === null ? null : Number(raw)) !== want) p.push(`blessing tier ${t} at level ${lv}: SQL ${raw} vs data ${want}`);
     }
     if (!(await has('public.hr_stamina_refill_quote(uuid,integer)'))) return p;
     const uid = H.UIDS[3];

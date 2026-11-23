@@ -181,7 +181,11 @@ export const LEVER_MOVES = Object.freeze({
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
   'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],
   'econ.wage-base': [['+refill.price', 'every block price is written in hours of wage (wage.js wage, read by blockPrice)'],
+    ['+blessing.price', 'the Blessing is written in hours of wage at the hero\'s Level (wage.js blessingPrice, lane/level-costs)'],
+    ['+reset.price', 'a Talent reset is written in hours of wage at the hero\'s Level (wage.js resetPrice, lane/level-costs)'],
     ['+sink.other', 'market prices and fees are written in hours of wage too (wave 4)']],
+  /* THE PER-HERO COSTS BY LEVEL (lane/level-costs, 2026-11-22): the reset's price is outside the register's formulas */
+  'econ.reset-price': [['+reset.price', 'a reset costs hoursPm of an hour of wage at the hero\'s Level, x growth a paid reset that day (src/core/wage.js resetPrice)']],
   'econ.wage-step': [['+refill.price', 'the wage grows by it a Level step, and a block is priced at the hero\'s step'],
     ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)'],
     ['+kill.coin', 'the one coin ratio (lane/econ-levers): an hour a step deeper on the scale pays (1 + payStepCoin) more coin, a pull (1 + payStepCoin)(1 + powerStep) (dangerDial coinPm, COIN_STEP)']],

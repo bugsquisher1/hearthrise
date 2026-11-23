@@ -817,9 +817,9 @@ const MUTANTS = [
     ['src/data/gear-stats.generated.js', '"mithril_platebody": f({', '"mithril_platebody": f({ iL: 45 }), "mithril_platebody~shipped": f({']] },
   { name: 'the wings drop the ladder tier', case: 'ilevel', edits: [['src/data/danger.js', "    if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);", '']] },
   { name: 'the power step reads reqLv over iL', case: 'ilevel', edits: [['src/core/hunt/danger.js', 'Number.isInteger(it.iL) ? it.iL : it.reqLv', 'it.reqLv']] },
-  { name: 'a ground\'s rows never ride its kills', case: 'drops', edits: [['src/core/combat-sim.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", '  return null;']] },
-  { name: 'a ground\'s rows go first', case: 'drops', edits: [['src/core/combat-sim.js', "drops: (out[id].drops || []).concat(g.drops)", "drops: g.drops.concat(out[id].drops || [])"]] },
-  { name: 'every ground reads a copied table', case: 'drops', edits: [['src/core/combat-sim.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", "  if (!g) return null;"]] },
+  { name: 'a ground\'s rows never ride its kills', case: 'drops', edits: [['src/core/hunt/play-rows.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", '  return null;']] },
+  { name: 'a ground\'s rows go first', case: 'drops', edits: [['src/core/hunt/play-rows.js', "drops: (out[id].drops || []).concat(g.drops)", "drops: g.drops.concat(out[id].drops || [])"]] },
+  { name: 'every ground reads a copied table', case: 'drops', edits: [['src/core/hunt/play-rows.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", "  if (!g) return null;"]] },
   /* lane/r9: the pay floor and the power step */
   { name: 'no pay floor under the reference', case: 'floor', edits: [['src/core/hunt/danger.js', 'Math.max(PAY.floor, 1 / powStep(1 + rate, -g))', '1 / powStep(1 + rate, -g)']] },
   { name: 'the floor lifts the pay over the reference too', case: 'floor', edits: [['src/core/hunt/danger.js', 'return g >= 0 ? powStep(1 + rate, g) : Math.max', 'return g >= 0 ? Math.max(PAY.floor * 2.5, powStep(1 + rate, g)) : Math.max']] },

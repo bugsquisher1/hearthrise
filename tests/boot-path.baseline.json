@@ -232,6 +232,12 @@
         "gzipBytes": 928590,
         "on": "2026-11-23",
         "why": "set/v0.2.144 batch on the integrated tree (lane/set-reds-3 after lane/ci-reds-db), town +3.0 KB gzip, measured per module (minified, gzipped) against e3015ddb3: lane/tower-boss-formula about 2.2 KB (data/bosses.js 0.9 KB new, data/tower.js +0.5, core/hunt/tower.js +0.5, boss-phases.js +0.2, chests.js +0.1); lane/flame-temper-build about 0.7 KB (core/temper-steps.js 0.5 KB new, temper.js, party.js, gear-steps.js); lane/level-costs about 0 (blessings.js -0.25 KB against action-rules.js and the hunt list, how-to-play and wiki text); lane/formula-overhaul +0.1 KB (core-model.js LEVEL_HOURS); lane/ci-reds-db +24 B; lane/set-reds-3 under 0.1 KB (levelDeathShare). All engine modules the viewed hunt runs or the Tower window's data, reached statically by the engine the edge packs, so no import() on need"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 945738,
+        "on": "2026-11-23",
+        "why": "set/v0.2.144 after gear, hall and talents (lane/set-reds-5), town +16.9 KB gzip bundled, measured per module (minified, gzipped) against 1416a27c5: talents about 13.4 KB (data/talents.js 6.4 new, core/talents.js 3.3, core/hunt/talent-rows.js 1.7, the Talents tab 1.2, session/talent-intents.js 0.9); gear catalogue about 5.6 KB (data/gear-stats.generated.js 3.5 new, core/gear-stats.js 1.6, data/gear-profiles.js 1.0, gear-tiers.js -0.4); monster and hall formula about 3.3 KB (monster-formula.js 1.8, hall-formula.js 0.8, reference-company.js 0.4, monster-roles.js 0.4; play-rows.js 0.7 moved out of combat-sim.js -0.3). Must load: the generated stat table is read by items.js and every gear catalogue at module eval (withGearStats), and the talent rules, both formulas and the talent tab are reached statically by the engine the live view runs (combat-sim, hunt-spawn, abilities, auras) and by the character window's synchronous patch, all in the game half boot.js preloads as one list, so no import() on need"
       }
     ]
   }

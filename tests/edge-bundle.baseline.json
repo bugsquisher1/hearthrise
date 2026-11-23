@@ -353,6 +353,11 @@
         "bytes": 3663384,
         "on": "2026-11-23",
         "why": "lane/roads-sample: +66,234 B, the Roads sample the settle grants (src/data/talents.js, src/core/talents.js, src/core/hunt/talent-rows.js, the seams); the other +43,725 B was already over on the set tip 319590c72 (red on base, not this lane)"
+      },
+      {
+        "bytes": 3663813,
+        "on": "2026-11-23",
+        "why": "set reds 5: combat-sim.js split to keep its under-600 rule (hunt-sessions-settle ONE-PATH); src/core/hunt/play-rows.js holds huntPlayOf and the swing rows, +429 B for its own seven import lines, two-line head and module seam, no new code reached"
       }
     ]
   }

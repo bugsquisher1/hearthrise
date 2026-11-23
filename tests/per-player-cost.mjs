@@ -505,6 +505,17 @@ async function unfence(db) {
   }
 }
 
+/* EVERY FIXTURE ROLLS ITS OWN DICE (set reds 5, 2026-11-23). pinDice's counting gen_random_uuid is a SEQUENCE, and a sequence is not
+   rolled back with the savepoint: unrewound, a fixture's session and instance ids (the keys of its hunt seed) were the count every
+   fixture before it drew, so the Tower four's climb died earlier in the full run than alone (statements/hero hour 44.3 full, 39.8
+   --only tower4, 37.7 --only L80: one settle count, a different paid-hours denominator). Rewound to the value read before the first
+   fixture, each fixture plays the same swings whatever ran before it, whatever --only names and in every --selftest plant. */
+let DICE0 = null;
+async function rewindDice(db) {
+  if (DICE0 === null) [DICE0] = await q(db, 'select last_value::text as v, is_called as c from public.hr_test_uuid_seq');
+  await db.query(`select setval('public.hr_test_uuid_seq', $1::bigint, $2::boolean)`, [DICE0.v, DICE0.c]);
+}
+
 /** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint. `plant`: the selftest's defect. */
 async function measureAll(db, M, { plant = null, only = null } = {}) {
   const out = {};
@@ -513,6 +524,7 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
   try {
     for (const [name, f] of Object.entries(FIXTURES)) {
       if (only && !name.includes(only)) continue;
+      await rewindDice(db);
       await db.query('savepoint fx');
       try {
         if (plant === 'unit_row') await db.exec(UNIT_ROW);

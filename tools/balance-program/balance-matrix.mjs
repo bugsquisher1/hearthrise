@@ -898,9 +898,13 @@ async function selftest() {
     const lethal = buildCell(D, K, { L: 20, gear: 'low', styles: ['hammer'], tier: 'deadly', ground: D.groundAt(20, 1) }).cell;
     const pairGround = D.groundAt(60, 2), pair = { ground: pairGround, party: ['bow', 'hammer'], level: [60, 5], profile: 'played', supply: 'store', deathRule: 'real', options: { tier: 'deadly' }, hours: 0.5, seeds: 1 };
     const g60 = D.groundAt(60, 1), ham = buildCell(D, K, { L: 60, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: g60 }).cell, mage = buildCell(D, K, { L: 60, gear: 'mid', styles: ['mage'], tier: 'normal', ground: g60 }).cell;
+    /* THE BLESSING'S DEATH (9d, and S-5's ladder below): a lone hero twenty Levels under its ground on Deadly dies at once, and at Level 40 its
+       Blessing has a price (free under BLESSING.freeUntilLevel). Not the pair: its dying hammer is Level 5 (free), and since R10 put the pair on
+       a scale ground its Level 60 bow holds, so a check read on the bow priced a death nobody died. blessedShare unset: the Blessing's own cut */
+    const blessL = 40, dying = { ...buildCell(D, K, { L: blessL, gear: 'low', styles: ['hammer'], tier: 'deadly', ground: g60 }).cell, deathRule: 'real', blessedShare: undefined, hours: 0.5 };
     const jobs = [
       ['real', { ...lethal, hours: 1 }], ['reenter', { ...lethal, deathRule: 'reenter', hours: 1 }],
-      ['apart', pair], ['together', { ...pair, endTogether: true }], ['blessed', { ...pair, blessings: 1 }],
+      ['apart', pair], ['together', { ...pair, endTogether: true }], ['blessed', { ...dying, blessings: 1 }],
       ['plain', { ...ham, hours: 1.5 }], ['buffKept', { ...ham, buffs: [{ type: 'damage', magnitude: 10 }], hours: 1.5 }], ['buffHour', { ...ham, buffs: [{ type: 'damage', magnitude: 10, hours: 1 }], hours: 1.5 }],
       ['stamina', { ...ham, staminaH: 0.1, hours: 0.25 }], ['purseFull', { ...mage, hours: 0.25 }], ['purseDry', { ...mage, purse: 0, goldFloor: 100000, hours: 0.25 }],
     ].map(([id, cell]) => ({ id, cell: { ...cell, id: 'SELF:' + id, seeds: 1 } }));
@@ -919,7 +923,7 @@ async function selftest() {
     const bw = h('blessed', 0), bl = await import(pathToFileURL(join(ROOT, 'src/data/blessings.js')).href), wg = await import(pathToFileURL(join(ROOT, 'src/core/wage.js')).href);
     const keep = 1 - bl.BLESSING.cutPm / 1000;
     check('the Blessing cuts the loss to ' + keep + ' (' + bw.raw.xpLostLevel + ' -> ' + Math.round(bw.raw.xpLostLevelBlessed) + ') and costs ' + bw.raw.blessingGold + ' gold again',
-      bw.deaths >= 1 && Math.abs(bw.raw.xpLostLevelBlessed - keep * bw.raw.xpLostLevel) < 1 && bw.raw.blessingGold === bw.deaths * wg.blessingPrice(60));
+      bw.deaths >= 1 && bw.raw.xpLostLevel > 0 && Math.abs(bw.raw.xpLostLevelBlessed - keep * bw.raw.xpLostLevel) < 1 && wg.blessingPrice(blessL) > 0 && bw.raw.blessingGold === bw.deaths * wg.blessingPrice(blessL));
     /* 9e. one timed buff in a cell, kept up all hunt (a row an hour), against an hour of it and against none */
     check('a timed buff: +10% damage kept up deals more than an hour of it, which deals more than none (' + [X.plain, X.buffHour, X.buffKept].map((r) => r.heroes[0].dps).join(' < ') + ')',
       h('buffKept').dps > h('buffHour').dps && h('buffHour').dps > h('plain').dps);
@@ -961,9 +965,9 @@ async function selftest() {
        XP row drops into the seam; S-6: the four is played both ways (the leave block) */
     check('S-5: three Blessings, then each ladder Level halves what a blessed death takes (L50 ' + PG.blessedShareAt(50) + ', L100 ' + PG.blessedShareAt(100) + ', L400 ' + PG.blessedShareAt(400) + '), and every cell carries it',
       PG.blessedShareAt(50) === 0.25 && PG.blessedShareAt(100) === 0.125 && PG.blessedShareAt(400) === 0.015625 && buildCell(D, K, { L: 185, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: D.groundAt(185, 1) }).cell.blessedShare === 0.0625);
-    const ladderJob = await playJobs([{ id: 'ladder', cell: { ...pair, blessings: 3, blessedShare: 0.125, id: 'SELF:ladder', seeds: 1 } }], ROOT, 1);
+    const ladderJob = await playJobs([{ id: 'ladder', cell: { ...dying, blessings: 3, blessedShare: 0.125, id: 'SELF:ladder', seeds: 1 } }], ROOT, 1);
     const lw = ladderJob.results.ladder.heroes[0];
-    check('S-5: a cell plays the ladder\'s share (' + lw.raw.xpLostLevel + ' -> ' + Math.round(lw.raw.xpLostLevelBlessed) + ')', lw.deaths >= 1 && Math.abs(lw.raw.xpLostLevelBlessed - 0.125 * lw.raw.xpLostLevel) < 1);
+    check('S-5: a cell plays the ladder\'s share (' + lw.raw.xpLostLevel + ' -> ' + Math.round(lw.raw.xpLostLevelBlessed) + ')', lw.deaths >= 1 && lw.raw.xpLostLevel > 0 && Math.abs(lw.raw.xpLostLevelBlessed - 0.125 * lw.raw.xpLostLevel) < 1);
     const size = await plantScratch(P.composePatch(ROOT, ['S-10'])), lvx = await plantScratch(P.composePatch(ROOT, ['S-4']));
     try {
       const pcx = async (root) => (await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href)).partyClassXp;

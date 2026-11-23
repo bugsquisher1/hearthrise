@@ -39,15 +39,15 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
-| Economy sources and sinks | 45 | 31 | 2 | 11 | 1 | 0 | 40 | 33 |
-| **All** | **237** | 127 | 32 | 50 | 28 | 31 | 123 | 128 |
+| Economy sources and sinks | 46 | 31 | 2 | 12 | 1 | 0 | 41 | 34 |
+| **All** | **238** | 127 | 32 | 51 | 28 | 31 | 124 | 129 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 753 (in 260 files, 16820 typed numbers) |
-| Claimed by a lever | 327 |
+| Top-level bindings in the rule code that hold a typed number | 760 (in 260 files, 17041 typed numbers) |
+| Claimed by a lever | 334 |
 | Claimed by a not-a-lever reason | 426 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
@@ -317,6 +317,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.bank` Bank and key ring | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.bench-tax` Public bench tax | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.clans` Founding a clan | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.faction-stock` The quartermasters' stock (the two sides' pieces) | Economy sources and sinks | a piece is claimed or bought in town, never by a cell |
 | outside-hunt | `econ.gold-estimate-risk` A Risk's gold an hour against Steady, as the Hunts window estimates it | Economy sources and sinks | a printed estimate, never read by a cell |
 | outside-hunt | `econ.hearth` The Hearth: fuels and burns | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.hero-slots` Hero slots | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |

@@ -88,8 +88,11 @@ export const BORROW_BANDS = Object.freeze([
    the build slice allows at that Level"; V after the penalty) */
 export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });
 
-/* THE MEASURED VALUES (17 section 3's table, 18-roads-review-measured.md, 23-spell-audit.md): V0 in held steps at full power, or null
-   when it is owed a measurement (never offered until it has one). Greater Mend waits on V4, the heal rule (19 bottom line (3)). */
+/* THE MEASURED VALUES (17 section 3's table, 18-roads-review-measured.md, 23-spell-audit.md): V0 in held steps at full power (an offense
+   move: its pace gain / PAY.payStepXp). EVERY ROW IS MEASURED: validate refuses a row that is not a number, so a town never lends a move
+   the Lab has not sized (lane/roads-borrow-values). A move past the last band is measured and never offered (borrowBand null): the town's
+   pick is refused `not_offered` (src/core/talents.js spendProblem, hr_talent_spend_problem). Greater Mend is past it until V4, the heal
+   rule (19 bottom line (3)). */
 export const BORROW_VALUES = Object.freeze({
   challenge: 0,
   hunters_mark: 2,
@@ -98,14 +101,18 @@ export const BORROW_VALUES = Object.freeze({
   shelter: 8.5,
   hoarfrost: 15.8,
   protective_ward: 16.1,
-  greater_mend: null,
-  /* towns of the full map (lane/roads-countries) whose move is owed its V0: never offered until the Lab measures it */
-  power_strike: null,
-  flame_strike: null,
-  turning_cut: null,
-  rend: null,
-  raking_shot: null,
-  circle_of_renewal: null,
+  /* measured again (lane/roads-borrow-values): +97.4 held, a sword in a four with no healer, at 17's 7-tile reach (the engine's 1 tile:
+     +20.2), before the heal rule. Past the last band: not offered until V4 */
+  greater_mend: 97.4,
+  /* THE TOWNS' MOVES (lane/roads-borrow-values, 18-roads-review-measured.md section 7): each at full power in a four that lacks it, lent by
+     the engine's own borrow (its native weapon's blow), Muster Barrows L60 Steady, 8 seeds x 8 h, paired against its base
+     (tools/balance-program/redesign/roads/v0.mjs). Offense moves by their pace; Circle by held steps; Raking Shot adds nothing measurable */
+  power_strike: 4.2,
+  flame_strike: 6.3,
+  turning_cut: 11,
+  rend: 7.1,
+  raking_shot: 0,
+  circle_of_renewal: 7.1,
 });
 
 /* THE COUNTRIES: a weapon's DISCIPLINES id (src/data/abilities.js), or 'hearth' (the Great Hearth: every hero's) */
@@ -675,10 +682,14 @@ const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms'
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
 
 /** Every problem with the map (or `nodes`, a map of the same shape: a test plants a defective row), as strings. Empty = valid. */
-/** @param {readonly object[]} [nodes] @param {{ moves?: string[] }} [opts] */
+/** @param {readonly object[]} [nodes] @param {{ moves?: string[], values?: object }} [opts] */
 export function validate(nodes = TALENT_NODES, opts = {}) {
   const out = [];
   const moves = opts.moves || null;   // a test passes the live move ids; the data module imports no ability table
+  /* the borrow values (a test or gen-talents --selftest plants a defective table); every row is a MEASURED V0, so a town never offers a
+     move the Lab has not sized (lane/roads-borrow-values: "never ship silently again") */
+  const values = opts.values || BORROW_VALUES;
+  for (const [m, v] of Object.entries(values)) if (!(typeof v === 'number' && Number.isFinite(v) && v >= 0)) out.push('borrow ' + m + ' has no measured V0 (a borrowable move is measured before any town or the crossing lends it)');
   const seen = new Set();
   const countries = new Set([HEARTH, ...Object.keys(COUNTRY_ROADS), ...BORDERS.flat()]);
   const optIds = new Set();
@@ -763,7 +774,7 @@ export function validate(nodes = TALENT_NODES, opts = {}) {
             else if (t === 'flag' ? e[k] !== true : !(Number.isInteger(e[k]) && e[k] > 0 && (t !== 'pm' || e[k] <= 1000))) out.push(where + 'unit ' + k + ' is ' + (t === 'flag' ? 'true' : 'a positive whole number'));
           }
         } else if (e.kind === 'borrow') {
-          if (!Object.prototype.hasOwnProperty.call(BORROW_VALUES, e.move)) out.push(where + 'borrow ' + e.move + ' has no row in BORROW_VALUES');
+          if (!Object.prototype.hasOwnProperty.call(values, e.move)) out.push(where + 'borrow ' + e.move + ' has no row in BORROW_VALUES');
         } else if (e.kind === 'rule') {
           if (typeof e.id !== 'string' || !/^[a-z_]{1,48}$/.test(e.id)) out.push(where + 'a rule names its id');
         } else out.push(where + 'effect kind ' + e.kind + ' is not step, mod, react, heal_in, unit, borrow or rule');

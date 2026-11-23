@@ -5,8 +5,8 @@
   "kind": "coefficient",
   "edits": [
     { "file": "src/core/combat.js", "from": "const matched = !!(weak && eq && eq.weaponType === weak);", "to": "const matched = !!(weak && eq && (eq.weaponType === weak || (eq.weaponType === 'axe' && weak === 'sword')));" },
-    { "file": "src/core/hunt/abilities.js", "from": "import { landHit } from './damage.js';", "to": "import { landHit, rowOf } from './damage.js';" },
-    { "file": "src/core/hunt/abilities.js", "from": "const dmg = () => roll(sc, hitRange(blowOf(u, row), row));", "to": "const dmg = (m) => { const hh = inst.heroes && inst.heroes[u.id]; const vs = !el && m && m.side === 'mon' && hh && typeof hh.rollsVs === 'function' ? hh.rollsVs(rowOf(inst, m.kind), m.kind) : null; const wk = vs && vs.weak && vs.weak.matched ? 1.2 : 1; return roll(sc, hitRange(Math.max(1, Math.floor((Number(blowOf(u, row)) || 1) * wk)), row)); };" },
+    { "file": "src/core/hunt/abilities.js", "from": "import { landHit, PIPE_TOP } from './damage.js';", "to": "import { landHit, PIPE_TOP, rowOf } from './damage.js';" },
+    { "file": "src/core/hunt/abilities.js", "from": "const dmg = () => { const r = hitRange(blow, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };", "to": "const dmg = (m) => { const hh = inst.heroes && inst.heroes[u.id]; const vs = !el && m && m.side === 'mon' && hh && typeof hh.rollsVs === 'function' ? hh.rollsVs(rowOf(inst, m.kind), m.kind) : null; const wk = vs && vs.weak && vs.weak.matched ? 1.2 : 1; const r = hitRange(Math.max(1, Math.floor((Number(blow) || 1) * wk)), row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };" },
     { "file": "src/core/hunt/abilities.js", "from": "const r = landHit(inst, sc, u, m, dmg(), el, hitTag, sg);", "to": "const r = landHit(inst, sc, u, m, dmg(m), el, hitTag, sg);" }
   ],
   "targets": ["pace"]

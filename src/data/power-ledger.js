@@ -17,7 +17,8 @@
 //   clan        clan, castle, arena and event buffs, at most clanStepsMax, ZERO until clans ship (20-v030-the-roads.md: "a new clan slice
 //               of 4 steps, zero until clans ship"; ledger row 16: a new source takes a slice or is refused)
 // Party-scope rows count once a party, in the wearer's slice. Level, the gear base, Inner Flame, the risk stance, roles, party size,
-// Premium and Blessings take no slice (19 section 1, rows 1 to 3 and 11 to 15).
+// Premium and Blessings take no slice (19 section 1, rows 1 to 3 and 11 to 15), and neither does a side: the factions are looks and social
+// only, row 17 at 0 steps (src/data/factions.js validateFactions refuses a side or a piece that names any key outside its shape).
 //
 // STARTING VALUES, NOT RULINGS (the Lab tunes them; in band is enough):
 //   rampLevel 200          19 section 2: Level 200 is where a whole build is at full size (the third vow, the final form). Lever band 120 to 200 (V8)

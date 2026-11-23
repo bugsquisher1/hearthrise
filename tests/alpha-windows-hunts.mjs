@@ -113,10 +113,10 @@ async function huntsPure(imp) {
     /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
        this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
     const W = (t, k) => TV.TIER_LINES[t][k] + '\n' + TV.TIER_DEATH_LINE;
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: big groups that hit hard.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
+    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: big groups that hit hard') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
     if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
-    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters that hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
-    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
+    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters that hit harder') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
+    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: monsters hit much harder' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
     /* a pull no bigger than this group's Normal (the pack as built, 0 for a pair too since Tyler 2026-11-11) is no more monsters */
     TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 0, 3, 4], 1200, 1000, 1100);
     if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
@@ -974,7 +974,7 @@ async function checks(overrides, shots, opts) {
           || sewer.sets.length !== 2 || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, sets: sewer.sets, rares: sewer.rares, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
         /* the area casters, one note under the line (lane/d-area-playtest), never a taller card */
         const castNote = await page.evaluate((w) => { const n = document.querySelector(w + '.hw-hd-casts'); return n && !n.hidden ? n.textContent : null; }, W);
-        if (castNote !== 'Sewer Kobold casts Muck Fling. Rat King casts Tail Lash and Squeal.') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
+        if (castNote !== 'Sewer Kobold casts: Muck Fling · Rat King casts: Tail Lash and Squeal') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
         const pp = await party();
         if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Invite a player' || !/^Bring other heroes from Characters/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         /* Invite a player is a link: its words start on the section's edge with the lines around it, as Hunt prep's do (visual pass 2: a
@@ -1055,7 +1055,7 @@ async function checks(overrides, shots, opts) {
         const closed = await wait(page, () => !document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)'), null, 4000);
         if (!closed) fails.push('AW-29 the Hunts window stayed over the hunt it entered');
         await openWin(page, 'h', 'hunts');
-        const hunting = await wait(page, (w) => /Hunting in Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
+        const hunting = await wait(page, (w) => /^Hunting: Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
           && document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, W, 4000);
         /* Back in town (the hunt ended): the window still holds the Thicket, ready to go again; after a close and reopen too. */
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });

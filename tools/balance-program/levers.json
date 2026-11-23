@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "bc8942ea6e904c3d",
+ "authored": "5168047484e12fd0",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 670,
-  "typed": 15755,
-  "files": 230,
+  "bindings": 671,
+  "typed": 15756,
+  "files": 231,
   "lever": 288,
-  "notLever": 382,
+  "notLever": 383,
   "unclaimed": 0
  },
  "problems": [],
@@ -2096,10 +2096,11 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/spell-rule.mjs",
      "tests/hunt-core/tower-weapons-play.mjs",
      "tests/tower-chest.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2675,7 +2676,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 138,
+     "line": 140,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2761,7 +2762,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 140,
+     "line": 142,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2899,7 +2900,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 208,
+     "line": 210,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -3245,7 +3246,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 335,
+     "line": 337,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -4453,7 +4454,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 133,
+     "line": 135,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -6679,16 +6680,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6758,16 +6759,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6834,16 +6835,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6903,16 +6904,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7118,12 +7119,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7185,12 +7186,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7243,13 +7244,14 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/danger-client.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
      "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7322,12 +7324,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8763,10 +8765,11 @@
    "tests": {
     "asserts": [],
     "mentions": [
+     "tests/hunt-core/spell-rule.mjs",
      "tests/temper-buy.mjs",
      "tests/temper-uniques.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9919,13 +9922,14 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/danger-client.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
      "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11398,12 +11402,13 @@
     ],
     "mentions": [
      "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11521,12 +11526,13 @@
     ],
     "mentions": [
      "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13421,6 +13427,10 @@
   {
    "at": "src/core/hunt/danger.js#stepRatio",
    "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
+  },
+  {
+   "at": "src/core/borrow-blow.js#referenceBlow",
+   "why": "a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows"
   },
   {
    "at": "src/data/time-blocks.js#RULED",

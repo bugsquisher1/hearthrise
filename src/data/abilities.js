@@ -114,15 +114,17 @@ export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal:
    the skill each one's abilities level on (designer d3-weaponskill "own", Tyler 2026-10-23: a weapon ability on its
    weapon's own skill, a spell on Magic). The ONE list: hunt-roles.js validates against it, a universal row (the
    self-heal) is every discipline's by construction, and a discipline's abilities are the rows naming it
-   (roadmap p15: the club is its own discipline; no "exactly three" count). */
+   (roadmap p15: the club is its own discipline; no "exactly three" count).
+   `weapon`: the discipline's NATIVE weapon family (src/data/gear-tiers.js WEAPON_FAMILIES key), the one whose blow a move of it reads
+   when another weapon borrows it (src/core/borrow-blow.js, 18-roads-review-design R4); absent, its skill alone. */
 export const DISCIPLINES = Object.freeze({
-  shield: Object.freeze({ skill: 'melee' }),        // a one-hand blade and a shield: the tank (Challenge)
-  sword: Object.freeze({ skill: 'melee' }),         // a sword alone: Melee damage, the blade's own strikes
-  dual_axe: Object.freeze({ skill: 'melee' }),      // two axes: bleed
-  club: Object.freeze({ skill: 'melee' }),          // a two-handed club: crush (no stagger, Tyler 2026-10-23)
-  ranged: Object.freeze({ skill: 'ranged' }),       // a bow or a crossbow
-  destruction: Object.freeze({ skill: 'magic' }),   // a wand (and its spellbook): the Mage
-  restoration: Object.freeze({ skill: 'magic' }),   // a staff: the Healer
+  shield: Object.freeze({ skill: 'melee', weapon: 'sword' }),        // a one-hand blade and a shield: the tank (Challenge)
+  sword: Object.freeze({ skill: 'melee', weapon: 'sword' }),         // a sword alone: Melee damage, the blade's own strikes
+  dual_axe: Object.freeze({ skill: 'melee', weapon: 'hatchets' }),   // two axes: bleed
+  club: Object.freeze({ skill: 'melee', weapon: 'warhammer' }),      // a two-handed club: crush (no stagger, Tyler 2026-10-23)
+  ranged: Object.freeze({ skill: 'ranged', weapon: 'bow' }),         // a bow or a crossbow
+  destruction: Object.freeze({ skill: 'magic', weapon: 'wand' }),    // a wand (and its spellbook): the Mage
+  restoration: Object.freeze({ skill: 'magic', weapon: 'staff' }),   // a staff: the Healer
   /* wraps: the fist line (src/data/fists.js), its blows on Melee, its strikes naming Magic; only while the sample is live */
   ...(FIST_LINE.live ? { [FIST_LINE.family]: Object.freeze({ skill: 'melee' }) } : {}),
 });

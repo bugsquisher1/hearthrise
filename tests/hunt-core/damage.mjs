@@ -484,7 +484,7 @@ const mutants = [
   { name: 'a bow shoots the whetstone it wears', case: 'no-shot-the-weapon-cannot-loose',
     edits: [[D, '      const fits = !!h && !!h.ammo && shootsItem(u.role, itemRow(h, h.ammo));', '      const fits = !!h && !!h.ammo;']] },
   { name: 'the store sells before carried stock is gone (Andy #63)', case: 'worn-ammo-before-the-store',
-    edits: [['src/core/hunt/conditions.js', "  return pickSlot(inst, u, h, rows, act(true), null, 'attack') || pickSlot(inst, u, h, rows, act(false), sc, 'attack');", "  return pickSlot(inst, u, h, rows, act(false), sc, 'attack');"]] },
+    edits: [['src/core/hunt/conditions.js', "  return pickSlot(inst, u, h, rows, act(true), null, 'attack', sc && sc.atMs) || pickSlot(inst, u, h, rows, act(false), sc, 'attack');", "  return pickSlot(inst, u, h, rows, act(false), sc, 'attack');"]] },
   { name: 'the worn ammo waits behind the bar (Andy #63)', case: 'worn-ammo-before-the-store',
     edits: [['src/core/hunt/conditions.js', '  return ruled.concat(worn ? [worn] : [], plain);', '  return ruled.concat(plain, worn ? [worn] : []);']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }', 'export function restart(u) { u.swingLeftMs = 0; }']] },

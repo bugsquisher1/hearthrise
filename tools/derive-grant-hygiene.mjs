@@ -430,10 +430,12 @@ export const LINKS = [
      link 25 because ONE staged file restates the detector (link 24's rule: the staged tail is re-applied in order, and a staged
      link re-applied over a later one would put the later's entries out). Until 1048 applies, the entry names a function hr_engine
      cannot execute, which check (7) never reads as a finding. An insertion: link 25's declared removals do not move. */
+  /* ...and (lane/watched-stamp, 2026-11-22) ONE INSERTION more, the same way: the watched stamp's engine entry
+     (hr_hunt_watch_note, created and granted to hr_engine by 1060-watched-stamp.sql) at the HEAD of c_engine_allow. */
   {
     base: '1004-tick-pack-heroes.sql',
     target: '1032-approved-cuts.sql',
-    patchIds: ['old_dungeons_cut', 'narrow_town_read', 'company_wear'],
+    patchIds: ['old_dungeons_cut', 'narrow_town_read', 'company_wear', 'hunt_watch_note'],
   },
 ];
 
@@ -468,6 +470,25 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  /* ── LINK 25, FOURTH PATCH — THE WATCHED STAMP (an insertion at the head of c_engine_allow) ── */
+  {
+    id: 'hunt_watch_note',
+    name: 'the c_engine_allow array head (link 25, the watched stamp)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-11-22 — THE WATCHED STAMP (lane/watched-stamp, AR-6) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so link 25's declared
+    -- removals do not move. The function is 1060-watched-stamp.sql's.
+    -- SELF-VALIDATING, NO NEW TARGET: p_user and p_slot are the engine's VERIFIED
+    -- subject (the viewed ask's own), the same pair it already passes to
+    -- hr_hunt_instance_read. It writes ONE row, that hero's own hunt_watch mark,
+    -- from that hero's own server rows (Level XP, the open session's tally, a
+    -- trained skill) and the server clock, and refuses every client role and
+    -- hr_tick by its body. It moves no value: the mark is display only, the
+    -- away card's baseline, and can only make that hero's own card say less.
+    'hr_hunt_watch_note(uuid,integer)',
+`,
+    where: 'after',
+  },
   /* ── LINK 25, SECOND PATCH — THE NARROW TOWN READ (an insertion at the head of c_engine_allow) ── */
   {
     id: 'narrow_town_read',

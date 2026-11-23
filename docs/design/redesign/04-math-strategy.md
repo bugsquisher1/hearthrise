@@ -523,6 +523,8 @@ Beside them sit content tables the designer owns and the optimizer never moves: 
 | Clan buffs | Conditional | A reserved slice |
 | Event and arena rewards | Conditional | A reserved slice |
 
+**Sized 2026-11-22 in `19-power-ledger.md`:** a gear slice of 20 (Traits and the Signature), a build slice of 14 (crossroads, vows, borrowed moves, the net of gains and costs), a consumable slice of 6, Temper 5, and one ramp, `min(1, Level / 200)`, that brings every optional source in by Level 200.
+
 The slices are levers and their sum is the ceiling. The ceiling times `payStep` is the most any company can be ahead of a plain one at the same Level, and the slices a player can buy with gold give the size of the paid edge the same way. A new source of power takes its steps from a slice or is refused. The flame of section 2b moves how often a Rare drops and its rank. It is luck and not steps, so it sits in section 10 under `kitSpreadMax`.
 
 **Premium has no row.** Nothing Premium sells adds a step. Its hours change how many hours a day a hero hunts and works, never what an hour holds, and bought blocks are the same. So they are read in days, not steps. The Lab reads the days the reference company takes to cross a band four ways: free (10 hunted hours a day), Premium (12), free with two bought blocks (14), and Premium with two (16). As plain division that is 1.0, 0.83, 0.71 and 0.63 of the free days (COMPUTED). The Lab replaces it with runs, since a longer day also burns more kit and reaches the flame's room sooner. Ladders read inside Level bands, so these days move a company's band and never its rank inside one (`02-architecture.md` package 7).

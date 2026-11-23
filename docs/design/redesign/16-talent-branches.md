@@ -11,6 +11,8 @@ Pick the ones you like. Every move is a real row in `src/data/abilities.js`. Not
 - **Resets cost gold by Level.** Drafting is free. You pay once when you apply it. A new hero's first reset is free.
 - **"Spend as suggested"** spends every point and picks every branch for you, and can stay on.
 
+**The Roads v3 (2026-11-22, `17-talent-tree.md`) places these options and supersedes the rank marks above.** Crossroads I comes after a move's third rank stone, crossroads II after its fifth, and II doesn't depend on I. Every number grows with Level, full at Level 200 (`19-power-ledger.md` section 2). Quick Strike becomes Cheap Strike (−40% mana · −20% damage), since sword and club lanes run full. Answering is held until a block exists. Low-health options read "near fall-back".
+
 Moves that more than one weapon uses are listed once, under the first. Brand, Reave, Updraft, Blight and the fist strikes are left out until they go live.
 
 ---

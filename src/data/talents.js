@@ -130,7 +130,7 @@ export const COUNTRY_ROADS = Object.freeze({
   club: Object.freeze(['turning_cut']),
   dual_axe: Object.freeze(['rend']),
   ranged: Object.freeze(['precision_shot', 'hunters_mark', 'raking_shot', 'flame_volley']),
-  destruction: Object.freeze(['frost_lance']),
+  destruction: Object.freeze(['frost_lance', 'fireball', 'hoarfrost']),
 });
 
 /* ── builders ── */
@@ -441,6 +441,26 @@ const DESTRUCTION_NODES = [
       opt('through_lance', 'Through Lance', 'Kills carry 60% of the overkill to the nearest enemy',
         [react('lance_carry', 'kill', 'carry', { of: 'frost_lance', pm: 600, r: 3, capPm: 250 })])],
     way('Thin Lance', 'Frost Lance −2 mana', [mod('frost_lance', { mana: -2 })])),
+  ...road(DE, 'fireball', 'frost_lance.x1',
+    [opt('wide_fireball', 'Wide Fireball', '5×5 area · −30% damage', [mod('fireball', { side: 2, outPm: -300 })], true),
+      opt('slow_burn', 'Slow Burn', 'Hits again for 60% 3 s later · −40% damage',
+        [react('fireball_echo', 'hit', 'echo', { of: 'fireball', pm: 600, ms: 3000 }), mod('fireball', { outPm: -400 })]),
+      opt('small_fireball', 'Small Fireball', '−40% mana · −25% damage', [mod('fireball', { manaPm: -400, outPm: -250 })], 'solo')],
+    way('Spare Spark', 'Fireball −3 mana', [mod('fireball', { mana: -3 })]),
+    [opt('heavy_fireball', 'Heavy Fireball', '+20% damage · +5 mana', [mod('fireball', { outPm: 200, mana: 5 })], true),
+      opt('scorching_fireball', 'Scorching Fireball', 'Burning ground 4 s · −20% damage', [mod('fireball', { ground: 'burning_ground', outPm: -200 })], 'party'),
+      opt('focused_fireball', 'Focused Fireball', 'Target only · +60% damage', [mod('fireball', { pick: 'target', outPm: 600 })], 'solo')],
+    way('Dry Tinder', 'Fireball +5% damage', [mod('fireball', { outPm: 50 })])),
+  ...road(DE, 'hoarfrost', 'fireball.x1',
+    [opt('deep_hoarfrost', 'Deep Hoarfrost', 'Chill 6 s (from 4 s) · −20% damage', [mod('hoarfrost', { statusMs: 2000, outPm: -200 })], true),
+      opt('hard_freeze', 'Hard Freeze', '+50% Chill · −60% damage', [mod('hoarfrost', { statusPm: 500, outPm: -600 })]),
+      opt('numbing_frost', 'Numbing Frost', 'Weakened · −20% damage', [mod('hoarfrost', { also: 'weakened', outPm: -200 })], 'party')],
+    way('Thin Frost', 'Hoarfrost −2 mana', [mod('hoarfrost', { mana: -2 })]),
+    [opt('frozen_field', 'Frozen Field', 'Frozen ground 4 s', [mod('hoarfrost', { ground: 'frozen_ground' })], true),
+      opt('wide_hoarfrost', 'Wide Hoarfrost', '5×5 area · −25% damage', [mod('hoarfrost', { side: 2, outPm: -250 })]),
+      opt('brittle_frost', 'Brittle Frost', 'Armor Break 6 s · −15% damage',
+        [react('hoarfrost_break', 'hit', 'status', { of: 'hoarfrost', status: 'armor_break' }), mod('hoarfrost', { outPm: -150 })], 'party')],
+    way('Long Rime', 'Hoarfrost Chill +1 s', [mod('hoarfrost', { statusMs: 1000 })])),
 ];
 
 /* ── THE SHIELD · RESTORATION BORDER (17 section 6): its road leaves either country's first move road at crossroads I ── */

@@ -180,6 +180,7 @@ The bar is where a player shows skill. It's the build.
 - **5 saved bar presets** per hero.
 - Each line says **what** (use a move, eat or drink, attack with an item) and **when**.
 - Up to **3 conditions** per line.
+- **The first line that can fire, fires.** Put the most important line first.
 - Up to **3 stop rules** per hunt (for example, stop when food runs low).
 - New moves arrive with a suggested condition already filled in.
 

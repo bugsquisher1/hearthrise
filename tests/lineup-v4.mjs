@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
 import { playCells } from '../tools/balance-program/redesign/held-four.mjs';
-import { REF_LEVEL } from './level-curve.mjs';
+import { refLevelOf } from './level-curve.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const MIXED = ['hammer', 'bow', 'mage', 'healer'];
@@ -67,7 +67,7 @@ async function measure({ monoLevelUp = 0 } = {}) {
   const grounds = Object.keys(DANGER_GROUNDS);
   const cells = [];
   for (const g of grounds) {
-    const L = REF_LEVEL[g];
+    const L = refLevelOf(g);
     if (!Number.isInteger(L)) throw new Error(`lineup-v4: scale ground ${g} has no reference Level (tests/level-curve.mjs REF_LEVEL)`);
     cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS });
     for (const s of STYLES) cells.push({ id: `${g}:mono:${s}`, ground: g, L: L + monoLevelUp, styles: [s, s, s, s], risk: 'steady', hours: HOURS, seeds: SEEDS });

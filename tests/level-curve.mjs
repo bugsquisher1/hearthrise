@@ -72,7 +72,7 @@ const C7_BAND = 0.2, C7_OVER = 10, C7_SEEDS = 3, C7_HOURS = 2;
    each cell holds its Level (held-four.mjs holdLevel), so its pay reads that Level's table */
 const { HUNT_INDEX } = await import('../src/data/hunts.js');
 const { HUNT_GROUNDS } = await import('../src/data/hunt-grounds.js');
-const refLevelOf = (g) => (Number.isInteger(REF_LEVEL[g]) ? REF_LEVEL[g] : DANGER_GROUNDS[g] && DANGER_GROUNDS[g].refLevel);
+export const refLevelOf = (g) => (Number.isInteger(REF_LEVEL[g]) ? REF_LEVEL[g] : DANGER_GROUNDS[g] && DANGER_GROUNDS[g].refLevel);
 const overLevelOf = (g, L0) => {
   const band = HUNT_INDEX[g] && HUNT_INDEX[g].band, ends = HUNT_GROUNDS[g] && HUNT_GROUNDS[g].endsAtLevel;
   const top = Array.isArray(band) ? (Number.isInteger(ends) ? Math.min(band[1], ends - 1) : band[1]) : Infinity;

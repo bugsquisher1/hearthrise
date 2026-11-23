@@ -5,7 +5,7 @@
 //   node tests/hunt-event-names.mjs            the guard (pure Node: the real engine plays a hunt, the real view modules read it)
 //   node tests/hunt-event-names.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/hunt-view/combat-log.js src/hunt-view/scene.js src/render/source-names.js src/shell/widgets/bits.js src/shell/hunt-report.js
+// mutant-anchors: src/hunt-view/combat-log.js src/hunt-view/scene.js src/hunt-view/death-explain.js src/render/source-names.js src/shell/widgets/bits.js src/shell/hunt-report.js
 // ci-step: client-guards | Every hunt event reaches the screen named (a talents-on hunt's log lines, floats and report names, every status and piece)
 // ci-run: node tests/hunt-event-names.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/hunt-event-names.mjs --mutate
@@ -42,6 +42,7 @@ async function load(root) {
   const u = (p) => import(pathToFileURL(join(root, p)).href);
   return { L: await u('src/hunt-view/combat-log.js'), S: await u('src/hunt-view/scene.js'), B: await u('src/shell/widgets/bits.js'),
     W: await u('src/shell/hunt-report.js'), ST: await u('src/data/statuses.js'), TD: await u('src/data/talents.js'),
+    MR: await u('src/data/monster-roles.js'), DE: await u('src/hunt-view/death-explain.js'),
     LOG: (await u('src/data/text/log.js')).LOG_TEXT,
     /* the resolver this lane added: absent on an older tree, which reads red (EN-NAME), not a harness */
     SN: await u('src/render/source-names.js').catch(() => null),
@@ -91,13 +92,19 @@ const fill = (row, vars) => row.replace(/\{([a-zA-Z]+)\}/g, (_, k) => String(var
 const idsOf = (ev) => [ev.status, ev.ability, ev.spell].filter((x) => typeof x === 'string' && x && x !== 'basic');
 const srcOf = (ev) => (ev.type === 'heal' ? ev.ability || ev.spell || null : ev.type === 'dmg' && ev.ability !== 'basic' ? ev.ability : null);
 
-/* every id the engine can put on an event: the status rows, every reaction a Roads node grants, every piece a blow names itself */
+/* every id the engine can put on an event: the status rows, every reaction a Roads node grants, every piece a blow names itself, and
+   the spell each monster role casts on a formula ground (monster-roles.js roleSpellId: `mf_brute`) */
 function universe(X) {
   const reacts = new Set();
   for (const n of X.TD.TALENT_NODES) for (const e of [...(n.effects || []), ...(n.options || []).flatMap((o) => o.effects || [])]) if (e.kind === 'react') reacts.add(e.id);
   const pieces = new Set();
   for (const src of X.core) for (const m of src.matchAll(/\{\s*id:\s*'([a-z_]+)',\s*dot:\s*true/g)) pieces.add(m[1]);
-  return { statuses: Object.keys(X.ST.STATUSES), reacts: [...reacts], pieces: [...pieces] };
+  const derived = [], sid = typeof X.MR.roleSpellId === 'function' ? X.MR.roleSpellId : null;
+  for (const [role, R] of Object.entries(sid ? X.MR.MONSTER_ROLES : {})) {
+    if (R.windup) derived.push(sid(role));
+    if (R.mend) derived.push(sid(role, true));
+  }
+  return { statuses: Object.keys(X.ST.STATUSES), reacts: [...reacts], pieces: [...pieces], derived };
 }
 
 /* events made for every id of the universe, beside the played ones: a status on and off a hero and a monster, a heal from every
@@ -109,6 +116,7 @@ function madeEvents(U, P) {
   for (const s of U.statuses) for (const t of [hero, mon]) { add({ type: 'status_on', t, status: s, stacks: 1 }); add({ type: 'status_off', t, status: s }); }
   for (const id of [...U.reacts, ...U.statuses]) add({ type: 'heal', u: hero, t: hero, amount: 12, ability: id });
   for (const id of U.pieces) { add({ type: 'dmg', u: mon, t: hero, amount: 9, ability: id, element: null, dot: true }); add({ type: 'dmg', u: ranger ? ranger[0] : hero, t: mon, amount: 9, ability: id, element: null, dot: true }); }
+  for (const id of U.derived) add({ type: 'dmg', u: mon, t: hero, amount: 30, ability: id, element: null });
   add({ type: 'status_tick', t: hero, status: 'mending', amount: 7, heals: true });
   add({ type: 'heal', u: hero, t: hero, amount: 0 });
   return out;
@@ -136,7 +144,8 @@ const ARMS = {
     const out = [];
     const U = universe(X);
     if (!U.pieces.includes('bodyguard') || !U.pieces.includes('carry')) out.push('the piece scan found ' + JSON.stringify(U.pieces) + ': it reads the wrong tree');
-    const ids = new Set([...U.statuses, ...U.reacts, ...U.pieces, ...P.events.flatMap(idsOf)]);
+    if (!U.derived.length) out.push('no monster role casts a derived spell: the role scan reads the wrong tree');
+    const ids = new Set([...U.statuses, ...U.reacts, ...U.pieces, ...U.derived, ...P.events.flatMap(idsOf)]);
     for (const id of ids) {
       const n = X.SN.nameOf(id);
       if (!plain(n) || rawIn(n, id)) out.push(id + ' is named ' + JSON.stringify(n));
@@ -144,6 +153,12 @@ const ARMS = {
     }
     /* a reaction named like a move or a status would be called that instead */
     for (const id of U.reacts) if (U.statuses.includes(id) || U.pieces.includes(id) || X.SN.nameOf(id) !== reactNode(X, id)) out.push('reaction ' + id + ' is not named by the node that grants it');
+    /* one reaction id, one name: two nodes granting one id under two names would both read as the first */
+    const names = new Map();
+    for (const n of X.TD.TALENT_NODES) for (const [list, name] of [[n.effects, n.n], ...(n.options || []).map((o) => [o.effects, o.n])]) {
+      for (const e of list || []) if (e.kind === 'react') names.set(e.id, (names.get(e.id) || new Set()).add(name));
+    }
+    for (const [id, s] of names) if (s.size > 1) out.push('reaction ' + id + ' is granted under ' + s.size + ' names (' + [...s].join(', ') + '): give each its own id');
     return out;
   },
   'EN-LOG': (X, P) => {
@@ -169,6 +184,13 @@ const ARMS = {
       const src = srcOf(ev);
       const name = src && X.SN ? X.SN.nameOf(src) : null;
       if (src && !(name && l.text.includes(name))) out.push('the line does not name its source ' + src + ' (' + name + '): ' + tag);
+    }
+    /* the death card's killing blow (death-explain.js) names a formula monster's spell as it names a catalogue one */
+    for (const id of U.derived) {
+      const evs = [{ id: 'b', type: 'dmg', u: 999, t: 1, amount: 40, ability: id, an: 'Wight', atMs: 900 }, { id: 'd', type: 'death', u: 1, monster: 'wight', atMs: 1000 }];
+      const said = X.DE.explainDeaths(evs, { whoOf: () => ({ name: 'Bran', others: [] }) }).deaths[0];
+      const name = X.SN ? X.SN.nameOf(id) : null;
+      if (!said || !name || !said.lines.some((x) => x.includes('’s ' + name))) out.push('the death card does not name ' + id + ' (' + name + '): ' + JSON.stringify(said && said.lines));
     }
     return dedupe(out);
   },
@@ -290,6 +312,8 @@ const MUTANTS = [
   ['a status is not named by its row', 'EN-NAME', 'src/render/source-names.js', '  if (Object.hasOwn(STATUSES, id)) return STATUSES[id].name;\n', ''],
   ['an engine piece is not named', 'EN-NAME', 'src/render/source-names.js', "  if (hasText('fight.piece_' + id)) return t('fight.piece_' + id);\n", ''],
   ['a reaction is not named by its node', 'EN-NAME', 'src/render/source-names.js', '  return reactName(id);\n', '  return null;\n'],
+  ['a formula monster\'s spell is not named', 'EN-NAME', 'src/render/source-names.js', '  if (derived) return derived.n;\n', ''],
+  ['the death card drops a formula monster\'s spell', 'EN-LOG', 'src/hunt-view/death-explain.js', '  const said = cast || (killingBlow && roleSpellRow(killingBlow.ability));', '  const said = cast;'],
   ['the analyzer spells an id', 'EN-NAME', 'src/shell/widgets/bits.js', ": sourceName(id); }", ': String(id); }'],
   ['the report\'s healing reads a source as an item', 'EN-REPORT', 'src/shell/hunt-report.js', '(nameOf(uses) ? sourceName(uses) : itemName(uses))', 'itemName(uses)'],
 ];

@@ -96,6 +96,18 @@ export const MONSTER_ROLES = Object.freeze({
     mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
 });
 
+/* THE SPELL A ROLE CASTS ON A FORMULA GROUND when its monster's row names none (src/core/hunt/monster-formula.js roleStats): its wind-up is
+   `mf_<role>`, its mend `mf_<role>_mend`, each the role row's shape and name (the view writes the name: src/render/source-names.js). */
+export const roleSpellId = (roleId, mend) => 'mf_' + roleId + (mend ? '_mend' : '');
+/** The role row's wind-up or mend a derived spell id names (its `n`, shape and warning), or null. */
+export function roleSpellRow(id) {
+  for (const [roleId, R] of Object.entries(MONSTER_ROLES)) {
+    if (R.windup && id === roleSpellId(roleId)) return R.windup;
+    if (R.mend && id === roleSpellId(roleId, true)) return R.mend.spell;
+  }
+  return null;
+}
+
 /* ── THE FORMULA'S GLOBAL DIALS AND ITS REFERENCE (lane/monster-formula; 04 sections 6 and 8) ──────────────────────────────────────
    encounterPerHero  monsters a pull brings for each hero at a gap of 0 (04 section 8: "an encounter grows with the party", so a lone hero
                      and a four have the same time budget); past the reference step the pull grows by DANGER.pullStep to DANGER.pullMax

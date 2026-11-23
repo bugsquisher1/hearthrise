@@ -6,7 +6,7 @@
 // a guard's share or an overkill its engine piece. One reader for every surface that writes the id as words (the combat log,
 // the analyzer's attacks, the hunt report's healing), in this order:
 //   a move              src/data/abilities.js `n`
-//   a monster's spell   src/data/monster-spells.js `n`
+//   a monster's spell   src/data/monster-spells.js `n`; on a formula ground its role's (src/data/monster-roles.js roleSpellRow: `mf_brute`)
 //   a status            src/data/statuses.js `name` (a status is a row, and its name is the row's)
 //   an engine piece     src/data/text/fight.js piece_<id> (a blow the engine names itself: damage.js `bodyguard`, reactions.js `carry`)
 //   a reaction          the Roads node or option that grants it (src/data/talents.js `n`: Draining Sickness's heal, Shield Priest's)
@@ -16,6 +16,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js';
 import { spellRow } from '../data/monster-spells.js';
+import { roleSpellRow } from '../data/monster-roles.js';
 import { STATUSES } from '../data/statuses.js';
 import { TALENT_NODES } from '../data/talents.js';
 import { t, hasText } from './player-text.js';
@@ -40,6 +41,8 @@ export function nameOf(id) {
   if (Object.hasOwn(ABILITIES, id)) return ABILITIES[id].n;
   const spell = spellRow(id);
   if (spell) return spell.n;
+  const derived = roleSpellRow(id);
+  if (derived) return derived.n;
   if (Object.hasOwn(STATUSES, id)) return STATUSES[id].name;
   if (hasText('fight.piece_' + id)) return t('fight.piece_' + id);
   return reactName(id);

@@ -432,14 +432,14 @@ export const WORLD = [
     tests: [['tests/hunt-core/monster-formula.mjs', 'dial']], testReads: ['MONSTER_FORMULA', 'formulaBasePull'],
     perturb: NP('not-in-runs', 'played by the V1 probe (candidates mf-*)'),
     ev: 'STATED (2: the reference four meets the full box of 8 at its reference step, as the hand rows\' pull does on Muster Barrows)' }),
-  L('mf.ramp', 'monster-stats', 'archetype', 'Threat that grows, by encounter type', {
+  L('mf.encounter-size', 'monster-stats', 'archetype', 'A formula monster size by encounter type', {
     at: [at(MR, '    pull: Object.freeze({ killMult: '), at(MR, '    boss: Object.freeze({ killMult: ')],
-    def: 'by encounter type (a pack, a boss): killMult x the role\'s secondsToKill, and rampPerMinute: the blows and wind-ups grow by that share for each minute of the pull (the pull\'s age: pull-cycle.js counts phaseMs up through a fight on the scale; monster-formula.js rampPm)',
-    range: 'killMult 1 or more; rampPerMinute 0 to 0.5. A boss tests damage and sustain together (04 section 6): a four of damage dealers loses to the pressure, a slow four to the ramp',
-    touches: 'a boss\'s fight length and its late danger', out: [...KILL, ...SURVIVE], f: ['C-MON-STATS'],
-    tests: [['tests/hunt-core/monster-formula.mjs', 'ramp, derive']], testReads: ['MONSTER_FORMULA', 'rampPm'],
+    def: 'by encounter type (a pack, a boss): killMult x the role secondsToKill. A boss ramp is its kind\'s, one home for every boss (src/data/bosses.js)',
+    range: 'killMult 1 or more',
+    touches: 'a boss fight length', out: KILL, f: ['C-MON-STATS'],
+    tests: [['tests/hunt-core/monster-formula.mjs', 'derive, ramp']], testReads: ['MONSTER_FORMULA'],
     perturb: NP('not-in-runs', 'played by the V1 probe (Captain Hask on Muster Barrows)'),
-    ev: 'STATED (boss x8 a pull monster, 10% a minute)' }),
+    ev: 'STATED (a boss x8 a pull monster)' }),
   L('mf.windup-scale', 'monster-stats', 'global', 'Wind-up size and frequency (the death-risk dials)', {
     at: [at(MR, '  windupScale: Object.freeze({ size: ')],
     def: 'x every formula wind-up\'s hit (size) and x the time between them (every), at once',

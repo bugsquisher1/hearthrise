@@ -168,7 +168,7 @@ export const LEVER_MOVES = Object.freeze({
   'mf.role-dials': ['+mon.hp', '+mon.atk'],
   'mf.mend': [['+mon.fightHp', 'a Warder\'s mend puts health back on its packmates while the pull lasts']],
   'mf.encounter-per-hero': [['+pull.size', 'a formula ground\'s pull is heroes x encounterPerHero at the reference step (danger.js formulaPull)']],
-  'mf.ramp': ['+mon.hp', '+mon.atk'],
+  'mf.encounter-size': ['+mon.hp'],
   'mf.windup-scale': ['+mon.atk'],
   'mf.blow-cap': ['+mon.atk'],
   'mf.ref': [['~mon.hp', 'the measured reference scales every formula number: its damage a second scales health, its armor share the blows'], ['~mon.atk', 'the same'], ['~mon.aim', 'aim lands hit on the reference hero of refLevel'], ['~mon.evasion', 'evasion the same']],

@@ -120,6 +120,31 @@ From the hall harness (`halls/krell-after.txt`, 40 tries a cell at 85, the hall'
 - **The talent-effects mappings, confirmed:** Echoing Challenge resets the Challenge when a held monster turns from a living challenger, at most once a cooldown; Lasting Ward refunds the unspent shell as mana when recast on an ally still holding this healer's chipped ward; Lifeline is a free out-of-turn heal (no lane, no mana) on the ally the moment it falls near the line, its own cooldown read; Mending Ward's +6% is on the warded ally; a bare rule takes its tooltip's size (Wide Sickness −20%). Each is what the words promise a player, and none adds a hidden condition.
 - **"Taunted enemy" means every blow at the hero while it holds a taunt**, as built. The holding tank's blows are its held monsters' in nearly every pull, and a per-attacker step would be a second condition nobody can see. The text now says so.
 
+### 3.9 Does the tank see the benefit at 20% (lane/tank-line-signatures, 2026-11-23)
+
+Tyler: "20% is fine if they are seeing the benefit, otherwise we need to design something that keeps them higher easier, maybe a shield always has a % hp line on it." MEASURED on `set/v0.2.144` c2c70a5f6, Steady, 12 seeds x 10 h a cell (`tuning/tank/tank.sh`). Mixed = hammer, bow, mage, healer (no tank). Tank = tank, bow, mage, healer.
+
+| Cell | Held (depth) | XP a hero-hour | Gold a hero-hour | Store | Falls/h | Front share | Under 10% / deaths |
+|---|---|---|---|---|---|---|---|
+| Muster, mixed | 608.7 (11) | 280,813 | 16,754 | 4,874 | 0.9 | hammer 0.78, bow 0.18 | 0 / 0 |
+| Muster, tank, line 20% | **654.6 (16)** | **+6.8%** | **+8.4%** | +5.2% | 1.3 | tank 0.94, bow 0.06 | 0 / 0 |
+| Muster, tank, no line (25%) | 630.7 (13) | −3.6% | −2.4% | −1.9% | 0.4 | tank 0.94 | 0 / 0 |
+| Ford, mixed | 593.4 (11) | 211,115 | 15,663 | 2,980 | 3.9 | hammer 1.00 | 1 / 0 |
+| Ford, tank, line 20% | **612.7 (13)** | −1.2% | −1.3% | +13.5% | 4.8 | tank 1.00 | 31 / 0 |
+| Ford, tank, no line (25%) | 595.5 (11) | −9.4% | −9.0% | +3.3% | 3.8 | tank 1.00 | 0 / 0 |
+
+**Verdict: keep 800 (20%). Nothing built.**
+
+- On a ground with roles (Muster) the tank pays: five depths deeper, +6.8% XP and +8.4% gold an hour over a four with no tank, no death, the bow off the front (0.18 to 0.06 of the damage)
+- The line is what pays it. Without it the same four earns 3.6% less than no tank. The line is worth +11% XP on Muster and +9% on the Ford
+- The tank falls back more (1.3 an hour against 0.9) because it climbs to its edge, and the depth pays for it
+- On the Ford it is even: two depths deeper, 1% less XP. The Ford's hand rows hit the front in every lineup (1.00), so the Challenge has nothing to pull. Its roles fix that (section 5), not a lower line
+- The tank's own damage is the price: 11.4 a second against the hammer's 17.8 (Muster), 20% fewer kills an hour. Depth pays it back where roles spread the blows
+
+**Why not a health line on the shield.** It would be always-on power on one slot outside the gear slice (`19`), and a second answer to the same question the holder line already answers. It would not fix the Ford, where the tank's loss is kills, not depth. A low-health shield stays a find: Signature #36 Cairn Belt is in the first sample (`15`, decision).
+
+The line drops to 700 when the Ford's monsters carry roles (section 3.4), one re-read. The Ford's 31 pulls with the tank under 10% (0 deaths in 12 days) are its hand rows' big blows, the reason 600 and 700 died there.
+
 ## 4. Tyler's calls
 
 1. **How much a Level is worth against gear.** At the tuned weights three Levels on the same kit move the depth a quarter as much as a gear tier, so a hero who levels without upgrading sees little change on the depth line until the next tier. I recommend keeping it (gear is the choice, Levels come anyway) and reading C-2's Levels half as ten Levels. The other way is gear weight 500: Levels count twice as much and a tier back on the Ford falls under one depth.
@@ -134,6 +159,7 @@ No money call came out of this pass.
 - **The wings' gold**: their coin rows are hand-typed and pay 1.4 to 1.7 of wage(175) (staged; coin in hours is stage 9).
 - **Bold's watched 2 h session** was read from hourly rates, not replayed (V2).
 - **C-6, C-7 (party against alone), C-9, C-10, C-12** were not in this matrix.
+- **Muster's floor was cut two tiers back** (2026-11-23, lane/depth-budget-audit, `12-targets.md` 3.1a): its LOW cell wears steel and no jewelry, so a company that finished the Ford arrives at depth 9. The re-cut (575) waits for the depth reading's middle point to follow the reference four's hold, not the hand-held `refStep` (Systems, HANDOFFS 2026-11-23). The top is reachable on Muster's own drops: the strong four holds depth 18 on Steady, 20 on Bold.
 
 ## 6. Every scale ground on the formula (lane/monster-roles-ford-wings, systems, 2026-11-23)
 

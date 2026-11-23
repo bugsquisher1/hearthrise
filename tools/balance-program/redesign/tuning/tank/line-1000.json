@@ -1,0 +1,1 @@
+{"schema":"hearthrise.balance-candidate/1","base":"tree","assumptions":[],"id":"line-1000","why":"no holder line: the tank reads the stance's own line","edits":[{"file":"src/data/danger.js","from":"export const HOLDER = Object.freeze({ linePm: 800 });","to":"export const HOLDER = Object.freeze({ linePm: 1000 });"}]}

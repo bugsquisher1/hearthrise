@@ -89,4 +89,6 @@ export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map(
   /* the Party window's line (party-class-xp.js PARTY_VS_ALONE): the whole ground's Normal, CARRIED (the same monster rows), owed a measure
      on the wing before it opens */
   partyVsAlone: Object.freeze({ normal: catacombs.partyVsAlone.normal }),
+  /* the suggested bag (supplies.js BAG_GUIDE_BY_HUNT): the whole ground's, CARRIED (the same monster rows and spells) */
+  bagGuide: catacombs.bagGuide,
 })])));

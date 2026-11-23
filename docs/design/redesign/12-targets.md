@@ -24,6 +24,7 @@ Each target says what the player feels, the range it must land in, and the reade
 | C-10 | **Every ground has a top, and reaching it means move on.** | A good four reaches a ground's top in 1 to 3 days of play at the ground's top Level | Band reader (new) | Owed. Defined in section 3 |
 | C-11 | **The next ground pays more from its first depth.** Moving on is never a pay cut | Depth 1 of the next ground pays at least 1.1x depth 20 of the last, for a company that can hold it | Band reader | Owed |
 | C-12 | **A Level is a Level forever.** Level 200 is a big deal, and Level 400 still moves | One Level or one gear tier is the same share of depth at Level 20, 400 and past it | V8 | Owed |
+| C-13 | **Early power comes from Levels and gear** (Tyler 2026-11-22: "the buffs are way too strong too early"). Talents, vows, Traits, Signatures, borrows, Temper and consumables grow in, full at Level 200 | Level and gear are 85% or more of a hero through the first week (to about Level 28), 80% or more at Level 60 | `19-power-ledger.md` V8 | Owed. COMPUTED 90% / 90% / 80 to 86% at Levels 10 / 30 / 60 |
 
 The five hard lines (HC-1 to HC-5) stand as they are. A target with no reader by the end of stage 4 is dropped, not carried.
 
@@ -174,7 +175,7 @@ Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/re
 - **Confirmed:** the base tier (the item's base numbers) is fixed by the ground.
 - **Depth raises two things only:**
   - **Rare odds:** ×1 at depth 1, rising to ×3 at depth 20 (a starting value).
-  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five).
+  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five), up to the ground's highest rank: rank II only on grounds entered at Level 70 or more, rank III at 100 or more (`19-power-ledger.md` section 2, 2026-11-22). Muster Barrows rolls rank I.
 - **Never the base numbers.** If depth raised them, one ground would hold the best gear forever, and moving on would be pointless. That was Tyler's worry, and this rule answers it.
 - **Why move on, then?** The next ground's base tier is higher. A whole kit from there beats a whole kit from here, Traits and all (section 8: every Trait on a hero together is held to one tier). A single good Rare still outlives a few bases, and carry-over moves its Trait onto a new one. Both feel good: the old Rare had a life, then you outgrew it.
 

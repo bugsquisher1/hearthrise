@@ -98,7 +98,7 @@ Honest limit: far past the last hand-made branch, the choice at each Level is wh
 3. **A move is only part of a hero.** Its cooldown and cost limit how much of a hunt it is, so stacking one move runs into its own ceiling and spreading catches up.
 4. **Branches of one mark have one budget.** They differ by what they are good against, not by size. Each should be the best pick on some kind of ground and on none of them all.
 5. **The edge is where they matter.** Many branches act when the party is in trouble or a monster winds up, which is where a small difference decides whether a company holds its step.
-6. **A measured ceiling.** Target, as a hypothesis: the best allocation the Lab can find beats the suggested path by no more than about 5 to 10% at the edge of a step on a mix of grounds.
+6. **A measured ceiling.** Target, as a hypothesis: the best allocation the Lab can find beats the suggested path by no more than about 5 to 10% at the edge of a step on a mix of grounds. (2026-11-22: the Roads, `17-talent-tree.md` v3, replace this screen. The ceiling is read per ground against the best saved build, and held by a build slice of 14 steps, `19-power-ledger.md`.)
 
 **4. A small sample.** Two weapon ways, one move each. The move names are in the game today (`src/data/abilities.js`). The branch names are working names. Every number is a hypothesis.
 

@@ -9,7 +9,8 @@ Pick the ones you like. 5 already exist in the data (marked ✓). Nothing is liv
 - Hunting deeper raises your odds of a Rare and of higher ranks. R2 from Depth 8, R3 from Depth 15.
 - Each hunting ground has its own Trait pool.
 - A Trait only works when its condition is met.
-- All Traits on a hero together are capped at one gear tier's worth.
+- All Traits and the Signature on a hero together are capped at one gear tier's worth (20 steps), half that until Level 100, full at 200 (`19-power-ledger.md`, 2026-11-22).
+- A ground rolls only the ranks its entry Level allows: rank 1 from entry 40, rank 2 from 70, rank 3 from 100. Muster Barrows rolls rank 1.
 
 ---
 

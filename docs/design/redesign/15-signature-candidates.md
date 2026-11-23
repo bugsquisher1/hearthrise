@@ -1,6 +1,32 @@
 # Signature candidates (46)
 
-Pick the ones you like. Nothing is built. Every number is a starting value for the Lab.
+Every number is a starting value for the Lab. The count is decided below.
+
+## Decision: count and size (game designer, 2026-11-23)
+
+Tyler: "more variety is better, but I'll go with designers judgement."
+
+| Call | Ruling |
+|---|---|
+| Size | 10 steps, half a gear tier. Inside the gear slice of 20 with Traits (`19`, kept by `29` section 3.8) |
+| Count | The whole pool. 45 here plus the support's 8 (`22` section 7.1, one a move plus Pyre-Cloth Wraps) = **53**. Parry and Gash add one each when written (wave 3) = 55 |
+| Cut | **#39 Tollman's Gloves.** A second boss drop roll is a second luck system beside the Inner Flame, and every party would wear one |
+| Waiting on a move | #8 (Stagger), #30 (Brand). Built with their move, never before |
+| Order | A sample of 5, played on the dominance check (`29` section 3.8), then batches of 20 or fewer, each audited for repetition |
+| Sample 5 | #36 Cairn Belt (tank, Muster Barrows) · #6 Barrow Knight's Blade (sword, Muster Barrows) · #9 Lurcher's Collar (bow, Pyre Field) · #14 The Wood Book (mage, Keeper Dunn) · #18 Brewer's Apron (healer, Carter's Rest) |
+| Batch 2 | The rest of the move Signatures (#1 to #23 less the sample and #8) |
+| Batch 3 | Runes, procs, auras, low health, utility, alone, pair (#24 to #46 less #30, #36, #39) |
+| Batch 4 | The support's 8, then #8, #30, Parry, Gash with their moves |
+| Market and drop rows | #25, #40, #41 go through Security with batch 3 |
+
+**Why the whole pool.**
+
+- One worn Signature a hero and a fixed gear slice. More Signatures add choices, never power
+- One home each, 3 to 5 a ground. Every ground carries a chase
+- A short list makes every build wear the same few. A long one makes the pick a build
+- Most need shared engine pieces (cooldown resets, gear shields, triggers, auras). The cost is per piece, not per Signature
+
+**Why this sample.** One per seat. Two homes on the scale. Each needs a different engine piece (a low-health gear shield, a reset per kill, a status that moves on a death, a reset from another move, a timed party damage buff), so the sample builds the pieces later batches reuse.
 
 ## How Signatures work
 
@@ -29,7 +55,7 @@ Pick the ones you like. Nothing is built. Every number is a starting value for t
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
 Challenge: the first blow from each monster you taunt lands at half damage
 Best for: Tank
-Note: Takes the edge off a pull while the tank sits near its 15% line. Works with every Challenge branch. Re-measure once the holder line lands.
+Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. Measure in batch 2 on the line as built.
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
 Frost Slam: you gain a shield of 3% of your max health for each monster it Chills (up to 15%)
@@ -39,7 +65,7 @@ Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one mon
 **3. Grave Guard's Mail** · Body · Drops from: Krell's Hold, Grave Guard
 Shelter: when a hero's shield breaks, Challenge is ready again
 Best for: Tank
-Note: Works with every Challenge branch. Re-measure once the holder line lands.
+Note: Works with every Challenge branch. Measure in batch 2 on the line as built.
 
 ## Sword
 

@@ -100,7 +100,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Rend | 7.1 (pace) | −30% | 80 at a border, 60 at Havora |
 | Circle of Renewal | 7.1 ± 2.0 (held) | −30% | 80 at a border, 60 at Havora |
 | Turning Cut | 11.0 (pace, ± 1.4) | −50% at a border. Not offered at Havora | 80 |
-| Raking Shot | 0 (nothing measurable off a bow) | No penalty | 20 |
+| Raking Shot | 0 (adds nothing measurable to a melee borrower) | No penalty | 20 |
 | Greater Mend | 97.4 ± 3.9 before the heal rule (`18` section 7: a sword in a four with no healer, 7-tile reach). Re-measure after its re-size (`healPm` 2540) | Re-measure under the heal rule. Target: 10 or less | 150 at V 10, 80 at V 5 |
 | Every other borrowable move | Not measured | Lab | Lab |
 

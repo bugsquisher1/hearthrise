@@ -298,6 +298,7 @@ export const MOD_WHOLE = Object.freeze(['tauntRadius', 'r', 'radius', 'maxHits',
 export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
 
 /** Every problem with the map (or `nodes`, a map of the same shape: a test plants a defective row), as strings. Empty = valid. */
+/** @param {readonly object[]} [nodes] @param {{ moves?: string[] }} [opts] */
 export function validate(nodes = TALENT_NODES, opts = {}) {
   const out = [];
   const moves = opts.moves || null;   // a test passes the live move ids; the data module imports no ability table

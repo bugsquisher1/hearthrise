@@ -21,6 +21,9 @@
 //   node tools/gen-talents.mjs --selftest every refusal bites
 //
 // mutant-anchors: none — --selftest plants defects in an in-memory copy of the data; no tracked file is patched
+// ci-step: economy-selftests | The Roads catalogue - generated from src/data/talents.js, every refusal bites (gen-talents)
+// ci-run: node tools/gen-talents.mjs --check
+// ci-run: node tools/mutant-gate.mjs node tools/gen-talents.mjs --selftest
 //
 // REFUSES (throws, nothing written): a map src/data/talents.js validate() refuses; a suggested order the rules cannot walk from an empty
 // build to its end (every step legal at a Level that has the points); an id outside [a-z_0-9.].

@@ -504,7 +504,7 @@ async function readers(root) {
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
     GE: await import(u('src/session/gold-estimate-sections.js')),
     RC: await import(u('src/session/recruit-sections.js')),
-    TL: await import(u('src/session/talent-intents.js')),
+    TL: await import(u('src/session/talent-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),

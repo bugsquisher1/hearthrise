@@ -5,9 +5,10 @@
 // and nothing more: the points the hero has to spend, the next fork on its suggested road with its three options, and "Spend as
 // suggested". The map, the route preview and the zoom levels are a later lane (R-UI). Every number is the server's (the `talents`
 // section): the tab is hidden while the server sends none (the switch off). One press is ONE intent (src/session/talent-intents.js);
-// what changes is only what the answer's envelope says.
+// what changes is only what the answer's envelope says. The words are src/data/text/talents.js's.
 // ════════════════════════════════════════════════════════════════════════
-import { talentsOf, spendSuggested, spendTalent } from '../../../session/talent-intents.js';
+import { talentsOf } from '../../../session/talent-sections.js';
+import { spendSuggested, spendTalent } from '../../../session/talent-intents.js';
 import { equipmentOf } from '../../../session/item-sections.js';
 import { wornRoleKey } from '../../../data/hunt-roles.js';
 import { ITEMS } from '../../../data/items.js';
@@ -15,16 +16,19 @@ import { ABILITIES } from '../../../data/abilities.js';
 import { rows, text, prop, cls, element } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
 import { runIntent } from '../../intent-words.js';
+import { t } from '../../../render/player-text.js';
 
-export const TALENTS_TAB = 'Talents';
+export const TALENTS_TAB = t('talents.tab');
 
 /* the worn set's role key (the same the server's hr_hunt_weapon_of reads), for the fork on its weapon's road */
-const roleKeyOf = (cs) => { const eq = equipmentOf(cs); return eq && eq.weapon && ITEMS[eq.weapon] ? wornRoleKey(eq, ITEMS) : null; };
+const roleKeyOf = (cs) => { const eq = /** @type {{ weapon?: string }} */ (equipmentOf(cs) || {}); return eq && eq.weapon && ITEMS[eq.weapon] ? wornRoleKey(eq, ITEMS) : null; };
 /* the plan the card suggests for: a party (the company joins at Level 5, 17 section 13) */
 const PLAN = 'party';
+/* the hero's Roads as the server holds them (null: the switch off, so the tab is hidden) */
+const roadsOf = (cs) => talentsOf(cs, roleKeyOf(cs), PLAN);
 
 /** Is the tab offered: the server sends the section only while the switch is on. */
-export const talentsShown = (cs) => talentsOf(cs, roleKeyOf(cs), PLAN) !== null;
+export const talentsShown = (cs) => roadsOf(cs) !== null;
 
 /** The tab's skeleton. */
 export function talentsHtml() {
@@ -32,7 +36,7 @@ export function talentsHtml() {
     + '<p class="hw-tl-points"></p>'
     + '<h3 class="hw-tl-fork"></h3><p class="hs-note hw-tl-cost"></p>'
     + '<ul class="hw-ledger hw-tl-options"></ul>'
-    + '<button type="button" class="hh-tool" data-hs-act="tl-suggested">Spend as suggested</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="tl-suggested"></button><p class="hs-note hw-tl-why"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></section>';
 }
 
@@ -40,28 +44,36 @@ export function talentsHtml() {
 export function patchTalents(body, ctx, sc) {
   const cs = ctx.character;
   const root = body.querySelector('.hw-cs-talents');
-  const tl = talentsOf(cs, roleKeyOf(cs), PLAN);
-  text(root.querySelector('.hw-tl-points'), !tl ? '' : tl.left ? whole(tl.left) + (tl.left === 1 ? ' point to spend' : ' points to spend') : 'All points spent');
+  const tl = roadsOf(cs);
+  const left = tl ? tl.left : 0;
+  text(root.querySelector('.hw-tl-points'), left ? t('talents.points', { count: whole(left) }) : t('talents.points_none'));
   const f = tl && tl.fork;
   /* the road's move names the fork ("Mend, Crossroads I"): every move's road has a Crossroads I */
-  text(root.querySelector('.hw-tl-fork'), f ? 'Next fork: ' + (f.move && ABILITIES[f.move] ? ABILITIES[f.move].n + ', ' : '') + f.n : '');
-  text(root.querySelector('.hw-tl-cost'), f ? (f.cost === 1 ? 'Your next point' : whole(f.cost) + ' points away') : '');
+  const move = f && f.move && ABILITIES[f.move] ? t('talents.fork_move', { move: ABILITIES[f.move].n }) : '';
+  text(root.querySelector('.hw-tl-fork'), f ? t('talents.fork', { move, node: f.n }) : '');
+  text(root.querySelector('.hw-tl-cost'), f ? (f.cost === 1 ? t('talents.fork_next') : t('talents.fork_away', { count: whole(f.cost) })) : '');
   /* the fork is the hero's very next point: each option can be taken here (one intent), else the card only reads ahead */
-  const now = !!f && f.cost === 1 && tl.left > 0;
+  const now = !!f && f.cost === 1 && left > 0;
   rows(root.querySelector('.hw-tl-options'), f ? f.options : [], {
     key: (o) => f.id + ':' + o.id,
     build: (o) => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="tl-take" data-node="' + f.id + '" data-pick="' + o.id + '">Take</button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="tl-take" data-node="' + f.id + '" data-pick="' + o.id + '"></button></li>'),
     patch: (li, o) => {
       cls(li, 'is-current', o.suggested);
-      text(li.querySelector('b'), o.suggested ? o.n + ' (Suggested)' : o.n);
+      text(li.querySelector('b'), o.suggested ? t('talents.suggested', { name: o.n }) : o.n);
       text(li.querySelector('small'), o.tip);
       const b = li.querySelector('button');
+      text(b, t('talents.take'));
       prop(b, 'hidden', !now);
       prop(b, 'disabled', sc.pending);
     },
   });
-  prop(root.querySelector('[data-hs-act="tl-suggested"]'), 'disabled', !tl || !tl.left || sc.pending);
+  const go = root.querySelector('[data-hs-act="tl-suggested"]');
+  text(go, t('talents.spend_suggested'));
+  /* off with no point to spend, and the line beside it says so (tests/say-why.mjs SW-2) */
+  const noPoints = !tl || !left;
+  prop(go, 'disabled', noPoints || sc.pending);
+  text(root.querySelector('.hw-tl-why'), noPoints ? t('talents.no_points') : '');
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 }
 
@@ -69,13 +81,13 @@ export function patchTalents(body, ctx, sc) {
 export function actTalents(ctx, sc, action, ev, el, repaint) {
   if (ev.type !== 'click') return false;
   if (action === 'tl-suggested') {
-    runIntent(sc, repaint, () => spendSuggested(ctx.account, ctx.character, PLAN), 'Spending…',
-      (r) => (r.spent === 1 ? '1 point spent' : whole(r.spent || 0) + ' points spent'), ctx.character);
+    runIntent(sc, repaint, () => spendSuggested(ctx.account, ctx.character, PLAN), t('talents.spending'),
+      (r) => (r.spent === 1 ? t('talents.spent_one') : t('talents.spent_many', { count: whole(r.spent || 0) })), ctx.character);
     return true;
   }
   if (action === 'tl-take') {
     const node = el.getAttribute('data-node'), pick = el.getAttribute('data-pick');
-    runIntent(sc, repaint, () => spendTalent(ctx.account, ctx.character, node, pick), 'Taking…', () => 'Taken', ctx.character);
+    runIntent(sc, repaint, () => spendTalent(ctx.account, ctx.character, node, pick), t('talents.taking'), () => t('talents.taken'), ctx.character);
     return true;
   }
   return false;

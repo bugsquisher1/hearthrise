@@ -78,7 +78,7 @@ function stepWorld(world, swingCtx, track, events) {
   /* indexed / ix: the sub-step's unit lists, read once (unit-index.js), dropped at every sub-step and by every writer. */
   /* xpPm: the session mode's share of a kill's XP (session-modes.js sessionPayOf, handed by combat-sim.js only when it is not the whole kill), read by
      the split (xp-share.js); absent, the whole kill, as every hunt. */
-  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit,
+  const inst = { world, ground: swingCtx.ground, grid: swingCtx.grid, occ: null, atMs: 0, heroes: swingCtx.heroes || null, tier: swingCtx.tier || null, makeUnit,
     monsters: swingCtx.monsters || MONSTERS, indexed: true, ix: null, ...(Number.isInteger(swingCtx.xpPm) ? { xpPm: swingCtx.xpPm } : {}) };
   const atMs = Number(swingCtx.atMs);
   if (!Number.isInteger(atMs)) throw new Error('world-step: atMs must be an integer');

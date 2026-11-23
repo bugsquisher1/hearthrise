@@ -4,8 +4,9 @@
 --
 -- STATUS: supabase/migration-notes/1063-tower-formula.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base. It reads hr_danger_level_xp_max
---   (1055/1061) and restates hr_tower_check (2027-05-08-catacombs.sql). BEFORE the edge deploy that carries src/core/hunt/tower.js
---   towerShareXp: a high hero on a low floor earns its own Level's share there, over that floor's row bound.
+--   (1055/1061) and restates hr_tower_check (2027-05-08-catacombs.sql). RIGHT AFTER the edge deploy that carries src/core/hunt/tower.js
+--   towerShareXp (the release's one deploy goes after 1056 and 1061): until it applies, a high hero on a low floor, who earns its own Level's
+--   share there over that floor's row bound, has the window refused and retried, never paid wrong.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
 -- WHY (docs/design/redesign/04-math-strategy.md section 7, one pay rule; 02-architecture.md package 7, the Tower as the Danger scale with no

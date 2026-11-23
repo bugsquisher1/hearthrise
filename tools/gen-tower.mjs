@@ -85,8 +85,9 @@ export function build(input) {
 --   with no top: docs/design/redesign/02-architecture.md packages 3 and 7). The Coordinator applies (tools/apply-migration.mjs, one file, never
 --   inside begin/commit). A FORWARD FILE: it carries 1001-xp-a-kill-tower-catalogue.generated.sql whole. What moves: hr_tower_floors runs to the
 --   scale's own top (the last landing whose Level and depth stay inside the Danger scale's step ceiling), and room_size is the fewest monsters
---   any room of the run holds (a band's mix may stand 4 to 8), the settle's kill proof. Every bound from room 1 to 300 is 1001's. ORDER: before
---   the edge deploy that carries the new engine (its four-monster rooms would fail the old room_size of 5). No function body, no player row.
+--   any room of the run holds (a band's mix may stand 4 to 8), the settle's kill proof. Every bound from room 1 to 300 is 1001's. ORDER: right
+--   after the edge deploy that carries the new engine (until then its four-monster rooms fail the old room_size of 5 and are retried). No
+--   function body, no player row.
 -- CARRIED (lane/c-catacombs, 2026-11-18): it makes hr_tower_rules ONE ROW A RUN GROUND, after 2027-05-05-entry-gates-tower-catalogue.generated.sql.
 -- THE TABLE, MADE GENERAL WITHOUT MOVING A LIVE BODY: the primary key moves from \`id\` to \`hunt_id\`; \`id\` stays as THE BURNING TOWER'S MARK
 --   (true on its row, null on every other: its unique constraint and its check keep it so), so every body that reads "the Tower's row" with

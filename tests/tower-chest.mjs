@@ -237,15 +237,21 @@ async function oddsArm(db, M) {
   }
   return bad;
 }
-
 /* ── TCH-MINT ─────────────────────────────────────────────────────────────── */
+/* the iron kit (tools/balance-sim/gear.mjs kitOf('tank', 20), the shield making a tank), worn by the climber's hero */
+const IRON_KIT = [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
+  ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']];
+async function kitUp(db) {
+  for (const [slot, item] of IRON_KIT) await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [UID, slot, item]);
+}
 async function mintArm(db, M) {
   const bad = [];
   const runs = {};
   for (const door of ['closed', 'viewed']) {
     const r = await H.inTx(db, async () => {
-      /* a Level 45 hero: its climb passes the Bronze Key's generated first landing (40) inside the span */
-      const h = await C.climber(db, M, { level: 45 });
+      /* a Level 60 tank in an iron kit: its climb passes the Bronze Key's generated first landing (40) inside the span (a bare hero tops out
+         near floor 15: lane/tower-boss-formula) */
+      const h = await C.climber(db, M, { level: 60, before: () => kitUp(db) });
       try { await C.drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
       const first = await state(db);
       /* a second climb the same week, from floor 1 again, through the same landings */

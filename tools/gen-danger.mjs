@@ -98,7 +98,8 @@ export function rowsOf({ data, core, model, grounds, tuning, wage }) {
     if (!open) continue;
     /* the most of a row's health one monster carries at any step: the dial's hpPm over the step's power ratio */
     let share = 0, pw = 1;
-    for (let s = 0; s <= DANGER.stepMax; s++, pw *= 1 + DANGER.powerStep) share = Math.max(share, core.dangerDial(g, s).hpPm / 1000 / pw);
+    /* (every party size: a formula ground's pull is sized to the party, src/core/hunt/danger.js formulaPull; any other ground reads none) */
+    for (let s = 0; s <= DANGER.stepMax; s++, pw *= 1 + DANGER.powerStep) for (const n of [1, 2, 3, 4]) share = Math.max(share, core.dangerDial(g, s, n).hpPm / 1000 / pw);
     const coin = Math.max(...Array.from({ length: DANGER.stepMax + 1 }, (_, s) => core.dangerDial(g, s).coinPm));
     ground.push({ id, ref, sharePm: Math.ceil(share * 1000 + 1e-6), coinPm: Math.ceil(coin + 1e-6) });
   }

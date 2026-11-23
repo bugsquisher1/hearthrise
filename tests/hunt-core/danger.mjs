@@ -812,7 +812,9 @@ const MUTANTS = [
   { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710,", "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 650,"],
     ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
   { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
-  { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', '  for (const [id, iL] of Object.entries(scaleItemLevels(ladder, named))) ITEMS[id] = { ...ITEMS[id], iL };', '  void scaleItemLevels; void ladder; void named;']] },
+  { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };', 'void SCALE_ITEM_LEVELS;'],
+    /* every piece's item Level also rides its generated stat row (lane/gear-catalogue-steps): a drop that kept its reqLv kept it there too */
+    ['src/data/gear-stats.generated.js', '"mithril_platebody": f({', '"mithril_platebody": f({ iL: 45 }), "mithril_platebody~shipped": f({']] },
   { name: 'the wings drop the ladder tier', case: 'ilevel', edits: [['src/data/danger.js', "    if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);", '']] },
   { name: 'the power step reads reqLv over iL', case: 'ilevel', edits: [['src/core/hunt/danger.js', 'Number.isInteger(it.iL) ? it.iL : it.reqLv', 'it.reqLv']] },
   { name: 'a ground\'s rows never ride its kills', case: 'drops', edits: [['src/core/combat-sim.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", '  return null;']] },

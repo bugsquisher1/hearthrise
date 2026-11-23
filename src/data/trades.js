@@ -52,7 +52,7 @@ export const TRADE_LEVERS = Object.freeze({
   table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),
   /* 09 4.5 names both, gives neither. JUDGMENT: full XP on a rung within twenty Levels of its own (the newest two rungs), then falling in a
      straight line to a quarter over the next twenty; the training choice of 09 4.5 (newest: most XP, most waste) comes from this and 4.4 */
-  xp: Object.freeze({ window: 20, floor: 0.25 }),
+  xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),
   /* 09 2.6, 4.7: three Masteries an account. The Mastery verbs ship later (20 section 1.4); the yield and quality terms read the flag now */
   masteryCap: 3,
   /* 09 4.3: the job fee, a share of the made good's catalogue value V, burned */
@@ -180,7 +180,7 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
   if (!Number.isInteger(q.steps) || q.steps < 1) out.push('a quality rung must be a whole number of steps');
   if (!(L.speedAt99 >= 1) || !permille(L.speedAt99)) out.push('speed at 99 must be at least 1');
   if (!(L.table.hoursTo99 > 0) || !(L.table.curve > 1) || !Number.isInteger(L.table.xpPerHour) || L.table.maxLevel !== 99) out.push('the trade table must climb to 99');
-  if (!Number.isInteger(L.xp.window) || L.xp.window < L.rungs.span) out.push('the XP window is narrower than a rung: some Level would have no full-XP recipe');
+  if (!Number.isInteger(L.xp.windowLevels) || L.xp.windowLevels < L.rungs.span) out.push('the XP window is narrower than a rung: some Level would have no full-XP recipe');
   if (!between(L.xp.floor, 0, 1) || !permille(L.xp.floor)) out.push('the XP floor is not a permille');
   if (!between(L.jobFee, 0, 1) || !permille(L.jobFee)) out.push('the job fee is not a share of V');
   if (!Number.isInteger(L.store.lagSteps) || L.store.lagSteps < 1) out.push('the store must sit a whole number of steps behind');

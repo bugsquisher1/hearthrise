@@ -105,7 +105,7 @@ const cases = {
     const typed = (fam, L) => {
       const f = GT.WEAPON_FAMILIES.find((x) => x.key === fam);
       let str = 0;
-      GT.MATERIAL_TIERS.forEach((t, i) => { if (t.level <= L && f.ids[i]) str = f.str[i]; });
+      GT.MATERIAL_TIERS.forEach((t, i) => { const it = f.ids[i] && GT.GEAR_ITEMS[f.ids[i]]; if (t.level <= L && it) str = it.strB || it.rangeStrB || it.magicStrB || 0; });
       return Math.floor(Math.round(TH.refHeroAt(L).main) * 0.35 + str * 0.6 + 2);
     };
     for (const L of [10, 60, 110]) {

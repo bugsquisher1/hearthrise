@@ -36,6 +36,7 @@
 
 import { simulateHuntInstance } from '../core/combat-sim.js';
 import { memberSide, frozenSide, frozenKey } from '../core/member.js';
+import { scaleItems } from '../core/gear-stats.js';
 import { huntGroundOf } from '../core/hunt-ground.js';
 import { huntTimeline, worldHash } from '../core/hunt-track.js';
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js';
@@ -220,7 +221,7 @@ export function createLiveEngine(o) {
       world = text ? decodeWorldRow(JSON.parse(text)) : null;
       sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
         .map((mi) => (mi.frozen ? frozenSide(mi)
-          : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items })));
+          : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items: scaleItems(items, where.ground) })));
     } catch (e) { return fail('a start point this build cannot read: ' + reasonOf(e)); }
     const unknown = unknownKinds(world, monsters);
     if (unknown.length) return fail('unknown monster ' + unknown.join(', ').slice(0, 120));
@@ -269,7 +270,7 @@ export function createLiveEngine(o) {
     for (const u of (s.world ? s.world.units : [])) speeds.set(u.id, u.speed);
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
-    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items, ...(s.scale ? { scale: s.scale } : {}),
+    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items: scaleItems(items, s.where.ground), ...(s.scale ? { scale: s.scale } : {}),
       ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}), ...(s.sessionMode ? { sessionMode: s.sessionMode } : {}),
       ...(s.towerFloor !== null ? { towerFloor: s.towerFloor } : {}) });
     /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):
@@ -433,7 +434,7 @@ export function createLiveEngine(o) {
     /** The engine's test of a bar slot for hero `unit`, in the world this prediction runs (slotTesterOf). Null when none runs. */
     slotTester(unit) {
       const side = st && st.world && !st.ended ? st.sides.find((x) => x.member.unitId === unit) : null;
-      return side ? slotTesterOf(st.world, st.where.grid, side.member, items, st.next) : null;
+      return side ? slotTesterOf(st.world, st.where.grid, side.member, scaleItems(items, st.where.ground), st.next) : null;
     },
     /**
      * THE CLIMB in the world this prediction runs (the Burning Tower): { floor (the room standing, or about to), endsAtMs (the instant its

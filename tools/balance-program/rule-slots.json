@@ -104,7 +104,7 @@
    "module": "src/data/balance-sheet.js",
    "formula": "C-MON-STATS",
    "seam": "formulaStats in a module of its own; balance-sheet.js also holds the pace contract, the rosters, the ground fits and the tier pulls",
-   "why": "A whole-file family would copy every ground fit. Its numbers are depth 1 knobs with the regeneration the scratch copy runs"
+   "why": "A whole-file family would copy every ground fit. Its numbers are depth 1 knobs with the regeneration the scratch copy runs. The scale's rival family is in the tree behind a data switch (lane/monster-formula): src/core/hunt/monster-formula.js derives a scale ground's monsters from their roles (src/data/monster-roles.js) when its DANGER_GROUNDS row says monsters: 'formula', and the candidates mf-muster, mf-hasks and mf-wing play it against these rows (tools/balance-program/redesign/mf-run.mjs)"
   },
   {
    "id": "kill-reward",

@@ -1,0 +1,11 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "mf-muster",
+ "why": "Monsters from the formula on Muster Barrows (lane/monster-formula; 04 section 6): its four bodies play the rows src/core/hunt/monster-formula.js derives from their roles and the reference company, the pull sized to the party, in place of the hand-typed stats. Paired against the tree (C0, today's monsters) on the same dice",
+ "base": "tree",
+ "edits": [{ "file": "src/data/danger.js", "from": "entryLevel: 55, refLevel: 60, monsters: 'rows' })", "to": "entryLevel: 55, refLevel: 60, monsters: 'formula' })" }],
+ "assumptions": [
+  "The ground's switch is the one door (DANGER_GROUNDS monsters): huntPlayOf's table on the scale and dangerDial's pull read it, nothing else moves",
+  "Drops, coin a kill and XP stay the rows' own, so the economy moves only through kills an hour"
+ ]
+}

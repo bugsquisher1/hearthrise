@@ -254,7 +254,9 @@ const cases = {
     const stray = Object.keys(M.AD.ABILITIES).filter((id) => id !== 'undertow' && M.F.factsOf({ type: 'ability', id }).alone === WORDS);
     if (stray.length) return 'a spell that casts in a party says it does not: ' + stray.join(', ');
     const draft = { action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' };
-    if (M.W.setupNote(draft, 2) !== WORDS + ', does nothing in a party') return 'Configure action in a party reads ' + JSON.stringify(M.W.setupNote(draft, 2));
+    /* Meaning, not wording: the callout leads with the card's words and says it has no effect in a party (label voice, src/data/text/bar.js alone_party). */
+    const inParty = M.W.setupNote(draft, 2);
+    if (typeof inParty !== 'string' || !inParty.startsWith(WORDS) || !/\b(no effect|does nothing) in a party\b/.test(inParty)) return 'Configure action in a party reads ' + JSON.stringify(inParty);
     return M.W.setupNote(draft, 1) === '' ? null : 'Configure action alone reads ' + JSON.stringify(M.W.setupNote(draft, 1));
   },
   'configure-note': (M) => {

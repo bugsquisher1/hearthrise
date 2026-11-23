@@ -27,6 +27,7 @@
 // ============================================================
 
 import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } from '../../data/danger.js';
+import { MONSTER_FORMULA } from '../../data/monster-roles.js';
 import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
 import { levelHoursOf } from '../../data/core-model.js';
@@ -91,7 +92,7 @@ function basePull(ground) {
  *          over the reference pull's x the depth ratio at LOOT_STEP (lane/foundations-block, 04 section 7 payStepLoot), so at the reference
  *          step the table plays as written and an HOUR a step deeper drops PAY.payStepLoot more of it, as coin pays payStepCoin more
  */
-export function dangerDial(ground, step) {
+export function dangerDial(ground, step, heroes = REF_HEROES) {
   const s = stepOn(ground, step);
   const n0 = basePull(ground);
   const pull = pullAt(n0, s);
@@ -101,7 +102,28 @@ export function dangerDial(ground, step) {
   const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
   dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
-  return dial;
+  return formulaPull(ground, s, heroes, dial);
+}
+/* A FORMULA GROUND'S PULL (DANGER_GROUNDS `monsters: 'formula'`, src/core/hunt/monster-formula.js): sized to the party, heroes x
+   MONSTER_FORMULA.encounterPerHero at the ground's reference step, growing by pullStep from there, each monster the step's ratio over it.
+   Its coin keeps the as-built pull's share (`dial.coinPm`), so a kill pays the same coin on either switch and the server's ceiling a kill
+   (hr_danger_grounds.coin_pm_max) holds. Any other ground: the dial as it is. */
+function formulaPull(ground, s, heroes, dial) {
+  const fg = groundRow(ground);
+  if (!fg || fg.monsters !== 'formula' || !Number.isInteger(fg.refLevel)) return dial;
+  const nf = formulaBasePull(fg, heroes);
+  const pull = pullAt(nf, s);
+  const each = 1000 * powStep(1 + DANGER.powerStep, s) * (nf / pull);
+  return { ...dial, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each };
+}
+/* THE REFERENCE COMPANY'S SIZE (04 section 1: four heroes) */
+export const REF_HEROES = 4;
+/** THE PULL AT STEP 0 OF A FORMULA GROUND `g` (a DANGER_GROUNDS row) for `heroes` heroes: at the ground's reference step a pull is heroes x
+    MONSTER_FORMULA.encounterPerHero, and it grows by DANGER.pullStep a step from there like every pull (04 section 8: "an encounter grows
+    with the party", so a lone hero and a four have the same time budget). */
+export function formulaBasePull(g, heroes) {
+  const n = Math.max(1, Math.min(REF_HEROES, Number.isInteger(heroes) && heroes > 0 ? heroes : REF_HEROES));
+  return (n * MONSTER_FORMULA.encounterPerHero) / powStep(1 + DANGER.pullStep, g.refStep);
 }
 /* the pull's size at step s from an as-built mean n0 (the dial's own rounding and box) */
 const pullAt = (n0, s) => Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
@@ -120,7 +142,7 @@ const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33). One home: src/data/wage.js powSquare. */
-const powStep = powSquare;
+export const powStep = powSquare;
 
 /* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
    held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held
@@ -264,9 +286,12 @@ export function openDanger(world, risk, step) {
   world.lowBy = '';
 }
 
+/** The heroes standing in a world (a formula ground's pull is sized to them: dangerDial). */
+export const heroCount = (world) => (world && Array.isArray(world.units) ? world.units.reduce((n, u) => n + (isHero(u) ? 1 : 0), 0) : REF_HEROES);
+
 /* The step's dial and pull size on the instance from now (the swing's other readers see it at once). */
 function applyStep(inst) {
-  const dial = dangerDial(inst.ground, inst.world.danger);
+  const dial = dangerDial(inst.ground, inst.world.danger, heroCount(inst.world));
   inst.tier = dial;
   inst.world.density = dial.pull[0];
   return dial;

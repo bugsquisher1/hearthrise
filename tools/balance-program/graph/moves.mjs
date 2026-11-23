@@ -176,6 +176,14 @@ export const LEVER_MOVES = Object.freeze({
   'econ.ammo-floor': [['+shop.price', 'a store shot or cast costs at least this x its crafted partner\'s book (store-kit.js storePrice\'s charge floor)']],
   /* MONSTER ROLES (src/data/monster-roles.js, lane/w2-roles-rows): who takes the blows, not how many */
   'roles.table': [['~tier.dmg', 'a role moves which hero a monster\'s blow lands on (reach) and adds a share of it on heroes beside the target (splash): the damage a seat takes, so the held step']],
+  /* MONSTERS FROM THE FORMULA (src/core/hunt/monster-formula.js, lane/monster-formula): on a formula ground only */
+  'mf.role-dials': ['+mon.hp', '+mon.atk'],
+  'mf.mend': [['+mon.fightHp', 'a Warder\'s mend puts health back on its packmates while the pull lasts']],
+  'mf.encounter-per-hero': [['+pull.size', 'a formula ground\'s pull is heroes x encounterPerHero at the reference step (danger.js formulaPull)']],
+  'mf.encounter-size': ['+mon.hp'],
+  'mf.windup-scale': ['+mon.atk'],
+  'mf.blow-cap': ['+mon.atk'],
+  'mf.ref': [['~mon.hp', 'the measured reference scales every formula number: its damage a second scales health, its armor share the blows'], ['~mon.atk', 'the same'], ['~mon.aim', 'aim lands hit on the reference hero of refLevel'], ['~mon.evasion', 'evasion the same']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],

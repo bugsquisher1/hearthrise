@@ -13,17 +13,17 @@ const MIG = 'supabase/migrations/';
 export const GEAR_ECONOMY = [
   /* ── 15. EQUIPMENT STATS AND PROGRESSION ───────────────────────────────────────────────────────────────────────────────────── */
   L('gear.material-tiers', 'equipment', 'archetype', 'Gear tiers: their Levels and value', {
-    at: [at(GEAR, 'export const MATERIAL_TIERS')],
+    at: [at(GEAR, 'export const MATERIAL_TIERS'), at(GEAR, 'export const ARMOUR_SLOTS'), at(GEAR, "  { key: 'plate', vmul: 1.00, icon"), at(GEAR, "  { key: 'leather', vmul: 0.70, icon"), at(GEAR, "  { key: 'cloth', vmul: 0.70, icon")],
     def: 'seven tiers worn from Levels 1, 15, 30, 45, 60, 75, 88 (smith and craft levels the same), each with a value multiplier',
     range: 'Levels rising; no tier 8. Gear is worn by Level (P35, SQL hr_item_requirement_unmet)',
     touches: 'when an upgrade arrives, book values (sale gold)', out: [...KILL, ...SURVIVE], f: ['P16', 'P35', 'C-GEAR-WEAPON', 'C-GEAR-ARMOR'],
     perturb: P('the kits pick the Level\'s tier (grid-kit.mjs)', 'gearBandStep'),
     flags: [flag('ineffective', 'The ladder ends at tier 7 (Level 88); past Level 110 kill speed falls on today\'s gear', '44 Levels table (88, 111, 300), MEASURED there')],
     ev: 'CONFIRMED (read)' }),
-  L('gear.armor-table', 'equipment', 'content', 'Armor points by slot and tier', {
-    at: [at(GEAR, 'export const ARMOUR_SLOTS')],
-    def: 'a hand table per slot (plate): helm 3..44, platebody 6..90, platelegs 4..64, boots and belt 2..30, gauntlets 1..23, times the line\'s defMul',
-    range: 'rising by tier',
+  L('gear.armor-table', 'equipment', 'global', 'Gear stat budget: the curves and the slot split', {
+    at: [at('src/data/gear-profiles.js', 'export const GEAR_CURVES'), at('src/data/gear-profiles.js', 'export const GEAR_CURVE_TOP'), at('src/data/gear-profiles.js', 'export const GEAR_SCALE_STAT_PM'), at('src/data/gear-profiles.js', 'export const GEAR_SLOT_PM'), at('src/data/gear-profiles.js', 'export const GEAR_EVEN_SHARE_PM')],
+    def: 'a whole kit\'s offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder\'s hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground\'s base item Level to its own, so the power step carries the tier',
+    range: 'coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels',
     touches: 'damage taken by gear state', out: SURVIVE, f: ['C-GEAR-ARMOR'],
     perturb: P('the kits read the table'),
     flags: [flag('ineffective', 'A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap', '12-balance-pass item 6, MEASURED')],
@@ -146,7 +146,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays Traits until wave 4'),
     ev: 'STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
-    at: [at('src/data/danger.js', "ladderTier: 5, traits: traitPool('muster_barrows')")],
+    at: [at('src/data/danger.js', 'muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5,')],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
     range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
     touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
@@ -521,7 +521,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('outside-hunt', 'town work is not a hunt cell; measure.mjs plays the job over seeds'),
     ev: 'STATED (09-crafting.md section 4.4 start values)' }),
   L('econ.trade-table', 'economy', 'global', 'Trade XP to 99', {
-    at: [at('src/data/trades.js', 'table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),'), at('src/data/trades.js', 'xp: Object.freeze({ window: 20, floor: 0.25 }),')],
+    at: [at('src/data/trades.js', 'table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),'), at('src/data/trades.js', 'xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),')],
     def: 'hours for Level n = h1 x 1.045^(n - 1), 1,000 hours to 99 (6.6 to Level 10, 104 to 50, 669 to 90); XP is seconds of work; full XP on a rung within 20 Levels of its own, falling to a quarter over the next 20',
     range: '09 4.5 and 4.7: hoursTo99 600 to 1,500. The XP window and floor are JUDGMENT (09 names them, gives no value). SQL twin hr_trade_xp, hr_trade_level, hr_trade_xp_pm (1063, generated)',
     touches: 'how long a company takes to 99 in a trade (39 days of four heroes\' full work days, 09 2.6)', out: [], f: [],

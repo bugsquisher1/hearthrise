@@ -12,7 +12,8 @@
 //
 // mutant-anchors: src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql, supabase/migrations/2027-04-30-sweeps-coat.sql, src/shell/windows/inventory/outfit-bundle.js
 //
-//   TCH-DATA    the table is Tyler's (16 / 8 / 4.5 / 2%, x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
+//   TCH-DATA    the table is the formulas' (first landings 40 / 80 / 120 / 140 where the floor's Level reaches the weapons' item Level, odds 16 / 8 / 4 / 2%
+//               halved a metal; lane/tower-boss-formula), Tyler's stokes and warmth (x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
 //               the design's warmth table read back through src/data/chests.js; the server's chance (hr_chest_chance_ppm) and the data's
 //               (chestChancePpm) agree on every key, warmth 0..60 and stoke 0..3; the open table (keyForLanding: the top row open-ended);
 //               the salts are the highest tempering tier's at or under each key's weapons (the coherence pass's C4); the catalogue rows
@@ -249,12 +250,23 @@ async function mintArm(db, M) {
   const runs = {};
   for (const door of ['closed', 'viewed']) {
     const r = await H.inTx(db, async () => {
-      /* a Level 60 tank in an iron kit: its climb passes the Bronze Key's generated first landing (40) inside the span (a bare hero tops out
-         near floor 15: lane/tower-boss-formula) */
-      const h = await C.climber(db, M, { level: 60, before: () => kitUp(db) });
+      /* a Level 55 tank in an iron kit, from checkpoint 30 (a best of 30 on record): its climb passes the Bronze Key's generated first landing (40)
+         inside the span (a bare hero tops out near floor 15, a kitted Level 50 near 30, from floor 1 this one reaches 30-39 in the span:
+         lane/tower-boss-formula) and holds its edge past the span's end */
+      const h = await C.climber(db, M, { level: 55, landing: 30, before: async () => {
+        await kitUp(db);
+        await db.query(`insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing, best_at, updated_at)
+          values ($1, 0, 'the_burning_tower', 30, 30, now(), now()) on conflict (user_id, slot, hunt_id) do update set best_floor = 30, best_landing = 30`, [UID]);
+      } });
       try { await C.drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
       const first = await state(db);
-      /* a second climb the same week, from floor 1 again, through the same landings */
+      /* still climbing: the hero leaves the player's way and the next windows settle it (one climb at a time) */
+      await db.query("select set_config('hr.test_now', (transaction_timestamp() + interval '40 minutes')::text, true)");
+      if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [UID])) {
+        await call(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+        try { await C.drive(db, M, door, { ...h, from: h.from + C.SPAN }); } catch (e) { return { err: 'leaving the first climb: ' + String(e.message).slice(0, 400) }; }
+      }
+      /* a second climb the same week, from checkpoint 30 again, through the same landings */
       const h2 = await climbAgain(db);
       try { await C.drive(db, M, door, h2); } catch (e) { return { err: 'the second climb: ' + String(e.message).slice(0, 400) }; }
       return { first, second: await state(db) };
@@ -307,7 +319,12 @@ async function mintArm(db, M) {
    windows follow the first climb's: the same session setup as tests/tower-climb.mjs climber, on the hero that already exists. */
 async function climbAgain(db) {
   await db.query("select set_config('hr.test_now', (transaction_timestamp() + interval '40 minutes')::text, true)");
-  const r = await call(db, 'select public.hr_tower_start(0, 0, $1::uuid)', [idem()]);
+  /* a climb still standing at the span's end (a hero that holds its edge) is left the player's way first: one climb at a time */
+  if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [UID])) {
+    const left = await call(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    if (!left || left.ok !== true) throw new Error('leaving the first climb refused: ' + JSON.stringify(left));
+  }
+  const r = await call(db, 'select public.hr_tower_start(0, 30, $1::uuid)', [idem()]);
   if (!r || r.ok !== true) throw new Error('the second hr_tower_start refused: ' + JSON.stringify(r));
   const sid = r.session_id;
   const t = "date_trunc('second', now() - make_interval(mins => 25))";

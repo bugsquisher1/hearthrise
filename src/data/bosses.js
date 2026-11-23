@@ -39,8 +39,6 @@ export const BOSS_KINDS = Object.freeze({
   add: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, floorCapPm: 330, rampPm: 0, rampCapPm: 1000 }),
 });
 
-export const BOSS_KIND_IDS = Object.freeze(Object.keys(BOSS_KINDS));
-
 /** The boss stat role of kind `kind` laid over the base role row `base` (balance-sheet.js MONSTER_ROLES shape: hp, hit, blow, def,
     evasion, xp, gp, and gentleHp when the base has one): the multipliers applied, the floor cap carried. Pure. */
 export function bossRole(base, kind) {

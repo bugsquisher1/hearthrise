@@ -20,6 +20,7 @@ import { seederFor } from './hunt-seed.js';
 /* THE MEMBER ASSEMBLY, the bonus chain and the weapon profile (src/core/member.js): shared with the
    browser's live view of a hunt (option B, 2026-10-19). */
 import { memberSide, sharePurses } from '../../../src/core/member.js';
+import { scaleItems } from '../../../src/core/gear-stats.js';
 /* THE INSTANCE WORLD a settle resumes and leaves (src/core/hunt/world-state.js),
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
@@ -137,7 +138,9 @@ export function accrueHunt(inp) {
   if (!(fromMs > 0) || !(toMs > fromMs)) return { accrued: false, reason: SKIP.TOO_SOON };
   if (!inp.ground || !inp.grid) return { accrued: false, reason: SKIP.NO_TARGET };
   const tickMs = COMBAT_BALANCE.tickMs;
-  const ctx = { items: inp.items || {}, monsters: inp.monsters || {} };
+  /* ON A DANGER-SCALE GROUND every worn piece fights at the ground's base item Level (src/core/gear-stats.js scaleItems): its item Level is
+     the power step, never its stats. Any other ground: the catalogue as written. */
+  const ctx = { items: scaleItems(inp.items || {}, inp.ground), monsters: inp.monsters || {} };
   const sides = (inp.members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((mi) => memberSide(mi, ctx));
   /* ONE PURSE PER ACCOUNT (2026-12-15-account-gold.sql): an account's heroes in this instance spend the same gold. */
   sharePurses(sides);

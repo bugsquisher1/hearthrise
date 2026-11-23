@@ -534,6 +534,16 @@ jobs:
         run: |
           node tests/gear-steps.mjs
           node tools/mutant-gate.mjs node tests/gear-steps.mjs --mutate
+      # EVERY PIECE OF GEAR IS THE ONE FORMULA'S (lane/gear-catalogue-steps, src/core/gear-stats.js, src/data/gear-profiles.js): the
+      # generated stat table is what the generator writes, no item module types a stat by hand, rarity never sizes the base, and on a
+      # Danger-scale ground every reader fights each piece halfway from the ground's base item Level to its own (the power step carries the tier).
+      - name: Gear stats - derived by one formula, the scale view (12 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-gear.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-gear.mjs --selftest
+          node tests/gear-stats.mjs
+          node tools/mutant-gate.mjs node tests/gear-stats.mjs --mutate
       # THE CONTENT PIPELINE (lane/content-pipeline, docs/design/redesign/24-content-pipeline.md): every scale ground has its band,
       # gear base, drop home and Trait pool, its band is the one tools/new-ground.mjs measured on its current rows, every Trait and
       # Signature has a home that exists, every live move its icon (and its road and Signature once the Roads are live). The

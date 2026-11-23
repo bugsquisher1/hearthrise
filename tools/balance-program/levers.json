@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "4b8205095c61bd9a",
+ "authored": "fea1f69c882cf674",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -87,9 +87,9 @@
    "party": 6
   },
   "byClass": {
-   "global": 104,
-   "archetype": 28,
-   "content": 49,
+   "global": 105,
+   "archetype": 29,
+   "content": 47,
    "exception-intentional": 16,
    "exception-accidental": 11
   },
@@ -113,15 +113,15 @@
   "flags": {
    "redundant": 41,
    "ineffective": 34,
-   "contradictory": 38
+   "contradictory": 37
   }
  },
  "census": {
-  "bindings": 708,
-  "typed": 15970,
-  "files": 244,
-  "lever": 305,
-  "notLever": 403,
+  "bindings": 716,
+  "typed": 16695,
+  "files": 247,
+  "lever": 311,
+  "notLever": 405,
   "unclaimed": 0
  },
  "problems": [],
@@ -2191,17 +2191,17 @@
   {
    "id": "weapon.family-tables",
    "category": "weapon-power",
-   "name": "Weapon accuracy and damage by family and tier",
+   "name": "Weapon accuracy and damage by family (the gear formula's profiles)",
    "sites": [
     {
-     "file": "src/data/gear-tiers.js",
-     "line": 77,
-     "text": "export const WEAPON_FAMILIES = [",
-     "binding": "WEAPON_FAMILIES"
+     "file": "src/data/gear-profiles.js",
+     "line": 73,
+     "text": "export const GEAR_PROFILES = Object.freeze({",
+     "binding": "GEAR_PROFILES"
     }
    ],
-   "definition": "hand tables: atk [4..42] and str [3..35] a tier for the sword (other families their own); spellbooks magicAtk, magicStr, def. Tiers 1-7 only; past 7 the staged Dawnsteel line lives in tools (X-LINE-IN-TOOLS)",
-   "range": "rising by tier; no tier 8. The planned gear curve (knob gearSlope, R10) replaces the tables",
+   "definition": "every piece's stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family's profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece states its offset (statPlus). Past 88 the staged Dawnsteel line still lives in tools (X-LINE-IN-TOOLS)",
+   "range": "permille of the slot's share, whole; rarity never sizes the base (RARITY_PM all 1000)",
    "touches": "kill speed by gear state; what an upgrade is worth",
    "outcomes": [
     "dps",
@@ -2220,7 +2220,7 @@
     "feeds": 9,
     "closure": 79
    },
-   "class": "content",
+   "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [
@@ -2232,12 +2232,8 @@
       ]
      }
     ],
-    "mentions": [
-     "tests/hunt-core/spell-rule.mjs",
-     "tests/hunt-core/tower-weapons-play.mjs",
-     "tests/tower-chest.mjs"
-    ],
-    "mentionCount": 3,
+    "mentions": [],
+    "mentionCount": 0,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2245,23 +2241,19 @@
     "note": "the kits read these tables (grid-kit.mjs): a patch on a row is played",
     "planned": "gearSlope",
     "from": [
-     "src/data/gear-tiers.js: export const WEAPON_FAMILIES = ["
+     "src/data/gear-profiles.js: export const GEAR_PROFILES = Object.freeze({"
     ],
     "existingPatches": []
    },
    "rows": {
-    "what": "atk and str a tier (7 tiers) on every weapon family, and the spellbooks",
+    "what": "one profile a weapon family, off-hand, armor weight, cloak and jewel; the family rows of the ladder carry no stat",
     "homes": [
+     "src/data/gear-profiles.js#GEAR_PROFILES",
      "src/data/gear-tiers.js#WEAPON_FAMILIES",
      "src/data/gear-tiers.js#SPELLBOOKS"
     ]
    },
    "flags": [
-    {
-     "kind": "contradictory",
-     "why": "Single cells were tuned to pass one guard on one ground (the warhammer's tiers 2 and 3, Steel Hatchets 14/16, Mithril Hatchets 19/21)",
-     "ev": "44 P-X31, CONFIRMED"
-    },
     {
      "kind": "ineffective",
      "why": "No formula past tier 7 (Level 88): today's gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000",
@@ -3857,16 +3849,22 @@
    "name": "Armor weights: points, HP and mana",
    "sites": [
     {
-     "file": "src/data/gear-tiers.js",
-     "line": 209,
-     "text": "{ key: 'leather', vmul: 0.70, defMul: 0.55, icon: '🎽', craftMat: 'plank',",
-     "binding": "ARMOUR_LINES"
+     "file": "src/data/gear-profiles.js",
+     "line": 89,
+     "text": "plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),",
+     "binding": "GEAR_PROFILES"
     },
     {
-     "file": "src/data/gear-tiers.js",
-     "line": 221,
-     "text": "{ key: 'cloth', vmul: 0.70, defMul: 0.30, icon: '🧥', craftMat: 'plank',",
-     "binding": "ARMOUR_LINES"
+     "file": "src/data/gear-profiles.js",
+     "line": 91,
+     "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
+     "binding": "GEAR_PROFILES"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 92,
+     "text": "cloth: Object.freeze({ curve: 'defense', defB: 305, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),",
+     "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/core-model.js",
@@ -3881,8 +3879,8 @@
      "binding": "VITALS"
     }
    ],
-   "definition": "plate 1.00, leather 0.55, cloth 0.30 of the slot's points, each line's trades derived from the points; six heavy slots +28% HP, six light +35% mana",
-   "range": "defMul 0..1",
+   "definition": "the weights' profiles (src/data/gear-profiles.js): plate 1000, leather 550, cloth 300 permille of the slot's defense budget, each line's trades a share of the same budget; six heavy slots +28% HP, six light +35% mana",
+   "range": "defB permille 0..1000",
    "touches": "survival by weight, the caster's mana",
    "outcomes": [
     "takenPerH",
@@ -3924,8 +3922,9 @@
    "perturb": {
     "kind": "patch",
     "from": [
-     "src/data/gear-tiers.js: { key: 'leather', vmul: 0.70, defMul: 0.55, icon: '🎽', craftMat: 'plank',",
-     "src/data/gear-tiers.js: { key: 'cloth', vmul: 0.70, defMul: 0.30, icon: '🧥', craftMat: 'plank',",
+     "src/data/gear-profiles.js: plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),",
+     "src/data/gear-profiles.js: leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
+     "src/data/gear-profiles.js: cloth: Object.freeze({ curve: 'defense', defB: 305, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),",
      "src/data/core-model.js: heavyHpPermille: 280,",
      "src/data/core-model.js: lightManaPermille: 350,"
     ],
@@ -4378,16 +4377,16 @@
   {
    "id": "crit.leather",
    "category": "crit",
-   "name": "Leather crit a tier",
+   "name": "Leather crit by item Level",
    "sites": [
     {
-     "file": "src/data/gear-tiers.js",
-     "line": 215,
-     "text": "fields: (def, i) => ({ rangeAtkB: Math.round(def * 0.5), critB: 0.004 * (i + 1), magicAtkB: -Math.round(def * 0.15) }) },",
-     "binding": "ARMOUR_LINES"
+     "file": "src/data/gear-profiles.js",
+     "line": 91,
+     "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
+     "binding": "GEAR_PROFILES"
     }
    ],
-   "definition": "a leather piece carries 0.004 x tier crit",
+   "definition": "every leather piece carries the same crit, the leather profile's even critB over the defense budget at its item Level (0.2% at 1, 2.8% at Dawnsteel)",
    "range": "0..0.6 summed",
    "touches": "the leather way's damage",
    "outcomes": [
@@ -4419,7 +4418,7 @@
    "perturb": {
     "kind": "patch",
     "from": [
-     "src/data/gear-tiers.js: fields: (def, i) => ({ rangeAtkB: Math.round(def * 0.5), critB: 0.004 * (i + 1), magicAtkB: -Math.round(def * 0.15) }) },"
+     "src/data/gear-profiles.js: leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),"
     ],
     "existingPatches": []
    },
@@ -4754,7 +4753,7 @@
    "sites": [
     {
      "file": "src/data/fists.js",
-     "line": 39,
+     "line": 41,
      "text": "selfHealPm: 8,",
      "binding": "FIST_LINE"
     }
@@ -6492,7 +6491,7 @@
     },
     {
      "file": "src/data/boss-calls.js",
-     "line": 43,
+     "line": 45,
      "text": "limitMs: 10 * 60000,",
      "binding": "BOSS_CALL_RULES"
     }
@@ -7095,11 +7094,11 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7174,11 +7173,11 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7250,11 +7249,11 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7319,11 +7318,11 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7385,14 +7384,14 @@
     "mentions": [
      "tests/alpha-server.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/shell-core.mjs",
      "tests/tower-board.mjs",
-     "tests/tower-chest.mjs",
-     "tests/tower-climb.mjs"
+     "tests/tower-chest.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7730,11 +7729,11 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9277,9 +9276,33 @@
    "sites": [
     {
      "file": "src/data/gear-tiers.js",
-     "line": 40,
+     "line": 48,
      "text": "export const MATERIAL_TIERS = [",
      "binding": "MATERIAL_TIERS"
+    },
+    {
+     "file": "src/data/gear-tiers.js",
+     "line": 69,
+     "text": "export const ARMOUR_SLOTS = [",
+     "binding": "ARMOUR_SLOTS"
+    },
+    {
+     "file": "src/data/gear-tiers.js",
+     "line": 198,
+     "text": "{ key: 'plate', vmul: 1.00, icon: '🛡️',",
+     "binding": "ARMOUR_LINES"
+    },
+    {
+     "file": "src/data/gear-tiers.js",
+     "line": 201,
+     "text": "{ key: 'leather', vmul: 0.70, icon: '🎽', craftMat: 'plank',",
+     "binding": "ARMOUR_LINES"
+    },
+    {
+     "file": "src/data/gear-tiers.js",
+     "line": 212,
+     "text": "{ key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',",
+     "binding": "ARMOUR_LINES"
     }
    ],
    "definition": "seven tiers worn from Levels 1, 15, 30, 45, 60, 75, 88 (smith and craft levels the same), each with a value multiplier",
@@ -9321,11 +9344,16 @@
    "tests": {
     "asserts": [],
     "mentions": [
+     "tests/alpha-windows-inventory.mjs",
+     "tests/alpha-windows-pure.mjs",
+     "tests/catalogue-coherence.mjs",
+     "tests/hunt-core/forest-cave.mjs",
+     "tests/hunt-core/sewer.mjs",
      "tests/hunt-core/spell-rule.mjs",
      "tests/temper-buy.mjs",
      "tests/temper-uniques.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9333,7 +9361,11 @@
     "note": "the kits pick the Level's tier (grid-kit.mjs)",
     "planned": "gearBandStep",
     "from": [
-     "src/data/gear-tiers.js: export const MATERIAL_TIERS = ["
+     "src/data/gear-tiers.js: export const MATERIAL_TIERS = [",
+     "src/data/gear-tiers.js: export const ARMOUR_SLOTS = [",
+     "src/data/gear-tiers.js: { key: 'plate', vmul: 1.00, icon: '🛡️',",
+     "src/data/gear-tiers.js: { key: 'leather', vmul: 0.70, icon: '🎽', craftMat: 'plank',",
+     "src/data/gear-tiers.js: { key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',"
     ],
     "existingPatches": []
    },
@@ -9349,17 +9381,41 @@
   {
    "id": "gear.armor-table",
    "category": "equipment",
-   "name": "Armor points by slot and tier",
+   "name": "Gear stat budget: the curves and the slot split",
    "sites": [
     {
-     "file": "src/data/gear-tiers.js",
-     "line": 63,
-     "text": "export const ARMOUR_SLOTS = [",
-     "binding": "ARMOUR_SLOTS"
+     "file": "src/data/gear-profiles.js",
+     "line": 54,
+     "text": "export const GEAR_CURVES = Object.freeze({",
+     "binding": "GEAR_CURVES"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 60,
+     "text": "export const GEAR_CURVE_TOP = 88;",
+     "binding": "GEAR_CURVE_TOP"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 61,
+     "text": "export const GEAR_SCALE_STAT_PM = 500;",
+     "binding": "GEAR_SCALE_STAT_PM"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 64,
+     "text": "export const GEAR_SLOT_PM = Object.freeze({",
+     "binding": "GEAR_SLOT_PM"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 69,
+     "text": "export const GEAR_EVEN_SHARE_PM = 75;",
+     "binding": "GEAR_EVEN_SHARE_PM"
     }
    ],
-   "definition": "a hand table per slot (plate): helm 3..44, platebody 6..90, platelegs 4..64, boots and belt 2..30, gauntlets 1..23, times the line's defMul",
-   "range": "rising by tier",
+   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground's base item Level to its own, so the power step carries the tier",
+   "range": "coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels",
    "touches": "damage taken by gear state",
    "outcomes": [
     "takenPerH",
@@ -9381,25 +9437,25 @@
     "feeds": 4,
     "closure": 79
    },
-   "class": "content",
+   "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/alpha-windows-inventory.mjs",
-     "tests/alpha-windows-pure.mjs",
-     "tests/catalogue-coherence.mjs",
-     "tests/hunt-core/forest-cave.mjs",
-     "tests/hunt-core/sewer.mjs"
+     "tests/gear-stats.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 1,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "note": "the kits read the table",
     "from": [
-     "src/data/gear-tiers.js: export const ARMOUR_SLOTS = ["
+     "src/data/gear-profiles.js: export const GEAR_CURVES = Object.freeze({",
+     "src/data/gear-profiles.js: export const GEAR_CURVE_TOP = 88;",
+     "src/data/gear-profiles.js: export const GEAR_SCALE_STAT_PM = 500;",
+     "src/data/gear-profiles.js: export const GEAR_SLOT_PM = Object.freeze({",
+     "src/data/gear-profiles.js: export const GEAR_EVEN_SHARE_PM = 75;"
     ],
     "existingPatches": []
    },
@@ -9419,8 +9475,8 @@
    "sites": [
     {
      "file": "src/data/slot-ladders.js",
-     "line": 52,
-     "text": "export const SLOT_ITEMS = {",
+     "line": 54,
+     "text": "export const SLOT_ITEMS = withGearStats({",
      "binding": "SLOT_ITEMS"
     }
    ],
@@ -9456,7 +9512,7 @@
     "kind": "patch",
     "note": "patches/items-2.json gives the accessories tier 7 numbers; it needs its plan.jewelryStandIn step (matrix-plan.mjs: x0.5 from Level 110 to 185, x1.0 from 186; rows as the tree holds them under 110)",
     "from": [
-     "src/data/slot-ladders.js: export const SLOT_ITEMS = {"
+     "src/data/slot-ladders.js: export const SLOT_ITEMS = withGearStats({"
     ],
     "existingPatches": []
    },
@@ -9574,15 +9630,15 @@
    "sites": [
     {
      "file": "src/data/wave3-uniques.js",
-     "line": 7,
-     "text": "export const WAVE3_ITEMS = {",
+     "line": 9,
+     "text": "export const WAVE3_ITEMS = withGearStats({",
      "binding": "WAVE3_ITEMS"
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 86,
-     "text": "export const SPECIAL_SAMPLE = Object.freeze({",
-     "binding": "SPECIAL_SAMPLE"
+     "line": 131,
+     "text": "export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
+     "binding": "SAMPLE"
     }
    ],
    "definition": "each unique sized by hand against a simulator at the fourth digit; Krell's pieces; chest armor's attributes by tier; shields' guard",
@@ -9623,11 +9679,14 @@
     "asserts": [],
     "mentions": [
      "tests/armor-line.mjs",
-     "tests/boss-hall.mjs",
+     "tests/cron-health.mjs",
+     "tests/hunt-core/fist-play.mjs",
+     "tests/hunt-core/necrotic-storm.mjs",
      "tests/special-attributes.mjs",
-     "tests/weapon-line.mjs"
+     "tests/weapon-line.mjs",
+     "tests/world-tick-parity.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9635,8 +9694,8 @@
     "note": "the BiS kit reads them (grid-kit.mjs)",
     "planned": "gearExchange",
     "from": [
-     "src/data/wave3-uniques.js: export const WAVE3_ITEMS = {",
-     "src/data/special-attributes.js: export const SPECIAL_SAMPLE = Object.freeze({"
+     "src/data/wave3-uniques.js: export const WAVE3_ITEMS = withGearStats({",
+     "src/data/special-attributes.js: export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>"
     ],
     "existingPatches": []
    },
@@ -9674,13 +9733,13 @@
    "sites": [
     {
      "file": "src/data/special-attributes.js",
-     "line": 30,
+     "line": 32,
      "text": "export const SPECIAL_ATTRIBUTES = Object.freeze({",
      "binding": "SPECIAL_ATTRIBUTES"
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 20,
+     "line": 22,
      "text": "export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);",
      "binding": "SPECIAL_TIERS"
     }
@@ -9787,7 +9846,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9834,7 +9893,7 @@
    "sites": [
     {
      "file": "src/data/items.js",
-     "line": 24,
+     "line": 25,
      "text": "export const ITEMS={",
      "binding": "ITEMS"
     }
@@ -9885,7 +9944,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9912,7 +9971,7 @@
      {
       "table": "src/data/items.js ITEMS",
       "rows": 729,
-      "carrying": 195,
+      "carrying": 194,
       "distinct": 43,
       "low": 1,
       "high": 120
@@ -10580,11 +10639,11 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10656,11 +10715,11 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11718,7 +11777,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14836,6 +14895,14 @@
    "why": "rounding to fives"
   },
   {
+   "at": "src/core/gear-stats.js#gearStats",
+   "why": "the units of the gear formula (permille x permille x permille: / 10^9); its levers are src/data/gear-profiles.js"
+  },
+  {
+   "at": "src/data/gear-stats.generated.js#GEAR_STATS",
+   "why": "GENERATED by tools/gen-gear.mjs from the gear formula (src/core/gear-stats.js) and its levers (src/data/gear-profiles.js); --check is its drift guard"
+  },
+  {
    "at": "src/core/rng.js#*",
    "why": "the seeded random stream"
   },
@@ -15089,28 +15156,37 @@
    "typed": 1,
    "bindings": 1
   },
+  "src/data/gear-profiles.js#GEAR_PROFILES": {
+   "pin": "keys",
+   "keys": [
+    "atkB",
+    "critB",
+    "defB",
+    "magicAtkB",
+    "magicStrB",
+    "rangeAtkB",
+    "rangeStrB",
+    "strB"
+   ],
+   "bindings": 1
+  },
   "src/data/gear-tiers.js#WEAPON_FAMILIES": {
    "pin": "count",
    "keys": [
-    "atk",
     "bars",
     "lvOff",
     "planks",
-    "str",
     "vmul"
    ],
-   "typed": 108,
+   "typed": 10,
    "bindings": 1
   },
   "src/data/gear-tiers.js#SPELLBOOKS": {
    "pin": "count",
    "keys": [
-    "def",
-    "magicAtk",
-    "magicStr",
     "vmul"
    ],
-   "typed": 17,
+   "typed": 1,
    "bindings": 1
   },
   "src/data/library2-items.js#AMMO_REQ": {
@@ -15487,7 +15563,6 @@
    "keys": [
     "atkB",
     "critB",
-    "magicAtkB",
     "reqLv",
     "steadyPm",
     "strB",
@@ -15507,13 +15582,10 @@
   "src/data/library2-items.js#BANE_GEAR": {
    "pin": "keys",
    "keys": [
-    "atkB",
-    "magicAtkB",
     "magicStrB",
     "rangeAtkB",
     "rangeStrB",
     "reqLv",
-    "strB",
     "tier",
     "v"
    ],
@@ -15526,26 +15598,21 @@
   "src/data/library2-items.js#chitin": {
    "pin": "count",
    "keys": [
-    "critB",
-    "magicAtkB",
-    "rangeAtkB",
     "reqLv",
     "tier",
     "v"
    ],
-   "typed": 7,
+   "typed": 4,
    "bindings": 1
   },
   "src/data/library2-items.js#watch": {
    "pin": "count",
    "keys": [
-    "magicAtkB",
-    "rangeAtkB",
     "reqLv",
     "tier",
     "v"
    ],
-   "typed": 5,
+   "typed": 3,
    "bindings": 1
   },
   "src/data/library2-items.js#TIER_VALUE": {
@@ -16576,20 +16643,6 @@
    "typed": 6,
    "bindings": 1
   },
-  "src/data/gear-tiers.js#ARMOUR_LINES": {
-   "pin": "count",
-   "keys": [
-    "atkB",
-    "critB",
-    "defMul",
-    "magicAtkB",
-    "magicStrB",
-    "rangeAtkB",
-    "vmul"
-   ],
-   "typed": 13,
-   "bindings": 1
-  },
   "src/data/monster-spells.js#SHIELD_BRACE": {
    "pin": "count",
    "keys": [
@@ -17154,11 +17207,71 @@
    "pin": "count",
    "keys": [
     "bars",
-    "def",
     "lvOff",
     "vmul"
    ],
-   "typed": 51,
+   "typed": 12,
+   "bindings": 1
+  },
+  "src/data/gear-tiers.js#ARMOUR_LINES": {
+   "pin": "count",
+   "keys": [
+    "vmul"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_CURVES": {
+   "pin": "count",
+   "keys": [
+    "c0",
+    "c1",
+    "c2"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_CURVE_TOP": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_SCALE_STAT_PM": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_SLOT_PM": {
+   "pin": "count",
+   "keys": [
+    "belt",
+    "body",
+    "boots",
+    "cape",
+    "earrings",
+    "gloves",
+    "helmet",
+    "necklace",
+    "pants",
+    "ring",
+    "shield",
+    "weapon"
+   ],
+   "typed": 12,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_EVEN_SHARE_PM": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/jewelry.js#SURGE_MULT_PM": {
@@ -17188,24 +17301,18 @@
    "typed": 72,
    "bindings": 1
   },
-  "src/data/special-attributes.js#SPECIAL_SAMPLE": {
+  "src/data/special-attributes.js#SAMPLE": {
    "pin": "count",
    "keys": [
-    "atkB",
     "critB",
-    "defB",
-    "magicAtkB",
-    "magicStrB",
     "mult",
     "physical",
     "pm",
-    "rangeAtkB",
     "reqLv",
-    "strB",
     "tier",
     "v"
    ],
-   "typed": 30,
+   "typed": 19,
    "bindings": 1
   },
   "src/data/special-attributes.js#SPECIAL_ATTRIBUTES": {

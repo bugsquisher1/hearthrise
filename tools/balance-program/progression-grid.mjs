@@ -183,7 +183,14 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   });
   let plans = styles.map((style, i) => K.kitFor(L, gear, style, { ground, mainSkill: skills[i][MAIN[style] || 'melee'] }));
   /* E1's step cells: the MID set with ONE group from the LOW plan (the weapon, or the six armor slots), everything else MID's */
-  if (step) plans = plans.map((p, i) => K.mixPlan(p, K.kitFor(L, 'low', styles[i], { ground, mainSkill: skills[i][MAIN[styles[i]] || 'melee'] }), step === 'step:weapon' ? ['weapon'] : ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']));
+  /* 'step:back' both groups from LOW (one gear tier back), 'step:up' both groups from the MID set of the next gear band (one tier ahead,
+     lane/gear-catalogue-steps: C-2 read on the shipped kits) */
+  const ARMOR = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
+  const groupOf = { 'step:weapon': ['weapon'], 'step:armor': ARMOR, 'step:back': ['weapon', ...ARMOR], 'step:up': ['weapon', ...ARMOR] };
+  if (step && !groupOf[step]) throw new Error('buildCell: unknown step ' + step);
+  const fromL = step === 'step:up' ? K.bandAfter(L) : L, fromState = step === 'step:up' ? 'mid' : 'low';
+  if (step === 'step:up' && !fromL) throw new Error('buildCell: no gear band after Level ' + L);
+  if (step) plans = plans.map((p, i) => K.mixPlan(p, K.kitFor(fromL, fromState, styles[i], { ground, mainSkill: skills[i][MAIN[styles[i]] || 'melee'] }), groupOf[step]));
   const temper = {};
   for (const p of plans) for (const [k, n] of Object.entries(p.temper || {})) temper[k] = Math.max(temper[k] || 0, n);
   const projected = STD.stretchOf(L).state === 'PROJECTED';

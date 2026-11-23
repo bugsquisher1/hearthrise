@@ -36,27 +36,29 @@
 // PURE DATA, merged into ITEMS and ITEM_DESC.
 // ════════════════════════════════════════════════════════════════════════
 
-export const CHAMPION_ITEMS = {
+import { withGearStats } from './gear-profiles.js';
+
+export const CHAMPION_ITEMS = withGearStats({
   tusker_charm: {
     n: "Tusker's Charm", icon: '📿', v: 140, type: 'jewelry', slot: 'necklace',
-    atkB: 2, strB: 1, rarity: 'uncommon', tier: 1, reqSkill: 'level', reqLv: 8,
+    statPlus: { atkB: 2, strB: 1 }, rarity: 'uncommon', tier: 1, reqSkill: 'level', reqLv: 8,
   },
   packlord_band: {
     n: "Packlord's Band", icon: '💍', v: 420, type: 'jewelry', slot: 'ring',
-    atkB: 3, strB: 3, critB: 0.005, rarity: 'rare', tier: 2, reqSkill: 'level', reqLv: 22,
+    statPlus: { atkB: 2, strB: 2, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.005 }, rarity: 'rare', tier: 2, reqSkill: 'level', reqLv: 22,
   },
   mirewort_drops: {
-    n: 'Mirewort Drops', icon: '💎', v: 800, type: 'jewelry', slot: 'earrings', critB: 0.015, magicAtkB: 3, rarity: 'rare', tier: 3, reqSkill: 'level', reqLv: 38,
+    n: 'Mirewort Drops', icon: '💎', v: 800, type: 'jewelry', slot: 'earrings', statPlus: { atkB: -1, strB: -1, rangeAtkB: -1, rangeStrB: -1, magicAtkB: 2, magicStrB: -1, critB: 0.015 }, rarity: 'rare', tier: 3, reqSkill: 'level', reqLv: 38,
   },
   barrowking_mantle: {
     n: "Barrow-King's Mantle", icon: '🦸', v: 1700, type: 'armor', slot: 'cape',
-    steadyPm: 150, strB: 3, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
+    steadyPm: 150, statPlus: { strB: 2, rangeStrB: -1, magicStrB: -1 }, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
   },
   jarls_rimetorc: {
     n: "Jarl's Collar", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',  /* Rime Necklace -> Collar (designer 2026-11-11, lane/d-small-calls): the text says what it is, a frozen iron neck ring; one plain noun like Charm, Band, Drops, Mantle */
-    atkB: 7, strB: 6, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
+    statPlus: { atkB: 5, strB: 4, rangeAtkB: -2, rangeStrB: -2, magicAtkB: -2, magicStrB: -2 }, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
   },
-};
+});
 
 export const CHAMPION_DESC = {
   tusker_charm: 'A cracked tusk from the oldest boar in the woods, on a leather cord. Wearing it makes you a bit too brave',

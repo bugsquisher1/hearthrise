@@ -338,6 +338,11 @@
         "bytes": 3465586,
         "on": "2026-11-23",
         "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
+      },
+      {
+        "bytes": 3542247,
+        "on": "2026-11-23",
+        "why": "merge of lane/gear-catalogue-steps: the one gear stat formula (src/core/gear-stats.js), its levers (gear-profiles.js) and the generated stat table with item Levels (gear-stats.generated.js) the settle's scale view reads"
       }
     ]
   }

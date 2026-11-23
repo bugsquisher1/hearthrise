@@ -61,6 +61,9 @@ ok(packPrint(g, withRow({ hp: MONSTERS[id].hp + 1 }), monstersOn) !== base, 'NG-
 ok(packPrint(g, withRow({ name: 'Renamed', icon: 'x', drops: [] }), monstersOn) === base, 'NG-5 a name, icon or drop moved the print');
 const moved = { ...g, pockets: g.pockets.map((p, i) => (i === g.route[0] ? { ...p, pack: (p.pack || p.spawns).slice(1) } : p)) };
 ok(packPrint(moved, MONSTERS, monstersOn) !== base, 'NG-5 a pocket losing a monster kept the print');
+/* (lane/monster-formula) the ground's monsters switch: on the formula its rows play other numbers, so the print moves; on its rows it stays */
+ok(packPrint(g, MONSTERS, monstersOn, 'formula') !== base, 'NG-5 the monsters switch to the formula kept the print');
+ok(packPrint(g, MONSTERS, monstersOn, 'rows') === base, 'NG-5 a ground on its rows moved the print');
 
 if (fails.length) { console.error('new-ground: ' + fails.length + ' failed\n  ' + fails.join('\n  ')); process.exit(1); }
 console.log('new-ground: R10\'s three bands cut back exactly, verdicts read the deaths, the row edit and the print hold');

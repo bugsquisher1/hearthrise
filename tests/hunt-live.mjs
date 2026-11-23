@@ -2241,7 +2241,7 @@ const MUTANTS = [
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
-  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
+  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list, mrow);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
   ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
   ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
   ["Turning Cut a sword alone's again (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a club at Melee \d+: browser closed/],

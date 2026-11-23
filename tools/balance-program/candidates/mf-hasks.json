@@ -1,0 +1,17 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "mf-hasks",
+ "why": "Monsters from the formula on Hask's Ford (lane/monster-formula; 04 section 6), with its four bodies given roles: the Banded Pikeman a Swarm, the Fordsunk a Brute, the Ledger Wight a Caster (its Hex strikes the whole party) and the Bannerman a Warder (its Rally mends the file). The second role mix on the scale, a Caster and a Warder with real bodies. Paired against the tree (C0, today's monsters, no roles) on the same dice",
+ "base": "tree",
+ "edits": [
+  { "file": "src/data/danger.js", "from": "ladderTier: 4, refLevel: 52, monsters: 'rows',", "to": "ladderTier: 4, refLevel: 52, monsters: 'formula'," },
+  { "file": "src/data/grounds/hasks_ford/pack.js", "from": "      hp: 67, atk: 28,", "to": "      role: 'swarm',\n      hp: 67, atk: 28," },
+  { "file": "src/data/grounds/hasks_ford/pack.js", "from": "      hp: 112, atk: 29,", "to": "      role: 'brute',\n      hp: 112, atk: 29," },
+  { "file": "src/data/grounds/hasks_ford/pack.js", "from": "      hp: 71, atk: 40,", "to": "      role: 'caster',\n      hp: 71, atk: 40," },
+  { "file": "src/data/grounds/hasks_ford/pack.js", "from": "      hp: 166, atk: 39,", "to": "      role: 'warder',\n      hp: 166, atk: 39," }
+ ],
+ "assumptions": [
+  "A role on a hand row plays its reach on the scale with or without the switch; with it, the row's numbers are the formula's",
+  "Drops, coin a kill and XP stay the rows' own, so the economy moves only through kills an hour"
+ ]
+}

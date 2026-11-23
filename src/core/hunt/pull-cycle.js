@@ -230,7 +230,7 @@ function fitPull(inst, sc, p) {
     const max = Math.max(1, atTier((inst.monsters || MONSTERS)[m.kind], inst.tier).hp || 1);
     if (max !== m.maxHp) { m.hp = Math.max(1, Math.round((max * m.hp) / Math.max(1, m.maxHp))); m.maxHp = max; }
   }
-  pullBegins(w);
+  pullBegins(w, sc ? sc.atMs : null);
 }
 
 function startPull(inst, sc, k, p) {

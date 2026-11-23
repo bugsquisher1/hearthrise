@@ -62,7 +62,7 @@ export async function real() {
   const sigs = await optional('src/data/signatures.js');
   const pinsFile = join(ROOT, 'tests', 'danger-band-pins.json');
   const pins = existsSync(pinsFile) ? JSON.parse(readFileSync(pinsFile, 'utf8')).grounds : {};
-  const prints = Object.fromEntries(Object.keys(DANGER_GROUNDS).filter((g) => HUNT_GROUNDS[g]).map((g) => [g, packPrint(HUNT_GROUNDS[g], MONSTERS, monstersOn)]));
+  const prints = Object.fromEntries(Object.keys(DANGER_GROUNDS).filter((g) => HUNT_GROUNDS[g]).map((g) => [g, packPrint(HUNT_GROUNDS[g], MONSTERS, monstersOn, DANGER_GROUNDS[g].monsters)]));
   const plain = (o) => JSON.parse(JSON.stringify(o));
   return {
     danger: plain(DANGER_GROUNDS), pay: { ...PAY }, depths: DEPTHS, tierSteps: GEAR_STEPS.tierSteps,

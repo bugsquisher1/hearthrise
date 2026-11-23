@@ -64,7 +64,8 @@ import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js';
 import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js';
 import { runRulesOf } from '../data/tower.js';
 import { sessionPayOf } from '../data/session-modes.js';
-import { dangerOn, dangerDial, openDanger, riskOf } from './hunt/danger.js';
+import { dangerOn, dangerDial, openDanger, riskOf, heroCount } from './hunt/danger.js';
+import { formulaOn, formulaTable } from './hunt/monster-formula.js';
 import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 
@@ -321,6 +322,10 @@ export function simulateHuntInstance(inst, ctx) {
   let world = inst.world || null;
   /* A SCALED HUNT (huntPlayOf): its rows, its tier and its pull, the same for every swing of this span. */
   const play = huntPlayOf(ctx.ground.id, ctx.scale || null);
+  /* THE ROWS A SWING READS: on the Danger scale on a formula ground (src/core/hunt/monster-formula.js, the ground's switch in DANGER_GROUNDS)
+     every monster of the ground on its role's derived row; anywhere else the play's own (null: the catalogue). Rewards read play.monsters:
+     a derived row keeps its row's drops, coin and XP. */
+  const monsOf = (onScale) => (onScale && formulaOn(ctx.ground.id) ? formulaTable(ctx.ground.id, play.monsters || MONSTERS) : play.monsters);
   /* A TRAINING GROUND (src/core/hunt/training.js): its one dummy as built at any pick, the trained skill its only pay, and no stamina
      spent or proposed (the server's pool rests while the hero trains): the same for every member, from the ground, never stored. */
   const train = trainOf(ctx.ground);
@@ -435,10 +440,10 @@ export function simulateHuntInstance(inst, ctx) {
           /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first), or on the
              Danger scale at the step its plan starts at (src/core/hunt/danger.js; never on a yard, a room, the Tower or a scaled hunt). */
           const plan = train || tw || room || play.level !== null ? null : riskPick(standing);
-          const tier = plan ? dangerDial(ctx.ground, plan.step) : play.tierOf(tierPick(standing));
+          const tier = plan ? dangerDial(ctx.ground, plan.step, standing.length) : play.tierOf(tierPick(standing));
           if (tw) play.monsters = towerMonsters(ctx.towerFloor, tw);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
-            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters, ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}), ...(plan ? { density: tier.pull[0] } : {}) });
+            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: monsOf(!!plan), ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}), ...(plan ? { density: tier.pull[0] } : {}) });
           if (plan) openDanger(world, plan.risk, tier.step);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
@@ -495,7 +500,7 @@ export function simulateHuntInstance(inst, ctx) {
       world.density = densityFor(ctx.ground, world.units.filter((u) => isHero(u)).length,
         pickOf(members.filter((m) => !m.left && m.unitId !== null)));
       /* ON THE DANGER SCALE (src/core/hunt/danger.js dangerDial): the step's own pull, and its dial in place of the tier's */
-      const scale = dangerOn(world) ? dangerDial(ctx.ground, world.danger) : null;
+      const scale = dangerOn(world) ? dangerDial(ctx.ground, world.danger, heroCount(world)) : null;
       if (scale) world.density = scale.pull[0];
       /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
          in a world just made (every member that enters with it has joined by now). */
@@ -507,7 +512,7 @@ export function simulateHuntInstance(inst, ctx) {
       /* the floor standing's table on the Tower (read before the swing: a room cleared in it stands again only after the stair) */
       if (tw) play.monsters = towerMonsters(world.towerFloor, tw);
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground, grid: ctx.grid, heroes, tier: scale || tier, ...(play.monsters ? { monsters: play.monsters } : {}),
+        ground, grid: ctx.grid, heroes, tier: scale || tier, ...(monsOf(!!scale) ? { monsters: monsOf(!!scale) } : {}),
         ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}), ...(fullPay ? {} : { xpPm: pay.xpPm }) });
       seen(r.events);
       for (const t of r.track) track.push(t);

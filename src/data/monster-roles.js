@@ -56,13 +56,74 @@
 /* The two rows, front first. */
 export const ROWS = Object.freeze(['front', 'back']);
 
+/* ── THE ROLE'S POWER DIALS (lane/monster-formula, 04-math-strategy.md section 6, 02 package 3) ─────────────────────────────────
+   A monster on a formula ground (src/data/danger.js DANGER_GROUNDS `monsters: 'formula'`) is its role and the step: its health, its blows
+   and its wind-ups are DERIVED from these rows and the reference company (MONSTER_FORMULA below) by src/core/hunt/monster-formula.js, never
+   typed on the monster. Its name, art, class, weapon answers, drops, coin and XP stay its own row's (content). Every dial is read at a gap of
+   0 (the ground's reference company on the ground's reference step) and the step grows them from there exactly as it grows any row.
+     secondsToKill  seconds the reference company, all four on it, takes to kill one: its health = this x the company's damage a second
+     pressure       the share of its target's reference health it deals a second while it fights (steady blows and wind-ups together)
+     windupShare    the share of that pressure that comes as wind-ups a bar can answer (an interrupt, a step off a mark, a shell); the
+                    rest is steady blows. Steady pressure sets the supply bill, wind-ups set the death risk (04 section 6)
+     windupSize     how big ONE wind-up is: a share of the target's reference health (mean hit). Its frequency follows:
+                    one wind-up every windupSize / (windupShare x pressure) seconds. Big and rare kills, small and often bleeds
+     windup         the wind-up's shape and warning (a monster-spells.js row without its number and cooldown, which the formula writes)
+     mend           a Warder's heal on its own side: `seconds` of the reference company's damage undone a mend, every `everyS` seconds
+   Starting values are the Lab's (tools/balance-program/redesign/mf, lane/monster-formula); bands in tools/balance-program/levers/world.mjs
+   `mf.*`. A tier ground never reads them. */
+const windup = (row) => Object.freeze({ ...row, element: row.element === undefined ? null : row.element });
+
 export const MONSTER_ROLES = Object.freeze({
-  brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: shields, armor' }),
-  shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor' }),
+  brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: shields, armor',
+    secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,
+    windup: windup({ n: 'Heavy Blow', shape: 'cone', len: 2, range: 1, windupMs: 1600 }) }),
+  shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',
+    secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),
   caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),
-    targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing' }),
-  swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor' }),
-  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),
-  /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights */
-  warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire' }),
+    targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing',
+    secondsToKill: 3.5, pressure: 0.014, windupShare: 0.6, windupSize: 0.08,
+    windup: windup({ n: 'Hex', shape: 'group', range: 6, windupMs: 2000 }) }),
+  swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor',
+    secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),
+  stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',
+    secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),
+  /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights. On a formula ground its heal is
+     the formula's (`mend`) */
+  warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire',
+    secondsToKill: 5, pressure: 0.01, windupShare: 0, windupSize: 0,
+    mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
+});
+
+/* ── THE FORMULA'S GLOBAL DIALS AND ITS REFERENCE (lane/monster-formula; 04 sections 6 and 8) ──────────────────────────────────────
+   encounterPerHero  monsters a pull brings for each hero at a gap of 0 (04 section 8: "an encounter grows with the party", so a lone hero
+                     and a four have the same time budget); past the reference step the pull grows by DANGER.pullStep to DANGER.pullMax
+   encounters        by encounter type: `pull` (a pack) and `boss` (a row with `boss: true`). killMult x its role's secondsToKill;
+                     rampPerMinute: its blows and wind-ups grow by this share for each minute it has fought (a boss tests damage AND sustain:
+                     04 section 6). Read by the engine (src/core/hunt/damage.js through monster-formula.js rampPm)
+   windupScale       the two death-risk dials on every wind-up at once: `size` x each wind-up's hit, `every` x the time between them
+   blowCap           no steady blow's top lands over this share of its target's reference health after its armor (maxHitPm's reason:
+                     one blow at the back row stays under the Steady line). A role whose pressure would need a bigger blow is held at the
+                     cap and deals less than its dial: monster-formula.js roleStats reports the share let through (steadyShare)
+   REF               THE REFERENCE COMPANY a ground is anchored on (04 section 1): four heroes at the ground's refLevel (DANGER_GROUNDS), MID
+                     kits, on Steady at the ground's refStep.
+                       hit       a monster's to-hit on the reference hero of that Level (to-hit.js aimFor), its `aim`
+                       heroHit   the reference hero's to-hit on it (to-hit.js evasionFor), its `evasion`
+                       defPerLevel  its defense, x the Level (balance-sheet.js STAT_FORMULA's regular's)
+                       takePm    the share of a landed blow's roll that reaches the reference target after its armor chain (MEASURED)
+                       dps       [Level, damage a hunted second a head] of the reference company (MEASURED on the real engine), read
+                                 straight between rows, held past the ends; divided by fightShare it is the company's damage a FIGHTING
+                                 second (04 section 8: the reference fight share)
+                       fightShare  the share of the reference company's hunted time spent fighting (04 section 8's starting 0.6) */
+export const MONSTER_FORMULA = Object.freeze({
+  encounterPerHero: 2,
+  encounters: Object.freeze({
+    pull: Object.freeze({ killMult: 1, rampPerMinute: 0 }),
+    boss: Object.freeze({ killMult: 8, rampPerMinute: 0.1 }),
+  }),
+  windupScale: Object.freeze({ size: 1, every: 1 }),
+  blowCap: 0.2,
+  REF: Object.freeze({
+    hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,
+    dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),
+  }),
 });

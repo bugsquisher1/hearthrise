@@ -44,6 +44,7 @@ const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
 const { loadKits } = await imp('tools/balance-program/grid-kit.mjs');
 const { DANGER, CLIMB, RISKS: RISK_ROWS } = await imp('src/data/danger.js');
+const { MONSTERS } = await imp('src/data/monsters.js');
 const D = await loadGridData(ROOT), K = await loadKits(ROOT);
 /* THE PAY FROM A HELD START (lane/r4, 2026-11-22): each hero's Level XP an hour read only from --pay-from hours (default the settle hour)
    to the end of the four, as a multiple of the hours table at the Level it stood at mid-window (danger.js hoursForLevel), so the opening
@@ -71,7 +72,9 @@ const variants = [
 /* --start-from <report.json> [--margin 20]: each cell starts at the step that report's same cell held, less the margin (a company coming back
    to the step it held before: V2's watched session), in place of step 0 */
 const FROM = arg('start-from') ? JSON.parse((await import('node:fs')).readFileSync(arg('start-from'), 'utf8')) : null, MARGIN = Number(arg('margin', 20));
-const startOf = (id, v) => (FROM && FROM.cells[id] && Number.isFinite(FROM.cells[id].held.mean) ? Math.max(0, Math.round(FROM.cells[id].held.mean) - MARGIN) : v.start || 0);
+/* --start <step> (lane/monster-formula): every cell but `above` starts at that step (a held start without a report: the ground's band floor) */
+const START = Number(arg('start', 0));
+const startOf = (id, v) => (FROM && FROM.cells[id] && Number.isFinite(FROM.cells[id].held.mean) ? Math.max(0, Math.round(FROM.cells[id].held.mean) - MARGIN) : v.start || START || 0);
 const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
@@ -180,6 +183,18 @@ function readSeed(res, start) {
     reach: firstNear, xpPerH: res.party.levelXpPerHeroPerH, killsPerH: res.party.killsPerH, pullsPerH: res.party.pullsPerH,
     payX: pays.length ? pays.reduce((s, x) => s + x, 0) / pays.length : null, payH: Math.max(0, payEnd - payFrom) / H,
     heroesLost: res.heroes.filter((h) => h.deaths > 0).length, fourH: wt / H, firstDeathH: firstDeath ? firstDeath.ms / H : null,
+    /* lane/monster-formula: the readers the formula's dials are checked by. Per seat: damage dealt a hunted second, the share of the
+       monsters' swings at it that landed and the damage a swing did (after its armor). Per monster kind: kills, the mean time from its
+       first wound to its death, and the damage it did (all seats) */
+    causes: (res.party.danger || []).reduce((o, e) => { if (e[5] === 'fall' || e[5] === 'death') { const k = e[5] + ':' + (e[7] || '?') + '@' + (e[6] ?? '?'); o[k] = (o[k] || 0) + 1; } return o; }, {}),
+    seats: res.heroes.map((h) => ({ dps: h.dps, landedPct: h.landedPct, dmgPerSwing: h.dmgPerMonsterSwing, swingsPerH: h.monsterSwingsPerH, takenPerH: h.takenPerH, maxHp: h.maxHp || null })),
+    kinds: (() => {
+      const o = {};
+      for (const [k, n] of Object.entries(res.party.killsByPerH || {})) o[k] = { kills: n * res.party.hours, ttkMs: 0, ttkN: 0, taken: 0 };
+      for (const [k, [ms, n]] of Object.entries(res.party.ttkBy || {})) { const x = o[k] || (o[k] = { kills: 0, ttkMs: 0, ttkN: 0, taken: 0 }); x.ttkMs += ms; x.ttkN += n; }
+      for (const h of res.heroes) for (const [k, n] of Object.entries(h.takenBy || {})) { const x = o[k] || (o[k] = { kills: 0, ttkMs: 0, ttkN: 0, taken: 0 }); x.taken += n; }
+      return o;
+    })(),
     /* lane/w2-roles-rows: each seat's share of the damage the four took over the hunt (cell.mjs takenPerH x hours), seat order */
     takenShare: (() => { const t = res.heroes.map((h) => (h.takenPerH || 0) * (h.hours || 0)), s = t.reduce((a, b) => a + b, 0); return s > 0 ? t.map((x) => x / s) : null; })(),
   };
@@ -228,6 +243,20 @@ for (const c of cells) {
     nearFellAfter: near.filter((x) => x.fellAfter).length,
     whys: seeds.reduce((o, x) => { for (const [k, n] of Object.entries(x.whys)) o[k] = (o[k] || 0) + n; return o; }, {}),
     takenShare: STYLES.map((s, i) => { const v = seeds.map((x) => x.takenShare && x.takenShare[i]).filter((x) => Number.isFinite(x)); return { style: s, mean: v.length ? Math.round(mean(v) * 1000) / 1000 : null }; }),
+    /* lane/monster-formula readers (above): what broke each pull off (fall or death : monster kind @ seat), summed over seeds; per seat the
+       mean over seeds; per kind the sums over seeds */
+    causes: seeds.reduce((o, x) => { for (const [k, n] of Object.entries(x.causes)) o[k] = (o[k] || 0) + n; return o; }, {}),
+    seats: STYLES.map((s, i) => {
+      const at = (k) => { const v = seeds.map((x) => x.seats[i] && x.seats[i][k]).filter((x) => Number.isFinite(x)); return v.length ? Math.round(mean(v) * 100) / 100 : null; };
+      return { style: s, dps: at('dps'), landedPct: at('landedPct'), dmgPerSwing: at('dmgPerSwing'), swingsPerH: at('swingsPerH'), takenPerH: at('takenPerH') };
+    }),
+    kinds: (() => {
+      const o = {};
+      for (const x of seeds) for (const [k, v] of Object.entries(x.kinds)) { const t = o[k] || (o[k] = { kills: 0, ttkMs: 0, ttkN: 0, taken: 0 }); for (const f of Object.keys(t)) t[f] += v[f] || 0; }
+      const hours = seeds.reduce((a, x) => a + (x.huntedH || 0), 0);
+      return Object.fromEntries(Object.entries(o).map(([k, t]) => [k, { role: (MONSTERS[k] && MONSTERS[k].role) || null, killsPerH: hours ? r1(t.kills / hours) : null,
+        ttkS: t.ttkN ? Math.round(t.ttkMs / t.ttkN / 100) / 10 : null, takenPerKill: t.kills ? r0(t.taken / t.kills) : null }]));
+    })(),
   };
 }
 /* the power changes, seed by seed on the same dice (paired): the held step's move */
@@ -267,6 +296,12 @@ console.log('\npower moves (paired seeds): the held step at the changed power mi
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
 console.log('\nthe damage the four took, each seat\'s share over the hunt (lane/w2-roles-rows), styles ' + STYLES.join(', '));
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + c.takenShare.map((t) => t.style + ' ' + t.mean).join('  '));
+console.log('\nthe formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill');
+for (const [id, c] of Object.entries(report.cells)) {
+  console.log('  ' + id.padEnd(17) + ' ' + c.seats.map((t) => t.style + ' dps ' + t.dps + ' land ' + t.landedPct + '% hit ' + t.dmgPerSwing + ' (' + t.swingsPerH + '/h)').join(' | '));
+  console.log('  ' + ''.padEnd(17) + ' ' + Object.entries(c.kinds).map(([k, v]) => k + '(' + v.role + ') ' + v.killsPerH + '/h ' + v.ttkS + ' s ' + v.takenPerKill).join(' | '));
+  console.log('  ' + ''.padEnd(17) + ' broke off by: ' + Object.entries(c.causes).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + n).join(', '));
+}
 console.log('\nwall ' + report.wallS + ' s');
 const jf = arg('json');
 if (jf) writeFileSync(jf, JSON.stringify(report, null, 1) + '\n');

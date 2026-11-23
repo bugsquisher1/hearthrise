@@ -147,6 +147,8 @@ export async function loadPlay(root) {
     if (typeof opts.buffs === 'function') for (const m of members) m.buffs = opts.buffs(m);
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
+    /* opts.plan: the Danger scale's plan on every hero ({ risk, danger }: the stance and the step it starts at, as the server freezes it) */
+    if (opts.plan) for (const m of members) m.hero = Object.assign({}, m.hero, opts.plan);
     /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */
     if (opts.temper) for (const m of members) m.perks = { temper: opts.temper };
     /* opts.talents ((role, seat) -> { force, footing, grit, reserve } permille, or null): a hero's Talents beside its rungs, on m.perks.talents

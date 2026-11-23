@@ -27,6 +27,7 @@
 // ============================================================
 
 import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS } from '../../data/danger.js';
+import { MONSTER_FORMULA } from '../../data/monster-roles.js';
 import { WAGE } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
@@ -38,7 +39,8 @@ import { isHero, isMonster } from './sides.js';
    still down until its normal respawn (fitPull): never re-formed whole, so kill, break off, re-kill pays nothing twice (wave 1). */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([]),
-  world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int'],
+  /* pullAt: the ms its pull began (pullBegins), the clock a ramping monster reads (monster-formula.js rampPm); null before the first */
+  world: Object.freeze([['risk', 'str'], ['danger', 'int'], ['climb', 'int'], ['clean', 'int'], ['low', 'int'], ['cool', 'int'], ['pullAt', 'int?'],
     ['lowHero', 'int?'], ['lowBy', 'str']]),
   pack: Object.freeze([['down', 'int']]),
 });
@@ -83,14 +85,36 @@ function basePull(ground) {
  *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at COIN_STEP (hunt-rewards.js payKill), so a pull of any size
  *          pays the as-built pull's coin times the scale's gold level, and an HOUR a step deeper pays the wage's coin ratio more
  */
-export function dangerDial(ground, step) {
+export function dangerDial(ground, step, heroes = REF_HEROES) {
   const s = stepOn(ground, step);
   const n0 = basePull(ground);
   const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
-  return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
+  const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
+  return formulaPull(ground, s, heroes, dial);
+}
+/* A FORMULA GROUND'S PULL (DANGER_GROUNDS `monsters: 'formula'`, src/core/hunt/monster-formula.js): sized to the party, heroes x
+   MONSTER_FORMULA.encounterPerHero at the ground's reference step, growing by pullStep from there, each monster the step's ratio over it.
+   Its coin keeps the as-built pull's share (`dial.coinPm`), so a kill pays the same coin on either switch and the server's ceiling a kill
+   (hr_danger_grounds.coin_pm_max) holds. Any other ground: the dial as it is. */
+function formulaPull(ground, s, heroes, dial) {
+  const fg = groundRow(ground);
+  if (!fg || fg.monsters !== 'formula' || !Number.isInteger(fg.refLevel)) return dial;
+  const nf = formulaBasePull(fg, heroes);
+  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(nf * powStep(1 + DANGER.pullStep, s))));
+  const each = 1000 * powStep(1 + DANGER.powerStep, s) * (nf / pull);
+  return { ...dial, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each };
+}
+/* THE REFERENCE COMPANY'S SIZE (04 section 1: four heroes) */
+export const REF_HEROES = 4;
+/** THE PULL AT STEP 0 OF A FORMULA GROUND `g` (a DANGER_GROUNDS row) for `heroes` heroes: at the ground's reference step a pull is heroes x
+    MONSTER_FORMULA.encounterPerHero, and it grows by DANGER.pullStep a step from there like every pull (04 section 8: "an encounter grows
+    with the party", so a lone hero and a four have the same time budget). */
+export function formulaBasePull(g, heroes) {
+  const n = Math.max(1, Math.min(REF_HEROES, Number.isInteger(heroes) && heroes > 0 ? heroes : REF_HEROES));
+  return (n * MONSTER_FORMULA.encounterPerHero) / powStep(1 + DANGER.pullStep, g.refStep);
 }
 /* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
    carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
@@ -102,7 +126,7 @@ const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33: the spec leaves pow's last bit to each engine). */
-function powStep(r, n) {
+export function powStep(r, n) {
   let out = 1, b = r, k = n;
   while (k > 0) { if (k % 2 === 1) out *= b; b *= b; k = Math.floor(k / 2); }
   return out;
@@ -235,11 +259,15 @@ export function openDanger(world, risk, step) {
   world.cool = 0;
   world.lowHero = null;
   world.lowBy = '';
+  world.pullAt = null;
 }
+
+/** The heroes standing in a world (a formula ground's pull is sized to them: dangerDial). */
+export const heroCount = (world) => (world && Array.isArray(world.units) ? world.units.reduce((n, u) => n + (isHero(u) ? 1 : 0), 0) : REF_HEROES);
 
 /* The step's dial and pull size on the instance from now (the swing's other readers see it at once). */
 function applyStep(inst) {
-  const dial = dangerDial(inst.ground, inst.world.danger);
+  const dial = dangerDial(inst.ground, inst.world.danger, heroCount(inst.world));
   inst.tier = dial;
   inst.world.density = dial.pull[0];
   return dial;
@@ -278,8 +306,11 @@ function wholeMargin(w) {
 }
 
 /** A pull begins (pull-cycle.js startPull): its margin starts whole. */
-export function pullBegins(world) {
-  if (dangerOn(world)) wholeMargin(world);
+export function pullBegins(world, atMs) {
+  if (!dangerOn(world)) return;
+  wholeMargin(world);
+  /* the pull's clock: a ramping monster's growth reads it (monster-formula.js rampPm) */
+  world.pullAt = Number.isSafeInteger(atMs) ? atMs : null;
 }
 
 /**

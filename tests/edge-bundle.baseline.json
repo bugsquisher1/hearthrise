@@ -325,9 +325,24 @@
         "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
       },
       {
-        "bytes": 3453352,
+        "bytes": 3436602,
         "on": "2026-11-23",
-        "why": "lane/gear-catalogue-steps: the one gear stat formula (src/core/gear-stats.js), its levers (src/data/gear-profiles.js) and the generated stat table with each piece's item Level (src/data/gear-stats.generated.js) the settle's scale view reads"
+        "why": "drops: trait-roll.js roller (dark), drop-hours formula, rarity ladder and pity"
+      },
+      {
+        "bytes": 3465470,
+        "on": "2026-11-23",
+        "why": "E2/E3: statuses as data (status-effects.js), auras, shields, shield_break event"
+      },
+      {
+        "bytes": 3465586,
+        "on": "2026-11-23",
+        "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
+      },
+      {
+        "bytes": 3542662,
+        "on": "2026-11-23",
+        "why": "set/v0.2.144 e402e1257 shipped its own +32,936 B over the ceiling (that lane's note: left to owners); lane/gear-catalogue-steps adds the gear formula, its levers and the generated stat table with item Levels (src/core/gear-stats.js, src/data/gear-profiles.js, src/data/gear-stats.generated.js)"
       }
     ]
   }

@@ -1,84 +1,46 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/blessings.js — BLESSINGS: PROTECTION FROM THE XP A DEATH TAKES (Tyler 2026-10-18)
+// src/data/blessings.js — THE BLESSING: PROTECTION FROM WHAT A DEATH TAKES (lane/level-costs, backend-architect, 2026-11-22)
 //
-// Tyler's rules: three blessing tiers, each cuts a quarter of what a death
-// takes (cumulative 25% / 50% / 75% less XP lost, Tyler 2026-11-10, the
-// designer's numbers; 32 / 63 / 95 until then); each tier
-// costs more than the last; all three are FREE under combat level 30; above
-// it each tier's price scales with level, starting cheap; a death USES THEM
-// UP (rebuy after dying). Gold only. Server-owned: a backend lane writes the
-// buy RPC and applies `xpLossReductionPermille` to the death XP loss
-// (hunt-sessions.js DEATH_XP_LOSS); a money surface for the reopen review.
+// THE REDESIGN (docs/design/redesign/02-architecture.md package 6: "Blessings. One simple price that grows with Level. Safety is a gold
+// sink, not a puzzle"; Tyler 2026-11-22: per-hero costs read the wage at the hero's LEVEL, and the Blessing numbers are the designer's
+// call). ONE Blessing replaces the three tiers (25 / 50 / 75%) and the ladder of S-5:
+//   the cut     a held Blessing removes cutPm of what one death takes, Level XP and every combat skill's progress alike
+//               (src/core/action-rules.js deathXpLoss; the server cuts the engine's proposal, hr_blessing_take);
+//   the price   hoursPm of an hour of the wage at the hero's Level (src/core/wage.js blessingPrice), free under freeUntilLevel;
+//   used up     by the death it cuts; bought again after (a Blessing bought during a hunt counts from the browser's seed horizon,
+//               1005-lever-horizon.sql, so no death the screen already showed can be cut).
+// Only Bold can die (RD-Q3 a: Careful and Steady fall back first), so a Blessing is what a Bold player buys to make the risk cheaper.
 //
-// SCALED FROM Tibia's per-level blessing price (as remembered, NOT re-verified
-// against a live source: about 2,000 gold each at level 30, plus 200 a level,
-// capped near level 120). We keep its shape (a floor plus a per-level step)
-// and cut the gold roughly twentyfold: our economy rule is that common drops
-// and gold pay a hunt's supplies, and a fresh hero earns about 1,500 g an hour
-// (S1 engine, mill_cellar fixture), so a full set at level 31 (495 g) is a
-// third of an hour and at level 100 (3,600 g) a fraction of that level's
-// hourly income. Tier n requires tiers 1..n-1.
+// THE NUMBERS (MEASURED on the real engine, lane/level-costs, tools/balance-program/redesign/v1-climb.mjs, the mixed MID four on Muster
+// Barrows from a held start, 6 seeds x 10 h, Levels 60 and 70; the reading is in docs/design/redesign/04-math-strategy.md section 11):
+//   cutPm 500     Bold's deaths on a 10 h day take SEE 04 of the day's Level XP; half of that keeps Bold behind Steady over a day
+//                 (12-targets C-4: Steady beats Bold over a 10 h day) while a blessed Bold death no longer costs a whole session's lead
+//   hoursPm 1000  one hour of wage: a Level 60 Blessing costs 16,365 gold (a Steady hour there pays about 16,300). It saves cutPm x
+//                 the death's 7.5 hours of progress (hunt-sessions.js DEATH_HOURS), so a Blessing is worth buying for a Bold player
+//                 (3.75 hours saved for one hour's coin, about 1.4 hours of net coin) and is a real sink that grows with Level
+//   freeUntilLevel 30  a young hero's death costs under 2.5 hours (the share rule), and its wage-priced Blessing would cost more coin
+//                 than its own hours pay: the first thirty Levels learn Bold for free
+// STARTING VALUES, NOT RULINGS: in band is enough (Tyler 2026-11-21).
 //
-// PRICE (integer): free if Level < freeUntilLevel, else
-//   base + perLevel x (Level - freeUntilLevel)
-// Level = src/core/xp.js charLevelFromXp(level_xp) (server: hr_level_of).
-//
-// WORKED PRICES:          level 31   level 60   level 100
-//   tier 1 (25%)             110        400        800
-//   tier 2 (50% total)       165        600      1,200
-//   tier 3 (75% total)       220        800      1,600
-//   full set                 495      1,800      3,600
+// The server's copy is hr_level_costs (tools/gen-level-costs.mjs); hr_blessing_take, hr_blessing_buy and the `blessings` section read it.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-export const BLESSING_RULES = Object.freeze({
-  /* All three tiers are free below this combat level. */
+export const BLESSING = Object.freeze({
+  /* LEVER (progress.bless-cut): the share of one death's loss (Level XP and every combat skill's progress) a held Blessing removes */
+  cutPm: 500,
+  /* LEVER (econ.bless-hours): the Blessing's price in permille of an hour of the wage at the hero's Level */
+  hoursPm: 1000,
+  /* LEVER (econ.bless-free): the Blessing is free under this Level */
   freeUntilLevel: 30,
-  /* Tyler 2026-10-18: a death uses every held blessing up. */
-  consumedOnDeath: true,
-  /* A tier needs every tier below it. */
-  requiresPrevious: true,
-  currency: 'gold',
 });
 
-/* THE CUT, ONE ROW (lane/c-death-and-slots, 2026-11-09): the share of a death's
-   XP loss removed while 1, 2 or all 3 Blessings are held, CUMULATIVE, in
-   permille. A quarter each, 25% / 50% / 75% (Tyler 2026-11-10, the designer's
-   numbers for the 6% death share, hunt-sessions.js DEATH_XP_LOSS; PRIORITY_BOARD
-   "2026-11-09 Death share and alt price"). It replaces his 32% / 63% / 95% of
-   2026-10-18. The server's copy is hr_blessing_tiers.permille, generated from
-   this line (tools/gen-alpha-catalogue.mjs); hr_blessing_take applies it, and
-   every number a player reads is that row's, projected. */
-export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);
-
-/* xpLossReductionPermille is CUMULATIVE: the share of the death XP loss removed
-   while this tier (and every one below it) is held. */
-export const BLESSING_TIERS = Object.freeze([
-  Object.freeze({ tier: 1, xpLossReductionPermille: BLESSING_CUT_PERMILLE[0], base: 100, perLevel: 10 }),
-  Object.freeze({ tier: 2, xpLossReductionPermille: BLESSING_CUT_PERMILLE[1], base: 150, perLevel: 15 }),
-  Object.freeze({ tier: 3, xpLossReductionPermille: BLESSING_CUT_PERMILLE[2], base: 200, perLevel: 20 }),
-]);
-
-/** Gold for `tier` at Level `level` (0 under the free level), or null for an unknown tier. */
-export function blessingPrice(tier, level) {
-  const row = BLESSING_TIERS.find((r) => r.tier === tier);
-  if (!row) return null;
-  const lv = Math.floor(level);
-  if (lv < BLESSING_RULES.freeUntilLevel) return 0;
-  return row.base + row.perLevel * (lv - BLESSING_RULES.freeUntilLevel);
-}
-
-/** Every problem with the table, as strings. Empty = valid. */
-export function validate() {
+/** Every problem with the row, as strings. Empty = valid. */
+export function validate(B = BLESSING) {
   const out = [];
-  let prev = null;
-  for (const r of BLESSING_TIERS) {
-    for (const k of ['tier', 'xpLossReductionPermille', 'base', 'perLevel']) if (!Number.isInteger(r[k]) || r[k] <= 0) out.push('tier ' + r.tier + ': ' + k + ' must be a positive integer');
-    if (r.xpLossReductionPermille > 1000) out.push('tier ' + r.tier + ' removes more than the whole loss');
-    if (prev && !(r.xpLossReductionPermille > prev.xpLossReductionPermille && r.base > prev.base && r.perLevel >= prev.perLevel)) out.push('tier ' + r.tier + ' must protect more and cost more than tier ' + prev.tier);
-    prev = r;
-  }
-  if (BLESSING_RULES.currency !== 'gold') out.push('blessings are bought with gold only');
+  for (const k of ['cutPm', 'hoursPm', 'freeUntilLevel']) if (!Number.isInteger(B[k]) || B[k] < 0) out.push('BLESSING.' + k + ' must be a whole number, got ' + B[k]);
+  if (Number.isInteger(B.cutPm) && (B.cutPm < 1 || B.cutPm > 1000)) out.push('BLESSING.cutPm must remove some of a death and never more than all of it, got ' + B.cutPm);
+  if (Number.isInteger(B.hoursPm) && B.hoursPm < 1) out.push('BLESSING.hoursPm: a Blessing past its free Level costs something');
   return out;
 }

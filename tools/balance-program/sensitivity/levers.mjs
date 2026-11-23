@@ -92,8 +92,8 @@ export const FAMILIES = Object.freeze([
     file: 'src/data/loot-bands.js', lines: (l) => /^export const VENDOR_GEAR_RATES = /.test(l), pick: listAfter(/freeze\(\[([\d., ]+)\]\)/), float: true, max: 1, steps: [0.5, 0.75, 1.25, 1.5, 2], intends: ['incomePerH', 'netPerH'] },
   { id: 'regroup', group: 'Spawns', label: 'Wait between pulls', what: 'The least time a party regroups before the next pull (src/data/hunt-tuning.js regroupMs). The dead time a kill cannot shorten',
     file: 'src/data/hunt-tuning.js', lines: (l) => /^\s*regroupMs: \d+,/.test(l), pick: after(/regroupMs: (\d+)/g), round: 100, min: 100, steps: [0.2, 0.5, 2, 4], intends: ['killsPerH', 'pullsPerH'] },
-  { id: 'blessingCut', group: 'Progression', label: 'Blessings\' cut of a death', what: 'The share of a death\'s Level XP loss each Blessing takes off (src/data/blessings.js BLESSING_CUT_PERMILLE)',
-    file: 'src/data/blessings.js', lines: (l) => /^export const BLESSING_CUT_PERMILLE = /.test(l), pick: listAfter(/freeze\(\[([\d, ]+)\]\)/), min: 1, max: 1000, steps: [0.5, 0.75, 1.25], intends: ['deathTax', 'netLevelXpPerH'] },
+  { id: 'blessingCut', group: 'Progression', label: 'The Blessing\'s cut of a death', what: 'The share of a death\'s loss the one Blessing takes off (src/data/blessings.js BLESSING.cutPm; lane/level-costs)',
+    file: 'src/data/blessings.js', lines: (l) => /^\s*cutPm: \d+,/.test(l), pick: after(/cutPm: (\d+)/g), min: 1, max: 1000, steps: [0.5, 0.75, 1.25], intends: ['deathTax', 'netLevelXpPerH'] },
   /* NOT A LEVER OF THE PASS (`experimentOnly`): the Tower's and the Catacombs' stair clock. The engine refuses an attack interval over
      half of it (src/core/hunt/tower.js: "stairMs is under two engine swings"), so the attack clock cannot be slowed alone. The `clock`
      experiment moves the two together. No cell of the pass plays a run ground, so the stair alone moves nothing here. */

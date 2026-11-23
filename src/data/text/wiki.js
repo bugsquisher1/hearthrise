@@ -63,7 +63,7 @@ export const WIKI_TEXT = Object.freeze({
   skill_uncapped: 'Combat skills: no max Level',
   skill_capped: 'Gathering and crafting: max Level {cap}',
   death_name: 'The cost of a death',
-  death_words: 'Death: −{share}% total Level XP, −{share}% combat skill progress\nBlessings: {cuts}',
+  death_words: 'Death: −{share}% total Level XP, at most {hours} hours of progress at your Level, −{share}% combat skill progress\nBlessings: {cuts}',
   death_cut: '−{pct}% loss with {count}',
   death_example: 'Level {level} ({xp} XP): −{result} XP, −{blessed} with 1 Blessing',
 });

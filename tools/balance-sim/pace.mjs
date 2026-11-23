@@ -268,7 +268,7 @@ async function main() {
   const XP = await import(u('src/core/xp.js') + sourceQuery(ROOT));
   const AR = await import(u('src/core/action-rules.js') + sourceQuery(ROOT));
   const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
-  const { BLESSING_TIERS } = await import(u('src/data/blessings.js'));
+  const { BLESSING } = await import(u('src/data/blessings.js'));
   const HS = await import(u('src/data/hunt-sessions.js') + sourceQuery(ROOT));
   const D = await loadPaceData();
   const PACE = resolve(arg('pace', join(HERE, 'out', 'pace')));
@@ -329,7 +329,7 @@ async function main() {
     const x0 = XP.charXpForLevel(L), mid = x0 + Math.floor((XP.charXpForLevel(L + 1) - x0) / 2);
     const lost = AR.levelDeathLoss(mid), hrs = lost / R(L);
     return { level: L, xpLost: lost, shareOfLevel: Math.round((lost / (XP.charXpForLevel(L + 1) - x0)) * 1000) / 1000, unblessedHours: Math.round(hrs * 100) / 100,
-      blessedHours: Object.fromEntries(BLESSING_TIERS.map((t) => [t.tier, Math.round(hrs * (1 - t.xpLossReductionPermille / 1000) * 100) / 100])), extrapolated: L >= ceiling };
+      blessedHours: Math.round(hrs * (1 - BLESSING.cutPm / 1000) * 100) / 100, extrapolated: L >= ceiling };
   });
   console.log('unblessed death at mid-Level: ' + death.map((d) => 'L' + d.level + ' ' + d.unblessedHours + ' h (' + Math.round(d.shareOfLevel * 100) + '% of the Level)').join(', '));
   snap.table = Object.fromEntries(LEVEL_PACE.targets.map(([L, T]) => [L, { target: T, hours: Math.round(ref[L] * 10) / 10, err: Math.round((ref[L] / T - 1) * 1000) / 1000,

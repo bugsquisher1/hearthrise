@@ -1254,6 +1254,11 @@ async function nodeRules(M) {
     const lay = new Map(), kills = new Map();
     let moved = 0, worst = 0, late = 0, corpses = 0, hooked = false, first = '';
     const warn = console.warn; console.warn = () => {};
+    /* THE FOUR'S STONE MAULS AT THEIR 2026-11-09 NUMBERS (lane/gear-catalogue-steps): the gear formula made the maul 3/6 (was 3/7), and at 6 every
+       wolf died between steps (64 corpses, 0 steps past a kill), so the control lost the shape it reads. The corpse rule is balance-blind: the
+       four swings its own day's maul. Put back in the finally below. */
+    const maul = LM.ITEMS.stone_maul;
+    LM.ITEMS.stone_maul = { ...maul, atkB: 3, strB: 7 };
     try {
       await playLive(M, LM, book, mis, 150000, ({ s, f, cs, T0 }) => {
         if (!hooked) {
@@ -1273,7 +1278,7 @@ async function nodeRules(M) {
           if (dist > 1e-6) { moved++; if (dist > worst) { worst = dist; first = d.unit + ' ' + dist.toFixed(2) + ' tiles at ' + Math.round(s - T0) + ' ms'; } }
         }
       }, { hunt: 'meadowbrook_thicket' });
-    } finally { console.warn = warn; }
+    } finally { console.warn = warn; LM.ITEMS.stone_maul = maul; }
     console.log(`  LV-24 Thicket four d8, 150 s: ${corpses} corpses, ${late} step(s) of a killed unit past its kill in the timeline; ${moved} frame(s) moved a corpse (worst ${first || 'none'})`);
     ok('LV-24', corpses >= 20 && late > 0, `CONTROL: ${corpses} corpses and ${late} step(s) past a kill (want 20+ and 1+: the fixture no longer walks a dead id)`);
     ok('LV-24', moved === 0, `${moved} frame(s) drew a corpse off the spot it fell on (worst ${first})`);

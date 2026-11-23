@@ -6,68 +6,68 @@
   "warrens-4": {
    "settles": 12,
    "kills": 200,
-   "world": "810d3dd9ad6e",
-   "timeline": "f700efc501b6",
-   "tally": "f57858857454",
+   "world": "0d4560c811d0",
+   "timeline": "90c926951134",
+   "tally": "2cb10dc40617",
    "each": [
     {
-     "world": "96f6997cbbeb",
+     "world": "f3ae16419eb6",
      "timeline": "9177c7b63717",
      "tally": "ba41cd6d7943"
     },
     {
-     "world": "74253e8c2717",
+     "world": "ecd4b3892f6f",
      "timeline": "c54d45de82d6",
      "tally": "beed286c7541"
     },
     {
-     "world": "2af9d38e43de",
-     "timeline": "f279f458df53",
-     "tally": "0a709005d08e"
+     "world": "9a922b1dac59",
+     "timeline": "17c2432b13d0",
+     "tally": "673296f7e946"
     },
     {
-     "world": "3a86423e1783",
+     "world": "16163fb76011",
      "timeline": "7f4b200c5eb2",
      "tally": "760157ff25c3"
     },
     {
-     "world": "bd5663d7a709",
+     "world": "26b7b3c04b66",
      "timeline": "b6ab9072ecd9",
      "tally": "4bcb2f9af612"
     },
     {
-     "world": "f4744770faad",
-     "timeline": "977836d830c4",
-     "tally": "8a8ab1b9ef19"
+     "world": "8aaa832585d0",
+     "timeline": "16138e8658aa",
+     "tally": "52450d95d2a2"
     },
     {
-     "world": "f6c28c9cf0a7",
+     "world": "46724fff6cb7",
      "timeline": "4416057a5091",
      "tally": "634248453468"
     },
     {
-     "world": "558a16bb1781",
+     "world": "64b787d0af61",
      "timeline": "30c7ebabd42d",
      "tally": "de364948de66"
     },
     {
-     "world": "cc9e015d064d",
-     "timeline": "3873f6ea4757",
-     "tally": "5881e5a2a19b"
+     "world": "269bbc6d0271",
+     "timeline": "f43451f242aa",
+     "tally": "08832506b3c2"
     },
     {
-     "world": "641a17ca59f8",
+     "world": "f42eac179f54",
      "timeline": "05eb4ae84c6e",
      "tally": "215b77f05c1c"
     },
     {
-     "world": "804e73a682a7",
+     "world": "bfc59b30cf9d",
      "timeline": "d78c2bbe2792",
      "tally": "6b64bf3f7285"
     },
     {
-     "world": "258909508aa5",
-     "timeline": "2c220b12671d",
+     "world": "a640fa813cc3",
+     "timeline": "8faaea0b53ca",
      "tally": "79c651a0a7b1"
     }
    ]
@@ -75,67 +75,67 @@
   "glade-4": {
    "settles": 12,
    "kills": 492,
-   "world": "2831d409d99d",
-   "timeline": "f71ed5023779",
+   "world": "f192f764c24f",
+   "timeline": "1782fa11bb84",
    "tally": "dc5f10e01aa1",
    "each": [
     {
-     "world": "d17dc31c0f3c",
+     "world": "cdb7d4fe9571",
      "timeline": "116cc0f5ba4e",
      "tally": "895c940515c3"
     },
     {
-     "world": "1f32568995d0",
+     "world": "71a2acbf683e",
      "timeline": "084750f4d6d1",
      "tally": "fa94829dd85a"
     },
     {
-     "world": "c98f911a56c6",
-     "timeline": "c036462fe7b9",
+     "world": "77bb31e92ea4",
+     "timeline": "cafb05f23a53",
      "tally": "f8dfc17da1e9"
     },
     {
-     "world": "90540747078d",
+     "world": "a9d61b3ef9d2",
      "timeline": "cfa0b0f22610",
      "tally": "83091f0276b4"
     },
     {
-     "world": "ae3295e89eaf",
+     "world": "3bc6e9c0bc9c",
      "timeline": "95bf933fc0aa",
      "tally": "43a880e13d33"
     },
     {
-     "world": "01b5cb690b4b",
+     "world": "d7598f017e17",
      "timeline": "4dae59b8aa28",
      "tally": "d71a786427e1"
     },
     {
-     "world": "154e40606c39",
+     "world": "643c9635d0b9",
      "timeline": "383d560e91f1",
      "tally": "39bfcfd620ef"
     },
     {
-     "world": "0d0a035a3609",
+     "world": "ee89eed4ded2",
      "timeline": "a125bd7f402e",
      "tally": "82ea42a12979"
     },
     {
-     "world": "9832e9f90333",
+     "world": "adc73e12ee96",
      "timeline": "5df18238b19c",
      "tally": "7ae597a09142"
     },
     {
-     "world": "47163787842d",
+     "world": "d9c6e749899d",
      "timeline": "e054a6eaf4f6",
      "tally": "9653cbe30fbf"
     },
     {
-     "world": "c8a0bd28f61a",
-     "timeline": "96e38b795b86",
+     "world": "c495a3e30237",
+     "timeline": "b4bf855ec30e",
      "tally": "4dc9efcb0c86"
     },
     {
-     "world": "5f716a20ea66",
+     "world": "16c0cf3378e1",
      "timeline": "950d0a90a230",
      "tally": "7d0aa31ecd2c"
     }
@@ -144,67 +144,67 @@
   "glade-1-kite": {
    "settles": 12,
    "kills": 140,
-   "world": "4450f9ec2c42",
+   "world": "ba2b133787e5",
    "timeline": "b6c182e17ab0",
    "tally": "8cd394d520a7",
    "each": [
     {
-     "world": "ace6c8b9ae8c",
+     "world": "dcf6341689b4",
      "timeline": "e2fe1ddce3f5",
      "tally": "d97b5b9eeb52"
     },
     {
-     "world": "571b5a184b5b",
+     "world": "d313c7d98369",
      "timeline": "3f78add5a93b",
      "tally": "19085ac421f0"
     },
     {
-     "world": "4ec2b12f6e4f",
+     "world": "75103a3bcd76",
      "timeline": "738d8a0e1f11",
      "tally": "8c0fbafc4ea9"
     },
     {
-     "world": "e1a9ea9c10d0",
+     "world": "ff56f337fd3b",
      "timeline": "41f83be307db",
      "tally": "5bd441123cf8"
     },
     {
-     "world": "0a07fd39fe8d",
+     "world": "be3490be3057",
      "timeline": "bb29c2430f45",
      "tally": "71382722f6c6"
     },
     {
-     "world": "5c28c1d8a486",
+     "world": "b5f3536368b9",
      "timeline": "71b561f76f3e",
      "tally": "29a380e7e8ca"
     },
     {
-     "world": "7f0fc10c2d92",
+     "world": "309aa015a90f",
      "timeline": "b070cafdd431",
      "tally": "8e45dcac9d9d"
     },
     {
-     "world": "f7987833a72a",
+     "world": "4c84c79d70fc",
      "timeline": "b2f2464b193f",
      "tally": "653f1cc9ebad"
     },
     {
-     "world": "b0a4c3a6c4ba",
+     "world": "cbc1c6020d96",
      "timeline": "b74855a4ef2f",
      "tally": "97efa87ee3c2"
     },
     {
-     "world": "83b8f8e6f589",
+     "world": "1a22f31bdcc8",
      "timeline": "7ede1643b6dd",
      "tally": "08a3f32adb8b"
     },
     {
-     "world": "dddb200a38cf",
+     "world": "5868b4e13532",
      "timeline": "51aa399ad49e",
      "tally": "d2ba4a5afb17"
     },
     {
-     "world": "5dfaa532a24c",
+     "world": "e484d2551cb8",
      "timeline": "c6735ca372dc",
      "tally": "6c9963e62b18"
     }
@@ -213,67 +213,67 @@
   "sewer-2": {
    "settles": 12,
    "kills": 99,
-   "world": "c3c45c87c916",
+   "world": "ddd2564fbe53",
    "timeline": "267be5724b38",
    "tally": "7e6b034e4800",
    "each": [
     {
-     "world": "e94992306940",
+     "world": "e5608a180e3c",
      "timeline": "a74f610aee26",
      "tally": "7af506d20046"
     },
     {
-     "world": "33c563a27b1f",
+     "world": "61b3a59623bf",
      "timeline": "af361e8b82bc",
      "tally": "2c80adacd0fd"
     },
     {
-     "world": "fdedee3e4c00",
+     "world": "1458f98e0561",
      "timeline": "14da8a53e518",
      "tally": "2cba1c46f907"
     },
     {
-     "world": "caccbe9497be",
+     "world": "11a9ab99c9be",
      "timeline": "23d6cb811d19",
      "tally": "d1761ce37ee8"
     },
     {
-     "world": "00e374098814",
+     "world": "b9f92db4941e",
      "timeline": "0c516b0b9f68",
      "tally": "5986b32acd23"
     },
     {
-     "world": "a5c2fdb01af1",
+     "world": "c888c27112aa",
      "timeline": "9a10c28874ec",
      "tally": "263fe764917a"
     },
     {
-     "world": "0f72423bc22e",
+     "world": "604b4676277f",
      "timeline": "1401f0863785",
      "tally": "ff83cb087932"
     },
     {
-     "world": "0ca9b7288af4",
+     "world": "d3dddbf4cc25",
      "timeline": "48e6412d2a87",
      "tally": "11826b7193fb"
     },
     {
-     "world": "0a1398104196",
+     "world": "a6f87004d440",
      "timeline": "b58410c7971b",
      "tally": "e6b2eaf48343"
     },
     {
-     "world": "c47087524218",
+     "world": "379576b94985",
      "timeline": "65955d57d33b",
      "tally": "0890ba2534a0"
     },
     {
-     "world": "764328be4348",
+     "world": "9db8f946f364",
      "timeline": "9108165f21ac",
      "tally": "bdd9c8419f92"
     },
     {
-     "world": "857c81a6c242",
+     "world": "e1a703de8d40",
      "timeline": "8d51396d433e",
      "tally": "e1c4ff650e20"
     }

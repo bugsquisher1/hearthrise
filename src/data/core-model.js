@@ -87,9 +87,38 @@ export const LEVEL_CURVE = Object.freeze({
   ]),
 });
 
+/* THE HOURS A LEVEL TAKES: A FORMULA, NOT A TABLE (lane/formula-overhaul, game designer, 2026-11-22;
+   docs/design/redesign/04-math-strategy.md section 5 "rise, then level off", 27-formula-overhaul.md row P-1).
+   The hunted hours the reference company (a Steady four at its ground's reference step) spends on Level L:
+     hours(L) = ceiling x L^2 / ((L + half) x (L + early))
+   It rises from minutes (the first Levels: the `early` term) to `ceiling` hours and levels off there forever, so one
+   Level (one step of power, of gear, of Danger) arrives at a steady beat past Level 400 instead of slowing without end.
+   The pay a kill makes on the Danger scale is DERIVED from it (src/core/hunt/danger.js levelShareXp); nothing is fitted
+   to a kill rate. Three levers, whole numbers (the server twin computes the same rational: tools/gen-danger.mjs):
+     ceiling 20   hours a Level takes far out (band 16 to 24): a Level every two hunting days on the 10 h day
+     half    100  the Level at which a Level takes half the ceiling (band 60 to 140): sets where the climb levels off
+     early   6    the first Levels' speed-up (band 2 to 10): Level 2 in about 6 minutes, Level 5 in about 35
+   THE DESIGNER'S TARGETS IT IS SET TO (hunted hours from Level 1; days on the 10 h day, Tyler 2026-11-22), COMPUTED:
+     Level 5 0.6 h · 10 4.2 h (the first day) · 25 36 h (day 4) · 50 151 h (two weeks) · 100 543 h (eight weeks)
+     · 200 1,683 h (about five and a half months: Level 200 is a big deal) · 400 4,600 h (fifteen months) · 1,000 14,930 h
+   tests/hunt-core/danger.mjs pins the engine to this function; tests/level-curve.mjs C7 holds a Steady four at its held
+   depth to it on the real engine. */
+export const LEVEL_HOURS = Object.freeze({ ceiling: 20, half: 100, early: 6 });
+/** The hunted hours Level `level` takes (to `level` + 1), on the levers `k`. */
+export function levelHoursOf(level, k = LEVEL_HOURS) {
+  const L = Number.isInteger(level) && level >= 1 ? level : 1;
+  return (k.ceiling * L * L) / ((L + k.half) * (L + k.early));
+}
+/** The hunted hours from Level 1 to REACH Level `level`. */
+export function hoursToLevel(level, k = LEVEL_HOURS) {
+  let s = 0;
+  for (let L = 1; L < level; L++) s += levelHoursOf(L, k);
+  return s;
+}
+
 /* THE PACE THE CURVE IS HELD TO (tests/level-curve.mjs; not read by the game).
-   targets    Tyler's balance ruling 2026-10-25 §2: [Level, cumulative hunting hours]
-              of reasonably efficient hunting (12 h a day, no bought stamina)
+   targets    [Level, cumulative hunting hours], DERIVED from LEVEL_HOURS above at the old checkpoints (lane/formula-overhaul:
+              the 2026-10-25 hand table is retired; its readers keep their shape)
    tolerance  every target within this share (the ruling's targets are benchmarks)
    early      Level `level` within `hours` (the fit aims at `aim`): the tutorial's
               "about a quarter of an hour" in the Mill Cellar before the Thicket opens
@@ -108,8 +137,7 @@ export const LEVEL_CURVE = Object.freeze({
               on `policy`, no event) inside `hours`, each step L -> L+1 in a `steps` band in `h`
               hours (tests/start-kit-pace.mjs); C2/C3 judge the careers on the rest. */
 export const LEVEL_PACE = Object.freeze({
-  targets: Object.freeze([[10, 6], [25, 36], [50, 168], [100, 600], [200, 1680], [300, 3120], [500, 6720], [750, 13440], [1000, 23520]]
-    .map((t) => Object.freeze(t))),
+  targets: Object.freeze([10, 25, 50, 100, 200, 300, 500, 750, 1000].map((L) => Object.freeze([L, Math.round(hoursToLevel(L) * 10) / 10]))),
   tolerance: 0.1,
   early: Object.freeze({ level: 5, hours: Object.freeze([0.15, 0.35]), aim: 0.25 }),
   /* RE-PINNED 2026-11-08 (lane/b-one-difficulty) to the measured ladder on the re-tuned rows (plan ladder: the Cellar at 4.5 8,774, the Thicket at

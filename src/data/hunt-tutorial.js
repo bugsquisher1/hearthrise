@@ -296,7 +296,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('first_death', 'Defeated',
     'Shop → Services → Bless',
     'services', { kind: 'blessed' }, { reactive: true, when: [IN_TOWN, { kind: 'died' }, { kind: 'below_free' }],
-      inWindow: 'Press Bless on each Blessing', hooks: TO_BLESS }),
+      inWindow: 'Press Bless', hooks: TO_BLESS }),
   step('first_eat', 'Food eaten',
     'Cook more food to save gold',
     'action_bar', READ, { reactive: true, when: [HUNTING, FRESH, { kind: 'ate' }] }),
@@ -417,9 +417,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
      wolves" came after the wolves). */
   step('bless', 'Before the wolves',
-    'Shop → Services → Bless all three',
+    'Shop → Services → Bless',
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
-      inWindow: 'Press Bless on each Blessing', hooks: TO_BLESS }),
+      inWindow: 'Press Bless', hooks: TO_BLESS }),
   /* FINISHED BY THE SERVER, NEVER BY A READ (retention dive 2026-11-20: Got it on it meant never again, and junk comes back every hunt): a sale or the
      Thicket finishes it; Got it hides it for this visit only (src/shell/launcher.js visitOf), so it never walls and comes back on the next return. */
   step('sell_loot', 'Sell junk',
@@ -886,8 +886,6 @@ export function currentCard(facts, rows = HUNT_TUTORIAL) {
    gone, the server has not priced it): the card is then passed by, never shown with a false word (#2 of the
    2026-10-25 walk: the old bar card came back saying "Press the Cooked Shrimp slot" with no such slot). */
 const name = (id) => (ITEMS[id] && ITEMS[id].n) || (BASIC_INDEX[id] && BASIC_INDEX[id].n) || null;
-/* a small count in words ("Bless all three"), else its digits */
-const inWords = (n) => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][n] || String(n);
 const listed = (words) => (words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1]);
 /** "slot 4", "slots 4 and 5", "slots 1 to 3", "slots 1, 3 and 5" for 0-based slot indices. */
 export function slotWords(ix) {
@@ -997,7 +995,8 @@ const SAY = Object.freeze({
   bless: (f) => {
     const b = f.blessings;
     if (!b || !Number.isInteger(b.freeUntil) || !(b.best > 0)) return null;
-    return { text: t('coach.bless', { n: inWords(b.of) }) };
+    /* the ONE Blessing (lane/level-costs, 2026-11-22): one press, no count to name */
+    return { text: t('coach.bless') };
   },
   /* the weight that costs this hero's style nothing, named on the press (her window's line beside the picker says what each gives) */
   tamsins_task: (f) => {

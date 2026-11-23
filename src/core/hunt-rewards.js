@@ -48,6 +48,7 @@ import { ABILITIES, ownHitSkill } from '../data/abilities.js';
 import { resolveHearthfind } from './hearthfind.js';
 import { magicXpFor } from './hunt/xp-share.js';
 import { splitEven, itemOwner, rareRoll } from './party-split.js';
+import { rollKillFor } from './trait-roll.js';
 import { makeEvent } from './hunt/events.js';
 import { trainingSwing } from './hunt/training.js';
 import { isHero, isMonster } from './hunt/sides.js';
@@ -144,7 +145,12 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   /* A KEYED HALL'S BOSS (ctx.prize, combat-sim.js from the room): his rows are the hall's DAILY PRIZE, each hero's own roll (payPrize),
      never the shared table. Every other kill, his adds' included, rolls as it always did, draw for draw. */
   if (ctx.prize === kind) payPrize(present, ids, row, ctx, atMs);
-  else payDrops(present, ids, lead, row, ctx, world, atMs);
+  else {
+    payDrops(present, ids, lead, row, ctx, world, atMs);
+    /* THE TRAIT ROLL (src/core/trait-roll.js; DARK: only when the server hands the window one, which no caller does while
+       GEAR_STEPS.traitsLive is false). Each hero at the kill, in unit-id order, on its OWN `t:<unit>` stream: no draw above moves. */
+    if (ctx.traitDrops && (!pay || pay.drops)) present.forEach((m, i) => rollKillFor(ctx.traitDrops, m.key, ids[i], present.length, ctx.traitDrops.rngOf(ids[i]), atMs));
+  }
   for (const m of present) countKill(m, kind, !pay || pay.bestiary);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. Never in a mode that counts no Bestiary. */

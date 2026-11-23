@@ -138,7 +138,8 @@ async function riseArm(db, M) {
     const tag = `TB-RISE the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
     const r = await inTx(db, async () => {
       await db.exec(AUDIT);
-      const h = await TC.climber(db, M, {});
+      /* a bare Level 20 (a bare Level 12 tops out at floor 9 on the formulas' floors, lane/tower-boss-formula) */
+      const h = await TC.climber(db, M, { level: 20 });
       try { await TC.drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 300) }; }
       const log1 = await q(db, 'select what, old_score, new_score, at from public.tb_log order by n');
       const row = (await q(db, `select score, reached_at from public.hr_mode_board where user_id = $1 and slot = 0`, [UID]))[0] || null;

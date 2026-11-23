@@ -429,7 +429,7 @@ const mutants = [
     edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (multOf(sc, h) ? 1 : 1)) / 1000;']] },
   /* THE PARTY FACTOR (Tyler 2026-10-31, src/data/party-class-xp.js) */
   { name: 'a scaled kill pays the whole cell (partyPm ignored)', case: 'scaled-party-share',
-    edits: [['src/core/hunt/xp-share.js', "const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (base * partyPm) / 1000 : base;", 'const party = base;']] },
+    edits: [['src/core/hunt/xp-share.js', "const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;", 'const party = cell;']] },
   { name: 'a hero alone on a scaled hunt is thinned too', case: 'scaled-party-share',
     edits: [['src/core/hunt/xp-share.js', "const party = heroes.length > 1 && Number.isInteger(partyPm)", "const party = heroes.length > 0 && Number.isInteger(partyPm)"]] },
   { name: 'the scaled row carries no partyPm', case: 'scaled-party-share',

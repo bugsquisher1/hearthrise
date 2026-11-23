@@ -13,7 +13,7 @@ const V = await imp('src/core/vitals.js');
 const BS = await imp('src/data/balance-sheet.js');
 const TH = await imp('src/data/to-hit.js');
 const AR = await imp('src/core/action-rules.js');
-const BL = await imp('src/data/blessings.js');
+const WG = await imp('src/core/wage.js');
 const TR = await imp('src/data/training.js');
 const TP = await imp('src/data/temper.js');
 const PX = await imp('src/data/party-class-xp.js');
@@ -78,21 +78,22 @@ out.vitals = LEVELS.map((L) => {
     contractSecAKill: Math.round(3600 / needKillsH), frozenVsContract: r2(swingsFrozen * 2 / (3600 / needKillsH)), lineVsContract: r2(swingsLine * 2 / (3600 / needKillsH)) };
 });
 
-/* 4. A DEATH: the Level XP it takes, the hunted hours that is on the contract, the Levels it takes, Blessings' price */
+/* 4. A DEATH: the Level XP it takes, the hunted hours that is on the contract, the Levels it takes, the one Blessing's price (lane/level-costs) */
 out.death = LEVELS.filter((L) => L >= 10).map((L) => {
   const total = XP.charXpForLevel(L), loss = AR.levelDeathLoss(total), after = XP.charLevelFromXp(total - loss);
-  const full = [1, 2, 3].reduce((s, t) => s + BL.blessingPrice(t, L), 0);
-  return { L, lossXp: loss, hoursUnblessed: r1(loss / contract(L)), hoursBlessed3: r1(loss * 0.25 / contract(L)), levelsLost: L - after, blessingsGold: full };
+  return { L, lossXp: loss, hoursUnblessed: r1(loss / contract(L)), levelsLost: L - after, blessingGold: WG.blessingPrice(L) };
 });
-/* JS and SQL: floor(x x 0.06) (action-rules.js, a float) against floor(x x 60 / 1000) (hr_death_xp_max, exact numeric) */
+/* JS and SQL: floor(x x 0.06) (action-rules.js, a float) against floor(x x 60 / 1000) (hr_death_xp_max, exact numeric). Since lane/level-costs
+   (2026-11-22) a death is the LESSER of that share and DEATH_HOURS of progress at the hero's Level, so the share is only an upper bound: a JS
+   price over it is a mismatch, one under it past Level 61 is the hours rule (hr_death_xp_mode_max holds both). */
 {
   const pm = Math.round(0.06 * 1000); let bad = 0, checked = 0; const samples = [];
   const exact = (x) => Number((BigInt(x) * BigInt(pm)) / 1000n);
-  for (let x = 0; x <= 2000000; x++) { checked++; const a = AR.levelDeathLoss(x), b = exact(x); if (a !== b) { bad++; if (samples.length < 6) samples.push({ x, js: a, sql: b }); } }
+  for (let x = 0; x <= 2000000; x++) { checked++; const a = AR.levelDeathLoss(x), b = exact(x); if (a > b) { bad++; if (samples.length < 6) samples.push({ x, js: a, sql: b }); } }
   let big = 0, bigBad = 0, over = 0; let seed = 12345;
   const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-  for (let i = 0; i < 2000000; i++) { const x = Math.floor(rnd() * 9e15); big++; const a = AR.levelDeathLoss(x), b = exact(x); if (a !== b) { bigBad++; if (a > b) over++; if (samples.length < 12) samples.push({ x, js: a, sql: b }); } }
-  for (const L of LEVELS) { const x = XP.charXpForLevel(L); if (AR.levelDeathLoss(x) !== exact(x)) samples.push({ L, x, js: AR.levelDeathLoss(x), sql: exact(x) }); }
+  for (let i = 0; i < 2000000; i++) { const x = Math.floor(rnd() * 9e15); big++; const a = AR.levelDeathLoss(x), b = exact(x); if (a > b) { bigBad++; over++; if (samples.length < 12) samples.push({ x, js: a, sql: b }); } }
+  for (const L of LEVELS) { const x = XP.charXpForLevel(L); if (AR.levelDeathLoss(x) > exact(x)) samples.push({ L, x, js: AR.levelDeathLoss(x), sql: exact(x) }); }
   out.deathParity = { upTo2M: { checked, mismatches: bad }, upTo9e15: { checked: big, mismatches: bigBad, jsOverSql: over }, samples };
 }
 

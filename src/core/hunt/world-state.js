@@ -28,6 +28,7 @@ import { hashSeed } from '../rng.js';
 import * as movement from './movement.js';
 import * as targeting from './targeting.js';
 import * as roles from './roles.js';
+import * as bossPhases from './boss-phases.js';
 import * as pullCycle from './pull-cycle.js';
 import * as damage from './damage.js';
 import * as monsterSpells from './monster-spells.js';
@@ -50,7 +51,7 @@ const BASE = Object.freeze({
 });
 const MODULES = [BASE, movement.PERSISTED, targeting.PERSISTED, roles.PERSISTED, pullCycle.PERSISTED,
   damage.PERSISTED, monsterSpells.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED,
-  partySplit.PERSISTED, danger.PERSISTED];
+  partySplit.PERSISTED, danger.PERSISTED, bossPhases.PERSISTED];
 
 function compose(part) {
   const out = []; const seen = new Set();

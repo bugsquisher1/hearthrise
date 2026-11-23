@@ -25,7 +25,8 @@
 //         keys (so a Very Rare can roll), every similar group the doc lists shares one key, no Very Rare pair shares a key, every
 //         ground's pool serves 2 or more seats; every scale ground's gearLevel is a whole tier and its traits are exactly its pool;
 //         THE ROLL (GEAR_STEPS.traitRoll, 24-content-pipeline.md G8): slot first, then the (ground, slot) cell, no cell over cellMax
-//   GS-6  HIDDEN: the only file under src/ or supabase/functions/ that imports gear-steps.js is src/data/danger.js, the only one that
+//   GS-6  HIDDEN: the only files under src/ or supabase/functions/ that import gear-steps.js are src/data/danger.js and the dark roller
+//         src/core/trait-roll.js, the only one that
 //         imports traits.js is gear-steps.js (the generated preload list src/app/game-modules.js may name both), and no other src
 //         file names a Trait's id or name (no drop table, item, text or screen)
 //
@@ -48,6 +49,7 @@ import { EQUIP_SLOTS } from '../src/data/gathering.js';
 import { METRICS, OPERATORS, EFFECT_IDS } from '../src/data/condition-metrics.js';
 import { HUNT_ROLES } from '../src/data/hunt-roles.js';
 import { ITEMS } from '../src/data/items.js';
+import { veryRarePairs } from '../src/core/trait-roll.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* the two grounds 12-targets.md section 7 makes of the Catacombs in wave 2; a Trait may name them before their rows exist */
@@ -58,7 +60,8 @@ const MOVES = new Set(['area', 'spell', 'ranged']);
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* who may name each file: the scale's grounds read the gear table, the gear table re-exports the Traits, and the generated preload list */
 const IMPORTERS = Object.freeze({
-  'gear-steps.js': new Set(['src/data/danger.js', 'src/app/game-modules.js']),
+  /* the roller (lane/drop-formula) reads the Traits to roll them; it is dark: tests/drop-formula.mjs DF-6 holds that nobody hands it a roll */
+  'gear-steps.js': new Set(['src/data/danger.js', 'src/core/trait-roll.js', 'src/app/game-modules.js']),
   'traits.js': new Set(['src/data/gear-steps.js', 'src/app/game-modules.js']),
 });
 const HOMES = new Set(['src/data/gear-steps.js', 'src/data/traits.js']);
@@ -84,20 +87,8 @@ function srcFiles() {
   return out;
 }
 
-/** THE VERY RARE PAIR RULE as the roller (wave 4) will play it (12-targets 8.1): the pairs a Very Rare of `slot` found on `source`
-    may carry. The first Trait from that ground's pool for the slot, the second any other Trait of the slot, never two of one key,
-    never a banned pair. Pure on its arguments. */
-export function veryRarePairs(traits, banned, source, slot) {
-  const ofSlot = Object.keys(traits).filter((id) => traits[id].slot === slot);
-  const seen = new Set();
-  for (const a of ofSlot.filter((id) => traits[id].source === source)) {
-    for (const b of ofSlot) {
-      const tag = [a, b].sort().join('+');
-      if (a !== b && traits[a].key !== traits[b].key && !banned.includes(tag)) seen.add(tag);
-    }
-  }
-  return [...seen].sort().map((tag) => tag.split('+'));
-}
+/* THE VERY RARE PAIR RULE: the roller's own (src/core/trait-roll.js veryRarePairs), re-exported for the readers that took it from here */
+export { veryRarePairs };
 
 /** The candidates doc as rows: { n, name, slot, source } by number, and the similar groups as lists of numbers. */
 export function readDoc(text) {

@@ -516,7 +516,7 @@ const MUTANTS = [
   ['the engine\'s max hit per Level moves and the words do not', 'src/core/combat.js', '(dmgLvl * 0.35)', '(dmgLvl * 0.4)'],
   ['a monster\'s chance to hit grows faster than the words say', 'src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base', 'return heldToHit(toHitRatio(monsterAim(monster) * 1.5, TO_HIT.base'],
   ['a monster\'s max hit gains a point the words never mention', 'src/core/combat.js', '  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale));', '  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale) + 1);'],
-  ['a death takes more than its stated share', 'src/core/action-rules.js', '  return Math.max(0, Math.min(Math.floor(x * f), x));', '  return Math.max(0, Math.min(Math.floor(x * f * 1.1), x));'],
+  ['a death takes more than its stated share', 'src/core/action-rules.js', '  const share = Math.min(Math.floor(x * f), x);', '  const share = Math.min(Math.floor(x * f * 1.1), x);'],
   ['the Level curve\'s step grows faster than its data rows say', 'src/core/xp.js', '+ r.rise * sumK(m) + r.bend * sumK2(m);', '+ r.rise * sumK(m) + r.bend * sumK2(m + 1);'],
   ['a combat skill Level costs a point more than its data rows say', 'src/core/xp.js', '    const step = Number((base * sl * sl * powNum) / powDen);', '    const step = Number((base * sl * sl * powNum) / powDen) + 1;'],
   ['an XP table\'s Total is the next Level\'s', 'src/shell/wiki-model.js', 'const total = xpAt(level), next = xpAt(level + 1) - total;', 'const total = xpAt(level + 1), next = xpAt(level + 1) - xpAt(level);'],

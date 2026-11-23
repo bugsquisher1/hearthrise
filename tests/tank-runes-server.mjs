@@ -9,7 +9,8 @@
 //
 // THE MEASURE: the shipped world tick and the viewed hello (tools/settle-cost.mjs) on the Coppercap Warrens' own rows (the Goblin Diggers cast a
 // whole-group spell), a shield tank at Level 38 whose bar Configure action saved: Frost Slam on the shop's Plain Ice Rune and Shelter on the
-// Plain Earth Rune, each on the rule a new slot starts with (abilities.js suggestedTrigger), then the Challenge and Power Strike.
+// Plain Earth Rune (Frost Slam on the rule a new slot starts with, abilities.js suggestedTrigger; Shelter on the Diggers' cast warning, the
+// rule it started with before lane/moves-pass-1), then the Challenge and Power Strike.
 //   TR-1 BOTH PATHS, IN A PARTY (the tank and a Healer): the bars are saved through the real verb (hr_action_set_options: the server's own bar
 //        check); every window lands on both doors with nothing refused; the tank buys the Plain Ice Rune (Frost Slam cast) and the Plain Earth Rune
 //        (Shelter cast) and deals no damage as Frost Slam (it lands no blow); the two doors store the same world and the same tallies; the viewer's
@@ -57,11 +58,15 @@ const PLATE = { helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_pla
 const GEAR = [{ ...PLATE, weapon: 'steel_sword', shield: 'coppercap_shield' }, { ...PLATE, weapon: 'maple_staff', shield: null }];
 const food = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 70 }], join: 'and' };
 const drink = { action: { type: 'consume', id: 'thin_turnip_juice' }, conditions: [{ metric: 'self_mana_pct', op: 'lt', value: 40 }], join: 'and' };
-/* the slots as Configure action sends them: each tank spell on its store rune and the rule a new slot starts with */
+/* the slots as Configure action sends them: each tank spell on its store rune. Frost Slam on the rule a new slot starts with; Shelter on the
+   monster's cast warning, the rule this measure is built on (the Diggers' whole-group spell). lane/moves-pass-1 moved Shelter's new-slot rule
+   to "2 heroes under 80%" (23-spell-audit.md section 4: no scale-ground monster casts), which a Level-38 tank and Healer at the Warrens never
+   meet in five windows, so the measure names its own rule rather than the default's: the subject is the server's two doors, not the default */
 const ab = (id, extra, conditions) => ({ action: { type: 'ability', id, ...(extra || {}) }, conditions: conditions || [], join: 'and' });
+const CAST_WARNING = Object.freeze([{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'any' }]);
 const SLOT = Object.freeze({
   frost_slam: ab('frost_slam', { store: 'plain_ice_rune' }, suggestedTrigger(ABILITIES.frost_slam)),
-  shelter: ab('shelter', { store: 'plain_earth_rune' }, suggestedTrigger(ABILITIES.shelter)),
+  shelter: ab('shelter', { store: 'plain_earth_rune' }, CAST_WARNING),
 });
 const TANK_BAR = [SLOT.frost_slam, SLOT.shelter, ab('challenge'), ab('power_strike'), food, drink];
 
@@ -104,7 +109,7 @@ function eventsOf(answers) {
 async function bothPaths(boot, o = {}) {
   const problems = [];
   const got = {};
-  for (const which of o.doors || ['fire', 'viewed']) got[which] = await door((await boot()).db, which, 2);
+  for (const which of o.doors || ['fire', 'viewed']) got[which] = await door((await boot()).db, which, 2, o.edgeRoot);
   for (const [which, r] of Object.entries(got)) {
     const name = which === 'fire' ? 'browser closed' : 'hunt viewed';
     if (r.refusedBars.length) problems.push('TR-1 ' + name + ': the server refused the tank\'s bar: ' + r.refusedBars.join('; '));
@@ -269,6 +274,10 @@ const MUTANTS = [
   /* the newest file that writes the world shape (gen-hunt-sessions OUT_NAME) keeps an old one: the engine holds every window (the whole chain) */
   { name: 'the server keeps the old world shape', boot: { file: SHAPE_FILE, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ',
     fullChain: 'the newest hunt-sessions catalogue writes the world shape the engine reads; an old one there holds every window' }, want: /TR-1 browser closed: window 1 of/ },
+  /* Shelter shells its caster alone (the engine): the party doors with the planted engine, TR-1's shells-on-both read bites */
+  { name: 'Shelter shells only the tank (the engine)', doors: ['viewed'], engine: [['src/core/hunt/abilities.js',
+    '        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;\n', '        if (a !== u) continue;\n']],
+  want: /TR-1 hunt viewed: \d+ Shelter cast\(s\), shells from the tank on 1 hero/ },
   { name: 'a party-only spell casts alone (the engine)', engine: [['src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '']], want: /TR-2 alone: the tank cast a party-only spell/ },
 ];
 
@@ -281,7 +290,7 @@ async function main() {
         if (m.boot) got = await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), ...(m.boot.fullChain ? { fullChain: m.boot.fullChain } : { upTo: RUNES }) }), { doors: ['fire'], lone: false });
         else if (m.engine) {
           const p = plantEngine(m.engine);
-          try { got = await bothPaths(() => bootReplay(), { doors: [], edgeRoot: p.root }); } finally { p.done(); }
+          try { got = await bothPaths(() => bootReplay(), { doors: m.doors || [], lone: !m.doors, edgeRoot: p.root }); } finally { p.done(); }
         } else got = await rowsOnly(m.patch, m.reorder);
       } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       const hit = got.some((p) => m.want.test(p));

@@ -128,7 +128,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
     ev: 'STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)' }),
   L('gear.rarity-hours', 'equipment', 'global', 'The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece\'s roll', {
-    at: [at('src/data/drop-hours.js', 'chDigits: 3,'), at('src/data/drop-hours.js', 'rare: Object.freeze({ everyHours: 40'), at('src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400'),
+    at: [at('src/data/drop-hours.js', 'chDigits: 3,'), at('src/data/drop-hours.js', '    rare: Object.freeze({ everyHours: 40,'), at('src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400'),
       at('src/data/drop-hours.js', 'signature: Object.freeze({ everyHours: 45'), at('src/data/drop-hours.js', 'depthPm: Object.freeze([1000, 3000]),'),
       at('src/data/drop-hours.js', 'topRankPm: 500,'), at('src/data/drop-hours.js', 'topRankMaxPm: 800,')],
     def: 'a Rare (one Trait) about every 40 hunted hours a hero at the ground\'s reference step, a Very Rare (two) every 400, a given Signature every 45 on its home; each chance is 1 / (hours x the ground\'s reference kills a head an hour), / heroes at the kill; depth multiplies the Rare and Very Rare odds x1 at depth 1 to x3 at depth 20, read against the reference\'s depth; the top open rank lands topRankPm x (1 + luck), at most topRankMaxPm; a made cape or jewel rolls at its part\'s hours over the rung\'s',

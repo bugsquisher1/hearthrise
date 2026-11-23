@@ -34,22 +34,22 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 27 | 9 | 6 | 4 | 8 | 7 | 9 | 13 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
-| Equipment stats and progression | 17 | 5 | 4 | 8 | 0 | 0 | 8 | 11 |
+| Equipment stats and progression | 18 | 6 | 4 | 8 | 0 | 0 | 9 | 12 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **196** | 92 | 29 | 47 | 28 | 31 | 83 | 85 |
+| **All** | **197** | 93 | 29 | 47 | 28 | 31 | 84 | 86 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 680 (in 234 files, 15826 typed numbers) |
-| Claimed by a lever | 292 |
+| Top-level bindings in the rule code that hold a typed number | 680 (in 234 files, 15894 typed numbers) |
+| Claimed by a lever | 293 |
 | Claimed by a not-a-lever reason | 387 |
-| Unclaimed | 1 |
+| Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
@@ -250,6 +250,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | harness-fixed | `regen.inner-flame` Inner Flame regeneration rate | Regeneration | a cell's Inner Flame level is the harness's, not trained in the cell |
 | harness-fixed | `skill.curve` Combat skill curve | Skill scaling | cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1) |
 | not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step. No matrix RUN names a scale ground |
+| not-built | `gear.rarity-hours` The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll | Equipment stats and progression | dark: GEAR_STEPS.traitsLive false, nothing hands the settle a roll (tools/balance-program/redesign/drops/first-trait.mjs reads the roller alone) |
 | not-built | `gear.slot-weights` Gear slot weights | Equipment stats and progression | the power step (R9) reads it |
 | not-built | `gear.step-tier` A gear tier in steps, and how far ahead gear is worn | Equipment stats and progression | the power step (R9) reads it. No engine path does yet |
 | not-built | `gear.trait-budget` Trait steps by rank and the Trait guards | Equipment stats and progression | no roller or fight reads Traits until wave 4 (V7 sizes them on the engine) |

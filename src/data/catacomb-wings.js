@@ -37,7 +37,7 @@
 import catacombs from './grounds/unmarked_catacombs/pack.js';
 import { CATACOMB_ARMOR, WING_LEAN } from './catacomb-armor.js';
 import { DANGER_GROUNDS } from './danger.js';
-import { chanceOf, roundChance } from './drop-hours.js';
+import { DROP_HOURS, chanceOf, roundChance } from './drop-hours.js';
 
 /* STATED: hunted hours a hero to one named piece on a wing, either slot (header) */
 export const ARMOR_EVERY_HOURS = 0.7;
@@ -61,7 +61,7 @@ function wingDrops(id, lean) {
   const w = WING_LEAN[lean];
   const count = (slot) => CATACOMB_ARMOR.filter((r) => r.slot === slot).length;
   return Object.freeze(CATACOMB_ARMOR.map((r) => {
-    const everyHours = Number(((ARMOR_EVERY_HOURS * 1000 * count(r.slot)) / w[r.slot]).toPrecision(3));
+    const everyHours = Number(((ARMOR_EVERY_HOURS * 1000 * count(r.slot)) / w[r.slot]).toPrecision(DROP_HOURS.chDigits));
     return Object.freeze({ id: r.id, everyHours, ch: roundChance(chanceOf(everyHours, DANGER_GROUNDS[id].refKillsHead)), band: 'rare' });
   }));
 }

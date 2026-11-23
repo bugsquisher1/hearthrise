@@ -599,13 +599,14 @@ async function planRules(base) {
     /* A BANE IS A PLUS (designer re-read 2026-11-11: Level 16 in the Practice Sword with 6 Bramble Blades in the bag): the blade goes on and its preview names the bane, the
        engine's clamped number; a worn bane is never traded away for plain numbers, and the tooltip says what the bane is. */
     const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
-    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Upgrade: Bramble Blade (+2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters)') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
+    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Upgrade: Bramble Blade (+4 Melee accuracy, +4 Melee damage, +40% damage to Plant monsters)') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
     if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
     /* A WORN BANE AGAINST A PLAIN STRONGER BLADE IS SAID, NEVER SWAPPED (designer small call 2, 2026-11-11): the slot is a choice and the line says the trade in the
        engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
+    /* (redesign, docs/design/redesign/28-named-pieces.md: a named piece is its tier's numbers plus its rule, so the Bramble Blade IS the Iron
+       Sword plus its bane: at its own tier nothing trades it away and nothing asks; the real trade is the next tier's blade, Steel at 30, below) */
     const kept = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['iron_sword', 3]], lv1, 16);
-    if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
-      || UP.upgradeWords(kept) !== 'No clear upgrade: Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters')
+    if (ops2(kept) !== '{}' || kept.choices.length || UP.upgradeWords(kept) !== '')
       fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
     /* A BANE IS A REASON ONLY WHERE IT WINS (audit 2026-11-15 F15: Equip upgrades pressed from Level 15 to 55 kept the Bramble Blade over 40 Mithril Swords, "each piece is
        better at something", and the hero died twice at the Barrows, where nothing is a plant). The trade above stands because a plant lives on a ground of the hero's Level
@@ -615,19 +616,19 @@ async function planRules(base) {
     const sk = (melee) => ({ defense: { level: 50, xp: XPC.skillXpForLevel('defense', 50) }, melee: { level: melee, xp: XPC.skillXpForLevel('melee', melee) }, ranged: { level: 1, xp: 0 }, magic: { level: 1, xp: 0 } });
     const seasoned = sk(50);
     const past = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 3], ['mithril_sword', 40]], seasoned, 55);
-    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Upgrade: Mithril Sword (+12 Melee accuracy)')
+    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Upgrade: Mithril Sword (+10 Melee accuracy)')
       fails.push('AW-21 a Level 55 hero in a Bramble Blade with Mithril Swords in the bag reads ' + ops2(past) + ' / ' + JSON.stringify(past.choices) + ' / ' + UP.upgradeWords(past));
     const vines = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 2]], sk(30), 30);
     if (ops2(vines) !== '{}' || JSON.stringify(vines.choices) !== '[{"slot":"weapon","ids":["steel_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]')
       fails.push('AW-21 a real trade stopped asking: Level 30 (the Glade, Walking Vines) in a Bramble Blade with Steel Swords reads ' + ops2(vines) + ' / ' + JSON.stringify(vines.choices));
     /* A WORN OFF-HAND TAKES A BETTER ONE OF ITS KIND (audit 2026-11-15 F8: a Level 31 tank still held the Practice Shield): a shield for a shield, a spellbook for a
        spellbook; never a piece into an empty off-hand (above), never a shield for a spellbook, and a shield that costs accuracy for its guard is the player's pick. */
-    const guard = plan({ weapon: 'steel_sword', shield: 'practice_shield' }, [['bronze_rimmed_shield'], ['practice_spellbook']], lv1, 31);
-    if (ops2(guard) !== '{"shield":"bronze_rimmed_shield"}' || UP.upgradeWords(guard) !== 'Upgrade: Bronze-Rimmed Shield (+1 Defense)') fails.push('AW-21 a tank in the Practice Shield with a Bronze-Rimmed Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
+    const guard = plan({ weapon: 'steel_sword', shield: 'practice_shield' }, [['ironbound_shield'], ['practice_spellbook']], lv1, 31);
+    if (ops2(guard) !== '{"shield":"ironbound_shield"}' || UP.upgradeWords(guard) !== 'Upgrade: Ironbound Shield (+2 Defense)') fails.push('AW-21 a tank in the Practice Shield with an Ironbound Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
     if (ops2(plan({ weapon: 'practice_wand', shield: 'practice_spellbook' }, [['bronze_rimmed_shield'], ['ironbound_shield']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would trade a spellbook for a shield');
     if (ops2(plan({ weapon: 'steel_sword', shield: 'ironbound_shield' }, [['kingsgrate']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would put on a shield that costs accuracy');
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
-    if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
+    if (ops2(swapped) !== '{"weapon":"bramble_blade"}' || swapped.choices.length) fails.push('AW-21 an Iron Sword hero with Bramble Blades (the same numbers and a bane) does not take the bane: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
     /* A PIECE'S BANE IS ON ITS CARD AND ITS COMPARE (lane/a-compare-lines 2026-11-16, re-landed by lane/a-honesty-rescue; the coherence pass's
        DISCOVERIES 1: Kingstooth read "-1 Melee damage" against the Iron Sword, a side-grade shown as a loss): the stat lines and the compare carry the
        bane, the engine's clamped number (bane.js baneMultFor), a gain when the new piece has it and a loss when the worn one does, from the rows, so
@@ -636,13 +637,14 @@ async function planRules(base) {
       const BM = await imp('src/shell/bag-model.js');
       const said = (l) => l.map((x) => x.text + ' ' + x.label + (x.delta === undefined ? '' : x.delta > 0 ? ' (gain)' : ' (loss)')).join(', ');
       for (const [got, want] of [
-        [said(BM.statLines('bramble_blade')), '+6 Melee accuracy, +5 Melee damage, +40% Damage to Plant monsters'],
-        [said(BM.statLines('cauldron_lid')), '+6 Defense, −10% Fire damage taken'],
-        [said(BM.statLines('kingstooth')), '+8 Melee accuracy, +5 Melee damage, +10% Damage to Vermin monsters'],
-        [said(BM.compare('kingstooth', 'iron_sword')), '+1 Melee accuracy (gain), −1 Melee damage (loss), +10% Damage to Vermin monsters (gain)'],
-        [said(BM.compare('iron_sword', 'kingstooth')), '−1 Melee accuracy (loss), +1 Melee damage (gain), −10% Damage to Vermin monsters (loss)'],
-        [said(BM.compare('cauldron_lid', 'coppercap_shield')), '−1 Defense (loss), −10% Fire damage taken (gain)'],
-        [said(BM.compare('coppercap_shield', 'cauldron_lid')), '+1 Defense (gain), +10% Fire damage taken (loss)'],
+        [said(BM.statLines('bramble_blade')), '+8 Melee accuracy, +7 Melee damage, +40% Damage to Plant monsters'],
+        [said(BM.statLines('cauldron_lid')), '+7 Defense, −10% Fire damage taken'],
+        [said(BM.statLines('kingstooth')), '+8 Melee accuracy, +7 Melee damage, +10% Damage to Vermin monsters'],
+        /* a named piece is its tier's numbers (28-named-pieces.md): the compare is its rule alone */
+        [said(BM.compare('kingstooth', 'iron_sword')), '+10% Damage to Vermin monsters (gain)'],
+        [said(BM.compare('iron_sword', 'kingstooth')), '−10% Damage to Vermin monsters (loss)'],
+        [said(BM.compare('cauldron_lid', 'coppercap_shield')), '−10% Fire damage taken (gain)'],
+        [said(BM.compare('coppercap_shield', 'cauldron_lid')), '+10% Fire damage taken (loss)'],
       ]) if (got !== want) fails.push('AW-21 a piece\'s own attribute: wanted "' + want + '", read "' + got + '"');
       if (!BM.statLines('bramble_blade').some((s) => s.key === 'bane.plant')) fails.push('AW-21 the Bramble Blade\'s bane line is not keyed bane.plant (the special catalogue reads the card by field and class)');
     }

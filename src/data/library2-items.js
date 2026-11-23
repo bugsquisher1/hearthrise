@@ -88,7 +88,8 @@ const BANE_GEAR = {
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
     n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
-    weaponType: 'ranged', twoHanded: true,     tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
+    weaponType: 'ranged', twoHanded: true,
+    tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
     bane: BANE('dragon'), effects: ['bane'],
   },
   // ITEM-NEW-04 · sword T2 · vs Plant. Sword T2 curve (7/6) × 0.85. Cheap and
@@ -105,7 +106,8 @@ const BANE_GEAR = {
   // nothing else. Flagged in the change contract.
   void_censer: {
     n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
-    weaponType: 'magic',     tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
+    weaponType: 'magic',
+    tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
     /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
     discipline: 'restoration',
     bane: BANE('extra_dimensional'), effects: ['bane'],

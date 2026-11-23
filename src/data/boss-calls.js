@@ -72,25 +72,27 @@ export const BOSS_CALLS = Object.freeze({
    Each is its tier's piece with one attribute the engine already reads (src/core/combat.js equipmentStats: `bane` through
    src/core/bane.js, `resistPm` through src/core/elements.js resistProfile); the item card's stat lines and its compare say the
    attribute in the engine's numbers (src/shell/bag-model.js statLines, compare).
-   A UNIQUE IS NEVER A COPY (Tyler, binding; the coherence pass's C1, board "2026-11-15 Coherence pass"): its own stat mix and its own
-   property, never another piece's numbers plus a number (Kingstooth was the Iron Sword plus 3% crit, Widow's Fang the same sword plus
+   A UNIQUE IS NEVER A COPY (the coherence pass's C1, re-read by the redesign, docs/design/redesign/28-named-pieces.md): its numbers are its
+   tier's piece (no offset) and its own property is what sets it apart, never another piece's numbers plus a number (Kingstooth was the Iron Sword plus 3% crit, Widow's Fang the same sword plus
    6%). Each one wins somewhere: Kingstooth on the vermin grounds, the Cauldron Lid against fire (uniques are side-grades, Tyler
    2026-11-18). No jewelry: high-end jewelry is crafted (Tyler 2026-11-14). Designer lane/d-coherence-fixes 2026-11-16, re-landed by
    lane/a-honesty-rescue. Source: his called fight's win only (monsters.js `<id>_called` drops). Use: worn, and traded (a drop, so it trades). */
 export const CALL_ITEMS = Object.freeze(withGearStats({
-  /* tier 2, worn at Level 15. A tooth is long and thin: it lands more and bites less than an Iron Sword (8 / 5 against 7 / 6),
+  /* tier 2, worn at Level 15. The Iron Sword's numbers (the formula's, no offset),
      and it does 10% more to Vermin (the special catalogue's bane at tier 2: the Mill Cellar and the Sewer are vermin grounds) */
-  kingstooth: Object.freeze({ n: 'Kingstooth', icon: '🗡️', v: 600, type: 'weapon', slot: 'weapon', weaponType: 'sword',     bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),
+  kingstooth: Object.freeze({ n: 'Kingstooth', icon: '🗡️', v: 600, type: 'weapon', slot: 'weapon', weaponType: 'sword',
+    bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),
     tier: 2, rarity: 'rare', reqSkill: 'level', reqLv: 15 }),
-  /* tier 3, worn at Level 30. A lid is thinner than a shield: 6 guard against the Coppercap Shield's 7, no swing penalty, and 10% less
+  /* tier 3, worn at Level 30. The Coppercap Shield's guard (the formula's, no offset), no swing penalty, and 10% less
      fire damage (the special catalogue's element resistance; "less from every hit" starts at tier 5, so no tier-3 piece carries
      it). The Chief's own Slag Rain and Slag Toss are fire, and so are the Goblin Digger's Blasting Charge and the Turncoat's Smoke
      Pot (src/data/monster-spells.js) */
-  cauldron_lid: Object.freeze({ n: 'Cauldron Lid', icon: '🛡️', v: 1200, type: 'offhand', slot: 'shield', offhand: 'shield',     resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', reqLv: 30 }),
+  cauldron_lid: Object.freeze({ n: 'Cauldron Lid', icon: '🛡️', v: 1200, type: 'offhand', slot: 'shield', offhand: 'shield',
+    resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', reqLv: 30 }),
 }));
 export const CALL_ITEM_DESC = Object.freeze({
-  kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. Vermin feel it most, and it lands more often than an Iron Sword',
-  cauldron_lid: 'The lid off the cauldron Chief Coppercap wears as a crown. It guards less than a Coppercap Shield but turns fire aside',
+  kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. Vermin feel it most',
+  cauldron_lid: 'The lid off the cauldron Chief Coppercap wears as a crown. It guards like a Coppercap Shield and turns fire aside',
 });
 
 const rows = Object.values(BOSS_CALLS);

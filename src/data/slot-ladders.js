@@ -258,13 +258,13 @@ export const SLOT_DESC = {
   dawnlit_mantle: 'A cape woven from duskwood thread with strands of dawnsteel through it. The hem shines when the sun\'s up',
 
   wolfbone_torc: 'A wolf bone necklace bound in bronze. Hunters keep count of their kills on it',
-  spidersilk_choker: 'A tight necklace of spider silk spun with gold thread. It helps your hits land and crit',
+  spidersilk_choker: 'A tight necklace of spider silk spun with gold thread',
   warlords_torc: 'Two warlords\' badges melted down into one necklace. The second warlord didn\'t hand his over',
   dawnbound_amulet: 'A dawnsteel and dragon gem amulet on a gold chain. It\'s worth more than most towns',
 
   banded_signet: 'A copper ring with a bronze band around it. The Banded Company gave one to each of its soldiers',
   seam_jasper_band: 'A plain steel band cut to hold a jasper from the Warrens seams. Smiths make them in pairs, one for each hand',
   ruby_signet: 'A ruby as big as your thumbnail on a mithril band. Everyone notices it on your hand',
-  spellstone_ring: 'A warlock\'s cracked spellstone wrapped in runes. Mages wear it for stronger spells and more crits',
+  spellstone_ring: 'A warlock\'s cracked spellstone wrapped in runes. It still hums when a spell goes off',
   dawnforged_signet: 'A ring forged from dawnsteel, death-steel and gold. It\'s about as tough as a ring gets',
 };

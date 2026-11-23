@@ -33,6 +33,7 @@ import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { ledgerSteps } from '../power-ledger.js';
 import { auraRowsOn } from './auras.js';
+import { temperLevelsOn } from '../temper-steps.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -133,18 +134,21 @@ const itemLevelOf = (it) => {
  * A HERO'S GEAR PART, in thousandths of a step (member.js heroSnapshot, from the server's gear and the catalogue): each worn piece's item
  * Level x its slot's weight (GEAR_STEPS.slotPm; a two-handed weapon also carries GEAR_STEPS.twoHand's other slots). A whole kit at item
  * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (powerPm).
+ * TEMPER (src/core/temper-steps.js; 21 section 2): `temperSteps`, the server's seated ranks by slot, add +ilPerRank item Level a rank to
+ * whatever that slot wears (a two-handed weapon's carries with it; an empty slot adds nothing). Absent: the part is what it was.
  */
-export function gearPartPm(equipment, items) {
+export function gearPartPm(equipment, items, temperSteps) {
   const eq = equipment || {}, W = GEAR_STEPS.slotPm;
   const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
+  const levelOn = (slot) => { const il = itemLevelOf(at(slot)); return il > 0 ? il + temperLevelsOn(temperSteps, slot) : 0; };
   const weapon = at('weapon');
   const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;
   let sum = 0;
   for (const slot of Object.keys(W)) {
     if (carried && carried.includes(slot)) continue;
-    sum += W[slot] * itemLevelOf(at(slot));
+    sum += W[slot] * levelOn(slot);
   }
-  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * itemLevelOf(weapon);
+  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * levelOn('weapon');
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);

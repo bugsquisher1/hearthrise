@@ -16,6 +16,14 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/party-class-xp.js#said', why: 'a builder of the printed lines' },
   { at: 'src/data/party-class-xp.js#lines', why: 'a builder of the printed lines' },
   { at: 'src/data/party-class-xp.js#row', why: 'the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys' },
+  /* units of the Inner Flame, Temper, imbuement and loot arithmetic (lane/flame-temper-build): a scale, never a balance choice */
+  { at: 'src/core/inner-flame.js#MINUTE_MS', why: 'a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)' },
+  { at: 'src/core/inner-flame.js#roomMpts', why: 'units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)' },
+  { at: 'src/core/inner-flame.js#decay', why: 'units: 60 minutes x a million parts (decayPpm is the lever)' },
+  { at: 'src/core/imbue.js#HOUR_MS', why: 'a unit: the milliseconds in an hour (IMBUE.hours is the lever)' },
+  { at: 'src/core/personal-loot.js#UNIT', why: 'a unit: hero_pity holds millionths of x' },
+  { at: 'src/core/temper-steps.js#rankQuote', why: 'units: milli-hours x permille (TEMPER_STEPS is the lever)' },
+  { at: 'src/core/temper-steps.js#seatPrice', why: 'units: milli-hours x permille (TEMPER_STEPS.carryPm is the lever)' },
   /* validators and audit bands: quoted as ranges */
   { at: 'src/**#validate*', why: 'a validator: its bounds are the valid range (field 3) of the lever it checks' },
   { at: 'src/data/monster-classes.js#TIER_BANDS', why: 'audit bands every hand monster row must land inside (auditRoster): the valid range of mon.rows' },

@@ -181,6 +181,13 @@ export const LEVER_MOVES = Object.freeze({
   'gear.trait-rank-gate': [['+gear.special', 'a later entry Level opens a higher Trait rank on the ground (gear-steps.js maxRankAt), so more steps a found Trait can carry']],
   'ledger.aura': [['+gear.special', 'an aura is a party ledger row on every ally in reach (src/core/hunt/auras.js auraRowsOn), counted by clampLedger as the slices are']],
   'ledger.ramp-slices': [['+gear.special', 'a higher slice cap or an earlier ramp lets more conditional steps count on a hero at once (power-ledger.js clampLedger)']],
+  /* lane/flame-temper-build (21-flame-temper-imbue-loot.md): all dark behind hr_flags; the roller and the bench read them later */
+  'flame.levers': [['+drop.base', 'a taller fire multiplies the Rare and Very Rare chance by (1 + luck) (inner-flame.js luckPm), read by the roller (wave 4)'],
+    ['+sink.other', 'Remains burned on the fire are taken off the market (hr_flame_burn)']],
+  'temper.steps': [['+gear.special', 'each seated rank is +1 item Level on its slot inside the gear part (danger.js gearPartPm)'], ['+sink.temper', 'ranks and re-seats are priced in hours of wage, burned']],
+  'imbue.rules': [['+gear.special', 'an imbuement is 2 steps on its cell in the consumable slice (power-ledger.js), once the fight reads its condition'], ['+sink.other', 'the apply fee and the parts are burned']],
+  'carry.price': [['+sink.other', 'parts and a fee in hours of wage a Trait step, burned (carry-over.js carryQuote)']],
+  'loot.pity': [['~drop.base', 'pity keeps the long-run Rare rate the stated one and narrows the spread between heroes (personal-loot.js)']],
   'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
   'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],

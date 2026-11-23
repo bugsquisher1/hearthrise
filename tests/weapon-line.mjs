@@ -57,7 +57,7 @@ import { weaponPower } from '../tools/balance-sim/weapon-power.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* the fields a sample row may differ from its base in: its words, its numbers, Level, value, rarity and its one attribute */
-const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'rarity', ...LINE.LINE_FIELDS, 'critB', 'bane', 'effects']);
+const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'iL', 'rarity', ...LINE.LINE_FIELDS, 'critB', 'bane', 'effects']);
 const ATTR_TIER = 7;
 const MAGE_BAR = 1.3;
 /* the Levels the line is read at for the Mage bar: the late grounds' floors, the next region and Level 200 */

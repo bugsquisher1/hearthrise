@@ -55,7 +55,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* the fields a sample row may differ from its base in: its words, its numbers, Level, value, rarity and its one attribute (a + skill on the
    engine's own field, row 1c) */
-const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', ...Object.values(SKILL_PLUS_FIELDS)]);
+const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'iL', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', ...Object.values(SKILL_PLUS_FIELDS)]);
 /* the item field attribute `def` writes for `key`: its one field, or the one its key names */
 const fieldOf = (def, key) => (typeof def.field === 'string' ? def.field : (def.field || {})[key]);
 const CASTER_DAMAGE = ['magicStrB', 'rangeStrB'];

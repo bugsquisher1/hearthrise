@@ -29,7 +29,10 @@
 //
 // MODES (section E). A line starts as REPORT: it is printed, its out-of-band rows listed, and the run exits 0. It turns RED in the
 // lane that lands the change it guards (that lane flips `mode` in guard-cells.mjs) and never goes back. G14 is this lane's own and is red.
-// K1 GATES the lines read on the harness's party (G3, G4, G5, G8, G19, D1, D2, and G22's party rows): while the harness four
+// THE REDESIGN (lane/econ-followups, 2026-11-22): G1 and G7 are RE-AIMED on the Danger scale (C-7: a lone hero x the four's head, played on
+// every scale ground; C-11: the next scale ground's first depth over the last one's top, read from data), and G3, G4 and G5, the Deadly
+// tier's contracts, are RETIRED, each with the reason and the home of its question (guard-cells.mjs RETIRED; printed under the lines).
+// K1 GATES the lines read on the harness's party (G8, G19, D1, D2, and G22's party rows): while the harness four
 // reads the real Krell four outside 0.9-1.1 on Level XP and kills, or 0.8-1.2 on net gold (guard-cells.mjs K1_GATE, 30-plan E as
 // re-issued; today 0.83 and 0.51), they print their numbers as "uncalibrated" and are neither red nor green (31-plan-audit M3). The fix
 // is in the harness's four, not in the line.
@@ -84,6 +87,7 @@ const SCALED = await import(u('src/data/scaled-hunts.js'));
 const { GROUND_ROSTER } = await import(u('src/data/balance-sheet.js'));
 const { MONSTERS } = await import(u('src/data/monsters.js'));
 const ABIL = await import(u('src/data/abilities.js'));
+const WAGE = await import(u('src/data/wage.js'));
 
 const LINE = Object.fromEntries(GC.LINES.map((l) => [l.id, l]));
 const lerp = GOLD.lerp;
@@ -112,7 +116,18 @@ function scaledWhatIf(ground, level) {
   }
   return Object.keys(rows).length ? { monsters: rows } : null;
 }
-const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf, scalableGrounds: Object.keys(SCALED.SCALABLE_GROUNDS) };
+/* THE SCALE (lane/econ-followups: G1 and G7 re-aimed): every Danger scale ground at the Level its reference step was measured at
+   (tests/level-curve.mjs REF_LEVEL, as C7 and V4 read it), the held start (refStep - startMargin) and the band's floor; a cell on it is
+   held-four.mjs's (progression-grid.mjs buildCell, the matrix's MID kits and played bars) with a Steady stance from `start`. */
+const DZ = await import(u('src/data/danger.js'));
+const { REF_LEVEL } = await import(u('tests/level-curve.mjs'));
+const GRID = await import(u('tools/balance-program/progression-grid.mjs'));
+const [GRID_D, GRID_K] = await Promise.all([GRID.loadGridData(ROOT), (await import(u('tools/balance-program/grid-kit.mjs'))).loadKits(ROOT)]);
+const SCALE_GROUNDS = Object.entries(DZ.DANGER_GROUNDS).map(([id, g]) => ({ id, level: REF_LEVEL[id], heldStart: Math.max(0, g.refStep - DZ.DANGER.startMargin), floorStep: g.floorStep }));
+const scaleCell = (ground, level, styles, start) => ({ ...GRID.buildCell(GRID_D, GRID_K, { L: level, gear: 'mid', styles: [...styles], tier: 'normal', ground }).cell,
+  options: { risk: 'steady', danger: start } });
+const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf, scalableGrounds: Object.keys(SCALED.SCALABLE_GROUNDS),
+  scaleGrounds: SCALE_GROUNDS, scaleCell };
 
 /* ── the pool: worker.mjs processes, one engine each ───────────────────────────────────────────────────────────────────────────── */
 function playAll(jobs, workers, log = () => {}) {
@@ -197,7 +212,15 @@ function dataInputs() {
     costIn: costInputs(),
     stamina: { freeH: STAMINA_MAX_MS.free / 3600000, refillH: STAMINA_REFILL.perDay * STAMINA_REFILL.maxMinPerBuy / 60, players: MODEL.REFERENCE_PLAYERS },
     luckTop: LUCK.MAGIC_FIND_MAX,
+    /* G7: each scale ground's band in its own steps and its base item Level (the wage step its reference depth pays), and the coin rule */
+    scale: { grounds: Object.entries(DZ.DANGER_GROUNDS).map(([id, g]) => ({ id, gearLevel: g.gearLevel, refStep: g.refStep, floorStep: g.floorStep, topStep: g.topStep })),
+      floor: DZ.PAY.floor, gapMax: DZ.PAY.gapMax, payStepCoin: WAGE.WAGE.payStepCoin },
   };
+}
+/** G7: what a hold at `step` of ground `g` pays in the wage's unit: the engine's coin rule (src/data/danger.js PAY: the depth ratio on the gap,
+    held at the pay floor under the reference and at gapMax over it) on the wage its reference depth was calibrated to (wage(gearLevel)). */
+function depthPay(sc, g, step) {
+  return WAGE.wage(g.gearLevel) * Math.max(sc.floor, (1 + sc.payStepCoin) ** Math.min(step - g.refStep, sc.gapMax));
 }
 
 /* ── measuring ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -265,7 +288,7 @@ function judge(I) {
   const line = (id, rows0, note = '') => {
     const L = LINE[id];
     const rows = rows0.map((r) => { const g = r.gate || L.gate; return g && !cal[g] && r.status !== 'ERR' ? { ...r, status: 'uncal' } : r; });
-    const status = L.notBuilt ? 'n/a' : L.nightly && !I.nightly ? 'nightly' : rows.length && rows.every((r) => r.status === 'uncal') ? 'uncalibrated'
+    const status = L.notBuilt || (rows.length && rows.every((r) => r.status === 'n/a')) ? 'n/a' : L.nightly && !I.nightly ? 'nightly' : rows.length && rows.every((r) => r.status === 'uncal') ? 'uncalibrated'
       : rows.reduce((s, r) => (RANK[r.status] > RANK[s] ? r.status : s), 'ok');
     out.push({ id, words: L.words, on: L.on, mode: L.mode, turnsRedIn: L.turnsRedIn, status, rows, note: (L.gate && !cal[L.gate] && status !== 'nightly' ? 'UNCALIBRATED: K1 reads the harness four outside ' + GC.K1_GATE[L.gate].join('-') + ' of the real one on ' + (L.gate === 'xp' ? 'Level XP or kills' : 'net gold') + '. ' : '') + note });
   };
@@ -274,7 +297,11 @@ function judge(I) {
   const star = (p) => (p.open ? '' : '*');
   const xc = (r, L) => (r ? r.levelXpPerH / contractXpPerH(L) : NaN);
 
-  line('G1', GC.ALL_POINTS.map((p) => row(p.id + star(p), xc(R('ref:' + p.id + ':lone'), p.level), band('G1'))));
+  /* G1 (re-aimed, C-7): each lone reference seat over the mixed four's head, on every scale ground */
+  line('G1', CTX.scaleGrounds.flatMap((g) => GC.SCALE_LONE.map((style) => {
+    const lone = R('scale-lone:' + g.id + ':' + style), four = R('scale-four:' + g.id);
+    return row(g.id + ' ' + style, lone && four && four.levelXpPerH > 0 ? lone.levelXpPerH / four.levelXpPerH : NaN, band('G1'), f2, lone ? ' (' + kG(lone.levelXpPerH) + ' / ' + kG(four && four.levelXpPerH) + ')' : '');
+  })), 'Level ' + CTX.scaleGrounds.map((g) => g.level).join('/') + ', Steady; the four from its held start, a lone hero from the band\'s floor');
   line('G2', GC.ALL_POINTS.map((p) => {
     const ways = [['hammer', R('ref:' + p.id + ':lone')], ['mage', R('ref:' + p.id + ':mage')], ...['tank', 'sword', 'axes', 'bow', 'crossbow', 'healer'].map((s) => [s, R('way:' + p.id + ':' + s)])];
     if (ways.some(([, r]) => !r)) return row(p.id + star(p), NaN, band('G2'));
@@ -282,10 +309,7 @@ function judge(I) {
     const med = (xs[3][1] + xs[4][1]) / 2, best = xs[xs.length - 1];
     return row(p.id + star(p), best[1] / med, band('G2'), f2, ' ' + best[0]);
   }));
-  line('G3', GC.FOUR_POINTS.map((p) => row(p.id + star(p), xc(R('ref:' + p.id + ':four'), p.level), band('G3'))));
-  line('G4', GC.FOUR_POINTS.map((p) => row(p.id + star(p), xc(R('four-full:' + p.id), p.level), band('G4'))));
-  line('G5', [...GC.DEADLY_POINTS.map((p) => row(p.id, (R('ref:' + p.id + ':four') || {}).lowHpP10 ?? NaN, band('G5', 'band'), (v) => Math.round(v) + '%')),
-    ...GC.DEADLY_POINTS.map((p) => row(p.id + '-10', (R('four-under:' + p.id) || {}).lowHpP10 ?? NaN, band('G5', 'under'), (v) => Math.round(v) + '%'))]);
+  /* (G3, G4 and G5 are RETIRED, guard-cells.mjs RETIRED says why and what holds each question now) */
   {
     const lf = I.life;
     const worst = lf ? lf.steps.reduce((m, s) => (s[1] > m[1] ? s : m), [0, -1]) : null;
@@ -293,14 +317,14 @@ function judge(I) {
       row('longest under 10', worst[1], band('G6', 'step'), (v) => v.toFixed(1) + ' h', ' (' + (worst[0] - 1) + '->' + worst[0] + ')')] : [{ at: 'life', value: NaN, status: 'ERR', shown: 'no life' }]);
   }
   {
-    let prev = null;
-    line('G7', GC.ALL_POINTS.map((p) => {
-      const r = R('ref:' + p.id + ':lone'), v = r ? r.incomePerH : NaN;
-      const st = !Number.isFinite(v) ? 'ERR' : prev !== null && v < prev ? 'RED' : 'ok';
-      const shown = kG(v) + (prev !== null ? ' (' + (v >= prev ? '+' : '') + Math.round(100 * (v / prev - 1)) + '%)' : '');
-      prev = v;
-      return { at: p.id + star(p), value: v, status: st, shown };
-    }));
+    /* G7 (re-aimed, C-11): read from data, consecutive scale grounds by base item Level */
+    const sc = I.data.scale, gs = [...sc.grounds].sort((a, b) => a.gearLevel - b.gearLevel || (a.id < b.id ? -1 : 1));
+    const rows = gs.slice(1).map((g, i) => {
+      const prev = gs[i], v = depthPay(sc, g, g.floorStep) / depthPay(sc, prev, prev.topStep);
+      return row(prev.id + ' -> ' + g.id, v, band('G7'), f2, ' (' + kG(depthPay(sc, g, g.floorStep)) + ' at depth 1 / ' + kG(depthPay(sc, prev, prev.topStep)) + ' at depth 20)');
+    });
+    line('G7', rows.length ? rows : [{ at: gs.map((g) => g.id).join(', ') || 'none', value: NaN, status: 'n/a', shown: 'one scale ground' }],
+      rows.length ? 'a hold\'s coin in the wage\'s unit: wage(gearLevel) x the depth ratio (src/data/danger.js PAY)' : 'judged once R10 opens a second scale ground');
   }
   line('G8', GC.DEADLY_POINTS.map((p) => { const r = R('four-real:' + p.id); return row(p.id, r ? r.incomePerH - r.storePerH * (1 - GC.G8_OWN_SHARE) : NaN, band('G8'), kG); }),
     'store x' + (1 - GC.G8_OWN_SHARE) + ' (a quarter own); linings not built (L32)');
@@ -458,6 +482,7 @@ function report(I, lines, strict) {
     console.log([l.id, l.status, l.mode + ', ' + l.turnsRedIn, l.words + ': ' + (l.rows.length ? l.rows.map((r) => r.at + ' ' + r.shown + MARK[r.status]).join(', ') : l.status === 'nightly' ? 'judged by the nightly twin only' : '-'), bands].join(' | ')
       + (l.note ? '\n     ' + l.note : ''));
   }
+  for (const [id, why] of Object.entries(GC.RETIRED)) console.log(id + ' | RETIRED | ' + why);
   const out = lines.filter((l) => l.rows.some((r) => r.status === 'RED' || r.status === 'off'));
   console.log('OUTSIDE THEIR BAND: ' + (out.length ? out.map((l) => l.id + ' (' + l.rows.filter((r) => r.status === 'RED').map((r) => r.at + '!').concat(l.rows.filter((r) => r.status === 'off').map((r) => r.at + '~')).join(' ') + ')').join(', ') : 'none'));
   if (I.errors.length) console.log('HARNESS: ' + I.errors.map((e) => e.id + ': ' + e.error).join('; '));
@@ -535,15 +560,23 @@ async function selftest(workers) {
   const P = [];
   const plant = (name, pick, apply, extra = {}) => P.push({ name, pick, apply, pre: 'none', ...extra });
   const cal = { pre: 'cal' };
-  plant('a pace over the 2.5x cap: the four on Deadly x1.6 Level XP', (c) => firstClean(c, 'G3'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':four'].levelXpPerH *= 1.6; }, cal);
   plant('a stack over its cap: the gear pool +25% Level XP', (c) => firstClean(c, 'G10', (r) => /xp$/.test(r.at)), (J, r) => { const [p, seat] = r.at.split(' '); J.rows[seat + '-pool:' + p].levelXpPerH *= 1.25; });
   plant('a cost over the allowance: one more statement on every settle', (c) => firstClean(c, 'G16', (r) => r.at === 'ownfour'), (J) => { for (const f of Object.values(J.data.costIn.fixtures)) f.statements_a_settle += 1; }, { also: (c) => c.find((l) => l.id === 'G16').rows.filter((r) => r.status !== 'RED').map((r) => 'G16 ' + r.at) });
   /* RE-AIMED (lane/econ-levers: under the store's derived prices a bill x4 stayed inside the keep): the bill set past the four's gold in */
   plant('Deadly loses gold: the Krell-kit four\'s store bill past its gold in', (c) => firstClean(c, 'G8'), (J, r) => { const x = J.rows['four-real:' + r.at]; x.storePerH = (1.25 * x.incomePerH) / (1 - GC.G8_OWN_SHARE); }, cal);
-  plant('a ground pays less than the one before: the Glade\'s gold in under the Thicket\'s', (c) => firstClean(c, 'G7', (r) => pointOf(r.at) === 'glade'), (J) => { J.rows['ref:glade:lone'].incomePerH = J.rows['ref:thicket:lone'].incomePerH * 0.9; });
-  plant('the lone hammer runs away: x1.3 Level XP', (c) => firstClean(c, 'G1'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':lone'].levelXpPerH *= 1.3; });
+  /* G7 (re-aimed, C-11): a second scale ground one tier on with Muster's own band: its first depth pays under the last ground's top. With
+     one ground the line has no pair to judge, so the plant opens the second; its pair's row is the one that must turn red. */
+  {
+    const last = () => [...I.data.scale.grounds].sort((a, b) => b.gearLevel - a.gearLevel)[0];
+    plant('the next scale ground pays less from its first depth than the last one\'s top (a second ground, one tier on, Muster\'s band)',
+      (c) => c.find((l) => l.id === 'G7').rows[0] || null,
+      /* a copy all the way down: clone() shares I.data, and every later plant judges that */
+      (J) => { const g = last(); J.data = { ...J.data, scale: { ...J.data.scale, grounds: [...J.data.scale.grounds, { ...g, id: 'planted_ground', gearLevel: g.gearLevel + 20 }] } }; },
+      { expect: () => ['G7 ' + last().id + ' -> planted_ground'] });
+  }
+  /* G1 (re-aimed, C-7): a lone hero out-earns the mixed four's head */
+  plant('a lone hero runs away: 1.3x the four\'s head', (c) => firstClean(c, 'G1'), (J, r) => { const [g, style] = r.at.split(' '); J.rows['scale-lone:' + g + ':' + style].levelXpPerH = 1.3 * J.rows['scale-four:' + g].levelXpPerH; });
   plant('one way runs away alone: the bow x2 Level XP', (c) => firstClean(c, 'G2'), (J, r) => { J.rows['way:' + pointOf(r.at) + ':bow'].levelXpPerH *= 2; });
-  plant('the fully invested four over its cap: x1.6 Level XP', (c) => firstClean(c, 'G4'), (J, r) => { J.rows['four-full:' + pointOf(r.at)].levelXpPerH *= 1.6; }, cal);
   plant('a gold-for-power offer far too cheap: Tempering\'s first rung at 1 gold', (c) => firstClean(c, 'G12', (r) => /Tempering/.test(r.at) && Number.isFinite(r.value)), (J, r) => { J.data.temper = { ...J.data.temper, [BYID(pointOf(r.at)).gearTier]: [1, ...J.data.temper[BYID(pointOf(r.at)).gearTier].slice(1)] }; });
   /* a machine's timing: planted as three times the line's own budget, whatever this machine measured (a x3 on a fast machine stays inside it) */
   plant('a settle three times past its budget: a Krell window at 3 x 200 ms', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] = 3 * LINE.G17.keep[1] * J.rows['time-krell:warm'].partyHours * 36; });
@@ -567,8 +600,10 @@ async function selftest(workers) {
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });
   plant('NEGATIVE CONTROL: a meal that only heals (no buff)', () => ({ at: 'none' }), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Bread', heals: 10 })); }, { control: true });
   plant('NEGATIVE CONTROL: a new bow row that replaces Precision Shot (shares its cooldown)', () => ({ at: 'none' }), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: 'precision_shot' }); }, { control: true });
-  plant('NEGATIVE CONTROL (the K1 gate): the four x1.6 while K1 reads the harness at half the real four stays uncalibrated', () => ({ at: 'none' }), (J) => { for (const p of GC.FOUR_POINTS) J.rows['ref:' + p.id + ':four'].levelXpPerH *= 1.6; },
-    { control: true, pre: 'uncal', check: (got) => got.find((l) => l.id === 'G3').status === 'uncalibrated' });
+  /* (moved from G3 when it retired, lane/econ-followups: G19 is the line a gated plant reads now) */
+  plant('NEGATIVE CONTROL (the K1 gate): the pair and the three x1.6 while K1 reads the harness at half the real four stay uncalibrated', () => ({ at: 'none' }),
+    (J) => { for (const p of GC.SMALL_POINTS) for (const k of Object.keys(GC.SMALL_PARTIES)) J.rows['small:' + k + ':' + p.id].levelXpPerH *= 1.6; },
+    { control: true, pre: 'uncal', check: (got) => got.find((l) => l.id === 'G19').status === 'uncalibrated' });
 
   let fails = 0, n = 0;
   console.log('BALANCE GUARD --selftest: ' + P.length + ' plants on one clean measure (' + I.cells + ' cells, ' + (I.wallMs / 1000).toFixed(0) + ' s); each must turn its OWN row red and no other'
@@ -582,27 +617,32 @@ async function selftest(workers) {
     await p.apply(J, target);
     const got = judge(J), now = redSet(got);
     const fresh = [...now].filter((k) => !cleanRed.has(k)).sort();
-    const lineId = p.control ? null : clean.find((l) => l.rows.includes(target)).id;
-    const expected = p.control ? [] : [...new Set([lineId + ' ' + target.at, ...(p.also ? p.also(clean) : [])])].sort();
+    /* `expect`: a plant that adds the row it turns red (G7's second ground) names that row itself */
+    const lineId = p.control || p.expect ? null : clean.find((l) => l.rows.includes(target)).id;
+    const expected = p.control ? [] : p.expect ? [...p.expect(clean)].sort() : [...new Set([lineId + ' ' + target.at, ...(p.also ? p.also(clean) : [])])].sort();
     const strictExit = exitOf(got, true), plainExit = exitOf(got, false);
     const ok = JSON.stringify(fresh) === JSON.stringify(expected) && (p.control ? plainExit === 0 && (!p.check || p.check(got)) : strictExit === 1 && plainExit === (p.redMode ? 1 : 0));
     n++;
     if (!ok) fails++;
     console.log('  ' + (p.control ? (ok ? 'SILENT ' : 'NOISY  ') : ok ? 'CAUGHT ' : 'MISSED ') + p.name + ': newly red ' + (fresh.join(', ') || 'nothing') + (ok ? '' : ' (expected ' + (expected.join(', ') || 'nothing') + ')') + '; --strict exits ' + strictExit + ', plain ' + plainExit);
   }
-  /* ON THE REAL ENGINE: Deadly's Level XP dial x1.6 on every reference ground's row (worker.mjs whatIf), the four cells re-played, K1's gate open */
+  /* ON THE REAL ENGINE: the hardest tier's Level XP dial x1.6 on G19's grounds (worker.mjs whatIf), the pair and the three re-played, K1's
+     gate open. (Re-pointed from G3, which retired with the Deadly four's pace premium, lane/econ-followups 2026-11-22: G19 is the line that
+     still reads a tier dial off a played party.) */
   {
-    const jobs = GC.plainCells(CTX).filter((j) => /^ref:.*:four$/.test(j.id) && GC.FOUR_POINTS.some((p) => j.id === 'ref:' + p.id + ':four'));
-    const whatIf = { tiers: Object.fromEntries(GC.FOUR_POINTS.map((p) => { const r = tiers.tierRowOf(p.ground, 'deadly'); return [p.ground, { deadly: { id: r.id, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: Math.round(r.xpPm * 1.6) } }]; })) };
+    const tierOf = (g) => { const ts = tiers.tiersOf(g); return ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : null; };
+    const pts = GC.SMALL_POINTS.filter((p) => tierOf(p.ground));
+    const jobs = GC.plainCells(CTX).filter((j) => /^small:/.test(j.id) && pts.some((p) => j.id.endsWith(':' + p.id)));
+    const whatIf = { tiers: Object.fromEntries(pts.map((p) => { const t = tierOf(p.ground), r = tiers.tierRowOf(p.ground, t); return [p.ground, { [t]: { id: r.id, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: Math.round(r.xpPm * 1.6) } }]; })) };
     const { results, errors } = await playAll(jobs.map((j) => ({ ...j, whatIf })), workers);
     const J = calibrate(clone(I)), cleanRed = redSet(CLEAN.cal);
     for (const [id, r] of Object.entries(results)) J.rows[id] = { ...J.rows[id], ...MEASURE.rowOf(r.result, r.result.cell.party) };
     const got = judge(J), fresh = [...redSet(got)].filter((k) => !cleanRed.has(k)).sort();
-    const ratios = GC.FOUR_POINTS.map((p) => J.rows['ref:' + p.id + ':four'].levelXpPerH / I.rows['ref:' + p.id + ':four'].levelXpPerH);
-    const ok = !errors.length && fresh.length > 0 && fresh.every((k) => k.startsWith('G3 ')) && ratios.every((x) => x > 1.4 && x < 1.8) && exitOf(got, true) === 1 && exitOf(got, false) === 0;
+    const ratios = jobs.map((j) => J.rows[j.id].levelXpPerH / I.rows[j.id].levelXpPerH);
+    const ok = !errors.length && jobs.length > 0 && fresh.length > 0 && fresh.every((k) => k.startsWith('G19 ')) && ratios.every((x) => x > 1.4 && x < 1.8) && exitOf(got, true) === 1 && exitOf(got, false) === 0;
     n++;
     if (!ok) fails++;
-    console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'Deadly\'s Level XP dial x1.6 on the real engine (whatIf, ' + jobs.length + ' four cells re-played): Level XP x' + ratios.map((x) => x.toFixed(2)).join('/') + ', newly red ' + (fresh.join(', ') || 'nothing') + (errors.length ? ' HARNESS ' + errors.map((e) => e.error).join('; ') : ''));
+    console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'the hardest tier\'s Level XP dial x1.6 on the real engine (whatIf, ' + jobs.length + ' pair and three cells re-played): Level XP x' + ratios.map((x) => x.toFixed(2)).join('/') + ', newly red ' + (fresh.join(', ') || 'nothing') + (errors.length ? ' HARNESS ' + errors.map((e) => e.error).join('; ') : ''));
   }
   console.log(fails ? 'BALANCE GUARD --selftest: ' + fails + ' of ' + n + ' NOT caught' : 'BALANCE GUARD --selftest: all ' + n + ' caught, each on its own row, every control silent');
   return fails ? 1 : 0;

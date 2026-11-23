@@ -6,7 +6,8 @@
 //
 //   node tests/hunt-sessions-settle.mjs            the guard
 //   node tests/hunt-sessions-settle.mjs --closed   every arm with the game CLOSED
-//   node tests/hunt-sessions-settle.mjs --mutate   every planted defect must be CAUGHT
+//   node tests/hunt-sessions-settle.mjs --mutate   every planted defect must be CAUGHT (the engine mutants run JS_SLICE to a
+//                                                  child process, --js-part=a:b, so no heap holds 147 copies of the engine)
 //
 // The settle is supabase/functions/hr-accrue/hunt-settle.js (read → engine →
 // hr_hunt_apply_instance). A hunt is a WORLD (src/core/hunt/*): every hero of

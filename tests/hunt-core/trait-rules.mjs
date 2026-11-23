@@ -13,11 +13,14 @@
 //                    family on its events (`tr`), plays a different hunt from the same four with none, and settles the same in 10-minute
 //                    and 100-second windows (a closed hunt and a viewed one)
 //   view-names       every Trait id is named by src/render/source-names.js; the combat log says a `tr` event's Traits by name, never by id
+//   lab-kits         the Lab's Rare and Very Rare kits (tools/balance-program/trait-kits.mjs) are wearable: rank III, one a key, each slot
+//                    within the room the worn kit gives (no shield Trait beside a two-hander); lucky only the seat's own; the census covers
+//                    all 40 in wearable sets; a theory wears a party-wide key once a party
 //   dark             GEAR_STEPS.traitsLive is false and no src or server file but the engine's three readers names `wornTraits` (nothing
 //                    hands a hero a worn Trait); a hero with none writes no field and its rows come back untouched (the switch off plays
 //                    as before: engine-parity holds with no re-pin)
 //
-// mutant-anchors: src/core/hunt/trait-rules.js src/core/hunt/amount.js src/core/hunt/damage.js src/core/hunt/abilities.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/render/source-names.js src/data/gear-steps.js
+// mutant-anchors: src/core/hunt/trait-rules.js src/core/hunt/amount.js src/core/hunt/damage.js src/core/hunt/abilities.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/render/source-names.js src/hunt-view/combat-log.js src/data/gear-steps.js tools/balance-program/trait-kits.mjs
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -258,6 +261,42 @@ const cases = {
     if (!plain || plain.text.includes('(')) return 'a blow with no Trait reads ' + JSON.stringify(plain && plain.text);
     return null;
   },
+  /* THE LAB'S KITS (tools/balance-program/trait-kits.mjs): what the sim measures Traits with must be wearable */
+  'lab-kits': async (M) => {
+    const TK = await (await import(pathToFileURL(join(M.root, 'tools/balance-program/trait-kits.mjs')).href)).loadTraitKits(M.root);
+    const T = M.GS.TRAITS;
+    const wearable = (kit, room) => {
+      const per = {}, keys = new Set();
+      for (const w of kit) {
+        const t = T[w.id];
+        if (!t || w.rank !== 3) return 'an unknown Trait or a rank under III: ' + JSON.stringify(w);
+        if (keys.has(t.key)) return 'two Traits of key ' + t.key;
+        keys.add(t.key); per[t.slot] = (per[t.slot] || 0) + 1;
+        if (per[t.slot] > (room[t.slot] || 0)) return 'slot ' + t.slot + ' holds ' + per[t.slot] + ' past its room ' + (room[t.slot] || 0);
+      }
+      return null;
+    };
+    /* a two-handed hero: no shield slot, so no shield Trait */
+    const room = TK.traitRoomOf({ weapon: 'w', helmet: 'h', body: 'b', pants: 'p', boots: 'o', gloves: 'g', belt: 'e', cape: 'c', necklace: 'n', ring1: 'r', ring2: 'r', earrings: 'a' }, {});
+    if (room.shield !== 0 || room.ring !== 4 || room.weapon !== 2) return 'the room of a two-handed kit reads ' + JSON.stringify(room);
+    for (const seat of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
+      const k = TK.luckyKit(seat, room);
+      const bad = wearable(k, room);
+      if (bad) return 'the lucky ' + seat + ' kit: ' + bad;
+      if (k.some((w) => T[w.id].best.seat !== seat)) return 'the lucky ' + seat + ' kit wears a Trait made for another seat';
+    }
+    const sets = TK.censusSets();
+    const all = sets.flat();
+    if (all.length !== Object.keys(T).length || new Set(all).size !== all.length) return 'the census sets cover ' + new Set(all).size + ' of ' + Object.keys(T).length + ' Traits';
+    for (let i = 0; i < sets.length; i++) { const bad = wearable(TK.censusKit(i, null), Object.fromEntries(Object.keys(M.GS.GEAR_STEPS.traitSlots).map((s) => [s, 99]))); if (bad) return 'census set ' + i + ': ' + bad; }
+    /* a theory: every seat's kit wearable, a party-wide key worn once in the party */
+    const rates = [0, 1, 2, 3].map(() => Object.fromEntries(Object.keys(T).map((id) => [id, 0.5])));
+    const kits = TK.theoryKits(['melee_dps', 'ranger', 'mage', 'healer'], [room, room, room, room], rates, [0.7, 0.2, 0.05, 0.05]);
+    for (const k of kits) { const bad = wearable(k, room); if (bad) return 'a theory kit: ' + bad; }
+    const party = kits.flat().filter((w) => T[w.id].scope === 'party').map((w) => T[w.id].key);
+    if (new Set(party).size !== party.length) return 'a party-wide key worn twice in one party';
+    return null;
+  },
   dark: (M) => {
     if (M.GS.GEAR_STEPS.traitsLive !== false) return 'GEAR_STEPS.traitsLive is ' + M.GS.GEAR_STEPS.traitsLive + ': worn Traits are dark until wave 4';
     const allowed = new Set(['src/core/hunt/trait-rules.js', 'src/core/hunt-spawn.js', 'src/core/member.js']);
@@ -312,6 +351,8 @@ const mutants = [
   { name: 'the heal event drops the Traits', case: 'real-settle', edits: [['src/core/hunt/heal-rules.js', ', ...traitsField(cast && cast.tr) }));', ' }));']] },
   { name: 'the view names no Trait', case: 'view-names', edits: [['src/render/source-names.js', '  if (Object.hasOwn(TRAITS, id)) return TRAITS[id].name;\n', '']] },
   { name: 'the log forgets the Traits', case: 'view-names', edits: [['src/hunt-view/combat-log.js', 'text: ev.tr ? traitsSaid(ev, text) : text });', 'text });']] },
+  { name: 'a Lab kit ignores a slot\'s room', case: 'lab-kits', edits: [['tools/balance-program/trait-kits.mjs', "      if (keys.has(t.key) || (used[t.slot] || 0) >= (room[t.slot] || 0)) continue;", '      if (keys.has(t.key)) continue;']] },
+  { name: 'a Lab theory wears a party-wide key twice', case: 'lab-kits', edits: [['tools/balance-program/trait-kits.mjs', " || (isParty(id) && partyKeys.has(t.key))", '']] },
   { name: 'Traits switched on', case: 'dark', edits: [['src/data/gear-steps.js', '  traitsLive: false,', '  traitsLive: true,']] },
   { name: 'the settle hands a hero its worn Traits', case: 'dark', edits: [['src/core/combat-sim.js', '  syncTraits(u, m.hero);', '  syncTraits(u, { wornTraits: m.hero.wornTraits });']] },
   { name: 'a hero whose Traits went keeps its rules', case: 'dark', edits: [[TR, '  else if (u.traitRules !== undefined) delete u.traitRules;', '  else if (u.traitRules !== undefined) void 0;']] },
@@ -328,8 +369,8 @@ for (const [cn, fn] of Object.entries(cases)) {
 if (!process.argv.includes('--no-mutants')) for (const mu of mutants) {
   if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
   /* the trees a planted run needs: the real settle's (play-ground.mjs) and, for the view's cases, the log's own import graph */
-  const view = mu.case === 'view-names';
-  const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures', ...(view ? VIEW_TREES : [])]);
+  const view = mu.case === 'view-names', lab = mu.case === 'lab-kits';
+  const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures', ...(view ? VIEW_TREES : []), ...(lab ? ['tools/balance-program/trait-kits.mjs'] : [])]);
   try {
     let why = null;
     try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }

@@ -32,14 +32,15 @@ import { whole } from '../render/format.js';
 import { t } from '../render/player-text.js';
 import { itemName, monsterName, abilityName } from './widgets/bits.js';
 import { spanWords } from './after-hunt.js';
-import { ABILITIES } from '../data/abilities.js';
+import { nameOf, sourceName } from '../render/source-names.js';
 import { HUNT_REPORT } from '../data/hunt-report.js';
 import { changedSlot } from '../hunt-view/hunt-report.js';
 import { STANCE_IDS } from '../session/danger-sections.js';
 
 /* A share in permille as a whole percent; a hero still standing never reads 0% (6 permille is "1%"). */
 const pct = (pm) => (pm > 0 ? Math.max(1, Math.floor(pm / 10)) : 0);
-const what = (uses) => (ABILITIES[uses] ? abilityName(uses) : itemName(uses));
+/* what a slot uses or a heal came from: a move, a status (a heal over time), a Roads reaction (src/render/source-names.js), else an item */
+const what = (uses) => (nameOf(uses) ? sourceName(uses) : itemName(uses));
 /** The lowest-health words in the house's voice: "from a Rat" for a swing (`swing`, a text key), "from Barn Spider's Venom Spray" for a
     spell (`spell`); `low` { pm, by, blow }, `o` the line's other values. */
 export function blowLine(swing, spell, low, o) {

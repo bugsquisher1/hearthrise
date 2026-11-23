@@ -4,8 +4,9 @@
  "grounds": {
   "muster_barrows": {
    "refStep": 590,
-   "floorStep": 525,
+   "floorStep": 575,
    "topStep": 700,
+   "refHeld": 610,
    "print": "dde2884dd7a40e2e",
    "verdict": "OPEN",
    "levels": {
@@ -17,9 +18,8 @@
    "evidence": [
     "tools/balance-program/redesign/tuning/final/c0-muster-ref.json",
     "tools/balance-program/redesign/tuning/final/c0-muster-top.json",
-    "tools/balance-program/redesign/tuning/final/c0-muster-floor.json"
-   ],
-   "hand": "refStep 590 is held by hand (lane/tuning-pass, 2026-11-23, docs/design/redesign/29-tuning-pass.md 3.5): Muster Barrows plays its monster formula, which anchors every monster at refStep, so refStep is the monsters' anchor as well as the pay's: moved, the monsters move with it and the four holds the same distance over it (the MID four held 608.9 here, the rule cuts 610). The floor (525) and top (700) are the band rule's, measured on this tree. RE-PINNED 2026-11-23 (lane/monster-roles-ford-wings) on these same reports: REF_HERO regenerated (tools/gen-ref-hero.mjs) moved two of its hand rows a point of evasion (pack.mjs propose --write), which the formula replaces on the scale; the rows it plays held (to-hit.js aimFor and evasionFor read the same at Levels 55 to 75, and engine-parity muster-steps-4 held to the byte), so the print moved and the measure did not"
+    "tools/balance-program/redesign/depth-budget/muster-a.json"
+   ]
   },
   "hasks_ford": {
    "refStep": 590,

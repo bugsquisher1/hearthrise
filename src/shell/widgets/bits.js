@@ -9,8 +9,6 @@ import { ITEMS } from '../../data/items.js';
 import { RUNE_FAMILIES } from '../../data/runes.js';
 import { DRINK_ITEMS } from '../../data/drinks.js';
 import { MONSTERS } from '../../data/monsters.js';
-import { ABILITIES } from '../../data/abilities.js';
-import { spellRow } from '../../data/monster-spells.js';
 import { SKILLS_DEF } from '../../data/skills.js';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD, FACTION_DIR, FACTION_ART } from '../../data/item-art.js';
 import { BASIC_INDEX } from '../../data/supply-basics.js';
@@ -18,6 +16,7 @@ import { ROLE_GLYPH } from '../../data/hunt-hud.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { text, style, attr } from '../../render/paint.js';
 import { t, hasText } from '../../render/player-text.js';
+import { sourceName } from '../../render/source-names.js';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
@@ -69,8 +68,9 @@ export function runeWords(id, n) {
 /** A monster's name from the bestiary rows. */
 export function monsterName(id) { return (MONSTERS[id] && MONSTERS[id].name) || spelled(id); }
 
-/** An ability's name ('basic' is the weapon's basic attack). */
-export function abilityName(id) { return id === 'basic' ? 'Basic attack' : (ABILITIES[id] && ABILITIES[id].n) || (spellRow(id) || {}).n || spelled(id); }
+/** An ability's name ('basic' is the weapon's basic attack): any source a hunt event names (a move, a monster's spell, a status, an
+    engine piece, a Roads reaction: src/render/source-names.js). */
+export function abilityName(id) { return id === 'basic' ? 'Basic attack' : sourceName(id); }
 
 /** A skill's name (Melee, Defense…) from the skill rows. */
 export function skillName(id) { return (SKILLS_DEF[id] && SKILLS_DEF[id].name) || spelled(id); }

@@ -6,7 +6,7 @@
 //   node tests/bands.mjs --mutate    each rule planted back in a temp copy (tests/hunt-core/fixtures/h1.js plant), each caught by this file
 //                                    or by tests/sustain.mjs (the sustain levers ride here: one proof for the foundations' two tests)
 //
-// mutant-anchors: src/core/bands.js src/data/bands.js src/data/sustain.js src/session/danger-sections.js
+// mutant-anchors: src/core/bands.js src/data/bands.js src/data/sustain.js src/session/danger-sections.js src/data/danger.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy (plant), never the tree
 //
 // src/data/bands.js and src/core/bands.js (26-architecture-pass.md rank 2, 04 sections 1 and 4, 27 S-5, K-5, K-6):
@@ -19,11 +19,20 @@
 //   BD-4  THE BAND IS A FORMULA of the row: every scale ground's bandAbs is the rating of its three companies (a fresh four one tier back at
 //         the entry Level, the reference at refLevel, a strong four one tier ahead at its hunt's top Level), recomputed here by hand, and
 //         ordered floor < reference < top; refLevel sits inside the hunt's Level band (27 K-5)
-//   BD-5  THE BRIDGE: absPmOf maps the row's floorStep, refStep and topStep to the formula's three points exactly and never falls with the step
+//   BD-5  THE BRIDGE: absPmOf maps the row's floorStep, reference hold (refHeldOf) and topStep to the formula's three points exactly and
+//         never falls with the step
 //   BD-6  ONE DEPTH: depthAt reads Depth 1 at the floor and DEPTHS at the top, never falls with the step, stays in 1..DEPTHS, and is an even
-//         cut in absolute steps (the reference sits at its absolute share of the band); the browser's danger-sections.js depthOf and the
-//         edge's drop-rate.js depthOf read it for every step of every band
+//         cut in absolute steps (the reference hold sits at its absolute share of the band); the browser's danger-sections.js depthOf and
+//         the edge's drop-rate.js depthOf read it for every step of every band
 //   BD-7  27 K-6, THE HANDOVER: a scale ground one tier over another starts at or under where the lower one tops out
+//   BD-8  THE READING'S MIDDLE IS A HOLD (lane/depth-reading-fix, 12-targets 3.1a): a ground on the monster formula carries refHeld (its
+//         refStep is the chosen anchor, not where the reference four holds), a whole step inside its band; refHeldOf reads it, else refStep
+//   BD-9  AN ORDINARY CLIMB READS RIGHT, ON THE MEASURED COMPANIES (12-targets 3.1 and 3.1a): on every pinned ground the arriving company
+//         (its pin's floor evidence, one tier back at the entry Level) reads at most ARRIVE_MAX and the reference company (its MID evidence)
+//         reads within one depth of its share of the band; on Muster Barrows (tools/balance-program/redesign/depth-budget) the arriving
+//         four, the plain grown four, the strong four on Steady and on Bold read a climb (arriving <= 6, strong >= 16, Bold >= 19). Red on
+//         the floor cut two tiers back (arriving depth 9) and on a reading whose middle is the anchor refStep (8). Nothing here caps a
+//         company: these read measured holds, they never hold a step back (Tyler 2026-11-23)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -44,8 +53,19 @@ const SL = await imp('tools/balance-sim/skill-lines.mjs');
 /* --mutate: each rule planted back, each caught (exit 1) by the test that owns it */
 if (process.argv.includes('--mutate')) {
   const { plant } = await imp('tests/hunt-core/fixtures/h1.js');
-  const ALSO = ['src/session', 'tools/balance-sim', 'tests/bands.mjs', 'tests/sustain.mjs', 'tools/balance-program/redesign/foundations'];
+  /* BD-9 reads the band pins and the measured companies: every pin's evidence and the depth-budget runs ride into the plant */
+  const evidence = Object.values(JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds).flatMap((p) => p.evidence || []);
+  const ALSO = [...new Set(['src/session', 'tools/balance-sim', 'tests/bands.mjs', 'tests/sustain.mjs', 'tests/_is-main.mjs', 'tools/balance-program/redesign/foundations',
+    'tests/danger-band-pins.json', 'tools/balance-program/redesign/depth-budget', ...evidence])];
   const MUT = [
+  /* the controls: each test passes on the clean plant, so a mutant's red is its own and not a file the plant left out (until 2026-11-23
+     every planted run died on a missing tests/_is-main.mjs, which tools/balance-sim/skill-lines.mjs imports, so every mutant read caught) */
+  ['tests/bands.mjs', 'CONTROL: the clean plant', []],
+  ['tests/sustain.mjs', 'CONTROL: the clean plant', []],
+  ['tests/bands.mjs', 'the reading\'s middle is the pay anchor, not the reference hold', [['src/core/bands.js', 'm = g ? refHeldOf(groundId) : null;', 'm = g ? g.refStep : null;']]],
+  ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
+  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 525, topStep: 700, refHeld: 610,']]],
+  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 575, topStep: 700,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
   ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'topPm: at(top, g.gearLevel + T * BAND_ABS.topTiersAhead),', 'topPm: at(top, g.gearLevel),']]],
   ['tests/bands.mjs', 'one gear weight both sides', [['src/core/bands.js', 'const wG = gGap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;', 'const wG = POWER.weightGearPm;']]],
@@ -65,10 +85,11 @@ if (process.argv.includes('--mutate')) {
     let code = 0;
     try { execFileSync(process.execPath, [join(p.root, test)], { stdio: 'ignore', cwd: p.root }); } catch (e) { code = e.status; }
     p.done();
-    console.log((code === 1 ? '  caught  ' : '  MISSED  ') + test + ': ' + name);
-    if (code === 1) caught++;
+    const good = edits.length ? code === 1 : code === 0;
+    console.log((good ? (edits.length ? '  caught  ' : '  clean   ') : (edits.length ? '  MISSED  ' : '  RED     ')) + test + ': ' + name);
+    if (good) caught++;
   }
-  console.log((caught === MUT.length ? '✓' : '✗') + ' bands --mutate: ' + caught + ' of ' + MUT.length + ' caught');
+  console.log((caught === MUT.length ? '✓' : '✗') + ' bands --mutate: ' + caught + ' of ' + MUT.length + ' judged right (the clean plant green, every mutant caught)');
   process.exit(caught === MUT.length ? 0 : 1);
 }
 
@@ -119,13 +140,14 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
 }
 
 /* BD-5 and BD-6 */
+const shareOf = (b) => 1 + Math.round(((b.refPm - b.floorPm) * (DEPTHS - 1)) / (b.topPm - b.floorPm));
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
-  const b = B.bandAbs(id);
+  const b = B.bandAbs(id), held = B.refHeldOf(id);
   if (!b) continue;
-  ok(B.absPmOf(id, g.floorStep) === b.floorPm && B.absPmOf(id, g.refStep) === b.refPm && B.absPmOf(id, g.topStep) === b.topPm, 'BD-5 ' + id + ' bridge does not meet the formula at its three steps');
+  ok(B.absPmOf(id, g.floorStep) === b.floorPm && B.absPmOf(id, held) === b.refPm && B.absPmOf(id, g.topStep) === b.topPm, 'BD-5 ' + id + ' bridge does not meet the formula at its floor, reference hold ' + held + ' and top');
   ok(B.depthAt(id, g.floorStep) === 1 && B.depthAt(id, g.topStep) === DEPTHS, 'BD-6 ' + id + ' floor reads ' + B.depthAt(id, g.floorStep) + ', top ' + B.depthAt(id, g.topStep));
-  const want = 1 + Math.round(((b.refPm - b.floorPm) * (DEPTHS - 1)) / (b.topPm - b.floorPm));
-  ok(B.depthAt(id, g.refStep) === want, 'BD-6 ' + id + ' reference reads depth ' + B.depthAt(id, g.refStep) + ', its absolute share of the band is ' + want);
+  const want = shareOf(b);
+  ok(B.depthAt(id, held) === want, 'BD-6 ' + id + ' reference hold reads depth ' + B.depthAt(id, held) + ', its absolute share of the band is ' + want);
   let lastAbs = -Infinity, lastD = 0;
   for (let s = Math.max(0, g.floorStep - 30); s <= g.topStep + 30; s++) {
     const a = B.absPmOf(id, s), d = B.depthAt(id, s);
@@ -147,5 +169,38 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   }
 }
 
+/* BD-8 */
+for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
+  if (g.monsters === 'formula') ok(g.refHeld !== undefined, 'BD-8 ' + id + ' plays the monster formula, whose refStep is the chosen anchor, and carries no measured refHeld (node tools/new-ground.mjs ' + id + ' ... --write)');
+  if (g.refHeld !== undefined) {
+    ok(Number.isInteger(g.refHeld) && g.floorStep < g.refHeld && g.refHeld < g.topStep, 'BD-8 ' + id + ' refHeld ' + g.refHeld + ' is not a whole step inside ' + g.floorStep + '..' + g.topStep);
+    ok(B.refHeldOf(id) === g.refHeld, 'BD-8 ' + id + ' refHeldOf reads ' + B.refHeldOf(id) + ', the row says ' + g.refHeld);
+  } else ok(B.refHeldOf(id) === g.refStep, 'BD-8 ' + id + ' has no refHeld and refHeldOf reads ' + B.refHeldOf(id) + ', not its refStep');
+}
+ok(B.refHeldOf('nowhere') === null, 'BD-8 a ground off the scale has a reference hold');
+
+/* BD-9 */
+const ARRIVE_MAX = 6; /* the brief's "about 6"; 12-targets 3.1 wants a company that topped the last ground at depth 1 to 3, read in own steps */
+const PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
+const report = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
+const heldIn = (rel, cell = 'base:steady') => { const r = report(rel); const c = r.cells[cell]; return c && c.held ? c.held.mean : NaN; };
+const readAt = (id, held) => (Number.isFinite(held) ? B.depthAt(id, Math.round(held)) : null);
+for (const [id, pin] of Object.entries(PINS)) {
+  if (!DANGER_GROUNDS[id] || !Array.isArray(pin.evidence) || pin.evidence.length !== 3) continue;
+  const [refRel, , floorRel] = pin.evidence, b = B.bandAbs(id);
+  const arrive = readAt(id, heldIn(floorRel)), ref = readAt(id, heldIn(refRel));
+  ok(arrive !== null && arrive <= ARRIVE_MAX, 'BD-9 ' + id + ': the arriving company (' + floorRel + ') reads depth ' + arrive + ', over ' + ARRIVE_MAX);
+  ok(ref !== null && Math.abs(ref - shareOf(b)) <= 1, 'BD-9 ' + id + ': the reference company (' + refRel + ') reads depth ' + ref + ', its share of the band is ' + shareOf(b));
+}
+{
+  const M = 'muster_barrows', DB = 'tools/balance-program/redesign/depth-budget/';
+  const arrive = readAt(M, heldIn(DB + 'muster-a.json')), grown = readAt(M, heldIn(DB + 'muster-c.json', 'back:steady'));
+  const strong = readAt(M, heldIn(DB + 'muster-cplus.json', 'back:steady')), bold = readAt(M, heldIn(DB + 'muster-cplus.json', 'back:bold'));
+  const climb = 'arriving ' + arrive + ', grown ' + grown + ', strong ' + strong + ', Bold ' + bold;
+  ok(arrive !== null && arrive <= ARRIVE_MAX, 'BD-9 Muster Barrows: the arriving four (the Ford\'s kit at Level 55) reads depth ' + arrive + ', over ' + ARRIVE_MAX + ' (' + climb + ')');
+  ok(strong >= 16 && bold >= 19, 'BD-9 Muster Barrows: the strong four does not reach the top on its own drops (' + climb + ')');
+  ok(arrive < grown && grown < strong && strong <= bold, 'BD-9 Muster Barrows: the measured companies do not read a climb (' + climb + ')');
+}
+
 if (fails.length) { console.error('✗ bands: ' + fails.length + ' failing\n  ' + fails.slice(0, 30).join('\n  ')); process.exit(1); }
-console.log('✓ bands: BD-1..7 (' + Object.keys(DANGER_GROUNDS).length + ' scale grounds, the skill line on its career, one depth for the browser and the edge)');
+console.log('✓ bands: BD-1..9 (' + Object.keys(DANGER_GROUNDS).length + ' scale grounds, the skill line on its career, one depth for the browser and the edge, the reading\'s middle a measured hold, an ordinary climb reads right)');

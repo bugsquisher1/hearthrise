@@ -415,14 +415,29 @@
         "why": "+borrow values: six town V0 rows and the not_offered refusal (lane/roads-borrow-values) on top of the ci-reds drop chances"
       },
       {
-        "bytes": 3787889,
+        "bytes": 3780713,
         "on": "2026-11-23",
-        "why": "lane/monster-roles-ford-wings merged over the set: Ford and both Catacomb wing rows carry roles and spells, core danger.js gains formulaStep, coinKillsHead and dropPmAt, movement veto for the corridor pull (+7,916 B over the set)"
+        "why": "lane/client-talent-floaters: +740 B, src/data/monster-roles.js roleSpellId/roleSpellRow, the one home of a formula role's derived spell id (mf_<role>), which monster-formula.js now builds through and the client names (the log read 'Mf brute'); re-raised on the merged set"
       },
       {
-        "bytes": 3789480,
+        "bytes": 3780753,
         "on": "2026-11-23",
-        "why": "lane/monster-roles-ford-wings: rowsKeptOf keeps a ground's drop table with its coin on the scale, drop-rate.js rowsKillsHour derives chances at the rows' own rate (the tier path plays them), and REF_HERO regenerated with the formula rows it moves (+1,591 B)"
+        "why": "+bytes: JSDoc type note in monster-roles.js roleSpellRow clearing typecheck after the floaters merge"
+      },
+      {
+        "bytes": 3780987,
+        "on": "2026-11-23",
+        "why": "+234 B: re-measured BORROW_VALUES rows (lane/roads-v0-remeasure)"
+      },
+      {
+        "bytes": 3782813,
+        "on": "2026-11-23",
+        "why": "+1,826 B: refHeld field + refHeldOf and depthRarePm on the reference hold (lane/depth-reading-fix)"
+      },
+      {
+        "bytes": 3792645,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings merged over the set (050a9b999): the Ford and both Catacomb wings on the formula with roles and spells, formulaStep, rowsKillsHead kept on coin and loot, drop-rate.js rowsKillsHour, REF_HERO regenerated with its rows, the corridor pull's area veto (+9,832 B over the set)"
       }
     ]
   }

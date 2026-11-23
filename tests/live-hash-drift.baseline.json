@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 4230,
+  "replay_ms": 3865,
   "counts": {
     "tracked_names": 1137,
     "entries": 962
@@ -6275,8 +6275,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "154a0e0ad747f8c844635eec06ccdbd2",
-        "norm_len": 3921,
+        "md5": "0c7e678599f66acc734c4230353855eb",
+        "norm_len": 3922,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -6437,8 +6437,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "721d2200b5d9b525b9d3415b195d3637",
-        "norm_len": 1516,
+        "md5": "2e758bc7d3dcc622311b4bd224084312",
+        "norm_len": 1517,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -11565,8 +11565,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "02b993b7331aa484430dd8e66790af2b",
-        "norm_len": 4505,
+        "md5": "e475859cb1df417e133edab8bf5bd8eb",
+        "norm_len": 4504,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -18321,8 +18321,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "81c45b0c0c93beffd4ce5757c61b4031",
-        "norm_len": 4779,
+        "md5": "9d2e456ff91b1c19447b0702531abdef",
+        "norm_len": 4766,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -18393,8 +18393,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "02d1733fd857e5fd6e681cc7f791fca2",
-        "norm_len": 3995,
+        "md5": "fb8138a392bd018ceef6ddca7c8d2162",
+        "norm_len": 3982,
         "source": "computed-from-replay"
       },
       "agree": false,

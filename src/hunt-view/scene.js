@@ -241,11 +241,12 @@ export function createHuntScene(o) {
     const role = roleOf(ev.u);
     /* What flies before the hit lands: the ability's own row (null: it strikes where it stands), else the role's bolt. */
     const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;
-    const flies = !!bolt;
+    /* a `dot` (a status tick, an echo, an overkill, a guard's share) swings no weapon: nothing flies, only its own or its element's burst */
+    const flies = !!bolt && !ev.dot;
     const land = flies ? start + PROJECTILE.flightMs : start;
     const a = fixed(ev.u, start), b = fixed(ev.t, start);
     if (flies && a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u, ev.u);
-    const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || HIT_FX.role[role] || null;
+    const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || (ev.dot ? null : HIT_FX.role[role]) || null;
     addFx(id, land, at(ev.t), HIT_FX.lift, undefined, undefined, ev.u);
     /* The struck unit flinches as the blow lands (its hit clip, else 1 art px away from the blow). It is never tinted:
        ART_DIRECTION §2, and a white body hid its armor and the miss spark. A status tick is no blow. */
@@ -279,10 +280,10 @@ export function createHuntScene(o) {
     hook.played(ev, start);
     switch (ev.type) {
       /* every landed blow on a monster deals at least 1, so a 0 is a hero whose barrier took all of it: no harm, no number */
+      /* (a status_tick floats nothing: its own `dmg` or `heal` carries what landed and on whom, a Mending tick's never a damage number) */
       case 'dmg': if (ev.amount === 0 && isHero(ev.t)) glance(ev, start); else num(ev.t, ev.amount, hit(ev, start)); break;
-      case 'status_tick': if (Number.isFinite(ev.amount)) num(ev.t, ev.amount, start); break;
       case 'miss': glance(ev, start); break;
-      case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
+      case 'heal': if (ev.amount > 0) addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
       case 'cast': {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];
         if (r) addFx(r.fx, start, at(ev.u), r.lift, Math.min(CAST_FX.maxMs, r.lifeMs || CAST_FX.maxMs), undefined, ev.u);

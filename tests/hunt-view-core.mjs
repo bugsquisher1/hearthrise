@@ -6,7 +6,7 @@
 //   node tests/hunt-view-core.mjs --mutate  every planted defect must turn a NAMED rule RED; a copy that cannot load, a throw or a
 //                                           line with no rule id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
-// mutant-anchors: src/hunt-view/ src/session/hunt-sections.js src/session/character-session.js src/session/envelope.js src/session/residue.js src/data/combat-text.js src/shell/hud-predict.js src/session/carry-intents.js
+// mutant-anchors: src/hunt-view/ src/session/hunt-sections.js src/session/character-session.js src/session/envelope.js src/session/residue.js src/data/combat-text.js src/shell/hud-predict.js src/session/carry-intents.js src/render/source-names.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // Snapshot vs timeline (Tyler, 2026-10-17): the envelope's sections are the
@@ -445,7 +445,7 @@ async function rules(M) {
 const MUTANTS = [
   ['the log names no spell (LOG-6)', 'src/hunt-view/combat-log.js', "    case 'spell': return line(", "    case 'spell_x': return line("],
   ['a shooter\'s blow reads as a hit (LOG-9)', 'src/hunt-view/combat-log.js', "      if (!how && !n.isHero(ev.u) && shot(n, ev.u)) return line('taken', t('log.shot',", "      if (false) return line('taken', t('log.shot',"],
-  ['a spell hit reads its id (LOG-6)', 'src/shell/widgets/bits.js', ' || (spellRow(id) || {}).n || spelled(id); }', ' || spelled(id); }'],
+  ['a spell hit reads its id (LOG-6)', 'src/render/source-names.js', '  const spell = spellRow(id);\n', '  const spell = null;\n'],
   ['an event is delivered twice', 'src/hunt-view/timeline.js', '      if (seen.has(k)) continue;\n', ''],
   ['the clock offset jumps to each batch', 'src/hunt-view/timeline.js', 'offset = offset === null ? m : offset + (m - offset) * cfg.skew;', 'offset = m;'],
   ['a new envelope clears the timeline', 'src/session/character-session.js', '  _play(body) {\n', '  _play(body) {\n    this.timeline = createTimeline();\n'],

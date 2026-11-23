@@ -35,5 +35,12 @@ try {
   console.log((reach ? 'ok  ' : 'BAD ') + 'greater_mend reach 7 (roads-lend-rules.json)');
   if (!ok) bad++;
   if (!reach) bad++;
+  /* lane/roads-v0-remeasure: Protective Ward's native reach and the taunt from any seat on the engine's borrow */
+  const ward = A.ABILITIES.protective_ward.reach === 7, core = readFileSync(join(S.root, 'src/core/hunt/abilities.js'), 'utf8');
+  const taunt = core.includes('row.lent || !!(hero.borrowBlows && Number.isInteger(hero.borrowBlows[row.id]))') && core.includes('{ ...row, lent: true } : row); break;');
+  console.log((ward ? 'ok  ' : 'BAD ') + 'protective_ward reach 7 (roads-lend-rules.json)');
+  console.log((taunt ? 'ok  ' : 'BAD ') + 'seam a borrowed Challenge taunts from any seat (roads-lend-rules.json)');
+  if (!ward) bad++;
+  if (!taunt) bad++;
 } finally { S.done(); }
 process.exit(bad ? 1 : 0);

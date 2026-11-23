@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "32463d0faafd24aa",
+ "authored": "9612c4c7e8860d52",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 760,
-  "typed": 17043,
-  "files": 260,
+  "bindings": 761,
+  "typed": 17046,
+  "files": 261,
   "lever": 334,
-  "notLever": 426,
+  "notLever": 427,
   "unclaimed": 0
  },
  "problems": [],
@@ -3077,7 +3077,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 31,
+    "mentionCount": 32,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3150,7 +3150,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3310,7 +3310,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3444,7 +3444,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4317,7 +4317,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7554,7 +7554,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 18,
+    "mentionCount": 19,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7633,7 +7633,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 18,
+    "mentionCount": 19,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7709,7 +7709,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 18,
+    "mentionCount": 19,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7778,7 +7778,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 18,
+    "mentionCount": 19,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7797,7 +7797,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 256,
+     "line": 264,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7839,15 +7839,15 @@
     ],
     "mentions": [
      "tests/alpha-server.mjs",
+     "tests/bands.mjs",
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/shell-core.mjs",
-     "tests/tower-board.mjs",
-     "tests/tower-chest.mjs"
+     "tests/tower-board.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7866,19 +7866,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 263,
+     "line": 271,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 264,
+     "line": 272,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 265,
+     "line": 273,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7942,7 +7942,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 286,
+     "line": 294,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -8146,12 +8146,12 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 211,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 219,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) are the BRIDGE of the band in absolute steps (src/core/bands.js, lane/foundations-block): the own step the formula's fresh and strong companies hold, through which \"Depth N of 20\" is cut evenly in absolute steps; refLevel is the Level its reference company was measured at (27 K-5); the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)",
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (12-targets 3.1 and danger.js BAND_RULE) are the BRIDGE of the band in absolute steps (src/core/bands.js, lane/foundations-block): the own step the formula's fresh and strong companies hold, through which \"Depth N of 20\" is cut evenly in absolute steps; refLevel is the Level its reference company was measured at (27 K-5); the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead). refHeld (lane/depth-reading-fix, 12-targets 3.1a): on a formula ground refStep is the chosen anchor of its monsters and pay, so the reference four's measured hold is refHeld, the bridge's middle point (src/core/bands.js refHeldOf) and the Rare odds' x1 (src/core/drop-rate.js); pay, the top and the monsters read refStep",
    "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
    "touches": "the absolute pay on that ground (each step off it is payStepXp)",
    "outcomes": [
@@ -8189,7 +8189,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8199,7 +8199,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)",
+    "what": "the scale grounds: refStep, floorStep / topStep, refKillsHead, refHeld, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)",
     "homes": [
      "src/data/danger.js#DANGER_GROUNDS"
     ]
@@ -8220,14 +8220,14 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 213,
-     "text": "catacomb_bone_wing: ground({ refStep: 440, floorStep: 380, topStep: 530, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "line": 221,
+     "text": "catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 214,
-     "text": "catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 470, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "line": 222,
+     "text": "catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8280,7 +8280,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8311,7 +8311,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 212,
+     "line": 220,
      "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8346,6 +8346,7 @@
       "file": "tests/drop-formula.mjs",
       "what": "DF-1: every scale row chance is its hours over the kills its rows are written at",
       "reads": [
+       "rowsKillsHead",
        "rowsKillsHour"
       ]
      }
@@ -8360,7 +8361,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8391,7 +8392,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 232,
+     "line": 240,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8666,9 +8667,10 @@
      "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8773,9 +8775,10 @@
      "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8837,9 +8840,10 @@
      "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8858,7 +8862,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 123,
+     "line": 136,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8922,13 +8926,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 125,
+     "line": 138,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 126,
+     "line": 139,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8987,7 +8991,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 128,
+     "line": 141,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9049,7 +9053,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 129,
+     "line": 142,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -9111,13 +9115,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 131,
+     "line": 144,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 132,
+     "line": 145,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -11840,43 +11844,43 @@
    "sites": [
     {
      "file": "src/data/drop-hours.js",
-     "line": 52,
+     "line": 53,
      "text": "chDigits: 3,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 55,
+     "line": 56,
      "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 56,
+     "line": 57,
      "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 57,
+     "line": 58,
      "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 62,
+     "line": 63,
      "text": "depthPm: Object.freeze([1000, 3000]),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 63,
+     "line": 64,
      "text": "topRankPm: 500,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 64,
+     "line": 65,
      "text": "topRankMaxPm: 800,",
      "binding": "DROP_HOURS"
     }
@@ -12006,8 +12010,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 211,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 219,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12062,7 +12066,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12081,8 +12085,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 211,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 219,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12138,7 +12142,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12407,13 +12411,13 @@
     },
     {
      "file": "src/data/talents.js",
-     "line": 101,
-     "text": "shelter: 8.5,",
+     "line": 106,
+     "text": "shelter: 1.4,",
      "binding": "BORROW_VALUES"
     }
    ],
    "definition": "a borrowed move's penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)",
-   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 (validate refuses a missing one): the town moves power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values)",
+   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 on one method, the engine's own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values, lane/roads-v0-remeasure)",
    "touches": "which hybrid builds exist at which Level, and how much a borrowed move adds",
    "outcomes": [
     "dps",
@@ -12475,67 +12479,67 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 190,
+     "line": 192,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 252,
+     "line": 254,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 311,
+     "line": 313,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 556,
+     "line": 558,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 551,
+     "line": 553,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 325,
+     "line": 327,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 365,
+     "line": 367,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 392,
+     "line": 394,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 423,
+     "line": 425,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 488,
+     "line": 490,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 574,
+     "line": 576,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     }
@@ -17303,6 +17307,10 @@
    "why": "a permille to share conversion (/ 1000) in the load check of the run pay against its mode"
   },
   {
+   "at": "src/data/how-to-play.js#HELP_NOTES",
+   "why": "unit conversions for the help text (ms an hour, minutes an hour): the numbers it shows are STAMINA_MAX_MS and RULED.hunt.blockMin"
+  },
+  {
    "at": "src/data/bosses.js#bossRole",
    "why": "a ppm to share conversion (/ 1e6)"
   },
@@ -17773,6 +17781,7 @@
     "formulaStep",
     "gearLevel",
     "ladderTier",
+    "refHeld",
     "refKillsHead",
     "refLevel",
     "refStep",
@@ -19871,7 +19880,6 @@
     "circle_of_renewal",
     "fireball",
     "flame_strike",
-    "frost_lance",
     "greater_mend",
     "hoarfrost",
     "power_strike",
@@ -19880,7 +19888,7 @@
     "shelter",
     "turning_cut"
    ],
-   "typed": 11,
+   "typed": 10,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {

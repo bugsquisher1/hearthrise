@@ -29,6 +29,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMain } from './_is-main.mjs';
 import { bootReplay, inventory } from './schema-replay.mjs';
+import { loadGear } from '../tools/balance-sim/gear.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const TC = (await import('./tower-climb.mjs')).HARNESS;
@@ -116,9 +117,20 @@ function roomArm(_db, M) {
 }
 
 /* ── THE DESCENDER (the Tower's climber, through the descent's own door) ─────────────── */
+/* `o.style` dresses the hero in that style's ladder kit at its Level (tools/balance-sim/gear.mjs kitOf: the worn set a player of that
+   Level holds) in place of the start kit hr_create_character hands out; without it the hero descends bare, as before. */
+let GEAR = null;
+async function dress(db, style, level) {
+  GEAR = GEAR || await loadGear(ROOT);
+  await db.query('delete from public.player_equipment where user_id = $1 and slot = 0', [UID]);
+  for (const [slot, item] of Object.entries(GEAR.kitOf(style, level))) {
+    await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3)', [UID, slot, item]);
+  }
+}
 async function descender(db, M, o = {}) {
   await rewind(db);
   await H.character(db, M, UID, { level: o.level || 12, inv: {}, gold: 200000 });
+  if (o.style) await dress(db, o.style, o.level || 12);
   await db.query('update public.hr_hunt_config set enabled = true where id');
   await db.query('update public.hr_tick_config set enabled = true where id');
   await switchOn(db, [UID]);
@@ -163,7 +175,12 @@ async function doorsArm(db, M) {
   for (const door of ['closed', 'viewed']) {
     const tag = `CB-DOORS the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
     const r = await H.inTx(db, async () => {
-      const h = await descender(db, M, { wing: 'bone' });
+      /* A LEVEL 50 HAMMER IN ITS LADDER KIT: the arm's case is a vault door minting the wing's key, and the first keyed door is Bronze's
+         generated 40 (src/data/chests.js landingForLevel). The bare Level 12 this arm sent tops out at room 13 since the keys moved to
+         their generated landings (lane/tower-boss-formula), so both doors minted nothing and "a wing mints the Tower's keys" had nothing
+         to read (ESCAPED on run 45221888675). Measured on set f385c30e1: this hero clears door 40 and falls in room 46, 15.6 of SPAN's
+         20 minutes (Levels 48 to 55 in their kits clear 40 too, 46 does not). The CONTROL below turns red the day it stops reaching a key. */
+      const h = await descender(db, M, { wing: 'bone', level: 50, style: 'hammer' });
       const s0 = await state(db, h);
       const seen = new Set();
       try {
@@ -196,6 +213,7 @@ async function doorsArm(db, M) {
     const want = {};
     /* a door under the first key's (Bronze's generated 40) mints nothing */
     for (let l = 10; l <= run.top_floor; l += 10) { const k = M.CH.keyForLanding(l, undefined, bone.hunt); if (k) want[l] = k.item; }
+    if (!Object.keys(want).length) bad.push(`${tag} CONTROL: the descent cleared no keyed door (top room ${run.top_floor}), so no mint was read`);
     if (JSON.stringify(s1.keys || {}) !== JSON.stringify(want)) bad.push(`${tag} the doors minted ${JSON.stringify(s1.keys)}, not ${JSON.stringify(want)}`);
     if (Number(s1.tower_keys) !== 0) bad.push(`${tag} a Tower key row was journalled`);
     if (s1.end !== 'died' || run.end_reason !== 'died') bad.push(`${tag} the descent ended ${s1.end} (run ${run.end_reason}), not died`);

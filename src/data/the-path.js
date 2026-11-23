@@ -33,7 +33,9 @@ const row = (id, opener, opens, flag, scope, line, card = null) => Object.freeze
 const FB6_PARTY = ref('src/data/company.js', 'COMPANY_RULES', undefined, ['live']);
 const FB6_REST = ref('src/data/company.js', 'COMPANY_RULES', undefined, ['restPlan']);
 const FB7_REPORT = ref('src/data/hunt-report.js', 'HUNT_REPORT', undefined, ['live']);
-const FB7_TIERS = ref('src/data/tier-risk.js', 'TIER_OFFERS', undefined, ['live']);
+/* THE DANGER SCALE ON A GROUND (lane/first-hour-rewrite; 20-v030-the-roads.md 1.2: the tier path is removed, R10): a ground's row in
+   DANGER_GROUNDS is its flag, so the depth and Risk rows turn on when R10 puts the Cellar and the Sewer on the scale, with no edit here. */
+const ON_SCALE = (id) => ref('src/data/danger.js', 'DANGER_GROUNDS', undefined, [id]);
 const FB9_MARKET = ref('src/data/market-open.js', 'MARKET_OPEN', undefined, ['live']);
 const FB11_TALENTS = ref('src/data/talents.js', 'TALENT_RULES', undefined, ['live']);
 const FB12_SOCIAL = ref('src/data/social-open.js', 'SOCIAL_OPEN', undefined, ['live']);
@@ -46,6 +48,12 @@ export const THE_PATH = Object.freeze([
     'Open Hunts and pick the Mill Cellar.'),
   row('first_kill', event('first_kill', 1), ['action_bar'], null, 'account',
     'Your hero fights by itself. Open a slot on the bar to change how.'),
+  /* the first hunt on the scale: the HUD's "Depth 1 of 20" (20 section 3.1), its coach card hunt-tutorial.js depth */
+  row('depth', level(HUNTS('mill_cellar')), ['hunts'], ON_SCALE('mill_cellar'), 'account',
+    'Depth 1 of 20. The deeper your hero goes, the more each kill pays.', 'depth'),
+  /* the first Roads point (17 section 13: a point from Level 2), its coach card hunt-tutorial.js talent_point */
+  row('talents', level(ref('src/data/talents.js', 'TALENT_RULES', undefined, ['opensAt'])), ['talents'], FB11_TALENTS, 'account',
+    'Level 2. A Talent point. Spend it as suggested.', 'talent_point'),
   row('first_leave', event('first_leave', 4), ['end_card', 'hunt-summary', 'blessings', 'loot_plan'], null, 'account',
     'Rats done. Tamsin has gear for you.'),
   /* the recruit press (Tyler RD-Q6 a, 2026-11-22; src/data/recruits.js, 1053-recruits.sql): the company comes in one press at Level 5 */
@@ -54,6 +62,9 @@ export const THE_PATH = Object.freeze([
     '{Name} has outgrown the Mill Cellar. Three recruits are ready to join, and the Sewer wants a full party.'),
   row('thicket', level(HUNTS('meadowbrook_thicket')), ['hunts'], null, 'hero', 'Level 5. Meadowbrook Thicket'),
   row('sewer', level(HUNTS('millrace_sewer')), ['hunts'], null, 'hero', 'Level 5. The Sewer, for a party'),
+  /* the Risk pick at the first party ground on the scale (20 sections 1.2 and 3.1), its coach card hunt-tutorial.js risk_pick */
+  row('risk', level(HUNTS('millrace_sewer')), ['hunts'], ON_SCALE('millrace_sewer'), 'account',
+    'Level 5. Pick a Risk for the Sewer. Steady is set, and only Bold can die.', 'risk_pick'),
   row('party_ready', event('party_ready', 5), ['hunt-party'], FB6_PARTY, 'account', 'Your party is ready for the Sewer.'),
   row('rest_plan', event('party_hunt_10min', 6), ['skills-trade', 'rest_plan', 'farm', 'house'], FB6_REST, 'account',
     'When stamina runs out your heroes go to work. Here is their plan.'),
@@ -64,7 +75,6 @@ export const THE_PATH = Object.freeze([
     'Level 8. Graypelt Cloak. Stitch it from 6 Wolf Pelts.'),
   row('first_stamina_end', event('first_stamina_end', 10), ['return_card', 'house', 'weighhouse', 'clan_roster', 'calendar'], null, 'account',
     'Your heroes are back in town.'),
-  row('talents', level(ref('src/data/talents.js', 'TALENT_RULES', undefined, ['opensAt'])), ['talents'], FB11_TALENTS, 'account', 'Level 10. Talents'),
   row('tower', level(ref('src/data/tower.js', 'TOWER_RULES', undefined, ['minLevel'])), ['tower'], null, 'hero', 'Level 10. The Burning Tower'),
   row('hearth_chest', level(ref('src/data/tower.js', 'TOWER_RULES', undefined, ['minLevel'])), ['hearth_chest'], null, 'hero', 'Level 10. The Hearth Chest'),
   row('training_yard', level(ref('src/data/training.js', 'TRAINING_RULES', undefined, ['minLevel'])), ['training'], null, 'hero', 'Level 10. Training Yard'),
@@ -79,10 +89,6 @@ export const THE_PATH = Object.freeze([
     'Level 22. Houndskin Cloak'),
   row('steel_gear', level(ref('src/data/gear-tiers.js', 'MATERIAL_TIERS', 'steel', ['level'])), ['steel_gear', 'shop'], null, 'hero', 'Level 30. Steel gear'),
   row('coppercap', level(HUNTS('coppercap_warrens')), ['hunts'], null, 'hero', 'Level 32. Coppercap Warrens'),
-  row('harder_tiers', level(ref('src/data/tier-risk.js', 'TIER_OFFERS', undefined, ['levels'])), ['harder_tier'], FB7_TIERS, 'hero',
-    'Level {N}. {Tier} on {ground}, for a party in this Level\'s gear'),
-  row('first_harder_tier', event('first_harder_tier', null), ['harder_tier'], FB7_TIERS, 'account',
-    'That hunt was Safe. Your party can try {Tier} here.'),
   row('way_moves', level(ref('src/data/abilities.js', 'ABILITIES', undefined, ['*', 'unlock'])), ['way_move'], null, 'way', 'Level {N}. {Move}'),
   row('on_call', level(ref('src/data/on-call.js', 'ON_CALL_RULES', undefined, ['opensAt'])), ['on_call'], FB14_ON_CALL, 'account', 'On call'),
   row('town_crier', Object.freeze({ kind: 'accounts', from: ref('src/data/social-open.js', 'SOCIAL_OPEN', undefined, ['crierAccounts']) }),

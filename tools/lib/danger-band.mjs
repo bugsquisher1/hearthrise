@@ -18,6 +18,14 @@
 //                of the band it cuts), one depth = (topStep - lowest seed) / (depths - 2), so the lowest fresh seed sits at depth 2
 //   refKillsHead the MID four's kills a head an hour at its held reference, to the nearest 5; omitted (PAY.refKillsHead reads) when
 //                not over PAY.refKillsHead, the server's one ceiling a kill
+// A GROUND ON THE MONSTER FORMULA (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a, 29-tuning-pass 3.5): its refStep anchors every
+// monster and the pay, so it is chosen, never measured (moved, the monsters move with it and the four holds the same distance over it).
+// Given that anchor (`anchorStep`), the cut keeps it as refStep, caps the top at anchor + PAY.gapMax (the pay stops there), and the MID
+// four's hold, cut as refStep would be, is `refHeld`: the bridge's middle point (src/core/bands.js refHeldOf), so the reference company
+// reads its own share of the band. A ground on its rows needs no refHeld: its refStep is that hold. Neither does a formula ground whose
+// anchor is its own DANGER_GROUNDS formulaStep (lane/monster-roles-ford-wings: the wings' company holds 60 to 80 steps under the anchor,
+// so the pay reads the hold and refStep is cut from it like a rows ground's), nor one whose four holds on its anchor. ONE bridge a
+// ground: anchorOf names the anchor the cut keeps, or none.
 // The floor needs the LOW cell: no band is cut without it. C-3 (12-targets: Steady dies never) is the open gate: any death in any of
 // the three cells holds the ground off.
 // ════════════════════════════════════════════════════════════════════════
@@ -51,21 +59,29 @@ export const floorOf = (F, rule, topStep, depths) => Math.floor((lowestSeed(F) -
 
 /**
  * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level).
- * `pay` is danger.js PAY, `depths` danger.js DEPTHS, `rule` danger.js BAND_RULE. Returns { band, verdict, notes, info, cells }.
+ * `pay` is danger.js PAY, `depths` danger.js DEPTHS, `rule` danger.js BAND_RULE. `anchorStep`: a formula ground's chosen refStep (above),
+ * kept, with the MID four's hold as refHeld. Returns { band, verdict, notes, info, cells }.
  */
-export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = null) {
+/** The refStep a cut keeps for a DANGER_GROUNDS row (above): a formula ground's, unless its formulaStep anchors the monsters apart from
+    it. Null: the cut measures refStep from the MID four's hold. */
+export const anchorOf = (row) => (row && row.monsters === 'formula' && !Number.isInteger(row.formulaStep) ? row.refStep : null);
+
+export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = null, { anchorStep = null } = {}) {
   if (!floor) throw new Error('bandFromReports: no LOW cell (the floor is where a fresh company at the entry Level holds, 12-targets 3.1)');
   if (!rule || ![rule.floorUnder, rule.floorTo, rule.refTo, rule.topTo].every((x) => Number.isInteger(x) && x >= 0) || !(rule.floorTo > 0 && rule.refTo > 0 && rule.topTo > 0)) throw new Error('bandFromReports: no band rule (src/data/danger.js BAND_RULE)');
+  if (anchorStep !== null && !Number.isInteger(anchorStep)) throw new Error('bandFromReports: the anchor ' + anchorStep + ' is not a whole step');
   const R = steadyCell(ref), T = steadyCell(top), F = steadyCell(floor);
-  const refStep = round(R.held.mean, rule.refTo);
+  const held = round(R.held.mean, rule.refTo);
+  const refStep = anchorStep === null ? held : anchorStep;
   const topStep = Math.min(round(T.held.mean, rule.topTo), refStep + pay.gapMax);
   const floorStep = floorOf(F, rule, topStep, depths);
   const kills = round(R.killsPerH / 4, 5);
-  const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}) };
+  const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}), ...(anchorStep === null || held === anchorStep ? {} : { refHeld: held }) };
   const notes = [], info = [];
   const deaths = [['MID', R], ['BIS', T], ['LOW', F]].filter(([, c]) => c.deaths > 0);
   for (const [k, c] of deaths) notes.push('C-3: the ' + k + ' four died ' + c.deaths + ' times at Level ' + c.L + ' (Steady must not die)');
   if (!(floorStep < refStep && refStep < topStep)) notes.push('the band is not floor < ref < top (' + floorStep + ' / ' + refStep + ' / ' + topStep + '): the LOW four holds at or over the MID four, so the Level band reads too narrow');
+  else if (anchorStep !== null && !(floorStep < held && held < topStep)) notes.push('the reference four holds ' + held + ', outside the band ' + floorStep + '..' + topStep + ': the depth reading has no middle point');
   else if (topStep - floorStep < depths - 1) notes.push('the band ' + floorStep + '..' + topStep + ' is under one step a depth');
   if (T.held.mean > refStep + pay.gapMax) info.push('the BIS four held ' + T.held.mean + ', past refStep + gapMax: the top is the pay cap, not the four');
   /* (own steps cut evenly: the wave-1 reading; with the absolute band the game cuts depths in absolute steps, src/core/bands.js depthAt) */
@@ -130,18 +146,20 @@ export function packPrint(ground, monsters, monstersOn, switchOf = null, formula
 }
 
 /** The band fields a DANGER_GROUNDS row carries, compared with a pin's. */
-export const BAND_KEYS = Object.freeze(['refStep', 'floorStep', 'topStep', 'refKillsHead']);
+export const BAND_KEYS = Object.freeze(['refStep', 'floorStep', 'topStep', 'refKillsHead', 'refHeld']);
 export const sameBand = (row, pin) => BAND_KEYS.every((k) => (row[k] === undefined ? null : row[k]) === (pin[k] === undefined ? null : pin[k]));
 
 /**
  * Rewrite the band numbers on an EXISTING DANGER_GROUNDS row in danger.js's source text (the row is one line:
- * `  <id>: <wrapper>({ refStep: N, floorStep: N, topStep: N, [refKillsHead: N, ]...`, the wrapper `ground` or `Object.freeze`, whichever
- * the file uses today). Returns the new text, or null when the row is not there (a new ground's row is a design decision: its gear
- * base, drop home and Trait pool are written by hand).
+ * `  <id>: <wrapper>({ refStep: N, floorStep: N, topStep: N, [refKillsHead: N, ][refHeld: N, ]...`, the wrapper `ground` or
+ * `Object.freeze`, whichever the file uses today). The two optional fields are added or dropped as the band carries them. Returns the
+ * new text, or null when the row is not there (a new ground's row is a design decision: its gear base, drop home and Trait pool are
+ * written by hand).
  */
 export function rewriteRow(src, id, band) {
-  const re = new RegExp('^(  ' + id + ': [\\w.]+\\(\\{ )refStep: \\d+, floorStep: \\d+, topStep: \\d+, (?:refKillsHead: \\d+, )?', 'm');
+  const re = new RegExp('^(  ' + id + ': [\\w.]+\\(\\{ )refStep: \\d+, floorStep: \\d+, topStep: \\d+, (?:refKillsHead: \\d+, )?(?:refHeld: \\d+, )?', 'm');
   if (!re.test(src)) return null;
   return src.replace(re, (_, head) => head + 'refStep: ' + band.refStep + ', floorStep: ' + band.floorStep + ', topStep: ' + band.topStep + ', '
-    + (band.refKillsHead !== undefined ? 'refKillsHead: ' + band.refKillsHead + ', ' : ''));
+    + (band.refKillsHead !== undefined ? 'refKillsHead: ' + band.refKillsHead + ', ' : '')
+    + (band.refHeld !== undefined ? 'refHeld: ' + band.refHeld + ', ' : ''));
 }

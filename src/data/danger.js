@@ -161,6 +161,9 @@ export const DANGER_GROUNDS = Object.freeze({
      entryLevel, its hunt's top Level and its gearLevel (a fresh company one tier back at the entry, the reference company at refLevel, a
      strong company one tier ahead at the top, each a rating in Levels); floorStep, refStep and topStep are the BRIDGE, the own step each of
      those companies holds on this ground's rows, measured by tools/new-ground.mjs. "Depth N" is cut evenly in absolute steps through them.
+     refHeld (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): the own step the reference company HOLDS, the bridge's middle point
+     (src/core/bands.js refHeldOf). Only a formula ground carries it (tools/new-ground.mjs --write): its refStep anchors the monsters and
+     the pay, so it is chosen, and the four holds over it. Pay, the top and the monsters read refStep; a rows ground's refStep is its hold.
      monsters (lane/monster-formula; 04-math-strategy.md section 6): the ground's ONE DATA SWITCH for its monsters: 'rows' (today's hand-typed stats, grown by the step) or 'formula' (each monster's role and
      the step: src/core/hunt/monster-formula.js derives its health, blows and wind-ups from src/data/monster-roles.js against the reference
      company at refLevel on refStep, and the pull is sized to the party). A switch flipped moves the ground's band: re-measure it
@@ -196,19 +199,24 @@ export const DANGER_GROUNDS = Object.freeze({
      Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way.
      EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23; 29-tuning-pass.md section 6): the Ford's four rows and the
      Catacombs' five carry roles (src/data/monster-roles.js), so every switch is on, and each band is the band rule's, cut on the formula
-     (tools/new-ground.mjs, 8 seeds x 10 h). Two bridges a row may name beside its band:
+     (tools/new-ground.mjs, 8 seeds x 10 h). Two bridges a row may name beside its band, and refHeld below:
        formulaStep    WHERE THE FORMULA'S REFERENCE MONSTERS STAND (src/core/hunt/danger.js formulaStepOf; absent: refStep). refStep is the
                       pay's reference, where the MEASURED reference company holds; the two part where that company is not the formula's.
                       The wings' Level 175 company holds 60 to 80 steps under the anchor its monsters were measured at (520, 500), so held at
                       one step every stance paid under PAY.floor there and Careful out-earned Steady. Muster's refStep is its anchor by hand
-                      (tests/danger-band-pins.json says why), the Ford's measured company holds on its anchor
+                      (tests/danger-band-pins.json says why), the Ford's measured company holds on its anchor. ONE of formulaStep and
+                      refHeld a ground (tools/lib/danger-band.mjs anchorOf, tools/gen-danger.mjs refuses both): refHeld where the pay stays
+                      on the anchor and the four holds near it (Muster, 20 over), formulaStep where the pay cannot (the wings, 60 to 80 under)
        rowsKillsHead  THE KILL RATE A GROUND'S ROWS WERE WRITTEN AT, their coin and their drop chances (danger.js rowsKeptOf): the Ford's,
                       on its hand rows, 235 a head an hour; on the formula it kills 135, and its hour's coin fell to 0.43 of the wage
                       (EL-PAY). On the scale each kill pays that ratio more of both, so the hour stands where its rows put it. The rows
                       stay at 235 because the tier path (no stance) still plays them: drop chances derived at the formula's 135 paid a
                       lone tier hero at the floor a Scarce piece every 0.53 h, and a Bannerman's shield past the band's odds
-                      (hunt-core/drop-tables). Coin written in hours (27 stage 9) retires it */
-  muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
+                      (hunt-core/drop-tables). Coin written in hours (27 stage 9) retires it
+     THE FLOOR ON THE ARRIVING COMPANY (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): one tier back (the Ford's mithril kit at
+     Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). refHeld 610 (the MID four held 608.9).
+     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold */
+  muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
   catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),

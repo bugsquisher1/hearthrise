@@ -27,7 +27,7 @@ export const COACH_TEXT = Object.freeze({
   no_tips: 'Don\'t show tips',
   /* Tamsin's rats, the first ten minutes (designer 2026-11-10) */
   tamsins_rats_title: 'Tamsin\'s rats',
-  tamsins_rats: 'Open Tamsin\'s tally → Take {label}',
+  tamsins_rats: 'Town → Tamsin\'s tally → Take {label}',
   tamsins_rats_in: 'Press Take on {label}',
   rats_count_title: 'Tamsin\'s count',
   rats_count: 'Kill {count} {label} (Tamsin\'s task)',
@@ -50,13 +50,37 @@ export const COACH_TEXT = Object.freeze({
   keep_hunting: 'Safe to close the game · Hunts on to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */
-  tamsins_task: 'Open Tamsin\'s tally → Take {count} {label}',
+  tamsins_task: 'Town → Tamsin\'s tally → Take {count} {label}',
+  /* a hero in a party: the party's task on the party's ground (tally-tasks.js sewer_rat_king), never the lone wolves */
+  tamsins_task_party: 'Town → Tamsin\'s tally → Take {label}',
+  tamsins_task_party_in: 'Press Take on {label}',
   tamsins_task_in: 'Pick {weight} armor, then Take {label}',
   tamsins_task_in_any: 'Pick an armor weight, then Take {label}',
   tamsin_pays: 'Kill {count} {label}, then collect {gold} gp from Tamsin',
   /* her task's count is done, the server's row says so (audit 2026-11-15 F3): while hunting, then back in town */
   count_done: 'Leave the hunt · Collect {gold} gp from Tamsin',
-  count_done_town: 'Open Tamsin\'s tally → collect {gold} gp',
+  count_done_town: 'Town → Tamsin\'s tally → collect {gold} gp',
+  /* THE REDESIGN'S FIRST HOUR (lane/first-hour-rewrite, 2026-11-23; docs/design/redesign/20-v030-the-roads.md section 3). Each card reads
+     the server's own section and is passed by while it sends none, so the chain reads right with the Roads switch on or off, and before
+     or after a ground joins the Danger scale. */
+  /* a Talent point to spend (the `talents` section, 1064-roads-sample.sql): the Character window's Talents tab, then its one press */
+  talent_point_title: 'Talent point',
+  talent_point: 'Character → Talents → Spend as suggested',
+  talent_point_in: 'Press Talents, then Spend as suggested',
+  /* hunting a ground on the Danger scale (the `danger` section): the depth the party holds, said as the HUD says it */
+  depth_title: 'Depth {depth} of {of}',
+  depth: 'Depth climbs by itself · Deeper pays more',
+  /* the newest hunt's report holds a fall back (1057-danger-falls.sql falls, a hero left standing) */
+  fell_back_title: 'Fell back',
+  fell_back: 'Backed off a depth to stay alive · Risk sets when',
+  /* the Risk pick, met at the first party ground on the scale ({ground}): Steady is the default, Bold the only stance that can die */
+  risk_pick_title: 'Pick a Risk',
+  risk_pick: 'Hunts → {ground} → Risk',
+  risk_pick_in: 'Steady is set · Bold pays more and can die',
+  /* a Blessing matters only where a hero can die: Bold, or after a death */
+  bless_title: 'Bless before Bold',
+  /* stamina low: the redesign's top-up is a hunting block (src/data/time-blocks.js) */
+  stamina_low: 'Press + beside stamina to buy a hunting block',
   /* the cards a builder states from the facts (hunt-tutorial.js SAY) */
   styles: 'Switch style: Equip another weapon in town',
   styles_in: 'Press a weapon, then Equip',

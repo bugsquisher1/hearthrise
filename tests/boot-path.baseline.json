@@ -271,9 +271,33 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 955401,
+        "gzipBytes": 955922,
         "on": "2026-11-23",
-        "why": "lane/monster-roles-ford-wings: Hask's Ford and both Catacomb wing monsters carry roles and spells, their drop chances re-derived at the halved kill rate, the danger dial's formulaStep and coinKillsHead"
+        "why": "two town modules for named events: render/source-names.js and text/fight.js (lane/client-talent-floaters)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 956019,
+        "on": "2026-11-23",
+        "why": "eleven refusal lines for Talents and faction pieces (lane/ci-reds-db-1123)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 956021,
+        "on": "2026-11-23",
+        "why": "re-measured talent borrow values (lane/roads-v0-remeasure)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 957515,
+        "on": "2026-11-23",
+        "why": "first-hour rewrite: new coach cards (talent_point, depth, fell_back, risk_pick) and tutorial sections feeding them (lane/first-hour-rewrite)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 957667,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings merged over the set (050a9b999): the Ford and Catacomb wing rows carry roles and spells, the Ford's drop chances at its rows' kill rate, REF_HERO's regenerated rows, formulaStep and rowsKillsHead on the danger rows"
       }
     ]
   }

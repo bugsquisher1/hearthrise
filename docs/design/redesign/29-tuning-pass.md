@@ -159,7 +159,7 @@ No money call came out of this pass.
 - **The wings' gold**: their coin rows are hand-typed and pay 1.4 to 1.7 of wage(175) (staged; coin in hours is stage 9).
 - **Bold's watched 2 h session** was read from hourly rates, not replayed (V2).
 - **C-6, C-7 (party against alone), C-9, C-10, C-12** were not in this matrix.
-- **Muster's floor was cut two tiers back** (2026-11-23, lane/depth-budget-audit, `12-targets.md` 3.1a): its LOW cell wears steel and no jewelry, so a company that finished the Ford arrives at depth 9. The re-cut (575) waits for the depth reading's middle point to follow the reference four's hold, not the hand-held `refStep` (Systems, HANDOFFS 2026-11-23). The top is reachable on Muster's own drops: the strong four holds depth 18 on Steady, 20 on Bold.
+- **Muster's floor was cut two tiers back** (2026-11-23, lane/depth-budget-audit, `12-targets.md` 3.1a): its LOW cell wears steel and no jewelry, so a company that finished the Ford arrives at depth 9. The top is reachable on Muster's own drops: the strong four holds depth 18 on Steady, 20 on Bold. **Done (lane/depth-reading-fix):** floor 575 with the reading's middle at the reference four's hold (`refHeld` 610, `refStep` 590 kept as the anchor); the arriving four reads 4.
 
 ## 6. Every scale ground on the formula (lane/monster-roles-ford-wings, systems, 2026-11-23)
 

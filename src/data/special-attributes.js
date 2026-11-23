@@ -1,14 +1,14 @@
 // ============================================================================
-// src/data/special-attributes.js — SPECIAL-ATTRIBUTE GEAR: THE ATTRIBUTE CATALOGUE AND THE SAMPLE OF FIVE (TWO SHIPPED, THREE HIDDEN)
+// src/data/special-attributes.js — SPECIAL-ATTRIBUTE GEAR: THE ATTRIBUTE CATALOGUE AND THE SAMPLE (TWO SHIPPED, TWO HIDDEN)
 // (designer, lane/d-special-attributes; the design is docs/planning/PRIORITY_BOARD.md "2026-11-15 Special-attribute gear").
 //
 // Tyler 2026-11-14: "I would like to sprinkle items like this throughout the game to be farmed to build better sets", after
 // "by unique i mean having a special attribute" and "maybe the legs have a % physical resistance". A special piece is the
 // standard piece of its slot and tier plus ONE attribute. It drops (armor, shields and weapons); high-end jewelry is crafted.
 //
-// TWO ARE SHIPPED, THREE ARE HIDDEN. Krell's Tollgate and the Banded Legguards (`shipped: true`; Tyler 2026-11-14: "a pair of
+// TWO ARE SHIPPED, TWO ARE HIDDEN (Widow's Fang left the sample, lane/named-pieces 2026-11-23). Krell's Tollgate and the Banded Legguards (`shipped: true`; Tyler 2026-11-14: "a pair of
 // pally legs a tank shield") are real items since lane/c-krell-uniques: their home pack (src/data/grounds/krells_hold/pack.js)
-// reads the row, the text and the roll's slice FROM HERE, so this file stays the one place they are written. The other three
+// reads the row, the text and the roll's slice FROM HERE, so this file stays the one place they are written. The other two
 // are in no ITEMS row, no monster's drops, no recipe, no catalogue and no generator until Tyler approves the sample
 // (DESIGN_STANDARDS §9: sample, play, then expand). The only src/ file that imports this one is a shipped row's home pack
 // (tests/special-attributes.mjs SA1). Its other readers are the measuring tool (tools/balance-sim/special-table.mjs).
@@ -62,7 +62,9 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
     cap: Object.freeze({ value: 6, where: 'NEW: src/data/special-attributes.js GEAR_SKILL_CAP.weaponSkill, armor and cape together; the weapon adds its own on top' }),
     slots: Object.freeze(['helmet', 'gloves', 'body', 'cape']), hook: null, unproven: Object.freeze(['magic']),
   }),
-  /* + critical chance on basic blows. Weapons only (leather armor carries its own small crit as a standard stat). */
+  /* + critical chance on basic blows. Weapons only (leather armor carries its own small crit as a standard stat). Its sample piece,
+     Widow's Fang, is cut (docs/design/redesign/28-named-pieces.md); the kind stays only for the staged weapon line past Dawnsteel
+     (the staged line's file under tools/balance-sim/staged), whose sort into Traits or Signatures is 27-formula-overhaul.md 2.3's, still owed. */
   crit: Object.freeze({
     field: 'critB', keys: null, unit: 'chance',
     at: Object.freeze({ 2: 0.06, 3: 0.06, 4: 0.08, 5: 0.08, 6: 0.1, 7: 0.1 }),
@@ -78,7 +80,7 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
   }),
 });
 
-/* ── THE SAMPLE OF FIVE, in the item rows' own shape (src/data/items.js, shields.js). `row` is the item row as it would
+/* ── THE SAMPLE, in the item rows' own shape (src/data/items.js, shields.js). `row` is the item row as it would
    ship. `base` is the standard piece whose numbers it copies (null: the ladder has no piece there, the numbers are the
    ladder's next rung). `attr` names the attribute and its key. `source` is where it drops: `how` is the loot band
    (loot-bands.js), or 'daily' for Lord Krell's once-a-day prize roll (`pm` permille a hero). `use` is what
@@ -107,14 +109,6 @@ const SAMPLE = {
     source: Object.freeze({ monster: 'mudlark', ground: 'the_slake', how: 'rare' }), use: 'worn',
     text: 'Your Ranged counts as 2 higher while you wear them. A Mudlark finds things in the river by feel, and these are worn thin at every fingertip.',
   }),
-  /* The wave-3 sword, re-fitted to tier 2 (the id and the name stay; its old row in wave3-uniques.js is untouched until the sample is approved). */
-  widows_fang: Object.freeze({
-    row: Object.freeze({ n: 'Widow\'s Fang', icon: '🗡️', v: 200, type: 'weapon', slot: 'weapon', weaponType: 'sword', statPlus: Object.freeze({ critB: 0.06 }),
-      tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15 }),
-    base: 'iron_sword', attr: Object.freeze(['crit', null]),
-    source: Object.freeze({ monster: 'cistern_spider', ground: 'millrace_sewer', how: 'rare' }), use: 'worn',
-    text: 'It lands a critical hit 6% more often than an Iron Sword. A thin blade with a spider\'s eye set in the hilt.',
-  }),
   /* The wave-3 staff, re-fitted to the tier-6 staff's numbers (the id and the name stay; its old row is untouched, as above). */
   demoncaller_staff: Object.freeze({
     row: Object.freeze({ n: 'Demoncaller', icon: '🪄', v: 13000, type: 'weapon', slot: 'weapon', weaponType: 'magic', discipline: 'restoration', twoHanded: true,
@@ -127,6 +121,6 @@ const SAMPLE = {
 };
 /* THE SAMPLE AS IT SHIPS: each row's base stats DERIVED (src/data/gear-profiles.js; tools/gen-gear.mjs writes them under
    'special:<id>', since a hidden row's id can be a live item's too): a row with a `base` is that standard piece at its item Level (the
-   attribute on top), one without sits on its ladder by its stated `statPlus`. */
+   attribute on top), one without (a shield) is its ladder's piece at its own item Level. */
 export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>
   [id, Object.freeze({ ...s, row: withGearStats({ [id]: s.row }, 'special:')[id] })]))));

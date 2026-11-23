@@ -22,6 +22,8 @@
 //   tip      the tooltip, in the doc's genre style: {pct} is the rank's shown percent (GEAR_STEPS.shownPct.rank), {gain} a trade's (shownPct.tradeGain)
 //   trade    a gain with a cost (#37): offense rises by GEAR_STEPS.tradeSteps and defense FALLS by traitSteps while `when` holds.
 //            Net it is never over one rank's budget (tests/gear-steps.mjs GS-4)
+//   fixedOn  optional: { itemId: rank } for a named piece that always carries this Trait in place of a roll (the designer, lane/named-pieces
+//            2026-11-23, docs/design/redesign/28-named-pieces.md outcome (b)); the item is its slot's plain piece. tests/gear-stats.mjs GSF-8
 //   startMin a floor on the stock the hero STARTED THE HUNT with, for a Trait whose `when` reads running low (#36): a Trait that pays
 //            for few arrows left counts only when the hunt began with at least twice that many, so packing 50 arrows never keeps it on
 //
@@ -101,7 +103,9 @@ export const TRAITS = Object.freeze({
     when: W('party_hp_pct', 'lt', 50), tip: '+{pct}% healing while the party is below 50% health' }),
   /* cape */
   captains_due: T({ n: 27, name: 'Captain\'s Due', slot: 'cape', raises: 'offense', key: 'boss', source: 'muster_barrows', seat: 'melee_dps',
-    when: W('target_is_boss', 'eq', true), tip: '+{pct}% damage vs bosses' }),
+    when: W('target_is_boss', 'eq', true), tip: '+{pct}% damage vs bosses',
+    /* a named piece that always carries it, at this rank (docs/design/redesign/28-named-pieces.md (b)): the Barrow-King's Mantle */
+    fixedOn: Object.freeze({ barrowking_mantle: 1 }) }),
   raised_colors: T({ n: 28, name: 'Raised Colors', slot: 'cape', raises: 'offense', key: 'boss', scope: 'party', source: 'krells_hold', seat: 'melee_dps',
     when: W('target_is_boss', 'eq', true), tip: 'Party: +{pct}% damage vs bosses' }),
   crag_shelter: T({ n: 29, name: 'Crag Shelter', slot: 'cape', raises: 'defense', key: 'dry_guard', source: 'wyvern_roost', seat: 'healer',

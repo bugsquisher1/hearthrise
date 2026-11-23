@@ -102,7 +102,7 @@ const MAGIC_ROLE_WEAPON = Object.freeze({ destruction: 'wand', restoration: 'sta
 
 /** The WEAPON_ROLES key an equipped weapon item plays: a magic weapon by its discipline
  *  (wand / staff), any other by its weaponType; 'neutral' for no weapon. Every magic weapon
- *  names its discipline (roadmap p23, m03: the Demoncaller staff and the Void Censer heal, the
+ *  names its discipline (roadmap p23, m03: the Demoncaller staff and the Banishing Censer heal, the
  *  Whispering Codex and the Voidmaw Scepter strike; tests/hunt-core/roles.mjs holds it); one
  *  that named none would fall to the Mage. */
 export function roleWeaponOf(item) {

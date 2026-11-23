@@ -378,6 +378,11 @@
         "bytes": 3753516,
         "on": "2026-11-23",
         "why": "+223 B: JSDoc type notes (damage.js guard, abilities cast, world-step inst, statuses validate) clearing typecheck-ratchet after the talent-effects merge"
+      },
+      {
+        "bytes": 3740177,
+        "on": "2026-11-23",
+        "why": "cut locked in (13339 bytes)"
       }
     ]
   }

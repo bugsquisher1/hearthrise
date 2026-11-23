@@ -386,7 +386,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    carried whole. ...AND lane/econ-levers FOLDED INTO it (2026-11-22, still STAGED): hr_hunt_basic_supplies' derived store prices
    (src/data/store-kit.js) and the vendor values that follow the crafted partners' price list. ...AND lane/bar-metrics FOLDED INTO it (2026-11-22,
    still STAGED): hr_hunt_world_shape moves (a unit's lastMove, src/core/hunt/abilities.js PERSISTED: the bar's last_move test). */
-export const OUT_NAME = '1058-hunting-blocks-hunt-sessions-catalogue.generated.sql';
+/* 1069-gear-phase-b-hunt-sessions-catalogue (lane/gear-phase-b, 2026-11-23): the step tiers' 124 pieces join the vendor values, weapon kinds and
+   shields. A forward file carrying 1058 (STAGED) whole: its rows name items 1065 adds to hr_items, and 1058 replays before 1065. */
+export const OUT_NAME = '1069-gear-phase-b-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

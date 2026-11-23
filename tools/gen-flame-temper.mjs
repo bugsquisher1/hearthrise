@@ -19,7 +19,9 @@ import { isMain } from '../tests/_is-main.mjs';
 import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '1063-flame-temper-catalogue.generated.sql';
+/* lane/gear-phase-b (2026-11-23) moved it here: the step tiers' 124 pieces join hr_item_levels. A forward file carrying 1063 (STAGED) whole: its rows
+   name items 1065 adds to hr_items, and 1063 replays before 1065. */
+export const OUT_NAME = '1069-gear-phase-b-flame-temper-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* where each twin is pinned */

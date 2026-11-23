@@ -64,11 +64,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    seed or Blessing row moves. hr_stamina_refill reads the row at the purchase and the quote projects it, so no body and no edge waits on it. */
 /* THE STORE'S DERIVED PRICES (lane/econ-levers, 2026-11-22), FOLDED INTO this still-STAGED forward file: the crafted supplies' price list follows
    src/data/store-kit.js, and every store rune's crafted partner gets its price-list row (the buy-back cap). Nothing new is sold. */
-/* ONE STORE CEILING (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md K-3): tools, outfitter pieces, plain jewels and seeds at
-   src/data/store-kit.js storeAsk. A NEW forward file, not a fold into 1009: its self-check reads hr_hunt_vendor_value, whose bids
-   1072-prices-wage-hours-hunt-sessions-catalogue re-issues against these prices, so it must replay after 1072 (a cheaper seed's old bid
-   would read over half its new price at 1009's place). The same full delete+insert replace. */
-export const OUT_NAME = '1073-prices-wage-hours-alpha-catalogue.generated.sql';
+/* ONE STORE CEILING (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md K-3), FOLDED INTO this still-STAGED forward file: tools,
+   outfitter pieces, plain jewels and seeds at src/data/store-kit.js storeAsk, and the shop's buy-back cap laid on the standing bids (a
+   lowered price caps its bid in this file, so its self-check holds before 1058 re-issues the bids, and on a second apply after it). */
+export const OUT_NAME = '1009-approved-rows-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -231,6 +230,13 @@ revoke all on public.hr_shop_supply_offers, public.hr_stamina_refill_rule
 delete from public.hr_shop_supply_offers;
 insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
 ${offers.map((o) => `  (${sq(o.offer)}, ${sq(o.item)}, ${sq(o.kind)}, ${o.price})`).join(',\n')};
+
+-- THE BUY-BACK CAP IS THE SHOP'S (catalogue.js SHOP_BUYBACK_RATE 0.5; lane/prices-wage-hours, 2026-11-23): the vendor bids at most half
+-- the shop's price for a tool, piece or seed it sells. A price this file lowers (K-3: the late seeds) caps the standing bid with it, so
+-- the invariant holds whichever catalogue file replays first; the hunt-sessions catalogue re-issues every bid from the same data rule.
+update public.hr_hunt_vendor_value v set unit = o.price / 2
+  from public.hr_shop_supply_offers o
+ where o.item_id = v.item_id and o.kind in ('tool', 'gear', 'seed') and v.unit * 2 > o.price;
 
 delete from public.hr_stamina_refill_rule;
 insert into public.hr_stamina_refill_rule (id, base, per_level, max_min, per_day, step_num, step_den)

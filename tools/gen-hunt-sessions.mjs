@@ -386,10 +386,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
    carried whole. ...AND lane/econ-levers FOLDED INTO it (2026-11-22, still STAGED): hr_hunt_basic_supplies' derived store prices
    (src/data/store-kit.js) and the vendor values that follow the crafted partners' price list. ...AND lane/bar-metrics FOLDED INTO it (2026-11-22,
    still STAGED): hr_hunt_world_shape moves (a unit's lastMove, src/core/hunt/abilities.js PERSISTED: the bar's last_move test). */
-/* lane/prices-wage-hours (2026-11-23): the training items' price in hours of wage and the seeds' bids under the store's one ceiling, in a NEW
-   forward file AFTER 1071 (hr_items: the training items' book, which this file's self-check reads) and BEFORE 1073 (the shop's prices, whose
-   self-check reads these bids). The next change moves OUT_NAME again. */
-export const OUT_NAME = '1072-prices-wage-hours-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '1058-hunting-blocks-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

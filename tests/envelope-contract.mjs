@@ -259,6 +259,12 @@ function contract(R, cs, body, tl) {
   need('hunt_setup', !!hs && typeof hs === 'object' && !Array.isArray(hs) && hk.every((k) => R.CO.groundSetupOf(cs, k) === hs[k] && Number.isInteger(hs[k]))
     && R.CO.groundSetupOf(cs, 'no_such_ground') === null,
     'groundSetupOf over ' + JSON.stringify(hs));
+  // the watched mark (1060-watched-stamp.sql `watched`, hunt-sections.js watchedOf): the last viewed ask's numbers, named on a return
+  const wm = R.HS.watchedOf(cs);
+  const hw = R.HS.huntOf(cs);
+  need('watched', !!wm && !!hw && wm.s === hw.sessionId && wm.h === hw.huntId && Number.isSafeInteger(wm.at) && wm.xp >= 0 && wm.lv >= 1
+    && Number.isSafeInteger(wm.kills) && Number.isSafeInteger(wm.gold) && Number.isSafeInteger(wm.sp),
+    'watchedOf yields ' + JSON.stringify(wm) + ' from ' + JSON.stringify(body.watched));
   // the Danger scale (1056-danger-scale.sql `danger`, danger-sections.js dangerOf): a hero that never picked a Risk, hunting a tier ground
   const dg = R.DG.dangerOf(cs);
   need('danger', !!dg && dg.risk === null && dg.playing === null && typeof dg.held === 'object',
@@ -430,7 +436,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
-  'work_day', 'gold_estimate']);
+  'work_day', 'gold_estimate', 'watched']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -538,6 +544,11 @@ async function realBody(db, M, H) {
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
   /* THE UNMARKED CATACOMBS (2027-05-08-catacombs.sql): the descent's switch, on for everyone inside this test's transaction only */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'unmarked_catacombs'");
+  /* THE WATCHED MARK (1060-watched-stamp.sql): a viewed ask's note (the engine's own call), then half an hour with no ask, so the
+     section names it as a return's first read would */
+  await H.one(db, 'select public.hr_hunt_watch_note($1::uuid, 0)', [H.UIDS[0]]);
+  await db.query(`update public.hunt_watch set at = at - interval '30 minutes', mark = jsonb_set(mark, '{at}', to_jsonb((mark->>'at')::bigint - 1800000))
+                   where user_id = $1 and slot = 0`, [H.UIDS[0]]);
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -683,6 +694,9 @@ const DB_MUTANTS = [
   ['recruits', 'public.hr_recruit_offer(uuid)', "    'ready', v_lv >= r.at_level,", "    'is_ready', v_lv >= r.at_level,"],
   ['recruits', 'public.hr_recruit_offer(uuid)', "    'slots', to_jsonb(v_free[1:r.recruit_count]),", "    'free', to_jsonb(v_free[1:r.recruit_count]),"],
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],
+  /* lane/watched-stamp: the away card judges a return from the mark's session and its Level XP */
+  ['watched', 'public.hr_hunt_watch_note(uuid,integer)', "  v_m := jsonb_build_object('s', v_s.id,", "  v_m := jsonb_build_object('session', v_s.id,"],
+  ['watched', 'public.hr_hunt_watch_note(uuid,integer)', "                            'xp', v_xp, 'lv', public.hr_char_level(v_xp))", "                            'level_xp', v_xp, 'lv', public.hr_char_level(v_xp))"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

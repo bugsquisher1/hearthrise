@@ -77,3 +77,5 @@ These older files lead with STAGED and ask for a Security review. Most are almos
 - Every value movement lands in `player_ledger`. Grep the release's files for `hr_apply` calls without a journal kind.
 - The edge engine is part of the surface: `hr-accrue` verbs `company_wear` (H-3) and the Danger scale's settle (H-4). The deploy's `payload_sha256` must match `pack-edge --hash`.
 - Section 3.7's other gates: the full mutation sweep green with no waivers, census re-pins after every apply, the combat replay for any engine deploy.
+
+- **1060-watched-stamp** (2026-11-22): new `hunt_watch` table (RLS on, no policies) and `hr_hunt_watch_note`, callable only by `hr_engine` (refuses client roles in its body); the `watched` section feeds the away card. Review: no client path writes it; the engine grant is the only writer.

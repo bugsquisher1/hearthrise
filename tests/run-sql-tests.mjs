@@ -686,6 +686,9 @@ const ALSO_LINTED = [
   /* THE NARROW TOWN READ (lane/c-settle-cost FB-4, 2026-11-21): the engine grant
      (hr_tick_town_state, hr_engine only; the detector entry is 1032's link 25) and its revokes are linted here. */
   '1048-narrow-town-read.sql',
+  /* THE WATCHED STAMP (lane/watched-stamp, 2026-11-22): the engine grant (hr_hunt_watch_note, hr_engine only; the detector entry is
+     1032's link 25), the section's and the gap's revokes and the table's are linted here. */
+  '1060-watched-stamp.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

@@ -3,14 +3,17 @@ V1 on catacomb_flooded_wing (4 seeds x 12 h, held step read from hour 4; step 0 
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       473.6 +- 5.7     -4.6  56.1  79.8   37.3    4.2     0.6    151.1      3     0  7 (3/0/7)                     2.8  {"hold":5409,"climb":1652,"fall":187,"death":3} first deaths at h 5,4.5,5.8
+base:steady       511.6 +- 7.4     -1.9  47.5  79.2   34.6    3.9     0.7    159.8      3     0  11 (3/0/11)                     4  {"hold":5651,"climb":1800,"fall":214,"death":3} first deaths at h 5,5.7,9.4
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady         0.7x  sd 0.02  n 4  window 2.8 h  seeds 0.69 0.73 0.69 0.7
+  base:steady        1.97x  sd 0.07  n 4  window 4 h  seeds 1.87 2.05 1.95 2
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L185  coin 3482 +- 292  income 6453 +- 446  store 27239  loot by band: common 1754, uncommon 977, scarce 0, other 241  n 4
+  base:steady       L185  coin 49923 +- 2644  income 52890 +- 2525  store 6391  kit share 0.12 (meal 164, drink 973, charge 2302, shot 2951)  loot by band: common 1707, uncommon 1027, scarce 0, other 233  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
-wall 54 s
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.763  bow 0.059  mage 0.083  healer 0.095
+
+wall 41 s

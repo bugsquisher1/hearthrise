@@ -58,7 +58,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SNAP = JSON.parse(readFileSync(join(ROOT, 'tools/balance-sim/level-pace.json'), 'utf8'));
 
 /* C7: the Level each scale ground's refStep was measured at (src/data/danger.js: muster_barrows 590, the Steady four at Level 60; lane/r10: Hask's
-   Ford 590 at 45 to 55 in its own tier's kit (held 573 and 594; at 62 the four wears Muster's tier and holds deeper), each wing 430 / 405 at 175) */
+   Ford 590 at 45 to 55 in its own tier's kit (held 573 and 594; at 62 the four wears Muster's tier and holds deeper), each wing 480 / 440 at 175) */
 export const REF_LEVEL = { muster_barrows: 60, hasks_ford: 45, catacomb_bone_wing: 175, catacomb_flooded_wing: 175 };
 const C7_BAND = 0.2, C7_OVER = 10, C7_SEEDS = 3, C7_HOURS = 2;
 const MIXED = ['hammer', 'bow', 'mage', 'healer'];

@@ -52,62 +52,62 @@
    "start": 0,
    "seedsRead": 4,
    "payX": {
-    "mean": 0.75,
-    "sd": 0.01,
+    "mean": 1.88,
+    "sd": 0.02,
     "n": 4,
     "perSeed": [
-     0.74,
-     0.76,
-     0.76,
-     0.75
+     1.85,
+     1.87,
+     1.89,
+     1.9
     ],
     "fromH": 4,
     "windowH": 8
    },
    "held": {
-    "mean": 511.7,
-    "sd": 2.9,
-    "se": 1.5,
+    "mean": 544.3,
+    "sd": 2.6,
+    "se": 1.3,
     "perSeed": [
-     508,
-     515,
-     513,
-     510
+     541,
+     543,
+     547,
+     546
     ]
    },
-   "drift": 1.2,
-   "within10": 51.1,
-   "within20": 87.3,
-   "changesPerH": 28.9,
-   "fallsPerH": 3.2,
+   "drift": -0.2,
+   "within10": 55.7,
+   "within20": 88.6,
+   "changesPerH": 27.8,
+   "fallsPerH": 3,
    "reachH": 0.8,
-   "pullsPerH": 131.4,
-   "killsPerH": 619,
-   "xpPerHeroH": 751756,
+   "pullsPerH": 131.8,
+   "killsPerH": 625,
+   "xpPerHeroH": 1837892,
    "gold": {
     "coinPerHeroH": {
-     "mean": 2912,
-     "sd": 37,
+     "mean": 43871,
+     "sd": 117,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 4971,
-     "sd": 48,
+     "mean": 45922,
+     "sd": 162,
      "n": 4
     },
     "storePerHeroH": {
-     "mean": 28424,
-     "sd": 297,
+     "mean": 6804,
+     "sd": 21,
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 978,
-     "sd": 11,
+     "mean": 983,
+     "sd": 23,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 830,
-     "sd": 32,
+     "mean": 826,
+     "sd": 33,
      "n": 4
     },
     "scarcePerHeroH": {
@@ -116,10 +116,28 @@
      "n": 4
     },
     "otherPerHeroH": {
-     "mean": 252,
-     "sd": 37,
+     "mean": 243,
+     "sd": 19,
      "n": 4
     }
+   },
+   "kit": {
+    "meal": 169,
+    "drink": 962,
+    "charge": 2383,
+    "shot": 3289
+   },
+   "kitIds": {
+    "salted_lobster": 6.5,
+    "plain_dawnpoint_arrows": 548.2,
+    "plain_etched_fire_rune": 36.5,
+    "plain_graven_fire_rune": 48.1,
+    "plain_graven_ice_rune": 110.6,
+    "plain_earth_rune": 3,
+    "plain_graven_poison_rune": 34.3,
+    "plain_graven_earth_rune": 61.5,
+    "plain_graven_water_rune": 206.9,
+    "thin_carrot_juice": 60.2
    },
    "deaths": 0,
    "wipes": 0,
@@ -127,18 +145,36 @@
    "huntedH": 12,
    "fourH": 8,
    "firstDeathH": [],
-   "nearWipes": 3,
+   "nearWipes": 1,
    "nearWithDeath": 0,
-   "nearWarned": 1,
-   "nearFellAfter": 3,
+   "nearWarned": 0,
+   "nearFellAfter": 1,
    "whys": {
-    "hold": 4719,
-    "climb": 1439,
-    "fall": 147
-   }
+    "hold": 4787,
+    "climb": 1407,
+    "fall": 129
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.945
+    },
+    {
+     "style": "bow",
+     "mean": 0.013
+    },
+    {
+     "style": "mage",
+     "mean": 0.019
+    },
+    {
+     "style": "healer",
+     "mean": 0.024
+    }
+   ]
   }
  },
- "wallS": 36,
+ "wallS": 41,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

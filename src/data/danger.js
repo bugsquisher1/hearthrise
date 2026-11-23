@@ -137,19 +137,21 @@ export const DANGER_GROUNDS = Object.freeze({
      top Level held to refStep + PAY.gapMax (the pay stops there too), floorStep as far under refStep as the top is over. A step is a step of
      the ground's own rows, so the bands read alike. refKillsHead: the MID four's kills a head an hour at its held reference (the hours
      table is split over the ground's own kill rate, src/core/hunt/danger.js refKillsOf): on PAY.refKillsHead's 120, Hask's Ford's four
-     earned 1.79x the table at its reference, the wings 1.09x and 1.22x. Never under PAY.refKillsHead (the server's one ceiling a kill).
+     earned 1.79x the table at its reference, the wings 1.2x and 1.0x (kills a head 156 and 150). Never under PAY.refKillsHead (the server's one ceiling a kill).
        hasks_ford (45-60)       MID 52: 587.8 +- 2.5   BIS 60: 734.9 +- 20.3 (held to 710)   LOW 45: 476.3 +- 2.3 (depth 1-2)   0 deaths
                                 (MID 45: 573.4, MID 55: 594.2, both in its own tier's kit: 0.85x and 1.02x the table, tests/level-curve.mjs C7)
-       catacomb_flooded_wing    MID 175: 403.9 +- 1.6  BIS 185: 473.6 +- 5.7                 LOW 165: 263.8 +- 1.2 (depth 1)    deaths: LOW 2, BIS 3 in 4 days
-       catacomb_bone_wing       MID 175: 432.1 +- 2.2  BIS 185: 511.7 +- 2.9                 LOW 165: 343.4 +- 3.1 (depth 1)    deaths: LOW 1 in 4 days
+       catacomb_flooded_wing    MID 175: 439.0 +- 0.7  BIS 185: 511.6 +- 7.4                 LOW 165: 263.8 +- 1.2 (depth 1)    deaths: LOW 2, BIS 3 in 4 days
+       catacomb_bone_wing       MID 175: 481.7 +- 2.3  BIS 185: 544.3 +- 2.6                 LOW 165: 343.4 +- 3.1 (depth 1)    deaths: LOW 1 in 4 days
+     (the wings re-read after lane/econ-levers' one-sided gear weight, which lifted the MID four 50 and 35 steps there: its kits sit under
+     item Level 160; the LOW cells predate it and only sit deeper now, still at depth 1)
      The wings are staged, and their Steady deaths (C-3: none) are owed a monster fit before they open (catacomb-wings.js).
      NOT ON THE SCALE (measured the same way, 2026-11-22): Krell's Hold died on Steady in every seed-day at Levels 85, 97 and 110 (4 of 4
      each), Pyre Field in 1 to 3 of 4 (and drops two ladder tiers, Muster's and Krell's), against 12-targets C-3's none. They wait for their
      monsters' fit, not for a band. */
   muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows') }),
   hasks_ford: Object.freeze({ refStep: 590, floorStep: 470, topStep: 710, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford') }),
-  catacomb_bone_wing: Object.freeze({ refStep: 430, floorStep: 350, topStep: 510, refKillsHead: 130, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing') }),
-  catacomb_flooded_wing: Object.freeze({ refStep: 405, floorStep: 335, topStep: 475, refKillsHead: 145, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing') }),
+  catacomb_bone_wing: Object.freeze({ refStep: 480, floorStep: 415, topStep: 545, refKillsHead: 155, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing') }),
+  catacomb_flooded_wing: Object.freeze({ refStep: 440, floorStep: 370, topStep: 510, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing') }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

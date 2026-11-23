@@ -283,6 +283,11 @@
         "bytes": 3359200,
         "on": "2026-11-23",
         "why": "lane/r10-more-grounds (merged onto set/v0.2.144): the Catacombs' wings as scale grounds and their folds, the band top and per-ground kill rate, scale item Levels"
+      },
+      {
+        "bytes": 3359453,
+        "on": "2026-11-23",
+        "why": "lane/r10-more-grounds: the measured wing bands and their notes in src/data/danger.js"
       }
     ]
   }

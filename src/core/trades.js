@@ -15,7 +15,7 @@
 //                     finePm    fineBase + (fineTop - fineBase) x (L - R) / (99 - R)
 //                     masterPm  masterTop x (L - R) / (99 - R), only with the Mastery
 //                     speedPm   1000 + (speedAt99 - 1000) x L / 99
-//                     xpPm      1000 within xp.window Levels of R, then falling in a straight line to xp.floor over the next window
+//                     xpPm      1000 within xp.windowLevels Levels of R, then falling in a straight line to xp.floor over the next window
 //   TRADE XP        tradeXpTable(): XP to reach each Level, XP counted in seconds of work (09 4.5: hours h(n) = h1 x curve^(n-1), summing
 //                   to hoursTo99); a job's XP is its worked ms x xpPm / 10^6
 //   VALUE           V = work-hours x townWageShare x wage(item step) x life factor (13-market 3.2); item step = band x tierSteps + the
@@ -50,7 +50,7 @@ export const TRADE_PM = Object.freeze({
   masteryReturn: pm(TRADE_LEVERS.yield.masteryReturn), benchMax: pm(TRADE_LEVERS.yield.benchMax),
   fineBase: pm(TRADE_LEVERS.quality.fineBase), fineTop: pm(TRADE_LEVERS.quality.fineTop), masterTop: pm(TRADE_LEVERS.quality.masterTop),
   qualitySteps: TRADE_LEVERS.quality.steps, speedAt99: pm(TRADE_LEVERS.speedAt99),
-  xpWindow: TRADE_LEVERS.xp.window, xpFloor: pm(TRADE_LEVERS.xp.floor), xpPerHour: TRADE_LEVERS.table.xpPerHour,
+  xpWindow: TRADE_LEVERS.xp.windowLevels, xpFloor: pm(TRADE_LEVERS.xp.floor), xpPerHour: TRADE_LEVERS.table.xpPerHour,
   jobFee: pm(TRADE_LEVERS.jobFee), townWageShare: pm(STORE_KIT.townWageShare), storeCeiling: pm(STORE_KIT.storeCeiling),
   storeLag: TRADE_LEVERS.store.lagSteps, floorShare: pm(TRADE_LEVERS.store.floorShare), storeBudget: pm(TRADE_LEVERS.store.budgetHours),
   toolMs: Math.round(TRADE_LEVERS.tool.hours * HOUR_MS), toolLifeRung: pm(TRADE_LEVERS.tool.lifeRung),

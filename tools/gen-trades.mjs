@@ -576,7 +576,7 @@ async function selftest() {
   plant('a ladder whose last rung opens past Level 98', (k, l) => { l.rungs.span = 11; });
   plant('a yield that starts at its cap', (k, l) => { l.yield.atReq = 1.25; });
   plant('a store that bids at its ask', (k, l) => { l.store.floorShare = 1.5; });
-  plant('an XP window narrower than a rung', (k, l) => { l.xp.window = 5; });
+  plant('an XP window narrower than a rung', (k, l) => { l.xp.windowLevels = 5; });
   plant('a stream cover under one (it floods)', (k, l) => { l.cover.common_part = 0.9; });
   plant('a material that is a made good', (k) => { k.meal.from = [{ kind: 'honing_stone', share: 1 }]; });
   plant('material shares that do not sum to one', (k) => { k.arrow.from = [{ kind: 'shaft', share: 0.6 }]; });

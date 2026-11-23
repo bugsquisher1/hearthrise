@@ -428,6 +428,11 @@
         "bytes": 3780987,
         "on": "2026-11-23",
         "why": "+234 B: re-measured BORROW_VALUES rows (lane/roads-v0-remeasure)"
+      },
+      {
+        "bytes": 3782813,
+        "on": "2026-11-23",
+        "why": "+1,826 B: refHeld field + refHeldOf and depthRarePm on the reference hold (lane/depth-reading-fix)"
       }
     ]
   }

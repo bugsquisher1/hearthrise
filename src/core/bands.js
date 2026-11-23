@@ -8,8 +8,9 @@
 //                                04 section 1's rating: L + wGear x (gear - L) + wSkill x (skillLevel - L), thousandths, rounded once
 //   bandAbs(groundId)            { floorPm, refPm, topPm }: the band's three companies as ratings (null off the scale, or a ground whose
 //                                hunt has no Level band)
+//   refHeldOf(groundId)          the own step the reference company HOLDS on the ground: the bridge's middle point (null off the scale)
 //   absPmOf(groundId, step)      the absolute step (thousandths) of a ground's OWN step: straight between the bridge's three measured
-//                                points (floorStep, refStep, topStep at the band's three ratings), the end segments' slopes past them
+//                                points (floorStep, refHeldOf, topStep at the band's three ratings), the end segments' slopes past them
 //   depthAt(groundId, step)      "Depth N of 20" (1..DEPTHS): the band cut evenly in ABSOLUTE steps, half up; null off the scale
 // One home for the depth: the browser's danger-sections.js depthOf and the edge's drop-rate.js depthOf both read depthAt.
 //
@@ -60,13 +61,21 @@ export function bandAbs(groundId) {
   };
 }
 
-/* THE BRIDGE'S POINTS of a ground: [own step, absolute thousandths] at its floor, reference and top, ordered (null when not ordered) */
+/** The own step the reference company HOLDS on `groundId`, the bridge's middle point: the row's `refHeld` (a formula ground, whose
+    refStep is the chosen anchor; src/data/danger.js says why), else its refStep (the band rule cuts it from that hold). Null off the scale. */
+export function refHeldOf(groundId) {
+  const g = rowOf(groundId);
+  if (!g) return null;
+  return g.refHeld === undefined ? g.refStep : g.refHeld;
+}
+
+/* THE BRIDGE'S POINTS of a ground: [own step, absolute thousandths] at its floor, reference hold and top, ordered (null when not ordered) */
 const POINTS = new Map();
 function pointsOf(groundId) {
   if (POINTS.has(groundId)) return POINTS.get(groundId);
-  const g = rowOf(groundId), b = g ? bandAbs(groundId) : null;
-  const p = b && g.floorStep < g.refStep && g.refStep < g.topStep && b.floorPm < b.refPm && b.refPm < b.topPm
-    ? Object.freeze([[g.floorStep, b.floorPm], [g.refStep, b.refPm], [g.topStep, b.topPm]]) : null;
+  const g = rowOf(groundId), b = g ? bandAbs(groundId) : null, m = g ? refHeldOf(groundId) : null;
+  const p = b && Number.isInteger(m) && g.floorStep < m && m < g.topStep && b.floorPm < b.refPm && b.refPm < b.topPm
+    ? Object.freeze([[g.floorStep, b.floorPm], [m, b.refPm], [g.topStep, b.topPm]]) : null;
   POINTS.set(groundId, p);
   return p;
 }

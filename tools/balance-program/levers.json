@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "516961434b31c25f",
+ "authored": "2010748fad059f39",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 760,
-  "typed": 17040,
+  "typed": 17041,
   "files": 260,
   "lever": 334,
   "notLever": 426,
@@ -3076,7 +3076,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 31,
+    "mentionCount": 32,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3149,7 +3149,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3309,7 +3309,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3443,7 +3443,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4316,7 +4316,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7796,7 +7796,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 244,
+     "line": 250,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7838,15 +7838,15 @@
     ],
     "mentions": [
      "tests/alpha-server.mjs",
+     "tests/bands.mjs",
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/shell-core.mjs",
-     "tests/tower-board.mjs",
-     "tests/tower-chest.mjs"
+     "tests/tower-board.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7865,19 +7865,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 251,
+     "line": 257,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 252,
+     "line": 258,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 253,
+     "line": 259,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7941,7 +7941,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 271,
+     "line": 277,
      "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
      "binding": "HOLDER"
     }
@@ -8145,12 +8145,12 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 199,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 205,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) are the BRIDGE of the band in absolute steps (src/core/bands.js, lane/foundations-block): the own step the formula's fresh and strong companies hold, through which \"Depth N of 20\" is cut evenly in absolute steps; refLevel is the Level its reference company was measured at (27 K-5); the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)",
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (12-targets 3.1 and danger.js BAND_RULE) are the BRIDGE of the band in absolute steps (src/core/bands.js, lane/foundations-block): the own step the formula's fresh and strong companies hold, through which \"Depth N of 20\" is cut evenly in absolute steps; refLevel is the Level its reference company was measured at (27 K-5); the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead). refHeld (lane/depth-reading-fix, 12-targets 3.1a): on a formula ground refStep is the chosen anchor of its monsters and pay, so the reference four's measured hold is refHeld, the bridge's middle point (src/core/bands.js refHeldOf) and the Rare odds' x1 (src/core/drop-rate.js); pay, the top and the monsters read refStep",
    "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
    "touches": "the absolute pay on that ground (each step off it is payStepXp)",
    "outcomes": [
@@ -8198,7 +8198,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)",
+    "what": "the scale grounds: refStep, floorStep / topStep, refKillsHead, refHeld, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)",
     "homes": [
      "src/data/danger.js#DANGER_GROUNDS"
     ]
@@ -8219,7 +8219,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 220,
+     "line": 226,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8494,9 +8494,10 @@
      "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8601,9 +8602,10 @@
      "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8665,9 +8667,10 @@
      "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
+     "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8686,7 +8689,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 120,
+     "line": 133,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8750,13 +8753,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 122,
+     "line": 135,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 123,
+     "line": 136,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8815,7 +8818,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 125,
+     "line": 138,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8877,7 +8880,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 126,
+     "line": 139,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8939,13 +8942,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 128,
+     "line": 141,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 129,
+     "line": 142,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -11668,43 +11671,43 @@
    "sites": [
     {
      "file": "src/data/drop-hours.js",
-     "line": 52,
+     "line": 53,
      "text": "chDigits: 3,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 55,
+     "line": 56,
      "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 56,
+     "line": 57,
      "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 57,
+     "line": 58,
      "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 62,
+     "line": 63,
      "text": "depthPm: Object.freeze([1000, 3000]),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 63,
+     "line": 64,
      "text": "topRankPm: 500,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 64,
+     "line": 65,
      "text": "topRankMaxPm: 800,",
      "binding": "DROP_HOURS"
     }
@@ -11834,8 +11837,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 199,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 205,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -11909,8 +11912,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 199,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 205,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -17600,6 +17603,7 @@
     "floorStep",
     "gearLevel",
     "ladderTier",
+    "refHeld",
     "refKillsHead",
     "refLevel",
     "refStep",

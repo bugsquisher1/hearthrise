@@ -32,6 +32,30 @@ const hex = (h) => parseInt(h.slice(1), 16);
 
 /* THE RAMPS, dark to light, each colour a palette colour (tests/pixel-icons.mjs palette rule). Keyed by a tier's word id. */
 export const RAMPS = Object.freeze({
+  /* damask: patterned steel, iron into steel */
+  damask: Object.freeze(['#2c2e33', '#3a4652', '#4a4d54', '#5c6c7a', '#8a9aa8', '#c4ccd2']),
+  /* hornbeam: a hard pale wood, earth's light end */
+  hornbeam: Object.freeze(['#3d2a1d', '#553a26', '#8a6440', '#a88457', '#c49a5c', '#c9bfa0']),
+  /* horsehide: a warm brown hide */
+  horsehide: Object.freeze(['#2a1c14', '#4a2e18', '#6e4c30', '#7a4f26', '#a8743a', '#cfa25c']),
+  /* fustian: a dull work cloth, stone into earth */
+  fustian: Object.freeze(['#3a3a3e', '#553a26', '#6a6865', '#8a6440', '#8a867d', '#a88457']),
+  /* electrum: pale gold and silver, bronze into gold and bone */
+  electrum: Object.freeze(['#4a2e18', '#7a4f26', '#a8743a', '#cfa25c', '#e8c547', '#e6dcbc']),
+  /* blackthorn: a near-black wood, shadow into earth */
+  blackthorn: Object.freeze(['#0b0a0c', '#17141a', '#231d1f', '#2f2723', '#3d2a1d', '#553a26']),
+  /* oxhide: a dark red-brown hide */
+  oxhide: Object.freeze(['#2a1c14', '#3e1216', '#553a26', '#5e1a1f', '#6e4c30', '#8a6440']),
+  /* worsted: a gray wool, stone */
+  worsted: Object.freeze(['#2f2723', '#3a3a3e', '#4f4e52', '#6a6865', '#8a867d', '#aaa49a']),
+  /* cobalt: a blue ore, water into frost */
+  cobalt: Object.freeze(['#17141a', '#1a2c44', '#2b4a6a', '#3a4652', '#4fa8e8', '#a8e4ff']),
+  /* juniper: a twisted green-brown wood, leaf into moss */
+  juniper: Object.freeze(['#16241a', '#1f3322', '#3d2a1d', '#2c4a2c', '#557a3e', '#73944c']),
+  /* drakehide: a scaled green hide, leaf into venom */
+  drakehide: Object.freeze(['#16241a', '#2c4a2c', '#3d6234', '#557a3e', '#73944c', '#7ccf4a']),
+  /* samite: a rich red silk, cloth into torch */
+  samite: Object.freeze(['#3e1216', '#5e1a1f', '#8e1f1f', '#c23a2a', '#f2a03a', '#ffd36a']),
   /* wolfram: the heavy gray ore, shadow into stone */
   wolfram: Object.freeze(['#17141a', '#2f2723', '#3a3a3e', '#4f4e52', '#6a6865', '#8a867d', '#aaa49a']),
   /* rowan: a red wood, earth into blood */
@@ -51,7 +75,7 @@ function rampOf(img) {
 
 /** Icon `src` re-dyed into `ramp` by rank (ladder-icons.mjs redye, with a ramp of the palette in place of a reference icon). */
 export function dye(src, ramp) {
-  const img = read(src), from = rampOf(img), to = ramp.map(hex);
+  const img = read(src), from = rampOf(img), to = ramp.map(hex).sort((a, b) => lum(a) - lum(b));
   const map = new Map(from.map((c, r) => [c, to[Math.round((r * (to.length - 1)) / Math.max(1, from.length - 1))]]));
   for (let i = 0; i < img.data.length; i += 4) {
     if (!img.data[i + 3]) continue;

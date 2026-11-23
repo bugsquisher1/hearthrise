@@ -30,6 +30,18 @@ import { SLOT_ITEMS } from './slot-ladders.js';
    and each word one line here, its root; every piece of the tier reads "A <its name>." and its word's line, so a new tier is four lines and
    never thirty-one. The naming pass and the writer may give any piece its own line in the literal below, which wins. */
 const STEP_LORE = Object.freeze({
+  damask: 'Damask is patterned steel, folded the way the carters like their knives',
+  hornbeam: 'Hornbeam is the hard pale wood the carters cut their axles from',
+  horsehide: 'Horsehide comes off the old nags in the stables at Carter\'s Rest',
+  fustian: 'Fustian is the tough cloth every carter and coachman on the road wears',
+  electrum: 'Electrum is pale gold and silver run together, the metal of the road\'s coin',
+  blackthorn: 'Blackthorn is the wood every drover on the Ox Road cuts his stick from',
+  oxhide: 'Oxhide comes off the yoke teams that pull the wagons up the Ox Road',
+  worsted: 'Worsted is spun from the drovers\' own wool and woven tight',
+  cobalt: 'Cobalt is the blue ore of the Roost\'s crags, and the miners blame the kobolds for it',
+  juniper: 'Juniper grows twisted on the ledges where the wyverns nest',
+  drakehide: 'Drakehide is cut from the wyverns of the Roost and dries hard as a board',
+  samite: 'Samite is the heavy silk the wyverns carry up to line their nests',
   wolfram: 'Wolfram is the heavy gray ore the vault cutters struck deep under Havora',
   rowan: 'Rowan is the wood the Keepers hang over the dead to keep them down',
   eelskin: 'Eelskin is slick and tough, tanned from what swims in the Flooded Wing',

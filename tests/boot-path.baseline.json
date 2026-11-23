@@ -286,6 +286,12 @@
         "gzipBytes": 956021,
         "on": "2026-11-23",
         "why": "re-measured talent borrow values (lane/roads-v0-remeasure)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 960641,
+        "on": "2026-11-23",
+        "why": "lane/gear-phase-b: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B), +4.5 KB gzip to town: 124 new gear rows the bag, the market and the item card read (their generated stats in gear-stats.generated.js, the four step-tier rows and their builders in gear-tiers.js, shields.js and slot-ladders.js, their lines in item-descriptions.js) and base-drops.js, the homes' drop rows hunt-grounds.js folds in. Catalogue data the town reads at once, not an import() on need"
       }
     ]
   }

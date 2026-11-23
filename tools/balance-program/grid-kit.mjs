@@ -146,7 +146,9 @@ export async function loadKits(root, opts = {}) {
       base = gear.kitOf(style, L, { ground, ...opts });
       for (const k of Object.keys(base)) reasons[k] = 'the start kit (under Level 15)';
     } else if (state === 'low' && bandOf(L) <= LADDER_TOP) {
-      opts = { tierOffset: STATES.low.ladder.tierOffset, only: STATES.low.ladder.only || 'all' };
+      /* past 110 the ladder runs on steps (src/data/gear-tiers.js STEP_TIERS) and its homes are staged grounds: one tier under the Level's own,
+         read with the staged grounds the Level has been sent to open, as MID reads them (lane/gear-phase-b) */
+      opts = { tierOffset: STATES.low.ladder.tierOffset, only: STATES.low.ladder.only || 'all', ...(staged.length ? { openAlso: staged } : {}) };
       base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...opts });
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) reasons[k] = 'the ladder, one tier under the Level\'s (tier ' + tierOf(base[k]) + ')';
     } else if (state === 'low') {

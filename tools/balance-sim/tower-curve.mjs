@@ -12,6 +12,9 @@
 //   --from           the floor each climb starts on (1, or a landing + 1: a checkpoint, Tyler 2026-11-16). A list (1,101,151) plays each start
 //   --minutes        the most a climb may run (the server ends it on a death, a floor's time or stamina)
 //   --bands lo:hi    the bands reported, ten floors each (51-60 is "60"), lo and hi landings
+//   --staged         the played party also wears what the STAGED grounds whose floor is at or under its Level drop (gear.mjs openAlso, the
+//                    grid kit's rule, tools/balance-program/grid-kit.mjs stagedUpTo): the gear past Dawnsteel whose homes are built and
+//                    hidden (src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b), so the climb reads the Level's own base as content opens
 //
 // Each climb is ONE cell (cell.mjs `tower`: the Tower's ground in its own session mode, an ended hero settled no more, one segment a seed), so
 // every number is the engine's own: each floor's room (pull to pull) gives every seat a low HP %, a death gives 0 on the floor it fell. Per band:
@@ -91,10 +94,18 @@ export async function measure(o) {
   const { loadCellRunner } = await import(u('tools/balance-sim/cell.mjs'));
   const { TOWER_RULES } = await import(u('src/data/tower.js'));
   const R = o.runner || await loadCellRunner(ROOT);
+  /* --staged: the staged grounds a hero of the Level has been sent to (its floor at or under the Level), opened for the kit */
+  let gear = null;
+  if (o.staged && !o.seats) {
+    const G = await import(u('src/data/hunt-grounds.js')), { HUNT_INDEX } = await import(u('src/data/hunts.js'));
+    const floorOf = (g) => ((HUNT_INDEX[G.HUNT_GROUNDS[g].hunt] || {}).band || [Infinity])[0];
+    gear = { openAlso: Object.keys(G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g) && floorOf(g) <= o.level) };
+    if (o.say) o.say('  staged grounds opened for the kit: ' + (gear.openAlso.join(', ') || 'none'));
+  }
   const climbs = [];
   for (const from of o.starts) for (let s = 0; s < o.seeds; s++) {
     const cell = { id: 'tower:' + from + ':' + s, ground: TOWER_RULES.hunt, tower: { floor: from }, hours: o.minutes / 60, seeds: 1, seedBase: (o.seedBase || 0) + s,
-      windowMs: o.windowMs || 30000, ...(o.seats ? { seats: o.seats } : { party: o.party, level: o.level, profile: 'played', supply: 'own' }) };
+      windowMs: o.windowMs || 30000, ...(o.seats ? { seats: o.seats } : { party: o.party, level: o.level, profile: 'played', supply: 'own', ...(gear ? { gear } : {}) }) };
     const t0 = Date.now();
     const c = climbOf(R.runCell(cell));
     c.secs = Math.round((Date.now() - t0) / 1000);
@@ -109,9 +120,9 @@ if (isMain(import.meta.url)) {
   const seats = val('--seats', null) ? JSON.parse(readFileSync(val('--seats'), 'utf8')) : null;
   const [lo, hi] = val('--bands', '50:200').split(':').map(Number);
   const o = { starts: val('--from', '1').split(',').map(Number), minutes: Number(val('--minutes', 70)), seeds: Number(val('--seeds', 4)), seedBase: Number(val('--seed-base', 0)),
-    party: val('--party', 'tank,bow,mage,healer').split(','), level: Number(val('--level', 74)), seats, windowMs: Number(val('--window', 30000)), say: console.log };
+    party: val('--party', 'tank,bow,mage,healer').split(','), level: Number(val('--level', 74)), seats, windowMs: Number(val('--window', 30000)), staged: a.includes('--staged'), say: console.log };
   const { keyForLanding } = await import(u('src/data/chests.js'));
-  console.log(`THE BURNING TOWER BY FLOOR BAND: ${seats ? seats.length + ' recorded seats' : 'a played ' + o.party.join('+') + ' at Level ' + o.level}, from ${o.starts.join(', ')}, ${o.seeds} seed(s), ${o.minutes} min at most`);
+  console.log(`THE BURNING TOWER BY FLOOR BAND: ${seats ? seats.length + ' recorded seats' : 'a played ' + o.party.join('+') + ' at Level ' + o.level + (o.staged ? ' (staged homes open)' : '')}, from ${o.starts.join(', ')}, ${o.seeds} seed(s), ${o.minutes} min at most`);
   const climbs = await measure(o);
   console.log('\n| Start | Top floor (each climb) | Ended | Minutes | Level XP an hour a head | Keys a climb (each) |\n|---|---|---|---|---|---|');
   for (const from of o.starts) {

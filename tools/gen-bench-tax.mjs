@@ -19,6 +19,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { wholeViewOrRerun } from './pack/whole.mjs';
 import { BENCH_TAX, BENCH_TAX_ROOMS, BENCH_TAX_UNTAXED, BENCH_TAX_FREE_UNDER_MG, benchTaxed } from '../src/data/bench-tax.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ROOM_RUNGS } from '../src/data/homestead-tiers.js';
@@ -141,7 +142,10 @@ function selftest() {
   console.log('gen-bench-tax --selftest: every refusal bites');
 }
 
-if (isMain(import.meta.url)) {
+/* THE SERVED VIEW (tools/pack/whole.mjs): the rates are rendered for the recipes the served catalogue holds, as gen-catalogues renders hr_activities,
+   so a job whose input is a staged pack's item (a step tier's made piece, src/data/slot-ladders.js STEP_MADE) waits with its pack here too
+   (lane/gear-phase-b: read whole, the two catalogues agreed on every recipe they both name, and a rate for a recipe the server lacks is none) */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_FILE)) {
   if (process.argv.includes('--selftest')) selftest();
   else if (process.argv.includes('--check')) {
     const was = await readFile(OUT, 'utf8').catch(() => '');

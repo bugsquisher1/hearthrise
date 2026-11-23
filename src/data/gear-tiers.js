@@ -91,6 +91,22 @@ const SHIPPED_TIERS = [
    (loot-bands.js gearSaleRate). STARTING VALUES, NOT RULINGS: the words are this lane's (short real words with a root, never a mood word,
    no other game's names) and the naming pass may move any of them in one place; the pace and the book are levers the designer owns. */
 const STEP_TIERS = [
+  /* item Level 100, worn from 90. Carter's Rest, the carters' inn in the Morrow Hills: damask is the patterned steel of a good carter's knife,
+     hornbeam the hard pale wood their axles and mallets are cut from, horsehide off the stable's old nags, fustian the tough cloth carters and
+     coachmen wear */
+  { step: 5, id: 'damask', name: 'Damask', wood: ['hornbeam', 'Hornbeam'], leather: ['horsehide', 'Horsehide'], cloth: ['fustian', 'Fustian'],
+    homes: ['carters_rest'],
+    parts: { ring: 'pewter_spoon', earrings: 'stable_bit', necklace: 'coal_tongs', cape: 'cellar_tally' } },
+  /* item Level 120, worn from 110. The Ox Road: electrum the pale gold-and-silver of the road's trade coin, blackthorn the drovers' sticks,
+     oxhide off the yoke teams, worsted the drovers' wool */
+  { step: 6, id: 'electrum', name: 'Electrum', wood: ['blackthorn', 'Blackthorn'], leather: ['oxhide', 'Oxhide'], cloth: ['worsted', 'Worsted'],
+    homes: ['ox_road'],
+    parts: { ring: 'runners_tin', earrings: 'wagon_pin', necklace: 'ox_shoe', cape: 'waybill' } },
+  /* item Level 140, worn from 130. Wyvern Roost: cobalt the blue ore of the crags (the miners named it for the kobolds they blamed for it),
+     juniper the twisted wood that grows on the ledges, drakehide off the wyverns, samite the silk the wyverns carry up to their nests */
+  { step: 7, id: 'cobalt', name: 'Cobalt', wood: ['juniper', 'Juniper'], leather: ['drakehide', 'Drakehide'], cloth: ['samite', 'Samite'],
+    homes: ['wyvern_roost'],
+    parts: { ring: 'gizzard_stone', earrings: 'tail_spur', necklace: 'fire_gland', cape: 'stolen_fleece' } },
   /* item Level 160, worn from 150. The Catacombs under Havora: wolfram is the heavy grey ore the vault cutters struck (its old name, wolf's
      foam), rowan the tree hung over the dead to keep them down, eelskin the hide of what lives in the Flooded Wing, cerecloth the waxed linen
      the Keepers wrap the dead in */

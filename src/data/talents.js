@@ -126,10 +126,10 @@ export const COUNTRY_ROADS = Object.freeze({
   restoration: Object.freeze(['greater_mend', 'circle_of_renewal', 'spring_tide', 'green_sickness', 'protective_ward']),
   /* the full map (lane/roads-countries). Parry (Sword) and Gash (Dual Axe) join in wave 3 with their rows. Stagger replaces Quarry Blow
      then, so until it does the club's one road of its own is Turning Cut (17 section 5) */
-  sword: Object.freeze(['power_strike']),
+  sword: Object.freeze(['power_strike', 'flame_strike']),
   club: Object.freeze(['turning_cut']),
   dual_axe: Object.freeze(['rend']),
-  ranged: Object.freeze(['precision_shot']),
+  ranged: Object.freeze(['precision_shot', 'hunters_mark']),
   destruction: Object.freeze(['frost_lance']),
 });
 
@@ -321,6 +321,19 @@ const SWORD_NODES = [
         [react('power_strike_break', 'hit', 'status', { of: 'power_strike', status: 'armor_break' }), mod('power_strike', { outPm: -100 })], 'party'),
       opt('rallying_strike', 'Rallying Strike', 'After Power Strike: +2% damage for 4 s', [step('offense', 6, 'rallying_strike', 'cast:power_strike:4000')])],
     way('Light Grip', 'Power Strike −2 mana', [mod('power_strike', { mana: -2 })])),
+  /* Finishing and Opening Strike read the target's health line, which has no seam: Flame Strike's picks are what the burn leaves behind */
+  ...road(SW, 'flame_strike', 'power_strike.x1',
+    [opt('searing_strike', 'Searing Strike', 'Sick 6 s · −15% damage',
+      [react('flame_sicken', 'hit', 'status', { of: 'flame_strike', status: 'sickness' }), mod('flame_strike', { outPm: -150 })], 'party'),
+      opt('smoldering_strike', 'Smoldering Strike', 'Hits again for 30% 3 s later · −10% damage',
+        [react('flame_echo', 'hit', 'echo', { of: 'flame_strike', pm: 300, ms: 3000 }), mod('flame_strike', { outPm: -100 })], true),
+      opt('cowing_flame', 'Cowing Flame', 'Weakened 8 s · −15% damage',
+        [react('flame_weaken', 'hit', 'status', { of: 'flame_strike', status: 'weakened' }), mod('flame_strike', { outPm: -150 })], 'solo')],
+    way('Hot Iron', 'Flame Strike +5% damage', [mod('flame_strike', { outPm: 50 })]),
+    [opt('bright_flame', 'Bright Flame', '+20% damage · +3 mana', [mod('flame_strike', { outPm: 200, mana: 3 })], true),
+      opt('cheap_flame', 'Cheap Flame', '−40% mana · −20% damage', [mod('flame_strike', { manaPm: -400, outPm: -200 })]),
+      opt('mana_flame', 'Mana Flame', 'Hits: +2% mana', [react('flame_mana', 'hit', 'mana', { of: 'flame_strike', pm: 20 })])],
+    way('Kindling', 'Flame Strike −2 mana', [mod('flame_strike', { mana: -2 })])),
 ];
 
 /* ── CLUB (17 section 5: Turning Cut lives here; Stagger joins in wave 3). The club lane runs full: no cooldown cuts ── */
@@ -372,6 +385,17 @@ const RANGED_NODES = [
       opt('pinning_shot', 'Pinning Shot', 'Chill 2 s', [react('precision_chill', 'hit', 'status', { of: 'precision_shot', status: 'chill', ms: 2000 })], 'solo'),
       opt('mana_shot', 'Mana Shot', 'Hits: +1% mana', [react('precision_mana', 'hit', 'mana', { of: 'precision_shot', pm: 10 })])],
     way('Steady Draw', 'Precision Shot −2 mana', [mod('precision_shot', { mana: -2 })])),
+  /* The mark's own numbers (its 20% and 8 s) have no seam: Hunter's Mark's picks are what marking does for the archer. It sits on the
+     support lane, so its cooldown may be cut */
+  ...road(RA, 'hunters_mark', 'precision_shot.x1',
+    [opt('hunters_focus', 'Hunter\'s Focus', 'After Mark: +2% damage for 8 s', [step('offense', 6, 'hunters_focus', 'cast:hunters_mark:8000')], true),
+      opt('quick_mark', 'Quick Mark', '−3 s cooldown', [mod('hunters_mark', { cdMs: -3000 })]),
+      opt('calm_mark', 'Calm Mark', 'Mark: +3% mana', [mod('hunters_mark', { manaOnCastPm: 30 })])],
+    way('Light Mark', 'Hunter\'s Mark −2 mana', [mod('hunters_mark', { mana: -2 })]),
+    [opt('stalking_mark', 'Stalking Mark', 'After Mark: −3% damage taken for 8 s', [step('defense', 8, 'stalking_mark', 'cast:hunters_mark:8000')], 'solo'),
+      opt('ready_mark', 'Ready Mark', 'Kills: Mark ready 2 s sooner', [react('mark_reset', 'kill', 'reset', { move: 'hunters_mark', ms: 2000, capMs: 4000 })], 'party'),
+      opt('sharp_mark', 'Sharp Mark', 'After Mark: +4% damage for 4 s', [step('offense', 11, 'sharp_mark', 'cast:hunters_mark:4000')])],
+    way('Quick Hand', 'Hunter\'s Mark −1 s cooldown', [mod('hunters_mark', { cdMs: -1000 })])),
 ];
 
 /* ── DESTRUCTION (17 section 5: four moves; Frost Lance is the wand's first road, 17 section 13). The wand's offense lane runs 78% full:

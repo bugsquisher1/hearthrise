@@ -22,13 +22,16 @@ const SLOTS = Object.freeze(['weapon', 'shield', 'helmet', 'body', 'pants', 'boo
 export const GEAR_SLOTS = SLOTS;
 const PROJECTED_NOTES = Object.freeze(['linings (every socket, to the 40% cap)', 'perks on 12 seats', 'worn in', 'Necrotic and Storm', 'faction skills']);
 
-/** The grid lane's kit PLAN ({ kit: { slot: id }, temper: { 'temper:<track>:<tier>': rung } | null, projectedAdds }) in this file's shape. Pure. */
+/** The grid lane's kit PLAN ({ kit: { slot: id }, temper: { 'temper:<track>:<tier>': rung } | null, projectedAdds, traits? }) in this file's
+    shape (`traits`: the Traits its pieces carry, [{ id, rank }], only on a Rare or Very Rare kit). Pure. */
 export function fromGridPlan(plan) {
   const slots = {};
   for (const s of SLOTS) if (plan && plan.kit && plan.kit[s]) slots[s] = plan.kit[s];
   const upgrades = [];
   for (const [k, rung] of Object.entries((plan && plan.temper) || {})) for (let r = 1; r <= rung; r++) upgrades.push(k + ':' + r);
-  return { slots, upgrades, notes: ((plan && plan.projectedAdds) || []).map((a) => a.id + ' (ruled, not built)') };
+  /* the Traits its pieces carry (grid-kit.mjs traitPlans: a Rare and Very Rare kit), when the plan has any */
+  return { slots, upgrades, notes: ((plan && plan.projectedAdds) || []).map((a) => a.id + ' (ruled, not built)'),
+    ...(plan && Array.isArray(plan.traits) && plan.traits.length ? { traits: plan.traits.map((t) => ({ ...t })) } : {}) };
 }
 
 export async function loadKits(root, D) {

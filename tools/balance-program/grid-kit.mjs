@@ -6,6 +6,8 @@
 //                                                            Tempering rungs, the skill offset, a what-if (projected rows), the sources
 //                                                            that are ruled but not built
 //   K.kitCost(plan)                                       -> the gold of a plan's pieces and rungs (Shop price, else book value)
+//   await K.traitPlans(kind, plans, { rates, taken })     -> the Traits each plan's pieces carry, for a party (Rare and Very Rare kits:
+//                                                            tools/balance-program/trait-kits.mjs lucky | theory | census:<k>), on plan.traits
 //
 // EVERY KIT IS A RULE ON THE GAME'S DATA. Nobody types a kit: the three states of standards.mjs GEAR_STATES are applied to src/data through
 // tools/balance-sim/gear.mjs kitOf (the ladder, the reachable sources, the staged uniques, the Hearth Chest's pieces), the accessory rule
@@ -32,6 +34,7 @@ import { pathToFileURL } from 'node:url';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 import { GEAR_STATES, POWER_SOURCES, stretchOf } from './standards.mjs';
 import { PROJECTED, projectedBand, lineKit } from './grid-project.mjs';
+import { loadTraitKits } from './trait-kits.mjs';
 
 export const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 export const JEWEL_SLOTS = Object.freeze({ ring1: 'ring', ring2: 'ring', earrings: 'earrings', necklace: 'necklace', cape: 'cape' });
@@ -253,5 +256,24 @@ export async function loadKits(root, opts = {}) {
       set, reasons, whatIfItems: Object.keys(items).length ? items : null, projectedBand: base.projectedBand });
   }
 
-  return { kitFor, mixPlan, shopSells: (id) => SHOP_PRICE.has(id), temperTiers: T.TEMPER_TIERS, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
+  /**
+   * THE RARE AND VERY RARE KITS (tools/balance-program/trait-kits.mjs; the engine plays them, src/core/hunt/trait-rules.js): the Traits each
+   * plan's pieces carry, for a party at once (a party-wide Trait is worn once). `kind` 'lucky' | 'theory' | 'census:<k>' | null (plain);
+   * o.rates / o.taken: a theory's census (trait-kits.mjs theoryKits). Each plan gains `traits` [{ id, rank }]; answers the kits by seat.
+   */
+  async function traitPlans(kind, plans, o = {}) {
+    if (!kind) return plans.map(() => null);
+    const TK = await loadTraitKits(root);
+    const rooms = plans.map((p) => TK.traitRoomOf(p.kit, ITEMS));
+    const seats = plans.map((p) => STYLES[p.style].role);
+    let kits;
+    if (kind === 'lucky') kits = seats.map((s, i) => TK.luckyKit(s, rooms[i]));
+    else if (kind === 'theory') kits = TK.theoryKits(seats, rooms, o.rates || {}, o.taken || []);
+    else if (/^census:\d+$/.test(kind)) kits = rooms.map((r) => TK.censusKit(Number(kind.slice(7)), r));
+    else throw new Error('grid-kit: no Trait kit ' + kind + ' (lucky, theory, census:<k>)');
+    plans.forEach((p, i) => { p.traits = kits[i]; });
+    return kits;
+  }
+
+  return { kitFor, mixPlan, traitPlans, shopSells: (id) => SHOP_PRICE.has(id), temperTiers: T.TEMPER_TIERS, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
 }

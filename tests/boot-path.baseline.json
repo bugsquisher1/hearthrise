@@ -280,6 +280,12 @@
         "gzipBytes": 956019,
         "on": "2026-11-23",
         "why": "eleven refusal lines for Talents and faction pieces (lane/ci-reds-db-1123)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 956021,
+        "on": "2026-11-23",
+        "why": "re-measured talent borrow values (lane/roads-v0-remeasure)"
       }
     ]
   }

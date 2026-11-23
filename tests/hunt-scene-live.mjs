@@ -956,19 +956,24 @@ async function nodeRules(M) {
   }
 
   { // LV-36 A RELOAD MID-HUNT NEVER READS "1 / 415" (live v0.2.114, Corliss alone at Mosslight, up to a minute a reload).
-    // The real session over the real engine, a Level 21 tank alone at Mosslight. The page loads (a read), then asks its
+    // The real session over the real engine, a tank alone at Mosslight (the report's was Level 21). The page loads (a read), then asks its
     // first settle, whose window runs from the last commit: 16 s when the page was open until the reload, two minutes
     // when it was closed or frozen and the server settled late. No start point has landed yet (the 1 HP span).
     const reload = async (spanMs) => {
-      const mk = () => { const m = LIVE_H.memberOf(LM, 'a', 0, 'tank', 21); m.huntId = 'mosslight_glade'; return m; };
+      /* Level 26, inside Mosslight's band (16 to 31): the harness tank wears a Bronze Sword and a Practice Shield and no armour, and
+         since the named pieces and the tuning pass (weightGearBelowPm 750) that kit at Level 21 dies 64 s into the closed window, so the
+         case never ran (the world ended and the decode threw). At 26 it holds 191 of 400 HP through two minutes. */
+      const mk = () => { const m = LIVE_H.memberOf(LM, 'a', 0, 'tank', 26); m.huntId = 'mosslight_glade'; return m; };
       const mis = [mk()], twinMis = [mk()];
       const srv = LIVE_H.server(LM, mis, { hunt: 'mosslight_glade' }), twin = LIVE_H.server(LM, twinMis, { hunt: 'mosslight_glade' });
-      const heroOf = (s) => LM.WS.decodeStored(JSON.parse(s.inst.world)).units.find((u) => u.side === 'hero');
+      /* null once the hunt has ended (the instance's world is cleared): the CONTROL below says so instead of a throw */
+      const heroOf = (s) => (s.inst.world ? LM.WS.decodeStored(JSON.parse(s.inst.world)).units.find((u) => u.side === 'hero') : null);
       const FROM = LIVE_H.T0 + 60000, TO = FROM + spanMs, OFF = 3000000;
       srv.commit(FROM); twin.commit(FROM);
       /* the engine's own HP through the window, swing by swing (a twin server that commits every swing) */
       let low = Infinity;
-      for (let t = FROM + LM.CB.tickMs; t <= TO; t += LM.CB.tickMs) { twin.commit(t); low = Math.min(low, heroOf(twin).hp); }
+      for (let t = FROM + LM.CB.tickMs; t <= TO; t += LM.CB.tickMs) { twin.commit(t); const h = heroOf(twin); low = Math.min(low, h ? h.hp : 0); if (!h) break; }
+      if (low <= 0) return { first: null, start: null, low, floor: 0, apart: 0, end: null, truth: null, max: null, running: false };
       const clock = { t: TO - OFF };
       let version = LIVE.version;
       const env = () => {

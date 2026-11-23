@@ -834,13 +834,14 @@ const cases = {
     return casts(sc).length === 1 ? null : 'Challenge fired with every monster already on the tank';
   },
   /* THE LANES (roadmap p12; Tyler 2026-10-23: offense 2 s, support 2 s, healing 1 s): every row that strikes nothing
-     and heals nothing (the Challenge, the Hunter's Mark) and every SHIELD rides the support lane; a heal the heal lane;
-     the rest offense. A support cast leaves the offense lane free: Hunter's Mark, then Precision Shot the next sub-step. */
+     and heals nothing (the Challenge, the Hunter's Mark, a status landed alone: Frost Slam's ring, the sword's Parry) and every
+     SHIELD rides the support lane; a heal the heal lane; the rest offense. A support cast leaves the offense lane free: Hunter's
+     Mark, then Precision Shot the next sub-step. */
   'support-lane': (M) => {
     const L = M.AD.ABILITY_LANES;
     if (L.offense !== 2000 || L.support !== 2000 || L.heal !== 1000 || Object.keys(L).length !== 3) return 'the lanes are ' + JSON.stringify(L);
     for (const r of Object.values(M.AD.ABILITIES)) {
-      const want = r.target === 'taunt' || r.target === 'mark' || M.AD.shells(r) || (M.AD.AREA_TARGETS.includes(r.target) && !M.AD.landsBlow(r)) ? 'support' : M.AD.heals(r) ? 'heal' : 'offense';
+      const want = M.AD.heals(r) ? 'heal' : M.AD.landsBlow(r) ? 'offense' : 'support';
       if (r.lane !== want) return r.id + ' rides ' + r.lane + ', want ' + want;
     }
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });

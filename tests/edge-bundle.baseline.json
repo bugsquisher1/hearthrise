@@ -395,7 +395,12 @@
         "why": "+33,442 B: the Roads' whole map, src/data/talents.js from the sample (103 nodes) to every country and border (269 nodes, 171 options), read by the engine through core/talents.js grantsOf"
       },
       {
-        "bytes": 3777816,
+        "bytes": 3777956,
+        "on": "2026-11-23",
+        "why": "+190 B: factions.js stock rows and stockPrice (lane/factions-morrow-hills), read by the engine's ground side lookup"
+      },
+      {
+        "bytes": 3778006,
         "on": "2026-11-23",
         "why": "+50 B: Hask's Ford drop chances re-derived at three significant digits by gen-drop-hours --write after the tuning pass's refKillsHead 235 (lane/ci-reds-client-1123)"
       }

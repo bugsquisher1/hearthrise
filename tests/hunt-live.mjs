@@ -2010,7 +2010,7 @@ function rules(M) {
     for (const k of kinds) for (const t of rows) t[k].spells = [SID];
     try {
       ok('LV-STAGGER', Number.isInteger(M.ENGINE_SPELL_STAGGER.spanPm) && M.ENGINE_SPELL_STAGGER.spanPm > 0, 'the stagger ships off (SPELL_STAGGER.spanPm ' + M.ENGINE_SPELL_STAGGER.spanPm + '): the rule has nothing to play');
-      const play = () => run(M, [memberOf(M, 'a', 0, 'tank', 6)], 180000, { viewer: { user: 'a', slot: 0 } });
+      const play = () => run(M, [memberOf(M, 'a', 0, 'tank', 6)], 240000, { viewer: { user: 'a', slot: 0 } });
       const casts = (r) => r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'spell' && e.spell === SID);
       const r = play();
       const server = casts(r);

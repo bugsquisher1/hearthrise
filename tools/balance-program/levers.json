@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 716,
-  "typed": 16629,
+  "typed": 16641,
   "files": 247,
   "lever": 311,
   "notLever": 405,
@@ -2269,7 +2269,7 @@
    "sites": [
     {
      "file": "src/data/library2-items.js",
-     "line": 240,
+     "line": 242,
      "text": "const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];",
      "binding": "AMMO_STR"
     },
@@ -9636,7 +9636,7 @@
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 118,
+     "line": 125,
      "text": "export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
      "binding": "SAMPLE"
     }
@@ -17302,7 +17302,7 @@
     "7",
     "value"
    ],
-   "typed": 38,
+   "typed": 50,
    "bindings": 1
   },
   "src/data/special-attributes.js#SPECIAL_TIERS": {

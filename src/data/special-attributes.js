@@ -64,7 +64,7 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
   }),
   /* + critical chance on basic blows. Weapons only (leather armor carries its own small crit as a standard stat). Its sample piece,
      Widow's Fang, is cut (docs/design/redesign/28-named-pieces.md); the kind stays only for the staged weapon line past Dawnsteel
-     (tools/balance-sim/staged/weapon-line.js), whose sort into Traits or Signatures is 27-formula-overhaul.md 2.3's, still owed. */
+     (the staged line's file under tools/balance-sim/staged), whose sort into Traits or Signatures is 27-formula-overhaul.md 2.3's, still owed. */
   crit: Object.freeze({
     field: 'critB', keys: null, unit: 'chance',
     at: Object.freeze({ 2: 0.06, 3: 0.06, 4: 0.08, 5: 0.08, 6: 0.1, 7: 0.1 }),

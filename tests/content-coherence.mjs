@@ -35,8 +35,9 @@
 //         border two different countries. Red whether live or not
 //   CC-8  every Trait can roll at its home: a Rare rolls its slot first (the piece that dropped), then a Trait of its (ground, slot)
 //         cell (GEAR_STEPS.traitRoll, G8), so a Trait whose home never drops its slot (no monster or ground drop row of an item in that
-//         slot) is one nobody can find. A warning while Traits are hidden, red once GEAR_STEPS.traitsLive is true. Today every cape and
-//         jewelry Trait warns: capes and jewelry are made at a bench, not dropped, so they wait for the roller's answer for made pieces
+//         slot) is one nobody can find. A warning while Traits are hidden, red once GEAR_STEPS.traitsLive is true. Capes and jewelry are
+//         made at a bench, not dropped: a Trait in a made slot (src/data/drop-hours.js made) rolls on a piece made with a part its home
+//         drops (the rule is data until the bench verb lands), so it counts as rollable wherever its home drops one
 // The contract for talents.js and signatures.js (CC-5..CC-7) is 24-content-pipeline.md section 4, written so the Roads sample lane
 // (20-v030-the-roads.md R-S) builds to it. Until then both read as missing, and CC-5 warns once per system.
 // ════════════════════════════════════════════════════════════════════════
@@ -58,6 +59,7 @@ export const SIGNATURE_HOMES = Object.freeze(['ground', 'monster', 'chest']);
 export async function real() {
   const { DANGER_GROUNDS, PAY, DEPTHS } = await imp('src/data/danger.js');
   const { GEAR_STEPS, TRAITS } = await imp('src/data/gear-steps.js');
+  const { DROP_HOURS } = await imp('src/data/drop-hours.js');
   const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
   const { ABILITIES, DISCIPLINE_IDS } = await imp('src/data/abilities.js');
@@ -80,6 +82,9 @@ export async function real() {
   }));
   return {
     dropSlots, roll: plain(GEAR_STEPS.traitRoll || {}),
+    /* a MADE piece (drop-hours.js made, lane/drop-formula): a cape or jewel made with a ground's part rolls from that ground's cell, so a
+       Trait in a made slot can roll wherever its home drops a part (an item carrying made.part) */
+    made: { slots: [...DROP_HOURS.made.slots], parts: Object.fromEntries(Object.entries(HUNT_GROUNDS).map(([id, g]) => [id, [...monstersOn(g)].flatMap((m) => (MONSTERS[m] && MONSTERS[m].drops) || []).concat(g.drops || []).some((r) => ITEMS[r.id] && ITEMS[r.id][DROP_HOURS.made.part])])) },
     danger: plain(DANGER_GROUNDS), pay: { ...PAY }, depths: DEPTHS, tierSteps: GEAR_STEPS.tierSteps,
     grounds: Object.keys(HUNT_GROUNDS), monsters: Object.keys(MONSTERS), chests: HEARTH_CHEST_KEYS.map((k) => k.id),
     traits: plain(TRAITS), traitsLive: GEAR_STEPS.traitsLive === true, prints, pins: plain(pins),
@@ -110,7 +115,7 @@ export function problems(d) {
     if (homes !== 1) reds.push(at + (homes ? 'two drop homes (ladderTier and named)' : 'no drop home (ladderTier or named)'));
     if (!Array.isArray(row.traits)) reds.push(at + 'no Trait pool');
     else {
-      const rollable = row.traits.filter((id) => d.traits[id] && (d.dropSlots[g] || []).includes(d.traits[id].slot));
+      const rollable = row.traits.filter((id) => d.traits[id] && ((d.dropSlots[g] || []).includes(d.traits[id].slot) || (d.made.slots.includes(d.traits[id].slot) && d.made.parts[g] === true)));
       const seats = new Set(rollable.map((id) => d.traits[id].best && d.traits[id].best.seat));
       if (!(seats.size >= (d.roll.seatsMin || 2))) reds.push(at + 'not a fair Trait pool: the ' + rollable.length + ' Traits that can roll here (a slot it drops) serve ' + seats.size + ' seats, under traitRoll.seatsMin ' + d.roll.seatsMin);
     }
@@ -137,7 +142,8 @@ export function problems(d) {
   /* CC-8 */
   const unrollable = {};
   for (const [id, t] of Object.entries(d.traits)) {
-    if (has(d.grounds, t.source) && !(d.dropSlots[t.source] || []).includes(t.slot)) (unrollable[t.source] = unrollable[t.source] || []).push(id + ' (' + t.slot + ')');
+    const made = d.made.slots.includes(t.slot) && d.made.parts[t.source] === true;
+    if (has(d.grounds, t.source) && !made && !(d.dropSlots[t.source] || []).includes(t.slot)) (unrollable[t.source] = unrollable[t.source] || []).push(id + ' (' + t.slot + ')');
   }
   for (const [g, ids] of Object.entries(unrollable)) (d.traitsLive ? reds : warns).push('CC-8 ' + g + ' drops no piece in the slot of ' + ids.join(', ') + ': a Rare rolls its slot first, so these cannot roll there' + (d.traitsLive ? '' : ' (hidden: Traits)'));
   /* CC-4 */
@@ -219,6 +225,7 @@ export const MUTANTS = [
   ['CC-6 a Signature on a move that is not live', (d) => { sample(d, false); d.signatures.rows['sig_' + d.moves[0]].move = 'brand'; }],
   ['CC-7 a node on a move that is not live', (d) => { sample(d, false); d.talents.nodes.push({ id: 'x', kind: 'rank', move: 'brand' }); }],
   ['CC-7 a vow in no country', (d) => { sample(d, false); d.talents.nodes.push({ id: 'v', kind: 'vow', country: 'spear' }); }],
+  ['CC-8 live Traits, a made slot on a home that drops no part', (d) => { d.traitsLive = true; for (const g of Object.keys(d.dropSlots)) d.dropSlots[g] = [...new Set([...d.dropSlots[g], 'weapon', 'shield', 'body', 'pants', 'helmet', 'boots', 'gloves', 'belt'])]; d.made.parts.muster_barrows = false; }],
   ['CC-8 live Traits, one on a slot its home never drops', (d) => { d.traitsLive = true; for (const g of Object.keys(d.dropSlots)) d.dropSlots[g] = [...new Set([...d.dropSlots[g], 'cape', 'necklace', 'ring', 'earrings'])]; d.dropSlots.hasks_ford = d.dropSlots.hasks_ford.filter((s) => s !== 'belt'); }],
   ['CC-7 a border inside one country', (d) => { sample(d, false); d.talents.nodes.push({ id: 'b', kind: 'border', countries: ['club', 'club'] }); }],
 ];

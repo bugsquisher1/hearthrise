@@ -75,7 +75,7 @@ export const COACH_TEXT = Object.freeze({
   leave_cellar: 'Leave the hunt to go back to town',
   more_heroes: { one: 'All characters → Recruit 1 hero', other: 'All characters → Recruit {count} heroes' },
   leave_party: 'Tell your party, then leave the hunt',
-  bless: 'Shop → Services → Bless all {n}',
+  bless: 'Shop → Services → Bless',
   first_eat: 'Cook more {item} before it runs out',
   first_drink_store: 'Plant turnips to brew your own juice',
   first_drink_own: 'Brew more {item} before it runs out',

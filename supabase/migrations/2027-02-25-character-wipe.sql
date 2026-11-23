@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 130 tables): heroes and every row keyed on one; the company's plans; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 131 tables): heroes and every row keyed on one; the company's plans; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -121,6 +121,8 @@ declare
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
     'player_intents', 'player_inventory', 'player_item_rules', 'player_ledger', 'player_ledger_rollup', 'player_outfits', 'player_progress',
     'player_skills', 'player_state', 'player_workers',
+    /* a hero's lifetime count of Talent resets (1063-level-costs.sql): its first reset is free once ever, a wiped hero starts at none */
+    'player_talent_resets',
     'session_claims', 'social_presence', 'town_bodies', 'town_moves', 'town_positions', 'town_seen', 'town_snapshot', 'world_finds'];
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
   c_keep constant text[] := array[
@@ -141,7 +143,7 @@ declare
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_danger_grounds', 'hr_danger_rules', 'hr_danger_stances', 'hr_db_samples', 'hr_depot_config',
     'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
-    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_work_day', 'hr_store_terms', 'hr_store_grounds', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
+    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_level_costs', 'hr_work_day', 'hr_store_terms', 'hr_store_grounds', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',

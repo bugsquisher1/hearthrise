@@ -31,7 +31,8 @@ const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const { BUILD } = await import(u('src/build-info.js'));
 const XP = await import(u('src/core/xp.js') + sourceQuery(ROOT));
 const AR = await import(u('src/core/action-rules.js') + sourceQuery(ROOT));
-const { BLESSING_TIERS, blessingPrice } = await import(u('src/data/blessings.js'));
+const { BLESSING } = await import(u('src/data/blessings.js'));
+const { blessingPrice } = await import(u('src/core/wage.js'));
 const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
 /* the Level pace of record (tools/balance-sim/pace.mjs --write), when it exists */
 const PACE_FILE = join(HERE, 'level-pace.json');
@@ -318,8 +319,8 @@ function deathCost(rate) {
     const x = XP.charXpForLevel(L), mid = x + Math.floor((XP.charXpForLevel(L + 1) - x) / 2);
     const lost = AR.levelDeathLoss(mid);
     const hrs = lost / Math.max(1, rate(L));
-    const blessed = Object.fromEntries(BLESSING_TIERS.map((t) => [t.tier, { hours: round(hrs * (1 - t.xpLossReductionPermille / 1000), 2),
-      gold: BLESSING_TIERS.filter((r) => r.tier <= t.tier).reduce((s, r) => s + blessingPrice(r.tier, L), 0) }]));
+    /* the ONE Blessing (lane/level-costs, 2026-11-22): what a blessed death costs and the Blessing's price at the Level */
+    const blessed = { hours: round(hrs * (1 - BLESSING.cutPm / 1000), 2), gold: blessingPrice(L) };
     return { level: L, xpLostMidLevel: lost, shareOfLevel: round(lost / (XP.charXpForLevel(L + 1) - x), 3), unblessedHours: round(hrs, 2), blessed, extrapolated: L > 50 };
   });
 }
@@ -362,7 +363,7 @@ async function audit() {
       amount: b.heals || b.mana, perSecondAtLane: round((b.heals || b.mana) / (CONSUMABLE_RULES.laneMs / 1000), 1), goldPerPoint: round(b.price / (b.heals || b.mana), 3) })) },
     party: { scale: 'none since 2026-11-08: every monster has its row\'s HP and pays its whole kill for any party size', xpSplit: 'kill XP / living heroes x each hero\'s multiplier (xp-share.js; no party bonus)',
       gold: 'coin split evenly among heroes present, commons round-robin, rares by the 1-100 roll with rotation (party-split.js); store supplies paid by each hero (one purse per account)' },
-    death: { loss: HS.DEATH_XP_LOSS, of: 'total Level XP (it can take a Level)', blessings: BLESSING_TIERS }, stamina: HS.STAMINA_MAX_MS,
+    death: { loss: HS.DEATH_XP_LOSS, hours: HS.DEATH_HOURS, of: 'the lesser of the share of the total Level XP and the hours of progress at the Level (it can take a Level)', blessing: BLESSING }, stamina: HS.STAMINA_MAX_MS,
     gearTiers: GT.MATERIAL_TIERS.map((t) => ({ tier: t.tier, level: t.level })), gearReach: reachTier,
     gearRows: census.length, gearUnreachable: census.filter((r) => !r.source).length,
   };

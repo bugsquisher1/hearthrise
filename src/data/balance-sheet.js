@@ -25,6 +25,7 @@ import { LEVEL_PACE, VITALS } from './core-model.js';
 import { aimFor, evasionFor, raisedHit } from './to-hit.js';
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
+import { bossRole } from './bosses.js';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole
@@ -203,7 +204,7 @@ export const STAT_FORMULA = Object.freeze({
    regular, about 87% on a swarm or glass body, 80% on a heavy and 78% on an elite or boss (the ratio: 1 - 0.15 x evasion). Read
    off the measured proposal the ruling took (tools/balance-sim/staged/tohit-ratio.mjs, retired when this was built; git history): its role factor was the row's
    defense against a regular's, which with the retired def.past term read 0.90-0.93, 1.29-1.39 and 1.43-1.58 from Level 50 to 400. */
-export const MONSTER_ROLES = Object.freeze({
+const BASE_ROLES = Object.freeze({
   /* many and weak: the common majority (rats, whelps) */
   swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, evasion: 0.9, xp: 1.0, gp: 1.0 }),
   regular: Object.freeze({ hp: 1.0, hit: 0, blow: 1.0, def: 1.0, evasion: 1.0, xp: 1.0, gp: 1.0 }),
@@ -213,10 +214,11 @@ export const MONSTER_ROLES = Object.freeze({
   heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, evasion: 1.35, xp: 1.1, gp: 1.0 }),
   /* the bruiser or the rare carrier: much more HP and defense, a full blow */
   elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, evasion: 1.5, xp: 1.15, gp: 1.0 }),
-  /* a ground's boss: a long fight, and a blow held to `floorCap` of the FLOOR hero's base HP (designer 10-21: at most
-     35%; Andy's Sewer death), whatever its own Level */
-  boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, evasion: 1.5, xp: 1.2, gp: 1.0, floorCap: 0.33 }),
 });
+/* A GROUND'S BOSS IS NOT A TYPED ROLE (lane/tower-boss-formula, 2026-11-22; 04-math-strategy.md section 6): it is the elite times its
+   encounter's row (src/data/bosses.js BOSS_KINDS.ground: 5 HP, a 1.1 blow, 1.2 XP, its blow held to `floorCap` of the FLOOR hero's base HP,
+   designer 10-21: at most 35%, Andy's Sewer death), whatever its own Level. Its ramp is its kind's, read by the engine (boss-phases.js). */
+export const MONSTER_ROLES = Object.freeze({ ...BASE_ROLES, boss: bossRole(BASE_ROLES.elite, 'ground') });
 export const ROLE_IDS = Object.freeze(Object.keys(MONSTER_ROLES));
 
 /* THE ROSTER: each monster's role on its ground (designer input; the reason is the row's own comment in

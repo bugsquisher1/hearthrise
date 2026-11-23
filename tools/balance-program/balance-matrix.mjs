@@ -77,9 +77,9 @@ const workersOf = () => Math.max(1, Number(arg('workers', Math.min(MAX_WORKERS, 
 export async function dataView(D, root) {
   if (resolve(root) === ROOT) return D;
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [XP, BS, MON, SB, TI, BL, LB, AR] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js'].map(imp));
+  const [XP, BS, MON, SB, TI, BL, LB, AR, WG] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js', 'src/core/wage.js'].map(imp));
   /* AR: the tree's own death price (progression-grid.mjs deathXpAt), so a patch that moves it moves every reader */
-  return { ...D, XP, BS, MONSTERS: MON.MONSTERS, SB, TI, BL, AR, REVEAL_BANDS: LB.REVEAL_BANDS,
+  return { ...D, XP, BS, MONSTERS: MON.MONSTERS, SB, TI, BL, AR, WG, REVEAL_BANDS: LB.REVEAL_BANDS,
     projectD: { ...D.projectD, MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: BS.tierRowFor, tiersOf: TI.tiersOf } };
 }
 
@@ -900,7 +900,7 @@ async function selftest() {
     const g60 = D.groundAt(60, 1), ham = buildCell(D, K, { L: 60, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: g60 }).cell, mage = buildCell(D, K, { L: 60, gear: 'mid', styles: ['mage'], tier: 'normal', ground: g60 }).cell;
     const jobs = [
       ['real', { ...lethal, hours: 1 }], ['reenter', { ...lethal, deathRule: 'reenter', hours: 1 }],
-      ['apart', pair], ['together', { ...pair, endTogether: true }], ['blessed', { ...pair, blessings: 3 }],
+      ['apart', pair], ['together', { ...pair, endTogether: true }], ['blessed', { ...pair, blessings: 1 }],
       ['plain', { ...ham, hours: 1.5 }], ['buffKept', { ...ham, buffs: [{ type: 'damage', magnitude: 10 }], hours: 1.5 }], ['buffHour', { ...ham, buffs: [{ type: 'damage', magnitude: 10, hours: 1 }], hours: 1.5 }],
       ['stamina', { ...ham, staminaH: 0.1, hours: 0.25 }], ['purseFull', { ...mage, hours: 0.25 }], ['purseDry', { ...mage, purse: 0, goldFloor: 100000, hours: 0.25 }],
     ].map(([id, cell]) => ({ id, cell: { ...cell, id: 'SELF:' + id, seeds: 1 } }));
@@ -915,10 +915,11 @@ async function selftest() {
     /* 9c. ruling 27-1 as amended: own heroes hunt on past a death unless the cell sets endTogether */
     check('a death in a party: the rest hunt on (bow ' + h('apart', 0).hours + ' h after the hammer\'s ' + h('apart', 1).hours + ' h) unless they end together (bow ' + h('together', 0).hours + ' h, ' + Object.keys(h('together', 0).ended || {}).join(',') + ')',
       h('apart', 0).hours > h('apart', 1).hours + 0.05 && (h('together', 0).ended || {}).party_member_died >= 1 && h('together', 0).hours <= h('together', 1).hours + 0.01);
-    /* 9d. Blessings: three cut a death's Level XP loss by 75%, and are bought again (the gold of src/data/blessings.js) */
-    const bw = h('blessed', 0), bl = await import(pathToFileURL(join(ROOT, 'src/data/blessings.js')).href);
-    check('Blessings: three cut the loss to a quarter (' + bw.raw.xpLostLevel + ' -> ' + Math.round(bw.raw.xpLostLevelBlessed) + ') and cost ' + bw.raw.blessingGold + ' gold again',
-      bw.deaths >= 1 && Math.abs(bw.raw.xpLostLevelBlessed - 0.25 * bw.raw.xpLostLevel) < 1 && bw.raw.blessingGold === bw.deaths * [1, 2, 3].reduce((a, t) => a + bl.blessingPrice(t, 60), 0));
+    /* 9d. the ONE Blessing (lane/level-costs) cuts a death's Level XP loss by its cut, and is bought again at the hero's Level (src/core/wage.js) */
+    const bw = h('blessed', 0), bl = await import(pathToFileURL(join(ROOT, 'src/data/blessings.js')).href), wg = await import(pathToFileURL(join(ROOT, 'src/core/wage.js')).href);
+    const keep = 1 - bl.BLESSING.cutPm / 1000;
+    check('the Blessing cuts the loss to ' + keep + ' (' + bw.raw.xpLostLevel + ' -> ' + Math.round(bw.raw.xpLostLevelBlessed) + ') and costs ' + bw.raw.blessingGold + ' gold again',
+      bw.deaths >= 1 && Math.abs(bw.raw.xpLostLevelBlessed - keep * bw.raw.xpLostLevel) < 1 && bw.raw.blessingGold === bw.deaths * wg.blessingPrice(60));
     /* 9e. one timed buff in a cell, kept up all hunt (a row an hour), against an hour of it and against none */
     check('a timed buff: +10% damage kept up deals more than an hour of it, which deals more than none (' + [X.plain, X.buffHour, X.buffKept].map((r) => r.heroes[0].dps).join(' < ') + ')',
       h('buffKept').dps > h('buffHour').dps && h('buffHour').dps > h('plain').dps);
@@ -990,7 +991,7 @@ async function selftest() {
       check('a death is priced by the game: the tree\'s levelDeathLoss at 60 (' + m0.deathXp + ') is the cell\'s deathXp, a planted rule that doubles it doubles it (' + m2.deathXp + ') and moves the S10 rows ('
         + r0.length + '), and a view without action-rules.js is refused',
         m0.deathXp === D.AR.levelDeathLoss(D.XP.charXpForLevel(60)) && Math.abs(m2.deathXp - 2 * m0.deathXp) <= 1 && r0.length > 0 && r0.length === r2.length && r0.every((r, i) => r.value !== r2[i].value) && refused
-        && m0.deathBlessedShare === 1 - D.BL.BLESSING_CUT_PERMILLE[2] / 1000);
+        && m0.deathBlessedShare === 1 - D.BL.BLESSING.cutPm / 1000);
     }
     const leave = planMatrix(D, K, RUNS.subset, { blocks: ['leave'] });
     check('S-6: the four on the harder tiers is played with every hero coming home (' + leave.cells.length + ' leave cells, all endTogether)', leave.cells.length > 0 && leave.jobs.every((j) => j.cell.endTogether === true));

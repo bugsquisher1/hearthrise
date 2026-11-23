@@ -30,6 +30,12 @@
 //       The real engine (tools/balance-program/redesign/held-four.mjs: 3 seeds x 2 h a cell, about 15 s). Ground rows
 //       not on the scale are not judged. A scale ground with no reference Level in REF_LEVEL below is red: name the
 //       Level its refStep was measured at.
+//   C8  THE HOURS FORMULA KEEPS ITS DESIGN (lane/formula-overhaul, 2026-11-22; src/data/core-model.js LEVEL_HOURS, 27-formula-overhaul.md P-1):
+//       the hours a Level takes is a formula, so a lever move is judged on what it promises the player, on the 10 h hunting day:
+//         a  the first day: Level 10 within 10 hunted hours
+//         b  Level 200 is a big deal: 120 to 240 days (1,200 to 2,400 hunted hours)
+//         c  it levels off: no Level takes LEVEL_HOURS.ceiling or more, and Level 2,000 takes under 1.25x Level 400's hours
+//         d  no wall: from Level 2 on, no Level takes more than twice the one before, and none takes less
 // A red C1 is not a curve bug: the content moved. Re-measure (2-3 h on 4 workers:
 // eight careers of ~170 h) and re-pin (C6 reads the reference rate it measured):
 //   node tools/balance-sim/sim.mjs --plan pace --out tools/balance-sim/out/pace
@@ -49,7 +55,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import * as XP from '../src/core/xp.js';
-import { LEVEL_CURVE, LEVEL_PACE } from '../src/data/core-model.js';
+import { LEVEL_CURVE, LEVEL_PACE, LEVEL_HOURS, levelHoursOf } from '../src/data/core-model.js';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
 import { paceFingerprint, loadPaceData, referenceRate } from '../tools/balance-sim/pace.mjs';
 import { playCells, tableRate } from '../tools/balance-program/redesign/held-four.mjs';
@@ -123,6 +129,16 @@ function judge(w) {
       if (!(Math.abs(m.ratio - 1) <= C7_BAND)) out.push(`C7: a Steady four at its held depth on ${g}, Level ${L}, earns ${m.ratio.toFixed(2)}x the hours table (${Math.round(m.xpHeadH)} of ${Math.round(m.table)} Level XP a head an hour; band ${1 - C7_BAND}-${1 + C7_BAND})`);
     }
   }
+  /* C8: the hours formula's promises (w.hours: the engine's hours a Level, src/core/hunt/danger.js hoursForLevel) */
+  {
+    const H = w.hours, cum = (L) => { let t = 0; for (let l = 1; l < L; l++) t += H(l); return t; };
+    if (!(cum(10) <= 10)) out.push('C8a: Level 10 takes ' + cum(10).toFixed(1) + ' hunted hours, more than the first 10 h day');
+    const h200 = cum(200);
+    if (!(h200 >= 1200 && h200 <= 2400)) out.push('C8b: Level 200 takes ' + Math.round(h200) + ' hunted hours (' + Math.round(h200 / 10) + ' days at 10 h), outside 120 to 240 days');
+    for (let L = 1; L <= 5000; L++) if (!(H(L) < w.levelHours.ceiling)) { out.push('C8c: Level ' + L + ' takes ' + H(L) + ' h, at or over the ceiling ' + w.levelHours.ceiling); break; }
+    if (!(H(2000) < 1.25 * H(400))) out.push('C8c: Level 2,000 takes ' + H(2000).toFixed(2) + ' h, 1.25x or more Level 400\'s ' + H(400).toFixed(2) + ': it does not level off');
+    for (let L = 2; L < 3000; L++) { const k = H(L + 1) / H(L); if (!(k >= 1 && k <= 2)) { out.push('C8d: Level ' + (L + 1) + ' takes ' + k.toFixed(2) + 'x Level ' + L + '\'s hours'); break; } }
+  }
   return { out, R };
 }
 
@@ -146,7 +162,8 @@ async function measureHeld({ start } = {}) {
 async function world() {
   const D = await loadPaceData(ROOT);
   return { xpFor: XP.charXpForLevel, rows: XP.levelCurveRows(), curve: JSON.parse(JSON.stringify(LEVEL_CURVE)), snap: SNAP,
-    fingerprint: paceFingerprint(D, SNAP.ceiling), pace: LEVEL_PACE, D, scaleGrounds: Object.keys(DANGER_GROUNDS), held: await measureHeld() };
+    fingerprint: paceFingerprint(D, SNAP.ceiling), pace: LEVEL_PACE, D, scaleGrounds: Object.keys(DANGER_GROUNDS), held: await measureHeld(),
+    hours: (await import('../src/core/hunt/danger.js')).hoursForLevel, levelHours: LEVEL_HOURS };
 }
 /* a new ground on the data: a copy of the Glade under a new id, at `band` (a ground pack's shape, src/data/grounds) */
 const withGround = (w, band) => {
@@ -181,6 +198,11 @@ const MUTANTS = [
   ['C7', 'a kill pays a quarter short at depth', { held: (w) => scaleHeld(w, 0.75) }],
   ['C7', 'a scale ground never measured', { held: (w) => ({ ...w.held, [w.scaleGrounds[0]]: undefined }) }],
   ['C7', 'a second scale ground opens with no reference Level', { scaleGrounds: (w) => [...w.scaleGrounds, 'probe_ground'] }],
+  /* C8 planted on the hours function (a lever move the design would not make) */
+  ['C8', 'the first Levels as slow as Level 50', { hours: () => () => levelHoursOf(50) }],
+  ['C8', 'the ceiling doubled (Level 200 in about 330 days)', { hours: () => (L) => levelHoursOf(L, { ...LEVEL_HOURS, ceiling: 2 * LEVEL_HOURS.ceiling }) }],
+  ['C8', 'the retired hand table back (40 h a Level at 1,000, still rising)', { hours: () => (L) => Math.min(40.32, 0.6 + L * 0.0397) }],
+  ['C8', 'a half point of 1 (full ceiling by Level 2: a wall in the first hour)', { hours: () => (L) => levelHoursOf(L, { ...LEVEL_HOURS, half: 1 }) }],
 ];
 
 async function main() {

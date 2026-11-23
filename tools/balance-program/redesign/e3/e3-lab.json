@@ -1,0 +1,23 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "e3-lab",
+ "why": "E3 (lane/e2-e3-statuses, 20-v030-the-roads.md): a sample aura and a sample shield move on the real engine, held depth against their step budget (22-fists-support.md 2.2 Open Fire and Warm Stone), played on a scratch copy",
+ "edits": [
+  {
+   "file": "src/data/auras.js",
+   "from": "  open_fire: Object.freeze({ id: 'open_fire', name: 'Open Fire', key: 'party_damage', radius: 8, slice: 'build', raises: 'offense', steps: 11 }),\n",
+   "to": "  open_fire: Object.freeze({ id: 'open_fire', name: 'Open Fire', key: 'party_damage', radius: 8, slice: 'build', raises: 'offense', steps: 11 }),\n  open_fire_whole: Object.freeze({ id: 'open_fire_whole', name: 'Open Fire (whole)', key: 'party_damage', radius: 8, slice: 'gear', raises: 'offense', steps: 11 }),\n"
+  },
+  {
+   "file": "src/data/abilities.js",
+   "from": "  ab({ id: 'mend', n: 'Mend',",
+   "to": "  ab({ id: 't_open_fire', n: 'Open Fire', disciplines: ['restoration'], lane: 'support', cdMs: 1000, mana: 0, target: 'aura', aura: 'open_fire' }),\n  ab({ id: 't_open_fire_whole', n: 'Open Fire (whole)', disciplines: ['restoration'], lane: 'support', cdMs: 1000, mana: 0, target: 'aura', aura: 'open_fire_whole' }),\n  ab({ id: 't_warm_stone', n: 'Warm Stone', disciplines: ['club'], lane: 'support', cdMs: 10000, mana: 15, target: 'ally', shieldPm: 1200, base: 20, whenBelowPct: 70 }),\n  ab({ id: 'mend', n: 'Mend',"
+  }
+ ],
+ "assumptions": [
+  "Open Fire as 22 section 2.2 sizes it: +4% damage within 8 tiles, about 11 power steps at the 0.35% step, in the build slice (ramped by Level: 3.3 steps at Level 60)",
+  "Open Fire (whole): the same 11 steps in a slice that does not ramp, so an 11-step offense aura on all four is read at Level 60",
+  "Warm Stone as 22 section 2.2 sizes it: an ally shield of 120% of the hammer's own largest blow, 10 s, 15 mana, on the support lane, cast on an ally under 70% holding no shield (the engine's ally-shield target rule); its wind-up target (L13) is not built"
+ ]
+}

@@ -190,6 +190,12 @@
         "gzipBytes": 920357,
         "on": "2026-11-23",
         "why": "bar-draft condition words moved to the text home (t() rows in text/bar.js), +0.1 KB"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920659,
+        "on": "2026-11-23",
+        "why": "moves pass 1: Challenge default bar, prefers targets and tooltip lines at town"
       }
     ]
   }

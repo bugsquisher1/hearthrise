@@ -313,6 +313,11 @@
         "bytes": 3429063,
         "on": "2026-11-23",
         "why": "lane/e2-e3-statuses: the general status system (statuses.js keys and E2 rows, core/hunt/status-effects.js the one reader, status.js keys/refresh/ground/heal ticks), shields.js (one shield a hero), auras (data/auras.js, core/hunt/auras.js): the engine the edge settles every hunt with"
+      },
+      {
+        "bytes": 3429267,
+        "on": "2026-11-23",
+        "why": "lane/e2-e3-statuses: status-effects.js reads each effect field by name (one reader a field), damage.js keeps its named takenPmOf / slowPmOf"
       }
     ]
   }

@@ -136,7 +136,7 @@ const ARMS = {
   'GE-WORDS': async (X) => {
     const out = [];
     const words = [X.HT.HUNTS_TEXT.gold_about, X.RT.REPORT_TEXT.earned, X.RT.REPORT_TEXT.earned_only, EARNED, 'Est. 4,900 gold/hr (before supplies)'];
-    if (words.some((w) => typeof w !== 'string' || /wage/i.test(w) || /[;—–]/.test(w) || /:s+[a-z]/.test(w))) out.push('a line says wage or is not plain: ' + JSON.stringify(words));
+    if (words.some((w) => typeof w !== 'string' || /wage/i.test(w) || /[;—–]/.test(w) || /:\s+[a-z]/.test(w))) out.push('a line says wage or is not plain: ' + JSON.stringify(words));
     return out;
   },
 };

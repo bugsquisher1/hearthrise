@@ -117,7 +117,7 @@ renderParty.act = function actParty(ctx, body, action, ev, el) {
   if (action === 'invite-name') {
     const box = body.querySelector('.hw-invite-in');
     const name = box.value.trim();
-    if (name.length < 2) { sc.msg = 'Type the name of the player to invite.'; repaint(); return true; }
+    if (name.length < 2) { sc.msg = 'Enter a player name'; repaint(); return true; }
     /* the invitee as the account's own roster spells it when it is one of this account's heroes (the server finds a name in any case) */
     const own = ctx.account && typeof ctx.account.characters === 'function'
       ? ctx.account.characters().map((o) => nameOf(o)).find((n) => typeof n === 'string' && n.toLowerCase() === name.toLowerCase()) : null;

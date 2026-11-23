@@ -163,7 +163,7 @@ async function runTests(M) {
     for (const r of END_ORDER) ok(/^[A-Z][^]*\S$/.test(MD.endWords(r)) && MD.endWords(r) !== 'Hunt ended', r + ' has its own words (a label, Tyler 2026-11-14)');
     ok(MD.endWords('nonsense') === 'Hunt ended', 'an unknown reason still reads');
     /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
-    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + '. Stamina now: 5 h 46 min', 'the stamina end says what is rested');
+    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + ' · Stamina: 5 h 46 min', 'the stamina end says what is rested');
     eq(MD.END_WORDS.stamina, 'Out of stamina · Stamina refills 1 h per hour', 'the stamina end says why and how it comes back');
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', null), MD.END_WORDS.stamina, 'an older hunt, or a server that has not said: no number');
     eq(MD.reasonWords({ reason: 'left' }, 'Pip', 3600000), MD.END_WORDS.left, 'another end says nothing of stamina');
@@ -242,11 +242,11 @@ async function runTests(M) {
     const card = (session) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [])])[0];
     const f = card(sess());
     eq([f.reason, f.forfeit], ['server', true], 'the stored card keeps the forfeit');
-    eq(MD.endWords(f.reason, f.forfeit), 'Stopped by the server. The last minutes did not count', 'the forfeit sentence');
+    eq(MD.endWords(f.reason, f.forfeit), 'Stopped by the server · Last minutes not counted', 'the forfeit sentence');
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));
-    ok(/^Left the hunt\. .*did not count$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    ok(/^Left the hunt · .*not counted$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });
@@ -614,9 +614,9 @@ async function runTests(M) {
     /* ONE LINE ON WHAT A BLESSING DOES (L03, retention R6), from the server's tier rows: each tier's permille counts the ones under it, so the top
        tier's is the cut with all of them on */
     const said = { tiers: [{ tier: 1, price: 0, held: false, permille: 250 }, { tier: 2, price: 0, held: false, permille: 500 }, { tier: 3, price: 0, held: false, permille: 750 }], freeUntil: 30 };
-    eq(steps({ blessings: said }).steps[3].words, 'A death costs 75% less XP and uses them up · Free until Level 30', 'Bless says what a Blessing does');
+    eq(steps({ blessings: said }).steps[3].words, 'Death XP loss −75% · Used up on death · Free until Level 30', 'Bless says what a Blessing does');
     eq(steps({ blessings: { ...said, tiers: said.tiers.map((x) => ({ ...x, price: 1000, held: x.tier === 1 })) }, purse: 5000 }).steps[3].words,
-      'A death costs 75% less XP and uses them up · Cost: 2,000 gp', '...and what the ones not on cost');
+      'Death XP loss −75% · Used up on death · Cost: 2,000 gp', '...and what the ones not on cost');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
@@ -828,7 +828,7 @@ async function runTests(M) {
         { kind: 'recruits' }, 'Go on alone to Meadowbrook Thicket'],
       'the first Level 5 with the recruits ready: Recruit your party, then Go on alone');
     eq(partyCard({ name: 'Brenna', ground: 'Meadowbrook Thicket', count: 3, level: 8, first: false }).steps[0].words,
-      'Brenna has outgrown the Meadowbrook Thicket. 3 recruits are ready to join at Level 8, and the Sewer wants a full party.', 'a later ground says the recruits\' Level');
+      'Brenna: Meadowbrook Thicket outgrown · 3 recruits ready (Level 8) · Sewer: full party recommended', 'a later ground says the recruits\' Level');
     eq(partyCard(null).primary, 'ground', 'CONTROL: with no recruit press ready the next ground is the press');
   });
 

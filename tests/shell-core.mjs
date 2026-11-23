@@ -813,8 +813,8 @@ async function runTests(mods) {
         hunt: { session_id: session, hunt_id: 'meadowbrook_thicket', ended: !!ended, session: ended ? { end_reason: 'stamina' } : {}, hero: {}, pose: { units: [] } },
         hunt_analyzer: { hero: { kills: 644, coins: 1956, waste: 400 } } })[k] });
     const back = AR.awayRecapOf(env(T0 + H2));
-    ok(back && back.kind === 'away' && /^Away 2 h 0 min\. Brannoc hunted Meadowbrook Thicket\. Level 5 to 10, /.test(back.text)
-      && /Level 5 to 10/.test(back.text) && /\+842 gold/.test(back.text) && !/1,142 gold|99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
+    ok(back && back.kind === 'away' && /^Away 2 h 0 min · Brannoc hunted Meadowbrook Thicket · Level 5 to 10, /.test(back.text)
+      && /Level 5 to 10/.test(back.text) && /\+842 gold/.test(back.text) && !/1,142 gold|99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /· Still hunting$/.test(back.text),
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
     ok(back && !/best find/.test(back.text), 'no loot tally, no best find: ' + JSON.stringify(back && back.text));
@@ -822,7 +822,7 @@ async function runTests(mods) {
     const found = env(T0 + H2); const fr = found.read;
     found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, waste: 400, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));
     const finds = AR.awayRecapOf(found);
-    ok(finds && /544 kills\. Best find: Iron Platebody\. Still hunting\./.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
+    ok(finds && /544 kills · Best find: Iron Platebody · Still hunting/.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
     /* a stamp from a build that kept no Level says the XP and names no Levels: never a Level worked out from the stamped XP */
     const old = env(T0 + H2); old.record = { residue: { awaySeen: { s: 's-1', at: T0, xp: stamp.xp, gold: 814, kills: 100 } } };
     const oldLine = AR.awayRecapOf(old);
@@ -831,23 +831,23 @@ async function runTests(mods) {
     const bare = env(T0 + H2); const br = bare.read; bare.read = (k) => (k === 'level' ? undefined : br(k));
     ok(AR.awayRecapOf(bare) === null && AR.stampAway(bare) === false, 'no Level from the server, no line and no stamp');
     const ended = AR.awayRecapOf(env(T0 + H2, true));
-    ok(ended && /The hunt has ended\. Out of stamina/.test(ended.text), 'a hunt that stopped says why: ' + JSON.stringify(ended));
+    ok(ended && /Hunt ended · Out of stamina/.test(ended.text), 'a hunt that stopped says why: ' + JSON.stringify(ended));
     /* A FRIEND'S END SAYS WHAT ENDED IT (friends' panel 2026-11-01: a leader's stamina read "left the hunt"), the server's end_by_why */
     const sentHome = (why) => { const e = env(T0 + H2, true), r = e.read; return Object.assign(e, { read: (k) => (k === 'hunt' ? { ...r(k), session: { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: why } } : r(k)) }); };
     const tired = AR.awayRecapOf(sentHome('stamina'));
-    ok(tired && /Bramwell ran out of stamina, so Brannoc came home too\./.test(tired.text), 'a friend\'s stamina on the return line: ' + JSON.stringify(tired && tired.text));
+    ok(tired && /Party ended · Bramwell out of stamina/.test(tired.text), 'a friend\'s stamina on the return line: ' + JSON.stringify(tired && tired.text));
     const walked = AR.awayRecapOf(sentHome(null));
-    ok(walked && /Bramwell left the hunt, so Brannoc came home too\./.test(walked.text), 'a friend who left on the return line: ' + JSON.stringify(walked && walked.text));
+    ok(walked && /Party ended · Bramwell left the hunt/.test(walked.text), 'a friend who left on the return line: ' + JSON.stringify(walked && walked.text));
     /* THE RETURN SAYS WHAT NEXT (panel 2026-11-01): the stamina left, how long ago a hunt ended, the stamina rested since; never "1:1" */
     const withStamina = (cs, ms, at) => { const r = cs.read; return Object.assign(cs, { read: (k) => (k === 'stamina' ? { ms, max_ms: 43200000 } : k === 'hunt' && at ? { ...r(k), session: { ...r(k).session, ended_at: at } } : r(k)) }); };
     const going = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000 + 25 * 60000));
-    ok(going && /Still hunting, with 3 h 25 min of stamina left\./.test(going.text), 'a hunt still running says the stamina left: ' + JSON.stringify(going && going.text));
+    ok(going && /Still hunting, 3 h 25 min of stamina left$/.test(going.text), 'a hunt still running says the stamina left: ' + JSON.stringify(going && going.text));
     const idle = AR.awayRecapOf(withStamina(env(T0 + 8 * 3600000, true), 5 * 3600000 + 46 * 60000, new Date(T0 + 8 * 3600000 - (5 * 3600000 + 46 * 60000)).toISOString()));
-    ok(idle && /The hunt ended 5 h 46 min ago\. Out of stamina, so Brannoc came home\. Stamina now: 5 h 46 min\./.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
+    ok(idle && /Hunt ended 5 h 46 min ago · Out of stamina · Stamina 5 h 46 min$/.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
     /* A WEEK AWAY READS IN DAYS, ONE SENTENCE A FACT (QA audit 2026-11-18 N6: "Away 176 h 2 min: Wren hunted ...: Level 5 to 10 ... The hunt has ended 164 h 15 min ago") */
     const W = 7 * 24 * 3600000 + 8 * 3600000 + 2 * 60000;
     const week = AR.awayRecapOf(withStamina(env(T0 + W, true), 12 * 3600000, new Date(T0 + W - (6 * 24 * 3600000 + 20 * 3600000 + 15 * 60000)).toISOString()));
-    ok(week && /^Away 7 days\. Brannoc hunted Meadowbrook Thicket\. Level 5 to 10, /.test(week.text) && /The hunt ended 6 days ago\. /.test(week.text)
+    ok(week && /^Away 7 days · Brannoc hunted Meadowbrook Thicket · Level 5 to 10, /.test(week.text) && /Hunt ended 6 days ago · /.test(week.text)
       && !/ h \d+ min ago|\d{3,} h /.test(week.text) && !/[a-z]: [A-Z]|\w: Level/.test(week.text), 'a week away: ' + JSON.stringify(week && week.text));
     eq(AH.spanWords(48 * 3600000), '48 h 0 min', 'two days to the minute still reads in hours');
     eq(AH.spanWords(48 * 3600000 + 60000), '2 days', 'past two days, whole days');
@@ -901,13 +901,13 @@ async function runTests(mods) {
     ok(AR.awayRecapOf(overBefore) === null, 'a hunt that ended before the stamp raises no line: ' + JSON.stringify(AR.awayRecapOf(overBefore)));
     /* THE CARD NEVER OUTLIVES ITS WORDS (friends' panel): what the hunt does now is the record's; a hunt that ends with the card up takes the card. */
     const up = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000));
-    ok(AR.awayLineNow(withStamina(env(T0 + H2), 2 * 3600000), up) === up.said + ' Still hunting, with 2 h 0 min of stamina left.', 'the stamina is the record\'s now');
+    ok(AR.awayLineNow(withStamina(env(T0 + H2), 2 * 3600000), up) === up.said + ' · Still hunting, 2 h 0 min of stamina left', 'the stamina is the record\'s now');
     ok(AR.awayLineNow(env(T0 + H2, true), up) === null && AR.awayLineNow(env(T0 + H2, false, 's-2'), up) === null, 'the hunt over, or another one open: the card goes');
     /* AN END THAT IS PART OF THE RETURN KEEPS THE CARD (audit 2026-11-15 F9: stamina ran out as the player came back, the settle ended the hunt seconds after the card came up, and "Level 17 to 24" went with it):
        dated by the server within two minutes of the card, the card stays, says the hunt ended and keeps what happened; dated later, the player watched it end and the card goes. */
     const endedNow = (ms) => withStamina(env(T0 + H2 + ms, true), 0, new Date(T0 + H2 + ms).toISOString());
     const settled = AR.awayLineNow(endedNow(27000), up);
-    ok(typeof settled === 'string' && settled.startsWith(up.said) && /The hunt has ended/.test(settled) && !/Still hunting/.test(settled), 'a hunt the settle ended 27 s after the return keeps its card and its numbers: ' + JSON.stringify(settled));
+    ok(typeof settled === 'string' && settled.startsWith(up.said) && /Hunt ended/.test(settled) && !/Still hunting/.test(settled), 'a hunt the settle ended 27 s after the return keeps its card and its numbers: ' + JSON.stringify(settled));
     ok(AR.awayLineNow(endedNow(10 * MIN), up) === null, 'a hunt that ended ten minutes into the visit takes the card');
     const upEnded = AR.awayRecapOf(env(T0 + H2, true));
     ok(typeof AR.awayLineNow(env(T0 + H2, true), upEnded) === 'string', 'a card about a hunt that ended while away stays');
@@ -923,7 +923,7 @@ async function runTests(mods) {
     eq(AR.FIRST_AWAY_MIN_MS, 3 * MIN, 'the first return speaks from three minutes');
     ok(AR.awayRecapOf(hero(T0 + 3 * MIN - 1000)) === null, 'under three minutes away is a look, not an absence');
     const first = AR.awayRecapOf(hero(T0 + 3 * MIN));
-    ok(first && /^Away 3 min\. Odalys hunted Mill Cellar\. Level 3 to 4, /.test(first.text) && /40 kills/.test(first.text) && /\+30 gold/.test(first.text),
+    ok(first && /^Away 3 min · Odalys hunted Mill Cellar · Level 3 to 4, /.test(first.text) && /40 kills/.test(first.text) && /\+30 gold/.test(first.text),
       'a new hero back after three minutes is told, from the server\'s numbers: ' + JSON.stringify(first && first.text));
     ok(first && first.minutes === 3 && first.levels === 1 && first.at === T0, 'the line carries its minutes, its Levels and its stamp: ' + JSON.stringify(first));
     /* the hero left at Level 4 and is back at 5: new by the STAMP's Level, not the Level it returns at */
@@ -963,7 +963,7 @@ async function runTests(mods) {
     /* a hero who has never hunted: no hunt section at all */
     const back = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock));
     /* STILL RUNNING SAYS HOW IT ENDS, AND ITS PRESS STOPS OR CHANGES IT (retention dive 2026-11-20: 6,001 Copper Ore for a 20-ore errand, "Still mining" and no way back) */
-    ok(back && back.text === 'Away 8 h 0 min. Tess mined the Copper Rock. +4,303 Copper Ore, Mining 26 to 47. Still mining. It keeps going until you press Stop in Gathering and crafting.', 'the gathering line: ' + JSON.stringify(back && back.text));
+    ok(back && back.text === 'Away 8 h 0 min · Tess mined the Copper Rock · +4,303 Copper Ore, Mining 26 to 47 · Still mining · Runs until stopped (Gathering and crafting)', 'the gathering line: ' + JSON.stringify(back && back.text));
     ok(back && back.action === 'work' && back.button === 'Stop or change it' && back.session === null && back.id === 'away:town:gather:copper_rock:' + T0, 'it opens Gathering and crafting and is shown once: ' + JSON.stringify(back));
     /* the first read back is from before the sign-in's settle: the line waits for the numbers */
     const unpaid = hero(T0 + H8, mining(T0), { mining: { xp: rock.sx, level: 26 } }, { copper_ore: 10 }, rock);
@@ -976,7 +976,7 @@ async function runTests(mods) {
     const saw = { s: 'town:artisan:saw_normal', at: T0, sx: XP.skillXpForLevel('crafting', 10), sl: 10, n: 0 };
     const idle = { active_kind: 'idle', active_id: null, accrued_to: iso(T0 + 50 * MIN) };
     const benched = AR.awayRecapOf(hero(T0 + 50 * MIN, idle, { crafting: { xp: XP.skillXpForLevel('crafting', 29), level: 29 } }, { normal_plank: 392 }, saw));
-    ok(benched && /^Away 50 min\. Tess made Normal Plank\. \+392 Normal Plank, Crafting 10 to 29\. It stopped about \d+ min in, out of Normal Log\.$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
+    ok(benched && /^Away 50 min · Tess made Normal Plank · \+392 Normal Plank, Crafting 10 to 29 · Stopped about \d+ min in, out of Normal Log$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
     /* nothing came of it: no line */
     ok(AR.awayRecapOf(hero(T0 + H8, idle, { crafting: { xp: saw.sx, level: 10 } }, {}, saw)) === null, 'a job that made nothing raises no line');
     /* the stamp: at the server's watermark, with the server's skill and bag */
@@ -1052,13 +1052,13 @@ async function runTests(mods) {
       read: (k) => e[k], serverNow: () => T0 + H2, flushResidue: () => Promise.resolve(),
       setResidue(f, v) { this.record = { residue: Object.assign({}, this.record.residue, { [f]: v }) }; return true; }, subscribe: () => () => {} });
     /* the away line: what it did, and why it ended, in training's words */
-    for (const [reason, want] of [['no_fight', /Training ended\./], ['gold_out', /Training ended \(out of gold\)\./], ['hours', /Training ended \(12 h reached\)\./], ['left', /Training stopped\./]]) {
+    for (const [reason, want] of [['no_fight', /Training ended$/], ['gold_out', /Training ended \(out of gold\)$/], ['hours', /Training ended \(12 h reached\)$/], ['left', /Training stopped$/]]) {
       const line = AR.awayRecapOf(hero(env('training_yard_ranged', true, reason), true));
-      ok(line && /^Away 2 h 0 min\. Wren trained Ranged at the Training Yard\./.test(line.text) && want.test(line.text) && !HUNTISH.test(line.text),
+      ok(line && /^Away 2 h 0 min · Wren trained Ranged at the Training Yard · /.test(line.text) && want.test(line.text) && !HUNTISH.test(line.text),
         'a yard session ended ' + reason + ': ' + JSON.stringify(line && line.text));
     }
     const still = AR.awayRecapOf(hero(env('training_house_magic', false), true));
-    ok(still && /Wren trained Magic on the home dummy\. Still training\.$/.test(still.text) && !HUNTISH.test(still.text), 'a session still running: ' + JSON.stringify(still && still.text));
+    ok(still && /Wren trained Magic on the home dummy · Still training$/.test(still.text) && !HUNTISH.test(still.text), 'a session still running: ' + JSON.stringify(still && still.text));
     /* the alert of a hero not on screen: the label, and Training's own door (never the hunt's restart) */
     const centreOf = (e) => AL.createAlertCenter({ viewed: 1, character: () => hero(e, false), characters: () => [hero(e, false)], subscribe: () => () => {} }, { track: () => {}, clock: () => 0 });
     for (const [reason, want] of [['gold_out', 'Wren: Training ended (out of gold)'], ['no_fight', 'Wren: Training ended'], ['hours', 'Wren: Training ended (12 h reached)']]) {
@@ -1096,36 +1096,36 @@ async function runTests(mods) {
   const STAMINA_NEXT = 'While stamina refills: gather or craft';
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
-    ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
-      + STAMINA_NEXT + '. Stamina now: 5 h 46 min.')
+    ok(night && night.text.includes('Hunt ended · Out of stamina · Waited in town: 5 h 46 min · '
+      + STAMINA_NEXT + ' · Stamina 5 h 46 min')
       && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
     /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
-    ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
+    ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('Waited in town: 5 h 56 min'), 'the wait is the record\'s now');
     /* the server put the hero back on its gathering job at the walk home's end (active_since = ended_at + travel): it says so, no wait, no advice */
     const went = AR.awayRecapOf(wrenna(NOW, mining(END)));
-    ok(went && went.text.includes('Out of stamina, so Wrenna came home. Then Wrenna went back to mining the Copper Rock.') && !/waited|Start mining/.test(went.text),
+    ok(went && went.text.includes('Out of stamina · Then: back to mining the Copper Rock') && !/Waited|Start mining/.test(went.text),
       'a resumed job: ' + JSON.stringify(went && went.text));
     /* one next thing per end reason, by the rules (hunt-sessions.js RESUME_AFTER_END) */
     const nextOf = (reason) => (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
-    ok(nextOf('hours').includes('Set a longer hunt, up to the stamina left'), 'a set limit: ' + nextOf('hours'));
-    ok(nextOf('heals_out').includes('Pack more food for a longer hunt.'), 'out of food: ' + nextOf('heals_out'));
-    ok(nextOf('ammo_out').includes('Pack more ammo for a longer hunt'), 'out of ammo: ' + nextOf('ammo_out'));
-    ok(nextOf('runes_out').includes('Pack more runes for a longer hunt'), 'out of runes: ' + nextOf('runes_out'));
-    ok(nextOf('gold_out').includes('Lower the gold reserve or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
+    ok(nextOf('hours').includes('Tip: longer hunt (up to stamina left)'), 'a set limit: ' + nextOf('hours'));
+    ok(nextOf('heals_out').includes('Tip: pack more food'), 'out of food: ' + nextOf('heals_out'));
+    ok(nextOf('ammo_out').includes('Tip: pack more ammo'), 'out of ammo: ' + nextOf('ammo_out'));
+    ok(nextOf('runes_out').includes('Tip: pack more runes'), 'out of runes: ' + nextOf('runes_out'));
+    ok(nextOf('gold_out').includes('Tip: lower the gold reserve or pack supplies'), 'out of gold: ' + nextOf('gold_out'));
     ok(nextOf('died').includes(PT.t('away.next_gather')), 'a death points at When the hunt ends: ' + nextOf('died'));
     /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
-    ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
-    ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
-    ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, mining(END + 2 * H))) || {}).text || ''), 'a job started later was not a resume');
+    ok(!/Waited in town|Then: /.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
+    ok(!/Waited in town|Then: /.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
+    ok(!/Waited in town|Then: /.test((AR.awayRecapOf(wrenna(NOW, mining(END + 2 * H))) || {}).text || ''), 'a job started later was not a resume');
     const unsaid = (AR.awayRecapOf(wrenna(NOW, { gold: 5 })) || {}).text || '';
-    ok(/The hunt ended 5 h 46 min ago\./.test(unsaid) && !/Then Wrenna/.test(unsaid), 'no pointer from the server: the old line, nothing guessed: ' + unsaid);
+    ok(/Hunt ended 5 h 46 min ago · /.test(unsaid) && !/Waited in town|Then: /.test(unsaid), 'no pointer from the server: the old line, nothing guessed: ' + unsaid);
   });
   t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
     const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
     eq(atEnd, STAMINA_NEXT, 'watched as it ends: the one next thing, no wait yet');
     const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
-    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. ' + STAMINA_NEXT, 'a page left open on the card');
-    eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
+    eq(leftOpen, 'Waited in town: 2 h 0 min · ' + STAMINA_NEXT, 'a page left open on the card');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then: back to mining the Copper Rock', 'a resumed job');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
   });
@@ -1146,17 +1146,17 @@ async function runTests(mods) {
     for (const reason of ['party_member_left', 'party_member_died']) {
       eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason), 's-1'), BOX, 'the end card after ' + reason);
       const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
-      ok(away.includes(BOX + '.') && !/When the hunt ends/.test(away), 'the away card after ' + reason + ': ' + away);
+      ok(away.includes(BOX + ' · ') && !/When the hunt ends/.test(away), 'the away card after ' + reason + ': ' + away);
     }
   });
   /* R3t (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
      and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
   t('R3t a training session\'s end gives its own line, never a hunt\'s', () => {
     const yard = (reason) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason, { hunt: 'training_yard_melee' }), 's-1');
-    eq(yard('hours'), 'Start training again to keep going', 'the 12-hour cap');
+    eq(yard('hours'), 'Tip: start training again', 'the 12-hour cap');
     eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
-    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
-    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt, up to the stamina left', 'a hunt\'s own limit keeps its line');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then: back to mining the Copper Rock', 'a resumed job is still said');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Tip: longer hunt (up to stamina left)', 'a hunt\'s own limit keeps its line');
   });
   /* R3e (Barrow March play-through 2026-11-14): each card's next line fits its end. A boss room is one fight: the Krell win card
      said "Start mining, chopping or fishing before you hunt". A purse run dry with food in the bag the bar never named said
@@ -1164,7 +1164,7 @@ async function runTests(mods) {
   t('R3e the next line fits the end: a boss room says none, a purse run dry with food off the bar says to put it on', () => {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'boss_felled', { hunt: 'krells_hold_hall' }), 's-1'), '', 'Krell\'s Hall won, watched as it ends');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'boss_felled', { hunt: 'millrace_sewer_called' }), 's-1'), '', 'a called room won');
-    eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Then Wrenna waited in town for 2 h 0 min.', 'a hall lost, the page left open: the wait, no advice');
+    eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Waited in town: 2 h 0 min', 'a hall lost, the page left open: the wait, no advice');
     /* A CLIMB (QA gate 2026-11-17: "Start a gathering job" topped the Tower's card after a fall and a party member leaving): its own label
        rows say how it ended, so no hunt advice under any end */
     eq(['died', 'party_member_left', 'gold_out', 'stamina'].map((r) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), r, { hunt: 'the_burning_tower' }), 's-1')),
@@ -1172,12 +1172,12 @@ async function runTests(mods) {
     const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
     const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
     eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on the bar', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
-    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Lower the gold reserve or pack your own supplies', 'only what the bar names: the old line');
-    eq(goldOut({}), 'Lower the gold reserve or pack your own supplies', 'nothing in the bag: the old line');
+    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Tip: lower the gold reserve or pack supplies', 'only what the bar names: the old line');
+    eq(goldOut({}), 'Tip: lower the gold reserve or pack supplies', 'nothing in the bag: the old line');
     const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'gold_out', { settings: bar, inventory: { cooked_trout: 12 } })) || {}).text || '';
-    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Tip: put Cooked Trout on the bar'), 'the away card says it too: ' + away);
+    ok(away.includes('Waited in town: 5 h 46 min · Tip: put Cooked Trout on the bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
-    ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
+    ok(hall.includes('Waited in town: 5 h 46 min · Stamina 5 h 46 min') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
   });
   /* R3f WHEN THE HUNT ENDS (Tyler 2026-11-15, the itinerary; src/shell/hunt-after.js): the hunt page's one control, the running
      hunt's plan and what came of an ended hunt's choice, each from the server's sections alone. */
@@ -1224,13 +1224,13 @@ async function runTests(mods) {
       ['Then: wait in town', 'Then: wait in town', 'Then: wait in town'], 'then: no session word, so never "hunt" for a training session');
     /* what came of the ended hunt's choice */
     const came = (done, id = 's-1') => HA.afterDoneWords(hero({ choice: 'job', skill: null, job: null, last: { session: 's-1', choice: 'train', skill: 'melee', done } }), id, 'Wrenna');
-    eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');
-    eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna is on the way to the yard to train Melee.', 'pending');
+    eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Wrenna: training Melee at the yard', 'started');
+    eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna: heading to the yard (Melee)', 'pending');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: 30 }),
       'Wrenna waited in town · Yard: 122 gp/h · Gold: 30 gp', 'too little gold says the fee and the purse');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: null }), 'Wrenna waited in town · Yard: 122 gp/h', 'a purse the server did not send is not said');
-    eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'Wrenna waited in town: the yard requires Level 10', 'under the Level');
-    eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town', 'chose to wait');
+    eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'Wrenna waited in town · Yard requires Level 10', 'under the Level');
+    eq(came({ state: 'waited', why: 'chose_wait' }), 'Wrenna waited in town', 'chose to wait');
     eq(came({ state: 'resumed', kind: 'gather', id: 'copper_rock' }), '', 'back on the job: the pointer\'s own line says it');
     eq(came({ state: 'started', skill: 'melee' }, 's-0'), '', 'another hunt\'s summary says nothing of this one');
   });
@@ -1289,14 +1289,14 @@ async function runTests(mods) {
       const centre = centreOf(cs);
       const line = awayLine(centre);
       ok(line, 'the return raised no card: ' + JSON.stringify(centre.list().map((a) => a.kind)));
-      ok(/^Away 13 h 0 min\. Ashwick hunted Mosslight Glade\. Level 57 to 58, \+[\d,]+ Level XP\./.test(line.text), 'the hunt the yard took over is told: ' + line.text);
-      ok(line.text.includes('Ashwick died in Mosslight Glade. Killed by Warband Captain. Death cost: 441,672 Level XP. 3 Blessings saved 1,325,016 Level XP, used up.'),
+      ok(/^Away 13 h 0 min · Ashwick hunted Mosslight Glade · Level 57 to 58, \+[\d,]+ Level XP · /.test(line.text), 'the hunt the yard took over is told: ' + line.text);
+      ok(line.text.includes('Ashwick died in Mosslight Glade · Killed by Warband Captain · Death cost: 441,672 Level XP · 3 Blessings saved 1,325,016 Level XP, used up'),
         'the death is told, in the server\'s numbers: ' + line.text);
-      ok(/Then Ashwick went to the yard to train Melee\. Melee 40 to 42, \+[\d,]+ Melee XP\. Still training\.$/.test(line.text), 'then the yard, its levels and where it stands: ' + line.text);
+      ok(/Ashwick: training Melee at the yard · Melee 40 to 42, \+[\d,]+ Melee XP · Still training$/.test(line.text), 'then the yard, its levels and where it stands: ' + line.text);
       eq([line.session, line.id], [S2, 'away:' + S1 + ':' + T0], 'the card follows the yard, and is told once, by its stamp');
       const block = AW.awayBlockOf(cs, line);
       eq([block.result.level, block.result.ups], [{ name: 'Level', from: 57, to: 58 }, ['Melee 40 → 42']], 'the card leads with the hunt\'s Levels and the yard\'s');
-      ok(/Death cost: 441,672 Level XP/.test(block.why) && /went to the yard to train Melee/.test(block.when) && /Still training/.test(block.when) && block.go === 'train',
+      ok(/Death cost: 441,672 Level XP/.test(block.why) && /training Melee at the yard/.test(block.when) && /Still training/.test(block.when) && block.go === 'train',
         'the card says the death, then the yard: ' + JSON.stringify(block));
       centre.destroy();
       /* the yard ended too: the server's link has moved on to it, and its start past the stamp still says it took over */
@@ -1325,7 +1325,7 @@ async function runTests(mods) {
         hunt: { session_id: S2, hunt_id: 'training_yard_melee', ended: false, session: {}, hero: {}, pose: { units: [] } } };
       const cs = heroOf(env, { s: S2, at: T0, xp: XP57, lv: 57, h: 'training_yard_melee', k: 'melee', sx: MX40, sl: 40 }, T0 + 10 * H);
       const line = AR.awayRecapOf(cs);
-      ok(line && /^Away 10 h 0 min\. Ashwick trained Melee at the Training Yard\. Melee 40 to 42, \+[\d,]+ Melee XP\. Still training\.$/.test(line.text), 'the yard\'s line: ' + JSON.stringify(line && line.text));
+      ok(line && /^Away 10 h 0 min · Ashwick trained Melee at the Training Yard · Melee 40 to 42, \+[\d,]+ Melee XP · Still training$/.test(line.text), 'the yard\'s line: ' + JSON.stringify(line && line.text));
       const block = AW.awayBlockOf(cs, line);
       eq([block.result.level, block.result.figs.map((f) => f.label)], [{ name: 'Melee', from: 40, to: 42 }, ['Melee XP']], 'the card: Melee 40 to 42, and its XP');
       eq([block.go, block.label], ['train', 'Open Training'], 'its door is Training, never "See the hunt"');
@@ -1377,7 +1377,7 @@ async function runTests(mods) {
       cs.env = env('supplies', false);
       for (const fn of cs.subs) fn(cs, 'changed');
       const line = centre.list().find((a) => a.kind === 'work');
-      ok(line && line.text === 'Ashwick fueled the Great Hearth with 14 Bones. Inner Flame 3.', 'the Fuel all watched to its end: ' + JSON.stringify(line && line.text));
+      ok(line && line.text === 'Ashwick: 14 Bones burned in the Great Hearth · Inner Flame 3', 'the Fuel all watched to its end: ' + JSON.stringify(line && line.text));
       for (const fn of cs.subs) fn(cs, 'changed');
       ok(centre.list().filter((a) => a.kind === 'work').length === 1, 'told once: ' + JSON.stringify(centre.list().map((a) => a.text)));
       centre.destroy();
@@ -1402,7 +1402,7 @@ async function runTests(mods) {
       const said = (id, skill) => { const h = heroOf(bench(id, skill, null), null, T0 + MIN), c = centreOf(h); h.env = bench(id, skill, 'supplies');
         for (const fn of h.subs) fn(h, 'changed'); const l = c.list().find((a) => a.kind === 'work'); c.destroy(); return l ? l.text : null; };
       eq([said('smelt_bronze', 'smithing'), said('cook_shrimp', 'cooking')],
-        ['Ashwick made 20 Bronze Bar. Smithing 7.', 'Ashwick finished making Cooked Shrimp. Cooking 7.'], 'a bar run says its count, a dish run never does');
+        ['Ashwick: made 20 Bronze Bar · Smithing 7', 'Ashwick: Cooked Shrimp done · Cooking 7'], 'a bar run says its count, a dish run never does');
       const late = centreOf(heroOf(env('supplies', false), null, T0 + 6 * MIN));
       ok(!late.list().some((a) => a.kind === 'work'), 'a run never watched raised a line');
       late.destroy();
@@ -1418,7 +1418,7 @@ async function runTests(mods) {
       cs.env = env([row('ratcatcher', 'the Ratcatcher', 2500, 2500, 1500), row('wolfer', 'the Wolfslayer', 10, 5000, 3000)]);
       for (const fn of cs.subs) fn(cs, 'changed');
       const line = centre.list().find((a) => a.kind === 'title');
-      ok(line && line.text === 'Cass earned the title Ratcatcher. Claim it for 1,500 gp in Character → Titles.' && line.action === 'titles' && line.button === 'Open Titles',
+      ok(line && line.text === 'New title for Cass: Ratcatcher · Claim for 1,500 gp in Character → Titles' && line.action === 'titles' && line.button === 'Open Titles',
         'the title earned: ' + JSON.stringify(line));
       for (const fn of cs.subs) fn(cs, 'changed');
       ok(centre.list().filter((a) => a.kind === 'title').length === 1, 'told once');
@@ -1426,7 +1426,7 @@ async function runTests(mods) {
       cs.env = env([row('ratcatcher', 'the Ratcatcher', 2600, 2500, 1500), row('wolfer', 'the Wolfslayer', 5000, 5000, 3000), row('gamekeeper', 'the Warden', 3000, 2500, 10000, true)]);
       for (const fn of cs.subs) fn(cs, 'changed');
       const lines = centre.list().filter((a) => a.kind === 'title').map((a) => a.text);
-      ok(lines.length === 2 && lines[0] === 'Cass earned the title Wolfslayer. Claim it for 3,000 gp in Character → Titles.', 'the next title: ' + JSON.stringify(lines));
+      ok(lines.length === 2 && lines[0] === 'New title for Cass: Wolfslayer · Claim for 3,000 gp in Character → Titles', 'the next title: ' + JSON.stringify(lines));
       centre.destroy();
       /* a new page: what was told stays told (the saved list) */
       const again = centreOf(cs, 1);
@@ -1437,7 +1437,7 @@ async function runTests(mods) {
       const many = centreOf(manyCs, 1);
       for (const fn of manyCs.subs) fn(manyCs, 'changed');
       const all = many.list().filter((a) => a.kind === 'title');
-      ok(all.length === 1 && all[0].text === 'Cass earned the title Ratcatcher and 2 more. Claim them in Character → Titles.', 'three at once: ' + JSON.stringify(all.map((a) => a.text)));
+      ok(all.length === 1 && all[0].text === 'New titles for Cass: Ratcatcher +2 more · Claim in Character → Titles', 'three at once: ' + JSON.stringify(all.map((a) => a.text)));
       many.destroy();
     });
 
@@ -1466,7 +1466,7 @@ async function runTests(mods) {
       /* the purse moved 2,500 of coins less 850 of store supplies less the yard's 604: +1,046, never the hunt's +1,650 alone */
       eq([line.facts.gold, line.facts.looted, line.facts.paid, line.facts.yard, line.facts.kills, line.facts.best], [1046, 2500, 850, 604, 390, 'iron_platebody'],
         'the hunt\'s own tally over the absence, less the yard that took over');
-      ok(/\+1,046 gold, 390 kills\. Best find: Iron Platebody\./.test(line.text) && /Then Ashwick went to the yard to train Melee\./.test(line.text), 'the line: ' + line.text);
+      ok(/\+1,046 gold, 390 kills · Best find: Iron Platebody · /.test(line.text) && /Ashwick: training Melee at the yard · /.test(line.text), 'the line: ' + line.text);
       const block = AW.awayBlockOf(cs, line);
       eq([block.result.figs.map((f) => f.key), block.best, block.result.ups], [['xp', 'gold', 'kills'], 'iron_platebody', ['Melee 40 → 42']], 'the card\'s result block is whole, the yard\'s levels beside it');
       const fig = block.result.figs.find((f) => f.key === 'gold');
@@ -1548,7 +1548,7 @@ async function runTests(mods) {
       const line = AR.awayRecapOf(away);
       ok(line && line.text.includes(WHY), 'the away line: ' + JSON.stringify(line && line.text));
       /* the card closes its why with a full stop, as it does every end's (away-recap.js dot) */
-      eq(AW.awayBlockOf(away, line).why, /[.!?…]$/.test(WHY) ? WHY : WHY + '.', 'the away card');
+      eq(AW.awayBlockOf(away, line).why, WHY, 'the away card');
     });
 
     /* R3s (audit 2026-11-19 L4, the day-2 return, played): 1 h 9 min of 12 h stamina and the card's one press was Hunt again on the same ground,
@@ -1573,7 +1573,7 @@ async function runTests(mods) {
       const all = card({});
       eq([all.go, loops(all), all.rest && all.rest.head], ['again', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm'], ''],
         'Level 12, solo, a field: the yard, gathering and crafting, the farm; the stamina end already said them, so no second line');
-      ok(all.when.includes('While stamina refills: train at the yard, gather, craft or farm.'), 'the end line names the same loops: ' + all.when);
+      ok(all.when.includes('While stamina refills: train at the yard, gather, craft or farm'), 'the end line names the same loops: ' + all.when);
       /* the yard only from the SERVER's Level and solo; the farm only with a field */
       eq(loops(card({ lv: 7 })), ['work:Gathering and crafting', 'farm:Farm'], 'under the yard\'s Level: no yard');
       eq(loops(card({ env: { training: null, farm_land: null } })), ['work:Gathering and crafting'], 'no yard rate, no field sent: neither (fail safe)');
@@ -1582,7 +1582,7 @@ async function runTests(mods) {
       ['work:Gathering and crafting', 'farm:Farm'], 'in a party: no yard (training is solo)');
       /* another end with stamina short: the line of its own heads the presses */
       const hours = card({ reason: 'hours' });
-      eq([hours.rest && hours.rest.head, loops(hours)], ['Low on stamina? These use none:', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm']], 'a time limit with stamina short');
+      eq([hours.rest && hours.rest.head, loops(hours)], ['No stamina needed', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm']], 'a time limit with stamina short');
       /* CONTROL: stamina enough for a real hunt (5 h of 12) offers nothing more */
       eq(card({ env: { stamina: { ms: 5 * H, max_ms: 12 * H, at: iso(T0 + 13 * H), hunting: false } } }).rest, null, 'stamina for a hunt: no loops row');
     });
@@ -1801,7 +1801,7 @@ const MUTANTS = [
   { test: 'R3m', file: 'src/data/text/summary.js', from: "· Supplies {spent} · Coins {coins}'", to: "· Supplies {spent} · Coins {coins}, so your gold fell to your {floor} reserve'" },
   /* R3p / R3n (the v0.2.141 read): the tips name the controls by the words on screen */
   { test: 'R3p', file: 'src/data/text/away.js', from: "uncheck Leave if anyone leaves the hunt or dies'", to: "uncheck Leave if anyone leaves'" },
-  { test: 'R3n', file: 'src/data/text/away.js', from: "next_gather: 'Tip: under When the hunt ends, pick", to: "next_gather: 'Tip: under After the hunt, pick" },
+  { test: 'R3n', file: 'src/data/text/away.js', from: "next_gather: 'Tip: set When the hunt ends", to: "next_gather: 'Tip: set After the hunt" },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "      if (a.kind === 'away') askPast(cs, a);\n", to: '' },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;", to: 'if (!session || !a.stamp) return;',
     also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) { const v = m.get(session); return v instanceof Promise ? v : pastHuntOf(cs, session); }\n', to: '' }] },
@@ -1810,7 +1810,7 @@ const MUTANTS = [
   { test: 'R3l', file: 'src/shell/away-recap.js', from: ": h.ended && h.endReason === 'died' ? h.sessionId : null },", to: ': null },' },
   { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: "  const why = s.reason === 'gold_out' && s.forfeit !== true ? goldOutWords(s, floor)", to: '  const why = false ? goldOutWords(s, floor)' },
   { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: 'coins + loot - balance', to: 'coins - balance' },
-  { test: 'R3m', file: 'src/shell/away-recap.js', from: '  const why = goldOut ? dot(goldOut) :', to: '  const why = false ? dot(goldOut) :' },
+  { test: 'R3m', file: 'src/shell/away-recap.js', from: '  const why = goldOut ? bare(goldOut) :', to: '  const why = false ? bare(goldOut) :' },
   /* R9, R10: every surface says which gold it is (post-patch audit 2026-11-18, the end card) */
   { test: 'R9', file: 'src/shell/windows/hunt-summary.js', from: '      goldFig(goldKeptOf(cur), cur.gold),', to: '      goldFig(null, cur.gold),' },
   { test: 'R9', file: 'src/shell/result-block.js', from: "  return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_coins'),", to: "  return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_gold')," },
@@ -1845,7 +1845,7 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: "t('away.card_ended_ago', { time: f.ago })", to: "t('away.card_ended') + ' ' + f.ago" },
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null;', to: 'const from = sk.level - 1;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: '{ sx: sk.xp, sl: sk.level }', to: '{ sx: sk.xp }' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: "f.stamina ? ' Still hunting, with ' + f.stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "SEP + (f.stamina ? t('away.card_still_stamina', { time: f.stamina }) : t('away.card_still'))", to: "SEP + t('away.card_still')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "(cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS", to: "(STAMINA_WORDS" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "|| STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')", to: "|| END_WORDS[h.endReason] || '')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
@@ -1869,11 +1869,11 @@ const MUTANTS = [
   { test: 'R6', file: 'src/shell/alerts.js', from: '    for (const id of ids) was.ids.add(id);\n', to: '' },
   { test: 'R3y', file: 'src/shell/away-recap.js', from: '  const yard = over ? null : trainingPhrase(h.huntId);', to: '  const yard = null;' },
   { test: 'R3y', file: 'src/shell/away-recap.js', from: "  if (trainedBy(h.huntId)) return { training: true,", to: "  if (false) return { training: true," },
-  { test: 'R3y', file: 'src/shell/away-recap.js', from: "    if (!f.ended) return ' ' + t('training.away_still');\n", to: '' },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: "    if (!f.ended) return SEP + t('training.away_still');\n", to: '' },
   { test: 'R3y', file: 'src/shell/alerts.js', from: '  if (trainedBy(h.huntId)) {\n    if (h.ended) out.push', to: '  if (false) {\n    if (h.ended) out.push' },
   { test: 'R3y', file: 'src/shell/alerts.js', from: "    return out;\n  }\n  const where = huntName(h.huntId);", to: "  }\n  const where = huntName(h.huntId);" },
   { test: 'R3y', file: 'src/shell/training-words.js', from: "  if (last.reason === 'gold_out') return t('training.ended_gold_out');\n", to: '' },
-  { test: 'R3c', file: 'src/shell/away-recap.js', from: "' ' + f.why + then + (f.stamina ? ' Stamina now: '", to: "' ' + f.why + (f.stamina ? ' Stamina now: '" },
+  { test: 'R3c', file: 'src/shell/away-recap.js', from: "(f.why ? SEP + f.why : '') + then + (f.stamina", to: "(f.why ? SEP + f.why : '') + (f.stamina" },
   { test: 'R3c', file: 'src/shell/away-recap.js', from: "const ago = h.ended && !waited && ", to: 'const ago = h.ended && ' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: 'Math.abs(since - home) <= SAME_MS', to: 'true' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;", to: '' },

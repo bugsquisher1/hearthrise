@@ -50,7 +50,7 @@ export const SUMMARY_TEXT = Object.freeze({
   /* Bless: the Blessings not on, each at the price the server quotes now. */
   bless_n: 'Bless {names}',
   /* what a Blessing does (L03, retention R6): {pct} the cut with every tier on, the server's top tier */
-  bless_does: 'A death costs {pct} less XP and uses them up',
+  bless_does: 'Death XP loss −{pct} · Used up on death',
   bless_free: 'Free until Level {level}',
   bless_cost: 'Cost: {total}',
   /* THE NEXT BUY (src/shell/next-buy.js; audit 2026-11-15 F12/F20: a million gold by Level 50 and the card said nothing): the one most
@@ -91,8 +91,8 @@ export const SUMMARY_TEXT = Object.freeze({
   go_ground: 'Go to {ground}',
   /* A GROUND OUTGROWN WITH THE RECRUITS READY (designer D-1, the Path's first_level_5; Tyler RD-Q6 a): the line, its press, and the next ground as
      the second press. {name} the hero, {ground} the ground outgrown, {count} the recruits, {level} the Level they arrive at */
-  party_line: { one: '{name} has outgrown the {ground}. {count} recruit is ready to join at Level {level}, and the Sewer wants a full party.',
-    other: '{name} has outgrown the {ground}. {count} recruits are ready to join at Level {level}, and the Sewer wants a full party.' },
+  party_line: { one: '{name}: {ground} outgrown · {count} recruit ready (Level {level}) · Sewer: full party recommended',
+    other: '{name}: {ground} outgrown · {count} recruits ready (Level {level}) · Sewer: full party recommended' },
   party_title: { one: '{count} recruit ready', other: '{count} recruits ready' },
   party_go: 'Recruit your party',
   alone_to: 'Go on alone to {ground}',
@@ -138,9 +138,9 @@ export const SUMMARY_TEXT = Object.freeze({
   end_server: 'Ended by the server',
   end_plain: 'Hunt ended',
   /* the server forfeited the hunt's last window (six refused in a row) */
-  forfeit_server: 'Stopped by the server. The last minutes did not count',
-  forfeit_left: 'Left the hunt. The last minutes did not count',
-  stamina_now: '{why}. Stamina now: {left}',
+  forfeit_server: 'Stopped by the server · Last minutes not counted',
+  forfeit_left: 'Left the hunt · Last minutes not counted',
+  stamina_now: '{why} · Stamina: {left}',
   /* Hunt again, off for a party member */
   again_elsewhere: 'Party hunting elsewhere',
   again_leader: 'Party leader picks the hunt',

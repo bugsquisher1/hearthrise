@@ -83,12 +83,12 @@ export function awayBlockOf(cs, a) {
     /* the yard took over: the hunt's end the server knows (a death) first, then the yard and where it stands */
     why = f.tookOver ? f.died || '' : yard;
     when = [f.tookOver ? f.after : '', f.tookOver ? yard : '', now.ended && now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.ended ? now.next : '']
-      .filter(Boolean).join(' ');
+      .filter(Boolean).join(' · ');
     /* a training session is no hunt (Tyler 2026-11-16): its door is the Training window, never "See the hunt" */
     go = 'train'; label = now.ended ? t('training.card_again') : t('away.card_training');
   } else if (now && now.ended) {
     why = now.why;
-    when = [now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.next].filter(Boolean).join(' ');
+    when = [now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.next].filter(Boolean).join(' · ');
     stamina = now.stamina ? t('away.card_stamina', { time: now.stamina }) : '';
     ground = outgrownOf(cs) ? outgrownGroundOf(cs) : null;
     if (restartable(f.hunt) && a.session && !outgrownOf(cs)) { go = 'again'; label = t('controls.hunt_again'); }
@@ -105,7 +105,7 @@ export function awayBlockOf(cs, a) {
      own card's facts or the open hunt's read now (summary-recorder.js depthFactsOf); '' off the scale. THE EARNED LINE follows it (lane/gold-per-hour,
      ../hunt-report.js earnedLine): the server's gold an hour and supplies an hour for that session, beside the Hunts window's estimate */
   const depthWords = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';
-  const cause = depthWords ? [depthWords, earnedLine(earnRatesOf(cs, a.session))].filter(Boolean).join(' ') : '';
+  const cause = depthWords ? [depthWords, earnedLine(earnRatesOf(cs, a.session))].filter(Boolean).join(' · ') : '';
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, when, stamina, go, label,
     ground: ground ? ground.hunt : null, rest,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */

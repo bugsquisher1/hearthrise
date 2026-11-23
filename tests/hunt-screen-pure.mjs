@@ -211,7 +211,7 @@ async function pure(base) {
 
   { // HS-7 CONFIGURE ACTION: the hover in plain words; the three tabs; ONE whole-bar intent, off until it answers; a refusal inline
     const tip = hoverOf(M, characterOf(FIXTURE), 2).map((l) => l.text).join(' ');
-    if (!/When my HP is at most 50%\./.test(tip)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tip);
+    if (!/When my HP is at most 50%/.test(tip)) fails.push('HS-7 the slot tooltip did not show the server’s setup in plain words: ' + tip);
     const tabs = M.AF.TABS.map(([, label]) => label).join('|');
     if (tabs !== 'Spells|Food & drink|Ammo') fails.push('HS-7 the tabs read ' + M.AF.TABS.map(([, l]) => l).join(' | '));
     const cs0 = characterOf(FIXTURE), s0 = M.HS.settingsOf(cs0);
@@ -307,8 +307,8 @@ async function pure(base) {
       [0, 'mana', /^Needs 6 mana, have 2$/, false],
       [1, 'rune', /^No Fire rune: pick the store rune/, true],
       [2, 'none left', /^Out of Wheat Bread: next food or drink slot takes over$/, true],
-      [5, 'store off', /^Set to leave the hunt instead of buying$/, true],
-      [7, 'server', /^This can’t fire right now\.$/, true],
+      [5, 'store off', /^When out: leaves the hunt$/, true],
+      [7, 'server', /^Can't use now$/, true],
     ];
     /* EVERY struck or waiting slot on the bar, not only the ones named: a reason, said first in its hover. */
     const sweep = (cs, label) => {
@@ -426,7 +426,7 @@ async function pure(base) {
     const conflicts = (e) => { const set = M.HS.settingsOf(characterOf(e)); return M.AF.conflictsOf(Array.from({ length: M.BD.SLOTS }, (_, k) => M.HS.wireSlot(set.slots[k])), set); };
     const c = conflicts(env);
     const tip = hoverOf(M, characterOf(env), 6).filter((l) => /\bis-warn\b/.test(l.cls) && !/\bis-why\b/.test(l.cls)).map((l) => l.text).join(' ');
-    if (!c.has(6) || c.has(0) || !/Power Strike in slot 1 does the same and goes first/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
+    if (!c.has(6) || c.has(0) || !/Never fires: slot 1 \(Power Strike\) goes first/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
     env.hunt_settings.slots[0] = null;
     if (conflicts(env).has(6)) fails.push('HS-11 emptying the earlier slot did not clear the "!"');
   }
@@ -452,9 +452,9 @@ async function pure(base) {
       if (byLevel) {
         const a = { type: 'ability', id: byLevel.id };
         const f = M.AF.factsOf(a, { bag, store: set.store, skills, set, worn });
-        const req = f && f.requires ? [f.requires, f.unlock, f.alone].filter(Boolean).join(' ') : '';
+        const req = f && f.requires ? [f.requires, f.unlock, f.alone].filter(Boolean).join(' · ') : '';
         const weapon = M.AF.weaponWarning(a, set.discipline, set.role, skills);
-        if (!req.includes('Unlocks at ' + byLevel.need + '.') || weapon !== '') fails.push('HS-8 a spell its weapon casts at ' + byLevel.need + ' does not say its unlock, or blames the weapon: ' + JSON.stringify([weapon, req]));
+        if (!req.includes('Unlocks at ' + byLevel.need) || weapon !== '') fails.push('HS-8 a spell its weapon casts at ' + byLevel.need + ' does not say its unlock, or blames the weapon: ' + JSON.stringify([weapon, req]));
       }
     }
     /* THE PLAYER PICKS THE ONE ITEM: the Food run lists every food with its HP a use, gold a use and gold a point from the SERVER's
@@ -499,7 +499,7 @@ async function pure(base) {
     if (note !== gdLine + '\n' + M.TIERS.TIER_DEATH_LINE) fails.push('HS-8 the tier note reads: ' + note);
     if (/\d/.test(note)) fails.push('HS-8 the tier note carries a number: ' + note);
     const press = M.HL.tierChoiceWords(r, 'dangerous', 1);
-    if (press !== 'Dangerous: ' + gdLine.split('\n')[0].replace(/^M/, 'm') + '.') fails.push('HS-8 the line beside Enter reads: ' + press);
+    if (press !== 'Dangerous: ' + gdLine.split('\n')[0].replace(/^M/, 'm')) fails.push('HS-8 the line beside Enter reads: ' + press);
     if (/\d/.test(press)) fails.push('HS-8 the line beside Enter carries a number: ' + press);
   }
   return fails;

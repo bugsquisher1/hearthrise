@@ -347,7 +347,7 @@ const cases = {
     if (row.n !== 'Scored Fire Rune') return 'the store\'s tier-2 Fire rune is named ' + JSON.stringify(row.n) + ', not by its tier ("Scored Fire Rune")';
     const want = ['Cost: ' + cast.mana + ' mana, 1 Scored Fire Rune (' + row.price + ' g)', 'Each monster hit: ' + loPct + '% to ' + hiPct + '% of Max Hit as ember',
       'Never less than ' + Math.floor((fb.base[0] * cast.power) / 1000) + '–' + Math.floor((fb.base[1] * cast.power) / 1000) + ' a hit',
-      (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters.'];
+      (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters'];
     const said = M.shell.facts.hoverLines(slot, ctx, null, null).map((l) => l.text);
     if (JSON.stringify(said) !== JSON.stringify(want)) return 'the hover reads ' + JSON.stringify(said) + ', the engine cast ' + JSON.stringify(want);
     if (hits.length !== 2 || hits.some((n) => n < lo || n > hi)) return 'the engine landed ' + JSON.stringify(hits) + ' where the bar says ' + lo + '–' + hi;
@@ -823,9 +823,9 @@ const cases = {
     const { factsOf, aloneReason, aloneNote } = M.shell.facts;
     const slam = factsOf({ type: 'ability', id: 'frost_slam' }), shell = factsOf({ type: 'ability', id: 'shelter' });
     const say = (f) => [f.type, f.alone, ...f.effect, f.unlock].join(' | ');
-    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12.') return 'Frost Slam reads ' + say(slam);
+    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12') return 'Frost Slam reads ' + say(slam);
     /* (THE SPELL RULE: its shell is a share of the tank's blow, version I with no rune read, never under its beginner's floor) */
-    if (say(shell) !== 'Shields every hero near you | Party only | Blocks damage up to 289% of Max Hit | Never less than 30 | Unlocks at Melee 20.') return 'Shelter reads ' + say(shell);
+    if (say(shell) !== 'Shields every hero near you | Party only | Blocks damage up to 289% of Max Hit | Never less than 30 | Unlocks at Melee 20') return 'Shelter reads ' + say(shell);
     const deep = factsOf({ type: 'ability', id: 'frost_slam', store: 'plain_graven_ice_rune' }, { bag: [], skills: { melee: { level: 60 } }, store: M.SB.BASIC_SUPPLIES.filter((b) => b.id === 'plain_graven_ice_rune') });
     if (!deep.effect.includes('Causes chill for 4 s, 50% slower attacks and casts')) return 'a Graven slam reads ' + JSON.stringify(deep.effect);
     const sl = { action: { type: 'ability', id: 'frost_slam' }, conditions: [], join: 'and' };
@@ -833,7 +833,7 @@ const cases = {
     if (!greyed || greyed.code !== 'party_only' || greyed.text !== 'Party only' || !greyed.strike) return 'a party spell alone reads ' + JSON.stringify(greyed);
     if (aloneReason(sl, false) || aloneReason(sl, null)) return 'a party spell in a party (or unknown) is greyed';
     if (aloneReason({ action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' }, true)) return 'an alone spell alone is greyed';
-    return aloneNote(sl.action, 1) === 'Party only, does nothing alone' && aloneNote(sl.action, 2) === '' ? null : 'Configure action says ' + JSON.stringify([aloneNote(sl.action, 1), aloneNote(sl.action, 2)]);
+    return aloneNote(sl.action, 1) === 'Party only (no effect solo)' && aloneNote(sl.action, 2) === '' ? null : 'Configure action says ' + JSON.stringify([aloneNote(sl.action, 1), aloneNote(sl.action, 2)]);
   },
   /* AN IGNORE LIST BINDS ONLY WHERE IT AIMS (spell content, Coordinator 2026-10-23): a food, drink, heal or shield slot never
      reads one, so the Configure window saves none on it (bar-draft slotForSave), and the "can never fire" check never
@@ -886,16 +886,16 @@ const cases = {
     const has = (x, type, effect, unlock) => x.type === type && effect.every((e) => x.effect.includes(e)) && x.unlock === unlock;
     /* (the words are the text home's, src/data/text/bar.js: the shipped target lines, a line's and a ring's own beside them) */
     const rows = [
-      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10.'],
-      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10.'],
+      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10'],
+      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10'],
       /* THE SPELL RULE: a share of the hero's blow, in % of Max Hit, and the row's beginner's floor (abilities.js base) */
-      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14.'],
-      ['spring_tide', 'Hero and nearby allies', ['Heals 951% of Max Hit', 'Never less than 150'], 'Unlocks at Magic 20.'],
+      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14'],
+      ['spring_tide', 'Hero and nearby allies', ['Heals 951% of Max Hit', 'Never less than 150'], 'Unlocks at Magic 20'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
     if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
     /* a status with no slow and no mark still says how long it lasts, and Sickness what it does */
-    if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s, 10% more damage taken')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
+    if (!f('rend').effect.includes('Causes bleed for 6 s') || !f('green_sickness').effect.includes('Causes sickness for 6 s, 10% more damage taken')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
     /* a shot spell's cost line says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
     const src = ['raking_shot', 'power_strike'].map((id) => f(id).cost);
     if (src.join('|') !== 'Cost: 10 mana, 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);

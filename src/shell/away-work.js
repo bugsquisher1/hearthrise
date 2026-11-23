@@ -101,17 +101,17 @@ function howItEnds(cs, w) {
 }
 
 /* HOW A COUNTED JOB ENDED while the player was away, from the server's record of it (bench_run.ended), or null when the record is not this
-   stamp's job: "Done, 20 of 20. Went back to hunting." / "It stopped at 12 of 20, out of Copper Ore." */
+   stamp's job: "Done: 20 of 20 · Back to hunting" / "Stopped at 12 of 20, out of Copper Ore" */
 function endedWords(cs, w, was) {
   const e = jobOf(cs).ended;
   if (!e || e.kind !== w.kind || e.id !== w.id || !(Date.parse(e.at) >= was.at)) return null;
   const n = { done: whole(e.done), count: whole(e.count) };
-  if (e.end !== 'count') return t('away.work_end_stopped', n) + whyStopped(cs, w) + '.';
+  if (e.end !== 'count') return t('away.work_end_stopped', n) + whyStopped(cs, w);
   const then = e.next !== 'hunt' ? t('away.work_end_waited')
     : e.next_state === 'started' ? t('away.work_end_hunting')
       : e.next_state === 'pending' ? t('away.work_end_going')
         : t('away.work_end_no_hunt', { why: noHuntWords(e.why) });
-  return t('away.work_end_count', n) + ' ' + then;
+  return t('away.work_end_count', n) + ' · ' + then;
 }
 
 /* Why a THEN of hunt did not start, in a few plain words (hr_job_next_start's why, or the hunt door's own refusal). */
@@ -143,16 +143,16 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const ran = gained > 0 ? Math.ceil(gained / yieldOf(w)) * actionMs(cs, w) : 0;
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
   const ended = still ? null : endedWords(cs, w, was);
-  const tail = still ? ' ' + t(STILL[w.skill] || 'away.work_still') + ' ' + howItEnds(cs, w)
-    : ended ? ' ' + ended : ' It stopped' + when + whyStopped(cs, w) + '.';
+  const tail = still ? ' · ' + t(STILL[w.skill] || 'away.work_still') + ' · ' + howItEnds(cs, w)
+    : ended ? ' · ' + ended : ' · Stopped' + when + whyStopped(cs, w);
   const name = nameOf(cs) || 'Hero';
   const who = name + ' ' + didWords(w), facts = t('away.card_facts', { facts: parts.join(', ') }) + tail;
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     /* a job still running: its press is the window that stops or changes it (windows/away.js OPENS.work) */
     action: still ? 'work' : made ? 'bag' : 'show', button: still ? t('away.work_change') : made ? 'Open your inventory' : 'See your hero',
-    /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess mined the Copper Rock. +4,303 Copper Ore.") */
+    /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess mined the Copper Rock · +4,303 Copper Ore") */
     facts: { name, gone: now - was.at, body: t('away.card_work', { who, facts }) },
-    text: t('away.card_head', { time: awayWords(now - was.at), who }) + ' ' + facts,
+    text: t('away.card_head', { time: awayWords(now - was.at), who }) + ' · ' + facts,
   };
 }

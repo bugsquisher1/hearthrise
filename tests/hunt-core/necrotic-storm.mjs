@@ -309,7 +309,7 @@ const cases = {
     const why = (role) => { const w = M.SW.slotWhy(sl, f(role)); return w ? w.code : null; };
     if (why('tank') !== 'party_only' || why('melee_dps') === 'party_only') return 'the bar says ' + JSON.stringify([why('tank'), why('melee_dps')]) + ' on a lone tank\'s and a lone sword\'s Brand';
     const note = (role, n) => M.SW.setupNote({ action: sl.action, conditions: [] }, n, role);
-    if (note('tank', 1) !== 'Party only, does nothing alone' || note('melee_dps', 1) !== '' || note('tank', 2) !== '') return 'Configure action says ' + JSON.stringify([note('tank', 1), note('melee_dps', 1), note('tank', 2)]);
+    if (note('tank', 1) !== 'Party only (no effect solo)' || note('melee_dps', 1) !== '' || note('tank', 2) !== '') return 'Configure action says ' + JSON.stringify([note('tank', 1), note('melee_dps', 1), note('tank', 2)]);
     const card = (role) => F.factsOf(sl.action, { set: { role } }).alone;
     return card('tank') === 'Party only' && card('melee_dps') === null ? null : 'Brand\'s card says ' + JSON.stringify([card('tank'), card('melee_dps')]);
   },

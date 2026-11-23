@@ -630,7 +630,7 @@ const cases = {
     if (id(at(5, { visited: new Set(['mill_cellar']), tally: paid, sellable: 0 })) === 'back_down') return 'a Level 5 hero is sent back down';
     /* 5. the second trip: the invitation leads. A hero who never took her rats reads the first trip's words */
     const second = said(at(3, { ...inCellar, tally: paid }));
-    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('It is safe to close the game. Your hero keeps hunting')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
+    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('Safe to close the game · Hunts on to Level')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
     const never = said(at(3, inCellar));
     if (!never || never.id !== 'earn_the_thicket' || !never.text.startsWith('Hunt here to Level')) return 'a hero without her rats reads ' + JSON.stringify(never && [never.id, never.text]);
     /* 6. her rats are not her wolves: the Thicket's task is still asked for, and its pay still waited for */
@@ -1045,7 +1045,7 @@ const cases = {
     /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" beside a tally reading 200/200): her row done, the card says what is left (her gold), in the hunt and in town */
     const WOLVES = 'thicket_gray_wolves', RATS = 'cellar_giant_rats';
     const down = { ...held, tally: tallyFact([[WOLVES, 200, true]], [RATS]) };
-    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt and collect 480 gp from Tamsin'], ['in town', { ...down, huntId: null }, "Open Tamsin's tally → collect 480 gp"]]) {
+    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt · Collect 480 gp from Tamsin'], ['in town', { ...down, huntId: null }, "Open Tamsin's tally → collect 480 gp"]]) {
       /* in the Thicket it is the card up; in town another card may lead, so her card's words are read from its own row */
       const step = facts.huntId ? M.tut.currentCard(facts) : M.tut.HUNT_TUTORIAL.find((s) => s.id === 'tamsin_pays'), c = step && Object.assign({ id: step.id }, M.tut.cardFor(step, facts));
       if (!c || c.id !== 'tamsin_pays' || c.text !== next) return 'her wolves counted, ' + where + ' the paid card reads ' + JSON.stringify(c && { id: c.id, text: c.text });
@@ -1054,7 +1054,7 @@ const cases = {
     if (!/^Kill 200 Gray Wolves, then collect 480 gp/.test((M.tut.currentCard(left) && M.tut.cardFor(M.tut.currentCard(left), left).text) || '')) return 'CONTROL: with wolves left the paid card does not say to hunt on';
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
-    if (!cash || cash.text !== 'Leave the hunt to go back to town') return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
+    if (!cash || cash.text !== 'Leave the hunt · Back to town') return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
     /* in a party a leaver takes the others home (Tyler 10-22; party panel 11-03: the card did not say so on a member's screen) */
     const cashRow = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'leave_cellar');
     const inParty = M.tut.cardFor(cashRow, { charLevel: 5, inParty: true }), alone = M.tut.cardFor(cashRow, { charLevel: 5, inParty: false });
@@ -1090,7 +1090,7 @@ const cases = {
     if ((say(R({ ...inThicket, supplies: own(2) }, 'first_eat')) || {}).id !== 'tamsin_pays') return 'read, the ate card does not give the chain back';
     const drink = T.slots.findIndex((s) => s.id === 'thin_turnip_juice');
     const drank = say(R({ ...inThicket, supplies: [{ item: 'thin_turnip_juice', source: 'store', count: 1 }] }));
-    if (!drank || drank.id !== 'first_drink' || drank.text !== 'Plant turnips to brew your own juice' || drank.barSlot !== drink) return 'the drink card reads ' + JSON.stringify(drank && drank.text);
+    if (!drank || drank.id !== 'first_drink' || drank.text !== 'Plant turnips for juice' || drank.barSlot !== drink) return 'the drink card reads ' + JSON.stringify(drank && drank.text);
     const beat = say(R({ ...inThicket, supplies: own(3) }, 'first_eat'));
     if (!beat || beat.id !== 'fight_settings' || beat.text !== 'Set the stance on your bar to Defensive') return 'the stance card reads ' + JSON.stringify(beat && beat.text);
     if ((say(R({ ...inThicket, supplies: own(3), stance: 'defensive' }, 'first_eat')) || {}).id === 'fight_settings') return 'the stance changed, yet the stance card is up';

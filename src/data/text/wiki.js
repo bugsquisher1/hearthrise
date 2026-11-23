@@ -13,7 +13,7 @@ export const WIKI_TEXT = Object.freeze({
   tab_skills: 'Skills',
   tab_grounds: 'Hunting grounds',
   tab_formulas: 'Formulas',
-  none: 'Nothing in the book matches "{query}".',
+  none: 'No results for "{query}"',
 
   /* A skill's page. */
   trained_by: 'Trained by',
@@ -34,7 +34,7 @@ export const WIKI_TEXT = Object.freeze({
   drops: 'Notable drops',
   drop_from: 'from the {monster}',
   drop_here: 'from any kill here',
-  no_drops: 'Nothing rare drops here yet.',
+  no_drops: 'No rare drops yet',
 
   /* The formulas. Each page states the rule as labels, then works one example with the engine's own function. A tougher
      monster's own factors are listed by value ({list}, joined with `or`): no page shows a monster's tier. */

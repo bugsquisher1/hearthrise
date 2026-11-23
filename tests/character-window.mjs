@@ -342,7 +342,7 @@ async function checks(overrides, shots) {
         await page.click('[data-hs-win="character"] .hw-tab[data-tab="deaths"]');
         await page.waitForTimeout(300);
         const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-dl-head')).map((b) => ({ by: b.querySelector('.hw-dl-by').textContent, where: b.querySelector('.hw-dl-where').textContent, xp: b.querySelector('.hw-dl-xp').textContent, ev: b.getAttribute('data-event') })));
-        if (rows.length !== 2 || rows[0].by !== 'Killed by Rat King' || rows[0].where !== 'Died in Mill Cellar and returned to town' || rows[0].xp !== '140 XP lost' || rows[0].ev !== '901' || rows[1].xp !== 'No XP lost')
+        if (rows.length !== 2 || rows[0].by !== 'Killed by Rat King' || rows[0].where !== 'Died in Mill Cellar' || rows[0].xp !== '140 XP lost' || rows[0].ev !== '901' || rows[1].xp !== 'No XP lost')
           fails.push('CW-5 the death rows are ' + JSON.stringify(rows));
         await page.click('.hw-dl-head[data-event="901"]');
         await page.waitForTimeout(150);

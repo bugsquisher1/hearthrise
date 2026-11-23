@@ -580,7 +580,7 @@ const MUTANTS = [
   { name: 'his adds shield him from nothing', edits: [['src/core/hunt/damage.js', "  if (isMonster(target)) n = Math.floor((n * guardPmOf(inst, target)) / 1000);\n", '']], want: /BC-GUARD/ },
   { name: 'a fallen add still shields him', edits: [['src/core/hunt/boss-phases.js', 'inst.world.units.some((u) => u.alive && isMonster(u)', 'inst.world.units.some((u) => isMonster(u)']], want: /BC-GUARD/ },
   { name: 'every monster hides behind an add', edits: [['src/core/hunt/boss-phases.js', "if (!ph || !Number.isInteger(ph.guardPm)) return 1000;", "if (!ph || !Number.isInteger(ph.guardPm)) return t.side === 'mon' && inst.world.units.some((u) => u.alive && (MONSTERS[u.kind] || {}).add === true) ? 500 : 1000;"]], want: /BC-GUARD/ },
-  { name: 'the enrage reads the row, not his HP', edits: [['src/core/hunt/boss-phases.js', 'if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;', 'if (!ph) return row;']], want: /BC-PHASE/ },
+  { name: 'the enrage reads the row, not his HP', edits: [['src/core/hunt/boss-phases.js', 'const enraged = !!ph && atOrUnder(u.hp, u.maxHp, ph.enragePm);', 'const enraged = !!ph;']], want: /BC-PHASE/ },
   { name: 'a leader\'s death heals him', edits: [['src/core/hunt/leash.js', "if (!pack || (inst.ground && inst.ground.call)) return;", 'if (!pack) return;']], want: /BC-RECORD/ },
   { name: 'the record counts everyone\'s casts', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'if (e.u !== unitId) continue;', '']], want: /BC-RECORD/ },
   { name: 'the record forgets the food', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', "e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null", "e.type === 'cast' ? e.ability : null"]], want: /BC-RECORD/ },

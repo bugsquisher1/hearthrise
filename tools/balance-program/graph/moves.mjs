@@ -96,7 +96,8 @@ export const LEVER_MOVES = Object.freeze({
   'mon.leash': ['~aggro'],
   'mon.tier-overrides': ['~tier.dmg', '~tier.hp', '~tier.xp', '~tier.pull'],
   'mon.scaled-danger': ['+mon.atk', '+mon.aim'],
-  'mon.run-rooms': ['+mon.level', '+mon.atk'],
+  'mon.run-rooms': ['+mon.level', '+mon.hp', '+mon.atk'],
+  'mon.boss-kinds': ['~mon.hp', '~mon.atk'],
   'mon.spell-warning': ['~mon.spell'],
   // ── spawns ──
   'spawn.composition': ['~pull.rows'],

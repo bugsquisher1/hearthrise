@@ -233,7 +233,7 @@ const CASES = {
 
 const MUTANTS = [
   { name: 'aimOf never reads a role', case: 'reach', edits: [['src/core/hunt/shooters.js', '  const pick = role ? reachPick(inst, m, role) : null;', '  const pick = null;']] },
-  { name: 'roles play off the scale', case: 'reach', edits: [['src/core/hunt/monster-roles.js', "  if (!inst || !dangerOn(inst.world) || !isMonster(m)) return null;", "  if (!inst || !isMonster(m)) return null;"]] },
+  { name: 'roles play off the scale', case: 'reach', edits: [['src/core/hunt/monster-roles.js', "  if (!inst || !rolesOn(inst) || !isMonster(m)) return null;", "  if (!inst || !isMonster(m)) return null;"]] },
   { name: 'a reach ignores the row', case: 'reach', edits: [['src/core/hunt/monster-roles.js', '    if (keep && rowOf(h) !== keep) continue;\n', '']] },
   { name: 'a reach leaves the pack area', case: 'reach', edits: [['src/core/hunt/monster-roles.js', ' || !inArea(inst, m.pocket, h.x, h.y)) continue;', ') continue;']] },
   { name: 'the swarm piles on one hero', case: 'reach', edits: [['src/core/hunt/monster-roles.js', '(a, b) => onHero(inst, a) - onHero(inst, b) || ', '(a, b) => ']] },

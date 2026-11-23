@@ -31,26 +31,26 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 33 | 11 | 9 | 4 | 9 | 7 | 15 | 19 |
-| Spawn pacing and encounter composition | 12 | 7 | 1 | 3 | 1 | 1 | 6 | 5 |
+| Monster HP, damage, armor, resistances and behavior | 28 | 9 | 7 | 4 | 8 | 7 | 10 | 14 |
+| Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
 | Equipment stats and progression | 17 | 5 | 4 | 8 | 0 | 0 | 8 | 11 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
-| Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
+| Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **203** | 95 | 32 | 47 | 29 | 31 | 90 | 92 |
+| **All** | **196** | 92 | 30 | 47 | 27 | 31 | 83 | 86 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 683 (in 234 files, 15863 typed numbers) |
-| Claimed by a lever | 293 |
-| Claimed by a not-a-lever reason | 390 |
+| Top-level bindings in the rule code that hold a typed number | 685 (in 234 files, 15834 typed numbers) |
+| Claimed by a lever | 294 |
+| Claimed by a not-a-lever reason | 391 |
 | Unclaimed | 0 |
-| Exceptions, intentional and accidental | 18 and 11 |
+| Exceptions, intentional and accidental | 16 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
 
@@ -112,9 +112,9 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `mon.spell-warning` A monster spell's warning and roll | SPELL_ROLL.lowPm 500 is the hero spell's hitLowPm 500 written again | 44 X-ROLL-TWINS, CONFIRMED |
 | redundant | `mon.tier-overrides` Per-ground tier dials | The exact case Tyler's formula brief names: each compensates kill reward on one ground. A formula fix at the kill reward lets every ground take TIER_DIALS whole | 44 X-TIER-PER-GROUND, CONFIRMED. Knobs.json notKnobs |
 | redundant | `mon.scaled-danger` Scaled-hunt exceptions | A per-ground combat number. The cause is the bow against a melee pack | 44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS |
+| redundant | `mon.boss-kinds` Boss kinds and the ramp | Lord Krell and the hall's Captain Hask still carry hand-fitted rows (Krell 18,000 HP / atk 247 / aim 290 against the formula boss's 2,482 / 103 / 70). Their re-fit on the hall kind waits on the ship bar | lane/tower-boss-formula, CONFIRMED |
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
 | redundant | `danger.ref-step` A ground's reference step, band and kill rate | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
-| redundant | `mf.ref` The reference company a formula ground is anchored on | A measured table by Level that stands in for the reference company's damage in steps. It retires when hero power is counted in steps (04 section 1, wave 3) | JUDGMENT |
 | redundant | `reward.xp-floor-fit` Early-ground XP fit | Falls away with the ground-fit fix (a kill reward that follows kills an hour) | 44 E-X04, CONFIRMED |
 | redundant | `reward.ground-xp-fit` Per-ground XP fit | Outputs of the missing kill-rate term, hand-fitted (re-fitted 11-08, 11-11, 11-19). Knobs.json lists it under notKnobs | 44 E-X01, CONFIRMED |
 | redundant | `reward.ground-gp-fit` Per-ground gold fit | One x0.7 typed 11 times and patched 3 more times in the shop's prices (the sale dial) | 44 E-X02 and E-X19, CONFIRMED |
@@ -189,8 +189,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `mon.rows` A monster row's stats (formula rows and hand rows) | The Rat King's attack is held at 6 so his Tail Lash stays under 35% of the floor hero: the cap should bound his spell, not his attack | 44 X-NAMED-RAT-KING, CONFIRMED |
 | contradictory | `mon.spells` Monster spells | Three spells had their multiples lowered so the +10% monster step would not pass 35% of a floor hero (Hot Coal, Bone Slide, Snuff the Candles): a bound written as three rows | 44 X-SPELL-HOLDS, HYPOTHESIS (rows not read) |
 | contradictory | `mon.tier-danger` Harder-tier blows | Applied three times: to the blow, the aim and the Level armor reads. On Wickstead's Deadly a Level 8 monster counts as Level 21 against armor | 44 X-TIER-TRIPLE, CONFIRMED |
-| contradictory | `mon.run-rooms` Tower and Catacomb rooms | The Tower heat (x1.012 a floor past 100, compounding to x10.9 by floor 300) is live. Tyler dropped it on 2026-11-20 | 44 X-TOWER-HEAT, CONFIRMED |
-| contradictory | `mon.run-rooms` Tower and Catacomb rooms | A floor above 300 plays floor 300: a limit of the build, not a design choice, on an endless mode | 44 X-TOWER-TOP, CONFIRMED |
+| contradictory | `mon.boss-kinds` Boss kinds and the ramp | The boss blow is held to a third of the FLOOR hero's HP however deep he lives: a designer rule, never ruled by Tyler | 44 X-BOSS-FLOOR-CAP, CONFIRMED |
 | contradictory | `mon.boss-rooms` Boss room clocks (halls and called bosses) | GR-30's hall number acts on HP against a fixed clock, so a hall is won or lost at a DPS threshold: a cliff by construction, like the tiers. Nobody has sized a hall at Levels 25, 52 and 75 | 02-world GR-30 PROVISIONAL. Cliff COMPUTED from the rule, HYPOTHESIS until the hall grader plays it |
 | contradictory | `spawn.tier-pull-floor` No bigger pull under floor 16 | A deliberate rule of 2026-11-08 that conflicts with Tyler 2026-11-07 "Dangerous and Deadly keep the bigger pulls" | 44 X-TIER-PULL-FLOOR, CONFIRMED |
 | contradictory | `reward.xp-line` Level XP a kill | No term for how fast a ground's monsters die, so every ground got a hand correction. The Level curve, the pace target and kill XP were then fitted to each other in a circle | 44 summary item 2, CONFIRMED |
@@ -201,7 +200,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `cons.rune-price` Store rune price by tier | A default bar that spends gold (Rend on the two-axe default) | 44 X-REND-DEFAULT, CONFIRMED |
 | contradictory | `cons.food-buffs` Food and drink buffs | Luck v3.1 (Tyler 2026-11-20) cuts the four foods' drop buffs. The rows remain | rulings-of-record LUCK v3.1 |
 | contradictory | `party.class-xp` Party XP by size and classes | Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build. The class table is live (patches/party-xp-by-size.json plays the ruling) | rulings-of-record S-10 |
-| contradictory | `party.run-xp` Run ground party table | Its pair and three rows are ASSUMED | 44 P-X09, CONFIRMED |
 | contradictory | `party.under-floor` Under-floor Level share | A Level-keyed cut on party XP is live. Tyler's 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT | 44 P-X06, CONFIRMED |
 | contradictory | `econ.blessing-price` Blessing prices | Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms | 44 P-X20, CONFIRMED |
 | contradictory | `econ.training` Training yard pay and fee | The fee in code (50 + 6 a level) is not the fee Tyler ruled (100 gold x skill level an hour, 2026-11-20 24-8) | 44 P-X30, CONFIRMED |
@@ -279,17 +277,10 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `econ.training-items` Training items | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `level.mode-share` Session mode XP share (the Tower, the Catacombs) | Level scaling | no matrix run plays a run ground (tools/balance-sim/tower-climb.mjs fits it apart) |
 | not-in-runs | `level.xp-event` The Hearthrise XP weekend and its fire | Level scaling | no run schedules an event. The level_xp cell variant (buff:caps) stands in for a timed Level XP bonus. The fire is read by SQL (1043-hearthrise.sql), never by the engine |
-| not-in-runs | `mf.blow-cap` A formula monster's largest steady blow | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
-| not-in-runs | `mf.encounter-per-hero` Monsters a pull brings a hero | Spawn pacing and encounter composition | played by the V1 probe (candidates mf-*) |
-| not-in-runs | `mf.mend` A Warder's mend | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidate mf-hasks: the Bannerman) |
-| not-in-runs | `mf.ramp` Threat that grows, by encounter type | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (Captain Hask on Muster Barrows) |
-| not-in-runs | `mf.ref` The reference company a formula ground is anchored on | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
-| not-in-runs | `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe through the candidates mf-muster / mf-hasks / mf-wing (tools/balance-program/redesign/mf). No matrix run plans a stance |
-| not-in-runs | `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
+| not-in-runs | `mon.boss-kinds` Boss kinds and the ramp | Monster HP, damage, armor, resistances and behavior | the matrix plays no boss room. Tools/balance-sim/boss-call-table.mjs fits halls apart |
 | not-in-runs | `mon.boss-rooms` Boss room clocks (halls and called bosses) | Monster HP, damage, armor, resistances and behavior | no run plays a hall. The hall grader at Levels 25, 52 and 75 is owed (13-build-plan) |
-| not-in-runs | `mon.run-rooms` Tower and Catacomb rooms | Monster HP, damage, armor, resistances and behavior | tools/balance-sim/tower-climb.mjs plays climbs apart from the matrix |
+| not-in-runs | `mon.run-rooms` Tower and Catacomb rooms | Monster HP, damage, armor, resistances and behavior | tools/balance-sim/tower-curve.mjs plays climbs apart from the matrix |
 | not-in-runs | `mon.scaled-danger` Scaled-hunt exceptions | Monster HP, damage, armor, resistances and behavior | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
-| not-in-runs | `party.run-xp` Run ground party table | Party bonuses and interactions | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.under-floor` Under-floor Level share | Party bonuses and interactions | every matrix cell seats one Level (mixed-Level cells are owed: 13-build-plan MM-19, OC1 to OC3) |
 | not-in-runs | `roles.table` Monster roles (reach, range, splash, held, blow) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe with --styles (lineups) against the roles-off candidate. No matrix run plans a stance |
 | outside-hunt | `damage.permanent-cap` Cap on permanent perks | Base damage coefficients | the kits hold no House rooms or renown, so no cell carries a permanent perk to cap |
@@ -338,31 +329,31 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 <!-- GENERATED:REACH (tools/balance-program/levers.mjs --write) -->
 | Lever | Formulas it feeds directly (COMPUTED) | Matrix outcomes it moves (JUDGED) | Formulas downstream (COMPUTED) | Perturbed by | Class |
 |---|---|---|---|---|---|
-| `level.hero-hp` Hero HP a Level | 17 | 11 | 77 | knob `heroHp` | global |
-| `danger.power-step` Danger power step | 16 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
-| `danger.pay` Pay by depth | 15 | 6 | 76 | NOT PLAYABLE (not-in-runs) | global |
-| `mon.rows` A monster row's stats (formula rows and hand rows) | 14 | 19 | 77 | patch | content |
-| `mon.hp-line` Monster HP line | 14 | 9 | 76 | knob `monsterHp` | global |
-| `blow.gear-term` Gear term of the largest blow | 14 | 8 | 77 | knob `playerAttack` | global |
-| `gear.item-stats` Item rows' stats and requirements | 13 | 19 | 77 | patch | content |
-| `gear.material-tiers` Gear tiers: their Levels and value | 13 | 19 | 76 | patch | archetype |
-| `mon.aim-evasion` Monster aim and evasion | 13 | 9 | 77 | knob `monsterAccuracy` | global |
-| `mon.level-by-tier` A Level from the art tier | 13 | 0 | 77 | patch | exception-accidental |
-| `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | 12 | 20 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mf.ramp` Threat that grows, by encounter type | 12 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mf.ref` The reference company a formula ground is anchored on | 12 | 19 | 78 | NOT PLAYABLE (not-in-runs) | exception-intentional |
-| `mon.party-fit` Party ground monster formula | 12 | 19 | 78 | knob `partyGroundHp` | exception-intentional |
-| `mon.roles` Monster roles | 12 | 19 | 78 | patch | archetype |
-| `mf.blow-cap` A formula monster's largest steady blow | 12 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
-| `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | 12 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
-| `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 78 | knob `monsterDamage` | global |
-| `mon.danger-ramp` The gentle-ground ramp | 12 | 11 | 78 | patch | exception-intentional |
-| `skill.reference-career` The reference hero monsters are written against | 12 | 9 | 77 | patch | content |
-| `mf.mend` A Warder's mend | 12 | 8 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
-| `danger.power-gear` The power step on gear | 11 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
-| `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 77 | patch | archetype |
-| `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 78 | patch | content |
-| `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
+| `level.hero-hp` Hero HP a Level | 17 | 11 | 78 | knob `heroHp` | global |
+| `danger.power-step` Danger power step | 16 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `danger.pay` Pay by depth | 16 | 6 | 76 | NOT PLAYABLE (not-in-runs) | global |
+| `mon.rows` A monster row's stats (formula rows and hand rows) | 14 | 19 | 78 | patch | content |
+| `mon.hp-line` Monster HP line | 14 | 9 | 77 | knob `monsterHp` | global |
+| `blow.gear-term` Gear term of the largest blow | 14 | 8 | 78 | knob `playerAttack` | global |
+| `gear.item-stats` Item rows' stats and requirements | 13 | 19 | 78 | patch | content |
+| `gear.material-tiers` Gear tiers: their Levels and value | 13 | 19 | 77 | patch | archetype |
+| `mon.aim-evasion` Monster aim and evasion | 13 | 9 | 78 | knob `monsterAccuracy` | global |
+| `mon.level-by-tier` A Level from the art tier | 13 | 0 | 78 | patch | exception-accidental |
+| `mon.boss-kinds` Boss kinds and the ramp | 12 | 19 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mon.party-fit` Party ground monster formula | 12 | 19 | 79 | knob `partyGroundHp` | exception-intentional |
+| `mon.roles` Monster roles | 12 | 19 | 79 | patch | archetype |
+| `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 79 | knob `monsterDamage` | global |
+| `mon.danger-ramp` The gentle-ground ramp | 12 | 11 | 79 | patch | exception-intentional |
+| `skill.reference-career` The reference hero monsters are written against | 12 | 9 | 78 | patch | content |
+| `danger.power-gear` The power step on gear | 11 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 78 | patch | archetype |
+| `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 79 | patch | content |
+| `danger.pay-floor` Pay floor under the reference step | 9 | 6 | 77 | NOT PLAYABLE (not-in-runs) | global |
+| `reward.tier-xp` Harder-tier XP | 9 | 4 | 78 | knob `tierXp` | archetype |
+| `danger.coin-level` The scale's coin level | 9 | 2 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `skill.curve` Combat skill curve | 9 | 0 | 79 | NOT PLAYABLE (harness-fixed) | global |
+| `danger.power-gear-below` The power step under the ground's gear Level | 8 | 19 | 79 | NOT PLAYABLE (not-in-runs) | global |
+| `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 79 | patch | exception-accidental |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

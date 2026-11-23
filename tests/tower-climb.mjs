@@ -10,20 +10,24 @@
 //   node tests/tower-climb.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
 //
 // mutant-anchors: src/core/hunt/tower.js, src/data/tower.js, src/core/hunt-rewards.js, src/core/hunt/xp-share.js, src/core/combat-sim.js,
+//   src/core/hunt/boss-phases.js, src/core/hunt/damage.js,
 //   supabase/migrations/2027-04-24-tower-climb.sql, supabase/migrations/2027-05-03-tower-arm.sql, supabase/migrations/2027-05-29-tower-party-floor.sql
 //
-//   TC-ROOM    the room: floor F's five at Level F (the stat formula), a Keeper on every landing at the boss role and no second of his kind,
-//              the same room every read (no dice), a floor past the top playing the top's rows; past the heat's floor (src/data/tower.js
-//              `heat`) the blows x the floor's heat and HP, defense and XP the formula's still; the rows pay no coin and drop nothing; the
-//              server's per-floor bound (hr_tower_floors) is the engine's own, row for row
-//   TC-CURVE   THE CLIMB GETS HARDER EVERY BAND (lane/d-tower-curve 2026-11-19; Andy: "Everything between floor 100 > 170 felt the same"):
-//              past the heat's floor every band of ten floors hits at least 12% harder than the band below it (its rooms' summed max hits;
-//              the plain formula's own step there is 4-9%); and on the real engine a played Level 74 four climbing from floor 91 (6 climbs)
-//              sees its typical low (the median, over a band's floors, of its lowest seat's low HP) never rise more than 3 points band to
-//              band, and the band 30 floors past 101-110 at least 15 points lower, or most climbs over before it (the plain formula: 4-9)
+//   TC-ROOM    the room (lane/tower-boss-formula: the Danger scale with no top): floor F's band mix (its size, its reach, its stat role) at the
+//              floor's Level, HP and blow x (1 + powerStep) to the floor's depth x the room's share, a Keeper on every landing on the keeper's boss
+//              row and no second of his kind, the same room every read (no dice), a floor past the top playing the top's rows, the top the scale's
+//              own; the same mix six bands on hits at least 30% harder at every height; the rows pay no coin and drop nothing; the server's
+//              per-floor bound (hr_tower_floors) is the engine's own, row for row, and its room_size the fewest any room holds
+//   TC-CURVE   A COMPANY TOPS OUT NEAR ITS LEVEL (Andy 2026-11-18: 1 -> 182 at Level 74, "100-170 felt the same"): played fours at Levels 30, 74
+//              and 110 each climb from floor 1 to a death between floor L and L + 45, higher at each Level, and the bands the 74 felt hit more
+//              than one seat hardest (the mixes ask different questions)
+//   TC-BOSS    the formula's boss role is the elite x the ground kind (src/data/bosses.js), every boss row has a kind; a ramped row swings
+//              x(1 + rampPm a minute) of its fight clock, capped, and the clock runs only while it holds a target; a played landing's Keeper
+//              fights on the keeper row with its clock in the stored world
 //   TC-ENGINE  the engine alone: a climb clears floors one after another from the server's floor, ends `died` with no XP lost, pays no coin,
-//              no item and no Bestiary or task count, pays Level XP at the mode's share of the kill (session-modes.js xpPm) and every skill route at the same
-//              share; a room that stood its time ends the climb `floor_time` for everyone in it
+//              no item and no Bestiary or task count, pays Level XP by the one pay rule (each hero its own Level's share at the floor's gap, x
+//              payPm and the room's share, split evenly; the row's XP moves nothing) and every skill route at the mode's share; a room that
+//              stood its time ends the climb `floor_time` for everyone in it
 //   TC-DOORS   one hero from floor 1, the browser closed and the hunt viewed: the same floors land (the run's top, its floors and kills),
 //              the hero's best (the record its checkpoints are read from), the end `died` with no death_xp row and the
 //              Blessings untouched, no coin credited, no item but one key a landing (the chest lane), no ev: count; the run's end stamped and journalled once; the two doors
@@ -72,6 +76,8 @@ async function load(root) {
   return { ...(await H.loadEdge(root)), T: await import(u('src/core/hunt/tower.js') + V), TD: await import(u('src/data/tower.js') + V),
     MON: await import(u('src/data/monsters.js') + V), BS: await import(u('src/data/balance-sheet.js') + V), CB: await import(u('src/core/combat.js') + V),
     G: await import(u('src/data/hunt-grounds.js') + V), SMD: await import(u('src/data/session-modes.js') + V), CH: await import(u('src/data/chests.js') + V), HG: await import(u('src/core/hunt-ground.js')),
+    DD: await import(u('src/data/danger.js') + V), DZ: await import(u('src/core/hunt/danger.js') + V), BO: await import(u('src/data/bosses.js') + V),
+    BP: await import(u('src/core/hunt/boss-phases.js') + V),
     P: await loadPlay(root), root };
 }
 
@@ -79,38 +85,52 @@ async function load(root) {
 async function roomArm(db, M) {
   const bad = [];
   const { towerRoom, towerMonsters, towerXpMax, towerLevelOf } = M.T;
-  const R = M.TD.TOWER_RULES;
-  /* THE HEAT, derived here from the data row alone (the oracle): a whole permille a floor past heat.from, compounding, rounded each step */
-  const heatOf = (F) => { let pm = 1000; for (let f = R.heat.from + 1; f <= towerLevelOf(F); f++) pm = Math.round((pm * (1000 + R.heat.perFloorPm)) / 1000); return pm / 1000; };
-  const hot = (F) => { const k = heatOf(F), S = M.BS.STAT_FORMULA; return k === 1 ? undefined : { formula: { ...S, blow: { ...S.blow, lo: S.blow.lo * k, hi: S.blow.hi * k } } }; };
-  if (!(heatOf(R.heat.from + 10) > 1)) bad.push(`TC-ROOM the heat warms nothing past floor ${R.heat.from} (${JSON.stringify(R.heat)})`);
-  for (const F of [1, 9, 10, 20, 45, 50, 100, 101, 110, 147, R.floorTop, R.floorTop + 70]) {
-    const room = towerRoom(F), tab = towerMonsters(F), L = towerLevelOf(F);
-    if (room.monsters.length !== R.roomSize) bad.push(`TC-ROOM floor ${F} holds ${room.monsters.length}, not ${R.roomSize}`);
+  const R = M.TD.RUN_GROUNDS[M.TD.TOWER_RULES.hunt];
+  /* THE FORMULAS, derived here from the data rows alone (the oracle): a floor's Level ceil(F x levelPm / 1000), its depth floor(F x depthPm /
+     1000), both held at the top; (1 + powerStep) to the depth by plain multiplication; the band's mix in turn; the keeper's stat role the elite
+     times the keeper's boss row */
+  const at = (F) => Math.min(F, R.floorTop);
+  const levelAt = (F) => Math.max(1, Math.ceil((at(F) * R.steps.levelPm) / 1000));
+  const ratioAt = (F) => { let r = 1; for (let i = 0; i < Math.floor((at(F) * R.steps.depthPm) / 1000); i++) r *= 1 + M.DD.DANGER.powerStep; return r; };
+  const mixAt = (F) => R.mixes[Math.floor((F - 1) / R.landingEvery) % R.mixes.length];
+  const roles = { ...M.BS.MONSTER_ROLES, keeper: M.BO.bossRole(M.BS.MONSTER_ROLES[M.BO.BOSS_KINDS.keeper.role], 'keeper') };
+  if (R.floorTop < 1000 || R.floorTop % R.landingEvery) bad.push(`TC-ROOM the Tower's top is floor ${R.floorTop} (want the scale's own, past 1000, a landing)`);
+  for (const F of [1, 9, 10, 20, 25, 45, 50, 100, 101, 110, 147, 300, 301, 1000, R.floorTop, R.floorTop + 70]) {
+    const room = towerRoom(F), tab = towerMonsters(F), L = levelAt(F), mix = mixAt(F), share = R.roomSize / mix.size;
+    if (towerLevelOf(F) !== L) bad.push(`TC-ROOM floor ${F} reads Level ${towerLevelOf(F)}, not ${L}`);
+    if (room.monsters.length !== mix.size || room.mix !== mix.id) bad.push(`TC-ROOM floor ${F} holds ${room.monsters.length} of ${room.mix}, not ${mix.size} of ${mix.id}`);
     if (JSON.stringify(towerRoom(F)) !== JSON.stringify(room)) bad.push(`TC-ROOM floor ${F}'s room moved between two reads`);
     const landing = F % R.landingEvery === 0;
     if (landing !== (room.keeper !== null) || (landing && room.monsters[0] !== room.keeper)) bad.push(`TC-ROOM floor ${F}: the Keeper is ${room.keeper} (a landing: ${landing})`);
     if (room.keeper && room.monsters.slice(1).includes(room.keeper)) bad.push(`TC-ROOM floor ${F}: the Keeper's kind ${room.keeper} stands in another slot too`);
     for (const id of room.monsters) {
-      const row = tab[id], base = M.MON.MONSTERS[id];
+      const row = tab[id], base = M.MON.MONSTERS[id], keeper = id === room.keeper;
       if (!row || row.level !== L) { bad.push(`TC-ROOM floor ${F}: ${id} is not at Level ${L}`); continue; }
       if (base.boss === true) bad.push(`TC-ROOM floor ${F}: a ground's boss ${id} stands in the Tower`);
       if (!(row.gp[0] === 0 && row.gp[1] === 0) || row.drops.length) bad.push(`TC-ROOM floor ${F}: ${id} pays coin ${row.gp} or drops ${row.drops.length}`);
-      const role = id === room.keeper ? 'boss' : Object.values(M.BS.GROUND_ROSTER).map((r) => r[id]).find(Boolean);
-      const spec = { level: L, role, tier: base.tier, floor: L, fit: R.fit, ground: R.hunt };
-      const s = M.BS.formulaStats(spec), h = M.BS.formulaStats(spec, hot(F));
-      /* HP, defense and XP are the plain formula's on every floor (the heat moves blows only); the blow is the heated formula's */
-      if (row.hp !== s.hp || row.def !== s.def || row.xp !== s.xp) bad.push(`TC-ROOM floor ${F}: ${id} is not the formula's ${role} at Level ${L}`);
-      if (row.atk !== h.atk || row.aim !== h.aim) bad.push(`TC-ROOM floor ${F}: ${id} hits for ${row.atk} at aim ${row.aim}, not the formula's x the heat ${heatOf(F)} (${h.atk} at aim ${h.aim})`);
-      if (row.xp > towerXpMax(F)) bad.push(`TC-ROOM floor ${F}: ${id} pays ${row.xp}, over the floor's bound ${towerXpMax(F)}`);
+      if (row.role !== mix.reach) bad.push(`TC-ROOM floor ${F}: ${id} reaches as ${row.role}, not its band's ${mix.reach}`);
+      if (keeper !== (row.bossKind === 'keeper')) bad.push(`TC-ROOM floor ${F}: ${id}'s boss kind is ${row.bossKind} (the Keeper: ${keeper})`);
+      const s = M.BS.formulaStats({ level: L, role: keeper ? 'keeper' : mix.role, tier: base.tier, floor: L, fit: R.fit, ground: R.hunt }, { roles });
+      const k = ratioAt(F) * (keeper ? 1 : share);
+      /* HP and blow: the formula's x the depth x the room's share (within a point: the oracle's power walks another order); the rest the formula's */
+      if (Math.abs(row.hp - Math.max(1, Math.round(s.hp * k))) > 1 || Math.abs(row.atk - Math.max(1, Math.round(s.atk * k))) > 1) {
+        bad.push(`TC-ROOM floor ${F}: ${id} stands ${row.hp} HP / atk ${row.atk}, not the formula's ${keeper ? 'keeper' : mix.role} at Level ${L} x ${k.toFixed(4)} (${Math.round(s.hp * k)} / ${Math.round(s.atk * k)})`); }
+      if (row.def !== s.def || row.aim !== s.aim || row.evasion !== s.evasion || row.xp !== s.xp) bad.push(`TC-ROOM floor ${F}: ${id}'s defense, aim, evasion or XP is not the formula's at Level ${L}`);
+      if (row.xp > towerXpMax(F)) bad.push(`TC-ROOM floor ${F}: ${id} carries ${row.xp}, over the floor's bound ${towerXpMax(F)}`);
     }
+  }
+  /* SIX BANDS ON, THE SAME QUESTION IS ASKED HARDER: never the same room twice (Andy, 2026-11-18: "100-170 felt the same") */
+  const hits = (F) => towerRoom(F).monsters.reduce((a, id) => a + M.CB.monsterMaxHit(towerMonsters(F)[id]), 0);
+  for (const F of [5, 105, 605, 1205]) {
+    const G = F + R.landingEvery * R.mixes.length;
+    if (!(hits(G) > hits(F) * 1.3)) bad.push(`TC-ROOM floor ${G} (${towerRoom(G).mix}) hits ${hits(G)}, not 30% over floor ${F}'s ${hits(F)} (the same mix one turn below)`);
   }
   const srv = await q(db, 'select floor, level, xp_max from public.hr_tower_floors order by floor');
   if (srv.length !== R.floorTop) bad.push(`TC-ROOM the server holds ${srv.length} floors, not ${R.floorTop}`);
   for (const r of srv) if (Number(r.xp_max) !== towerXpMax(r.floor) || Number(r.level) !== towerLevelOf(r.floor)) { bad.push(`TC-ROOM the server's floor ${r.floor} bound is not the engine's`); break; }
-  const rules = (await q(db, 'select * from public.hr_tower_rules'))[0] || {};
-  if (rules.hunt_id !== R.hunt || Number(rules.stair_ms) !== R.stairMs || Number(rules.room_size) !== R.roomSize || Number(rules.landing_every) !== R.landingEvery
-      || 'week_back' in rules) bad.push('TC-ROOM hr_tower_rules is not src/data/tower.js');
+  const rules = (await q(db, 'select * from public.hr_tower_rules where id'))[0] || {};
+  if (rules.hunt_id !== R.hunt || Number(rules.stair_ms) !== R.stairMs || Number(rules.room_size) !== Math.min(...R.mixes.map((m) => m.size))
+      || Number(rules.landing_every) !== R.landingEvery || Number(rules.floor_top) !== R.floorTop || 'week_back' in rules) bad.push('TC-ROOM hr_tower_rules is not src/data/tower.js');
   return bad;
 }
 
@@ -138,19 +158,30 @@ async function engineArm(db, M) {
     if ((d.progress || []).some((o) => String(o.key).startsWith('ev:'))) { bad.push('TC-ENGINE a window counted ' + JSON.stringify(d.progress.filter((o) => String(o.key).startsWith('ev:')))); break; }
     if ((h.death_xp || []).some((x) => Object.keys(x).length)) { bad.push('TC-ENGINE a death in the Tower was priced ' + JSON.stringify(h.death_xp)); break; }
   }
-  /* THE MODE'S SHARE: the split pays the mode's xpPm of the kill (one hero: the Tower's flat 1000 cell, no solo boost); a skill route the same share */
+  /* THE PAY RULE (04 section 7): a kill pays each hero the hours table's share of its OWN Level over the Tower's reference rate, x the depth ratio
+     at the gap (the floor's Level - the hero's, held to PAY.gapMax above, PAY.floor below), x payPm, x the room's share, split evenly; the
+     row's XP does not move it. The oracle walks the ratio by hand from the data rows. A skill route keeps the mode's share. */
   const pm = M.SMD.SESSION_MODES.tower.xpPm;
+  const R = M.TD.RUN_GROUNDS[M.TD.TOWER_RULES.hunt], P = M.DD.PAY;
+  const gapRatio = (g) => { const n = Math.min(P.gapMax, g); let r = 1; for (let i = 0; i < Math.abs(n); i++) r *= 1 + P.payStepXp; return n >= 0 ? r : Math.max(P.floor, 1 / r); };
+  const want = (L, F, n) => Math.floor((M.DZ.levelShareAt(L, R.pay.refKillsHead) * gapRatio(M.T.towerLevelOf(F) - L) * (R.pay.payPm / 1000) * (R.roomSize
+    / R.mixes[Math.floor((F - 1) / R.landingEvery) % R.mixes.length].size)) / n + 1e-9);
+  const kill = (heroes, F, rowXp) => {
+    const evs = [];
+    M.XS.shareKillXp({ world: { units: heroes, xpGroup: null, towerFloor: F }, ground: M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt], xpPm: pm }, { t: 9, u: 1, xp: rowXp },
+      { atMs: 0, emit: (e) => evs.push(e) });
+    return evs.filter((e) => e.type === 'xp').map((e) => e.amount);
+  };
   const hero = { id: 1, side: 'hero', alive: true, role: 'tank', heroLv: 10 };
-  const evs = [];
-  const sc = { atMs: 0, emit: (e) => evs.push(e) };
-  M.XS.shareKillXp({ world: { units: [hero], xpGroup: null }, ground: M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt], xpPm: pm }, { t: 9, u: 1, xp: 1000 }, sc);
-  const x = evs.find((e) => e.type === 'xp');
-  if (!x || x.amount !== Math.floor(1000 * pm / 1000)) bad.push(`TC-ENGINE a 1000 XP kill paid one hero alone ${x && x.amount} in the Tower, not ${Math.floor(1000 * pm / 1000)}`);
-  const four = [1, 2, 3, 4].map((id) => ({ ...hero, id, role: ['tank', 'healer', 'ranger', 'mage'][id - 1] }));
-  const evs4 = [];
-  M.XS.shareKillXp({ world: { units: four, xpGroup: null }, ground: M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt], xpPm: pm }, { t: 9, u: 1, xp: 1000 }, { atMs: 0, emit: (e) => evs4.push(e) });
-  const head = Math.floor(1000 * pm / 1000 / 4 * M.TD.TOWER_PARTY_XP[4] / 1000);
-  if (!evs4.filter((e) => e.type === 'xp').every((e) => e.amount === head)) bad.push(`TC-ENGINE a four paid ${evs4.filter((e) => e.type === 'xp').map((e) => e.amount)} a head, not the flat row's ${head}`);
+  for (const [L, F] of [[10, 12], [10, 31], [40, 5], [74, 99], [74, 300]]) {
+    const one = kill([{ ...hero, heroLv: L }], F, 1000), other = kill([{ ...hero, heroLv: L }], F, 50000);
+    if (one.length !== 1 || one[0] !== want(L, F, 1)) bad.push(`TC-ENGINE a Level ${L} hero alone on floor ${F} was paid ${one} in the Tower, not ${want(L, F, 1)}`);
+    if (JSON.stringify(other) !== JSON.stringify(one)) bad.push(`TC-ENGINE the row's XP moved a Tower kill's pay (${one} -> ${other})`);
+  }
+  if (!(want(74, 99, 1) > want(74, 60, 1) && want(74, 60, 1) >= want(74, 30, 1))) bad.push('TC-ENGINE CONTROL: depth does not pay in the oracle');
+  const four = [1, 2, 3, 4].map((id) => ({ ...hero, id, heroLv: 74, role: ['tank', 'healer', 'ranger', 'mage'][id - 1] }));
+  const paid4 = kill(four, 99, 1000);
+  if (paid4.length !== 4 || !paid4.every((a) => a === want(74, 99, 4))) bad.push(`TC-ENGINE a four paid ${paid4} a head on floor 99, not the even split ${want(74, 99, 4)}`);
   const gained = {};
   M.HR.rewardSwing(new Map([[1, { state: { skills: {} }, hs: { tally: { kills: 0 } }, family: 'sword', armoured: false,
     fx: { addXp: (k, n) => { gained[k] = (gained[k] || 0) + n; } } }]]), [{ type: 'dmg', u: 1, t: 2, amount: 100, atMs: 0 }],
@@ -190,43 +221,68 @@ function floorTimeRun(M) {
 }
 
 /* ── TC-CURVE ─────────────────────────────────────────────────────────────── */
-/* THE CLIMB GETS HARDER EVERY BAND (lane/d-tower-curve, 2026-11-19; the board's "2026-11-19 The Tower's curve" says why). Engine only, no
-   database. The rows: a band's mean of its rooms' summed max hits (combat.js monsterMaxHit), band over band, for the ten bands past the heat's
-   floor (x1.15-1.19 as built, x1.04-1.09 with no heat). The felt shape: a PLAYED four at Level 74 (tools/balance-sim/cell.mjs profile 'played':
-   the recorded bars, accessories, own stock, the party skill line; no player's data) climbs from floor 91, 6 climbs on the real settle, read
-   by tools/balance-sim/tower-curve.mjs bandTable. Measured on set/v0.2.142 529f354ea: its typical low 77 / 74 / 70 / 61 / 51% from 91-100 to
-   131-140 (the 101-110 to 131-140 drop 23, and 20 on a second seed set); with no heat 77 / 75 / 72 / 71 / 69 (drop 6); with the 11-19
-   monsters +10% and the heat most climbs end at 128-131. */
-const CURVE = Object.freeze({ bandStepMin: 1.12, level: 74, party: Object.freeze(['tank', 'bow', 'mage', 'healer']), from: 91, seeds: 6, minutes: 40, riseMax: 3, dropMin: 15 });
+/* A COMPANY TOPS OUT NEAR ITS LEVEL, AT EVERY LEVEL, AND THE BANDS ASK DIFFERENT SEATS (lane/tower-boss-formula, 2026-11-22; Andy, 2026-11-18:
+   a Level 74 four went 1 -> 182 in 52 minutes and "100-170 felt the same"; the 11-20 endgame dive: "a four tops out between its Level and
+   Level+25"). Engine only, no database. A PLAYED four (tools/balance-sim/cell.mjs profile 'played': the recorded bars, accessories, own stock,
+   the party skill line; no player's data) at three Levels climbs from floor 1 on the real settle, read by tools/balance-sim/tower-curve.mjs.
+   MEASURED on this lane (3 seeds a Level, 70 min at most): Level 30 tops 59 / 59 / 68, Level 74 101 / 102 / 104, Level 110 126 / 128 / 129,
+   every climb ending `died`; at 74 the lowest seat is the tank on the Line, the Swarm and the Wall and the bow on the Volley, the Stalkers and
+   the Choir. On the old Level line the same four reached 148-155 with the heat and no band asked the back row anything. */
+const CURVE = Object.freeze({ levels: Object.freeze([30, 74, 110]), party: Object.freeze(['tank', 'bow', 'mage', 'healer']), seeds: 2, minutes: 70, over: 45 });
 async function curveArm(_db, M) {
   const bad = [];
-  const R = M.TD.TOWER_RULES, from = R.heat.from, every = R.landingEvery;
-  const band = (top) => {
-    let s = 0;
-    for (let f = top - every + 1; f <= top; f++) { const r = M.T.towerRoom(f), t = M.T.towerMonsters(f); s += r.monsters.reduce((a, id) => a + M.CB.monsterMaxHit(t[id]), 0); }
-    return s / every;
-  };
-  for (let top = from + every; top <= from + 10 * every; top += every) {
-    const step = band(top) / band(top - every);
-    if (step < CURVE.bandStepMin) { bad.push(`TC-CURVE floors ${top - every + 1}-${top} hit only x${step.toFixed(3)} the band below (want x${CURVE.bandStepMin} or more past floor ${from})`); break; }
-  }
+  const every = M.TD.TOWER_RULES.landingEvery;
   /* the simulator from the same tree as the engine under test (a mutant's tree carries its own copy) */
   const u = (p) => pathToFileURL(join(M.root, p)).href;
   const { loadCellRunner } = await import(u('tools/balance-sim/cell.mjs'));
   const TCV = await import(u('tools/balance-sim/tower-curve.mjs'));
-  const climbs = await TCV.measure({ runner: await loadCellRunner(M.root), starts: [CURVE.from], seeds: CURVE.seeds, minutes: CURVE.minutes, party: [...CURVE.party], level: CURVE.level });
-  const rows = TCV.bandTable(climbs, CURVE.from + every - 1, CURVE.from + 8 * every - 1);
-  const at = (top) => rows.find((r) => r.band === top && r.low !== null && r.reached * 2 >= r.climbs) || null;
-  const first = at(from + every);
-  if (!first || first.reached !== climbs.length) { bad.push(`TC-CURVE CONTROL: the Level ${CURVE.level} four did not all stand on floors ${from + 1}-${from + every} (${JSON.stringify(rows[1])})`); return bad; }
-  const held = rows.filter((r) => at(r.band));
-  for (let i = 1; i < held.length; i++) {
-    if (held[i].low > held[i - 1].low + CURVE.riseMax) bad.push(`TC-CURVE floors ${held[i].band - every + 1}-${held[i].band} read a typical low of ${held[i].low}%, ${held[i].low - held[i - 1].low} over the band below (want at most +${CURVE.riseMax})`);
+  const runner = await loadCellRunner(M.root);
+  let last = 0;
+  for (const level of CURVE.levels) {
+    const climbs = await TCV.measure({ runner, starts: [1], seeds: CURVE.seeds, minutes: CURVE.minutes, party: [...CURVE.party], level });
+    const tops = climbs.map((c) => c.top).sort((a, b) => a - b);
+    if (climbs.some((c) => c.ended !== 'died')) bad.push(`TC-CURVE a Level ${level} four's climb ended ${climbs.map((c) => c.ended)} (want each to find its top and die there)`);
+    if (tops[0] < level || tops[tops.length - 1] > level + CURVE.over) bad.push(`TC-CURVE a Level ${level} four topped out on ${tops.join(' / ')} (want floor ${level} to ${level + CURVE.over})`);
+    if (tops[0] <= last) bad.push(`TC-CURVE a Level ${level} four reached no higher than the Level below (${tops[0]} against ${last})`);
+    last = tops[tops.length - 1];
+    /* the bands it felt (a typical low under 95%) ask different seats: at least two seats are the lowest somewhere */
+    const felt = TCV.bandTable(climbs, every, Math.ceil((last + 1) / every) * every).filter((r) => r.low !== null && r.low < 95);
+    const seats = new Set(felt.map((r) => r.worstSeat));
+    if (level === 74 && seats.size < 2) bad.push(`TC-CURVE every band the Level 74 four felt hit seat ${[...seats]} hardest (want the mixes to ask different seats): ${felt.map((r) => r.band + ':' + r.worstSeat).join(' ')}`);
   }
-  const later = at(from + 4 * every);
-  if (later && first.low - later.low < CURVE.dropMin) {
-    bad.push(`TC-CURVE floors ${from + 3 * every + 1}-${from + 4 * every} read a typical low of ${later.low}%, only ${first.low - later.low} under ${from + 1}-${from + every}'s ${first.low}% (want ${CURVE.dropMin} or more, or most climbs over by then): ${held.map((r) => r.band + ':' + r.low).join(' ')}`);
+  return bad;
+}
+
+/* ── TC-BOSS ──────────────────────────────────────────────────────────────── */
+/* A BOSS IS A ROLE ROW TIMES ITS ENCOUNTER'S ROW, AND ITS PRESSURE RAMPS (src/data/bosses.js; 04-math-strategy.md section 6 rampPerMinute).
+   The data: the formula's `boss` role is the elite times the ground kind's row, every boss row of the catalogue has a kind; the engine: a
+   ramped row's blow is x(1 + rampPm a minute) of its fight clock, capped, and the clock counts only while it holds a target; the played room:
+   a landing's Keeper fights on the keeper's row and its stored fight clock runs (the world carries it, so both paths read the same minutes). */
+async function bossArm(_db, M) {
+  const bad = [];
+  const { BOSS_KINDS, bossRole, bossKindOf, rampPmAt, rampOf } = M.BO;
+  const boss = M.BS.MONSTER_ROLES.boss, want = bossRole(M.BS.MONSTER_ROLES[BOSS_KINDS.ground.role], 'ground');
+  if (JSON.stringify(boss) !== JSON.stringify(want)) bad.push(`TC-BOSS the formula's boss role ${JSON.stringify(boss)} is not the elite x the ground kind ${JSON.stringify(want)}`);
+  for (const [id, row] of Object.entries(M.MON.MONSTERS)) if (row.boss === true && !bossKindOf(row)) bad.push(`TC-BOSS ${id} is a boss of no kind`);
+  if (bossKindOf(M.MON.MONSTERS.lord_krell) !== 'hall' || bossKindOf(M.MON.MONSTERS.captain_hask) !== 'ground') bad.push('TC-BOSS Lord Krell is not a hall\'s boss or Captain Hask a ground\'s');
+  const k = BOSS_KINDS.keeper, row = { kind: 'x', atk: 1000, aim: 50, bossKind: 'keeper' };
+  for (const [ms, pm] of [[0, 1000], [60000, 1000 + k.rampPm], [120000, Math.min(k.rampCapPm, 1000 + 2 * k.rampPm)], [3600000, k.rampCapPm]]) {
+    const got = M.BP.swingRow({ kind: 'x', hp: 10, maxHp: 10, fightMs: ms }, row).atk;
+    if (got !== Math.floor(pm)) bad.push(`TC-BOSS a Keeper ${ms / 1000} s into his fight swings ${got}, not ${pm} (x${pm / 1000})`);
+    if (rampPmAt(rampOf(row), ms) !== pm) bad.push(`TC-BOSS the ramp reads ${rampPmAt(rampOf(row), ms)} at ${ms} ms`);
   }
+  const u0 = { kind: 'x', target: null, fightMs: 0 }, u1 = { kind: 'x', target: 3, fightMs: 0 };
+  M.BP.rampTick(u0, row, 100); M.BP.rampTick(u1, row, 100); M.BP.rampTick({ ...u1 }, { atk: 5 }, 100);
+  if (u0.fightMs !== 0 || u1.fightMs !== 100) bad.push(`TC-BOSS the fight clock counted ${u0.fightMs} with no target and ${u1.fightMs} with one (want 0 and 100)`);
+  /* the played landing: a Level 8 tank from floor 10 for ten seconds, the Keeper's row on the keeper kind and his fight clock in the stored world */
+  let world = null;
+  climbOf(M, { level: 8, floor: 10, spanMs: 10000, windowMs: 10000, onWindow: (out) => { world = out.world; } });
+  const keeper = M.T.towerRoom(10).keeper;
+  if (M.T.towerMonsters(10)[keeper].bossKind !== 'keeper') bad.push(`TC-BOSS floor 10's Keeper ${keeper} fights on ${M.T.towerMonsters(10)[keeper].bossKind}, not the keeper kind`);
+  const w = world ? M.WS.decode(JSON.parse(world)) : null;
+  const ku = w ? w.units.find((x) => x.kind === keeper) : null;
+  if (!ku) bad.push('TC-BOSS CONTROL: floor 10\'s Keeper never stood in the stored world');
+  else if (!(ku.fightMs > 0)) bad.push(`TC-BOSS floor 10's Keeper stood ${JSON.stringify({ alive: ku.alive, target: ku.target })} with no fight clock in the stored world (${ku.fightMs})`);
   return bad;
 }
 
@@ -299,7 +355,8 @@ async function doorsArm(db, M) {
   const runs = {};
   for (const door of ['closed', 'viewed']) {
     const r = await H.inTx(db, async () => {
-      const h = await climber(db, M, {});
+      /* a bare Level 20 (a bare Level 12 tops out at floor 9 on the formulas' floors, lane/tower-boss-formula): it crosses a landing */
+      const h = await climber(db, M, { level: 20 });
       const s0 = await rows(db, h);
       try { await drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
       return { s0, s1: await rows(db, h) };
@@ -624,7 +681,7 @@ async function armArm(db) {
   return bad;
 }
 
-const ARMS = { room: roomArm, engine: engineArm, curve: curveArm, doors: doorsArm, after: afterArm, forged: forgedArm, start: startArm, checkpoint: checkpointArm, arm: armArm };
+const ARMS = { room: roomArm, engine: engineArm, curve: curveArm, boss: bossArm, doors: doorsArm, after: afterArm, forged: forgedArm, start: startArm, checkpoint: checkpointArm, arm: armArm };
 /* THE CLIMB'S HARNESS, shared (tests/tower-chest.mjs mints its keys through these climbs, both doors). */
 export const HARNESS = Object.freeze({ boot, load, climber, drive, rows, UID, SPAN });
 
@@ -635,20 +692,31 @@ const MUTANTS = [
     from: "  const row = !pay || (pay.coin && pay.drops) ? row0 : { ...row0, ...(pay.coin ? {} : { gp: null }), ...(pay.drops ? {} : { drops: [] }) };",
     to: "  const row = !pay || (pay.coin && pay.drops) ? row0 : { ...row0, gp: [5, 9], ...(pay.drops ? {} : { drops: [] }) };" },
   { name: 'the Tower counts the Bestiary', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt-rewards.js', from: '  if (!bestiary) return;\n', to: '' },
-  { name: 'the split ignores the mode', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/xp-share.js',
-    from: '  const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;', to: '  const raw = xp / heroes.length;' },
+  { name: 'the Tower pays the hunting table, not the Level share', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/xp-share.js',
+    from: '  if (run && world && Number.isInteger(world.towerFloor)) return towerSplit(heroes, sc, run, world.towerFloor);', to: '' },
+  { name: 'depth does not pay in the Tower', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/tower.js',
+    from: '  return levelShareAt(L, run.pay.refKillsHead) * gapPayRatio(Math.min(PAY.gapMax, towerLevelOf(floor, run) - L), PAY.payStepXp) * (run.pay.payPm / 1000)',
+    to: '  return levelShareAt(L, run.pay.refKillsHead) * (run.pay.payPm / 1000)' },
+  { name: 'a swarm\'s kill pays a whole reference kill', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/tower.js',
+    from: '    * towerShareOf(floor, run);', to: '    * 1;' },
+  { name: 'a Keeper never ramps', arm: 'boss', want: /^TC-BOSS/, file: 'src/core/hunt/boss-phases.js',
+    from: '  const rampPm = rampPmAt(rampOf(row), u.fightMs);', to: '  const rampPm = 1000;' },
+  { name: 'the fight clock never runs', arm: 'boss', want: /^TC-BOSS/, file: 'src/core/hunt/damage.js',
+    from: '    if (isMonster(u)) rampTick(u, rowOf(inst, u.kind), sc.dtMs);', to: '' },
+  { name: 'the Keeper stands on a plain role', arm: 'room', want: /^TC-ROOM/, file: 'src/core/hunt/tower.js',
+    from: '  if (keeper) table[keeper] = rowAt(keeper, KEEPER, F, run, 1, mix ? mix.reach : null);', to: '  if (keeper) table[keeper] = rowAt(keeper, mix ? mix.role : \'regular\', F, run, 1, mix ? mix.reach : null);' },
   { name: 'the floor\'s time is never asked', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/combat-sim.js',
     from: '    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;', to: '' },
-  /* THE CURVE (lane/d-tower-curve), each line its own mutant: the data's heat off (the played four's felt line), the rooms that never read it (the rows'
-     band step), a heat that thickens HP (so XP passes the server's per-floor bound) */
-  { name: 'the fire never heats', arm: 'curve', want: /^TC-CURVE floors 131-140 read a typical low/, file: 'src/data/tower.js',
-    from: '  heat: Object.freeze({ from: 100, perFloorPm: 12 }),', to: '  heat: Object.freeze({ from: 100, perFloorPm: 0 }),' },
-  { name: 'the rooms never read the heat', arm: 'curve', want: /^TC-CURVE floors [0-9]+-[0-9]+ hit only/, file: 'src/core/hunt/tower.js',
-    from: '  const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, heatOpts(floor, run));',
-    to: '  const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt });' },
-  { name: 'the heat thickens HP too', arm: 'room', want: /^TC-ROOM/, file: 'src/core/hunt/tower.js',
-    from: '  return { formula: { ...F, blow: { ...F.blow, lo: F.blow.lo * k, hi: F.blow.hi * k } } };',
-    to: '  return { formula: { ...F, blow: { ...F.blow, lo: F.blow.lo * k, hi: F.blow.hi * k }, hp: { ...F.hp, base: F.hp.base * k, perLevel: F.hp.perLevel * k } } };' },
+  /* THE FORMULAS (lane/tower-boss-formula), each line its own mutant: the floors' depth off (the old Level line: the played fours climb far past
+     their Level), the rooms that never read the depth, every band the same mix (one seat asked everything), the room's share forgotten */
+  { name: 'the floors have no depth', arm: 'curve', want: /^TC-CURVE a Level [0-9]+ four topped out/, file: 'src/data/tower.js',
+    from: '  steps: Object.freeze({ levelPm: 1000, depthPm: 2300 }),', to: '  steps: Object.freeze({ levelPm: 1000, depthPm: 0 }),' },
+  { name: 'the rooms never read the depth', arm: 'room', want: /^TC-ROOM/, file: 'src/core/hunt/tower.js',
+    from: '  const k = stepRatio(towerDepthOf(floor, run)) * share;', to: '  const k = share;' },
+  { name: 'every band is the Line', arm: 'room', want: /^TC-ROOM/, file: 'src/data/tower.js',
+    from: "  return mixes[Math.floor((floorOf(floor) - 1) / rules.landingEvery) % mixes.length];", to: '  return mixes[0];' },
+  { name: 'a big room is a heavy room', arm: 'room', want: /^TC-ROOM/, file: 'src/core/hunt/tower.js',
+    from: '  return run.roomSize / sizeOf(floor, run);', to: '  return 1;' },
   { name: 'a climb freezes no plan of its hero\'s', arm: 'after', want: /^TC-AFTER .*froze/, fn: 'public.hr_hunt_after_freeze()',
     find: '  new.after_choice := coalesce(new.after_choice, v_def);',
     replace: "  new.after_choice := case when exists (select 1 from public.hr_tower_rules r where r.hunt_id = new.hunt_id) then v_def else coalesce(new.after_choice, v_def) end;" },

@@ -31,16 +31,33 @@ import { spawnAdds } from './pull-cycle.js';
 import { spellRow } from '../../data/monster-spells.js';
 import { isAdd } from './leash.js';
 import { isMonster } from './sides.js';
+import { rampOf, rampPmAt } from '../../data/bosses.js';
 
 const atOrUnder = (hp, maxHp, pm) => hp * 1000 <= maxHp * pm;
 
+/* THE RAMP (src/data/bosses.js; 04-math-strategy.md section 6 `rampPerMinute`): a boss row's kind names a ramp, and his blow grows by it for
+   every minute he has fought. `fightMs` is HIS fight clock, stored on the unit (so every cut of the settle windows and the browser's live view
+   count the same minutes): the sub-steps he stood alive with a target (rampTick, from damage.js resolveAttacks). A unit that never fights a
+   hero never ramps, and a boss that stands up whole again (a respawn: a new unit) starts at nothing. */
+export const PERSISTED = Object.freeze({ unit: Object.freeze([['fightMs', 'int']]), world: Object.freeze([]), pack: Object.freeze([]) });
+
+/** One sub-step of `dtMs` on monster unit `u` reading `row`: a boss with a ramp holding a target counts it toward his fight clock. */
+export function rampTick(u, row, dtMs) {
+  if (!rampOf(row) || !Number.isInteger(u.target) || !(dtMs > 0)) return;
+  u.fightMs = (Number.isSafeInteger(u.fightMs) ? u.fightMs : 0) + dtMs;
+}
+
 /** The row monster `u` swings with, from `row` (his own at the party's tier): that row, or, a boss under his enrage line, it at his raised
-    attack and aim (a harder blow is a surer one, as a tier's: src/data/hunt-tiers.js atTier). */
+    attack and aim (a harder blow is a surer one, as a tier's: src/data/hunt-tiers.js atTier); a boss with a ramp, his attack x the ramp
+    at his fight clock (the pressure, never the aim: 04 section 6's ramp grows the share he deals, not how often he lands). */
 export function swingRow(u, row) {
   const ph = (MONSTERS[u.kind] || {}).phases;
-  if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;
-  return Object.assign({}, row, { atk: Math.floor((row.atk * ph.enrageAtkPm) / 1000) },
-    Number.isFinite(row.aim) ? { aim: (row.aim * ph.enrageAtkPm) / 1000 } : {});
+  const rampPm = rampPmAt(rampOf(row), u.fightMs);
+  const enraged = !!ph && atOrUnder(u.hp, u.maxHp, ph.enragePm);
+  if (!enraged && rampPm === 1000) return row;
+  const atkPm = enraged ? ph.enrageAtkPm : 1000;
+  return Object.assign({}, row, { atk: Math.floor((Math.floor((row.atk * atkPm) / 1000) * rampPm) / 1000) },
+    enraged && Number.isFinite(row.aim) ? { aim: (row.aim * ph.enrageAtkPm) / 1000 } : {});
 }
 
 /** The permille of a blow monster `t` takes: a boss's `phases.guardPm` while an add of his pocket (leash.js isAdd: one his line

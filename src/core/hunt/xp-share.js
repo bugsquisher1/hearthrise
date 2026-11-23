@@ -37,7 +37,8 @@
 
 import { HUNT_XP } from '../../data/hunt-xp.js';
 import { partyClassXp } from '../../data/party-class-xp.js';
-import { TOWER_PARTY_XP, runRulesOf } from '../../data/tower.js';
+import { runRulesOf } from '../../data/tower.js';
+import { towerShareXp } from './tower.js';
 import { underFloorSharePm } from '../../data/hunt-grounds.js';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js';
 import { makeEvent } from './events.js';
@@ -70,13 +71,14 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000, world 
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);
+  /* A RUN GROUND (the Burning Tower, a Catacomb wing) pays by the one pay rule at its floor (tower.js towerShareXp): each hero its own Level's
+     share at the floor's gap, the kill shared evenly. No party table and no class mix (04 section 7: the party's edge is the floors it reaches). */
+  const run = ground ? runRulesOf(ground.id) : null;
+  if (run && world && Number.isInteger(world.towerFloor)) return towerSplit(heroes, sc, run, world.towerFloor);
   /* THE MODE'S SHARE of the kill, first (never multiplied at 1000: a hunt's split is the same arithmetic it always was) */
   const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;
   const cell = partyClassXp(heroes.map((h) => h.role)).permille;
-  /* A RUN GROUND (the Burning Tower, a Catacomb wing) is a session mode, not a hunting ground: its own row by size (src/data/tower.js TOWER_PARTY_XP, the Tower board's §7; the descent plays the Tower's), no class
-     mix and no solo boost (the party's edge there is the floors it reaches). Every hunting ground reads the one table above (Tyler 2026-11-16). */
-  const base = ground && runRulesOf(ground.id) ? TOWER_PARTY_XP[Math.min(Math.max(heroes.length, 1), 4)] : cell;
-  const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (base * partyPm) / 1000 : base;
+  const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
   for (const h of heroes) {
     const paid = (raw * party * multOf(sc, h)) / 1000;
@@ -90,9 +92,16 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000, world 
 
 /* THE DANGER SCALE'S SPLIT: each hero's own Level share at the step the kill fell at, the kill shared evenly (danger.js levelShareXp). */
 function depthSplit(heroes, sc, ground, step) {
+  return shareSplit(heroes, sc, (h) => levelShareXp(h.heroLv, step, ground));
+}
+/* THE TOWER'S SPLIT: the same, at the floor the kill fell on (tower.js towerShareXp). */
+function towerSplit(heroes, sc, run, floor) {
+  return shareSplit(heroes, sc, (h) => towerShareXp(h.heroLv, floor, run));
+}
+function shareSplit(heroes, sc, shareOf) {
   const out = {};
   for (const h of heroes) {
-    const plain = levelShareXp(h.heroLv, step, ground) / heroes.length;
+    const plain = shareOf(h) / heroes.length;
     const paid = plain * multOf(sc, h);
     const amount = Math.floor(paid + 1e-9), base = Math.floor(plain + 1e-9);
     out[h.id] = { xp: amount, raw: base, ev: paid === plain ? 0 : Math.max(0, amount - base) };

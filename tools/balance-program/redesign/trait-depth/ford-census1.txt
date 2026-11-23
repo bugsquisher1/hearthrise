@@ -1,0 +1,34 @@
+
+V1 on hasks_ford (2 seeds x 6 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+back:steady       653.2 +- 6.2     -7.2  54.7  82.2   36.8    4.3       0    156.1      0     0  0 (0/0/0)                       2  {"hold":1386,"climb":441,"fall":44}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  back:steady        1.53x  sd 0.06  n 2  window 2 h  seeds 1.48 1.57
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  back:steady       L60  coin 18851 +- 232  income 24077 +- 226  store 6022  kit share 0.25 (meal 113, drink 2184, charge 2160, shot 1566)  loot by band: common 1047, uncommon 371, scarce 3808, other 0  n 2
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  back:steady       hammer 1  bow 0  mage 0  healer 0
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  back:steady       hammer dps 19.86 land 50.25% hit 46.44 (3725/h) | bow dps 17.19 land null% hit null (0/h) | mage dps 24.16 land null% hit null (0/h) | healer dps 9.87 land null% hit null (0/h)
+                    banded_pikeman(null) 493.2/h 5.7 s 132 | fordsunk(null) 232.1/h 9 s 193 | ledger_wight(null) 159.3/h 6.9 s 314 | bannerman(null) 50.8/h 7 s 255
+                    broke off by: fall:ledger_wight@0 27, fall:fordsunk@0 14, fall:banded_pikeman@0 3
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  back:steady       abs 55.6 (depth 18)  free 104  spell 872  food 24  taken 15.18 pm/s
+
+the worn Traits (--traits census:1, lane/traits-in-engine): by seat, each Trait's hold share of its own channel's events (rank 3; party-wide ones on every hero they reach)
+  back:steady       hammer  blows 30700, struck 22476, heals 539 | behind_the_bar 1, ledge_footing 0.679, sour_vault 0.314, early_start 0.215, paupers_share 0.103, rams_head 0, worrier 0, pyre_tender 0, goaded 0, floodmark 0, banked_coals 0, raised_colors 0, stair_bearer 0
+  back:steady       bow     blows 28099, struck 0, heals 0 | early_start 1, ledge_footing 0.702, rams_head 0, worrier 0, pyre_tender 0, goaded 0, paupers_share 0, floodmark 0, behind_the_bar 0, banked_coals 0, raised_colors 0, stair_bearer 0, sour_vault 0
+  back:steady       mage    blows 31570, struck 0, heals 0 | early_start 1, ledge_footing 0.635, rams_head 0.343, banked_coals 0.099, worrier 0, pyre_tender 0, goaded 0, paupers_share 0, floodmark 0, behind_the_bar 0, raised_colors 0, stair_bearer 0, sour_vault 0
+  back:steady       healer  blows 19627, struck 0, heals 9128 | early_start 1, ledge_footing 0.705, rams_head 0.455, banked_coals 0.08, worrier 0, pyre_tender 0, goaded 0, paupers_share 0, floodmark 0, behind_the_bar 0, raised_colors 0, stair_bearer 0, sour_vault 0
+
+wall 28 s

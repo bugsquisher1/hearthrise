@@ -207,7 +207,9 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
   const kills = [];
   const killsOf = (out) => (out.members || []).reduce((n, m) => n + Number((m.delta && m.delta.journal && m.delta.journal.meta && m.delta.journal.meta.kills) || 0), 0);
   const ledgerRows = async () => Number(await one(db, `select count(*) from public.player_ledger where session_id = any($1::uuid[])`, [sids]));
-  const settle = async (toMs) => {
+  /* `so`: the viewed hello's own options for this one window (tests/danger-db.mjs DZ-7: `{ minWindowMs: 0 }`, the floor a switch's
+     collect settles at mid-hunt, set-activity.js collectCurrentWindow), so a viewed window may be shorter than HUNT_SETTLE_MIN_MS */
+  const settle = async (toMs, so = {}) => {
     const t0 = performance.now();
     try {
       if (door === 'fire' && !seam) {
@@ -236,7 +238,7 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
           if (a.reason !== 'below_min_span' || !a.body.hunt_live || (!a.body.state && a.body.hunt_slim !== true)) throw new Error('an early ask did not answer the live start point: ' + JSON.stringify({ o: a.outcome, r: a.reason }));
           if (recording) { asks++; answers.push(a.body); }
         }
-        const v = await hello({ atMs: toMs });
+        const v = await hello({ atMs: toMs, ...so });
         if (v.outcome !== 'paid' || !v.body.state) throw new Error('the viewed hello settled nothing: ' + JSON.stringify({ o: v.outcome, r: v.reason }));
         if (recording) answers.push(v.body);
         return { player: v.outcome };
@@ -264,15 +266,15 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
   };
   if (door === 'fire') await db.query('update public.hr_tick_config set enabled = true where id');
 
-  /* warm(): one window (plan caches, first-touch rows), then the stats are zeroed; step(w): window w (2..windows+1);
-     report(): the measured windows. */
+  /* warm(so): one window (plan caches, first-touch rows), then the stats are zeroed; step(w, so): window w (2..windows+1);
+     report(): the measured windows. `so`: the viewed hello's options for that window (settle above). */
   let stat = true, rows0 = 0, settled = 0, asks = 0, frames0 = 0;
   const answers = [];
   const framesSent = async () => (door === 'viewed' ? Number(await one(db, 'select count(*) from realtime.bench_frames')) : 0);
   const fires = [];
   return {
-    async warm() {
-      await settle(from + windowMs);
+    async warm(so) {
+      await settle(from + windowMs, so);
       try {
         await db.exec(`set track_functions = 'all'`);
         /* the warm window's pending counters flush first, or they land after the reset and count as a measured window */
@@ -283,9 +285,9 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
       rows0 = await ledgerRows();
       frames0 = await framesSent();
     },
-    async step(w) {
+    async step(w, so) {
       recording = true;
-      try { const r = await settle(from + w * windowMs); if (r.fire) fires.push(r.fire); settled++; } finally { recording = false; }
+      try { const r = await settle(from + w * windowMs, so); if (r.fire) fires.push(r.fire); settled++; } finally { recording = false; }
     },
     report: () => reportOf(),
     /* ONE WINDOW (w) of the leader's instance through the three exported pieces (read, propose, commit), statement by

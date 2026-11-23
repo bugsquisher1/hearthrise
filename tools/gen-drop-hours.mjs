@@ -21,13 +21,14 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { GROUND_PACKS } from '../src/data/grounds/index.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
 import { BAND_TARGETS } from '../src/data/loot-bands.js';
 import { roundChance } from '../src/data/drop-hours.js';
 import { rowChance, hoursOf } from '../src/core/drop-rate.js';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const packFile = (id) => join(ROOT, 'src', 'data', 'grounds', id, 'pack.js');
@@ -125,8 +126,8 @@ export function report(rows = ownedRows(), grounds = HUNT_GROUNDS) {
   });
 }
 
-const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
-if (isMain) {
+const runAsMain = isMain(import.meta.url);
+if (runAsMain) {
   const args = process.argv.slice(2);
   const scalePacks = GROUND_PACKS.filter((p) => Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id) && HUNT_GROUNDS[p.id]);
   if (args[0] === '--convert' || args[0] === '--write') {

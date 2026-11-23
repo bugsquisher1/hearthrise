@@ -138,10 +138,8 @@ const SEED = '-4611686018427387904';
    sewer-2 hold. Cause: every piece's stats are now the one gear formula's (src/data/gear-profiles.js, src/core/gear-stats.js), so the four's
    ladder pieces under Dawnsteel moved a point or two (the per-tier hand tables are gone). Proof: src/data/gear-stats.generated.js written back
    with the OLD catalogue's stats for every id, over this tree's src/core and hr-accrue (the scale view included): every pin holds (exit 0).
-   RE-PINNED 2026-11-23 again (merged with set/v0.2.144 at e402e1257): warrens-4 as above (kills 203 -> 200), and glade-4's timeline at settle 12,
-   which the SET ITSELF no longer holds (e402e1257 alone: glade-4 timeline moved at settle 12, kills 479 as pinned, exit 1; lane/e2-e3-statuses
-   pinned it before the later merges). Proof: this tree with the old catalogue's stats written back reads exactly the set's own result (warrens-4
-   holds, the same glade-4 timeline move), so this lane moves warrens-4 by data alone. Now 200 / 492 / 140 / 99 kills. */
+   RE-PINNED 2026-11-23 again (merged with set/v0.2.144 at 9825bfcb2, which re-pinned glade-4 itself after set-reds-3): warrens-4 alone, as above
+   (kills 203 -> 200). Proof on this merge: the old catalogue's stats written back hold every one of the set's pins (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

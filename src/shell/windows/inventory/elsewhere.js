@@ -52,7 +52,7 @@ export function patchElsewhere(pane, ctx, query) {
   /* "Nowhere else." comes only from the server's answer: never while it searches, never after a read that failed. */
   const none = box.querySelector('.hw-found-none');
   cls(none, 'is-on', answered && !!sc.rows && !list.length);
-  text(none, 'Nowhere else.');
+  text(none, 'Nowhere else');
 }
 
 /** The search text changed: ask the server's account-wide read once the typing pauses. Only the last search's answer is kept. */

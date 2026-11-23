@@ -265,7 +265,7 @@ const roomWords = (id) => 'Bag full, no room for ' + itemName(id);
 
 /** Why this row cannot start now (plain words), or '' when it can. Every number is the server's. */
 export function workBlock(cs, w, huntRunning) {
-  if (huntRunning) return 'Not while a hunt is running.';
+  if (huntRunning) return 'Not while hunting';
   const lv = levelFor(cs, w.skill);
   if (lv === null) return 'Loading ' + skillWord(w.skill) + ' level…';
   if (lv < (w.row.req || 1)) return skillShortWords(w.skill, w.row.req, lv, doWords(w));
@@ -439,7 +439,7 @@ function doneWords(cs, from, xpBefore, sinceMs) {
   if (xp !== null && x0 !== null && xp > x0) parts.push('+' + whole(xp - x0) + ' ' + skillWord(from.skill) + ' XP');
   const paid = benchPaidWords(cs, from.id, sinceMs);
   if (paid) parts.push(paid);
-  return parts.length ? 'Done: ' + parts.join(', ') + '.' : 'Stopped.';
+  return parts.length ? 'Done: ' + parts.join(', ') + '.' : 'Stopped';
 }
 
 /** Stop whatever runs: ONE set_activity idle; the engine pays what was done first. */
@@ -455,7 +455,7 @@ export function stopWork(cs, send) {
   const sinceMs = was ? Date.parse(was.active_since) : NaN;
   return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }), 'Finishing…', () => {
     run.from = null;
-    return from ? doneWords(cs, from, before, sinceMs) : 'Stopped.';
+    return from ? doneWords(cs, from, before, sinceMs) : 'Stopped';
   });
 }
 

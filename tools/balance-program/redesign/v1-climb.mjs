@@ -39,6 +39,9 @@ const KIT = arg('gear', 'mid');
 /* --styles a,b,c,d (lane/w2-roles-rows): the four's styles, seat by seat (progression-grid.mjs MAIN), in place of the matrix's mixed four */
 const STYLES = arg('styles') ? arg('styles').split(',') : ['hammer', 'bow', 'mage', 'healer'];
 const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bold'];
+/* --skill-delta N (lane/foundations-block): the `skill` cell plays every seat's main skill N levels off its career line (the skill part of the
+   power step, src/data/danger.js POWER.weightSkillPm), paired against base */
+const SKILL_DELTA = Number(arg('skill-delta', -10));
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
@@ -49,6 +52,8 @@ const D = await loadGridData(ROOT), K = await loadKits(ROOT);
    to the end of the four, as a multiple of the hours table at the Level it stood at mid-window (danger.js hoursForLevel), so the opening
    climb never counts. Off the danger log's clock: cell.mjs `trace` keeps Level XP and paid hours a window */
 const { hoursForLevel } = await imp('src/core/hunt/danger.js');
+/* THE HELD STEP IN ABSOLUTE STEPS (lane/foundations-block; src/core/bands.js): a Level of the reference company's strength, and its depth */
+const { absPmOf, depthAt } = await imp('src/core/bands.js');
 const { BASIC_INDEX: BASICS } = await imp('src/data/supply-basics.js');
 const { charXpForLevel, charLevelFromXp } = await imp('src/core/xp.js');
 const PAY_FROM_H = Number(arg('pay-from', SETTLE_H));
@@ -71,6 +76,7 @@ const variants = [
   { id: 'up', L, step: 'step:up', risks: RISKS },
   { id: 'high', L: L2, risks: RISKS },
   { id: 'above', L, risks: ['steady'], start: ABOVE },
+  { id: 'skill', L, risks: RISKS, skillDelta: SKILL_DELTA },
 ];
 /* --start-from <report.json> [--margin 20]: each cell starts at the step that report's same cell held, less the margin (a company coming back
    to the step it held before: V2's watched session), in place of step 0 */
@@ -80,7 +86,7 @@ const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
-  const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
+  const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}), ...(v.skillDelta ? { skillDelta: v.skillDelta } : {}) });
   const start = startOf(id, v);
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true };
   cells.push({ id, variant: v.id, risk, L: v.L, start });
@@ -186,6 +192,15 @@ function readSeed(res, start) {
     heroesLost: res.heroes.filter((h) => h.deaths > 0).length, fourH: wt / H, firstDeathH: firstDeath ? firstDeath.ms / H : null,
     /* lane/w2-roles-rows: each seat's share of the damage the four took over the hunt (cell.mjs takenPerH x hours), seat order */
     takenShare: (() => { const t = res.heroes.map((h) => (h.takenPerH || 0) * (h.hours || 0)), s = t.reduce((a, b) => a + b, 0); return s > 0 ? t.map((x) => x / s) : null; })(),
+    /* SUSTAIN ON THE REFERENCE (lane/foundations-block, 04 section 3; src/data/sustain.js): the company's damage taken over the hunt and what
+       covered it, by source: regeneration (time), heal spells (self and ally, mana), food (supplies, gold); each hero's raw totals x hours */
+    sustain: (() => {
+      const sum = (f) => res.heroes.reduce((a, h) => a + f(h) * (h.hours || 0), 0);
+      const taken = sum((h) => h.takenPerH || 0), regen = sum((h) => h.regenPerH || 0);
+      const food = sum((h) => (h.healInPerH && h.healInPerH.food) || 0), spell = sum((h) => (h.healInPerH ? (h.healInPerH.self || 0) + (h.healInPerH.ally || 0) : 0));
+      const maxHp = res.heroes.reduce((a, h) => a + (h.maxHp || 0), 0) / Math.max(1, res.heroes.length);
+      return taken > 0 ? { taken, regen, spell, food, maxHp, heroH } : null;
+    })(),
   };
 }
 
@@ -232,6 +247,16 @@ for (const c of cells) {
     nearFellAfter: near.filter((x) => x.fellAfter).length,
     whys: seeds.reduce((o, x) => { for (const [k, n] of Object.entries(x.whys)) o[k] = (o[k] || 0) + n; return o; }, {}),
     takenShare: STYLES.map((s, i) => { const v = seeds.map((x) => x.takenShare && x.takenShare[i]).filter((x) => Number.isFinite(x)); return { style: s, mean: v.length ? Math.round(mean(v) * 1000) / 1000 : null }; }),
+    /* the held step as absolute steps (src/core/bands.js absPmOf: a Level of reference strength) and its depth (depthAt) */
+    abs: (() => { const m = mean(held); if (m === null) return null; const s = Math.round(m); return { level: absPmOf(GROUND, s) === null ? null : Math.round(absPmOf(GROUND, s) / 100) / 10, depth: depthAt(GROUND, s) }; })(),
+    /* sustain shares of the damage the company took (04 section 3): regeneration, heal spells, food; taken a hero-second as permille of max HP */
+    sustain: (() => {
+      const v = seeds.map((x) => x.sustain).filter(Boolean);
+      if (!v.length) return null;
+      const t = v.reduce((a, x) => a + x.taken, 0), sh = (k) => Math.round((1000 * v.reduce((a, x) => a + x[k], 0)) / t);
+      const takenPmS = Math.round(mean(v.map((x) => (1000 * x.taken) / (x.heroH * 3600) / x.maxHp)) * 100) / 100;
+      return { freePm: sh('regen'), spellPm: sh('spell'), foodPm: sh('food'), takenPmS };
+    })(),
   };
 }
 /* the power changes, seed by seed on the same dice (paired): the held step's move */
@@ -249,6 +274,7 @@ for (const risk of RISKS) {
   report.moves['back:' + risk] = paired('base:' + risk, 'back:' + risk);
   report.moves['up:' + risk] = paired('base:' + risk, 'up:' + risk);
   report.moves['high:' + risk] = paired('base:' + risk, 'high:' + risk);
+  report.moves['skill:' + risk] = paired('base:' + risk, 'skill:' + risk);
 }
 report.wallS = Math.round((Date.now() - t0) / 1000);
 
@@ -273,6 +299,10 @@ console.log('\npower moves (paired seeds): the held step at the changed power mi
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');
 console.log('\nthe damage the four took, each seat\'s share over the hunt (lane/w2-roles-rows), styles ' + STYLES.join(', '));
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + c.takenShare.map((t) => t.style + ' ' + t.mean).join('  '));
+console.log('\nheld as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken');
+console.log('that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)');
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' abs ' + (c.abs ? c.abs.level + ' (depth ' + c.abs.depth + ')' : 'n/a')
+  + (c.sustain ? '  free ' + c.sustain.freePm + '  spell ' + c.sustain.spellPm + '  food ' + c.sustain.foodPm + '  taken ' + c.sustain.takenPmS + ' pm/s' : ''));
 console.log('\nwall ' + report.wallS + ' s');
 const jf = arg('json');
 if (jf) writeFileSync(jf, JSON.stringify(report, null, 1) + '\n');

@@ -247,7 +247,7 @@ export const REASONS = Object.freeze({
     { cond: 'pending || !held', words: "t('tower.count', { count: whole(k.heldAll) })", where: 'A key slot (direction A): off for a key not held, which its own count says on it ("x0"), dimmed' },
   ],
   'src/shell/windows/temper-pane.js': [
-    { cond: '!offer || !!short', words: "'. Need ' + gold(short) + ' more'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
+    { cond: '!offer || !!short', words: "' · Need ' + gold(short) + ' more'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "n.name + ': ' + whole(n.held) + '/' + whole(n.need)", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
   'src/shell/windows/hallmark-pane.js': [
@@ -298,7 +298,7 @@ export const REASONS = Object.freeze({
     { cond: '!canStam', words: "q.why === 'stamina_full' ? t('shop.block_full') : t('shop.block_used', { max: whole(q.perDay) })", where: 'the stamina quote line: a full day banked, all of today\'s blocks bought, or how much more gold (shop.block_quote_short), else no price yet' },
     { cond: '!canStam', words: "t(purse !== null && purse < q.price ? 'shop.block_quote_short' : 'shop.block_quote'", where: 'the stamina quote line: how much more gold the next block needs' },
     { cond: 'r.held || !next', words: "', need ' + gold(short) + ' more'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
-    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
+    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on', { count: b.tiers.length }) : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },

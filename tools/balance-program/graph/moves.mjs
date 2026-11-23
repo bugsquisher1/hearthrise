@@ -161,6 +161,13 @@ export const LEVER_MOVES = Object.freeze({
     ['-tier.hp', 'a blow at a monster is multiplied by the same ratio, the same as less health to take']],
   'danger.power-gear-below': [['-tier.dmg', 'under the ground\'s base a gear step counts weightGearBelowPm: a smaller cut on a blow at the hero (danger.js gearSteps)'],
     ['-tier.hp', 'and a smaller cut on the hero\'s own blow']],
+  /* THE FOUNDATIONS (lane/foundations-block): the skill part of the power step, the reference skill line and the healer's mana seconds */
+  'danger.loot-step': [['+pull.rows', 'deeper than the reference a kill rolls its own table at dropPm over 1000 (danger.js dangerDial dropPm, drops.js effectiveDropChance): more rows of the pull drop']],
+  'danger.power-skill': [['-tier.dmg', 'on the scale a skill over its career line divides a blow at the hero by (1 + powerStep)^steps of the skill part (danger.js skillSteps)'],
+    ['-tier.hp', 'and multiplies the hero\'s blow at a monster by the same ratio, the same as less health to take']],
+  'bands.skill-line': [['+tier.dmg', 'a higher line puts the same skill further under it, a negative skill part: a bigger blow at the hero (danger.js skillSteps)'],
+    ['+tier.hp', 'and a smaller blow at a monster']],
+  'sustain.mana-seconds': [['-hero.manaCost', 'a longer pool in seconds is the same pool at a smaller cost a cast once a move\'s mana is a share of it (stage 3); today a definition the heal row is checked against']],
   /* THE ECONOMY LEVERS (lane/econ-levers): the pay floor, the scale's coin level and the store's basics, set together with the wage */
   'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least PAY.floor of the table (danger.js depthRatio, read by levelShareXp)'],
     ['+kill.coin', 'the same floor on the coin depth ratio (dangerDial coinPm)']],
@@ -206,6 +213,17 @@ export const LEVER_MOVES = Object.freeze({
     ['+kill.coin', 'the one coin ratio (lane/econ-levers): an hour a step deeper on the scale pays (1 + payStepCoin) more coin, a pull (1 + payStepCoin)(1 + powerStep) (dangerDial coinPm, COIN_STEP)']],
   'econ.work-day': [['+town.skill', 'more minutes of town work a UTC day are more gathering and bench runs (work-day.js freeMin, hr_work_day)']],
   'econ.work-premium': [['+town.skill', 'Premium\'s extra minutes are more town work a day (work-day.js premiumExtraMin)']],
+  /* THE TRADES ON ONE CURVE (src/data/trades.js, src/core/trades.js, lane/trade-formulas): town work and its prices, read by the job slice
+     (09 section 6) through 1063-trade-formulas-catalogue.generated.sql; no hunt cell reads them */
+  'econ.trade-work': [['+sink.other', 'more work-hours behind a kit-hour raise every crafted good\'s V (trades.js tradeCatalogue, value), so its job fee and the store\'s ask'],
+    ['-town.skill', 'more work a good is fewer goods a day for the same XP: XP is time, so the Level a day reaches is unchanged and the goods it makes fall']],
+  'econ.trade-curve': [['+gold.day', 'a higher yield, speed or quality makes a work-hour\'s goods worth more (trades.js yieldPm, speedPm, finePm): 0.18 hours of wage at Level 1 to 0.46 at 99 with a Mastery and a bench']],
+  'econ.trade-table': [['-town.skill', 'more hours to 99 lower the trade Level a day of work reaches (trades.js tradeXpTable, hr_trade_xp)']],
+  'econ.job-fee': [['+sink.other', 'a share of every finished good\'s V burned at its job\'s start (trades.js jobFee, hr_trade_job_fee)']],
+  'econ.store-lag': [['~sink.other', 'a store further behind asks V at a lower step (a smaller sink, a weaker good); a higher floor share bids more for surplus (a larger faucet, inside the day budget)']],
+  'econ.tool-wear': [['-sink.other', 'a longer tool life buys fewer tools and rents fewer hours (trades.js toolLifeMs, toolRentPerHour)']],
+  'econ.stream-cover': [['+sink.other', 'a higher cover burns more hunted parts and remains a kit-hour (trades.js tradeCatalogue hunted)']],
+  'econ.trade-kinds': [['~sink.other', 'which goods exist and what each is made from decide which streams a hunted hour feeds']],
   /* THE GOLD ESTIMATE (src/data/gold-estimate.js, lane/gold-per-hour): a printed number only; no fight, purse or clock reads it */
   'econ.gold-estimate-risk': [],
 });

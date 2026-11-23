@@ -116,7 +116,7 @@ export function buryBlock(cs, e) {
   const on = buryingOf(cs);
   if (on) return 'Already ' + (on.skill === FLAME ? 'fueling the Great Hearth with ' + itemName(on.input) : buryingWord(on).toLowerCase()) + '. Stop it first.';
   const h = huntOf(cs);
-  if (h && !h.ended) return busyWords(cs, e.skill === FLAME ? huntingWords(cs, h) : 'Not while a hunt is running.');
+  if (h && !h.ended) return busyWords(cs, e.skill === FLAME ? huntingWords(cs, h) : 'Not while hunting');
   const sk = skillsOf(cs);
   const lv = sk && sk[e.skill] ? sk[e.skill].level : null;
   const name = skillName(e.skill);

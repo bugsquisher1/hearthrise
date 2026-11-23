@@ -204,7 +204,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('.hw-estate-n'), '');
       text(li.querySelector('b'), c.name);
       const prev = chests.chests[chests.chests.indexOf(c) - 1];
-      text(li.querySelector('small'), t('house.chest_stacks', { stacks: whole(c.stacks) }) + ' ' + (c.built ? t('house.chest_built')
+      text(li.querySelector('small'), t('house.chest_stacks', { stacks: whole(c.stacks) }) + ' · ' + (c.built ? t('house.chest_built')
         : isNext ? (can ? t('house.chest_next') : t('house.chest_needs', { tier: tierName(c.tier) })) : prev ? t('house.chest_after', { name: prev.name }) : t('house.chest_after_first')));
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), can ? c : null, purse, bag, bank);
       patchAsk(li.querySelector('[data-hs-act="house-ask"]'), 'chest', can ? c.chest : null, t('house.build'), can && afford && !sc.pending);

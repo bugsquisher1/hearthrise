@@ -95,11 +95,9 @@ insert into public.hr_flags (key, enabled, note) values
   ('imbuements', false, '1063-flame-temper.sql: imbuements (hr_imbue_apply, the settle''s timer). Lit with the Artificing bench (21 section 3).'),
   ('personal_loot', false, '1063-flame-temper.sql: personal loot and hero_pity, read by the drop roller (21 section 4).')
   on conflict (key) do nothing;
-
-create or replace function public.hr_flag_on(p_key text)
-returns boolean language sql stable security definer set search_path = public, pg_catalog as $fn$
-  select coalesce((select f.enabled from public.hr_flags f where f.key = p_key), false)
-$fn$;
+-- The switches are read by hr_flag_on (2026-09-13-town-presence.sql), PLAN-CACHED as plpgsql by 2027-02-10-settle-plan-cache.generated.sql.
+-- This file does not restate it: a LANGUAGE sql copy with a SET clause is re-planned on every call (tests/settle-budget.mjs SB-3, 142 a
+-- watched settle), and the reads below call it once a hero a window.
 
 -- ── §2 THE TABLES ────────────────────────────────────────────────────────────
 create table if not exists public.company_flame (

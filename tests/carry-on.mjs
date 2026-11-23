@@ -446,7 +446,7 @@ async function viewedArm(db, M) {
     const h0 = HS.huntOf(cs0), h1 = HS.huntOf(cs1);
     if (!h0 || h0.ended || !h1 || h1.ended || h0.huntId !== CELLAR) bad.push('CO-VIEWED after the press the page shows ' + JSON.stringify([h0 && [h0.huntId, h0.ended], h1 && [h1.huntId, h1.ended]]) + ' (' + sc.msg + ')');
     if ((await openOf(db, A)).length !== 2) bad.push('CO-VIEWED the server holds ' + (await openOf(db, A)).length + ' open hunts, want 2');
-    if (!/went back out/.test(sc.msg)) bad.push('CO-VIEWED the card says ' + JSON.stringify(sc.msg));
+    if (!/sent out/.test(sc.msg)) bad.push('CO-VIEWED the card says ' + JSON.stringify(sc.msg));
     return bad;
   });
 }
@@ -466,14 +466,14 @@ async function wordsArm() {
   const lines = S.carryLinesOf(p);
   const txt = lines.map((l) => l.text);
   if (lines.length !== 4 || p.heroes.length !== 5) bad.push('CO-WORDS a busy or out-of-range hero got a line: ' + JSON.stringify(txt));
-  if (!/^Wren: Meadowbrook Thicket, Normal\. From Storage: 40 Cooked Shrimp\. Short: 5 Cooked Shrimp \(store refills in the hunt\) .*Bless again: 450 gp\. Runs its loot plan first\. Stops gathering\.$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
-  if (txt[1] !== 'Bryn stays in town: no stamina left.' || txt[2] !== 'Tess waits for Marlow to start the party\'s hunt.' || txt[3] !== 'Dorn stays where you left it.') bad.push('CO-WORDS the other lines read ' + JSON.stringify(txt.slice(1)));
+  if (!/^Wren: Meadowbrook Thicket \(Normal\) · From Storage: 40 Cooked Shrimp · Short: 5 Cooked Shrimp \(store refills in the hunt\) · Bless again: 450 gp · Loot plan first · Stops gathering$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
+  if (txt[1] !== 'Bryn: stays in town (no stamina left)' || txt[2] !== 'Tess: waiting for Marlow (party leader)' || txt[3] !== 'Dorn: unchanged') bad.push('CO-WORDS the other lines read ' + JSON.stringify(txt.slice(1)));
   if (txt.some((s) => /[;—–]/.test(s))) bad.push('CO-WORDS a line has a semicolon or a dash: ' + JSON.stringify(txt));
   /* a Danger scale ground has no tier (visual pass 2: "The Muster Barrows, Normal."): the line names the hero's Risk, Steady where none is read */
   const scale = I.planOf({ go: 2, gold: 0, heroes: [
     { slot: 0, state: 'go', name: 'Wren', hunt: 'muster_barrows', tier: 'normal' }, { slot: 1, state: 'go', name: 'Bryn', hunt: 'muster_barrows', tier: 'normal' }] });
   const onRisk = S.carryLinesOf(scale, (slot) => (slot === 0 ? 'bold' : null)).map((l) => l.text);
-  if (onRisk[0] !== 'Wren: The Muster Barrows, Bold.' || onRisk[1] !== 'Bryn: The Muster Barrows, Steady.') bad.push('CO-WORDS a scale ground reads ' + JSON.stringify(onRisk));
+  if (onRisk[0] !== 'Wren: The Muster Barrows (Bold)' || onRisk[1] !== 'Bryn: The Muster Barrows (Steady)') bad.push('CO-WORDS a scale ground reads ' + JSON.stringify(onRisk));
   if (S.againAllWords(2) !== 'Hunt again, both' || S.againAllWords(3) !== 'Hunt again, all three' || S.againAllWords(4) !== 'Hunt again, all four') bad.push('CO-WORDS the end card reads ' + [2, 3, 4].map(S.againAllWords).join(' / '));
   if (I.scopeOf([1, 1]) !== undefined || I.scopeOf([6]) !== undefined || JSON.stringify(I.scopeOf([3, 0])) !== '[0,3]' || I.scopeOf(null) !== null) bad.push('CO-WORDS the scope rule lets a bad slot list through');
   return bad;
@@ -744,12 +744,12 @@ async function dressArm(db, M) {
       if (v.pressSent.length !== 1 || 'p_wear' in v.pressSent[0][1]) bad.push('CO-DRESS ' + mode + ': the press sent ' + JSON.stringify(v.pressSent.map((c) => c[1])));
       if (v.worn.body !== 'bronze_platebody' || v.worn.helmet !== 'bronze_helm' || v.open !== 2) bad.push('CO-DRESS ' + mode + ': the tank went out in ' + JSON.stringify(v.worn) + ' (' + v.open + ' hunts open)');
       if (v.spare !== 0 || v.passed !== 2) bad.push('CO-DRESS ' + mode + ': the spare helm was not passed through Storage: partner keeps ' + v.spare + ', ' + v.passed + ' bank rows');
-      if (!v.said.some((l) => /put on .*Bronze Platebody/.test(l.text))) bad.push('CO-DRESS ' + mode + ': the card does not say what went on: ' + JSON.stringify(v.said.map((l) => l.text)));
+      if (!v.said.some((l) => /Equipped .*Bronze Platebody/.test(l.text))) bad.push('CO-DRESS ' + mode + ': the card does not say what went on: ' + JSON.stringify(v.said.map((l) => l.text)));
       if (mode === 'viewed' && v.needs.shown.some((r) => r.kind === 'gear_choice')) bad.push('CO-DRESS with the line on, Needs you still asks: ' + JSON.stringify(v.needs.shown));
     }
     const off = await run('off');
     if (off.worn.body || off.worn.helmet || off.open !== 2 || off.wearSent.length) bad.push('CO-DRESS with the line off the tank went out in ' + JSON.stringify(off.worn) + ' after ' + off.wearSent.length + ' wear asks');
-    if (!off.needs.shown.some((r) => r.kind === 'gear_choice' && /Better gear is waiting for 1 hero\./.test(r.text))) bad.push('CO-DRESS with the line off Needs you reads ' + JSON.stringify(off.needs));
+    if (!off.needs.shown.some((r) => r.kind === 'gear_choice' && /Better gear waiting: 1 hero$/.test(r.text))) bad.push('CO-DRESS with the line off Needs you reads ' + JSON.stringify(off.needs));
     return bad;
   });
 }

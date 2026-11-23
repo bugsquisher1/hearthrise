@@ -61,7 +61,7 @@ function patchPerson(el, p) {
 renderFriends.patch = function patchFriends(body, ctx) {
   const st = stateOf(body);
   const social = ctx.account && ctx.account.social;
-  if (!social) { text(body.querySelector('.hf-msg'), 'Friends are not connected.'); return; }
+  if (!social) { text(body.querySelector('.hf-msg'), 'Friends unavailable'); return; }
   if (!st.asked) { st.asked = true; social.reread(); }
   const f = social.friends;
   rows(body.querySelector('.hf-list.is-friends'), f.friends(), {
@@ -173,7 +173,7 @@ renderFriends.act = function actFriends(ctx, body, action, ev, el) {
   const ask = () => {
     const field = body.querySelector('.hf-name');
     const name = field.value.trim();
-    if (!name) { st.msg = 'Type a name first.'; renderFriends.patch(body, ctx); return; }
+    if (!name) { st.msg = 'Enter a name'; renderFriends.patch(body, ctx); return; }
     settle(ctx, body, st, social.friends.request(name).then((r) => { if (r.ok) field.value = ''; return r; }),
       (r) => ASK_WORDS[r && r.state] || ASK_WORDS.requested);
   };

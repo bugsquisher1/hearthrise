@@ -824,7 +824,7 @@ async function pureRules(M, base) {
     const left = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: 'Mira' }, 'Tyler');
     const fell = M.AL.cameHomeLine({ endReason: 'party_member_died', endBy: 'Mira' }, 'Tyler');
     const anon = M.AL.cameHomeLine({ endReason: 'party_member_left', endBy: null }, 'Tyler');
-    if (left !== 'Mira left the hunt, so Tyler came home too.' || fell !== 'Mira died, so Tyler came home too.' || anon !== 'A party member left the hunt, so Tyler came home too.') {
+    if (left !== 'Party ended · Mira left the hunt' || fell !== 'Party ended · Mira died' || anon !== 'Party ended · A party member left the hunt') {
       return 'the came-home lines read ' + JSON.stringify([left, fell, anon]);
     }
     const sum = [M.SM.endWords('party_member_left', false, 'Mira', 'Tyler'), M.SM.endWords('party_member_died', false, 'Mira', 'Tyler')];
@@ -845,7 +845,7 @@ async function pureRules(M, base) {
     tsrv.env[0].party.members = tsrv.env[0].party.members.map((m) => Object.assign({}, m, { hunting: false, unit: null }));
     await tcs.load();
     const line = centre.list().find((a) => a.session === tsrv.env[0].hunt.session_id && a.kind === 'ended');
-    if (!line || line.text !== 'Mira left the hunt, so Tyler came home too.') return 'the way home reads ' + JSON.stringify(centre.list().map((a) => [a.kind, a.text]));
+    if (!line || line.text !== 'Party ended · Mira left the hunt') return 'the way home reads ' + JSON.stringify(centre.list().map((a) => [a.kind, a.text]));
     if (M.SM.endedSessionOf(tcs) === null || M.SM.endedSessionOf(tcs).by !== 'Mira') return 'the summary’s session names ' + JSON.stringify(M.SM.endedSessionOf(tcs) && M.SM.endedSessionOf(tcs).by);
     if (tboxes() !== 'on,-') return 'back in town the rows read ' + tboxes() + ' (the party stays, the box as set)';
     /* the party starts again together: a new hunt, every seat hunting, the box still as set */
@@ -860,7 +860,7 @@ async function pureRules(M, base) {
      Normal for every group (Tyler 2026-11-11) a one-class party loses a lot there, so its line says how to get more (lane/d-party-xp-cells). */
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
-    const head = (k) => 'Classes: ' + k + ' of 4. ';
+    const head = (k) => 'Classes: ' + k + ' of 4 · ';
     /* THE FIGURE IS THE MEASURED TABLE'S, read here on its own (lane/d-party-ui-class, 2026-11-19: the pinned numbers went stale twice in a day as
        party-class-xp-line --mixed --write re-measured the lines, while the window read the table right). Each case states the RULE: how many classes
        the seats hold (a seat with no weapon fights bare-handed, a Melee: hunt-roles.js ROLE_KEYS.neutral), which cell of PARTY_VS_ALONE that is,
@@ -875,7 +875,7 @@ async function pureRules(M, base) {
     };
     const words = (k, vs, place, canMix) => head(k) + (vs === 0 ? 'Level XP each: about the same as solo in ' + place
       : vs > 0 ? 'Level XP each: about +' + vs + '% vs solo in ' + place
-        : 'Level XP each: about -' + -vs + '% vs solo in ' + place + (canMix ? '. Mix Melee, Ranger, Mage and Healer for more' : ''));
+        : 'Level XP each: about -' + -vs + '% vs solo in ' + place + (canMix ? ' · Mix Melee, Ranger, Mage and Healer for more' : ''));
     const seen = new Set();
     for (const [roles, g, oneRole] of [
       /* the one table (Tyler 2026-11-16): a mixed pair on the first grounds earns under its heroes alone, and the number stands (no label hides it) */
@@ -924,12 +924,12 @@ async function pureRules(M, base) {
       const pay = vs > 0 ? 'about +' + vs + '% vs solo in ' : vs < 0 ? 'about -' + -vs + '% vs solo in ' : 'about the same as solo in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
       const said = L(roles, hunt, tier), name = M.PS.huntName(hunt);
-      if (!said.includes((i + 1) + ' of 4. Level XP each: ' + pay + name + (TN[tier] ? ' (' + TN[tier] + ')' : ''))) return g + ' ' + tier + ' ' + roles + ' reads ' + said + ', the cell is ' + vs;
+      if (!said.includes((i + 1) + ' of 4 · Level XP each: ' + pay + name + (TN[tier] ? ' (' + TN[tier] + ')' : ''))) return g + ' ' + tier + ' ' + roles + ' reads ' + said + ', the cell is ' + vs;
     }
     /* THE GLADE'S DEADLY IS NOT ITS NORMAL (the full-game sweep, A1): a mixed four there earns over its heroes alone and the line says so, where the
        Normal line it used to read said -20% */
     const glade4 = L(all, 'mosslight_glade', 'deadly');
-    if (!/^Classes: 4 of 4\. Level XP each: about \+\d+% vs solo in Mosslight Glade \(Deadly\)$/.test(glade4)) return 'a mixed four on the Glade\'s Deadly reads ' + JSON.stringify(glade4);
+    if (!/^Classes: 4 of 4 · Level XP each: about \+\d+% vs solo in Mosslight Glade \(Deadly\)$/.test(glade4)) return 'a mixed four on the Glade\'s Deadly reads ' + JSON.stringify(glade4);
     /* a tier the ground does not offer (the Cellar is Normal only) reads the Normal line, unnamed */
     if (L(all, 'mill_cellar', 'deadly') !== L(all, 'mill_cellar')) return 'the Cellar on a tier it does not offer reads ' + JSON.stringify(L(all, 'mill_cellar', 'deadly'));
     /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
@@ -952,7 +952,7 @@ async function pureRules(M, base) {
     })();
     if (tiered !== L(all, 'mosslight_glade', 'deadly')) return 'a four whose leader picked Deadly on the Glade reads ' + JSON.stringify(tiered) + ', the Deadly line is ' + JSON.stringify(L(all, 'mosslight_glade', 'deadly'));
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /Classes: 2 of 4\. Level XP each: about ([+-]\d+% vs solo|the same as solo) /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /Classes: 2 of 4 · Level XP each: about ([+-]\d+% vs solo|the same as solo) /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's
@@ -963,23 +963,23 @@ async function pureRules(M, base) {
       members: [{ seat: 0, name: 'Bramwell', level: 6, weapon: w1, hunting: false }, { seat: 1, name: 'Wrenna', level: 6, weapon: w2, hunting: false }] });
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
-    if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
+    if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4 ·/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
     /* the Thicket's two-of-two cell, the measured figure (lane/d-party-ui-class: never a pinned number) */
     const thicket2 = PARTY_VS_ALONE.meadowbrook_thicket.normal[2][1];
-    const thicketSaid = 'Classes: 2 of 4. Level XP each: ' + (thicket2 === 0 ? 'about the same as solo in Meadowbrook Thicket' : 'about ' + (thicket2 > 0 ? '+' : '-') + Math.abs(thicket2) + '% vs solo in Meadowbrook Thicket');
+    const thicketSaid = 'Classes: 2 of 4 · Level XP each: ' + (thicket2 === 0 ? 'about the same as solo in Meadowbrook Thicket' : 'about ' + (thicket2 > 0 ? '+' : '-') + Math.abs(thicket2) + '% vs solo in Meadowbrook Thicket');
     if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || after[2] !== thicketSaid) return 'a swap to a bow reads ' + JSON.stringify(after) + ', the measured line is ' + JSON.stringify(thicketSaid);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
-    if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
-    if (why('party_member_left', 'Bramwell', 'left') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'a plain leave reads ' + why('party_member_left', 'Bramwell', 'left');
-    if (why('party_member_died', 'Bramwell', 'died') !== 'Bramwell died, so Wrenna came home too.') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
-    if (why('party_member_left', 'Bramwell', 'no_such_reason') !== 'Bramwell left the hunt, so Wrenna came home too.') return 'an unknown reason reads ' + why('party_member_left', 'Bramwell', 'no_such_reason');
-    if (M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'the summary reads ' + M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna');
+    if (why('party_member_left', 'Bramwell', 'stamina') !== 'Party ended · Bramwell out of stamina') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
+    if (why('party_member_left', 'Bramwell', 'left') !== 'Party ended · Bramwell left the hunt') return 'a plain leave reads ' + why('party_member_left', 'Bramwell', 'left');
+    if (why('party_member_died', 'Bramwell', 'died') !== 'Party ended · Bramwell died') return 'a death reads ' + why('party_member_died', 'Bramwell', 'died');
+    if (why('party_member_left', 'Bramwell', 'no_such_reason') !== 'Party ended · Bramwell left the hunt') return 'an unknown reason reads ' + why('party_member_left', 'Bramwell', 'no_such_reason');
+    if (M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna') !== 'Party ended · Bramwell out of stamina') return 'the summary reads ' + M.SM.reasonWords({ reason: 'party_member_left', by: 'Bramwell', why: 'stamina' }, 'Wrenna');
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';
     /* (3) THE NOTICES: every kind's words; then one line, once, on the server's id. One notice in the centre at a time, since the mutant
        "an alert fires on every read" recurses through setResidue, and two lines rotating in `seen` never settle: it would hang, not go red. */
-    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna declined the party invite'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party.'],
-      ['disbanded', 'Bramwell', 'Bramwell closed the party.'], ['left', 'Solace', 'Solace left the party.'], ['dropped', 'Solace', 'Solace was away too long and lost their party seat.'], ['no_such_kind', 'X', '']]) {
+    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna declined the party invite'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party'],
+      ['disbanded', 'Bramwell', 'Bramwell closed the party'], ['left', 'Solace', 'Solace left the party'], ['dropped', 'Solace', 'Solace lost their party seat (away too long)'], ['no_such_kind', 'X', '']]) {
       const got = M.PW.noticeWords({ kind, who }, { name: 'Tyler' });
       if (got !== want) return kind + ' reads ' + JSON.stringify(got);
     }
@@ -1405,7 +1405,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Under Level \d+ \(death risk\): Mira, Level 3\. Party warned\. Press Enter anyway to go$/.test(warnSaid[0]) || !/^Under Level \d+ \(death risk\): Mira, Level 3$/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Under Level \d+ \(death risk\): Mira, Level 3 · Party warned · Press Enter anyway to go$/.test(warnSaid[0]) || !/^Under Level \d+ \(death risk\): Mira, Level 3$/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);
@@ -1499,7 +1499,7 @@ async function pageRules(overrides, shots) {
           {
             /* the Sewer row's two-of-two cell, in its words (the measured figure, whichever sign it has) */
             const vs = PARTY_VS_ALONE.millrace_sewer.normal[2][1];
-            const said = 'Classes: 2 of 4. Level XP each: ' + (vs === 0 ? 'about the same as solo in The Sewer' : 'about ' + (vs > 0 ? '+' : '-') + Math.abs(vs) + '% vs solo in The Sewer');
+            const said = 'Classes: 2 of 4 · Level XP each: ' + (vs === 0 ? 'about the same as solo in The Sewer' : 'about ' + (vs > 0 ? '+' : '-') + Math.abs(vs) + '% vs solo in The Sewer');
             if (v.classLine !== said) fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine) + ', the measured line is ' + JSON.stringify(said));
           }
           await shot('party-town');

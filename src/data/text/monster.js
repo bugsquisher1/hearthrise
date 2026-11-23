@@ -9,7 +9,7 @@
 
 export const MONSTER_TEXT = Object.freeze({
   /* A page with nothing picked. */
-  none: 'Pick a creature on a hunt\'s page to read about it.',
+  none: 'Select a creature on a hunt\'s page',
   open_hunts: 'Open Hunts',
 
   /* Under the name. */

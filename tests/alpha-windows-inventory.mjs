@@ -851,7 +851,7 @@ async function checks(overrides, shots, opts) {
         const mid = await page.evaluate(() => { const q = (x) => document.querySelector('[data-hs-win="inventory"] ' + x);
           return { equip: q('[data-hs-act="primary"]').disabled, why: q('.hw-pick-why').textContent,
             upg: q('[data-hs-act="equip-upgrades"]').disabled, upgWhy: q('.hw-upgrade-why').textContent }; });
-        if (!mid.equip || mid.why !== 'Leave the hunt to change gear' || !mid.upg || mid.upgWhy !== 'Leave the hunt to put these on.' || sent(s, 'hr-accrue', 'equip').length)
+        if (!mid.equip || mid.why !== 'Leave the hunt to change gear' || !mid.upg || mid.upgWhy !== 'Leave the hunt to equip' || sent(s, 'hr-accrue', 'equip').length)
           fails.push('AW-21 mid-hunt the Inventory reads ' + JSON.stringify(mid) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
       } else fails.push('AW-21 the hunting character did not mount');
       if (errors.length) fails.push('AW-21 mid-hunt console errors: ' + errors.slice(0, 3).join(' | '));

@@ -106,7 +106,7 @@ R.ok(!why2, 'lone-tank-holds: ' + why2);
    free monster, every swing) */
 const LONE_MUTANTS = [
   { name: 'the Challenge takes nothing back: a monster the peel drew stays on the Healer',
-    edits: [['src/core/hunt/targeting.js', 'return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));', 'return [];']] },
+    edits: [['src/core/hunt/targeting.js', 'return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= tauntReach(k) && (holds || onNonTank(m)));', 'return [];']] },
   { name: 'the Healer\'s peel draws any unheld monster, every swing',
     edits: [['src/core/hunt/targeting.js', 'const free = engaged(inst, hero).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);\n  if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;',
       'const free = engaged(inst, hero).filter((m) => m.target === k.id && !(m.holdMs > 0));\n  if (!free.length) return null;']] },

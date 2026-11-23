@@ -59,6 +59,7 @@ import { challengeable, challengeFrom, holderTank } from './targeting.js';
 import { roleOf as monsterRoleOf } from './monster-roles.js';
 import { MONSTER_ROLES } from '../../data/monster-roles.js';
 import { applyStatus, statusRow } from './status.js';
+import { rowsFor, stretchStatus } from './talent-rows.js';
 import { levelOf } from '../xp.js';
 import { ammoPerShot } from '../ammo.js';
 import { ITEMS } from '../../data/items.js';
@@ -327,6 +328,9 @@ const mends = (row) => !!row && MEND_TARGETS.includes(row.target);
 export function firstUsable(inst, hero, sc, only) {
   const h = hero && inst.heroes && inst.heroes[hero.id];
   if (!h || !h.hs) return null;
+  /* THE ROWS AS THIS HERO CASTS THEM (src/core/hunt/talent-rows.js rowsFor: its Roads modifiers on cooldown, mana, output, tiles; the
+     shared table itself for a hero with none). Every read below and the pick it answers (fire casts pick.row) go through this one name. */
+  const ABILITIES = rowsFor(hero);
   /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
      One whose conditions pass but that waits on its cooldown, mana, stock or a target
      in reach is the lane's `rule_wait` (conditions.js noteWait). An ALONE row with another
@@ -432,6 +436,8 @@ function effect(inst, u, row, t, sc, v) {
     const own = blowOf(u, row);
     const hit = Number.isInteger(own) && own > 0 ? own : 1;
     applyStatus(inst, m, statusRow(row.status), { u: u.id, maxHit: hit, runeTier: (v && v.version) || 1 }, sc);
+    /* a Roads modifier's longer status (talent-rows.js moddedRow statusMs: Long Frost, Lingering Sickness) on the stack this cast laid */
+    if (row.statusMs > 0) stretchStatus(m, row.status, u.id, row.statusMs);
   };
   switch (row.target) {
     case 'taunt': challengeFrom(inst, sc, u); break;

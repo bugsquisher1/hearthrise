@@ -14,6 +14,7 @@ import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js';
 import { pickLeader, settingsOf } from './hunt/roles.js';
 import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js';
 import { isHero } from './hunt/sides.js';
+import { normalize, grantsOf } from './talents.js';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -45,9 +46,14 @@ export function heroSetup(o) {
   if (!role) return null;
   const row = HUNT_ROLES[role];
   const native = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));
+  const discipline = disciplineOf(o.weaponType || 'neutral');
+  /* THE ROADS (src/core/talents.js): the build the server projected (hr_talents_view `nodes`, none while the switch is off) and the
+     moves it lends at the hero's Level (`level`: the window's start; a borrow only opens, so the bar holds every one it may cast) */
+  const talents = o.talents && typeof o.talents === 'object' ? normalize(o.talents) : null;
+  const lent = talents ? grantsOf(talents, discipline, o.level).borrowed : [];
   /* a borrowed move: an ability row of another discipline, once (a universal row is every weapon's already) */
-  const borrowed = Array.isArray(o.borrowed) ? [...new Set(o.borrowed)].filter((id) => typeof id === 'string'
-    && Object.prototype.hasOwnProperty.call(ABILITIES, id) && !ABILITIES[id].universal && !native.includes(id)) : [];
+  const borrowed = [...new Set([...(Array.isArray(o.borrowed) ? o.borrowed : []), ...lent])].filter((id) => typeof id === 'string'
+    && Object.prototype.hasOwnProperty.call(ABILITIES, id) && !ABILITIES[id].universal && !native.includes(id));
   const allowed = native.concat(borrowed);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
   /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */
@@ -60,6 +66,8 @@ export function heroSetup(o) {
        (ROLE_RULES) and, for a hero whose bar holds nothing, the start kit's bar. */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     borrowed,
+    /* the build and the weapon's discipline the settle grants it on at every boundary (combat-sim.js syncUnit); absent with no build */
+    ...(talents ? { talents: Object.freeze(talents), discipline } : {}),
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */

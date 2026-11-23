@@ -130,7 +130,7 @@ export function awayMinMsOf(cs, was) {
 /** "1 h 58 min", "25 min". */
 const awayWords = spanWords;
 /* Plain words where the shared copy says "1:1" (that copy ships in the engine's bundle; this line is the client's). How it comes back is the end card's. */
-const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home.' });
+const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina' });
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
 /* The coins this hero's hunt has taken, and the store gold its supplies took (the analyzer's session tally, `coins` and `waste`), or null. */
@@ -201,7 +201,7 @@ function diedWords(cs, session, card = false) {
   const row = log ? log.find((r) => r.session === session) : null;
   if (!row) return '';
   const w = deathWords(cs, { session, row });
-  return [w.title, w.killed, w.lost, card ? '' : w.level, w.saved].filter(Boolean).map(dot).join(' ');
+  return [w.title, w.killed, w.lost, card ? '' : w.level, w.saved].filter(Boolean).map(bare).join(SEP);
 }
 
 /**
@@ -253,7 +253,7 @@ export function awayRecapFrom(cs, was) {
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
   const train = over || yard ? trainOf(cs, was) : null;
   if (train && yard) parts.push(...trainWords(train));
-  /* one sentence a fact, never clauses on colons (QA audit 2026-11-18 N6): "Away 7 days. Wren hunted Mill Cellar. Level 5 to 10, +1,200 Level XP." */
+  /* one label a fact, never clauses on colons (QA audit 2026-11-18 N6; labels, Tyler 2026-11-14): "Away 7 days · Wren hunted Mill Cellar · Level 5 to 10, +1,200 Level XP" */
   const head = t('away.card_head', { time: awayWords(gone),
     who: yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at })
       : hunt ? t('away.card_hunted', { name, ground: huntName(hunt) }) : t('away.card_hunted_off', { name }) });
@@ -262,9 +262,9 @@ export function awayRecapFrom(cs, was) {
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
   /* the yard that took over: how the hunt ended when the server knows (a death), then the yard and what it trained */
   const then = over ? t('away.done_started', { name, skill: skillWord(trainedBy(h.huntId).skill) }) : '';
-  const tail = over ? [died, then, train ? dot(trainWords(train).join(', ')) : ''].filter(Boolean).join(' ') : '';
-  const said = head + (parts.length ? ' ' + t('away.card_facts', { facts: parts.join(', ') }) : '') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '')
-    + (tail ? ' ' + tail : '');
+  const tail = over ? [died, then, train ? trainWords(train).join(', ') : ''].filter(Boolean).join(SEP) : '';
+  const said = head + (parts.length ? SEP + t('away.card_facts', { facts: parts.join(', ') }) : '') + (best ? SEP + t('hunts.away_best', { item: itemName(best) }) : '')
+    + (tail ? SEP + tail : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does).
      `facts`: the same differences for the away card (windows/away.js, UI audit 2026-11-18 #2), each two server answers or null. The id is the
      stamp's, so a line is told once whichever session it follows; `session` is the one the record says now (awayLineNow follows it). */
@@ -279,8 +279,9 @@ export function awayRecapFrom(cs, was) {
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
-/* The end reasons and next-thing lines are labels with no period (src/data/text/summary.js, away.js); in this card's prose each one ends a sentence. */
-const dot = (s) => (s && !/[.!?…]$/.test(s) ? s + '.' : s);
+/* Every fact on the line is a label (Tyler 2026-11-14), joined by SEP; a row that still ends on a period (the death popup's) is trimmed. */
+const SEP = ' · ';
+const bare = (s) => (s ? String(s).replace(/\.$/, '') : s);
 
 /**
  * What the hunt is doing now, from the envelope, as facts (the away card draws them, nowWords says them): `ended`, `ago` how long ago it
@@ -301,7 +302,7 @@ function nowFacts(cs, h, now) {
   /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
   const done = h.ended ? afterDoneWords(cs, h.sessionId, name) : '';
   const said = done || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs), staminaFreeOf(cs).flatMap((l) => l.words)) : '');
-  const next = said ? dot(said) : '';
+  const next = said ? bare(said) : '';
   /* the stamina end's sentence already names the stamina-free loops, so the away card's row of them goes without its own line */
   const freeSaid = !done && !!after && after.kind === 'waited' && after.next === 'away.next_stamina' && !!said;
   if (trainedBy(h.huntId)) return { training: true, ended: h.ended, ago, why: h.ended ? trainingEndWords({ reason: h.endReason }) : '', next, stamina: null };
@@ -311,7 +312,7 @@ function nowFacts(cs, h, now) {
   const tally = h.ended && h.endReason === 'gold_out' ? analyzerOf(cs) : null;
   const goldOut = h.ended && h.endReason === 'gold_out'
     ? goldOutWords(tally && tally.hero ? { gold: tally.hero.gold, lootValue: tally.hero.lootValue, balance: tally.hero.balance } : {}, goldFloorOf(cs)) : '';
-  const why = goldOut ? dot(goldOut) : h.ended ? dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+  const why = goldOut ? bare(goldOut) : h.ended ? bare((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
     .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')) : '';
   return { training: false, ended: h.ended, ago, why, next, stamina, freeSaid };
 }
@@ -319,15 +320,15 @@ function nowFacts(cs, h, now) {
 /* What the hunt is doing now, in the line's words: the stamina left, or how long ago it ended and the stamina rested since. */
 function nowWords(cs, h, now) {
   const f = nowFacts(cs, h, now);
-  const then = f.next ? ' ' + f.next : '';
+  const then = f.next ? SEP + f.next : '';
   /* A TRAINING SESSION says its own label ("Training ended (out of gold), 2 h 5 min ago."), and no stamina. */
   if (f.training) {
-    if (!f.ended) return ' ' + t('training.away_still');
-    return ' ' + (f.ago ? t('training.away_ended_ago', { why: f.why, time: f.ago }) : f.why + '.') + then;
+    if (!f.ended) return SEP + t('training.away_still');
+    return SEP + (f.ago ? t('training.away_ended_ago', { why: f.why, time: f.ago }) : f.why) + then;
   }
   return f.ended
-    ? ' ' + (f.ago ? t('away.card_ended_ago', { time: f.ago }) : t('away.card_ended')) + ' ' + f.why + then + (f.stamina ? ' Stamina now: ' + f.stamina + '.' : '')
-    : f.stamina ? ' Still hunting, with ' + f.stamina + ' of stamina left.' : ' Still hunting.';
+    ? SEP + (f.ago ? t('away.card_ended_ago', { time: f.ago }) : t('away.card_ended')) + (f.why ? SEP + f.why : '') + then + (f.stamina ? SEP + t('away.card_stamina', { time: f.stamina }) : '')
+    : SEP + (f.stamina ? t('away.card_still_stamina', { time: f.stamina }) : t('away.card_still'));
 }
 
 /**

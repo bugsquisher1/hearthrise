@@ -11,29 +11,29 @@ import { END_REASON_COPY } from './hunt-sessions.js';
 /* A notice's line: {who} the other player's hero, {name} this hero, {ground} the ground a warning names ("Mosslight Glade, Level 16 and up"). */
 export const PARTY_NOTICE_WORDS = Object.freeze({
   declined: '{who} declined the party invite',
-  removed: '{who} removed {name} from the party.',
-  disbanded: '{who} closed the party.',
-  left: '{who} left the party.',
-  dropped: '{who} was away too long and lost their party seat.',
+  removed: '{who} removed {name} from the party',
+  disbanded: '{who} closed the party',
+  left: '{who} left the party',
+  dropped: '{who} lost their party seat (away too long)',
   ground_warn: '{who} picked {ground}, high death risk for {name}',
 });
 
 /* Why a friend's own end sent this hero home (`end_by_why`, an END_ORDER name). "left" and an unknown name keep the plain line. */
 const CAME_HOME_BECAUSE = Object.freeze({
-  stamina: '{member} ran out of stamina, so {name} came home too.',
-  gold_out: '{member} ran out of gold for supplies, so {name} came home too.',
-  heals_out: '{member} ran out of healing food, so {name} came home too.',
-  ammo_out: '{member} ran out of ammunition, so {name} came home too.',
-  runes_out: '{member} ran out of runes, so {name} came home too.',
-  rule: '{member}’s stop rule was met, so {name} came home too.',
-  hours: '{member}’s time limit was up, so {name} came home too.',
-  no_fight: '{member} landed no hits for too long. Party left the hunt',
-  outgrown: '{member} outgrew the ground, so {name} came home too.',
-  changed: '{member} moved on to another hunt, so {name} came home too.',
-  server: 'The server stopped {member}’s hunt, so {name} came home too.',
+  stamina: 'Party ended · {member} out of stamina',
+  gold_out: 'Party ended · {member} out of gold for supplies',
+  heals_out: 'Party ended · {member} out of healing food',
+  ammo_out: 'Party ended · {member} out of ammunition',
+  runes_out: 'Party ended · {member} out of runes',
+  rule: 'Party ended · {member}’s stop rule met',
+  hours: 'Party ended · {member}’s time limit reached',
+  no_fight: 'Party ended · {member} landed no hits',
+  outgrown: 'Party ended · {member} outgrew the ground',
+  changed: 'Party ended · {member} moved to another hunt',
+  server: 'Party ended · {member}’s hunt stopped by the server',
 });
 
-/** "Mira ran out of stamina, so Oren came home too." for a hero a friend's end sent home; '' for any other end. Pure. */
+/** "Party ended · Mira out of stamina" for a hero a friend's end sent home; '' for any other end. Pure. */
 export function cameHomeWords(reason, by, why, hero) {
   if (reason !== 'party_member_left' && reason !== 'party_member_died') return '';
   const line = (reason === 'party_member_left' && typeof why === 'string' && Object.prototype.hasOwnProperty.call(CAME_HOME_BECAUSE, why) && CAME_HOME_BECAUSE[why])

@@ -68,7 +68,7 @@ function seatWhere(m) {
 
 /** What the party does next, from the server's party (the leader picks the ground; a member waits). */
 function nextStep(p, r) {
-  if (r.anyHunting) return p.hunt ? 'The party is hunting in ' + huntName(p.hunt) + '.' : 'The party is hunting.';
+  if (r.anyHunting) return p.hunt ? 'The party is hunting in ' + huntName(p.hunt) + '.' : 'Party hunting';
   if (r.isLeader) return r.members.length > 1 ? 'Leader: pick a hunt, then Enter with party'
     : 'Party of one: invite a player or pick a hunt';
   const lead = r.members.find((m) => m.seat === r.leaderSeat);
@@ -95,7 +95,7 @@ export function classXpLine(roles, hunt, tier = DEFAULT_TIER) {
      there, so its line says how to fix it (lane/d-party-xp-cells). */
   const vs = partyVsAlone(ground ? ground.id : null, seats, at);
   const place = at === DEFAULT_TIER ? huntName(hunt) : t('party.place_tier', { place: huntName(hunt), tier: TIER_NAME[at] });
-  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + '. ';
+  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + ' · ';
   if (vs === null) return have + t('party.class_none', { place });
   if (vs === 0) return have + t('party.class_same', { place });
   if (vs > 0) return have + t('party.class_more', { pct: vs, place });

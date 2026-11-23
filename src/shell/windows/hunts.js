@@ -492,7 +492,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     const low = row ? seatsUnder(row, lead) : { under: [] };
     if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {
       runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), t('hunts.telling'),
-        () => underWords(row, low.under) + '. ' + t('hunts.party_warned'), cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+        () => underWords(row, low.under) + ' · ' + t('hunts.party_warned'), cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
       return true;
     }
     if (!low.under.length && row && rangeWords(row, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {

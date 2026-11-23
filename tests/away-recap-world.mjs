@@ -117,7 +117,7 @@ try {
     await q.shot('ar1-gathered');
     /* a gathering job carries a count (1026-job-counts.sql; the Work window's default, hunt-after.js GATHER_COUNT_DEFAULT 100): eight hours
        finish it, so the card says how many of how many and that the hero waits in town, never "Still mining" */
-    step('AR-1 eight hours at a rock are told', !!line && /^Away 8 h \d+ min Tessel Tessel mined the Copper Rock\. \+100 Copper Ore, Mining 1 to \d+\. Done, 100 of 100\. Waiting in town\./.test(line)
+    step('AR-1 eight hours at a rock are told', !!line && /^Away 8 h \d+ min Tessel Tessel mined the Copper Rock · \+100 Copper Ore, Mining 1 to \d+ · Done: 100 of 100 · Waiting in town/.test(line)
       && !/Still mining|hunt/i.test(line), line);
     await q.close();
   }
@@ -151,7 +151,7 @@ try {
     const q = await enter('benchhand');
     const line = await cardOf(q, 30000);
     await q.shot('ar3-bench');
-    step('AR-3 the bench run is told, with when and why it stopped', !!line && /Benchy made Normal Plank\. \+[\d,]+ Normal Plank, Crafting \d+ to \d+\. It stopped about .+ in, out of Normal Log\./.test(line), line);
+    step('AR-3 the bench run is told, with when and why it stopped', !!line && /Benchy made Normal Plank · \+[\d,]+ Normal Plank, Crafting \d+ to \d+ · Stopped about .+ in, out of Normal Log/.test(line), line);
     await q.close();
   }
 
@@ -281,7 +281,7 @@ try {
       /* Gold is what the purse kept, with the coins and the supplies under it (audit 2026-11-18 A6) */
       !!line && /^Away 14 h \d+ min /.test(line) && !!beside.hero
       && /^Cardy Meadowbrook Thicket Level 6 → \d+ Level XP \+[\d,]+ Gold [+−][\d,]+ gp [\d,]+ gp in coins(, [\d,]+ gp on supplies)? Kills [\d,]+/.test(beside.hero)
-      && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(beside.hero)
+      && /Out of stamina[\s\S]*Ended \d+ h \d+ min ago/.test(beside.hero)
       && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Carry on"]' && beside.own === 'Hunt again', JSON.stringify({ line, beside }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
     const went = await q.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]') && !!document.querySelector('[data-hs-act="leave"]'), null, { timeout: 30000 }).then(() => true, () => false);
@@ -319,8 +319,8 @@ try {
     const line = await cardOf(q, 30000);
     await q.shot('ar10-yard-took-over');
     step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
-      !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford\. Killed by .+\. Death cost: [\d,]+ Level XP/.test(line)
-      && /\bBlessing saved [\d,]+ Level XP[^.]*, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
+      !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford · Killed by .+ · Death cost: [\d,]+ Level XP/.test(line)
+      && /3 Blessings saved [\d,]+ Level XP[^·]*, used up/.test(line) && /Yardley: training Melee at the yard · Still training/.test(line) && /Open Training/.test(line), line);
     await q.close();
   }
   if (want('AR-11')) { // AR-11 the Cellar outgrown with the page closed
@@ -352,7 +352,7 @@ try {
     await q.shot('ar11-outgrown');
     /* audit 2026-11-19 L2: the press is the next ground itself, the Hunt summary one press beside it */
     step('AR-11 the card says the ground was outgrown, and its press is Go to the next ground',
-      !!line && new RegExp('Sprout Mill Cellar Level ' + seenLv + ' → 5\\b').test(line) && /Ground outgrown\./.test(line) && JSON.stringify(gold) === '["Go to Meadowbrook Thicket"]',
+      !!line && new RegExp('Sprout Mill Cellar Level ' + seenLv + ' → 5\\b').test(line) && /Ground outgrown/.test(line) && JSON.stringify(gold) === '["Go to Meadowbrook Thicket"]',
       JSON.stringify({ line, gold }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-summary"]');
     const summary = await q.page.waitForFunction(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w ? w.innerText.replace(/\s+/g, ' ') : null; }, null, { timeout: 30000 })

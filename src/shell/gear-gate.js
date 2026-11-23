@@ -21,7 +21,7 @@ import { busyWords } from './training-words.js';
 /** The words beside a gear control a running hunt turns off (one piece: the engine's own refusal line). */
 export const GEAR_HUNT_WORDS = Object.freeze({
   one: REFUSAL_VERB_WORDS.equip.hunt_open,
-  upgrades: 'Leave the hunt to put these on.',
+  upgrades: 'Leave the hunt to equip',
 });
 
 /** True while the server holds this hero in an open hunt: its `hunt` section open and its state in combat, the two

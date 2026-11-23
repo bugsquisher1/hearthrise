@@ -32,22 +32,22 @@ function rowWords(track, r) {
   /* SAY WHY (the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): gear above every ladder names the
      Levels the SERVER's ladders cover (temper-sections.js `span`), so the line is true before and after a new tier's rungs are sold. */
   if (!r.ladder) return !r.below && r.span ? t('temper.no_rungs', { from: r.span.from, to: r.span.to })
-    : 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
+    : 'Not temperable' + (r.below ? ' (requires Level 15+ gear)' : ' yet');
   const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
   /* Dawnsteel's rungs are 0.4%, not 1% (src/data/temper.js TEMPER_TIER_RUNG_PM): "Next: +0.8%" after Emberforged's 1% steps needs its why.
      Unique armor past Dawnsteel (a band, 0.5%) also says its ladder is the band's, from the SERVER's bands (temper-sections.js `bands`). */
-  const bands = r.unique && r.bands && r.bands.length ? '. ' + t('temper.unique_bands', { bands: listWords(r.bands.map(String), Infinity) }) : '';
-  const small = (r.smallPm ? '. ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '') + bands;
+  const bands = r.unique && r.bands && r.bands.length ? ' · ' + t('temper.unique_bands', { bands: listWords(r.bands.map(String), Infinity) }) : '';
+  const small = (r.smallPm ? ' · ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '') + bands;
   if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max' + small;
-  return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + '. Next: ' + track.sign + pct(r.nextPm)
-    : 'Rung 0/' + r.ladder.max + '. Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm)) + small;
+  return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + ' · Next: ' + track.sign + pct(r.nextPm)
+    : 'Rung 0/' + r.ladder.max + ' · Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm)) + small;
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */
-const needWords = (needs) => needs.map((n) => n.name + ': ' + whole(n.held) + '/' + whole(n.need) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '')).join('. ');
+const needWords = (needs) => needs.map((n) => n.name + ': ' + whole(n.held) + '/' + whole(n.need) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '')).join(' · ');
 
 /* Where an input only a hunt gets drops, from the monsters' rows and the open grounds, never typed (Tyler 2026-11-07: "what drops the
-   Fine Tempering Salts?"): "Big Bones drop from Hobgoblin Foreman at Coppercap Warrens." */
+   Fine Tempering Salts?"): "Big Bones: dropped by Hobgoblin Foreman at Coppercap Warrens" */
 const DROPPED_BY = 'Dropped by ';
 function dropWords(f) {
   const w = huntedOnly(f.id) ? dropWhereWords(f.id) : '';
@@ -69,9 +69,9 @@ function wayParts(rows) {
     ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf(dropPlaceOf(f.id)) })),
     { words: saleWords(n.id) ? '' : t('temper.way_weighhouse'), target: targetOf({ kind: 'market' }) }].filter((p) => p.words));
   }
-  /* the smith's line is a label with no period: a sentence after it starts after one */
+  /* every part is a label (Tyler 2026-11-14), so a dot sits between each two */
   const parts = [...said.values()].flat();
-  return parts.flatMap((p, i) => (i ? [/[.!?]$/.test(parts[i - 1].words) ? ' ' : '. ', p] : [p]));
+  return parts.flatMap((p, i) => (i ? [' · ', p] : [p]));
 }
 
 /** The section's skeleton, inside the Services tab. */
@@ -102,7 +102,7 @@ export function patchTemperPane(root, ctx, sc) {
       const short = offer && purse !== null && purse < r.ladder.gold ? r.ladder.gold - purse : 0;
       const itemsShort = r.needs.some((n) => n.short > 0);
       text(li.querySelector('b'), track.label + (r.piece ? ' (' + r.piece + ')' : ''));
-      text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? '. Need ' + gold(short) + ' more' : ''));
+      text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? ' · Need ' + gold(short) + ' more' : ''));
       text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
       text(btn, offer ? 'Temper for ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
@@ -119,7 +119,7 @@ export function patchTemperPane(root, ctx, sc) {
   cls(yes, 'is-on', !!sc.ask);
   if (sc.ask) {
     const also = asked.needs.map((n) => ' and ' + whole(n.need) + ' ' + n.name).join('');
-    text(cf.querySelector('.hw-confirm-q'), 'Temper your ' + asked.piece + ' to rung ' + (asked.ladder.rung + 1) + ' for ' + gold(asked.ladder.gold) + also + '? It stays on this hero, and can\'t be sold back.');
+    text(cf.querySelector('.hw-confirm-q'), 'Temper ' + asked.piece + ' to rung ' + (asked.ladder.rung + 1) + ' for ' + gold(asked.ladder.gold) + also + '? (Bound to this hero · Can\'t be sold)');
     text(yes, 'Temper for ' + gold(asked.ladder.gold));
   }
   prop(yes, 'disabled', sc.pending);
@@ -152,7 +152,7 @@ export function actTemperPane(ctx, action, el, sc, repaint) {
        sheet scrolls it back into view (played 2026-11-05 at 844x390: half of it stood under the sheet's foot) */
     const line = el.closest('.hw-services') ? el.closest('.hw-services').querySelector('.hw-temper-msg') : null;
     sc.msgAt = 'temper';
-    runIntent(sc, repaint, send, 'At the smith…', () => 'Your ' + piece + ' is at rung ' + rung + '.', cs).then(() => {
+    runIntent(sc, repaint, send, 'Tempering…', () => piece + ': rung ' + rung, cs).then(() => {
       if (line && line.isConnected && line.textContent && line.scrollIntoView) line.scrollIntoView({ block: 'nearest' });
     });
     return true;

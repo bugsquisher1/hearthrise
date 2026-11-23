@@ -45,7 +45,7 @@ const PACK_QTY_MAX = 100000;
 /* A line of several labels: each on its own line (the warning keeps line breaks, windows.css). */
 const LINES = '\n';
 /* The advice over the list stays one line (it shares the window's height with the page): its two labels as two fragments. */
-const ADVICE = '. ';
+const ADVICE = ' · ';
 
 /** "Recommended: 2+ players" for this hunt's ground (Tyler 2026-11-14: a label, not a sentence), or ''. */
 export function partyNote(hunt) {

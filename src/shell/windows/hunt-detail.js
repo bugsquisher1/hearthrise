@@ -168,7 +168,7 @@ function patchHow(how, m) {
   text(how.querySelector('.hw-hd-mon-band'), m.boss ? 'boss' : m.band);
 }
 /* The area casters, one note under the line (lane/d-area-playtest): the page warns before the hunt does, and no card grows (AW-25c, AW-93). */
-const castsWords = (residents) => residents.filter((m) => m.casts && m.casts.length).map((m) => t('hunts.casts', { name: m.name, spells: listWords(m.casts) })).join(' ');
+const castsWords = (residents) => residents.filter((m) => m.casts && m.casts.length).map((m) => t('hunts.casts', { name: m.name, spells: listWords(m.casts) })).join(' · ');
 
 /* One creature's picture, drawn once per creature (a canvas keeps it); nothing until its art has loaded. */
 function paintSprite(li, id) {

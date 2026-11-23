@@ -51,8 +51,8 @@ export const TRAINING_TEXT = Object.freeze({
   /* THE AWAY LINE (src/shell/away-recap.js) and THE ALERT (src/shell/alerts.js) for a training session. {at} the bar's place words,
      {why} one of the labels above, {time} how long ago it ended. */
   away_trained: '{name} trained {skill} {at}',
-  away_still: 'Still training.',
-  away_ended_ago: '{why}, {time} ago.',
+  away_still: 'Still training',
+  away_ended_ago: '{why} · {time} ago',
   alert_ended: '{name}: {why}',
 
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
@@ -62,11 +62,11 @@ export const TRAINING_TEXT = Object.freeze({
      audit C7): the server refuses it during any open session, and the press that frees it is Stop. */
   busy: 'Not available while training',
   busy_gear: 'Stop training to change gear',
-  busy_upgrades: 'Stop training to put these on.',
+  busy_upgrades: 'Stop training to equip',
   /* Storage and the bag's Deposit at the yard (src/shell/storage-model.js storeAwayWords): "Storage is in town" read as if the hero had left it */
   busy_storage: 'Stop training to use Storage',
   /* the Hunts window's lead line while the hero trains: {doing} "Training Melee", {at} "at the Training Yard" (trainingPhrase) */
-  busy_hunts: '{doing} {at}. Stop training to pick a hunt',
+  busy_hunts: '{doing} {at} · Stop training to pick a hunt',
   in_party: 'Not available in a party',
   short_gold: 'Not enough gold (need {fee}, have {purse})',
   low_level: 'Requires Level {need}',
@@ -104,10 +104,10 @@ export const TRAINING_TEXT = Object.freeze({
   dummy_owned: 'Unlocked',
   dummy_locked: 'Locked',
   dummy_next: 'Next unlock: {price} gold',
-  dummy_all: 'Every skill is unlocked.',
+  dummy_all: 'All skills unlocked',
   dummy_needs_home: 'Requires the {home}',
-  dummy_short: 'Next unlock: {price} gold. Gold: {purse}',
-  dummy_in_use: '{who} is training on it now.',
+  dummy_short: 'Next unlock: {price} gold · Gold: {purse}',
+  dummy_in_use: 'In use: {who}',
   dummy_confirm: 'Unlock {skill} on the dummy for {price} gold?',
   dummy_buying: 'Unlocking…',
   dummy_bought: 'Dummy now trains {skill}',
@@ -123,7 +123,7 @@ export const TRAINING_TEXT = Object.freeze({
   card_xp: '{skill} XP',
   card_fee: 'Paid at the yard',
   card_again: 'Train again',
-  card_again_title: 'Opens the Training window.',
+  card_again_title: 'Open Training',
 
   /* THE HUNT BAR AND THE ANALYZER WHILE A HERO TRAINS (src/shell/training-now.js): what it does, where, and the server's figures.
      The hero's tab line says the two together ("Training Melee at the Training Yard", src/session/party-sections.js). */

@@ -28,7 +28,7 @@
 
 import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } from '../../data/danger.js';
 import { holderTank } from './targeting.js';
-import { WAGE } from '../../data/wage.js';
+import { WAGE, powSquare } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { ledgerSteps } from '../power-ledger.js';
@@ -103,12 +103,8 @@ export function dangerDial(ground, step) {
 const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
-   edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33: the spec leaves pow's last bit to each engine). */
-function powStep(r, n) {
-  let out = 1, b = r, k = n;
-  while (k > 0) { if (k % 2 === 1) out *= b; b *= b; k = Math.floor(k / 2); }
-  return out;
-}
+   edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33). One home: src/data/wage.js powSquare. */
+const powStep = powSquare;
 
 /* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
    held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held

@@ -320,7 +320,12 @@
         "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
       },
       {
-        "bytes": 3418745,
+        "bytes": 3409627,
+        "on": "2026-11-23",
+        "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
+      },
+      {
+        "bytes": 3418773,
         "on": "2026-11-23",
         "why": "lane/flame-temper-build: the engine's gear part reads Temper on steps (src/core/temper-steps.js, src/data/temper.js TEMPER_STEPS), carry-over's levers beside the gear table (src/data/gear-steps.js CARRY, re-exported by src/data/danger.js), and personal loot's pity levers in src/data/party.js; about 9.1 KB, all read or re-exported by modules the edge already bundles"
       }

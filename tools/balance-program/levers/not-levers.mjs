@@ -61,7 +61,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/hunt/amount.js#heroRows', why: 'a clamp: a cut of 999 permille at most, so its steps are finite' },
   { at: 'src/core/hunt/amount.js#blowAmount', why: 'units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top' },
   { at: 'src/core/hunt/amount.js#healAmount', why: 'units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top' },
-  { at: 'src/core/hunt/damage.js#pipedAmount', why: 'units: two permille factors multiplied (1000000)' },
+  { at: 'src/core/hunt/damage.js#pipedBlow', why: 'units: two permille factors multiplied (1000000)' },
   { at: 'src/core/hunt/danger.js#REF_HEROES', why: 'the reference company is four heroes by definition (04 section 1), and a party has at most four: a shape, as TIER_SIZES' },
   { at: 'src/core/hunt/monster-formula.js#formulaTable', why: 'a memo bound (64 derived tables kept): a cache size, no outcome reads it' },
   { at: 'src/core/hunt/hall-formula.js#hallTable', why: 'a memo bound (64 derived hall tables kept): a cache size, no outcome reads it' },

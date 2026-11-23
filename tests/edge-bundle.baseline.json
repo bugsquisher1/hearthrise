@@ -418,6 +418,11 @@
         "bytes": 3780713,
         "on": "2026-11-23",
         "why": "lane/client-talent-floaters: +740 B, src/data/monster-roles.js roleSpellId/roleSpellRow, the one home of a formula role's derived spell id (mf_<role>), which monster-formula.js now builds through and the client names (the log read 'Mf brute'); re-raised on the merged set"
+      },
+      {
+        "bytes": 3780753,
+        "on": "2026-11-23",
+        "why": "+bytes: JSDoc type note in monster-roles.js roleSpellRow clearing typecheck after the floaters merge"
       }
     ]
   }

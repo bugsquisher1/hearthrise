@@ -101,7 +101,8 @@ export const MONSTER_ROLES = Object.freeze({
 export const roleSpellId = (roleId, mend) => 'mf_' + roleId + (mend ? '_mend' : '');
 /** The role row's wind-up or mend a derived spell id names (its `n`, shape and warning), or null. */
 export function roleSpellRow(id) {
-  for (const [roleId, R] of Object.entries(MONSTER_ROLES)) {
+  for (const [roleId, row] of Object.entries(MONSTER_ROLES)) {
+    /** @type {any} */ const R = row;
     if (R.windup && id === roleSpellId(roleId)) return R.windup;
     if (R.mend && id === roleSpellId(roleId, true)) return R.mend.spell;
   }

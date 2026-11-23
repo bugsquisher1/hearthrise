@@ -208,6 +208,10 @@ export async function loadCellRunner(root) {
       const bar = playedBar(role, { magic: runeMagic(role, i), tierOf: tierOfFor(role, i), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
         storeDrink: g ? storeOf('mana', g.magic.mana.id) : 'thin_turnip_juice', arrows: role === 'ranger' && spends(kits[i].ammo) ? kits[i].ammo : null });
       /* cell.addSlotsBySeat [{ after, slots } | null]: the same, seat by seat (two seats of one role, lane/roads-review-measure) */
+      /* cell.dropSlotsBySeat [[ability id] | null]: the abilities taken off that seat's played bar (a knockout: the move audit,
+         lane/spell-audit, measures each move as the party without it) */
+      const drop = Array.isArray(cell.dropSlotsBySeat) && cell.dropSlotsBySeat[i];
+      if (Array.isArray(drop)) for (let k = bar.length - 1; k >= 0; k--) if (bar[k].action.type === 'ability' && drop.includes(bar[k].action.id)) bar.splice(k, 1);
       const add = (Array.isArray(cell.addSlotsBySeat) && cell.addSlotsBySeat[i]) || (cell.addSlots && cell.addSlots[role]);
       if (!add) return bar;
       const at = bar.findIndex((s) => s.action.type === 'ability' && s.action.id === add.after);

@@ -1,0 +1,9 @@
+
+SPELLS H1 on muster_barrows L60 steady, held start 570, 6 seeds x 8 h, held read from hour 1 (mean +- se over seeds)
+H1                             held 430.9 +- 6.7   deaths 0  xp/hd-h 125983.7 +- 1072.8 kills/h 109.8 +- 0.5   gold/hd-h 12480.6 +- 119.2 store/hd-h 6893.3 +- 79.5
+     healer  dps 21.2    heal/h 0        deaths 0  casts/h greater_mend 445.9, green_sickness 327.6, mend 8, protective_ward 258.2, spring_tide 53.5, undertow 177.1
+H1-undertow@0                  held 435 +- 12.7    deaths 0.2  xp/hd-h 116491 +- 2899.7   kills/h 98.2 +- 0.8    gold/hd-h 11556.6 +- 84.6 store/hd-h 6399.9 +- 78.8
+   vs H1 (paired): held 4.1 +- 16  xp -7.5 +- 2.5%  kills/h -11.7 +- 1  gold -924 +- 126.2  store -493.4 +- 106.6  drinks -22.1 +- 4.8  taken 2941 +- 3142.4
+     healer  dps 19.6    heal/h 0        deaths 1  casts/h greater_mend 463.9, green_sickness 325.8, mend 8.2, protective_ward 258.1, spring_tide 53.6
+
+wall 42 s on 8 workers

@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 753,
-  "typed": 17073,
+  "typed": 17075,
   "files": 260,
   "lever": 327,
   "notLever": 426,
@@ -12309,25 +12309,25 @@
     },
     {
      "file": "src/data/talents.js",
-     "line": 226,
+     "line": 228,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 286,
+     "line": 288,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 304,
+     "line": 306,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 299,
+     "line": 301,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     }
@@ -19674,7 +19674,7 @@
     "windupSlowPm",
     "·"
    ],
-   "typed": 31,
+   "typed": 32,
    "bindings": 1
   },
   "src/data/talents.js#RESTORATION_NODES": {
@@ -19705,7 +19705,7 @@
     "stillRegenPm",
     "·"
    ],
-   "typed": 52,
+   "typed": 53,
    "bindings": 1
   },
   "src/data/talents.js#BORDER_NODES": {

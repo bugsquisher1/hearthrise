@@ -147,7 +147,7 @@ Tooltip labels only. Numbers are full size (Level 200). "Near fall-back" means a
 | | Crossroads I | **Steady Shelter** (Suggested): −40% shield · −15 s cooldown · **Deep Shelter**: 2 lowest-health allies only · +80% shield · **Stone Wall**: +100% shield on you · −30% on allies |
 | | Waystone | **Shelter −5 s cooldown** |
 | | Rank stone x2 | +1 Shelter rank |
-| | Crossroads II | **Ready Shelter**: Casts when an ally is near fall-back · +10 s cooldown · **Long Shelter** (Suggested): +4 s shield duration · **Bright Shelter**: +6% healing received while shielded |
+| | Crossroads II | **Ready Shelter**: Casts when an ally is near fall-back · +10 s cooldown · **Strong Shelter** (Suggested): +20% shield (was Long Shelter, +4 s: a shell has no duration, ruled 2026-11-23 in `29-tuning-pass.md`) · **Bright Shelter**: +6% healing received while shielded |
 | | Waystone | **Shelter: +10% shield on allies near fall-back** |
 
 Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a lone Shield hero three live nodes. Answering and Riposte come back on Parry's road (Sword, below).
@@ -170,7 +170,7 @@ Solo: Hard Challenge, the Frost Slam waystone and Last Stand (section 7) give a 
 | | Waystones | **Sickness +1 s** / **Green Sickness −2 mana** |
 | **Protective Ward** | Crossroads I | **Tank Ward** (Suggested): +40% shield · Ally with the most enemies on them only · **Twin Ward**: Shields 2 allies · −40% shield each · **Lasting Ward**: Unused shield returns as mana on recast · −20% shield |
 | | Crossroads II | **Quick Ward** (Suggested): −30% cooldown · −20% shield · **Mending Ward**: +6% healing received while the ward holds · **Deep Ward**: +30% shield · +6 s cooldown |
-| | Waystones | **Ward +1 s** / **Ward: +10% shield on your tank** |
+| | Waystones | **Protective Ward +5% shield** (was Ward +1 s, ruled 2026-11-23) / **Ward: +10% shield on your tank** |
 | (each move) | Rank stones | 3 before crossroads I, 2 before II. +1 rank of that move |
 
 Wide Circle and Fast Circle are cut: Circle's 8-tile radius already covers the party, and the heal lane runs about 77% full. Undertow's road is cut with the move (`23` section 4): it cast only alone, and a company joins at Level 5.
@@ -390,7 +390,7 @@ Sword and shield, "Spend as suggested" on, plan solo until Level 5 (the company 
 | 23 | 22 | Rank 3 | **Shelter crossroads I**: Steady Shelter | Next to rank 3 |
 | 24 | 23 | Crossroads I | Waystone: Shelter −5 s cooldown | Off crossroads I |
 | 25 to 26 | 24 to 25 | Crossroads I | Shelter rank stones 4 to 5 | The road goes on |
-| 27 | 26 | Rank 5 | **Shelter crossroads II**: Long Shelter | Next to rank 5 |
+| 27 | 26 | Rank 5 | **Shelter crossroads II**: Strong Shelter | Next to rank 5 |
 | 28 | 27 | Crossroads II | Waystone: +10% shield on allies near fall-back | Off crossroads II |
 | 29 | 28 | Shield country | Havora to Sword: Power Strike rank stone 1 | Shield heroes wield Power Strike. Its road starts at Havora |
 | 30 | 29 | Vow slot 1 opens | Spend as suggested goes on to Power Strike stone 2. **The return card offers Hold Fast** | A vow is never taken by the rule |

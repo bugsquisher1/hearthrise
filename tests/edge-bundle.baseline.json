@@ -383,6 +383,11 @@
         "bytes": 3757368,
         "on": "2026-11-23",
         "why": "lane/tuning-pass (merged on the set): the tuned levers' evidence comments in src/data/danger.js (Muster's formula switch, the pay floor and coin, the gear weight under the base, the Bold line, the holder line kept), store-kit.js (the re-read store rates), gold-estimate.js and talents.js (the designer's rulings), and the re-cut band rows; no new module reached"
+      },
+      {
+        "bytes": 3757663,
+        "on": "2026-11-23",
+        "why": "lane/tuning-pass: the two shield-duration talent nodes re-worded onto +% shield in src/data/talents.js, with the ruling's comment"
       }
     ]
   }

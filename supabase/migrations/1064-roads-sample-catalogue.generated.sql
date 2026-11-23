@@ -12,8 +12,8 @@
 --   hr_talent_options      64 options, each lent move with the Level it opens at
 --   hr_talent_suggest      270 steps of "Spend as suggested" (7 disciplines x party, solo), never a vow
 --   hr_talent_open         7 open roads, hr_talent_disciplines 12 role keys
--- HELD: 1 rules the engine plays as nothing yet (src/core/talents.js heldRules; 0 steps, listed so a live switch is a decision):
---   shield_duration
+-- HELD: 0 rules the engine plays as nothing yet (src/core/talents.js heldRules; 0 steps, listed so a live switch is a decision):
+
 -- ORDER: 1064 in its name, before 1064-roads-sample.sql. Idempotent: tables made if missing and their rows rewritten whole, so a second
 -- apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added here. Catalogue tables, RLS on, no policy, no grant to any client role.

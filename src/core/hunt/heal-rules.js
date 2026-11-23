@@ -18,7 +18,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws only what the old heal drew (Tempering's part of a point).
 // ============================================================
 
-import { STATUSES, ticks } from '../../data/statuses.js';
+import { STATUSES, harmful } from '../../data/statuses.js';
 import { temperedAmount } from '../temper.js';
 import { makeEvent } from './events.js';
 import { healIn } from './heal-cut.js';
@@ -93,9 +93,6 @@ function secondAlly(inst, u, t, pick) {
   return best;
 }
 
-/* A HARMFUL STACK on a hero: a damage tick, a heal cut, a slow, a silence, more taken, less dealt, less armor */
-const harmful = (row) => !!row && !row.ground && ((ticks(row) && !row.heals) || !!row.healCutPm || row.slowPm > 0 || row.silence === true
-  || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
 /* CLEANSE: the first `n` harmful stacks on `t` (landing order) taken off; a `status_off` for each status it no longer carries */
 function cleanse(sc, t, n) {
   if (!isHero(t) || !Array.isArray(t.statuses) || !t.statuses.length) return;

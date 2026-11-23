@@ -18,7 +18,7 @@
 //   real-settle-both-paths  a tank and a healer with many pieces in a real four: 10-minute and 100-second windows play one hunt, and the
 //                       pieces fire (Mending ticks, reaction heals)
 //
-// mutant-anchors: src/core/hunt/heal-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/talent-rows.js src/core/hunt/status.js src/core/hunt/targeting.js src/core/hunt/status-effects.js src/core/talents.js
+// mutant-anchors: src/core/hunt/cast-targets.js src/core/hunt/heal-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/talent-rows.js src/core/hunt/status.js src/core/hunt/targeting.js src/core/hunt/status-effects.js src/core/talents.js
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
@@ -468,6 +468,7 @@ const cases = {
 };
 
 const AB = 'src/core/hunt/abilities.js';
+const CT = 'src/core/hunt/cast-targets.js';
 const HR = 'src/core/hunt/heal-rules.js';
 const RX = 'src/core/hunt/reactions.js';
 const DM = 'src/core/hunt/damage.js';
@@ -481,15 +482,15 @@ const mutants = [
   { name: 'healing received is never read', case: 'healing-received', edits: [['src/core/hunt/heal-cut.js', '  const pm = cut > 0 ? healInPm(inst, u) : 0;', '  const pm = 0;']] },
   { name: 'a ward raises every ally', case: 'healing-received', edits: [[TR, '  if ((u.shield | 0) > 0 && Number.isInteger(u.shieldBy) && inst && inst.world) {', '  if (inst && inst.world) {']] },
   { name: 'the healing received has no cap', case: 'healing-received', edits: [[TR, '  return Math.max(-TALENT_RULES.healInCapPm, Math.min(TALENT_RULES.healInCapPm, pm));', '  return pm;']] },
-  { name: 'a party shell ignores its limit', case: 'targeting', edits: [[AB, '  const n = row.fx && row.fx.limit > 0 ? row.fx.limit : 0;\n  if (!n) return all;', '  return all;']] },
-  { name: 'an ally row takes no second target', case: 'targeting', edits: [[AB, '  return [t, ...allyOrder(inst, u, row, allies(inst, u).filter(ok)).slice(0, n)];', '  return [t];']] },
-  { name: 'an area pick takes every monster', case: 'targeting', edits: [[AB, "  if (!(row.fx && row.fx.pick === 'target')) return () => true;", '  return () => true;']] },
-  { name: 'the reach never grows', case: 'targeting', edits: [[AB, '+ (row.fx && row.fx.range > 0 ? row.fx.range : 0);', '+ 0;']] },
+  { name: 'a party shell ignores its limit', case: 'targeting', edits: [[CT, '  const n = row.fx && row.fx.limit > 0 ? row.fx.limit : 0;\n  if (!n) return all;', '  return all;']] },
+  { name: 'an ally row takes no second target', case: 'targeting', edits: [[CT, '  return [t, ...allyOrder(inst, u, row, allies(inst, u).filter(ok)).slice(0, n)];', '  return [t];']] },
+  { name: 'an area pick takes every monster', case: 'targeting', edits: [[CT, "  if (!(row.fx && row.fx.pick === 'target')) return () => true;", '  return () => true;']] },
+  { name: 'the reach never grows', case: 'targeting', edits: [[CT, '+ (row.fx && row.fx.range > 0 ? row.fx.range : 0);', '+ 0;']] },
   { name: 'no second ally', case: 'targeting', edits: [[HR, '  if (fx.alsoPm > 0) {', '  if (false) {']] },
   { name: 'per-target output is never read', case: 'per-target-output', edits: [[TR, '  for (const k of Object.keys(ON_TARGET)) if (Number.isInteger(fx[k]) && ON_TARGET[k](inst, u, t)) pm += fx[k];', '']] },
   { name: 'a branch\'s status strength is lost', case: 'status-strength', edits: [[SE, '  return v && POWERED.has(field) && Number.isInteger(st.pw) ? Math.trunc((v * st.pw) / 1000) : v;', '  return v;']] },
   { name: 'a patch lays nothing', case: 'status-strength', edits: [[STS, '    for (const m of units) if (inPatch(unit, m, st, row.ground.r)) applyStatus(inst, m, laid, { u: unit.id, maxHit: 1, runeTier: 1 }, sc);', '']] },
-  { name: 'no second status', case: 'status-strength', edits: [[AB, '  if (!fx.also || m.alive !== true) return;', '  return;']] },
+  { name: 'no second status', case: 'status-strength', edits: [[CT, '  if (!fx.also || m.alive !== true) return;', '  return;']] },
   { name: 'the first moment shuts the queue', case: 'reactions', edits: [['src/core/hunt/react-queue.js', '  if (!inst || inst.reacting || !reactsOn(u, on)) return;', '  if (!inst || inst.reacting || !reactsOn(u, on)) return;\n  inst.reacting = true;']] },
   { name: 'a reaction sets off another', case: 'reactions', edits: [['src/core/hunt/react-queue.js', '  if (!inst || inst.reacting || !reactsOn(u, on)) return;', '  if (!inst || !reactsOn(u, on)) return;']] },
   { name: 'a melee filter reads any hit', case: 'reactions', edits: [[DM, 'melee: isMonster(source) && cheb(source, target) <= 1,', 'melee: false,']] },

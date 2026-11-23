@@ -160,6 +160,11 @@ export const STATUSES = Object.freeze({
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */
 export const ticks = (row) => Array.isArray(row.tick);
 
+/** A HARMFUL row on a hero (a cleanse takes it off, src/core/hunt/heal-rules.js): a damage tick, a heal cut, a slow, a silence, more
+    taken, less dealt, less armor. A ground patch is its holder's, never on it. */
+export const harmful = (row) => !!row && !row.ground && ((ticks(row) && !row.heals) || !!row.healCutPm || row.slowPm > 0 || row.silence === true
+  || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
+
 /** A SLOWING STACK'S SLOW, permille, at its fixed `scale` (status.js stackScale: the landing's tier share, 1000 with none):
     round(slowPm x scale / 1000). One formula for the engine (damage.js slowed) and the bar's words. 0 for a row that slows nothing. */
 export function slowAt(row, scale) {

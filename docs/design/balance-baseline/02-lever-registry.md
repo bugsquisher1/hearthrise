@@ -30,25 +30,25 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Resistances | 5 | 2 | 0 | 2 | 1 | 0 | 2 | 2 |
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
-| Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 28 | 9 | 7 | 4 | 8 | 7 | 10 | 14 |
+| Regeneration | 6 | 5 | 0 | 0 | 1 | 2 | 4 | 2 |
+| Monster HP, damage, armor, resistances and behavior | 30 | 10 | 7 | 5 | 8 | 7 | 12 | 16 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
-| Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
+| Monster XP and loot values | 18 | 9 | 1 | 2 | 6 | 3 | 7 | 10 |
 | Equipment stats and progression | 24 | 10 | 4 | 10 | 0 | 0 | 15 | 18 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
-| Economy sources and sinks | 37 | 24 | 2 | 10 | 1 | 0 | 32 | 25 |
-| **All** | **212** | 107 | 28 | 50 | 27 | 31 | 98 | 103 |
+| Economy sources and sinks | 45 | 31 | 2 | 11 | 1 | 0 | 40 | 33 |
+| **All** | **226** | 119 | 28 | 52 | 27 | 31 | 112 | 117 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 723 (in 247 files, 16053 typed numbers) |
-| Claimed by a lever | 314 |
-| Claimed by a not-a-lever reason | 409 |
+| Top-level bindings in the rule code that hold a typed number | 733 (in 251 files, 16218 typed numbers) |
+| Claimed by a lever | 319 |
+| Claimed by a not-a-lever reason | 414 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 16 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -200,6 +200,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `cons.food-buffs` Food and drink buffs | Luck v3.1 (Tyler 2026-11-20) cuts the four foods' drop buffs. The rows remain | rulings-of-record LUCK v3.1 |
 | contradictory | `party.class-xp` Party XP by size and classes | Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build. The class table is live (patches/party-xp-by-size.json plays the ruling) | rulings-of-record S-10 |
 | contradictory | `party.under-floor` Under-floor Level share | A Level-keyed cut on party XP is live. Tyler's 2026-11-08 ruling ("XP share rule applies regardless") was recorded as this cut being CUT | 44 P-X06, CONFIRMED |
+| contradictory | `econ.store-lag` The store a tier behind, and its floor | The live store (econ.store-kit) prices a use at the buyer's step with no lag (lane/econ-followups) and gives three quarters of its crafted partner's effect (about 82 steps behind, not 20): the formula's store good, a tier behind in strength and price at once, is not yet the hunt's (wave 4) | src/data/store-kit.js header. Tools/balance-program/redesign/trades/measure.mjs. COMPUTED |
 | contradictory | `econ.blessing-price` The Blessing's price | Free under Level 30: a Level threshold that changes a price on purpose (a young hero's death is under 2.5 h, its wage-priced Blessing more than its hours pay) | 44 P-X20. Kept by the designer 2026-11-22 |
 | contradictory | `econ.training` Training yard pay and fee | The fee in code (50 + 6 a level) is not the fee Tyler ruled (100 gold x skill level an hour, 2026-11-20 24-8) | 44 P-X30, CONFIRMED |
 | contradictory | `econ.companions` Companions | Added after the +20% permanent cap, on its own curve | 44 P-X27, HYPOTHESIS |
@@ -272,14 +273,18 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
 | not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
 | not-built | `temper.steps` Temper on steps: ranks by Level, price in hours of wage, the re-seat | Equipment stats and progression | the switch temper_steps is off and the Temper Kit is not an item. T1 measured with tools/balance-program/candidates/temper-5.json |
+| not-in-runs | `bands.absolute` A ground's band in absolute steps | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs measures the bridge under it |
+| not-in-runs | `bands.skill-line` The reference skill line | Monster HP, damage, armor, resistances and behavior | a measured career, not a dial |
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |
+| not-in-runs | `danger.loot-step` Loot follows depth | Monster XP and loot values | played by the V1 probe (candidate loot-depth-off pairs it away) |
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
 | not-in-runs | `danger.pay-floor` Pay floor under the reference step | Monster XP and loot values | played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9). The server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises |
 | not-in-runs | `danger.power-gear` The power step on gear | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap). No matrix run plans a stance |
 | not-in-runs | `danger.power-gear-below` The power step under the ground's gear Level | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / power-tier-ahead) |
+| not-in-runs | `danger.power-skill` The power step on skill | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (the skill cell, --skill-delta. Candidate skill-weight-off pairs the weight away) |
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
@@ -296,6 +301,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `mon.scaled-danger` Scaled-hunt exceptions | Monster HP, damage, armor, resistances and behavior | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.under-floor` Under-floor Level share | Party bonuses and interactions | every matrix cell seats one Level (mixed-Level cells are owed: 13-build-plan MM-19, OC1 to OC3) |
 | not-in-runs | `roles.table` Monster roles (reach, range, splash, held, blow) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe with --styles (lineups) against the roles-off candidate. No matrix run plans a stance |
+| not-in-runs | `sustain.mana-seconds` The reference healer's mana in seconds of casting | Regeneration | a definition checked against the heal row and the pool, not a dial the engine reads yet |
+| not-in-runs | `sustain.shares` Sustain shares at the reference (regeneration, heal spells, food) | Regeneration | a reading the V1 probe makes (tools/balance-program/redesign/foundations/run.mjs). The engine reads the heal rows and rates, not these yet |
 | outside-hunt | `damage.permanent-cap` Cap on permanent perks | Base damage coefficients | the kits hold no House rooms or renown, so no cell carries a permanent perk to cap |
 | outside-hunt | `econ.bank` Bank and key ring | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.bench-tax` Public bench tax | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
@@ -306,14 +313,22 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.house` House: property, rooms, chests, room perks | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.hunt-block` Bought hunting block price | Economy sources and sinks | a block is bought in town or mid-hunt, never by a cell. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.jewelry-crafting` Jewelry tiers, Hallmark and rolls | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.job-fee` The job fee | Economy sources and sinks | a gold sink of town work |
 | outside-hunt | `econ.refill` Stamina refill price | Economy sources and sinks | retired from play. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.reset-price` Talent reset price | Economy sources and sinks | a reset is bought in town, never by a cell |
 | outside-hunt | `econ.shop-prices` Shop offers | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.store-lag` The store a tier behind, and its floor | Economy sources and sinks | the cells buy at the live catalogue's price (econ.store-kit) until the store moves onto this rule |
+| outside-hunt | `econ.stream-cover` The cover of each hunting stream | Economy sources and sinks | a sink size, read by the job slice |
 | outside-hunt | `econ.tally` Tally task rewards | Economy sources and sinks | the cells hold no task |
 | outside-hunt | `econ.temper-price` Tempering prices | Economy sources and sinks | the kits hold rungs without paying for them |
+| outside-hunt | `econ.tool-wear` Tools that break after 12 hours of use | Economy sources and sinks | town work |
 | outside-hunt | `econ.town-sinks` Town sinks (powder, rounds, criers, setup slots, colors, the House dummy) | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.town-work` Gathering, cooking and crafting rates | Economy sources and sinks | town work (gathering and benches) is not simulated by the matrix |
 | outside-hunt | `econ.town-works` The Weighhouse goal | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.trade-curve` Yield, quality and speed on one curve | Economy sources and sinks | town work is not a hunt cell. Measure.mjs plays the job over seeds |
+| outside-hunt | `econ.trade-kinds` The trades' kinds of good | Economy sources and sinks | content |
+| outside-hunt | `econ.trade-table` Trade XP to 99 | Economy sources and sinks | trade XP is town work |
+| outside-hunt | `econ.trade-work` Town work behind a kit-hour: the line and stage shares, the ladder, the durable goods | Economy sources and sinks | town work is not a hunt cell. Tools/balance-program/redesign/trades/measure.mjs plays the closed-form job |
 | outside-hunt | `econ.wage-base` The wage at step 0 | Economy sources and sinks | a price, never read by a cell. Tools/balance-program/redesign/w/fit.mjs reads it against the measured pay |
 | outside-hunt | `econ.wage-step` The wage's growth a step | Economy sources and sinks | a price, never read by a cell. Fit.mjs fits it |
 | outside-hunt | `econ.work-day` A hero's daily town work | Economy sources and sinks | town work is not a hunt cell. 09 section 5.8 names the labor model the Lab must add |
@@ -366,8 +381,8 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 78 | knob `tierXp` | archetype |
 | `danger.coin-level` The scale's coin level | 9 | 2 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `skill.curve` Combat skill curve | 9 | 0 | 79 | NOT PLAYABLE (harness-fixed) | global |
+| `bands.skill-line` The reference skill line | 8 | 19 | 79 | NOT PLAYABLE (not-in-runs) | content |
 | `danger.power-gear-below` The power step under the ground's gear Level | 8 | 19 | 79 | NOT PLAYABLE (not-in-runs) | global |
-| `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 79 | patch | exception-accidental |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

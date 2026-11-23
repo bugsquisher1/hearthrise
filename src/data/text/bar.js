@@ -15,7 +15,7 @@ export const BAR_TEXT = Object.freeze({
   loaded_ammo: 'The loaded ammo',
   /* The fight settings' door to Settings > Effects (playtest v0.2.127: the effect sliders were found only in Settings). */
   effects_door: 'Effects',
-  effects_door_label: 'Effect settings: how strongly spells, hits and danger marks show',
+  effects_door_label: 'Effect settings',
   /* The First target (src/shell/widgets/first-target.js; the Krell's Hold design's piece 4): the monster a hero goes for first on
      one ground, remembered per ground, so the line under it names the ground. Labels, not sentences (Tyler 2026-11-14). */
   first_target: 'First target',
@@ -48,9 +48,9 @@ export const BAR_TEXT = Object.freeze({
   target_ring_far: 'Hits monsters within {tiles} tiles',
   target_ring_far_max: 'Hits up to {max} monsters within {tiles} tiles',
   target_self: 'Self only',
-  target_ally: 'Goes to the ally who needs it most.',
+  target_ally: 'Lowest-health ally',
   target_party: 'Hero and nearby allies',
-  target_ward: 'Shields the ally who needs it most.',
+  target_ward: 'Shields the lowest-health ally',
   /* a party shield (Shelter), and a ring that lands only its status (Frost Slam: the status's own words, one row a status) */
   target_party_shield: 'Shields every hero near you',
   target_status_ring_chill: 'Chills monsters next to you',
@@ -76,12 +76,12 @@ export const BAR_TEXT = Object.freeze({
   effect_floor_hit: 'Never less than {lo}–{hi} a hit',
   effect_floor: 'Never less than {points}',
   /* what a status does to the monster it lands on, from its row (statuses.js durationMs, slowPm, takenPm) */
-  effect_status: 'Causes {status}.',
-  effect_status_for: 'Causes {status} for {secs} s.',
+  effect_status: 'Causes {status}',
+  effect_status_for: 'Causes {status} for {secs} s',
   effect_status_for_slow: 'Causes {status} for {secs} s, {pct}% slower attacks and casts',
   effect_status_for_taken: 'Causes {status} for {secs} s, {pct}% more damage taken',
   /* a spell that waits for a level in its own skill (abilities.js unlock), and its slot while the hero is under it */
-  unlock: 'Unlocks at {skill} {level}.',
+  unlock: 'Unlocks at {skill} {level}',
   unlock_wait: 'Requires {skill} {level}, now {have}',
   /* The new spell prompt (src/shell/spell-news.js, Tyler 2026-11-16): a level-up unlocked these moves for the weapon {hero} wears. A label,
      never a sentence: the hero as its prefix (up to four play at once and the line's Add acts on that hero's bar), then the names. */
@@ -91,19 +91,19 @@ export const BAR_TEXT = Object.freeze({
   cost_rune: '1 {rune}',
   cost_ammo: '{ammo} ammo',
   cooldown: '{secs} s cooldown',
-  requires_any: 'Works with any weapon.',
-  requires: 'Works with {weapons}.',
+  requires_any: 'Weapon: any',
+  requires: 'Weapon: {weapons}',
   /* {weapons} for a move every melee weapon holds (Power Strike), and one every melee weapon but the tank's holds (Turning Cut,
      Tyler 2026-11-16: "all melee that doesn't have a shield on") */
   weapons_melee: 'Melee weapon',
   weapons_melee_no_shield: 'Melee weapon (no shield)',
 
   /* Food, drink and ammo. */
-  spread: 'Half lands at once, the rest over {secs} s.',
-  type_drink: 'Drink: restores mana.',
-  type_food: 'Food: restores health.',
-  restores_mana: 'Restores {amount} mana.',
-  restores_health: 'Restores {amount} health.',
+  spread: 'Half at once, rest over {secs} s',
+  type_drink: 'Drink: restores mana',
+  type_food: 'Food: restores health',
+  restores_mana: 'Restores {amount} mana',
+  restores_health: 'Restores {amount} health',
   type_loaded: 'Ammo: uses the loaded ammo',
   type_ammo: 'Ammo: one used each shot',
 
@@ -139,30 +139,30 @@ export const BAR_TEXT = Object.freeze({
   out_floor: 'at least {points}',
 
   /* A slot's setup, and what another slot does to it. */
-  setup_any: 'Any of: {conditions}.',
-  setup_when: 'When {conditions}.',
+  setup_any: 'Any of: {conditions}',
+  setup_when: 'When {conditions}',
   /* A monster's biggest hit is called Max Hit wherever the game shows it, as on its page (Tyler 2026-11-11). */
   heal_warning_hit: 'Max Hit {hit}',
   heal_warning_hp: 'HP {hp}',
   heal_warning_eat: 'Eat earlier',
   heal_warning_heal: 'Heal earlier',
-  blocked_by: 'Never fires: {action} in slot {slot} does the same and goes first',
-  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',
+  blocked_by: 'Never fires: slot {slot} ({action}) goes first',
+  shared_cooldown: 'Shared cooldown: slot {slot} ({action})',
   holding: 'Holding the pack, nothing to Challenge',
   /* A spell that casts only while its hero hunts alone (abilities.js `alone`, Undertow): its card, its tooltip, its greyed slot in a
      party, and Configure action's line in a party (Tyler 2026-11-09: "Make that callout clear to the player"). */
   alone: 'Solo only',
-  alone_party: 'Solo only, does nothing in a party',
+  alone_party: 'Solo only (no effect in a party)',
   /* Its mirror (abilities.js `party`, the tank's rune spells, Tyler 2026-11-19: "Tank spells should be party only"): the card, the tooltip,
      the greyed slot while the hero hunts alone, and Configure action's line for a hero with no party. */
   party_only: 'Party only',
-  party_only_alone: 'Party only, does nothing alone',
+  party_only_alone: 'Party only (no effect solo)',
 
   /* Why a slot cannot fire now. */
-  waiting: { one: '{n} in backpack, press to carry it in', other: '{n} in backpack, press to carry them in' },
-  waiting_item: { one: '{n} {item} in backpack, press to carry it in', other: '{n} {item} in backpack, press to carry them in' },
-  unknown_ability: 'This ability isn’t in the game.',
-  inactive: 'Not in the game yet: {ability} waits on its rune.',
+  waiting: { one: '{n} in backpack (press to carry in)', other: '{n} in backpack (press to carry in)' },
+  waiting_item: { one: '{n} {item} in backpack (press to carry in)', other: '{n} {item} in backpack (press to carry in)' },
+  unknown_ability: 'Unknown ability',
+  inactive: '{ability}: not in the game yet (needs its rune)',
   no_weapon_any: 'No weapon equipped',
   no_weapon: 'No weapon equipped',
   weapon_cant_use: 'Requires {weapons}',
@@ -176,16 +176,16 @@ export const BAR_TEXT = Object.freeze({
   rune_level: 'Can\'t cast {runes} yet: carry a lower tier',
   store_level: 'Store rune too high, pick a lower one',
   store_level_named: '{name} requires {needs}, pick a lower rune',
-  server_refused: 'This can’t fire right now.',
+  server_refused: 'Can\'t use now',
   mana_short: 'Needs {mana} mana, have {have}',
   none_in_hunt: 'None in this hunt, {waiting}',
   none_left: 'Out of {item}: next food or drink slot takes over',
-  store_off: 'Set to leave the hunt instead of buying',
+  store_off: 'When out: leaves the hunt',
   /* A store food under what this ground is measured safe on (supplies.js storeFloorFor), while the hero hunts there: the slot still fires.
      The prep page's shape (prep.food_weak); {heal} what one {food} heals, {hp} the hero's full HP. */
-  food_weak: '{food} heals too little here. Pick {want}',
-  food_weak_hp: '{food} heals {heal} of {hp} HP. Pick {want}',
-  out_store_off: 'Out, set to leave instead of buying',
+  food_weak: '{food}: too weak here · Use {want}',
+  food_weak_hp: '{food}: heals {heal} of {hp} HP · Use {want}',
+  out_store_off: 'Out · Set to leave the hunt',
   out_no_store: 'Out, store doesn\'t sell it',
 
   /* Configure action's table (src/shell/action-table.js): its columns and runs, a row's cells, the slot's sentence, a
@@ -207,15 +207,15 @@ export const BAR_TEXT = Object.freeze({
   /* a locked row's skill wait, after its lock (action-facts.js rowNeed): "Melee 10" */
   row_need_level: '{skill} {level}',
   /* the details pane of an empty slot, by tab, until a row is pointed at or picked (action-table.js pickHint) */
-  pick_spells: 'Pick a spell to see what it does',
-  pick_food: 'Pick a food or drink to see what it does',
-  pick_ammo: 'Pick ammo to see what it does',
+  pick_spells: 'Select a spell for details',
+  pick_food: 'Select a food or drink for details',
+  pick_ammo: 'Select ammo for details',
   run_food: 'Food',
   run_drink: 'Drink',
   run_ammo: 'Arrows and bolts',
   secs: '{secs} s',
-  no_spells: 'No spells in the game yet.',
-  no_food: 'No food or drink in the game yet.',
+  no_spells: 'No spells yet',
+  no_food: 'No food or drink yet',
   cell_store: 'store',
   cell_none: 'none',
   verb_cast: 'Cast',
@@ -232,8 +232,8 @@ export const BAR_TEXT = Object.freeze({
   cmp_gold_per_mana: '{ratio}× the gold per mana',
   waste_hp: 'At {pct}%: only {missing} HP missing, {lost} of {amount} wasted',
   waste_mana: 'At {pct}%: only {missing} mana missing, {lost} of {amount} wasted',
-  effect_food: 'Half now, rest over {secs} s. Food and drink cooldown: {lane} s',
-  effect_drink: 'Half now, rest over {secs} s. Food and drink cooldown: {lane} s',
+  effect_food: 'Half now, rest over {secs} s · Cooldown: {lane} s',
+  effect_drink: 'Half now, rest over {secs} s · Cooldown: {lane} s',
   /* A CONDITION'S WORDS (src/shell/bar-draft.js conditionWords, conditionTip): whose effect, a yes/no denied, and the short label the
      slot's hover title reads ("Target health below 30%", "Target Bleed stacks 3+", "Last move: Rend"). {label} is the test's
      own label (src/data/condition-metrics.js tip), {unit} a percent's % or nothing. */

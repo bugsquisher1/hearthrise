@@ -72,7 +72,7 @@ export function patchGrid(root, ctx, sc, view, off) {
     const n = w && counts.has(key) ? counts.get(key) : null;
     text(li.querySelector('.hb-count'), n ? whole(n) : '');
     attr(li, 'aria-label', w ? t('prep.slot_filled', { n: i + 1, name: actionName(w.action) }) + ' ' + whenWords(w) : t('prep.slot_empty', { n: i + 1 }));
-    attr(li, 'title', w ? actionName(w.action) + '. ' + whenWords(w, conditionTip) : null);
+    attr(li, 'title', w ? actionName(w.action) + ' · ' + whenWords(w, conditionTip) : null);
   }
   text(root.querySelector('.hpb-barcount'), bar ? t('prep.bar_count', { n: filled, max: SLOTS }) : '');
 }

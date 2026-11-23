@@ -150,14 +150,14 @@ export function afterHuntOf(st, h, nowMs, spare) {
 export function afterHuntWords(st, h, nowMs, name, spare, free) {
   const a = afterHuntOf(st, h, nowMs, spare);
   if (!a) return '';
-  if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
+  if (a.kind === 'went') return t('away.after_went', { doing: a.went });
   const loops = Array.isArray(free) ? free : [];
   /* out of stamina, only what this hero has open (never the yard below its Level: audit 2026-11-19 L4) */
   const next = a.next === null || (a.next === 'away.next_stamina' && !loops.length) ? ''
     : t(a.next, a.next === 'away.next_bar' ? { name, item: itemName(a.item) }
       : a.next === 'away.next_stamina' ? { loops: listWords(loops, loops.length, 'or') } : undefined);
-  const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) : '';
-  return waited && next ? waited + ' ' + next : waited || next;
+  const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { time: spanWords(a.idleMs) }) : '';
+  return waited && next ? waited + ' · ' + next : waited || next;
 }
 
 /**

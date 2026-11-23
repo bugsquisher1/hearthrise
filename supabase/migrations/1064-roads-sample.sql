@@ -46,7 +46,7 @@
 --   and a pick are looked up in the catalogue (an unknown one is refused), the points are the server's Level (hr_level_of), the vow slots
 --   and borrow opening Levels the catalogue's. The reset is the one gold sink here (1063's quote pattern, unchanged). A forged build cannot
 --   reach the engine: hr_talents_view projects only rows this file wrote, and the engine re-validates (src/core/talents.js normalize).
---   ON THE PRE-EA SECURITY LIST (docs/design/redesign/13-security-list.md S-9).
+--   ON THE PRE-EA SECURITY LIST (docs/design/redesign/13-security-list.md S-11).
 --
 -- ── COST (rows and bytes at 100x players) ────────────────────────────────────
 -- One hero_talents row a hero (~2 KB at Level 300); a spend writes one row update, one log row and one intent row; "Spend as suggested"
@@ -460,13 +460,13 @@ delete from public.hr_client_rpc_baseline where grantee = 'authenticated'
   and proname in ('hr_talent_spend', 'hr_talent_spend_suggested', 'hr_talent_build_save', 'hr_talent_reset');
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_talent_spend', 'p_slot integer, p_node text, p_pick text, p_idem uuid', 'authenticated',
-   'added 1064-roads-sample.sql (lane/roads-sample): one Talent point on one Roads node, checked against the generated catalogue (path, pick, points by the server''s Level, vow slots, a hybrid''s crossroads, borrow count); keyed, settle-first, journalled in hero_talent_log; talents_closed while the switch is off; pre-EA Security list S-9'),
+   'added 1064-roads-sample.sql (lane/roads-sample): one Talent point on one Roads node, checked against the generated catalogue (path, pick, points by the server''s Level, vow slots, a hybrid''s crossroads, borrow count); keyed, settle-first, journalled in hero_talent_log; talents_closed while the switch is off; pre-EA Security list S-11'),
   ('hr_talent_spend_suggested', 'p_slot integer, p_plan text, p_idem uuid', 'authenticated',
-   'added 1064-roads-sample.sql (lane/roads-sample): every point left along the catalogue''s suggested order for the worn weapon''s discipline, never a vow, then the open road; each step the spend''s own check; talents_closed while the switch is off; pre-EA Security list S-9'),
+   'added 1064-roads-sample.sql (lane/roads-sample): every point left along the catalogue''s suggested order for the worn weapon''s discipline, never a vow, then the open road; each step the spend''s own check; talents_closed while the switch is off; pre-EA Security list S-11'),
   ('hr_talent_build_save', 'p_slot integer, p_hunt text, p_nodes jsonb, p_idem uuid', 'authenticated',
-   'added 1064-roads-sample.sql (lane/roads-sample): a saved build per hunt, checked whole against the catalogue (nodes, values, links, needs, borrow and vow counts), at most saved_builds_max a hero; p_nodes null deletes; never applied here; pre-EA Security list S-9'),
+   'added 1064-roads-sample.sql (lane/roads-sample): a saved build per hunt, checked whole against the catalogue (nodes, values, links, needs, borrow and vow counts), at most saved_builds_max a hero; p_nodes null deletes; never applied here; pre-EA Security list S-11'),
   ('hr_talent_reset', 'p_slot integer, p_price bigint, p_idem uuid', 'authenticated',
-   'opened 1064-roads-sample.sql (lane/roads-sample; priced in 1063-level-costs.sql): the priced Talent reset, now moving the points (the hero''s nodes cleared); p_price only compared with the server''s quote; talents_closed while the switch is off; pre-EA Security list S-8');
+   'opened 1064-roads-sample.sql (lane/roads-sample; priced in 1063-level-costs.sql): the priced Talent reset, now moving the points (the hero''s nodes cleared); p_price only compared with the server''s quote; talents_closed while the switch is off; pre-EA Security list S-9 and S-11');
 
 -- ── §4 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- (a) CLOSED: with the switch off the section is null and every verb refuses talents_closed, nothing written.

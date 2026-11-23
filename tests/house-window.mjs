@@ -143,8 +143,8 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       else {
         if (errors.length) fails.push('HW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const head = (await txt(page, '.hw-house-name')) + ' / ' + (await txt(page, '.hw-house-note'));
-        if (!/Hearthside Homestead/.test(head) || !/Shared house\./.test(head)
-          || !/Gold: shared purse\. Materials: Tyler's bag, then Storage/.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
+        if (!/Hearthside Homestead/.test(head) || !/Shared house · /.test(head)
+          || !/Gold: shared purse · Materials: Tyler's bag, then Storage/.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
         // HW-2
         const deed = await lines(page, '.hw-deed');
         if (deed.length !== 3 || !/Owned/.test(deed[0].t) || deed[0].btn !== 'none'
@@ -161,13 +161,13 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         if (!/Opens with the Fieldworth Farmstead/.test(by('Cellar').t) || by('Cellar').btn !== 'none') fails.push('HW-3 the Cellar reads ' + JSON.stringify(by('Cellar')));
         // The Garden has a purpose (game-designer ruling 2026-10-22): its rung is offered and says what it builds,
         // on the ONE field the account's heroes share (Tyler 2026-10-23, 2026-12-14-shared-farm.sql).
-        if (!/Not built yet\. Next: Kitchen Garden, 1 more shared farm bed/.test(by('Garden').t) || by('Garden').btn === 'none') fails.push('HW-3 the Garden reads ' + JSON.stringify(by('Garden')));
+        if (!/Not built yet · Next: Kitchen Garden, 1 more shared farm bed/.test(by('Garden').t) || by('Garden').btn === 'none') fails.push('HW-3 the Garden reads ' + JSON.stringify(by('Garden')));
         /* HW-7 60 logs: 40 in the bag alone is short, 40 + 25 in Storage is not. */
         if (!/Normal Log 60 \(40 in bag \+ 25 in Storage\)/.test(by('Garden').t) || by('Garden').btn !== 'on' || by('Garden').short.length)
           fails.push('HW-7 the Garden (bag + Storage) reads ' + JSON.stringify(by('Garden')));
         // HW-9
         const held = by('Trophy Room');
-        if (!/Trophy Wall, 1 of 5\. Nothing to build here yet\./.test(held.t) || /bestiary trophies|The Hall|gp/.test(held.t) || held.btn !== 'none')
+        if (!/Trophy Wall, 1 of 5 · Nothing to build yet/.test(held.t) || /bestiary trophies|The Hall|gp/.test(held.t) || held.btn !== 'none')
           fails.push('HW-9 the held Trophy Room reads ' + JSON.stringify(held));
         // HW-4
         const chests = await lines(page, '.hw-chests');
@@ -209,8 +209,8 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       else {
         const deed = await lines(page, '.hw-deed');
         const held = (await lines(page, '.hw-rooms')).find((r) => r.t.startsWith('Trophy Room')) || { t: '', btn: '?' };
-        if (!deed[1] || !/Opens the Cellar\./.test(deed[1].t) || /Trophy/.test(deed[1].t)) fails.push('HW-9 the next deed reads ' + JSON.stringify(deed[1] && deed[1].t));
-        if (!/^Trophy RoomNothing to build here yet\./.test(held.t) || held.btn !== 'none') fails.push('HW-9 the unopened held Trophy Room reads ' + JSON.stringify(held));
+        if (!deed[1] || !/Opens the Cellar/.test(deed[1].t) || /Trophy/.test(deed[1].t)) fails.push('HW-9 the next deed reads ' + JSON.stringify(deed[1] && deed[1].t));
+        if (!/^Trophy RoomNothing to build yet/.test(held.t) || held.btn !== 'none') fails.push('HW-9 the unopened held Trophy Room reads ' + JSON.stringify(held));
       }
       await ctx.close();
     }
@@ -244,7 +244,7 @@ const MUTANTS = [
   ['the reader invents a home', 'src/session/home-sections.js', "  const h = read(cs, 'home');\n", "  const h = read(cs, 'home') || { tier: 0, tiers: [{ offer: 'property.homestead', name: 'Home', tier: 1, need: 0, gold: 1, items: {} }], rooms: [] };\n"],
   ['the room rung goes to the wrong verb', 'src/session/home-intents.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('shop_buy', { offer, qty: 1 })"],
   ['the Storage is not counted (the bag alone pays)', 'src/shell/windows/house.js', 'const inStorage = stored ? stored.get(it.id) || 0 : null;', 'const inStorage = null;'],
-  ['the head still says the hero pays from their own gold and bag', 'src/data/text/house.js', "Gold: shared purse. Materials: {name}\\'s bag, then Storage',\n\n  /* The deed. */", "Gold and materials: {name}\\'s own gold and bag',\n\n  /* The deed. */"],
+  ['the head still says the hero pays from their own gold and bag', 'src/data/text/house.js', "Gold: shared purse · Materials: {name}\\'s bag, then Storage',\n\n  /* The deed. */", "Gold and materials: {name}\\'s own gold and bag',\n\n  /* The deed. */"],
   ['the refusal drops the server\'s counts', 'src/session/refusal.js', '    counts: countsOf(named),\n', '    counts: null,\n'],
 ];
 

@@ -126,7 +126,10 @@ const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql
   hr_bench_run_view: '1026-job-counts.sql',
   /* the analyzer carries the hunt report's counters and the rules' shares when a session has a report (GR-66): the plan cache's
      pre-image carries neither */
-  hr_hunt_analyzer_basic: '1053-hunt-report.sql' });
+  hr_hunt_analyzer_basic: '1053-hunt-report.sql',
+  /* ONE Blessing (lane/level-costs): the view and its price read hr_level_costs; the plan cache's pre-images read hr_blessing_tiers
+     and hr_blessing_rule, which 1063-level-costs.sql drops */
+  hr_blessings_view: '1063-level-costs.sql', hr_blessing_price: '1063-level-costs-catalogue.generated.sql' });
 /* Bodies a LATER file DROPPED with the system they served (the approved cuts, Tyler 2026-11-20, plan L10: the old dungeons'
    cooldown read and the gem rows' entitlement read; R11's no-party-finder the finder's seek read). No settle calls them at the
    chain end, and their SQL pre-images read tables that file drops too, so there is nothing to restore and nothing to compare:

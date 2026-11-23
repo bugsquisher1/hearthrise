@@ -18,7 +18,8 @@
 //   HR-DOORS     THE SAME BLOCK VIEWED AND CLOSED: the report read off the `hunt` section (the card recorded at the end, the hunt
 //                viewed) and off the free analyzer's session block (an earlier hunt's card read on return, the browser closed) give the
 //                same facts and the same lines; an old hunt with no report shows no block
-//   HR-WORDS     the lines in plain English (no semicolon, dash or colon), the word first, the swing and the spell in the house's
+//   HR-WORDS     the lines are genre labels (no semicolon or dash; a colon only as "Label: value", never joining clauses, Tyler
+//                2026-11-14, the GE-WORDS rule: the earned line's "Gold/hr: 4,812" passes), the word first, the swing and the spell in the house's
 //                voice, a death's hunting time from the hunt's own Level XP an hour, the change line with what the slot did before
 //   HR-CAUSE     THE CAUSE LINE on the Danger scale (lane R5): from a fixture hunt section with the report's `deep` and two `falls` and the
 //                session's risk_end / danger_end, "Held Depth 16 of 20 on Steady. The deepest it went was Depth 17 of 20. Fell back 2
@@ -47,6 +48,10 @@ async function load(root) {
     W: await u('src/shell/hunt-report.js'), HSEC: await u('src/session/hunt-sections.js'), SM: await u('src/hunt-view/summary-model.js'),
     REC: await u('src/hunt-view/summary-recorder.js'), AWAY: await u('src/shell/windows/away.js') };
 }
+
+/* NOT A LABEL (Tyler 2026-11-14, as tests/gold-estimate.mjs GE-WORDS): a semicolon or a dash, or a colon that joins clauses (lower case after it).
+   "Gold/hr: 4,812" and "Held Depth 14 of 20" pass; "used 6 times: it did 30% of healing" does not. */
+const unplain = (s) => typeof s !== 'string' || /[;—–]/.test(s) || /:\s+[a-z]/.test(s);
 
 const START = Date.UTC(2026, 10, 22, 8, 0, 0);
 /* The server's report as 1053-hunt-report.sql stores it and hr_hunt_view projects it (with the shares' maps). */
@@ -120,8 +125,9 @@ const ARMS = {
     const ch = X.W.rulesLines(f, prev).map((l) => l.text);
     if (ch[ch.length - 1] !== 'Slot 1 changed to Power Strike · 40% of damage (was 14%)') out.push('the change line reads ' + JSON.stringify(ch[ch.length - 1]));
     if (X.W.rulesLines(f, { rules: f.rules }).length !== 4) out.push('an unchanged bar has a change line');
-    const all = [...risk, ...rules, ...spell, ...ch];
-    if (all.some((s) => /[;—–:]/.test(s))) out.push('a line has a semicolon, a dash or a colon: ' + all.find((s) => /[;—–:]/.test(s)));
+    /* a Label: value colon is the genre's own (the earned line), so it is in the list and must pass */
+    const all = [...risk, ...rules, ...spell, ...ch, X.W.earnedLine({ goldH: 4812, wasteH: 950 })];
+    if (all.some(unplain)) out.push('a line has a semicolon, a dash or a colon joining clauses: ' + all.find(unplain));
     return out;
   },
   'HR-CAUSE': async (X) => {
@@ -171,7 +177,7 @@ const ARMS = {
     if (forged.report.depth !== null) out.push('the residue kept a raw step as a depth: ' + JSON.stringify(forged.report.depth));
     /* depths only, plain words */
     const all = [CAUSE, live];
-    if (all.some((x) => /[;—–:]/.test(x) || /\b6[0-9]{2}\b/.test(x))) out.push('a cause line has a step, a semicolon, a dash or a colon: ' + JSON.stringify(all));
+    if (all.some((x) => unplain(x) || /\b6[0-9]{2}\b/.test(x))) out.push('a cause line has a step, a semicolon, a dash or a colon joining clauses: ' + JSON.stringify(all));
     return out;
   },
   'HR-LEDGER': async (X) => {
@@ -246,6 +252,7 @@ const MUTANTS = [
   ['the cap is not said', 'HR-CAUSE', 'src/shell/hunt-report.js', 'd.n >= HUNT_REPORT.fallsMax', 'd.n > HUNT_REPORT.fallsMax'],
   ['the residue keeps a step as a depth', 'HR-CAUSE', 'src/session/hunt-summaries.js', 'n >= 1 && n <= of ? n : null', 'n >= 1 ? n : null'],
   ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', 'depthWords = causeLine(depth);', "depthWords = '';"],
+  ['a line joins clauses on a colon (labels, Tyler 2026-11-14)', 'HR-WORDS', 'src/data/text/report.js', "other: '{what} used {count} times · {pct}% of healing' }", "other: '{what} used {count} times: it did {pct}% of healing' }"],
   /* THE LEDGER (19-power-ledger L7) */
   ['the healing shares are of the shown sources only', 'HR-LEDGER', 'src/hunt-view/hunt-report.js', '.map(([src, n]) => [src, permille(n, healAll)])', '.map(([src, n], _i, a) => [src, permille(n, a.reduce((x, y) => x + y[1], 0))])'],
   ['the seats are not named by the server', 'HR-LEDGER', 'src/session/report-sections.js', 'took: tookOf(raw.took, raw.seats)', 'took: tookOf(raw.took, null)'],

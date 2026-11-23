@@ -1,0 +1,33 @@
+
+V1 on muster_barrows (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful      670.4 +- 3.3      6.2  50.8  84.8   14.6    1.4     1.8     75.2      0     0  0 (0/0/0)                       6  {"hold":3189,"climb":1252,"fall":66}
+base:steady       709.7 +- 0.6     -0.7  98.1   100    0.4    0.1     1.5     65.5      0     0  1 (0/0/1)                       6  {"hold":2114,"climb":1804,"fall":5}
+base:bold           710 +- 0          0   100   100      0      0     1.4     65.2      0     0  0 (0/0/0)                       6  {"hold":1968,"climb":1938}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       1.92x  sd 0.11  n 6  window 6 h  seeds 1.87 2.12 1.96 1.83 1.84 1.89
+  base:steady        2.21x  sd 0.01  n 6  window 6 h  seeds 2.2 2.21 2.2 2.22 2.22 2.19
+  base:bold           2.2x  sd 0.01  n 6  window 6 h  seeds 2.2 2.21 2.2 2.21 2.21 2.19
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L75  coin 25172 +- 392  income 31117 +- 605  store 6990  kit share 0.22 (meal 3, drink 2069, charge 2463, shot 2455)  loot by band: common 577, uncommon 292, scarce 5076, other 0  n 6
+  base:steady       L75  coin 30036 +- 46  income 36903 +- 102  store 7613  kit share 0.21 (meal 8, drink 2493, charge 2623, shot 2488)  loot by band: common 641, uncommon 349, scarce 5877, other 0  n 6
+  base:bold         L75  coin 30146 +- 184  income 37041 +- 255  store 7627  kit share 0.21 (meal 8, drink 2503, charge 2627, shot 2489)  loot by band: common 637, uncommon 354, scarce 5904, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:careful      hammer 0.698  bow 0.271  mage 0.031  healer 0
+  base:steady       hammer 0.701  bow 0.259  mage 0.039  healer 0
+  base:bold         hammer 0.7  bow 0.26  mage 0.04  healer 0
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:careful      abs 73.3 (depth 16)  free 160  spell 840  food 1  taken 9.41 pm/s
+  base:steady       abs 80 (depth 20)  free 121  spell 877  food 1  taken 11.89 pm/s
+  base:bold         abs 80 (depth 20)  free 121  spell 878  food 1  taken 11.95 pm/s
+
+wall 198 s

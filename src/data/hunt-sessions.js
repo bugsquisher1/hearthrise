@@ -149,8 +149,9 @@ export const DEATH_XP_LOSS = 0.06;
 
 /* THE DEATH IN HOURS (lane/level-costs, 2026-11-22; 04-math-strategy.md section 5 deathHours; Tyler 2026-11-22: a per-hero cost reads
    the hero's LEVEL). A death's Level XP is the LESSER of the share above and DEATH_HOURS reference hours of progress at the hero's Level
-   (action-rules.js levelHourXp). The share binds to Level 61 (a young hero never falls back to Level 1), the hours from 62 (the same
-   weight at every Level). 7.5 is parity with the share at Level 60, where the stances were measured (12-targets.md C-4). Server copy:
+   (action-rules.js levelHourXp). The share binds to Level 63 (a young hero never falls back to Level 1), the hours from 64 (the same
+   weight at every Level). 7.5 was parity with the share at Level 60 on the hours table the stances were measured on (12-targets.md
+   C-4); core-model.js LEVEL_HOURS (lane/formula-overhaul) moved parity to Level 63, the lever held at 7.5. Server copy:
    hr_level_costs.death_hours_pm (tools/gen-level-costs.mjs), bound hr_death_xp_mode_max. LEVER level.death-hours, a starting value. */
 export const DEATH_HOURS = 7.5;
 
@@ -251,16 +252,16 @@ export const END_CARD_COPY = Object.freeze({
 
 export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
-  died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
+  died: Object.freeze({ one: '{name} died in {ground} · Back in town' }),
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
-  boss_felled: Object.freeze({ one: '{name} beat him in {ground}. New title: Character → Titles' }),
-  boss_time: Object.freeze({ one: 'Time up before the boss went down' }),
+  boss_felled: Object.freeze({ one: 'Boss defeated in {ground} · New title: Character → Titles' }),
+  boss_time: Object.freeze({ one: 'Time up · Boss not defeated' }),
   /* THE BURNING TOWER (the board's §2: "Three minutes a floor, ten on a landing. Then the climb ends"): a label, like boss_time. */
-  floor_time: Object.freeze({ one: 'Time up before the floor was cleared' }),
+  floor_time: Object.freeze({ one: 'Time up · Floor not cleared' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
-  party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),
-  party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
+  party_member_died: Object.freeze({ one: 'Party ended · {member} died' }),
+  party_member_left: Object.freeze({ one: 'Party ended · {member} left the hunt' }),
   /* the ground's endsAtLevel reached (src/data/hunt-grounds.js): a label, like the others */
   outgrown: Object.freeze({ one: 'Ground outgrown' }),
   heals_out: Object.freeze({ one: 'Out of healing food' }),
@@ -272,7 +273,7 @@ export const END_REASON_COPY = Object.freeze({
   hours: Object.freeze({ one: 'Time limit reached: 1 h', other: 'Time limit reached: {n} h' }),
   left: Object.freeze({ one: 'Left the hunt' }),
   changed: Object.freeze({ one: 'Moved on to {hunt}' }),
-  no_fight: Object.freeze({ one: `No hits: ${NO_FIGHT_END_MIN} min. Check weapon, ammo and action bar` }),
+  no_fight: Object.freeze({ one: `No hits: ${NO_FIGHT_END_MIN} min · Check weapon, ammo and action bar` }),
   server: Object.freeze({ one: 'Ended by the server, rewards kept' }),
 });
 

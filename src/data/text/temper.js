@@ -10,13 +10,13 @@
 
 export const TEMPER_TEXT = Object.freeze({
   /* How the smith makes an input, and that every hero reads it from Storage. */
-  way_smith: '{name}: Smithing {req}, made from {inputs}, shared in Storage',
-  way_smith_short: '{name}: requires Smithing {req} (now {level}), made from {inputs}',
+  way_smith: '{name}: Smithing {req} · Made from {inputs} · Shared in Storage',
+  way_smith_short: '{name}: requires Smithing {req} (now {level}) · Made from {inputs}',
   /* Where an input of those only a hunt gets drops: {where} names the creatures and the ground, or the pull that brings them. */
-  drop_from: '{stack} drop from {where}.',
-  drop_pulled: '{where}, and it drops {stack}.',
+  drop_from: '{stack}: dropped by {where}',
+  drop_pulled: '{stack}: {where}',
   /* Gear above every ladder the server sells (temper-pane.js rowWords; the playthrough audit's F17): {from} and {to} are the server's span. */
-  no_rungs: 'Not temperable yet, rungs only for Level {from} to {to} gear',
+  no_rungs: 'Not temperable (Levels {from}–{to} only)',
   /* A ladder with smaller rungs than the tiers before it (Dawnsteel, src/data/temper.js TEMPER_TIER_RUNG_PM): {step} is a rung's worth, "0.4%". */
   small_rungs: 'Smaller rungs: {step} each',
   /* Unique armor past Dawnsteel (src/data/temper.js TEMPER_UNIQUE_BANDS): a ladder per band of Levels, not per metal, so a piece from 165

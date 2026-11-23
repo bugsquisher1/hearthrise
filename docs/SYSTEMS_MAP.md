@@ -66,6 +66,14 @@ Regenerate with `node tools/gen-hunts.mjs` and `node tools/gen-hunt-sessions.mjs
 - **Icons:** emoji `icon` is the last-resort fallback; real art is mapped by
   `src/data/item-art.js`. New items are art-backlog targets.
 
+### 3a. The trades on one curve (the redesign, `09-crafting.md` §4.8) — data
+`src/data/trades.js` → `KINDS` (one row a good: trade, stage, line and split, opening rung, materials and parts by SHARE, hunted
+inputs by the cover rule; never a count, time, XP or price) and `TRADE_LEVERS`. `src/core/trades.js` computes every number (work,
+inputs, V, fee, store ask and bid, yield / quality / speed / XP, tool life, the job's bound and its seeded settle).
+- **To add a good:** add a `KINDS` row; `validate()` refuses a broken one. Then `node tools/gen-trades.mjs` (the server's
+  `hr_trade_*` catalogue and twins) and `node tests/trade-formulas.mjs`. A recipe is (kind, rung) and its band is the job's, so a
+  new band needs no row. No verb reads it yet: the job slice (09 §6) does; the live town work is §3 below until then.
+
 ### 3. Recipes (cooking / smithing / crafting / runecrafting / Inner Flame fuels) — data
 `src/data/recipes.js` → `ARTISAN_RECIPES[skill]` (array of `{id, name, input,
 secondary?, output, xp, req, ms, gated?}`). One engine runs them all

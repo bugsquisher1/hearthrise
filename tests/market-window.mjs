@@ -196,7 +196,7 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
   ok('W14', !!unbuilt && unbuilt.kind === 'unbuilt' && unbuilt.fund && unbuilt.fund.total === 125000 && unbuilt.fund.goal === 1000000 && /Havora > Works/.test(unbuilt.body),
     'the Weighhouse being built reads ' + JSON.stringify(unbuilt));
   const open = e({ forSale: [] });
-  ok('W14', !!open && open.kind === 'open' && !open.fund && /List something/.test(open.body), 'an open, empty market reads ' + JSON.stringify(open));
+  ok('W14', !!open && open.kind === 'open' && !open.fund && /List items from your bag/.test(open.body), 'an open, empty market reads ' + JSON.stringify(open));
   ok('W14', (e({ closed: true, works: { ...built, finished: true } }) || {}).kind === 'closed', 'a closed, standing Weighhouse is not the plain closed page');
   ok('W14', e({ forSale: ['coal'] }) === null && e({ forSale: null }) === null && e({ forSale: [], query: 'coal' }) === null, 'the empty page shows over a list, before the read or over a search');
 

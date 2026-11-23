@@ -44,7 +44,7 @@ export const TALLY_TEXT = Object.freeze({
   not_here: 'Not here',
   /* the box on a held task (audit 2026-11-15 F6: it read "Keep" beside Abandon, and nothing said keep what): its label, and its hover */
   keep: 'Repeat',
-  keep_why: 'Ticked: repeats once she pays',
+  keep_why: 'Ticked: repeats after payout',
   keep_on: 'Repeats as soon as she pays',
   keep_off: 'Does not repeat after she pays',
   given_up: 'Abandoned {label}, count lost',
@@ -54,7 +54,7 @@ export const TALLY_TEXT = Object.freeze({
   /* Her board: the rows she still has for you, and the one line that says why every Take is off. */
   board_loading: 'Loading her board…',
   board_hunting: 'Take more in town',
-  board_full: 'Max tasks: {n}. Finish or abandon one',
+  board_full: 'Max tasks: {n} · Finish or abandon one',
   board_level: 'Level {level}',
   board_level_party: 'Level {level}, party',
   board_party: 'Best with a party',
@@ -65,7 +65,7 @@ export const TALLY_TEXT = Object.freeze({
   pick_label: 'Reward armor weight',
   order_label: 'Reward slot order',
   pick_line: 'Paid in {weight} armor: {first}, then {second} and {third}',
-  pick_none: 'No armor weight picked yet.',
+  pick_none: 'Armor weight: none',
   /* Before the server answers her first-visit ask (tally.js suggestedWeight): the weight that suits and why, said once. {role} is "a shield tank". */
   suggest_worn: 'Suggested: {weight}, worn most',
   suggest_role: 'Suggested: {weight}, for {role}',

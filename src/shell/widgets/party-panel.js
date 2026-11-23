@@ -179,7 +179,7 @@ export function leaveOrDisband(ctx, cs, sc, repaint, action) {
       return true;
     }
     sc.disbandArmed = false;
-    runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
+    runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'Party disbanded');
   } else return false;
   return true;
 }
@@ -257,6 +257,6 @@ renderPartyPanel.act = function actPartyPanel(ctx, el, action, ev, btn) {
   if (leaveOrDisband(ctx, cs, sc, repaint, action)) return;
   if (action === 'kick') {
     const seat = Number(btn.getAttribute('data-seat'));
-    if (Number.isInteger(seat)) runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.kickSeat(seat)), 'Removing…', () => 'Removed from the party.');
+    if (Number.isInteger(seat)) runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.kickSeat(seat)), 'Removing…', () => 'Removed from party');
   }
 };

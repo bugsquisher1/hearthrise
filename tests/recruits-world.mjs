@@ -66,7 +66,7 @@ try {
     return { lead: el.querySelector('.hw-recruits-lead').textContent, jobs: Array.from(el.querySelectorAll('.hw-recruit-job b')).map((b) => b.textContent),
       press: el.querySelector('[data-hs-act="recruit-go"]').textContent, off: el.querySelector('[data-hs-act="recruit-go"]').disabled }; });
   step('RW-3 three recruits, a shield, a healer and a bow, the press on', pane.jobs.join() === 'Sword and shield,Staff,Bow and crossbow' && pane.press === 'Recruit 3 heroes' && !pane.off
-    && /^3 recruits are ready to join Recra at Level 5\./.test(pane.lead), JSON.stringify(pane));
+    && /^3 recruits ready \(join Recra at Level 5\) · /.test(pane.lead), JSON.stringify(pane));
   await p.shot('recruit-pane');
 
   // RW-4 ONE press
@@ -79,7 +79,7 @@ try {
   await p.page.waitForTimeout(800);
   const gone = await p.page.evaluate(() => { const el = document.querySelector('[data-hs-win="characters"] .hw-recruits'); return { hidden: !el || el.hidden, rows: el ? el.querySelectorAll('.hw-recruit').length : 0, msg: el ? el.querySelector('.hw-recruits-msg').textContent : '' }; });
   const section = (await sql('select public.hr_state_of($1, 0)->\'recruits\' as r', [uid]))[0].r;
-  step('RW-4 ...the press is gone (the window and the server\'s section)', gone.rows === 0 && section === null && /joined your company/.test(gone.msg), JSON.stringify({ gone, section }));
+  step('RW-4 ...the press is gone (the window and the server\'s section)', gone.rows === 0 && section === null && /^Joined: .* · Ready in town$/.test(gone.msg), JSON.stringify({ gone, section }));
   await p.shot('recruited');
 
   // RW-5 RELOAD

@@ -133,7 +133,7 @@ const fromWords = (skills) => skills.map((s) => t(s === 'farming' ? 'item.grown_
  * Rat at Mill Cellar", "Dropped by Briarcoat Wolf at Meadowbrook Thicket". '' when the catalogue knows no way.
  */
 export function whereToGet(id) {
-  return wherePlaces(id).map((p) => p.words).join('. ');
+  return wherePlaces(id).map((p) => p.words).join(' · ');
 }
 
 /** @typedef {{words: string, place: {kind: string, skill?: string, row?: string|null, item?: string, hunt?: string}|null}} ItemPlace  a line's words and the window it opens */
@@ -248,7 +248,7 @@ export function groundEdgeWords(id, hunt, items = ITEMS) {
 export function rareSaleWords(lines) {
   const rare = (lines || []).filter((l) => isRareItem(l.item) || isSuperRare(l.item)).map((l) => t('item.qty_item', { qty: whole(l.qty), item: itemNameFor(l.item, l.qty) }));
   const once = (lines || []).filter((l) => madeFromKit(l.item)).map((l) => t('item.kit_once', { kit: itemName(madeFromKit(l.item)), item: itemName(l.item) }));
-  return [rare.length ? t('item.sells_rares', { items: listWords(rare) }) : '', ...once].filter(Boolean).join(' ');
+  return [rare.length ? t('item.sells_rares', { items: listWords(rare) }) : '', ...once].filter(Boolean).join(' · ');
 }
 
 /* "A", "A, and B", "A, B, and C". */

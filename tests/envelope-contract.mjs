@@ -355,7 +355,8 @@ function contract(R, cs, body, tl) {
   need('rename', !!rn && isNum(rn.price) && rn.price > 0 && isNum(rn.level) && typeof rn.available === 'boolean',
     'renameOf yields ' + JSON.stringify(rn) + ' from ' + JSON.stringify(body.rename));
   const bl = R.IS.blessingsOf(cs);
-  need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 3 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
+  /* ONE Blessing (1063-level-costs.sql: hr_blessings_view's one-row `tiers`, tier 1; the three tiers and their tables are gone) */
+  need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 1 && bl.tiers[0].tier === 1 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
     'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
   // the Character window (2026-10-25-character-sheet.sql): before any `sheet` call the sheet is not fresh
   const csh = R.CS.characterSheetOf(cs);

@@ -16,7 +16,7 @@ Pick the ones you like. Nothing is built. Every number is a starting value for t
 - The pair (#45 and #46) works across two heroes in one party, so it never breaks the one-per-hero rule.
 - A move Signature never repeats one of that move's branches, and never removes something a branch needs (`16-talent-branches.md`). It adds a proc, a link to another move, or an effect none of that move's branches have.
 - A Signature works with every branch of its move. It can be best with one, but it's never worth wearing with only one.
-- Size: about one gear tier on the grounds that suit it, the same as a hero's full Trait cap. With a Signature worn, the best branch picks still beat the suggested path by no more than 5 to 10% (`02-architecture.md` section 1b).
+- Size: half a gear tier (10 steps) on the grounds that suit it, the size of a rank 3 Trait. It sits inside the hero's gear slice with Traits (20 steps, 10 until Level 100), so a lucky kit is never more than one tier over an unlucky one (`19-power-ledger.md`, 2026-11-22; was "one gear tier", which counted it twice). The suggested path reads the worn Signature, so a Signature never widens the 5 to 10% build ceiling.
 - A free cast, a reset or an explosion from a Signature can't set off another one.
 - Everything here follows the stacking keys at the end of this doc.
 

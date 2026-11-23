@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/factions.js — THE TWO SIDES: WHO MAY JOIN, WHAT STANDING IS, WHAT A SWAP COSTS, WHAT EACH QUARTERMASTER KEEPS
 //   (docs/design/redesign/25-factions.md, game designer, lane/factions-morrow-hills 2026-11-23; server half
-//   supabase/migrations/1065-faction-company.sql and its catalogue, tools/gen-factions.mjs).
+//   supabase/migrations/1068-faction-company.sql and its catalogue, tools/gen-factions.mjs).
 //
 // The First Flame and the Last Ember. Neither is evil, Havora belongs to neither, and a side gives NO POWER: no stat, no step, no
 // modifier, no rule (19-power-ledger.md row 17, 0 steps; validateFactions refuses a row that names any key outside its shape). The sides'

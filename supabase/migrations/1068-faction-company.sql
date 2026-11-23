@@ -1,9 +1,9 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1065-faction-company.sql — THE SIDE BELONGS TO THE COMPANY: ONE SIDE, ONE STANDING AND ONE QUARTERMASTER FOR ALL
+-- supabase/migrations/1068-faction-company.sql — THE SIDE BELONGS TO THE COMPANY: ONE SIDE, ONE STANDING AND ONE QUARTERMASTER FOR ALL
 --   OF AN ACCOUNT'S HEROES (lane/factions-morrow-hills, game designer, 2026-11-23; docs/design/redesign/25-factions.md sections 2 and 6).
 --
--- STATUS: supabase/migration-notes/1065-faction-company.sql.json (STAGED until the Coordinator applies it).
--- ORDER: the sequence in this file's name (CLAUDE.md rule 12), after 1065-faction-company-catalogue.generated.sql (hr_faction_stock,
+-- STATUS: supabase/migration-notes/1068-faction-company.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12), after 1067-faction-company-catalogue.generated.sql (hr_faction_stock,
 --   the rule's company swap, hr_faction_piece_price). Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its
 --   §4 self-check. 2027-05-27-arm-factions.sql (held) runs before this file in the order and reads nothing this file drops.
 -- EDGE: none. The settle's one call of hr_faction_credit keeps its signature; only its body moves. CLIENT: none must land first: the
@@ -69,7 +69,7 @@ do $mig$
 begin
   if to_regclass('public.hr_faction_stock') is null or to_regclass('public.hr_faction_rule') is null or to_regclass('public.hr_faction_grounds') is null
      or to_regprocedure('public.hr_faction_piece_price(text,integer)') is null then
-    raise exception 'PRECONDITION: apply 1065-faction-company-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: apply 1067-faction-company-catalogue.generated.sql first'; end if;
   if to_regclass('public.hr_faction_days') is null or to_regclass('public.hr_faction_ledger') is null
      or to_regprocedure('public.hr_faction_raise_only()') is null or to_regprocedure('public.hr_faction_section(uuid,integer)') is null
      or to_regprocedure('public.hr_faction_swap_cancel(integer,uuid)') is null then
@@ -120,9 +120,9 @@ begin
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
 end $$;
-comment on table public.hr_faction_companies is '1065-faction-company.sql: a company''s side and its open swap (25-factions.md 2.1, 2.2). Written only by the faction verbs and the settle''s credit (swap time). RLS on, no policy, no client grant.';
-comment on table public.hr_faction_company_standing is '1065-faction-company.sql: a company''s standing per side, in ms of settled hero hunting time. RAISE-ONLY. Written only by hr_faction_credit.';
-comment on table public.hr_faction_company_claims is '1065-faction-company.sql: the pieces a company claimed or bought, once each, and the hero who pressed. Written only by hr_faction_outfit_claim and hr_faction_buy.';
+comment on table public.hr_faction_companies is '1068-faction-company.sql: a company''s side and its open swap (25-factions.md 2.1, 2.2). Written only by the faction verbs and the settle''s credit (swap time). RLS on, no policy, no client grant.';
+comment on table public.hr_faction_company_standing is '1068-faction-company.sql: a company''s standing per side, in ms of settled hero hunting time. RAISE-ONLY. Written only by hr_faction_credit.';
+comment on table public.hr_faction_company_claims is '1068-faction-company.sql: the pieces a company claimed or bought, once each, and the hero who pressed. Written only by hr_faction_outfit_claim and hr_faction_buy.';
 drop trigger if exists hr_faction_company_standing_raise_only on public.hr_faction_company_standing;
 create trigger hr_faction_company_standing_raise_only before update on public.hr_faction_company_standing
   for each row execute function public.hr_faction_raise_only();
@@ -135,14 +135,14 @@ alter table public.hr_faction_ledger add constraint hr_faction_ledger_kind_check
 create or replace function public.hr_faction_company_lock(p_user uuid)
 returns void language plpgsql security definer set search_path = public, pg_catalog as $fn$
 begin
-  -- FACTION-COMPANY (1065-faction-company.sql): the company's key, always after the hero's lock.
+  -- FACTION-COMPANY (1068-faction-company.sql): the company's key, always after the hero's lock.
   perform pg_advisory_xact_lock(hashtextextended('hr_faction:' || p_user::text, 0));
 end $fn$;
 
 create or replace function public.hr_faction_top_level(p_user uuid)
 returns int language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
 begin
-  -- FACTION-COMPANY (1065-faction-company.sql): the company's highest hero Level, the step a company piece is priced at.
+  -- FACTION-COMPANY (1068-faction-company.sql): the company's highest hero Level, the step a company piece is priced at.
   return greatest(1, coalesce((select max(public.hr_level_of(p_user, ps.slot)) from public.player_state ps where ps.user_id = p_user), 1));
 end $fn$;
 revoke all on function public.hr_faction_company_lock(uuid) from public, anon, authenticated, service_role;
@@ -154,7 +154,7 @@ returns jsonb language plpgsql stable security definer set search_path = public,
 declare r public.hr_faction_rule%rowtype; m public.hr_faction_companies%rowtype; v_day date := (now() at time zone 'UTC')::date;
   v_top int;
 begin
-  -- FACTION-COMPANY (1065-faction-company.sql): the company's side, swap, standing and pieces; today's clamp is this hero's.
+  -- FACTION-COMPANY (1068-faction-company.sql): the company's side, swap, standing and pieces; today's clamp is this hero's.
   select * into r from public.hr_faction_rule where id;
   if not found then return null; end if;
   select * into m from public.hr_faction_companies x where x.user_id = p_user;
@@ -190,7 +190,7 @@ begin
   -- THE COMMON CASE, ONE PRIMARY-KEY PROBE: a ground that pays nobody.
   select g.faction into v_side from public.hr_faction_grounds g where g.hunt_id = p_hunt;
   if v_side is null or p_from is null or p_to is null or p_to <= p_from then return null; end if;
-  -- FACTION-COMPANY (1065-faction-company.sql): the company's side, under its key (the settle already holds this hero's lock).
+  -- FACTION-COMPANY (1068-faction-company.sql): the company's side, under its key (the settle already holds this hero's lock).
   perform public.hr_faction_company_lock(p_user);
   select * into m from public.hr_faction_companies x where x.user_id = p_user;
   if not found then return null; end if;
@@ -244,7 +244,7 @@ begin
     return public.hr_note_rejection(p_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;
   if not exists (select 1 from public.hr_faction_rule where id) then
     return public.hr_note_rejection(p_verb, p_slot, jsonb_build_object('ok', false, 'error', 'catalogue_missing')); end if;
-  -- FACTION-COMPANY (1065-faction-company.sql): the company's key, after the hero's lock, so every verb is one order per company.
+  -- FACTION-COMPANY (1068-faction-company.sql): the company's key, after the hero's lock, so every verb is one order per company.
   perform public.hr_faction_company_lock(p_uid);
   return null;
 end $fn$;
@@ -458,7 +458,7 @@ as $plc$
 -- SWEEPS-COAT (2027-04-30-sweeps-coat.sql): a bundle outfit is the hero's only once it used the bundle. plpgsql, planned once a backend
 -- (2027-02-10-settle-plan-cache.generated.sql's reason).
 -- FACTION-OUTFIT-PATH (2027-05-19-faction-outfit-path.sql): a faction look is the hero's while it holds every piece the look names.
--- FACTION-COMPANY (1065-faction-company.sql): the pieces are the COMPANY's, so one claim dresses every hero of the account.
+-- FACTION-COMPANY (1068-faction-company.sql): the pieces are the COMPANY's, so one claim dresses every hero of the account.
 #variable_conflict use_column
 declare
   v_held text[];

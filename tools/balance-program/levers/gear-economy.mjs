@@ -583,7 +583,7 @@ export const GEAR_ECONOMY = [
   L('econ.faction-stock', 'economy', 'content', 'The quartermasters\' stock (the two sides\' pieces)', {
     at: [at('src/data/factions.js', 'export const FACTION_STOCK = Object.freeze({')],
     def: 'one row a piece a side: its standing mark in company hero-minutes (40 / 120 / 200 / 400 / 600 h), its kind, and for a hall or mount piece wageHoursPm (20 and 30 wage hours) priced ceil(wageHoursPm / 1000 x wage(levelStep(top Level))) at the company\'s highest Level (src/data/factions.js stockPrice); outfit pieces free; looks only, 0 power steps (ledger row 17)',
-    range: 'the designer\'s (25-factions.md section 2.4; lane/factions-morrow-hills: the company\'s top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1065, generated, pinned at four Levels). The paid rows are CLOSED until the hall\'s wall and mounts show them',
+    range: 'the designer\'s (25-factions.md section 2.4; lane/factions-morrow-hills: the company\'s top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1067, generated, pinned at four Levels). The paid rows are CLOSED until the hall\'s wall and mounts show them',
     touches: 'a once-per-company looks sink; under 1% of minted coin either way (25 section 3)', out: [], f: [],
     tests: [['tests/faction-ground-balance.mjs', 'FG-PRICE: the wage hours at the Level, rounded up, growing with it; FG-STOCK: no power key']], testReads: ['FACTION_STOCK', 'stockPrice'],
     perturb: NP('outside-hunt', 'a piece is claimed or bought in town, never by a cell'),

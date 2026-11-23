@@ -1386,22 +1386,22 @@
   "hr_faction_companies": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER STATE (1065-faction-company.sql) - a company's side (one for all of an account's heroes), when it joined or last changed, and its open swap's hunting time. Losing a row unjoins the company (it may join again after a Krell kill) and drops an open swap's time. Cosmetic: no value, no power."
+   "note": "PLAYER STATE (1068-faction-company.sql) - a company's side (one for all of an account's heroes), when it joined or last changed, and its open swap's hunting time. Losing a row unjoins the company (it may join again after a Krell kill) and drops an open swap's time. Cosmetic: no value, no power."
   },
   "hr_faction_company_claims": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER STATE (1065-faction-company.sql) - the pieces a company claimed or bought, once each, with the gold a paid piece took. Losing a row loses a claim the standing still covers (a free piece can be claimed again; a paid piece would be paid twice, so it is restored)."
+   "note": "PLAYER STATE (1068-faction-company.sql) - the pieces a company claimed or bought, once each, with the gold a paid piece took. Losing a row loses a claim the standing still covers (a free piece can be claimed again; a paid piece would be paid twice, so it is restored)."
   },
   "hr_faction_company_standing": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (1065-faction-company.sql) - a company's standing per side, raise-only, the sum of its heroes' clamped settled time. Losing a row loses hunting hours of standing, which unlock looks only; hr_faction_days holds the same sum per hero per day and is restored with it."
+   "note": "PLAYER PROGRESS (1068-faction-company.sql) - a company's standing per side, raise-only, the sum of its heroes' clamped settled time. Losing a row loses hunting hours of standing, which unlock looks only; hr_faction_days holds the same sum per hero per day and is restored with it."
   },
   "hr_faction_days": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (2027-04-22-faction-standing.sql) - standing and swap time credited per hero per UTC day per side: the day ceiling and the credit's journal (one row per hero-day, never per settle). Its ms sum per side over a company's heroes equals hr_faction_company_standing (1065-faction-company.sql)."
+   "note": "PLAYER PROGRESS (2027-04-22-faction-standing.sql) - standing and swap time credited per hero per UTC day per side: the day ceiling and the credit's journal (one row per hero-day, never per settle). Its ms sum per side over a company's heroes equals hr_faction_company_standing (1068-faction-company.sql)."
   },
   "hr_faction_grounds": {
    "class": "seeded",
@@ -1416,7 +1416,7 @@
   "hr_faction_outfits": {
    "class": "seeded",
    "replay": 6,
-   "note": "Generated catalogue (1065-faction-company-catalogue.generated.sql from src/data/factions.js FACTION_OUTFITS, the worn rows of FACTION_STOCK): each wearable piece, its side and the standing it takes. Empty, the outfit catalogue's faction looks name no piece. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1067-faction-company-catalogue.generated.sql from src/data/factions.js FACTION_OUTFITS, the worn rows of FACTION_STOCK): each wearable piece, its side and the standing it takes. Empty, the outfit catalogue's faction looks name no piece. Rebuilt from repo, never restored."
   },
   "hr_faction_rule": {
    "class": "seeded",
@@ -1426,7 +1426,7 @@
   "hr_faction_stock": {
    "class": "seeded",
    "replay": 10,
-   "note": "Generated catalogue (1065-faction-company-catalogue.generated.sql from src/data/factions.js FACTION_STOCK): each quartermaster's pieces, side, mark, kind, price in wage-hour thousandths and open flag. Empty, every claim and buy refuses unknown_piece. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1067-faction-company-catalogue.generated.sql from src/data/factions.js FACTION_STOCK): each quartermaster's pieces, side, mark, kind, price in wage-hour thousandths and open flag. Empty, every claim and buy refuses unknown_piece. Rebuilt from repo, never restored."
   },
   "hr_factions": {
    "class": "seeded",

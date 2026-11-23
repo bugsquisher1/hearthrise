@@ -7,7 +7,7 @@
 //   node tests/faction-outfit-db.mjs            the guard
 //   node tests/faction-outfit-db.mjs --mutate   every planted defect must turn its arm red (--only a,b: those alone)
 //
-// mutant-anchors: supabase/migrations/1065-faction-company.sql supabase/migrations/2027-05-19-faction-outfit-path.sql supabase/migrations/2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql supabase/migrations/2027-04-22-faction-standing.sql src/data/outfits.js
+// mutant-anchors: supabase/migrations/1068-faction-company.sql supabase/migrations/2027-05-19-faction-outfit-path.sql supabase/migrations/2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql supabase/migrations/2027-04-22-faction-standing.sql src/data/outfits.js
 //
 //   FO-PLAY   as the client calls it, signed in: a hero past Krell with the standing claims the Flamebearer, wears it (hr_outfit_set),
 //             reloads (hr_load, the browser's read: worn and owned), and its party mate's party view and the town look show it; claims
@@ -22,7 +22,7 @@
 //             exactly when every piece it names is claimed
 //   FO-GRANT  the reader is no client's, the client outfit and faction verbs are exactly the listed seven (the swap cancel 2027-05-28 one of them; an unlisted one is red, verb_unlisted); hr_outfits_pieces_shape refuses a premium look, a bundle look, an
 //             empty, a null, a malformed and a fifth piece
-//   FO-AGAIN  both files applied a second time at their own chain position (1065-faction-company.sql restates the reader on the
+//   FO-AGAIN  both files applied a second time at their own chain position (1068-faction-company.sql restates the reader on the
 //             company's claims after them) move nothing (bodies, rows, the column, the CHECK); the catalogue
 //             refuses to land while the reader is the one before the hand file (every hero would own every look)
 //   FO-DATA   src/data/outfits.js: valid; a staged look has no sheet and says so the day one lands; an add-on look starts with its
@@ -419,7 +419,7 @@ async function plant(db, m) {
 }
 
 async function runArm(name, mutant) {
-  /* FO-AGAIN asks whether the two files are idempotent where they are the chain end (1065-faction-company.sql restates the reader
+  /* FO-AGAIN asks whether the two files are idempotent where they are the chain end (1068-faction-company.sql restates the reader
      on the company's claims since, and schema-drift proves that file's own second apply) */
   const { db } = await bootReplay(name === 'FO-AGAIN' ? { upTo: CATALOGUE } : undefined);
   try {

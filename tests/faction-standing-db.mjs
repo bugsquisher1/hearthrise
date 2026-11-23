@@ -3,13 +3,13 @@
 // tests/faction-standing-db.mjs — THE TWO FACTIONS ON THE REPLAYED CHAIN WITH THE SHIPPED ENGINE (supabase/migrations/2027-04-22-faction-
 //   standing.sql, 2027-04-22-faction-catalogue.generated.sql; src/data/factions.js; Tyler 2026-11-14). No ground pays standing in the data
 //   yet, so the arms that hunt write one catalogue row, the fixture ground (mill_cellar's) paying the first side. Since
-//   1065-faction-company.sql (docs/design/redesign/25-factions.md) the side, the standing and the claims are the COMPANY's (the account's):
+//   1068-faction-company.sql (docs/design/redesign/25-factions.md) the side, the standing and the claims are the COMPANY's (the account's):
 //   every arm reads the company tables, and the verbs' bodies at the chain end are that file's.
 //
 //   node tests/faction-standing-db.mjs            the guard
 //   node tests/faction-standing-db.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-04-22-faction-standing.sql supabase/migrations/1065-faction-company.sql
+// mutant-anchors: supabase/migrations/2027-04-22-faction-standing.sql supabase/migrations/1068-faction-company.sql
 //
 //   FS-COMPANY one side a company: hero 1's Krell kill lets hero 0 join and hero 1 can't join again; both heroes' settled time sums into the
 //             company's standing, each on its own day row; a piece hero 0 claims is the company's; the section lists only open pieces with
@@ -155,7 +155,7 @@ const ARMS = {
     return bad;
   },
 
-  /* THE COMPANY (1065-faction-company.sql, 25-factions.md 2.1 to 2.4): one side, one standing and one quartermaster for every hero */
+  /* THE COMPANY (1068-faction-company.sql, 25-factions.md 2.1 to 2.4): one side, one standing and one quartermaster for every hero */
   'FS-COMPANY': async (db, M, X) => {
     const bad = [];
     const [a, b] = X.sides;

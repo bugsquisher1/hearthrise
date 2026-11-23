@@ -179,7 +179,7 @@ Every id below was grepped on the set (`src/data/*`).
 
 **Data** (`src/data/factions.js`): `FACTION_RULES` (swap 2,400 company hero-minutes, 7-day lock, 1,440-minute hero day fuse, 2,400-minute week cap), `FACTIONS` (one row a side: `face`), `STOCK_KINDS`, `FACTION_STOCK` (ten rows, five a side, the table in 2.4), `FACTION_OUTFITS` (now derived: the stock's worn rows) and `stockPrice`. Sampled as the First Flame's five rows and checked (the validator refused the empty Last Ember side, prices rose with Level), then expanded.
 
-**Server** (STAGED): `1065-faction-company-catalogue.generated.sql` (`tools/gen-factions.mjs` moved forward: `hr_faction_stock`, the rule's company swap and week cap, `hr_faction_piece_price` pinned to `stockPrice` at four Levels) and `1065-faction-company.sql` (the company tables, every faction body restated on the company, `hr_faction_buy` dark, `hr_outfit_owned` on the company's claims, the hero tables dropped).
+**Server** (STAGED): `1067-faction-company-catalogue.generated.sql` (`tools/gen-factions.mjs` moved forward: `hr_faction_stock`, the rule's company swap and week cap, `hr_faction_piece_price` pinned to `stockPrice` at four Levels) and `1068-faction-company.sql` (the company tables, every faction body restated on the company, `hr_faction_buy` dark, `hr_outfit_owned` on the company's claims, the hero tables dropped).
 
 **Design calls made in the build (JUDGMENT):**
 

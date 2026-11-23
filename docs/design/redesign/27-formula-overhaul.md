@@ -233,7 +233,16 @@ The hammer's Melee at Level 10 / 30 / 60 / 100 / 150 / 200 on the measured rates
 5. **The new player** carries Melee 8 and Defense 7 at Level 10 (the old curve gave 20 and 16) and kills slower: `LEVEL_CURVE` steps 11 to 15 eased 872 to 4,360 XP so Level 15 to 16 takes 4.40 h, inside `start-kit-pace` SK-2's 4.5 (was 4.64).
 6. **Town skills** (gathering and crafting) stay on the capped 99 table (04 section 4), unchanged.
 
-[MUSTER]
+**Muster Barrows, read after the change** (MEASURED, `v1-climb.mjs`, the Steady mixed four, 4 seeds x 8 h held from hour 4, the same seeds on the base and on this tree; the harness's heroes before are the measured careers, after the careers re-read on the clock, `tools/balance-sim/skill-lines.mjs`):
+
+| Company | Before: held step, depth, pay | After |
+|---|---|---|
+| Arriving (Level 55, one tier back) | 542.5, depth 1, 0.66x | 573.8, depth 1, 0.81x |
+| Reference (Level 60, the ground's kit) | 608.4, depth 9, 1.06x | 617.5, depth 10, 1.11x |
+| Strong (Level 75, best kit, skills over the line), Steady | 684.9, depth 18, 1.55x | 697.5, depth 20, 1.61x |
+| Strong, Bold | 699.2, depth 20 | 700, depth 20 |
+
+In band: the arriving four reads depth 1 (at most 6), the reference its share of the band (10), the strong four the top (at least 16; Bold at least 19), so the climb still runs 1 to 20. They hold a little deeper because at Levels 55 to 75 a specialist's main skill on the clock is its Level (55, 60, 75) where the old careers held 48, 52 and 61, so it lands more blows on monsters written for REF_HERO (finding 4). **One band moved:** the reference's kit share of the hour rose from 0.29 to 0.35 (EL-KIT 0.2 to 0.3, store 4,804 to 6,308 gold an hour): its higher Ranged and Magic reach the next arrow and rune tiers about six Levels sooner. The dial is the supply tiers' skill gates (a gate at skill n now means Level n) or `STORE_KIT`, the designer's; `tests/econ-levers.mjs` EL-KIT reads its kept report, so nothing is red until that report is re-run.
 
 ## 3. The hours a Level takes: the rebuild and its result
 

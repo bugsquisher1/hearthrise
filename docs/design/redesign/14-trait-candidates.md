@@ -7,7 +7,7 @@ Pick the ones you like. 5 already exist in the data (marked ✓). Nothing is liv
 - **Rare** items roll 1 Trait. **Very Rare** items roll 2.
 - Traits have 3 ranks, shown below as **R1 / R2 / R3**.
 - Hunting deeper raises your odds of a Rare and of higher ranks. R2 from Depth 8, R3 from Depth 15.
-- Each hunting ground has its own Trait pool.
+- Each hunting ground has its own Trait pool. A Rare rolls its slot first (the piece that dropped), then one Trait from that ground's Traits for that slot, at most 2 a ground and slot (`GEAR_STEPS.traitRoll`, 2026-11-22). A Trait only rolls where its ground drops its slot.
 - A Trait only works when its condition is met.
 - All Traits and the Signature on a hero together are capped at one gear tier's worth (20 steps), half that until Level 100, full at 200 (`19-power-ledger.md`, 2026-11-22).
 - A ground rolls only the ranks its entry Level allows: rank 1 from entry 40, rank 2 from 70, rank 3 from 100. Muster Barrows rolls rank 1.
@@ -36,7 +36,7 @@ Note: The opposite of #2.
 Best for: Melee (axes)
 Note: Axe users keep bleed up, so it's nearly always on for them. Gash (wave 3) bleeds every monster beside the axes, so it fires on more of the pull.
 
-**5. Snuffed** · Bone Wing
+**5. Snuffed** · Muster Barrows
 Party: +1.5 / 2.5 / 3.5% damage vs chilled targets
 Best for: Any. Needs a frost user in the party (Frost Slam, Hoarfrost, Chilling Lance or the support's Cold Palm).
 Note: Doesn't stack with another copy in the party.
@@ -80,19 +80,19 @@ Note: Similar to #26.
 +1.5 / 2.5 / 3.5% healing below 30% mana
 Best for: Healer
 
-**13. Slack Water** · Flooded Wing
+**13. Slack Water** · Hask's Ford
 +1.5 / 2.5 / 3.5% damage while the party is above 90% health
 Best for: Ranger, Mage
 Note: Always on at easy depths. Similar to #19.
 
-**14. Goaded** · Ox Road
+**14. Goaded** · Hask's Ford
 +1.5 / 2.5 / 3.5% damage while 2+ party members are below 70% health
 Best for: Melee
 Note: Similar to #39.
 
 ## Helmet
 
-**15. Keeper's Carry ✓** · Bone Wing
+**15. Keeper's Carry ✓** · Flooded Wing
 +1.5 / 2.5 / 3.5% healing on targets below 50% health
 Best for: Healer
 Note: Similar to #38.
@@ -119,7 +119,7 @@ Note: Works on its home (Keeper Dunn's Snuff the Candles, the Bone Wall's Bone S
 Best for: Ranger
 Note: Similar to #13.
 
-**20. Carter's Flight** · Carter's Rest
+**20. Carter's Flight** · Hask's Ford
 −1.5 / 2.5 / 3.5% damage taken while the party is below 50% health
 Best for: Ranger, Mage, Healer
 Note: Rarely triggers on Steady. Good on Bold.
@@ -147,12 +147,12 @@ Best for: Healer
 Best for: Mage
 Note: The opposite of #16. Doesn't stack with it.
 
-**25. Numbed** · Flooded Wing
+**25. Numbed** · Hask's Ford
 −1.5 / 2.5 / 3.5% damage taken from chilled enemies
 Best for: Tank
 Note: Needs a frost user in the party (Frost Slam, Hoarfrost, Chilling Lance or the support's Cold Palm).
 
-**26. Long Rite** · Pyre Field
+**26. Long Rite** · Muster Barrows
 +1.5 / 2.5 / 3.5% healing while the party is below 50% health
 Best for: Healer
 Note: Similar to #11.
@@ -212,7 +212,7 @@ Note: Could be always on. Needs testing.
 Best for: Ranger
 Note: Recommend cutting. Carry 50 arrows and it's always on.
 
-**37. Hask's Bargain** · Muster Barrows
+**37. Hask's Bargain** · Hask's Ford
 +2.5 / 4.5 / 6.5% damage above 90% health, but +1.5 / 2.5 / 3.5% damage taken
 Best for: Melee
 Note: A risk/reward Trait. Needs new code. Yes or no on this type?
@@ -252,18 +252,21 @@ Note: Needs Green Sickness in the party. It's the only Sickness left after the s
 
 ## Drops by ground
 
-- **Muster Barrows:** 1, 6, 10, 27, 33, 37
-- **Pyre Field:** 4, 11, 21, 26
+Re-homed 2026-11-22 (the designer, lane/band-floor; 24-content-pipeline.md G4 and G8): Hask's Ford had none, and most scale Traits sat on a slot their ground never drops. Moved: 37 Hask's Bargain, 13 Slack Water, 25 Numbed, 14 Goaded and 20 Carter's Flight to Hask's Ford; 5 Snuffed and 26 Long Rite to Muster Barrows; 15 Keeper's Carry to the Flooded Wing (Keeper Dunn's wing). All 40 kept.
+
+- **Muster Barrows:** 1, 5, 6, 10, 26, 27, 33
+- **Hask's Ford:** 13, 14, 20, 25, 37
+- **Pyre Field:** 4, 11, 21
 - **Krell's Hold:** 3, 7, 9, 28, 34
-- **Carter's Rest:** 8, 20, 22, 23, 35
-- **Ox Road:** 12, 14, 24, 32, 39
+- **Carter's Rest:** 8, 22, 23, 35
+- **Ox Road:** 12, 24, 32, 39
 - **Wyvern Roost:** 2, 19, 29, 36
-- **Bone Wing:** 5, 15, 16, 17, 31, 38
-- **Flooded Wing:** 13, 18, 25, 30, 40
+- **Bone Wing:** 16, 17, 31, 38
+- **Flooded Wing:** 15, 18, 30, 40
 
 ## Changes from the spell audit
 
-2026-11-22, from `23-spell-audit.md` section 8. All 40 kept. No Trait moved home: every "casting" Trait already lives on a ground where monsters cast (checked in each ground's `pack.js` `spells`).
+2026-11-22, from `23-spell-audit.md` section 8. All 40 kept. No Trait moved home for the audit: every "casting" Trait already lives on a ground where monsters cast (checked in each ground's `pack.js` `spells`). The re-homing above (lane/band-floor) moved no casting Trait, and none moved onto Hask's Ford needs a caster.
 
 - #5 Snuffed, #25 Numbed: frost users listed. Cold Hands is cut, so Cold Palm is the support's one Chill.
 - #6 Last File: note now says the tank falls back at 15% on Steady, so it fires for the tank. Re-measure after the holder line.

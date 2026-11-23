@@ -6,15 +6,17 @@
 //   tests/content-coherence.mjs  holds every DANGER_GROUNDS row to its pin (CC-2): a band is a measurement of the ground's own
 //                                rows, so a changed pack or monster row means the band was measured on a ground that no longer exists
 //
-// THE CUT (R10's, lane/r10-more-grounds, 2026-11-22; src/data/danger.js DANGER_GROUNDS "THE BANDS PAST MUSTER, MEASURED"), the
-// Steady mixed four (v1-climb.mjs base:steady), read from the held step:
-//   refStep      the MID four at the band's middle Level, to the nearest 10
-//   topStep      the BIS four at the ground's top Level, to the nearest 5, held to refStep + PAY.gapMax (the pay stops there too)
-//   floorStep    as far under refStep as the top is over (2 x refStep - topStep)
+// THE CUT (src/data/danger.js BAND_RULE, the designer's, lane/band-floor 2026-11-22; R10's ref and top), the Steady mixed four
+// (v1-climb.mjs base:steady), read from the held step:
+//   refStep      the MID four at the band's middle Level, to the nearest rule.refTo
+//   topStep      the BIS four at the ground's top Level, to the nearest rule.topTo, held to refStep + PAY.gapMax (the pay stops there too)
+//   floorStep    the LOW four (a fresh company at the entry Level): its LOWEST seed's held step less rule.floorUnder, down to rule.floorTo
+//                (12-targets 3.1: depth 1 is where a fresh company holds). R10 cut it as 2 x refStep - topStep, which put Muster's floor
+//                160 steps over its fresh four (24-content-pipeline.md G3)
 //   refKillsHead the MID four's kills a head an hour at its held reference, to the nearest 5; omitted (PAY.refKillsHead reads) when
 //                not over PAY.refKillsHead, the server's one ceiling a kill
-// The LOW four (a fresh company at the entry Level) is read, not cut: it must hold near depth 1 (12-targets 3.1), so its depth is
-// reported. C-3 (12-targets: Steady dies never) is the open gate: any death in any of the three cells holds the ground off.
+// The floor needs the LOW cell: no band is cut without it. C-3 (12-targets: Steady dies never) is the open gate: any death in any of
+// the three cells holds the ground off.
 // ════════════════════════════════════════════════════════════════════════
 import { createHash } from 'node:crypto';
 
@@ -34,31 +36,35 @@ export function depthOf(step, band, depths) {
   return Math.max(1, Math.min(depths, 1 + Math.round((step - band.floorStep) / span)));
 }
 
+/** The lowest held step any seed of a cell reached (its per-seed holds; the mean when a report carries none). */
+export const lowestSeed = (c) => (Array.isArray(c.held.perSeed) && c.held.perSeed.length ? Math.min(...c.held.perSeed) : c.held.mean);
+
+/** The floor a fresh company's cell gives (danger.js BAND_RULE). */
+export const floorOf = (F, rule) => Math.floor((lowestSeed(F) - rule.floorUnder) / rule.floorTo) * rule.floorTo;
+
 /**
- * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level; optional).
- * `pay` is danger.js PAY, `depths` danger.js DEPTHS. Returns { band, verdict, notes }.
+ * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level).
+ * `pay` is danger.js PAY, `depths` danger.js DEPTHS, `rule` danger.js BAND_RULE. Returns { band, verdict, notes, info, cells }.
  */
-export function bandFromReports({ ref, top, floor }, pay, depths) {
-  const R = steadyCell(ref), T = steadyCell(top), F = floor ? steadyCell(floor) : null;
-  const refStep = round(R.held.mean, 10);
-  const topStep = Math.min(round(T.held.mean, 5), refStep + pay.gapMax);
-  const floorStep = 2 * refStep - topStep;
+export function bandFromReports({ ref, top, floor }, pay, depths, rule) {
+  if (!floor) throw new Error('bandFromReports: no LOW cell (the floor is where a fresh company at the entry Level holds, 12-targets 3.1)');
+  if (!rule || ![rule.floorUnder, rule.floorTo, rule.refTo, rule.topTo].every((x) => Number.isInteger(x) && x >= 0) || !(rule.floorTo > 0 && rule.refTo > 0 && rule.topTo > 0)) throw new Error('bandFromReports: no band rule (src/data/danger.js BAND_RULE)');
+  const R = steadyCell(ref), T = steadyCell(top), F = steadyCell(floor);
+  const refStep = round(R.held.mean, rule.refTo);
+  const topStep = Math.min(round(T.held.mean, rule.topTo), refStep + pay.gapMax);
+  const floorStep = floorOf(F, rule);
   const kills = round(R.killsPerH / 4, 5);
   const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}) };
   const notes = [], info = [];
-  const deaths = [['MID', R], ['BIS', T], ...(F ? [['LOW', F]] : [])].filter(([, c]) => c.deaths > 0);
+  const deaths = [['MID', R], ['BIS', T], ['LOW', F]].filter(([, c]) => c.deaths > 0);
   for (const [k, c] of deaths) notes.push('C-3: the ' + k + ' four died ' + c.deaths + ' times at Level ' + c.L + ' (Steady must not die)');
-  if (!(floorStep < refStep && refStep < topStep)) notes.push('the band is not floor < ref < top (' + floorStep + ' / ' + refStep + ' / ' + topStep + ')');
+  if (!(floorStep < refStep && refStep < topStep)) notes.push('the band is not floor < ref < top (' + floorStep + ' / ' + refStep + ' / ' + topStep + '): the LOW four holds at or over the MID four, so the Level band reads too narrow');
+  else if (topStep - floorStep < depths - 1) notes.push('the band ' + floorStep + '..' + topStep + ' is under one step a depth');
   if (T.held.mean > refStep + pay.gapMax) info.push('the BIS four held ' + T.held.mean + ', past refStep + gapMax: the top is the pay cap, not the four');
-  if (F) {
-    const d = depthOf(F.held.mean, band, depths);
-    if (d > 3) notes.push('the LOW four holds depth ' + d + ': a fresh company should open at depth 1 to 3 (12-targets 3.1)');
-    const span = (topStep - floorStep) / (depths - 1);
-    if (F.held.mean < floorStep - span) notes.push('the LOW four holds ' + F.held.mean + ', more than a depth under the floor ' + floorStep + ': a fresh company cannot hold depth 1 (12-targets 3.1)');
-    band._lowDepth = d;
-  }
+  if (floorStep < refStep && refStep < topStep) info.push('the fresh four holds depth ' + depthOf(lowestSeed(F), band, depths) + ' (its lowest seed), the MID four depth ' + depthOf(R.held.mean, band, depths) + ', ' + ((topStep - floorStep) / (depths - 1)).toFixed(1) + ' steps a depth');
+  band._lowDepth = depthOf(lowestSeed(F), band, depths);
   const verdict = deaths.length ? 'STAGED' : notes.length ? 'REVIEW' : 'OPEN';
-  return { band, verdict, notes, info, cells: { ref: { L: R.L, held: R.held.mean, killsPerH: R.killsPerH }, top: { L: T.L, held: T.held.mean }, ...(F ? { floor: { L: F.L, held: F.held.mean } } : {}) } };
+  return { band, verdict, notes, info, cells: { ref: { L: R.L, held: R.held.mean, killsPerH: R.killsPerH }, top: { L: T.L, held: T.held.mean }, floor: { L: F.L, held: F.held.mean, lowest: lowestSeed(F) } } };
 }
 
 /* THE PRINT: what a band is a measurement of. The ground's route and pockets (who stands where, how many, what joins), its pull and

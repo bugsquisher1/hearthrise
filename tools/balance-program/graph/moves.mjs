@@ -176,7 +176,7 @@ export const LEVER_MOVES = Object.freeze({
     ['+kill.coin', 'the same floor on the coin depth ratio (dangerDial coinPm)']],
   'danger.coin-level': [['+kill.coin', 'a scale kill\'s coin is its roll x coinPm / 1000 (dangerDial coinPm, read by hunt-rewards.js payKill)']],
   /* (lane/monster-roles-ford-wings) the two bridges a formula ground can name beside its band */
-  'danger.coin-kept': [['+kill.coin', 'a scale kill\'s coin x coinKillsHead / the ground\'s reference kills (danger.js coinKeptOf, on dangerDial coinPm)']],
+  'danger.rows-kept': [['+kill.coin', 'a scale kill\'s coin x rowsKillsHead / the ground\'s reference kills (danger.js rowsKeptOf, on dangerDial coinPm)'], ['+drop.chance', 'and its drop table the same ratio (dropPmAt); the tier path keeps the rows as written']],
   'danger.formula-step': [['-mon.hp', 'raised, every formula monster of the ground stands that many steps weaker at any step (monster-formula.js refMultiple, danger.js formulaBasePull)'], ['-mon.atk', 'the same, its blows']],
   'econ.store-kit': [['+shop.price', 'every store row\'s price is store-kit.js storePrice: its share of the wage at the row\'s step over the reference hour\'s use, floored by the crafted partner']],
   'econ.ammo-floor': [['+shop.price', 'a store shot or cast costs at least this x its crafted partner\'s book (store-kit.js storePrice\'s charge floor)']],

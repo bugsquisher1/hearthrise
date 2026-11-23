@@ -123,10 +123,10 @@ export default definePack({
       weaponResist: ['sword'],
       /* THE SWARM (src/data/monster-roles.js; the Danger scale only): each goes for the hero the fewest are on, the front first */
       role: 'swarm',
-      drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.794, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.635, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.127, band: 'uncommon' },
-        { id: 'mithril_boots', everyHours: 1.077, ch: 0.0127, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.077, ch: 0.0127, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.077, ch: 0.0127, band: 'scarce' },
-        { id: 'mithril_helm', everyHours: 1.077, ch: 0.0127, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.077, ch: 0.0127, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.077, ch: 0.0127, band: 'scarce' },
-        { id: 'maple_crossbow', everyHours: 1.435, ch: 0.00953, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.456, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.365, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.0729, band: 'uncommon' },
+        { id: 'mithril_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
+        { id: 'mithril_helm', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
+        { id: 'maple_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }],
       hp: 67, atk: 28, aim: 79, evasion: 23, def: 2, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
@@ -135,9 +135,9 @@ export default definePack({
       weaponResist: ['ranged'],
       /* THE BRUTE (monster-roles.js; the scale only): slow and heavy, it goes for the nearest hero in the front row */
       role: 'brute',
-      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.888, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.286, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.142, band: 'uncommon' },
-        { id: 'mithril_platelegs', everyHours: 0.56, ch: 0.0577, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.56, ch: 0.0577, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.56, ch: 0.0577, band: 'scarce' },
-        { id: 'mithril_hatchets', everyHours: 0.7, ch: 0.0462, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.51, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.164, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.0817, band: 'uncommon' },
+        { id: 'mithril_platelegs', everyHours: 0.56, ch: 0.0332, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.56, ch: 0.0332, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.56, ch: 0.0332, band: 'scarce' },
+        { id: 'mithril_hatchets', everyHours: 0.7, ch: 0.0265, band: 'scarce' }],
       hp: 112, atk: 29, aim: 73, evasion: 36, def: 12, xp: 863, gp: [16, 50], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
@@ -148,8 +148,8 @@ export default definePack({
       /* THE CASTER (monster-roles.js; the scale only): it reads out of its ledger from the back of the file, and the Hex lands on the whole
          party (the role's wind-up). The first Caster on an open ground (20-v030 C2) */
       role: 'caster',
-      drops: [{ id: 'bones', everyHours: 0.0545, ch: 0.815, band: 'common' }, { id: 'grave_dust', everyHours: 0.091, ch: 0.488, band: 'common' }, { id: 'ledger_leaf', everyHours: 0.341, ch: 0.13, band: 'uncommon' },
-        { id: 'mithril_platebody', everyHours: 0.545, ch: 0.0815, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 0.545, ch: 0.0815, band: 'scarce' }, { id: 'warlock_body', everyHours: 0.545, ch: 0.0815, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0545, ch: 0.468, band: 'common' }, { id: 'grave_dust', everyHours: 0.091, ch: 0.281, band: 'common' }, { id: 'ledger_leaf', everyHours: 0.341, ch: 0.0749, band: 'uncommon' },
+        { id: 'mithril_platebody', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'warlock_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }],
       hp: 71, atk: 40, aim: 117, evasion: 24, def: 2, xp: 601, gp: [10, 32], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
@@ -159,10 +159,10 @@ export default definePack({
       /* THE WARDER (monster-roles.js; the scale only): the colors are still up, and the dead around him rally to them (the role's mend on
          his own pack). Kill him first. The first Warder with a body (20-v030 C2) */
       role: 'warder',
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.273, ch: 0.434, band: 'common' }, { id: 'toll_token', everyHours: 0.818, ch: 0.145, band: 'uncommon' },
-        { id: 'mithril_faced_shield', everyHours: 1.636, ch: 0.0724, band: 'scarce' },
-        { id: 'mithril_gauntlets', everyHours: 19.5, ch: 0.00608, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 19.5, ch: 0.00608, band: 'rare' }, { id: 'warlock_gloves', everyHours: 19.5, ch: 0.00608, band: 'rare' },
-        { id: 'mithril_belt', everyHours: 19.5, ch: 0.00608, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 19.5, ch: 0.00608, band: 'rare' }, { id: 'warlock_belt', everyHours: 19.5, ch: 0.00608, band: 'rare' }],
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.273, ch: 0.249, band: 'common' }, { id: 'toll_token', everyHours: 0.818, ch: 0.0832, band: 'uncommon' },
+        { id: 'mithril_faced_shield', everyHours: 1.636, ch: 0.0416, band: 'scarce' },
+        { id: 'mithril_gauntlets', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'warlock_gloves', everyHours: 19.5, ch: 0.00349, band: 'rare' },
+        { id: 'mithril_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'warlock_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }],
       hp: 166, atk: 39, aim: 103, evasion: 42, def: 18, xp: 1399, gp: [24, 74], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the

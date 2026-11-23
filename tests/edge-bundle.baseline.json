@@ -418,6 +418,11 @@
         "bytes": 3787889,
         "on": "2026-11-23",
         "why": "lane/monster-roles-ford-wings merged over the set: Ford and both Catacomb wing rows carry roles and spells, core danger.js gains formulaStep, coinKillsHead and dropPmAt, movement veto for the corridor pull (+7,916 B over the set)"
+      },
+      {
+        "bytes": 3789480,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings: rowsKeptOf keeps a ground's drop table with its coin on the scale, drop-rate.js rowsKillsHour derives chances at the rows' own rate (the tier path plays them), and REF_HERO regenerated with the formula rows it moves (+1,591 B)"
       }
     ]
   }

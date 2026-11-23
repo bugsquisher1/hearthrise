@@ -6,7 +6,7 @@
    "refStep": 590,
    "floorStep": 525,
    "topStep": 700,
-   "print": "6ec9cb22f4adcc29",
+   "print": "dde2884dd7a40e2e",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
@@ -19,7 +19,7 @@
     "tools/balance-program/redesign/tuning/final/c0-muster-top.json",
     "tools/balance-program/redesign/tuning/final/c0-muster-floor.json"
    ],
-   "hand": "refStep 590 is held by hand (lane/tuning-pass, 2026-11-23, docs/design/redesign/29-tuning-pass.md 3.5): Muster Barrows plays its monster formula, which anchors every monster at refStep, so refStep is the monsters' anchor as well as the pay's: moved, the monsters move with it and the four holds the same distance over it (the MID four held 608.9 here, the rule cuts 610). The floor (525) and top (700) are the band rule's, measured on this tree"
+   "hand": "refStep 590 is held by hand (lane/tuning-pass, 2026-11-23, docs/design/redesign/29-tuning-pass.md 3.5): Muster Barrows plays its monster formula, which anchors every monster at refStep, so refStep is the monsters' anchor as well as the pay's: moved, the monsters move with it and the four holds the same distance over it (the MID four held 608.9 here, the rule cuts 610). The floor (525) and top (700) are the band rule's, measured on this tree. RE-PINNED 2026-11-23 (lane/monster-roles-ford-wings) on these same reports: REF_HERO regenerated (tools/gen-ref-hero.mjs) moved two of its hand rows a point of evasion (pack.mjs propose --write), which the formula replaces on the scale; the rows it plays held (to-hit.js aimFor and evasionFor read the same at Levels 55 to 75, and engine-parity muster-steps-4 held to the byte), so the print moved and the measure did not"
   },
   "hasks_ford": {
    "refStep": 590,
@@ -42,10 +42,10 @@
   },
   "catacomb_bone_wing": {
    "refStep": 440,
-   "floorStep": 380,
-   "topStep": 530,
+   "floorStep": 385,
+   "topStep": 525,
    "refKillsHead": 130,
-   "print": "83212465cec2a6b3",
+   "print": "b6c7e3781a0acd3b",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
@@ -54,16 +54,16 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-bone-ref.json",
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-bone-top.json",
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-bone-floor.json"
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-ref.json",
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-top.json",
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-floor.json"
    ]
   },
   "catacomb_flooded_wing": {
    "refStep": 450,
    "floorStep": 410,
-   "topStep": 470,
-   "print": "c20cf40fd6b5b7c9",
+   "topStep": 465,
+   "print": "db1bf83de76b3192",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
@@ -72,9 +72,9 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/roles/after-fix/c0-flooded-ref.json",
-    "tools/balance-program/redesign/tuning/roles/after-fix/c0-flooded-top.json",
-    "tools/balance-program/redesign/tuning/roles/after-fix/c0-flooded-floor.json"
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-ref.json",
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-top.json",
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-floor.json"
    ]
   }
  }

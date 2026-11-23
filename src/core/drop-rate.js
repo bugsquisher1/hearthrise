@@ -4,11 +4,14 @@
 // src/data/drop-hours.js says what an hour means (chanceOf); this says how many of a ground's kills a hero sees an hour, so the hours can
 // be turned into a per-kill chance on a real ground, and what depth does to the Rare odds:
 //   killsHeadHour(ground)        the ground's reference kills a head an hour (danger.js refKillsOf: DANGER_GROUNDS refKillsHead, else
-//                                PAY.refKillsHead), measured at refStep
+//                                PAY.refKillsHead), measured at refStep: the scale's own rate (a Trait's hours, trait-roll.js)
+//   rowsKillsHour(ground)        the kills a head an hour the ground's ROWS are written at: DANGER_GROUNDS rowsKillsHead, else
+//                                killsHeadHour. The tier path (no stance) plays the rows as they are, and the scale pays rowsKillsHead /
+//                                its reference kills of each (danger.js rowsKeptOf), so one chance a row serves both paths
 //   killShares(ground)           { monster: share } of the ground's kills at refStep: each route pocket's pull at the reference step's
 //                                size (danger.js dangerDial, the engine's own pull, hunt-grounds.js pullRows, the engine's own rows),
 //                                counted over the route. A boss's wave (adds) is left out: they come at his half-health line, not a pull
-//   rowChance(row, monster, g)   a drop row's per-kill chance: its `everyHours` over the monster's kills a hero-hour, rounded to
+//   rowChance(row, monster, g)   a drop row's per-kill chance: its `everyHours` over the monster's kills a hero-hour at rowsKillsHour, rounded to
 //                                DROP_HOURS.chDigits (a certainty, ch 1, stays 1)
 //   depthOf(groundId, step)      the ground's "Depth N of 20" for a step (12-targets 3.1; src/core/bands.js depthAt, the one home the
 //                                browser's danger-sections.js depthOf reads too: the band cut evenly in absolute steps)
@@ -37,6 +40,13 @@ export function killsHeadHour(ground) {
   return ground && rowOf(ground.id) ? refKillsOf(ground) : null;
 }
 
+/** The kills a head an hour the ground's drop rows are written at (DANGER_GROUNDS rowsKillsHead, else its reference kills). Null off the scale. */
+export function rowsKillsHour(ground) {
+  const row = ground && rowOf(ground.id);
+  if (!row) return null;
+  return Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead : refKillsOf(ground);
+}
+
 /** Each monster's share of the ground's kills at its reference step, { monster: share }, summing to 1. Null off the scale. */
 export function killShares(ground) {
   const row = ground && rowOf(ground.id);
@@ -56,7 +66,7 @@ export function killShares(ground) {
     row, every kill rolls it). A row with no hours keeps its `ch`. */
 export function rowChance(row, monster, ground) {
   if (!row || !(Number(row.everyHours) > 0)) return row ? row.ch : null;
-  const k = killsHeadHour(ground);
+  const k = rowsKillsHour(ground);
   const share = monster === null ? 1 : (killShares(ground) || {})[monster] || 0;
   const ch = chanceOf(row.everyHours, k * share);
   return ch === null ? null : roundChance(ch);
@@ -64,7 +74,7 @@ export function rowChance(row, monster, ground) {
 
 /** The hours a row's `ch` gives on `ground` (the inverse, for the generator's conversion and the reports). */
 export function hoursOf(ch, monster, ground) {
-  const k = killsHeadHour(ground);
+  const k = rowsKillsHour(ground);
   const share = monster === null ? 1 : (killShares(ground) || {})[monster] || 0;
   return ch > 0 && k > 0 && share > 0 ? 1 / (ch * k * share) : null;
 }

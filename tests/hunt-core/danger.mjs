@@ -35,9 +35,9 @@
 //           (1 + payStepLoot) more of the kill's table (the pull's share paid back), never under PAY.floor of it below the reference; a
 //           kill's drop rolls read it (a row's chance x dropPm / 1000, a certainty untouched, never past one roll a kill); off the scale none.
 //           Read on every scale ground, each on its monster formula: its loot follows the pull it fights (lane/monster-roles-ford-wings).
-//   coinkept (lane/monster-roles-ford-wings) COIN KEPT IN ITS HOURS: a ground whose coin rows were written at another kill rate
-//           (DANGER_GROUNDS coinKillsHead) pays each kill that rate over its reference kills of its row's coin, at every step and party size;
-//           a ground with none pays its as-built share exactly.
+//   rowskept (lane/monster-roles-ford-wings) ROWS KEPT IN THEIR HOURS: a ground whose rows were written at another kill rate
+//           (DANGER_GROUNDS rowsKillsHead) pays each kill that rate over its reference kills of its row's coin and of its drop table, at
+//           every step and party size; a ground with none pays its as-built share and the table as written.
 //   ledger  (lane/ledger-l1-l3, 19-power-ledger.md L1) THE LEDGER'S CLAMP: the slice caps at Levels 10, 30, 60, 200 and 400
 //           (src/core/power-ledger.js on src/data/power-ledger.js), no ramp on what a hero finds, gains-only and signed slices, one key,
 //           an ally's party row, the closed clan slice, and the engine's power step reading the clamped steps both ways on the scale only.
@@ -452,7 +452,7 @@ const CASES = {
       }
     }
     /* coin: a ground with a reference step (the fixture's pockets under Muster's id), far under it, pays the pull's share x the floor */
-    /* (Muster's id: its coin is written at its own kill rate, no coinKillsHead; the case coinkept reads a ground that keeps another's) */
+    /* (Muster's id: its rows are written at its own kill rate, no rowsKillsHead; the case rowskept reads a ground that keeps another's) */
     const gm = groundRow({ id: 'muster_barrows' });
     const d = M.danger.dangerDial(gm, 0), d1 = M.danger.dangerDial(gm, ref);
     /* the AS-BUILT pull's share, the one a kill's coin keeps on either monster switch (a formula ground's pull is sized to the party, its coin
@@ -561,10 +561,11 @@ const CASES = {
     if (peer.skillGapPm !== behind.skillGapPm) return 'the browser\'s peer fights at a skill gap of ' + peer.skillGapPm + ', the server\'s ' + behind.skillGapPm;
     return null;
   },
-  /* (lane/monster-roles-ford-wings) COIN KEPT IN ITS HOURS: a ground whose coin rows were written at another kill rate (DANGER_GROUNDS
-     coinKillsHead: Hask's Ford's, on its hand rows) pays every kill coinKillsHead / its reference kills of its row's coin, at every step and
-     party size, so its hour's coin stands where its rows were written; a ground with none pays exactly the as-built share (x 1) */
-  coinkept(M) {
+  /* (lane/monster-roles-ford-wings) ROWS KEPT IN THEIR HOURS: a ground whose rows were written at another kill rate (DANGER_GROUNDS
+     rowsKillsHead: Hask's Ford's, on its hand rows, which the tier path still plays) pays every kill rowsKillsHead / its reference kills of
+     its row's coin and of its drop table, at every step and party size, so its hour's coin and loot stand where its rows were written; a
+     ground with none pays exactly the as-built share and the table as written (x 1) */
+  rowskept(M) {
     const { DANGER, DANGER_GROUNDS, PAY } = M.dangerData;
     const COIN = (1 + M.wageData.WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
     let kept = 0;
@@ -572,18 +573,23 @@ const CASES = {
       const g = M.grounds.HUNT_GROUNDS[gid];
       if (!g) return 'CONTROL: scale ground ' + gid + ' has no ground row';
       const n0 = g.route.reduce((a, p) => a + g.pockets[p].spawns.length, 0) / g.route.length;
-      const want = Number.isInteger(row.coinKillsHead) ? row.coinKillsHead / (Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead) : 1;
+      const want = Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead / (Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead) : 1;
       if (want !== 1) kept++;
       for (const s of [0, row.floorStep, row.refStep, row.topStep]) {
         const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, s))));
         const base = (n0 / pull) * M.danger.gapPayRatio(Math.min(PAY.gapMax, row.topStep - row.refStep, s - row.refStep), COIN) * PAY.coinPm;
         for (const h of [1, 4]) {
           const got = M.danger.dangerDial(g, s, h).coinPm / base;
-          if (Math.abs(got - want) > 1e-9) return gid + ' at step ' + s + ' (' + h + ' heroes) pays a kill x' + got + ' of its row\'s coin, its coin is kept at x' + want;
+          if (Math.abs(got - want) > 1e-9) return gid + ' at step ' + s + ' (' + h + ' heroes) pays a kill x' + got + ' of its row\'s coin, its rows are kept at x' + want;
+        }
+        /* its drop table at the reference step, for a lone hero and a four: the table as written, x the same ratio */
+        for (const h of [1, 4]) {
+          const dropAt = M.danger.dangerDial(g, row.refStep, h).dropPm / 1000;
+          if (Math.abs(dropAt - want) > 1e-9) return gid + ' at its reference step (' + h + ' heroes) drops x' + dropAt + ' of its table, its rows are kept at x' + want;
         }
       }
     }
-    if (!kept) return 'CONTROL: no scale ground keeps its coin written at another kill rate';
+    if (!kept) return 'CONTROL: no scale ground keeps rows written at another kill rate';
     return null;
   },
   loot(M) {
@@ -596,7 +602,9 @@ const CASES = {
       const g = M.grounds.HUNT_GROUNDS[gid];
       if (!g) return 'CONTROL: scale ground ' + gid + ' has no ground row';
       const d = (s) => M.danger.dangerDial(g, s);
-      if (Math.abs(d(row.refStep).dropPm - 1000) > 1e-9) return gid + ': the reference step drops ' + d(row.refStep).dropPm + ' permille of the table, not the table';
+      /* (a ground whose rows were written at another kill rate drops that ratio more of them at every step: the case rowskept) */
+      const kept = Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead / (Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead) : 1;
+      if (Math.abs(d(row.refStep).dropPm / kept - 1000) > 1e-9) return gid + ': the reference step drops ' + d(row.refStep).dropPm + ' permille of the table, not the table x' + kept;
       /* an hour's loot: dropPm x the pull's size (a pull's length grows by the step's health, paid back in the ratio) */
       const hour = (s) => d(s).dropPm * d(s).pull[0];
       const want = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep);
@@ -788,14 +796,15 @@ const MUTANTS = [
   { name: 'the snapshot reads the skill, not its Level on the line', case: 'skill', edits: [['src/core/member.js', 'const skillGapPm = skillLv === null ? 0 : skillLv - 1000 * level;', 'const skillGapPm = 0;']] },
   { name: 'the unit never carries the skill part', case: 'skill', edits: [['src/core/combat-sim.js', '  u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;\n', '']] },
   { name: 'the browser\'s peer fights on its line', case: 'skill', edits: [['src/core/member.js', '      skillGapPm: snap.skillGapPm || 0,\n', '']] },
-  { name: 'loot does not follow depth', case: 'loot', edits: [['src/core/hunt/danger.js', 'const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);', 'const dropPmAt = () => 1000;']] },
-  /* (lane/monster-roles-ford-wings) a ground's coin written at another kill rate is not kept in its hours, or kept upside down */
-  { name: 'coin is never kept at the kill rate it was written for', case: 'coinkept', edits: [['src/core/hunt/danger.js', '  dial.coinPm *= coinKeptOf(ground);\n', '']] },
-  { name: 'coin is kept upside down', case: 'coinkept', edits: [['src/core/hunt/danger.js', 'row.coinKillsHead / refKillsOf(ground)', 'refKillsOf(ground) / row.coinKillsHead']] },
+  { name: 'loot does not follow depth', case: 'loot', edits: [['src/core/hunt/danger.js', 'const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);', 'const dropPmAt = (ground) => 1000 * rowsKeptOf(ground);']] },
+  /* (lane/monster-roles-ford-wings) a ground's rows written at another kill rate are not kept in their hours, or kept upside down */
+  { name: 'coin is never kept at the kill rate it was written for', case: 'rowskept', edits: [['src/core/hunt/danger.js', '  dial.coinPm *= rowsKeptOf(ground);\n', '']] },
+  { name: 'the drop table is never kept at the kill rate it was written for', case: 'rowskept', edits: [['src/core/hunt/danger.js', ' * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);', ' * depthRatio(ground, s, LOOT_STEP);']] },
+  { name: 'rows are kept upside down', case: 'rowskept', edits: [['src/core/hunt/danger.js', 'row.rowsKillsHead / refKillsOf(ground)', 'refKillsOf(ground) / row.rowsKillsHead']] },
   /* (lane/monster-roles-ford-wings) a formula ground's loot reads the as-built pull, not the one it fights */
   { name: 'a formula ground\'s loot follows the as-built pull', case: 'loot', edits: [['src/core/hunt/danger.js', '  dial.dropPm = dropPmAt(ground, s, nf, pull);\n', '']] },
   { name: 'loot pays the step a pull, not an hour', case: 'loot', edits: [['src/core/hunt/danger.js', 'const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;', 'const LOOT_STEP = PAY.payStepLoot;']] },
-  { name: 'a bigger pull drops more of the table', case: 'loot', edits: [['src/core/hunt/danger.js', 'const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);', 'const dropPmAt = (ground, s) => 1000 * depthRatio(ground, s, LOOT_STEP);']] },
+  { name: 'a bigger pull drops more of the table', case: 'loot', edits: [['src/core/hunt/danger.js', 'const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);', 'const dropPmAt = (ground, s) => 1000 * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);']] },
   { name: 'the kill\'s rolls never read the depth', case: 'loot', edits: [['src/core/hunt-rewards.js', 'rollDropTable(row.drops, { depthPm, dropMult:', 'rollDropTable(row.drops, { dropMult:']] },
   { name: 'depth scales a certainty', case: 'loot', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch);\n', '']] },
   /* lane/moves-pass-1: the holder's line */

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "518ea1620688b4e6",
+ "authored": "32463d0faafd24aa",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -1279,9 +1279,10 @@
      }
     ],
     "mentions": [
-     "tests/balance-sheet.mjs"
+     "tests/balance-sheet.mjs",
+     "tests/hunt-core/engine-parity.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7796,7 +7797,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 254,
+     "line": 256,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7865,19 +7866,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 261,
+     "line": 263,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 262,
+     "line": 264,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 263,
+     "line": 265,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7941,7 +7942,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 284,
+     "line": 286,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -8145,7 +8146,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 209,
+     "line": 211,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8219,13 +8220,13 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 211,
+     "line": 213,
      "text": "catacomb_bone_wing: ground({ refStep: 440, floorStep: 380, topStep: 530, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 212,
+     "line": 214,
      "text": "catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 470, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8304,20 +8305,20 @@
    "evidence": "MEASURED (lane/monster-roles-ford-wings: the Bone Wing's Steady mixed four at Level 175 held 440 against the anchor 520, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles/after)"
   },
   {
-   "id": "danger.coin-kept",
+   "id": "danger.rows-kept",
    "category": "monster-rewards",
-   "name": "The kill rate a ground's coin rows were written at",
+   "name": "The kill rate a ground's coin and drop rows were written at",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 210,
-     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "line": 212,
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "a scale kill pays its row's coin x coinKillsHead / the ground's reference kills (src/core/hunt/danger.js coinKeptOf), so a ground whose rows were written at another kill rate keeps its hour's coin, as a drop keeps its hours through a re-measured kill rate (tools/gen-drop-hours.mjs); absent, x1. The server's ceiling a kill reads the dial (tools/gen-danger.mjs coin_pm_max)",
+   "definition": "a scale kill pays its row's coin and its drop table x rowsKillsHead / the ground's reference kills (src/core/hunt/danger.js rowsKeptOf), so a ground whose rows were written at another kill rate keeps its hour's coin and loot on the scale while the tier path plays the rows as written (drop chances derived at this rate, src/core/drop-rate.js rowsKillsHour); absent, x1. The server's ceiling a kill reads the dial (tools/gen-danger.mjs coin_pm_max)",
    "range": "a whole kill rate a head an hour (tools/gen-danger.mjs refuses any other). A bridge: it goes when coin is written in hours (27 stage 9)",
-   "touches": "coin an hour on that ground (EL-PAY), and the kit share through it",
+   "touches": "coin and loot an hour on that ground (EL-PAY, the drop hours), and the kit share through it",
    "outcomes": [
     "netPerH",
     "storePerH"
@@ -8336,9 +8337,16 @@
     "asserts": [
      {
       "file": "tests/hunt-core/danger.mjs",
-      "what": "coinkept: a ground keeps its coin at the kill rate it was written for, at every step and party size",
+      "what": "rowskept: a ground keeps its coin and its drop table at the kill rate they were written for, at every step and party size",
       "reads": [
-       "coinKillsHead"
+       "rowsKillsHead"
+      ]
+     },
+     {
+      "file": "tests/drop-formula.mjs",
+      "what": "DF-1: every scale row chance is its hours over the kills its rows are written at",
+      "reads": [
+       "rowsKillsHour"
       ]
      }
     ],
@@ -8362,7 +8370,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the scale grounds whose coin rows were written for another kill rate (Hask's Ford, on its hand rows)",
+    "what": "the scale grounds whose rows were written for another kill rate (Hask's Ford, on its hand rows, which the tier path still plays)",
     "homes": [
      "src/data/danger.js#DANGER_GROUNDS"
     ]
@@ -8383,7 +8391,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 230,
+     "line": 232,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -10321,9 +10329,9 @@
       "trophy"
      ],
      "rows": 320,
-     "distinct": 79,
+     "distinct": 80,
      "low": 0.0005,
-     "high": 0.0815
+     "high": 0.05
     }
    },
    "flags": [
@@ -11998,7 +12006,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 209,
+     "line": 211,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -12073,7 +12081,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 209,
+     "line": 211,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -17760,7 +17768,6 @@
   "src/data/danger.js#DANGER_GROUNDS": {
    "pin": "keys",
    "keys": [
-    "coinKillsHead",
     "entryLevel",
     "floorStep",
     "formulaStep",
@@ -17769,6 +17776,7 @@
     "refKillsHead",
     "refLevel",
     "refStep",
+    "rowsKillsHead",
     "topStep"
    ],
    "bindings": 1

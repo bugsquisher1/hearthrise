@@ -88,7 +88,8 @@ function basePull(ground) {
  *          pays the as-built pull's coin times the scale's gold level, and an HOUR a step deeper pays the wage's coin ratio more
  *   dropPm a kill's own drop table, permille of each row's chance (drops.js effectiveDropChance, never past one roll a kill): the pull's share
  *          over the reference pull's x the depth ratio at LOOT_STEP (lane/foundations-block, 04 section 7 payStepLoot), so at the reference
- *          step the table plays as written and an HOUR a step deeper drops PAY.payStepLoot more of it, as coin pays payStepCoin more
+ *          step the table plays as written and an HOUR a step deeper drops PAY.payStepLoot more of it, as coin pays payStepCoin more.
+ *          coinPm and dropPm both carry rowsKeptOf: a ground whose rows were written at another kill rate keeps their hour
  */
 export function dangerDial(ground, step, heroes = REF_HEROES) {
   const s = stepOn(ground, step);
@@ -100,7 +101,7 @@ export function dangerDial(ground, step, heroes = REF_HEROES) {
   const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
   dial.dropPm = dropPmAt(ground, s, n0, pull);
-  dial.coinPm *= coinKeptOf(ground);
+  dial.coinPm *= rowsKeptOf(ground);
   return formulaPull(ground, s, heroes, dial);
 }
 /* A FORMULA GROUND'S PULL (DANGER_GROUNDS `monsters: 'formula'`, src/core/hunt/monster-formula.js): sized to the party, heroes x
@@ -149,15 +150,18 @@ const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
    COIN_STEP, so an hour a step deeper drops PAY.payStepLoot more of the kill's own table. */
 const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;
 /* A KILL'S DROP TABLE, permille: the pull's share over the reference pull's (`n` the pull's size at step 0, as built or a formula ground's
-   sized to its party; `pull` the pull at this step) x the depth ratio at LOOT_STEP, so an hour's loot is the depth ratio at any pull size */
-const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
-/* COIN KEPT IN ITS HOURS (lane/monster-roles-ford-wings, 2026-11-23): a kill's coin is its row's roll, so a ground's coin an hour is its kills
-   an hour times its rows. A ground whose rows were written for another kill rate (DANGER_GROUNDS coinKillsHead: Hask's Ford's on its hand
-   rows, before its monsters played the formula) pays each kill that rate over its reference kills, so its hour's coin stands where its
-   rows put it, as tools/gen-drop-hours.mjs keeps a drop's hours through a re-measured kill rate. Absent: x1. The server's ceiling a kill
-   (hr_danger_grounds.coin_pm_max, tools/gen-danger.mjs) reads this dial, so it follows. Retires with coin written in hours
+   sized to its party; `pull` the pull at this step) x the depth ratio at LOOT_STEP, so an hour's loot is the depth ratio at any pull size,
+   x the kill rate its rows were written at (rowsKeptOf) */
+const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);
+/* A GROUND'S ROWS KEPT IN THEIR HOURS (lane/monster-roles-ford-wings, 2026-11-23): a kill pays its row's coin roll and rolls its row's drop
+   chances, so a ground's coin and loot an hour are its kills an hour times its rows. A ground whose rows were written for another kill rate
+   (DANGER_GROUNDS rowsKillsHead: Hask's Ford's on its hand rows, before its monsters played the formula) pays each kill on the scale that
+   rate over its reference kills, of its coin (coinPm) and of its drop table (dropPm), so the hour stands where its rows put it. The rows
+   themselves stay at their own rate because the tier path (a plan with no stance, 1056-danger-scale.sql) still plays them: its drops
+   (tools/gen-drop-hours.mjs over src/core/drop-rate.js rowsKillsHour) and its coin are the rows'. Absent: x1. The server's coin ceiling a
+   kill (hr_danger_grounds.coin_pm_max, tools/gen-danger.mjs) reads this dial, so it follows. Retires with coin written in hours
    (27-formula-overhaul.md stage 9). */
-const coinKeptOf = (ground) => { const row = groundRow(ground); return row && Number.isInteger(row.coinKillsHead) ? row.coinKillsHead / refKillsOf(ground) : 1; };
+const rowsKeptOf = (ground) => { const row = groundRow(ground); return row && Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead / refKillsOf(ground) : 1; };
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33). One home: src/data/wage.js powSquare. */

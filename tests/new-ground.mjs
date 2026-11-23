@@ -89,7 +89,7 @@ const a = rewriteRow(src, 'muster_barrows', { refStep: 600, floorStep: 490, topS
 ok(a && /refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130, gearLevel: tierLevel\(3\)/.test(lineOf(a, 'muster_barrows')), 'NG-4 muster row not rewritten: ' + (a && lineOf(a, 'muster_barrows')));
 ok(a && lineOf(a, 'hasks_ford') === lineOf(src, 'hasks_ford'), 'NG-4 another row moved');
 const b = rewriteRow(src, 'hasks_ford', { refStep: 590, floorStep: 470, topStep: 710 });
-/* (the row's other fields stay where they stood: the Ford's coinKillsHead, lane/monster-roles-ford-wings, follows the band) */
+/* (the row's other fields stay where they stood: the Ford's rowsKillsHead, lane/monster-roles-ford-wings, follows the band) */
 ok(b && /topStep: 710, /.test(lineOf(b, 'hasks_ford')) && !/refKillsHead/.test(lineOf(b, 'hasks_ford')) && /gearLevel: tierLevel\(2\)/.test(lineOf(b, 'hasks_ford')), 'NG-4 refKillsHead not dropped: ' + (b && lineOf(b, 'hasks_ford')));
 ok(rewriteRow(src, 'hasks_ford', DANGER_GROUNDS.hasks_ford) === src, 'NG-4 the same band is not a no-op');
 ok(rewriteRow(src, 'nowhere_field', { refStep: 1, floorStep: 0, topStep: 2 }) === null, 'NG-4 a ground with no row was written');

@@ -115,7 +115,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
 | redundant | `danger.ref-step` A ground's reference step, band and kill rate | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
 | redundant | `danger.formula-step` Where a formula ground's reference monsters stand | A second per-ground step beside refStep (LR-1: no per-ground dial). It retires with absolute steps | 27 stage 6. JUDGMENT |
-| redundant | `danger.coin-kept` The kill rate a ground's coin rows were written at | A per-ground number for coin until coin is written in hours (LR-1) | 27 stage 9. JUDGMENT |
+| redundant | `danger.rows-kept` The kill rate a ground's coin and drop rows were written at | A per-ground number for coin until coin is written in hours (LR-1) | 27 stage 9. JUDGMENT |
 | redundant | `mf.ref` The reference company a formula ground is anchored on | A measured table by Level that stands in for the reference company's damage in steps. It retires when hero power is counted in steps (04 section 1, wave 3) | JUDGMENT |
 | redundant | `reward.xp-floor-fit` Early-ground XP fit | Falls away with the ground-fit fix (a kill reward that follows kills an hour) | 44 E-X04, CONFIRMED |
 | redundant | `reward.ground-xp-fit` Per-ground XP fit | Outputs of the missing kill-rate term, hand-fitted (re-fitted 11-08, 11-11, 11-19). Knobs.json lists it under notKnobs | 44 E-X01, CONFIRMED |
@@ -282,7 +282,6 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `bands.skill-line` The reference skill line | Monster HP, damage, armor, resistances and behavior | a measured career, not a dial |
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
-| not-in-runs | `danger.coin-kept` The kill rate a ground's coin rows were written at | Monster XP and loot values | played by the V1 probe only (tools/balance-program/redesign/tuning/roles) |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.formula-step` Where a formula ground's reference monsters stand | Monster HP, damage, armor, resistances and behavior | played by the V1 probe only (tools/balance-program/redesign/tuning/roles) |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |
@@ -296,6 +295,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.ref-step` A ground's reference step, band and kill rate | Monster XP and loot values | played by the V1 probe only |
+| not-in-runs | `danger.rows-kept` The kill rate a ground's coin and drop rows were written at | Monster XP and loot values | played by the V1 probe only (tools/balance-program/redesign/tuning/roles) |
 | not-in-runs | `econ.scaled-hunts` Scaled hunts: pay and price | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `econ.training` Training yard pay and fee | Economy sources and sinks | the matrix plays hunts, not the yard |
 | not-in-runs | `econ.training-items` Training items | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |

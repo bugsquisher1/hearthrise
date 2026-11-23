@@ -55,7 +55,6 @@ import { landHit, restart, slowed, rowOf } from './damage.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
 import { breaksOff } from './danger.js';
-import { rampPm } from './monster-formula.js';
 import { isEnemy, isAlly, isMonster } from './sides.js';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
@@ -135,9 +134,7 @@ function land(inst, sc, u, sp) {
   const s = castShape(u);
   const id = u.cast.s;
   const row = swingRow(u, atTier(rowOf(inst, u.kind), inst.tier));   // the instance's row (a scaled hunt's), as a swing reads it (damage.js)
-  /* (a ramping boss's wind-up grows with its pull as its blow does: monster-formula.js rampPm, 1000 for every other monster) */
-  const ramp = rampPm(inst, u);
-  const [lo, top] = spellHit(ramp === 1000 ? monsterMaxHit(row) : Math.floor((monsterMaxHit(row) * ramp) / 1000), sp);
+  const [lo, top] = spellHit(monsterMaxHit(row), sp);
   const t = mends(sp) ? unitById(inst, u.cast.t) : null;
   /* (a pack reset takes the caster out of the fight too, which drops the cast before it lands: dropCasts) */
   const mended = !!t && t.alive && isAlly(u, t) && t.pocket === u.pocket && t.hp < t.maxHp;

@@ -11,9 +11,9 @@
 //           a kill the same coin as the switch off; off the switch the dial is what it was for every party size.
 //   switch  the ground's one data switch: off, no derived row or table; on, every monster of the ground plays its derived row with its
 //           content (name, drops, coin, XP) its own, and no other monster moves.
-//   ramp    a boss's blow and wind-up grow by its encounter's rampPerMinute a minute of its pull (the pull's age: pull-cycle.js counts phaseMs
-//           up through a fight on the scale, persisted, so every settle cut ramps alike);
-//           nothing else ramps; off the scale the clock is never set.
+//   ramp    one ramp for every boss: a formula boss keeps its row's boss kind (src/data/bosses.js), so boss-phases.js ramps it on its
+//           own fight clock as any boss; a pull monster has none, and the formula writes no second ramp.
+//   armor   a hero blow on a formula monster lands net of its role's armor (monsterArmorPm); a hand row keeps its flat defense only.
 //   data    every role carries its dials inside their bands, a wind-up shape exactly when it has a wind-up share; every scale ground names
 //           its reference Level and its switch; on every scale ground the derived spell rows land inside the spell bounds unclamped (a
 //           clamped row would not deal its dial); every monster of a formula ground names a role.
@@ -23,7 +23,7 @@
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, loadCore, plant, makeReport, member, groundRow, gridOf, T0 } from './fixtures/h1.js';
+import { ROOT, loadCore, plant, makeReport } from './fixtures/h1.js';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
@@ -37,6 +37,9 @@ const load = async (root) => {
   M.dangerData = await imp('src/data/danger.js');
   M.roleData = await imp('src/data/monster-roles.js');
   M.spells = await imp('src/data/monster-spells.js');
+  M.bosses = await imp('src/data/bosses.js');
+  M.tower = await imp('src/core/hunt/tower.js');
+  M.towerData = await imp('src/data/tower.js');
   M.tiers = await imp('src/data/hunt-tiers.js');
   M.grounds = await imp('src/data/hunt-grounds.js');
   M.combat = await imp('src/core/combat.js');
@@ -46,6 +49,7 @@ const load = async (root) => {
 };
 
 /* the switch on Muster Barrows, as a planted edit (the shipped row's own words) */
+const TOWER_ON = ['src/data/tower.js', "  monsters: 'rows',", "  monsters: 'formula',"];
 const MUSTER_ON = ['src/data/danger.js', "ladderTier: 5, refLevel: 60, monsters: 'rows',", "ladderTier: 5, refLevel: 60, monsters: 'formula',"];
 const close = (a, b, rel) => Math.abs(a - b) <= rel * Math.max(1, Math.abs(b));
 /* a scale ground's row with its switch on (derive reads only the row) */
@@ -165,38 +169,29 @@ const CASES = {
     if (t.rat !== M.MONSTERS.rat) return 'a monster of another ground moved';
     return null;
   },
+  /* THE TOWER'S ONE DOOR (src/core/hunt/tower.js rowAt, TOWER_RULES.monsters): on the formula a band's room fields its reach role's derived
+     stats at the floor's Level, grown by the depth and the share; on its rows no room carries a role's armor */
+  tower(M) {
+    const T = M.towerData.TOWER_RULES, F = 15, mix = M.towerData.towerMixOf(F);
+    if (!mix || !mix.reach) return 'CONTROL: floor ' + F + ' has no band mix with a reach';
+    const rows = Object.values(M.tower.towerMonsters(F)).filter((r) => r && r.role === mix.reach && r.gp && r.gp[1] === 0);
+    if (T.monsters !== 'formula') return rows.some((r) => r.armorPm > 0) ? 'on its rows the Tower fields a role\'s armor' : null;
+    const r = rows.find((x) => !x.bossKind);
+    if (!r) return 'CONTROL: no room monster of the band\'s reach on floor ' + F;
+    const f = M.mf.formulaAt(mix.reach, r.level, r.tier, 'pull');
+    const k = M.danger.stepRatio(M.tower.towerDepthOf ? M.tower.towerDepthOf(F) : M.towerData.towerDepthAt(F, T)) * M.tower.towerShareOf(F);
+    if (r.armorPm !== f.armorPm || Math.abs(r.hp - Math.round(f.hp * k)) > 1) return 'a Tower room monster on the formula stands at ' + r.hp + ' health, armor ' + r.armorPm + '; its role says ' + Math.round(f.hp * k) + ', ' + f.armorPm;
+    return null;
+  },
+  /* ONE RAMP FOR EVERY BOSS (src/data/bosses.js, lane/tower-boss-formula): a formula boss keeps its row's boss kind, so boss-phases.js ramps
+     it on its own fight clock exactly as a stat-sheet boss; the formula writes no ramp of its own */
+  'tower-on'(M) { return M.towerData.TOWER_RULES.monsters === 'formula' ? CASES.tower(M) : 'CONTROL: the Tower is not switched on'; },
   ramp(M) {
     const hask = M.mf.formulaRow(M.MONSTERS.captain_hask, 'muster_barrows'), knight = M.mf.formulaRow(M.MONSTERS.muster_knight, 'muster_barrows');
-    const want = Math.round(1000 * M.roleData.MONSTER_FORMULA.encounters.boss.rampPerMinute);
-    if (!(want > 0)) return 'CONTROL: a boss does not ramp';
-    if (hask.rampPm !== want) return 'the boss carries rampPm ' + hask.rampPm + ', not ' + want;
-    const at = (phase, phaseMs) => ({ monsters: { captain_hask: hask, muster_knight: knight }, world: { risk: 'steady', phase, phaseMs } });
-    const hk = { kind: 'captain_hask' };
-    if (M.mf.rampPm(at('fight', 0), hk) !== 1000) return 'the boss ramps at the pull\'s start';
-    if (M.mf.rampPm(at('fight', 60000), hk) !== 1000 + want) return 'a minute into the pull the boss stands at ' + M.mf.rampPm(at('fight', 60000), hk) + ', not ' + (1000 + want);
-    if (M.mf.rampPm(at('fight', 60000), { kind: 'muster_knight' }) !== 1000) return 'a pull monster ramps';
-    if (M.mf.rampPm(at('regroup', 60000), hk) !== 1000) return 'a boss ramps outside a fight (the regroup\'s countdown)';
-    /* the pull's age on the real cycle (the fixture's two heroes, 6 minutes in 10 s windows, the world through JSON at every cut): every
-       stored world caught in a fight on the scale is a whole number of sub-steps into it, some past the first; off the scale none moved */
-    const ages = (plan) => {
-      const ms = [member(M, 'a', { seat: 0, maxHp: 60, hp: 60, maxHit: 12 }), member(M, 'b', { seat: 1, maxHp: 60, hp: 60, maxHit: 12 })];
-      if (plan) for (const x of ms) x.hero = { ...x.hero, ...plan };
-      const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('mf-ramp', 3, d, i), monsters: M.MONSTERS, ground: groundRow(), grid: gridOf(M) };
-      let w = null, next = T0;
-      const out = [];
-      for (let t = T0 + 10000; t <= T0 + 360000; t += 10000) {
-        w = w ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))) : null;
-        const r = M.cs.simulateHuntInstance({ world: w, nextSwingAtMs: next, members: ms }, { ...ctx, toMs: t });
-        w = r.world; next = r.nextSwingAtMs;
-        if (!w) break;
-        if (w.phase === 'fight') out.push(w.phaseMs);
-      }
-      return out;
-    };
-    const on = ages({ risk: 'steady', danger: 0 }), off = ages(null);
-    if (!on.length || !off.length) return 'CONTROL: no stored world caught in a fight (on ' + on.length + ', off ' + off.length + ')';
-    if (!on.some((x) => x > 0) || on.some((x) => x % 100 !== 0)) return 'a fight on the scale does not age its pull by sub-steps: ' + on.slice(0, 12).join(' ');
-    if (off.some((x) => x !== 0)) return 'a fight off the scale aged its pull: ' + off.slice(0, 12).join(' ');
+    if (!hask || !knight) return 'CONTROL: no derived rows';
+    if (M.bosses.bossKindOf(hask) !== M.bosses.bossKindOf(M.MONSTERS.captain_hask) || !M.bosses.rampOf(hask)) return 'the formula Captain Hask lost his boss kind, so his ramp';
+    if (M.bosses.rampOf(knight)) return 'a pull monster ramps';
+    if ('rampPm' in hask) return 'the formula writes a second ramp on the boss';
     return null;
   },
   data(M) {
@@ -264,9 +259,9 @@ const MUTANTS = [
   { name: 'the row is not written over the dial', case: 'dial', edits: [MUSTER_ON, ['src/core/hunt/monster-formula.js', 'const out = { ...row, hp: Math.max(1, Math.round(s.hp / m)),', 'const out = { ...row, hp: Math.max(1, Math.round(s.hp)),']] },
   { name: 'the switch is always on', case: 'switch', edits: [['src/core/hunt/monster-formula.js', "return g && g.monsters === 'formula' && Number.isInteger(g.refStep)", 'return g && Number.isInteger(g.refStep)']] },
   { name: 'a derived row drops its content', case: 'switch', edits: [MUSTER_ON, ['src/core/hunt/monster-formula.js', 'const out = { ...row, hp:', 'const out = { role: row.role, tier: row.tier, hp:']] },
-  { name: 'a boss never ramps', case: 'ramp', edits: [['src/core/hunt/monster-formula.js', 'if (s.rampPm > 0) out.rampPm = s.rampPm; else delete out.rampPm;', 'delete out.rampPm;']] },
-  { name: 'a fight never ages its pull', case: 'ramp', edits: [['src/core/hunt/pull-cycle.js', '    if (dangerOn(w)) w.phaseMs += sc.dtMs;\n', '']] },
-  { name: 'a pull ages off the scale too', case: 'ramp', edits: [['src/core/hunt/pull-cycle.js', '    if (dangerOn(w)) w.phaseMs += sc.dtMs;\n', '    w.phaseMs += sc.dtMs;\n']] },
+  { name: 'the Tower plays the formula off its switch', case: 'tower', edits: [['src/core/hunt/tower.js', "if (run.monsters === 'formula' && reach &&", 'if (reach &&']] },
+  { name: 'the Tower room never reads the depth on the formula', case: 'tower-on', edits: [TOWER_ON, ['src/core/hunt/tower.js', 'hp: Math.max(1, Math.round(f.hp * k)),', 'hp: Math.max(1, Math.round(f.hp * share)),']] },
+  { name: 'a formula boss drops its boss kind', case: 'ramp', edits: [['src/core/hunt/monster-formula.js', "const kind = row.boss === true ? 'boss' : 'pull';", "const kind = row.boss === true ? 'boss' : 'pull'; row = { ...row, boss: false };"]] },
   { name: 'a role row loses its pressure', case: 'data', edits: [['src/data/monster-roles.js', 'secondsToKill: 2.5, pressure: ', 'secondsToKill: 2.5, pressur: ']] },
 ];
 /* the engine half, each planted with the switch on (play) or off (play-off) */
@@ -276,13 +271,13 @@ const PLAY_MUTANTS = [
 ];
 
 const R = makeReport('hunt-core/monster-formula');
-const ON = plant([MUSTER_ON], PLAY_TREES);
+const ON = plant([MUSTER_ON], PLAY_TREES), TON = plant([TOWER_ON]);
 try {
-  const M = await load(ROOT), Mon = await load(ON.root);
+  const M = await load(ROOT), Mon = await load(ON.root), Mton = await load(TON.root);
   const which = (cn) => (cn === 'dial' || cn === 'switch' || cn === 'ramp' || cn === 'armor' ? Mon : M);
   for (const [cn, fn] of Object.entries(CASES)) {
     let why = null;
-    try { why = fn(which(cn)); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    try { why = fn(cn === 'tower-on' ? Mton : which(cn)); } catch (e) { why = 'threw ' + (e && e.stack || e); }
     R.ok(!why, cn + ': ' + why);
   }
   let why = null;
@@ -291,7 +286,7 @@ try {
   why = null;
   try { why = await playOffCase(ROOT); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, 'play-off: ' + why);
-} finally { ON.done(); }
+} finally { ON.done(); TON.done(); }
 for (const mu of MUTANTS) {
   const on = mu.edits.some((e) => e === MUSTER_ON) || mu.case === 'switch' || mu.case === 'ramp' || mu.case === 'armor';
   const edits = on && !mu.edits.includes(MUSTER_ON) ? [MUSTER_ON, ...mu.edits] : mu.edits;

@@ -49,7 +49,7 @@ import { swingRow, crossLines, guardPmOf, rampTick } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit } from './monster-roles.js';
-import { rampPm, monsterArmorPm } from './monster-formula.js';
+import { monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
 import { noteHurt, breaksOff, powerPm } from './danger.js';
@@ -226,14 +226,8 @@ export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }
 /* (a monster's swing, its only caller: on the Danger scale its ROLE's share of the blow, monster-roles.js roleMaxHit; the row's off it) */
 function swing(inst, sc, u, t, accuracy, maxHit, critChance) {
   restart(u);
-  return roll(inst, sc, u, t, accuracy, rampedHit(inst, u, maxHit), critChance);
+  return roll(inst, sc, u, t, accuracy, roleMaxHit(inst, u, maxHit), critChance);
 }
-/* A MONSTER'S LARGEST BLOW NOW: its role's share (roleMaxHit), grown by its ramp on a formula ground (monster-formula.js rampPm: a boss's
-   blow grows each minute of its pull); 1000 permille for every other monster, so the blow is its role's to the digit. */
-const rampedHit = (inst, u, maxHit) => {
-  const pm = rampPm(inst, u), hit = roleMaxHit(inst, u, maxHit);
-  return pm === 1000 ? hit : Math.max(1, Math.floor((hit * pm) / 1000));
-};
 /* The dice of one blow (a swing, or each target of an area shot), clock untouched. */
 function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
   let amount = rollAttack(sc.rng, accuracy, maxHit);
@@ -285,7 +279,7 @@ export function resolveAttacks(inst, sc) {
       const sp = splashOn(inst, u, t);
       for (const h of sp.heroes) {
         if (breaksOff(inst)) break;
-        if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((rampedHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000)), 0);
+        if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000)), 0);
       }
       continue;
     }

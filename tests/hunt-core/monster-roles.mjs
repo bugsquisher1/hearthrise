@@ -251,9 +251,9 @@ const MUTANTS = [
   { name: 'a role range beats the row\'s own', case: 'range', edits: [['src/core/hunt/shooters.js', 'monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) || roleRange(inst, m)', 'roleRange(inst, m) || monsterRangeOf((inst.monsters || MONSTERS)[m.kind])']] },
   { name: 'no splash', case: 'splash', edits: [['src/core/hunt/damage.js', '      const sp = splashOn(inst, u, t);', '      const sp = { heroes: [] };']] },
   { name: 'the splash reaches any distance', case: 'splash', edits: [['src/core/hunt/monster-roles.js', ' && cheb(h, t) <= role.splash.r)', ')']] },
-  { name: 'a role never softens a blow', case: 'blow', edits: [['src/core/hunt/damage.js', 'const pm = rampPm(inst, u), hit = roleMaxHit(inst, u, maxHit);', 'const pm = rampPm(inst, u), hit = maxHit;']] },
+  { name: 'a role never softens a blow', case: 'blow', edits: [['src/core/hunt/damage.js', 'return roll(inst, sc, u, t, accuracy, roleMaxHit(inst, u, maxHit), critChance);', 'return roll(inst, sc, u, t, accuracy, maxHit, critChance);']] },
   { name: 'the blow share plays off the scale', case: 'blow', edits: [['src/core/hunt/monster-roles.js', '  const role = roleOf(inst, m);\n  return role && Number.isInteger(role.maxHitPm) ?', '  const role = MONSTER_ROLES[(MONSTERS[m.kind] || {}).role];\n  return role && Number.isInteger(role.maxHitPm) ?']] },
-  { name: 'the splash is the whole blow', case: 'splash', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((rampedHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000))', 'monsterMaxHit(blowRow) * 3']] },
+  { name: 'the splash is the whole blow', case: 'splash', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000))', 'monsterMaxHit(blowRow) * 3']] },
   { name: 'a sample row loses its role', case: 'data', edits: [['src/data/grounds/muster_barrows/pack.js', "      role: 'stalker',\n", '']] },
   { name: 'a role row names no reach', case: 'data', edits: [['src/data/monster-roles.js', "reach: 'weakest', range: 0,", "reach: 'random', range: 0,"]] },
 ];

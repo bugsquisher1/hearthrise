@@ -16,15 +16,15 @@
 //   a wind-up  = windupSize x the reference hero's health (mean hit), every windupSize / (windupShare x pressure) seconds
 //   a mend     = mend.seconds of the company's damage put back on a packmate, every mend.everyS seconds
 // and one step deeper is the step's ratio on health and blow, as on every ground (a step is a step of the ground's own rows until the
-// bands carry absolute steps: danger.js THE GROUNDS). A boss's blows and wind-ups grow by its encounter's rampPerMinute a minute of
-// the pull (rampPm, read by damage.js and monster-spells.js).
+// bands carry absolute steps: danger.js THE GROUNDS). A boss's ramp is its kind's (src/data/bosses.js rampOf, read by
+// boss-phases.js swingRow on its own fight clock): one ramp for every boss, the formula's or the stat sheet's.
 //
 //   formulaOn(groundId)                  is the ground's switch on (and does the ground anchor a reference)?
 //   formulaRow(row, groundId)            the derived row for one monster row on that ground (null: no role, or the switch off)
 //   formulaTable(groundId, base)         the instance's one door (combat-sim.js huntPlayOf): `base` with every monster of the ground on
 //                                        its derived row, or null when the switch is off. Built once a (ground, base)
-//   refCompany(level)                    { dpsHead, dpsFight, hp } of the reference company at a Level (MONSTER_FORMULA.REF)
-//   rampPm(inst, m, atMs)                the permille a ramping monster's blow and wind-up stand at now (1000: none)
+//   (the reference company: src/core/reference-company.js refCompany, the one interface to the heroes; re-exported here)
+//   monsterArmorPm(inst, m)              a monster's armor now, permille of a hero blow (the door an armor answer moves)
 //
 // PURE ESM, dual-runtime: no DOM, no clock, no Math.random. Every number is a multiplication, a division or a rounding, so a browser's
 // live view and the edge's settle derive the same last bit.
@@ -32,7 +32,7 @@
 
 import { MONSTER_ROLES, MONSTER_FORMULA } from '../../data/monster-roles.js';
 import { DANGER, DANGER_GROUNDS } from '../../data/danger.js';
-import { VITALS } from '../../data/core-model.js';
+import { refCompany } from '../reference-company.js';
 import { HUNT_GROUNDS, monstersOn } from '../../data/hunt-grounds.js';
 import { aimFor, evasionFor } from '../../data/to-hit.js';
 import { HUNT_TUNING } from '../../data/hunt-tuning.js';
@@ -56,21 +56,6 @@ export function formulaGround(groundId) {
 }
 export const formulaOn = (groundId) => formulaGround(groundId) !== null;
 
-/** The reference company at Level `level`: a head's damage a hunted second (REF.dps, straight between rows, held past the ends), the
-    company's damage a FIGHTING second (four heads over the fight share), and the reference hero's health (VITALS). */
-export function refCompany(level) {
-  const L = Math.max(1, Number(level) || 1), T = F.REF.dps;
-  let dpsHead;
-  if (L <= T[0][0]) dpsHead = T[0][1];
-  else if (L >= T[T.length - 1][0]) dpsHead = T[T.length - 1][1];
-  else {
-    let k = 1;
-    while (L > T[k][0]) k++;
-    const [a, da] = T[k - 1], [b, db] = T[k];
-    dpsHead = da + ((db - da) * (L - a)) / (b - a);
-  }
-  return { dpsHead, dpsFight: (REF_HEROES * dpsHead) / F.REF.fightShare, hp: VITALS.hpBase + VITALS.hpPerLevel * L };
-}
 
 /* THE ONE MONSTER'S SHARE OF THE STEP AT THE REFERENCE, for the reference company: the dial's ratio x the as-built mean over the pull
    (danger.js dangerDial), so the row written here x it is the monster at a gap of 0. */
@@ -86,7 +71,7 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
 
 /**
  * THE DERIVED STATS of role `roleId` at a gap of 0 on ground row `g`, for an encounter `kind` ('pull' or 'boss'): { hp, maxHit (the
- * row's biggest blow, before the role's maxHitPm), top (the blow that lands after it), spells: { id: spell row }, rampPm } at the
+ * row's biggest blow, before the role's maxHitPm), top (the blow that lands after it), spells: { id: spell row }, armorPm } at the
  * REFERENCE STEP (not yet over the dial), plus `steadyShare` (the share of the dialed steady pressure blowCap lets through). Pure.
  */
 export function roleStats(roleId, g, kind = 'pull', own = {}) {
@@ -94,7 +79,7 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   if (!R) throw new Error('monster-formula: unknown role ' + roleId);
   const enc = F.encounters[kind] || F.encounters.pull;
   const ref = refCompany(g.refLevel);
-  const take = F.REF.takePm / 1000, land = F.REF.hit;
+  const take = ref.takePm / 1000, land = ref.hit;
   const swingS = COMBAT_BALANCE.tickMs / 1000;
   /* ITS ARMOR (the role's `armor`): a share of every hero blow, so its health is written net of it and secondsToKill holds at any armor;
      an answer that strips armor (Armor Break) is then a real gain in kill time, never a wash */
@@ -125,7 +110,7 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   }
   if (R.mend && R.mend.seconds > 0) derive(own.mend, 'mf_' + roleId + '_mend', R.mend.spell, (R.mend.seconds * ref.dpsFight) / SPELL_MEAN, R.mend.everyS);
   return { hp, maxHit, top, steadyShare: wantTop > 0 ? Math.min(1, (top + 1) / (wantTop + 1)) : 1, spells: Object.freeze(spells),
-    rampPm: Math.round(1000 * (enc.rampPerMinute || 0)), armorPm };
+    armorPm };
 }
 
 /**
@@ -133,6 +118,23 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
  * the ground, so the dial's growth puts it at roleStats at the reference step. Content stays the row's.
  */
 export function formulaRow(row, groundId) {
+  return derivedRow(row, groundId);
+}
+
+/**
+ * A MONSTER OF ROLE `roleId` AT A GAP OF 0 FOR THE REFERENCE COMPANY OF LEVEL `level`, with no ground and no dial (a run ground's room,
+ * src/core/hunt/tower.js rowAt, which grows it by its own depth): { hp, atk (for art tier `tier`), aim, evasion, def, level, armorPm,
+ * spells (the role's own shapes), kind }. `kind` 'pull' or 'boss'. Pure.
+ */
+export function formulaAt(roleId, level, tier, kind = 'pull') {
+  const L = Math.max(1, Math.floor(Number(level) || 1));
+  const s = roleStats(roleId, { refLevel: L }, kind);
+  return { hp: s.hp, atk: s.maxHit / scaleOf({ tier }), aim: Math.max(1, Math.round(aimFor(F.REF.hit, L))),
+    evasion: Math.max(1, Math.round(evasionFor(F.REF.heroHit, L, 1))), def: Math.max(0, Math.round(F.REF.defPerLevel * L)), level: L,
+    armorPm: s.armorPm, spells: s.spells };
+}
+
+function derivedRow(row, groundId) {
   const g = formulaGround(groundId);
   if (!g || !row || typeof row.role !== 'string' || !own(MONSTER_ROLES, row.role)) return null;
   const kind = row.boss === true ? 'boss' : 'pull';
@@ -146,7 +148,6 @@ export function formulaRow(row, groundId) {
     def: Math.max(0, Math.round(F.REF.defPerLevel * L)), armorPm: s.armorPm, formula: 'role' };
   const ids = Object.keys(s.spells);
   if (ids.length) { out.spells = ids; out.spellRows = s.spells; } else delete out.spells;
-  if (s.rampPm > 0) out.rampPm = s.rampPm; else delete out.rampPm;
   return Object.freeze(out);
 }
 
@@ -176,14 +177,5 @@ export function formulaTable(groundId, base) {
   return table;
 }
 
-/**
- * THE RAMP (MONSTER_FORMULA.encounters rampPerMinute, on a derived row's `rampPm`): a ramping monster's blows and wind-ups stand at
- * 1000 + rampPm x the minutes its pull has been fought (the pull's age: pull-cycle.js counts phaseMs up through a fight on the scale), in
- * permille. 1000 for any other monster, and outside a fight. Read off the persisted world, so every cut of the settle windows ramps alike.
- */
-export function rampPm(inst, m) {
-  const row = inst && m && (inst.monsters || {})[m.kind];
-  const w = inst && inst.world;
-  if (!row || !(row.rampPm > 0) || !w || w.phase !== 'fight' || !Number.isSafeInteger(w.phaseMs) || w.phaseMs <= 0) return 1000;
-  return 1000 + Math.floor((row.rampPm * w.phaseMs) / 60000);
-}
+
+export { refCompany };

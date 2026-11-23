@@ -99,9 +99,9 @@ export const MONSTER_ROLES = Object.freeze({
 /* ── THE FORMULA'S GLOBAL DIALS AND ITS REFERENCE (lane/monster-formula; 04 sections 6 and 8) ──────────────────────────────────────
    encounterPerHero  monsters a pull brings for each hero at a gap of 0 (04 section 8: "an encounter grows with the party", so a lone hero
                      and a four have the same time budget); past the reference step the pull grows by DANGER.pullStep to DANGER.pullMax
-   encounters        by encounter type: `pull` (a pack) and `boss` (a row with `boss: true`). killMult x its role's secondsToKill;
-                     rampPerMinute: its blows and wind-ups grow by this share for each minute it has fought (a boss tests damage AND sustain:
-                     04 section 6). Read by the engine (src/core/hunt/damage.js through monster-formula.js rampPm)
+   encounters        by encounter type: `pull` (a pack) and `boss` (a row with `boss: true`). killMult x its role's secondsToKill.
+                     A boss's RAMP (04 section 6 rampPerMinute) is its kind's, one home for every boss: src/data/bosses.js BOSS_KINDS,
+                     read by boss-phases.js swingRow on the boss's own fight clock
    windupScale       the two death-risk dials on every wind-up at once: `size` x each wind-up's hit, `every` x the time between them
    blowCap           no steady blow's top lands over this share of its target's reference health after its armor (maxHitPm's reason:
                      one blow at the back row stays under the Steady line). A role whose pressure would need a bigger blow is held at the
@@ -119,8 +119,8 @@ export const MONSTER_ROLES = Object.freeze({
 export const MONSTER_FORMULA = Object.freeze({
   encounterPerHero: 2,
   encounters: Object.freeze({
-    pull: Object.freeze({ killMult: 1, rampPerMinute: 0 }),
-    boss: Object.freeze({ killMult: 8, rampPerMinute: 0.1 }),
+    pull: Object.freeze({ killMult: 1 }),
+    boss: Object.freeze({ killMult: 8 }),
   }),
   windupScale: Object.freeze({ size: 1, every: 1 }),
   blowCap: 0.2,

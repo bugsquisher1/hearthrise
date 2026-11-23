@@ -61,7 +61,8 @@ for (const k of pick) {
        Level, beside the four's base cell: a head's pay alone and in a pair against a head in the four */
     /* --armor-break (Muster only): every monster's armor -25% (candidate mf-muster-armor-break), Steady at the reference Level, paired with
        the mf base cell on the same seeds: what an armor answer is worth */
-    if (argv.includes('--armor-break') && k === 'muster' && who === 'mf') run('muster-ab-mid', ['--ground', g.ground, '--start', String(g.floor), '--candidate', 'mf-muster-armor-break', '--level', String(g.mid), '--risks', 'steady', '--only', 'base']);
+    if (argv.includes('--armor-break') && k === 'muster' && who === 'mf') run('muster-abpair-mid', ['--ground', g.ground, '--start', String(g.floor), '--candidate', 'mf-muster', '--level', String(g.mid), '--risks', 'steady', '--only', 'base']);
+    if (argv.includes('--armor-break') && k === 'muster' && who === 'mf') run('muster-ab-mid',['--ground', g.ground, '--start', String(g.floor), '--candidate', 'mf-muster-armor-break', '--level', String(g.mid), '--risks', 'steady', '--only', 'base']);
     if (argv.includes('--parties')) for (const s of PARTIES) run(k + '-' + who + '-' + s.replace(/,/g, '-'), [...base, '--level', String(g.mid), '--styles', s, '--risks', 'steady', '--only', 'base']);
     if (argv.includes('--lineups')) for (const s of LINEUPS) run(k + '-' + who + '-' + s.replace(/,/g, '-'), [...base, '--level', String(g.mid), '--styles', s, '--risks', 'steady', '--only', 'base']);
   }

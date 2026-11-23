@@ -12,7 +12,7 @@
 //          envelope carries no `tower`, the Havora window has no Tower door, and hr_tower_start refuses feature_off: nothing shows and nothing opens
 //   TOW-2  the switch ON for everyone again (as the chain leaves it): the Tower window shows floor 1 as the only start, Enter opens a climb
 //          (the server's tower_runs row), and the hunt bar says the floor
-//   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, clears landing 10 and mints its Bronze
+//   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, clears landing 40 (the Bronze Key's generated first landing) and mints its Bronze
 //          Key (the mint's own ledger row); the hero leaves and the end card says the floors and the key, never "died"
 //   TOW-4  THE CHEST: the window shows the key the server minted with the server's chance; Use opens it on the server (a chest_opens row,
 //          the key gone from the bag, the Cinders paid) and the answer is drawn
@@ -88,10 +88,11 @@ try {
     && off.error === 'feature_off', JSON.stringify({ env0, shown0, off }));
   await closeWins();
 
-  /* THE HERO: a Level 25 with Level 25 combat skills (the throwaway local database only), so ten floors are a climb it can make */
-  await sql(`update public.player_state set level_xp = public.hr_char_xp_for_level(25), stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = 0`, [uid]);
+  /* THE HERO: a Level 40 with Level 40 combat skills (the throwaway local database only), so forty floors are a climb it can make (the Bronze Key's
+     first landing is generated: the floor whose Level reaches its weapons' item Level, 40; src/data/chests.js landingForLevel) */
+  await sql(`update public.player_state set level_xp = public.hr_char_xp_for_level(40), stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = 0`, [uid]);
   for (const sk of ['melee', 'ranged', 'magic', 'defense']) {
-    await sql(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, public.hr_skill_xp_for_level($2, 25))
+    await sql(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, public.hr_skill_xp_for_level($2, 40))
       on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, sk]);
   }
   // ── TOW-2 ── the switch back as the chain leaves it: on for everyone
@@ -124,7 +125,7 @@ try {
   const bar = await p.page.evaluate(() => { const e = document.querySelector('.ht-tower'); return e ? { hidden: e.hidden, text: e.textContent } : null; });
   const keyRow = await sql(`select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'tower_key_bronze'`, [uid]);
   const best = await sql('select best_floor, best_landing from public.tower_progress where user_id = $1', [uid]);
-  step('TOW-3 viewed: the server wrote landing 10 and minted its Bronze Key', landed.some((l) => l.landing === 10) && keyRow.length && Number(keyRow[0].qty) === 1,
+  step('TOW-3 viewed: the server wrote landing 40 and minted its Bronze Key', landed.some((l) => l.landing === 40) && keyRow.length && Number(keyRow[0].qty) === 1,
     JSON.stringify({ landed, keyRow, best }));
   step('TOW-3 the hunt bar said the floor while the climb ran', !bar || bar.hidden ? (await sql('select count(*)::int as n from public.hunt_sessions where user_id = $1 and ended_at is null', [uid]))[0].n === 0 : /^Floor \d+/.test(bar.text),
     JSON.stringify(bar));

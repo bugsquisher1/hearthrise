@@ -22,7 +22,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
-import { TOWER_RULES, TOWER_PARTY_XP, RUN_GROUNDS, validateTower, validateRunGrounds } from '../src/data/tower.js';
+import { TOWER_RULES, RUN_GROUNDS, validateTower, validateRunGrounds } from '../src/data/tower.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
 import { towerXpMax, towerLevelOf } from '../src/core/hunt/tower.js';
 
@@ -34,16 +34,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    2027-05-08-catacombs-tower-catalogue.generated.sql is carried whole by the next one: MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler:
    "raise HP and damage done by all monsters in the game slightly") moves the stat formula's HP line x1.1 (balance-sheet.js STAT_FORMULA), which a floor's
    rows are read from, so each floor's XP bound (hr_tower_floors) rises with its monsters' HP. The run grounds' rules don't move. */
-/* 1001-xp-a-kill-tower-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so each room's bound falls; 2027-06-05 is carried whole. */
-export const OUT_NAME = '1001-xp-a-kill-tower-catalogue.generated.sql';
+/* 1001-xp-a-kill-tower-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so each room's bound falls; 2027-06-05 is carried whole.
+   1063-tower-formula-tower-catalogue (lane/tower-boss-formula, 2026-11-22): the floors are formulas (src/data/tower.js), so the rooms run to the
+   scale's own top (floor_top derived) and room_size is the fewest monsters any room of the run holds (its `roomMin`: the kill proof). 1001 is
+   carried whole: every room's bound from 1 to 300 is unchanged (a floor's Level is its number, its best-paying role the boss's numbers). */
+export const OUT_NAME = '1063-tower-formula-tower-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. `runs` is the run table (the Tower's row is the one whose hunt is
     TOWER_RULES.hunt); the floors' bounds are read once, from the Tower's run, and every other run must read the same (one table serves all). */
-export function catalogueRows({ rules = TOWER_RULES, runs = RUN_GROUNDS, partyXp = TOWER_PARTY_XP, swingMs = COMBAT_BALANCE.tickMs, xpMax = towerXpMax } = {}) {
-  const problems = validateTower(rules, partyXp, swingMs).concat(validateRunGrounds(runs, []));
+export function catalogueRows({ rules = RUN_GROUNDS[TOWER_RULES.hunt], runs = RUN_GROUNDS, swingMs = COMBAT_BALANCE.tickMs, xpMax = towerXpMax } = {}) {
+  const problems = validateTower(rules, swingMs).concat(validateRunGrounds(runs, []));
   const list = Object.values(runs);
-  for (const r of list) for (const p of validateTower(r, partyXp, swingMs)) problems.push(r.hunt + ': ' + p);
+  for (const r of list) for (const p of validateTower(r, swingMs)) problems.push(r.hunt + ': ' + p);
   const tower = runs[rules.hunt];
   if (!tower) problems.push('the Tower has no run row');
   if (problems.length) throw new Error('gen-tower: ' + problems.join('; '));
@@ -52,7 +55,7 @@ export function catalogueRows({ rules = TOWER_RULES, runs = RUN_GROUNDS, partyXp
     const xp = xpMax(f, tower);
     if (!Number.isSafeInteger(xp) || xp < 1) problems.push(`floor ${f} pays ${xp}, not a whole XP of 1 or more`);
     else if (floors.length && xp < floors[floors.length - 1].xp) problems.push(`floor ${f} pays ${xp}, less than floor ${f - 1}'s ${floors[floors.length - 1].xp}`);
-    floors.push({ floor: f, level: Math.min(f, tower.floorTop), xp });
+    floors.push({ floor: f, level: towerLevelOf(f, tower), xp });
   }
   /* ONE BOUND TABLE FOR EVERY RUN: a run whose top or whose bound at any room differs from the Tower's needs a hunt_id on hr_tower_floors first */
   for (const r of list) {
@@ -71,32 +74,34 @@ const lit = (v) => (v === null || v === undefined ? 'null' : "'" + String(v).rep
 export function build(input) {
   const { rules: R, rows, floors } = catalogueRows(input);
   const values = floors.map((f) => `  (${f.floor}, ${f.level}, ${f.xp})`).join(',\n');
-  const ruleRows = rows.map((r) => `  (${r.isTower ? 'true' : 'null'}, ${lit(r.hunt)}, ${r.roomSize}, ${r.landingEvery}, ${r.floorLimitMs}, ${r.landingLimitMs}, ${r.stairMs}, ${r.floorTop}, ${r.minLevel}, ${lit(r.family)}, ${lit(r.wing)}, ${lit(r.name)}, ${lit(r.keeper)}, ${lit(r.board)}, ${lit(r.boardParty)})`).join(',\n');
-  const sum = rows.map((r) => [r.hunt, r.isTower ? 't' : '', r.roomSize, r.landingEvery, r.floorLimitMs, r.landingLimitMs, r.stairMs, r.floorTop, r.minLevel, r.family, r.wing || '', r.name, r.keeper || '', r.board, r.boardParty || ''].join(':')).join('|');
+  const ruleRows = rows.map((r) => `  (${r.isTower ? 'true' : 'null'}, ${lit(r.hunt)}, ${r.roomMin}, ${r.landingEvery}, ${r.floorLimitMs}, ${r.landingLimitMs}, ${r.stairMs}, ${r.floorTop}, ${r.minLevel}, ${lit(r.family)}, ${lit(r.wing)}, ${lit(r.name)}, ${lit(r.keeper)}, ${lit(r.board)}, ${lit(r.boardParty)})`).join(',\n');
+  const sum = rows.map((r) => [r.hunt, r.isTower ? 't' : '', r.roomMin, r.landingEvery, r.floorLimitMs, r.landingLimitMs, r.stairMs, r.floorTop, r.minLevel, r.family, r.wing || '', r.name, r.keeper || '', r.board, r.boardParty || ''].join(':')).join('|');
   const hunts = rows.map((r) => lit(r.hunt)).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- ${OUT_NAME} — THE RUN GROUNDS' RULES (THE BURNING TOWER AND THE UNMARKED CATACOMBS' WINGS) AND EACH ROOM'S BOUND.
 -- Generated by tools/gen-tower.mjs from src/data/tower.js (RUN_GROUNDS) and src/core/hunt/tower.js (the stat formula at each room's Level).
 --   Any hand edit FAILS \`node tools/gen-tower.mjs --check\`.
--- STATUS: STAGED, NOT APPLIED (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16: the Unmarked Catacombs' descent, its "OWN game
---   mode like the Burning Tower", a wing picked before the run). The Coordinator applies (tools/apply-migration.mjs, one file, never inside
---   begin/commit). A FORWARD FILE: it carries 2027-05-05-entry-gates-tower-catalogue.generated.sql whole (the Tower's row, min_level) and makes
---   hr_tower_rules ONE ROW A RUN GROUND. ORDER: after 2027-05-08-catacombs-session-modes-catalogue.generated.sql,
---   before 2027-05-08-catacombs.sql (which reads the wing rows). No function body, no player row.
+-- STATUS: STAGED, NOT APPLIED (lane/tower-boss-formula, systems-engineer, 2026-11-22: the Burning Tower's floors are formulas, the Danger scale
+--   with no top: docs/design/redesign/02-architecture.md packages 3 and 7). The Coordinator applies (tools/apply-migration.mjs, one file, never
+--   inside begin/commit). A FORWARD FILE: it carries 1001-xp-a-kill-tower-catalogue.generated.sql whole. What moves: hr_tower_floors runs to the
+--   scale's own top (the last landing whose Level and depth stay inside the Danger scale's step ceiling), and room_size is the fewest monsters
+--   any room of the run holds (a band's mix may stand 4 to 8), the settle's kill proof. Every bound from room 1 to 300 is 1001's. ORDER: before
+--   the edge deploy that carries the new engine (its four-monster rooms would fail the old room_size of 5). No function body, no player row.
+-- CARRIED (lane/c-catacombs, 2026-11-18): it makes hr_tower_rules ONE ROW A RUN GROUND, after 2027-05-05-entry-gates-tower-catalogue.generated.sql.
 -- THE TABLE, MADE GENERAL WITHOUT MOVING A LIVE BODY: the primary key moves from \`id\` to \`hunt_id\`; \`id\` stays as THE BURNING TOWER'S MARK
 --   (true on its row, null on every other: its unique constraint and its check keep it so), so every body that reads "the Tower's row" with
 --   \`where id\` (hr_tower_section, hr_tower_board_mode, hr_entry_gates_view, hr_tower_start's image) still reads the Tower and only the Tower,
 --   and the bodies that read a ground's row by hunt_id (hr_hunt_admit's one-door arm, the settle's floor_time proof) read every run ground's.
 --   Before 2027-05-08-catacombs.sql nothing opens a wing (its door is that file's, behind its switch, and hr_hunt_admit already answers
 --   \`tower_only\` for a run ground's hunt without its door's GUC), so this file alone moves no behaviour.
--- hr_tower_rules (${rows.length} rows): each run ground's hunt, a room's size, a landing's (a vault door's) spacing (a landing is a checkpoint:
+-- hr_tower_rules (${rows.length} rows): each run ground's hunt, the fewest monsters a room holds, a landing's (a vault door's) spacing (a landing is a checkpoint:
 --   hr_session_modes.checkpoint_every reads the same number), a room's and a landing's time, the stair, the highest room the formula is read
 --   at, the door's Level (min_level), and NEW: family (the key family its doors mint), wing (the descent's wing id, null on the Tower), name,
 --   keeper (a wing's fixed vault-door Keeper; null: the Tower picks one), board and board_party (the board ids its runs rank on, alone and in a
 --   party; null board_party: the same board).
--- hr_tower_floors (${floors.length} rows, room 1 to ${R.floorTop}): the room's Level and the most ONE kill in it can pay in Level XP before its session
---   mode's share and its party share (the formula's at that Level, the best-paying role): the settle's XP bound for every run (the generator
---   refuses a run whose bound differs from the Tower's).
+-- hr_tower_floors (${floors.length} rows, room 1 to ${R.floorTop}): the room's Level and the most XP ONE kill's row in it carries (the formula's at that Level,
+--   the best-paying role, the Keeper's included): the settle's per-kill bound for every run (the generator refuses a run whose bound differs
+--   from the Tower's). A kill's Level XP is the Level share (hr_tower_check adds hr_danger_level_xp_max, 1063-tower-formula.sql).
 -- Rewritten whole (no player row points at either: tower_runs and tower_progress name a hunt, never a row). RLS on, no policy, no client grant.
 -- ON THE EA SECURITY LIST with the Tower and the descent. REVERSIBLE: after 2027-05-08-catacombs.sql's reversal, delete the wing rows, move the
 --   key back to \`id\` and drop the six new columns (nothing else reads them).
@@ -221,13 +226,14 @@ function selftest() {
     console.log(`  ${hit ? 'CAUGHT' : 'MISSED'} ${name}`);
     if (!hit) bad++;
   };
-  const R = TOWER_RULES;
+  const R = RUN_GROUNDS[TOWER_RULES.hunt];
   bites('a stair shorter than two engine swings', 'under two engine swings', { rules: { ...R, stairMs: 2000 } });
   bites('a room of one', 'roomSize is not 2..8', { rules: { ...R, roomSize: 1 } });
-  bites('a top floor that is no landing', 'floorTop is not a landing', { rules: { ...R, floorTop: 305 } });
+  bites('a top floor that is no landing', 'floorTop is not a landing', { runs: { ...RUN_GROUNDS, [R.hunt]: { ...R, floorTop: 305 } } });
   bites('a landing with less time than a floor', 'less time than a floor', { rules: { ...R, landingLimitMs: 60000 } });
-  bites('a four earning more a head than a hero alone', 'more a head than a hero alone', { partyXp: { ...TOWER_PARTY_XP, 4: 4400 } });
-  bites('a party row that shares less as it grows', 'share no more than', { partyXp: { ...TOWER_PARTY_XP, 3: 1100 } });
+  bites('a Tower kill over the scale\'s ceiling a kill', 'pay.payPm is not', { rules: { ...R, pay: { ...R.pay, payPm: 1200 } } });
+  bites('a Tower reference rate under the scale\'s', 'pay.refKillsHead is not', { rules: { ...R, pay: { ...R.pay, refKillsHead: 60 } } });
+  bites('a mix of nine', 'size is not 2..8', { rules: { ...R, mixes: [{ ...R.mixes[0], size: 9 }] } });
   bites('a door with no Level', 'minLevel is not a whole number above 0', { rules: { ...R, minLevel: 0 } });
   bites('a door no hero could pass', 'minLevel is over 999', { rules: { ...R, minLevel: 1000 } });
   bites('a floor whose bound falls', 'less than floor', { xpMax: (f) => (f === 7 ? 1 : towerXpMax(f)) });
@@ -241,7 +247,7 @@ function selftest() {
   bites('a wing whose party board is its solo board', 'board and boardParty', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, boardParty: W.board } } });
   /* the rows are the data's: every floor once, its Level, the formula's bound */
   const { floors } = catalogueRows();
-  const ok = floors.length === R.floorTop && floors.every((f, i) => f.floor === i + 1 && f.level === towerLevelOf(f.floor) && f.xp === towerXpMax(f.floor));
+  const ok = floors.length === R.floorTop && floors.every((f, i) => f.floor === i + 1 && f.level === towerLevelOf(f.floor, R) && f.xp === towerXpMax(f.floor, R));
   console.log(`  ${ok ? 'CAUGHT' : 'MISSED'} the rows are floor 1 to the top, each at its own Level with the formula's bound`);
   if (!ok) bad++;
   if (bad) { console.error(`gen-tower --selftest: ${bad} refusal(s) did not bite`); process.exit(1); }

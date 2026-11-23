@@ -266,14 +266,6 @@ export const GEAR_ECONOMY = [
     flags: [flag('contradictory', 'Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build; the class table is live (patches/party-xp-by-size.json plays the ruling)', 'rulings-of-record S-10'),
       flag('redundant', 'Nine cells hand-fitted, three re-cut for one measured case each', '44 P-X08, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
-  L('party.run-xp', 'party', 'exception-intentional', 'Run ground party table', {
-    at: [at('src/data/tower.js', 'export const TOWER_PARTY_XP = ')],
-    def: 'the Tower and the Catacombs share a kill by size only: 1000 / 1100 / 1200 / 1300, no solo boost',
-    range: 'permille; a head never earns more than a hero alone (validateTower)',
-    touches: 'run ground pace', out: [], f: ['P22'],
-    perturb: NP('not-in-runs'),
-    flags: [flag('contradictory', 'Its pair and three rows are ASSUMED', '44 P-X09, CONFIRMED')],
-    ev: 'CONFIRMED (read)' }),
   L('party.under-floor', 'party', 'exception-intentional', 'Under-floor Level share', {
     at: [at('src/data/hunt-tuning.js', 'partyShareRangePm: 667')],
     def: 'a seat under the ground\'s floor AND under 66.7% of the party\'s top Level keeps (Level / (top x 0.667))^2 of its share',

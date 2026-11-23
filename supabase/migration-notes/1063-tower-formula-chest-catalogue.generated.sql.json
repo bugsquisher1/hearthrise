@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/tower-boss-formula, systems-engineer, 2026-11-22). Rewrites the Hearth chest's catalogue (tools/gen-chests.mjs from src/data/chests.js): a Tower key's first landing is generated (the landing whose floor Level reaches its weapons' item Level: Bronze 40, Silver 80, Gold 120, Platinum 140; the Catacomb keys copy their metal) and its weapon chance halves a metal (160 / 80 / 40 / 20 permille; Gold was 45). Touches what a key finds (a drop table), so it is on the pre-EA Security list. ORDER: any time after 1063, before the edge deploy."
+}

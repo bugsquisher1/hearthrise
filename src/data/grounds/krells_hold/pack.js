@@ -301,6 +301,8 @@ export default definePack({
          body and helm in three weights. Each row sits under the 5% row ceiling.
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
       lord_krell: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', boss: true,
+        /* A HALL'S BOSS (src/data/bosses.js BOSS_KINDS.hall): his ramp is the hall's (lane/tower-boss-formula) */
+        bossKind: 'hall',
         /* CHALLENGE IS THE PLAYER'S CALL (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance).
            At the x1.8 / 0.9x fit an untouched bar without Challenge won 0% at 85, so the fight was re-fitted until both are fair (his row below). */
         elements: { ember: 25, poison: -15 },

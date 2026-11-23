@@ -734,8 +734,8 @@
     "progression"
    ],
    "owner": null,
-   "what": "Run ground party table: permille of a kill shared in the Tower and the Catacombs, by size only",
-   "where": "src/data/tower.js:60",
+   "what": "Run ground pay: a Tower kill pays each hero the Level share at the floor's gap (the one pay rule) x payPm and the room's share, split evenly",
+   "where": "src/core/hunt/tower.js#towerShareXp",
    "state": "live"
   },
   {
@@ -3703,6 +3703,14 @@
   {
    "from": "P22",
    "to": "C-RUN-ROOM"
+  },
+  {
+   "from": "P01",
+   "to": "P22"
+  },
+  {
+   "from": "C-SCALED",
+   "to": "P22"
   },
   {
    "from": "P03",

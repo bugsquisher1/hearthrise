@@ -88,7 +88,7 @@ begin
   if not exists (select 1 from public.hr_hunt_world_shape w where w.id and w.fields->'world' ? 'lowHero' and w.fields->'world' ? 'lowBy') then
     raise exception 'PRECONDITION: apply 1054-danger-scale-hunt-sessions-catalogue.generated.sql as R2 regenerated it (the world''s lowHero / lowBy)'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_report_ok(jsonb)', 'a735dfe0e7d1cc0431ae6acef76d6848', 'eb6ef8137b56fc6acdb8d486c78b2746'),
+    ('public.hr_hunt_report_ok(jsonb)', 'a735dfe0e7d1cc0431ae6acef76d6848', 'b911a0ddf2a7dde3819efba30aa86b3d'),
     ('public.hr_hunt_report_add(jsonb,jsonb)', '48ed840a0601e1a005eeccf866c2035c', 'ac10b01bb463d158d5ab755633ec318a'),
     ('public.hr_hunt_view(uuid)', 'cd3f12fac63713be3c9d853b40106784', '32668b16635573452a939532e2c9ec9f'),
     ('public.hr_hunt_analyzer_basic(jsonb)', '039309e15bfe6d18c2314216f7075b26', '8d5fe398a14f4b44e0133e477b1ff2a4'),
@@ -104,7 +104,7 @@ end $mig$;
 -- ── §1 THE SHAPE: hr_hunt_report_ok RESTATED WHOLE (1053's, + `deep` and `falls`; now STABLE) ─────────────────────────────────────────
 create or replace function public.hr_hunt_report_ok(p jsonb)
 returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare v_k text; v_v jsonb; v_e jsonb; v_smax int; v_fmax int; v_max int;
+declare v_k text; v_v jsonb; v_e jsonb; v_smax int; v_fmax int; v_max int; v_cap int; v_key text;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return false; end if;
   -- DANGER-FALLS (1057-danger-falls.sql): the scale's bounds, read only when the report carries its keys (a tier hunt's never does); the
@@ -166,8 +166,11 @@ begin
         -- THE LEDGER (19-power-ledger L7, folded in while staged): the company's healing by source { id: n } (at most 16) and damage taken by
         -- seat { one digit: n } (at most 10), whole numbers of at most 12 digits
         if jsonb_typeof(v_v) <> 'object' then return false; end if;
-        if (select count(*) from jsonb_object_keys(v_v)) > case when v_k = 'heal' then 16 else 10 end
-           or exists (select 1 from jsonb_each(v_v) h where h.key !~ case when v_k = 'heal' then '^[a-z0-9_]{1,64}$' else '^[0-9]$' end
+        -- (the cap and the key pattern set first: a SQL CASE inside an IF would end the condition at its own THEN)
+        v_cap := 10; v_key := '^[0-9]$';
+        if v_k = 'heal' then v_cap := 16; v_key := '^[a-z0-9_]{1,64}$'; end if;
+        if (select count(*) from jsonb_object_keys(v_v)) > v_cap
+           or exists (select 1 from jsonb_each(v_v) h where h.key !~ v_key
                         or jsonb_typeof(h.value) <> 'number' or (h.value #>> '{}') !~ '^[0-9]{1,12}$') then return false; end if;
       when 'sup' then
         -- THE LEDGER: the hero's store bill and time by step bucket { step: [gold, ms] } (at most 32, each a step of the scale)
@@ -566,7 +569,7 @@ begin
                  'monster', repeat('z', 64))) from generate_series(1, v_max) f),
       -- THE LEDGER at its widest (each window new sources and buckets: the fold keeps the first 16 and 32)
       'heal', (select jsonb_object_agg(lpad(i::text || h::text, 64, 'h'), 999999999999) from generate_series(1, 16) h),
-      'took', (select jsonb_object_agg(k::text, 999999999999) from generate_series(0, 9) k),
+      'took', (select jsonb_object_agg(st::text, 999999999999) from generate_series(0, 9) st),
       'sup', (select jsonb_object_agg((v_smax - i * 100 - b)::text, jsonb_build_array(999999999999, 999999999999)) from generate_series(1, 32) b))
       from generate_series(1, 32) g);
     if not public.hr_hunt_report_ok(v_bad) then raise exception 'VERIFY(c): the widest good window was refused'; end if;

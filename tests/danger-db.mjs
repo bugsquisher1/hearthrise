@@ -192,8 +192,7 @@ const MUTANTS = [
   /* THE LEDGER (19-power-ledger L7) */
   { name: 'the fold forgets the supplies', fn: 'public.hr_hunt_report_add(jsonb,jsonb)', find: "'heal', v_heal, 'took', v_took, 'sup', v_sup));", repl: "'heal', v_heal, 'took', v_took));", want: /^DZ-6/, falls: true },
   { name: 'the section names no seat', fn: 'public.hr_hunt_view(uuid)', find: "jsonb_build_object('seats', (", repl: "jsonb_build_object('seatz', (", want: /^DZ-6/, falls: true },
-  { name: 'the shape refuses the healing', fn: 'public.hr_hunt_report_ok(jsonb)', find: "      when 'heal', 'took' then", repl: "      when 'heal', 'took' then
-        return false;", want: /^(DZ-6|THREW)/, falls: true },
+  { name: 'the shape refuses the healing', fn: 'public.hr_hunt_report_ok(jsonb)', find: "      when 'heal', 'took' then", repl: "      when 'heal', 'took' then\n        return false;", want: /^(DZ-6|THREW)/, falls: true },
   { name: 'the section names nobody', fn: 'public.hr_hunt_view(uuid)', find: 'select public.hr_character_name(o.user_id, o.slot) from public.hunt_sessions o\n                                           where o.instance_id = s.instance_id and o.seat', repl: 'select null::text from public.hunt_sessions o\n                                           where o.instance_id = s.instance_id and o.seat', want: /^DZ-6/, falls: true },
 ];
 

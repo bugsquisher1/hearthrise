@@ -48,6 +48,7 @@
 // ============================================================
 
 import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js';
+import { supplyOn } from './amount.js';
 import { slotsFor, pickSlot } from './conditions.js';
 import { resolveLine, takeLine, lineAmount } from '../action-rules.js';
 import { makeEvent } from './events.js';
@@ -101,10 +102,11 @@ function tickOverTime(u, sc) {
 
 /* Use one line: pay for it, land the instant half, queue the rest. `d` is the
    decision (its rule id and the conditions that passed). */
-function use(u, hero, kind, line, sc, d) {
+function use(inst, u, hero, kind, line, sc, d) {
   if (!takeLine(hero.hs, line, sc.atMs)) return false;
   const stat = CONSUMABLE_KINDS[kind].stat;
-  const amount = lineAmount(hero.hs, line);
+  /* ON THE SCALE a food's or a drink's restore is its share of the ground's reference, read at the eater's Level (src/core/hunt/amount.js supplyOn) */
+  const amount = supplyOn(inst, u, stat, lineAmount(hero.hs, line));
   const now = Math.floor((amount * R.instantPct) / 100);
   const landed = raise(u, stat, now);
   const later = amount - now;
@@ -185,7 +187,7 @@ export function consume(inst, sc) {
       if (w.line) return w;
       return { why: 'no_stock' };
     }, sc, 'consume');
-    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);
+    if (got) use(inst, u, hero, got.pick.kind, got.pick.line, sc, got);
     /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal), but only
        when NO slot could feed the hero instead: a later slot in the player's order (a
        cheaper store food, an own stack) still eats. A DRINK it cannot buy only goes

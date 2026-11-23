@@ -30,6 +30,8 @@ import { ABILITIES, abilitySkill } from '../data/abilities.js';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js';
 import { LANE_OF } from './hunt/conditions.js';
 import { gearPartPm } from './hunt/danger.js';
+import { defenseGearPm } from './hunt/amount.js';
+import { AMOUNT } from '../data/amount.js';
 import { skillLevelPm } from './bands.js';
 import { blowsPmOf, armorPmOf } from './temper.js';
 import { resistProfile } from './elements.js';
@@ -142,9 +144,18 @@ export function heroSnapshot(state, c) {
   const level = charLevelFromXp(state.levelXp);
   const skillLv = skillLevelPm((c.profile || DEFAULT_PROFILE).damageSkill, levelsOf(state.skills)[(c.profile || DEFAULT_PROFILE).damageSkill]);
   const skillGapPm = skillLv === null ? 0 : skillLv - 1000 * level;
+  /* THE AMOUNT PIPELINE'S READS (src/core/hunt/amount.js, on the Danger scale only; lane/stage3-pipeline): the gear part split into the
+     armor and ward ratings by weight, the weapon's top share of a reference health (data/amount.js blowTopBp), the crit chance and a
+     damage food's bonus, each turned into conditional steps there. Every hero carries them; off the scale nothing reads them. */
+  const dg = defenseGearPm(c.equipment, c.items);
+  const wt = (c.eq && c.eq.weaponType) || 'neutral';
+  const blowBp = Object.prototype.hasOwnProperty.call(AMOUNT.blowTopBp, wt) ? AMOUNT.blowTopBp[wt] : AMOUNT.blowTopBp.neutral;
+  const critPm = Math.round((Number(roll.critChance) || 0) * 1000);
+  const buffDmgPm = Math.round((Number(typeof c.bonus === 'function' ? c.bonus('damage') : 0) || 0) * 1000);
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level,
     gearPm,
     skillGapPm,
+    armorGearPm: dg.armorPm, wardPm: dg.wardPm, blowBp, critPm, buffDmgPm,
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
     ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
@@ -519,6 +530,8 @@ export function frozenOf(side, kinds, atMs, monsters) {
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
     snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), gearPm: snap.gearPm || 0,
       skillGapPm: snap.skillGapPm || 0,
+      armorGearPm: snap.armorGearPm || 0, wardPm: snap.wardPm || 0, blowBp: snap.blowBp || 0, critPm: snap.critPm || 0,
+      buffDmgPm: snap.buffDmgPm || 0,
       acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }

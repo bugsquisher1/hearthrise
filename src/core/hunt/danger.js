@@ -26,13 +26,11 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
 
-import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } from '../../data/danger.js';
+import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, GEAR_STEPS, HOLDER } from '../../data/danger.js';
 import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
 import { levelHoursOf } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
-import { ledgerSteps } from '../power-ledger.js';
-import { auraRowsOn } from './auras.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -138,14 +136,14 @@ function depthRatio(ground, step, rate) {
 /* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js POWER, the gear table src/data/gear-steps.js through it) ── */
 /* A piece's item Level: its row's `iL` (every scale ground's drop carries its ground's: src/data/danger.js scaleItemLevels); a piece no
    scale ground drops has none, and its `reqLv` stands in. */
-const itemLevelOf = (it) => {
+export const itemLevelOf = (it) => {
   const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : it.reqLv)));
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 /**
  * A HERO'S GEAR PART, in thousandths of a step (member.js heroSnapshot, from the server's gear and the catalogue): each worn piece's item
  * Level x its slot's weight (GEAR_STEPS.slotPm; a two-handed weapon also carries GEAR_STEPS.twoHand's other slots). A whole kit at item
- * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (powerPm).
+ * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (amount.js ratings).
  */
 export function gearPartPm(equipment, items) {
   const eq = equipment || {}, W = GEAR_STEPS.slotPm;
@@ -161,57 +159,8 @@ export function gearPartPm(equipment, items) {
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
-/* A gear part's power steps against the ground's base item Level at weightGear (under the base at weightGearBelow, one-sided: lane/econ-levers):
-   whole steps, held inside the scale (a safe float). */
-function gearSteps(partPm, row) {
-  if (!row || !Number.isInteger(row.gearLevel) || !Number.isInteger(partPm)) return 0;
-  const gap = partPm - 1000 * row.gearLevel;
-  const s = Math.round((gap * (gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)) / (1000 * 1000));
-  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
-}
-/* THE SKILL PART'S POWER STEPS (lane/foundations-block; src/data/danger.js POWER.weightSkillPm, src/data/bands.js): the hero's skill Level
-   over its own Level (member.js heroSnapshot skillGapPm, thousandths of a Level: 0 on its career line) at weightSkill, whole steps, held
-   inside the scale. Both ratings, like the gear part (one number a hero, 04 section 1: "the skill for the style in use"). */
-function skillSteps(gapPm) {
-  if (!Number.isInteger(gapPm) || gapPm === 0) return 0;
-  const s = Math.round((gapPm * POWER.weightSkillPm) / (1000 * 1000));
-  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
-}
-/* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */
-const RATIO = new Map();
-function stepRatio(steps) {
-  let r = RATIO.get(steps);
-  if (r === undefined) {
-    r = steps >= 0 ? powStep(1 + DANGER.powerStep, steps) : 1 / powStep(1 + DANGER.powerStep, -steps);
-    if (RATIO.size < 4096) RATIO.set(steps, r);
-  }
-  return r;
-}
-
-/**
- * THE POWER STEP ON A BLOW (damage.js hurt, after the armor chain; the shield's share is still to come): on the scale, a hero's blow at a
- * monster grows by its gear's steps over the ground's base item Level, and a blow at a hero shrinks by the same (the unit's `gearPm`,
- * member.js heroSnapshot). Answers the permille the blow moves by (temper.js temperedAmount, the part of a point one draw): `pm` as given
- * off the scale, at the ground's base, or for any other pair (a heal is never here). `pm` is the move the blow already carries (Tempering),
- * folded in so the blow draws once.
- */
-export function powerPm(inst, source, target, pm) {
-  const base = Number.isFinite(pm) ? pm : 0;
-  if (!inst || !dangerOn(inst.world)) return base;
-  const row = groundRow(inst.ground);
-  /* the gear base, plus the conditional steps that hold now, each slice held to its cap (src/core/power-ledger.js: 0 until a source writes) */
-  let steps = 0;
-  if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
-  else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
-  /* the skill part (lane/foundations-block): the skill of the style in use off its career line, both ratings */
-  if (isHero(source) && isMonster(target)) steps += skillSteps(source.skillGapPm);
-  else if (isMonster(source) && isHero(target)) steps -= skillSteps(target.skillGapPm);
-  /* (and the party's auras on the hero, src/core/hunt/auras.js: ledger rows by the party-row rule) */
-  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense', auraRowsOn(inst, source)));
-  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense', auraRowsOn(inst, target)));
-  if (!steps) return base;
-  return Math.round((1000 + base) * stepRatio(steps)) - 1000;
-}
+/* THE POWER STEP ON A BLOW lives in the amount pipeline now (src/core/hunt/amount.js, lane/stage3-pipeline, 27 D-1 to D-8): the gear part,
+   the skill part and the ledger are the hero's ratings in the one step contest, no longer a patch after the old chain. */
 
 /* THE HOURS A LEVEL TAKES (lane/formula-overhaul, 2026-11-22): the formula of src/data/core-model.js LEVEL_HOURS, ceiling x L^2 /
    ((L + half) x (L + early)), whole levers, multiplications and one division: the browser and the edge agree to the bit, and the server's

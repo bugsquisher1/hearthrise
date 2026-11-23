@@ -126,6 +126,9 @@ const ROWS = [
   ['4 tank+healer+bow+axes', { party: ['tank', 'healer', 'bow', 'axes'], door: true }],
   /* the card's weakest four on the hand rows' floor read (tests/boss-hall-advice.mjs HA-WIN plays every pair of the eight kinds) */
   ['4 tank+healer+bow+bow', { party: ['tank', 'healer', 'bow', 'bow'], door: true }],
+  ['4 tank+healer+hammer+hammer', { party: ['tank', 'healer', 'hammer', 'hammer'], door: true }],
+  ['4 tank+healer+sword+axes', { party: ['tank', 'healer', 'sword', 'axes'], door: true }],
+  ['4 tank+healer+tank+tank', { party: ['tank', 'healer', 'tank', 'tank'], door: true }],
   ['4 one gear tier under',{ party: ['tank', 'healer', 'hammer', 'mage'], door: true, under: true }],
   ['4 untouched bar', { party: ['tank', 'healer', 'hammer', 'mage'] }],
   ['4 four dps, no tank or healer', { party: ['hammer', 'axes', 'bow', 'mage'], door: true }],

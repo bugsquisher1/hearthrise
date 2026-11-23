@@ -67,10 +67,12 @@ const CASES = {
   },
   kinds(M) {
     const elite = M.BS.MONSTER_ROLES.elite;
-    if (M.BS.MONSTER_ROLES.boss.hit !== elite.hit) return 'the ground boss\'s to-hit moved (' + M.BS.MONSTER_ROLES.boss.hit + ', the elite\'s ' + elite.hit + ')';
+    const gb = M.BS.MONSTER_ROLES.boss;
+    if (gb.hit !== elite.hit || gb.def !== elite.def || gb.evasion !== elite.evasion) return 'the ground boss\'s to-hit, defense or evasion moved (' + [gb.hit, gb.def, gb.evasion] + ', the elite\'s ' + [elite.hit, elite.def, elite.evasion] + ')';
     for (const [id, k] of Object.entries(M.bosses.BOSS_KINDS)) {
       const r = M.bosses.bossRole(elite, id);
       if (Math.abs(r.hit - (elite.hit + k.hitPm / 1000)) > 1e-9) return 'kind ' + id + ' to-hit reads ' + r.hit + ', not the elite\'s plus its hitPm';
+      if (Math.abs(r.def - (elite.def * k.defensePm) / 1000) > 1e-9 || Math.abs(r.evasion - (elite.evasion * k.defensePm) / 1000) > 1e-9) return 'kind ' + id + ' defense ' + r.def + ' / evasion ' + r.evasion + ', not the elite\'s x its defensePm';
     }
     return M.bosses.validateBosses().join('; ') || null;
   },
@@ -108,7 +110,8 @@ const MUTANTS = [
   { name: 'the hall reads the ground boss kind', case: 'derive', edits: [['src/core/hunt/hall-formula.js', "role: 'kind:' + kind,", "role: 'kind:ground',"]] },
   { name: 'the formula ignores the room\'s groupFit', case: 'derive', edits: [['src/core/hunt/hall-formula.js', "fit: r.ground.groupFit || 'party',", "fit: 'both',"]] },
   { name: 'a plain add is derived', case: 'derive', edits: [['src/core/hunt/hall-formula.js', 'const kind = bossKindOf(row);', "const kind = bossKindOf(row) || 'add';"]] },
-  { name: 'the to-hit lever is dropped', case: 'kinds', edits: [['src/data/bosses.js', 'hit: (base.hit || 0) + k.hitPm / 1000 };', 'hit: base.hit };']] },
+  { name: 'the to-hit lever is dropped', case: 'kinds', edits: [['src/data/bosses.js', 'hit: (base.hit || 0) + k.hitPm / 1000,', 'hit: base.hit,']] },
+  { name: 'the defense lever is dropped', case: 'kinds', edits: [['src/data/bosses.js', 'def: (base.def * k.defensePm) / 1000,', 'def: base.def,']] },
 ];
 
 const R = makeReport('hunt-core/hall-formula');

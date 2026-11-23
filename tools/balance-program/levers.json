@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "cf38f44d9bbb3c95",
+ "authored": "a7f525bd30692c21",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 713,
-  "typed": 16024,
+  "typed": 16028,
   "files": 247,
   "lever": 306,
   "notLever": 407,
@@ -6409,13 +6409,13 @@
    "sites": [
     {
      "file": "src/data/bosses.js",
-     "line": 35,
+     "line": 42,
      "text": "export const BOSS_KINDS = Object.freeze({",
      "binding": "BOSS_KINDS"
     }
    ],
-   "definition": "a boss is its base stat role (the elite) x its encounter's row: ground and keeper HP x3.125, blow x1.1, the elite's to-hit, a blow held to 33% of the floor hero; hall (a keyed hall's boss on its switch, src/core/hunt/hall-formula.js) HP x38, blow x2.75, to-hit +0.45, held to 65%; add (a hall's named add) HP x1, blow x2, to-hit +0.45, held to 40%; XP x1.043 of the elite for every kind; and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)",
-   "range": "ppm 100000..50000000 on HP, blow and XP; hitPm -500..600; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)",
+   "definition": "a boss is its base stat role (the elite) x its encounter's row: ground and keeper HP x3.125, blow x1.1, the elite's to-hit, a blow held to 33% of the floor hero; hall (a keyed hall's boss on its switch, src/core/hunt/hall-formula.js) HP x22, blow x2.7, to-hit +0.45, defense and evasion x2.3, held to 65%; add (a hall's named add) HP x1, blow x2, to-hit +0.45, defense and evasion x2, held to 40%; XP x1.043 of the elite for every kind; and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)",
+   "range": "ppm 100000..50000000 on HP, blow and XP; hitPm -500..600; defensePm 250..5000; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)",
    "touches": "every boss fight and the Tower's landings",
    "outcomes": [
     "dps",
@@ -17409,6 +17409,7 @@
    "pin": "count",
    "keys": [
     "blowPpm",
+    "defensePm",
     "floorCapPm",
     "hitPm",
     "hpPpm",
@@ -17416,7 +17417,7 @@
     "rampPm",
     "xpPpm"
    ],
-   "typed": 23,
+   "typed": 25,
    "bindings": 1
   },
   "src/data/boss-halls.js#BOSS_HALL_RULES": {

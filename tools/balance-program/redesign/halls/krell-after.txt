@@ -1,32 +1,44 @@
 krells_hold (krells_hold_hall), switch ON, 40 seeds a cell
-  lord_krell L110 HP 30180 atk 258 aim 290 eva 60 def 35
-  hall_hask L100 HP 724 atk 173 aim 280 eva 59 def 32
+  lord_krell L110 HP 17472 atk 253 aim 290 eva 139 def 81
+  hall_hask L100 HP 724 atk 173 aim 280 eva 117 def 64
   hall_grave_guard L92 HP 182 atk 78 aim 269 eva 64 def 58
 Level  win%  kill(s)  deaths/try  timeouts  party
-   85     0        -         0.9         4  1 tank
+   85     0        -        0.88         5  1 tank
    85     0        -           0        40  2 tank+healer
-   85     0        -           1         0  3 tank+healer+hammer
-   85    43      430        0.58         0  4 tank+healer+hammer+mage
-   85    18      424        0.83         0  4 tank+healer+bow+axes
-   85     0        -           1         0  4 one gear tier under
+   85    15      522        0.85         0  3 tank+healer+hammer
+   85    93      320        0.08         0  4 tank+healer+hammer+mage
+   85    63      328        0.38         0  4 tank+healer+bow+axes
+   85    50      322         0.5         0  4 tank+healer+bow+bow
+   85    40      370         0.6         0  4 tank+healer+hammer+hammer
+   85    53      410        0.48         0  4 tank+healer+sword+axes
+   85     5      520        0.95         0  4 tank+healer+tank+tank
+   85    25      380        0.75         0  4 one gear tier under
    85     0        -        1.05         0  4 untouched bar
    85     0        -           1         0  4 four dps, no tank or healer
-   85     0        -         0.2        32  3 tank+two healers
-   98     0        -        0.38        25  1 tank
-   98     0        -           0        40  2 tank+healer
-   98    23      592         0.6         7  3 tank+healer+hammer
-   98    93      398        0.08         0  4 tank+healer+hammer+mage
-   98    88      394        0.13         0  4 tank+healer+bow+axes
-   98    33      452        0.68         0  4 one gear tier under
-   98     0        -        1.03         0  4 untouched bar
+   85    28      588        0.38        14  3 tank+two healers
+   98     0        -         0.3        28  1 tank
+   98     0        -        0.05        38  2 tank+healer
+   98    70      464         0.3         0  3 tank+healer+hammer
+   98   100      288           0         0  4 tank+healer+hammer+mage
+   98    93      296        0.08         0  4 tank+healer+bow+axes
+   98    95      282        0.05         0  4 tank+healer+bow+bow
+   98    88      336        0.13         0  4 tank+healer+hammer+hammer
+   98    85      370        0.15         0  4 tank+healer+sword+axes
+   98    80      444         0.2         0  4 tank+healer+tank+tank
+   98    73      340        0.28         0  4 one gear tier under
+   98     5      290        0.98         0  4 untouched bar
    98     0        -           1         0  4 four dps, no tank or healer
-   98     0        -           0        40  3 tank+two healers
-  110     0        -        0.18        33  1 tank
-  110     0        -           0        40  2 tank+healer
-  110    60      560         0.4         0  3 tank+healer+hammer
-  110   100      372           0         0  4 tank+healer+hammer+mage
-  110    98      364        0.03         0  4 tank+healer+bow+axes
-  110    70      424         0.3         0  4 one gear tier under
-  110     0        -        1.03         0  4 untouched bar
+   98   100      524           0         0  3 tank+two healers
+  110     0        -        0.08        37  1 tank
+  110     0        -        0.38        25  2 tank+healer
+  110    90      422         0.1         0  3 tank+healer+hammer
+  110   100      268           0         0  4 tank+healer+hammer+mage
+  110   100      266           0         0  4 tank+healer+bow+axes
+  110   100      256           0         0  4 tank+healer+bow+bow
+  110    98      310        0.03         0  4 tank+healer+hammer+hammer
+  110    98      328        0.03         0  4 tank+healer+sword+axes
+  110   100      402           0         0  4 tank+healer+tank+tank
+  110    95      310        0.05         0  4 one gear tier under
+  110    18      260        0.83         0  4 untouched bar
   110     0        -           1         0  4 four dps, no tank or healer
-  110     0        -           0        40  3 tank+two healers
+  110   100      484           0         0  3 tank+two healers

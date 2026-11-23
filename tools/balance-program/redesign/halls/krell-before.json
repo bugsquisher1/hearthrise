@@ -51,6 +51,56 @@
   },
   {
    "level": 85,
+   "label": "4 tank+healer+bow+axes",
+   "seeds": 40,
+   "win": 73,
+   "killS": 336,
+   "deathsPerTry": 0.28,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 tank+healer+bow+bow",
+   "seeds": 40,
+   "win": 43,
+   "killS": 328,
+   "deathsPerTry": 0.6,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 tank+healer+hammer+hammer",
+   "seeds": 40,
+   "win": 63,
+   "killS": 382,
+   "deathsPerTry": 0.38,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 tank+healer+sword+axes",
+   "seeds": 40,
+   "win": 55,
+   "killS": 414,
+   "deathsPerTry": 0.45,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 tank+healer+tank+tank",
+   "seeds": 40,
+   "win": 30,
+   "killS": 512,
+   "deathsPerTry": 0.7,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
    "label": "4 one gear tier under",
    "seeds": 40,
    "win": 20,
@@ -131,6 +181,56 @@
   },
   {
    "level": 98,
+   "label": "4 tank+healer+bow+axes",
+   "seeds": 40,
+   "win": 98,
+   "killS": 302,
+   "deathsPerTry": 0.03,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 tank+healer+bow+bow",
+   "seeds": 40,
+   "win": 93,
+   "killS": 286,
+   "deathsPerTry": 0.08,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 tank+healer+hammer+hammer",
+   "seeds": 40,
+   "win": 93,
+   "killS": 348,
+   "deathsPerTry": 0.08,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 tank+healer+sword+axes",
+   "seeds": 40,
+   "win": 75,
+   "killS": 374,
+   "deathsPerTry": 0.25,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 tank+healer+tank+tank",
+   "seeds": 40,
+   "win": 80,
+   "killS": 454,
+   "deathsPerTry": 0.2,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
    "label": "4 one gear tier under",
    "seeds": 40,
    "win": 88,
@@ -206,6 +306,56 @@
    "win": 100,
    "killS": 274,
    "deathsPerTry": 0,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+bow+axes",
+   "seeds": 40,
+   "win": 100,
+   "killS": 268,
+   "deathsPerTry": 0,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+bow+bow",
+   "seeds": 40,
+   "win": 100,
+   "killS": 260,
+   "deathsPerTry": 0,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+hammer+hammer",
+   "seeds": 40,
+   "win": 100,
+   "killS": 310,
+   "deathsPerTry": 0,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+sword+axes",
+   "seeds": 40,
+   "win": 90,
+   "killS": 332,
+   "deathsPerTry": 0.1,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+tank+tank",
+   "seeds": 40,
+   "win": 98,
+   "killS": 408,
+   "deathsPerTry": 0.03,
    "timeouts": 0,
    "other": 0
   },

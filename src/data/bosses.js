@@ -15,6 +15,8 @@
 //   hpPpm       its HP, parts per million of that role's at its Level (ppm, so today's boss row is exactly an elite times a row)
 //   blowPpm     its blow, ppm of that role's
 //   xpPpm       its kill's XP, ppm of that role's
+//   hitPm       its to-hit, permille ADDED to its role's (the share of its swings that land on the reference hero of its Level); 0 keeps it
+//   defensePm   its defense and evasion, permille OF its role's: how hard it is to hit and to hurt, so a hero's gear tier is felt
 //   floorCapPm  its largest blow, held to this share (permille) of the base HP of a hero at its ground's FLOOR Level, however deep it
 //               lives (designer 2026-10-21: a boss may take at most about a third of the floor hero in one blow; null: no cap)
 //   rampPm      THE RAMP: its blow x(1 + rampPm/1000) for every minute of fight, from its first swing at a hero
@@ -24,19 +26,24 @@
 //   ground  a hunting ground's boss (Captain Hask): today's `boss` stat role, read as the elite x this row (5 / 1.6 HP, 1.1 blow, 1.2 /
 //           1.15 XP: the same numbers, now one row). A slow ramp: a ground boss is met inside a hunt, beaten in about a minute
 //   hall    a keyed hall's boss (Lord Krell, the hall's party fit): the bar check. The ramp is the hall's clock: a party that cannot keep
-//           up its damage meets a boss that hits harder every minute, and one that only stacks damage meets his pressure
+//           up its damage meets a boss that hits harder every minute, and one that only stacks damage meets his pressure.
+//           FITTED (lane/hall-formula, 2026-11-23) as the bar check behind a hall's switch (src/core/hunt/hall-formula.js), at the band's
+//           FLOOR, the Level a key holder first walks in and the Level the hall card speaks for: x22 HP, x2.7 blow, to-hit +0.45, defense
+//           and evasion x2.3, a blow held to 65% of the floor hero (tools/balance-program/redesign/halls/hall-bench.mjs, krell-after.txt).
+//           Its ramp is read with the switch off too, so it stays the starting 60 a minute to x1.6
 //   keeper  a run ground's door warden (the Burning Tower's landing Keeper, a Catacomb vault door): a short fight inside a climb
-//   add     a named add (Captain Hask standing up for Lord Krell): a boss with his own kit inside another boss's fight, no ramp of his own
+//   add     a named add (Captain Hask standing up for Lord Krell): a boss with his own kit inside another boss's fight, no ramp of his own.
+//           Fitted with the hall: an elite's HP (he is a question inside the fight, not a second wall), x2 blow, to-hit +0.45, x2 defense
 // tests/boss-formula.mjs holds every row to these rules and every boss row of the catalogue to a kind.
 //
 // PURE ESM DATA. Imports nothing. Node, Deno and the browser.
 // ════════════════════════════════════════════════════════════════════════
 
 export const BOSS_KINDS = Object.freeze({
-  ground: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, hitPm: 0, floorCapPm: 330, rampPm: 40, rampCapPm: 1400 }),
-  hall: Object.freeze({ role: 'elite', hpPpm: 20000000, blowPpm: 2800000, xpPpm: 1043478, hitPm: 450, floorCapPm: 650, rampPm: 60, rampCapPm: 1600 }),
-  keeper: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, hitPm: 0, floorCapPm: 330, rampPm: 100, rampCapPm: 1800 }),
-  add: Object.freeze({ role: 'elite', hpPpm: 1000000, blowPpm: 2000000, xpPpm: 1043478, hitPm: 450, floorCapPm: 400, rampPm: 0, rampCapPm: 1000 }),
+  ground: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, hitPm: 0, defensePm: 1000, floorCapPm: 330, rampPm: 40, rampCapPm: 1400 }),
+  hall: Object.freeze({ role: 'elite', hpPpm: 22000000, blowPpm: 2700000, xpPpm: 1043478, hitPm: 450, defensePm: 2300, floorCapPm: 650, rampPm: 60, rampCapPm: 1600 }),
+  keeper: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, hitPm: 0, defensePm: 1000, floorCapPm: 330, rampPm: 100, rampCapPm: 1800 }),
+  add: Object.freeze({ role: 'elite', hpPpm: 1000000, blowPpm: 2000000, xpPpm: 1043478, hitPm: 450, defensePm: 2000, floorCapPm: 400, rampPm: 0, rampCapPm: 1000 }),
 });
 
 /** The boss stat role of kind `kind` laid over the base role row `base` (balance-sheet.js MONSTER_ROLES shape: hp, hit, blow, def,
@@ -44,7 +51,8 @@ export const BOSS_KINDS = Object.freeze({
 export function bossRole(base, kind) {
   const k = BOSS_KINDS[kind];
   if (!k || !base) throw new Error('bosses: no boss kind ' + kind);
-  const out = { ...base, hp: (base.hp * k.hpPpm) / 1e6, blow: (base.blow * k.blowPpm) / 1e6, xp: (base.xp * k.xpPpm) / 1e6, hit: (base.hit || 0) + k.hitPm / 1000 };
+  const out = { ...base, hp: (base.hp * k.hpPpm) / 1e6, blow: (base.blow * k.blowPpm) / 1e6, xp: (base.xp * k.xpPpm) / 1e6, hit: (base.hit || 0) + k.hitPm / 1000,
+    def: (base.def * k.defensePm) / 1000, evasion: ((base.evasion === undefined ? 1 : base.evasion) * k.defensePm) / 1000 };
   delete out.gentleHp;
   if (k.floorCapPm !== null) out.floorCap = k.floorCapPm / 1000;
   return Object.freeze(out);
@@ -81,6 +89,7 @@ export function validateBosses(kinds = BOSS_KINDS, roles = []) {
     /* up to 50x its role (a hall's boss is a long party fight against the role's one-monster row: lane/hall-formula) */
     for (const f of ['hpPpm', 'blowPpm', 'xpPpm']) if (!Number.isInteger(k[f]) || k[f] < 100000 || k[f] > 50000000) out.push(id + ': ' + f + ' is not a whole ppm 100000..50000000');
     if (!Number.isInteger(k.hitPm) || k.hitPm < -500 || k.hitPm > 600) out.push(id + ': hitPm is not a whole permille -500..600');
+    if (!Number.isInteger(k.defensePm) || k.defensePm < 250 || k.defensePm > 5000) out.push(id + ': defensePm is not a whole permille 250..5000');
     if (k.floorCapPm !== null && (!Number.isInteger(k.floorCapPm) || k.floorCapPm < 100 || k.floorCapPm > 1000)) out.push(id + ': floorCapPm is not null or 100..1000');
     if (!Number.isInteger(k.rampPm) || k.rampPm < 0 || k.rampPm > 500) out.push(id + ': rampPm is not a whole permille a minute 0..500');
     if (!Number.isInteger(k.rampCapPm) || k.rampCapPm < 1000 || k.rampCapPm > 3000) out.push(id + ': rampCapPm is not 1000..3000');

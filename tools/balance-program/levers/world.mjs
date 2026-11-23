@@ -210,13 +210,13 @@ export const WORLD = [
     ev: 'MEASURED (tools/balance-sim/tower-curve.mjs, played fours at 30 / 74 / 110 top out at 59-68 / 101-104 / 126-129, lane/tower-boss-formula)' }),
   L('mon.boss-kinds', 'monster-stats', 'archetype', 'Boss kinds and the ramp', {
     at: [at('src/data/bosses.js', 'export const BOSS_KINDS')],
-    def: 'a boss is its base stat role (the elite) x its encounter\'s row: ground and keeper HP x3.125, blow x1.1, the elite\'s to-hit, a blow held to 33% of the floor hero; hall (a keyed hall\'s boss on its switch, src/core/hunt/hall-formula.js) HP x38, blow x2.75, to-hit +0.45, held to 65%; add (a hall\'s named add) HP x1, blow x2, to-hit +0.45, held to 40%; XP x1.043 of the elite for every kind; and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)',
-    range: 'ppm 100000..50000000 on HP, blow and XP; hitPm -500..600; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)',
+    def: 'a boss is its base stat role (the elite) x its encounter\'s row: ground and keeper HP x3.125, blow x1.1, the elite\'s to-hit, a blow held to 33% of the floor hero; hall (a keyed hall\'s boss on its switch, src/core/hunt/hall-formula.js) HP x22, blow x2.7, to-hit +0.45, defense and evasion x2.3, held to 65%; add (a hall\'s named add) HP x1, blow x2, to-hit +0.45, defense and evasion x2, held to 40%; XP x1.043 of the elite for every kind; and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)',
+    range: 'ppm 100000..50000000 on HP, blow and XP; hitPm -500..600; defensePm 250..5000; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)',
     touches: 'every boss fight and the Tower\'s landings', out: [...KILL, ...SURVIVE], f: ['C-MON-STATS'],
     tests: [['tests/tower-climb.mjs', 'TC-BOSS'], ['tests/hunt-core/hall-formula.mjs', 'derive']], testReads: ['BOSS_KINDS'],
     perturb: NP('not-in-runs', 'the matrix plays no boss room; tools/balance-program/redesign/halls/hall-bench.mjs fits halls apart'),
     flags: [flag('contradictory', 'The boss blow is held to a third of the FLOOR hero\'s HP however deep he lives: a designer rule, never ruled by Tyler', '44 X-BOSS-FLOOR-CAP, CONFIRMED')],
-    ev: 'MEASURED (tools/balance-program/redesign/halls/hall-bench.mjs, Krell\'s Hall at 98, 40 seeds a cell: a tank, healer and two damage four 93%, one gear tier under 33%, a pair, four damage dealers and a tank with two healers 0%; lane/hall-formula)' }),
+    ev: 'MEASURED (tools/balance-program/redesign/halls/hall-bench.mjs, Krell\'s Hall at its floor 85, 40 seeds a cell: a tank, healer, hammer and mage 93%, one gear tier under 25%, a pair, four damage dealers and an untouched bar 0%, other damage pairs 40-63%; lane/hall-formula)' }),
   L('mon.boss-rooms', 'monster-stats', 'exception-intentional', 'Boss room clocks (halls and called bosses)', {
     at: [at('src/data/boss-halls.js', 'limitMs: 10 * 60000'), at('src/data/boss-calls.js', 'limitMs: 10 * 60000')],
     rows: rows('the called bosses, their call items and hunts', [home('src/data/boss-calls.js#BOSS_CALLS', 'count'), home('src/data/boss-calls.js#CALL_ITEMS', 'open'), home('src/data/hunts.js#CALLED_HUNTS', 'keys')]),

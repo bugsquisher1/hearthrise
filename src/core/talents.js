@@ -161,9 +161,13 @@ export function suggestedPick(node, plan) {
 const ROAD_ORDER = ['r1', 'r2', 'r3', 'x1', 'w1', 'r4', 'r5', 'x2', 'w2'];
 const roadNodes = (move) => ROAD_ORDER.map((s) => move + '.' + s).filter((id) => own(NODE_INDEX, id));
 
-/** The roads a hero of discipline `discipline` walks first: its own country's, then the Great Hearth's. */
+/** The roads a hero of discipline `discipline` walks: its own country's, then the roads in other countries of moves its weapon casts too
+    (17 section 1: a shared move lives where its weapons meet, so a Shield hero walks Power Strike's road in Sword; section 13 Level 29), each
+    country's in its map order, then the Great Hearth's. */
 export function roadsFor(discipline) {
-  return [...(own(COUNTRY_ROADS, discipline) ? COUNTRY_ROADS[discipline] : NONE), ...COUNTRY_ROADS[HEARTH]];
+  const shared = Object.keys(COUNTRY_ROADS).filter((c) => c !== discipline && c !== HEARTH)
+    .flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));
+  return [...(own(COUNTRY_ROADS, discipline) ? COUNTRY_ROADS[discipline] : NONE), ...shared, ...COUNTRY_ROADS[HEARTH]];
 }
 
 /**

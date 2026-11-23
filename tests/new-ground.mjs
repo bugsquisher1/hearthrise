@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/new-ground.mjs — THE NEW-GROUND TOOL CUTS R10'S BANDS (lane/content-pipeline, 2026-11-22).
+// tests/new-ground.mjs — THE NEW-GROUND TOOL CUTS EVERY BAND BY THE BAND RULE (lane/content-pipeline, 2026-11-22; the floor rule,
+// lane/band-floor 2026-11-22).
 //
 //   node tests/new-ground.mjs
 //
 // tools/new-ground.mjs puts a ground on the Danger scale from three v1-climb runs (docs/design/redesign/24-content-pipeline.md
-// section 2). Its cut (tools/lib/danger-band.mjs) must give back, from R10's own reports (tools/balance-program/redesign/r10), the
-// bands R10 wrote into src/data/danger.js by hand, and its verdicts must read the deaths those reports hold:
-//   NG-1  Hask's Ford, both Catacomb wings: the band and refKillsHead equal DANGER_GROUNDS' rows
-//   NG-2  a Steady death in any cell is STAGED (12-targets C-3): the wings and Krell's Hold; Hask's Ford is OPEN
-//   NG-3  Muster Barrows' LOW four (320.9 at Level 55) is read as under the floor (the gap 24 section 5 names)
+// section 2) and cuts its band by src/data/danger.js BAND_RULE (tools/lib/danger-band.mjs). From the reports each pin names
+// (tests/danger-band-pins.json evidence, tools/balance-program/redesign/grounds) and R10's older ones (tools/balance-program/redesign/r10):
+//   NG-1  every pinned band cuts back exactly from its own evidence (a hand pin: its floor, the part the rule owns)
+//   NG-2  a Steady death in any cell is STAGED (12-targets C-3): Krell's Hold (4 of 4); Hask's Ford is OPEN
+//   NG-3  THE FLOOR (24-content-pipeline.md G3): depth 1 is where a fresh company holds (12-targets 3.1), so on every report set the
+//         floor sits at or under the LOW four's LOWEST seed, by floorUnder, never more than a floorTo further. R10's Muster
+//         Barrows (LOW 320.9 at Level 55, 316 its lowest seed) cuts at 305, where R10's rule (2 x ref - top) cut 480; no band without
+//         its LOW cell
 //   NG-4  --write's row edit sets the band on an existing row, adds or drops refKillsHead, leaves every other row alone, and refuses
 //         a ground with no row (a new ground's gear base, drop home and Trait pool are the designer's)
 //   NG-5  the print moves when a ground's monster numbers or pockets move, and not for a name, an icon or a drop
@@ -17,31 +21,57 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bandFromReports, rewriteRow, packPrint } from '../tools/lib/danger-band.mjs';
+import { bandFromReports, rewriteRow, packPrint, lowestSeed } from '../tools/lib/danger-band.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
-const { DANGER_GROUNDS, PAY, DEPTHS } = await imp('src/data/danger.js');
+const { DANGER_GROUNDS, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
 const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
 const { MONSTERS } = await imp('src/data/monsters.js');
-const R10 = join(ROOT, 'tools', 'balance-program', 'redesign', 'r10');
-const rep = (g, cell) => JSON.parse(readFileSync(join(R10, g + '-' + cell + '.json'), 'utf8'));
-const cutOf = (g, refCell) => bandFromReports({ ref: rep(g, refCell), top: rep(g, 'top'), floor: rep(g, 'floor') }, PAY, DEPTHS);
+const PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
+const json = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
+const R10 = 'tools/balance-program/redesign/r10/';
+const cut = (set) => bandFromReports(set, PAY, DEPTHS, BAND_RULE);
+/* a pin's evidence: [ref, top, floor] as new-ground writes it, or the grounds/<id>-{floor,top,ref}.json pattern */
+const evidenceOf = (g, pin) => {
+  const ev = pin.evidence || [];
+  if (ev.length === 3) return { ref: json(ev[0]), top: json(ev[1]), floor: json(ev[2]) };
+  const base = String(ev[0] || '').replace('{floor,top,ref}.json', '');
+  return { ref: json(base + 'ref.json'), top: json(base + 'top.json'), floor: json(base + 'floor.json') };
+};
 
 const fails = [];
 const ok = (cond, msg) => { if (!cond) fails.push(msg); };
 
-/* NG-1, NG-2 (R10's MID cell: the Ford's check run, the wings' final runs after lane/econ-levers) */
-for (const [g, refCell, verdict] of [['hasks_ford', 'check', 'OPEN'], ['catacomb_bone_wing', 'final', 'STAGED'], ['catacomb_flooded_wing', 'final', 'STAGED']]) {
-  const { band, verdict: v } = cutOf(g, refCell), row = DANGER_GROUNDS[g];
-  for (const k of ['refStep', 'floorStep', 'topStep', 'refKillsHead']) ok(band[k] === row[k], 'NG-1 ' + g + ' ' + k + ' cut ' + band[k] + ', the row says ' + row[k]);
-  ok(v === verdict, 'NG-2 ' + g + ' verdict ' + v + ', want ' + verdict);
+/* NG-1 */
+for (const [g, pin] of Object.entries(PINS)) {
+  const row = DANGER_GROUNDS[g];
+  ok(row, 'NG-1 a pin for ' + g + ' with no DANGER_GROUNDS row');
+  if (!row) continue;
+  const c = cut(evidenceOf(g, pin));
+  const keys = pin.hand ? ['floorStep'] : ['refStep', 'floorStep', 'topStep', 'refKillsHead'];
+  for (const k of keys) ok(c.band[k] === row[k], 'NG-1 ' + g + ' ' + k + ' cuts ' + c.band[k] + ' from its evidence, the row says ' + row[k]);
+  ok(c.verdict === pin.verdict, 'NG-1 ' + g + ' verdict ' + c.verdict + ', its pin says ' + pin.verdict);
 }
-ok(cutOf('krells_hold', 'check').verdict === 'STAGED', 'NG-2 krells_hold (Steady died 4 of 4) is not STAGED');
+/* NG-2 */
+const r10 = (g, refCell) => cut({ ref: json(R10 + g + '-' + refCell + '.json'), top: json(R10 + g + '-top.json'), floor: json(R10 + g + '-floor.json') });
+ok(r10('krells_hold', 'check').verdict === 'STAGED', 'NG-2 krells_hold (Steady died 4 of 4) is not STAGED');
+ok(r10('hasks_ford', 'check').verdict === 'OPEN', 'NG-2 hasks_ford (no Steady death) is not OPEN: ' + r10('hasks_ford', 'check').notes.join(' | '));
 /* NG-3 */
-const muster = cutOf('muster_barrows', 'check');
-ok(muster.band.refStep === DANGER_GROUNDS.muster_barrows.refStep && muster.band.refKillsHead === undefined, 'NG-3 muster ref ' + muster.band.refStep + ' / kills ' + muster.band.refKillsHead);
-ok(muster.notes.some((n) => /under the floor/.test(n)) && muster.verdict === 'REVIEW', 'NG-3 muster LOW under the floor not read: ' + muster.verdict + ' ' + muster.notes.join(' | '));
+const sets = [['muster_barrows', 'check'], ['hasks_ford', 'check'], ['catacomb_bone_wing', 'final'], ['catacomb_flooded_wing', 'final'], ['krells_hold', 'check'], ['pyre_field', 'check']]
+  .map(([g, rc]) => [g + ' (R10)', { ref: json(R10 + g + '-' + rc + '.json'), top: json(R10 + g + '-top.json'), floor: json(R10 + g + '-floor.json') }])
+  .concat(Object.entries(PINS).map(([g, pin]) => [g + ' (pinned)', evidenceOf(g, pin)]));
+for (const [name, set] of sets) {
+  const c = cut(set), low = lowestSeed(set.floor.cells['base:steady']);
+  const under = low - c.band.floorStep;
+  ok(under >= BAND_RULE.floorUnder && under < BAND_RULE.floorUnder + BAND_RULE.floorTo, 'NG-3 ' + name + ' floor ' + c.band.floorStep + ' is ' + under + ' under the fresh four\'s lowest seed ' + low + ', the rule says ' + BAND_RULE.floorUnder + ' to ' + (BAND_RULE.floorUnder + BAND_RULE.floorTo - 1));
+  ok(c.band._lowDepth <= 3, 'NG-3 ' + name + ' fresh four reads depth ' + c.band._lowDepth);
+}
+const m10 = r10('muster_barrows', 'check');
+ok(m10.band.floorStep === 305 && m10.band.floorStep < 316, 'NG-3 R10 Muster cuts its floor at ' + m10.band.floorStep + ', want 305 (its fresh four held 316 to 329)');
+let threw = false;
+try { cut({ ref: json(R10 + 'hasks_ford-check.json'), top: json(R10 + 'hasks_ford-top.json'), floor: null }); } catch { threw = true; }
+ok(threw, 'NG-3 a band was cut with no LOW cell');
 /* NG-4 */
 const src = readFileSync(join(ROOT, 'src', 'data', 'danger.js'), 'utf8');
 const lineOf = (text, g) => text.split('\n').find((l) => new RegExp('^  ' + g + ': [\\w.]+\\(\\{ refStep').test(l));
@@ -63,4 +93,4 @@ const moved = { ...g, pockets: g.pockets.map((p, i) => (i === g.route[0] ? { ...
 ok(packPrint(moved, MONSTERS, monstersOn) !== base, 'NG-5 a pocket losing a monster kept the print');
 
 if (fails.length) { console.error('new-ground: ' + fails.length + ' failed\n  ' + fails.join('\n  ')); process.exit(1); }
-console.log('new-ground: R10\'s three bands cut back exactly, verdicts read the deaths, the row edit and the print hold');
+console.log('new-ground: every pinned band cuts back from its evidence, the floor sits under every fresh four, verdicts read the deaths, the row edit and the print hold');

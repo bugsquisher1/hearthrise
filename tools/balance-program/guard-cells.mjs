@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/guard-cells.mjs — THE BALANCE GUARD'S LINES AND CELLS (balance program 30-plan section E, lane L14).
 //
-// LINES  the eighteen lines of section E (G1-G18), the plan audit's six (G19-G24, 31-plan-audit.md M2, M5, M9), the calibration line
+// LINES  the lines of section E (G1-G18; G1 and G7 RE-AIMED on the Danger scale and G3, G4, G5 RETIRED with a reason each, RETIRED
+//        below, lane/econ-followups 2026-11-22), the plan audit's six (G19-G24, 31-plan-audit.md M2, M5, M9), the calibration line
 //        K1 (the harness's four in the seats of the real Krell four, model.mjs REAL_KRELL_FOUR) and the nightly twin's two death lines
 //        (D1, D2): what each is measured on, its target, its red band, the lane that turns it red, and its MODE. A line starts as
 //        `report` and turns `red` in the lane that lands the change it guards (section E: "It never goes back"): that lane flips
@@ -22,9 +23,14 @@ export const SIZES = Object.freeze({ plain: Object.freeze({ hours: 1, seeds: 2 }
 export const BY_ID = Object.freeze(Object.fromEntries(REF_POINTS.map((p) => [p.id, p])));
 const P = (...ids) => ids.map((id) => BY_ID[id]);
 export const ALL_POINTS = REF_POINTS;
-export const FOUR_POINTS = REF_POINTS.filter((p) => p.level >= 30);           // G3, G4: "Levels 30 to 175"
 export const POOL_POINTS = P('glade', 'slake', 'hold');                         // G10, G11, G12: "Levels 30, 60, 105"
-export const DEADLY_POINTS = P('ford', 'pyre', 'hold');                          // G5, G8, D1, D2: "Ford, Pyre, Krell" / "Levels 50, 80, 105"
+export const DEADLY_POINTS = P('ford', 'pyre', 'hold');                          // G8, D1, D2: "Ford, Pyre, Krell" / "Levels 50, 80, 105"
+/* THE SCALE'S CELLS (lane/econ-followups, 2026-11-22): G1 on every Danger scale ground (src/data/danger.js DANGER_GROUNDS) at the Level its
+   reference step was measured at (tests/level-curve.mjs REF_LEVEL, the same as C7 and V4): the mixed four from its held start (refStep -
+   startMargin, the game's own rule) and a lone hero of each reference seat from the band's floor (12-targets 3.1: a first hunt starts at
+   depth 1; measured 2026-11-22 a lone hero's hold lands the same from the floor or the four's start, 0.67 / 0.68 of the four's head). */
+export const SCALE_FOUR = Object.freeze(['hammer', 'bow', 'mage', 'healer']);
+export const SCALE_LONE = Object.freeze(['hammer', 'mage']);
 const FOUR = REF_SEATS.find((s) => s.id === 'four');
 const LONE = REF_SEATS.find((s) => s.id === 'lone');
 
@@ -63,15 +69,22 @@ export const towerLanding = (L) => Math.max(0, Math.floor(L / 10) * 10) + 1;
    target / keep: [lo, hi] (null = open). A value inside `target` is in band; outside `target` and inside `keep` is OFF (reported);
    outside `keep` is RED. `mode` 'report' lists a red line and exits 0; 'red' exits 1 on it (--strict treats every line as 'red'). */
 export const LINES = Object.freeze([
-  { id: 'G1', words: 'Lone hammer on Normal, x the pace contract', on: 'the eight points', target: [0.9, 1.1], keep: [0.85, 1.25], turnsRedIn: 'L16 (staged points L47)', mode: 'report' },
+  /* G1 RE-AIMED (lane/econ-followups, 2026-11-22): was "Lone hammer on Normal, x the pace contract" on the eight tier points. The redesign
+     puts the pace contract on the four at its held depth (tests/level-curve.mjs C7, T-02 re-aimed), and a lone hero's place is 12-targets
+     C-7 (RD-Q7 a): a lone hero earns 0.5x to 0.8x of a four's head. keep: a lone hero never out-earns the four's head (1.0, which would
+     undo C-6) and never falls under 0.4 (JUDGMENT: under it hunting alone is not a choice). Measured 2026-11-22 on Muster at Level 60,
+     2 seeds x 1 h: hammer 0.67, mage 1.02 (a lone Mage out-earns the four's head: a C-7 finding for the designer). */
+  { id: 'G1', words: 'A lone hero on a scale ground, x the mixed four a head (C-7)', on: 'every Danger scale ground at its reference Level, Steady: the lone hammer and the lone Mage from the band\'s floor, the mixed four from its held start', target: [0.5, 0.8], keep: [0.4, 1.0], turnsRedIn: 'V6 (12-targets C-7)', mode: 'report' },
   { id: 'G2', words: 'No way to fight runs away alone: best way / median way', on: 'every way at the eight points', target: [null, 1.5], keep: [null, 1.6], turnsRedIn: 'L17', mode: 'report' },
-  { id: 'G3', words: 'The four on Deadly in band, played kit, x contract', on: 'Levels 30 to 175', target: [1.8, 2.5], keep: [1.6, 2.6], turnsRedIn: 'L16', mode: 'report', gate: 'xp' },
-  { id: 'G4', words: 'The four on Deadly fully invested, x contract', on: 'Levels 30 to 175', target: [null, 2.75], keep: [null, 2.9], turnsRedIn: 'L16 (re-read L29, L37, L44)', mode: 'report', gate: 'xp' },
-  { id: 'G5', words: 'Deadly is a fight: the four\'s low point (HP p10 %)', on: 'Ford, Pyre, Krell; in band and 10 under the floor', target: null, keep: null, turnsRedIn: 'L16', mode: 'report', gate: 'xp',
-    parts: { band: { target: [35, 50], keep: [30, 55] }, under: { target: [null, 25], keep: [null, 35] } } },
   { id: 'G6', words: 'The new player on the start kit: hours to Level 10; the longest Level under 10', on: 'life.mjs, src/data/core-model.js LEVEL_PACE.newPlayer (the start-kit tank, policy new: Hunt again in the Thicket), Normal, no event', target: null, keep: null, turnsRedIn: 'L05 (red since lane/c-levels-7-9)', mode: 'red',
     parts: { level10: { target: [null, 6], keep: [null, 7] }, step: { target: [null, 2], keep: [null, 2.5] } } },
-  { id: 'G7', words: 'A ground never pays a lone in-range hero less gold (in) than the one before', on: 'the eight points', target: null, keep: null, turnsRedIn: 'L22', mode: 'report', bands: 'rising / red on any fall' },
+  /* G7 RE-AIMED (lane/econ-followups, 2026-11-22): was "a ground never pays a lone in-range hero less gold (in) than the one before" on the
+     eight tier points, played. On the scale moving on is 12-targets C-11: depth 1 of the next ground pays at least 1.1x depth 20 of the last.
+     READ FROM DATA (src/data/danger.js DANGER_GROUNDS in gearLevel order, PAY, src/data/wage.js): a hold's coin in the wage's unit is
+     wage(gearLevel) x max(PAY.floor, (1 + payStepCoin) ^ min(step - refStep, gapMax)), the engine's coin rule on the wage the ground's
+     reference depth was calibrated to. One scale ground today: printed n/a until R10 opens a second (its proof plants one). keep: under
+     1.0 the next ground's first depth pays less than this ground's top (a pay cut for moving on). */
+  { id: 'G7', words: 'The next scale ground pays more from its first depth: depth 1 / the last ground\'s depth 20 (C-11)', on: 'consecutive Danger scale grounds by base item Level, read from data', target: [1.1, null], keep: [1.0, null], turnsRedIn: 'R10 (12-targets C-11)', mode: 'report' },
   { id: 'G8', words: 'Deadly costs gold and never loses it: net a hero-hour, Krell-kit four', on: 'Levels 50, 80, 105', target: [3000, 8000], keep: [0, null], turnsRedIn: 'L16 (re-read L32)', mode: 'report', gate: 'gold' },
   { id: 'G10', words: 'The gear pool over the played kit: XP, and its damage cut / one armor step\'s', on: 'Levels 30, 60, 105, lone and four', target: null, keep: null, turnsRedIn: 'L15 (damage), L37 (XP)', mode: 'report',
     parts: { xp: { target: [null, 1.09], keep: [null, 1.10] }, dmg: { target: [null, 1], keep: [null, 1] } } },
@@ -99,9 +112,28 @@ export const LINES = Object.freeze([
   { id: 'G24', words: 'A scaled hunt is never the best lone XP: scaled ground / the right-Level ground', on: 'scaled-hunts.js scaledRow at the Level of the point, a lone hammer and a lone Mage', target: [null, 1], keep: [null, 1], turnsRedIn: 'L31', mode: 'report' },
 ]);
 
+/* ── RETIRED LINES (lane/econ-followups, 2026-11-22): report-only Normal/Deadly tier-path contracts the redesign replaces (12-targets 2.6:
+   "old-design numbers are replaced by new files as each redesign wave lands"). Each reason names what holds the question now; the guard
+   prints them and plays none of their cells. */
+export const RETIRED = Object.freeze({
+  G3: 'The four on Deadly x the contract (1.8-2.5x): the Deadly tier\'s pace premium. On the scale a four is paid by depth (04 section 7), '
+    + 'and the four\'s pace at its held depth is tests/level-curve.mjs C7 (T-02 re-aimed: the hours table +-20%, judged in CI on every scale '
+    + 'ground). Its real-engine proof and the K1 gate\'s control moved to G19.',
+  G4: 'The fully invested four on Deadly (old-tier uniques, the Hearth Chest, Tempering 5/5, +10 skills) under 2.75x: on the scale investment '
+    + 'moves the hold, never a tier dial, and what any hold pays a kill is bounded by construction at gapMax (src/data/danger.js PAY; the '
+    + 'server\'s hr_danger_level_xp_max). The question it asked is C-2 (a gear tier moves the hold 1 to 3 depths), measured by lane/econ-levers '
+    + '(-13.2 / +20.3) and owed a guard with R10\'s second ground; the invested kit itself is wave 3/4 (Traits, base items).',
+  G5: 'Deadly is a fight (the four\'s HP p10 35-50%, and 10 Levels under the floor under 25%): on the scale the stance defines the fight. The '
+    + 'climb pushes a company until its pulls stop being clean (RISKS cleanPm) and it breaks off at fallPm, so its low point sits between them '
+    + 'by construction (src/data/danger.js); a weaker company holds shallower instead of dying. Deaths by stance are 12-targets C-3 and C-4 '
+    + '(V2 stance runs).',
+});
+
 /* ── THE CELLS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    ctx: { tiers (src/data/hunt-tiers.js), refCell (measure.mjs), lines + skillsAt (skill-lines.mjs), bandOf(ground) -> [lo, hi],
-   towerHunt (tower.js TOWER_RULES.hunt), MAIN (measure.mjs) }. Answers [{ id, cell }]; a cell is what cell.mjs runCell plays. */
+   towerHunt (tower.js TOWER_RULES.hunt), MAIN (measure.mjs), scaleGrounds ([{ id, level, heldStart, floorStep }], every Danger scale
+   ground), scaleCell(ground, level, styles, start) (a Steady cell on the scale from `start`) }. Answers [{ id, cell }]; a cell is what
+   cell.mjs runCell plays. */
 const STYLES_ALONE = ['hammer', 'mage', 'tank', 'sword', 'axes', 'bow', 'crossbow', 'healer'];   // tools/balance-sim/styles.mjs, every way
 const staged = (p) => (p.open ? {} : { uniques: true, openAlso: [p.ground] });
 const temperAt = (tier, tracks = ['blows', 'armor']) => Object.fromEntries(tracks.map((t) => ['temper:' + t + ':' + tier, 5]));
@@ -136,12 +168,11 @@ export function plainCells(ctx, size = SIZES.plain) {
       push('way:' + p.id + ':' + style, { ground: p.ground, party: [style], level: p.level, profile: 'played', ...(p.open ? {} : { gear: staged(p) }) });
     }
   }
-  /* G4: the four fully invested (30-plan B): the gettable uniques and the Hearth Chest's pieces, both Tempering tracks 5 of 5 on the tier,
-     main skill and Defense 10 over the party line. Necrotic and Storm (switch off) and faction skills (not built) do not exist yet. */
-  for (const p of FOUR_POINTS) {
-    const base = ref(p, FOUR);
-    push('four-full:' + p.id, { ...base, gear: { ...(base.gear || {}), uniques: true, chest: true }, temper: temperAt(p.gearTier),
-      skillsBySeat: seatSkills(ctx, base.party, p.level, { main: 10, defense: 10 }) });
+  /* G1: every scale ground, the mixed four from its held start and each lone reference seat from the band's floor, Steady (ctx.scaleCell:
+     tools/balance-program/redesign/held-four.mjs's cell, the matrix's MID kits and played bars) */
+  for (const g of ctx.scaleGrounds) {
+    push('scale-four:' + g.id, ctx.scaleCell(g.id, g.level, SCALE_FOUR, g.heldStart));
+    for (const style of SCALE_LONE) push('scale-lone:' + g.id + ':' + style, ctx.scaleCell(g.id, g.level, [style], g.floorStep));
   }
   /* G10, G11, G12 at Levels 30, 60, 105 */
   for (const p of POOL_POINTS) {
@@ -160,10 +191,9 @@ export function plainCells(ctx, size = SIZES.plain) {
     push('lone-yard-main:' + p.id, { ...lone, skillsBySeat: seatSkills(ctx, lone.party, p.level, { main: t.main }) });
     push('lone-yard-def:' + p.id, { ...lone, skillsBySeat: seatSkills(ctx, lone.party, p.level, { defense: t.defense }) });
   }
-  /* G5 and G8 */
+  /* G8 (and G22's six) */
   for (const p of DEADLY_POINTS) {
     const four = ref(p, FOUR);
-    push('four-under:' + p.id, { ...four, level: ctx.bandOf(p.ground)[0] - 10 }, false);
     push('four-real:' + p.id, { ...four, runeTierByRole: { ...REAL_KRELL_FOUR.runeTierByRole } });
   }
   /* K1: the harness's four in the real Krell four's seats */

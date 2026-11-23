@@ -150,7 +150,9 @@ const HEARTH_NODES = [
       opt('steady_mend', 'Steady Mend', 'Mend heals over 6 s · +25% healing', [rule('mend_over_time')], true),
       opt('shared_mend', 'Shared Mend', 'Mend also heals the nearest ally for 50%', [rule('mend_shared')])],
     way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),
-    /* crossroads II: 16 writes only one Mend crossroads; these three are this lane's, for the designer to rule (17 section 4 counts two) */
+    /* crossroads II RULED (the designer, lane/tuning-pass 2026-11-23, 29-tuning-pass.md): kept as built. Mend is every hero's heal, so its
+       second fork is the mana-against-power trade (Deep, Light: Light is the suggested pick, a hero who is not the healer wants the mana)
+       plus one pick for the hero who heals itself near fall-back (Bright). The roads Lab read best-vs-suggested inside its 7-14% band */
     [opt('deep_mend', 'Deep Mend', 'Mend +20% healing · +3 mana', [mod('mend', { outPm: 200, mana: 3 })]),
       opt('light_mend', 'Light Mend', 'Mend −40% mana · −20% healing', [mod('mend', { manaPm: -400, outPm: -200 })], true),
       opt('bright_mend', 'Bright Mend', '+6% healing received near fall-back', [rule('heal_in_near_fall')])],
@@ -165,8 +167,10 @@ const S = 'shield';
 const SHIELD_NODES = [
   ...road(S, 'challenge', 'hearth',
     [opt('long_hold', 'Long Hold', 'Taunt holds 12 s (from 8 s) · +4 s cooldown', [mod('challenge', { holdMs: 4000, cdMs: 4000 })], 'party'),
-      opt('hard_challenge', 'Hard Challenge', 'Taunted enemy: −6% damage to you · Casts when solo',
-        /* "taunted enemy" read as "while you hold a taunt": the blows a holding tank takes are its held monsters' (the ledger is per hero) */
+      opt('hard_challenge', 'Hard Challenge', '−6% damage taken while you hold a taunt · Casts when solo',
+        /* "taunted enemy" RULED (the designer, lane/tuning-pass 2026-11-23, 29-tuning-pass.md): every blow at the hero while it holds a taunt, and the
+           text says so. A holding tank's blows are its held monsters' in nearly every pull, the ledger is per hero, and a per-attacker step would
+           be a second condition a player cannot see on the bar */
         [step('defense', 17, 'taunted_less', 'taunting'), mod('challenge', { solo: true })], 'solo'),
       opt('guarding_challenge', 'Guarding Challenge', 'Casts when an enemy attacks a back-row ally · Party only', [rule('challenge_guard_back_row')])],
     way('Reaching Call', 'Challenge range +1 tile', [mod('challenge', { tauntRadius: 1 })]),

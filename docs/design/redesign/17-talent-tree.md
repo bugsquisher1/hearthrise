@@ -91,7 +91,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Hunter's Mark | about 2 (pace) | No penalty | 30 |
 | Frost Lance | about 4 (pace) | No penalty | 60 |
 | Fireball | about 8 (pace) | −50% (−30% measured just over the cap) | 80 |
-| Shelter | 8.5 ± 4.2 (doesn't follow its power) | −30% | 120 |
+| Shelter | 8.5 ± 4.2 (doesn't follow its power) | −30% | 90 at a border, 70 at Havora (the formula: 200 × 5.95 ÷ 14 = 85, up to 90. Ruled 2026-11-23, `29-tuning-pass.md`: the formula, not the hand 120) |
 | Challenge | 0 ± 3.7. Re-measure after the holder line (on the tank's own bar it cost 62.7 held, `23` section 3) | No penalty | 20 |
 | Hoarfrost | 15.8 ± 2.4 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |
 | Protective Ward | 16.1 ± 3.9 (`23`, held lost without it) | −50% at a border. Not offered at Havora | 120 |

@@ -358,6 +358,16 @@
         "bytes": 3692589,
         "on": "2026-11-23",
         "why": "stage 3 fight pipeline (amount.js) + talents together on the integrated tree"
+      },
+      {
+        "bytes": 3696387,
+        "on": "2026-11-23",
+        "why": "lane/tuning-pass: the tuned levers' evidence comments in src/data/danger.js (Muster's formula switch, PAY floor and coin, POWER below-weight, Bold line, holder line), store-kit.js (the re-read store rates), gold-estimate.js and talents.js (the designer's rulings), and the re-cut band rows; no new module reached"
+      },
+      {
+        "bytes": 3696441,
+        "on": "2026-11-23",
+        "why": "lane/tuning-pass: the holder line kept at 800, its measured evidence (600/700/800 by ground) stated on HOLDER in src/data/danger.js"
       }
     ]
   }

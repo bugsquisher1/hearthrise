@@ -449,7 +449,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('outside-hunt', 'a price, never read by a cell; tools/balance-program/redesign/w/fit.mjs reads it against the measured pay'),
     ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): 16,276 / 16,562 / 17,143 gold an hour at Levels 60 / 63 / 70 against wage 16,365 / 16,563 / 17,032 (0.99 / 1.00 / 1.01); was 4,797 / 4,906 / 5,055 at 3,800 (lane/w-wage)' }),
   L('econ.gold-estimate-risk', 'economy', 'global', 'A Risk\'s gold an hour against Steady, as the Hunts window estimates it', {
-    at: [at('src/data/gold-estimate.js', 'riskPm: Object.freeze({ careful: 630, steady: 1000, bold: 1270 }),')],
+    at: [at('src/data/gold-estimate.js', 'riskPm: Object.freeze({ careful: 760, steady: 1000, bold: 1190 }),')],
     def: 'the Hunts window\'s "About N gold an hour, before supplies" on a scale ground = floor(wage(min(Level, band top)) x riskPm / 1000) to two figures (src/core/gold-estimate.js); Steady is 1000 by definition (the wage is a Steady hour)',
     range: '12-targets.md C-5: Careful 0.55x to 0.70x of Steady; Bold above Steady in a watched session, under it over a day (C-4). gen-gold-estimate refuses Steady off 1000 and any ratio outside 1 to 5000. SQL twin hr_gold_estimate (1060, generated)',
     touches: 'display only: the estimate the Hunts window prints; no fight or purse reads it', out: [], f: [],

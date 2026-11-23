@@ -11,7 +11,8 @@
 //   NG-1  every pinned band cuts back exactly from its own evidence (a hand pin: its floor, the part the rule owns)
 //   NG-2  a Steady death in any cell is STAGED (12-targets C-3): Krell's Hold (4 of 4); Hask's Ford is OPEN
 //   NG-3  THE FLOOR (24-content-pipeline.md G3): depth 1 is where a fresh company holds (12-targets 3.1), so on every report set the
-//         floor sits at or under the LOW four's LOWEST seed, by floorUnder, never more than a floorTo further. R10's Muster
+//         floor sits at or under the LOW four's LOWEST seed, by floorUnder or one depth of the band if that is less (lane/tuning-pass:
+//         a band one tier wide has 5-step depths, and 10 put the Bone Wing's fresh four at depth 4), never more than a floorTo further. R10's Muster
 //         Barrows (LOW 320.9 at Level 55, 316 its lowest seed) cuts at 305, where R10's rule (2 x ref - top) cut 480; no band without
 //         its LOW cell
 //   NG-4  --write's row edit sets the band on an existing row, adds or drops refKillsHead, leaves every other row alone, and refuses
@@ -69,8 +70,9 @@ const sets = [['muster_barrows', 'check'], ['hasks_ford', 'check'], ['catacomb_b
   .concat(Object.entries(PINS).map(([g, pin]) => [g + ' (pinned)', evidenceOf(g, pin)]));
 for (const [name, set] of sets) {
   const c = cut(set), low = lowestSeed(set.floor.cells['base:steady']);
-  const under = low - c.band.floorStep;
-  ok(under >= BAND_RULE.floorUnder && under < BAND_RULE.floorUnder + BAND_RULE.floorTo, 'NG-3 ' + name + ' floor ' + c.band.floorStep + ' is ' + under + ' under the fresh four\'s lowest seed ' + low + ', the rule says ' + BAND_RULE.floorUnder + ' to ' + (BAND_RULE.floorUnder + BAND_RULE.floorTo - 1));
+  /* the margin: floorUnder, never more than one depth of the band (the lowest fresh seed at depth 2; lane/tuning-pass, 29-tuning-pass.md) */
+  const under = low - c.band.floorStep, margin = Math.min(BAND_RULE.floorUnder, (c.band.topStep - low) / (DEPTHS - 2));
+  ok(under >= margin && under < margin + BAND_RULE.floorTo, 'NG-3 ' + name + ' floor ' + c.band.floorStep + ' is ' + under + ' under the fresh four\'s lowest seed ' + low + ', the rule says ' + margin.toFixed(1) + ' to under ' + (margin + BAND_RULE.floorTo).toFixed(1));
   ok(c.band._lowDepth <= 3, 'NG-3 ' + name + ' fresh four reads depth ' + c.band._lowDepth);
 }
 const m10 = r10('muster_barrows', 'check');

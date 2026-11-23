@@ -448,7 +448,7 @@ const CASES = {
       }
     }
     /* coin: a ground with a reference step (the fixture's pockets under Muster's id), far under it, pays the pull's share x the floor */
-    const gm = groundRow({ id: 'muster_barrows' });
+    const gm = groundRow({ id: 'hasks_ford' }); /* a ground on its rows (lane/tuning-pass: Muster plays the formula) */
     const d = M.danger.dangerDial(gm, 0), d1 = M.danger.dangerDial(gm, ref);
     const share = (x) => x.hpPm / (1000 * Math.pow(1 + M.dangerData.DANGER.powerStep, x.step));
     if (Math.abs(d.coinPm / (PAY.coinPm * share(d)) - PAY.floor) > 1e-9) return 'step 0 on Muster pays coin x' + d.coinPm / (PAY.coinPm * share(d)) + ', not the floor';
@@ -555,7 +555,7 @@ const CASES = {
   },
   loot(M) {
     const { DANGER, DANGER_GROUNDS, PAY } = M.dangerData;
-    const g = M.grounds.HUNT_GROUNDS.muster_barrows, row = DANGER_GROUNDS.muster_barrows;
+    const g = M.grounds.HUNT_GROUNDS.hasks_ford, row = DANGER_GROUNDS.hasks_ford; /* a ground on its rows (Muster plays the formula, whose pull sizes to the party: lane/tuning-pass) */
     const d = (s) => M.danger.dangerDial(g, s);
     if (Math.abs(d(row.refStep).dropPm - 1000) > 1e-9) return 'the reference step drops ' + d(row.refStep).dropPm + ' permille of the table, not the table';
     /* an hour's loot: dropPm x the pull's size (a pull's length grows by the step's health, paid back in the ratio) */
@@ -810,7 +810,7 @@ const MUTANTS = [
   { name: 'the dial goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  const s = stepOn(ground, step);', '  const s = clampStep(step);']] },
   { name: 'the top holds a ground off the scale', case: 'top', edits: [['src/core/hunt/danger.js', 'row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax', 'row && Number.isInteger(row.topStep) ? row.topStep : 710']] },
   { name: 'a start past the top opens past it', case: 'top', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, tier.step);', '          if (plan) openDanger(world, plan.risk, plan.step);']] },
-  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710,", "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 650,"],
+  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700,", "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 650,"],
     ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
   { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
   { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };', 'void SCALE_ITEM_LEVELS;'],

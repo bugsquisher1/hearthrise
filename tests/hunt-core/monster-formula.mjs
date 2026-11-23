@@ -52,6 +52,10 @@ const load = async (root) => {
 /* the switch on Muster Barrows, as a planted edit (the shipped row's own words) */
 const TOWER_ON = ['src/data/tower.js', "  monsters: 'rows',", "  monsters: 'formula',"];
 const MUSTER_ON = ['src/data/danger.js', "entryLevel: 55, refLevel: 60, monsters: 'rows' })", "entryLevel: 55, refLevel: 60, monsters: 'formula' })"];
+/* SHIPPED ON since the tuning pass (lane/tuning-pass, 2026-11-23, 29-tuning-pass.md): the tree is the switch on, the off side is planted. A
+   mutant that names MUSTER_ON plays on the tree as it ships; every other one with the switch planted off, as before */
+const MUSTER_OFF = [MUSTER_ON[0], MUSTER_ON[2], MUSTER_ON[1]];
+const onEdits = (edits) => edits.filter((e) => e !== MUSTER_ON);
 const close = (a, b, rel) => Math.abs(a - b) <= rel * Math.max(1, Math.abs(b));
 /* a scale ground's row with its switch on (derive reads only the row) */
 const onRow = (M, id) => ({ ...M.dangerData.DANGER_GROUNDS[id], monsters: 'formula' });
@@ -290,9 +294,9 @@ const PLAY_MUTANTS = [
 ];
 
 const R = makeReport('hunt-core/monster-formula');
-const ON = plant([MUSTER_ON], PLAY_TREES), TON = plant([TOWER_ON]);
+const OFF = plant([MUSTER_OFF], PLAY_TREES), TON = plant([TOWER_ON]);
 try {
-  const M = await load(ROOT), Mon = await load(ON.root), Mton = await load(TON.root);
+  const M = await load(OFF.root), Mon = await load(ROOT), Mton = await load(TON.root);
   const which = (cn) => (cn === 'dial' || cn === 'switch' || cn === 'ramp' || cn === 'armor' ? Mon : M);
   for (const [cn, fn] of Object.entries(CASES)) {
     let why = null;
@@ -300,15 +304,15 @@ try {
     R.ok(!why, cn + ': ' + why);
   }
   let why = null;
-  try { why = await playCase(ON.root); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await playCase(ROOT); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, 'play: ' + why);
   why = null;
-  try { why = await playOffCase(ROOT); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await playOffCase(OFF.root); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, 'play-off: ' + why);
-} finally { ON.done(); TON.done(); }
+} finally { OFF.done(); TON.done(); }
 for (const mu of MUTANTS) {
   const on = mu.edits.some((e) => e === MUSTER_ON) || mu.case === 'switch' || mu.case === 'ramp' || mu.case === 'armor';
-  const edits = on && !mu.edits.includes(MUSTER_ON) ? [MUSTER_ON, ...mu.edits] : mu.edits;
+  const edits = on ? onEdits(mu.edits) : [MUSTER_OFF, ...mu.edits];
   const p = plant(edits);
   try {
     let why = null;
@@ -317,7 +321,7 @@ for (const mu of MUTANTS) {
   } finally { p.done(); }
 }
 for (const mu of PLAY_MUTANTS) {
-  const p = plant([MUSTER_ON, ...mu.edits], PLAY_TREES);
+  const p = plant(onEdits(mu.edits), PLAY_TREES);
   try {
     let why = null;
     try { why = await playCase(p.root); } catch (e) { why = 'threw ' + e.message; }

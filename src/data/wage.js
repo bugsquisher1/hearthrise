@@ -79,5 +79,20 @@ export function wagePrice(hoursPm, step) {
   if (!(h > 0)) return 0;
   return Number((BigInt(h) * BigInt(wage(step)) + 999n) / 1000n);
 }
-/** Each rung of a ladder of milli-hours at one step, in gold (a climbing sink: the (n+1)th buy costs the nth). */
-export const wageLadder = (hoursPm, step) => Object.freeze(hoursPm.map((h) => wagePrice(h, step)));
+/* A LIST PRICE is a price tag a player reads on a counter (a deed, a room, a chest, a sink's rung, the starting purse): the wage's
+   price rounded to two significant figures, so a tag reads 25,000 and not 24,569, and every tag still moves with the wage's levers.
+   It is static data, generated into the server's catalogues as whole gold (no SQL twin computes it). A price the server computes per
+   buyer (a bought block, the Blessing, a reset) is never rounded: it reads wagePrice exactly, the same last gold as its SQL twin. */
+/** Whole gold `g` to two significant figures (under 100: itself). */
+export function twoFigures(g) {
+  const n = Math.floor(Number(g) || 0);
+  if (n < 100) return Math.max(0, n);
+  const p = 10 ** (String(n).length - 2);
+  return Math.round(n / p) * p;
+}
+/** The list price of `hoursPm` milli-hours of wage at `step`: wagePrice to two significant figures. */
+export function wageListPrice(hoursPm, step) {
+  return twoFigures(wagePrice(hoursPm, step));
+}
+/** Each rung of a ladder of milli-hours at one step, as list prices (a climbing sink: the (n+1)th buy costs the nth). */
+export const wageLadder = (hoursPm, step) => Object.freeze(hoursPm.map((h) => wageListPrice(h, step)));

@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 5ed780690dec5df1b657cee671dfda6f444e676794d6293935556c0974e14ed0
+--   catalogue digest: c87d879799fa9c95fc4d43d1ffc81144f48cc3aa9ac33c5718e8c3491d4e8ea2
 --   rows: 679 items (27 untradeable) ·
 --         389 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -775,21 +775,21 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('tower_key_gold','Gold Key',false,'key',0,null,null,null,false,null,false),
   ('tower_key_platinum','Platinum Key',false,'key',0,null,null,null,false,null,false),
   ('tower_key_silver','Silver Key',false,'key',0,null,null,null,false,null,false),
-  ('training_bow_12h','Training Bow (12 h)',true,'training',2456,null,null,null,false,null,false),
+  ('training_bow_12h','Training Bow (12 h)',true,'training',2500,null,null,null,false,null,false),
   ('training_bow_12h_bound','Training Bow (12 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_bow_24h','Training Bow (24 h)',true,'training',4525,null,null,null,false,null,false),
+  ('training_bow_24h','Training Bow (24 h)',true,'training',4500,null,null,null,false,null,false),
   ('training_bow_24h_bound','Training Bow (24 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_shield_12h','Training Shield (12 h)',true,'training',2456,null,null,null,false,null,false),
+  ('training_shield_12h','Training Shield (12 h)',true,'training',2500,null,null,null,false,null,false),
   ('training_shield_12h_bound','Training Shield (12 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_shield_24h','Training Shield (24 h)',true,'training',4525,null,null,null,false,null,false),
+  ('training_shield_24h','Training Shield (24 h)',true,'training',4500,null,null,null,false,null,false),
   ('training_shield_24h_bound','Training Shield (24 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_sword_12h','Training Sword (12 h)',true,'training',2456,null,null,null,false,null,false),
+  ('training_sword_12h','Training Sword (12 h)',true,'training',2500,null,null,null,false,null,false),
   ('training_sword_12h_bound','Training Sword (12 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_sword_24h','Training Sword (24 h)',true,'training',4525,null,null,null,false,null,false),
+  ('training_sword_24h','Training Sword (24 h)',true,'training',4500,null,null,null,false,null,false),
   ('training_sword_24h_bound','Training Sword (24 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_wand_12h','Training Wand (12 h)',true,'training',2456,null,null,null,false,null,false),
+  ('training_wand_12h','Training Wand (12 h)',true,'training',2500,null,null,null,false,null,false),
   ('training_wand_12h_bound','Training Wand (12 h)',false,'training',0,null,null,null,false,null,false),
-  ('training_wand_24h','Training Wand (24 h)',true,'training',4525,null,null,null,false,null,false),
+  ('training_wand_24h','Training Wand (24 h)',true,'training',4500,null,null,null,false,null,false),
   ('training_wand_24h_bound','Training Wand (24 h)',false,'training',0,null,null,null,false,null,false),
   ('traveler_cape','Traveler Cape',true,'armor',150,'level',1,null,false,null,false),
   ('troll_hide','Troll Hide',true,null,80,null,null,null,false,null,false),
@@ -1688,7 +1688,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
 -- momentary gap where the row does not exist would be a window in which a new
 -- character could be created with no kit at all.
 insert into public.hr_start_kit (only_row, gold, gems, hp, bank_cap, farm_plots)
-  values (true, 505, 0,
+  values (true, 510, 0,
           150, 100, 2)
   on conflict (only_row) do update set
     gold = excluded.gold, gems = excluded.gems,
@@ -2230,7 +2230,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '5ed780690dec5df1b657cee671dfda6f444e676794d6293935556c0974e14ed0', now())
+  values (true, 'c87d879799fa9c95fc4d43d1ffc81144f48cc3aa9ac33c5718e8c3491d4e8ea2', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2466,7 +2466,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5ed780690dec5df1b657cee671dfda6f444e676794d6293935556c0974e14ed0',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest c87d879799fa9c95fc4d43d1ffc81144f48cc3aa9ac33c5718e8c3491d4e8ea2',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

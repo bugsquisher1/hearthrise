@@ -1070,7 +1070,11 @@ async function run(mutate) {
       `G-PROV: the Counter still sells cooked lobster (${JSON.stringify(lob).slice(0, 160)}) — row 2 took cooked food off it`);
     /* The seed bundles are retired with every hidden offer (lane/b-gold-sinks, 2026-10-22: only a listed Shop row is
        sold); the rule is proven on a listed one-piece row: the count multiplies the catalogue price and grant. */
-    const OFF = 'supply.copper_ring'; const ITEM = 'copper_ring'; const PRICE = 240; const PER = 1;
+    /* the price is the DATA's row (src/data/supply-basics.js: the store's ask, storeCeiling x book since K-3, lane/prices-wage-hours), read
+       independently of the edge's resolveOffer it is held against */
+    const { SUPPLY_SHOP_OFFERS } = await import('../src/data/supply-basics.js');
+    const OFF = 'supply.copper_ring'; const ITEM = 'copper_ring'; const PER = 1;
+    const PRICE = (SUPPLY_SHOP_OFFERS.find((o) => o.offer === OFF) || {}).price;
     const res = buy.resolveOffer(OFF);
     ok(res.ok === true && res.offer.gold === PRICE
       && JSON.stringify(res.offer.grant) === JSON.stringify([{ id: ITEM, amount: PER }]),

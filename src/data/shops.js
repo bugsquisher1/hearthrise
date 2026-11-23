@@ -44,7 +44,7 @@ import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js';
 import { ITEMS } from './items.js';
 import { PROPERTY_TIERS, ROOM_RUNGS } from './homestead-tiers.js';
 import { storeAsk } from './store-kit.js';
-import { wagePrice } from './wage.js';
+import { wageListPrice } from './wage.js';
 
 function supplyOffer(s) {
   return { id: s.offer, table: "supply", name: ITEMS[s.item].n, cost: [{ kind: "currency", id: "gold", amount: s.price }],
@@ -52,7 +52,7 @@ function supplyOffer(s) {
 }
 
 /* NO GOLD IS TYPED BELOW (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md E-6 and K-3). An offer's gold is a formula:
-     a property deed   wagePrice(hoursPm, its tier's step)      milli-hours of wage (homestead-tiers.js PROPERTY_TIERS `step`)
+     a property deed   wageListPrice(hoursPm, its tier's step)  milli-hours of wage as a list price (homestead-tiers.js PROPERTY_TIERS `step`)
      a room rung       its ROOM_RUNGS row's derived gold        the rung's one home, the same rule at its gate's step
      a good            store-kit.js storeAsk(book x count)      the store ceiling over what its crafted partner is worth
    The material lines follow the gold, in id order, exactly as the server's catalogue lists them. tests/wage-prices.mjs holds it. */
@@ -69,7 +69,7 @@ function propertyOffer(id, hoursPm, items) {
   const tier = PROPERTY_TIERS.findIndex((t) => t.id === id);
   if (tier < 1) throw new Error('shops: no bought property tier ' + id);
   return { id: "property." + id, table: "property", name: PROPERTY_TIERS[tier].name,
-    cost: [gold(wagePrice(hoursPm, PROPERTY_TIERS[tier].step)), ...itemLines(items)],
+    cost: [gold(wageListPrice(hoursPm, PROPERTY_TIERS[tier].step)), ...itemLines(items)],
     grant: [{ kind: "unlock", id: "property:" + id, amount: tier }] };
 }
 /** Every room rung as an offer, `room.<room>.<n>`, in id order: its gold and materials are its ROOM_RUNGS row's. */
@@ -132,13 +132,13 @@ export const SHOP_OFFERS = [
      Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
      rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power.
      THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
-  /* PRICED IN HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; homestead-tiers.js says how): milli-hours at the tier's own step,
-     2,500,000 / 600,000 / 150,000 / 25,000 / 400 re-stated to two figures (2,582,720 / 593,554 / 145,180 / 25,468 / 401 now). */
-  propertyOffer('castle', 140000, { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
-  propertyOffer('farmstead', 1900, { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
+  /* PRICED IN HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; homestead-tiers.js says how): milli-hours at the tier's own step, whose
+     list prices are the 2026-11-22 deeds, 2,500,000 / 600,000 / 150,000 / 25,000 / 400. */
+  propertyOffer('castle', 135516, { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
+  propertyOffer('farmstead', 1865, { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
   propertyOffer('homestead', 31, { copper_ore: 20, normal_log: 30 }),
-  propertyOffer('keep', 37000, { bear_pelt: 5, big_bones: 20, iron_fitting: 12, maple_plank: 50, steel_bar: 35, timber_beam: 12 }),
-  propertyOffer('manor', 10000, { iron_fitting: 6, iron_ore: 40, silk_thread: 8, timber_beam: 6, willow_plank: 35 }),
+  propertyOffer('keep', 37402, { bear_pelt: 5, big_bones: 20, iron_fitting: 12, maple_plank: 50, steel_bar: 35, timber_beam: 12 }),
+  propertyOffer('manor', 10332, { iron_fitting: 6, iron_ore: 40, silk_thread: 8, timber_beam: 6, willow_plank: 35 }),
   /* Every room rung, from its one home (homestead-tiers.js ROOM_RUNGS), in id order. */
   ...ROOM_OFFERS,
   bundleOffer('bronze_arrows', 50),

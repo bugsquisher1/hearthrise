@@ -14,7 +14,8 @@
 //   prices         the climbing ladder: the (n+1)th purchase costs prices[n]. Past its end there is nothing left to buy. DERIVED, never typed:
 //                  a ladder is `hoursPm`, milli-hours of wage at step 1 (src/data/wage.js wageLadder; lane/prices-wage-hours 2026-11-23,
 //                  27-formula-overhaul.md E-6). These are account goods with no property tier of their own, so they read the base wage;
-//                  the hours are the 2026-11-22 gold over wage(1), to two figures (each within 4% of what it was). The designer moves hours.
+//                  each rung is a LIST price (two significant figures, wage.js wageListPrice) and the hours are the whole milli-hours whose list
+//                  price is the 2026-11-22 rung, so every tag reads what it read. The designer moves hours.
 //   priceBase, pricePerLevel  a price that reads the hero's Level instead: base + per level x Level
 //   perDay         how many a UTC day (absent: never resets)
 //   free           how many the hero has before the ladder starts
@@ -70,15 +71,15 @@ export const ROUND_SHOW = Object.freeze({
 export const SINK_RULES = Object.freeze({
   powder: Object.freeze({
     scope: 'account', offers: Object.freeze(['cinnabar', 'quicklime', 'borax']),
-    hoursPm: Object.freeze([150, 310, 460, 620, 770]), prices: wageLadder([150, 310, 460, 620, 770], ACCOUNT_STEP), perDay: 5, seconds: 30, bookS: 300, perMinute: 10,
+    hoursPm: Object.freeze([155, 309, 464, 619, 773]), prices: wageLadder([155, 309, 464, 619, 773], ACCOUNT_STEP), perDay: 5, seconds: 30, bookS: 300, perMinute: 10,
   }),
   round: Object.freeze({
     scope: 'account', offers: Object.freeze(['round']),
-    hoursPm: Object.freeze([390, 770, 1500]), prices: wageLadder([390, 770, 1500], ACCOUNT_STEP), perDay: 3, seconds: 45, bookS: 180, perMinute: 10,
+    hoursPm: Object.freeze([387, 773, 1547]), prices: wageLadder([387, 773, 1547], ACCOUNT_STEP), perDay: 3, seconds: 45, bookS: 180, perMinute: 10,
   }),
   crier: Object.freeze({
     scope: 'account', offers: Object.freeze([]),
-    hoursPm: Object.freeze([77, 150, 310, 620, 1200]), prices: wageLadder([77, 150, 310, 620, 1200], ACCOUNT_STEP), perDay: 5, gapS: 30, minLevel: 10, maxLetters: 120, perMinute: 3,
+    hoursPm: Object.freeze([77, 155, 309, 619, 1237]), prices: wageLadder([77, 155, 309, 619, 1237], ACCOUNT_STEP), perDay: 5, gapS: 30, minLevel: 10, maxLetters: 120, perMinute: 3,
   }),
   hero_colors: Object.freeze({
     scope: 'hero', offers: Object.freeze([]),
@@ -89,6 +90,6 @@ export const SINK_RULES = Object.freeze({
      trains at the yard's rate, never faster; what it buys is no hourly fee. The offers are training.js TRAINING_SKILLS (gen-gold-sinks checks). */
   house_dummy: Object.freeze({
     scope: 'account', offers: Object.freeze(['melee', 'ranged', 'magic', 'defense']),
-    hoursPm: Object.freeze([12000, 19000, 31000, 46000]), prices: wageLadder([12000, 19000, 31000, 46000], ACCOUNT_STEP),
+    hoursPm: Object.freeze([11600, 19333, 30933, 46400]), prices: wageLadder([11600, 19333, 30933, 46400], ACCOUNT_STEP),
   }),
 });

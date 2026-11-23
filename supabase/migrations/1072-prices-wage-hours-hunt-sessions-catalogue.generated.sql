@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 85ef586d1279c1159aa461a9c01a10e4d590be5025319688a7673be5f308f463
+--   digest: 8fa8756723dbdbb1224e403a94a2967692edcec8118ef02b9cf5e8fac3317af4
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   636 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
@@ -2146,14 +2146,14 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('tomato_seed', 22),
   ('tomato_soup', 260),
   ('torn_company_badge', 6),
-  ('training_bow_12h', 2456),
-  ('training_bow_24h', 4525),
-  ('training_shield_12h', 2456),
-  ('training_shield_24h', 4525),
-  ('training_sword_12h', 2456),
-  ('training_sword_24h', 4525),
-  ('training_wand_12h', 2456),
-  ('training_wand_24h', 4525),
+  ('training_bow_12h', 2500),
+  ('training_bow_24h', 4500),
+  ('training_shield_12h', 2500),
+  ('training_shield_24h', 4500),
+  ('training_sword_12h', 2500),
+  ('training_sword_24h', 4500),
+  ('training_wand_12h', 2500),
+  ('training_wand_24h', 4500),
   ('traveler_cape', 75),
   ('troll_hide', 16),
   ('trout', 3),
@@ -2269,21 +2269,21 @@ insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee) values
   ('training_yard_defense', 'yard', 'defense', 3, true);
 delete from public.hr_training_gear;
 insert into public.hr_training_gear (item_id, skill, hours_ms, bound, price) values
-  ('training_sword_12h', 'melee', 43200000, false, 245689),
+  ('training_sword_12h', 'melee', 43200000, false, 250000),
   ('training_sword_12h_bound', 'melee', 43200000, true, null),
-  ('training_sword_24h', 'melee', 86400000, false, 452585),
+  ('training_sword_24h', 'melee', 86400000, false, 450000),
   ('training_sword_24h_bound', 'melee', 86400000, true, null),
-  ('training_bow_12h', 'ranged', 43200000, false, 245689),
+  ('training_bow_12h', 'ranged', 43200000, false, 250000),
   ('training_bow_12h_bound', 'ranged', 43200000, true, null),
-  ('training_bow_24h', 'ranged', 86400000, false, 452585),
+  ('training_bow_24h', 'ranged', 86400000, false, 450000),
   ('training_bow_24h_bound', 'ranged', 86400000, true, null),
-  ('training_wand_12h', 'magic', 43200000, false, 245689),
+  ('training_wand_12h', 'magic', 43200000, false, 250000),
   ('training_wand_12h_bound', 'magic', 43200000, true, null),
-  ('training_wand_24h', 'magic', 86400000, false, 452585),
+  ('training_wand_24h', 'magic', 86400000, false, 450000),
   ('training_wand_24h_bound', 'magic', 86400000, true, null),
-  ('training_shield_12h', 'defense', 43200000, false, 245689),
+  ('training_shield_12h', 'defense', 43200000, false, 250000),
   ('training_shield_12h_bound', 'defense', 43200000, true, null),
-  ('training_shield_24h', 'defense', 86400000, false, 452585),
+  ('training_shield_24h', 'defense', 86400000, false, 450000),
   ('training_shield_24h_bound', 'defense', 86400000, true, null);
 delete from public.hr_boss_halls;
 insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values

@@ -28,9 +28,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* 2026-11-28-storage-chests-catalogue.generated.sql is APPLIED history. lane/prices-wage-hours (2026-11-23) re-issues the rows with each chest's
-   gold in hours of wage (src/data/homestead-tiers.js) in this forward file, the same upsert. The next change moves OUT_FILE again. */
-export const OUT_FILE = '1069-prices-wage-hours-storage-chests-catalogue.generated.sql';
+export const OUT_FILE = '2026-11-28-storage-chests-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";

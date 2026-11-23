@@ -6,7 +6,7 @@
 --   hand edit is reverted by the next generation and FAILS
 --   `node tools/gen-farm-catalogues.mjs --check` (a preflight in tests/run-smoke.mjs).
 --
---   farm-catalogue digest: 9003f2a24160927902303d37109f11fc134f4dbd4c0dc2272bb8fe090c44cd5e
+--   farm-catalogue digest: 4a7636292a1064c8cd7796a9f2e957d67c2e6b1217288d990104abea7ce949e2
 --   9 crops (2 finite perennials) · 9 crop plot-tiers · 5 plot levels · 7 yield perks
 --
 -- Read by hr_farm_plant / hr_farm_harvest / hr_farm_water / hr_farm_upgrade_plot /
@@ -111,10 +111,10 @@ alter table public.hr_plot_tier drop column if exists deed_cost;
 truncate table public.hr_plot_tier;
 insert into public.hr_plot_tier (plot_level, gold_cost, req_farm_level) values
   (1, 0, 1),
-  (2, 505, 5),
-  (3, 5044, 25),
-  (4, 24569, 45),
-  (5, 99569, 70);
+  (2, 510, 5),
+  (3, 5000, 25),
+  (4, 25000, 45),
+  (5, 100000, 70);
 
 truncate table public.hr_farm_yield_perk;
 insert into public.hr_farm_yield_perk (perk_key, farm_yield) values
@@ -156,14 +156,14 @@ begin
     raise exception 'hr_plot_tier still carries deed_cost';
   end if;
   -- Every paid tier carries its gold price and farming gate (R1: never the defaults).
-  if not exists (select 1 from public.hr_plot_tier where plot_level = 2 and gold_cost = 505 and req_farm_level = 5) then
-    raise exception 'plot level 2 is not priced at 505 gold / farming 5'; end if;
-  if not exists (select 1 from public.hr_plot_tier where plot_level = 3 and gold_cost = 5044 and req_farm_level = 25) then
-    raise exception 'plot level 3 is not priced at 5044 gold / farming 25'; end if;
-  if not exists (select 1 from public.hr_plot_tier where plot_level = 4 and gold_cost = 24569 and req_farm_level = 45) then
-    raise exception 'plot level 4 is not priced at 24569 gold / farming 45'; end if;
-  if not exists (select 1 from public.hr_plot_tier where plot_level = 5 and gold_cost = 99569 and req_farm_level = 70) then
-    raise exception 'plot level 5 is not priced at 99569 gold / farming 70'; end if;
+  if not exists (select 1 from public.hr_plot_tier where plot_level = 2 and gold_cost = 510 and req_farm_level = 5) then
+    raise exception 'plot level 2 is not priced at 510 gold / farming 5'; end if;
+  if not exists (select 1 from public.hr_plot_tier where plot_level = 3 and gold_cost = 5000 and req_farm_level = 25) then
+    raise exception 'plot level 3 is not priced at 5000 gold / farming 25'; end if;
+  if not exists (select 1 from public.hr_plot_tier where plot_level = 4 and gold_cost = 25000 and req_farm_level = 45) then
+    raise exception 'plot level 4 is not priced at 25000 gold / farming 45'; end if;
+  if not exists (select 1 from public.hr_plot_tier where plot_level = 5 and gold_cost = 100000 and req_farm_level = 70) then
+    raise exception 'plot level 5 is not priced at 100000 gold / farming 70'; end if;
   select count(*) into v_bad from public.hr_plot_tier where plot_level > 1 and (gold_cost <= 0 or req_farm_level <= 1);
   if v_bad > 0 then raise exception '% plot tier(s) above 1 are free or ungated', v_bad; end if;
   select count(*) into v_bad from pg_policies

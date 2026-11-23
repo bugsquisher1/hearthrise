@@ -38,7 +38,7 @@
 // PURE ESM DATA. Data and the wage's price function, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
 
-import { wagePrice } from './wage.js';
+import { wageListPrice } from './wage.js';
 
 /** The skills a hero can train, in the order the Training panel lists them. */
 export const TRAINING_SKILLS = Object.freeze(['melee', 'ranged', 'magic', 'defense']);
@@ -89,8 +89,8 @@ export function trainingFee(level) {
 /* ── THE TRAINING ITEMS (Tyler 2026-11-14; the designer's numbers) ──────────────────────────────────────────────────────────────────
    One item a skill, in two sizes; every hero can use every one. `boostPermille` is the rate while its hours last (2000: "200%", never
    said as "2x"). `hoursPm` is the Arms Master's flat price for each size in milli-hours of wage at step 1, and `gold` that price,
-   derived, never typed (src/data/wage.js wagePrice; lane/prices-wage-hours 2026-11-23, 27-formula-overhaul.md E-6: an account good with
-   no tier of its own reads the base wage; 245,689 and 452,585 g, the 2026-11-22 250,000 and 450,000 to two figures). STEEP: a lone hero
+   derived, never typed (src/data/wage.js wageListPrice, a list price to two figures; lane/prices-wage-hours 2026-11-23, 27-formula-overhaul.md
+   E-6: an account good with no tier of its own reads the base wage; the hours give back 250,000 and 450,000). STEEP: a lone hero
    under Level 30 can't reach one with gold.
    `buyPerDay` is how many an ACCOUNT may buy from the Arms Master in a UTC day (the purchase verb's per-day clamp, the house pattern).
    `bidShare`: a gold-bought item's book value is its price / bidShare. That is the shop's bid for a sealed one (1% of its price back)
@@ -100,8 +100,8 @@ export function trainingFee(level) {
 export const TRAINING_GEAR = Object.freeze({
   boostPermille: 2000,
   hours: Object.freeze([12, 24]),
-  hoursPm: Object.freeze({ 12: 19000, 24: 35000 }),
-  gold: Object.freeze({ 12: wagePrice(19000, 1), 24: wagePrice(35000, 1) }),
+  hoursPm: Object.freeze({ 12: 19333, 24: 34800 }),
+  gold: Object.freeze({ 12: wageListPrice(19333, 1), 24: wageListPrice(34800, 1) }),
   buyPerDay: 10,
   bidShare: 100,
   names: Object.freeze({ melee: 'Training Sword', ranged: 'Training Bow', magic: 'Training Wand', defense: 'Training Shield' }),

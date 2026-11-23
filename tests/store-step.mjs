@@ -166,8 +166,10 @@ async function bothPaths(boot, doors = ['fire', 'viewed']) {
 const MUTANTS = [
   { name: 'the bill charges the row\'s list price', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
     find: 'select public.hr_store_price(q.basic_id, v_sstep), q.kind into v_price', repl: 'select q.price, q.kind into v_price', want: /^SS-(BILL|CLASS) / },
-  { name: 'the bill prices at the step after the window (taken after the credits)', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
-    find: 'select public.hr_store_price(q.basic_id, v_sstep), q.kind into v_price', repl: 'select public.hr_store_price(q.basic_id, public.hr_store_step(p_instance, p_user, p_slot) + 7), q.kind into v_price', want: /^SS-BILL / },
+  /* (+40 wage steps, a third of a band: after R10's top a shrimp at +7 rounds to the same whole gold at every depth the windows opened at,
+     wage steps 180 / 108 / 54 / 1, and the mutant escaped) */
+  { name: 'the bill prices at another step than the window opened at (40 deeper)', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
+    find: 'select public.hr_store_price(q.basic_id, v_sstep), q.kind into v_price', repl: 'select public.hr_store_price(q.basic_id, public.hr_store_step(p_instance, p_user, p_slot) + 40), q.kind into v_price', want: /^SS-BILL / },
   { name: 'the engine is handed the row\'s list price', fn: 'public.hr_hunt_member_read(public.hunt_sessions)',
     find: "'price', public.hr_store_price(b.basic_id, (select public.hr_store_step(p_s.instance_id, p_s.user_id, p_s.slot))),", repl: "'price', b.price,", want: /^SS-(READ|CLASS) / },
   { name: 'the step is the frozen start, not the window\'s depth', fn: 'public.hr_store_step(uuid,uuid,integer)',

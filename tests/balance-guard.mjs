@@ -222,6 +222,16 @@ function dataInputs() {
 function depthPay(sc, g, step) {
   return WAGE.wage(g.gearLevel) * Math.max(sc.floor, (1 + sc.payStepCoin) ** Math.min(step - g.refStep, sc.gapMax));
 }
+/** G7's pairs: each scale ground of a base item Level against the best-paying top of the Level before it (grounds of one Level, the two
+    Catacomb wings, are each other's alternatives, never "the next ground"). [{ prev, next }] in the judge's order. */
+function g7Pairs(sc) {
+  const levels = [...new Set(sc.grounds.map((g) => g.gearLevel))].sort((a, b) => a - b);
+  const at = (L) => sc.grounds.filter((g) => g.gearLevel === L).sort((a, b) => (a.id < b.id ? -1 : 1));
+  return levels.slice(1).flatMap((L, i) => {
+    const prev = at(levels[i]).reduce((m, g) => (depthPay(sc, g, g.topStep) > depthPay(sc, m, m.topStep) ? g : m));
+    return at(L).map((next) => ({ prev, next }));
+  });
+}
 
 /* ── measuring ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 async function measure({ nightly = false, workers, quiet = false }) {
@@ -318,13 +328,13 @@ function judge(I) {
   }
   {
     /* G7 (re-aimed, C-11): read from data, consecutive scale grounds by base item Level */
-    const sc = I.data.scale, gs = [...sc.grounds].sort((a, b) => a.gearLevel - b.gearLevel || (a.id < b.id ? -1 : 1));
-    const rows = gs.slice(1).map((g, i) => {
-      const prev = gs[i], v = depthPay(sc, g, g.floorStep) / depthPay(sc, prev, prev.topStep);
+    const sc = I.data.scale;
+    const rows = g7Pairs(sc).map(({ prev, next: g }) => {
+      const v = depthPay(sc, g, g.floorStep) / depthPay(sc, prev, prev.topStep);
       return row(prev.id + ' -> ' + g.id, v, band('G7'), f2, ' (' + kG(depthPay(sc, g, g.floorStep)) + ' at depth 1 / ' + kG(depthPay(sc, prev, prev.topStep)) + ' at depth 20)');
     });
-    line('G7', rows.length ? rows : [{ at: gs.map((g) => g.id).join(', ') || 'none', value: NaN, status: 'n/a', shown: 'one scale ground' }],
-      rows.length ? 'a hold\'s coin in the wage\'s unit: wage(gearLevel) x the depth ratio (src/data/danger.js PAY)' : 'judged once R10 opens a second scale ground');
+    line('G7', rows.length ? rows : [{ at: sc.grounds.map((g) => g.id).join(', ') || 'none', value: NaN, status: 'n/a', shown: 'one base item Level on the scale' }],
+      rows.length ? 'a hold\'s coin in the wage\'s unit: wage(gearLevel) x the depth ratio (src/data/danger.js PAY); a Level\'s grounds against the best top of the Level before' : 'judged once a second base item Level is on the scale');
   }
   line('G8', GC.DEADLY_POINTS.map((p) => { const r = R('four-real:' + p.id); return row(p.id, r ? r.incomePerH - r.storePerH * (1 - GC.G8_OWN_SHARE) : NaN, band('G8'), kG); }),
     'store x' + (1 - GC.G8_OWN_SHARE) + ' (a quarter own); linings not built (L32)');
@@ -567,12 +577,14 @@ async function selftest(workers) {
   /* G7 (re-aimed, C-11): a second scale ground one tier on with Muster's own band: its first depth pays under the last ground's top. With
      one ground the line has no pair to judge, so the plant opens the second; its pair's row is the one that must turn red. */
   {
-    const last = () => [...I.data.scale.grounds].sort((a, b) => b.gearLevel - a.gearLevel)[0];
-    plant('the next scale ground pays less from its first depth than the last one\'s top (a second ground, one tier on, Muster\'s band)',
+    /* a ground one tier past the highest base item Level, cut like the last ground there (the judge's order: base item Level, then id) */
+    const last = () => [...I.data.scale.grounds].sort((a, b) => a.gearLevel - b.gearLevel || (a.id < b.id ? -1 : 1)).slice(-1)[0];
+    const planted = () => ({ ...last(), id: 'planted_ground', gearLevel: last().gearLevel + 20 });
+    plant('the next scale ground pays less from its first depth than the last one\'s top (a ground one tier on, the last ground\'s band)',
       (c) => c.find((l) => l.id === 'G7').rows[0] || null,
       /* a copy all the way down: clone() shares I.data, and every later plant judges that */
-      (J) => { const g = last(); J.data = { ...J.data, scale: { ...J.data.scale, grounds: [...J.data.scale.grounds, { ...g, id: 'planted_ground', gearLevel: g.gearLevel + 20 }] } }; },
-      { expect: () => ['G7 ' + last().id + ' -> planted_ground'] });
+      (J) => { J.data = { ...J.data, scale: { ...J.data.scale, grounds: [...J.data.scale.grounds, planted()] } }; },
+      { expect: () => g7Pairs({ ...I.data.scale, grounds: [...I.data.scale.grounds, planted()] }).filter((p) => p.next.id === 'planted_ground').map((p) => 'G7 ' + p.prev.id + ' -> planted_ground') });
   }
   /* G1 (re-aimed, C-7): a lone hero out-earns the mixed four's head */
   plant('a lone hero runs away: 1.3x the four\'s head', (c) => firstClean(c, 'G1'), (J, r) => { const [g, style] = r.at.split(' '); J.rows['scale-lone:' + g + ':' + style].levelXpPerH = 1.3 * J.rows['scale-four:' + g].levelXpPerH; });

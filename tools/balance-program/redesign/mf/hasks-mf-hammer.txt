@@ -1,0 +1,24 @@
+
+V1 on hasks_ford (6 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       619.3 +- 4.3      7.1  99.7   100    3.7      0     2.7       82      0     0  0 (0/0/0)                       4  {"hold":3471,"climb":457,"fall":1}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.87x  sd 0.02  n 6  window 4 h  seeds 0.87 0.87 0.9 0.87 0.85 0.86
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L52  coin 9586 +- 201  income 11436 +- 268  store 1629  kit share 0.14 (meal 1628, drink 0, charge 0, shot 0)  loot by band: common 401, uncommon 168, scarce 1282, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer
+  base:steady       hammer 1
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 12.64 land 71.18% hit 32.34 (1963/h)
+                    banded_pikeman(null) 109.1/h 21.9 s 388 | fordsunk(null) 27.3/h 34.2 s 604 | bannerman(null) 13.7/h 22.8 s 170 | ledger_wight(null) 13.7/h 15.7 s 174
+                    broke off by: fall:banded_pikeman@0 1
+
+wall 15 s

@@ -1,0 +1,24 @@
+
+V1 on hasks_ford (6 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       499.7 +- 2.9      0.8  94.5   100    2.8    0.2     0.9      103      0     0  0 (0/0/0)                       4  {"hold":4696,"climb":239,"fall":5}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.43x  sd 0  n 6  window 4 h  seeds 0.43 0.43 0.43 0.42 0.43 0.43
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L52  coin 5692 +- 36  income 8397 +- 96  store 2819  kit share 0.34 (meal 704, drink 472, charge 510, shot 1133)  loot by band: common 548, uncommon 188, scarce 1968, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, axes, bow, mage
+  base:steady       hammer 0.352  axes 0.426  bow 0.1  mage 0.121
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 11.35 land 73% hit 29.56 (1923.83/h) | axes dps 8.62 land 82.08% hit 33.75 (2040.17/h) | bow dps 11.78 land 52.4% hit 64.34 (251.83/h) | mage dps 14.77 land 83.4% hit 19.2 (1021.33/h)
+                    banded_pikeman(null) 375.4/h 11.4 s 155 | fordsunk(null) 170.8/h 14.1 s 224 | ledger_wight(null) 136/h 16.6 s 466 | bannerman(null) 34.3/h 8.1 s 49
+                    broke off by: fall:ledger_wight@2 4, fall:fordsunk@0 1
+
+wall 49 s

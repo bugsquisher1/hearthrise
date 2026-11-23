@@ -8,6 +8,12 @@ hasks mid L52 bold                    |    637   2.5    703  0.22  0.39   1.3  1
 hasks mid L60 careful                 |  580.6     0    993  0.13     1  1.07  13063 |  594.2     0    887  0.25  0.63  1.05  12298
 hasks mid L60 steady                  |    648     0    937  0.12     1  1.58  18532 |  655.2     0    764  0.26  0.62  1.33  15674
 hasks mid L60 bold                    |  688.3  2.08    809  0.15  0.51  2.27  16693 |  697.2  0.42    664   0.3  0.62  1.59  16431
+hasks hammer-axes-bow-mage L52 steady |                                                 |  499.7     0    717  0.34  0.35  0.43   5692
+hasks hammer-bow-mage-healer L52 steady|                                                 |  591.5     0    755  0.39  0.61  0.86  10133
+hasks hammer-healer L52 steady        |                                                 |    700     0    276  0.25  0.85  1.33  13289
+hasks hammer L52 steady               |                                                 |  619.3     0    164  0.14     1  0.87   9586
+hasks tank-bow-mage-healer L52 steady |                                                 |  629.7     0    607  0.46  0.64   0.9  10298
+hasks tank-hammer-bow-healer L52 steady|                                                 |  634.7     0    541  0.42  0.62  0.83   9497
 muster low L55 careful                |  217.7     0    395  0.17  0.68  0.42  10653 |  265.4     0    379  0.21  0.72  0.41   9143
 muster low L55 steady                 |    354     0    321  0.34  0.69  0.34   6966 |  419.1  0.21    328  0.49  0.73  0.35   6420
 muster low L55 bold                   |  400.8  0.83    303  0.37  0.47  0.33   8318 |  471.9  0.42    293  0.76  0.67  0.32   5203
@@ -17,6 +23,12 @@ muster mid L60 bold                   |  662.8  0.63    382   0.3  0.62  1.27  1
 muster mid L70 careful                |    512     0    524  0.37  0.66  0.66   9333 |  509.5     0    550  0.38  0.74  0.68   9644
 muster mid L70 steady                 |  653.6     0    400   0.3  0.68  1.28  16184 |  643.2     0    426   0.3  0.74  1.26  16921
 muster mid L70 bold                   |  692.6  1.25    369  0.29  0.56  1.45  17064 |  693.9  0.42    360  0.27  0.74  1.51  20039
+muster hammer-axes-bow-mage L60 steady|                                                 |    460     0    492  0.33  0.44  0.52   8356
+muster hammer-bow-mage-healer L60 steady|                                                 |  617.5     0    443  0.29  0.75  1.09  14353
+muster hammer-healer L60 steady       |                                                 |  637.4     0    144  0.32  0.77  0.82  10444
+muster hammer L60 steady              |                                                 |  521.8     0     98  0.58     1  0.49   8079
+muster tank-bow-mage-healer L60 steady|                                                 |  664.8     0    348  0.29  0.93  1.18  15652
+muster tank-hammer-bow-healer L60 steady|                                                 |  612.3     0    362  0.35   0.8  0.86  11438
 wing low L165 careful                 |  288.7     0    480  0.04  0.87  0.37  20494 |  275.3     0    718  0.04  0.71  0.56  30053
 wing low L165 steady                  |  398.5     0    517  0.08  0.92  0.46  18537 |  352.5     0    666  0.09  0.67  0.52  21237
 wing low L165 bold                    |  444.9  1.88    454  0.08  0.64  0.58  24174 |  388.6     0    679  0.13  0.63  0.57  22885
@@ -26,3 +38,18 @@ wing mid L175 bold                    |  510.6  1.88    528  0.17  0.52  1.16  3
 wing mid L185 careful                 |  402.2     0    598  0.17  0.92  0.54  22020 |  374.8     0    812  0.16  0.63  0.64  26377
 wing mid L185 steady                  |  490.6     0    631  0.13  0.94  1.07  34663 |  462.3     0    791  0.14  0.59   1.1  39148
 wing mid L185 bold                    |  520.7  1.25    540  0.13  0.77  1.23  37606 |  495.5  0.83    635  0.13  0.65  1.28  40049
+
+Armor Break (-25% armor held on every Muster monster; brute armor 0.5, warder 0.35), Steady L60 MID, 8 seeds x 8 h, paired with mf-muster:
+armor break: held 619.7 -> 625.2 paired -72.8 se 79.6 kills 444 -> 480 pay 1.12 -> 1.29 deaths 0 1
+hasks-mf-hammer-axes-bow-mage.json           held 499.7 deaths 0 kills 717 pay 0.43 coin/hero-h 5692 shares hammer 0.352 axes 0.426 bow 0.1 mage 0.121
+hasks-mf-hammer-bow-mage-healer.json         held 591.5 deaths 0 kills 755 pay 0.86 coin/hero-h 10133 shares hammer 0.607 bow 0.104 mage 0.134 healer 0.155
+hasks-mf-hammer-healer.json                  held 700 deaths 0 kills 276 pay 1.33 coin/hero-h 13289 shares hammer 0.852 healer 0.148
+hasks-mf-hammer.json                         held 619.3 deaths 0 kills 164 pay 0.87 coin/hero-h 9586 shares hammer 1
+hasks-mf-tank-bow-mage-healer.json           held 629.7 deaths 0 kills 607 pay 0.9 coin/hero-h 10298 shares tank 0.641 bow 0.099 mage 0.114 healer 0.146
+hasks-mf-tank-hammer-bow-healer.json         held 634.7 deaths 0 kills 541 pay 0.83 coin/hero-h 9497 shares tank 0.617 hammer 0.163 bow 0.088 healer 0.132
+muster-mf-hammer-axes-bow-mage.json          held 460 deaths 0 kills 492 pay 0.52 coin/hero-h 8356 shares hammer 0.444 axes 0.382 bow 0.174 mage 0
+muster-mf-hammer-bow-mage-healer.json        held 617.5 deaths 0 kills 443 pay 1.09 coin/hero-h 14353 shares hammer 0.75 bow 0.196 mage 0.049 healer 0.005
+muster-mf-hammer-healer.json                 held 637.4 deaths 0 kills 144 pay 0.82 coin/hero-h 10444 shares hammer 0.774 healer 0.226
+muster-mf-hammer.json                        held 521.8 deaths 0 kills 98 pay 0.49 coin/hero-h 8079 shares hammer 1
+muster-mf-tank-bow-mage-healer.json          held 664.8 deaths 0 kills 348 pay 1.18 coin/hero-h 15652 shares tank 0.934 bow 0.06 mage 0.001 healer 0.006
+muster-mf-tank-hammer-bow-healer.json        held 612.3 deaths 0 kills 362 pay 0.86 coin/hero-h 11438 shares tank 0.803 hammer 0.133 bow 0.054 healer 0.011

@@ -77,7 +77,7 @@ const windup = (row) => Object.freeze({ ...row, element: row.element === undefin
 
 export const MONSTER_ROLES = Object.freeze({
   brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: shields, armor',
-    armor: 0.3, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,
+    armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,
     windup: windup({ n: 'Heavy Blow', shape: 'cone', len: 2, range: 1, windupMs: 1600 }) }),
   shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',
     armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),
@@ -92,7 +92,7 @@ export const MONSTER_ROLES = Object.freeze({
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights. On a formula ground its heal is
      the formula's (`mend`) */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire',
-    armor: 0.25, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
+    armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
     mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
 });
 

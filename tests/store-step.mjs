@@ -5,7 +5,7 @@
 //   node tests/store-step.mjs            the guard
 //   node tests/store-step.mjs --mutate   the proof: each SQL mutant, planted in a live body on a booted replay, turns its own arm red
 //
-// THE RULE (src/core/wage.js storeStepOf, src/data/store-kit.js storePriceOf, src/data/supply-basics.js storeUsePrice): on the Danger
+// THE RULE (src/core/wage.js depthStep and levelStep, src/data/store-kit.js storePriceOf, src/data/supply-basics.js storeUsePrice): on the Danger
 // scale a use costs its row at the depth the hunt stands at as the settle window opens, in the wage's unit (depthStep); off it, at the
 // hero's Level. A row's own made-at step prices its LIST price only.
 //
@@ -32,7 +32,7 @@ import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { BASIC_SUPPLIES, BASIC_INDEX, storeUsePrice } from '../src/data/supply-basics.js';
-import { depthStep, levelStep, storeStepOf } from '../src/core/wage.js';
+import { depthStep, levelStep } from '../src/core/wage.js';
 import { DANGER } from '../src/data/danger.js';
 
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
@@ -97,8 +97,8 @@ async function door(db, which, o = {}) {
   const uids = (await db.query('select user_id from public.hunt_sessions where instance_id = $1 order by seat', [inst])).rows.map((r) => r.user_id);
   if (!town) problems.push(tag('SS-TOWN') + ' HARNESS: the town read never ran');
   else {
-    /* the rule (src/core/wage.js storeStepOf): no hunt, so the hero's Level */
-    const step = storeStepOf({ level: town.lv });
+    /* the rule (src/core/wage.js levelStep): no hunt, so the hero's Level */
+    const step = levelStep(town.lv);
     if (town.lv !== LEVEL || town.step !== step || step !== levelStep(LEVEL)) problems.push(tag('SS-TOWN') + ' a Level ' + town.lv + ' hero in town prices at step ' + town.step + ', want its Level ' + LEVEL);
     const off = (town.store || []).filter((r) => r.price !== storeUsePrice(r.id, step)).map((r) => r.id + ' ' + r.price + ' (want ' + storeUsePrice(r.id, step) + ')');
     if (!Array.isArray(town.store) || town.store.length !== BASIC_SUPPLIES.length || off.length) problems.push(tag('SS-TOWN') + ' the settings view lists ' + (off.slice(0, 4).join(', ') || (town.store || []).length + ' rows'));
@@ -111,8 +111,8 @@ async function door(db, which, o = {}) {
     const rows = (await db.query(`select l.id, l.meta, l.gold from public.player_ledger l join public.hunt_sessions s on s.id = l.session_id
        where s.instance_id = $1 and l.intent = 'supply_buy' and l.id > $2 order by l.id`, [inst, after])).rows;
     const at = opened[opened.length - 1];
-    /* the rule (src/core/wage.js storeStepOf): a hunt on the scale, so the depth its window opened at */
-    const step = storeStepOf({ hunt: MUSTER, step: at, level: LEVEL });
+    /* the rule (src/core/wage.js depthStep): a hunt on the scale, so the depth its window opened at */
+    const step = depthStep(MUSTER, at);
     for (const r of rows) {
       let gold = 0;
       for (const [id, x] of Object.entries((r.meta && r.meta.items) || {})) {

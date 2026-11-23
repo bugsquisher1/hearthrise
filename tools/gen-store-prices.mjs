@@ -3,7 +3,7 @@
 // tools/gen-store-prices.mjs — GENERATE THE STORE'S PRICE TERMS AND THEIR SQL TWIN (lane/econ-followups, backend-architect, 2026-11-22;
 //   04-math-strategy.md section 11, 09-crafting.md 4.6; Tyler 2026-11-22: goods are priced by depth).
 //
-// A store use is priced at the BUYER's store step (src/data/store-kit.js header; src/core/wage.js storeStepOf), so the server needs the
+// A store use is priced at the BUYER's store step (src/data/store-kit.js header; src/core/wage.js depthStep and levelStep), so the server needs the
 // rule, not a price: every row's step-free terms and the step evaluation. This writes them whole, from the data, with a self-check:
 //   hr_store_terms       one row a store row (src/data/supply-basics.js STORE_TERMS -> store-kit.js storeTerms): line, coef (one double,
 //                        its shortest round-trip text), amount, per, floor
@@ -43,7 +43,7 @@ async function load(root) {
   const q = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + q);
   const [sb, kit, danger] = await Promise.all([imp('src/data/supply-basics.js'), imp('src/data/store-kit.js'), imp('src/data/danger.js')]);
-  return { BASIC_SUPPLIES: sb.BASIC_SUPPLIES, STORE_TERMS: sb.STORE_TERMS, storePriceOf: kit.storePriceOf, DANGER_GROUNDS: danger.DANGER_GROUNDS, stepMax: danger.DANGER.stepMax };
+  return { BASIC_SUPPLIES: sb.BASIC_SUPPLIES, STORE_TERMS: sb.STORE_TERMS, storeUsePrice: sb.storeUsePrice, storePriceOf: kit.storePriceOf, DANGER_GROUNDS: danger.DANGER_GROUNDS, stepMax: danger.DANGER.stepMax };
 }
 
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -78,7 +78,8 @@ export function rowsOf(data) {
   if (!rows.length) problems.push('the store holds no row');
   if (problems.length) throw new Error('gen-store-prices: ' + problems.join('; '));
   const pins = [];
-  for (const r of rows) for (const s of PIN_STEPS) pins.push({ id: r.id, s, price: data.storePriceOf(r.terms, s) });
+  /* the pins are what supply-basics.js storeUsePrice answers, the one JS reader of a use's price (tests/store-step.mjs SS-PRICE holds every step) */
+  for (const r of rows) for (const s of PIN_STEPS) pins.push({ id: r.id, s, price: data.storeUsePrice(r.id, s) });
   return { rows, grounds, pins };
 }
 

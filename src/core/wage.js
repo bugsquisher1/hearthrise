@@ -52,22 +52,14 @@ export function levelStep(level) {
  * a ground one Danger step pays the wage's coin ratio (danger.js PAY: one coin ratio a step), so each step over or under the reference is
  * one wage step; past gapMax a kill pays no more, and the price stops with it. (Under the reference the pay floor PAY.floor holds a kill's
  * coin from about 173 steps down; on today's ground that is under wage step 1, where wageStep already holds it.) Null off the scale.
- * The server's twin is hr_store_step (supabase/migrations/1062-store-step.sql).
+ * THE BUYER'S STORE STEP (store-kit.js storePriceOf; the server's twin is hr_store_step, supabase/migrations/1062-store-step.sql): on the
+ * Danger scale depthStep of the step the hunt stands at as the settle window opens (the stored world's, else the step it froze at), off
+ * it levelStep of the hero's Level. A party's heroes share the window's depth, so they share its price.
  */
 export function depthStep(groundId, step) {
   const g = Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null;
   if (!g || !Number.isFinite(step)) return null;
   return wageStep(g.gearLevel + Math.min(Math.floor(step) - g.refStep, PAY.gapMax));
-}
-
-/**
- * THE STEP A STORE USE IS PRICED AT (the buyer's store step; store-kit.js storePriceOf): on the Danger scale the depth the hunt stands at
- * as the settle window opens (`hunt` a scale ground and `step` the stored world's step, else the step the hunt froze at), off it the
- * hero's Level. A party's heroes share the window's depth, so they share its price.
- */
-export function storeStepOf({ hunt = null, step = null, level }) {
-  const d = hunt !== null && step !== null ? depthStep(hunt, step) : null;
-  return d !== null ? d : levelStep(level);
 }
 
 /** The gold block `n` (1 for the day's first) of a bought-time `row` costs a hero of Level `level`, or null past the row's day cap. */

@@ -13,7 +13,7 @@
 -- of the wage at the BUYER's step, and Tyler ruled goods are priced by depth. Supplies are kit burned while hunting at a depth, so a use
 -- is priced at the depth the hunt stands at: the bill then follows what the hour pays, at every depth.
 --
--- ── THE DECISION: WHICH STEP (src/core/wage.js storeStepOf is the spec; hr_store_step its twin) ───────────────────────────────
+-- ── THE DECISION: WHICH STEP (src/core/wage.js depthStep and levelStep are the spec; hr_store_step its twin) ───────────────────────────────
 --   ON THE DANGER SCALE: the step the hunt stands at as each settle window opens (the instance's stored world; the frozen start before
 --     its first world), in the wage's unit (wage.js depthStep: gearLevel + min(step - refStep, gap_max)). NOT the hero's held step on
 --     the ground (hunt_density.danger_held): that is written only as a hunt ends, so a company could end a short Careful hunt shallow,
@@ -98,7 +98,7 @@ declare
   v_max  int := coalesce((select r.step_max from public.hr_danger_rules r where r.id), 1);
   v_lv   int;
 begin
-  -- STORE-STEP (1062-store-step.sql; src/core/wage.js storeStepOf, depthStep): the step a store use is priced at.
+  -- STORE-STEP (1062-store-step.sql; src/core/wage.js depthStep, levelStep): the step a store use is priced at.
   if v_inst is null then
     select h.instance_id into v_inst from public.hunt_sessions h
      where h.user_id = p_user and h.slot = p_slot and h.ended_at is null order by h.hunt_from desc limit 1;
@@ -125,7 +125,7 @@ begin
   select public.hr_char_level(ps.level_xp) into v_lv from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;
   return least(v_max, greatest(1, coalesce(v_lv, 1)));
 end $fn$;
-comment on function public.hr_store_step(uuid, uuid, integer) is '1062-store-step.sql: the step a store use is priced at (src/core/wage.js storeStepOf): on the Danger scale the depth the hunt stands at as the window opens, in the wage''s unit; off it the hero''s Level. Internal.';
+comment on function public.hr_store_step(uuid, uuid, integer) is '1062-store-step.sql: the step a store use is priced at (src/core/wage.js depthStep, levelStep): on the Danger scale the depth the hunt stands at as the window opens, in the wage''s unit; off it the hero''s Level. Internal.';
 do $mig$
 declare v_role text;
 begin

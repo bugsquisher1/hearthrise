@@ -517,7 +517,7 @@ const DESTRUCTION_NODES = [
       opt('mana_barrier', 'Mana Barrier', 'Breaks: +4% mana', [react('barrier_mana', 'shield_break', 'mana', { pm: 40 })]),
       opt('reforming_barrier', 'Reforming Barrier', 'Breaks: ready 5 s sooner',
         [react('barrier_reform', 'shield_break', 'reset', { move: 'arcane_barrier', ms: 5000, capMs: 5000 })], 'solo')],
-    way('Deep Ward', 'Arcane Barrier +10% shield', [mod('arcane_barrier', { outPm: 100 })])),
+    way('Second Skin', 'Arcane Barrier +10% shield', [mod('arcane_barrier', { outPm: 100 })])),
   /* THE VOWS (17 section 7): "can't cast" has no seam, so each Focus pays in the other element's damage. Held together their damage
      cancels and two vow slots buy only a tile and 2 s of Chill: a poor trade, never a free one */
   node({ id: 'vow.cold_focus', kind: 'vow', country: DE, after: ['frost_lance.x1'], n: 'Cold Focus', tip: 'Frost spells +20% damage · Chill +2 s · Fireball −20% damage',

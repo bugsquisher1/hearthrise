@@ -12,7 +12,8 @@
 //
 // THE MEASURE: the replayed chain (PGlite), the real engine (tests/hunt-sessions-settle.mjs HARNESS), the real verbs as `authenticated`.
 //   LC-RULE     THE DEATH'S RULE (src/core/action-rules.js levelDeathLoss): the lesser of DEATH_XP_LOSS of the total Level XP and DEATH_HOURS
-//               of the hours table's Level XP an hour at the hero's Level; the share binds to Level 61 and the hours from 62 (a death at
+//               of the hours table's Level XP an hour at the hero's Level; the share binds below the CROSSOVER and the hours from it on (read off
+//               the data, below: Level 64 since the formula overhaul's hours table, 62 before it) (a death at
 //               Level 200 costs 7.5 hours, not the share's 62); never more than the hero holds; never less for more XP at any Level to
 //               the last step; a mode's share of 0 takes nothing. The Blessing (src/core/wage.js blessingPrice): free under its Level,
 //               then hoursPm of an hour of the wage at the Level. A reset (resetPrice): hoursPm of the wage, x growth a paid reset, null
@@ -60,6 +61,9 @@ const idem = () => crypto.randomUUID();
 const { one, q } = H;
 const C = XP.charXpForLevel;
 const hoursXp = (L) => Math.floor(DEATH_HOURS * AR.levelHourXp(L));
+/* THE CROSSOVER: the first Level whose hours undercut the share, READ OFF THE DATA (the hours table and the curve move it: 62 when the
+   lane wrote this, 64 after the formula overhaul). LC-RULE holds the rule on both sides of it; it is never typed. */
+const CROSSOVER = (() => { for (let L = 2; L <= 4000; L++) { const x = C(L) + 7; if (hoursXp(L) < Math.floor(x * DEATH_XP_LOSS)) return L; } return null; })();
 
 /* As PostgREST calls it: the JWT subject set, `set role authenticated` (or `anon`), inside a savepoint so a refusal by the database
    (a permission) leaves the arm's transaction usable. */
@@ -126,7 +130,7 @@ function deathReading(name, s, blessed, p) {
   const before = Number(s.level_xp) + paid;
   const loss = paid + kept;
   const L = XP.charLevelFromXp(before);
-  if (L < 62) p.push(`CONTROL (${name}): the hero died at Level ${L}, under the crossover`);
+  if (!CROSSOVER || L < CROSSOVER) p.push(`CONTROL (${name}): the hero died at Level ${L}, under the crossover (${CROSSOVER})`);
   if (loss !== AR.levelDeathLoss(before)) p.push(`${name}: the death took ${loss} Level XP of ${before}, the engine's rule says ${AR.levelDeathLoss(before)}`);
   if (loss !== hoursXp(L) || !(loss < Math.floor(before * DEATH_XP_LOSS))) {
     p.push(`${name}: the death took ${loss}, not DEATH_HOURS of Level ${L} (${hoursXp(L)}) under the share (${Math.floor(before * DEATH_XP_LOSS)})`); }
@@ -142,11 +146,12 @@ const ARMS = {
   'LC-RULE': async () => {
     const p = [];
     const lv = AR.levelDeathLoss;
-    for (const L of [10, 30, 60, 61]) {
+    if (!(CROSSOVER > 31 && CROSSOVER < 200)) { p.push(`CONTROL: the crossover is Level ${CROSSOVER}, not between 31 and 200 (LC-DEATH dies at 200, past it)`); return p; }
+    for (const L of [10, 30, CROSSOVER - 2, CROSSOVER - 1]) {
       const x = C(L) + 7;
       if (lv(x) !== Math.floor(x * DEATH_XP_LOSS)) p.push(`a Level ${L} death costs ${lv(x)}, not the share ${Math.floor(x * DEATH_XP_LOSS)}`);
     }
-    for (const L of [62, 70, 200, 1000, 4000]) {
+    for (const L of [CROSSOVER, CROSSOVER + 8, 200, 1000, 4000]) {
       const x = C(L) + 7;
       if (lv(x) !== hoursXp(L)) p.push(`a Level ${L} death costs ${lv(x)}, not DEATH_HOURS of its Level (${hoursXp(L)})`);
       if (!(hoursXp(L) < Math.floor(x * DEATH_XP_LOSS))) p.push(`CONTROL: at Level ${L} the hours (${hoursXp(L)}) do not undercut the share`);

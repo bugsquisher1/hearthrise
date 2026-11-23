@@ -34,10 +34,13 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import catacombs from './grounds/unmarked_catacombs/pack.js';
+import { GROUND_PACKS } from './grounds/index.js';
 import { CATACOMB_ARMOR, WING_LEAN } from './catacomb-armor.js';
 import { DANGER_GROUNDS } from './danger.js';
 import { DROP_HOURS, chanceOf, roundChance } from './drop-hours.js';
+
+/* the whole ground through the packs' index, never by path: a generator's whole view (tools/pack/whole.mjs) may leave it out, then no wings */
+const catacombs = GROUND_PACKS.find((p) => p.id === 'unmarked_catacombs') || null;
 
 /* STATED: hunted hours a hero to one named piece on a wing, either slot (header) */
 export const ARMOR_EVERY_HOURS = 0.7;
@@ -66,7 +69,8 @@ function wingDrops(id, lean) {
   }));
 }
 
-const g = catacombs.ground;
+const g = catacombs ? catacombs.ground : null;
+const LIVE = catacombs ? WINGS : [];
 /* spawn weights the pack's way: each pocket's head-count at a pull of 4 (the first four of its box) */
 const weightsOf = (pockets) => {
   const n = {};
@@ -76,7 +80,7 @@ const weightsOf = (pockets) => {
 const rarityOf = (id) => (catacombs.hunt.spawns.find((s) => s.monster === id) || { rarity: 'common' }).rarity;
 
 /** The wings' hunt rows (src/data/hunts.js HUNTS), staged with the pack: the pack's place and family, its own spawn weights. */
-export const CATACOMB_WING_HUNTS = Object.freeze(WINGS.map((w) => Object.freeze({
+export const CATACOMB_WING_HUNTS = Object.freeze(LIVE.map((w) => Object.freeze({
   id: w.id, region: catacombs.hunt.region, name: catacombs.hunt.name + ', ' + w.name, theme: w.theme, band: catacombs.hunt.band,
   spawns: Object.freeze(Object.entries(weightsOf(w.pockets)).map(([monster, n]) => Object.freeze({ monster, w: n, rarity: rarityOf(monster) }))),
   family: catacombs.hunt.family, art: catacombs.hunt.art, travelS: 0, pull: catacombs.hunt.pull, respawnMs: g.respawnMs,
@@ -84,7 +88,7 @@ export const CATACOMB_WING_HUNTS = Object.freeze(WINGS.map((w) => Object.freeze(
 })));
 
 /** The wings' ground rows (src/data/hunt-grounds.js HUNT_GROUNDS): the pack's map and rooms, the wing's route, its drop rows. */
-export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map((w) => [w.id, Object.freeze({
+export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(LIVE.map((w) => [w.id, Object.freeze({
   id: w.id, hunt: w.id, map: g.map, start: w.start,
   pockets: Object.freeze(w.pockets.map((p) => g.pockets[p])),
   route: Object.freeze(w.pockets.map((_, i) => i)),
@@ -95,6 +99,8 @@ export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map(
   checks: Object.freeze({ dropRef: catacombs.checks.dropRef, valueToday: w.valueToday }),
   /* built for the Danger scale alone: a stance, never a tier (hunt-tiers.js GROUND_TIERS skips it, so it offers Normal only) */
   scaleOnly: true,
+  /* its roles: the whole ground's GROUND_ROSTER row, read, never copied (tools/pack.mjs lints the wing on it) */
+  rosterGround: catacombs.id,
   /* the Party window's line (party-class-xp.js PARTY_VS_ALONE): the whole ground's Normal, CARRIED (the same monster rows), owed a measure
      on the wing before it opens */
   partyVsAlone: Object.freeze({ normal: catacombs.partyVsAlone.normal }),

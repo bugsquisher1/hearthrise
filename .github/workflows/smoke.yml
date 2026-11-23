@@ -5333,6 +5333,14 @@ jobs:
         run: |
           node tests/recruits.mjs
           node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
+      # tests/trade-formulas.mjs
+      - name: Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-trades.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
+          node tests/trade-formulas.mjs
+          node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}

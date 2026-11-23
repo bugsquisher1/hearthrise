@@ -328,6 +328,11 @@
         "bytes": 3436602,
         "on": "2026-11-23",
         "why": "lane/drop-formula merged into lane/foundations-block: the dark Trait roller (trait-roll.js, drop-rate.js, drop-hours.js) and everyHours on the scale packs"
+      },
+      {
+        "bytes": 3454332,
+        "on": "2026-11-23",
+        "why": "lane/foundations-block: the band in absolute steps (src/core/bands.js, src/data/bands.js: one depth for the browser and the edge), the skill part of the power step (member.js), loot by depth (danger.js dialPm, drops.js)"
       }
     ]
   }

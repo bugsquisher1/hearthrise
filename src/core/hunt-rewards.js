@@ -163,7 +163,9 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
 function payDrops(present, ids, lead, row, ctx, world, atMs) {
   const rng = ctx.rng;
   /* a scaled ground's row carries its loot rate (src/data/scaled-hunts.js scaledRow `lootPm`, the card's "Loot ×"); every other row none */
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm }, rng);
+  /* ON THE DANGER SCALE the swing's dial carries the depth's share of the table (danger.js dangerDial dropPm: loot follows depth); off it none */
+  const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm, depthPm }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {

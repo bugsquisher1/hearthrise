@@ -30,24 +30,24 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Resistances | 5 | 2 | 0 | 2 | 1 | 0 | 2 | 2 |
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
-| Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
-| Monster HP, damage, armor, resistances and behavior | 27 | 9 | 6 | 4 | 8 | 7 | 9 | 13 |
+| Regeneration | 6 | 5 | 0 | 0 | 1 | 2 | 4 | 2 |
+| Monster HP, damage, armor, resistances and behavior | 29 | 10 | 6 | 5 | 8 | 7 | 11 | 15 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
-| Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
+| Monster XP and loot values | 18 | 9 | 1 | 2 | 6 | 3 | 7 | 10 |
 | Equipment stats and progression | 18 | 6 | 4 | 8 | 0 | 0 | 9 | 12 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **197** | 93 | 29 | 47 | 28 | 31 | 84 | 86 |
+| **All** | **203** | 98 | 29 | 48 | 28 | 31 | 90 | 92 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 680 (in 234 files, 15894 typed numbers) |
-| Claimed by a lever | 293 |
+| Top-level bindings in the rule code that hold a typed number | 682 (in 236 files, 16006 typed numbers) |
+| Claimed by a lever | 295 |
 | Claimed by a not-a-lever reason | 387 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
@@ -262,14 +262,18 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-in-runs | `bands.absolute` A ground's band in absolute steps | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs measures the bridge under it |
+| not-in-runs | `bands.skill-line` The reference skill line | Monster HP, damage, armor, resistances and behavior | a measured career, not a dial |
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |
+| not-in-runs | `danger.loot-step` Loot follows depth | Monster XP and loot values | played by the V1 probe (candidate loot-depth-off pairs it away) |
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
 | not-in-runs | `danger.pay-floor` Pay floor under the reference step | Monster XP and loot values | played by the V1 probe from a held start (lane/r9 tools/balance-program/redesign/r9). The server bounds only the most a kill pays (hr_danger_level_xp_max), which the floor never raises |
 | not-in-runs | `danger.power-gear` The power step on gear | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / -ahead / -offense-back / -defense-back / -tier-back-under-cap). No matrix run plans a stance |
 | not-in-runs | `danger.power-gear-below` The power step under the ground's gear Level | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (candidates power-tier-back / power-tier-ahead) |
+| not-in-runs | `danger.power-skill` The power step on skill | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (the skill cell, --skill-delta. Candidate skill-weight-off pairs the weight away) |
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
@@ -285,6 +289,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `party.run-xp` Run ground party table | Party bonuses and interactions | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `party.under-floor` Under-floor Level share | Party bonuses and interactions | every matrix cell seats one Level (mixed-Level cells are owed: 13-build-plan MM-19, OC1 to OC3) |
 | not-in-runs | `roles.table` Monster roles (reach, range, splash, held, blow) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe with --styles (lineups) against the roles-off candidate. No matrix run plans a stance |
+| not-in-runs | `sustain.mana-seconds` The reference healer's mana in seconds of casting | Regeneration | a definition checked against the heal row and the pool, not a dial the engine reads yet |
+| not-in-runs | `sustain.shares` Sustain shares at the reference (regeneration, heal spells, food) | Regeneration | a reading the V1 probe makes (tools/balance-program/redesign/foundations/run.mjs). The engine reads the heal rows and rates, not these yet |
 | outside-hunt | `damage.permanent-cap` Cap on permanent perks | Base damage coefficients | the kits hold no House rooms or renown, so no cell carries a permanent perk to cap |
 | outside-hunt | `econ.bank` Bank and key ring | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.bench-tax` Public bench tax | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
@@ -351,11 +357,11 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 78 | patch | content |
 | `reward.tier-xp` Harder-tier XP | 9 | 4 | 77 | knob `tierXp` | archetype |
 | `skill.curve` Combat skill curve | 9 | 0 | 78 | NOT PLAYABLE (harness-fixed) | global |
+| `bands.skill-line` The reference skill line | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | content |
 | `danger.power-gear-below` The power step under the ground's gear Level | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `danger.power-skill` The power step on skill | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `mon.tier-overrides` Per-ground tier dials | 8 | 19 | 78 | patch | exception-accidental |
 | `roles.table` Monster roles (reach, range, splash, held, blow) | 8 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
-| `danger.climb` The climb and the fall back | 8 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
-| `danger.holder-line` The holding tank's line | 8 | 11 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

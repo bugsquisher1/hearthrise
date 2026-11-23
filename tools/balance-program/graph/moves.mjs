@@ -155,6 +155,12 @@ export const LEVER_MOVES = Object.freeze({
     ['-tier.hp', 'a blow at a monster is multiplied by the same ratio, the same as less health to take']],
   'danger.power-gear-below': [['-tier.dmg', 'under the ground\'s base a gear step counts weightGearBelowPm: a smaller cut on a blow at the hero (danger.js gearSteps)'],
     ['-tier.hp', 'and a smaller cut on the hero\'s own blow']],
+  /* THE FOUNDATIONS (lane/foundations-block): the skill part of the power step, the reference skill line and the healer's mana seconds */
+  'danger.power-skill': [['-tier.dmg', 'on the scale a skill over its career line divides a blow at the hero by (1 + powerStep)^steps of the skill part (danger.js skillSteps)'],
+    ['-tier.hp', 'and multiplies the hero\'s blow at a monster by the same ratio, the same as less health to take']],
+  'bands.skill-line': [['+tier.dmg', 'a higher line puts the same skill further under it, a negative skill part: a bigger blow at the hero (danger.js skillSteps)'],
+    ['+tier.hp', 'and a smaller blow at a monster']],
+  'sustain.mana-seconds': [['-hero.manaCost', 'a longer pool in seconds is the same pool at a smaller cost a cast once a move\'s mana is a share of it (stage 3); today a definition the heal row is checked against']],
   /* THE ECONOMY LEVERS (lane/econ-levers): the pay floor, the scale's coin level and the store's basics, set together with the wage */
   'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least PAY.floor of the table (danger.js depthRatio, read by levelShareXp)'],
     ['+kill.coin', 'the same floor on the coin depth ratio (dangerDial coinPm)']],

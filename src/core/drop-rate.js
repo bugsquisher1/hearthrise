@@ -10,8 +10,8 @@
 //                                counted over the route. A boss's wave (adds) is left out: they come at his half-health line, not a pull
 //   rowChance(row, monster, g)   a drop row's per-kill chance: its `everyHours` over the monster's kills a hero-hour, rounded to
 //                                DROP_HOURS.chDigits (a certainty, ch 1, stays 1)
-//   depthOf(groundId, step)      the ground's "Depth N of 20" for a step (12-targets 3.1; the browser's danger-sections.js depthOf, in
-//                                whole numbers here so the edge and the Lab read the same depth)
+//   depthOf(groundId, step)      the ground's "Depth N of 20" for a step (12-targets 3.1; src/core/bands.js depthAt, the one home the
+//                                browser's danger-sections.js depthOf reads too: the band cut evenly in absolute steps)
 //   depthRarePm(groundId, step)  the Rare odds at that depth over the odds at the reference's own depth, permille (x1 at depth 1 to x3 at 20)
 //   traitSlotsDropped(ground)    the Trait slots (gear-steps.js traitSlots) the ground's drop rows carry a piece of: a Rare's slot comes
 //                                first (GEAR_STEPS.traitRoll.slotFirst), so only these can roll a Trait there
@@ -27,6 +27,7 @@ import { MONSTERS } from '../data/monsters.js';
 import { ITEMS } from '../data/items.js';
 import { pullRows } from '../data/hunt-grounds.js';
 import { dangerDial, refKillsOf } from './hunt/danger.js';
+import { depthAt } from './bands.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const rowOf = (groundId) => (own(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null);
@@ -68,13 +69,9 @@ export function hoursOf(ch, monster, ground) {
   return ch > 0 && k > 0 && share > 0 ? 1 / (ch * k * share) : null;
 }
 
-/** "Depth N of 20" for `step` on a scale ground, whole numbers only (round half up), 1 to DEPTHS. Null off the scale. */
+/** "Depth N of 20" for `step` on a scale ground, 1 to DEPTHS (src/core/bands.js depthAt, the one home: the band cut evenly in absolute steps). Null off the scale. */
 export function depthOf(groundId, step) {
-  const row = rowOf(groundId);
-  if (!row || !Number.isInteger(step)) return null;
-  const span = Math.max(1, row.topStep - row.floorStep);
-  const over = Math.max(0, step - row.floorStep);
-  return Math.max(1, Math.min(DEPTHS, 1 + Math.floor((2 * over * (DEPTHS - 1) + span) / (2 * span))));
+  return rowOf(groundId) ? depthAt(groundId, step) : null;
 }
 
 /* the depth multiplier, permille: x1 at depth 1, x3 at DEPTHS (DROP_HOURS.depthPm), straight */

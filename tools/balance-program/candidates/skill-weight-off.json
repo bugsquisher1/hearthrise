@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "skill-weight-off",
+ "why": "The skill part of the power step off (lane/foundations-block): POWER.weightSkillPm 0, so a skill off its career line moves the hold only through the old blow formula. Paired against the tree, it isolates the new weight",
+ "edits": [
+  {
+   "file": "src/data/danger.js",
+   "from": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 250 });",
+   "to": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 0 });"
+  }
+ ],
+ "assumptions": [
+  "On the career line the skill part is 0 at any weight, so the base cell is the tree's"
+ ]
+}

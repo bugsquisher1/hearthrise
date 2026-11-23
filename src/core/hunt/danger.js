@@ -85,16 +85,26 @@ function basePull(ground) {
  *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
  *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at COIN_STEP (hunt-rewards.js payKill), so a pull of any size
  *          pays the as-built pull's coin times the scale's gold level, and an HOUR a step deeper pays the wage's coin ratio more
+ *   dropPm a kill's own drop table, permille of each row's chance (drops.js effectiveDropChance, never past one roll a kill): the pull's share
+ *          over the reference pull's x the depth ratio at LOOT_STEP (lane/foundations-block, 04 section 7 payStepLoot), so at the reference
+ *          step the table plays as written and an HOUR a step deeper drops PAY.payStepLoot more of it, as coin pays payStepCoin more
  */
 export function dangerDial(ground, step) {
   const s = stepOn(ground, step);
   const n0 = basePull(ground);
-  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
+  const pull = pullAt(n0, s);
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
-  return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
+  /** @type {Record<string, any>} */
+  const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
+  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
+  return dial;
 }
+/* the pull's size at step s from an as-built mean n0 (the dial's own rounding and box) */
+const pullAt = (n0, s) => Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
+/* the ground's reference step (0 on a ground with no row, which the server never opens on the scale) */
+const refOf = (ground) => { const row = groundRow(ground); return row ? stepOn(ground, row.refStep) : 0; };
 /* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
    carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
    wage's payStepCoin a PULL, coin an HOUR rose only (1 + payStepCoin) / (1 + powerStep), 0.05% a step, and loot (a kill's rows, no depth
@@ -102,6 +112,9 @@ export function dangerDial(ground, step) {
    pays the step's length back too, so an hour a step deeper pays payStepCoin more: one coin ratio a step, per hour, across grounds (the
    wage) and inside one. At the reference step it is 1: the reference hour is unchanged. One multiplication, exactly rounded everywhere. */
 const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
+/* THE LOOT RATIO A PULL (lane/foundations-block, 04 section 7 payStepLoot, 26 rank 6 "loot follows depth"): the same hour-neutral shape as
+   COIN_STEP, so an hour a step deeper drops PAY.payStepLoot more of the kill's own table. */
+const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33). One home: src/data/wage.js powSquare. */
@@ -155,6 +168,14 @@ function gearSteps(partPm, row) {
   const s = Math.round((gap * (gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)) / (1000 * 1000));
   return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
 }
+/* THE SKILL PART'S POWER STEPS (lane/foundations-block; src/data/danger.js POWER.weightSkillPm, src/data/bands.js): the hero's skill Level
+   over its own Level (member.js heroSnapshot skillGapPm, thousandths of a Level: 0 on its career line) at weightSkill, whole steps, held
+   inside the scale. Both ratings, like the gear part (one number a hero, 04 section 1: "the skill for the style in use"). */
+function skillSteps(gapPm) {
+  if (!Number.isInteger(gapPm) || gapPm === 0) return 0;
+  const s = Math.round((gapPm * POWER.weightSkillPm) / (1000 * 1000));
+  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
+}
 /* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */
 const RATIO = new Map();
 function stepRatio(steps) {
@@ -181,6 +202,9 @@ export function powerPm(inst, source, target, pm) {
   let steps = 0;
   if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
   else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
+  /* the skill part (lane/foundations-block): the skill of the style in use off its career line, both ratings */
+  if (isHero(source) && isMonster(target)) steps += skillSteps(source.skillGapPm);
+  else if (isMonster(source) && isHero(target)) steps -= skillSteps(target.skillGapPm);
   if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));
   else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense'));
   if (!steps) return base;

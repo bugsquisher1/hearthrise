@@ -60,9 +60,11 @@ const CASES = {
   derive(M) {
     const { MONSTER_ROLES: ROLES, MONSTER_FORMULA: F } = M.roleData;
     const g = onRow(M, 'muster_barrows');
-    const ref = M.mf.refCompany(g.refLevel);
-    if (!(ref.dpsFight > 0) || ref.hp !== M.vitals.hpBase + M.vitals.hpPerLevel * g.refLevel) return 'CONTROL: the reference company reads ' + JSON.stringify(ref);
-    const take = F.REF.takePm / 1000, swingS = M.combat.COMBAT_BALANCE.tickMs / 1000;
+    /* (lane/stage3-pipeline: a ground on the scale meets its monsters in the amount pipeline, so it derives from the pipeline's own
+       reference output, refCompany(level, 'steps'): health on the display curve, take = AMOUNT.pressurePm, hit = REF.hit while hitRoll holds) */
+    const ref = M.mf.refCompany(g.refLevel, 'steps');
+    if (!(ref.dpsFight > 0) || ref.hp !== M.vitals.hpBase + M.vitals.hpPerLevel * (g.refLevel - 1)) return 'CONTROL: the reference company reads ' + JSON.stringify(ref);
+    const take = ref.takePm / 1000, swingS = M.combat.COMBAT_BALANCE.tickMs / 1000;
     let winds = 0;
     for (const [id, R] of Object.entries(ROLES)) {
       const s = M.mf.roleStats(id, g, 'pull');
@@ -73,7 +75,7 @@ const CASES = {
       const boss = M.mf.roleStats(id, g, 'boss');
       if (!close(boss.hp, s.hp * F.encounters.boss.killMult, 1e-9)) return id + ': a boss has ' + boss.hp + ' health, not killMult x ' + s.hp;
       const w = R.windup && R.windupShare > 0 ? R.windupShare : 0;
-      const steady = (F.REF.hit * take * (s.top + 1)) / 2 / swingS;
+      const steady = (ref.hit * take * (s.top + 1)) / 2 / swingS;
       const want = (1 - w) * R.pressure * ref.hp;
       if (!close(steady, want * s.steadyShare, 1e-6)) return id + ': the steady blow deals ' + steady.toFixed(3) + ' a second, not (1 - windupShare) x pressure x the reference health (' + want.toFixed(3) + ' x ' + s.steadyShare + ')';
       const rolePm = Number.isInteger(R.maxHitPm) ? R.maxHitPm / 1000 : 1;
@@ -149,17 +151,23 @@ const CASES = {
     const N = 100000;
     const hit = (monsters, statuses) => M.hunt.damage.hurt({ world: { risk: 'steady', units: [] }, ground: { id: 'muster_barrows' }, monsters, tier: null },
       { side: 'mon', id: 2, kind: 'muster_knight', alive: true, hp: 1e9, maxHp: 1e9, ...(statuses ? { statuses } : {}) }, N, { side: 'hero', id: 1 }, null, null, rng).dmg;
+    /* (lane/stage3-pipeline: on the scale every blow is the amount pipeline's, which reads no flat defense: the hand Knight takes the whole
+       pipeline blow and the formula Knight that x (1000 - its armor), rounded once) */
     const hand = hit(M.MONSTERS), f = hit(t);
-    const want = Math.floor(((N - M.combat.defenceReduction(k)) * (1000 - k.armorPm)) / 1000);
-    if (f !== want) return 'a blow of ' + N + ' on the formula Knight landed ' + f + ', its armor ' + k.armorPm + ' says ' + want;
-    if (hand !== N - M.combat.defenceReduction(M.MONSTERS.muster_knight)) return 'a blow on the hand Knight lost more than its flat defense: ' + hand;
+    const want = (hand * (1000 - k.armorPm)) / 1000;
+    if (Math.abs(f - want) > 1) return 'a blow on the formula Knight landed ' + f + ', its armor ' + k.armorPm + ' over the hand Knight\'s ' + hand + ' says ' + want;
+    /* off the scale (the old chain: a Tower room's derived row carries its role armor too) the armor comes off after the flat defense */
+    const offScale = M.hunt.damage.hurt({ world: { risk: '', units: [] }, ground: { id: 'muster_barrows' }, monsters: t, tier: null },
+      { side: 'mon', id: 2, kind: 'muster_knight', alive: true, hp: 1e9, maxHp: 1e9 }, N, { side: 'hero', id: 1 }, null, null, rng).dmg;
+    const wantOff = Math.floor(((N - M.combat.defenceReduction(k)) * (1000 - k.armorPm)) / 1000);
+    if (offScale !== wantOff) return 'off the scale a blow of ' + N + ' on the formula Knight landed ' + offScale + ', its armor ' + k.armorPm + ' says ' + wantOff;
     /* ARMOR BREAK (src/data/statuses.js armor_break, armorPm -250) moves the role's armor through the same door as the defence */
     const ab = M.statuses && M.statuses.STATUSES && M.statuses.STATUSES.armor_break;
     if (!ab || !(ab.armorPm < 0)) return 'CONTROL: no Armor Break row with an armorPm';
     const broken = hit(t, [{ s: 'armor_break', left: 3000 }]);
     const kept = Math.floor((k.armorPm * (1000 + ab.armorPm)) / 1000);
-    const wantB = Math.floor(((N - M.combat.defenceReduction(k)) * (1000 - kept)) / 1000);
-    if (broken !== wantB) return 'under Armor Break the formula Knight took ' + broken + ', its broken armor ' + kept + ' says ' + wantB;
+    const wantB = (hand * (1000 - kept)) / 1000;
+    if (Math.abs(broken - wantB) > 1) return 'under Armor Break the formula Knight took ' + broken + ', its broken armor ' + kept + ' says ' + wantB;
     return null;
   },
   switch(M) {
@@ -259,6 +267,8 @@ const MUTANTS = [
   { name: 'health ignores armor', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight;']] },
   { name: 'Armor Break never reaches the role armor', case: 'armor', edits: [['src/core/hunt/damage.js', "  const pm = arm > 0 ? effectPm(target, 'armorPm') : 0;", '  const pm = 0;']] },
   { name: 'armor never reaches the blow', case: 'armor', edits: [['src/core/hunt/damage.js', '  if (arm > 0 && n > 0) n = Math.floor((n * (1000 - arm)) / 1000);\n', '']] },
+  /* (lane/stage3-pipeline) the amount pipeline's base share reads the role armor too */
+  { name: 'armor never reaches the pipeline\'s blow', case: 'armor', edits: [['src/core/hunt/damage.js', '  if (arm > 0) mult = (mult * (1000 - arm)) / 1000;\n', '']] },
   { name: 'armor plays on a hand row', case: 'armor', edits: [['src/core/hunt/monster-formula.js', 'return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 0;', 'return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 300;']] },
   { name: 'the steady blow carries the wind-up share too', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const steadyDps = (1 - w) * R.pressure * ref.hp;', 'const steadyDps = R.pressure * ref.hp;']] },
   { name: 'a wind-up comes on a fixed clock', case: 'derive', edits: [['src/core/hunt/monster-formula.js', '(R.windupSize / (w * R.pressure)) * F.windupScale.every);', '12 * F.windupScale.every);']] },

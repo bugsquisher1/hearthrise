@@ -1040,6 +1040,32 @@ function rules(M) {
     ok('LV-DOWN', v.verdicts.length >= 7 && bad.length === 0, `viewed: ${bad.length} of ${v.verdicts.length} commits off the prediction`);
   }
 
+  { // LV-STEPS: THE AMOUNT PIPELINE, BOTH PATHS (lane/stage3-pipeline; src/core/hunt/amount.js, 27 D-1 to D-8). A two-hero party on the
+    // Danger scale (Muster Barrows, the leader's plan on Steady from the ground as built): every blow, spell, tick and heal goes through the
+    // one step contest. BROWSER CLOSED: the server's commits play the scale (the world carries the stance) and land blows both ways. VIEWED:
+    // the browser, holding only its peer's frozen row (the pipeline's reads ride it: member.js frozenOf), predicts every commit.
+    const mk = () => {
+      const mis = [memberOf(M, 'a', 0, 'tank', 60), memberOf(M, 'b', 1, 'melee_dps', 60)];
+      mis[0].hero = { ...mis[0].hero, risk: 'steady', danger: 0 };
+      return mis;
+    };
+    const srv = server(M, mk(), { hunt: 'muster_barrows' });
+    let onScale = false, hits = 0, taken = 0;
+    for (let t = T0 + 16000; t <= T0 + 96000; t += 16000) {
+      const c = srv.commit(t);
+      if (!c || !srv.inst.world) break;
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      onScale = onScale || w.risk === 'steady';
+      const heroes = new Set(w.units.filter((u) => u.side === 'hero').map((u) => u.id));
+      for (const e of c.tl.hunt_events) if (e.type === 'dmg') { if (heroes.has(e.t)) taken++; else hits++; }
+    }
+    const v = run(M, mk(), 96000, { server: { hunt: 'muster_barrows' } });
+    const bad = v.verdicts.filter((x) => x.v !== 'match');
+    console.log(`  LV-STEPS Muster on Steady, 96 s: ${hits} blows landed on monsters, ${taken} on the heroes; viewed ${v.verdicts.length - bad.length} of ${v.verdicts.length} commits matched`);
+    ok('LV-STEPS', onScale && hits > 10 && taken > 5, `CONTROL: closed, the scale ${onScale ? 'played' : 'never played'} with ${hits} blows at monsters and ${taken} at heroes`);
+    ok('LV-STEPS', v.verdicts.length >= 5 && bad.length === 0, `viewed: ${bad.length} of ${v.verdicts.length} commits off the prediction (${bad.slice(0, 3).map((x) => x.t - T0 + ':' + x.v).join(', ')})`);
+  }
+
   { // LV-T: A SECOND TANK FIGHTS (Andy / Tyler 10-20: "not moving to the mobs ... when he has to move after
     // initial placement"). Two shield heroes, the pack on the leader: the second walks to its own target,
     // lands at least 60% of the leader's blows (was 25-40%) and is never more than 3 s with no engaged
@@ -2202,6 +2228,8 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  /* LV-STEPS (lane/stage3-pipeline): the browser's peer fights on the pipeline's reads from its frozen row */
+  ["the browser's peer drops its weapon's top (LV-STEPS)", 'src/core/member.js', 'blowBp: snap.blowBp || 0,', 'blowBp: 0,', /^LV-STEPS: viewed/],
   ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '', /^LV-TANK: a tank alone: browser closed/],
   /* LV-HUD (lane/c-settle-flush): the HUD's ledger, each half planted away */
   ['the HUD ledger never counts the viewer\'s Level XP (LV-HUD)', 'src/hunt-view/hud-ledger.js', "lx: me && typeof me.levelGained === 'function' ? Math.floor(me.levelGained()) : last.lx", 'lx: last.lx', /^LV-HUD: the prediction between saves/],

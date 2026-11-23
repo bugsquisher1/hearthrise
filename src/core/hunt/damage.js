@@ -52,11 +52,16 @@ import { monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
 import { effectPm } from './status-effects.js';
-import { noteHurt, breaksOff, powerPm } from './danger.js';
+import { noteHurt, breaksOff } from './danger.js';
+import { stepsOn, blowAmount, manaOn } from './amount.js';
+import { AMOUNT } from '../../data/amount.js';
 import { isEnemy, isHero, isMonster } from './sides.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
+/* A HERO'S TOP ON THE SCALE: a move's share is thousandths of it (src/core/hunt/amount.js blowAmount: the weapon's blowTopBp of a reference
+   health); a basic blow's mean is half of it, as the old 1-to-max roll's */
+export const PIPE_TOP = 1000;
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again.
@@ -77,8 +82,10 @@ const slowPmOf = (u) => effectPm(u, 'slowPm');
       slowed = ceil(ms x (1000 + slowPm) / 1000 / stepMs) x stepMs   (stepMs: hunt-tuning.js, 100 ms),
     so a chilled 2 s swing waits 2.6 s and a chilled 1.6 s windup 2.1 s. Fixed as it starts: a slow that lands later
     stretches the next one. Unslowed it is `ms`. */
-export function slowed(u, ms) {
-  const pm = slowPmOf(u);
+export function slowed(u, ms, inst) {
+  /* ON THE SCALE (`inst` given and the pipeline on) a slow is conditional steps off the slowed unit's blows (src/core/hunt/amount.js), so
+     no clock stretches */
+  const pm = inst && stepsOn(inst) ? 0 : slowPmOf(u);
   if (!pm) return ms;
   const step = HUNT_TUNING.stepMs;
   return Math.ceil((ms * (1000 + pm)) / (1000 * step)) * step;
@@ -118,6 +125,10 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   if (!target || !target.alive) return { dmg: 0, killed: false };
   /* NO IMMUNITIES (Tyler 2026-11-06): the target's element profile is a percentage, never 0 (core/elements.js). */
   const el = elementOn(target, element);
+  /* ON THE DANGER SCALE, THE AMOUNT PIPELINE (src/core/hunt/amount.js): `amount` is the move's MEAN in its source's units, and the one
+     pipeline lands it (base share, the step contest with every conditional step, one roll, the reference health), rounded once. The
+     monster's flat defence, the armor chain and its cap, Tempering's draw and the after-the-chain power step are not read there. */
+  if (stepsOn(inst)) return landOn(inst, target, source, pipedAmount(inst, target, amount, source, element, ability, el, rng));
   /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
      element for the armour chain below (ruling K7). */
   let n = Math.max(0, Math.floor(amount));
@@ -138,10 +149,29 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
      Every landed blow deals at least 1. */
   n = isHero(target) ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);
   /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung).
-     THE POWER STEP (danger.js powerPm, on the scale only): the hero's gear in steps, folded into the same draw for a blow at a monster, and
-     for a blow at a hero after the armor chain's cap (the step contest has none). Off the scale both are what they were, nothing drawn. */
-  const pm = powerPm(inst, source, target, source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);
+     (Off the scale only: on it the power step and Tempering are the amount pipeline's steps, src/core/hunt/amount.js.) */
+  const pm = source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0;
   if (pm) n = Math.max(1, temperedAmount(n, pm, rng));
+  return landOn(inst, target, source, n);
+}
+
+/* THE PIPELINE'S BLOW (src/core/hunt/amount.js blowAmount) from what hurt was handed: the move's multipliers (its version or store share,
+   the dealer's stance, the target's stance, a called boss's guard) as one base-share permille, the element answer as steps, and the mark
+   and the slow that landHit and the dealer carry (`ability.markPm`, the source's slowPm). */
+function pipedAmount(inst, target, mean, source, element, ability, el, rng) {
+  let mult = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
+  if (isMonster(target)) mult = (mult * guardPmOf(inst, target)) / 1000;
+  /* a formula monster's role armor (monsterArmorPm, Armor Break moving it: armorKept) is a share of the blow on the scale too: the monster
+     formula wrote its health net of it, so secondsToKill holds and an answer that strips it is a real gain in kill time */
+  const arm = isMonster(target) ? armorKept(inst, target) : 0;
+  if (arm > 0) mult = (mult * (1000 - arm)) / 1000;
+  mult = (mult * stanceOf(source).dealt * stanceOf(target).taken) / 1000000;
+  return blowAmount(inst, { source, target, mean: Math.max(0, mean), mult, el: isMonster(target) ? weakShare(el, ability) : el, ward: !!element && element !== 'physical',
+    answerPm: ability && ability.answerPm, markPm: ability && ability.markPm, dealerPm: ability && ability.dealerPm, slowPm: source ? slowPmOf(source) : 0,
+    critMult: COMBAT_BALANCE.critMult, rng });
+}
+/* WHAT A BLOW DOES ONCE ITS AMOUNT IS KNOWN (both chains): the target's shield first, then HP. */
+function landOn(inst, target, source, n) {
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */
@@ -162,7 +192,8 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* DODGE, the chain's first step (ruling K7): a BLOW at a hero wearing medium armour misses
      outright on its dodge chance — one draw on the `s` stream, made only when the chance is above
      zero, so a hero with no medium armour draws nothing. A status tick is not a blow (`dot`). */
-  const dodgePm = isHero(target) && !(ability && ability.dot) ? armourVs(inst, target, source).dodgePm : 0;
+  const piped = stepsOn(inst);
+  const dodgePm = !piped && isHero(target) && !(ability && ability.dot) ? armourVs(inst, target, source).dodgePm : 0;
   if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {
     sc.emit(makeEvent('miss', sc.atMs, { u: source ? source.id : null, t: target.id, dodge: true }));
     return { dmg: 0, absorbed: 0, killed: false, dodged: true };
@@ -178,8 +209,10 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (dealtPm) mult = Math.floor((mult * Math.max(1, 1000 + dealtPm)) / 1000);
   const before = target.hp;
   const shieldBy = Number.isInteger(target.shield) && target.shield > 0 ? target.shieldBy : undefined;
-  const r = hurt(inst, target, amount, source, element,
-    markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability, sc.rng);
+  /* ON THE SCALE a mark and a dealer's status are conditional steps (src/core/hunt/amount.js), never a multiplier */
+  const tag = piped ? (markPm || dealtPm ? Object.assign({}, ability, { markPm, dealerPm: dealtPm }) : ability)
+    : markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability;
+  const r = hurt(inst, target, amount, source, element, tag, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (isMonster(target)) inst.world.fightAt = sc.atMs;
@@ -228,15 +261,26 @@ function focusBack(u, t) {
    critChance): rolled only on a landed hero blow and only when the chance is
    above zero, so a hero with no crit draws no extra number. */
 /* A unit that swings waits the one basic-attack interval for its next, slowed by a Chill on it as it swings (slowed). */
-export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }
+export function restart(u, inst) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs, inst); }
 
 /* (a monster's swing, its only caller: on the Danger scale its ROLE's share of the blow, monster-roles.js roleMaxHit; the row's off it) */
 function swing(inst, sc, u, t, accuracy, maxHit, critChance) {
-  restart(u);
+  restart(u, inst);
   return roll(inst, sc, u, t, accuracy, roleMaxHit(inst, u, maxHit), critChance);
 }
 /* The dice of one blow (a swing, or each target of an area shot), clock untouched. */
-function roll(inst, sc, u, t, accuracy, maxHit, critChance) {
+function roll(inst, sc, u, t, accuracy, maxHit, critChance, answer) {
+  /* ON THE SCALE (src/core/hunt/amount.js): the roll to hit only while AMOUNT.hitRoll holds (27 K-2), then the blow's MEAN to the pipeline,
+     which draws its one roll; a crit is steps there (the chance's mean), never a second draw; the weapon's answer to this monster rides
+     the tag (`answerPm`). The follow-through lands the same mean. */
+  if (stepsOn(inst)) {
+    if (AMOUNT.hitRoll && !sc.rng.chance(accuracy)) { sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id })); return null; }
+    const mean = (maxHit + 1) / 2;
+    const tag = answer > 0 && answer !== 1 ? { id: 'basic', answerPm: Math.round(answer * 1000) } : null;
+    const r = landHit(inst, sc, u, t, mean, isHero(u) ? u.element : null, tag, false);
+    followThrough(inst, sc, u, t, mean, false);
+    return r;
+  }
   let amount = rollAttack(sc.rng, accuracy, maxHit);
   if (amount <= 0) { sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id })); return null; }
   const crit = critChance > 0 && rollCrit(sc.rng, critChance);
@@ -342,10 +386,13 @@ function blow(inst, sc, u, h, t, price, sharePm) {
   const basic = Number.isInteger(sharePm) && sharePm < 1000;
   if (h && isMonster(t) && price !== undefined && (price !== h.ammo || basic) && typeof h.shotRolls === 'function') {
     const base = h.shotRolls(null, price, sharePm), spent = h.shotRolls(rowOf(inst, t.kind), price, sharePm, t.kind);
+    /* on the scale a shot's power is the rating (ammo is a supply, no slot weight): the hero's top, its to-hit and its answer */
+    if (stepsOn(inst)) return roll(inst, sc, u, t, spent.accuracy, PIPE_TOP, 0, (spent.weak && spent.weak.damageMult) || 1);
     return roll(inst, sc, u, t, spent.accuracy, Math.max(1, Math.floor(Math.max(1, base.maxHit) * ((spent.weak && spent.weak.damageMult) || 1))),
       Number(spent.critChance) || 0);
   }
   const vs = h && isMonster(t) && typeof h.rollsVs === 'function' ? h.rollsVs(rowOf(inst, t.kind), t.kind) : null;
+  if (stepsOn(inst)) return roll(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000, PIPE_TOP, 0, (vs && vs.weak && vs.weak.damageMult) || 1);
   return roll(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
     vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit),
     vs ? Number(vs.critChance) || 0 : 0);
@@ -376,7 +423,8 @@ function pickShot(inst, u, h, t, sc) {
       /* THE CASTER'S MANA BASIC: never a rune (a loaded rune adds nothing: member.js combatWorn), its
          role's mana a swing; with too little it waits (`mana`) while the pool regenerates. */
       if (row.basic) {
-        return (Number(u.mana) || 0) >= row.basic.mana ? { ammo: null, price: undefined, size: 1, aim: t, mana: row.basic.mana, magicXpMult: row.basic.magicXpMult } : { why: 'mana' };
+        const mana = manaOn(inst, u, row.basic.mana);
+        return (Number(u.mana) || 0) >= mana ? { ammo: null, price: undefined, size: 1, aim: t, mana, magicXpMult: row.basic.magicXpMult } : { why: 'mana' };
       }
       const shoots = !!h && u.role === 'ranger';
       /* Loaded ammo the worn weapon cannot shoot (hunt-roles.js shootsItem: a whetstone on a bow) is no shot. */

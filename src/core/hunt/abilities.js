@@ -54,7 +54,8 @@ import { temperedAmount } from '../temper.js';
 import { SURGE_MULT_PM } from '../../data/jewelry.js';
 import { cheb, dist2, los } from './grid.js';
 import { makeEvent } from './events.js';
-import { landHit } from './damage.js';
+import { landHit, PIPE_TOP } from './damage.js';
+import { stepsOn, healAmount, manaOn } from './amount.js';
 import { challengeable, challengeFrom, holderTank } from './targeting.js';
 import { roleOf as monsterRoleOf } from './monster-roles.js';
 import { MONSTER_ROLES } from '../../data/monster-roles.js';
@@ -83,6 +84,10 @@ const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) 
 /* THE BLOW A CAST OF `row` READS (the spell rule's M): the caster's own largest blow, or, for a move it BORROWS from another weapon, that
    weapon's reference blow at its Level (src/core/borrow-blow.js; `borrowBlows`, written by the settle at every boundary, never persisted). */
 const blowOf = (u, row) => (u && u.borrowBlows && row && Number.isInteger(u.borrowBlows[row.id]) ? u.borrowBlows[row.id] : u && u.maxHit);
+/* ON THE SCALE (src/core/hunt/amount.js) a cast's numbers are thousandths of the caster's top (damage.js PIPE_TOP), a borrowed move's at
+   its weapon's reference blow over the caster's own; off it the blow itself (blowOf) */
+const unitOf = (inst, u, row) => (!stepsOn(inst) ? blowOf(u, row)
+  : u && u.borrowBlows && row && Number.isInteger(u.borrowBlows[row.id]) ? Math.max(1, Math.round((PIPE_TOP * u.borrowBlows[row.id]) / Math.max(1, int(u.maxHit)))) : PIPE_TOP);
 const readyAt = (o, k) => (o && typeof o === 'object' && Number.isInteger(o[k]) ? o[k] : 0);
 /* (unit-index.js: frozen lists, read once a sub-step in a swing; a caller that reorders one copies it) */
 /* The living units on `u`'s side (sides.js): its allies, itself among them. In a hunt, the living heroes. */
@@ -294,7 +299,12 @@ export function aloneIn(world, hero) {
 }
 
 /* The shell `row` lands from caster `u` at `pm` permille (abilities.js castAmount: a share of its own blow), 0 for a row that lays none. */
-const landsShield = (u, row, pm) => { const a = castAmount(row, blowOf(u, row), u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };
+const landsShield = (u, row, pm, inst) => {
+  const a = castAmount(row, unitOf(inst, u, row), u && u.maxHp, pm);
+  if (!a || !a.shield) return 0;
+  /* on the scale the shell's mean, no roll (src/core/hunt/amount.js healAmount) */
+  return stepsOn(inst) ? healAmount(inst, u, a.shield, {}) : a.shield;
+};
 
 /**
  * ARCANE BARRIER'S REFUND (Tyler 2026-10-23, from Andy's reports: it stays self-only, and recasting it while its
@@ -304,10 +314,10 @@ const landsShield = (u, row, pm) => { const a = castAmount(row, blowOf(u, row), 
  * standing, and 0 for a shell another hero cast (`shieldBy`: a Mage recasting over a tank's Shelter or a Healer's
  * Ward would turn their rune into its own mana; the board's 2026-11-19 tank rune spells, section 6). Pure.
  */
-export function shieldRefund(u, row, mana, pm) {
+export function shieldRefund(u, row, mana, pm, inst) {
   if (!u || u.shieldBy !== u.id) return 0;
   const standing = int(u && u.shield);
-  const lands = row && row.target === 'self' && shells(row) ? landsShield(u, row, pm) : 0;
+  const lands = row && row.target === 'self' && shells(row) ? landsShield(u, row, pm, inst) : 0;
   if (!(standing > 0) || !(lands > 0) || !(mana > 0)) return 0;
   return Math.min(mana, Math.floor((standing * mana) / lands));
 }
@@ -366,20 +376,22 @@ export function firstUsable(inst, hero, sc, only) {
     /* THE VERSION'S PRICE AND OUTPUT (abilities.js versionOf): its mana (never more with level), and its step, permille of the
        row's share of the caster's blow, at the rune's share (a store rune: the basic version). */
     const v = versionOf(row, s.version);
-    if (int(hero.mana) < v.mana) return { why: 'mana' };
+    /* (on the scale the version's mana is its share of the reference: amount.js manaOn) */
+    const mana = manaOn(inst, hero, v.mana);
+    if (int(hero.mana) < mana) return { why: 'mana' };
     const pm = Math.floor((v.outPm * s.pm) / 1000);
     /* A self-shield recasts only to land MORE than its standing shell (a full shell waits; a stronger version, or a
        chipped shell, recasts and refunds the rest: shieldRefund). */
-    if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm)) return { why: 'no_target' };
-    return { row, target: t, lines: s.lines, version: s.version, mana: v.mana, pm };
+    if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm, inst)) return { why: 'no_target' };
+    return { row, target: t, lines: s.lines, version: s.version, mana, pm };
   }, sc, 'ability');
   return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
 }
 
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
-function healOne(u, t, n, sc, surge, overShieldPm) {
-  /* TEMPERING raises a heal as it raises a blow (src/core/temper.js). */
-  n = temperedAmount(n, u.blowsPm, sc.rng);
+function healOne(u, t, n, sc, surge, overShieldPm, piped) {
+  /* TEMPERING raises a heal as it raises a blow (src/core/temper.js); on the scale it is steps in the pipeline's heal (amount.js). */
+  if (!piped) n = temperedAmount(n, u.blowsPm, sc.rng);
   /* A WITHERED target takes every heal cut (heal-cut.js: a necrotic hit on it; the guard lowers the cut). */
   n = healTaken(t, n);
   const missing = int(t.maxHp) - int(t.hp);
@@ -410,7 +422,15 @@ function effect(inst, u, row, t, sc, v) {
   const el = row.element || null;
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
   /* What a heal or a shell lands (abilities.js castAmount: a share of the caster's blow, Mend's of its max HP, at the cast's pm). */
-  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blowOf(u, row), u.maxHp, pm) || {});
+  /* ON THE SCALE every number of the cast goes through the pipeline (src/core/hunt/amount.js): a hit's mean to landHit, a heal or a shell
+     through healAmount (the caster's rating over its own Level, one roll), each at its share of the caster's top */
+  const piped = stepsOn(inst), blow = unitOf(inst, u, row);
+  const amount = () => {
+    const a = /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blow, u.maxHp, pm) || {});
+    if (piped && a.heal) a.heal = healAmount(inst, u, a.heal, { hp: !Number.isInteger(row.healPm) && Number.isInteger(row.healHpPm), rng: sc.rng });
+    if (piped && a.shield) a.shield = healAmount(inst, u, a.shield, { rng: sc.rng });
+    return a;
+  };
   /** @type {{ id: string, mult?: number, weakPm?: number }} */
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */
@@ -419,7 +439,7 @@ function effect(inst, u, row, t, sc, v) {
   const sg = !!(v && v.surge);
   /* One hit's roll: the row's share of the hero's own largest blow, never under its beginner's floor (abilities.js hitRange); the
      version's pm rides the hit's tag. */
-  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));
+  const dmg = () => { const r = hitRange(blow, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };
   /* ONE HIT OF THIS CAST on `m`: the blow (damage.js landHit), then what the row returns from it: its leech (leechBack), and for a row
      that gives mana back, the hit and the kill it counts (`v.back`). A row with neither does exactly the blow. */
   const back = v && v.back ? v.back : null;
@@ -433,7 +453,7 @@ function effect(inst, u, row, t, sc, v) {
      Sickness) reads neither. */
   const afflict = (m) => {
     if (!row.status) return;
-    const own = blowOf(u, row);
+    const own = blow;
     const hit = Number.isInteger(own) && own > 0 ? own : 1;
     applyStatus(inst, m, statusRow(row.status), { u: u.id, maxHit: hit, runeTier: (v && v.version) || 1 }, sc);
     /* a Roads modifier's longer status (talent-rows.js moddedRow statusMs: Long Frost, Lingering Sickness) on the stack this cast laid */
@@ -469,11 +489,11 @@ function effect(inst, u, row, t, sc, v) {
     /* A SHIELD lands through the one shield rule (shields.js offerShield: one a hero, a bigger one replaces it); the bar's gates
        (firstUsable: a self shell recasts only to land more, an ally shield takes a hero holding none) mean every cast here is bigger. */
     case 'self':
-      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row.overShieldPm); break; }
+      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row.overShieldPm, piped); break; }
       offerShield(sc, u, u, amount().shield);
       break;
     case 'ally':
-      if (heals(row)) { healOne(u, t, amount().heal, sc, sg, row.overShieldPm); break; }
+      if (heals(row)) { healOne(u, t, amount().heal, sc, sg, row.overShieldPm, piped); break; }
       offerShield(sc, u, t, amount().shield);
       break;
     /* A PARTY row: every living hero within its radius, the caster too, in id order. A heal lands its whole share on each (a
@@ -482,7 +502,7 @@ function effect(inst, u, row, t, sc, v) {
     case 'party':
       for (const a of allies(inst, u).slice().sort((x, y) => x.id - y.id)) {
         if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
-        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row.overShieldPm); continue; }
+        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row.overShieldPm, piped); continue; }
         offerShield(sc, u, a, amount().shield);
       }
       break;
@@ -500,8 +520,8 @@ export function fire(inst, u, pick, sc) {
   const pm = Number.isInteger(pick.pm) ? pick.pm : 1000;
   /* THE MANA THE CAST COSTS: its version's, less a self-shield's refund of the shell it replaces (shieldRefund). The
      cast event carries the NET (Magic XP is paid on the mana spent, xp-share.js magicXpFor: a refunded point pays none). */
-  const paid = Number.isInteger(pick.mana) ? pick.mana : row.mana;
-  const refund = shieldRefund(u, row, paid, pm);
+  const paid = Number.isInteger(pick.mana) ? pick.mana : manaOn(inst, u, row.mana);
+  const refund = shieldRefund(u, row, paid, pm, inst);
   const spent = paid - refund;
   u.mana = int(u.mana) - spent;
   /* A ROW THAT STANDS IN FOR A STRIKE (`replaces`, clockOf) starts that strike's cooldown too, as its own cast would: the cast replaces

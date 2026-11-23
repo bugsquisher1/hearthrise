@@ -22,7 +22,8 @@
 //        1057's §7 f, and 1056's §6 i.)
 //   DZ-6 THE FALLS, BOTH PATHS (R2, 1057-danger-falls.sql): a four with no stance that last held step 760 (far past its edge) opens at 740, played
 //        at Muster's band top 710 (lane/r10: no step past the top), and
-//        falls back. Browser closed in 90 s windows and hunt viewed in 45 s windows, to the same instant: every seat's session stores the SAME
+//        falls back. Browser closed in four 90 s windows and hunt viewed in nine 45 s windows (each door warms one window first: 450 s), to the same instant (lane/stage3-pipeline: under the amount
+//        pipeline the steel four fell 11 times in the old 270 s, so report_falls_max's cap went unexercised; 360 s): every seat's session stores the SAME
 //        report `falls` and `deep` on both doors (the engine names each fall's hero by seat and its monster; the server folds them), byte for
 //        byte; there are falls (control), more than report_falls_max of them made and the last report_falls_max kept (control: the first,
 //        from the start, is gone), each a seat of the four and a monster of the ground, the deepest step the start; and the `hunt` section
@@ -188,8 +189,8 @@ async function fallsBothPaths(boot) {
   const DEEP = 760, START = DEEP - DANGER.startMargin;
   /* (lane/r10) a start held past the band's top plays AT the top (src/core/hunt/danger.js stepOn): the deepest step the four stood at */
   const PLAYED = Math.min(START, DANGER_GROUNDS[MUSTER].topStep);
-  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 3, windowMs: 90000 });
-  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 7, windowMs: 45000 });
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 4, windowMs: 90000 });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 9, windowMs: 45000 });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
   const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
   const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep, x.heal, x.took, x.sup]));

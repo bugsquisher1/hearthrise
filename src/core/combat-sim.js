@@ -176,6 +176,7 @@ const rolesOf = (ms) => ms.map((m) => m.hero.role);
    raise-only inside a hunt (a Level is never lost in one: a death ends it).
    `roles`: the party standing in the world at this instant (inWorld), whose
    make-up decides a setting the player left unset (roles.settingsOf). */
+const PIPELINE_SNAP = Object.freeze(['armorGearPm', 'wardPm', 'blowBp', 'critPm', 'buffDmgPm']);
 function syncUnit(u, m, roles) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
@@ -187,6 +188,8 @@ function syncUnit(u, m, roles) {
   u.gearPm = Number.isInteger(snap.gearPm) ? snap.gearPm : 0;
   /* THE SKILL PART (the same power step, lane/foundations-block), the same: never persisted. */
   u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;
+  /* THE AMOUNT PIPELINE'S READS (src/core/hunt/amount.js, on the Danger scale only), the same: never persisted. */
+  for (const k of PIPELINE_SNAP) u[k] = Number.isInteger(snap[k]) ? snap[k] : 0;
   /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
   if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;

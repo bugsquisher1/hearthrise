@@ -353,6 +353,11 @@
         "bytes": 3663384,
         "on": "2026-11-23",
         "why": "lane/roads-sample: +66,234 B, the Roads sample the settle grants (src/data/talents.js, src/core/talents.js, src/core/hunt/talent-rows.js, the seams); the other +43,725 B was already over on the set tip 319590c72 (red on base, not this lane)"
+      },
+      {
+        "bytes": 3692589,
+        "on": "2026-11-23",
+        "why": "stage 3 fight pipeline (amount.js) + talents together on the integrated tree"
       }
     ]
   }

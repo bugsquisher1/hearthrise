@@ -628,4 +628,39 @@ export const COMBAT = [
     touches: 'casts an hour and drinks bought', out: ['suppliesPerH', 'storePerH', ...KILL], f: ['C-MANA'],
     perturb: K('manaRegen'),
     ev: 'CONFIRMED (read)' }),
+  /* ── THE AMOUNT PIPELINE (lane/stage3-pipeline; 27-formula-overhaul.md D-1 to D-8, 04 sections 2, 3 and 12): on the Danger scale every amount is
+     one step contest (src/core/hunt/amount.js). Played by the V1 probe (tools/balance-program/redesign/v1-climb.mjs and the stage 0 cells,
+     tools/balance-program/redesign/stage3); no matrix run plans a stance. ── */
+  L('amount.roll-spread', 'base-damage', 'global', 'The one roll of every amount', {
+    at: [at('src/data/amount.js', 'rollSpreadPm: 200,')],
+    def: 'on the scale every amount (a blow, a spell, a tick, a heal, a shell, a monster blow) is its mean x one draw of (1000 - rollSpreadPm) to (1000 + rollSpreadPm) permille, rounded once (src/core/hunt/amount.js blowAmount, healAmount)',
+    range: '0 to 500 permille. 04 section 2 JUDGMENT: narrow (200), so danger is the monster\'s wind-up, not a dice roll',
+    touches: 'the low-health tail a pull reads (the stance\'s margin), so fall backs and deaths at a held depth; the mean is unmoved', out: SURVIVE, f: ['C-HERO-POWER'],
+    tests: [['tests/hunt-core/amount.mjs', 'roll: one draw a blow, +-rollSpreadPm']], testReads: ['AMOUNT'],
+    perturb: NP('not-in-runs', 'played by the V1 probe; no matrix run plans a stance'),
+    ev: 'STATED (04 section 2: plus or minus 20%)' }),
+  L('amount.blow-top', 'base-damage', 'global', 'A hero\'s blow at a gap of 0, by weapon type', {
+    at: [at('src/data/amount.js', 'blowTopBp: Object.freeze({ sword: 580, hammer: 740, axe: 595, ranged: 600, magic: 820, neutral: 580 }),')],
+    def: 'on the scale a hero\'s basic blow tops at blowTopBp / 10000 of the reference health of the monster\'s ground Level x (1 + powerStep) ^ (its offense rating - the ground\'s reference rating); a move\'s share (hitRange, healPm, shieldPm, a tick\'s blowPm) multiplies it; a heal reads the healer\'s own Level\'s reference health',
+    range: 'hundredths of a percent, above 0. FITTED to today\'s reference company (MID kits at Level 60 on Muster Barrows: sword 43, hammer 55, axe 44, bow 45, wand 63, staff 58 over 740), so the reference fight starts where it was. The base share of the move row family (04 section 13: a style that trails everywhere is read here first)',
+    touches: 'every hero amount on the scale, so kill speed, heals and shells, and what each style holds', out: [...KILL, 'healPerH'], f: ['C-HERO-POWER'],
+    tests: [['tests/hunt-core/amount.mjs', 'reference: the reference company at a gap of 0'], ['tests/hunt-core/amount.mjs', 'snapshot: a hero carries its weapon\'s top']], testReads: ['AMOUNT'],
+    perturb: NP('not-in-runs', 'played by the V1 probe; no matrix run plans a stance'),
+    ev: 'MEASURED (the fit: .scratch ref-blows on set/v0.2.144 + foundations; the reference Muster four held 608 +- 17 on it, 2 seeds x 4 h)' }),
+  L('amount.pressure', 'monster-stats', 'global', 'What a monster\'s row blow lands at a gap of 0', {
+    at: [at('src/data/amount.js', 'pressurePm: 450,')],
+    def: 'on the scale a monster\'s blow is its row\'s blow at the step x pressurePm / 1000 x refHealth(hero Level) / refHealth(ground refLevel) x (1 + powerStep) ^ (the ground\'s reference rating - the hero\'s armor or ward rating): the armor chain (dodge, absorb, ward, the 60% cap) is gone on the scale, and this one number stands where it took 40 to 50% of a blow at the reference company',
+    range: '1 to 1000 permille. Stage 1 normalization (04 section 14) solves it by bisection: the reference four holds its ground\'s reference step. With the roll to hit off (27 K-2) every monster blow lands, so it must fall by the monsters\' old hit rate',
+    touches: 'every blow at a hero on the scale, so the supply bill, fall backs and deaths at a depth, and the held depth', out: SURVIVE, f: ['C-TIER'],
+    tests: [['tests/hunt-core/amount.mjs', 'reference: a monster\'s blow at the reference hero']], testReads: ['AMOUNT'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (stage3 cells); no matrix run plans a stance'),
+    ev: 'MEASURED (lane/stage3-pipeline: the Muster four at Level 60 on Steady holds about its reference step at 450 with today\'s roll to hit)' }),
+  L('amount.defense-split', 'armor-mitigation', 'global', 'Armor and ward by armor weight', {
+    at: [at('src/data/amount.js', 'heavy: Object.freeze({ armorSteps: 15, wardSteps: -15 }),'), at('src/data/amount.js', 'light: Object.freeze({ armorSteps: -15, wardSteps: 15 }),')],
+    def: 'a worn armor piece adds armorSteps to its item Level on the armor rating and wardSteps on the ward rating (x its slot weight): heavy more armor, light more ward, medium even; a plain blow reads armor, an elemental one ward. In steps, never a share of the item Level (a share grew with it: the scale test failed on it)',
+    range: 'steps, 0 to tierSteps (20) either way. 15 is the share 1.25 / 0.75 read at the reference (item Level 60)',
+    touches: 'which seat a monster\'s blow costs most, so the front hero\'s share of the bill and heavy against light on a ground of casters', out: SURVIVE, f: ['C-TIER'],
+    tests: [['tests/hunt-core/amount.mjs', 'slope: armor reads a plain blow, ward an elemental one, the split in steps']], testReads: ['AMOUNT'],
+    perturb: NP('not-in-runs', 'played by the V1 probe; no matrix run plans a stance'),
+    ev: 'STATED (04 section 2: three rows; the size the old share at the reference)' }),
 ];

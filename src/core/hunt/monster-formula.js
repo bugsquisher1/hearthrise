@@ -82,7 +82,8 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   const R = MONSTER_ROLES[roleId];
   if (!R) throw new Error('monster-formula: unknown role ' + roleId);
   const enc = F.encounters[kind] || F.encounters.pull;
-  const ref = refCompany(g.refLevel);
+  /* a ground on the Danger scale (it names its refStep) meets its monsters in the amount pipeline; a Tower room in the old chain */
+  const ref = refCompany(g.refLevel, Number.isInteger(g.refStep) ? 'steps' : null);
   const take = ref.takePm / 1000, land = ref.hit;
   const swingS = COMBAT_BALANCE.tickMs / 1000;
   /* ITS ARMOR (the role's `armor`): a share of every hero blow, so its health is written net of it and secondsToKill holds at any armor;

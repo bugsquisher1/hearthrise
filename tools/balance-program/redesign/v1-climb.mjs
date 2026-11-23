@@ -85,13 +85,30 @@ const FROM = arg('start-from') ? JSON.parse((await import('node:fs')).readFileSy
 /* --start <step> (lane/monster-formula): every cell but `above` starts at that step (a held start without a report: the ground's band floor) */
 const START = Number(arg('start', 0));
 const startOf = (id, v) => (FROM && FROM.cells[id] && Number.isFinite(FROM.cells[id].held.mean) ? Math.max(0, Math.round(FROM.cells[id].held.mean) - MARGIN) : v.start || START || 0);
+/* --as-level N (lane/stage3-pipeline, the scale test of 04 section 14): every cell's company is the one built at its Level (kit, skills, bar),
+   played at Level N (its health, mana and the pay's hours are Level N's), so a candidate that moves the ground's content to Level N plays the
+   SAME company there (tools/balance-program/redesign/stage3/candidates.mjs) */
+const AS_LEVEL = Number(arg('as-level', 0));
+const asLevel = (cell) => cell.skillsBySeat.map((sk) => ({ levelXp: charXpForLevel(AS_LEVEL),
+  skills: Object.fromEntries(Object.entries(sk).map(([k, lv]) => [k, skillXpForLevel(k, lv)])) }));
+const { skillXpForLevel } = await imp('src/core/xp.js');
+/* (the kit pinned whole, as the cell dresses it at its own Level: the ladder, the accessories and the ammo its skill may use, so the harness's
+   kit builder never re-picks a piece for Level N) */
+const GEAR = AS_LEVEL ? await (await imp('tools/balance-sim/gear.mjs')).loadGear(ROOT) : null;
+const MAINSK = (await imp('tools/balance-program/progression-grid.mjs')).MAIN;
+const pinnedKits = (cell, L) => cell.party.map((style, i) => {
+  const o = (cell.gearBySeat && cell.gearBySeat[i]) || {};
+  const sk = cell.skillsBySeat[i], main = MAINSK[style] || 'melee';
+  return { ...o, also: GEAR.kitOf(style, L, { ground: cell.ground, accessories: true, ammoSkill: sk[main === 'ranged' ? 'ranged' : 'melee'], ...o }) };
+});
 const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
   const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}), ...(v.skillDelta ? { skillDelta: v.skillDelta } : {}) });
   const start = startOf(id, v);
-  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true };
+  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true,
+    ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}) };
   cells.push({ id, variant: v.id, risk, L: v.L, start });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
 }

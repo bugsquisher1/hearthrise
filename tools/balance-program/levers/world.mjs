@@ -390,7 +390,7 @@ export const WORLD = [
     ev: 'MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt; lane/econ-levers re-measured with the coin level: tools/balance-program/redesign/econ/after-muster-L60.json)' }),
   L('danger.power-gear', 'monster-stats', 'global', 'The power step on gear', {
     at: [at(DZ, 'export const POWER = Object.freeze({ weightGearPm: 1000,')],
-    def: 'on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped',
+    def: 'on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over its Level in its ratings (src/core/bands.js ratingPm), and every amount is the step contest of the two ratings (src/core/hunt/amount.js, lane/stage3-pipeline): a blow at a monster x (1 + powerStep)^gap, a blow at the hero the other way on its armor or ward rating, a heal by its caster\'s rating over its Level; no cap',
     range: '0 to 1000 permille (04 section 1: a weighted mean with weightSkill). 1000 makes a tier of base on a whole kit tierSteps steps of power by construction',
     touches: 'how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats', out: [...KILL, ...SURVIVE], f: ['C-TIER', 'C-TEMPER'],
     tests: [['tests/hunt-core/danger.mjs', 'power: a tier of gear is a tier of steps, after the cap, never off the scale']], testReads: ['POWER', 'GEAR_STEPS', 'DANGER_GROUNDS'],
@@ -467,7 +467,7 @@ export const WORLD = [
     ev: 'MEASURED (lane/monster-formula, v1-climb.mjs C0 readers: dps a hunted second a head on each ground\'s reference four, a front\'s damage a landed swing over the roll: tools/balance-program/redesign/mf)' }),
   L('danger.power-gear-below', 'monster-stats', 'global', 'The power step under the ground\'s gear Level', {
     at: [at(DZ, 'weightGearBelowPm: 500,')],
-    def: 'one-sided: a gear part UNDER the ground\'s base item Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/hunt/danger.js gearSteps',
+    def: 'one-sided: a gear part UNDER the hero\'s Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/bands.js ratingPm, read by the amount pipeline (src/core/hunt/amount.js)',
     range: '0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to',
     touches: 'how far a company under the ground\'s gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster\'s base)', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'power: a tier back moves the blow by the weight under the base, one-sided']], testReads: ['POWER'],
@@ -477,7 +477,7 @@ export const WORLD = [
      steps. Played by the V1 probe (tools/balance-program/redesign/foundations/run.mjs); no matrix run plans a stance. */
   L('danger.power-skill', 'monster-stats', 'global', 'The power step on skill', {
     at: [at(DZ, 'weightSkillPm: 250 });')],
-    def: 'on the scale a hero\'s skill for its style, read as the Level the reference career reaches it (src/data/bands.js SKILL_LINE backwards), over its own Level counts weightSkillPm / 1000 steps a Level, both ratings (member.js heroSnapshot skillGapPm; src/core/hunt/danger.js skillSteps); 0 on the career line',
+    def: 'on the scale a hero\'s skill for its style, read as the Level the reference career reaches it (src/data/bands.js SKILL_LINE backwards), over its own Level counts weightSkillPm / 1000 steps a Level, every rating (member.js heroSnapshot skillGapPm; src/core/hunt/amount.js offensePm and defensePm); 0 on the career line',
     range: '0 to 1000 permille (04 section 1: Level, skill and gear weights sum to one once the blow is the step contest). STATED 250, a quarter',
     touches: 'how far a style switcher or a trained hero holds from its Level\'s reference; nothing for a hero on its line, so no band measured on the Lab\'s career lines moves', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'skill: 20 Levels of skill behind moves a blow both ways by the weight, on the scale only']], testReads: ['POWER'],

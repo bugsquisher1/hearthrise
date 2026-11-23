@@ -5,7 +5,7 @@
   188,
   70
  ],
- "seeds": 8,
+ "seeds": 4,
  "hours": 12,
  "settleFromH": 4,
  "levers": {
@@ -50,155 +50,157 @@
    "risk": "steady",
    "L": 185,
    "start": 0,
-   "seedsRead": 8,
+   "seedsRead": 4,
    "payX": {
-    "mean": 1.84,
-    "sd": 0.01,
-    "n": 8,
+    "mean": 3.66,
+    "sd": 0.02,
+    "n": 4,
     "perSeed": [
-     1.84,
-     1.85,
-     1.83,
-     1.85,
-     1.86,
-     1.82,
-     1.83,
-     1.85
+     3.68,
+     3.66,
+     3.63,
+     3.64
     ],
     "fromH": 4,
-    "windowH": 7.8
+    "windowH": 8
    },
    "held": {
-    "mean": 503.7,
-    "sd": 1.1,
-    "se": 0.4,
+    "mean": 592.6,
+    "sd": 2,
+    "se": 1,
     "perSeed": [
-     503,
-     505,
-     503,
-     504,
-     505,
-     502,
-     503,
-     505
+     595,
+     594,
+     590,
+     592
     ]
    },
-   "drift": -0.6,
-   "within10": 79,
-   "within20": 95.4,
-   "changesPerH": 16.2,
-   "fallsPerH": 2.1,
+   "drift": -3.7,
+   "within10": 60.4,
+   "within20": 90.8,
+   "changesPerH": 36.8,
+   "fallsPerH": 4.2,
    "reachH": 0.6,
-   "pullsPerH": 148,
-   "killsPerH": 705,
-   "xpPerHeroH": 1803928,
+   "pullsPerH": 170.1,
+   "killsPerH": 945,
+   "xpPerHeroH": 3469035,
    "gold": {
     "coinPerHeroH": {
-     "mean": 59444,
-     "sd": 992,
-     "n": 8
+     "mean": 103093,
+     "sd": 34,
+     "n": 4
     },
     "incomePerHeroH": {
-     "mean": 62330,
-     "sd": 984,
-     "n": 8
+     "mean": 109318,
+     "sd": 46,
+     "n": 4
     },
     "storePerHeroH": {
-     "mean": 7144,
-     "sd": 160,
-     "n": 8
+     "mean": 6743,
+     "sd": 5,
+     "n": 4
     },
     "commonPerHeroH": {
-     "mean": 1655,
-     "sd": 39,
-     "n": 8
+     "mean": 3656,
+     "sd": 26,
+     "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 991,
-     "sd": 33,
-     "n": 8
+     "mean": 2158,
+     "sd": 79,
+     "n": 4
     },
     "scarcePerHeroH": {
      "mean": 0,
      "sd": 0,
-     "n": 8
+     "n": 4
     },
     "otherPerHeroH": {
-     "mean": 240,
-     "sd": 28,
-     "n": 8
+     "mean": 411,
+     "sd": 17,
+     "n": 4
     }
    },
    "kit": {
-    "meal": 156,
-    "drink": 1243,
-    "charge": 2493,
-    "shot": 3252
+    "meal": 246,
+    "drink": 931,
+    "charge": 2352,
+    "shot": 3215
    },
    "kitIds": {
-    "salted_lobster": 6,
-    "plain_dawnpoint_arrows": 542,
-    "plain_etched_fire_rune": 37.1,
-    "plain_graven_fire_rune": 45.9,
-    "plain_graven_ice_rune": 118.1,
-    "plain_earth_rune": 14.7,
-    "plain_graven_poison_rune": 37,
-    "plain_graven_earth_rune": 64,
-    "plain_graven_water_rune": 215.9,
-    "thin_carrot_juice": 77.7
+    "salted_lobster": 9.5,
+    "plain_dawnpoint_arrows": 535.8,
+    "plain_etched_fire_rune": 46.2,
+    "plain_graven_ice_rune": 102.7,
+    "plain_graven_fire_rune": 52.7,
+    "plain_earth_rune": 6.5,
+    "plain_graven_earth_rune": 52.8,
+    "plain_graven_poison_rune": 43.2,
+    "plain_graven_water_rune": 199.2,
+    "thin_carrot_juice": 58.2
    },
-   "deaths": 1,
+   "deaths": 0,
    "wipes": 0,
-   "seedsWithADeath": 1,
+   "seedsWithADeath": 0,
    "huntedH": 12,
-   "fourH": 7.8,
-   "firstDeathH": [
-    10.4
-   ],
-   "nearWipes": 12,
-   "nearWithDeath": 1,
+   "fourH": 8,
+   "firstDeathH": [],
+   "nearWipes": 4,
+   "nearWithDeath": 0,
    "nearWarned": 0,
-   "nearFellAfter": 12,
+   "nearFellAfter": 4,
    "whys": {
-    "hold": 9730,
-    "climb": 4269,
-    "fall": 202,
-    "death": 1
+    "hold": 6169,
+    "climb": 1810,
+    "fall": 182
    },
    "takenShare": [
     {
      "style": "hammer",
-     "mean": 0.743
+     "mean": 0.895
     },
     {
      "style": "bow",
-     "mean": 0.063
+     "mean": 0.037
     },
     {
      "style": "mage",
-     "mean": 0.087
+     "mean": 0.028
     },
     {
      "style": "healer",
-     "mean": 0.106
+     "mean": 0.039
     }
-   ]
+   ],
+   "abs": {
+    "level": 169.7,
+    "depth": 12
+   },
+   "sustain": {
+    "freePm": 120,
+    "spellPm": 866,
+    "foodPm": 13,
+    "takenPmS": 18.86
+   }
   }
  },
- "wallS": 44,
+ "wallS": 52,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,
   "weapon:careful": null,
   "armor:careful": null,
   "high:careful": null,
+  "skill:careful": null,
   "levels:steady": null,
   "weapon:steady": null,
   "armor:steady": null,
   "high:steady": null,
+  "skill:steady": null,
   "levels:bold": null,
   "weapon:bold": null,
   "armor:bold": null,
-  "high:bold": null
+  "high:bold": null,
+  "skill:bold": null
  }
 }

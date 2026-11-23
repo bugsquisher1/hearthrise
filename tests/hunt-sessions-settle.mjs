@@ -5675,7 +5675,7 @@ const MUTANTS = [
   { arm: 'PARTY-ROSTER', name: '[KNOWN-F1] the party defaults read every member the read handed in, not the party standing', file: 'src/core/combat-sim.js',
     from: '    const roles = rolesOf(inWorld(members));', to: '    const roles = rolesOf(members);' },
   { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/hunt/consumables.js',
-    from: '    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(u, hero, got.pick.kind, got.pick.line, sc, got);' },
+    from: '    if (got) use(inst, u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(inst, u, hero, got.pick.kind, got.pick.line, sc, got);' },
   { arm: 'REPORT', name: 'the settle proposes none of the tally\'s report counters', file: join(FN, 'accrue-hunt.js'),
     from: 'report: reportProposal(t.report, ', to: 'report: reportProposal(null, ' },
   { arm: 'REPORT', name: 'the bar as played is never sent', file: join(FN, 'accrue-hunt.js'),

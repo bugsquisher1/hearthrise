@@ -2011,6 +2011,16 @@
    "replay": 4,
    "note": "Generated catalogue (2026-11-10-storage-chests-catalogue.generated.sql from src/data/homestead-tiers.js STORAGE_CHESTS): each chest's name, order, stacks, home tier and price. Rebuilt from repo, never restored; account_storage_chests references it."
   },
+  "hr_store_grounds": {
+   "class": "seeded",
+   "replay": 4,
+   "note": "Generated catalogue (1061-store-step-catalogue.generated.sql, tools/gen-store-prices.mjs from src/data/danger.js DANGER_GROUNDS): each Danger scale ground's reference depth in the wage's unit (its gearLevel). Empty, hr_store_step prices a scale hunt's store at the hero's Level instead of its depth (never a refusal, no gold minted). Rebuilt from repo, never restored."
+  },
+  "hr_store_terms": {
+   "class": "seeded",
+   "replay": 49,
+   "note": "Generated catalogue (1061-store-step-catalogue.generated.sql, tools/gen-store-prices.mjs from src/data/supply-basics.js STORE_TERMS): a store use's price terms, one row per hr_hunt_basic_supplies row. Empty, hr_store_price answers null and every store use is refused not_for_sale (a hunt on store supplies ends on its empty line): nothing is sold, no gold moves. Rebuilt from repo, never restored."
+  },
   "hr_tally_config": {
    "class": "seeded",
    "replay": 1,

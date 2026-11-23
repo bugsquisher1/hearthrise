@@ -7858,6 +7858,21 @@ jobs:
           node tests/level-costs.mjs
           node tools/mutant-gate.mjs node tests/level-costs.mjs --mutate
 
+      # THE STORE PRICED AT THE BUYER'S STEP (1061-store-step-catalogue.generated.sql, 1062-store-step.sql, lane/econ-followups; Tyler
+      # 2026-11-22: goods are priced by depth): a store use costs its row at the depth the hunt stands at as each window opens (the wage's
+      # unit), off the scale at the hero's Level. The twin is the JS at every step; a four falling back from step 760 on Muster is billed
+      # each window's depth, browser closed and hunt viewed; the engine's input and the client's list read the same price; no function
+      # prices a use from a row's list price. The catalogue is GENERATED (tools/gen-store-prices.mjs --check holds it to src/data, --selftest
+      # proves each refusal). --mutate (13): the list price in the bill, the read, the view, the gold_out proof and a called room; the step
+      # taken late, frozen at the start, raw, by Level, uncapped, or 1 in town; the twin rounding down or losing its floor.
+      - name: Store priced at the buyer's step — the server's depth or Level, both paths (13 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-store-prices.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-store-prices.mjs --selftest
+          node tests/store-step.mjs
+          node tools/mutant-gate.mjs node tests/store-step.mjs --mutate
+
       # COMPANY TRADES AND THE WORK DAY (1059-company-trades*.sql, lane/r12-company-trades; Tyler 2026-11-22 CR-Q1 a, CR-Q3 b): one company,
       # two heroes, both doors (viewed and the tick) mine into ONE trade total every hero reads; a hero's town work stops at its day's end
       # (work_cap) with the window open and with the browser closed; the server refuses a window past the day and a new job on a spent

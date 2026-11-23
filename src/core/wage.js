@@ -40,6 +40,7 @@ import { wage, wageStep } from '../data/wage.js';
 import { TIME_BLOCKS } from '../data/time-blocks.js';
 import { BLESSING } from '../data/blessings.js';
 import { TALENT_RESET } from '../data/talent-reset.js';
+import { DANGER_GROUNDS, PAY } from '../data/danger.js';
 
 /* THE CURVE (wageStep, wage) lives beside its levers in src/data/wage.js since lane/econ-levers (2026-11-22), so a data row priced in
    hours of wage (the store's basics, src/data/supply-basics.js) reads the same one function; this module re-exports it. */
@@ -48,6 +49,26 @@ export { wageStep, wage } from '../data/wage.js';
 /** The step a hero's LEVEL is priced at: the reference company of Level L holds step L (04 section 1). Every per-hero cost reads it. */
 export function levelStep(level) {
   return wageStep(level);
+}
+
+/**
+ * THE WAGE STEP A DANGER HOLD PAYS AT (lane/econ-followups, 2026-11-22): a good priced by DEPTH (Tyler 2026-11-22) reads the wage at the
+ * depth a hunt stands at. Wave 1's Danger step counts from each ground's own rows (src/data/wage.js: Muster's reference step 590 is not
+ * Level 590; wage(590) is 8x a Level 60 hour), so this is the bridge to the wage's one unit until wave 2 cuts the bands in it:
+ *   depthStep = gearLevel + min(step - refStep, PAY.gapMax), held to 1..stepMax (wageStep)
+ * gearLevel is the absolute step of the ground's reference depth: refStep was measured on the company whose kit is the ground's base item
+ * Level (src/data/danger.js DANGER_GROUNDS: "the power step is 0 at it"), and a company of kit Level X holds step X (04 section 1). Inside
+ * a ground one Danger step pays the wage's coin ratio (danger.js PAY: one coin ratio a step), so each step over or under the reference is
+ * one wage step; past gapMax a kill pays no more, and the price stops with it. (Under the reference the pay floor PAY.floor holds a kill's
+ * coin from about 173 steps down; on today's ground that is under wage step 1, where wageStep already holds it.) Null off the scale.
+ * THE BUYER'S STORE STEP (store-kit.js storePriceOf; the server's twin is hr_store_step, supabase/migrations/1062-store-step.sql): on the
+ * Danger scale depthStep of the step the hunt stands at as the settle window opens (the stored world's, else the step it froze at), off
+ * it levelStep of the hero's Level. A party's heroes share the window's depth, so they share its price.
+ */
+export function depthStep(groundId, step) {
+  const g = Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null;
+  if (!g || !Number.isFinite(step)) return null;
+  return wageStep(g.gearLevel + Math.min(Math.floor(step) - g.refStep, PAY.gapMax));
 }
 
 /** The gold block `n` (1 for the day's first) of a bought-time `row` costs a hero of Level `level`, or null past the row's day cap. */

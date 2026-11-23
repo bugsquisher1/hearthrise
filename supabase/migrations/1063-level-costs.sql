@@ -64,7 +64,7 @@
 --   Blessing never adds XP: it shrinks a debit the settle already bounds, once, for a death after its purchase. The death bound only
 --   ever shrinks (the lesser of two rules), so a forged engine proposal can take no more than before at any Level and less past 61.
 --   The reset verb is unreachable by any request role (§4 (f)); when the Talents lane opens it, it is a gold sink with the day's clamp,
---   a durable first-free fact and a ledger-read Premium grant. ON THE PRE-EA SECURITY LIST (13-security-list.md S-7).
+--   a durable first-free fact and a ledger-read Premium grant. ON THE PRE-EA SECURITY LIST (13-security-list.md S-8).
 --
 -- ── COST (rows and bytes at 100x players) ────────────────────────────────────
 --   The section adds no scan (one primary-key probe of player_blessings and the one-row catalogue). A Blessing: one shop row, one

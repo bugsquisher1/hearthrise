@@ -310,7 +310,17 @@
         "why": "lane/moves-pass-1: the holder's line (danger.js marginPm, holderTank), Precision Shot's preferred roles and the Mark's own target (abilities.js targetFor), their data rows and measured notes"
       },
       {
-        "bytes": 3402101,
+        "bytes": 3404831,
+        "on": "2026-11-23",
+        "why": "band floor: BAND_RULE and the re-cut bands in danger.js, traitRoll in gear-steps.js"
+      },
+      {
+        "bytes": 3409599,
+        "on": "2026-11-23",
+        "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
+      },
+      {
+        "bytes": 3411301,
         "on": "2026-11-23",
         "why": "lane/level-costs 2026-11-22: the death's price is the lesser of the share and DEATH_HOURS of progress at the hero's Level (action-rules.js levelDeathLoss, levelHourXp; hunt-sessions.js DEATH_HOURS), the engine's half of Tyler's per-hero costs by Level"
       }

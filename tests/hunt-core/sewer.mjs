@@ -1023,7 +1023,7 @@ const cases = {
     const steps = walkChain(M, T);
     const said = (id) => (steps.find((s) => s.id === id) || {}).card;
     const bless = said('bless');
-    if (!bless || bless.text !== 'Shop → Services → Bless all three') return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
+    if (!bless || bless.text !== 'Shop → Services → Bless') return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
     if (!tam || tam.textIn !== 'Pick heavy armor, then Take Gray Wolves' || tam.text !== 'Open Tamsin\'s tally → Take 200 Gray Wolves') return 'Tamsin\'s card reads ' + JSON.stringify(tam && [tam.text, tam.textIn]);
     /* a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */

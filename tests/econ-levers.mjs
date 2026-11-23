@@ -12,7 +12,9 @@
 //   EL-RUNES    the rune ladder is the derived price of each tier, never falling
 //   EL-BUYBACK  store-kit's buyback is the edge's SHOP_BUYBACK_RATE (the floor that keeps a crafted partner's bid at its book reads it)
 //   EL-COIN     one coin ratio a step: the engine's PAY has no coin ratio of its own (the wage's payStepCoin is the one)
-//   EL-KIT      the measured uses of the Steady four at today's prices cost 0.2 to 0.3 of its measured pay; Careful and Bold at most 0.33
+//   EL-KIT      the measured uses of the Steady four, each priced as the server charges it (supply-basics.js storeUsePrice at the buyer's
+//               store step: the cell's held depth in the wage's unit, src/core/wage.js depthStep; lane/econ-followups), cost 0.2 to 0.3
+//               of its measured pay; Careful and Bold at most 0.33
 //   EL-PAY      each stance's measured pay is 0.75 to 1.33 of wage(Level) (the wage tracks the scale's pay); Steady's Levels 0.95 to 1.05
 //   EL-STANCE   Careful's measured XP is 0.55 to 0.70 of Steady's (12-targets C-5, through the pay floor of 2.1)
 //
@@ -29,7 +31,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { BASIC_SUPPLIES, STORE_RUNE_PRICE, BASIC_AMMO_PREMIUM } from '../src/data/supply-basics.js';
+import { BASIC_SUPPLIES, STORE_RUNE_PRICE, BASIC_AMMO_PREMIUM, storeUsePrice } from '../src/data/supply-basics.js';
+import { depthStep } from '../src/core/wage.js';
 import { STORE_KIT, storePrice } from '../src/data/store-kit.js';
 import { WAGE, wage } from '../src/data/wage.js';
 import { PAY } from '../src/data/danger.js';
@@ -41,6 +44,8 @@ import { SHOP_BUYBACK_RATE } from '../supabase/functions/hr-accrue/catalogue.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const REPORT = 'tools/balance-program/redesign/econ/after-muster-L60.json';
+/* the kept reading's ground (its cells' held steps are this ground's own Danger steps) */
+const MUSTER = 'muster_barrows';
 const KIT_BAND = [0.2, 0.3], KIT_OTHER_MAX = 0.33, PAY_BAND = [0.75, 1.33], STEADY_PAY = [0.95, 1.05], CAREFUL_XP = [0.55, 0.7];
 
 /* the price a row's crafted partner sets, read here from the partner's own data (independent of supply-basics' helpers) */
@@ -57,7 +62,7 @@ function expectedPrice(b, kit) {
 }
 
 /** Every arm's failures for the given rows, levers and report (the guard passes the shipped ones; --mutate passes planted copies). */
-export function check({ basics = BASIC_SUPPLIES, runePrices = STORE_RUNE_PRICE, kit = STORE_KIT, pay = PAY, wageOf = wage, buyback = SHOP_BUYBACK_RATE, report } = {}) {
+export function check({ basics = BASIC_SUPPLIES, runePrices = STORE_RUNE_PRICE, kit = STORE_KIT, pay = PAY, wageOf = wage, buyback = SHOP_BUYBACK_RATE, useAt = storeUsePrice, report } = {}) {
   const fails = [];
   const f = (arm, msg) => fails.push(arm + ' ' + msg);
   for (const b of basics) {
@@ -74,14 +79,15 @@ export function check({ basics = BASIC_SUPPLIES, runePrices = STORE_RUNE_PRICE, 
   if (kit.buyback !== buyback) f('EL-BUYBACK', 'store-kit buys back at ' + kit.buyback + ', the edge at ' + buyback);
   if (Object.prototype.hasOwnProperty.call(pay, 'payStepCoin')) f('EL-COIN', 'PAY carries its own coin ratio (' + pay.payStepCoin + ') beside the wage\'s ' + WAGE.payStepCoin + ': two coin ratios a step');
   /* the kept reading */
-  const price = Object.fromEntries(basics.map((b) => [b.id, b.price]));
   const cells = (report && report.cells) || {};
-  const bill = (c) => Object.entries(c.kitIds || {}).reduce((s, [id, n]) => s + n * (price[id] || 0), 0);
+  /* a use costs its row at the buyer's store step (1062-store-step.sql): the cell's four held its ground's depth, so its store step is
+     that depth in the wage's unit (the per-window depth wanders round the hold; the mean is the reading) */
+  const bill = (c) => Object.entries(c.kitIds || {}).reduce((s, [id, n]) => s + n * (useAt(id, depthStep(MUSTER, c.held && c.held.mean)) || 0), 0);
   for (const [id, band] of [['base:steady', KIT_BAND], ['base:careful', [0, KIT_OTHER_MAX]], ['base:bold', [0, KIT_OTHER_MAX]]]) {
     const c = cells[id];
     if (!c || !c.kitIds || !c.gold) { f('EL-KIT', 'the kept report has no ' + id + ' cell with its uses and pay (' + REPORT + ')'); continue; }
     const share = bill(c) / c.gold.incomePerHeroH.mean;
-    if (!(share >= band[0] && share <= band[1])) f('EL-KIT', id + ': the kit at today\'s prices costs ' + share.toFixed(3) + ' of the hour\'s pay, the band is ' + band.join(' to '));
+    if (!(share >= band[0] && share <= band[1])) f('EL-KIT', id + ': the kit at the buyer\'s step costs ' + share.toFixed(3) + ' of the hour\'s pay, the band is ' + band.join(' to '));
   }
   for (const [id, band] of [['base:careful', PAY_BAND], ['base:steady', STEADY_PAY], ['base:bold', PAY_BAND], ['levels:steady', STEADY_PAY], ['high:steady', STEADY_PAY]]) {
     const c = cells[id];
@@ -109,7 +115,8 @@ function mutate(report) {
     ['EL-RUNES', 'the old hand-typed ladder', () => ({ runePrices: [1, 8, 12, 28, 44] })],
     ['EL-BUYBACK', 'a store floor read at another buy-back', () => ({ kit: { ...STORE_KIT, buyback: 0.4 } })],
     ['EL-COIN', 'the engine\'s own 0.7% coin ratio back', () => ({ pay: { ...PAY, payStepCoin: 0.007 } })],
-    ['EL-KIT', 'the old store ladder (shark 693, carrot 18, mithril 4, etched 12)', () => ({ basics: BASIC_SUPPLIES.map((b) => ({ ...b, price: { salted_lobster: 180, thin_carrot_juice: 18, plain_mithril_arrows: 4 }[b.id] ?? (/^plain_etched_/.test(b.id) ? 12 : b.price) })) })],
+    ['EL-KIT', 'the old store ladder (shark 693, carrot 18, mithril 4, etched 12)', () => ({ useAt: (id, step) => ({ salted_lobster: 180, thin_carrot_juice: 18, plain_mithril_arrows: 4 }[id] ?? (/^plain_etched_/.test(id) ? 12 : storeUsePrice(id, step))) })],
+    ['EL-KIT', 'a use priced at the raw Danger step (wage(576) is 8x a Level 60 hour)', () => ({ useAt: (id) => storeUsePrice(id, 576) })],
     ['EL-PAY', 'the wage left at lane W\'s 3,800 after the coin level moved', () => ({ wageOf: (L) => Math.floor(3800 * 1.004 ** L) })],
     ['EL-STANCE', 'Careful measured with no pay floor (0.32x)', () => ({ report: { ...report, cells: { ...report.cells, 'base:careful': { ...report.cells['base:careful'], payX: { mean: 0.32 } } } } })],
   ];

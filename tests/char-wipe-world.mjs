@@ -12,7 +12,8 @@
 //   WW-2   the procedure in order, with that page still open and a hunt running: every file applies
 //   WW-3   the real tick and every scheduled job on the empty world: no error, nothing resurrected
 //   WW-4   a tab left open through it: it stops with the way back to the characters screen, not a dead game
-//   WW-5   the reload: the characters screen, a new account's slots and all empty, the bought one gone, no error
+//   WW-5   the reload: the characters screen as a new account's, its first slot empty and no other (ONE HERO FIRST, RD-Q6 a:
+//          src/app/slot-offer.js rowsShown shows a heroless account only its first slot), the bought one gone, no error
 // THE SLOTS are read, never written here: a new account owns hr_hero_slots_of(an unknown id), the starter rows of hr_hero_slots
 // (one since 2027-03-25-hero-slots-one, Tyler 2026-11-09; two before). WW-1 wants that set plus the bought slot 2, WW-2 and WW-5 that set.
 //   WW-6   a new hero in slot 0, the old name free: the same first card as a brand-new account's, no summary, no death popup, no away line
@@ -27,6 +28,7 @@ import { mkdirSync } from 'node:fs';
 import { join, resolve as resolvePath, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openWorld } from '../tools/qa/local-world.mjs';
+import { rowsShown } from '../src/app/slot-offer.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -121,7 +123,9 @@ async function main() {
     const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((r) => r.innerText.replace(/\s+/g, ' ').trim()));
     await shot(page, 'characters-after');
     const screenText = await p.text();
-    step('WW-5 the reload with the old "hero 0" record: the characters screen, the slots a new account owns and all empty, nothing of Marlow, nothing said about it', record === 1 && rows.length === fresh.length && rows.every((r) => /Create hero/.test(r)) && !/Marlow/.test(screenText) && !SAYS_WHAT_HAPPENED.test(screenText), JSON.stringify({ record, rows, screenText: screenText.slice(0, 300) }));
+    /* what a new account's screen shows: rowsShown over its owned slots, all empty (one row since RD-Q6 a; it was every owned slot) */
+    const shownFresh = rowsShown(fresh.map((slot) => ({ slot, exists: false }))).length;
+    step('WW-5 the reload with the old "hero 0" record: the characters screen a new account sees, its first slot empty, nothing of Marlow, nothing said about it', record === 1 && shownFresh >= 1 && rows.length === shownFresh && rows.every((r) => /Create hero/.test(r)) && !/Marlow/.test(screenText) && !SAYS_WHAT_HAPPENED.test(screenText), JSON.stringify({ record, rows, screenText: screenText.slice(0, 300) }));
 
     /* WW-3: the 10 s tick and every job */
     const answers = [];
@@ -150,6 +154,7 @@ async function main() {
     await db.query(`update public.hr_flags set enabled = true where key = 'closed_mode'`);
     await page.click('[data-app="create"][data-slot="0"]');
     await page.fill('.hero-name', 'Marlow');
+    await page.click('.hero-way[data-hero-set="club"]');   // the pick at creation (GR-24): nothing is picked for the player, as local-world's createHero
     await page.click('.hero-confirm');
     await page.waitForSelector('#panel-world[data-slot="0"] .world-stage canvas');
     await page.waitForSelector('.hs-launchers');

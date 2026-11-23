@@ -23,7 +23,8 @@
 //         first ("Level 1 → n", the Level XP), why and when it ended; no hunt summary beside it; Carry on is the card's gold press (Tyler
 //         27-1), the hero's own Hunt again starts the hunt on the server and the card goes
 //   AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that died with the page closed and went on to the yard ("When the hunt
-//         ends: Train Melee") comes back as its card: the Levels, the death and what the Blessings saved, then the yard, still training
+//         ends: Train Melee") comes back as its card: the Levels, the death and what the Blessings saved, then the yard, still training.
+//         It dies on a tier ground (The Slake): on a Danger scale ground Careful and Steady fall back before a death (RD-Q3 a)
 //   AR-11 THE CELLAR OUTGROWN (the board's 2026-11-19 complete balance look, change 1; hunt-grounds.js endsAtLevel): a fresh hero's Cellar ends
 //         at Level 5 with the page closed; the card says why ("Ground outgrown"), its press is Go to the next ground (audit 2026-11-19 L2), never
 //         Hunt again, and the summary leads with Recruit your party (recruits at Level 5) with "Go on alone to" the next ground beside it
@@ -301,9 +302,10 @@ try {
     await p.reload();
     if (!(await p.page.$('.hs-launchers'))) await p.page.click('[data-app="play"][data-slot="0"]');
     await p.page.waitForSelector('.hs-launchers');
-    /* Hask's Ford, 33 Levels over: the one confirm, then Enter */
+    /* The Slake, a tier ground far over Level 12: the one confirm, then Enter. Not Hask's Ford: the Ford is a Danger scale ground now, where
+       Careful and Steady fall back before a death, and Bold held Depth 1 for 100 s at Level 12 with 10 fall backs and no death (RD-Q3 a) */
     await p.page.click('[data-hs-open="hunts"]');
-    await p.page.click('.hw-hunt[data-hunt="hasks_ford"]');
+    await p.page.click('.hw-hunt[data-hunt="the_slake"]');
     await p.page.click('.hw-hunt-enter');
     await p.page.waitForTimeout(500);
     if (!(await p.page.$('[data-hs-act="leave"]'))) await p.page.click('.hw-hunt-enter');
@@ -319,7 +321,7 @@ try {
     const line = await cardOf(q, 30000);
     await q.shot('ar10-yard-took-over');
     step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
-      !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford · Killed by .+ · Death cost: [\d,]+ Level XP/.test(line)
+      !!line && /Yardley The Slake Level 12 → 1[12]/.test(line) && /Yardley died in The Slake · Killed by .+ · Death cost: [\d,]+ Level XP/.test(line)
       && /\bBlessing saved [\d,]+ Level XP[^·]*, used up/.test(line) && /Yardley: training Melee at the yard · Still training/.test(line) && /Open Training/.test(line), line);
     await q.close();
   }

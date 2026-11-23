@@ -580,6 +580,14 @@ export const GEAR_ECONOMY = [
     perturb: P('the cells pay blessingGold after each death (cell.mjs blessingsPrice)'),
     flags: [flag('contradictory', 'Free under Level 30: a Level threshold that changes a price on purpose (a young hero\'s death is under 2.5 h, its wage-priced Blessing more than its hours pay)', '44 P-X20; kept by the designer 2026-11-22')],
     ev: 'STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)' }),
+  L('econ.faction-stock', 'economy', 'content', 'The quartermasters\' stock (the two sides\' pieces)', {
+    at: [at('src/data/factions.js', 'export const FACTION_STOCK = Object.freeze({')],
+    def: 'one row a piece a side: its standing mark in company hero-minutes (40 / 120 / 200 / 400 / 600 h), its kind, and for a hall or mount piece wageHoursPm (20 and 30 wage hours) priced ceil(wageHoursPm / 1000 x wage(levelStep(top Level))) at the company\'s highest Level (src/data/factions.js stockPrice); outfit pieces free; looks only, 0 power steps (ledger row 17)',
+    range: 'the designer\'s (25-factions.md section 2.4; lane/factions-morrow-hills: the company\'s top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1065, generated, pinned at four Levels). The paid rows are CLOSED until the hall\'s wall and mounts show them',
+    touches: 'a once-per-company looks sink; under 1% of minted coin either way (25 section 3)', out: [], f: [],
+    tests: [['tests/faction-ground-balance.mjs', 'FG-PRICE: the wage hours at the Level, rounded up, growing with it; FG-STOCK: no power key']], testReads: ['FACTION_STOCK', 'stockPrice'],
+    perturb: NP('outside-hunt', 'a piece is claimed or bought in town, never by a cell'),
+    ev: 'STATED (25-factions.md section 2.4 starting values)' }),
   L('econ.reset-price', 'economy', 'global', 'Talent reset price', {
     at: [at('src/data/talent-reset.js', '  hoursPm: 500,'), at('src/data/talent-reset.js', '  growthNum: 2,'), at('src/data/talent-reset.js', '  perDay: 16,')],
     def: 'a paid reset costs ceil(hoursPm / 1000 x wage(levelStep(L)) x (growthNum / growthDen)^n), n the resets paid that UTC day (src/core/wage.js resetPrice); a new hero\'s first and Premium\'s first of the day are free and not counted; perDay is a blast radius',

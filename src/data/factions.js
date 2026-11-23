@@ -73,6 +73,8 @@ export const STOCK_KINDS = Object.freeze({
 
 const H = 60;
 /* THE QUARTERMASTERS' STOCK (25 section 2.4). Marks in company hero-minutes; wageHoursPm in thousandths of a wage hour. */
+/** @typedef {{ side: string, mark: number, kind: string, wageHoursPm?: number, opensWith?: string }} StockRow */
+/** @type {Readonly<Record<string, Readonly<StockRow>>>} */
 export const FACTION_STOCK = Object.freeze({
   flamebearer: Object.freeze({ side: 'first_flame', mark: 40 * H, kind: 'outfit' }),
   flame_banner: Object.freeze({ side: 'first_flame', mark: 120 * H, kind: 'hall_banner', wageHoursPm: 20000, opensWith: 'hall_wall' }),
@@ -106,6 +108,7 @@ export const stockOpen = (p) => !!p && !p.opensWith;
 /**
  * The gold piece `id` costs a company whose top hero is Level `level`: ceil(wageHoursPm / 1000 x wage(L)), the wage at that Level step
  * (src/core/wage.js levelStep is wageStep). 0 for a free piece, null for no such piece. Exact integers, like hr_faction_piece_price.
+ * @param {string} id @param {number} level @param {Readonly<Record<string, Readonly<StockRow>>>} [stock]
  */
 export function stockPrice(id, level, stock = FACTION_STOCK) {
   const p = own(stock, id) ? stock[id] : null;
@@ -115,7 +118,10 @@ export function stockPrice(id, level, stock = FACTION_STOCK) {
   return Number((BigInt(p.wageHoursPm) * BigInt(wage(wageStep(L))) + 999n) / 1000n);
 }
 
-/** Every problem with the rules, the sides and the stock, as sentences. Empty = valid. Pure. */
+/**
+ * Every problem with the rules, the sides and the stock, as sentences. Empty = valid. Pure.
+ * @param {Record<string, any>} [rules] @param {Record<string, any>} [outfits] @param {Record<string, any>} [sides] @param {Record<string, any>} [stock]
+ */
 export function validateFactions(rules = FACTION_RULES, outfits = FACTION_OUTFITS, sides = FACTIONS, stock = FACTION_STOCK) {
   const out = [];
   if (typeof rules.joinAfter !== 'string' || !/^[a-z0-9_]{1,40}$/.test(rules.joinAfter)) out.push('joinAfter is not a monster id');

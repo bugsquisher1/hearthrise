@@ -187,7 +187,7 @@ declare
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls',
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */
-    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits',
+    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits', 'hr_faction_stock',
     /* when the hunt ends (2027-04-25-hunt-after-catalogue.generated.sql): the choices and the rule */
     'hr_hunt_after_choices', 'hr_hunt_after_rule',
     /* the social catalogue (1040-social-catalogue.generated.sql): the clan rules, Global's batch and slow mode, the friend link's window */

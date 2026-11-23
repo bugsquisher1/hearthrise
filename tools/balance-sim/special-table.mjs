@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tools/balance-sim/special-table.mjs — THE SPECIAL-ATTRIBUTE SAMPLE, measured on the real engine (designer,
 // lane/d-special-attributes; the design is docs/planning/PRIORITY_BOARD.md "2026-11-15 Special-attribute gear").
-// A what-if tool: it writes nothing to src/. The five sample rows live in src/data/special-attributes.js, which no
+// A what-if tool: it writes nothing to src/. The sample rows live in src/data/special-attributes.js, which no
 // catalogue imports; this tool adds them to the engine's ITEMS in memory, dresses one hero in one, and plays the same
 // dice with and without it.
 //
@@ -11,7 +11,6 @@
 //   node tools/balance-sim/special-table.mjs demoncaller [--seeds 3] [--hours 2]   Demoncaller (Undead bane) on the Pyre Field
 //   node tools/balance-sim/special-table.mjs legs        [--seeds 3] [--hours 2]   Banded Legguards (3% physical) on Krell's Hold, the ground
 //   node tools/balance-sim/special-table.mjs krell       [--tries 60] [--level 88] Tollgate and Legguards in Krell's Hall, the door's bar
-//   node tools/balance-sim/special-table.mjs crit        [--seeds 3] [--hours 2]   Widow's Fang (+6% crit) on the Sewer and the Glade, and the crit ladder's upper rungs
 //   node tools/balance-sim/special-table.mjs skill       [--ground G --level L --tier T --who tank:defense,bow:ranged]   + skill on armor, +1 to +8
 //
 // ONE ATTRIBUTE HAS NO ENGINE HOOK YET, so it is measured through a stand-in, named on every table:
@@ -120,25 +119,6 @@ async function demoncaller() {
       if (!base) base = r;
       const h = r.heroes[seat];
       line([where, party.length > 1 ? 'Healer in a four' : 'Healer alone', tier, name, k(r.xp), base === r ? '' : pct(r.xp, base.xp), h.dps, k(h.healOut), r.deaths, k(r.heroes.reduce((a, x) => a + x.store, 0))]);
-    }
-  }
-}
-
-/* ── CRIT ON A WEAPON: Widow's Fang (the sample row) against the Iron Sword, and the ladder's upper rungs on the tier-5 and tier-6 swords. ── */
-async function crit() {
-  const sword = (atkB, strB, critB, tier, reqLv) => ({ n: 'what-if', type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB, strB, critB, tier, reqSkill: 'level', reqLv });
-  const E = await engine(ROOT, { whatif_iron_3: sword(7, 6, 0.03, 2, 15), whatif_rune_8: sword(25, 20, 0.08, 5, 60), whatif_ember_10: sword(33, 27, 0.10, 6, 75) });
-  head('CRIT ON A SWORD, Normal, alone. ' + SEEDS + ' seeds x ' + HOURS + ' h a cell, the same dice.', ['Where, Level', 'Who', 'Sword', 'Level XP / h', 'vs standard', 'Damage / s', 'Deaths']);
-  const cells = [['millrace_sewer', 15, [['Iron Sword', 'iron_sword'], ['what-if: +3% crit', 'whatif_iron_3'], ['Widow\'s Fang (+6% crit)', 'sample_widows_fang']]],
-    ['mosslight_glade', 20, [['Iron Sword', 'iron_sword'], ['what-if: +3% crit', 'whatif_iron_3'], ['Widow\'s Fang (+6% crit)', 'sample_widows_fang']]],
-    ['muster_barrows', 60, [['Rune Sword', 'rune_sword'], ['what-if: +8% crit', 'whatif_rune_8']]],
-    ['krells_hold', 90, [['Emberforged Sword', 'ember_sword'], ['what-if: +10% crit', 'whatif_ember_10']]]];
-  for (const [ground, L, rows] of cells) for (const style of ['sword', 'tank']) {
-    let base = null;
-    for (const [name, id] of rows) {
-      const r = read(E.R.runCell(cellOf(ground, [style], L, { gear: { also: { weapon: id } } })));
-      if (!base) base = r;
-      line([ground + ', ' + L, style === 'tank' ? 'Sword and shield' : 'Sword alone', name, k(r.xp), base === r ? '' : pct(r.xp, base.xp), r.heroes[0].dps, r.deaths]);
     }
   }
 }
@@ -269,7 +249,7 @@ async function survey() {
   }
 }
 
-const MODES = { skill, mitts, demoncaller, crit, legs, krell, chief, survey };
+const MODES = { skill, mitts, demoncaller, legs, krell, chief, survey };
 if (!MODES[mode]) { console.error('usage: node tools/balance-sim/special-table.mjs ' + Object.keys(MODES).join('|') + ' [--seeds N] [--hours N]'); process.exit(1); }
 const t0 = Date.now();
 await MODES[mode]();

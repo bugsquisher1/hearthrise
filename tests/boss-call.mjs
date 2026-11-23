@@ -171,9 +171,13 @@ async function guard(X) {
        never "that piece plus a number". AT ITS TIER'S SIZE (C2): each attribute no bigger than the special catalogue's row for its tier
        (src/data/special-attributes.js SPECIAL_ATTRIBUTES `at`, one source); "less from every hit" (steadyPm, the physical row's kind)
        only from the tier that row starts at. */
+    /* (redesign, docs/design/redesign/28-named-pieces.md: a named piece IS its tier's piece, no offset, so "never a copy" now reads the
+       piece's own rule: no other piece of its slot has its stat mix AND its attribute; and it carries one) */
     const mix = (x) => ['atkB', 'strB', 'defB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB'].map((k) => x[k] || 0).join('/');
+    const rule = (x) => JSON.stringify([x.bane || null, x.resistPm || null, x.steadyPm || 0, x.gearProfile || null]);
+    if (rule(it) === rule({})) bad.push('BC-ROW ' + c.callOnly + ' carries no attribute of its own: a unique is never its tier\'s piece alone');
     for (const [oid, o] of Object.entries(X.I.ITEMS)) {
-      if (oid !== c.callOnly && o && o.slot === it.slot && (it.slot !== 'weapon' || o.weaponType === it.weaponType) && mix(o) === mix(it)) bad.push('BC-ROW ' + c.callOnly + ' is ' + oid + '\'s stat mix (' + mix(it) + '): a unique is never a copy');
+      if (oid !== c.callOnly && o && o.slot === it.slot && (it.slot !== 'weapon' || o.weaponType === it.weaponType) && mix(o) === mix(it) && rule(o) === rule(it)) bad.push('BC-ROW ' + c.callOnly + ' is ' + oid + ' (' + mix(it) + ', ' + rule(it) + '): a unique is never a copy');
     }
     const AT = X.SA.SPECIAL_ATTRIBUTES, size = (attr) => (AT[attr].at[it.tier] === undefined ? 0 : AT[attr].at[it.tier]);
     const physicalFrom = Math.min(...Object.keys(AT.resist_physical.at).map(Number));
@@ -542,8 +546,8 @@ const MUTANTS = [
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
   { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace('ch: .00141', 'ch: .5')]], want: /BC-ROW/ },
   /* A CALL-ONLY PIECE IS NEVER A COPY, AND IS ITS TIER'S SIZE (coherence pass 2026-11-15 C1, C2; lane/d-coherence-fixes, re-landed by lane/a-honesty-rescue) */
-  { name: 'Kingstooth back to the Iron Sword\'s numbers', edits: [['src/data/gear-stats.generated.js', '"kingstooth": f({', '"kingstooth": f({ atkB: 8, strB: 7 }), "kingstooth~shipped": f({']], want: /BC-ROW/ },
-  { name: 'the Cauldron Lid back to the Coppercap Shield\'s guard', edits: [['src/data/gear-stats.generated.js', '"cauldron_lid": f({', '"cauldron_lid": f({ defB: 7 }), "cauldron_lid~shipped": f({']], want: /BC-ROW/ },
+  { name: 'Kingstooth loses its bane: the Iron Sword again', edits: [['src/data/boss-calls.js', "bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),", '']], want: /BC-ROW/ },
+  { name: 'the Cauldron Lid loses its fire: the Coppercap Shield again', edits: [['src/data/boss-calls.js', '    resistPm: Object.freeze({ ember: 100 }), tier: 3,', '    tier: 3,']], want: /BC-ROW/ },
   { name: 'the Cauldron Lid cuts every hit at tier 3', edits: [['src/data/boss-calls.js', "cauldron_lid: Object.freeze({ n: 'Cauldron Lid',", "cauldron_lid: Object.freeze({ steadyPm: 50, n: 'Cauldron Lid',"]], want: /BC-ROW/ },
   { name: 'Kingstooth\'s bane past its tier\'s size', edits: [['src/data/boss-calls.js', "class: 'vermin', mult: 1.1 }", "class: 'vermin', mult: 1.2 }"]], want: /BC-ROW/ },
   { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' }],"]], want: /BC-ROW/ },

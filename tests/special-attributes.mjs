@@ -127,13 +127,9 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
     if (base) {
       for (const k of new Set([...Object.keys(base), ...Object.keys(row)])) {
         if (WORDS.has(k) || ATTR_FIELDS.has(k)) continue;
-        if (k === 'critB' && s.attr[0] === 'crit') continue;
         /* `iL` is the Danger scale's mark on a scale ground's drop (src/data/danger.js scaleItemLevels), not a number of the piece: hunt-core/danger
            ilevel holds every scale drop to its ground's */
         if (k === 'iL') continue;
-        /* `statPlus` is a row's stated offset from the stat formula (src/data/gear-profiles.js, lane/gear-catalogue-steps): on a sample it
-           can only carry the attribute (a crit), and the stats it lands on are compared field by field here, so a stat stick still shows */
-        if (k === 'statPlus') continue;
         if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('SA2 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', the standard ' + s.base + ' has ' + JSON.stringify(base[k]));
       }
     } else if (row.slot === 'shield') {
@@ -203,13 +199,13 @@ const MUTANTS = [
   ['the catalogue lets a helmet carry + Defense again (it out-guards the next tier\'s helm)', 'SA3', (S, A) => { A.defense.slots = ['helmet', 'cape']; }],
   ['a + Defense helm in the sample', 'SA3', (S) => { const r = { ...S.mudlarks_mitts.row, slot: 'helmet', defensePlus: 1 }; delete r.rangedPlus; S.mudlarks_mitts.row = r; S.mudlarks_mitts.attr = ['defense', 'defense']; }],
   ['Demoncaller goes back to x1.4', 'SA3', (S) => { S.demoncaller_staff.row.bane = { class: 'undead', mult: 1.4 }; }],
-  ['a crit piece of armor', 'SA3', (S, A) => { A.crit.slots = ['helmet']; }],
-  ['a home nobody can reach', 'SA4', (S) => { S.widows_fang.source.monster = 'broodmother'; }],
-  ['a common drop', 'SA4', (S) => { S.widows_fang.source.how = 'scarce'; }],
+  ['a crit piece comes back (crit is cut, 28-named-pieces.md)', 'SA3', (S) => { S.demoncaller_staff.row.critB = 0.06; }],
+  ['a home nobody can reach', 'SA4', (S) => { S.mudlarks_mitts.source.monster = 'broodmother'; }],
+  ['a common drop', 'SA4', (S) => { S.mudlarks_mitts.source.how = 'scarce'; }],
   ['two of the same piece', 'SA5', (S) => { S.copy = structuredClone(S.mudlarks_mitts); S.copy.row.n = 'Another Name'; S.copy.source = { monster: 'color_sergeant', ground: 'the_slake', how: 'rare' }; }],
   ['a name another item has', 'SA6', (S) => { S.mudlarks_mitts.row.n = 'Snakeskin Bracers'; }],
-  ['a banned word', 'SA6', (S) => { S.widows_fang.text = 'It lands a critical hit 6% more often. Forged in the Void.'; }],
-  ['text that leads with flavour', 'SA7', (S) => { S.widows_fang.text = 'A thin blade with a spider\'s eye in the hilt. It crits more.'; }],
+  ['a banned word', 'SA6', (S) => { S.mudlarks_mitts.text = 'Your Ranged counts as 2 higher while you wear them. Forged in the Void.'; }],
+  ['text that leads with flavour', 'SA7', (S) => { S.mudlarks_mitts.text = 'A Mudlark finds things in the river by feel. Your Ranged counts as 2 higher.'; }],
   ['a shipped card repeats its number in the lore line', 'SA7', (S) => { S.krells_tollgate.text = 'You take 10% less fire damage. ' + S.krells_tollgate.text; }],
   ['the card lists no line for the shipped attribute', 'SA7', (S, A, o) => { o.cardKeys = () => ['defB']; }],
 ];

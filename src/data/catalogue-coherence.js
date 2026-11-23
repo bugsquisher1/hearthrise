@@ -129,37 +129,34 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    Collection Log's denominator (obtainableItemIds) leaves them out, so 100% is
    still reachable. SHRINK-ONLY: tests/catalogue-coherence.mjs fails a row that
    gains a source or leaves ITEMS, and an id may never be added — a new item
-   with no source is a C1 failure, not a candidate for this list. */
+   with no source is a C1 failure, not a candidate for this list.
+   CUT 2026-11-23 (the designer, lane/named-pieces, docs/design/redesign/28-named-pieces.md (d)): 21 of the rows named there left ITEMS,
+   hr_items and this list together (the named pieces whose only mark was a stat bump). */
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
-  'abyssal_greaves', 'alphaheart_longbow',
-  'ashcrown_greatsword', 'bone_needle',
+  'bone_needle',
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'crown_of_the_fallen_king',
-  'dawnbound_amulet', 'dawnforged_signet',
-  'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
-  'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
+  'dawnforged_signet',
+  'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
+  'heartgarnet_maul', 'dragon_relic',
   'duskwood_rod', 'elderscale_heart',
-  'fangdart_recurve', 'gold_amulet',
-  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring',
   'lexarch_seal',
   'maple_rod',
-  'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
-  'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
+  'riftmaw_husk',
   'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
-  'slagheart_core', 'slagheart_platebody',
+  'slagheart_core',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
-  'verdite_platelegs', 'void_essence', 'voidmaw_scepter',
+  'verdite_platelegs', 'void_essence',
   'voidwoven_sigil',
-  'warboss_standard', 'warden_girdle', 'warden_seal',
-  'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
-  'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
-  'widows_fang', 'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
+  'warboss_standard', 'warden_seal',
+  'watchknight_belt', 'watchknight_body', 'watchknight_boots',
+  'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants',
+  'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
   'yew_rod',
   /* The Hearth Token (the IAP bond) and the three boss-forged body pieces left ITEMS with the old dungeons, the
      gem rows and the bond (2026-11-20, plan L10). */
@@ -217,9 +214,10 @@ export const UNREACHABLE = Object.freeze({
   /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
      with the late recipes they feed (Cooking 25 panther and 70+, Inner Flame 35+, Crafting 60 keystones). */
   later: Object.freeze([
-    'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
-    'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
-    'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
+    'wraithglass_drops', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul',
+    'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'chitinweave_cloak',
+    /* lucky finds that took the cut pieces' rows (lane/named-pieces 2026-11-23): the Panther's Ruby Signet, Elder Cinder's Dawnlit Mantle, Draconia's Dawnbound Amulet, the Mountain Troll's Rubyfire Studs */
+    'ruby_signet', 'dawnlit_mantle', 'dawnbound_amulet', 'rubyfire_studs',
     'keystone',
     'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
@@ -249,8 +247,9 @@ export const UNREACHABLE = Object.freeze({
 /* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
    (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
+/* 55 -> 51 (lane/named-pieces, 2026-11-23): nine named pieces cut from `later` and `cut`, and four sourceless pieces took four of their lucky rows (55 -> 51; the Chitinweave Cloak stays, a cape rung) (28-named-pieces.md). */
 /* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
-export const UNREACHABLE_CEILING = 55;
+export const UNREACHABLE_CEILING = 51;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

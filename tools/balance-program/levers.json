@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "272aa8fb6340fde0",
+ "authored": "2d83ecdd53598b60",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 754,
-  "typed": 17087,
+  "typed": 16832,
   "files": 260,
   "lever": 328,
   "notLever": 426,
@@ -2197,7 +2197,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 73,
+     "line": 80,
      "text": "export const GEAR_PROFILES = Object.freeze({",
      "binding": "GEAR_PROFILES"
     }
@@ -2271,7 +2271,7 @@
    "sites": [
     {
      "file": "src/data/library2-items.js",
-     "line": 242,
+     "line": 229,
      "text": "const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];",
      "binding": "AMMO_STR"
     },
@@ -3883,19 +3883,19 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 89,
+     "line": 99,
      "text": "plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 91,
+     "line": 101,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 92,
+     "line": 102,
      "text": "cloth: Object.freeze({ curve: 'defense', defB: 305, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),",
      "binding": "GEAR_PROFILES"
     },
@@ -4415,7 +4415,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 91,
+     "line": 101,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     }
@@ -10619,36 +10619,36 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 54,
+     "line": 59,
      "text": "export const GEAR_CURVES = Object.freeze({",
      "binding": "GEAR_CURVES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 60,
+     "line": 67,
      "text": "export const GEAR_CURVE_TOP = 88;",
      "binding": "GEAR_CURVE_TOP"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 61,
+     "line": 68,
      "text": "export const GEAR_SCALE_STAT_PM = 500;",
      "binding": "GEAR_SCALE_STAT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 64,
+     "line": 71,
      "text": "export const GEAR_SLOT_PM = Object.freeze({",
      "binding": "GEAR_SLOT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 69,
+     "line": 76,
      "text": "export const GEAR_EVEN_SHARE_PM = 75;",
      "binding": "GEAR_EVEN_SHARE_PM"
     }
    ],
-   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground's base item Level to its own, so the power step carries the tier",
+   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), and two straight lines, guard (a shield: 3 at item Level 1 to 15 at 88) and jewel (a ring: 1 at 1 to 7 at 84; 28-named-pieces.md section 3), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground's base item Level to its own, so the power step carries the tier",
    "range": "coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels",
    "touches": "damage taken by gear state",
    "outcomes": [
@@ -10759,11 +10759,11 @@
     ],
     "today": {
      "table": "src/data/slot-ladders.js SLOT_ITEMS",
-     "rows": 29,
-     "carrying": 10,
-     "distinct": 7,
+     "rows": 28,
+     "carrying": 15,
+     "distinct": 8,
      "low": 1,
-     "high": 8
+     "high": 10
     }
    },
    "flags": [
@@ -10864,13 +10864,13 @@
    "sites": [
     {
      "file": "src/data/wave3-uniques.js",
-     "line": 9,
+     "line": 12,
      "text": "export const WAVE3_ITEMS = withGearStats({",
      "binding": "WAVE3_ITEMS"
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 131,
+     "line": 125,
      "text": "export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
      "binding": "SAMPLE"
     }
@@ -11096,7 +11096,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11104,7 +11104,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11197,19 +11197,19 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
-      "carrying": 399,
-      "distinct": 32,
+      "rows": 700,
+      "carrying": 370,
+      "distinct": 23,
       "low": 1,
-      "high": 95
+      "high": 88
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
-      "carrying": 194,
-      "distinct": 43,
+      "rows": 700,
+      "carrying": 184,
+      "distinct": 37,
       "low": 1,
-      "high": 120
+      "high": 90
      }
     ]
    },
@@ -11985,31 +11985,31 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 33,
+     "line": 34,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 34,
+     "line": 35,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 35,
+     "line": 36,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 36,
+     "line": 37,
      "text": "temperStepsMax: 5,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 37,
+     "line": 38,
      "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
@@ -13355,7 +13355,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13363,7 +13363,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -15178,7 +15178,7 @@
    "sites": [
     {
      "file": "src/data/factions.js",
-     "line": 76,
+     "line": 78,
      "text": "export const FACTION_STOCK = Object.freeze({",
      "binding": "FACTION_STOCK"
     }
@@ -17657,15 +17657,11 @@
   "src/data/slot-ladders.js#SLOT_ITEMS": {
    "pin": "keys",
    "keys": [
-    "atkB",
     "critB",
-    "magicAtkB",
-    "magicStrB",
     "rangeAtkB",
     "rangeStrB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "v"
    ],
@@ -17690,11 +17686,8 @@
   "src/data/champions.js#CHAMPION_ITEMS": {
    "pin": "keys",
    "keys": [
-    "atkB",
-    "critB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "v"
    ],
@@ -17711,9 +17704,6 @@
   "src/data/library2-items.js#BANE_GEAR": {
    "pin": "keys",
    "keys": [
-    "magicStrB",
-    "rangeAtkB",
-    "rangeStrB",
     "reqLv",
     "tier",
     "v"
@@ -17802,20 +17792,14 @@
   "src/data/items.js#ITEMS": {
    "pin": "keys",
    "keys": [
-    "atkB",
     "critB",
-    "defB",
     "durationMs",
     "foodTier",
     "heals",
-    "magicAtkB",
-    "magicStrB",
     "magnitude",
-    "rangeAtkB",
     "rangeStrB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "toolSpeed",
     "toolTier",
@@ -19442,7 +19426,7 @@
     "c1",
     "c2"
    ],
-   "typed": 6,
+   "typed": 10,
    "bindings": 1
   },
   "src/data/gear-profiles.js#GEAR_CURVE_TOP": {
@@ -19499,26 +19483,17 @@
   "src/data/wave3-uniques.js#WAVE3_ITEMS": {
    "pin": "count",
    "keys": [
-    "atkB",
-    "critB",
-    "defB",
-    "magicAtkB",
-    "magicStrB",
-    "rangeAtkB",
-    "rangeStrB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "v"
    ],
-   "typed": 72,
+   "typed": 7,
    "bindings": 1
   },
   "src/data/special-attributes.js#SAMPLE": {
    "pin": "count",
    "keys": [
-    "critB",
     "mult",
     "physical",
     "pm",
@@ -19526,7 +19501,7 @@
     "tier",
     "v"
    ],
-   "typed": 19,
+   "typed": 16,
    "bindings": 1
   },
   "src/data/special-attributes.js#SPECIAL_ATTRIBUTES": {

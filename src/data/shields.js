@@ -52,22 +52,22 @@ import { withGearStats } from './gear-profiles.js';
 /** Is `item` a shield (an off-hand that guards, never a spellbook)? */
 export const isShield = (item) => !!item && item.slot === 'shield' && item.offhand === 'shield';
 
-/* wear = the hero's Level (gear-tiers.js LEVEL_REQ). The guard (defB) and any attack penalty (atkB, rangeAtkB, magicAtkB: every style's
-   roll) are DERIVED (src/data/gear-profiles.js, the shield profile at the piece's item Level); `plus` is each piece's stated offset from
-   that (lane/gear-catalogue-steps: the guards this table held, 3 to 13 at +2 a tier, and the grates' penalties, kept to the point). */
-const shield = (n, v, tier, wear, plus, rarity) => Object.freeze({ n, icon: '🛡️', v, type: 'offhand', slot: 'shield', offhand: 'shield',
-  statPlus: Object.freeze(plus), tier, rarity, reqSkill: 'level', reqLv: wear });
+/* wear = the hero's Level (gear-tiers.js LEVEL_REQ). The guard (defB) and a grate's attack penalty (atkB, rangeAtkB, magicAtkB: every
+   style's roll) are DERIVED (src/data/gear-profiles.js: the shield profile, or the grate's, on the guard curve at the piece's item Level,
+   which lands the guards this table held, 3 to 13 at +2 a tier). No piece carries an offset (docs/design/redesign/28-named-pieces.md). */
+const shield = (n, v, tier, wear, rarity, gearProfile) => Object.freeze({ n, icon: '🛡️', v, type: 'offhand', slot: 'shield', offhand: 'shield',
+  ...(gearProfile ? { gearProfile } : {}), tier, rarity, reqSkill: 'level', reqLv: wear });
 
 export const SHIELD_ITEMS = Object.freeze(withGearStats({
-  bronze_rimmed_shield: shield('Bronze-Rimmed Shield', 70, 1, 1, { defB: 2 }, 'common'),
-  ironbound_shield: shield('Ironbound Shield', 200, 2, 15, { defB: 3 }, 'common'),
-  kingsgrate: shield('Kingsgrate', 300, 2, 15, { defB: 5, atkB: -4, rangeAtkB: -4, magicAtkB: -4 }, 'rare'),
-  coppercap_shield: shield('Coppercap Shield', 600, 3, 30, { defB: 3 }, 'common'),
-  steelgrate: shield('Steelgrate', 750, 3, 30, { defB: 5, atkB: -5, rangeAtkB: -5, magicAtkB: -5 }, 'rare'),
+  bronze_rimmed_shield: shield('Bronze-Rimmed Shield', 70, 1, 1, 'common'),
+  ironbound_shield: shield('Ironbound Shield', 200, 2, 15, 'common'),
+  kingsgrate: shield('Kingsgrate', 300, 2, 15, 'rare', 'grate'),
+  coppercap_shield: shield('Coppercap Shield', 600, 3, 30, 'common'),
+  steelgrate: shield('Steelgrate', 750, 3, 30, 'rare', 'grate'),
   /* book: about 0.75 of the tier's sword, as the Coppercap is of the Steel Sword (600 / 800) */
-  mithril_faced_shield: shield('Mithril-Faced Shield', 1100, 4, 45, { defB: 4 }, 'epic'),
-  runebound_shield: shield('Runebound Shield', 3750, 5, 60, { defB: 3 }, 'legendary'),
-  ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 75, { defB: 1 }, 'legendary'),
+  mithril_faced_shield: shield('Mithril-Faced Shield', 1100, 4, 45, 'epic'),
+  runebound_shield: shield('Runebound Shield', 3750, 5, 60, 'legendary'),
+  ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 75, 'legendary'),
 }));
 
 /* THE REFORGE (Smithing; Tyler 2026-11-18: a smith only reforges a named shield). The plain shields drop (SOURCES above). */

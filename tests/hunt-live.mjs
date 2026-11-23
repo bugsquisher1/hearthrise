@@ -157,6 +157,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
+import { restateSkills } from '../tools/balance-sim/skill-lines.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FN = 'supabase/functions/hr-accrue';
@@ -1206,7 +1207,10 @@ function rules(M) {
     const andy = (hold) => {
       const row = (user, seat, levelXp, skills, equipment, weaponType, lead) => {
         const mi = memberOf(M, user, seat, 'tank', 6);
-        mi.huntId = 'coppercap_warrens'; mi.levelXp = levelXp; mi.skills = skills; mi.equipment = equipment;
+        /* the recorded XP was earned on the old skill curve: each hero plays the levels it held (skill-lines.mjs restateSkills; 27 P-3 moved the
+           combat skills onto the Level clock, where a level near 40 costs about four times the XP, so the run moves no peer's level by itself) */
+        const held = restateSkills(skills, 'geometric', M.XP);
+        mi.huntId = 'coppercap_warrens'; mi.levelXp = levelXp; mi.skills = held; mi.equipment = equipment;
         mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType, options: { stance: 'offensive' }, bar: [], partyRoles: ['tank', 'tank', 'mage'], lead, hold }), { density: 5 });
         return mi;
       };

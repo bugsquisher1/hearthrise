@@ -134,13 +134,18 @@ export function skillsAt(snap, line, style, level, ctx = CTX) {
   const L = Math.max(1, Math.round(level));
   if (line === 'level') return Object.fromEntries(SKILLS.map((k) => [k, L]));
   if (madeOn(snap) === 'time' || ctx.asMeasured) return measuredAt(snap, line, style, L, madeOn(snap) === 'time' ? ctx : onCurve(ctx, FLAME));
-  /* A SNAPSHOT MEASURED ON THE OLD CURVE, READ ON THE LEVEL CLOCK (stage 7): the career's main skill sits on the clock (the reference career,
-     src/core/bands.js skillLevelPm: its own Level at skillPace 1000), and every other skill keeps the share of the main skill's XP the
-     measured career earned (at the line's top past it), restated on this tree's curve. So the harness plays the hero this curve makes of
-     the measured career, and its rating's skill part is 0 on the line, as it was. Re-measure the careers (--run, --write) to retire it. */
-  const meas = onCurve(ctx, FLAME), old = measuredAt(snap, line, style, Math.min(L, rowOf(snap, line, style).to), meas);
-  const main = MAIN_OF[style] || 'melee', geo = (s) => ctx.XP.skillXpForLevel(FLAME, s);
-  const mainXp = Math.floor((ctx.XP.skillXpForLevel(main, L) * 1000) / SKILL_CURVE.pacePm), oldMain = Math.max(1, geo(old[main]));
+  /* A SNAPSHOT MEASURED ON THE OLD CURVE, READ ON THE LEVEL CLOCK (stage 7): the party career's main skill sits on the clock (the reference
+     career, src/core/bands.js skillLevelPm: its own Level at skillPace 1000); a lone career's main skill keeps the share of the party career's
+     main XP it earned (a hero alone takes every blow's XP: Level 26 alone held Melee 36 where a party seat held 31); every other skill keeps
+     the share of its own main skill's XP; all at the line's top past it, restated on this tree's curve. So the harness plays the hero this
+     curve makes of the measured careers, and the party seat's rating skill part is 0 on the line, as it was. Re-measure the careers (--run,
+     --write) to retire it. */
+  const meas = onCurve(ctx, FLAME), at = Math.min(L, rowOf(snap, line, style).to), old = measuredAt(snap, line, style, at, meas);
+  const main = MAIN_OF[style] || 'melee', geo = (s) => ctx.XP.skillXpForLevel(FLAME, s), oldMain = Math.max(1, geo(old[main]));
+  const party = line === 'party' || !(snap.lines.party && (snap.lines.party[style] || snap.lines.party[(snap.standIn || {})[style]])) ? null
+    : measuredAt(snap, 'party', style, Math.min(at, rowOf(snap, 'party', style).to), meas);
+  const share = party ? oldMain / Math.max(1, geo(party[main])) : 1;
+  const mainXp = Math.floor((ctx.XP.skillXpForLevel(main, L) * 1000 * share) / SKILL_CURVE.pacePm);
   return Object.fromEntries(SKILLS.map((k) => {
     if (k === FLAME) return [k, measuredAt(snap, line, style, L, meas)[k]];
     if (k === main) return [k, Math.max(1, ctx.XP.skillLevelFromXp(k, mainXp))];

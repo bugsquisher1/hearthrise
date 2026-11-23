@@ -927,7 +927,7 @@ async function runTests(mods) {
         hunt: { session_id: 's-1', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
         hunt_analyzer: { hero: { kills: 644, coins: 1956, waste: 400 } }, watched })[k] });
     const line = AR.awayRecapOf(back(T0 + H2, mark));
-    ok(line && /^Away 1 h 51 min\. Brannoc hunted Meadowbrook Thicket\. Level 7 to 12, /.test(line.text)
+    ok(line && /^Away 1 h 51 min · Brannoc hunted Meadowbrook Thicket · Level 7 to 12, /.test(line.text)
       && line.facts.xp === XP_NOW - XP_SEEN && line.facts.gold === (1956 - 1500) - (400 - 300) && line.facts.kills === 244 && line.at === T0 + 9 * MIN,
       'the absence and its numbers count from the server\'s mark, not the renewal: ' + JSON.stringify(line && { text: line.text, facts: line.facts, at: line.at }));
     ok(line && line.facts.xp < XP_NOW - renewal.xp && line.id === 'away:s-1:' + (T0 + 9 * MIN), 'the nine watched minutes are not counted as away: ' + JSON.stringify(line && line.id));

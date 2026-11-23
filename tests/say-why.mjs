@@ -298,7 +298,7 @@ export const REASONS = Object.freeze({
     { cond: '!canStam', words: "q.why === 'stamina_full' ? t('shop.block_full') : t('shop.block_used', { max: whole(q.perDay) })", where: 'the stamina quote line: a full day banked, all of today\'s blocks bought, or how much more gold (shop.block_quote_short), else no price yet' },
     { cond: '!canStam', words: "t(purse !== null && purse < q.price ? 'shop.block_quote_short' : 'shop.block_quote'", where: 'the stamina quote line: how much more gold the next block needs' },
     { cond: 'r.held || !next', words: "', need ' + gold(short) + ' more'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
-    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
+    { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on', { count: b.tiers.length }) : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },

@@ -811,7 +811,7 @@ async function planRules(base) {
   const noBid = new Map([['bones', 1]]);
   const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
     planBlock('practice_bow', 'sell', noBid, false)].join('|');
-  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|Shop doesn\'t buy starting kit') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  if (planSaid !== '|Shop won\'t buy this|Shop won\'t buy this|Shop doesn\'t buy starting kit') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
   /* AW-70 SELL SPARE GEAR (designer 2026-11-03; optimizer panel, its quit moment: "sell-all, hand-sell 17-20 armor stacks" each return). One sale with its total first: what the hero has outgrown,
      of any weight or family; never what Equip upgrades wants, an empty slot's piece, a higher tier than worn, a Rare, the start kit, what the bench made from the kit (nothing sells another), or a stack locked or planned Keep or Deposit. */
   const { spareSale } = await imp('src/shell/bag-model.js');

@@ -4511,7 +4511,7 @@ const DB_ARMS = {
     const problems = [];
     const GRIEFER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
       options: { supply_source: 'store', on_empty: 'end', gold_floor: 0,
-        slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
+        slots: [{ action: { type: 'consume', id: 'salted_trout' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
     const h = await hunter(db, M, { party: [{ ...STRONG }, GRIEFER] });
     const [A, B] = UIDS; const [sA, sB] = h.sids;
     await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'", [A]);
@@ -4519,7 +4519,8 @@ const DB_ARMS = {
        so every meal past the purse sells a bone and a window that eats more meals than it loots bones sells from the bag: the
        race. At 50 g one bone covered three meals, and on the formula's rats (lane/b-ground-formula-2: fewer bites, coin
        [1, 2]) the 20 minutes held two covers, each of a bone the same window looted. */
-    const meal = M.SB.BASIC_SUPPLIES.find((x) => x.id === 'salted_shrimp').price;
+    /* the store's Salted Trout (its derived price, lane/econ-levers: the 8 g shrimp let the coins outrun the meals) */
+    const meal = M.SB.BASIC_SUPPLIES.find((x) => x.id === 'salted_trout').price;
     await db.query('insert into public.hr_hunt_cover_items (item_id, unit) values ($1, $2) on conflict (item_id) do update set unit = $2', ['bones', meal]);
     const exec = makeExec(db);
     /* (1) honest windows until the next one's proposal sells B's bones to cover its store food */
@@ -5374,7 +5375,7 @@ const MUTANTS = [
   { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: 'src/core/member.js',
     from: '  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);', to: '  state.playerMaxHp = v.maxHp - 1;' },
   { arm: 'ECON-1', name: 'the T1 store drink back at the heal\'s 15 g a point (72 mana for 1080 g): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
-    from: "'turnip_juice', 72, 10)", to: "'turnip_juice', 72, 1080)" },
+    from: "const mana = (id, n, partner, restores) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price: restorePrice(partner, restores, 'mana') });", to: "const mana = (id, n, partner, restores) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price: partner === 'turnip_juice' ? 1080 : restorePrice(partner, restores, 'mana') });" },
   { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
     from: "  const vs = h && isMonster(t) && typeof h.rollsVs === 'function' ? h.rollsVs(rowOf(inst, t.kind), t.kind) : null;",
     to: "  const vs = null;" },

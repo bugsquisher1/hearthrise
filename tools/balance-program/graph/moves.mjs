@@ -143,18 +143,22 @@ export const LEVER_MOVES = Object.freeze({
      in inst.tier), so its levers move C-TIER's quantities; the pay is the scale's own and is named with its reason */
   'danger.power-step': ['+tier.hp', '+tier.dmg'],
   'danger.pull': ['+pull.size'],
-  'danger.pay-floor': [['+kill.xp', 'under the reference step a kill pays no less than floor x its table share (danger.js PAY.floor), XP and coin alike']],
-  'danger.power-gear': [['~tier.hp', 'the gear part over the ground\'s gearLevel at weightGearPm steps divides a blow at the hero (danger.js POWER)'],
-    ['~tier.dmg', 'the same steps multiply a blow at a monster; a kit under gearLevel turns both the other way']],
   'danger.start': ['-tier.hp', '-tier.dmg'],
   'danger.climb': ['~tier.hp', '~tier.dmg'],
   'danger.stances': ['~tier.hp', '~tier.dmg'],
   'danger.pay': [['+kill.xp', 'on a stance a kill pays a share of the killer\'s own Level from the hours table (danger.js levelShareXp, read by xp-share.js), x the depth ratio'],
-    ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the same depth ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
-  /* lane/r9 (declared by lane/w2-roles-rows, which found graph --check red on them) */
-  'danger.pay-floor': [['+kill.xp', 'under the reference step a kill pays at least floor x the hours table share (danger.js depthRatio), XP and coin'],
-    ['+kill.coin', 'the same floor on the coin ratio (dangerDial coinPm)']],
-  'danger.power-gear': [['~tier.dmg', 'a gear part over the ground\'s gear Level steps a blow at a monster up and a blow at the hero down (danger.js powerPm), so the held step moves']],
+    ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the depth ratio at the wage\'s coin ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
+  /* THE POWER STEP ON GEAR (lane/r9; declared by lane/econ-levers on the merge, the base's graph --check named it) */
+  'danger.power-gear': [['-tier.dmg', 'on the scale a blow at the hero is divided by (1 + powerStep)^steps of the gear part over the ground\'s base (danger.js powerPm)'],
+    ['-tier.hp', 'a blow at a monster is multiplied by the same ratio, the same as less health to take']],
+  'danger.power-gear-below': [['-tier.dmg', 'under the ground\'s base a gear step counts weightGearBelowPm: a smaller cut on a blow at the hero (danger.js gearSteps)'],
+    ['-tier.hp', 'and a smaller cut on the hero\'s own blow']],
+  /* THE ECONOMY LEVERS (lane/econ-levers): the pay floor, the scale's coin level and the store's basics, set together with the wage */
+  'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least PAY.floor of the table (danger.js depthRatio, read by levelShareXp)'],
+    ['+kill.coin', 'the same floor on the coin depth ratio (dangerDial coinPm)']],
+  'danger.coin-level': [['+kill.coin', 'a scale kill\'s coin is its roll x coinPm / 1000 (dangerDial coinPm, read by hunt-rewards.js payKill)']],
+  'econ.store-kit': [['+shop.price', 'every store row\'s price is store-kit.js storePrice: its share of the wage at the row\'s step over the reference hour\'s use, floored by the crafted partner']],
+  'econ.ammo-floor': [['+shop.price', 'a store shot or cast costs at least this x its crafted partner\'s book (store-kit.js storePrice\'s charge floor)']],
   /* MONSTER ROLES (src/data/monster-roles.js, lane/w2-roles-rows): who takes the blows, not how many */
   'roles.table': [['~tier.dmg', 'a role moves which hero a monster\'s blow lands on (reach) and adds a share of it on heroes beside the target (splash): the damage a seat takes, so the held step']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
@@ -174,7 +178,8 @@ export const LEVER_MOVES = Object.freeze({
   'econ.wage-base': [['+refill.price', 'every block price is written in hours of wage (wage.js wage, read by blockPrice)'],
     ['+sink.other', 'market prices and fees are written in hours of wage too (wave 4)']],
   'econ.wage-step': [['+refill.price', 'the wage grows by it a Level step, and a block is priced at the hero\'s step'],
-    ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)']],
+    ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)'],
+    ['+kill.coin', 'the one coin ratio (lane/econ-levers): a pull a step deeper on the scale pays (1 + payStepCoin) more coin (dangerDial coinPm)']],
   'econ.work-day': [['+town.skill', 'more minutes of town work a UTC day are more gathering and bench runs (work-day.js freeMin, hr_work_day)']],
   'econ.work-premium': [['+town.skill', 'Premium\'s extra minutes are more town work a day (work-day.js premiumExtraMin)']],
   /* THE GOLD ESTIMATE (src/data/gold-estimate.js, lane/gold-per-hour): a printed number only; no fight, purse or clock reads it */

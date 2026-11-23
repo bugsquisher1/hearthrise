@@ -12,7 +12,7 @@
 // hero spends 30 hours in counts 30 times a Level it spends one in. Two readings of that slope:
 //   lab    the baseline matrix's four on its own ground on Normal (the as-built pull, the tier's coin dial 1000), Levels 20..400
 //   scale  the v1-climb ground runs below: the scale played on each Level's ground. A ground with no DANGER_GROUNDS row pays coin at the
-//          120-step gap cap (1.007^120 = 2.31x) once it holds past step 120, so its coin is divided by that to read a reference pull
+//          120-step gap cap ((1 + WAGE.payStepCoin)^120 = 1.004^120 = 1.62x since lane/econ-levers; 1.007^120 before) once it holds past step 120, so its coin is divided by that to read a reference pull
 // The shipped levers (src/data/wage.js) are printed against every point: measured / wage, in band when inside BAND.
 import { readFileSync, existsSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -57,7 +57,7 @@ else for (const id of ['base:steady', 'levels:steady', 'high:steady']) {
 }
 
 /* ── the scale on each Level's ground (no DANGER_GROUNDS row: coin read at the gap cap, divided back to a reference pull) ── */
-const CAP = (1 + PAY.payStepCoin) ** PAY.gapMax;
+const CAP = (1 + WAGE.payStepCoin) ** PAY.gapMax;
 const scale = [];
 for (const [g, L] of [['mosslight_glade', 20], ['hasks_ford', 45], ['krells_hold', 88], ['wyvern_roost', 145], ['unmarked_catacombs', 185], ['unmarked_catacombs', 400]]) {
   const r = read('steady-' + g + '-L' + L + '.json');

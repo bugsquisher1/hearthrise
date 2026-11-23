@@ -1,0 +1,379 @@
+{
+ "ground": "muster_barrows",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 6,
+ "hours": 8,
+ "settleFromH": 1,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:careful": {
+   "id": "base:careful",
+   "variant": "base",
+   "risk": "careful",
+   "L": 60,
+   "start": 390,
+   "seedsRead": 6,
+   "payX": {
+    "mean": 0.32,
+    "sd": 0.01,
+    "n": 6,
+    "perSeed": [
+     0.31,
+     0.32,
+     0.31,
+     0.31,
+     0.33,
+     0.31
+    ],
+    "fromH": 1,
+    "windowH": 7
+   },
+   "held": {
+    "mean": 411.3,
+    "sd": 3.6,
+    "se": 1.5,
+    "perSeed": [
+     407,
+     414,
+     408,
+     413,
+     416,
+     410
+    ]
+   },
+   "drift": -11.9,
+   "within10": 49,
+   "within20": 78.9,
+   "changesPerH": 20.9,
+   "fallsPerH": 2,
+   "reachH": 0.1,
+   "pullsPerH": 85.7,
+   "killsPerH": 528,
+   "xpPerHeroH": 83125,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 925,
+     "sd": 12,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 4486,
+     "sd": 100,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 8076,
+     "sd": 38,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 294,
+     "sd": 5,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 173,
+     "sd": 13,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 3094,
+     "sd": 102,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
+   "kit": {
+    "meal": 2,
+    "drink": 1157,
+    "charge": 4072,
+    "shot": 2845
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 7,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 3071,
+    "climb": 938,
+    "fall": 97
+   }
+  },
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 60,
+   "start": 561,
+   "seedsRead": 6,
+   "payX": {
+    "mean": 0.89,
+    "sd": 0.04,
+    "n": 6,
+    "perSeed": [
+     0.86,
+     0.85,
+     0.95,
+     0.87,
+     0.88,
+     0.92
+    ],
+    "fromH": 1,
+    "windowH": 7
+   },
+   "held": {
+    "mean": 580.8,
+    "sd": 7.2,
+    "se": 3,
+    "perSeed": [
+     575,
+     573,
+     586,
+     578,
+     581,
+     592
+    ]
+   },
+   "drift": 3.9,
+   "within10": 58.8,
+   "within20": 91.9,
+   "changesPerH": 10.6,
+   "fallsPerH": 0.9,
+   "reachH": 0.2,
+   "pullsPerH": 56.1,
+   "killsPerH": 455,
+   "xpPerHeroH": 233550,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1845,
+     "sd": 44,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 4797,
+     "sd": 208,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 9804,
+     "sd": 202,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 245,
+     "sd": 9,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 152,
+     "sd": 11,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2554,
+     "sd": 193,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
+   "kit": {
+    "meal": 611,
+    "drink": 1789,
+    "charge": 4364,
+    "shot": 3039
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 7,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 2156,
+    "climb": 487,
+    "fall": 41
+   }
+  },
+  "base:bold": {
+   "id": "base:bold",
+   "variant": "base",
+   "risk": "bold",
+   "L": 60,
+   "start": 610,
+   "seedsRead": 6,
+   "payX": {
+    "mean": 1.04,
+    "sd": 0.02,
+    "n": 5,
+    "perSeed": [
+     1.01,
+     1.05,
+     1.03,
+     1.07,
+     1.04
+    ],
+    "fromH": 1,
+    "windowH": 4.1
+   },
+   "held": {
+    "mean": 627.5,
+    "sd": 6.2,
+    "se": 2.8,
+    "perSeed": [
+     620,
+     631,
+     null,
+     625,
+     636,
+     625
+    ]
+   },
+   "drift": 11.1,
+   "within10": 42.1,
+   "within20": 69.5,
+   "changesPerH": 10.4,
+   "fallsPerH": 1.2,
+   "reachH": 0,
+   "pullsPerH": 59.5,
+   "killsPerH": 409,
+   "xpPerHeroH": 224722,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1792,
+     "sd": 409,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 4816,
+     "sd": 200,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 12714,
+     "sd": 503,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 254,
+     "sd": 50,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 152,
+     "sd": 24,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 2619,
+     "sd": 527,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
+   "kit": {
+    "meal": 2272,
+    "drink": 2055,
+    "charge": 5178,
+    "shot": 3207
+   },
+   "deaths": 6,
+   "wipes": 0,
+   "seedsWithADeath": 5,
+   "huntedH": 8,
+   "fourH": 4.1,
+   "firstDeathH": [
+    6.4,
+    5.3,
+    0.4,
+    6.2,
+    3.6
+   ],
+   "nearWipes": 45,
+   "nearWithDeath": 6,
+   "nearWarned": 8,
+   "nearFellAfter": 45,
+   "whys": {
+    "hold": 2117,
+    "climb": 606,
+    "fall": 123,
+    "death": 6
+   }
+  }
+ },
+ "wallS": 66,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

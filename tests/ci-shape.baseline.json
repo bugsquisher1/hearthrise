@@ -225,6 +225,8 @@
     "node tools/mutant-gate.mjs node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",
     "node tests/balance-guard.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest": "economy-selftests",
+    "node tests/econ-levers.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/econ-levers.mjs --mutate": "economy-selftests",
     "node tests/release-plan.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/release-plan.mjs --mutate": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/release-plan.mjs --selftest": "economy-selftests",

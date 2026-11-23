@@ -148,6 +148,12 @@
         "gzipBytes": 914615,
         "on": "2026-11-23",
         "why": "visual pass 2: label rewrites on report, Risk, services, work and carry-on lines plus their style rules at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 915665,
+        "on": "2026-11-23",
+        "why": "econ levers: store prices computed from the wage (store-kit.js) where the shop reads them at town"
       }
     ]
   }

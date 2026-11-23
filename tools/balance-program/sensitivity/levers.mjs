@@ -70,10 +70,13 @@ export const FAMILIES = Object.freeze([
     file: 'src/data/abilities.js', lines: (l) => /\bshieldPm: \d+/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l), pick: after(/\bshieldPm: (\d+)/g), min: 1, steps: WIDE, intends: ['shieldInPerH', 'takenPerH'] },
   { id: 'spellLeech', group: 'Spells', label: 'Life leech (spells)', what: 'The share of a spell blow that returns to the caster as a heal (src/data/abilities.js leechPm, the Necrotic drain). The only life leech the engine reads',
     file: 'src/data/abilities.js', lines: (l) => /\bleechPm: \d+/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l), pick: after(/\bleechPm: (\d+)/g), min: 1, max: 1000, steps: [0.25, 0.5, 2, 3], intends: ['healInPerH', 'foodPerH'] },
-  { id: 'foodPrice', group: 'Supplies', label: 'Store food price', what: 'Gold a use of every store heal (src/data/supply-basics.js heal rows). The cost of healing: the supply bill and the gold left after it',
-    file: 'src/data/supply-basics.js', lines: (l) => /^\s*heal\('/.test(l), pick: lastArg, min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
-  { id: 'drinkPrice', group: 'Supplies', label: 'Store mana drink price', what: 'Gold a use of every store mana drink (src/data/supply-basics.js mana rows). The cost of casting',
-    file: 'src/data/supply-basics.js', lines: (l) => /^\s*mana\('/.test(l), pick: lastArg, min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
+  /* THE STORE'S PRICES ARE DERIVED (lane/econ-levers, src/data/store-kit.js): the ids stay (the kept matrix reads them), the numbers moved are
+     the derivation's. foodPrice moves the share of the wage every store price is written in, drinkPrice the reference hour's restore it is
+     divided by (a price goes as its inverse); the crafted partners' floors hold under both */
+  { id: 'foodPrice', group: 'Supplies', label: 'Store price ceiling', what: 'How much dearer the store is than the crafted good (src/data/store-kit.js storeCeiling): every derived store price where the wage\'s share binds',
+    file: 'src/data/store-kit.js', lines: (l) => /^\s*storeCeiling: [\d.]+,/.test(l), pick: after(/storeCeiling: ([\d.]+)/g), float: true, steps: WIDE, intends: ['storePerH', 'netPerH'] },
+  { id: 'drinkPrice', group: 'Supplies', label: 'Store reference restore', what: 'HP and mana a reference hero restores from the store an hour (src/data/store-kit.js refRestore): a meal or drink\'s derived price goes as its inverse',
+    file: 'src/data/store-kit.js', lines: (l) => /^\s*refRestore: \d+,/.test(l), pick: after(/refRestore: (\d+)/g), min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
   /* THE SECOND PASS: gear tables, the rune price, what gear sells for, the wait between pulls and the Blessings' cut */
   { id: 'weaponDamage', group: 'Equipment', label: 'Weapon damage by tier', what: 'The damage bonus of every weapon family at every tier (src/data/gear-tiers.js str rows). The gear term of a blow, apart from skill',
     file: 'src/data/gear-tiers.js', lines: (l) => /^\s*atk: \[[\d, ]+\], str: \[/.test(l), pick: listAfter(/\bstr: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
@@ -81,8 +84,8 @@ export const FAMILIES = Object.freeze([
     file: 'src/data/gear-tiers.js', lines: (l) => /^\s*atk: \[[\d, ]+\], str: \[/.test(l), pick: listAfter(/\batk: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['dps', 'killsPerH'] },
   { id: 'armorValue', group: 'Equipment', label: 'Armor points by slot and tier', what: 'The armor points of every slot at every tier (src/data/gear-tiers.js ARMOUR_SLOTS def rows). What the mitigation curve is fed',
     file: 'src/data/gear-tiers.js', lines: (l) => /^\s*\{ key: '\w+',\s+slot: '\w+',.*\bdef: \[/.test(l), pick: listAfter(/\bdef: \[([\d, ]+)\]/), min: 1, steps: WIDE, intends: ['takenPerH'] },
-  { id: 'runePrice', group: 'Supplies', label: 'Store rune price', what: 'Gold a store rune by tier (src/data/supply-basics.js STORE_RUNE_PRICE). The cost of a rune spell',
-    file: 'src/data/supply-basics.js', lines: (l) => /^export const STORE_RUNE_PRICE = /.test(l), pick: listAfter(/freeze\(\[([\d, ]+)\]\)/), min: 1, steps: WIDE, intends: ['storePerH', 'netPerH'] },
+  { id: 'runePrice', group: 'Supplies', label: 'Store charge floor', what: 'A store shot or cast costs at least this x its crafted partner\'s book (src/data/supply-basics.js BASIC_AMMO_PREMIUM): the floor that sets the derived rune and arrow prices at the reference',
+    file: 'src/data/supply-basics.js', lines: (l) => /^export const BASIC_AMMO_PREMIUM = [\d.]+;/.test(l), pick: after(/BASIC_AMMO_PREMIUM = ([\d.]+)(?=;)/g), float: true, steps: WIDE, intends: ['storePerH', 'netPerH'] },
   { id: 'gearSaleRate', group: 'Rewards', label: 'What dropped gear sells for', what: 'The share of book value a dropped piece sells for, by tier (src/data/loot-bands.js VENDOR_GEAR_RATES). Gold in from loot',
     file: 'src/data/loot-bands.js', lines: (l) => /^export const VENDOR_GEAR_RATES = /.test(l), pick: listAfter(/freeze\(\[([\d., ]+)\]\)/), float: true, max: 1, steps: [0.5, 0.75, 1.25, 1.5, 2], intends: ['incomePerH', 'netPerH'] },
   { id: 'regroup', group: 'Spawns', label: 'Wait between pulls', what: 'The least time a party regroups before the next pull (src/data/hunt-tuning.js regroupMs). The dead time a kill cannot shorten',
@@ -187,8 +190,8 @@ export function pointPatch(root, levers, name) {
 /* THE REGISTRY (tools/balance-program/levers.json, lane/bl-levers): which of its levers each lever of this pass moves. A knob moves the
    registry levers that name it (`perturb.knob`, `perturb.also`); a family is mapped by hand to the registry row its numbers sit in. */
 export const FAMILY_REGISTRY = Object.freeze({ respawn: ['spawn.respawn'], spellCost: ['spell.mana-cost'], spellCooldown: ['spell.cooldowns'], spellPower: ['spell.shares'],
-  healPower: ['heal.shares'], shieldPower: ['heal.shares'], spellLeech: ['leech.rows'], foodPrice: ['cons.store-supplies'], drinkPrice: ['cons.store-supplies'],
-  weaponDamage: ['weapon.family-tables'], weaponAccuracy: ['weapon.family-tables'], armorValue: ['gear.armor-table'], runePrice: ['cons.rune-price'], gearSaleRate: ['econ.sale-rates'],
+  healPower: ['heal.shares'], shieldPower: ['heal.shares'], spellLeech: ['leech.rows'], foodPrice: ['econ.store-kit'], drinkPrice: ['econ.store-kit'],
+  weaponDamage: ['weapon.family-tables'], weaponAccuracy: ['weapon.family-tables'], armorValue: ['gear.armor-table'], runePrice: ['econ.ammo-floor'], gearSaleRate: ['econ.sale-rates'],
   regroup: ['spawn.between-pulls'], blessingCut: ['level.blessing-cut'] });
 /** Coverage of the registry by this pass: { rows: [{ id, category, kind, sweptBy: [lever ids] }], counts }. Null when the registry is not on this tree. */
 export function registryCoverage(root) {

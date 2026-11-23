@@ -215,6 +215,11 @@ export const REAL_KRELL_FOUR_SHIFTS = Object.freeze([
      22,386, store 14,278 -> 12,133 */
   Object.freeze({ why: 'the spell rule: every cast a share of the caster\'s blow (Tyler 21-5, 32-x)',
     mult: Object.freeze({ levelXp: 1.1997, kills: 1.1998, income: 1.1556, store: 0.8498 }) }),
+  /* the store priced in hours of wage (lane/econ-levers, 2026-11-22; src/data/store-kit.js): only the store bill moves (prices, not uses).
+     MEASURED on the recorded Krell's Hold Deadly fours' replay (tools/balance-program/redesign/econ/calibration-shift.mjs, 2 h x 2 seeds,
+     origin/set/v0.2.144 at 447acb3c3 against the lane): store x0.517, every other metric x1.000. Not re-measured on K1's own guard cell */
+  Object.freeze({ why: 'the store priced in hours of wage (lane/econ-levers)',
+    mult: Object.freeze({ levelXp: 1, kills: 1, income: 1, store: 0.517 }) }),
 ]);
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */

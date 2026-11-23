@@ -535,7 +535,7 @@ async function planRules(base) {
     /* the worn slot empty, own stock behind: the store is reached only when it is gone, and idle stock is said beside it */
     ['store with stock idle', 'ammo', ['A', 'ranger', [], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows (1 gp), 9 Mithril Arrows not on the bar'],
     /* a slot switched Off spends nothing */
-    ['an Off slot', 'food', ['A', 'melee_dps', [Object.assign(eat('cooked_shrimp'), { enabled: false }), eat('salted_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp (14 gp). Carried: 5 Cooked Shrimp, put it on the bar'],
+    ['an Off slot', 'food', ['A', 'melee_dps', [Object.assign(eat('cooked_shrimp'), { enabled: false }), eat('salted_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp (' + LIVE.find((b) => b.id === 'salted_shrimp').price + ' gp). Carried: 5 Cooked Shrimp, put it on the bar'],
   ];
   /* every tier, every line: own stock counted, then its store row at the server's price */
   const KIND_64 = { heal: ['food', 'Food'], mana: ['drink', 'Drink'] };

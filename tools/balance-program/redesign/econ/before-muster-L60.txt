@@ -1,0 +1,22 @@
+
+V1 on muster_barrows (6 seeds x 8 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful      411.3 +- 3.6    -11.9    49  78.9   20.9      2     0.1     85.7      0     0  0 (0/0/0)                       7  {"hold":3071,"climb":938,"fall":97}
+base:steady       580.8 +- 7.2      3.9  58.8  91.9   10.6    0.9     0.2     56.1      0     0  0 (0/0/0)                       7  {"hold":2156,"climb":487,"fall":41}
+base:bold         627.5 +- 6.2     11.1  42.1  69.5   10.4    1.2       0     59.5      6     0  45 (6/8/45)                   4.1  {"hold":2117,"climb":606,"fall":123,"death":6} first deaths at h 6.4,5.3,0.4,6.2,3.6
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       0.32x  sd 0.01  n 6  window 7 h  seeds 0.31 0.32 0.31 0.31 0.33 0.31
+  base:steady        0.89x  sd 0.04  n 6  window 7 h  seeds 0.86 0.85 0.95 0.87 0.88 0.92
+  base:bold          1.04x  sd 0.02  n 5  window 4.1 h  seeds 1.01 1.05 1.03 1.07 1.04
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L60  coin 925 +- 12  income 4486 +- 100  store 8076  kit share 1.8 (meal 2, drink 1157, charge 4072, shot 2845)  loot by band: common 294, uncommon 173, scarce 3094, other 0  n 6
+  base:steady       L60  coin 1845 +- 44  income 4797 +- 208  store 9804  kit share 2.04 (meal 611, drink 1789, charge 4364, shot 3039)  loot by band: common 245, uncommon 152, scarce 2554, other 0  n 6
+  base:bold         L60  coin 1792 +- 409  income 4816 +- 200  store 12714  kit share 2.64 (meal 2272, drink 2055, charge 5178, shot 3207)  loot by band: common 254, uncommon 152, scarce 2619, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+wall 66 s

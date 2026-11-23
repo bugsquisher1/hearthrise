@@ -268,6 +268,11 @@
         "bytes": 3324005,
         "on": "2026-11-22",
         "why": "40 hidden Traits (src/data/traits.js via gear-steps.js), +11,149 B, ships with the release edge deploy"
+      },
+      {
+        "bytes": 3338850,
+        "on": "2026-11-23",
+        "why": "econ levers: store-kit.js and supply-basics.js priced from the wage, the one coin ratio and the one-sided gear weight in the engine (+14,845 B)"
       }
     ]
   }

@@ -17,7 +17,7 @@
     "the change was intended. Never edit a hash by hand to make a build green —",
     "a red hash is the check working."
   ],
-  "generated": "2026-11-22",
+  "generated": "2026-11-23",
   "project": "nezapsylztqbbwuwembx",
   "postgres": {
     "production": "17.x",
@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3204,
+  "replay_ms": 2569,
   "counts": {
-    "tracked_names": 1066,
-    "entries": 891
+    "tracked_names": 1068,
+    "entries": 893
   },
   "functions": [
     {
@@ -6988,6 +6988,42 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_gold_estimate(p_hunt text, p_risk text, p_level integer)",
+      "name": "hr_gold_estimate",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-gold-estimate-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a3b6e780196f9ce123c34857a04cb446",
+        "norm_len": 1145,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-gold-estimate-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-gold-estimate-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_gold_estimate_view(p_user uuid, p_slot integer)",
+      "name": "hr_gold_estimate_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-gold-estimate-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a28da8bb2e693209259d75963d4545bb",
+        "norm_len": 1126,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-gold-estimate-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-gold-estimate-catalogue.generated.sql."
     },
     {
       "sig": "hr_gold_given_add(p_user uuid, p_slot integer, p_gold bigint)",
@@ -20327,8 +20363,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "50e8fc02866d791cec92f6af2b48c446",
-        "norm_len": 731,
+        "md5": "8ca3be337415db71bdb00c2476010db4",
+        "norm_len": 732,
         "source": "computed-from-replay"
       },
       "agree": false,

@@ -58,10 +58,13 @@ import { tierLevel, traitPool } from './gear-steps.js';
 // A company holding its ground's reference step earns the hours table; one step deeper earns payStepXp more (04 section 7: power is paid
 // out as depth). No party table and no under-floor share on the scale (04 section 7: the gap does catch-up; a carried hero is paid its
 // OWN Level's table rate, never more). Coin a kill is the row's roll x the pull's share (so a pull pays the as-built pull's coin at any
-// size) x (1 + payStepCoin) ^ gap: one ratio for both (04: "under one rule a party's gold follows its XP").
+// size) x PAY.coinPm / 1000 x (1 + payStepCoin) ^ gap, payStepCoin the WAGE's (src/data/wage.js): one coin ratio a step across grounds and
+// inside one, smaller than the XP ratio (04 section 11; lane/econ-levers 2026-11-22 retired the engine's own 0.7% coin ratio).
 //   refKillsHead 120   MEASURED 2026-11-22 (v1-climb.mjs, base:steady, 2 seeds x 6 h): the Steady mixed four at Level 60 on Muster
 //                      Barrows kills 481 an hour at its held step (589.5 +- 14), 120 a head. Kills an hour hold there with Level (477 at 70)
 //   gapMax 120         STATED: depth pays at most (1.007)^120 = 2.31x the table; past it a deeper hold earns no more a kill (04 payGapMax)
+//   floor, coinPm      THE ECONOMY LEVERS (lane/econ-levers, 2026-11-22), set together with the wage (src/data/wage.js) and the store's
+//                      basics (src/data/store-kit.js); their evidence is there and in tools/balance-program/redesign/econ/
 // THE START (02 package 3: "a hunt starts at a step the company has held before"; V1's "above" cell: a weaker company started at a stronger
 // one's step lost heroes in its first minutes): a hunt opens DANGER.startMargin steps under the LOWEST step any of its heroes last held on
 // that ground (hunt_density.danger_held, written by the server as each hunt ends), 0 for a hero who never held one. STATED 20, the probe's
@@ -89,7 +92,12 @@ export const DANGER = Object.freeze({
 // what a kill pays UNDER the reference step: the most a kill can pay (the gap ceiling, hr_danger_level_xp_max) is unchanged.
 //   floor 0.5   MEASURED (v1-climb.mjs from a held start, lane/r9): see the lever row danger.pay-floor. 12-targets' starting 0.85 would put
 //               Careful OVER Steady (a Careful pull is smaller and falls faster: R4 read Careful at ~1.1x the reference kills an hour)
-export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });
+//   coinPm 7000  THE SCALE'S COIN LEVEL (lane/econ-levers, 2026-11-22): a scale kill's coin is its row's roll x coinPm / 1000, before the
+//               pull's share and the depth ratio, set TOGETHER with the wage (src/data/wage.js) and the store's basics (src/data/store-kit.js) so a
+//               whole-gold store use can price a Steady four's kit at 0.2 to 0.3 of its pay. The coin ratio a step is the wage's payStepCoin
+//               (0.4%): the engine's own 0.7% coin ratio is retired, one coin ratio a step (04 section 11). Evidence:
+//               tools/balance-program/redesign/econ/.
+export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 7000 });
 
 // THE POWER STEP ON THE SCALE (lane/r9-power-step, 2026-11-22; 04-math-strategy.md sections 1, 2 and 10; 02 package 2; 12-targets 3.3).
 // A hero's GEAR PART is the gear table's (src/data/gear-steps.js, lane/g-gear-steps): each worn piece adds its item Level x its slot's
@@ -103,7 +111,12 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepC
 //   weightGearPm 1000   the whole gear part counts, so one tier of base on a whole kit (GEAR_STEPS.tierSteps item Levels) is that many
 //                       steps of power by construction (the Coordinator's R9 brief; 04's weighted mean with weightSkill waits for wave 3)
 // A piece's item Level is its row's `iL` once R10 writes it on scale drops; until then its `reqLv` STANDS IN (danger.js itemLevelOf).
-export const POWER = Object.freeze({ weightGearPm: 1000 });
+//   weightGearBelowPm 500  ONE-SIDED (lane/econ-levers, the designer's call on R9's cliff, 2026-11-22; CONFLICTS 11-22): UNDER the ground's
+//                       base item Level a gear step counts this much. Depth answers convexly to the gap below (R9: a tier back -65 steps
+//                       against +21 a tier ahead), and every company meets that gap on arrival (a ground drops the tier above the last
+//                       one's), so at 1000 the step into a new ground read three tiers of depth lost. C-2 asks one gear tier to move the hold
+//                       1 to 3 depths either way; evidence in tools/balance-program/redesign/econ/.
+export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });
 export { GEAR_STEPS } from './gear-steps.js';
 
 export const DANGER_GROUNDS = Object.freeze({

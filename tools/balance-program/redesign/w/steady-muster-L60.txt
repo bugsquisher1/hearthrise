@@ -3,22 +3,44 @@ V1 on muster_barrows (6 seeds x 8 h, held step read from hour 1; step 0 = the gr
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       580.8 +- 7.2      3.9  58.8  91.9   10.6    0.9     0.2     56.1      0     0  0 (0/0/0)                       7  {"hold":2156,"climb":487,"fall":41}
-levels:steady     590.3 +- 7        5.3  61.8  92.3   10.6    0.9       0     55.2      0     0  0 (0/0/0)                       7  {"hold":2131,"climb":475,"fall":38}
-high:steady       618.6 +- 7.5        2  47.9  86.1   10.5    0.9     0.2     53.4      0     0  0 (0/0/0)                       7  {"hold":2047,"climb":468,"fall":40}
+base:careful      398.7 +- 2.9      2.5  43.8  75.3   21.7    2.1       0       87      0     0  0 (0/0/0)                       7  {"hold":3117,"climb":959,"fall":95}
+base:steady       576.2 +- 6.2      3.3    67  94.1   10.2    0.8     0.2     55.3      0     0  0 (0/0/0)                       7  {"hold":2131,"climb":483,"fall":36}
+base:bold         625.4 +- 7.4     -2.8  45.8  73.6   10.3    1.3     0.2     55.5      5     0  46 (5/7/46)                   5.1  {"hold":1947,"fall":107,"climb":600,"death":5} first deaths at h 0.7,6.1,5.3
+levels:careful    409.2 +- 3.5      2.3  52.7  80.9   21.5    2.1       0     85.3      0     0  0 (0/0/0)                       7  {"hold":3044,"climb":945,"fall":97}
+levels:steady     588.9 +- 5.1        1  58.3  89.9      9    0.7     0.3     53.5      0     0  0 (0/0/0)                       7  {"hold":2097,"climb":437,"fall":30}
+levels:bold       628.9 +- 8.7      2.1  46.8  78.1   12.7    1.7       0     50.3      3     0  53 (3/2/53)                   5.9  {"hold":1757,"climb":553,"fall":96,"death":3} first deaths at h 2.3,7.2
+high:careful      462.9 +- 7.9      5.1  51.2  82.1   18.6    1.5     0.3     80.1      0     0  0 (0/0/0)                       7  {"hold":2925,"climb":842,"fall":73}
+high:steady       609.2 +- 3.7     -3.9  66.4  92.7     10    0.8     0.1     52.6      0     0  0 (0/0/0)                       7  {"hold":2011,"climb":472,"fall":33}
+high:bold         654.8 +- 8.9      4.5  57.7    91   12.8    1.2     0.1     53.4      8     0  32 (8/3/32)                   4.2  {"hold":1876,"climb":568,"fall":105,"death":8} first deaths at h 7.7,7.7,1.6,6.7,1.9,5.6
 
 pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        0.89x  sd 0.04  n 6  window 7 h  seeds 0.86 0.85 0.95 0.87 0.88 0.92
-  levels:steady      0.93x  sd 0.05  n 6  window 7 h  seeds 0.87 0.94 1.02 0.92 0.91 0.94
-  high:steady        1.09x  sd 0.07  n 6  window 7 h  seeds 1.07 1.18 1.01 1.11 1.03 1.16
+  base:careful       0.55x  sd 0  n 6  window 7 h  seeds 0.56 0.55 0.55 0.55 0.55 0.55
+  base:steady        0.85x  sd 0.02  n 6  window 7 h  seeds 0.86 0.83 0.84 0.89 0.84 0.84
+  base:bold          1.02x  sd 0.03  n 5  window 5.1 h  seeds 1.05 1.02 0.97 1.03 1.02
+  levels:careful     0.54x  sd 0  n 6  window 7 h  seeds 0.54 0.55 0.54 0.54 0.55 0.54
+  levels:steady       0.9x  sd 0.02  n 6  window 7 h  seeds 0.89 0.92 0.88 0.9 0.92 0.88
+  levels:bold        1.04x  sd 0.04  n 6  window 5.9 h  seeds 0.97 1.04 1.05 1.05 1.09 1.05
+  high:careful       0.58x  sd 0.01  n 6  window 7 h  seeds 0.58 0.58 0.59 0.59 0.59 0.57
+  high:steady        1.01x  sd 0.03  n 6  window 7 h  seeds 0.99 0.99 0.99 1.03 1.06 1.03
+  high:bold           1.2x  sd 0.06  n 6  window 4.2 h  seeds 1.28 1.23 1.18 1.21 1.11 1.19
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L60  coin 1845 +- 44  income 4797 +- 208  store 9804  loot by band: common 245, uncommon 152, scarce 2554, other 0  n 6
-  levels:steady     L63  coin 1939 +- 54  income 4906 +- 179  store 9772  loot by band: common 244, uncommon 149, scarce 2574, other 0  n 6
-  high:steady       L70  coin 2217 +- 57  income 5055 +- 140  store 11035  loot by band: common 231, uncommon 141, scarce 2466, other 0  n 6
+  base:careful      L60  coin 11708 +- 126  income 15250 +- 226  store 3241  kit share 0.21 (meal 1, drink 1005, charge 818, shot 1416)  loot by band: common 293, uncommon 177, scarce 3071, other 0  n 6
+  base:steady       L60  coin 13168 +- 83  income 16058 +- 74  store 4183  kit share 0.26 (meal 89, drink 1600, charge 972, shot 1523)  loot by band: common 242, uncommon 147, scarce 2501, other 0  n 6
+  base:bold         L60  coin 13875 +- 503  income 16690 +- 1060  store 4851  kit share 0.29 (meal 360, drink 1832, charge 1083, shot 1576)  loot by band: common 237, uncommon 144, scarce 2434, other 0  n 6
+  levels:careful    L63  coin 11502 +- 101  income 14992 +- 198  store 3233  kit share 0.22 (meal 1, drink 981, charge 825, shot 1426)  loot by band: common 292, uncommon 172, scarce 3026, other 0  n 6
+  levels:steady     L63  coin 13362 +- 102  income 16200 +- 138  store 4198  kit share 0.26 (meal 96, drink 1593, charge 979, shot 1530)  loot by band: common 238, uncommon 143, scarce 2457, other 0  n 6
+  levels:bold       L63  coin 14185 +- 885  income 16807 +- 1307  store 4689  kit share 0.28 (meal 362, drink 1826, charge 1078, shot 1421)  loot by band: common 222, uncommon 131, scarce 2268, other 0  n 6
+  high:careful      L70  coin 12237 +- 83  income 15929 +- 169  store 4005  kit share 0.25 (meal 1, drink 982, charge 866, shot 2157)  loot by band: common 303, uncommon 190, scarce 3199, other 0  n 6
+  high:steady       L70  coin 14064 +- 180  income 16789 +- 154  store 4825  kit share 0.29 (meal 84, drink 1464, charge 975, shot 2302)  loot by band: common 230, uncommon 136, scarce 2358, other 0  n 6
+  high:bold         L70  coin 15026 +- 819  income 17977 +- 1463  store 5188  kit share 0.29 (meal 338, drink 1751, charge 1166, shot 1932)  loot by band: common 244, uncommon 148, scarce 2559, other 0  n 6
 
 power moves (paired seeds): the held step at the changed power minus at base
-  levels:steady        9.3 steps (sd 7.2, se 2.9, n 6)
-  high:steady         37.8 steps (sd 12, se 4.9, n 6)
+  levels:careful      10.5 steps (sd 3.9, se 1.6, n 6)
+  high:careful        64.3 steps (sd 8.4, se 3.4, n 6)
+  levels:steady       12.7 steps (sd 8.8, se 3.6, n 6)
+  high:steady           33 steps (sd 4.6, se 1.9, n 6)
+  levels:bold          6.8 steps (sd 8.5, se 3.8, n 5)
+  high:bold           27.8 steps (sd 13.6, se 6.1, n 5)
 
-wall 199 s
+wall 170 s

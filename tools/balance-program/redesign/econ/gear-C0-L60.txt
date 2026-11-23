@@ -1,0 +1,16 @@
+
+V1 on muster_barrows (6 seeds x 12 h, held step read from hour 6; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 6; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       579.8 +- 4.8     -3.4    58  91.8   10.5    0.9     0.3     55.3      0     0  0 (0/0/0)                       6  {"hold":3192,"climb":723,"fall":61}
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.86x  sd 0.02  n 6  window 11 h  seeds 0.86 0.86 0.85 0.89 0.84 0.87
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 13184 +- 133  income 16092 +- 96  store 4184  kit share 0.26 (meal 89, drink 1599, charge 972, shot 1524)  loot by band: common 241, uncommon 147, scarce 2520, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+wall 67 s

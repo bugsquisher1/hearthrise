@@ -48,6 +48,7 @@ import { BOSS_CALLS } from './boss-calls.js';
 import { HUNT_INDEX } from './hunts.js';
 import { TRAINING_GEAR_ITEMS } from './training.js';
 import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js';
+import { STEP_MATERIALS } from './gear-tiers.js';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js';
@@ -202,6 +203,9 @@ export const UNREACHABLE = Object.freeze({
     'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
     /* UNMARKED CATACOMBS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
     'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
+    /* A STEP TIER WHOSE HOMES ARE ALL STAGED (lane/gear-phase-b; gear-tiers.js STEP_TIERS): every piece of it, dropped on a home or made from a
+       home's part, waits for a home to open (the Catacomb wings: item Level 160). DERIVED, so the tier leaves the list the build a home opens */
+    ...Object.keys(ITEMS).filter((id) => ITEMS[id] && STEP_MATERIALS.some((m) => m.step === ITEMS[id].step && !m.homes.some((g) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)))),
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
@@ -268,6 +272,8 @@ export function reachableSources(opts = {}) {
   /* A CALLED ROOM is a door from its open ground's Call out (src/data/boss-calls.js): its boss's win drops his table and his call-only piece (Tyler 2026-11-14). */
   for (const c of Object.values(BOSS_CALLS)) if (grounds[c.from] && CALLED_GROUNDS[c.hunt]) met.add(c.monster);
   for (const id of met) for (const d of (MONSTERS[id] && MONSTERS[id].drops) || []) put(d.id, 'drops from ' + id);
+  /* a ground's own drop rows (every kill there rolls them: the Catacomb wings' named armor, a step tier's base on its homes, base-drops.js) */
+  for (const g of Object.values(grounds)) for (const d of g.drops || []) put(d.id, 'drops on ' + g.id);
   for (const o of SHOP_OFFERS) if (o && SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g && g.kind === 'item') put(g.id, 'shop ' + o.id);
   for (const id of Object.keys(START_INVENTORY)) put(id, 'start kit');
   for (const id of Object.values(START_EQUIPMENT)) put(id, 'start kit');

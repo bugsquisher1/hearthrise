@@ -288,6 +288,12 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('bronze_helm', 'helmet', 1),
   ('bronze_platebody', 'body', 1),
   ('bronze_platelegs', 'pants', 1),
+  ('cerecloth_belt', 'belt', 8),
+  ('cerecloth_body', 'body', 8),
+  ('cerecloth_boots', 'boots', 8),
+  ('cerecloth_gloves', 'gloves', 8),
+  ('cerecloth_helmet', 'helmet', 8),
+  ('cerecloth_pants', 'pants', 8),
   ('chitin_belt', 'belt', 4),
   ('chitin_body', 'body', 4),
   ('chitin_boots', 'boots', 4),
@@ -323,6 +329,12 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('duskweave_helmet', 'helmet', 7),
   ('duskweave_pants', 'pants', 7),
   ('dyers_boots', 'boots', 7),
+  ('eelskin_belt', 'belt', 8),
+  ('eelskin_body', 'body', 8),
+  ('eelskin_boots', 'boots', 8),
+  ('eelskin_gloves', 'gloves', 8),
+  ('eelskin_helmet', 'helmet', 8),
+  ('eelskin_pants', 'pants', 8),
   ('ember_belt', 'belt', 6),
   ('ember_boots', 'boots', 6),
   ('ember_gauntlets', 'gloves', 6),
@@ -414,6 +426,12 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
   ('watchknight_gloves', 'gloves', 5),
   ('watchknight_helmet', 'helmet', 5),
   ('watchknight_pants', 'pants', 5),
+  ('wolfram_belt', 'belt', 8),
+  ('wolfram_boots', 'boots', 8),
+  ('wolfram_gauntlets', 'gloves', 8),
+  ('wolfram_helm', 'helmet', 8),
+  ('wolfram_platebody', 'body', 8),
+  ('wolfram_platelegs', 'pants', 8),
   ('woodwards_hood', 'helmet', 6),
   ('wyvernhide_belt', 'belt', 5),
   ('wyvernhide_body', 'body', 5),
@@ -434,8 +452,8 @@ begin
      or (select count(*) from public.hr_tally_materials) <> 30
      or (select held_max from public.hr_tally_config) <> 3
      or (select paid_per_day from public.hr_tally_config) <> 3
-     or (select count(*) from public.hr_tally_tiers) <> 166
-     or (select sum(tier) from public.hr_tally_tiers) <> 691 then
+     or (select count(*) from public.hr_tally_tiers) <> 184
+     or (select sum(tier) from public.hr_tally_tiers) <> 835 then
     raise exception 'tally-catalogue: the rows are not the generated set'; end if;
   select t.task_id into v_bad from public.hr_tally_tasks t
    where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)
@@ -471,5 +489,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 11 tasks (21485 g in all), 123 pieces on 11 grounds, 30 materials, 166 worn tiers; all green';
+  raise notice 'tally-catalogue: 11 tasks (21485 g in all), 123 pieces on 11 grounds, 30 materials, 184 worn tiers; all green';
 end $$;

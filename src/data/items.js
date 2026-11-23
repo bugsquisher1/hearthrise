@@ -19,7 +19,7 @@ import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js';
 import { FIST_LINE, FIST_ITEMS } from './fists.js';
 import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js';
 import { PATTERN_ITEMS } from './patterns.js';
-import { scaleItemLevels } from './danger.js';
+import { scaleItemLevels, tierLevel } from './danger.js';
 import { withGearStats } from './gear-profiles.js';
 
 export const ITEMS={
@@ -828,6 +828,22 @@ export const SCALE_ITEM_LEVELS = Object.freeze(scaleItemLevels(
   Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]])),
   Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier))));
 for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };
+
+/* THE ITEM LEVEL OF A STEP-TIER PIECE (src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b, 27-formula-overhaul.md G-2 phase B): every piece
+   of a tier on the grid carries its `step`, and its item Level is tierLevel(step) wherever it drops. A scale ground that drops one stamps its
+   own base (above); two numbers for one piece throw (one base, one number). ITEM_LEVELS is every item Level a row is given here, the scale
+   ground's and the step tier's: tools/gen-gear.mjs sizes each piece at it, never at the iL its own table wrote back. */
+export const ITEM_LEVELS = (() => {
+  const out = { ...SCALE_ITEM_LEVELS };
+  for (const [id, it] of Object.entries(ITEMS)) {
+    if (!it || !Number.isInteger(it.step)) continue;
+    const iL = tierLevel(it.step);
+    if (out[id] !== undefined && out[id] !== iL) throw new Error('items.js: ' + id + ' is step ' + it.step + ' (item Level ' + iL + ') and a scale ground drops it at ' + out[id]);
+    out[id] = iL;
+    ITEMS[id] = { ...it, iL };
+  }
+  return Object.freeze(out);
+})();
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — foodClassOf(item): the single answer to "what is this food FOR?"

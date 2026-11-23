@@ -63,11 +63,14 @@ export function shareOf(slot, twoHanded) {
   return one;
 }
 
-/** A whole kit's points of `curve` at item Level iL (GEAR_CURVES), held at the curve's top past GEAR_CURVE_TOP. */
+/** A whole kit's points of `curve` at item Level iL (GEAR_CURVES): the squared curve up to GEAR_CURVE_TOP, then in proportion to the item
+    Level (src/data/gear-profiles.js header), so every item Level has a price and none is capped. */
 export function budgetOf(curve, iL) {
   const c = GEAR_CURVES[curve];
-  const L = Math.min(GEAR_CURVE_TOP, Math.max(0, Number(iL) || 0));
-  return c ? c.c0 + c.c1 * L + c.c2 * L * L : 0;
+  if (!c) return 0;
+  const L = Math.max(0, Number(iL) || 0);
+  const at = (x) => c.c0 + c.c1 * x + c.c2 * x * x;
+  return L <= GEAR_CURVE_TOP ? at(L) : (at(GEAR_CURVE_TOP) * L) / GEAR_CURVE_TOP;
 }
 
 /** The item Level the formula reads: the row's `iL`, else its `reqLv` (the power step's own reading, danger.js itemLevelOf). */

@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d1e0240e8f08f3b0e67c34feb008850a3b2a1a5934d78d81c7a8913c1ef8efe9
---   rows: 679 items (27 untradeable) ·
---         389 item-slot pairs · 14 equip slots ·
+--   catalogue digest: 219ae2bcee2e246318db78f98ba3b22b4e9a45e5098d79c51b11c28b9122dc3e
+--   rows: 710 items (27 untradeable) ·
+--         421 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
 --         0 runes
 --
@@ -293,6 +293,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('carved_rupture_rune','Carved Rupture Rune',true,'ammo',6,'magic',45,null,false,null,false),
   ('carved_water_rune','Carved Water Rune',true,'ammo',6,'magic',45,null,false,null,false),
   ('cauldron_lid','Cauldron Lid',true,'offhand',1200,'level',30,null,false,null,false),
+  ('cerecloth_belt','Cerecloth Sash',true,'armor',26880,'level',150,null,false,'light',false),
+  ('cerecloth_body','Cerecloth Robe Top',true,'armor',100800,'level',150,null,false,'light',false),
+  ('cerecloth_boots','Cerecloth Slippers',true,'armor',26880,'level',150,null,false,'light',false),
+  ('cerecloth_cloak','Cerecloth Cloak',true,'armor',115200,'level',150,null,false,null,false),
+  ('cerecloth_gloves','Cerecloth Gloves',true,'armor',23520,'level',150,null,false,'light',false),
+  ('cerecloth_helmet','Cerecloth Hat',true,'armor',40320,'level',150,null,false,'light',false),
+  ('cerecloth_pants','Cerecloth Robe Bottom',true,'armor',73920,'level',150,null,false,'light',false),
   ('chalked_earth_rune','Chalked Earth Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chalked_fire_rune','Chalked Fire Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chalked_ice_rune','Chalked Ice Rune',true,'ammo',0,'magic',1,null,false,null,false),
@@ -409,6 +416,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('duskwood_staff','Duskwood Staff',true,'weapon',36000,'level',88,null,false,null,true),
   ('duskwood_wand','Duskwood Wand',true,'weapon',32400,'level',88,null,false,null,false),
   ('dyers_boots','Dyer''s Boots',true,'armor',20160,'level',88,null,false,'medium',false),
+  ('eelskin_belt','Eelskin Belt',true,'armor',26880,'level',150,null,false,'medium',false),
+  ('eelskin_body','Eelskin Body',true,'armor',100800,'level',150,null,false,'medium',false),
+  ('eelskin_boots','Eelskin Boots',true,'armor',26880,'level',150,null,false,'medium',false),
+  ('eelskin_gloves','Eelskin Bracers',true,'armor',23520,'level',150,null,false,'medium',false),
+  ('eelskin_helmet','Eelskin Hood',true,'armor',40320,'level',150,null,false,'medium',false),
+  ('eelskin_pants','Eelskin Chaps',true,'armor',73920,'level',150,null,false,'medium',false),
   ('elderscale_heart','Elderscale Heart',true,null,9000,null,null,null,false,null,false),
   ('ember_axe','Emberforged Axe',true,'tool',1400,null,null,null,false,null,false),
   ('ember_bar','Emberforged Bar',true,null,500,null,null,null,false,null,false),
@@ -638,6 +651,11 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('roasted_pumpkin','Roasted Pumpkin',true,null,90,null,null,264,false,null,false),
   ('rooks_moss_charm','Rook''s Moss Charm',true,null,58,null,null,null,false,null,false),
   ('rooks_whistle','Rook''s Whistle',true,null,500,null,null,null,false,null,false),
+  ('rowan_bow','Rowan Bow',true,'weapon',50400,'level',150,null,false,null,true),
+  ('rowan_codex','Rowan Codex',true,'offhand',38400,'level',150,null,false,null,false),
+  ('rowan_crossbow','Rowan Crossbow',true,'weapon',48000,'level',150,null,false,null,false),
+  ('rowan_staff','Rowan Staff',true,'weapon',48000,'level',150,null,false,null,true),
+  ('rowan_wand','Rowan Wand',true,'weapon',43200,'level',150,null,false,null,false),
   ('ruby','Ruby',true,null,400,null,null,null,false,null,false),
   ('ruby_signet','Ruby Signet',true,'jewelry',9000,'level',52,null,false,null,false),
   ('rubyfire_studs','Rubyfire Studs',true,'jewelry',4500,'level',66,null,false,null,false),
@@ -857,6 +875,19 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('willow_wand','Willow Wand',true,'weapon',450,'level',30,null,false,null,false),
   ('wolf_pelt','Wolf Pelt',true,null,35,null,null,null,false,null,false),
   ('wolfbone_torc','Wolfbone Necklace',true,'jewelry',260,'level',15,null,false,null,false),
+  ('wolfram_belt','Wolfram Belt',true,'armor',38400,'level',150,null,false,'heavy',false),
+  ('wolfram_boots','Wolfram Boots',true,'armor',38400,'level',150,null,false,'heavy',false),
+  ('wolfram_earrings','Wolfram Earrings',true,'jewelry',48000,'level',150,null,false,null,false),
+  ('wolfram_gauntlets','Wolfram Gauntlets',true,'armor',33600,'level',150,null,false,'heavy',false),
+  ('wolfram_hatchets','Wolfram Hatchets',true,'weapon',48000,'level',150,null,false,null,true),
+  ('wolfram_helm','Wolfram Helm',true,'armor',57600,'level',150,null,false,'heavy',false),
+  ('wolfram_necklace','Wolfram Necklace',true,'jewelry',96000,'level',150,null,false,null,false),
+  ('wolfram_platebody','Wolfram Platebody',true,'armor',144000,'level',150,null,false,'heavy',false),
+  ('wolfram_platelegs','Wolfram Platelegs',true,'armor',105600,'level',150,null,false,'heavy',false),
+  ('wolfram_ring','Wolfram Ring',true,'jewelry',96000,'level',150,null,false,null,false),
+  ('wolfram_shield','Wolfram Shield',true,'offhand',36000,'level',150,null,false,null,false),
+  ('wolfram_sword','Wolfram Sword',true,'weapon',48000,'level',150,null,false,null,false),
+  ('wolfram_warhammer','Wolfram Warhammer',true,'weapon',52800,'level',150,null,false,null,true),
   ('woodwards_hood','Woodward''s Hood',true,'armor',10920,'level',75,null,false,'medium',false),
   ('woolen_cloak','Woollen Cloak',true,'armor',145,'level',12,null,false,null,false),
   ('worldroot_seed','Worldroot Seed',false,'trophy',0,null,null,null,false,null,false),
@@ -945,6 +976,13 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('carved_rupture_rune','ammo'),
   ('carved_water_rune','ammo'),
   ('cauldron_lid','shield'),
+  ('cerecloth_belt','belt'),
+  ('cerecloth_body','body'),
+  ('cerecloth_boots','boots'),
+  ('cerecloth_cloak','cape'),
+  ('cerecloth_gloves','gloves'),
+  ('cerecloth_helmet','helmet'),
+  ('cerecloth_pants','pants'),
   ('chalked_earth_rune','ammo'),
   ('chalked_fire_rune','ammo'),
   ('chalked_ice_rune','ammo'),
@@ -1013,6 +1051,12 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('duskwood_staff','weapon'),
   ('duskwood_wand','weapon'),
   ('dyers_boots','boots'),
+  ('eelskin_belt','belt'),
+  ('eelskin_body','body'),
+  ('eelskin_boots','boots'),
+  ('eelskin_gloves','gloves'),
+  ('eelskin_helmet','helmet'),
+  ('eelskin_pants','pants'),
   ('ember_belt','belt'),
   ('ember_boots','boots'),
   ('ember_gauntlets','gloves'),
@@ -1132,6 +1176,11 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('raftwright_hatchets','weapon'),
   ('rat_stick','weapon'),
   ('ratters_hood','helmet'),
+  ('rowan_bow','weapon'),
+  ('rowan_codex','shield'),
+  ('rowan_crossbow','weapon'),
+  ('rowan_staff','weapon'),
+  ('rowan_wand','weapon'),
   ('ruby_signet','ring1'),
   ('ruby_signet','ring2'),
   ('rubyfire_studs','earrings'),
@@ -1254,6 +1303,20 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('willow_staff','weapon'),
   ('willow_wand','weapon'),
   ('wolfbone_torc','necklace'),
+  ('wolfram_belt','belt'),
+  ('wolfram_boots','boots'),
+  ('wolfram_earrings','earrings'),
+  ('wolfram_gauntlets','gloves'),
+  ('wolfram_hatchets','weapon'),
+  ('wolfram_helm','helmet'),
+  ('wolfram_necklace','necklace'),
+  ('wolfram_platebody','body'),
+  ('wolfram_platelegs','pants'),
+  ('wolfram_ring','ring1'),
+  ('wolfram_ring','ring2'),
+  ('wolfram_shield','shield'),
+  ('wolfram_sword','weapon'),
+  ('wolfram_warhammer','weapon'),
   ('woodwards_hood','helmet'),
   ('woolen_cloak','cape'),
   ('wraithglass_drops','earrings'),
@@ -2230,7 +2293,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd1e0240e8f08f3b0e67c34feb008850a3b2a1a5934d78d81c7a8913c1ef8efe9', now())
+  values (true, '219ae2bcee2e246318db78f98ba3b22b4e9a45e5098d79c51b11c28b9122dc3e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2258,11 +2321,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 679 then raise exception 'hr_items has % rows, generator emitted 679', v_n; end if;
+  if v_n <> 710 then raise exception 'hr_items has % rows, generator emitted 710', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'db4f68b7ad5f1c040e80b8b5046d567e' then
-    raise exception 'hr_items names differ from src/data (expected digest db4f68b7ad5f1c040e80b8b5046d567e)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'e1ed4ad1eb05415c88d9193eafec68f4' then
+    raise exception 'hr_items names differ from src/data (expected digest e1ed4ad1eb05415c88d9193eafec68f4)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2356,8 +2419,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 324 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 324', v_n;
+  if v_n <> 355 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 355', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2466,7 +2529,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d1e0240e8f08f3b0e67c34feb008850a3b2a1a5934d78d81c7a8913c1ef8efe9',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 219ae2bcee2e246318db78f98ba3b22b4e9a45e5098d79c51b11c28b9122dc3e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

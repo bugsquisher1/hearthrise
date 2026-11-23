@@ -50,6 +50,7 @@ import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
 import { ARTISAN_RECIPES } from './recipes.js';
 import { recipeOutcomes } from './jewelry.js';
 import { MONSTERS } from './monsters.js';
+import { BASE_DROP_IDS } from './base-drops.js';
 import { ITEMS } from './items.js';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop is the ONLY source of
@@ -305,6 +306,8 @@ export function combatDropIds() {
     const drops = MONSTERS[k] && MONSTERS[k].drops;
     if (Array.isArray(drops)) for (const d of drops) if (d && d.id) s.add(d.id);
   }
+  /* a step tier's base, a home ground's own rows (src/data/base-drops.js): the settle credits them on a kill there like any monster row */
+  for (const id of BASE_DROP_IDS) s.add(id);
   return s;
 }
 

@@ -22,8 +22,30 @@ import { CHEST_ITEM_DESC } from './chests.js';
 import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js';
 import { TOWER_WEAPON_DESC } from './tower-weapons.js';
 import { PATTERN_DESC } from './patterns.js';
+import { GEAR_ITEMS, STEP_MATERIALS } from './gear-tiers.js';
+import { SHIELD_ITEMS } from './shields.js';
+import { SLOT_ITEMS } from './slot-ladders.js';
+
+/* THE STEP TIERS' LINES (lane/gear-phase-b; src/data/gear-tiers.js STEP_TIERS). A tier brings four words (its metal, wood, leather and cloth)
+   and each word one line here, its root; every piece of the tier reads "A <its name>." and its word's line, so a new tier is four lines and
+   never thirty-one. The naming pass and the writer may give any piece its own line in the literal below, which wins. */
+const STEP_LORE = Object.freeze({
+  wolfram: 'Wolfram is the heavy gray ore the vault cutters struck deep under Havora',
+  rowan: 'Rowan is the wood the Keepers hang over the dead to keep them down',
+  eelskin: 'Eelskin is slick and tough, tanned from what swims in the Flooded Wing',
+  cerecloth: 'Cerecloth is the waxed linen the Keepers wrap the dead in',
+});
+const stepWordOf = (it, mat) => (it.armourClass === 'leather' ? mat.words.leather[0] : it.armourClass === 'cloth' || it.slot === 'cape' ? mat.words.cloth[0]
+  : it.weaponType === 'ranged' || it.weaponType === 'magic' || it.offhand === 'spellbook' ? mat.words.wood[0] : mat.id);
+const STEP_DESC = Object.fromEntries(Object.entries({ ...GEAR_ITEMS, ...SHIELD_ITEMS, ...SLOT_ITEMS }).filter(([, it]) => it && Number.isInteger(it.step)).map(([id, it]) => {
+  const mat = STEP_MATERIALS.find((m) => m.step === it.step), word = mat ? stepWordOf(it, mat) : null;
+  if (!word || !STEP_LORE[word]) throw new Error('item-descriptions.js: ' + id + ' is a step-tier piece whose word (' + word + ') has no STEP_LORE line');
+  const n = it.n.toLowerCase();
+  return [id, (/s$/.test(n) ? 'A pair of ' + n : (/^[aeiou]/.test(n) ? 'An ' : 'A ') + n) + '. ' + STEP_LORE[word]];
+}));
 
 export const ITEM_DESC = {
+  ...STEP_DESC,       // lane/gear-phase-b: the step tiers' pieces, a line a word (STEP_LORE above)
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
   'apprentice_wand': 'A short beech wand, light enough to leave a hand free for a spellbook',
   'oak_wand': 'An oak wand with a brass tip, sturdier than the beech wand you started with',

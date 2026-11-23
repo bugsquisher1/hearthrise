@@ -15,13 +15,15 @@
 // one WEAPON_FAMILIES row and its profile.
 //
 // Design rules this encodes:
-//   • Seven material tiers spanning levels 1 → 88, so a player is never more
-//     than ~15 levels from the next visible upgrade. No cliff before 99.
+//   • Seven shipped material tiers spanning levels 1 → 88, so a player is never
+//     more than ~15 levels from the next visible upgrade. Past them the ladder
+//     runs on item Levels, one tier every GEAR_STEPS.tierSteps (STEP_TIERS below,
+//     lane/gear-phase-b): every Level band has its base tier, a new tier is one row.
 //   • Every armour slot exists at every tier — you can always complete a set.
-//   • Four weapon families (sword / warhammer / bow / staff) each run the full
-//     ladder, so every combat style progresses at the same pace.
-//   • The top two tiers are original to Hearthrise: EMBERFORGED and DAWNSTEEL
-//     — the game's own name read as a promise (hearth → ember, rise → dawn).
+//   • Every weapon family runs the full ladder, so every combat style
+//     progresses at the same pace.
+//   • The top two shipped tiers are original to Hearthrise: EMBERFORGED and
+//     DAWNSTEEL — the game's own name read as a promise (hearth → ember, rise → dawn).
 //
 // Hand-authored entries in items.js keep their own names and values over the
 // generated twin; their stats are the twin's (the formula's).
@@ -39,13 +41,19 @@
 export const LEVEL_REQ = 'level';
 
 import { withGearStats } from './gear-profiles.js';
+import { GEAR_STEPS, tierLevel } from './danger.js';
+import { wage } from './wage.js';
 
 /* ── The material ladder ───────────────────────────────────────────────
+   tier   = the rung, 1 up (every ladder's ids are indexed by it, GEAR_LADDERS)
+   iL     = the ITEM LEVEL a piece of the tier is (the one number the power step and the stat formula read: src/data/gear-steps.js)
    level  = the hero LEVEL the tier's gear is worn at (Tyler 2026-10-24; the designer's ladder 1/15/30/45/60/75/88)
    smith  = smithing level the tier's *base* piece unlocks at
    craft  = crafting level for the wood-based families at this tier
-   value  = economic multiplier; item value = slot.vmul * tier.value        */
-export const MATERIAL_TIERS = [
+   value  = economic multiplier; item value = slot.vmul * tier.value
+   THE SHIPPED SEVEN (1 to 88) are the old ladder: a piece's item Level is its Level (27-formula-overhaul.md 2.3 phase A), and a scale
+   ground that drops one stamps its own base on it (src/data/danger.js scaleItemLevels). They move onto the grid with their grounds (stage 6). */
+const SHIPPED_TIERS = [
   { id: 'bronze',  name: 'Bronze',      tier: 1, level: 1,  smith: 1,  craft: 1,  value: 0.6,
     bar: 'bronze_bar',  plank: 'normal_plank',   wood: 'normal',   rarity: 'common' },
   { id: 'iron',    name: 'Iron',        tier: 2, level: 15, smith: 15, craft: 15, value: 1.3,
@@ -60,7 +68,57 @@ export const MATERIAL_TIERS = [
     bar: 'ember_bar',   plank: 'runewood_plank', wood: 'runewood', rarity: 'legendary' },
   { id: 'dawn',    name: 'Dawnsteel',   tier: 7, level: 88, smith: 88, craft: 88, value: 360,
     bar: 'dawn_bar',    plank: 'duskwood_plank', wood: 'duskwood', rarity: 'mythic' },
+].map((t) => ({ ...t, iL: t.level }));
+
+/* ── THE LADDER ON STEPS (lane/gear-phase-b, systems, 2026-11-23; docs/design/redesign/27-formula-overhaul.md G-2 phase B and 2.3,
+   12-targets.md 3.3 and 8, 19-power-ledger.md). Past the shipped seven the ladder runs on gear-steps.js's grid: a tier is
+   GEAR_STEPS.tierSteps item Levels over the one under it (tierLevel(step)), worn from its item Level less GEAR_STEPS.wearAhead (the rule
+   every scale ground's drop is worn by), so every Level band past 88 has its base tier and a new tier is ONE row below. Every slot ladder
+   follows the row with nothing typed: the three armor weights and every weapon family here, the spellbook, the shield (shields.js) and
+   the jewels and the cloak (slot-ladders.js), each piece's stats the one formula's at its item Level (tools/gen-gear.mjs, src/core/gear-
+   stats.js: past Dawnsteel the budget grows in proportion to item Level, never held).
+     step     the grid tier: item Level = tierLevel(step) (step 8 is item Level 160, the Catacomb wings' base, danger.js DANGER_GROUNDS)
+     id, name the metal (plate, sword, warhammer, hatchets, shield, the jewels: "<name> Helm", "<name> Sword")
+     wood     [id, word] the bow, crossbow, staff, wand and codex ("<word> Bow", "<word> Codex"); leather and cloth the same for their lines
+     homes    the grounds that DROP the tier's base (12-targets 3.3: the gear base is fixed by the ground, drops with a home): every armor
+              piece, weapon, shield and codex rolls there as a plain row in hours (src/data/base-drops.js). The jewels and the cloak are made
+              at the bench from a home's part (slot-ladders.js), never dropped (09-crafting: a crafter makes the two slot families a Trait
+              rides on)
+     parts    { ring, earrings, necklace, cape }: the part (an imbuement item a body on a home drops, drop-hours.js DROP_HOURS.made) the bench
+              takes for each made piece
+   VALUE: the shipped top's multiplier carried up the wage curve at the piece's item step (src/data/wage.js: "goods and gear read wage(step)
+   at DEPTH, the piece's item step"), so a tier's book climbs with the coin a hunted hour pays there and its sale stays over its twin's
+   (loot-bands.js gearSaleRate). STARTING VALUES, NOT RULINGS: the words are this lane's (short real words with a root, never a mood word,
+   no other game's names) and the naming pass may move any of them in one place; the pace and the book are levers the designer owns. */
+const STEP_TIERS = [
+  /* item Level 160, worn from 150. The Catacombs under Havora: wolfram is the heavy grey ore the vault cutters struck (its old name, wolf's
+     foam), rowan the tree hung over the dead to keep them down, eelskin the hide of what lives in the Flooded Wing, cerecloth the waxed linen
+     the Keepers wrap the dead in */
+  { step: 8, id: 'wolfram', name: 'Wolfram', wood: ['rowan', 'Rowan'], leather: ['eelskin', 'Eelskin'], cloth: ['cerecloth', 'Cerecloth'],
+    homes: ['catacomb_bone_wing', 'catacomb_flooded_wing'],
+    parts: { ring: 'owing_tag', earrings: 'candle_snuffer', necklace: 'lime_mortar', cape: 'leech_jaw' } },
 ];
+const SHIPPED_TOP = SHIPPED_TIERS[SHIPPED_TIERS.length - 1];
+export const MATERIAL_TIERS = [
+  ...SHIPPED_TIERS,
+  ...STEP_TIERS.slice().sort((a, b) => a.step - b.step).map((s, i) => {
+    const iL = tierLevel(s.step), level = Math.max(1, iL - GEAR_STEPS.wearAhead);
+    return {
+      id: s.id, name: s.name, tier: SHIPPED_TIERS.length + 1 + i, step: s.step, iL, level, smith: level, craft: level,
+      value: Math.round((SHIPPED_TOP.value * wage(iL)) / wage(SHIPPED_TOP.iL)), rarity: SHIPPED_TOP.rarity,
+      words: Object.freeze({ wood: Object.freeze(s.wood.slice()), leather: Object.freeze(s.leather.slice()), cloth: Object.freeze(s.cloth.slice()) }),
+      homes: Object.freeze(s.homes.slice()), parts: Object.freeze({ ...s.parts }),
+    };
+  }),
+];
+/** The tiers on the grid (MATERIAL_TIERS rows past the shipped seven): base-drops.js, shields.js and slot-ladders.js build theirs from them. */
+export const STEP_MATERIALS = Object.freeze(MATERIAL_TIERS.filter((t) => Number.isInteger(t.step)));
+/** A material word for a step tier's `line` (wood, leather or cloth) or its metal ('metal'): [id, word]. */
+export const materialWord = (mat, line) => (line === 'metal' ? [mat.id, mat.name] : mat.words[line]);
+/** THE FIELD A STEP-TIER PIECE CARRIES: `step`, its grid tier (12-targets 8: the piece's tier is its item Level over tierSteps). src/data/items.js
+    stamps the item Level tierLevel(step) from it (ITEM_LEVELS) and tools/gen-gear.mjs sizes the piece there, never at the iL the generated table
+    wrote back. A shipped-tier piece carries none. */
+export const stepOf = (mat) => (mat && Number.isInteger(mat.step) ? { step: mat.step } : {});
 
 /* ── Armour slots ─────────────────────────────────────────────────────
    Each slot's armor is its share of the formula's defense budget (src/data/gear-profiles.js: the slot's
@@ -81,8 +139,10 @@ export const ARMOUR_SLOTS = [
    staves are crafted from wood and carry their style's attack/strength.
    A family's accuracy and damage are its profile's (src/data/gear-profiles.js GEAR_PROFILES, keyed as
    src/core/gear-stats.js profileKeyOf reads the row: weaponType, hands, discipline), never a number here.
-   `names` lets a family keep its established early-game names.              */
-export const WEAPON_FAMILIES = [
+   `names` lets a family keep its established early-game names. Past the shipped seven every family's rung is
+   its step tier's word and its own label ("Wolfram Sword", "Rowan Bow": stepRungs below), so a tier row is the
+   whole family's next rung.                                                   */
+const SHIPPED_FAMILIES = [
   {
     key: 'sword', label: 'Sword', weaponType: 'sword', skill: 'smithing', mat: 'bar',
     vmul: 100, lvOff: 5, bars: 2, planks: 1,
@@ -148,15 +208,21 @@ export const WEAPON_FAMILIES = [
     ids:   [null, 'oak_crossbow', 'willow_crossbow', 'maple_crossbow', 'yew_crossbow', 'runewood_crossbow', 'duskwood_crossbow'],
   },
 ];
+/* A ladder's ids and names carried up every step tier: `line` names the tier's word (the metal, or the wood) and `label` the piece. */
+const stepRungs = (names, ids, line, label) => ({
+  names: Object.freeze([...names, ...STEP_MATERIALS.map((m) => materialWord(m, line)[1] + ' ' + label)]),
+  ids: Object.freeze([...ids, ...STEP_MATERIALS.map((m) => materialWord(m, line)[0] + '_' + label.toLowerCase())]),
+});
+export const WEAPON_FAMILIES = SHIPPED_FAMILIES.map((f) => Object.freeze({ ...f, ...stepRungs(f.names, f.ids, f.mat === 'bar' ? 'metal' : 'wood', f.label) }));
 
 /* ── The off-hand SPELLBOOK (Tyler 2026-10-19: Mage = wand + spellbook). Worn in the
    `shield` slot (src/data/gathering.js EQUIP_SLOTS, labelled Offhand). Its stats are the
    spellbook profile's (src/data/gear-profiles.js): Magic accuracy and damage, a little defence. Worn by Level like every
-   piece of gear (LEVEL_REQ, Tyler 2026-10-24). Six tiers, the same rungs as the wand. */
+   piece of gear (LEVEL_REQ, Tyler 2026-10-24). The same rungs as the wand, a codex of the tier's wood past the seventh. */
 export const SPELLBOOKS = Object.freeze({
   vmul: 80,
-  names: ['Apprentice Primer', 'Oakboard Spellbook', 'Willowleaf Spellbook', 'Maplebound Spellbook', 'Yewclasp Spellbook', 'Runewood Codex', 'Duskwood Codex'],
-  ids:   ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex', 'duskwood_codex'],
+  ...stepRungs(['Apprentice Primer', 'Oakboard Spellbook', 'Willowleaf Spellbook', 'Maplebound Spellbook', 'Yewclasp Spellbook', 'Runewood Codex', 'Duskwood Codex'],
+    ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex', 'duskwood_codex'], 'wood', 'Codex'),
 });
 
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
@@ -194,13 +260,18 @@ const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
    equipped item, so an item carrying a negative magicAtkB literally lowers a
    mage's hit rate. No combat-code change. Plate keeps its exact ids (save-safe);
    the penalty fields are added to it. */
+/* a line's tier words carried up every step tier (its own word for the line: materialWord) */
+const stepWords = (line, names, ids) => ({
+  tierNames: Object.freeze([...names, ...STEP_MATERIALS.map((m) => materialWord(m, line)[1])]),
+  tierIds: Object.freeze([...ids, ...STEP_MATERIALS.map((m) => materialWord(m, line)[0])]),
+});
 const ARMOUR_LINES = [
   { key: 'plate', vmul: 1.00, icon: '🛡️',
     id: (mat, slot) => mat.id + '_' + slot.key,          // UNCHANGED existing ids
     name: (mat, slot) => mat.name + ' ' + slot.label },
   { key: 'leather', vmul: 0.70, icon: '🎽', craftMat: 'plank',
-    tierNames: ['Leather', 'Studded Leather', 'Boarhide', 'Snakeskin', 'Wyvernhide', 'Dragonhide', 'Dawnhide'],
-    tierIds:   ['leather', 'studded', 'boarhide', 'snakeskin', 'wyvernhide', 'dragonhide', 'dawnhide'],
+    ...stepWords('leather', ['Leather', 'Studded Leather', 'Boarhide', 'Snakeskin', 'Wyvernhide', 'Dragonhide', 'Dawnhide'],
+      ['leather', 'studded', 'boarhide', 'snakeskin', 'wyvernhide', 'dragonhide', 'dawnhide']),
     slotLabels: { helmet: 'Hood', body: 'Body', pants: 'Chaps', boots: 'Boots', gloves: 'Bracers', belt: 'Belt' },
     id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
     name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot] },
@@ -210,8 +281,8 @@ const ARMOUR_LINES = [
      the recipe generator below silently shipped an UNTIERED cloth cost instead.
      It now names what the recipe actually consumes. */
   { key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',
-    tierNames: ['Apprentice', 'Adept', 'Scholar', 'Warlock', 'Sorcerer', 'Archmage', 'Duskweave'],
-    tierIds:   ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage', 'duskweave'],
+    ...stepWords('cloth', ['Apprentice', 'Adept', 'Scholar', 'Warlock', 'Sorcerer', 'Archmage', 'Duskweave'],
+      ['apprentice', 'adept', 'scholar', 'warlock', 'sorcerer', 'archmage', 'duskweave']),
     slotLabels: { helmet: 'Hat', body: 'Robe Top', pants: 'Robe Bottom', boots: 'Slippers', gloves: 'Gloves', belt: 'Sash' },
     id: (mat, slot, line, i) => line.tierIds[i] + '_' + slot.slot,
     name: (mat, slot, line, i) => line.tierNames[i] + ' ' + line.slotLabels[slot.slot],
@@ -242,6 +313,7 @@ export const GEAR_ITEMS = (() => {
           /* Worn by the hero's Level at the tier's level (LEVEL_REQ, Tyler 2026-10-24). */
           reqSkill: LEVEL_REQ,
           reqLv: mat.level,
+          ...stepOf(mat),
         };
         out[line.id(mat, slotDef, line, i)] = item;
       });
@@ -266,6 +338,7 @@ export const GEAR_ITEMS = (() => {
         /* Worn by the hero's Level at the tier's level, whatever the style (LEVEL_REQ, Tyler 2026-10-24). */
         reqSkill: LEVEL_REQ,
         reqLv: mat.level,
+        ...stepOf(mat),
       };
       if (fam.discipline) item.discipline = fam.discipline;
       if (fam.twoHanded) item.twoHanded = true;
@@ -279,7 +352,7 @@ export const GEAR_ITEMS = (() => {
     out[id] = {
       n: SPELLBOOKS.names[i], icon: '📕', v: round5(SPELLBOOKS.vmul * mat.value),
       type: 'offhand', slot: 'shield', offhand: 'spellbook', discipline: 'destruction',
-      rarity: mat.rarity, tier: mat.tier, reqSkill: LEVEL_REQ, reqLv: mat.level,
+      rarity: mat.rarity, tier: mat.tier, reqSkill: LEVEL_REQ, reqLv: mat.level, ...stepOf(mat),
     };
   });
 

@@ -150,6 +150,7 @@ import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js'
 import { sessionModeOf } from './session-modes.js';
 import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js';
 import { CATACOMB_WING_GROUNDS } from './catacomb-wings.js';
+import { BASE_DROPS } from './base-drops.js';
 import { ITEMS } from './items.js';
 import { LOOT_BANDS } from './loot-bands.js';
 export { FULL_BOX };
@@ -364,9 +365,12 @@ const BASE_GROUNDS = Object.freeze({
 });
 
 /* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. Then the Catacombs' two wings
-   (src/data/catacomb-wings.js: grounds on the Danger scale cut from the Unmarked Catacombs' rooms), as one more fold. */
-export const HUNT_GROUNDS = Object.freeze(foldRows('ground', foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })),
-  [{ id: 'catacomb-wings' }], () => CATACOMB_WING_GROUNDS));
+   (src/data/catacomb-wings.js: grounds on the Danger scale cut from the Unmarked Catacombs' rooms), as one more fold. Last, each step tier's
+   base on its homes (src/data/base-drops.js, lane/gear-phase-b): the rows join the ground's own `drops` after the ones it has. */
+const withBaseDrops = (grounds) => Object.fromEntries(Object.entries(grounds).map(([id, g]) => [id,
+  Object.prototype.hasOwnProperty.call(BASE_DROPS, id) ? Object.freeze({ ...g, drops: Object.freeze([...(g.drops || []), ...BASE_DROPS[id]]) }) : g]));
+export const HUNT_GROUNDS = Object.freeze(withBaseDrops(foldRows('ground', foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })),
+  [{ id: 'catacomb-wings' }], () => CATACOMB_WING_GROUNDS)));
 
 /* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one pocket, the boss's own hall on his own map, no pull dial: a pocket of nothing but a boss keeps its
    as-built pack at any size (pullRows). Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). `call` marks

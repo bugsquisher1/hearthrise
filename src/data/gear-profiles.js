@@ -29,9 +29,15 @@
 // tools/balance-program/redesign/gear-steps/before-muster-L60; at 0 the stats carried nothing and a shipped weapon-and-armor tier moved
 // +8 / -3, under one depth, gear-steps/view-0). Off the scale the stats are read at the piece's own item Level.
 //   GEAR_SCALE_STAT_PM 500   JUDGMENT, measured to land C-2 (12-targets: one gear tier moves the hold 1 to 3 depths): gear-steps/*.txt
-//   GEAR_CURVE_TOP 88         the item Level the stat curve is drawn to (Dawnsteel). Past it a piece's base stats hold and only its item Level
-//                             (the power step) grows: the curve is the seven-tier ladder's shape, and squared it would triple a Catacomb
-//                             piece's armor at item Level 160. The staged lines past Dawnsteel keep their own budget (tools/balance-sim/staged)
+//   GEAR_CURVE_TOP 88         the item Level the squared curve is drawn to (Dawnsteel, the seven-tier ladder's top). Past it the budget
+//                             grows IN PROPORTION to item Level: budget(top) x iL / top (src/core/gear-stats.js budgetOf), so the formula
+//                             prices any item Level and nothing is capped (lane/gear-phase-b, 2026-11-23; 27-formula-overhaul G-2 phase B,
+//                             the ladder past 88 on tierSteps, src/data/gear-tiers.js MATERIAL_TIERS). Proportional, not the square: the
+//                             square would triple a piece's armor at item Level 160, and the old chain's armor (a share P / (P + k L) of the
+//                             ATTACKER's Level, src/core/mitigation.js) and its blow against a health line in Level both hold their worth
+//                             when a stat grows with the Level it faces, the same shape the staged lines past Dawnsteel were measured on
+//                             (tools/balance-sim/staged: x Level / 110). JUDGMENT, measured on the
+//                             Tower (tools/balance-sim/tower-curve.mjs) and the Catacomb wings in the lane's report
 //
 // STARTING VALUES, NOT RULINGS (lane/gear-catalogue-steps 2026-11-22; the Lab tunes them, in band is enough):
 //   GEAR_CURVES   the SHAPES the seven-tier ladder's attack and armor tables were hand-drawn on, fitted by least squares over all seven
@@ -63,7 +69,8 @@ export const GEAR_CURVES = Object.freeze({
   jewel: Object.freeze({ c0: 18.6, c1: 1.38, c2: 0 }),
 });
 
-/* the header: the curve's top item Level, and the share of a piece's item-Level gap its stats keep on the Danger scale (permille) */
+/* the header: the item Level the squared curve is drawn to (proportional past it), and the share of a piece's item-Level gap its stats keep
+   on the Danger scale (permille) */
 export const GEAR_CURVE_TOP = 88;
 export const GEAR_SCALE_STAT_PM = 500;
 

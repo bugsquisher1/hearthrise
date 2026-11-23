@@ -10,7 +10,7 @@
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
 --   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (4 Remains goods by band)
 --   hr_temper_rules (1 row, kit_item null: Temper Kits are owed, a rank is refused kits_owed), hr_temper_slots (13 slots)
---   hr_item_levels (324 gear rows: the iL a scale ground's drop carries, else its Level requirement)
+--   hr_item_levels (355 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
 --   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp; hr_temper_rank_mh, hr_temper_rank_cap,
@@ -258,6 +258,13 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('bronze_rimmed_shield', 1),
   ('bronze_sword', 1),
   ('cauldron_lid', 30),
+  ('cerecloth_belt', 160),
+  ('cerecloth_body', 160),
+  ('cerecloth_boots', 160),
+  ('cerecloth_cloak', 160),
+  ('cerecloth_gloves', 160),
+  ('cerecloth_helmet', 160),
+  ('cerecloth_pants', 160),
   ('chandlers_wand', 40),
   ('chitin_belt', 40),
   ('chitin_body', 40),
@@ -314,6 +321,12 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('duskwood_staff', 88),
   ('duskwood_wand', 88),
   ('dyers_boots', 160),
+  ('eelskin_belt', 160),
+  ('eelskin_body', 160),
+  ('eelskin_boots', 160),
+  ('eelskin_gloves', 160),
+  ('eelskin_helmet', 160),
+  ('eelskin_pants', 160),
   ('ember_belt', 75),
   ('ember_boots', 75),
   ('ember_gauntlets', 75),
@@ -414,6 +427,11 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('raftwright_hatchets', 40),
   ('rat_stick', 30),
   ('ratters_hood', 160),
+  ('rowan_bow', 160),
+  ('rowan_codex', 160),
+  ('rowan_crossbow', 160),
+  ('rowan_staff', 160),
+  ('rowan_wand', 160),
   ('ruby_signet', 60),
   ('rubyfire_studs', 60),
   ('rune_belt', 60),
@@ -517,6 +535,19 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('willow_staff', 30),
   ('willow_wand', 30),
   ('wolfbone_torc', 15),
+  ('wolfram_belt', 160),
+  ('wolfram_boots', 160),
+  ('wolfram_earrings', 160),
+  ('wolfram_gauntlets', 160),
+  ('wolfram_hatchets', 160),
+  ('wolfram_helm', 160),
+  ('wolfram_necklace', 160),
+  ('wolfram_platebody', 160),
+  ('wolfram_platelegs', 160),
+  ('wolfram_ring', 160),
+  ('wolfram_shield', 160),
+  ('wolfram_sword', 160),
+  ('wolfram_warhammer', 160),
   ('woodwards_hood', 160),
   ('woolen_cloak', 12),
   ('wraithglass_drops', 40),
@@ -741,7 +772,7 @@ do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
   if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 4
-     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 324
+     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 355
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
   foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels',
@@ -1226,5 +1257,5 @@ begin
     (10, 200, 143095::bigint)) p(st, il, g) loop
     if public.hr_carry_fee(v_r.st, v_r.il) <> v_r.g then raise exception 'VERIFY(q): a carry of % steps onto item Level % costs % in SQL, % in JS', v_r.st, v_r.il, public.hr_carry_fee(v_r.st, v_r.il), v_r.g; end if;
   end loop;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 4 fuels, 13 Temper slots, 324 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 4 fuels, 13 Temper slots, 355 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

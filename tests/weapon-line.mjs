@@ -82,7 +82,8 @@ function homes() {
   }
   return m;
 }
-const ladderTop = (fam) => { const l = GEAR_LADDERS.find((x) => x.key === 'weapon:' + fam); return l ? l.ids[l.ids.length - 1] : null; };
+/* the family's tier-7 rung, the top of the seven-tier ladder the line starts from (past it the ladder runs on steps, gear-tiers.js STEP_TIERS) */
+const ladderTop = (fam) => { const l = GEAR_LADDERS.find((x) => x.key === 'weapon:' + fam); return l ? l.ids[7 - 1] : null; };
 const powerOf = (line) => weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS, HUNT_INDEX, combat, deriveProfile, skillXpForLevel, line });
 /* the attributes a weapon row carries, from the catalogue's weapon kinds */
 function attributesOf(row) {

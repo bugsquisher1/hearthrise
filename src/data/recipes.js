@@ -16,7 +16,7 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js';
+import { SLOT_RECIPES, STEP_MADE } from './slot-ladders.js';
 import { ITEMS, foodClassOf } from './items.js';
 import { STONECRAFT_RECIPES } from './stonecraft.js';
 import { DRINK_RECIPES } from './drinks.js';
@@ -308,6 +308,10 @@ const BASE_RECIPES = {
    ladder rather than as authoring order. Crafting appends the fletching rows
    (slot-ladders.js); nothing else is generated into a lane any more. A recipe a live pattern teaches takes its gate here, the one
    place every lane passes (src/data/patterns.js patternGated: the same row while the patterns are hidden). */
+/* A STEP TIER'S MADE PIECES (slot-ladders.js STEP_MADE, lane/gear-phase-b): a job joins its bench once every input is an item in this view. Its
+   part is a home ground's, and a staged pack's items are out of the served catalogue (tools/pack/whole.mjs), so the job waits with its pack.
+   tests/gear-stats.mjs GSF-9 holds that on the whole tree every one of them is served. */
+const servedMade = (list) => list.filter((r) => Object.keys(r.inputs).every((k) => Object.prototype.hasOwnProperty.call(ITEMS, k)));
 const byReq = (list) => list.map(patternGated).sort((a, b) => (a.req || 0) - (b.req || 0));
 
 export const ARTISAN_RECIPES = {
@@ -315,9 +319,9 @@ export const ARTISAN_RECIPES = {
   /* The reforges of named pieces (Tyler 2026-11-18: armor, weapons and shields drop, a bench only reforges a named piece):
      Klappa's Klub (style-gear.js) and the Steelgrate (shields.js). And ALL JEWELRY (Tyler 2026-11-18): each crafted piece's jobs
      on its own bench (src/data/jewelry.js JEWEL_PIECES skill), a piece from the metal and a gem set in a plain piece. */
-  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, openJobs(JEWELRY_RECIPES_BY_SKILL.smithing))),
+  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, openJobs(JEWELRY_RECIPES_BY_SKILL.smithing), servedMade(STEP_MADE.smithing))),
   /* Crafting's cloaks (src/data/jewelry.js, the same table). */
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, openJobs(JEWELRY_RECIPES_BY_SKILL.crafting))),
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, openJobs(JEWELRY_RECIPES_BY_SKILL.crafting), servedMade(STEP_MADE.crafting))),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };

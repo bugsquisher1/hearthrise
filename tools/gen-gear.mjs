@@ -35,10 +35,10 @@ const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 export const isCopy = (it) => !!(it && (it.towerKey || it.catacombTier || it.jewelGrade));
 
 /** id -> base stats for every piece the catalogue holds (the inputs only: slot, item Level, profile, rarity, statsAs). */
-export function deriveAll(GS, items, fists, sample, scaleLevels = {}) {
+export function deriveAll(GS, items, fists, sample, itemLevels = {}) {
   const out = {};
-  /* a piece's SOURCE item Level: the scale ground's that drops it, else its reqLv (never the iL this table wrote back onto the row) */
-  const levelOf = (id, row) => (Object.prototype.hasOwnProperty.call(scaleLevels, id) ? scaleLevels[id] : Math.max(0, Math.floor(Number(row.reqLv) || 0)));
+  /* a piece's SOURCE item Level: the one src/data/items.js ITEM_LEVELS gives it (its scale ground's base, or its step tier's), else its reqLv (never the iL this table wrote back onto the row) */
+  const levelOf = (id, row) => (Object.prototype.hasOwnProperty.call(itemLevels, id) ? itemLevels[id] : Math.max(0, Math.floor(Number(row.reqLv) || 0)));
   const put = (key, row, pool, id = key) => {
     const asId = typeof row.statsAs === 'string' ? row.statsAs : null;
     const iL = asId && pool[asId] ? levelOf(asId, pool[asId]) : levelOf(id, row);
@@ -72,7 +72,7 @@ export function render(all) {
 /* a row's base stats as the catalogue holds them (the read-back half of --check) */
 async function loaded() {
   const GS = await imp('src/core/gear-stats.js');
-  const { ITEMS, SCALE_ITEM_LEVELS: SCALE } = await imp('src/data/items.js');
+  const { ITEMS, ITEM_LEVELS: SCALE } = await imp('src/data/items.js');
   const { FIST_ITEMS } = await imp('src/data/fists.js');
   const SA = await imp('src/data/special-attributes.js');
   const { GEAR_STAT_FIELDS } = await imp('src/data/gear-profiles.js');

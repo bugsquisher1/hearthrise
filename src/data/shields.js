@@ -48,6 +48,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { withGearStats } from './gear-profiles.js';
+import { STEP_MATERIALS, stepOf } from './gear-tiers.js';
 
 /** Is `item` a shield (an off-hand that guards, never a spellbook)? */
 export const isShield = (item) => !!item && item.slot === 'shield' && item.offhand === 'shield';
@@ -68,6 +69,10 @@ export const SHIELD_ITEMS = Object.freeze(withGearStats({
   mithril_faced_shield: shield('Mithril-Faced Shield', 1100, 4, 45, 'epic'),
   runebound_shield: shield('Runebound Shield', 3750, 5, 60, 'legendary'),
   ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 75, 'legendary'),
+  /* THE LADDER ON STEPS (gear-tiers.js STEP_TIERS, lane/gear-phase-b): one plain shield a step tier, "<metal> Shield", no attack penalty,
+     dropped on the tier's homes (base-drops.js); book about 0.75 of the tier's sword, as the Coppercap is of the Steel Sword */
+  ...Object.fromEntries(STEP_MATERIALS.map((m) => [m.id + '_shield',
+    Object.freeze({ ...shield(m.name + ' Shield', Math.max(1, Math.round((75 * m.value) / 5) * 5), m.tier, m.level, m.rarity), ...stepOf(m) })])),
 }));
 
 /* THE REFORGE (Smithing; Tyler 2026-11-18: a smith only reforges a named shield). The plain shields drop (SOURCES above). */

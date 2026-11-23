@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: a95a0239b0c608b0424bf3f7242b9dfec57764236c0266289f13c249ac273bd4
+--   digest: 97c445aced87d61f7b69d25c6358fea6a974c78cd11045549e645f0010eae4aa
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   636 vendor values, 49 store supplies paid per use, 5 target modes,
+--   667 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -1272,6 +1272,10 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('quarry_maul', 'hammer'),
   ('raftwright_hatchets', 'axe'),
   ('rat_stick', 'hammer'),
+  ('rowan_bow', 'ranged'),
+  ('rowan_crossbow', 'ranged'),
+  ('rowan_staff', 'staff'),
+  ('rowan_wand', 'wand'),
   ('rune_hatchets', 'axe'),
   ('rune_sword', 'sword'),
   ('rune_warhammer', 'hammer'),
@@ -1295,6 +1299,9 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('willow_longbow', 'ranged'),
   ('willow_staff', 'staff'),
   ('willow_wand', 'wand'),
+  ('wolfram_hatchets', 'axe'),
+  ('wolfram_sword', 'sword'),
+  ('wolfram_warhammer', 'hammer'),
   ('yew_bow', 'ranged'),
   ('yew_crossbow', 'ranged'),
   ('yew_staff', 'staff'),
@@ -1325,7 +1332,8 @@ insert into public.hr_hunt_shields (item_id) values
   ('mithril_faced_shield'),
   ('practice_shield'),
   ('runebound_shield'),
-  ('steelgrate');
+  ('steelgrate'),
+  ('wolfram_shield');
 delete from public.hr_hunt_roles;
 delete from public.hr_hunt_world_shape;
 insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 2244835175, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"lastMove":48,"statuses":49,"laneAt":50,"otHp":51,"otMana":52,"ruleHold":53,"ruleWait":54,"fightMs":55},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16,"risk":17,"danger":18,"climb":19,"clean":20,"low":21,"cool":22,"lowHero":23,"lowBy":24}}'::jsonb);
@@ -1689,6 +1697,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('carved_rupture_rune', 1),
   ('carved_water_rune', 1),
   ('cauldron_lid', 168),
+  ('cerecloth_belt', 188),
+  ('cerecloth_body', 705),
+  ('cerecloth_boots', 188),
+  ('cerecloth_cloak', 806),
+  ('cerecloth_gloves', 164),
+  ('cerecloth_helmet', 282),
+  ('cerecloth_pants', 517),
   ('chandlers_wand', 101),
   ('chitin_belt', 63),
   ('chitin_body', 236),
@@ -1797,6 +1812,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('duskwood_staff', 176),
   ('duskwood_wand', 158),
   ('dyers_boots', 141),
+  ('eelskin_belt', 188),
+  ('eelskin_body', 705),
+  ('eelskin_boots', 188),
+  ('eelskin_gloves', 164),
+  ('eelskin_helmet', 282),
+  ('eelskin_pants', 517),
   ('elderscale_heart', 9000),
   ('ember_axe', 280),
   ('ember_bar', 100),
@@ -2015,6 +2036,11 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('roasted_pumpkin', 90),
   ('rooks_moss_charm', 7),
   ('rooks_whistle', 350),
+  ('rowan_bow', 352),
+  ('rowan_codex', 268),
+  ('rowan_crossbow', 336),
+  ('rowan_staff', 336),
+  ('rowan_wand', 302),
   ('ruby', 400),
   ('ruby_signet', 297),
   ('rubyfire_studs', 148),
@@ -2216,6 +2242,19 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('willow_wand', 57),
   ('wolf_pelt', 7),
   ('wolfbone_torc', 130),
+  ('wolfram_belt', 268),
+  ('wolfram_boots', 268),
+  ('wolfram_earrings', 336),
+  ('wolfram_gauntlets', 235),
+  ('wolfram_hatchets', 336),
+  ('wolfram_helm', 403),
+  ('wolfram_necklace', 672),
+  ('wolfram_platebody', 1008),
+  ('wolfram_platelegs', 739),
+  ('wolfram_ring', 672),
+  ('wolfram_shield', 252),
+  ('wolfram_sword', 336),
+  ('wolfram_warhammer', 369),
   ('woodwards_hood', 163),
   ('woolen_cloak', 72),
   ('wraith_veil', 294),
@@ -2297,7 +2336,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 636
+     or (select count(*) from public.hr_hunt_vendor_value) <> 667
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -2314,10 +2353,10 @@ begin
      or (select count(*) from public.hr_hunt_roster) <> 55
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 92
+     or (select count(*) from public.hr_hunt_weapons) <> 99
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 0
-     or (select count(*) from public.hr_hunt_shields) <> 11
+     or (select count(*) from public.hr_hunt_shields) <> 12
      or (select count(*) from public.hr_boss_calls) <> 2
      or (select count(*) from public.hr_training_rules) <> 1
      or (select count(*) from public.hr_training_grounds) <> 8

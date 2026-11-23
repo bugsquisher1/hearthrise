@@ -43,6 +43,33 @@
 // ============================================================
 
 import { withGearStats } from './gear-profiles.js';
+import { STEP_MATERIALS, materialWord, stepOf } from './gear-tiers.js';
+
+/* THE MADE PIECES OF A STEP TIER (lane/gear-phase-b; gear-tiers.js STEP_TIERS): the line its word comes from, its label and book multiplier
+   (the shipped rungs' vmul), the bench that makes it and the top input that bench works (the shipped ladder's top bar or plank: the
+   Dawnsteel Bar and the Duskwood Plank, both made today). The part is the tier row's (`parts`). */
+const STEP_JEWELS = Object.freeze([
+  Object.freeze({ key: 'ring', label: 'Ring', line: 'metal', slot: 'ring', type: 'jewelry', icon: '💍', vmul: 200, skill: 'smithing', input: 'dawn_bar' }),
+  Object.freeze({ key: 'earrings', label: 'Earrings', line: 'metal', slot: 'earrings', type: 'jewelry', icon: '💎', vmul: 100, skill: 'smithing', input: 'dawn_bar' }),
+  Object.freeze({ key: 'necklace', label: 'Necklace', line: 'metal', slot: 'necklace', type: 'jewelry', icon: '📿', vmul: 200, skill: 'smithing', input: 'dawn_bar' }),
+  Object.freeze({ key: 'cloak', label: 'Cloak', line: 'cloth', slot: 'cape', type: 'armor', icon: '🦸', vmul: 240, skill: 'crafting', input: 'duskwood_plank' }),
+]);
+/* A step cloak's Steady armor (an attribute the cloak line carries, not a base stat: gear-profiles.js), the shipped top's (the Dawnlit
+   Mantle's 255) until the designer gives the line its own curve. STARTING VALUE. */
+const STEP_CAPE_STEADY_PM = 255;
+/* What a made step piece takes, its XP and its time: STARTING VALUES on the shipped top's shape (the Dawnsteel tools at Smithing 92: 2 bars and
+   4,200 XP), a part a piece more than a bar */
+const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });
+/** The recipe of each made step piece, by bench (recipes.js reads them, each once its part is an item in the catalogue's view: a home in a
+    staged pack is out of the served catalogue, tools/pack/whole.mjs). The bench's level is the tier's (gear-tiers.js MATERIAL_TIERS smith and
+    craft: the Level it is worn from). */
+export const STEP_MADE = Object.freeze(Object.fromEntries(['smithing', 'crafting'].map((skill) => [skill, Object.freeze(STEP_MATERIALS.flatMap((m) =>
+  STEP_JEWELS.filter((j) => j.skill === skill).map((j) => {
+    const [wid, word] = materialWord(m, j.line), id = wid + '_' + j.key, part = m.parts[j.slot];
+    return Object.freeze({ id: (skill === 'crafting' ? 'stitch_' : 'craft_') + id, name: (skill === 'crafting' ? 'Stitch ' : 'Make ') + word + ' ' + j.label,
+      icon: j.icon, inputs: Object.freeze({ [j.input]: STEP_MAKE.input, [part]: STEP_MAKE.part }), output: id, xp: STEP_MAKE.xp,
+      req: skill === 'crafting' ? m.craft : m.smith, ms: STEP_MAKE.ms });
+  })))])));
 
 /* Book values follow the audit's §5.4 recommendation: `v` derives from the
    material tier's own economic curve rather than a hand-guessed number.
@@ -168,6 +195,17 @@ export const SLOT_ITEMS = withGearStats({
      a factor of 2.26x at BiS and this lane does not widen that. */
   spellstone_ring:   { n: 'Spellstone Ring',   icon: '💍', v: 26000,          type: 'jewelry', slot: 'ring', tier: 6, rarity: 'unique',     reqSkill: 'level',   reqLv: 68 },
   dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'level', reqLv: 84 },
+
+  /* ══ THE LADDER ON STEPS (lane/gear-phase-b; src/data/gear-tiers.js STEP_TIERS): one ring, one pair of earrings, one necklace and one cloak
+     a step tier, worn from its Level, their stats the one formula's at the tier's item Level. MADE, never dropped (09-crafting: a crafter
+     makes the slot families a Trait rides on): the metal pieces at Smithing, the cloak at Crafting, each from the top bar or plank and a part
+     one of its home ground's bodies drops (drop-hours.js DROP_HOURS.made: a made piece's ground is its part's). STEP_MADE below. ══ */
+  ...Object.fromEntries(STEP_MATERIALS.flatMap((m) => STEP_JEWELS.map((j) => {
+    const [wid, word] = materialWord(m, j.line);
+    return [wid + '_' + j.key, { n: word + ' ' + j.label, icon: j.icon, v: Math.max(1, Math.round((j.vmul * m.value) / 5) * 5), type: j.type,
+      slot: j.slot, ...(j.slot === 'cape' ? { armourClass: 'cape', steadyPm: STEP_CAPE_STEADY_PM } : {}), tier: m.tier, rarity: m.rarity,
+      reqSkill: 'level', reqLv: m.level, ...stepOf(m) }];
+  }))),
 });
 
 /* ══════════════════════════════════════════════════════════════════════════

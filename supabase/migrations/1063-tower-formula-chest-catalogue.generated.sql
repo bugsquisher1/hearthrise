@@ -13,7 +13,7 @@
 --   table, a Tower landing's key is the highest Tower row at or under it); hr_chest_stokes (3: a stoke count's multiplier and its price
 --   in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family weight, the per-call clamp);
 --   hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
---   weapon a family: 28 rows; a key short of its 7 is refused chest_not_ready); hr_chest_weapon_families (92
+--   weapon a family: 28 rows; a key short of its 7 is refused chest_not_ready); hr_chest_weapon_families (99
 --   weapon items and their family); hr_chest_outfits (12: the super-rare outfits, each outfit's bundle item and its chance on every
 --   key in permille, src/data/chests.js CHEST_OUTFITS; lane/c-sweeps-coat-drop, the Sweep's Coat). All rewritten whole: no player row
 --   points at any of them (the key, Cinders and bundle items are hr_items rows).
@@ -309,6 +309,10 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('quarry_maul', 'warhammer'),
   ('raftwright_hatchets', 'hatchets'),
   ('rat_stick', 'warhammer'),
+  ('rowan_bow', 'bow'),
+  ('rowan_crossbow', 'crossbow'),
+  ('rowan_staff', 'staff'),
+  ('rowan_wand', 'wand'),
   ('rune_hatchets', 'hatchets'),
   ('rune_sword', 'sword'),
   ('rune_warhammer', 'warhammer'),
@@ -332,6 +336,9 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('willow_longbow', 'bow'),
   ('willow_staff', 'staff'),
   ('willow_wand', 'wand'),
+  ('wolfram_hatchets', 'hatchets'),
+  ('wolfram_sword', 'sword'),
+  ('wolfram_warhammer', 'warhammer'),
   ('yew_bow', 'bow'),
   ('yew_crossbow', 'crossbow'),
   ('yew_staff', 'staff'),

@@ -105,8 +105,10 @@ export function towerTopOf(rules = TOWER_RULES) {
   return Math.floor(Math.floor((DANGER.stepMax * 1000) / per) / rules.landingEvery) * rules.landingEvery;
 }
 
-/** The mix row floor `floor` plays on run `rules` (its band's, in turn), or null for a run with none (a Catacomb wing). Pure. */
-export function towerMixOf(floor, rules = TOWER_RULES) {
+/** The mix row floor `floor` plays on run `rules` (its band's, in turn), or null for a run with none (a Catacomb wing). Pure.
+    @param {number} floor
+    @param {{ landingEvery: number, mixes?: ReadonlyArray<any> | null }} [rules] a RUN_GROUNDS row (the Tower's by default) */
+export function towerMixOf(floor, rules = RUN_GROUNDS[TOWER_RULES.hunt]) {
   const mixes = rules.mixes || null;
   if (!mixes || !mixes.length) return null;
   return mixes[Math.floor((floorOf(floor) - 1) / rules.landingEvery) % mixes.length];

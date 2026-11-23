@@ -30,6 +30,7 @@ Sizes are the most a source gives on the cell that suits it best, at full size (
 | 14 | **Party size** | The cell | 0 steps a hero. Party-scope rows (party Traits, auras, Winter Guard) count once a party, in the wearer's slice | C-6: 1.2 to 1.6 a head in a four. C-7: solo 0.5 to 0.8 of a four's head | None | Owed (V6) |
 | 15 | **Premium, bought hours, Blessings** | Days, death cost | 0 steps | Read in days, never steps (04 section 12) | None | Doc |
 | 16 | **Clan buffs, event rewards** | Reserved | 0 until designed. A new source takes a slice or is refused | | | |
+| 17 | **Factions** | Looks and social | 0 steps. A side gives no stat, step or rule. `validateFactions` refuses a row that names one | No slice | None | Doc (`25-factions.md`) |
 
 **How they add up (COMPUTED).**
 

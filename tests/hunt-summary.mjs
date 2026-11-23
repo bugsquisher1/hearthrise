@@ -694,8 +694,8 @@ async function runTests(M) {
     eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Ironbound Shield (200 gp)', '+2 Defense vs Practice Shield', 'ironbound_shield',
       { kind: 'shop', item: 'ironbound_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
     /* a bare slot first, though dearer; a piece worse than the worn one, another style's, or past the purse is never named */
-    const bare = buy({ equipment: noBelt, shop: shop(['ironbound_shield', 200], ['bronze_belt', 200]) });
-    eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (200 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first');
+    const bare = buy({ equipment: noBelt, shop: shop(['ironbound_shield', 200], ['bronze_belt', 250]) });
+    eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (250 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first, though dearer (the Ironbound at 200 is cheaper)');
     eq(buy({ purse: 199 }), null, 'past the purse, nothing');
     eq(buy({ equipment: { ...tank, shield: 'ironbound_shield' } }), null, 'what is worn already is not bought again');
     eq(buy({ shop: shop(['ironbound_shield', 200, 'tool']) }), null, 'only the Shop\'s gear');

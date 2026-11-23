@@ -64,7 +64,7 @@ import { TEMPER_MATERIALS } from './temper.js';
 import { WEAPON_FAMILIES } from './gear-tiers.js';
 import { TOWER_WEAPONS } from './tower-weapons.js';
 import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS, towerLevelAt } from './tower.js';
-import { tierLevel } from './gear-steps.js';
+import { tierLevel } from './danger.js';
 import { ARMOUR_WEIGHT, SKILL_PLUS_FIELDS } from './core-model.js';
 import { CATACOMB_ARMOR_SHIPPED, CATACOMB_TIERS, WING_LEAN } from './catacomb-armor.js';
 
@@ -106,7 +106,7 @@ const key = (id, family, item, name, from, weaponPm, weaponTier, skillPlus, cind
 /* THE KEY FORMULAS (lane/tower-boss-formula, 2026-11-22; 02-architecture.md package 7: the Tower's chest; 12-targets.md section 7: its weapons
    are the top chase). A Tower key's two numbers that follow the climb are GENERATED, never typed:
      from      THE LANDING WHERE ITS WEAPONS ARE AN UPGRADE: the first landing whose floor Level (src/data/tower.js towerLevelAt) reaches the item
-               Level of its weapons' tier (src/data/gear-steps.js tierLevel). A company that holds that floor stands about 25 Levels under it
+               Level of its weapons' tier (src/data/gear-steps.js tierLevel, through danger.js). A company that holds that floor stands about 25 Levels under it
                (tests/tower-climb.mjs TC-CURVE), so a key's weapons are a tier or more over what it wears: "pretty major upgrades" (Tyler
                2026-11-18). One row moves when the floors' Level formula moves
      weaponPm  THE ODDS FALL AS KEYS RISE (Tyler 2026-11-14's reversal, 16 / 8 / 4.5 / 2%): KEY_ODDS.firstPm, halved for each metal above the

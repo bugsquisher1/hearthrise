@@ -7342,7 +7342,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 212,
+     "line": 213,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7411,19 +7411,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 219,
+     "line": 220,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 220,
+     "line": 221,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 221,
+     "line": 222,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7487,7 +7487,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 232,
+     "line": 233,
      "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
      "binding": "HOLDER"
     }
@@ -7691,7 +7691,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 167,
+     "line": 168,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -7765,7 +7765,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 188,
+     "line": 189,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -10528,7 +10528,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 167,
+     "line": 168,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -10603,7 +10603,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 167,
+     "line": 168,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }

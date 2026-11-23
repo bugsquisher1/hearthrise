@@ -24,6 +24,9 @@
 //
 //   node tests/drop-formula.mjs            the guard and every planted mutant (each caught by its case)
 //
+// ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
+// ci-run: node tests/drop-formula.mjs
+//
 // mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';

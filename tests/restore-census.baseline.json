@@ -2226,7 +2226,7 @@
   },
   "hr_tower_floors": {
    "class": "seeded",
-   "replay": 300,
+   "replay": 1730,
    "note": "Generated catalogue (2027-04-24-tower-climb-catalogue.generated.sql, tools/gen-tower.mjs from src/data/tower.js and src/core/hunt/tower.js): each Burning Tower floor's Level and the most one kill on it pays before its mode (the settle's XP bound for a climb). Empty, every climb's settle is refused catalogue_missing (nothing is paid). Rebuilt from repo, never restored."
   },
   "hr_tower_rules": {

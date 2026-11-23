@@ -121,7 +121,8 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 
 //                       one's), so at 1000 the step into a new ground read three tiers of depth lost. C-2 asks one gear tier to move the hold
 //                       1 to 3 depths either way; evidence in tools/balance-program/redesign/econ/.
 export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });
-export { GEAR_STEPS, CARRY, TRAITS } from './gear-steps.js';
+/* gear-steps.js's door (tests/gear-steps.mjs GS-6): the gear table, carry-over, the Traits and a tier's item Level (chests.js reads it) */
+export { GEAR_STEPS, CARRY, TRAITS, tierLevel } from './gear-steps.js';
 
 /* a scale ground's row, with the highest Trait rank its entry Level lets its pool roll (19-power-ledger.md section 2, lane L3; gear-steps.js
    maxRankAt): entryLevel is its hunt's band floor (tests/gear-steps.mjs GS-5 holds the two equal). Muster Barrows (55) and Hask's Ford (45)

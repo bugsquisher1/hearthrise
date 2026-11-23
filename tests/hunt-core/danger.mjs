@@ -28,6 +28,9 @@
 //   power   (lane/r9) THE POWER STEP: the snapshot's gear part (the gear table: item Level x slot weight) rides the unit and the frozen
 //           peer; on the scale a tier of gear moves a blow at a monster by (1 + powerStep)^steps and a blow at the hero the other way,
 //           after the armor cap, to within half a permille; never off the scale, at the ground's gear Level, or between two heroes.
+//   ledger  (lane/ledger-l1-l3, 19-power-ledger.md L1) THE LEDGER'S CLAMP: the slice caps at Levels 10, 30, 60, 100, 120, 200 and 400
+//           (src/core/power-ledger.js on src/data/power-ledger.js), gains-only and signed slices, one key, an ally's party row, and the
+//           engine's power step reading the clamped steps both ways on the scale and never off it.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -46,6 +49,8 @@ const load = async (root) => {
   M.wageData = await imp('src/data/wage.js');
   M.xp = await imp('src/core/xp.js');
   M.huntReport = await imp('src/data/hunt-report.js');
+  M.ledger = await imp('src/core/power-ledger.js');
+  M.ledgerData = await imp('src/data/power-ledger.js');
   return M;
 };
 
@@ -363,6 +368,63 @@ const CASES = {
     if (peer.gearPm !== snap.gearPm) return 'the browser\'s peer fights at a gear part of ' + peer.gearPm + ', the server\'s ' + snap.gearPm;
     return null;
   },
+  /* (lane/ledger-l1-l3, 19-power-ledger.md section 2 and L1) THE LEDGER'S CLAMP: a hero at Levels 10, 30, 60 and 200 reads the caps of
+     section 2 (build 0.7 / 2.1 / 4.2 / 14, consumables 0.3 / 0.9 / 1.8 / 6), and what a hero FINDS never ramps (Tyler 2026-11-22: "I
+     don't want to punish people who are theory crafting or getting lucky with drops"): the gear slice (Traits and the Signature) is 20 and
+     Temper 5 at every Level, a Trait counts whole at Level 10. Rows of a ramping slice are written at full size and counted x ramp (a vow
+     +18 / -8 nets 1.5 at Level 30, 10 at 200); a gains-only slice clamps its gains and never its costs, the build slice its net; one key
+     counts its largest; an ally's party-wide row reaches the hero whole and outside its own cap, counted once; and on the scale the
+     engine's power step reads the clamped steps on a blow at a monster (offense) and at the hero (defense), never off the scale. */
+  ledger(M) {
+    const { sliceCap, clampLedger, ledgerSteps } = M.ledger;
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+    const want = { 10: { build: 0.7, gear: 20, consumable: 0.3, temper: 5 }, 30: { build: 2.1, gear: 20, consumable: 0.9, temper: 5 },
+      60: { build: 4.2, gear: 20, consumable: 1.8, temper: 5 }, 200: { build: 14, gear: 20, consumable: 6, temper: 5 }, 400: { build: 14, gear: 20 } };
+    for (const [L, caps] of Object.entries(want)) {
+      for (const [s, c] of Object.entries(caps)) if (!near(sliceCap(s, Number(L)), c)) return 'Level ' + L + ' reads a ' + s + ' cap of ' + sliceCap(s, Number(L)) + ', not ' + c;
+    }
+    if (M.ledgerData.ramp(100) !== 0.5 || M.ledgerData.ramp(250) !== 1 || M.ledgerData.ramp(0) !== 0) return 'the ramp is not min(1, L / 200)';
+    const g = (steps, key, o = {}) => ({ slice: 'gear', raises: 'offense', steps, key, ...o });
+    const off = (rows, L) => clampLedger(rows, L).offense;
+    if (!near(off([g(10, 'a'), g(10, 'b')], 10), 20)) return 'two Traits at Level 10 read ' + off([g(10, 'a'), g(10, 'b')], 10) + ', not whole (20): found gear was scaled by Level';
+    if (!near(off([g(10, 'a'), g(10, 'b'), g(10, 'c')], 200), 20)) return 'three Traits were not held to the gear cap 20';
+    if (!near(off([g(7, 'a'), g(10, 'a')], 200), 10)) return 'two Traits of one key stacked: ' + off([g(7, 'a'), g(10, 'a')], 200);
+    if (!near(clampLedger([{ slice: 'temper', raises: 'offense', steps: 5 }], 10).offense, 5)) return 'Temper was scaled by Level';
+    /* a trade (Hask's Bargain): its gain whole under the cap, its cost whole */
+    const trade = clampLedger([g(18, 'bargain'), g(-10, 'bargain', { raises: 'defense' })], 60);
+    if (!near(trade.offense, 18) || !near(trade.defense, -10)) return 'a trade at Level 60 reads ' + JSON.stringify(trade) + ', not its gain and its cost whole';
+    if (!near(off([g(15, 'a'), g(15, 'b'), g(-6, 'c')], 200), 14)) return 'a gains-only slice clamped its cost (' + off([g(15, 'a'), g(15, 'b'), g(-6, 'c')], 200) + ', not 20 - 6)';
+    /* the build slice: the net, x ramp; a vow (+18 / -8) lands at 10 at full size and 1.5 at Level 30; two at the cap; a net cost never clamped */
+    const b = (steps, key) => ({ slice: 'build', raises: 'offense', steps, key });
+    if (!near(off([b(18, 'v1'), b(-8, 'v1c')], 200), 10)) return 'a vow at Level 200 nets ' + off([b(18, 'v1'), b(-8, 'v1c')], 200) + ', not 10';
+    if (!near(off([b(18, 'v1'), b(-8, 'v1c')], 30), 1.5)) return 'a vow at Level 30 nets ' + off([b(18, 'v1'), b(-8, 'v1c')], 30) + ', not 1.5 (its numbers x ramp)';
+    if (!near(off([b(18, 'v1'), b(18, 'v2'), b(-8, 'c1'), b(-8, 'c2')], 200), 14)) return 'two vows were not held to the build cap 14';
+    if (!near(off([b(-20, 'c')], 200), -20)) return 'a net build cost was clamped';
+    /* an ally's party row: whole, outside this hero's cap, counted once a key */
+    const lent = g(7, 'boss', { scope: 'party', worn: false });
+    if (!near(off([g(10, 'a'), g(10, 'b'), lent], 200), 27)) return 'an ally\'s party row took room in the hero\'s own cap: ' + off([g(10, 'a'), g(10, 'b'), lent], 200);
+    if (!near(off([g(4, 'boss'), lent], 200), 7) || !near(off([g(10, 'boss'), lent], 200), 10)) return 'a party row and the hero\'s own of one key both counted';
+    if (clampLedger([{ slice: 'luck', raises: 'offense', steps: 9 }, { slice: 'gear', raises: 'speed', steps: 9 }, g(NaN, 'x')], 200).offense !== 0) return 'a row of no slice, channel or number counted';
+    if (ledgerSteps({ heroLv: 200 }, 'offense') !== 0) return 'a unit with no ledger read steps';
+    /* in the engine: the power step reads the clamped steps */
+    const { DANGER, DANGER_GROUNDS } = M.dangerData;
+    const ref = 1000 * DANGER_GROUNDS.muster_barrows.gearLevel;
+    const rng = { chance: () => false, int: (a) => a };
+    const instOn = (risk) => ({ world: { risk, units: [] }, ground: { id: 'muster_barrows' }, monsters: M.MONSTERS, tier: null });
+    const blow = (inst, from, to, n) => M.hunt.damage.hurt(inst, { ...to, alive: true, hp: 1e9, maxHp: 1e9 }, n, from, null, null, rng).dmg;
+    const heroAt = (lv, ledger) => ({ side: 'hero', id: 1, gearPm: ref, heroLv: lv, ledger });
+    const rat = { side: 'mon', id: 2, kind: 'rat' };
+    const N = 100000, r = (s) => Math.pow(1 + DANGER.powerStep, s);
+    const base = blow(instOn('steady'), heroAt(60), rat, N);
+    const rows = [b(14, 'v')];
+    if (blow(instOn(''), heroAt(60, rows), rat, N) !== blow(instOn(''), heroAt(60), rat, N)) return 'the ledger stepped a blow off the scale';
+    const at60 = blow(instOn('steady'), heroAt(60, rows), rat, N) / base, at200 = blow(instOn('steady'), heroAt(200, rows), rat, N) / base;
+    if (Math.abs(at60 - r(4)) > 6e-4 || Math.abs(at200 - r(14)) > 6e-4) return 'the engine stepped a blow x' + at60 + ' at Level 60 and x' + at200 + ' at 200, not x' + r(4) + ' and x' + r(14);
+    const def = [g(10, 'a', { raises: 'defense' })];
+    const hit = blow(instOn('steady'), rat, heroAt(20, def), N) / blow(instOn('steady'), rat, heroAt(20), N);
+    if (Math.abs(hit - 1 / r(10)) > 6e-4) return 'a defense Trait moved the blow at a Level 20 hero x' + hit + ', not x' + 1 / r(10);
+    return null;
+  },
   /* (R2, lane/r2-danger-falls) A FALL BACK NAMES ITS CAUSE, HOWEVER THE SETTLE IS CUT: a two-hero party planned on Bold far deeper than it
      can hold falls back and dies. Every fall and death's `danger` event names the seat of the hero that broke the pull off (the party's
      seats: syncUnit writes them, never persisted) and the kind of the monster whose blow did it, with the margin it read; cut into one
@@ -503,6 +565,16 @@ const MUTANTS = [
   /* lane/r9: the pay floor and the power step */
   { name: 'no pay floor under the reference', case: 'floor', edits: [['src/core/hunt/danger.js', 'Math.max(PAY.floor, 1 / powStep(1 + rate, -g))', '1 / powStep(1 + rate, -g)']] },
   { name: 'the floor lifts the pay over the reference too', case: 'floor', edits: [['src/core/hunt/danger.js', 'return g >= 0 ? powStep(1 + rate, g) : Math.max', 'return g >= 0 ? Math.max(PAY.floor * 2.5, powStep(1 + rate, g)) : Math.max']] },
+  { name: 'the ramp is never taken', case: 'ledger', edits: [['src/data/power-ledger.js', '  return L >= POWER_LEDGER.rampLevel ? 1 : L / POWER_LEDGER.rampLevel;', '  return 1;']] },
+  { name: 'found gear ramps by Level', case: 'ledger', edits: [['src/data/power-ledger.js', '  gear: Object.freeze({ max: null, ramps: false, signed: false }),', '  gear: Object.freeze({ max: null, ramps: true, signed: false }),']] },
+  { name: 'Temper ramps by Level', case: 'ledger', edits: [['src/data/power-ledger.js', '  temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: false, signed: false }),', '  temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: true, signed: false }),']] },
+  { name: 'a ramping row counts at full size', case: 'ledger', edits: [['src/core/power-ledger.js', '      gains *= k; costs *= k; lent *= k;\n', '']] },
+  { name: 'a gains-only slice clamps its costs', case: 'ledger', edits: [['src/core/power-ledger.js', '(signed ? Math.min(cap, gains + costs) : Math.min(cap, gains) + costs)', 'Math.min(cap, gains + costs)']] },
+  { name: 'the build slice clamps gains alone', case: 'ledger', edits: [['src/core/power-ledger.js', '(signed ? Math.min(cap, gains + costs) : Math.min(cap, gains) + costs)', '(Math.min(cap, gains) + costs)']] },
+  { name: 'one key stacks', case: 'ledger', edits: [['src/core/power-ledger.js', 'if (r.steps > 0) kv[0] = Math.max(kv[0], r.steps);', 'if (r.steps > 0) kv[0] += r.steps;']] },
+  { name: 'an ally\'s party row fills the hero\'s cap', case: 'ledger', edits: [['src/core/power-ledger.js', 'if (g > mine) lent += g; else gains += mine;', 'if (g > mine) gains += g; else gains += mine;']] },
+  { name: 'the engine never reads the ledger', case: 'ledger', edits: [['src/core/hunt/danger.js', "  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));\n", '  if (false) steps += 0;\n']] },
+  { name: 'a defense row raises the blow at the hero', case: 'ledger', edits: [['src/core/hunt/danger.js', "steps -= Math.round(ledgerSteps(target, 'defense'));", "steps += Math.round(ledgerSteps(target, 'defense'));"]] },
   { name: 'the power step is never read', case: 'power', edits: [['src/core/hunt/danger.js', '  if (!inst || !dangerOn(inst.world)) return base;\n', '  return base;\n']] },
   { name: 'the power step plays off the scale', case: 'power', edits: [['src/core/hunt/danger.js', '  if (!inst || !dangerOn(inst.world)) return base;\n', '  if (!inst) return base;\n']] },
   { name: 'armor raises the blows at its wearer', case: 'power', edits: [['src/core/hunt/danger.js', 'steps = -gearSteps(target.gearPm, row);', 'steps = gearSteps(target.gearPm, row);']] },

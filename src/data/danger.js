@@ -46,7 +46,7 @@
 // PURE ESM. Data only (the gear a ground drops is src/data/gear-steps.js).
 // ════════════════════════════════════════════════════════════════════════
 
-import { tierLevel, traitPool } from './gear-steps.js';
+import { tierLevel, traitPool, maxRankAt } from './gear-steps.js';
 
 // WAVE 1 (lane/v1-climb, backend, 2026-11-22): THE PAY, THE START AND THE GROUNDS.
 // PAY BY DEPTH FROM THE HOURS TABLE (04 sections 5 and 7). V1 paid a kill its row's Level XP x (1 + 0.7%)^step, so a four holding step
@@ -119,6 +119,8 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 
 export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });
 export { GEAR_STEPS } from './gear-steps.js';
 
+/* a scale ground's row, with the Trait rank its entry Level allows */
+const ground = (row) => Object.freeze({ ...row, maxRank: maxRankAt(row.entryLevel) });
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
      tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
@@ -126,8 +128,10 @@ export const DANGER_GROUNDS = Object.freeze({
      gearLevel / traits: the ONE base item Level the ground drops at every depth and the Traits that roll on it (12-targets 3.3 and 8,
      src/data/gear-steps.js). Muster Barrows (Levels 55-75) drops tier 3, item Level 60. gearLevel is also the gear part of the reference
      company that measured refStep (the MID kit at Level 60, every piece item Level 60), so the power step (POWER) is 0 at it. Drop tables
-     do not read them yet; the engine's power step reads gearLevel. */
-  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),
+     do not read them yet; the engine's power step reads gearLevel.
+     entryLevel / maxRank (19-power-ledger.md section 2, lane L3): the Level the ground opens at (its hunt's band floor, tests/gear-steps.mjs
+     GS-5 holds the two equal) and the highest Trait rank its pool rolls there (gear-steps.js maxRankAt: Muster Barrows, entry 55, rank 1). */
+  muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows'), entryLevel: 55 }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

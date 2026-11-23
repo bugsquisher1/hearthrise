@@ -30,6 +30,7 @@ import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS } from '..
 import { WAGE } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
+import { ledgerSteps } from '../power-ledger.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -162,9 +163,12 @@ export function powerPm(inst, source, target, pm) {
   const base = Number.isFinite(pm) ? pm : 0;
   if (!inst || !dangerOn(inst.world)) return base;
   const row = groundRow(inst.ground);
+  /* the gear base, plus the conditional steps that hold now, each slice held to its cap (src/core/power-ledger.js: 0 until a source writes) */
   let steps = 0;
   if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
   else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
+  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));
+  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense'));
   if (!steps) return base;
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }

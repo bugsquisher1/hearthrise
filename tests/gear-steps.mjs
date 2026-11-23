@@ -7,6 +7,8 @@
 //   GS-1  THE SLOT WEIGHTS: one positive whole permille for every equip slot (src/data/gathering.js EQUIP_SLOTS, ammo excluded) and no
 //         other, summing to exactly 1000, so a whole kit at item Level X is a gear part of X. A two-handed weapon names real slots
 //   GS-2  THE TIER: tierSteps a positive whole number, tierLevel(t) = t x tierSteps, wearAhead whole and inside one tier
+//         GS-3 also: the Trait rank a ground rolls by its entry Level (maxRankAt, 19 L3: ranks open at entry 40, 70, 100) and carry-over
+//         onto the same slot at the same tier or higher; GS-5: every scale ground's entryLevel is its hunt's band floor and maxRank the ramp's
 //   GS-3  THE TRAIT BUDGET (04 section 10's five guards as numbers): three ranks rising, rank 1 to rank 3 under a third of a tier (so a
 //         rank 3 on an old base loses to a rank 1 on the next), conditionalStepsMax at least rank 3 and at most a tier, the average
 //         share and the dominance share inside (0, 1000), three rank depths starting at depth 1 inside the band, pity on the Rare roll,
@@ -35,7 +37,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { GEAR_STEPS, tierLevel } from '../src/data/gear-steps.js';
+import { GEAR_STEPS, tierLevel, maxRankAt } from '../src/data/gear-steps.js';
+import { POWER_LEDGER } from '../src/data/power-ledger.js';
 import { TRAITS, traitPool } from '../src/data/traits.js';
 import { DANGER, DANGER_GROUNDS, DEPTHS } from '../src/data/danger.js';
 import { GROUND_PACKS } from '../src/data/grounds/index.js';
@@ -143,6 +146,17 @@ export function problems(d) {
   const rd = G.rankDepths || [];
   if (rd.length !== ts.length || rd[0] !== 1 || !rd.every((x, i) => Number.isInteger(x) && x <= d.DEPTHS && (i === 0 || x > rd[i - 1]))) out.push('GS-3 rankDepths is not one rising start a rank from depth 1');
   if (!G.pity || G.pity.rare !== true) out.push('GS-3 the Rare roll has no pity');
+  /* THE RANK A GROUND ROLLS (19 section 2, L3): rank r iff traitSteps[r-1] <= conditionalStepsMax x ramp(entry); the doc's readings
+     (rank 1 from entry 40, rank 2 from 70, rank 3 from 100) at the starting values */
+  const R = d.POWER_LEDGER.rampLevel;
+  for (const e of [0, 1, 39, 40, 55, 69, 70, 99, 100, 150, 200, 400]) {
+    const want = ts.filter((s) => s * R <= G.conditionalStepsMax * Math.min(e, R)).length;
+    if (d.maxRankAt(e) !== want) out.push('GS-3 maxRankAt(' + e + ') is ' + d.maxRankAt(e) + ', the ramp gives ' + want);
+  }
+  if ([39, 40, 69, 70, 99, 100].map((e) => d.maxRankAt(e)).join() !== '0,1,1,2,2,3') out.push('GS-3 ranks do not open at entry 40, 70 and 100');
+  /* CARRY-OVER (L3): onto the same slot, a tier the same or higher, as data */
+  const co = G.carryOver || {};
+  if (co.slot !== 'same' || !Number.isInteger(co.tierMin) || co.tierMin < 0) out.push('GS-3 carry-over is not onto the same slot at the same tier or higher');
   /* the piece's rarity criterion (13-market.md 2.3): a Rare one Trait, a Very Rare two, and every Trait on one slot only */
   const tb = G.traitsByRarity || {};
   if (tb.rare !== 1 || tb.very_rare !== 2 || Object.keys(tb).length !== 2) out.push('GS-3 traitsByRarity is not a Rare 1, a Very Rare 2');
@@ -244,6 +258,11 @@ export function problems(d) {
     if (!Number.isInteger(g.gearLevel) || g.gearLevel <= 0 || g.gearLevel % G.tierSteps) out.push('GS-5 ' + gid + ' gearLevel is not a whole tier');
     const pool = Object.keys(d.TRAITS).filter((id) => d.TRAITS[id].source === gid);
     if (JSON.stringify([...(g.traits || [])].sort()) !== JSON.stringify(pool.sort())) out.push('GS-5 ' + gid + ' traits are not its pool');
+    /* its entry Level is its hunt's band floor (one source), and its max rank the ramp's at it (L3) */
+    const pack = d.GROUND_PACKS.find((p) => p.id === gid);
+    const floor = pack && pack.hunt && Array.isArray(pack.hunt.band) ? pack.hunt.band[0] : undefined;
+    if (!Number.isInteger(g.entryLevel) || g.entryLevel !== floor) out.push('GS-5 ' + gid + ' entryLevel ' + g.entryLevel + ' is not its hunt\'s band floor ' + floor);
+    if (g.maxRank !== d.maxRankAt(g.entryLevel)) out.push('GS-5 ' + gid + ' maxRank ' + g.maxRank + ' is not maxRankAt(' + g.entryLevel + ')');
   }
   /* GS-6 */
   const strip = (s) => s.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -261,7 +280,7 @@ export function problems(d) {
   return out;
 }
 
-const real = () => ({ GEAR_STEPS, TRAITS, tierLevel, traitPool, veryRarePairs, DANGER, DANGER_GROUNDS, DEPTHS, GROUND_PACKS,
+const real = () => ({ GEAR_STEPS, TRAITS, tierLevel, maxRankAt, POWER_LEDGER, traitPool, veryRarePairs, DANGER, DANGER_GROUNDS, DEPTHS, GROUND_PACKS,
   EQUIP_SLOTS, METRICS, OPERATORS, EFFECT_IDS, HUNT_ROLES, ITEMS, files: srcFiles(),
   doc: readDoc(readFileSync(join(ROOT, 'docs', 'design', 'redesign', '14-trait-candidates.md'), 'utf8')) });
 /* a copy whose pool readers read the copy's rows */
@@ -280,6 +299,12 @@ const MUTANTS = [
   ['GS-1 two-handed names no slot', (d) => { d.GEAR_STEPS.twoHand = ['weapon', 'offhand']; }],
   ['GS-2 tierLevel off by a tier', (d) => { d.tierLevel = (t) => (t + 1) * d.GEAR_STEPS.tierSteps; }],
   ['GS-2 wearAhead past a tier', (d) => { d.GEAR_STEPS.wearAhead = d.GEAR_STEPS.tierSteps + 1; }],
+  ['GS-3 every rank on every ground', (d) => { d.maxRankAt = () => 3; }],
+  ['GS-3 the rank gate on the floored ramp', (d) => { d.maxRankAt = (e) => d.GEAR_STEPS.traitSteps.filter((s) => s <= d.GEAR_STEPS.conditionalStepsMax * Math.max(0.5, Math.min(1, e / 200))).length; }],
+  ['GS-3 carry-over onto a lower tier', (d) => { d.GEAR_STEPS.carryOver = { slot: 'same', tierMin: -1 }; }],
+  ['GS-3 carry-over across slots', (d) => { d.GEAR_STEPS.carryOver = { slot: 'any', tierMin: 0 }; }],
+  ['GS-5 an entry Level off its band', (d) => { d.DANGER_GROUNDS.muster_barrows.entryLevel = 70; }],
+  ['GS-5 a max rank over its entry', (d) => { d.DANGER_GROUNDS.muster_barrows.maxRank = 3; }],
   ['GS-3 rank spread a third of a tier', (d) => { d.GEAR_STEPS.traitSteps = [2, 5, 9]; }],
   ['GS-3 ranks not rising', (d) => { d.GEAR_STEPS.traitSteps = [4, 4, 6]; }],
   ['GS-3 conditional cap over a tier', (d) => { d.GEAR_STEPS.conditionalStepsMax = d.GEAR_STEPS.tierSteps + 1; }],

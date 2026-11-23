@@ -217,6 +217,10 @@ export const REFUSAL_WORDS = Object.freeze({
   no_swap: 'No swap under way',
   swap_short: 'Swap needs more hunting on their grounds',
   piece_owned: 'Already owned',
+  /* 1068-faction-company.sql: a closed piece, a paid piece pressed as a claim, a free piece pressed as a buy */
+  piece_closed: 'Not on offer',
+  piece_priced: 'Buy this piece',
+  piece_free: 'Free to claim',
   standing_short: 'Not enough standing',
   not_member: 'No side yet',
   /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */

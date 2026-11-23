@@ -262,6 +262,12 @@
         "gzipBytes": 955254,
         "on": "2026-11-23",
         "why": "lane/ci-reds-db-1123: src/data/refusal-words.js gains the 8 Talents refusal lines 1064's verbs answer (talents_closed and hr_talent_spend_problem's codes), about 0.1 KB gzip on the town stage"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955278,
+        "on": "2026-11-23",
+        "why": "lane/ci-reds-db-1123: src/data/refusal-words.js gains the three faction piece refusal lines 1068's verbs answer (piece_closed, piece_priced, piece_free)"
       }
     ]
   }

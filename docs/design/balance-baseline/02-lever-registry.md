@@ -21,7 +21,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Category | Levers | Global | Archetype | Content | Exception | On a knob | Not playable | A test asserts it |
 |---|---|---|---|---|---|---|---|---|
 | Base damage coefficients | 14 | 13 | 1 | 0 | 0 | 4 | 9 | 5 |
-| Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
+| Skill scaling | 10 | 8 | 0 | 2 | 0 | 1 | 4 | 6 |
 | Level scaling | 9 | 7 | 0 | 0 | 2 | 4 | 3 | 6 |
 | Weapon power and attack frequency | 6 | 2 | 3 | 1 | 0 | 1 | 0 | 2 |
 | Spell coefficients, costs, cooldowns and areas | 14 | 6 | 1 | 6 | 1 | 1 | 2 | 4 |
@@ -31,7 +31,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 6 | 5 | 0 | 0 | 1 | 2 | 4 | 2 |
-| Monster HP, damage, armor, resistances and behavior | 37 | 13 | 10 | 5 | 9 | 7 | 19 | 23 |
+| Monster HP, damage, armor, resistances and behavior | 36 | 13 | 10 | 4 | 9 | 7 | 18 | 22 |
 | Spawn pacing and encounter composition | 12 | 7 | 1 | 3 | 1 | 1 | 6 | 5 |
 | Monster XP and loot values | 18 | 9 | 1 | 2 | 6 | 3 | 7 | 10 |
 | Equipment stats and progression | 24 | 11 | 4 | 9 | 0 | 0 | 15 | 18 |
@@ -40,15 +40,15 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 46 | 31 | 2 | 12 | 1 | 0 | 41 | 34 |
-| **All** | **238** | 127 | 32 | 51 | 28 | 31 | 124 | 129 |
+| **All** | **238** | 128 | 32 | 50 | 28 | 31 | 124 | 129 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 760 (in 260 files, 17041 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 761 (in 259 files, 16947 typed numbers) |
 | Claimed by a lever | 334 |
-| Claimed by a not-a-lever reason | 426 |
+| Claimed by a not-a-lever reason | 427 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -167,7 +167,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | ineffective | `econ.training` Training yard pay and fee | One flat rate for every skill and level, so skill 75 to 100 takes 51 to 243 yard hours a level | 44 P-X28 and Levels table, COMPUTED there |
 | ineffective | `econ.bounty` Bounty rewards | Status unknown: no client or engine surface was found reading it | 44 E53 "unknown", HYPOTHESIS |
 | contradictory | `damage.permanent-cap` Cap on permanent perks | A companion's XP bonus is added after this cap, on its own curve | 44 P-X27, HYPOTHESIS |
-| contradictory | `skill.curve` Combat skill curve | The simulator gives heroes past the measured line straight-line skills (198 at Level 400, 438 at 1,000) where this curve allows about 132 and 177 | 44 P-X43, CONFIRMED |
 | contradictory | `skill.weapon-xp` Melee and Ranged XP a point of damage | The three weapon skills advance on three bases (damage, mana, the attacker's Level a blow) | 44 P-X41, CONFIRMED |
 | contradictory | `skill.defense-xp` Defense XP a blow aimed | A tier's dmgPm also raises the Level this reads, so Deadly on Wickstead pays 2.7 times the Defense XP | 44 X-TIER-TRIPLE, CONFIRMED |
 | contradictory | `skill.reference-career` The reference hero monsters are written against | Past Level 1,000 the straight line reads Melee 375 at Level 5,000 where the skill curve allows about 248 | 44 P-X42, CONFIRMED |
@@ -245,7 +244,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | harness-fixed | `econ.start-gold` Starting gold and kit | Economy sources and sinks | a cell sets its own purse |
 | harness-fixed | `party.size` Party size | Party bonuses and interactions | the matrix plays parties 1 to 4 by design |
 | harness-fixed | `regen.inner-flame` Inner Flame regeneration rate | Regeneration | a cell's Inner Flame level is the harness's, not trained in the cell |
-| harness-fixed | `skill.curve` Combat skill curve | Skill scaling | cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1) |
+| harness-fixed | `skill.curve` Combat skills on the Level clock | Skill scaling | cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1) |
 | not-built | `carry.price` Carry-over: parts and a fee a Trait step | Economy sources and sinks | the verb waits for trait_pieces (wave 4) |
 | not-built | `flame.levers` The Inner Flame: burn, room, luck, top rank, curve, fuel worth | Rare-drop probabilities | no roller reads luck until lane/drop-formula (wave 4). The switch inner_flame is off |
 | not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step. No matrix RUN names a scale ground |
@@ -277,7 +276,6 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `amount.pressure` What a monster's row blow lands at a gap of 0 | Monster HP, damage, armor, resistances and behavior | played by the V1 probe (stage3 cells). No matrix run plans a stance |
 | not-in-runs | `amount.roll-spread` The one roll of every amount | Base damage coefficients | played by the V1 probe. No matrix run plans a stance |
 | not-in-runs | `bands.absolute` A ground's band in absolute steps | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs measures the bridge under it |
-| not-in-runs | `bands.skill-line` The reference skill line | Monster HP, damage, armor, resistances and behavior | a measured career, not a dial |
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
@@ -346,6 +344,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.work-premium` Premium's extra town work | Economy sources and sinks | town work is not a hunt cell |
 | outside-hunt | `rare.chest-keys` Chest keys and opens | Rare-drop probabilities | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `rare.chest-luck` Chest weapon chance: warmth and stokes | Rare-drop probabilities | chests are opened in town |
+| outside-hunt | `skill.flame-curve` Inner Flame's curve | Skill scaling | Inner Flame trains at the Hearth, never in a cell |
 | outside-hunt | `skill.gathering-table` Capped skill XP table (Levels 1 to 99) | Skill scaling | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `skill.town-xp-dial` Global town-skill XP dial | Skill scaling | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | player-policy | `damage.stance` Stance damage and damage taken | Base damage coefficients | every cell plays each way's default stance (rule-subjects.js ROLE_DEFAULTS: balanced), so a patch to these rows moves no cell unless the defaults move too |

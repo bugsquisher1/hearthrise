@@ -377,13 +377,13 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 <!-- graph:ghosts -->
 | # | Id | Kind | Pair | Levers on the pair | Finding |
 |---|---|---|---|---|---|
-| 1 | `GF-273c0ab9` | carrier | C-MON-STATS / C-TIER | 37 | The register says C-MON-STATS feeds C-TIER, and C-MON-STATS writes nothing C-TIER reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 2 | `GF-4453592c` | call | C-MON-STATS+E01+E23 / C-TIER | 37 | C-TIER reaches `STAT_FORMULA` in the home of C-MON-STATS / E01 / E23 (src/data/balance-sheet.js:513), and no quantity is declared between them (C-MON-STATS / E01 / E23 writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def, kill.xp, kill.coin) |
+| 1 | `GF-273c0ab9` | carrier | C-MON-STATS / C-TIER | 36 | The register says C-MON-STATS feeds C-TIER, and C-MON-STATS writes nothing C-TIER reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 2 | `GF-4453592c` | call | C-MON-STATS+E01+E23 / C-TIER | 36 | C-TIER reaches `STAT_FORMULA` in the home of C-MON-STATS / E01 / E23 (src/data/balance-sheet.js:513), and no quantity is declared between them (C-MON-STATS / E01 / E23 writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def, kill.xp, kill.coin) |
 | 3 | `GF-423fd87d` | carrier | C-MON-STATS / C-WEAKNESS | 25 | The register says C-MON-STATS feeds C-WEAKNESS, and C-MON-STATS writes nothing C-WEAKNESS reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 4 | `GF-67654eda` | feeds | C-MON-STATS / C-PULL | 22 | C-MON-STATS writes mon.hp and C-PULL reads it. The register holds no edge between them |
-| 5 | `GF-ac847334` | carrier | C-TIER / C-SCALED | 21 | The register says C-TIER feeds C-SCALED, and C-TIER writes nothing C-SCALED reads (C-TIER writes tier.dmg, tier.hp, tier.xp, tier.pull) |
-| 6 | `GF-c8c669bb` | carrier | C-MON-STATS / C-SCALED | 20 | The register says C-MON-STATS feeds C-SCALED, and C-MON-STATS writes nothing C-SCALED reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 7 | `GF-cc24471e` | carrier | C-MON-STATS / C-ELEMENT-MON | 20 | The register says C-MON-STATS feeds C-ELEMENT-MON, and C-MON-STATS writes nothing C-ELEMENT-MON reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 5 | `GF-c8c669bb` | carrier | C-MON-STATS / C-SCALED | 20 | The register says C-MON-STATS feeds C-SCALED, and C-MON-STATS writes nothing C-SCALED reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 6 | `GF-cc24471e` | carrier | C-MON-STATS / C-ELEMENT-MON | 20 | The register says C-MON-STATS feeds C-ELEMENT-MON, and C-MON-STATS writes nothing C-ELEMENT-MON reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 7 | `GF-ac847334` | carrier | C-TIER / C-SCALED | 20 | The register says C-TIER feeds C-SCALED, and C-TIER writes nothing C-SCALED reads (C-TIER writes tier.dmg, tier.hp, tier.xp, tier.pull) |
 | 8 | `GF-6088a728` | carrier | C-MON-STATS / C-RUN-ROOM | 19 | The register says C-MON-STATS feeds C-RUN-ROOM, and C-MON-STATS writes nothing C-RUN-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 9 | `GF-88907c52` | carrier | C-MON-STATS / C-BOSS-ROOM | 19 | The register says C-MON-STATS feeds C-BOSS-ROOM, and C-MON-STATS writes nothing C-BOSS-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 10 | `GF-f278d21d` | writers | C-BOSS-PHASE / C-MON-STATS | 19 | C-BOSS-PHASE and C-MON-STATS both write mon.atk, mon.aim. The register holds no edge between them |

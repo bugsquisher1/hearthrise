@@ -28,7 +28,7 @@ export const QUANTITIES = Object.freeze([
   q('hero.skill', S, 'A combat skill\'s level, worn +skill included', ['accLvl', 'dmgLvl', 'skillPlusOf', 'skillPlusWorn', 'levelOf', 'skillLevel', 'skillLevelFromXp', 'meleePlus', 'rangedPlus', 'magicPlus', 'defensePlus', 'SKILL_PLUS_FIELDS']),
   q('skill.xpRaw', S, 'Skill XP a blow, a cast or a monster\'s swing earns, before the grant', ['hitXpPerDamage', 'magicXpMult', 'magicXpFor', 'defenseXp', 'COMBAT_XP']),
   q('hero.skillXp', S, 'Combat skill XP a hero is credited', ['grantXp', 'trainingTick']),
-  q('skill.cost', S, 'Skill XP one skill level costs (the skill curve)', ['skillXpForLevel', 'SKILL_CURVE', 'SKILL_TOTAL', 'growSkillTo']),
+  q('skill.cost', S, 'Skill XP one skill level costs (the skill curves: the Level clock, Inner Flame\'s)', ['skillXpForLevel', 'SKILL_CURVE', 'FLAME_SKILL_CURVE', 'totalsOf', 'walkOf', 'refHealthOf']),
   q('town.skill', S, 'A gathering or crafting skill\'s level (the capped table)', ['XP_TABLE', 'MAX_LEVEL', 'levelFromXp', 'xpForLevel', 'xpToNext']),
   q('hero.maxHit', S, 'A hero\'s largest blow', ['maxHit', 'playerBaseMaxHit', 'strengthLevelScale', 'strengthBonusScale']),
   q('hero.hitChance', S, 'A hero\'s chance to land a basic blow', ['accuracy', 'toHitRatio', 'heldToHit', 'TO_HIT', 'accBonus']),

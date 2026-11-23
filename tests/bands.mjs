@@ -6,14 +6,16 @@
 //   node tests/bands.mjs --mutate    each rule planted back in a temp copy (tests/hunt-core/fixtures/h1.js plant), each caught by this file
 //                                    or by tests/sustain.mjs (the sustain levers ride here: one proof for the foundations' two tests)
 //
-// mutant-anchors: src/core/bands.js src/data/bands.js src/data/sustain.js src/session/danger-sections.js src/data/danger.js
+// mutant-anchors: src/core/bands.js src/core/xp.js src/data/sustain.js src/session/danger-sections.js src/data/danger.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy (plant), never the tree
 //
 // src/data/bands.js and src/core/bands.js (26-architecture-pass.md rank 2, 04 sections 1 and 4, 27 S-5, K-5, K-6):
-//   BD-1  THE REFERENCE SKILL LINE is the career it was read from: every SKILL_LINE point within 1 of tools/balance-sim/skill-lines.json's
-//         'party' line (hammer for melee, mage for magic, bow for ranged), so a re-measured career turns this red until the line is re-read
-//   BD-2  skillLevelPm reads the line backwards: each point's skill gives its Level exactly, it never falls as the skill rises, a skill past
-//         the last point carries on at the last slope, and an unknown skill is null
+//   BD-1  THE SKILL LINE IS THE LEVEL CLOCK (stage 7, lane/skills-time-parity): at the data's pace (1000) a combat skill reads its own
+//         Level, exactly; at another pace skillLevelPm reads the Level whose hours from Level 1 are pace x the hours to the skill (the hours
+//         formula summed here by hand); and the curve is built on that clock: each combat skill level's XP over the reference rate
+//         (SKILL_CURVE.xpPerHealthHour x the reference health of its Level) is pace x the hours that Level takes, to the whole XP
+//   BD-2  skillLevelPm never falls as the skill rises, reads a skill under 1 as Level 1, and Inner Flame (its own curve), a capped skill
+//         or a value that is not a number read null
 //   BD-3  THE RATING (04 section 1): a hero with every part at its Level rates its Level; a gear part under it counts at weightGearBelowPm,
 //         over it at weightGearPm, a skill Level at weightSkillPm, the weights the engine's own (src/data/danger.js POWER)
 //   BD-4  THE BAND IS A FORMULA of the row: every scale ground's bandAbs is the rating of its three companies (a fresh four one tier back at
@@ -41,14 +43,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
-const { SKILL_LINE, BAND_ABS } = await imp('src/data/bands.js');
+const { BAND_ABS } = await imp('src/data/bands.js');
+const CM = await imp('src/data/core-model.js');
+const XP = await imp('src/core/xp.js');
 const { DANGER_GROUNDS, DEPTHS, POWER } = await imp('src/data/danger.js');
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { HUNT_INDEX } = await imp('src/data/hunts.js');
 const B = await imp('src/core/bands.js');
 const { depthOf: clientDepth } = await imp('src/session/danger-sections.js');
 const { depthOf: edgeDepth } = await imp('src/core/drop-rate.js');
-const SL = await imp('tools/balance-sim/skill-lines.mjs');
 
 /* --mutate: each rule planted back, each caught (exit 1) by the test that owns it */
 if (process.argv.includes('--mutate')) {
@@ -71,8 +74,9 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'one gear weight both sides', [['src/core/bands.js', 'const wG = gGap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;', 'const wG = POWER.weightGearPm;']]],
   ['tests/bands.mjs', 'the skill weight dropped from the rating', [['src/core/bands.js', 'gGap * wG + sGap * POWER.weightSkillPm', 'gGap * wG']]],
   ['tests/bands.mjs', 'the browser cuts its own depth', [['src/session/danger-sections.js', '  const depth = depthAt(hunt, s);', '  const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);\n  const depth = Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1))));']]],
-  ['tests/bands.mjs', 'a skill line point drifts from its career', [['src/data/bands.js', '[60, 52], [75, 61]', '[60, 55], [75, 61]']]],
-  ['tests/bands.mjs', 'the line stops at its last point', [['src/core/bands.js', 'while (k < L.length - 1 && v > L[k][1]) k++;', 'while (k < L.length - 1 && v > L[k][1]) k++;\n  if (v >= L[L.length - 1][1]) return 1000 * L[L.length - 1][0];']]],
+  ['tests/bands.mjs', 'a skill reads half a Level over the clock', [['src/core/bands.js', '  if (pacePm === 1000) return 1000 * s;', '  if (pacePm === 1000) return 1000 * s + 500;']]],
+  ['tests/bands.mjs', 'the pace read upside down', [['src/core/bands.js', '  const want = (pacePm * hoursTo(s)) / 1000;', '  const want = (1000 * hoursTo(s)) / pacePm;']]],
+  ['tests/bands.mjs', 'the curve counts the next Level\'s health', [['src/core/xp.js', 'BigInt(refHealthOf(n))', 'BigInt(refHealthOf(n + 1))']]],
   ['tests/bands.mjs', 'the bridge misses its reference point', [['src/core/bands.js', 'const [[a, A], [b, B]] = s <= p[1][0] ? [p[0], p[1]] : [p[1], p[2]];', 'const [[a, A], [b, B]] = [p[0], p[2]];']]],
   ['tests/sustain.mjs', 'a share starts outside its band', [['src/data/sustain.js', 'freePm: lever(150, [100, 250]),', 'freePm: lever(300, [100, 250]),']]],
   ['tests/sustain.mjs', 'a band too tight for the measured reference', [['src/data/sustain.js', 'healerPm: lever(830, [700, 900]),', 'healerPm: lever(830, [800, 900]),']]],
@@ -96,25 +100,35 @@ if (process.argv.includes('--mutate')) {
 const fails = [];
 const ok = (cond, msg) => { if (!cond) fails.push(msg); };
 
-/* BD-1 */
-const lines = SL.loadLines(join(ROOT, 'tools', 'balance-sim', 'skill-lines.json'));
-for (const [skill, style] of [['melee', 'hammer'], ['magic', 'mage'], ['ranged', 'bow']]) {
-  for (const [L, v] of SKILL_LINE[skill]) {
-    const career = SL.skillsAt(lines, 'party', style, L)[skill];
-    ok(Math.abs(career - v) <= 1, 'BD-1 SKILL_LINE.' + skill + ' at Level ' + L + ' is ' + v + ', the ' + style + ' party career reads ' + career);
+/* BD-1: the line is the clock */
+const S = CM.SKILL_CURVE, H = CM.LEVEL_HOURS, CLOCK = CM.COMBAT_XP_SKILLS;
+const hoursByHand = (L) => (H.ceiling * L * L) / ((L + H.half) * (L + H.early));
+const toByHand = (L) => { let h = 0; for (let l = 1; l < L; l++) h += hoursByHand(l); return h; };
+for (const skill of CLOCK) {
+  for (const v of [1, 2, 10, 30, 60, 100, 175, 400, 1000]) ok(B.skillLevelPm(skill, v) === 1000 * v, 'BD-1 ' + skill + ' ' + v + ' does not read Level ' + v + ' at pace ' + S.pacePm);
+}
+for (const pace of [800, 1250]) {
+  for (const v of [5, 30, 60, 175]) {
+    const want = (pace * toByHand(v)) / 1000;
+    let L = 1;
+    while (toByHand(L + 1) <= want) L++;
+    const byHand = 1000 * L + Math.round((1000 * (want - toByHand(L))) / hoursByHand(L));
+    ok(Math.abs(B.skillLevelPm('melee', v, pace) - byHand) <= 1, 'BD-1 at pace ' + pace + ' skill ' + v + ' reads ' + B.skillLevelPm('melee', v, pace) + ', the clock by hand ' + byHand);
   }
+}
+for (const n of [1, 2, 5, 10, 30, 60, 100, 175, 400, 1000, 5000]) {
+  const step = XP.skillXpForLevel('melee', n + 1) - XP.skillXpForLevel('melee', n), rate = S.xpPerHealthHour * CM.refHealthOf(n);
+  ok(Math.abs(step - (S.pacePm / 1000) * hoursByHand(n) * rate) < 1, 'BD-1 skill level ' + n + ' costs ' + step + ' XP, the clock ' + (S.pacePm / 1000) * hoursByHand(n) * rate);
 }
 
 /* BD-2 */
-for (const skill of Object.keys(SKILL_LINE)) {
-  const pts = SKILL_LINE[skill];
-  for (const [L, v] of pts) ok(B.skillLevelPm(skill, v) === 1000 * L, 'BD-2 ' + skill + ' ' + v + ' reads Level ' + B.skillLevelPm(skill, v) / 1000 + ', its point says ' + L);
+for (const skill of CLOCK) {
   let last = -Infinity;
-  for (let v = 0; v <= pts[pts.length - 1][1] + 20; v++) { const x = B.skillLevelPm(skill, v); ok(x >= last, 'BD-2 ' + skill + ' falls at ' + v); last = x; }
-  const [a, b] = pts.slice(-2), past = b[1] + 4;
-  ok(B.skillLevelPm(skill, past) === 1000 * b[0] + Math.floor((2 * 1000 * 4 * (b[0] - a[0]) + (b[1] - a[1])) / (2 * (b[1] - a[1]))), 'BD-2 ' + skill + ' past the last point is not its last slope');
+  for (let v = -3; v <= 320; v++) { const x = B.skillLevelPm(skill, v); ok(x >= last, 'BD-2 ' + skill + ' falls at ' + v); last = x; }
+  ok(B.skillLevelPm(skill, 0) === 1000 && B.skillLevelPm(skill, -7) === 1000, 'BD-2 ' + skill + ' under 1 is not Level 1');
 }
-ok(B.skillLevelPm('defense', 50) === null && B.skillLevelPm('melee', 'x') === null, 'BD-2 an unknown skill or value reads a Level');
+ok(B.skillLevelPm(CM.FLAME_SKILL_CURVE.skill, 50) === null && B.skillLevelPm('mining', 50) === null && B.skillLevelPm('melee', 'x') === null,
+  'BD-2 Inner Flame, a capped skill or a value that is not a number reads a Level');
 
 /* BD-3 */
 ok(B.ratingPm({ levelPm: 60000 }) === 60000, 'BD-3 every part at Level 60 does not rate 60');
@@ -203,4 +217,4 @@ for (const [id, pin] of Object.entries(PINS)) {
 }
 
 if (fails.length) { console.error('✗ bands: ' + fails.length + ' failing\n  ' + fails.slice(0, 30).join('\n  ')); process.exit(1); }
-console.log('✓ bands: BD-1..9 (' + Object.keys(DANGER_GROUNDS).length + ' scale grounds, the skill line on its career, one depth for the browser and the edge, the reading\'s middle a measured hold, an ordinary climb reads right)');
+console.log('✓ bands: BD-1..9 (' + Object.keys(DANGER_GROUNDS).length + ' scale grounds, the skill line on the Level clock, one depth for the browser and the edge, the reading\'s middle a measured hold, an ordinary climb reads right)');

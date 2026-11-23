@@ -112,7 +112,7 @@ export const FORMULA_IO = Object.freeze({
   // ── progression ──
   'P01': f(['src/core/xp.js#levelCurveRowsOf,LEVEL_ROWS,levelCurveRows,totalIn,xpForLevelOn,charXpForLevel,charLevelFromXp'], [['@+hero.levelXp>hero.level', 'the total arrives as the argument'], ['!pace.contract', 'the curve was fit to the pace contract by hand']], ['level.cost', ['hero.level', 'charLevelFromXp returns the Level a total makes']]),
   'P02': f(['src/data/balance-sheet.js#contractXpPerH'], [['!levelXpPerH', 'the contract was written from measured Level XP an hour']], ['pace.contract']),
-  'P03': f(['src/core/xp.js#SKILL_TOTAL,powNum,powDen,growSkillTo,isCapped,skillCapOf,skillXpForLevel,skillLevelFromXp'], ['@+hero.skillXp>hero.skill'], ['skill.cost', 'hero.skill'],
+  'P03': f(['src/core/xp.js#walkOf,TIME_NUM,growTime,powNum,powDen,growFlame,totalsOf,isCapped,skillCapOf,skillXpForLevel,skillLevelFromXp'], ['@+hero.skillXp>hero.skill'], ['skill.cost', 'hero.skill'],
     { as: { xp: 'hero.skillXp' }, skip: { MAX_LEVEL: 'a capped skill is handed to P04\'s table', xpForLevel: 'the same', levelFromXp: 'the same' } }),
   'P04': f(['src/core/xp.js#XP_TABLE,MAX_LEVEL,levelFromXp,xpForLevel,xpToNext,xpPct'], [], ['town.skill'], { as: { xp: 'town.skill' } }),
   'P05': f(['src/core/progression.js#grantXp'], [['+skill.xpRaw', 'the amount arrives as the argument'], '+perk.xp'], ['hero.skillXp'], { as: { skillLevelFromXp: 'hero.skillXp' } }),

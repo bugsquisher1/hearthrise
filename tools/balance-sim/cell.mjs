@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini, underInto } from './stats.mjs';
 import { playedBar, runeTierAt, shoppingTier, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
-import { loadLines, skillsAt } from './skill-lines.mjs';
+import { loadLines, skillsAt, restateSkills } from './skill-lines.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 /* the sustain reads of a settled window, shared with the browser twin (tools/balance-lab/lab-core.mjs) */
 import { sustainTotals, noteSustainEvent, readSustainWindow, sustainSummary } from './sustain-reads.mjs';
@@ -173,7 +173,9 @@ export async function loadCellRunner(root) {
     if (seats) {
       cell = { ...cell, party, startBySeat: seats.map((s) => {
         const L = XP.charLevelFromXp(s.levelXp);
-        return { levelXp: s.levelXp, skills: s.skills || lineXp(s.style || s.role, L) };
+        /* a seat recorded on the old curve (s.skillCurve 'geometric', calibrate.mjs) plays the skill levels it read then: its XP restated on
+           this tree's curve (skill-lines.mjs restateSkills; stage 7 moved the combat skills onto the Level clock) */
+        return { levelXp: s.levelXp, skills: s.skills ? (s.skillCurve === 'geometric' ? restateSkills(s.skills, 'geometric', XP) : s.skills) : lineXp(s.style || s.role, L) };
       }) };
     } else if (line !== 'level' && !cell.startBySeat && !cell.skillsBySeat) {
       const lv0 = (i) => (Array.isArray(cell.level) ? cell.level[i] : cell.level);

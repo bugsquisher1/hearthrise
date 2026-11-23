@@ -499,14 +499,6 @@ export const WORLD = [
     tests: [['tests/bands.mjs', 'BD-4 the band is the formula of the row, BD-6 one depth, BD-7 the handover']], testReads: ['BAND_ABS'],
     perturb: NP('not-in-runs', 'a cut, not a play: tools/new-ground.mjs measures the bridge under it'),
     ev: 'STATED (12-targets 3.1 and 3.2; 27 K-6); the bridge MEASURED by lane/band-floor (tools/balance-program/redesign/grounds)' }),
-  L('bands.skill-line', 'monster-stats', 'content', 'The reference skill line', {
-    at: [at('src/data/bands.js', 'export const SKILL_LINE = Object.freeze({')],
-    def: 'the reference company\'s main skill a Level, by style (melee, magic, ranged), the career a party specialist trains: a skill reads as the Level on this line, so a hero on it has a skill part of 0',
-    range: 'a measured career, never tuned: tests/bands.mjs BD-1 holds it within 1 of tools/balance-sim/skill-lines.json. Stage 7 (time parity) makes it y = x',
-    touches: 'the skill part of the power step and the band\'s ratings', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
-    tests: [['tests/bands.mjs', 'BD-1 the line is the career, BD-2 read backwards']], testReads: ['SKILL_LINE'],
-    perturb: NP('not-in-runs', 'a measured career, not a dial'),
-    ev: 'MEASURED (tools/balance-sim/skill-lines.json party lines)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],

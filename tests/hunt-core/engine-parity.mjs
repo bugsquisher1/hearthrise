@@ -147,7 +147,15 @@ const SEED = '-4611686018427387904';
    diffed against the pin before this lane; muster-steps-4 172 kills.
    RE-PINNED 2026-11-23 (lane/stage3-pipeline merged with set/v0.2.144 at 319590c72), muster-steps-4 ONLY: the four tier scenarios hold the
    set's own pin to the byte (world, timeline, tally, kills 200 / 492 / 140 / 99), diffed against it; the scale scenario moves at every settle
-   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172). */
+   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172).
+   RE-PINNED 2026-11-23 (lane/skills-time-parity, 27 P-3 stage 7), THE SKILL CURVE AND ITS LINE: the four tier scenarios' run totals (tally) moved,
+   world and timeline held at every settle, kills as pinned (200 / 492 / 140 / 99): the combat skills now cost a set ratio of the Level clock
+   (src/core/xp.js over src/data/core-model.js SKILL_CURVE), so a member's skill XP crosses other levels than on the old geometric curve, and the
+   run totals carry the levels it reached. muster-steps-4 (the scale) moved at every settle, kills held (170): its heroes hold every skill at
+   their Level, which the old measured line read as 7 to 13 Levels over it (2 to 3 power steps on every rating); on the clock a skill reads as
+   its own Level (src/core/bands.js skillLevelPm), so their skill part is 0, as the reference company's is. Proof: the base's src/core/xp.js,
+   src/data/core-model.js, src/core/hunt/amount.js, src/core/bands.js and src/data/bands.js laid back over a copy of this tree: every pin holds
+   (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

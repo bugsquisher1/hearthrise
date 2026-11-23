@@ -133,7 +133,7 @@ export function formulaPages(heroLevel = null) {
       terms: { scale: B.monsterAttackDamageScale, byTier: B.monsterDamageScaleByTier },
       example: { inputs: { atk: mon.atk || 1, tier: mon.tier || 1, scale, monster: mon.name }, result: monsterMaxHit(mon) } },
     { id: 'level_curve', rows: levelXpRows(heroLevel) },
-    /* the combat skills share one curve (src/core/xp.js), read through the first of them */
+    /* the fighting skills share one curve, the Level clock (src/core/xp.js), read through the first of them (Inner Flame keeps its own) */
     { id: 'skill_xp', rows: COMBAT_SKILLS.length ? xpRows(SKILL_TABLE, (l) => skillXpForLevel(COMBAT_SKILLS[0], l)) : [],
       cap: Object.keys(SKILLS_DEF).some(isCapped) ? MAX_LEVEL : null },
     { id: 'death',

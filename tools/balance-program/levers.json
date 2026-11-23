@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "2010748fad059f39",
+ "authored": "40175becbc4ca321",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -66,7 +66,7 @@
   "levers": 238,
   "byCategory": {
    "base-damage": 14,
-   "skill-scaling": 9,
+   "skill-scaling": 10,
    "level-scaling": 9,
    "weapon-power": 6,
    "spells": 14,
@@ -76,7 +76,7 @@
    "crit": 3,
    "leech": 2,
    "regen": 6,
-   "monster-stats": 37,
+   "monster-stats": 36,
    "spawn": 12,
    "monster-rewards": 18,
    "rare-drops": 8,
@@ -87,9 +87,9 @@
    "party": 6
   },
   "byClass": {
-   "global": 127,
+   "global": 128,
    "archetype": 32,
-   "content": 51,
+   "content": 50,
    "exception-intentional": 17,
    "exception-accidental": 11
   },
@@ -98,9 +98,9 @@
    "not-playable:dead": 8,
    "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 35,
+   "not-playable:outside-hunt": 36,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 41,
+   "not-playable:not-in-runs": 40,
    "variant": 5,
    "not-playable:not-built": 26,
    "not-playable:sql-only": 6
@@ -113,15 +113,15 @@
   "flags": {
    "redundant": 41,
    "ineffective": 34,
-   "contradictory": 38
+   "contradictory": 37
   }
  },
  "census": {
-  "bindings": 760,
-  "typed": 17041,
-  "files": 260,
+  "bindings": 761,
+  "typed": 16947,
+  "files": 259,
   "lever": 334,
-  "notLever": 426,
+  "notLever": 427,
   "unclaimed": 0
  },
  "problems": [],
@@ -622,7 +622,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 284,
+     "line": 311,
      "text": "export const MAX_BANE_MULT = 1.40;",
      "binding": "MAX_BANE_MULT"
     }
@@ -837,18 +837,18 @@
   {
    "id": "skill.curve",
    "category": "skill-scaling",
-   "name": "Combat skill curve",
+   "name": "Combat skills on the Level clock",
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 158,
-     "text": "export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });",
+     "line": 172,
+     "text": "export const SKILL_CURVE = Object.freeze({ pacePm: 1000, xpPerHealthHour: 120, top: 10000 });",
      "binding": "SKILL_CURVE"
     }
    ],
-   "definition": "XP from skill s to s+1 = floor(15 x s^2 x 1.04^(s-1)), no cap. Melee, Ranged, Magic, Defense, Inner Flame",
-   "range": "base and growth above 0. The walk stops at skill 476 (44 P-X45). An SQL twin (hr_skill_level) must agree",
-   "touches": "how fast skills arrive, so to-hit, the blow, Defense and the yard's worth",
+   "definition": "stage 7 (27 P-3, 04 section 4): XP from skill n to n+1 = floor(pacePm / 1000 x levelHoursOf(n) x xpPerHealthHour x refHealthOf(n)), so a skill level costs skillPace x the hours that Level takes at the reference skill XP rate; Melee, Ranged, Magic, Defense; the rating reads a skill as the Level the clock gives it (src/core/bands.js skillLevelPm: the skill itself at pace 1000)",
+   "range": "pacePm (skillPace) 800 to 1250; xpPerHealthHour MEASURED 100 to 140 (tools/balance-program/redesign/skills/parity.mjs, the damage dealers of the Steady four on every scale ground at its reference Level read 99 to 146); top 10,000 (52 years of 10 h days). The SQL twin is generated (tools/gen-skill-curve.mjs, hr_skill_curve) and pinned row for row",
+   "touches": "how fast combat skills arrive (skill 10 / 30 / 60 / 100 at 4.2 / 54 / 215 / 543 hunted hours at the reference rate), so to-hit, the old chain's blow, the rating's skill part, Defense and the yard's worth",
    "outcomes": [],
    "formulas": [
     "P03"
@@ -862,6 +862,13 @@
    "tests": {
     "asserts": [
      {
+      "file": "tests/bands.mjs",
+      "what": "BD-1 the line is the Level clock and the curve is built on it",
+      "reads": [
+       "SKILL_CURVE"
+      ]
+     },
+     {
       "file": "tests/wiki-window.mjs",
       "what": "the wiki's curve text",
       "reads": [
@@ -870,9 +877,10 @@
      }
     ],
     "mentions": [
+     "tests/bands.mjs",
      "tests/wiki-window.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -882,14 +890,58 @@
     "planned": "skillCurve",
     "existingPatches": []
    },
-   "flags": [
+   "flags": [],
+   "evidence": "MEASURED (tools/balance-program/redesign/skills/parity.mjs, 2026-11-23)"
+  },
+  {
+   "id": "skill.flame-curve",
+   "category": "skill-scaling",
+   "name": "Inner Flame's curve",
+   "sites": [
     {
-     "kind": "contradictory",
-     "why": "The simulator gives heroes past the measured line straight-line skills (198 at Level 400, 438 at 1,000) where this curve allows about 132 and 177",
-     "ev": "44 P-X43, CONFIRMED"
+     "file": "src/data/core-model.js",
+     "line": 185,
+     "text": "export const FLAME_SKILL_CURVE = Object.freeze({ skill: 'inner_flame', base: 15, growthPermille: 40 });",
+     "binding": "FLAME_SKILL_CURVE"
     }
    ],
-   "evidence": "CONFIRMED (read)"
+   "definition": "XP from Inner Flame s to s+1 = floor(15 x s^2 x 1.04^(s-1)), the core rebuild's geometric curve, which every combat skill walked until stage 7; the Hearth fuel's XP is sized on it (FLAME_FUEL)",
+   "range": "base and growth above 0. The walk stops at 476 (2^53); the SQL twin hr_flame_skill_curve (tools/gen-skill-curve.mjs)",
+   "touches": "how fast Inner Flame rises at the Hearth, so the regeneration rate (vitals.js)",
+   "outcomes": [],
+   "formulas": [
+    "P03"
+   ],
+   "reach": {
+    "feeds": 9,
+    "closure": 79
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/bands.mjs",
+      "what": "BD-2 Inner Flame is not on the Level clock",
+      "reads": [
+       "FLAME_SKILL_CURVE"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bands.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "Inner Flame trains at the Hearth, never in a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read); retires with the old skill's XP (21-flame-temper-imbue-loot.md build step 5)"
   },
   {
    "id": "skill.weapon-xp",
@@ -898,7 +950,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 215,
+     "line": 242,
      "text": "hitXpPerDamage: 1.5,",
      "binding": "COMBAT_XP"
     }
@@ -960,7 +1012,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 216,
+     "line": 243,
      "text": "defenseXpPerLevelPermille: 200,",
      "binding": "COMBAT_XP"
     }
@@ -1592,10 +1644,12 @@
      }
     ],
     "mentions": [
+     "tests/bands.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs"
+     "tests/level-curve.mjs",
+     "tests/wiki-window.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -1614,13 +1668,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 164,
+     "line": 191,
      "text": "hpBase: 150,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 165,
+     "line": 192,
      "text": "hpPerLevel: 10,",
      "binding": "VITALS"
     }
@@ -1671,7 +1725,7 @@
      "tests/hunt-summary.mjs",
      "tests/vitals-armed-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -1696,13 +1750,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 166,
+     "line": 193,
      "text": "manaBase: 100,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 167,
+     "line": 194,
      "text": "manaPerLevel: 10,   // Tyler 2026-10-19: \"10 and 10\"",
      "binding": "VITALS"
     }
@@ -1737,7 +1791,7 @@
      "tests/hunt-summary.mjs",
      "tests/vitals-armed-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3675,19 +3729,19 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 197,
+     "line": 224,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 198,
+     "line": 225,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 199,
+     "line": 226,
      "text": "ward: Object.freeze({ perPointPm: 1500 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3751,13 +3805,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 197,
+     "line": 224,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 198,
+     "line": 225,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3821,7 +3875,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 200,
+     "line": 227,
      "text": "capPm: 600,",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3901,13 +3955,13 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 168,
+     "line": 195,
      "text": "heavyHpPermille: 280,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 196,
      "text": "lightManaPermille: 350,",
      "binding": "VITALS"
     }
@@ -3950,7 +4004,7 @@
      "tests/hunt-summary.mjs",
      "tests/vitals-armed-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4667,7 +4721,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 172,
+     "line": 199,
      "text": "inFightRegenPermillePerS: 3,",
      "binding": "VITALS"
     },
@@ -4716,7 +4770,7 @@
      "tests/hunt-core/leash.mjs",
      "tests/hunt-core/monster-formula.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4734,7 +4788,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 224,
+     "line": 251,
      "text": "export const FLAME_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });",
      "binding": "FLAME_REGEN"
     }
@@ -6051,7 +6105,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 228,
+     "line": 255,
      "text": "export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });",
      "binding": "MONSTER_LEVEL_BY_TIER"
     }
@@ -9291,77 +9345,6 @@
    },
    "flags": [],
    "evidence": "STATED (12-targets 3.1 and 3.2; 27 K-6); the bridge MEASURED by lane/band-floor (tools/balance-program/redesign/grounds)"
-  },
-  {
-   "id": "bands.skill-line",
-   "category": "monster-stats",
-   "name": "The reference skill line",
-   "sites": [
-    {
-     "file": "src/data/bands.js",
-     "line": 50,
-     "text": "export const SKILL_LINE = Object.freeze({",
-     "binding": "SKILL_LINE"
-    }
-   ],
-   "definition": "the reference company's main skill a Level, by style (melee, magic, ranged), the career a party specialist trains: a skill reads as the Level on this line, so a hero on it has a skill part of 0",
-   "range": "a measured career, never tuned: tests/bands.mjs BD-1 holds it within 1 of tools/balance-sim/skill-lines.json. Stage 7 (time parity) makes it y = x",
-   "touches": "the skill part of the power step and the band's ratings",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract",
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-TIER"
-   ],
-   "reach": {
-    "feeds": 8,
-    "closure": 79
-   },
-   "class": "content",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/bands.mjs",
-      "what": "BD-1 the line is the career, BD-2 read backwards",
-      "reads": [
-       "SKILL_LINE"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/bands.mjs",
-     "tests/hunt-core/danger.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "a measured career, not a dial",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "MEASURED (tools/balance-sim/skill-lines.json party lines)"
   },
   {
    "id": "reward.xp-line",
@@ -13025,7 +13008,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 268,
+     "line": 295,
      "text": "export const FOOD_HEAL_SCALE = 12;",
      "binding": "FOOD_HEAL_SCALE"
     }
@@ -16359,7 +16342,7 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 258,
+     "line": 285,
      "text": "export const FLAME_FUEL = Object.freeze({",
      "binding": "FLAME_FUEL"
     }
@@ -17204,6 +17187,10 @@
   {
    "at": "src/core/xp.js#charLevelFromXp",
    "why": "a search bound (1e7)"
+  },
+  {
+   "at": "src/core/xp.js#skillLevelFromXp",
+   "why": "a search span (64 levels, doubled until it passes the XP): no game number"
   },
   {
    "at": "src/core/xp.js#MAX_LEVEL",
@@ -18534,6 +18521,15 @@
   "src/data/core-model.js#SKILL_CURVE": {
    "pin": "count",
    "keys": [
+    "top",
+    "xpPerHealthHour"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
+  "src/data/core-model.js#FLAME_SKILL_CURVE": {
+   "pin": "count",
+   "keys": [
     "base",
     "growthPermille"
    ],
@@ -19298,16 +19294,6 @@
     "takePm"
    ],
    "typed": 13,
-   "bindings": 1
-  },
-  "src/data/bands.js#SKILL_LINE": {
-   "pin": "count",
-   "keys": [
-    "magic",
-    "melee",
-    "ranged"
-   ],
-   "typed": 97,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {

@@ -376,17 +376,9 @@ const startSkillXp = Object.keys(START_SKILL_XP).sort().map((id) => {
   if ('hearthTokens' in START_CURRENCY) die('START_CURRENCY.hearthTokens is back: the Hearth Token bond was cut (plan L10)');
 }
 
-/* THE UNCAPPED SKILL CURVE (Melee, Ranged, Magic, Defense, Prayer): total XP to reach each level,
-   from src/core/xp.js skillXpForLevel (the one walk), until the next level would pass 2^53. The server's
-   hr_skill_level / hr_skill_xp_for_level read these rows, as hr_level_from_xp reads hr_xp_table. */
-const { skillXpForLevel } = await imp('src/core/xp.js');
-const skillCurve = [];
-for (let lv = 1; ; lv++) {
-  const xp = skillXpForLevel('melee', lv);
-  if (lv > 1 && xp <= skillCurve[skillCurve.length - 1].xp) break;
-  skillCurve.push({ level: lv, xp });
-}
-if (skillCurve.length < 200) die(`the skill curve stops at level ${skillCurve.length}: too short for an uncapped skill`);
+/* THE UNCAPPED SKILL CURVES are not this file's (lane/skills-time-parity, 2026-11-23): tools/gen-skill-curve.mjs writes hr_skill_curve's
+   rows (the combat skills on the Level clock) and hr_flame_skill_curve's (Inner Flame), with the two functions that read them, so one
+   generator owns every skill curve. This file keeps hr_skill_curve's table and grants (below) and writes none of its rows. */
 
 /* THE FEAST HEAL VALUES (public.hr_feast_foods, 2026-08-27-clan-economy-sinks.sql): every cooked or
    prepared food's heals (foodClass healing|buff, heals > 0 — tests/clan-feast-catalogue-drift.mjs's own
@@ -642,7 +634,7 @@ create table if not exists public.hr_start_kit (
   farm_plots    int    not null check (farm_plots between 0 and 64)
 );
 
--- ── THE UNCAPPED SKILL CURVE (CORE_MODEL.md §2) ─────────────────────────
+-- ── THE UNCAPPED SKILL CURVE (CORE_MODEL.md §2): its rows are tools/gen-skill-curve.mjs's (1069) ─────────
 create table if not exists public.hr_skill_curve (
   level int    primary key check (level >= 1),
   xp    bigint not null check (xp >= 0)
@@ -692,7 +684,6 @@ delete from public.hr_start_skill_xp;
 delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
 delete from public.hr_runes;
-delete from public.hr_skill_curve;
 -- THE FEAST TABLE TOO (lane/c-cookbook-cut-guards, 2026-11-18): it was upserted only, so the cookbook cut's three feasts
 -- stayed priced for the clan feast after hr_items lost them (tests/clan-feast-catalogue-drift.mjs). Replaced like the rest.
 delete from public.hr_feast_foods;
@@ -729,9 +720,6 @@ insert into public.hr_start_kit (only_row, gold, gems, hp, bank_cap, farm_plots)
 
 ${startSkillXp.length ? `insert into public.hr_start_skill_xp (skill_id, xp) values
 ${valuesBlock(startSkillXp, (r) => `  (${q(r.skill_id)},${n(r.xp)})`)};` : '-- (every skill starts at 0 XP: hr_start_skill_xp is empty)'}
-
-insert into public.hr_skill_curve (level, xp) values
-${valuesBlock(skillCurve, (r) => `  (${n(r.level)},${n(r.xp)})`)};
 
 insert into public.hr_start_inventory (item_id, qty) values
 ${valuesBlock(startInventory, (r) => `  (${q(r.item_id)},${n(r.qty)})`)};
@@ -928,12 +916,6 @@ begin
   -- stored (CORE_MODEL.md §3), so there is no second number to agree with.
   if (select hp from public.hr_start_kit) <> ${n(startKit.hp)} then
     raise exception 'hr_start_kit.hp is %, the generator emitted ${n(startKit.hp)}', (select hp from public.hr_start_kit);
-  end if;
-  -- THE UNCAPPED SKILL CURVE (src/core/xp.js, CORE_MODEL.md §2), whole and strictly rising.
-  if (select count(*) from public.hr_skill_curve) <> ${skillCurve.length}
-     or exists (select 1 from public.hr_skill_curve a join public.hr_skill_curve b on b.level = a.level + 1 where b.xp <= a.xp)
-     or (select xp from public.hr_skill_curve where level = 1) <> 0 then
-    raise exception 'hr_skill_curve is not the ${skillCurve.length}-row rising curve src/core/xp.js walks';
   end if;
 
   -- The Hearth Token bond was cut whole (2026-11-20, plan L10): the kit carries no column for it.

@@ -34,7 +34,7 @@
 
 import { DANGER, DANGER_GROUNDS, GEAR_STEPS } from '../../data/danger.js';
 import { AMOUNT } from '../../data/amount.js';
-import { VITALS, ARMOUR_WEIGHT } from '../../data/core-model.js';
+import { VITALS, ARMOUR_WEIGHT, refHealthOf } from '../../data/core-model.js';
 import { powSquare } from '../../data/wage.js';
 import { ratingPm, bandAbs } from '../bands.js';
 import { ledgerSteps } from '../power-ledger.js';
@@ -49,8 +49,9 @@ const lvOf = (u) => (u && Number.isInteger(u.heroLv) && u.heroLv >= 1 ? u.heroLv
 const S = 1 + DANGER.powerStep;
 const CAP = GEAR_STEPS.conditionalStepsMax;
 
-/** The display curve of health at Level `level` (VITALS, no armor bonus): what a share of health is read against. */
-export const refHealth = (level) => VITALS.hpBase + VITALS.hpPerLevel * (Math.max(1, Math.floor(Number(level) || 1)) - 1);
+/** The display curve of health at Level `level` (VITALS, no armor bonus): what a share of health is read against. Its one home is the data
+    (core-model.js refHealthOf), which the skill clock counts in too. */
+export const refHealth = refHealthOf;
 /** The display curve of mana at Level `level`, the same. */
 export const refMana = (level) => VITALS.manaBase + VITALS.manaPerLevel * (Math.max(1, Math.floor(Number(level) || 1)) - 1);
 

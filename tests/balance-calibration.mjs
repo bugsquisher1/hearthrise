@@ -43,7 +43,8 @@
 import { readFileSync } from 'node:fs';
 import { run, FIXTURE } from '../tools/balance-sim/calibrate.mjs';
 import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
-import { loadLines, skillsAt } from '../tools/balance-sim/skill-lines.mjs';
+import { loadLines, skillsAt, AS_MEASURED } from '../tools/balance-sim/skill-lines.mjs';
+import { FLAME_SKILL_CURVE } from '../src/data/core-model.js';
 import { charLevelFromXp, skillLevelFromXp } from '../src/core/xp.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
@@ -186,8 +187,10 @@ export function lineFails(fx, snap) {
     const L = charLevelFromXp(x.levelXp), k = MAIN[x.role], key = x.role + ':' + L + ':' + (s.size > 1 ? 'party' : 'alone');
     if (!k || seen.has(key) || (s.size === 1 && L > topOf(s.ground) + 10)) continue;
     seen.add(key);
-    const rec = skillLevelFromXp(k, (x.skills || {})[k] || 0), line = s.size > 1 ? 'party' : 'alone';
-    const got = snap === 'level' ? L : skillsAt(snap, line, STYLE[x.role], L)[k];
+    /* both as they were made: the recorded hero's level on the curve it earned its XP on, the career's as measured (stage 7 moved the combat
+       skills onto the Level clock; a recording and the snapshot both predate it, so both read on Inner Flame's curve, the one they walked) */
+    const rec = skillLevelFromXp(fx.skillCurve === 'time' ? k : FLAME_SKILL_CURVE.skill, (x.skills || {})[k] || 0), line = s.size > 1 ? 'party' : 'alone';
+    const got = snap === 'level' ? L : skillsAt(snap, line, STYLE[x.role], L, AS_MEASURED)[k];
     rows.push(`  ${(x.role + ' ' + line + ' L' + L).padEnd(24)} ${k} record ${rec}, line ${got}`);
     if (Math.abs(got - rec) > LINE_PTS) fails.push(`a ${x.role} at Level ${L} (${line}): its ${k} line reads ${got}, the recorded hero ${rec}, past ${LINE_PTS} levels`);
   }

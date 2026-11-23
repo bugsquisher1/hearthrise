@@ -112,15 +112,22 @@ export const COMBAT = [
     ev: 'CONFIRMED (read)' }),
 
   /* ── 2. SKILL SCALING ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
-  L('skill.curve', 'skill-scaling', 'global', 'Combat skill curve', {
-    at: [at('src/data/core-model.js', 'export const SKILL_CURVE = Object.freeze({ base: 15')],
-    def: 'XP from skill s to s+1 = floor(15 x s^2 x 1.04^(s-1)), no cap. Melee, Ranged, Magic, Defense, Inner Flame',
-    range: 'base and growth above 0. The walk stops at skill 476 (44 P-X45). An SQL twin (hr_skill_level) must agree',
-    touches: 'how fast skills arrive, so to-hit, the blow, Defense and the yard\'s worth', out: [], f: ['P03'],
-    tests: [['tests/wiki-window.mjs', 'the wiki\'s curve text']],
+  L('skill.curve', 'skill-scaling', 'global', 'Combat skills on the Level clock', {
+    at: [at('src/data/core-model.js', 'export const SKILL_CURVE = Object.freeze({ pacePm: 1000')],
+    def: 'stage 7 (27 P-3, 04 section 4): XP from skill n to n+1 = floor(pacePm / 1000 x levelHoursOf(n) x xpPerHealthHour x refHealthOf(n)), so a skill level costs skillPace x the hours that Level takes at the reference skill XP rate; Melee, Ranged, Magic, Defense; the rating reads a skill as the Level the clock gives it (src/core/bands.js skillLevelPm: the skill itself at pace 1000)',
+    range: 'pacePm (skillPace) 800 to 1250; xpPerHealthHour MEASURED 100 to 140 (tools/balance-program/redesign/skills/parity.mjs, the damage dealers of the Steady four on every scale ground at its reference Level read 99 to 146); top 10,000 (52 years of 10 h days). The SQL twin is generated (tools/gen-skill-curve.mjs, hr_skill_curve) and pinned row for row',
+    touches: 'how fast combat skills arrive (skill 10 / 30 / 60 / 100 at 4.2 / 54 / 215 / 543 hunted hours at the reference rate), so to-hit, the old chain\'s blow, the rating\'s skill part, Defense and the yard\'s worth', out: [], f: ['P03'],
+    tests: [['tests/bands.mjs', 'BD-1 the line is the Level clock and the curve is built on it'], ['tests/wiki-window.mjs', 'the wiki\'s curve text']],
     perturb: NP('harness-fixed', 'cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1)', 'skillCurve'),
-    flags: [flag('contradictory', 'The simulator gives heroes past the measured line straight-line skills (198 at Level 400, 438 at 1,000) where this curve allows about 132 and 177', '44 P-X43, CONFIRMED')],
-    ev: 'CONFIRMED (read)' }),
+    ev: 'MEASURED (tools/balance-program/redesign/skills/parity.mjs, 2026-11-23)' }),
+  L('skill.flame-curve', 'skill-scaling', 'global', 'Inner Flame\'s curve', {
+    at: [at('src/data/core-model.js', 'export const FLAME_SKILL_CURVE = Object.freeze({ skill: \'inner_flame\', base: 15')],
+    def: 'XP from Inner Flame s to s+1 = floor(15 x s^2 x 1.04^(s-1)), the core rebuild\'s geometric curve, which every combat skill walked until stage 7; the Hearth fuel\'s XP is sized on it (FLAME_FUEL)',
+    range: 'base and growth above 0. The walk stops at 476 (2^53); the SQL twin hr_flame_skill_curve (tools/gen-skill-curve.mjs)',
+    touches: 'how fast Inner Flame rises at the Hearth, so the regeneration rate (vitals.js)', out: [], f: ['P03'],
+    tests: [['tests/bands.mjs', 'BD-2 Inner Flame is not on the Level clock']],
+    perturb: NP('outside-hunt', 'Inner Flame trains at the Hearth, never in a cell'),
+    ev: 'CONFIRMED (read); retires with the old skill\'s XP (21-flame-temper-imbue-loot.md build step 5)' }),
   L('skill.weapon-xp', 'skill-scaling', 'global', 'Melee and Ranged XP a point of damage', {
     at: [at('src/data/core-model.js', 'hitXpPerDamage: 1.5')],
     def: 'Melee or Ranged XP = damage dealt x 1.5',

@@ -151,11 +151,38 @@ export const LEVEL_PACE = Object.freeze({
     steps: Object.freeze([Object.freeze({ from: 1, to: 9, aim: 2, h: 2.5 }), Object.freeze({ from: 10, to: 15, aim: 4, h: 4.5 })]) }),
 });
 
-/* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.
-   XP from level s to s+1 = floor(base x s^2 x (1 + growthPermille/1000)^(s-1)),
-   the power walked in exact integers (src/core/xp.js), so the browser, the edge
-   and Postgres agree to the unit. No cap. */
-export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });
+/* THE COMBAT SKILLS ON THE LEVEL CLOCK (stage 7, lane/skills-time-parity 2026-11-23; docs/design/redesign/04-math-strategy.md section 4,
+   27-formula-overhaul.md row P-3): Melee, Ranged, Magic and Defense. A skill level costs a set ratio of the hunted hours the same Level
+   takes, so a hero who always uses one style has that skill near its Level, a hero who splits is behind in both, and the hours a skill
+   costs never part from the hours a Level costs (the retired 15 x s^2 x 1.04^(s-1) cost 59 h a skill level at 100 where Level 100 takes 9).
+     XP from skill level n to n + 1 = floor(pacePm / 1000 x levelHoursOf(n) x xpPerHealthHour x refHealthOf(n))
+   counted in the reference skill XP an hour (the main skill of a seat of the reference company, a Steady four at its ground's reference,
+   earns xpPerHealthHour XP an hour a point of the reference health of its Level: every skill route pays a share of a blow, a mana pool or
+   a monster's Level, all of them straight lines in Level, src/core/hunt-rewards.js). Exact in whole numbers (src/core/xp.js walks it in
+   BigInt; the server's twin is tools/gen-skill-curve.mjs). Levers:
+     pacePm           1000  skillPace (band 800 to 1250): the hours a skill level takes over the hours that Level takes. At 1000 a
+                            specialist's skill tracks its Level; over 1000 a skill trails its Level, under it runs ahead
+     xpPerHealthHour  120   MEASURED (band 100 to 140; tools/balance-program/redesign/skills/parity.mjs): the main skill XP a hunted hour
+                            over the reference health of the Level, on every scale ground at its reference Level (2026-11-23, 4 seeds x
+                            4 h, the Steady mixed four's damage dealers: Hask's Ford 142 / 124, Muster Barrows 132 / 146, the Catacomb wings
+                            108 / 99 and 107 / 111). Not a balance dial: it says what the pay side pays, so the curve counts in hours
+     top              10000 the last skill level the curve is written to (the server's rows): 190,000 hunted hours, 52 years of 10 h days.
+                            Past it a skill keeps its XP and reads `top`, as the old curve stopped at 476 (2^53)
+   No cap a hero can meet. Inner Flame is not on this clock: FLAME_SKILL_CURVE below. */
+export const SKILL_CURVE = Object.freeze({ pacePm: 1000, xpPerHealthHour: 120, top: 10000 });
+
+/* THE REFERENCE HEALTH OF A LEVEL: the display curve of max HP with no armor bonus (VITALS below), 150 + 10 (L - 1). The amount pipeline
+   sizes every blow on it (src/core/hunt/amount.js refHealth reads this) and the skill clock counts in it (SKILL_CURVE above). */
+export function refHealthOf(level) {
+  return VITALS.hpBase + VITALS.hpPerLevel * (Math.max(1, Math.floor(Number(level) || 1)) - 1);
+}
+
+/* INNER FLAME'S CURVE (Q2, the core rebuild's uncapped curve, the four combat skills' too until stage 7): XP from level s to s + 1 =
+   floor(base x s^2 x (1 + growthPermille / 1000)^(s - 1)), walked in exact integers (src/core/xp.js) to 2^53 (level 476). Inner Flame
+   trains at the Hearth, never in a fight, and its fuel's XP is sized on this curve (FLAME_FUEL below; tests/hearth-fuel-rate.mjs B1):
+   it keeps this curve until the flame of docs/design/redesign/21-flame-temper-imbue-loot.md retires the skill's XP (its build step 5).
+   The server's rows: hr_skill_curve (tools/gen-catalogues.mjs). */
+export const FLAME_SKILL_CURVE = Object.freeze({ skill: 'inner_flame', base: 15, growthPermille: 40 });
 
 /* VITALS FROM LEVEL AND ARMOUR WEIGHT (Q3; the armour shares are Tyler's:
    heavy up to +28% HP, light up to +35% mana, blended by the share of armour

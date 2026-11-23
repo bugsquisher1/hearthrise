@@ -54,7 +54,7 @@ const { SKILLS_DEF } = await src('src/data/skills.js');
 const { OPEN_GROUNDS } = await src('src/data/hunt-grounds.js');
 const { HUNT_INDEX } = await src('src/data/hunts.js');
 const { whole } = await src('src/render/format.js');
-const { LEVEL_CURVE, SKILL_CURVE } = await src('src/data/core-model.js');
+const { LEVEL_CURVE, SKILL_CURVE, LEVEL_HOURS, VITALS } = await src('src/data/core-model.js');
 const { MAX_LEVEL } = await src('src/core/xp.js');
 
 const FORMULAS = ['hit', 'max', 'mon_hit', 'mon_max', 'level_curve', 'skill_xp', 'death'];
@@ -63,7 +63,8 @@ const clampTo = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /* THE XP TABLES, BY HAND from the curves' data rows (src/data/core-model.js), never through src/core/xp.js. The Level curve:
    the step across Level n is first + rise k + bend k^2, k Levels into n's bracket, each bracket's `first` being where the one
-   before would have stepped next. A combat skill: the step across s is floor(base s^2 r^(s-1)), r = (1000 + growth)/1000. */
+   before would have stepped next. A combat skill (the Level clock, stage 7): the step across n is floor(pace x xpPerHealthHour x ceiling
+   x n^2 x (hpBase + hpPerLevel (n - 1)) / (1000 (n + half)(n + early))), SKILL_CURVE over LEVEL_HOURS and VITALS. */
 function levelTotalByHand(L) {
   const bs = LEVEL_CURVE.brackets;
   let total = 0, first = LEVEL_CURVE.first, at = 0;
@@ -76,7 +77,11 @@ function levelTotalByHand(L) {
 }
 function skillTotalByHand(L) {
   let total = 0n;
-  for (let s = 1n; s < BigInt(L); s++) total += (BigInt(SKILL_CURVE.base) * s * s * BigInt(1000 + SKILL_CURVE.growthPermille) ** (s - 1n)) / 1000n ** (s - 1n);
+  const S = SKILL_CURVE, H = LEVEL_HOURS, V = VITALS;
+  for (let n = 1n; n < BigInt(L); n++) {
+    total += (BigInt(S.pacePm * S.xpPerHealthHour * H.ceiling) * n * n * (BigInt(V.hpBase) + BigInt(V.hpPerLevel) * (n - 1n)))
+      / (1000n * (n + BigInt(H.half)) * (n + BigInt(H.early)));
+  }
   return Number(total);
 }
 /* The Levels each table lists (the ruling of 2026-11-17), and the hero's own Level put in its place. */
@@ -518,7 +523,7 @@ const MUTANTS = [
   ['a monster\'s max hit gains a point the words never mention', 'src/core/combat.js', '  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale));', '  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale) + 1);'],
   ['a death takes more than its stated share', 'src/core/action-rules.js', '  const share = Math.min(Math.floor(x * f), x);', '  const share = Math.min(Math.floor(x * f * 1.1), x);'],
   ['the Level curve\'s step grows faster than its data rows say', 'src/core/xp.js', '+ r.rise * sumK(m) + r.bend * sumK2(m);', '+ r.rise * sumK(m) + r.bend * sumK2(m + 1);'],
-  ['a combat skill Level costs a point more than its data rows say', 'src/core/xp.js', '    const step = Number((base * sl * sl * powNum) / powDen);', '    const step = Number((base * sl * sl * powNum) / powDen) + 1;'],
+  ['a combat skill Level costs a point more than its data rows say', 'src/core/xp.js', '(N + BigInt(H.half)) * (N + BigInt(H.early))));', '(N + BigInt(H.half)) * (N + BigInt(H.early)))) + 1;'],
   ['an XP table\'s Total is the next Level\'s', 'src/shell/wiki-model.js', 'const total = xpAt(level), next = xpAt(level + 1) - total;', 'const total = xpAt(level + 1), next = xpAt(level + 1) - xpAt(level);'],
   ['the hero\'s Level is never put among the rows', 'src/shell/wiki-model.js', 'const levels = me === null || LEVEL_TABLE.includes(me) ? LEVEL_TABLE : [...LEVEL_TABLE, me].sort((a, b) => a - b);', 'const levels = LEVEL_TABLE;'],
   ['the gold row is drawn once and never follows the server', 'src/shell/windows/wiki.js', "if (!table || table.getAttribute('data-wk-me') === meKey(level)) return;", "if (!table || table.hasAttribute('data-wk-me')) return;"],

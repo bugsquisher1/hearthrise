@@ -518,8 +518,12 @@ const CASES = {
   },
   skill(M) {
     const { DANGER, DANGER_GROUNDS, POWER } = M.dangerData;
-    const B = M.bands, L = 60, line = M.bandsData.SKILL_LINE.melee.find((x) => x[0] === L);
-    if (!line) return 'CONTROL: the melee line has no Level 60 point';
+    /* the career's skill at Level 60 on the Level clock (stage 7: src/core/bands.js skillLevelPm; at the data's pace it is 60) */
+    const B = M.bands, L = 60;
+    let v0 = 1;
+    while (B.skillLevelPm('melee', v0 + 1) <= 1000 * L) v0++;
+    const line = [L, v0];
+    if (B.skillLevelPm('melee', v0) !== 1000 * L) return 'CONTROL: no melee skill reads Level 60 on the clock (' + v0 + ' reads ' + B.skillLevelPm('melee', v0) + ')';
     const IRON = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' };
     const { eq, setBonus, profile } = M.member.loadoutOf(IRON, M.ITEMS);
     const snapAt = (melee) => M.member.heroSnapshot({ skills: { melee: M.xp.skillXpForLevel('melee', melee), defense: 0 }, levelXp: M.xp.charXpForLevel(L) },

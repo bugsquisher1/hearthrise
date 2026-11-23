@@ -26,13 +26,41 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import { isMain } from '../../tests/_is-main.mjs';
 import { skillXpForLevel, skillLevelFromXp } from '../../src/core/xp.js';
-import { LEVEL_PACE } from '../../src/data/core-model.js';
+import { LEVEL_PACE, FLAME_SKILL_CURVE, SKILL_CURVE } from '../../src/data/core-model.js';
 
 /* what a projection past a line's top reads (skillsAt): this tree's skill curve and its pace of record. The two curve functions by NAME,
    never `import * as` handed on whole: this file is reached from tools/gen-ref-hero.mjs (a catalogue generator, tests/dead-exports.mjs
    ENTRY_TOOLS), and a namespace passed whole blinds the dead-export census to every export of src/core/xp.js (next run 44891464929: its
    two pinned dead exports read STALE). */
 const CTX = Object.freeze({ XP: Object.freeze({ skillXpForLevel, skillLevelFromXp }), targets: LEVEL_PACE.targets });
+/* THE SNAPSHOT AS MEASURED (stage 7, lane/skills-time-parity): the levels as the careers held them, on the curve they were measured on. Read
+   by what was written against those levels (tools/gen-ref-hero.mjs: REF_HERO, which every monster's aim and evasion are authored on) and by
+   what compares them with heroes recorded on the same curve (tests/balance-calibration.mjs BC-6). Every other reader plays the hero this
+   tree's curve makes (skillsAt below). */
+export const AS_MEASURED = Object.freeze({ ...CTX, asMeasured: true });
+
+/* THE CURVE A SNAPSHOT OR A RECORDING WAS MADE ON. Before stage 7 (2026-11-23) every combat skill walked the geometric curve Inner Flame
+   keeps (src/data/core-model.js FLAME_SKILL_CURVE): a snapshot or a recording that names no `curve` was made on it. A snapshot written on
+   the Level clock names 'time'. */
+const FLAME = FLAME_SKILL_CURVE.skill;
+export const madeOn = (o) => (o && (o.curve === 'time' || o.skillCurve === 'time') ? 'time' : 'geometric');
+/* the main skill each way trains (the one the Level clock puts at its Level) */
+const MAIN_OF = Object.freeze({ tank: 'melee', sword: 'melee', hammer: 'melee', axes: 'melee', bow: 'ranged', crossbow: 'ranged', mage: 'magic', healer: 'magic' });
+
+/** A recorded hero's combat skill XP (`skills` { skill: xp }, recorded on `curve`) restated on this tree's curve at the level it read when it
+    was recorded, its share into that level kept: a replay plays the hero as it was. Skills off the clock (Inner Flame, the capped ones) and a
+    recording made on this tree's curve pass as they are. */
+export function restateSkills(skills, curve = 'geometric', XP = CTX.XP) {
+  if (!skills || curve === 'time') return skills;
+  const out = { ...skills };
+  for (const k of ['melee', 'ranged', 'magic', 'defense']) {
+    if (!(k in skills)) continue;
+    const x = Math.max(0, Math.floor(Number(skills[k]) || 0)), lv = XP.skillLevelFromXp(FLAME, x);
+    const a = XP.skillXpForLevel(FLAME, lv), b = XP.skillXpForLevel(FLAME, lv + 1), A = XP.skillXpForLevel(k, lv), B = XP.skillXpForLevel(k, lv + 1);
+    out[k] = A + (b > a ? Math.floor(((x - a) * (B - A)) / (b - a)) : 0);
+  }
+  return out;
+}
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -105,10 +133,36 @@ export function loadLines(file = SNAPSHOT) {
 export function skillsAt(snap, line, style, level, ctx = CTX) {
   const L = Math.max(1, Math.round(level));
   if (line === 'level') return Object.fromEntries(SKILLS.map((k) => [k, L]));
+  if (madeOn(snap) === 'time' || ctx.asMeasured) return measuredAt(snap, line, style, L, madeOn(snap) === 'time' ? ctx : onCurve(ctx, FLAME));
+  /* A SNAPSHOT MEASURED ON THE OLD CURVE, READ ON THE LEVEL CLOCK (stage 7): the career's main skill sits on the clock (the reference career,
+     src/core/bands.js skillLevelPm: its own Level at skillPace 1000), and every other skill keeps the share of the main skill's XP the
+     measured career earned (at the line's top past it), restated on this tree's curve. So the harness plays the hero this curve makes of
+     the measured career, and its rating's skill part is 0 on the line, as it was. Re-measure the careers (--run, --write) to retire it. */
+  const meas = onCurve(ctx, FLAME), old = measuredAt(snap, line, style, Math.min(L, rowOf(snap, line, style).to), meas);
+  const main = MAIN_OF[style] || 'melee', geo = (s) => ctx.XP.skillXpForLevel(FLAME, s);
+  const mainXp = Math.floor((ctx.XP.skillXpForLevel(main, L) * 1000) / SKILL_CURVE.pacePm), oldMain = Math.max(1, geo(old[main]));
+  return Object.fromEntries(SKILLS.map((k) => {
+    if (k === FLAME) return [k, measuredAt(snap, line, style, L, meas)[k]];
+    if (k === main) return [k, Math.max(1, ctx.XP.skillLevelFromXp(k, mainXp))];
+    return [k, Math.max(1, ctx.XP.skillLevelFromXp(k, Math.floor((geo(old[k]) * mainXp) / oldMain)))];
+  }));
+}
+
+/* a line's row for `style` (its stand-in's when the line has none), or a harness error */
+function rowOf(snap, line, style) {
   if (!snap || !snap.lines || !snap.lines[line]) throw new Error('skill-lines: no ' + line + ' line (node tools/balance-sim/skill-lines.mjs --run, then --write)');
   const lines = snap.lines[line];
   const row = lines[style] || lines[(snap.standIn || {})[style]];
   if (!row) throw new Error('skill-lines: the ' + line + ' line has no ' + style);
+  return row;
+}
+
+/* a context whose curve is `skill`'s for every skill (a snapshot measured on Inner Flame's curve, read where it was measured) */
+const onCurve = (ctx, skill) => ({ ...ctx, XP: { skillXpForLevel: (_, s) => ctx.XP.skillXpForLevel(skill, s), skillLevelFromXp: (_, x) => ctx.XP.skillLevelFromXp(skill, x) } });
+
+/* the levels as the careers held them, projected past the line's top on `ctx`'s curve */
+function measuredAt(snap, line, style, L, ctx) {
+  const row = rowOf(snap, line, style);
   const at = (k, x) => row.skills[k][Math.min(row.to, Math.max(row.from, x)) - row.from];
   return Object.fromEntries(SKILLS.map((k) => {
     if (L <= row.to) return [k, Math.max(1, at(k, L))];

@@ -50,6 +50,7 @@ export const EVENT_FX = Object.freeze({
   spell: null, spell_end: null,
   miss: null,  // GLANCE_FX, below
   target: null, status_on: null, status_off: null,
+  shield_break: null,   // a shield spent to nothing (damage.js landHit): the triggers and the report read it; the shield's own glow just ends
   floor: null,   // the Tower's stair opening: the hunt bar's floor number says it, no sprite
   danger: null,  // a pull's end on the Danger scale (src/core/hunt/danger.js): the hunt report reads it, no sprite
   eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null, rule_wait: null,

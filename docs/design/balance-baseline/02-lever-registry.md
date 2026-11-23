@@ -24,7 +24,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
 | Level scaling | 7 | 4 | 1 | 0 | 2 | 4 | 2 | 4 |
 | Weapon power and attack frequency | 6 | 2 | 2 | 2 | 0 | 1 | 0 | 2 |
-| Spell coefficients, costs, cooldowns and areas | 12 | 5 | 1 | 5 | 1 | 1 | 0 | 2 |
+| Spell coefficients, costs, cooldowns and areas | 14 | 6 | 1 | 6 | 1 | 1 | 2 | 4 |
 | Healing and shielding | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | Armor and mitigation | 5 | 2 | 2 | 0 | 1 | 3 | 0 | 1 |
 | Resistances | 5 | 2 | 0 | 2 | 1 | 0 | 2 | 2 |
@@ -34,21 +34,21 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 27 | 9 | 6 | 4 | 8 | 7 | 9 | 13 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
-| Equipment stats and progression | 18 | 6 | 4 | 8 | 0 | 0 | 9 | 12 |
+| Equipment stats and progression | 19 | 6 | 4 | 9 | 0 | 0 | 10 | 13 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **197** | 93 | 29 | 47 | 28 | 31 | 84 | 86 |
+| **All** | **200** | 94 | 29 | 49 | 28 | 31 | 87 | 89 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 680 (in 234 files, 15894 typed numbers) |
-| Claimed by a lever | 293 |
-| Claimed by a not-a-lever reason | 387 |
+| Top-level bindings in the rule code that hold a typed number | 686 (in 236 files, 15917 typed numbers) |
+| Claimed by a lever | 296 |
+| Claimed by a not-a-lever reason | 390 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -257,11 +257,14 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `gear.trait-trade` A trade Trait's gain, and the percents a Trait card shows | Equipment stats and progression | hidden: nothing rolls or plays Traits until wave 4 |
 | not-built | `gear.traits` Traits: the rule, its condition and its source | Equipment stats and progression | hidden: nothing rolls or plays them |
 | not-built | `imbue.parts` Imbuement parts | Imbuement effects | linings (Tyler's imbuement, ruled 2026-11-18: one part + gold, cured 4 h, 12 hunted hours, 48 h a socket) are not built. The effect each part names is read by nothing |
+| not-built | `ledger.aura` Party auras: steps on every ally in reach while the move is slotted | Equipment stats and progression | no move names an aura yet (the Wraps stay hidden). The Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json) |
 | not-built | `ledger.ramp-slices` The power ledger: the ramp and the slice caps | Equipment stats and progression | no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4) |
 | not-built | `leech.rows` Spell leech and mana back | Life and mana leech | every leech row sits behind NECROTIC_STORM.live (false), and no default bar casts them |
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
+| not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |

@@ -220,6 +220,12 @@
         "gzipBytes": 922998,
         "on": "2026-11-23",
         "why": "drops: drop-hours and rarity data reached at town through gear-steps/danger imports (dark until traitsLive); candidate for an import() on need"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 925473,
+        "on": "2026-11-23",
+        "why": "E2/E3: status rows, aura and shield data read by the bar and HUD at town"
       }
     ]
   }

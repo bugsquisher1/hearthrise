@@ -171,6 +171,14 @@ export const GEAR_ECONOMY = [
     tests: [['tests/hunt-core/danger.mjs', 'ledger: the caps at Levels 10 to 400, the clamp, the power step']], testReads: ['POWER_LEDGER', 'LEDGER_SLICES'],
     perturb: NP('not-built', 'no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4)'),
     ev: 'STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)' }),
+  L('ledger.aura', 'equipment', 'content', 'Party auras: steps on every ally in reach while the move is slotted', {
+    at: [at('src/data/auras.js', "open_fire: Object.freeze({ id: 'open_fire'")],
+    def: 'an aura move slotted on a bar (target aura) puts its row\'s steps, in its slice and channel, on every living hero of its side within radius tiles as a ledger row scope party: on an ally whole and outside its own cap, on the wearer inside its slice, one per key a party (src/core/hunt/auras.js, src/core/power-ledger.js)',
+    range: 'radius 1 to 12 tiles, steps 1 to 40 at full size (validate); Open Fire 11 steps (+4% damage, 22 section 2.2) in the build slice, so 3.3 at Level 60',
+    touches: 'the party\'s damage (offense) or blows taken (defense) on the Danger scale while a support wears a fire', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/status-effects.mjs', 'aura-party-rule: reach, one per key, the ally\'s cap, the power step, never cast']], testReads: ['AURAS'],
+    perturb: NP('not-built', 'no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)'),
+    ev: 'MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)' }),
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {

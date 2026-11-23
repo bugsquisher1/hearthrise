@@ -53,7 +53,8 @@ export function firstTraitHours({ groundId, step, n = 4, luckPm = 0, samples = 1
   return { p10: q(0.1), p50: q(0.5), p90: q(0.9), mean: hours.reduce((a, b) => a + b, 0) / hours.length, rarities };
 }
 
-if (isMain(import.meta.url)) {
+const runAsMain = isMain(import.meta.url);
+if (runAsMain) {
   const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
   const groundId = arg('--ground', 'muster_barrows');
   const samples = Number(arg('--samples', 1000)), seed = Number(arg('--seed', 1));

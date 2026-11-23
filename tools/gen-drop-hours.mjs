@@ -126,7 +126,8 @@ export function report(rows = ownedRows(), grounds = HUNT_GROUNDS) {
   });
 }
 
-if (isMain(import.meta.url)) {
+const runAsMain = isMain(import.meta.url);
+if (runAsMain) {
   const args = process.argv.slice(2);
   const scalePacks = GROUND_PACKS.filter((p) => Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id) && HUNT_GROUNDS[p.id]);
   if (args[0] === '--convert' || args[0] === '--write') {

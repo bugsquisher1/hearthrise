@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "loot-depth-off",
+ "why": "Loot off depth (lane/foundations-block): the kill's own table as written at every step, as before PAY.payStepLoot. Paired against the tree, it shows what loot-follows-depth moves",
+ "edits": [
+  {
+   "file": "src/core/hunt-rewards.js",
+   "from": "const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;",
+   "to": "const depthPm = undefined;"
+  }
+ ],
+ "assumptions": [
+  "The dial's coin and every other term are the tree's"
+ ]
+}

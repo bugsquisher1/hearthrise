@@ -5,7 +5,7 @@
 //                         sent none. `risk` is the plan's stance (null: none, the tier path); `playing.from` the stance the open hunt froze,
 //                         `playing.risk` the stance it stands at now (a death settles it one notch safer).
 //   onScale(hunt)         the ground plays the scale (src/data/danger.js DANGER_GROUNDS); everywhere else the tier path is unchanged
-//   depthOf(hunt, step)   { depth, of }: the step as "Depth N of 20" on the ground's band (data/danger.js floorStep..topStep, 12-targets.md 3.1), never the raw step (Tyler 2026-11-22: "is it going
+//   depthOf(hunt, step)   { depth, of }: the step as "Depth N of 20" on the ground's band (src/core/bands.js depthAt: cut evenly in absolute steps, 12-targets.md 3.1), never the raw step (Tyler 2026-11-22: "is it going
 //                         to be easy for players to understand?"); null off the scale or for a step that is not a number
 //   heldAtTop(d, hunt)    the server's held step on that ground is its band's top (12-targets.md 3.2: outgrown)
 //   nextScaleGround(hunt) { hunt, name } of the next open ground on the scale (the lowest band start over this one's), or null
@@ -15,6 +15,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { DANGER_GROUNDS, RISKS, DEPTHS } from '../data/danger.js';
 import { HUNT_INDEX } from '../data/hunts.js';
+import { depthAt } from '../core/bands.js';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -30,11 +31,12 @@ export function onScale(hunt) {
   return typeof hunt === 'string' && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, hunt);
 }
 
-/** A step as depth on its ground's band: { depth, of }, depth held to 1..of (a step under the floor reads Depth 1). */
+/** A step as depth on its ground's band: { depth, of }, depth held to 1..of (a step under the floor reads Depth 1). The band is cut evenly in
+    absolute steps (src/core/bands.js depthAt, lane/foundations-block: the one home the edge's drop-rate.js reads too). */
 export function depthOf(hunt, s) {
   if (!onScale(hunt) || step(s) === null) return null;
-  const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);
-  return { depth: Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1)))), of: DEPTHS };
+  const depth = depthAt(hunt, s);
+  return depth === null ? null : { depth, of: DEPTHS };
 }
 
 /** THE TOP OF THE GROUND (12-targets.md 3.2; lane/r10-more-grounds): the hero's held step on `hunt` (the server's, `held`) stands at the

@@ -1,0 +1,23 @@
+
+V1 on hasks_ford (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:bold           631 +- 8.5        0  15.5  28.5   13.8    1.6     0.2      157     10     0  95 (10/15/95)                 0.6  {"hold":6753,"climb":2356,"fall":299,"death":10} first deaths at h 0.8,5.9,3.7,2,2.3,5.5
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:bold          1.24x  sd 0.05  n 2  window 0.6 h  seeds 1.28 1.21
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:bold         L52  coin 11987 +- 576  income 15281 +- 756  store 3403  kit share 0.22 (meal 257, drink 1303, charge 948, shot 894)  loot by band: common 679, uncommon 236, scarce 2380, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:bold         hammer 0.49  bow 0.226  mage 0.284  healer 0
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:bold         abs 51.2 (depth 14)  free 187  spell 739  food 72  taken 10.99 pm/s
+
+wall 52 s

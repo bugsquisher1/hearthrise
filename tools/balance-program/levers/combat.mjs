@@ -603,6 +603,25 @@ export const COMBAT = [
     touches: 'nothing shipped: FIST_LINE.live is false', out: [], f: ['C-REGEN'],
     perturb: NP('not-built', 'fists are a hidden two-row sample with no way in the engine\'s style list'),
     ev: 'CONFIRMED (read)' }),
+  /* SUSTAIN ON THE REFERENCE (lane/foundations-block; 04-math-strategy.md section 3, 26-architecture-pass.md rank 3): the three sources'
+     shares of the reference company's incoming damage on Steady, and its healer's pool in seconds of casting. READ, not yet the engine's
+     input (stage 3): the readers are v1-climb.mjs (each cell's sustain) and tools/new-ground.mjs (every ground's reference company). */
+  L('sustain.shares', 'regen', 'global', 'Sustain shares at the reference (regeneration, heal spells, food)', {
+    at: [at('src/data/sustain.js', 'freePm: lever(150, [100, 250]),'), at('src/data/sustain.js', 'healerPm: lever(830, [700, 900]),'), at('src/data/sustain.js', 'supplyPm: lever(20, [0, 100]),')],
+    def: 'of the damage the reference company (the Steady mixed four at a ground\'s refLevel, MID kits) takes, regeneration covers freePm (time), heal spells healerPm (mana: time or drinks), food supplyPm (gold); each a starting share and its band. Heal rows, regeneration rates and food are sized to land them at the reference',
+    range: 'permille. freePm 100 to 250 (04 SUST-1/2: regeneration never carries a hunt alone), healerPm 700 to 900, supplyPm 0 to 100. The three start at 1000 +- 100',
+    touches: 'heal sizes (Greater Mend\'s healPm), the regeneration rates, the kit share; tools/new-ground.mjs refuses a ground whose reference company leaves a band (REVIEW)', out: SURVIVE, f: ['C-REGEN'],
+    tests: [['tests/sustain.mjs', 'SU-1 in band, SU-3 every kept reference reading in band'], ['tests/new-ground.mjs', 'NG-6 a reference out of band is a note']], testReads: ['SUSTAIN'],
+    perturb: NP('not-in-runs', 'a reading the V1 probe makes (tools/balance-program/redesign/foundations/run.mjs); the engine reads the heal rows and rates, not these yet'),
+    ev: 'MEASURED (lane/foundations-block, v1-climb.mjs Steady from step 0, 6 seeds x 10 h, read from hour 4): Muster L60 132 / 851 / 17, Hask\'s Ford L52 190 / 780 / 29, Bone Wing L175 248 / 730 / 22' }),
+  L('sustain.mana-seconds', 'regen', 'global', 'The reference healer\'s mana in seconds of casting', {
+    at: [at('src/data/sustain.js', 'manaSeconds: lever(75, [60, 90]),')],
+    def: 'the reference healer (all light armor) at the reference Level holds manaSeconds of casting its main heal back to back (pool over Greater Mend\'s mana a cast over its cooldown); its regeneration a minute is ABILITY_RULES.manaRegenPctPerMin',
+    range: 'seconds, 60 to 90. A heal\'s mana is still a flat number and the pool grows 10 a Level, so off the reference Level it drifts (Level 175: about 200 s) until a move\'s cost is a share of reference mana (stage 3)',
+    touches: 'how long the healer casts before it waits on regeneration or a drink, so the drink bill', out: ['suppliesPerH', 'storePerH'], f: ['C-MANA'],
+    tests: [['tests/sustain.mjs', 'SU-2 the reference healer holds manaSeconds of Greater Mend']], testReads: ['SUSTAIN'],
+    perturb: NP('not-in-runs', 'a definition checked against the heal row and the pool, not a dial the engine reads yet'),
+    ev: 'COMPUTED (Muster refLevel 60: pool 931 over 25 mana a 2 s cast, 74.5 s)' }),
   L('regen.mana', 'regen', 'global', 'Mana regeneration', {
     at: [at(ABIL, 'manaRegenPctPerMin: 25')],
     def: '25% of max mana a minute, x the Inner Flame rate',

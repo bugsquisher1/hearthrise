@@ -156,7 +156,7 @@ export const GEAR_ECONOMY = [
   /* THE POWER LEDGER (lane/ledger-l1-l3, 19-power-ledger.md sections 1, 2 and 5 L1 and L3; Tyler 2026-11-22: the ramp only on what a hero
      grows into, never on gear, Traits, Signatures or Temper) */
   L('gear.trait-rank-gate', 'equipment', 'archetype', 'The highest Trait rank a ground rolls, by its entry Level', {
-    at: [at('src/data/danger.js', "traits: traitPool('muster_barrows'), entryLevel: 55 })")],
+    at: [at('src/data/danger.js', "traits: traitPool('muster_barrows'), entryLevel: 55,")],
     def: 'rank r rolls on a ground only if traitSteps[r-1] <= conditionalStepsMax x ramp(the ground\'s entry Level) (gear-steps.js maxRankAt): rank 1 from entry 40, rank 2 from 70, rank 3 from 100; entryLevel is the hunt\'s band floor; carry-over only onto the same slot at the same tier or higher (GEAR_STEPS.carryOver)',
     range: 'entryLevel equal to its hunt\'s band floor (GS-5); the gate reads rampLevel',
     touches: 'where a high-rank Trait can be found, so which ground a Trait hunter picks and what the market holds', out: [...KILL, ...SURVIVE], f: [],

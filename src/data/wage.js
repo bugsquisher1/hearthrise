@@ -66,3 +66,18 @@ export function wageStep(step) {
 export function wage(step) {
   return Math.floor(WAGE.wageBase * powSquare(1 + WAGE.payStepCoin, wageStep(step)));
 }
+
+/* A PRICE IN HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md E-6, E-11, T-5; 04 section 11: "every repeating
+   price is stored as hours of the wage"). A price row holds `hoursPm`, milli-hours of wage (the unit the Blessing, the reset, Temper and
+   the imbuement fee already use), and the STEP it reads: a per-hero cost the hero's Level, a good its item or band step, an account good
+   the step its row names. The gold is one rounding of an exact product, ceil(hoursPm x wage(step) / 1000), which is the server's
+   div(hours_pm * hr_wage(step) + 999, 1000) to the gold, so a catalogue generated from a row and a price the server computes agree.
+   A row never types its gold: moving wageBase or payStepCoin moves every price with the pay it is measured against. */
+/** Whole gold `hoursPm` milli-hours of wage cost at `step` (0 for no hours; never a fraction of a gold). */
+export function wagePrice(hoursPm, step) {
+  const h = Math.floor(Number(hoursPm));
+  if (!(h > 0)) return 0;
+  return Number((BigInt(h) * BigInt(wage(step)) + 999n) / 1000n);
+}
+/** Each rung of a ladder of milli-hours at one step, in gold (a climbing sink: the (n+1)th buy costs the nth). */
+export const wageLadder = (hoursPm, step) => Object.freeze(hoursPm.map((h) => wagePrice(h, step)));

@@ -22,21 +22,22 @@
 // item's own points; a shot at its basic's price), a duplicate item; a tool that is not a
 // tier-1 gathering tool; a GEAR row (the outfitter, designer 2026-10-22) for a slot a
 // walked ground drops (SHOP_GEAR_SLOTS), a piece above Level 1, a bound piece, a field-salvage
-// find, or one not at SHOP_PREMIUM x its book value; a SEED row (the seed counter, designer
-// 2026-10-22) for an item that is not a crop's seed, priced below its book value, or with a basic;
+// find, or one not at the store's ask (src/data/store-kit.js storeAsk: storeCeiling x its book, K-3); a SEED row (the seed counter,
+// designer 2026-10-22) for an item that is not a crop's seed, not at the store's ask, or with a basic;
 // and any refill table its own validate() rejects.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { SUPPLY_SHOP_OFFERS, BASIC_INDEX, SHOP_PREMIUM, SHOP_GEAR_SLOTS } from '../src/data/supply-basics.js';
+import { SUPPLY_SHOP_OFFERS, BASIC_INDEX, SHOP_GEAR_SLOTS } from '../src/data/supply-basics.js';
+import { storeAsk } from '../src/data/store-kit.js';
 import { SUPPLIES } from '../src/data/supplies.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { CROPS } from '../src/data/gathering.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
-import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM, JEWEL_SHOP_SLOTS } from '../src/data/jewelry.js';
+import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_SLOTS } from '../src/data/jewelry.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -90,21 +91,21 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
     seen.add(o.item);
     if (!own(items, o.item)) throw new Error(`supply offer ${o.item} names no item`);
     if (o.kind === 'tool') {
-      /* A tier-1 gathering tool (Tyler 10-18), at the premium floor over its book value. */
+      /* A tier-1 gathering tool (Tyler 10-18), at the store's ask over its book value (K-3: one ceiling). */
       const it = items[o.item];
       if (it.type !== 'tool' || it.toolTier !== 1 || o.basic !== null) throw new Error(`tool offer ${o.item} is not a tier-1 gathering tool with no basic`);
-      if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      if (o.price !== storeAsk(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not the store's ask ${storeAsk(it.v)} over its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     /* every crafted piece the Shop lists comes here (src/data/jewelry.js JEWEL_PIECES), priced or not, so a cloak or an unpriced jewel is refused, never sold as plain gear */
     if (o.kind === 'gear' && (own(JEWEL_SHOP_PRICE, o.item) || own(JEWEL_PIECES, o.item))) {
-      /* PLAIN CRAFTED JEWELRY STAYS IN THE SHOP AT A PREMIUM (Tyler 2026-11-05, call 5): a crafted piece's plain row, at its own price and at least
-         JEWEL_SHOP_PREMIUM x its book, so the Shop never undercuts the crafter and buy-then-sell always loses. The one door past tier 1. */
+      /* PLAIN CRAFTED JEWELRY STAYS IN THE SHOP (Tyler 2026-11-05, call 5), at the store's one ceiling over its book (K-3, its own price
+         JEWEL_SHOP_PRICE), so the Shop never undercuts the crafter and buy-then-sell always loses. The one door past tier 1. */
       const it = items[o.item];
       if (!JEWEL_PIECES[o.item] || it.jewelGrade || o.basic !== null) throw new Error(`gear offer ${o.item} is not a plain crafted jewelry piece with no basic`);
       /* jewelry only (the ruling's words): a crafted cloak has no Shop premium, so the Shop sells none past the Traveler Cape */
       if (!JEWEL_SHOP_SLOTS.includes(it.slot)) throw new Error(`gear offer ${o.item} is a crafted ${it.slot}, not jewelry: no Shop premium`);
-      if (o.price !== JEWEL_SHOP_PRICE[o.item] || o.price < JEWEL_SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not its premium (${JEWEL_SHOP_PRICE[o.item]} g, at least ${JEWEL_SHOP_PREMIUM} x its book ${it.v})`);
+      if (o.price !== JEWEL_SHOP_PRICE[o.item] || o.price !== storeAsk(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not its shop price (${JEWEL_SHOP_PRICE[o.item]} g, the store's ask ${storeAsk(it.v)} over its book ${it.v})`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
@@ -116,17 +117,17 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       if ((Number(it.reqLv) || 1) > 1 || (Number(it.tier) || 1) > 1) throw new Error(`gear offer ${o.item} is above tier 1 / Level 1: better pieces come from drops and crafting`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
       if (salvaged.has(o.item)) throw new Error(`gear offer ${o.item} is a field-salvage find (${salvaged.get(o.item)}): never shop stock (tests/field-salvage.mjs (a))`);
-      if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      if (o.price !== storeAsk(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not the store's ask ${storeAsk(it.v)} over its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     if (o.kind === 'seed') {
-      /* The seed counter (designer 2026-10-22): a crop's own seed, unbound, never below its book value (the vendor
-         pays at most half the cheapest shop unit, so buy-then-sell loses half). */
+      /* The seed counter (designer 2026-10-22): a crop's own seed, unbound, at the store's ask over its book value (K-3; the vendor
+         pays at most half the cheapest shop unit, so buy-then-sell loses). */
       const it = items[o.item];
       const crop = it && it.seed && own(crops, it.seed) ? crops[it.seed] : null;
       if (!crop || crop.seed !== o.item || o.basic !== null) throw new Error(`seed offer ${o.item} is not a crop's own seed (src/data/gathering.js CROPS) with no basic`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`seed offer ${o.item} is bound or has no book value`);
-      if (!Number.isSafeInteger(o.price) || o.price < Number(it.v)) throw new Error(`seed offer ${o.item} at ${o.price} g is below its book value ${it.v}`);
+      if (o.price !== storeAsk(it.v)) throw new Error(`seed offer ${o.item} at ${o.price} g is not the store's ask ${storeAsk(it.v)} over its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     if (!own(supplies, o.item)) throw new Error(`supply offer ${o.item} is not a packable hunt supply (src/data/supplies.js)`);
@@ -325,12 +326,13 @@ function gearCases(base) {
   const at = base.findIndex((o) => o.kind === 'gear');
   if (at < 0) return [['no gear row to plant on', null]];
   const g = (patch) => base.map((o, i) => (i === at ? { ...o, ...patch } : o));
-  const v = (id) => SHOP_PREMIUM * Number(ITEMS[id].v);
+  const v = (id) => storeAsk(ITEMS[id].v);
   return [
     ['gear for a slot a ground drops (a helmet)', g({ item: 'leather_helmet', offer: 'supply.leather_helmet', price: v('leather_helmet') })],
     ['gear above Level 1', g({ item: 'studded_belt', offer: 'supply.studded_belt', price: v('studded_belt') })],
     ['gear that is a field-salvage find', g({ item: 'apprentice_gloves', offer: 'supply.apprentice_gloves', price: v('apprentice_gloves') })],
-    ['gear under the premium', g({ price: v(base[at].item) - 1 })],
+    ['gear under the store ask', g({ price: v(base[at].item) - 1 })],
+    ['gear over the store ask (a typed premium)', g({ price: v(base[at].item) * 2 })],
     ['gear with a basic', g({ basic: 'salted_shrimp' })],
     ['a crafted ring under its premium', g({ item: 'banded_signet', offer: 'supply.banded_signet', price: JEWEL_SHOP_PRICE.banded_signet - 1 })],
     ['a Fine ring in the Shop', g({ item: 'banded_signet_keen', offer: 'supply.banded_signet_keen', price: JEWEL_SHOP_PRICE.banded_signet })],

@@ -171,7 +171,7 @@ Six town moves had no V0, so four towns lent nothing while a hero still paid a p
 - **Turning Cut** sits at 11.0 ± 1.4, astride the 10 line. It takes the −50% band. In band is enough.
 - **Raking Shot adds nothing a melee hero can use.** Its 4-tile line only starts from the monster beside the borrower, so it fires 104 times an hour and moves neither depth nor pace. It's free at a border and opens at 20: a cheap pick that does little.
 - **Greater Mend** with the engine's 1-tile reach reads +20.2 ± 3.3; with 17's 7 tiles, +97.4. Either way it is past 20, so it stays unoffered until V4, as 19 says.
-- **Two of these needed 17's rules the engine doesn't play yet** (`roads-lend-rules.json`): a borrowed shot looses its own arrows (the engine only lets a bow loose one, `abilities.js castShotOf`), and Raking Shot's unlock reads Ranged 10, which a sword never trains. Without them Raking Shot never fires. Greater Mend's reach is the third. These gaps, and four town sides that lend nothing at all, are in CONFLICTS 2026-11-23.
+- **Two rows needed 17's rules the engine doesn't play yet** (`roads-lend-rules.json`). Raking Shot: a borrowed shot looses its own arrows (the engine only lets a bow loose one, `abilities.js castShotOf`), and its unlock reads Ranged 10, which a sword never trains (held at 10 here). Without both it never fires. Greater Mend: its native 7-tile reach. These gaps, and four town sides that lend nothing at all, are in CONFLICTS 2026-11-23.
 
 ## Files
 

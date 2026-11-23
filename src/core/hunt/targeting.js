@@ -251,11 +251,16 @@ export function holderTank(inst) {
 
 /** The monsters a Challenge by tank `k` would take now (none when `k` is not a living tank). */
 export function challengeable(inst, k) {
+  /* (none on a hero whose monsters may not switch off it: Hold Fast, lockedOn) */
+  return inReachOf(inst, k).filter((m) => !lockedOn(unitById(inst, m.target)));
+}
+/* the monsters tank `k`'s Challenge reaches and may take by the one-holder rule */
+function inReachOf(inst, k) {
   if (!isTank(k) || !k.alive) return [];
   const holds = holderTank(inst) === k;
   /* a non-holder takes only what is on a hero that is not a tank */
   const onNonTank = (m) => { const t = unitById(inst, m.target); return !!t && isAlly(k, t) && !isTank(t); };
-  return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= tauntReach(k) && (holds || onNonTank(m)) && !lockedOn(unitById(inst, m.target)));
+  return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= tauntReach(k) && (holds || onNonTank(m)));
 }
 
 /* THE CHALLENGE'S REACH AND HOLD for tank `k`: CHALLENGE's, or its Roads build's (combat-sim.js syncUnit writes tauntRadius and

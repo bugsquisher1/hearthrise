@@ -81,7 +81,7 @@ export function moddedRow(row, mod) {
   /* THE PIECES (MOD_FX): carried on the row as `fx`, read where the cast lands (abilities.js, heal-rules.js) */
   let fx = null;
   for (const k of MOD_FX) if (mod[k] !== undefined) (fx || (fx = {}))[k] = mod[k];
-  if (fx) o.fx = Object.freeze(fx);
+  if (fx) Object.assign(o, { fx: Object.freeze(fx) });
   const out = Object.freeze(o);
   byRow.set(row, out);
   return out;

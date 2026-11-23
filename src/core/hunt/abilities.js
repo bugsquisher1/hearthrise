@@ -50,7 +50,6 @@ import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js';
 import { runeTierOf, versionLevel } from '../../data/runes.js';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
-import { temperedAmount } from '../temper.js';
 import { SURGE_MULT_PM } from '../../data/jewelry.js';
 import { cheb, dist2, los } from './grid.js';
 import { makeEvent } from './events.js';
@@ -59,7 +58,7 @@ import { stepsOn, healAmount, manaOn } from './amount.js';
 import { challengeable, challengeFrom, holderTank } from './targeting.js';
 import { roleOf as monsterRoleOf } from './monster-roles.js';
 import { MONSTER_ROLES } from '../../data/monster-roles.js';
-import { applyStatus, statusRow, stretchStatus, tuneStacks, layStack } from './status.js';
+import { applyStatus, statusRow, stretchStatus, tuneStacks } from './status.js';
 import { rowsFor } from './talent-rows.js';
 import { levelOf } from '../xp.js';
 import { ammoPerShot } from '../ammo.js';

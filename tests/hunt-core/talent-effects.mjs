@@ -467,8 +467,14 @@ const cases = {
   },
 };
 
-const AB = 'src/core/hunt/abilities.js', HR = 'src/core/hunt/heal-rules.js', RX = 'src/core/hunt/reactions.js', DM = 'src/core/hunt/damage.js';
-const TR = 'src/core/hunt/talent-rows.js', TG = 'src/core/hunt/targeting.js', STS = 'src/core/hunt/status.js', SE = 'src/core/hunt/status-effects.js';
+const AB = 'src/core/hunt/abilities.js';
+const HR = 'src/core/hunt/heal-rules.js';
+const RX = 'src/core/hunt/reactions.js';
+const DM = 'src/core/hunt/damage.js';
+const TR = 'src/core/hunt/talent-rows.js';
+const TG = 'src/core/hunt/targeting.js';
+const STS = 'src/core/hunt/status.js';
+const SE = 'src/core/hunt/status-effects.js';
 const mutants = [
   { name: 'a heal over time lands at once', case: 'heal-over-time', edits: [[HR, '  if (fx && fx.hotAll === true && fx.hotMs > 0) layOverTime(inst, sc, u, t, n, fx.hotMs);\n  else {', '  {']] },
   { name: 'a fixed tick rolls the row', case: 'heal-over-time', edits: [[STS, '  if (Number.isInteger(st.amt) && !row.ground) { tickFixed(inst, sc, unit, row, st, units); return; }\n', '']] },
@@ -499,7 +505,7 @@ const mutants = [
   { name: 'a second hit lands at once', case: 'echo-and-carry', edits: [[STS, '  const every = once ? ms : row.everyMs;', '  const every = once ? 100 : row.everyMs;']] },
   { name: 'an overkill carries uncapped', case: 'echo-and-carry', edits: [[RX, ', Math.floor((int(dead && dead.maxHp) * row.capPm) / 1000));', ', 1e9);']] },
   { name: 'an exact amount goes through the chain', case: 'echo-and-carry', edits: [[DM, '  if (ability && ability.exact === true) return landOn(inst, target, source, Math.max(1, Math.floor(amount)), true);\n', '']] },
-  { name: 'Hold Fast holds nothing', case: 'unit-rules', edits: [[TG, ' && !lockedOn(unitById(inst, m.target)));', ');']] },
+  { name: 'Hold Fast holds nothing', case: 'unit-rules', edits: [[TG, '  return inReachOf(inst, k).filter((m) => !lockedOn(unitById(inst, m.target)));', '  return inReachOf(inst, k);']] },
   { name: 'the guard takes no share', case: 'unit-rules', edits: [[DM, '  const g = exact ? null : guardFor(inst, target, source);', '  const g = null;']] },
   { name: 'the full hold is never written', case: 'unit-rules', edits: [[TR, '  if (ch && ch.holdAll) u.tauntFull = true; else if (u.tauntFull !== undefined) delete u.tauntFull;', '  if (u.tauntFull !== undefined) delete u.tauntFull;']] },
   { name: 'a mapped row stays a held rule', case: 'every-option-playable', edits: [['src/data/talents.js', "[mod('spring_tide', { cleanse: 1 })]", "[rule('cleanse')]"]] },

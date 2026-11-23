@@ -363,6 +363,11 @@
         "bytes": 3693018,
         "on": "2026-11-23",
         "why": "play-rows.js split out of combat-sim.js (ONE-PATH 600-line rule), on top of stage 3"
+      },
+      {
+        "bytes": 3678544,
+        "on": "2026-11-23",
+        "why": "cut locked in (14474 bytes)"
       }
     ]
   }

@@ -831,7 +831,7 @@ async function planRules(base) {
     ['a higher tier of another weight', 'boarhide_body', null, IRON],
     ['a higher tier of its own slot', 'steel_platebody', null, IRON],
     ['a piece for an empty slot', 'bronze_helm', null, { ...IRON, helmet: null }],
-    ['a Rare', 'houndskin_cloak', null, { ...IRON, cape: 'trollhide_cape' }],
+    ['a Rare', 'houndskin_cloak', null, { ...IRON, cape: 'shadowsilk_cape' }],
     ['a Rare of a lower tier', 'kingstooth', null, { ...IRON, weapon: 'steel_sword' }],
     ['the start kit', 'practice_club', null, IRON],
     ['the Practice Club with Klappa\'s Club in hand', 'practice_club', null, { ...IRON, weapon: 'klappas_club' }],
@@ -863,7 +863,7 @@ async function planRules(base) {
     const p95 = plan70(many, many.map((r) => r.id), { bids: new Map(many.map((r) => [r.id, 7])) });
     if (p95.lines.length !== 64 || p95.more !== 31 || p95.total !== 64 * 2 * 7) fails.push('AW-70b a 95-stack sale reads ' + p95.lines.length + ' lines, ' + p95.more + ' more, ' + p95.total + ' gp');
     if (!edgeBody(0, 'vendor_sell_many', { lines: p95.lines }, '00000000-0000-4000-8000-000000000000')) fails.push('AW-70b a 95-stack bag sale builds no engine ask (nothing would sell)');
-    const TROLL = { ...IRON, cape: 'trollhide_cape' };
+    const TROLL = { ...IRON, cape: 'shadowsilk_cape' };   // a tier-5 cape worn (the Trollhide Cape was cut, 28-named-pieces.md)
     const outRows = stack(['houndskin_cloak', 'bronze_helm', 'steel_platebody', 'practice_club', 'kingstooth']);
     const picked = outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: upgradeWanted({ picks: [], choices: [] }) }).sort().join();
     if (picked !== 'bronze_helm,houndskin_cloak,kingstooth') fails.push('AW-70b Select outgrown picks ' + picked + ', want bronze_helm,houndskin_cloak,kingstooth');

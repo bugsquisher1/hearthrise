@@ -138,14 +138,13 @@ export const AWAITING_ROSTER = Object.freeze([
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'dawnbound_amulet', 'dawnforged_signet',
-  'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
-  'dragon_relic',
+  'dawnforged_signet',
+  'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
+  'heartgarnet_maul', 'dragon_relic',
   'duskwood_rod', 'elderscale_heart',
-  'heartgarnet_maul',
   'lexarch_seal',
   'maple_rod',
-  'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
+  'riftmaw_husk',
   'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
   'slagheart_core',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
@@ -217,6 +216,8 @@ export const UNREACHABLE = Object.freeze({
   later: Object.freeze([
     'wraithglass_drops', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc',
+    /* lucky finds that took the cut pieces' rows (lane/named-pieces 2026-11-23): the Panther's Ruby Signet, Elder Cinder's Dawnlit Mantle, Draconia's Dawnbound Amulet, the Mountain Troll's Rubyfire Studs */
+    'ruby_signet', 'dawnlit_mantle', 'dawnbound_amulet', 'rubyfire_studs',
     'keystone',
     'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
@@ -246,8 +247,9 @@ export const UNREACHABLE = Object.freeze({
 /* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
    (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
+/* 55 -> 50 (lane/named-pieces, 2026-11-23): nine named pieces cut from `later` and `cut`, and four sourceless pieces took four of their lucky rows (55 -> 50) (28-named-pieces.md). */
 /* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
-export const UNREACHABLE_CEILING = 55;
+export const UNREACHABLE_CEILING = 50;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

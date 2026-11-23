@@ -386,7 +386,8 @@ export const MONSTERS = {
      b356 wave: moved Beast→Humanoid. It duplicated `bear` where it sat. */
   mountain_troll: { name: 'Mountain Troll', icon: '🧌', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 165, atk: 36, aim: 42, evasion: 10, def: 22, xp: 305, gp: [50, 108],
-    drops: [{ id: 'troll_hide', ch: .7 }, { id: 'big_bones', ch: 1 }, { id: 'bear_pelt', ch: .18 }, { id: 'iron_warhammer', ch: .012 }] },
+    drops: [{ id: 'troll_hide', ch: .7 }, { id: 'big_bones', ch: 1 }, { id: 'bear_pelt', ch: .18 }, { id: 'iron_warhammer', ch: .012 },
+      { id: 'rubyfire_studs', ch: .0006, lucky: true }] },
   ogre: { name: 'Ogre', icon: '👹', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 160, atk: 33, aim: 34, evasion: 10, def: 19, xp: 290, gp: [50, 110],
     drops: [{ id: 'troll_hide', ch: .5 }, { id: 'big_bones', ch: 1 }, { id: 'brute_plate', ch: .2 }, { id: 'raw_bear_meat', ch: .35 },
@@ -469,7 +470,8 @@ export const MONSTERS = {
     drops: [{ id: 'plague_ichor', ch: .7 }, { id: 'swarm_heart', ch: .04 }, { id: 'venom_sac', ch: .6 }] },
   panther: { name: 'Night Panther', icon: '🐈‍⬛', tier: 5, cls: 'mammal', family: 'Mammal',
     hp: 205, atk: 60, aim: 80, evasion: 13, def: 25, xp: 520, gp: [100, 210],
-    drops: [{ id: 'shadow_pelt', ch: .65 }, { id: 'razor_claw', ch: .3 }, { id: 'ruby', ch: .03 }, { id: 'raw_panther_meat', ch: .7 }] },
+    drops: [{ id: 'shadow_pelt', ch: .65 }, { id: 'razor_claw', ch: .3 }, { id: 'ruby', ch: .03 }, { id: 'raw_panther_meat', ch: .7 },
+      { id: 'ruby_signet', ch: .0005, lucky: true }] },
   giant_boar: { name: 'Giant Boar', icon: '🐗', tier: 5, cls: 'mammal', family: 'Mammal',
     /* fat, slow, enormous HP — the away-farming beast, forgiving of a bad loadout. */
     hp: 252, atk: 52, aim: 54, evasion: 13, def: 33, xp: 565, gp: [115, 238],
@@ -611,7 +613,8 @@ export const MONSTERS = {
     /* breathes Frost: Frost-resistant, Ember-weak. Ashwing's mirror. */
     elements: { ember: -15, frost: 25 },
     hp: 484, atk: 99, aim: 311, evasion: 20, def: 55, xp: 1198, gp: [300, 646],
-    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }] },
+    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 },
+      { id: 'dawnbound_amulet', ch: .0008, lucky: true }] },
   ashwing: { name: 'Ashwing', icon: '🔥', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* Draconia's opposite — one weekly rotation slot, two opposite loadouts. */
     elements: { ember: 25, frost: -15 },
@@ -627,7 +630,8 @@ export const MONSTERS = {
   elder_cinder: { name: 'Elder Cinder', icon: '🕯️', tier: 6, cls: 'elemental', family: 'Elemental', boss: true,
     elements: { ember: 50, frost: -15 },
     hp: 440, atk: 96, aim: 311, evasion: 14, def: 48, xp: 1130, gp: [278, 578],
-    drops: [{ id: 'hell_ember', ch: .6 }, { id: 'ember_bar', ch: .7 }, { id: 'emberstone_ore', ch: .9 }, { id: 'dawnstone_ore', ch: .08 }, { id: 'ancient_rune', ch: .25 }] },
+    drops: [{ id: 'hell_ember', ch: .6 }, { id: 'ember_bar', ch: .7 }, { id: 'emberstone_ore', ch: .9 }, { id: 'dawnstone_ore', ch: .08 }, { id: 'ancient_rune', ch: .25 },
+      { id: 'dawnlit_mantle', ch: .0008, lucky: true }] },
   iron_colossus: { name: 'Iron Colossus', icon: '⚙️', tier: 6, cls: 'construct', family: 'Construct', boss: true,
     hp: 518, atk: 80, aim: 127, evasion: 50, def: 62, xp: 1075, gp: [264, 544],
     drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }] },

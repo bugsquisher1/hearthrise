@@ -66,6 +66,8 @@ Every mechanic below is one that other systems are tuned AGAINST. "Stand-in" mea
 | Built | **Supplies priced from the wage** (`store-kit.js`, EL-PRICE) | Built | Kit share is a reading on today's sustain (rank 3) | The share, not the rule |
 | Built | **Readiness and the climb** (`DANGER.readyPm`, `CLIMB`) | Built, MEASURED | | |
 
+**Built 2026-11-23 (lane/foundations-block), ranks 2, 3 and 6.** Rank 2: a band is a formula in absolute steps (`src/data/bands.js`, `src/core/bands.js bandAbs`: the ratings of a fresh, a reference and a strong company from the row's entry Level, refLevel, top Level and tier), "Depth N" is cut evenly in absolute steps (one `depthAt` for the browser and the edge), the skill part rides the power step (`POWER.weightSkillPm` 250, `member.js skillGapPm`), and `tools/new-ground.mjs` measures only the bridge (the own step each company holds) and checks K-5, K-6 and sustain. Rank 3: `src/data/sustain.js` (regeneration 150, heal spells 830, food 20 permille of the reference company's incoming, the healer's 75 s of mana), read on every ground's reference and held by `tests/sustain.mjs`. Rank 6: `PAY.payStepLoot` (dial `dropPm`), wired beside drop-formula's Rare odds by depth. Still stand-ins: own steps per ground (until ranks 1 and stage 3), the shares as readings rather than engine inputs, flat heal mana. Evidence `tools/balance-program/redesign/foundations/`.
+
 **The call (JUDGMENT):** ranks 1 to 4 are one block: the reference company, its monsters, its sustain and its encounter size. Every lane since wave 1 has measured against hand monsters, today's heals and a fixed four. Build them together, before R10 cuts more grounds and before T1 sizes Traits, or every band, pin and economy anchor is cut twice.
 
 ---

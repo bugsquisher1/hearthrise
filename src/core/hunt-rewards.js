@@ -48,6 +48,7 @@ import { ABILITIES, ownHitSkill } from '../data/abilities.js';
 import { resolveHearthfind } from './hearthfind.js';
 import { magicXpFor } from './hunt/xp-share.js';
 import { splitEven, itemOwner, rareRoll } from './party-split.js';
+import { rollKillFor } from './trait-roll.js';
 import { makeEvent } from './hunt/events.js';
 import { trainingSwing } from './hunt/training.js';
 import { isHero, isMonster } from './hunt/sides.js';
@@ -144,7 +145,12 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   /* A KEYED HALL'S BOSS (ctx.prize, combat-sim.js from the room): his rows are the hall's DAILY PRIZE, each hero's own roll (payPrize),
      never the shared table. Every other kill, his adds' included, rolls as it always did, draw for draw. */
   if (ctx.prize === kind) payPrize(present, ids, row, ctx, atMs);
-  else payDrops(present, ids, lead, row, ctx, world, atMs);
+  else {
+    payDrops(present, ids, lead, row, ctx, world, atMs);
+    /* THE TRAIT ROLL (src/core/trait-roll.js; DARK: only when the server hands the window one, which no caller does while
+       GEAR_STEPS.traitsLive is false). Each hero at the kill, in unit-id order, on its OWN `t:<unit>` stream: no draw above moves. */
+    if (ctx.traitDrops && (!pay || pay.drops)) present.forEach((m, i) => rollKillFor(ctx.traitDrops, m.key, ids[i], present.length, ctx.traitDrops.rngOf(ids[i]), atMs));
+  }
   for (const m of present) countKill(m, kind, !pay || pay.bestiary);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. Never in a mode that counts no Bestiary. */
@@ -157,7 +163,9 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
 function payDrops(present, ids, lead, row, ctx, world, atMs) {
   const rng = ctx.rng;
   /* a scaled ground's row carries its loot rate (src/data/scaled-hunts.js scaledRow `lootPm`, the card's "Loot ×"); every other row none */
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm }, rng);
+  /* ON THE DANGER SCALE the swing's dial carries the depth's share of the table (danger.js dangerDial dropPm: loot follows depth); off it none */
+  const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm, depthPm }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {

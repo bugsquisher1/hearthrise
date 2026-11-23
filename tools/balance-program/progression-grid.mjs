@@ -169,10 +169,11 @@ export function trackBuffs(track, L) {
  * what its Magic allows, a Healer heals on the cheapest water rune; BiS casts what its Magic allows). Options: `buffs` (timed buff rows kept
  * up all hunt), `track` (a build-tracks.json track), `staminaH`, `purse` and `goldFloor` (a bar and a purse that bind).
  */
-export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S', unlocks = null }) {
+export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S', unlocks = null, skillDelta = 0 }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
   const skills = styles.map((style, i) => {
-    const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L), m = MAIN[style] || 'melee';
+    /* skillDelta (lane/foundations-block): every seat's main skill and Defense that many levels off its career line, on top of the gear state's */
+    const lv = { ...D.skillsAt(D.lines, line, style, L) }, d = K.skillDeltaOf(gear, L) + (Number.isInteger(skillDelta) ? skillDelta : 0), m = MAIN[style] || 'melee';
     /* THE FRONT SEAT'S DEFENSE (standards.mjs SEAT_DEFENSE, calibration C-1): the hero in front of a party takes the blows and trains Defense as
        the party career's front did, whatever its way; the back seats keep their own line */
     const F = STD.SEAT_DEFENSE && STD.SEAT_DEFENSE.front;

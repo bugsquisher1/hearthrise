@@ -348,7 +348,7 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)'),
     ev: 'MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)' }),
   L('danger.coin-level', 'monster-rewards', 'global', 'The scale\'s coin level', {
-    at: [at(DZ, 'floor: 0.5, coinPm: 6400 });')],
+    at: [at(DZ, 'floor: 0.5, coinPm: 6400,')],
     def: 'a scale kill\'s coin is its row\'s roll x coinPm / 1000, before the pull\'s share and the depth ratio (src/core/hunt/danger.js dangerDial)',
     range: 'set TOGETHER with the store (econ.store-kit) and the wage (econ.wage-base): a whole-gold store use can price a Steady four\'s kit at 0.2 to 0.3 of its pay only where an hour pays about 16,000 gold at Level 60 (the old tier paid 12,776 there, the scale at 1000 paid 4,797). The server\'s coin bound reads it (hr_danger_grounds.coin_pm_max, 1055)',
     touches: 'every coin a scale kill pays, and through the wage every price in hours of wage', out: GOLD, f: ['C-TIER'],
@@ -358,7 +358,7 @@ export const WORLD = [
   L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step, band and kill rate', {
     at: [at(DZ, 'muster_barrows: ground({ refStep: 590')],
     rows: rows('the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
-    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1060). The same row\'s floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) cut the ground\'s band into DEPTHS for the player\'s "Depth N of 20"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground\'s own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)',
+    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1060). The same row\'s floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) are the BRIDGE of the band in absolute steps (src/core/bands.js, lane/foundations-block): the own step the formula\'s fresh and strong companies hold, through which "Depth N of 20" is cut evenly in absolute steps; refLevel is the Level its reference company was measured at (27 K-5); the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground\'s own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)',
     range: 'whole steps. A bridge, not a per-ground dial: a step is of the ground\'s own rows until the bands are re-cut in one unit (wave 2), then it goes',
     touches: 'the absolute pay on that ground (each step off it is payStepXp)', out: PACE, f: ['P02'],
     tests: [['tests/hunt-core/danger.mjs', 'pay: Muster\'s reference step pays the table']], testReads: ['DANGER_GROUNDS'],
@@ -400,13 +400,47 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe with --styles (lineups) against the roles-off candidate; no matrix run plans a stance'),
     ev: 'MEASURED (lane/w2-roles-rows, v1-climb.mjs 8 seeds x 12 h a lineup, roles on and off)' }),
   L('danger.power-gear-below', 'monster-stats', 'global', 'The power step under the ground\'s gear Level', {
-    at: [at(DZ, 'export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });')],
+    at: [at(DZ, 'weightGearBelowPm: 500,')],
     def: 'one-sided: a gear part UNDER the ground\'s base item Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/hunt/danger.js gearSteps',
     range: '0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to',
     touches: 'how far a company under the ground\'s gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster\'s base)', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'power: a tier back moves the blow by the weight under the base, one-sided']], testReads: ['POWER'],
     perturb: NP('not-in-runs', 'played by the V1 probe (candidates power-tier-back / power-tier-ahead)'),
     ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows, Steady at Level 60 from a held start, 6 seeds x 12 h, held read from hour 6, paired against the tree: tools/balance-program/redesign/econ/gear-*-L60.json): a tier back -13.2 (se 3.5), a tier ahead +20.3 (se 5.3); at 1000 R9 read -65.2 / +20.8' }),
+  /* THE FOUNDATIONS (lane/foundations-block, 26-architecture-pass.md ranks 2, 3 and 6): the skill part, loot by depth, the band in absolute
+     steps. Played by the V1 probe (tools/balance-program/redesign/foundations/run.mjs); no matrix run plans a stance. */
+  L('danger.power-skill', 'monster-stats', 'global', 'The power step on skill', {
+    at: [at(DZ, 'weightSkillPm: 250 });')],
+    def: 'on the scale a hero\'s skill for its style, read as the Level the reference career reaches it (src/data/bands.js SKILL_LINE backwards), over its own Level counts weightSkillPm / 1000 steps a Level, both ratings (member.js heroSnapshot skillGapPm; src/core/hunt/danger.js skillSteps); 0 on the career line',
+    range: '0 to 1000 permille (04 section 1: Level, skill and gear weights sum to one once the blow is the step contest). STATED 250, a quarter',
+    touches: 'how far a style switcher or a trained hero holds from its Level\'s reference; nothing for a hero on its line, so no band measured on the Lab\'s career lines moves', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
+    tests: [['tests/hunt-core/danger.mjs', 'skill: 20 Levels of skill behind moves a blow both ways by the weight, on the scale only']], testReads: ['POWER'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (the skill cell, --skill-delta; candidate skill-weight-off pairs the weight away)'),
+    ev: 'MEASURED (lane/foundations-block, tools/balance-program/redesign/foundations: the reference four 10 skill under its line, paired against the tree and against skill-weight-off)' }),
+  L('danger.loot-step', 'monster-rewards', 'global', 'Loot follows depth', {
+    at: [at(DZ, 'payStepLoot: 0.004 });')],
+    def: 'on the scale a kill\'s own table rolls each row at its chance x dropPm / 1000 (a certainty untouched, never past one roll a kill): the pull\'s share over the reference pull\'s x (1 + LOOT_STEP)^gap, LOOT_STEP = (1 + payStepLoot)(1 + powerStep) - 1, PAY.floor under the reference, held at PAY.gapMax; so at the reference the table is as written and an hour a step deeper drops payStepLoot more (04 section 7 payStepLoot)',
+    range: '0.2% to 0.5% (04 section 11, the coin\'s range: loot is sold for gold). STATED 0.4%, the coin\'s',
+    touches: 'loot an hour by depth, so the wage\'s income and the stances\' gold against each other; the server\'s item bound (one roll a row a kill) holds by construction', out: GOLD, f: ['E10'],
+    tests: [['tests/hunt-core/danger.mjs', 'loot: 1000 at the reference, an hour a step deeper payStepLoot more, the floor under, the kill\'s rolls read it']], testReads: ['PAY'],
+    perturb: NP('not-in-runs', 'played by the V1 probe (candidate loot-depth-off pairs it away)'),
+    ev: 'MEASURED (lane/foundations-block, tools/balance-program/redesign/foundations: the reference four on three stances, paired against loot-depth-off)' }),
+  L('bands.absolute', 'monster-rewards', 'global', 'A ground\'s band in absolute steps', {
+    at: [at('src/data/bands.js', 'export const BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });')],
+    def: 'a ground\'s band is the rating (04 section 1: L + wGear x (gear - L) + wSkill x (skillLevel - L), the power step\'s own weights) of three companies: a fresh four freshTiersBack tiers under the base at the entry Level (depth 1), the reference at refLevel (the pay anchor), a strong four topTiersAhead tiers over it at the top Level (depth 20); depths are cut evenly in absolute steps; floorStep / refStep / topStep are the measured bridge to the ground\'s own steps (src/core/bands.js)',
+    range: 'whole tiers. freshTiersBack 1 (12-targets 3.1, the Lab\'s LOW state), topTiersAhead 1 (the next ground\'s base, wearable by the top Level)',
+    touches: 'where depth 1 and depth 20 sit in strength, the depth a player reads, Rare odds by depth, 27 K-6\'s handover between tiers', out: PACE, f: ['P02'],
+    tests: [['tests/bands.mjs', 'BD-4 the band is the formula of the row, BD-6 one depth, BD-7 the handover']], testReads: ['BAND_ABS'],
+    perturb: NP('not-in-runs', 'a cut, not a play: tools/new-ground.mjs measures the bridge under it'),
+    ev: 'STATED (12-targets 3.1 and 3.2; 27 K-6); the bridge MEASURED by lane/band-floor (tools/balance-program/redesign/grounds)' }),
+  L('bands.skill-line', 'monster-stats', 'content', 'The reference skill line', {
+    at: [at('src/data/bands.js', 'export const SKILL_LINE = Object.freeze({')],
+    def: 'the reference company\'s main skill a Level, by style (melee, magic, ranged), the career a party specialist trains: a skill reads as the Level on this line, so a hero on it has a skill part of 0',
+    range: 'a measured career, never tuned: tests/bands.mjs BD-1 holds it within 1 of tools/balance-sim/skill-lines.json. Stage 7 (time parity) makes it y = x',
+    touches: 'the skill part of the power step and the band\'s ratings', out: [...KILL, ...SURVIVE], f: ['C-TIER'],
+    tests: [['tests/bands.mjs', 'BD-1 the line is the career, BD-2 read backwards']], testReads: ['SKILL_LINE'],
+    perturb: NP('not-in-runs', 'a measured career, not a dial'),
+    ev: 'MEASURED (tools/balance-sim/skill-lines.json party lines)' }),
   /* ── 14. MONSTER XP AND LOOT VALUES ────────────────────────────────────────────────────────────────────────────────────────── */
   L('reward.xp-line', 'monster-rewards', 'global', 'Level XP a kill', {
     at: [at(BS, 'xp: Object.freeze({ a: 1.436')],
@@ -504,7 +538,7 @@ export const WORLD = [
 
   /* ── 19. RARE-DROP PROBABILITIES ───────────────────────────────────────────────────────────────────────────────────────────── */
   L('rare.band-rows', 'rare-drops', 'content', 'Scarce, Rare, Key and Trophy drop chances', {
-    rows: rows('ch on scarce, rare, key and trophy rows, the reforge patterns\' boss drops, and the Catacomb wings\' named-armor rate (catacomb-wings.js ARMOR_PM_KILL, STATED)', [MON_ROWS, PACKS, home('src/data/patterns.js#PATTERNS', 'open'), home('src/data/catacomb-wings.js#ARMOR_PM_KILL', 'count')], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
+    rows: rows('ch on scarce, rare, key and trophy rows, the reforge patterns\' boss drops, and the Catacomb wings\' named-armor rate (catacomb-wings.js ARMOR_PM_KILL, STATED)', [MON_ROWS, PACKS, home('src/data/patterns.js#PATTERNS', 'open'), home('src/data/catacomb-wings.js#ARMOR_EVERY_HOURS', 'count')], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
     names: ['MONSTERS', 'BAND_TARGETS'],
     def: 'each row\'s chance typed by hand until a test measures its hours inside its band (Scarce 0.75 to 1.5 h, Rare 10 to 20 h, Key 1.5 to 3 h, Trophy 100 to 150 h a hero at the floor)',
     range: 'BAND_TARGETS (a target table) and the 0.95 cap. Ruled 2026-11-20: generous to Krell, rarer after',

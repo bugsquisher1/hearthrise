@@ -36,7 +36,8 @@ export function bandOf(row) {
  * silently turn a guarantee into a multi-roll.
  *
  * @param row     { id, ch }
- * @param mods    { dropMult, dropBuff, featuredMult }
+ * @param mods    { dropMult, dropBuff, featuredMult, depthPm }
+ *   depthPm  the Danger scale's depth on the kill's own table, permille (src/core/hunt/danger.js dangerDial dropPm; absent off the scale)
  */
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
@@ -44,7 +45,8 @@ export function effectiveDropChance(row, mods) {
   const dropMult = m.dropMult == null ? 1 : m.dropMult;
   const dropBuff = m.dropBuff || 0;
   const featured = m.featuredMult == null ? 1 : m.featuredMult;
-  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured);
+  const depth = Number.isFinite(m.depthPm) && m.depthPm > 0 ? m.depthPm / 1000 : 1;
+  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);
 }
 
 /**

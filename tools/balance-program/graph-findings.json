@@ -718,10 +718,6 @@
    "kind": "dead-outcome",
    "key": "regen|killsPerH"
   },
-  "GF-7029b590": {
-   "kind": "writers",
-   "key": "C-SCALED|P22"
-  },
   "GF-71170f5f": {
    "kind": "feeds",
    "key": "C-BOSS-PHASE>C-AREA"
@@ -793,10 +789,6 @@
   "GF-7956353e": {
    "kind": "undeclared-move",
    "key": "monsterHp|huntedShare"
-  },
-  "GF-797f78de": {
-   "kind": "lever-reader",
-   "key": "party.run-xp|P20"
   },
   "GF-79a35d6a": {
    "kind": "writers",

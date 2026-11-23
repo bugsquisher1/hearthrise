@@ -44,7 +44,7 @@ import { shootsItem } from '../../data/hunt-roles.js';
 import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
 import { temperedAmount } from '../temper.js';
-import { swingRow, crossLines, guardPmOf } from './boss-phases.js';
+import { swingRow, crossLines, guardPmOf, rampTick } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit } from './monster-roles.js';
@@ -250,6 +250,8 @@ export function resolveAttacks(inst, sc) {
   for (const u of inst.world.units) {
     if (!u.alive) continue;
     if (u.swingLeftMs > 0) u.swingLeftMs = Math.max(0, u.swingLeftMs - sc.dtMs);
+    /* A BOSS'S RAMP counts his fight (boss-phases.js rampTick: only a row with a ramp, only while he holds a target) */
+    if (isMonster(u)) rampTick(u, rowOf(inst, u.kind), sc.dtMs);
     /* A MONSTER WINDING UP A SPELL makes no swing (monster-spells.js: the cast is its blow, and its landing restarts
        the swing clock). */
     if (u.cast) continue;

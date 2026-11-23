@@ -12,7 +12,8 @@
 //
 // mutant-anchors: src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql, supabase/migrations/2027-04-30-sweeps-coat.sql, src/shell/windows/inventory/outfit-bundle.js
 //
-//   TCH-DATA    the table is Tyler's (16 / 8 / 4.5 / 2%, x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
+//   TCH-DATA    the table is the formulas' (first landings 40 / 80 / 120 / 140 where the floor's Level reaches the weapons' item Level, odds 16 / 8 / 4 / 2%
+//               halved a metal; lane/tower-boss-formula), Tyler's stokes and warmth (x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
 //               the design's warmth table read back through src/data/chests.js; the server's chance (hr_chest_chance_ppm) and the data's
 //               (chestChancePpm) agree on every key, warmth 0..60 and stoke 0..3; the open table (keyForLanding: the top row open-ended);
 //               the salts are the highest tempering tier's at or under each key's weapons (the coherence pass's C4); the catalogue rows
@@ -115,7 +116,12 @@ async function dataArm(db, M) {
   const by = Object.fromEntries(K.map((k) => [k.id, k]));
   /* Tyler's numbers (2026-11-14) */
   const rows = K.map((k) => `${k.id}@${k.from}=${k.weaponPm}`).join(',');
-  if (rows !== 'bronze@10=160,silver@40=80,gold@70=45,platinum@100=20') bad.push('TCH-DATA the key table reads ' + rows);
+  /* the first landing and the odds are generated (lane/tower-boss-formula): the landing whose floor Level reaches the weapons' item Level, and
+     the chance halved a metal; the oracle re-derives both from the floors' Level row and the gear table */
+  const lvlPm = M.TD.TOWER_RULES.steps.levelPm, every = M.TD.TOWER_RULES.landingEvery;
+  const firstAt = (iL) => { let f = every; while (Math.ceil((f * lvlPm) / 1000) < iL) f += every; return f; };
+  const gen = K.map((k, i) => `${k.id}@${firstAt(20 * k.weaponTier)}=${Math.round(160 / 2 ** i)}`).join(',');
+  if (rows !== gen || rows !== 'bronze@40=160,silver@80=80,gold@120=40,platinum@140=20') bad.push('TCH-DATA the key table reads ' + rows + ' (the formulas: ' + gen + ')');
   if (JSON.stringify(L.stokes) !== JSON.stringify([{ pm: 1700, keys: 3 }, { pm: 2500, keys: 7 }, { pm: 3300, keys: 12 }])) bad.push('TCH-DATA the stokes read ' + JSON.stringify(L.stokes));
   if (L.warmthStepPm !== 40 || L.warmthCapPm !== 3000 || L.ownPm !== 500) bad.push(`TCH-DATA the warmth is ${L.warmthStepPm} a dry key to ${L.warmthCapPm}, own ${L.ownPm}`);
   /* the key families (Tyler 2026-11-16): every Tower key in one family, the Catacombs' in their own (lane/c-catacombs); six opened a week each;
@@ -129,10 +135,10 @@ async function dataArm(db, M) {
   if (kfDb.map((r) => [r.key_family, r.opens_per_week, r.held_max, r.switch_id].join(':')).join('|') !== kfWant) bad.push(`TCH-DATA hr_chest_key_families reads ${JSON.stringify(kfDb)}, the data ${kfWant}`);
   /* the open table is the Tower family's alone: a later family's row starting low never hands out a Tower landing's key */
   const other = [...K, { ...K[3], id: 'deep_wing', family: 'catacomb', item: 'deep_wing_key', from: 10 }];
-  if (keyForLanding(130, other).id !== 'platinum' || keyForLanding(10, other).id !== 'bronze') bad.push('TCH-DATA the open table read another family\'s row for a Tower landing');
+  if (keyForLanding(150, other).id !== 'platinum' || keyForLanding(40, other).id !== 'bronze') bad.push('TCH-DATA the open table read another family\'s row for a Tower landing');
   if (!validateChests(K.map((k, j) => (j === 1 ? { ...k, family: 'arena' } : k))).some((x) => x.includes('is no key family'))) bad.push('TCH-DATA the table let a key of no family load');
   /* the design's warmth table (the board's §5 "(a) The Hearth's warmth"), in hundredths of a percent */
-  const table = { bronze: [1600, 1920, 2240, 2880, 3840, 4800], silver: [800, 960, 1120, 1440, 1920, 2400], gold: [450, 540, 630, 810, 1080, 1350], platinum: [200, 240, 280, 360, 480, 600] };
+  const table = { bronze: [1600, 1920, 2240, 2880, 3840, 4800], silver: [800, 960, 1120, 1440, 1920, 2400], gold: [400, 480, 560, 720, 960, 1200], platinum: [200, 240, 280, 360, 480, 600] };
   for (const [id, want] of Object.entries(table)) {
     const got = [0, 5, 10, 20, 35, 50].map((d) => chestChancePpm(by[id], d, 0) / 100);
     if (JSON.stringify(got) !== JSON.stringify(want)) bad.push(`TCH-DATA ${id}'s warmth reads ${got}, the design's ${want}`);
@@ -150,10 +156,10 @@ async function dataArm(db, M) {
   if (off.length) bad.push(`TCH-DATA the server's chance differs from the data's on ${off.length} cell(s): ${JSON.stringify(off[0])} vs ${cells[sql.indexOf(off[0])][3]}`);
   if ((await one(db, 'select public.hr_chest_chance_ppm(160, 0, 4)')) !== null) bad.push('TCH-DATA a stoke count no row has priced a chance');
   /* the open table */
-  const lands = [10, 30, 40, 60, 70, 90, 100, 130, 300].map((l) => keyForLanding(l).id).join(',');
-  if (lands !== 'bronze,bronze,silver,silver,gold,gold,platinum,platinum,platinum' || keyForLanding(9) !== null) bad.push('TCH-DATA the landings hand out ' + lands);
+  const lands = [40, 70, 80, 110, 120, 130, 140, 200, 1500].map((l) => keyForLanding(l).id).join(',');
+  if (lands !== 'bronze,bronze,silver,silver,gold,gold,platinum,platinum,platinum' || keyForLanding(30) !== null) bad.push('TCH-DATA the landings hand out ' + lands);
   const sqlLands = await one(db, `select string_agg((select k.key_id from public.hr_chest_keys k where k.ground = 'the_burning_tower' and k.from_landing <= l order by k.from_landing desc limit 1), ',' order by l)
-    from unnest(array[10, 30, 40, 60, 70, 90, 100, 130, 300]) l`);
+    from unnest(array[40, 70, 80, 110, 120, 130, 140, 200, 1500]) l`);
   if (sqlLands !== lands) bad.push('TCH-DATA the server\'s open table reads ' + sqlLands);
   /* C4: the salts of the highest tempering tier at or under the key's weapons, never a tier under the hero's gear when a ladder exists */
   const tiers = Object.keys(M.TM.TEMPER_MATERIALS).map(Number);
@@ -232,17 +238,35 @@ async function oddsArm(db, M) {
   }
   return bad;
 }
-
 /* ── TCH-MINT ─────────────────────────────────────────────────────────────── */
+/* the iron kit (tools/balance-sim/gear.mjs kitOf('tank', 20), the shield making a tank), worn by the climber's hero */
+const IRON_KIT = [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
+  ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']];
+async function kitUp(db) {
+  for (const [slot, item] of IRON_KIT) await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [UID, slot, item]);
+}
 async function mintArm(db, M) {
   const bad = [];
   const runs = {};
   for (const door of ['closed', 'viewed']) {
     const r = await H.inTx(db, async () => {
-      const h = await C.climber(db, M, {});
+      /* a Level 55 tank in an iron kit, from checkpoint 30 (a best of 30 on record): its climb passes the Bronze Key's generated first landing (40)
+         inside the span (a bare hero tops out near floor 15, a kitted Level 50 near 30, from floor 1 this one reaches 30-39 in the span:
+         lane/tower-boss-formula) and holds its edge past the span's end */
+      const h = await C.climber(db, M, { level: 55, landing: 30, before: async () => {
+        await kitUp(db);
+        await db.query(`insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing, best_at, updated_at)
+          values ($1, 0, 'the_burning_tower', 30, 30, now(), now()) on conflict (user_id, slot, hunt_id) do update set best_floor = 30, best_landing = 30`, [UID]);
+      } });
       try { await C.drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
       const first = await state(db);
-      /* a second climb the same week, from floor 1 again, through the same landings */
+      /* still climbing: the hero leaves the player's way and the next windows settle it (one climb at a time) */
+      await db.query("select set_config('hr.test_now', (transaction_timestamp() + interval '40 minutes')::text, true)");
+      if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [UID])) {
+        await call(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+        try { await C.drive(db, M, door, { ...h, from: h.from + C.SPAN }); } catch (e) { return { err: 'leaving the first climb: ' + String(e.message).slice(0, 400) }; }
+      }
+      /* a second climb the same week, from checkpoint 30 again, through the same landings */
       const h2 = await climbAgain(db);
       try { await C.drive(db, M, door, h2); } catch (e) { return { err: 'the second climb: ' + String(e.message).slice(0, 400) }; }
       return { first, second: await state(db) };
@@ -251,12 +275,14 @@ async function mintArm(db, M) {
     if (r.err) { bad.push(`${tag} ${r.err}`); continue; }
     runs[door] = r;
     for (const [when, s] of [['the first climb', r.first], ['after a second climb', r.second]]) {
-      if (!s.landings.length) { bad.push(`${tag} CONTROL: ${when} took no landing`); continue; }
+      /* the landings that hand out a key (Bronze's generated first landing on) */
+      const keyed = s.landings.filter((l) => M.CH.keyForLanding(l));
+      if (!keyed.length) { bad.push(`${tag} CONTROL: ${when} took no landing with a key (landings ${s.landings})`); continue; }
       if (s.withheld !== 0) bad.push(`${tag} ${when}: ${s.withheld} key(s) withheld under the held limit`);
       const want = {};
-      for (const l of s.landings) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
+      for (const l of keyed) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
       if (JSON.stringify(s.keys) !== JSON.stringify(want)) bad.push(`${tag} ${when}: the bag holds ${JSON.stringify(s.keys)} for landings ${s.landings}, not ${JSON.stringify(want)}`);
-      if (s.mint_rows !== s.landings.length || s.mint_bad !== 0) bad.push(`${tag} ${when}: ${s.mint_rows} tower_key ledger rows (${s.mint_bad} malformed) for ${s.landings.length} landings`);
+      if (s.mint_rows !== keyed.length || s.mint_bad !== 0) bad.push(`${tag} ${when}: ${s.mint_rows} tower_key ledger rows (${s.mint_bad} malformed) for ${keyed.length} keyed landings`);
     }
     /* NO WEEKLY EARN CAP (Tyler 2026-11-16): the second climb's landings are keys again, on top of the first's */
     const total = (o) => Object.values(o || {}).reduce((a, b) => a + Number(b), 0);
@@ -278,9 +304,10 @@ async function mintArm(db, M) {
   });
   const want = {};
   const lands = []; for (let l = 10; l <= 130; l += 10) lands.push(l);
-  for (const l of lands) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
+  const keyed = lands.filter((l) => M.CH.keyForLanding(l));
+  for (const l of keyed) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
   const sorted = (o) => JSON.stringify(Object.keys(o || {}).sort().map((x) => [x, o[x]]));
-  if (sorted(table.keys) !== sorted(want) || table.mint_rows !== lands.length || JSON.stringify(table.landings) !== JSON.stringify(lands)) {
+  if (sorted(table.keys) !== sorted(want) || table.mint_rows !== keyed.length || JSON.stringify(table.landings) !== JSON.stringify(lands)) {
     bad.push(`TCH-MINT a run to floor 130 minted ${JSON.stringify(table.keys)} (${table.mint_rows} rows, landings ${table.landings}), not ${JSON.stringify(want)}`);
   }
   if (runs.closed && runs.viewed && JSON.stringify(runs.closed.first) !== JSON.stringify(runs.viewed.first)) {
@@ -292,7 +319,12 @@ async function mintArm(db, M) {
    windows follow the first climb's: the same session setup as tests/tower-climb.mjs climber, on the hero that already exists. */
 async function climbAgain(db) {
   await db.query("select set_config('hr.test_now', (transaction_timestamp() + interval '40 minutes')::text, true)");
-  const r = await call(db, 'select public.hr_tower_start(0, 0, $1::uuid)', [idem()]);
+  /* a climb still standing at the span's end (a hero that holds its edge) is left the player's way first: one climb at a time */
+  if (await one(db, 'select count(*)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [UID])) {
+    const left = await call(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    if (!left || left.ok !== true) throw new Error('leaving the first climb refused: ' + JSON.stringify(left));
+  }
+  const r = await call(db, 'select public.hr_tower_start(0, 30, $1::uuid)', [idem()]);
   if (!r || r.ok !== true) throw new Error('the second hr_tower_start refused: ' + JSON.stringify(r));
   const sid = r.session_id;
   const t = "date_trunc('second', now() - make_interval(mins => 25))";
@@ -334,33 +366,33 @@ async function heldArm(db, M) {
     };
     const keysOf = () => q(db, "select item_id, qty from public.player_inventory where user_id = $1 and slot = 0 and item_id like 'tower\\_key\\_%' order by item_id", [UID]);
     out.heldBefore = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID]));
-    /* a run over landings 10, 20 and 30: 10's Bronze drops (the limit reached), 20's and 30's are withheld */
-    const s1 = await run(30);
+    /* a run over landings 40, 50 and 60 (Bronze's generated first landing on): 40's Bronze drops (the limit reached), 50's and 60's are withheld */
+    const s1 = await run(60);
     out.keys1 = await keysOf();
     out.held1 = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID]));
     out.rows1 = await q(db, `select intent, item_id, qty, (meta->>'landing')::int as landing, (meta->>'held')::int as held, (meta->>'max')::int as max
       from public.player_ledger where user_id = $1 and session_id = $2::uuid order by (meta->>'landing')::int`, [UID, s1]);
     /* five Gold Keys leave Storage (another hero took them): under the limit again, the next run's landings drop until it is reached */
     await db.query("update public.account_bank set qty = qty - 5 where user_id = $1 and item_id = 'tower_key_gold'", [UID]);
-    const s2 = await run(70);
+    const s2 = await run(100);
     out.rows2 = await q(db, `select intent, (meta->>'landing')::int as landing from public.player_ledger where user_id = $1 and session_id = $2::uuid order by (meta->>'landing')::int`, [UID, s2]);
     out.held2 = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID]));
     return out;
   });
   if (r.heldBefore !== max - 1) bad.push(`TCH-HELD CONTROL: the hero held ${r.heldBefore} Tower keys, not ${max - 1} (the stand-in family counted?)`);
   const minted = r.rows1.filter((x) => x.intent === 'tower_key'), withheld = r.rows1.filter((x) => x.intent === 'tower_key_withheld');
-  if (minted.length !== 1 || minted[0].landing !== 10 || Number(minted[0].qty) !== 1 || r.held1 !== max) {
-    bad.push(`TCH-HELD under the limit by one: ${JSON.stringify(r.rows1)} minted, held ${r.held1} (want landing 10's key alone, held ${max})`);
+  if (minted.length !== 1 || minted[0].landing !== 40 || Number(minted[0].qty) !== 1 || r.held1 !== max) {
+    bad.push(`TCH-HELD under the limit by one: ${JSON.stringify(r.rows1)} minted, held ${r.held1} (want landing 40's key alone, held ${max})`);
   }
   if (withheld.length !== 2 || withheld.some((x) => x.item_id !== null || Number(x.qty || 0) !== 0 || x.held !== max || x.max !== max)
-      || withheld.map((x) => x.landing).join(',') !== '20,30') {
-    bad.push(`TCH-HELD at the limit the landings past it read ${JSON.stringify(withheld)} (want 20 and 30 withheld, journalled with no item)`);
+      || withheld.map((x) => x.landing).join(',') !== '50,60') {
+    bad.push(`TCH-HELD at the limit the landings past it read ${JSON.stringify(withheld)} (want 50 and 60 withheld, journalled with no item)`);
   }
   const bronze = (r.keys1.find((x) => x.item_id === 'tower_key_bronze') || {}).qty;
   if (Number(bronze) !== 1) bad.push(`TCH-HELD the bag holds ${JSON.stringify(r.keys1)} after the limit`);
   /* five out: landings 10 to 50 drop (five), 60 and 70 are withheld again */
   const m2 = r.rows2.filter((x) => x.intent === 'tower_key').map((x) => x.landing).join(','), w2 = r.rows2.filter((x) => x.intent === 'tower_key_withheld').map((x) => x.landing).join(',');
-  if (m2 !== '10,20,30,40,50' || w2 !== '60,70' || r.held2 !== max) bad.push(`TCH-HELD five keys out: minted ${m2}, withheld ${w2}, held ${r.held2} (want 10..50, then 60,70 withheld, held ${max})`);
+  if (m2 !== '40,50,60,70,80' || w2 !== '90,100' || r.held2 !== max) bad.push(`TCH-HELD five keys out: minted ${m2}, withheld ${w2}, held ${r.held2} (want 40..80, then 90,100 withheld, held ${max})`);
   return bad;
 }
 
@@ -391,10 +423,10 @@ async function ringArm(db, M) {
     out.again = await buy(idem());
     out.gold2 = await one(db, 'select gold from public.account_wallet where user_id = $1', [UID]);
     out.sorted = { ring: await ring(), bagKeys: await bagKeys(), stacks: await stacks() };
-    /* a key drops after it: a run over landing 10 */
+    /* a key drops after it: a run over landing 40 */
     const sid = idem();
     await db.query("insert into public.tower_runs (session_id, user_id, slot, instance_id, hunt_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 'the_burning_tower', 1)", [sid, UID, idem()]);
-    await db.query('update public.tower_runs set top_floor = 10, floors = 10 where session_id = $1::uuid', [sid]);
+    await db.query('update public.tower_runs set top_floor = 40, floors = 40 where session_id = $1::uuid', [sid]);
     out.dropped = { ring: await ring(), bagKeys: await bagKeys(), stacks: await stacks(), held: Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID])) };
     /* a reload: the envelope the client applies */
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [UID]);
@@ -981,7 +1013,9 @@ const MUTANTS = [
     from: 'pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5,', to: 'pm: Object.freeze({ bronze: 2, silver: 6, gold: 4, platinum: 5,' },
   { name: 'the data\'s warmth cap moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js', from: '  warmthCapPm: 3000,', to: '  warmthCapPm: 2500,' },
   { name: 'the data\'s Platinum odds move', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
-    from: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20,", to: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 40," },
+    from: "export const KEY_ODDS = Object.freeze({ firstPm: 160, fallPm: 500 });", to: "export const KEY_ODDS = Object.freeze({ firstPm: 160, fallPm: 600 });" },
+  { name: 'a key opens a band early', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
+    from: '  while (towerLevelAt(f, rules) < iL) f += every;', to: '  while (towerLevelAt(f, rules) < iL - 20) f += every;' },
   { name: 'the data\'s Tower week moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
     from: "name: 'Tower', opensPerWeek: 6, heldMax: 30,", to: "name: 'Tower', opensPerWeek: 7, heldMax: 30," },
   /* TCH-SELFCHECK: §9(e) counting from zero again (the shape GitHub run 44144849725 caught at random) */

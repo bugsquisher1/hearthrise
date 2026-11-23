@@ -119,7 +119,13 @@ function gapOf(ground, step) {
 /* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. Under the
    reference it never falls past PAY.floor (12-targets 2.1): a shallower hold costs its kills an hour, not twice. */
 function depthRatio(ground, step, rate) {
-  const g = gapOf(ground, step);
+  return gapPayRatio(gapOf(ground, step), rate);
+}
+/** THE PAY RULE ON A WHOLE GAP (04 section 7: pay = reference pay x payStep ^ gap, never under PAY.floor below; the caller holds the gap to
+    its ceiling, gapOf here, src/core/hunt/tower.js towerShareXp on the Tower): the one ratio a scale ground's depth and the Burning Tower's
+    floors both pay by. */
+export function gapPayRatio(gap, rate) {
+  const g = Math.trunc(Number(gap) || 0);
   return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floor, 1 / powStep(1 + rate, -g));
 }
 
@@ -162,7 +168,7 @@ function gearSteps(partPm, row) {
 }
 /* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */
 const RATIO = new Map();
-function stepRatio(steps) {
+export function stepRatio(steps) {
   let r = RATIO.get(steps);
   if (r === undefined) {
     r = steps >= 0 ? powStep(1 + DANGER.powerStep, steps) : 1 / powStep(1 + DANGER.powerStep, -steps);
@@ -225,9 +231,13 @@ export const refKillsOf = (ground) => {
  * table gives one kill at the reference rate, times the depth ratio. 04 section 5: "a kill pays a share of the killer's own Level".
  */
 export function levelShareXp(level, step, ground) {
+  return levelShareAt(level, refKillsOf(ground)) * depthRatio(ground, step, PAY.payStepXp);
+}
+/** The hours table's share of Level `level` one kill pays at the reference, over `refKills` kills a head an hour: (XP to the next Level /
+    the hours that Level takes) / refKills. The reference half of every Level-share kill (levelShareXp, the Tower's towerShareXp). */
+export function levelShareAt(level, refKills) {
   const L = Number.isInteger(level) && level >= 1 ? level : 1;
-  const toNext = charXpForLevel(L + 1) - charXpForLevel(L);
-  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);
+  return (charXpForLevel(L + 1) - charXpForLevel(L)) / (hoursForLevel(L) * refKills);
 }
 
 /** A world opening on the scale: its stance and the step its plan starts at, nothing climbed yet. */

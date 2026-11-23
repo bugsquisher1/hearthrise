@@ -67,13 +67,14 @@ async function dataArm(db, M) {
   /* the keys: each wing's metal, the Tower's doors and odds, the lean */
   const CK = M.CH.CATACOMB_KEYS;
   const sum = CK.map((k) => [k.id, k.ground, k.from, k.weaponPm, k.helmetPm, k.gear, k.family].join(':')).join('|');
-  const want = ['waterlogged', 'bone'].flatMap((lean) => [['bronze', 10, 160], ['silver', 40, 80], ['gold', 70, 45], ['platinum', 100, 20]]
+  /* the Tower's doors and odds: generated (src/data/chests.js landingForLevel, KEY_ODDS; lane/tower-boss-formula), Bronze 40 to Platinum 140 */
+  const want = ['waterlogged', 'bone'].flatMap((lean) => [['bronze', 40, 160], ['silver', 80, 80], ['gold', 120, 40], ['platinum', 140, 20]]
     .map(([m, from, pm]) => [lean + '_' + m, lean === 'bone' ? bo.hunt : fl.hunt, from, pm, lean === 'bone' ? 700 : 300, 'armor', 'catacomb'].join(':'))).join('|');
   if (sum !== want) bad.push('CB-DATA the Catacomb keys read ' + sum);
   const ready = CK.filter((k) => Object.keys(k.armor).length === 6).map((k) => k.id).sort().join(',');
   if (ready !== CK.map((k) => k.id).sort().join(',')) bad.push('CB-DATA the keys with their six pieces are ' + ready + ' (all four metals ship: every key the descent drops opens)');
-  if (M.CH.keyForLanding(30, undefined, bo.hunt).id !== 'bone_bronze' || M.CH.keyForLanding(130, undefined, fl.hunt).id !== 'waterlogged_platinum'
-      || M.CH.keyForLanding(30).id !== 'bronze') bad.push('CB-DATA a door hands out another ground\'s key');
+  if ((M.CH.keyForLanding(50, undefined, bo.hunt) || {}).id !== 'bone_bronze' || (M.CH.keyForLanding(150, undefined, fl.hunt) || {}).id !== 'waterlogged_platinum'
+      || (M.CH.keyForLanding(50) || {}).id !== 'bronze') bad.push('CB-DATA a door hands out another ground\'s key');
   /* the server's rows are the data's */
   const rules = await q(db, 'select hunt_id, id, wing, keeper, family, board, board_party, min_level from public.hr_tower_rules order by hunt_id');
   const rw = Object.values(RG).map((r) => [r.hunt, r.hunt === M.TD.TOWER_RULES.hunt ? 'true' : 'null', r.wing, r.keeper, r.family, r.board, r.boardParty, r.minLevel].join(':')).sort().join('|');
@@ -193,7 +194,8 @@ async function doorsArm(db, M) {
     if (r.start.wing !== 'bone' || r.start.floor !== 1 || JSON.stringify(r.start.checkpoints) !== '[0]') bad.push(`${tag} the door answered ${JSON.stringify(r.start).slice(0, 200)}`);
     if (JSON.stringify(s1.best) !== JSON.stringify({ [bone.hunt]: [run.top_floor, Math.floor(run.top_floor / 10) * 10] })) bad.push(`${tag} the record reads ${JSON.stringify(s1.best)} (want the Bone Wing's alone)`);
     const want = {};
-    for (let l = 10; l <= run.top_floor; l += 10) want[l] = M.CH.keyForLanding(l, undefined, bone.hunt).item;
+    /* a door under the first key's (Bronze's generated 40) mints nothing */
+    for (let l = 10; l <= run.top_floor; l += 10) { const k = M.CH.keyForLanding(l, undefined, bone.hunt); if (k) want[l] = k.item; }
     if (JSON.stringify(s1.keys || {}) !== JSON.stringify(want)) bad.push(`${tag} the doors minted ${JSON.stringify(s1.keys)}, not ${JSON.stringify(want)}`);
     if (Number(s1.tower_keys) !== 0) bad.push(`${tag} a Tower key row was journalled`);
     if (s1.end !== 'died' || run.end_reason !== 'died') bad.push(`${tag} the descent ended ${s1.end} (run ${run.end_reason}), not died`);
@@ -276,14 +278,14 @@ async function capArm(db, M) {
     out.six = await as(db, UID, "select public.hr_chest_open(0, 'great_hearth', 'bone_bronze', 6, 0, $1::uuid)", [idem()]);
     out.seventh = await as(db, UID, "select public.hr_chest_open(0, 'great_hearth', 'bone_bronze', 1, 0, $1::uuid)", [idem()]);
     out.tower = await as(db, UID, "select public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, $1::uuid)", [idem()]);
-    /* THE HELD CAP ACROSS THE ACCOUNT: Storage and the bag at the cap less one; a run over doors 10, 20 and 30 mints 10's and withholds the rest */
+    /* THE HELD CAP ACROSS THE ACCOUNT: Storage and the bag at the cap less one; a run over doors 40, 50 and 60 (the first key's generated door is 40) mints 40's and withholds the rest */
     const cap = Number(await one(db, "select public.hr_chest_family_cap($1, 'catacomb')", [UID]));
     out.cap = cap;
     out.held0 = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'catacomb')", [UID]));
     await db.query("insert into public.account_bank (user_id, item_id, qty) values ($1, 'bone_key_silver', $2) on conflict (user_id, item_id) do update set qty = $2", [UID, cap - 1 - out.held0]);
     const sid = idem();
     await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, hunt_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, $4, 1)', [sid, UID, idem(), bo.hunt]);
-    await db.query('update public.tower_runs set top_floor = 30, floors = 30, kills = 150 where session_id = $1::uuid', [sid]);
+    await db.query('update public.tower_runs set top_floor = 60, floors = 60, kills = 300 where session_id = $1::uuid', [sid]);
     out.rows = await q(db, `select intent, (meta->>'landing')::int as landing, (meta->>'max')::int as max from public.player_ledger where session_id = $1::uuid order by 2`, [sid]);
     /* a key moved from Storage into the bag makes no room: the count is the account's */
     await db.query("update public.account_bank set qty = qty - 5 where user_id = $1 and item_id = 'bone_key_silver'", [UID]);
@@ -298,7 +300,7 @@ async function capArm(db, M) {
   if (r.seventh?.error !== 'week_limit' || r.seventh?.family !== 'catacomb' || r.seventh?.used !== 6 || r.seventh?.limit !== 6) bad.push('CB-CAP the seventh Catacomb key answered ' + JSON.stringify(r.seventh));
   if (r.tower?.ok !== true) bad.push('CB-CAP the Tower\'s family was refused beside a full Catacomb week: ' + JSON.stringify(r.tower).slice(0, 200));
   const minted = r.rows.filter((x) => x.intent === 'catacomb_key').map((x) => x.landing).join(','), held = r.rows.filter((x) => x.intent === 'catacomb_key_withheld');
-  if (r.cap !== 30 || minted !== '10' || held.map((x) => x.landing).join(',') !== '20,30' || held.some((x) => x.max !== r.cap)) bad.push(`CB-CAP at the account's cap (${r.cap}) the doors read ${JSON.stringify(r.rows)}`);
+  if (r.cap !== 30 || minted !== '40' || held.map((x) => x.landing).join(',') !== '50,60' || held.some((x) => x.max !== r.cap)) bad.push(`CB-CAP at the account's cap (${r.cap}) the doors read ${JSON.stringify(r.rows)}`);
   if (r.held1 !== r.cap) bad.push(`CB-CAP moving keys from Storage to the bag changed the account's count to ${r.held1} (cap ${r.cap})`);
   if (!r.secondErr && r.cap2 !== 60) bad.push(`CB-CAP a second hero on the account made the cap ${r.cap2}, not 60`);
   return bad;

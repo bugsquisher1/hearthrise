@@ -34,21 +34,21 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 27 | 9 | 6 | 4 | 8 | 7 | 9 | 13 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
 | Monster XP and loot values | 15 | 6 | 1 | 2 | 6 | 3 | 4 | 7 |
-| Equipment stats and progression | 17 | 5 | 4 | 8 | 0 | 0 | 8 | 11 |
-| Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| Equipment stats and progression | 18 | 6 | 4 | 8 | 0 | 0 | 9 | 12 |
+| Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
-| Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
-| Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **195** | 91 | 29 | 47 | 28 | 31 | 82 | 84 |
+| Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
+| Economy sources and sinks | 36 | 22 | 3 | 10 | 1 | 0 | 31 | 23 |
+| **All** | **200** | 96 | 29 | 47 | 28 | 31 | 87 | 89 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 678 (in 233 files, 15809 typed numbers) |
-| Claimed by a lever | 291 |
-| Claimed by a not-a-lever reason | 387 |
+| Top-level bindings in the rule code that hold a typed number | 692 (in 239 files, 15850 typed numbers) |
+| Claimed by a lever | 297 |
+| Claimed by a not-a-lever reason | 395 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -249,6 +249,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | harness-fixed | `party.size` Party size | Party bonuses and interactions | the matrix plays parties 1 to 4 by design |
 | harness-fixed | `regen.inner-flame` Inner Flame regeneration rate | Regeneration | a cell's Inner Flame level is the harness's, not trained in the cell |
 | harness-fixed | `skill.curve` Combat skill curve | Skill scaling | cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1) |
+| not-built | `carry.price` Carry-over: parts and a fee a Trait step | Economy sources and sinks | the verb waits for trait_pieces (wave 4) |
+| not-built | `flame.levers` The Inner Flame: burn, room, luck, top rank, curve, fuel worth | Rare-drop probabilities | no roller reads luck until lane/drop-formula (wave 4). The switch inner_flame is off |
 | not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step. No matrix RUN names a scale ground |
 | not-built | `gear.slot-weights` Gear slot weights | Equipment stats and progression | the power step (R9) reads it |
 | not-built | `gear.step-tier` A gear tier in steps, and how far ahead gear is worn | Equipment stats and progression | the power step (R9) reads it. No engine path does yet |
@@ -257,11 +259,14 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `gear.trait-trade` A trade Trait's gain, and the percents a Trait card shows | Equipment stats and progression | hidden: nothing rolls or plays Traits until wave 4 |
 | not-built | `gear.traits` Traits: the rule, its condition and its source | Equipment stats and progression | hidden: nothing rolls or plays them |
 | not-built | `imbue.parts` Imbuement parts | Imbuement effects | linings (Tyler's imbuement, ruled 2026-11-18: one part + gold, cured 4 h, 12 hunted hours, 48 h a socket) are not built. The effect each part names is read by nothing |
+| not-built | `imbue.rules` Imbuements: 2 steps each, 20 hunted hours, the fee | Imbuement effects | the switch imbuements is off. The bench, the items and the fight conditions are owed (21 section 3.9) |
 | not-built | `ledger.ramp-slices` The power ledger: the ramp and the slice caps | Equipment stats and progression | no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4) |
 | not-built | `leech.rows` Spell leech and mana back | Life and mana leech | every leech row sits behind NECROTIC_STORM.live (false), and no default bar casts them |
+| not-built | `loot.pity` Personal loot pity: growth and the base share | Rare-drop probabilities | the roller is lane/drop-formula's. The switch personal_loot is off |
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-built | `temper.steps` Temper on steps: ranks by Level, price in hours of wage, the re-seat | Equipment stats and progression | the switch temper_steps is off and the Temper Kit is not an item. T1 measured with tools/balance-program/candidates/temper-5.json |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |

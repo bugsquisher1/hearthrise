@@ -162,6 +162,51 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4)'),
     ev: 'STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)' }),
 
+  /* THE INNER FLAME, TEMPER ON STEPS, IMBUEMENTS, CARRY-OVER AND PERSONAL LOOT (lane/flame-temper-build, 21-flame-temper-imbue-loot.md;
+     all dark: four hr_flags switches in 1063-flame-temper.sql; the server reads each through 1063-flame-temper-catalogue.generated.sql) */
+  L('flame.levers', 'rare-drops', 'global', 'The Inner Flame: burn, room, luck, top rank, curve, fuel worth', {
+    at: [at('src/data/inner-flame.js', '  decayPpm1: 80000,'), at('src/data/inner-flame.js', '  coverPm: 1500,'), at('src/data/inner-flame.js', '  luckMaxPm: 600,'),
+      at('src/data/inner-flame.js', '  luckHalfMpts: 25000,'), at('src/data/inner-flame.js', '  topRankPm: 500,'), at('src/data/inner-flame.js', '  pointsTo99: 6000,'),
+      at('src/data/inner-flame.js', '  fuelRef: 100,')],
+    def: 'decay(FL) = decayPpm1 - (decayPpm1 - decayPpm99) x (FL - 1) / 98 a hunted hero-hour; room = cover / decay; luck = luckMax x H / (H + luckHalf) on the Rare and Very Rare chance; top rank = topRankPm x (1 + luck) under topRankMaxPm; Flame Level on a 1.045 curve to 6,000 points; a unit of band b is 1 / fuelRef points x (1 + powerStep)^(b - top)',
+    range: 'decayPm1 50 to 120, decayPm99 30 to 60, cover 1.25 to 2.0, luckMax 0.4 to 0.8, luckHalf 15 to 40 points, topRank 400 to 600 / 650 to 900, pointsTo99 4,000 to 10,000, burst 150 to 400 (21 section 1.2); fuelRef MEASURED owed (F1)',
+    touches: 'how often a fed company finds a Rare, and what Remains are worth on the fire against the market', out: GOLD, f: [],
+    tests: [['tests/inner-flame.mjs', 'IF-1 to IF-6: the table, both paths, the curve, the burn, the stoke rule, the top rank']], testReads: ['FLAME', 'FLAME_LEVELS', 'FLAME_FUEL'],
+    perturb: NP('not-built', 'no roller reads luck until lane/drop-formula (wave 4); the switch inner_flame is off'),
+    ev: 'STATED (21 section 1.2; fuelRef ASSUMED until F1)' }),
+  L('temper.steps', 'equipment', 'global', 'Temper on steps: ranks by Level, price in hours of wage, the re-seat', {
+    at: [at('src/data/temper.js', '  rankEvery: 40,'), at('src/data/temper.js', '  hoursPm: 3000,'), at('src/data/temper.js', '  kitSharePm: 500,'), at('src/data/temper.js', '  carryPm: 350,')],
+    def: 'five ranks a gear slot, rank r open at Level rankEvery x r, each +1 item Level on the slot inside the gear part (slot-weighted, a whole kit at 5 = 5 steps); a full slot costs hoursPm x 13 x slotPm / 1000 hours of wage at the worn item Level, rank r r/15 of it, kitSharePm in Temper Kits and the rest a fee; a new tier re-seats for carryPm of the ranks',
+    range: 'rankEvery 30 to 50, hoursPm 2,000 to 4,000, kitSharePm 300 to 700, carryPm 250 to 500 (21 section 2.2)',
+    touches: 'Temper as a lifelong sink and its +5 steps at Level 200', out: [...KILL, ...SURVIVE, ...GOLD], f: [],
+    tests: [['tests/temper-steps.mjs', 'TS-1 to TS-4: ranks, prices, the seat, the gear part']], testReads: ['TEMPER_STEPS'],
+    perturb: NP('not-built', 'the switch temper_steps is off and the Temper Kit is not an item; T1 measured with tools/balance-program/candidates/temper-5.json'),
+    ev: 'STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)' }),
+  L('imbue.rules', 'imbuements', 'global', 'Imbuements: 2 steps each, 20 hunted hours, the fee', {
+    at: [at('src/data/imbue-rules.js', '  hours: 20,'), at('src/data/imbue-rules.js', '  feeHoursPm: 400,'), at('src/data/imbue-rules.js', "convert: { element: 'fire', sharePm: 50 },")],
+    def: 'three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp',
+    range: 'hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)',
+    touches: 'a consumable choice in place of a draught; Remains to the bench as well as the fire', out: [...KILL, ...SURVIVE, ...GOLD], f: [],
+    tests: [['tests/imbue.mjs', 'IM-1 to IM-4: the rows, life, the fee, the band']], testReads: ['IMBUE', 'IMBUE_RULES'],
+    perturb: NP('not-built', 'the switch imbuements is off; the bench, the items and the fight conditions are owed (21 section 3.9)'),
+    ev: 'STATED (21 section 3.2; the shares behind each size ASSUMED until I1)' }),
+  L('carry.price', 'economy', 'global', 'Carry-over: parts and a fee a Trait step', {
+    at: [at('src/data/gear-steps.js', 'export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });')],
+    def: 'every Trait of a piece onto a plain base of the same slot, same or higher tier: 2 + rank parts of the Trait home ground a Trait, hoursPerStepPm / 1000 hours of wage a Trait step at the new base item Level, workPm / 1000 work-hours',
+    range: 'hoursPerStep 0.3 to 1.0, parts 1 + rank to 4 + rank, work 0.5 to 2 (21 section 2.3)',
+    touches: 'how long a good Rare lives against buying new at the next tier', out: GOLD, f: [],
+    tests: [['tests/temper-steps.mjs', 'TS-5 carry-over']], testReads: ['CARRY'],
+    perturb: NP('not-built', 'the verb waits for trait_pieces (wave 4)'),
+    ev: 'STATED (21 section 2.3)' }),
+  L('loot.pity', 'rare-drops', 'global', 'Personal loot pity: growth and the base share', {
+    at: [at('src/data/party.js', '  pityGrowPm: 4000,'), at('src/data/party.js', '  pityBasePm: 438,')],
+    def: 'a hero rolls at p0 x (1 + grow x x), x the sum of p0 over its misses since its last find, p0 = p x base; base is the mean of exp(-x - grow x^2 / 2), so the long-run rate is the stated one',
+    range: 'grow so the 90th percentile of rolls to a find is under 2x the mean (L2); base follows grow',
+    touches: 'how even the Rares a hero finds are', out: GOLD, f: [],
+    tests: [['tests/personal-loot.mjs', 'PL-1 to PL-5: no flood, the stated rate, p90 under 2x, the integral, both paths']], testReads: ['PERSONAL_LOOT'],
+    perturb: NP('not-built', 'the roller is lane/drop-formula\'s; the switch personal_loot is off'),
+    ev: 'COMPUTED (the integral; L2 owed)' }),
+
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {
     at: [at('src/data/imbuements.js', 'export const IMBUE_TIER_FLOORS'), at('src/data/imbuements.js', 'export const IMBUE_DROP')],

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c06d80954bb053ba",
+ "authored": "e129a96c858473c0",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 195,
+  "levers": 200,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -79,15 +79,15 @@
    "monster-stats": 27,
    "spawn": 11,
    "monster-rewards": 15,
-   "rare-drops": 6,
-   "equipment": 17,
-   "imbuements": 1,
+   "rare-drops": 8,
+   "equipment": 18,
+   "imbuements": 2,
+   "economy": 36,
    "consumables": 9,
-   "party": 7,
-   "economy": 35
+   "party": 7
   },
   "byClass": {
-   "global": 91,
+   "global": 96,
    "archetype": 29,
    "content": 47,
    "exception-intentional": 17,
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 22,
    "variant": 5,
-   "not-playable:not-built": 13,
+   "not-playable:not-built": 18,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 84,
+   "asserted": 89,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 678,
-  "typed": 15809,
-  "files": 233,
-  "lever": 291,
-  "notLever": 387,
+  "bindings": 692,
+  "typed": 15850,
+  "files": 239,
+  "lever": 297,
+  "notLever": 395,
   "unclaimed": 0
  },
  "problems": [],
@@ -3246,7 +3246,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 350,
+     "line": 353,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -9311,7 +9311,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 115,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9409,7 +9409,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 115,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9633,9 +9633,10 @@
     "mentions": [
      "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9703,9 +9704,10 @@
     "mentions": [
      "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9797,9 +9799,10 @@
     "mentions": [
      "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9938,9 +9941,10 @@
     "mentions": [
      "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10182,9 +10186,10 @@
     ],
     "mentions": [
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/imbue.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10195,6 +10200,386 @@
    },
    "flags": [],
    "evidence": "STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)"
+  },
+  {
+   "id": "flame.levers",
+   "category": "rare-drops",
+   "name": "The Inner Flame: burn, room, luck, top rank, curve, fuel worth",
+   "sites": [
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 42,
+     "text": "decayPpm1: 80000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 44,
+     "text": "coverPm: 1500,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 45,
+     "text": "luckMaxPm: 600,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 46,
+     "text": "luckHalfMpts: 25000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 47,
+     "text": "topRankPm: 500,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 50,
+     "text": "pointsTo99: 6000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 53,
+     "text": "fuelRef: 100,",
+     "binding": "FLAME"
+    }
+   ],
+   "definition": "decay(FL) = decayPpm1 - (decayPpm1 - decayPpm99) x (FL - 1) / 98 a hunted hero-hour; room = cover / decay; luck = luckMax x H / (H + luckHalf) on the Rare and Very Rare chance; top rank = topRankPm x (1 + luck) under topRankMaxPm; Flame Level on a 1.045 curve to 6,000 points; a unit of band b is 1 / fuelRef points x (1 + powerStep)^(b - top)",
+   "range": "decayPm1 50 to 120, decayPm99 30 to 60, cover 1.25 to 2.0, luckMax 0.4 to 0.8, luckHalf 15 to 40 points, topRank 400 to 600 / 650 to 900, pointsTo99 4,000 to 10,000, burst 150 to 400 (21 section 1.2); fuelRef MEASURED owed (F1)",
+   "touches": "how often a fed company finds a Rare, and what Remains are worth on the fire against the market",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/inner-flame.mjs",
+      "what": "IF-1 to IF-6: the table, both paths, the curve, the burn, the stoke rule, the top rank",
+      "reads": [
+       "FLAME",
+       "FLAME_LEVELS",
+       "FLAME_FUEL"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/activity-intent.mjs",
+     "tests/hearth-fuel-rate.mjs",
+     "tests/hearth-moods.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/inner-flame.mjs",
+     "tests/town-shows.mjs"
+    ],
+    "mentionCount": 6,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no roller reads luck until lane/drop-formula (wave 4); the switch inner_flame is off",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 1.2; fuelRef ASSUMED until F1)"
+  },
+  {
+   "id": "temper.steps",
+   "category": "equipment",
+   "name": "Temper on steps: ranks by Level, price in hours of wage, the re-seat",
+   "sites": [
+    {
+     "file": "src/data/temper.js",
+     "line": 177,
+     "text": "rankEvery: 40,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 178,
+     "text": "hoursPm: 3000,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 179,
+     "text": "kitSharePm: 500,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 180,
+     "text": "carryPm: 350,",
+     "binding": "TEMPER_STEPS"
+    }
+   ],
+   "definition": "five ranks a gear slot, rank r open at Level rankEvery x r, each +1 item Level on the slot inside the gear part (slot-weighted, a whole kit at 5 = 5 steps); a full slot costs hoursPm x 13 x slotPm / 1000 hours of wage at the worn item Level, rank r r/15 of it, kitSharePm in Temper Kits and the rest a fee; a new tier re-seats for carryPm of the ranks",
+   "range": "rankEvery 30 to 50, hoursPm 2,000 to 4,000, kitSharePm 300 to 700, carryPm 250 to 500 (21 section 2.2)",
+   "touches": "Temper as a lifelong sink and its +5 steps at Level 200",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/temper-steps.mjs",
+      "what": "TS-1 to TS-4: ranks, prices, the seat, the gear part",
+      "reads": [
+       "TEMPER_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/temper-steps.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the switch temper_steps is off and the Temper Kit is not an item; T1 measured with tools/balance-program/candidates/temper-5.json",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)"
+  },
+  {
+   "id": "imbue.rules",
+   "category": "imbuements",
+   "name": "Imbuements: 2 steps each, 20 hunted hours, the fee",
+   "sites": [
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 28,
+     "text": "hours: 20,",
+     "binding": "IMBUE"
+    },
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 33,
+     "text": "feeHoursPm: 400,",
+     "binding": "IMBUE"
+    },
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 46,
+     "text": "fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'fire', sharePm: 50 },",
+     "binding": "IMBUE_RULES"
+    }
+   ],
+   "definition": "three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp",
+   "range": "hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)",
+   "touches": "a consumable choice in place of a draught; Remains to the bench as well as the fire",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/imbue.mjs",
+      "what": "IM-1 to IM-4: the rows, life, the fee, the band",
+      "reads": [
+       "IMBUE",
+       "IMBUE_RULES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/imbue.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the switch imbuements is off; the bench, the items and the fight conditions are owed (21 section 3.9)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 3.2; the shares behind each size ASSUMED until I1)"
+  },
+  {
+   "id": "carry.price",
+   "category": "economy",
+   "name": "Carry-over: parts and a fee a Trait step",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 99,
+     "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
+     "binding": "CARRY"
+    }
+   ],
+   "definition": "every Trait of a piece onto a plain base of the same slot, same or higher tier: 2 + rank parts of the Trait home ground a Trait, hoursPerStepPm / 1000 hours of wage a Trait step at the new base item Level, workPm / 1000 work-hours",
+   "range": "hoursPerStep 0.3 to 1.0, parts 1 + rank to 4 + rank, work 0.5 to 2 (21 section 2.3)",
+   "touches": "how long a good Rare lives against buying new at the next tier",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/temper-steps.mjs",
+      "what": "TS-5 carry-over",
+      "reads": [
+       "CARRY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/account-wallet.mjs",
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/alpha-windows-hunts.mjs",
+     "tests/alpha-windows-pure.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/carry-on.mjs",
+     "tests/client-intent-surface.mjs"
+    ],
+    "mentionCount": 22,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the verb waits for trait_pieces (wave 4)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 2.3)"
+  },
+  {
+   "id": "loot.pity",
+   "category": "rare-drops",
+   "name": "Personal loot pity: growth and the base share",
+   "sites": [
+    {
+     "file": "src/data/party.js",
+     "line": 37,
+     "text": "pityGrowPm: 4000,",
+     "binding": "PERSONAL_LOOT"
+    },
+    {
+     "file": "src/data/party.js",
+     "line": 38,
+     "text": "pityBasePm: 438,",
+     "binding": "PERSONAL_LOOT"
+    }
+   ],
+   "definition": "a hero rolls at p0 x (1 + grow x x), x the sum of p0 over its misses since its last find, p0 = p x base; base is the mean of exp(-x - grow x^2 / 2), so the long-run rate is the stated one",
+   "range": "grow so the 90th percentile of rolls to a find is under 2x the mean (L2); base follows grow",
+   "touches": "how even the Rares a hero finds are",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/personal-loot.mjs",
+      "what": "PL-1 to PL-5: no flood, the stated rate, p90 under 2x, the integral, both paths",
+      "reads": [
+       "PERSONAL_LOOT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/personal-loot.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the roller is lane/drop-formula's; the switch personal_loot is off",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "COMPUTED (the integral; L2 owed)"
   },
   {
    "id": "imbue.parts",
@@ -10699,7 +11084,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 115,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13488,6 +13873,38 @@
    "why": "the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys"
   },
   {
+   "at": "src/core/inner-flame.js#MINUTE_MS",
+   "why": "a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)"
+  },
+  {
+   "at": "src/core/inner-flame.js#roomMpts",
+   "why": "units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)"
+  },
+  {
+   "at": "src/core/inner-flame.js#decay",
+   "why": "units: 60 minutes x a million parts (decayPpm is the lever)"
+  },
+  {
+   "at": "src/core/inner-flame.js#flameView",
+   "why": "units: parts per million (decayPpm is the lever)"
+  },
+  {
+   "at": "src/core/imbue.js#HOUR_MS",
+   "why": "a unit: the milliseconds in an hour (IMBUE.hours is the lever)"
+  },
+  {
+   "at": "src/core/personal-loot.js#UNIT",
+   "why": "a unit: hero_pity holds millionths of x"
+  },
+  {
+   "at": "src/core/temper-steps.js#rankQuote",
+   "why": "units: milli-hours x permille (TEMPER_STEPS is the lever)"
+  },
+  {
+   "at": "src/core/temper-steps.js#seatPrice",
+   "why": "units: milli-hours x permille (TEMPER_STEPS.carryPm is the lever)"
+  },
+  {
    "at": "src/**#validate*",
    "why": "a validator: its bounds are the valid range (field 3) of the lever it checks"
   },
@@ -16153,6 +16570,77 @@
     "temperStepsMax"
    ],
    "typed": 5,
+   "bindings": 1
+  },
+  "src/data/inner-flame.js#FLAME": {
+   "pin": "count",
+   "keys": [
+    "burstPm",
+    "coverPm",
+    "curvePm",
+    "decayPpm1",
+    "decayPpm99",
+    "levelMax",
+    "luckHalfMpts",
+    "luckMaxPm",
+    "pointsTo99",
+    "stokeBuyMax",
+    "topRankMaxPm",
+    "topRankPm",
+    "two_thirds"
+   ],
+   "typed": 13,
+   "bindings": 1
+  },
+  "src/data/temper.js#TEMPER_STEPS": {
+   "pin": "count",
+   "keys": [
+    "carryPm",
+    "hoursPm",
+    "kitSharePm",
+    "rankEvery",
+    "ranks"
+   ],
+   "typed": 5,
+   "bindings": 1
+  },
+  "src/data/imbue-rules.js#IMBUE": {
+   "pin": "count",
+   "keys": [
+    "feeHoursPm",
+    "hours",
+    "lifeRungPm",
+    "parts",
+    "remains",
+    "workPm"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/imbue-rules.js#IMBUE_RULES": {
+   "pin": "count",
+   "keys": [
+    "pm",
+    "sharePm"
+   ],
+   "typed": 3,
+   "bindings": 1
+  },
+  "src/data/gear-steps.js#CARRY": {
+   "pin": "count",
+   "keys": [
+    "hoursPerStepPm"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/party.js#PERSONAL_LOOT": {
+   "pin": "count",
+   "keys": [
+    "pityBasePm",
+    "pityGrowPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {

@@ -160,6 +160,12 @@
         "gzipBytes": 915843,
         "on": "2026-11-23",
         "why": "watched stamp: away-recap reads the server's watched section at town (+0.2 KB)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 917009,
+        "on": "2026-11-23",
+        "why": "bar metrics: the 4 new bar tests (health %, Marked, stacks, last move) and the Configure picker for last_move at town"
       }
     ]
   }

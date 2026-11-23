@@ -5379,6 +5379,12 @@ jobs:
         run: |
           node tests/carry-on.mjs
           node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
+      # tests/recruit-company.mjs
+      - name: The recruited company's first party hunt - the bow shoots and Talent points are spent as suggested, both doors (1038, 1069)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/recruit-company.mjs
+          node tools/mutant-gate.mjs node tests/recruit-company.mjs --mutate
       # tests/recruits.mjs
       - name: The recruit press, one hero first then three recruits in one press at Level 5, once an account (1053-recruits.sql)
         if: ${{ !cancelled() }}

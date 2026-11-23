@@ -343,6 +343,11 @@
         "bytes": 3515858,
         "on": "2026-11-23",
         "why": "lane/foundations-block on set 7865133b2: the set itself ships 3,498,522 (32,936 over its own ceiling, from its merges); this lane adds 17,336 (src/core/bands.js, src/data/bands.js: one depth for browser and edge; the skill part; loot by depth)"
+      },
+      {
+        "bytes": 3515860,
+        "on": "2026-11-23",
+        "why": "lane/foundations-block: SKILL_LINE re-read from the set's re-measured career (2 bytes of digits)"
       }
     ]
   }

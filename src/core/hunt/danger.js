@@ -26,7 +26,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
 
-import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS } from '../../data/danger.js';
+import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } from '../../data/danger.js';
+import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
 import { LEVEL_PACE } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
@@ -241,6 +242,23 @@ function applyStep(inst) {
   return dial;
 }
 
+/* THE HOLDER'S LINE (src/data/danger.js HOLDER): the seat of the lap's holding tank (targeting.js holderTank: the leader's pick, else the
+   tanks' turn, which moves only between laps), null with none or with no seat. Its HP reads against the stance's thresholds times
+   HOLDER.linePm, so its margin is its HP over that share: one number every hero's HP reads as, compared against the stance's own lines.
+   Floored: a whole margin is under a whole line exactly when the HP is under the line's share (pm x 1000 / linePm < fallPm). The world
+   keeps the HP itself (`low`, what a fall back names: "Bran at 14%") and its seat; the margin is read from the two, so nothing new
+   persists and a settle cut anywhere reads the same. */
+function holderSeat(inst) {
+  const h = holderTank(inst);
+  return h && Number.isSafeInteger(h.seat) && h.seat >= 0 ? h.seat : null;
+}
+const marginOf = (pm, seat, hs) => (hs !== null && seat === hs && pm < 1000 ? Math.min(1000, Math.floor((pm * 1000) / HOLDER.linePm)) : pm);
+/** The pull's margin so far: the lowest HP any hero reached, the holder's read on its line (permille, 1000 = whole, 0 = a death). */
+export function marginPm(inst) {
+  const w = inst.world;
+  return w.low >= 1000 ? w.low : marginOf(w.low, w.lowHero, holderSeat(inst));
+}
+
 /** THE MARGIN (damage.js landHit, after every blow that lands on a hero): the lowest HP any hero reached in this pull, and who reached
     it by whose blow (`source`, the dealer: a monster names its kind; none, or not a monster, names nothing). The hero is named by its
     seat (combat-sim.js syncUnit writes it at every boundary, never persisted), the identity the server keeps after the hero has gone. */
@@ -248,15 +266,18 @@ export function noteHurt(inst, u, source) {
   const w = inst.world;
   if (!dangerOn(w) || !isHero(u)) return;
   const pm = u.maxHp > 0 ? Math.floor((Math.max(0, u.hp) * 1000) / u.maxHp) : 0;
-  if (pm >= w.low) return;
+  const seat = Number.isSafeInteger(u.seat) && u.seat >= 0 ? u.seat : null;
+  const hs = holderSeat(inst);
+  if (marginOf(pm, seat, hs) >= marginOf(w.low, w.lowHero, hs)) return;
   w.low = pm;
   w.lowHero = Number.isSafeInteger(u.seat) && u.seat >= 0 ? u.seat : null;
   w.lowBy = isMonster(source) && typeof source.kind === 'string' ? source.kind : '';
 }
 
-/** THE FALL BACK INSIDE A PULL (pull-cycle.js runPhase, breakOff): on the scale, a hero under the stance's trigger, or dead, breaks the
-    pull off at once, so the fall back comes before the blow that would kill (RD-Q3 a). Never off the scale. */
-export const breaksOff = (world) => dangerOn(world) && world.low < RISKS[world.risk].fallPm;
+/** THE FALL BACK INSIDE A PULL (pull-cycle.js runPhase, breakOff): on the scale, a hero under the stance's trigger (the holder under its
+    own line), or dead, breaks the pull off at once, so the fall back comes before the blow that would kill (RD-Q3 a). Never off the
+    scale. Read on every swing: an HP at or over the line is never under it, whoever holds (a margin is never under its HP). */
+export const breaksOff = (inst) => dangerOn(inst.world) && inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;
 
 /** A pack monster falls on the scale (pull-cycle.js fallen): its pack counts it down until it stands up whole again (spawnPack). */
 export function packDown(world, pocket) {
@@ -290,15 +311,16 @@ export function pullBegins(world) {
 export function pullEnds(inst, sc, cleared = false) {
   const w = inst.world;
   if (!dangerOn(w)) return null;
-  const st = RISKS[w.risk], from = w.danger, low = w.low;
+  /* `low` the HP the event names, `margin` what the stance reads (the holder on its own line, marginPm) */
+  const st = RISKS[w.risk], from = w.danger, low = w.low, margin = marginPm(inst);
   const cooling = w.cool > 0;
   if (cooling) w.cool -= 1;
   let why = 'hold', to = from;
-  if (low <= 0 || low < st.fallPm) {
+  if (low <= 0 || margin < st.fallPm) {
     why = low <= 0 ? 'death' : 'fall';
     to = from - (low <= 0 ? CLIMB.deathSteps : CLIMB.fallSteps);
     w.climb = 1; w.clean = 0; w.cool = CLIMB.coolPulls;
-  } else if (low >= st.cleanPm) {
+  } else if (margin >= st.cleanPm) {
     /* (a clean pull inside the cool-down after a fall back counts for nothing: the party steadies before it climbs again) */
     if (!cooling && cleared) {
       w.clean += 1;

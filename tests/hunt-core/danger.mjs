@@ -222,6 +222,63 @@ const CASES = {
     if (swings(st.fallPm - 1) !== 0) return 'a monster swung at a party with a hero under the line';
     return null;
   },
+  /* THE HOLDER'S LINE (23-spell-audit.md section 3; Tyler 2026-11-22: "the tank falls back at 15% on Steady while others fall back at
+     25%"): the lap's holding tank reads the stance's thresholds times HOLDER.linePm, every other hero the stance's own; the margin is
+     whichever hero is furthest under its own line, and a fall back names the HP that hero really reached */
+  holder(M) {
+    const { RISKS, HOLDER } = M.dangerData;
+    const st = RISKS.steady, line = (pm) => Math.ceil((pm * HOLDER.linePm) / 1000);
+    if (!(line(st.fallPm) < st.fallPm)) return 'the holder\'s line (' + HOLDER.linePm + ') is not under everyone else\'s';
+    /* `mid`: between the tank's line and everyone else's */
+    const mid = Math.floor((line(st.fallPm) + st.fallPm) / 2);
+    const pullAt = (hurts, cleared = true) => {
+      /* (the seat is the settle's, written at every boundary and never persisted: makeUnit drops it, so it is set here) */
+      const tank = Object.assign(hero(M, 1, 3, 3, { role: 'tank', hp: 1000, maxHp: 1000 }), { seat: 0 }), dps = Object.assign(hero(M, 2, 4, 3, { role: 'melee_dps', hp: 1000, maxHp: 1000 }), { seat: 1 });
+      const w = world(M, [tank, dps]);
+      M.danger.openDanger(w, 'steady', 500);
+      const inst = instOf(M, w), sc = subStep(0);
+      for (const [u, hp] of hurts.map(([who, hp]) => [who === 'tank' ? tank : dps, hp])) { u.hp = hp; M.danger.noteHurt(inst, u, null); }
+      const breaks = M.danger.breaksOff(inst);
+      M.danger.pullEnds(inst, sc, cleared);
+      const ev = sc.events.find((e) => e.type === 'danger');
+      return { breaks, why: ev.why, low: ev.low, hero: ev.hero, to: w.danger };
+    };
+    const show = (r) => JSON.stringify(r);
+    /* the tank under everyone else's line and over its own holds; at exactly its own holds; under it falls back, naming its own HP */
+    let r = pullAt([['tank', mid]]);
+    if (r.breaks || r.why !== 'hold') return 'the tank at ' + mid + ' broke the pull off on Steady: ' + show(r);
+    r = pullAt([['tank', line(st.fallPm)]]);
+    if (r.breaks || r.why !== 'hold') return 'the tank at its line (' + line(st.fallPm) + ') fell back: ' + show(r);
+    r = pullAt([['tank', line(st.fallPm) - 1]]);
+    if (!r.breaks || r.why !== 'fall' || r.low !== line(st.fallPm) - 1 || r.hero !== 0) return 'the tank under its line did not fall back on its own HP: ' + show(r);
+    /* another hero still falls back on the stance's own line */
+    r = pullAt([['dps', st.fallPm - 1]]);
+    if (!r.breaks || r.why !== 'fall' || r.hero !== 1) return 'a hero beside the tank under 25% did not fall back: ' + show(r);
+    /* the margin is the hero furthest under its own line, not the lowest HP: the tank at `mid` first, then the axes under 25% */
+    r = pullAt([['tank', mid], ['dps', st.fallPm - 10]]);
+    if (!r.breaks || r.why !== 'fall' || r.hero !== 1 || r.low !== st.fallPm - 10) return 'the axes under 25% after the tank at ' + mid + ' did not break the pull: ' + show(r);
+    r = pullAt([['dps', st.fallPm + 10], ['tank', mid]]);
+    if (r.breaks || r.why !== 'hold' || r.low !== st.fallPm + 10) return 'the tank at ' + mid + ' after the axes at 26% read as the margin: ' + show(r);
+    /* the climb: the tank clean at its own share of the climb line */
+    const twice = (hp) => {
+      const tank = Object.assign(hero(M, 1, 3, 3, { role: 'tank', hp: 1000, maxHp: 1000 }), { seat: 0 });
+      const w = world(M, [tank]);
+      M.danger.openDanger(w, 'steady', 500);
+      const inst = instOf(M, w), sc = subStep(0);
+      for (let i = 0; i < 2; i++) { tank.hp = hp; M.danger.noteHurt(inst, tank, null); M.danger.pullEnds(inst, sc, true); }
+      return w.danger;
+    };
+    if (twice(line(st.cleanPm)) !== 501) return 'two pulls with the tank at its climb line (' + line(st.cleanPm) + ') did not climb: ' + twice(line(st.cleanPm));
+    if (twice(line(st.cleanPm) - 1) !== 500) return 'two pulls with the tank under its climb line climbed';
+    /* a hero that is not the holding tank (no tank in the party) reads the stance's own line */
+    const lone = Object.assign(hero(M, 1, 3, 3, { role: 'melee_dps', hp: 200, maxHp: 1000 }), { seat: 0 });
+    const w = world(M, [lone]);
+    M.danger.openDanger(w, 'steady', 500);
+    const inst = instOf(M, w);
+    M.danger.noteHurt(inst, lone, null);
+    if (!M.danger.breaksOff(inst)) return 'a lone sword at 20% held the line the holding tank holds';
+    return null;
+  },
   scale(M) {
     const { DANGER } = M.dangerData;
     const g = groundRow({ pockets: [
@@ -601,12 +658,18 @@ const CASES = {
 };
 
 const MUTANTS = [
+  /* lane/moves-pass-1: the holder's line */
+  { name: 'the holder reads the stance\'s own line', case: 'holder', edits: [['src/core/hunt/danger.js', 'const marginOf = (pm, seat, hs) => (hs !== null && seat === hs && pm < 1000 ?', 'const marginOf = (pm, seat, hs) => (false && hs !== null && seat === hs && pm < 1000 ?']] },
+  { name: 'the margin keeps the lowest HP, not the hero furthest under its line', case: 'holder', edits: [['src/core/hunt/danger.js', '  if (marginOf(pm, seat, hs) >= marginOf(w.low, w.lowHero, hs)) return;\n', '  if (pm >= w.low) return;\n']] },
+  { name: 'a fall back names the margin, not the HP the hero reached', case: 'holder', edits: [['src/core/hunt/danger.js', "{ step: from, to: w.danger, low, why,", "{ step: from, to: w.danger, low: margin, why,"]] },
+  { name: 'the holder climbs on the stance\'s own line', case: 'holder', edits: [['src/core/hunt/danger.js', '  } else if (margin >= st.cleanPm) {', '  } else if (low >= st.cleanPm) {']] },
+  { name: 'the break-off reads the HP, not the margin', case: 'holder', edits: [['src/core/hunt/danger.js', ' && marginPm(inst) < RISKS[inst.world.risk].fallPm;', ';']] },
   { name: 'the step never climbs', case: 'rule', edits: [['src/core/hunt/danger.js', "why = 'climb'; to = from + w.climb;", "why = 'climb'; to = from;"]] },
   { name: 'the climb never doubles', case: 'rule', edits: [['src/core/hunt/danger.js', 'w.climb = Math.min(CLIMB.climbMax, w.climb * 2);', 'w.climb = 1;']] },
   { name: 'a fall back keeps the doubled climb', case: 'rule', edits: [['src/core/hunt/danger.js', 'w.climb = 1; w.clean = 0; w.cool = CLIMB.coolPulls;', 'w.clean = 0; w.cool = CLIMB.coolPulls;']] },
   { name: 'no cool-down after a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', '  if (cooling) w.cool -= 1;\n', '  if (cooling) w.cool = 0;\n']] },
   { name: 'a clean pull in the cool-down counts', case: 'rule', edits: [['src/core/hunt/danger.js', '    if (!cooling && cleared) {\n      w.clean += 1;', '    if (cleared) {\n      w.clean += 1;']] },
-  { name: 'the fall back ignores the stance\'s trigger', case: 'rule', edits: [['src/core/hunt/danger.js', 'if (low <= 0 || low < st.fallPm) {', 'if (low <= 0) {']] },
+  { name: 'the fall back ignores the stance\'s trigger', case: 'rule', edits: [['src/core/hunt/danger.js', 'if (low <= 0 || margin < st.fallPm) {', 'if (low <= 0) {']] },
   { name: 'a death falls no further than a fall back', case: 'rule', edits: [['src/core/hunt/danger.js', 'to = from - (low <= 0 ? CLIMB.deathSteps : CLIMB.fallSteps);', 'to = from - CLIMB.fallSteps;']] },
   { name: 'the clean run does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['climb', 'int'], ['clean', 'int'], ['low', 'int'],", "['climb', 'int'], ['low', 'int'],"]] },
   { name: 'the climb does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['danger', 'int'], ['climb', 'int'], ['clean', 'int'],", "['danger', 'int'], ['clean', 'int'],"]] },
@@ -617,11 +680,11 @@ const MUTANTS = [
   { name: 'the regroup never waits for readiness', case: 'ready', edits: [['src/core/hunt/danger.js', 'return heroes.every((h) => !h.alive || h.hp * 1000 >= DANGER.readyPm * h.maxHp);', 'return heroes.length >= 0;']] },
   { name: 'readiness is read off the scale too', case: 'ready', edits: [['src/core/hunt/danger.js', '  if (!dangerOn(inst.world)) return true;\n  return heroes.every', '  return heroes.every']] },
   { name: 'a death leaves the stance as it was', case: 'rule', edits: [['src/core/hunt/danger.js', "  if (why === 'death' && own(RISKS, st.afterDeath)) w.risk = st.afterDeath;\n", '']] },
-  { name: 'monsters swing on after a hero is under the line', case: 'breakoff', edits: [['src/core/hunt/damage.js', '      if (breaksOff(inst.world)) continue;\n', '']] },
-  { name: 'a pull is never broken off', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '    } else if (breaksOff(w)) breakOff(inst, sc);\n', '    }\n']] },
+  { name: 'monsters swing on after a hero is under the line', case: 'breakoff', edits: [['src/core/hunt/damage.js', '      if (breaksOff(inst)) continue;\n', '']] },
+  { name: 'a pull is never broken off', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '    } else if (breaksOff(inst)) breakOff(inst, sc);\n', '    }\n']] },
   { name: 'the broken-off pack stays on the party', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '  for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);\n  for (const h of heroes(inst)) h.target = null;\n', '  for (const h of heroes(inst)) h.target = null;\n']] },
   { name: 'a break-off moves on to the next pocket', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;\n}', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;\n}']] },
-  { name: 'the break-off waits for the climb threshold', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'world.low < RISKS[world.risk].fallPm;', 'world.low < RISKS[world.risk].cleanPm;']] },
+  { name: 'the break-off waits for the climb threshold', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;', 'inst.world.low < RISKS[inst.world.risk].cleanPm && marginPm(inst) < RISKS[inst.world.risk].cleanPm;']] },
   { name: 'a size change puts a jump in the curve', case: 'scale', edits: [['src/core/hunt/danger.js', 'const share = n0 / pull;', 'const share = 1;']] },
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },
   { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
@@ -645,13 +708,13 @@ const MUTANTS = [
   { name: 'the fall\'s hero does not survive a settle cut', case: 'falls', edits: [['src/core/hunt/danger.js', "    ['lowHero', 'int?'], ['lowBy', 'str']]),", "    ['lowBy', 'str']]),"]] },
   { name: 'the fall\'s monster does not survive a settle cut', case: 'falls', edits: [['src/core/hunt/danger.js', "    ['lowHero', 'int?'], ['lowBy', 'str']]),", "    ['lowHero', 'int?']]),"]] },
   { name: 'a hero carries no seat', case: 'falls', edits: [['src/core/combat-sim.js', '  if (Number.isSafeInteger(m.seat) && m.seat >= 0) u.seat = m.seat; else if (u.seat !== undefined) delete u.seat;\n', '']] },
-  { name: 'the margin names the first blow, not the lowest', case: 'falls', edits: [['src/core/hunt/danger.js', '  if (pm >= w.low) return;\n  w.low = pm;\n  w.lowHero', '  if (pm >= w.low) return;\n  w.low = pm;\n  if (w.lowHero !== null) return;\n  w.lowHero']] },
+  { name: 'the margin names the first blow, not the lowest', case: 'falls', edits: [['src/core/hunt/danger.js', '  if (marginOf(pm, seat, hs) >= marginOf(w.low, w.lowHero, hs)) return;\n  w.low = pm;\n  w.lowHero', '  if (marginOf(pm, seat, hs) >= marginOf(w.low, w.lowHero, hs)) return;\n  w.low = pm;\n  if (w.lowHero !== null) return;\n  w.lowHero']] },
   /* lane/r10: the top of the ground, one base a ground, a ground's own rows */
   { name: 'the climb goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  w.danger = stepOn(inst.ground, to);', '  w.danger = clampStep(to);']] },
   { name: 'the dial goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  const s = stepOn(ground, step);', '  const s = clampStep(step);']] },
   { name: 'the top holds a ground off the scale', case: 'top', edits: [['src/core/hunt/danger.js', 'row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax', 'row && Number.isInteger(row.topStep) ? row.topStep : 710']] },
   { name: 'a start past the top opens past it', case: 'top', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, tier.step);', '          if (plan) openDanger(world, plan.risk, plan.step);']] },
-  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710,", "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 650,"],
+  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710,", "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 650,"],
     ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
   { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
   { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', '  for (const [id, iL] of Object.entries(scaleItemLevels(ladder, named))) ITEMS[id] = { ...ITEMS[id], iL };', '  void scaleItemLevels; void ladder; void named;']] },

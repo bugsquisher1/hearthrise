@@ -142,7 +142,8 @@ export const DANGER_GROUNDS = Object.freeze({
      THE BANDS PAST MUSTER, MEASURED (lane/r10-more-grounds, 2026-11-22; tools/balance-program/redesign/r10, v1-climb.mjs: the Steady mixed
      four, 4 seeds x 12 h, held from hour 4). Muster's own cut, read back the same way, came out ref 593 (MID kits at Level 65) and top 707
      (BIS kits at 75), so every band past it is cut that way: refStep the MID four at the band's middle Level, topStep the BIS four at its
-     top Level held to refStep + PAY.gapMax (the pay stops there too), floorStep as far under refStep as the top is over. A step is a step of
+     top Level held to refStep + PAY.gapMax (the pay stops there too), floorStep as far under refStep as the top is over (retired: see THE
+     FLOOR RE-CUT below). A step is a step of
      the ground's own rows, so the bands read alike. refKillsHead: the MID four's kills a head an hour at its held reference (the hours
      table is split over the ground's own kill rate, src/core/hunt/danger.js refKillsOf): on PAY.refKillsHead's 120, Hask's Ford's four
      earned 1.79x the table at its reference, the wings 1.2x and 1.0x (kills a head 156 and 150). Never under PAY.refKillsHead (the server's one ceiling a kill).
@@ -153,17 +154,38 @@ export const DANGER_GROUNDS = Object.freeze({
      (the wings re-read after lane/econ-levers' one-sided gear weight, which lifted the MID four 50 and 35 steps there: its kits sit under
      item Level 160; the LOW cells predate it and only sit deeper now, still at depth 1)
      The wings are staged, and their Steady deaths (C-3: none) are owed a monster fit before they open (catacomb-wings.js).
+     THE FLOOR RE-CUT (the designer, lane/band-floor 2026-11-22, BAND_RULE below: the floor is where the fresh LOW four holds; the
+     three cells re-run, 8 seeds x 12 h, tools/new-ground.mjs --write, evidence tools/balance-program/redesign/grounds):
+       muster_barrows           LOW 55: 354.9 (lowest seed 333)  MID 65: 634.5  BIS 75: 709.0    floor 480 -> 320 (ref 590 by hand: the pin says why)
+       hasks_ford               LOW 45: 487.7 (481)              MID 52: 589.2  BIS 60: 701.7    floor 470, top 710 -> 700
+       catacomb_bone_wing       LOW 165: 394.4 (391)             MID 175: 480.4 BIS 185: 537.9   floor 415 -> 380, top 545 -> 540, 0 deaths in 24 days
+       catacomb_flooded_wing    LOW 165: 367.4 (361)             MID 175: 438.9 BIS 185: 503.7   floor 370 -> 350, top 510 -> 505, BIS died once
+     Every fresh four now reads depth 2 (its lowest seed at depth 1 to 2); the MID four depth 11 to 16.
      NOT ON THE SCALE (measured the same way, 2026-11-22): Krell's Hold died on Steady in every seed-day at Levels 85, 97 and 110 (4 of 4
      each), Pyre Field in 1 to 3 of 4 (and drops two ladder tiers, Muster's and Krell's), against 12-targets C-3's none. They wait for their
      monsters' fit, not for a band. */
-  muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),
-  hasks_ford: ground({ refStep: 590, floorStep: 470, topStep: 710, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45 }),
-  catacomb_bone_wing: ground({ refStep: 480, floorStep: 415, topStep: 545, refKillsHead: 155, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165 }),
-  catacomb_flooded_wing: ground({ refStep: 440, floorStep: 370, topStep: 510, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165 }),
+  muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),
+  hasks_ford: ground({ refStep: 590, floorStep: 470, topStep: 700, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45 }),
+  catacomb_bone_wing: ground({ refStep: 480, floorStep: 380, topStep: 540, refKillsHead: 160, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165 }),
+  catacomb_flooded_wing: ground({ refStep: 440, floorStep: 350, topStep: 505, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165 }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */
 export const DEPTHS = 20;
+
+/* THE BAND RULE (the designer, lane/band-floor 2026-11-22; 24-content-pipeline.md G3): how tools/new-ground.mjs cuts every ground's band
+   from its three Steady cells (tools/lib/danger-band.mjs bandFromReports), so the next ground follows it with no hand numbers.
+     floor (depth 1)  where a FRESH company holds: the LOW four at the entry Level, its LOWEST seed's held step, less floorUnder, down to
+                      floorTo. 12-targets 3.1 defines depth 1 that way; R10's cut put it as far under the reference as the top is over
+                      it instead, and on Muster Barrows that floor (480) sat 160 steps over the fresh four's hold (320.9), so a company
+                      that had just arrived could not hold depth 1 and a first hunt started at the floor would fall back from its first
+                      pull. The lowest seed, not the mean: every fresh company we measured must hold depth 1 (Muster's 4 seeds held
+                      333 to 424). floorUnder: a hunt that opens at the floor opens one clean pull under its hold, not on its edge
+     ref              the MID four at the middle Level, to the nearest refTo (unchanged: the pay anchor)
+     top (depth 20)   the BIS four at the top Level, to the nearest topTo, held to ref + PAY.gapMax (unchanged)
+   The depths are cut evenly from floor to top, so the band under the reference is as wide as the fresh four is far behind: a company
+   entering at the floor climbs most of the band as it Levels, and the MID four reads about depth 13 to 14 where R10 had it at 10.5. */
+export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });
 
 /**
  * THE ITEM LEVELS A SCALE GROUND'S DROPS CARRY (lane/r10-more-grounds; 12-targets.md 3.3 and 8: the ground fixes the base, so every piece
@@ -198,6 +220,16 @@ export const RISKS = Object.freeze({
   steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),
   bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),
 });
+
+/* THE HOLDER'S LINE (docs/design/redesign/23-spell-audit.md section 3; Tyler 2026-11-22: "the tank falls back at 15% on Steady while
+   others fall back at 25%"): the hero holding the Challenge (the lap's holding tank, src/core/hunt/targeting.js holderTank) reads every
+   stance's two thresholds times linePm / 1000. A tank is meant to sit low and be healed: read on the stance's own line, the move whose job
+   is to pull every blow onto one hero broke the pull the four was winning (23 section 3, MEASURED: the four held 63 steps deeper with no
+   Challenge at all). 800 (Steady 20% and 36%), not the ruled 600, because Steady must never die (RD-Q3 a: "a death there is a bug in the
+   triggers"): a line is safe only over the largest blow, and a Muster Knight's lands between 17.5% and 20% of a Level 60 tank's HP.
+   MEASURED (lane/moves-pass-1, spell-run.mjs plan PT, Muster L60 Steady, the tank's four on its new Challenge condition, 18 seeds x 8 h):
+   600 held 632 with 4 tank deaths, 700 held 623 with 5, 800 held 613 with 0 (0 too without the condition). CONFLICTS.md 2026-11-22. */
+export const HOLDER = Object.freeze({ linePm: 800 });
 
 /* THE DEFAULT STANCE (02 package 3 and package 8, "the first party ground runs on Steady"; the Coordinator 2026-11-22, lane R2): a hunt on a
    ground the scale opens on, whose leader's plan names no stance, plays this one. The server freezes it (hr_danger_rules.default_risk,

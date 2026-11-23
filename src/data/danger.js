@@ -126,6 +126,7 @@ export const DANGER_GROUNDS = Object.freeze({
      table is split over the ground's own kill rate, src/core/hunt/danger.js refKillsOf): on PAY.refKillsHead's 120, Hask's Ford's four
      earned 1.79x the table at its reference, the wings 1.09x and 1.22x. Never under PAY.refKillsHead (the server's one ceiling a kill).
        hasks_ford (45-60)       MID 52: 587.8 +- 2.5   BIS 60: 734.9 +- 20.3 (held to 710)   LOW 45: 476.3 +- 2.3 (depth 1-2)   0 deaths
+                                (MID 45: 573.4, MID 55: 594.2, both in its own tier's kit: 0.85x and 1.02x the table, tests/level-curve.mjs C7)
        catacomb_flooded_wing    MID 175: 403.9 +- 1.6  BIS 185: 473.6 +- 5.7                 LOW 165: 263.8 +- 1.2 (depth 1)    deaths: LOW 2, BIS 3 in 4 days
        catacomb_bone_wing       MID 175: 432.1 +- 2.2  BIS 185: 511.7 +- 2.9                 LOW 165: 343.4 +- 3.1 (depth 1)    deaths: LOW 1 in 4 days
      The wings are staged, and their Steady deaths (C-3: none) are owed a monster fit before they open (catacomb-wings.js).

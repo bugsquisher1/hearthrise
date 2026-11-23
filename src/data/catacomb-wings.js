@@ -84,7 +84,9 @@ export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map(
   /* the guards' facts, as a pack states them (shape.js `checks`): the drop pace's reference group is the pack's, the value pin each wing's
      own floor hour, MEASURED (tests/hunt-core/drop-tables.mjs floor-hour) */
   checks: Object.freeze({ dropRef: catacombs.checks.dropRef, valueToday: w.valueToday }),
-  /* the Party window's lines (party-class-xp.js PARTY_VS_ALONE): the whole ground's, CARRIED (the same monster rows), owed a measure on
-     the wing before it opens */
-  partyVsAlone: catacombs.partyVsAlone,
+  /* built for the Danger scale alone: a stance, never a tier (hunt-tiers.js GROUND_TIERS skips it, so it offers Normal only) */
+  scaleOnly: true,
+  /* the Party window's line (party-class-xp.js PARTY_VS_ALONE): the whole ground's Normal, CARRIED (the same monster rows), owed a measure
+     on the wing before it opens */
+  partyVsAlone: Object.freeze({ normal: catacombs.partyVsAlone.normal }),
 })])));

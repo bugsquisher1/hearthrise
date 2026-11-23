@@ -48,10 +48,7 @@ const DESC_PATH = join(ROOT, 'src', 'data', 'item-descriptions.js');
    line no longer ends in '.' is a stale entry (FLV-8) just as much as a new
    line that gained one is a violation. */
 export const FULL_STOP_ALLOWLIST = new Set([
-  'dragonrend_greatblade', 'crown_of_the_fallen_king', 'emberfang_blade', 'demoncaller_staff',
-  'panthers_eye_pendant', 'wraithsilk_shroud', 'widows_fang', 'plaguewarden_greaves',
-  'hollow_sigil_ring', 'fangdart_recurve', 'alphaheart_longbow', 'nightstalker_pelt',
-  'chitinweave_cloak',
+  'demoncaller_staff',
 ]);
 
 const EXTENDED_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;

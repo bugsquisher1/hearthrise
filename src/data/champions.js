@@ -41,22 +41,22 @@ import { withGearStats } from './gear-profiles.js';
 export const CHAMPION_ITEMS = withGearStats({
   tusker_charm: {
     n: "Tusker's Charm", icon: '📿', v: 140, type: 'jewelry', slot: 'necklace',
-    statPlus: { atkB: 2, strB: 1 }, rarity: 'uncommon', tier: 1, reqSkill: 'level', reqLv: 8,
+    rarity: 'uncommon', tier: 1, reqSkill: 'level', reqLv: 8,
   },
   packlord_band: {
     n: "Packlord's Band", icon: '💍', v: 420, type: 'jewelry', slot: 'ring',
-    statPlus: { atkB: 2, strB: 2, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.005 }, rarity: 'rare', tier: 2, reqSkill: 'level', reqLv: 22,
+    rarity: 'rare', tier: 2, reqSkill: 'level', reqLv: 22,
   },
   mirewort_drops: {
-    n: 'Mirewort Drops', icon: '💎', v: 800, type: 'jewelry', slot: 'earrings', statPlus: { atkB: -1, strB: -1, rangeAtkB: -1, rangeStrB: -1, magicAtkB: 2, magicStrB: -1, critB: 0.015 }, rarity: 'rare', tier: 3, reqSkill: 'level', reqLv: 38,
+    n: 'Mirewort Drops', icon: '💎', v: 800, type: 'jewelry', slot: 'earrings', rarity: 'rare', tier: 3, reqSkill: 'level', reqLv: 38,
   },
   barrowking_mantle: {
     n: "Barrow-King's Mantle", icon: '🦸', v: 1700, type: 'armor', slot: 'cape',
-    steadyPm: 150, statPlus: { strB: 2, rangeStrB: -1, magicStrB: -1 }, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
+    steadyPm: 150, rarity: 'epic', tier: 4, reqSkill: 'level', reqLv: 52,
   },
   jarls_rimetorc: {
     n: "Jarl's Collar", icon: '📿', v: 3300, type: 'jewelry', slot: 'necklace',  /* Rime Necklace -> Collar (designer 2026-11-11, lane/d-small-calls): the text says what it is, a frozen iron neck ring; one plain noun like Charm, Band, Drops, Mantle */
-    statPlus: { atkB: 5, strB: 4, rangeAtkB: -2, rangeStrB: -2, magicAtkB: -2, magicStrB: -2 }, rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
+    rarity: 'legendary', tier: 5, reqSkill: 'level', reqLv: 66,
   },
 });
 

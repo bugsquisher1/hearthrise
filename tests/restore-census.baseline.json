@@ -1306,7 +1306,7 @@
   },
   "hr_chest_weapon_families": {
    "class": "seeded",
-   "replay": 105,
+   "replay": 92,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): every weapon item's family, read for the family the hero wears. Empty, every weapon rolls even over its key's families (the worn family loses its half). Rebuilt from repo, never restored."
   },
   "hr_chest_weapons": {
@@ -1769,7 +1769,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 665,
+   "replay": 636,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1779,7 +1779,7 @@
   },
   "hr_hunt_weapons": {
    "class": "seeded",
-   "replay": 105,
+   "replay": 92,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_world_shape": {
@@ -1814,17 +1814,17 @@
   },
   "hr_item_levels": {
    "class": "seeded",
-   "replay": 353,
+   "replay": 324,
    "note": "Generated catalogue (1063-flame-temper-catalogue.generated.sql, tools/gen-flame-temper.mjs from src/data/items.js): each gear row's item Level (a scale drop's iL, else its Level requirement), which prices Temper and imbuement fees and seats Temper. Empty, every piece reads as no piece (no_piece); rebuilt from repo, never restored."
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 420,
+   "replay": 389,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 708,
+   "replay": 679,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_jewel_reforge_offers": {
@@ -2159,7 +2159,7 @@
   },
   "hr_tally_tiers": {
    "class": "seeded",
-   "replay": 176,
+   "replay": 166,
    "note": "Generated catalogue (2027-04-08-tally-worn.generated.sql by tools/gen-tally-tasks.mjs from src/data/items.js and gear-tiers.js): the gear tier of every item a hero can wear in one of Tamsin's slots, read by hr_tally_pick to skip a slot the hero already wears at the piece's tier or better. Rebuilt from repo, never restored. Empty, her pick fails open to paying a piece the hero wears (the pre-2027-04-08 behaviour, no extra mint)."
   },
   "hr_temper_rules": {

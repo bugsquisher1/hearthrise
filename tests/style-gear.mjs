@@ -146,8 +146,8 @@ export function check() {
     if (!(pclub.reqLv < kclub.reqLv && kclub.reqLv < iron.reqLv)) fails.push(`SG-7 worn at Level ${kclub.reqLv}: not between the Practice Club (${pclub.reqLv}) and the Iron Warhammer (${iron.reqLv})`);
     if (!(kclub.strB > pclub.strB && kclub.atkB >= pclub.atkB)) fails.push(`SG-7 no better than the Practice Club (${kclub.atkB}/${kclub.strB} against ${pclub.atkB}/${pclub.strB})`);
     if (!(kclub.strB <= iron.strB && kclub.atkB < iron.atkB)) fails.push(`SG-7 not under the Iron Warhammer at its own Level (${kclub.atkB}/${kclub.strB} against ${iron.atkB}/${iron.strB})`);
-    /* the coach's card says so (hunt-tutorial.js): it "hits as hard as an Iron Warhammer" */
-    if (kclub.strB !== iron.strB) fails.push(`SG-7 the coach says it hits as hard as an Iron Warhammer, and its damage is ${kclub.strB} against ${iron.strB}`);
+    /* the formula's club at its own Level (docs/design/redesign/28-named-pieces.md row 62): no borrowed piece, no offset */
+    if (kclub.statsAs !== undefined || kclub.statPlus !== undefined || kclub.iL !== kclub.reqLv) fails.push(`SG-7 Klappa's Club is not the formula's club at its own Level (statsAs ${kclub.statsAs}, item Level ${kclub.iL}, Level ${kclub.reqLv})`);
     if (ins.practice_club !== 1 || reach.get('practice_club') !== 'start kit') fails.push('SG-7 the reforge does not spend the kit\'s one club: the row becomes a wage');
     /* req 1 keeps its loot from Sell all loot on the first trip home (bag-model.js madeInto: only what the bench can make NOW is kept) */
     if (r.req !== 1) fails.push(`SG-7 opens at Smithing ${r.req}: Sell all loot sells its fangs on the first trip home`);
@@ -238,12 +238,12 @@ function mutate() {
   /* SG-9: the C6 rows back (a generated wand and a generated bow, a hand-written boss wand), and a melee weapon with a Magic pair */
   run('the Oak Wand carries its Melee pair again (the C6 card: "Melee accuracy 7")', 'SG-9', () => { const a = setField('oak_wand', 'atkB', 7); const b = setField('oak_wand', 'strB', 8); return () => { b(); a(); }; });
   run('the Duskwood Bow carries a Melee damage copy', 'SG-9', () => setField('duskwood_bow', 'strB', 36));
-  run('the Whispering Codex\'s hand copy back (atkB 15)', 'SG-9', () => setField('whispering_codex', 'atkB', 15));
+  run('the Banishing Censer carries a Melee copy (atkB 15)', 'SG-9', () => setField('void_censer', 'atkB', 15));
   run('an Iron Sword with a Magic pair', 'SG-9', () => setField('iron_sword', 'magicAtkB', 3));
   run('Klappa\'s Club worn from Level 1', 'SG-7', () => setField('klappas_club', 'reqLv', 1));
   run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', 7));
-  run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 7));
-  run('the Iron Warhammer rises and Klappa\'s Club stays behind (the coach\'s words lie)', 'SG-7', () => setField('iron_warhammer', 'strB', 20));
+  run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 6));
+  run('Klappa\'s Club borrows the Iron Warhammer\'s numbers again', 'SG-7', () => setField('klappas_club', 'statsAs', 'iron_warhammer'));
   run('its fangs off the Cellar\'s rats', 'SG-7', () => undrop('rat', 'small_fang'));
 
   let bad = 0;

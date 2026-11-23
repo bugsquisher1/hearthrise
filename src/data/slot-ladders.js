@@ -95,18 +95,18 @@ export const SLOT_ITEMS = withGearStats({
      rung a new player actually reaches. reqLv 1 restricts nobody (the gate is
      `level < req_lv`); it states the lane's requirement so the column is non-NULL across
      all seven rungs and the server has one shape to read. */
-  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1, statPlus: { atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 } },
-  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, statPlus: { atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 } },
-  spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 34, statPlus: { atkB: -1, strB: 1, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.015 } },
-  wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, statPlus: { atkB: -1, strB: 2, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.02 } },
-  rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 66, statPlus: { atkB: -1, strB: 2, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.025 } },
+  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1 },
+  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15 },
+  spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 34 },
+  wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50 },
+  rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 66 },
   /* The capstone the code has been waiting for. `gemcutter_note` has existed as
      a recipe scroll since b145 pointing at `dragon_gem_earrings`, deliberately
      NOT dropped because "a scroll that unlocks nothing is a confusing dead
      end" (legacy.js:10976). Its own instructions: define the item in
      src/data/items.js, add the recipe with `gated:`, add the drop in
      src/data/monsters.js. All three are done. */
-  dragon_gem_earrings: { n: 'Dragon Gem Earrings', icon: '💎', v: 24000, type: 'jewelry', slot: 'earrings', tier: 8, rarity: 'unique', reqSkill: 'level', reqLv: 82, statPlus: { atkB: -2, strB: 2, rangeAtkB: -2, rangeStrB: 2, magicAtkB: -2, magicStrB: 2, critB: 0.04 } },
+  dragon_gem_earrings: { n: 'Dragon Gem Earrings', icon: '💎', v: 24000, type: 'jewelry', slot: 'earrings', tier: 8, rarity: 'unique', reqSkill: 'level', reqLv: 82 },
 
   /* ══ CAPE — the holes at tiers 1/2/4/5/7 ════════════════════════════════
      DELIBERATELY HAND-AUTHORED, NOT GENERATED. Adding a `cape` row to
@@ -129,46 +129,45 @@ export const SLOT_ITEMS = withGearStats({
      at the floor, tests/hunt-core/forest-cave.mjs --play): the hunt feeds the bench. Between the Shop's Traveler Cape
      (Level 1, defense 1) and Grayjaw's Ruff (Level 12, defense 3 and crit). Book 150 sells for 75 (tier 1 at 0.5,
      loot-bands.js) against six pelts' 210: stitching is never a gold faucet (style-gear.js's economy rule). */
-  graypelt_cloak:  { n: 'Graypelt Cloak',  icon: '🦸', v: 150, type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 8, steadyPm: 30, statPlus: { critB: 0.005 } },
+  graypelt_cloak:  { n: 'Graypelt Cloak',  icon: '🦸', v: 150, type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 8, steadyPm: 30 },
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 12, steadyPm: 30 },
-  houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 22, steadyPm: 70,  statPlus: { strB: 1 } },
+  houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 22, steadyPm: 70 },
   /* THE TIER 3 CLOAK, CRAFTED (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18; src/data/jewelry.js JEWEL_PIECES): Crafting 30 stitches
      it from the Glade's Bear Pelts over Smithing's steel. Was a wave-3 unique with no source; re-cut to the cape ladder (worn from tier 3's Level
      30, book priced like its rungs, armourClass cape so it never counts toward a plate set) and its plain stats help every way to fight (the
      plan's rule): the ladder's cut between the Houndskin's 70 and the Trollhide's 150, and a point of damage for each style. Ships plain until
      the cloak's perks (Slip, Stride) are hooked. */
-  warband_bulwark: { n: 'Warband Bulwark', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, steadyPm: 110, statPlus: { strB: 1, rangeStrB: 1, magicStrB: 1 } },
-  trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, steadyPm: 150, statPlus: { strB: 1, rangeStrB: -1, magicStrB: -1 } },
-  shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, steadyPm: 185, statPlus: { strB: 2, rangeStrB: -1, magicStrB: -1 } },
-  dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, steadyPm: 255, statPlus: { strB: 1, rangeStrB: -2, magicStrB: -2, critB: 0.01 } },
+  warband_bulwark: { n: 'Warband Bulwark', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, steadyPm: 110 },
+  shadowsilk_cape: { n: 'Spidersilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, steadyPm: 185 },
+  dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, steadyPm: 255 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
   /* CRAFTED NOW (Tyler 2026-11-18: the two dropped Wickstead jewels become crafted; src/data/jewelry.js): Smithing 15. Its plain stats help every way to
      fight (the itemization plan's rule: atkB 3 alone gave a hammer +1.0% and a bow or a wand nothing, measured 2026-11-18), a Banded Signet's +2 +2 each. */
-  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15, statPlus: { atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 } },
-  spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34, statPlus: { atkB: 4, strB: -1, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.01 } },
-  warlords_torc:     { n: "Warlord's Necklace",icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52, statPlus: { atkB: 5, strB: 4, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1 } },
-  dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86, statPlus: { atkB: 5, strB: 4, rangeAtkB: -3, rangeStrB: -3, magicAtkB: -3, magicStrB: -3 } },
+  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15 },
+  spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34 },
+  warlords_torc:     { n: "Warlord's Necklace",icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52 },
+  dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86 },
 
   /* ══ RING — the hybrid, and remember BOTH ring slots take one ═══════════
      Every number here is doubled in practice (ring1 + ring2), which is why the
      ring rungs are roughly half the necklace's.                             */
   /* CRAFTED NOW (src/data/jewelry.js, the designer's spec 2026-11-05): plain pieces read for EVERY style, +2 +2, since a bow or a
      wand drew nothing from a ring that paid melee only. Its Fine and Hallmarked rows copy this row. */
-  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, statPlus: { atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 } },
+  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15 },
   /* THE TIER 3 RING (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18): Smithing 30 makes it from Steel Bars, and a Seam Jasper, the
      Warrens' gem, is set in it. Every style a point more than the Banded Signet, as that one is for all three. A Hallmarked Banded Signet
      reforges into one (src/data/jewelry.js REFORGE_OFFERS). */
-  seam_jasper_band:  { n: 'Seam Jasper Band',  icon: '💍', v: priced(200, 3), type: 'jewelry', slot: 'ring', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, statPlus: { atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 } },
-  ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52, statPlus: { atkB: 3, strB: 3, rangeAtkB: -1, rangeStrB: -1, magicAtkB: -1, magicStrB: -1, critB: 0.01 } },
+  seam_jasper_band:  { n: 'Seam Jasper Band',  icon: '💍', v: priced(200, 3), type: 'jewelry', slot: 'ring', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30 },
+  ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52 },
   /* The second scroll the code has been waiting for: `spellstone_diagram` →
      `spellstone_ring`, same b145 note, same three steps. Magic-flavoured
      because its material is a Warlock's cracked spellstone — but note it pays
      mostly in `magicAtkB`, which is a courtesy stat at that level, plus a
      modest `magicStrB`: magic is already the strongest family in the game by
      a factor of 2.26x at BiS and this lane does not widen that. */
-  spellstone_ring:   { n: 'Spellstone Ring',   icon: '💍', v: 26000,          type: 'jewelry', slot: 'ring', tier: 6, rarity: 'unique',     reqSkill: 'level',   reqLv: 68, statPlus: { atkB: -2, strB: -2, rangeAtkB: -2, rangeStrB: -2, magicAtkB: 4, magicStrB: 2, critB: 0.01 } },
-  dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'level', reqLv: 84, statPlus: { atkB: 4, strB: 4, rangeAtkB: -2, rangeStrB: -2, magicAtkB: -2, magicStrB: -2, critB: 0.01 } },
+  spellstone_ring:   { n: 'Spellstone Ring',   icon: '💍', v: 26000,          type: 'jewelry', slot: 'ring', tier: 6, rarity: 'unique',     reqSkill: 'level',   reqLv: 68 },
+  dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'level', reqLv: 84 },
 });
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -253,18 +252,17 @@ export const SLOT_DESC = {
   woolen_cloak: 'A plain wool cloak that keeps the rain off. It\'s the first cloak most people ever own',
   warband_bulwark: 'Bear pelts sewn over a steel frame and worn on your back. Every hit you take lands a little softer',
   houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with bear hide, cut short for the swing',
-  trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
-  shadowsilk_cape: 'A cape of shadow silk woven on a spider\'s loom. It doesn\'t move, even when you\'re running',
+  shadowsilk_cape: 'A cape of spider silk, woven tight on a cave loom. It doesn\'t move, even when you\'re running',
   dawnlit_mantle: 'A cape woven from duskwood thread with strands of dawnsteel through it. The hem shines when the sun\'s up',
 
   wolfbone_torc: 'A wolf bone necklace bound in bronze. Hunters keep count of their kills on it',
-  spidersilk_choker: 'A tight necklace of spider silk spun with gold thread. It helps your hits land and crit',
+  spidersilk_choker: 'A tight necklace of spider silk spun with gold thread',
   warlords_torc: 'Two warlords\' badges melted down into one necklace. The second warlord didn\'t hand his over',
   dawnbound_amulet: 'A dawnsteel and dragon gem amulet on a gold chain. It\'s worth more than most towns',
 
   banded_signet: 'A copper ring with a bronze band around it. The Banded Company gave one to each of its soldiers',
   seam_jasper_band: 'A plain steel band cut to hold a jasper from the Warrens seams. Smiths make them in pairs, one for each hand',
   ruby_signet: 'A ruby as big as your thumbnail on a mithril band. Everyone notices it on your hand',
-  spellstone_ring: 'A warlock\'s cracked spellstone wrapped in runes. Mages wear it for stronger spells and more crits',
+  spellstone_ring: 'A warlock\'s cracked spellstone wrapped in runes. It still hums when a spell goes off',
   dawnforged_signet: 'A ring forged from dawnsteel, death-steel and gold. It\'s about as tough as a ring gets',
 };

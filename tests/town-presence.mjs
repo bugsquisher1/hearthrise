@@ -598,7 +598,7 @@ async function runAll(db) {
   // ── A CRIER LINE, from the EXISTING public board (reused, never duplicated)
   await db.exec(
     `insert into public.world_finds (user_id, slot, item_id, source_kind, source_id, one_in)
-     values ('${A}', 0, 'wyrmgilt_mantle', 'monster', 'ancient_wyrm', 30000),
+     values ('${A}', 0, 'dawnlit_mantle', 'monster', 'ancient_wyrm', 30000),
             ('${Q}', 0, 'tidecallers_pearl', 'node', 'oak_tree', 200000);`);
 
   // ── (9) AN UNCATALOGUED ACTIVITY IS NOT BROADCASTABLE ───────────────────
@@ -654,7 +654,7 @@ async function runAll(db) {
   ok(!town.crier.some((c) => c.item_id === 'tidecallers_pearl'),
     "the QUIET character's find is absent from the NAMED crier feed (the anonymous public board row "
     + 'is untouched)');
-  ok(town.crier.some((c) => c.item_id === 'wyrmgilt_mantle' && c.name === 'PlazaAnn'),
+  ok(town.crier.some((c) => c.item_id === 'dawnlit_mantle' && c.name === 'PlazaAnn'),
     'a loud find IS cried, with the name derived from profiles');
 
   // ── (8) THE LEVEL IS COARSE ─────────────────────────────────────────────

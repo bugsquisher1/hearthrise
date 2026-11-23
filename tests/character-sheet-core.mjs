@@ -78,7 +78,7 @@ async function rules(root) {
   const buffs = [{ type: 'combat_xp', magnitude: 10, from: new Date(Date.now() - 60000).toISOString(), until: new Date(Date.now() + 3600000).toISOString() }];
   /* Level 10's Level XP on the shipped curve (never a typed total: the curve is data, lane/b-level-curve) */
   const L10_XP = (await imp('src/core/xp.js')).charXpForLevel(10);
-  const env = { ok: true, state: { level_xp: L10_XP }, skills: { melee: { xp: 4700, level: 20 } }, equipment: { cape: 'chitinweave_cloak' }, buffs };
+  const env = { ok: true, state: { level_xp: L10_XP }, skills: { melee: { xp: 4700, level: 20 } }, equipment: { cape: 'dawnlit_mantle' }, buffs };
   const sh = S.characterSheetOf(env, perks, Date.now());
   const lasting = P.xpMultiplierParts(AC.bonusFor(perks, null));
   if (Math.abs(sh.xp.perks - lasting.all) > 1e-4 || !(sh.xp.combat > 0.09) || sh.xp.buffs !== 0 || 'gear' in sh.xp) fails.push('CS-X1 the sheet\'s XP parts ' + JSON.stringify(sh.xp) + ' are not grantXp\'s (' + JSON.stringify(lasting) + ')');

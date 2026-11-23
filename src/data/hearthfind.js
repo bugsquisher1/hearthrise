@@ -52,7 +52,7 @@
 //   drafted against "~144 kills/h at a ~25 s kill+respawn". That is not what
 //   the engine does. Measured with the ONE engine — `simulateSpan`, one hour,
 //   fixed seed 20260908, a level-90 attack/strength/defence character in the
-//   tier-8 loadout (dragonfang_pike + slagheart_platebody + choirbone_gauntlets
+//   tier-8 loadout (the cut dragonfang_pike + slagheart_platebody + choirbone_gauntlets
 //   + wyrmgilt_mantle, swing interval 2,328 ms), fed (auto-eat to full, zero
 //   deaths in the hour) — the real rates are:
 //

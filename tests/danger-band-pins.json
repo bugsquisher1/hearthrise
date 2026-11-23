@@ -77,6 +77,48 @@
     "tools/balance-program/redesign/tuning/final/c0-flooded-top.json",
     "tools/balance-program/redesign/tuning/final/c0-flooded-floor.json"
    ]
+  },
+  "mill_cellar": {
+   "refStep": 70,
+   "floorStep": 0,
+   "topStep": 110,
+   "refKillsHead": 135,
+   "refHeld": 60,
+   "coinPm": 123500,
+   "print": "ff25ab6ca245b9fc",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 1,
+    "top": 4,
+    "mid": 3
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/mill_cellar-ref.json",
+    "tools/balance-program/redesign/grounds/mill_cellar-top.json",
+    "tools/balance-program/redesign/grounds/mill_cellar-floor.json"
+   ]
+  },
+  "meadowbrook_thicket": {
+   "refStep": 70,
+   "floorStep": 0,
+   "topStep": 190,
+   "refKillsHead": 125,
+   "refHeld": 110,
+   "coinPm": 28600,
+   "print": "a2b49562c89b72d9",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 5,
+    "top": 15,
+    "mid": 10
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-ref.json",
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-floor.json"
+   ]
   }
  }
 }

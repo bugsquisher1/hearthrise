@@ -116,6 +116,8 @@ export const MONSTERS = {
        weapon triangle is the better answer. Fire still burns it (Tyler 2026-11-06). */
     elements: { ember: 50, frost: 50, poison: 50 },
     dropBonus: 1.15,
+    /* THE BRUTE (src/data/monster-roles.js; the Danger scale only, lane/scale-early-grounds): slow and heavy, it sits on the front */
+    role: 'brute',
     hp: 8, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,
     /* no skeleton, so no bones: its family's Hearth fuel (Tyler 2026-10-25, src/data/hearth.js) */
     drops: [{ id: 'slime_gel', ch: .48, band: 'common' }, { id: 'lamp_jelly', ch: .25, band: 'common' }, { id: 'sticky_core', ch: .08, band: 'uncommon' }] },
@@ -127,12 +129,16 @@ export const MONSTERS = {
      `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
      so nothing the merged monster offered is lost. */
   rat: { name: 'Giant Rat', icon: '🐀', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
+    /* THE SWARM (monster-roles.js; the scale only): the cellar's many, each goes for the hero the fewest are on */
+    role: 'swarm',
     hp: 7, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .42, band: 'common' }, { id: 'small_fang', ch: .16, band: 'common' }, { id: 'wheat', ch: .18, band: 'common' }, { id: 'bones', ch: .21, band: 'common' },
       { id: 'giant_rat_hide', ch: .08, band: 'uncommon' }] },
   hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
+    /* THE STALKER (monster-roles.js; the scale only): it flies past the front for the hero with the least health */
+    role: 'stalker',
     hp: 9, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2], formula: true,
     /* the loot bands (batch 1): the tutorial's first helmet in all three weights, each about hourly at the floor */
     /* the Hearth (Tyler 2026-10-25): the hive's heart holds the Queen's Comb, a named fuel (src/data/hearth.js). Its Dry
@@ -739,6 +745,9 @@ export const MONSTERS = {
      Alpha Fang and Ruff and the Dire Gray's Studded Leather Body about every 15 h. Odds PROVISIONAL (Tyler 10-23).
      The other weights' first gloves (Briarcoats) and belts (Gray Wolves) are Rares here since their recipes went (2026-11-18). ══ */
   gray_whelp: { name: 'Gray Wolf Pup', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
+    /* THE SWARM (src/data/monster-roles.js; the Danger scale only, lane/scale-early-grounds): fast, weak and many, each pup goes for the
+       hero the fewest are on. The five wolves are the five roles the hunt-grounds.js header gives them */
+    role: 'swarm',
     hp: 11, atk: 4, aim: 17, evasion: 8, def: 0, xp: 18, gp: [1, 4], formula: true, speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .262, band: 'common' }, { id: 'bones', ch: .3, band: 'common' }, { id: 'whelp_milk_tooth', ch: .06, band: 'uncommon' },
       { id: 'bronze_boots', ch: .00825, band: 'scarce' }, { id: 'leather_boots', ch: .00825, band: 'scarce' }, { id: 'apprentice_boots', ch: .00825, band: 'scarce' }] },
@@ -746,6 +755,8 @@ export const MONSTERS = {
      Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
      Cellar's 1,738 (forest-cave, 6-seed median), with this coin 1,777.5. Coin is the lever: the bill is coin, the Gray Wolf the most killed. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
+    /* THE STALKER (monster-roles.js; the scale only): the skirmisher circles the front for the hero with the least health */
+    role: 'stalker',
     hp: 19, atk: 4, aim: 22, evasion: 11, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,
     drops: [{ id: 'raw_wolf_meat', ch: .375, band: 'common' }, { id: 'bones', ch: .375, band: 'common' }, { id: 'gray_dewclaw', ch: .06, band: 'uncommon' },
       { id: 'bronze_helm', ch: .00675, band: 'scarce' }, { id: 'leather_helmet', ch: .00675, band: 'scarce' }, { id: 'apprentice_helmet', ch: .00675, band: 'scarce' },
@@ -753,21 +764,30 @@ export const MONSTERS = {
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
+    /* THE BRUTE (monster-roles.js; the scale only): the armored wolf leans on the front row */
+    role: 'brute',
     hp: 23, atk: 4, aim: 19, evasion: 18, def: 2, xp: 55, gp: [3, 7], formula: true, speed: 2800,
     drops: [{ id: 'wolf_pelt', ch: .225, band: 'common' }, { id: 'bones', ch: .375, band: 'common' }, { id: 'briar_burr', ch: .06, band: 'uncommon' },
       { id: 'bronze_platelegs', ch: .0165, band: 'scarce' }, { id: 'leather_pants', ch: .0165, band: 'scarce' }, { id: 'apprentice_pants', ch: .0165, band: 'scarce' },
       { id: 'bronze_gauntlets', ch: .0012, band: 'rare' }, { id: 'apprentice_gloves', ch: .0012, band: 'rare' }] },
   dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, level: 13, cls: 'mammal', family: 'Mammal',
+    /* THE BRUTE (monster-roles.js; the scale only): the bruiser, on the front row */
+    role: 'brute',
     hp: 33, atk: 4, aim: 27, evasion: 23, def: 4, xp: 92, gp: [4, 11], formula: true, speed: 3600,
     drops: [{ id: 'raw_wolf_meat', ch: .525, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'dire_hackle', ch: .06, band: 'uncommon' },
       { id: 'bronze_platebody', ch: .033, band: 'scarce' }, { id: 'leather_body', ch: .033, band: 'scarce' }, { id: 'apprentice_body', ch: .033, band: 'scarce' },
-      { id: 'studded_body', ch: .00225, band: 'rare' }, { id: 'den_knot', ch: .00202, band: 'rare' }] },
+      /* (lane/scale-early-grounds: the Thicket is on the Danger scale, and a ground drops ONE base, 12-targets 3.3: the next tier's Studded
+         Leather Body left this row; the Glade and Wickstead drop it) */
+      { id: 'den_knot', ch: .00202, band: 'rare' }] },
   grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
+    /* THE BRUTE (monster-roles.js; the scale only): the den mother holds the front of her den */
+    role: 'brute',
     hp: 38, atk: 4, aim: 29, evasion: 25, def: 5, xp: 112, gp: [4, 13], formula: true, speed: 3200,
     drops: [{ id: 'wolf_pelt', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'grayjaw_whisker', ch: .112, band: 'uncommon' },
-      { id: 'alpha_fang', ch: .00225, band: 'rare' }, { id: 'iron_helm', ch: .00225, band: 'rare' }, { id: 'studded_helmet', ch: .00225, band: 'rare' },
-      { id: 'adept_helmet', ch: .00225, band: 'rare' }, { id: 'grayjaws_ruff', ch: .00225, band: 'rare' }] },
+      /* (lane/scale-early-grounds, one base a ground: her tier-2 helmets left this row, the Sewer, the Glade and Wickstead drop them; her
+         Ruff is the Thicket's own piece, at its base: danger.js DANGER_GROUNDS meadowbrook_thicket `pieces`) */
+      { id: 'alpha_fang', ch: .00225, band: 'rare' }, { id: 'grayjaws_ruff', ch: .00225, band: 'rare' }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
      a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 4): the

@@ -67,7 +67,10 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 525, topStep: 700, refHeld: 610,']]],
   ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 575, topStep: 700,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
-  ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'topPm: at(top, g.gearLevel + T * BAND_ABS.topTiersAhead),', 'topPm: at(top, g.gearLevel),']]],
+  ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel']]],
+  /* lane/scale-early-grounds: the strong four wears what its top Level can wear, at the Level its hunt still plays */
+  ['tests/bands.mjs', 'the top wears a tier its Level cannot', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel + T * BAND_ABS.topTiersAhead']]],
+  ['tests/bands.mjs', 'the top Level past the hunt\'s exit', [['src/core/bands.js', 'return gr && Number.isInteger(gr.endsAtLevel) ? Math.min(top, gr.endsAtLevel - 1) : top;', 'return top;']]],
   ['tests/bands.mjs', 'one gear weight both sides', [['src/core/bands.js', 'const wG = gGap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;', 'const wG = POWER.weightGearPm;']]],
   ['tests/bands.mjs', 'the skill weight dropped from the rating', [['src/core/bands.js', 'gGap * wG + sGap * POWER.weightSkillPm', 'gGap * wG']]],
   ['tests/bands.mjs', 'the browser cuts its own depth', [['src/session/danger-sections.js', '  const depth = depthAt(hunt, s);', '  const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);\n  const depth = Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1))));']]],
@@ -128,13 +131,23 @@ const byHand = (L, gear) => {
   const gap = gear - L, w = gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;
   return Math.floor((2 * (1000 * 1000 * L + 1000 * gap * w) + 1000) / 2000);
 };
+/* (lane/scale-early-grounds) the top Level is the last one the ground's hunt plays (an endsAtLevel ground's: the Mill Cellar's 4), and the
+   strong four wears the tier ahead only if that Level can wear it (a piece is worn from its item Level less wearAhead), else its own tier */
+const { HUNT_GROUNDS } = await imp('src/data/hunt-grounds.js');
+const topOf = (id, band) => (Number.isInteger(HUNT_GROUNDS[id] && HUNT_GROUNDS[id].endsAtLevel) ? Math.min(band[1], HUNT_GROUNDS[id].endsAtLevel - 1) : band[1]);
+const strongKit = (g, L) => {
+  let kit = g.gearLevel + T * BAND_ABS.topTiersAhead;
+  while (kit > g.gearLevel && kit - GEAR_STEPS.wearAhead > L) kit -= T;
+  return kit;
+};
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   const b = B.bandAbs(id), band = HUNT_INDEX[id] && HUNT_INDEX[id].band;
   ok(b, 'BD-4 ' + id + ' has no absolute band');
   if (!b) continue;
-  ok(b.floorPm === byHand(g.entryLevel, g.gearLevel - T * BAND_ABS.freshTiersBack), 'BD-4 ' + id + ' floor ' + b.floorPm + ' is not the fresh four\'s rating');
+  const top = topOf(id, band);
+  ok(b.floorPm === byHand(g.entryLevel, Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack)), 'BD-4 ' + id + ' floor ' + b.floorPm + ' is not the fresh four\'s rating');
   ok(b.refPm === byHand(g.refLevel, g.gearLevel), 'BD-4 ' + id + ' reference ' + b.refPm + ' is not the reference company\'s rating');
-  ok(b.topPm === byHand(band[1], g.gearLevel + T * BAND_ABS.topTiersAhead), 'BD-4 ' + id + ' top ' + b.topPm + ' is not the strong four\'s rating');
+  ok(b.topPm === byHand(top, strongKit(g, top)), 'BD-4 ' + id + ' top ' + b.topPm + ' is not the strong four\'s rating (Level ' + top + ', kit ' + strongKit(g, top) + ')');
   ok(b.floorPm < b.refPm && b.refPm < b.topPm, 'BD-4 ' + id + ' band is not ordered: ' + JSON.stringify(b));
   ok(Number.isInteger(g.refLevel) && g.refLevel >= band[0] && g.refLevel <= band[1], 'BD-4 ' + id + ' refLevel ' + g.refLevel + ' outside its Level band ' + band);
 }

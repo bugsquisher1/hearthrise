@@ -51,15 +51,31 @@ export const lowestSeed = (c) => (Array.isArray(c.held.perSeed) && c.held.perSee
     `topStep`, with `depths` depths: the lowest seed then sits at depth 2). */
 export const floorMarginOf = (F, rule, topStep, depths) => (Number.isFinite(topStep) && depths > 2 && topStep > lowestSeed(F)
   ? Math.min(rule.floorUnder, (topStep - lowestSeed(F)) / (depths - 2)) : rule.floorUnder);
-/** The floor a fresh company's cell gives (danger.js BAND_RULE). */
-export const floorOf = (F, rule, topStep, depths) => Math.floor((lowestSeed(F) - floorMarginOf(F, rule, topStep, depths)) / rule.floorTo) * rule.floorTo;
+/** The floor a fresh company's cell gives (danger.js BAND_RULE), never under step 0 (lane/scale-early-grounds: the Mill Cellar's fresh four at
+    Level 1 holds at the bottom of the scale, where every hunt begins, so its floor is the first step itself). */
+export const floorOf = (F, rule, topStep, depths) => Math.max(0, Math.floor((lowestSeed(F) - floorMarginOf(F, rule, topStep, depths)) / rule.floorTo) * rule.floorTo);
 
 /**
  * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level).
  * `pay` is danger.js PAY, `depths` danger.js DEPTHS, `rule` danger.js BAND_RULE. `anchorStep`: a formula ground's chosen refStep (above),
  * kept, with the MID four's hold as refHeld. Returns { band, verdict, notes, info, cells }.
  */
-export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = null, { anchorStep = null } = {}) {
+/* THE GROUND'S COIN LEVEL (lane/scale-early-grounds; src/core/hunt/danger.js coinLevelOf, a bridge until 27 stage 9 writes coin in hours):
+   the reference company's hour, coin and loot at the store's price (the wage's own definition, src/data/wage.js; EL-PAY), read against the
+   wage at the ground's refLevel. In band (COIN_BAND) the row carries none and PAY.coinPm stands; out of it the one coin multiple that puts
+   the hour on the wage, to the nearest COIN_TO: coin a kill is linear in the level and loot is not, so
+     coinPm = the level the cell played x (wage - loot) / coin */
+export const COIN_BAND = Object.freeze([0.95, 1.05]);
+const COIN_TO = 100;
+export function coinLevelFrom(R, coin) {
+  const g = R && R.gold, c = g && g.coinPerHeroH && g.coinPerHeroH.mean, inc = g && g.incomePerHeroH && g.incomePerHeroH.mean;
+  if (!coin || !(c > 0) || !Number.isFinite(inc) || !(coin.wage > 0) || !(coin.played > 0)) return null;
+  const ratio = inc / coin.wage;
+  if (ratio >= COIN_BAND[0] && ratio <= COIN_BAND[1]) return { ratio, coinPm: coin.played === coin.payCoinPm ? null : coin.played };
+  return { ratio, coinPm: Math.max(COIN_TO, round((coin.played * (coin.wage - (inc - c))) / c, COIN_TO)) };
+}
+
+export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = null, { anchorStep = null, coin = null } = {}) {
   if (!floor) throw new Error('bandFromReports: no LOW cell (the floor is where a fresh company at the entry Level holds, 12-targets 3.1)');
   if (!rule || ![rule.floorUnder, rule.floorTo, rule.refTo, rule.topTo].every((x) => Number.isInteger(x) && x >= 0) || !(rule.floorTo > 0 && rule.refTo > 0 && rule.topTo > 0)) throw new Error('bandFromReports: no band rule (src/data/danger.js BAND_RULE)');
   if (anchorStep !== null && !Number.isInteger(anchorStep)) throw new Error('bandFromReports: the anchor ' + anchorStep + ' is not a whole step');
@@ -69,8 +85,12 @@ export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = nu
   const topStep = Math.min(round(T.held.mean, rule.topTo), refStep + pay.gapMax);
   const floorStep = floorOf(F, rule, topStep, depths);
   const kills = round(R.killsPerH / 4, 5);
-  const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}), ...(anchorStep === null ? {} : { refHeld: held }) };
+  const cl = coinLevelFrom(R, coin);
+  const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}), ...(anchorStep === null ? {} : { refHeld: held }),
+    ...(cl && cl.coinPm !== null ? { coinPm: cl.coinPm } : {}) };
   const notes = [], info = [];
+  if (cl) info.push('the reference hour pays ' + cl.ratio.toFixed(2) + ' of the wage at its refLevel (coin and loot at the store\'s price; EL-PAY ' + COIN_BAND.join(' to ')
+    + '): ' + (cl.coinPm === null ? 'PAY.coinPm stands' : 'coin level ' + cl.coinPm + (coin.played === cl.coinPm ? ' (as played)' : ' (played at ' + coin.played + ': re-run to read it back)')));
   const deaths = [['MID', R], ['BIS', T], ['LOW', F]].filter(([, c]) => c.deaths > 0);
   for (const [k, c] of deaths) notes.push('C-3: the ' + k + ' four died ' + c.deaths + ' times at Level ' + c.L + ' (Steady must not die)');
   if (!(floorStep < refStep && refStep < topStep)) notes.push('the band is not floor < ref < top (' + floorStep + ' / ' + refStep + ' / ' + topStep + '): the LOW four holds at or over the MID four, so the Level band reads too narrow');
@@ -135,7 +155,7 @@ export function packPrint(ground, monsters, monstersOn, switchOf = null) {
 }
 
 /** The band fields a DANGER_GROUNDS row carries, compared with a pin's. */
-export const BAND_KEYS = Object.freeze(['refStep', 'floorStep', 'topStep', 'refKillsHead', 'refHeld']);
+export const BAND_KEYS = Object.freeze(['refStep', 'floorStep', 'topStep', 'refKillsHead', 'refHeld', 'coinPm']);
 export const sameBand = (row, pin) => BAND_KEYS.every((k) => (row[k] === undefined ? null : row[k]) === (pin[k] === undefined ? null : pin[k]));
 
 /**
@@ -146,9 +166,10 @@ export const sameBand = (row, pin) => BAND_KEYS.every((k) => (row[k] === undefin
  * written by hand).
  */
 export function rewriteRow(src, id, band) {
-  const re = new RegExp('^(  ' + id + ': [\\w.]+\\(\\{ )refStep: \\d+, floorStep: \\d+, topStep: \\d+, (?:refKillsHead: \\d+, )?(?:refHeld: \\d+, )?', 'm');
+  const re = new RegExp('^(  ' + id + ': [\\w.]+\\(\\{ )refStep: \\d+, floorStep: \\d+, topStep: \\d+, (?:refKillsHead: \\d+, )?(?:refHeld: \\d+, )?(?:coinPm: \\d+, )?', 'm');
   if (!re.test(src)) return null;
   return src.replace(re, (_, head) => head + 'refStep: ' + band.refStep + ', floorStep: ' + band.floorStep + ', topStep: ' + band.topStep + ', '
     + (band.refKillsHead !== undefined ? 'refKillsHead: ' + band.refKillsHead + ', ' : '')
-    + (band.refHeld !== undefined ? 'refHeld: ' + band.refHeld + ', ' : ''));
+    + (band.refHeld !== undefined ? 'refHeld: ' + band.refHeld + ', ' : '')
+    + (band.coinPm !== undefined ? 'coinPm: ' + band.coinPm + ', ' : ''));
 }

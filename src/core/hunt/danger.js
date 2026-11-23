@@ -99,6 +99,9 @@ export function dangerDial(ground, step, heroes = REF_HEROES) {
   /** @type {Record<string, any>} */
   const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
+  /* a ground with its own coin level (coinLevelOf) pays that over PAY.coinPm; every other ground's dial is untouched to the bit */
+  const lvl = coinLevelOf(ground);
+  if (lvl !== PAY.coinPm) dial.coinPm = (dial.coinPm * lvl) / PAY.coinPm;
   dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
   return formulaPull(ground, s, heroes, dial);
 }
@@ -217,6 +220,16 @@ export function hoursForLevel(level) {
 export const refKillsOf = (ground) => {
   const row = groundRow(ground);
   return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;
+};
+/* THE GROUND'S COIN LEVEL (lane/scale-early-grounds; a bridge like refKillsHead, until 27 stage 9 writes coin in hours): a scale kill's coin
+   is its row's roll x this / 1000 (dangerDial coinPm). The row's own `coinPm` (DANGER_GROUNDS, measured by tools/new-ground.mjs: the one
+   multiple that puts the reference company's hour, coin and loot at the store's price, on the wage at its refLevel, src/data/wage.js), else
+   PAY.coinPm. The old grounds' rows were typed for the old economy (a Level 3 hero's coin row is 1 gold, the wage's hour 13,035), so on the
+   scale their kit, sized in wage hours, would cost four times what the hunt paid. The server's coin ceiling a kill reads the same dial
+   (tools/gen-danger.mjs coin_pm_max). */
+const coinLevelOf = (ground) => {
+  const row = groundRow(ground);
+  return row && Number.isInteger(row.coinPm) ? row.coinPm : PAY.coinPm;
 };
 
 /**

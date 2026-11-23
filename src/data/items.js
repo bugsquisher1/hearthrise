@@ -826,7 +826,7 @@ for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_
 /* (exported: tools/gen-gear.mjs reads a piece's item Level from here or its reqLv, never from the iL the table wrote back) */
 export const SCALE_ITEM_LEVELS = Object.freeze(scaleItemLevels(
   Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]])),
-  Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier))));
+  Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier)), ITEMS));
 for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };
 
 /* ══════════════════════════════════════════════════════════════════════

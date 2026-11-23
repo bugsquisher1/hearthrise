@@ -92,6 +92,10 @@ const AS_LEVEL = Number(arg('as-level', 0));
 const asLevel = (cell) => cell.skillsBySeat.map((sk) => ({ levelXp: charXpForLevel(AS_LEVEL),
   skills: Object.fromEntries(Object.entries(sk).map(([k, lv]) => [k, skillXpForLevel(k, lv)])) }));
 const { skillXpForLevel } = await imp('src/core/xp.js');
+/* --hold-level (lane/scale-early-grounds): every cell's company stays at its Level and skills all day (cell.mjs holdLevel), so a cell reads
+   a company AT its Level: under about Level 20 a measuring day grows several Levels, and a ground with an endsAtLevel (the Mill Cellar) ends
+   the four within the hour. The pay still reads each window's Level XP */
+const HOLD_LEVEL = argv.includes('--hold-level');
 /* (the kit pinned whole, as the cell dresses it at its own Level: the ladder, the accessories and the ammo its skill may use, so the harness's
    kit builder never re-picks a piece for Level N) */
 const GEAR = AS_LEVEL ? await (await imp('tools/balance-sim/gear.mjs')).loadGear(ROOT) : null;
@@ -107,7 +111,7 @@ for (const v of variants) for (const risk of v.risks) {
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
   const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}), ...(v.skillDelta ? { skillDelta: v.skillDelta } : {}) });
   const start = startOf(id, v);
-  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true,
+  const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true, ...(HOLD_LEVEL ? { holdLevel: true } : {}),
     ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}) };
   cells.push({ id, variant: v.id, risk, L: v.L, start });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
@@ -180,7 +184,7 @@ function readSeed(res, start) {
   const pays = payEnd > payFrom ? res.heroes.map((h) => {
     const tr = h.xpTrace || [], a = atT(tr, payFrom), b = atT(tr, payEnd), hrs = b[2] - a[2];
     if (!(hrs > 0)) return null;
-    const mid = charLevelFromXp(charXpForLevel(h.level) + (a[1] + b[1]) / 2);
+    const mid = HOLD_LEVEL ? h.level : charLevelFromXp(charXpForLevel(h.level) + (a[1] + b[1]) / 2);
     return (b[1] - a[1]) / hrs / tableRate(mid);
   }).filter((x) => x !== null) : [];
   const firstNear = (target) => { const e = log.find((x) => x.to >= target); return e ? e.ms / H : null; };

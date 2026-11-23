@@ -205,6 +205,8 @@ export const DANGER_GROUNDS = Object.freeze({
   muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 565, topStep: 675, refKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'rows' }),
   catacomb_bone_wing: ground({ refStep: 520, floorStep: 475, topStep: 580, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
+  meadowbrook_thicket: ground({ refStep: 70, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 110, coinPm: 28600, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  mill_cellar: ground({ refStep: 70, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 60, coinPm: 123500, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 500, floorStep: 430, topStep: 565, refKillsHead: 205, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
 });
 
@@ -231,10 +233,12 @@ export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, 
  * (src/core/hunt/danger.js itemLevelOf; a piece with none still reads its reqLv). Two kinds of ground:
  *   ladderTier   the gear-tiers.js ladder tier its monsters drop (`ladder` is that ladder's rows: GEAR_ITEMS, SLOT_ITEMS, SHIELD_ITEMS)
  *   named        'catacomb': the 24 named pieces of catacomb-armor.js (`named`: the item rows carrying `catacombTier`), its own drop rows
+ * and beside either, `pieces` (lane/scale-early-grounds): the ground's own one-off pieces off the ladder (a den mother's trophy cape), which
+ * drop at its base like everything else it drops (`items` resolves them; a piece that is no gear item throws).
  * Two grounds that would give one piece two item Levels throw: one base, one number. tests/hunt-core/danger.mjs holds every gear drop of
  * every scale ground to its ground's gearLevel.
  */
-export function scaleItemLevels(ladder, named) {
+export function scaleItemLevels(ladder, named, items) {
   const out = {};
   const put = (id, iL, g) => {
     if (out[id] !== undefined && out[id] !== iL) throw new Error('src/data/danger.js: ' + id + ' drops at item Level ' + out[id] + ' and ' + iL + ' (' + g + ')');
@@ -243,6 +247,10 @@ export function scaleItemLevels(ladder, named) {
   for (const [g, row] of Object.entries(DANGER_GROUNDS)) {
     if (Number.isInteger(row.ladderTier)) for (const [id, it] of Object.entries(ladder || {})) if (it && it.slot && it.tier === row.ladderTier && it.type !== 'ammo') put(id, row.gearLevel, g);
     if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);
+    for (const id of row.pieces || []) {
+      if (!items || !items[id] || !items[id].slot) throw new Error('src/data/danger.js: ' + g + ' names the piece ' + id + ', which is no gear item');
+      put(id, row.gearLevel, g);
+    }
   }
   return out;
 }

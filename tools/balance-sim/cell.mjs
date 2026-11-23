@@ -497,6 +497,8 @@ export async function loadCellRunner(root) {
         if (!opts.options) delete opts.options;
         if (Number.isInteger(cell.density)) opts.density = cell.density;
         if (cell.temper) opts.temper = cell.temper;
+        /* cell.holdLevel: the heroes stay at their starting Level and skills (play-ground.mjs opts.holdLevel; a Danger band's companies) */
+        if (cell.holdLevel === true) opts.holdLevel = true;
         /* cell.talentsBySeat [{ force, footing, grit, reserve } | null]: each seat's Talents (tools/balance-program/talents.mjs), on m.perks.talents */
         if (Array.isArray(cell.talentsBySeat)) opts.talents = (role, i) => cell.talentsBySeat[i] || null;
         /* cell.roadsBySeat [{ nodeId: value } | null]: each seat's Roads build (src/core/talents.js; tools/balance-program/redesign/roads/

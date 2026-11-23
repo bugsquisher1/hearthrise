@@ -22,11 +22,11 @@ Sizes are the most a source gives on the cell that suits it best, at full size (
 | 6 | **Signature** | Conditional or rule | **10** (half a tier, was "one tier") | Inside the gear slice | None. Through the gear slice cap | Doc (15) |
 | 7 | **Crossroads, waystones, final form, Mileposts** | Conditional or rule | Best and worst option at most 3 apart on any ground | **Build slice: 14** | Numbers × ramp. Cap × ramp | Doc (17 v3) |
 | 8 | **Vows** (3 slots: 30, 50, 200) | Trade | +18 on its condition, −8 always. Net +10 best, −8 worst, about 0 on the mix | Inside the build slice. Gains minus costs clamped at 14. Costs never clamped | Numbers × ramp | Doc (17 v3) |
-| 9 | **Borrowed moves** (2) | A move on an idle lane | Priced to its value band: never over a vow | Inside the build slice (Lab-held) | Opens at `max(20, 200 × V ÷ 14)` Levels | MEASURED (18-measured), rule doc |
+| 9 | **Borrowed moves** (2) | A move on an idle lane | Priced to its value band: never over a vow. Hoarfrost (15.8) and Protective Ward (16.1) sit in the 10 to 20 band (`23`) | Inside the build slice (Lab-held) | Opens at `max(20, 200 × V ÷ 14)` Levels. Hoarfrost and Ward at 120 | MEASURED (18-measured, `23`), rule doc |
 | 10 | **Imbuements, draught, camp pot** | Conditional, timed | Imbuement 2 each (3 a hero), draught 3, camp pot 2 (once a party) | **Consumable slice: 6**. Three imbuements fill it, so a draught or a camp pot is chosen in place of an imbuement, never on top (`21` D-1) | Numbers × ramp. Cap × ramp | Cap built (`src/data/power-ledger.js`). Imbuing not built (CODE) |
 | 11 | **Inner Flame** | Luck | 0 steps. Moves how often a Rare drops and its rank | Under `kitSpreadMax` (20) | None | Doc (02 2b) |
-| 12 | **Risk stance** | Where the edge sits | 0 steps. Changes the fall-back and climb lines | Pay: Careful 0.55 to 0.70 of Steady (C-5). Bold beats Steady watched, loses over a day (C-4) | None | Built (`RISKS`), MEASURED |
-| 13 | **Monster roles** | The ground's question | 0 steps. Decide which conditions hold, so which builds fit | Every condition keys to a role or state that exists | None | Built (`monster-roles.js`). Caster and Warder have no body yet |
+| 12 | **Risk stance** | Where the edge sits | 0 steps. Changes the fall-back and climb lines. The hero holding the Challenge reads a lower line, `holderLinePm` 600 (Steady 15%, Careful 27%) | Pay: Careful 0.55 to 0.70 of Steady (C-5). Bold beats Steady watched, loses over a day (C-4) | None | Built (`RISKS`), MEASURED. Holder line: Doc (`23` section 3) |
+| 13 | **Monster roles** | The ground's question | 0 steps. Decide which conditions hold, so which builds fit | Every condition keys to a role or state that exists | None | Built (`monster-roles.js`). Caster and Warder have no body yet, so every "casting" or "winding up" node, vow and Trait is dead on Muster Barrows and Hask's Ford until C2 (`23` section 5) |
 | 14 | **Party size** | The cell | 0 steps a hero. Party-scope rows (party Traits, auras, Winter Guard) count once a party, in the wearer's slice | C-6: 1.2 to 1.6 a head in a four. C-7: solo 0.5 to 0.8 of a four's head | None | Owed (V6) |
 | 15 | **Premium, bought hours, Blessings** | Days, death cost | 0 steps | Read in days, never steps (04 section 12) | None | Doc |
 | 16 | **Clan buffs, event rewards** | Reserved | 0 until designed. A new source takes a slice or is refused | | | |
@@ -43,7 +43,7 @@ Sizes are the most a source gives on the cell that suits it best, at full size (
 | **C-2:** one gear tier moves the hold 1 to 3 depths | Tier = 20 steps. MEASURED +20.8 ± 3.6 held steps a tier ahead (r9) | 1.8 ahead, about 0.9 back (one-sided 500) | | 1 to 3 depths | **Fits.** No other source is as big as a tier on average, so a tier still reads |
 | **The next tier always wins** | Tier-up with no luck (20) against tier-down with full luck (20 conditional) | | | Tier-up wins on average | **Fits.** Tie on the best cell only. Build, Temper and consumables are open to both |
 
-**Bottom line: it adds up,** with four conditions. (1) Signatures shrink to half a tier and share the gear slice with Traits. (2) A build slice of 14 on the net of all talent steps, so vows can be big without stacking past the ceiling. (3) Borrowed Greater Mend lands at 10 steps or less under the heal rule. It was 39 at −30% and is the one open risk: until V4 passes, Greater Mend isn't borrowable. (4) What a hero grows into (talents, vows, borrows, consumable strength) ramps in to full at Level 200. What a hero finds (gear, Traits, Signatures) and Temper's steps never do (section 2).
+**Bottom line: it adds up,** with four conditions. (1) Signatures shrink to half a tier and share the gear slice with Traits. (2) A build slice of 14 on the net of all talent steps, so vows can be big without stacking past the ceiling. (3) Borrowed Greater Mend lands at 10 steps or less under the heal rule. It was 39 at −30% and is the one open risk: until V4 passes, Greater Mend isn't borrowable. V4 runs after Greater Mend's re-size (`healPm` 2540, `23` section 6), since the native move is 207 held steps today. (4) What a hero grows into (talents, vows, borrows, consumable strength) ramps in to full at Level 200. What a hero finds (gear, Traits, Signatures) and Temper's steps never do (section 2).
 
 ## 2. The early ramp
 
@@ -80,7 +80,7 @@ No base rule: `wearAhead` stays 10 at every Level. The earlier min(10, floor(L /
 
 **What feels right (JUDGMENT):**
 
-- **First week** (Levels 1 to about 28, about 70 hunted hours): Level and gear are 85% or more of a hero. The build is rules: Wide Challenge taunts three, Split Mending heals two. Met: 90%.
+- **First week** (Levels 1 to about 28, about 70 hunted hours): Level and gear are 85% or more of a hero. The build is rules: Long Hold keeps a taunt longer, Split Mending heals two. Met: 90%.
 - **About a month** (Level 60, the first Traits): the build and the kit start to show, 15 to 20%. Met.
 - **Level 200 and past:** the build is worth about a tier, about 20%. Met, and it falls slowly after (10% at Level 400) as Levels keep coming.
 
@@ -102,7 +102,8 @@ No base rule: `wearAhead` stays 10 at every Level. The earlier min(10, floor(L /
 |---|---|---|
 | Vows and the Trait cap | Separate slices. A vow never pushes a Trait out | Build slice 14, gear slice 20 |
 | Vows and saved builds per ground (R3) | A vow worn only where it fits would be a free +10 | Every vow's cost always bites. The ceiling reads the best saved build per ground |
-| Vows and Risk | Low-health effects never fired under Steady and Careful | Keyed to "near fall-back": 15 points over the stance's line (Careful 60%, Steady 40%, Bold 27%) |
+| Vows and Risk | Low-health effects never fired under Steady and Careful | Keyed to "near fall-back": 15 points over the stance's line (Careful 60%, Steady 40%, Bold 27%). For the hero holding the Challenge, 15 over its holder line (Steady 30%, Careful 42%) |
+| The Challenge and the fall back | The fall back reads the lowest HP any hero reached, so a tank that pulls every blow made the four 63 steps shallower (MEASURED, `23` section 3) | Suggested condition "my HP is at least 60%" now (+39 held). The holder line next. Every Shield node, Signature #1 and #3 and the Hearth Guard vow re-measured after |
 | Vows and monster roles | A cost keyed to a role is free on grounds without it. A max-health cut breaks the Stalker rule (one back-row blow under the Steady line) | Costs are always on and never cut max health. Gains key to roles from `monster-roles.js` |
 | Borrowing and lanes | A borrow sits on an idle lane, so its cost is mana, not the penalty | Value bands priced from measurement. Heals share Mend's clock |
 | Borrowing and Magic training | A melee hero casting Greater Mend trained Magic at 1600 | Borrowed spells pay Magic at Mend's rate (250) |
@@ -136,6 +137,7 @@ None of these touch the live game until wave 3 or 4 ships its system. The order 
 | **L2 Wear ahead** | DROPPED | Tyler 2026-11-22: "Gear scaling with level seems wrong right? I don't want to punish people who are theory crafting or getting lucky with drops." `wearAhead` stays 10 at every Level | | |
 | **L3 Trait rank by ground** | Data | BUILT (lane/ledger-l1-l3). `gear-steps.js` `maxRankAt(entryLevel)` (whole-number form of the ramp gate). `DANGER_GROUNDS` rows carry `entryLevel` (held equal to the hunt's band floor) and `maxRank`. Muster Barrows rolls rank 1 only. Carry-over as data: `GEAR_STEPS.carryOver` same slot, tier the same or higher. `tests/gear-steps.mjs` GS-3 and GS-5 | Systems | L1 |
 | **L4 Near fall-back** | Data + engine | `danger.js` `RISKS` gains `nearFallPm` 150 (one lever, all stances). `condition-metrics.js` adds `hp_near_fall` (self and ally). Engine reads the hunt's stance. Test on all three stances | Systems | Nothing |
+| **L4b Holder line** | Data + engine | `danger.js` `RISKS` gains `holderLinePm` 600: the hero holding a Challenge falls back at `fallPm × 0.6` and climbs at `cleanPm × 0.6`, read in `breaksOff` and the clean check. `hp_near_fall` reads it for that hero. The Challenge row's suggested `trigger` "my HP is at least 60%" lands first. Test: Steady still has no deaths (V1 on the tank's four) | Systems | Nothing |
 | **L5 Bar metrics** | Data + engine | `condition-metrics.js`: `target_hp_pct`, `target_marked`, `target_bleed_stacks`, `last_cast`. Engine in `src/core/hunt/conditions.js` | Systems | Nothing |
 | **L6 Borrowing** | Engine + server | `hunt-spawn.js` accepts off-weapon rows from the server's borrow list (max 2, 3 for fists). A borrowed row reads the native weapon's reference blow at the hero's Level. `abilities.js` row field `clock: 'mend'` for borrowed heals (one 6 s cooldown with Mend). Borrowed spells pay `magicXpMult` 250. Reach from the native row. `targeting.js` `challengeable` takes a lent Challenge from any seat. Server checks the opening Level from the value table | Systems, Backend | V4 must pass first |
 | **L7 Report readers** | Engine | `src/core/hunt/tally.js` and `report.js`: healing by ability and source (own, borrowed, ally), damage taken by seat (front, back), store bill bucketed by held depth. Counters in the session row, no statement per kill | Systems | Nothing |
@@ -144,7 +146,8 @@ None of these touch the live game until wave 3 or 4 ships its system. The order 
 | **L10 Gold and depth** | Engine (investigation) | Why +50 held steps moved gold −4 ± 64 when coin a kill is × 1.004 a step (`danger.js` PAY, `wage.js` `payStepCoin`). Read kills an hour and loot at the store's price per depth | Systems | Nothing |
 | **L11 Temper on steps** | Data | `temper.js` rebuilt on gear steps: ranks 1 to 5, rank r opens at Level 40r (`21` D-2), each rank +1 item Level on its slot × slot weight, never × ramp, Temper stays with the slot, priced by `temperHours` (09). Replaces the 1% rungs on scale grounds | Designer | L1. Wave 4 |
 | **L12 Roles content** | Data | A Caster and a Warder body (12-targets row 2), and two more scale grounds (R10), so the library test has three role mixes | Designer | Already planned |
-| **L13 The support** | Data + engine | `22-fists-support.md` section 6: the `support` role and `wraps` key, the start set, Armor Break, the interrupt and `caster` target, the alone rule, `selfHealPm` retired, `fists` renamed `wraps`. Party-scope nodes count at their party sum in the wearer's slice | Designer, Systems | E2, E3 |
+| **L13 The support** | Data + engine | `22-fists-support.md` section 6: the `support` role and `wraps` key, the start set (7 moves), Armor Break, Silenced and the `caster` target, `selfHealPm` retired, `fists` renamed `wraps`. Party-scope nodes count at their party sum in the wearer's slice | Designer, Systems | E2, E3 |
+| **L14 The moves pass** | Data + engine | From `23` section 9: Shelter's condition, Greater Mend 2540 and Circle 2080 (Lab first), Undertow cut into the alone rule (`aloneHitPm` 2000 on Green Sickness and the wraps' strikes), Mark and Precision Shot targets (`marked`, `back_threat`), Updraft's row removed. Wave 3: blow wind-ups, `winding_up`, Stagger (ends a wind-up), Parry, Gash. Sizes: Parry's and Gash's nodes on the build slice like any move | Designer, Systems | L4b first |
 
 ## 6. Validation: Lab runs that prove the budget
 
@@ -165,5 +168,21 @@ Every run: Muster Barrows unless named, held start, 8 seeds, Steady unless named
 | V11 | Party size with builds worn | C-6 1.2 to 1.6 a head in a four, C-7 solo 0.5 to 0.8 | V6 with `--parties 1,4` | Owed with V6 |
 | V12 | The support against a fourth damage dealer | `22-fists-support.md` 4.1: within 14 steps on every cell, ahead by 7+ on 25%+ of cells and behind by 7+ on 25%+, ahead on at most 50% | V6 with `--builds support` (22 run F7) | Owed: L13, the `support` style, V6 |
 | V13 | Gold follows depth | Gold a hero-hour rises with held depth at about `payStepCoin` a step | `node tools/balance-program/redesign/roads/roads-run.mjs --plan q1 --seeds 8 --hours 8` (gold against held) | Runs today. Feeds L10 |
+| V14 | The move table after the moves pass | No live move worth less than nothing on its played bar. The Challenge positive on the tank's four | `node tools/balance-program/redesign/spells/spell-run.mjs --plan M`, then `--plan T` and `--plan S` | Runs today (`23`). Re-run after L4b, the Greater Mend re-size and Shelter's condition |
 
-**Order:** V1, V2 and V13 now. V4 before L6. V5, V7, V9 with the sample (L8). V6, V8, V10, V11 once R10 opens more scale grounds.
+**Order:** V1, V2 and V13 now. V1 again on the tank's four after L4b. V14 after L4b. V4 after the Greater Mend re-size, before L6. V5, V7, V9 with the sample (L8). V6, V8, V10, V11 once R10 opens more scale grounds.
+
+## Changes from the spell audit
+
+2026-11-22, from `23-spell-audit.md` section 8, and Tyler's ruling the same day (the tank falls back at 15% on Steady).
+
+- Row 9: Hoarfrost and Protective Ward placed in the 10 to 20 borrow band, opening at 120.
+- Row 12: the holder line, `holderLinePm` 600 (Steady 15%, Careful 27%).
+- Row 13: every "casting" and "winding up" condition is dead on Muster Barrows and Hask's Ford until C2.
+- Bottom line (3): V4 runs after Greater Mend's re-size.
+- Section 3: near fall-back for the Challenge holder, and a new row on the Challenge and the fall back.
+- L4b: the holder line and the Challenge's condition, new.
+- L13: the support's 7 moves, Silenced in place of the interrupt (the interrupt is now Stagger's).
+- L14: the moves pass, new.
+- V14: re-run the move table, new. Order updated.
+- Section 2: the first-week example names Long Hold, not Wide Challenge.

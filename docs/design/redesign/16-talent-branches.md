@@ -1,4 +1,4 @@
-# Talent branch candidates (23 moves)
+# Talent branch candidates (22 moves)
 
 Pick the ones you like. Every move is a real row in `src/data/abilities.js`. Nothing is live yet, and every number is a starting guess for the Balance Lab.
 
@@ -11,32 +11,34 @@ Pick the ones you like. Every move is a real row in `src/data/abilities.js`. Not
 - **Resets cost gold by Level.** Drafting is free. You pay once when you apply it. A new hero's first reset is free.
 - **"Spend as suggested"** spends every point and picks every branch for you, and can stay on.
 
-**The Roads v3 (2026-11-22, `17-talent-tree.md`) places these options and supersedes the rank marks above.** Crossroads I comes after a move's third rank stone, crossroads II after its fifth, and II doesn't depend on I. Every number grows with Level, full at Level 200 (`19-power-ledger.md` section 2). Quick Strike becomes Cheap Strike (−40% mana · −20% damage), since sword and club lanes run full. Answering is held until a block exists. Low-health options read "near fall-back".
+**The Roads v3 (2026-11-22, `17-talent-tree.md`) places these options and supersedes the rank marks above.** Crossroads I comes after a move's third rank stone, crossroads II after its fifth, and II doesn't depend on I. Every number grows with Level, full at Level 200 (`19-power-ledger.md` section 2). Quick Strike becomes Cheap Strike (−40% mana · −20% damage), since sword and club lanes run full. Answering and Riposte come back as Parry's options (wave 3, `17` section 5). Low-health options read "near fall-back".
 
-Moves that more than one weapon uses are listed once, under the first. Brand, Reave, Updraft, Blight and the fist strikes are left out until they go live.
+Moves that more than one weapon uses are listed once, under the first. Brand, Reave, Blight and the fist strikes are left out until they go live. Updraft and Undertow are cut (`23-spell-audit.md`). Parry (sword) and Gash (axes) are new in wave 3 and get their options with their rows.
 
 ---
 
 ## Shield
 
-**Challenge** (Shield)
-- **A. Wide Challenge** (Suggested): Taunts up to 3 nearby enemies, −50% taunt duration
-  Best for: big packs
+**Challenge** (Shield). Suggested condition: my HP is at least 60%. The hero holding it falls back at 15% on Steady, not 25%
+- **A. Long Hold** (Suggested): Taunt holds 12 s (from 8 s), +4 s cooldown
+  Best for: big packs, a tank with a healer behind it
+  Note: Was Wide Challenge. The Challenge already takes every monster within 6 tiles, so "up to 3" was a downgrade.
 - **B. Hard Challenge**: Taunted enemy deals 15% less damage to you while taunted
   Best for: hard hitters, bosses
 - **C. Guarding Challenge**: Casts on its own when an enemy attacks a back-row ally, and taunts that enemy
   Best for: grounds with ranged enemies or casters
   Note: Party only.
 
-**Frost Slam** (Shield, party only)
+**Frost Slam** (Shield, party only). Re-measured after the holder line. Under +4 steps, it merges into the Challenge as Cold Challenge
 - **A. Long Frost** (Suggested): Chill lasts 6 s (from 4 s), +2 s cooldown
   Best for: packs that stay on you
 - **B. Pinning Frost**: Hits your target only, +50% chill
   Best for: bosses
 - **C. Slowing Frost**: Chill slows spell wind-ups 2× as much and attacks 50% less
   Best for: casters
+  Note: Does nothing on Muster Barrows or Hask's Ford until a Caster body exists. Blow wind-ups (wave 3) widen it.
 
-**Shelter** (Shield, party only)
+**Shelter** (Shield, party only). Suggested condition: the party has at least 2 heroes under 80% (until a Caster body exists, then a monster casting)
 - **A. Steady Shelter** (Suggested): −40% shield, −15 s cooldown
   Best for: steady damage, long hunts
 - **B. Deep Shelter**: Shields only the 2 lowest-health allies, +80% shield
@@ -70,9 +72,9 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
   Best for: big loose packs
 - **B. Close Turn**: +40% damage, 3 targets max
   Best for: pairs, small packs
-- **C. Bleeding Turn**: Applies 1 Bleed stack to each target, −30% damage
-  Best for: dual axes, long fights
-  Note: Shares Rend's Bleed stacks, up to 5 on a target.
+- **C. Heavy Turn**: +30% damage, +2 s cooldown
+  Best for: high-armor packs
+  Note: Was Bleeding Turn, cut: the axes' Gash (wave 3) bleeds a crowd. Armor comes off each hit once, so bigger hits lose less to it.
 
 ## Dual Axe
 
@@ -86,19 +88,18 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 
 ## Club
 
-**Quarry Blow** (Club)
-- **A. Breaking Blow** (Suggested): Applies Sickness (target takes 10% more damage for 6 s), −30% damage
-  Best for: parties, bosses
-  Note: The same Sickness as Green Sickness. Doesn't stack with it.
-- **B. Rockfall**: Hits the 3×3 area around the target, −50% damage
-  Best for: tight packs
-- **C. Cold Stone**: +40% damage vs chilled targets
-  Best for: parties with Frost Slam or Hoarfrost
-  Note: Does little alone.
+**Stagger** (Club, wave 3. Replaces Quarry Blow). A hit that ends the target's wind-up and pushes its next swing back 1 s. Suggested condition: my target is winding up
+- **A. Long Stagger** (Suggested): Next swing pushed back 2 s (from 1 s)
+  Best for: Brutes, bosses
+- **B. Shaken**: A wind-up it ends: the target deals 10% less damage for 4 s
+  Best for: casters, hard hitters
+- **C. Wide Stagger**: Also ends wind-ups on enemies next to the target, −30% damage
+  Best for: packs of casters
+  Note: Quarry Blow was Flame Strike without the fire, so Breaking Blow, Rockfall and Cold Stone are cut with it.
 
 ## Ranged
 
-**Hunter's Mark** (Ranged)
+**Hunter's Mark** (Ranged). Marks your own target if it isn't marked, else the healthiest in reach
 - **A. Long Mark** (Suggested): Lasts 12 s (from 8 s), +15% damage taken (from 20%)
   Best for: bosses, long fights
 - **B. Pack Mark**: Marks the target and 2 nearby enemies, +10% damage taken (from 20%)
@@ -114,14 +115,15 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 - **C. Spare Arrows**: Costs 1 ammo (from 3), −20% damage
   Best for: long hunts, cheaper supplies
 
-**Precision Shot** (Ranged)
+**Precision Shot** (Ranged). Shoots a Shooter, Caster or Stalker in range first, else your target
 - **A. Aimed Shot** (Suggested): +30% damage vs marked targets
   Best for: bosses, anything you Mark
-  Note: Needs Hunter's Mark on the bar.
+  Note: Needs Hunter's Mark on the bar. Works now the Mark sits on the bow's own target.
 - **B. Piercing Shot**: Hits 1 enemy behind the target for 50% damage
   Best for: packs in lines
-- **C. Wind-up Shot**: +60% damage vs casting targets
-  Best for: casters
+- **C. Picked Shot**: +40% damage vs Shooters, Casters and Stalkers
+  Best for: grounds with a back-row threat
+  Note: Was Wind-up Shot, dead where nothing casts. Now keyed to the monsters Precision Shot picks first.
 
 **Raking Shot** (Ranged)
 - **A. Clean Sweep** (Suggested): +50% damage vs targets below 50% health
@@ -169,7 +171,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 
 ## Restoration
 
-**Greater Mend** (Restoration)
+**Greater Mend** (Restoration). Numbers follow its Lab re-size (20% less healing, Circle 30% more)
 - **A. Quick Mending**: −50% healing, 1 s cooldown
   Best for: steady damage
 - **B. Deep Mending**: Only casts on allies below 40% health, +60% healing
@@ -193,7 +195,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 - **C. Turning Tide**: +50% healing on allies below 30% health, −25% on the rest
   Best for: Deadly grounds
 
-**Green Sickness** (Restoration)
+**Green Sickness** (Restoration). Deals double damage while you hunt alone (the alone rule, which replaces Undertow)
 - **A. Lingering Sickness** (Suggested): Sickness lasts 10 s (from 6 s), −30% damage
   Best for: parties, long fights
 - **B. Single Dose**: Hits the target only, Sickness 20% (from 10%)
@@ -210,13 +212,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 - **C. Lasting Ward**: Unused shield returns as mana when recast, −20% shield
   Best for: long hunts, light damage
 
-**Undertow** (Restoration, solo only)
-- **A. Heavy Undertow** (Suggested): Target deals 20% less damage for 4 s, −20% damage
-  Best for: solo vs hard hitters
-- **B. Riptide**: Also hits enemies next to the target, −40% damage
-  Best for: solo vs packs
-- **C. Drowning Pull**: 30% of damage dealt heals you, −20% damage
-  Best for: long solo hunts
+**Undertow**: cut. It cast only alone, and every hero has a company from Level 5. A lone healer gets its damage back through the alone rule on Green Sickness.
 
 ## Every weapon
 
@@ -235,7 +231,7 @@ Moves that more than one weapon uses are listed once, under the first. Brand, Re
 Rank 15 branches build on the rank 5 pick, so each rank 5 option gets its own pair. Rank 30 works the same way on the rank 15 pick. These are only examples. The rest get written after rank 5 has been played.
 
 **Challenge at rank 15**
-- After **Wide Challenge**: Taunted enemies deal 10% less damage to allies for 3 s / Taunts up to 5 nearby enemies
+- After **Long Hold**: Taunted enemies deal 10% less damage to allies for 3 s / −2 s cooldown
 - After **Hard Challenge**: Damage reduction 25% (from 15%) / Taunted enemy takes 10% more damage from you
 - After **Guarding Challenge**: The ally it protected takes 15% less damage for 3 s / −3 s cooldown
 
@@ -259,3 +255,20 @@ Checked 2026-11-22 against `14-trait-candidates.md`, `15-signature-candidates.md
 - Greater Mend C: Shared Mending renamed Split Mending (too close to Mend's Shared Mend).
 - Green Sickness B: note that a stronger Sickness replaces a weaker one.
 - Rend rank 15: "5 Bleed stacks" now "5 or more", since #29 raises the cap to 6.
+
+## Changes from the spell audit
+
+2026-11-22, from `23-spell-audit.md` section 8, and Tyler's rulings the same day (Updraft cut, the tank falls back at 15% on Steady).
+
+- Title: 22 moves. Updraft and Undertow cut. Parry and Gash noted for wave 3. Answering and Riposte come back as Parry's options.
+- Challenge: suggested condition "my HP is at least 60%", and the holder's 15% line on Steady.
+- Challenge A: Wide Challenge becomes Long Hold (taunt holds 12 s, +4 s cooldown). Its rank 15 pair follows.
+- Frost Slam: re-measure after the holder line, Cold Challenge if it stays under +4 steps. Slowing Frost flagged dead where nothing casts.
+- Shelter: suggested condition "2+ heroes under 80%".
+- Turning Cut C: Bleeding Turn cut, Heavy Turn in its place.
+- Quarry Blow becomes Stagger. Breaking Blow, Rockfall and Cold Stone cut. Long Stagger, Shaken and Wide Stagger in, keyed to wind-ups ended.
+- Hunter's Mark: marks your own target first.
+- Precision Shot: shoots a Shooter, Caster or Stalker first. Aimed Shot now works with the Mark. Wind-up Shot becomes Picked Shot.
+- Greater Mend: numbers follow the Lab re-size.
+- Green Sickness: gains the alone rule.
+- Undertow: cut, with its three options.

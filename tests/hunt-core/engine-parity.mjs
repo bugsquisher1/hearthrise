@@ -155,7 +155,8 @@ const SEED = '-4611686018427387904';
    their Level, which the old measured line read as 7 to 13 Levels over it (2 to 3 power steps on every rating); on the clock a skill reads as
    its own Level (src/core/bands.js skillLevelPm), so their skill part is 0, as the reference company's is. Proof: the base's src/core/xp.js,
    src/data/core-model.js, src/core/hunt/amount.js, src/core/bands.js and src/data/bands.js laid back over a copy of this tree: every pin holds
-   (exit 0). */
+   (exit 0). Re-pinned again on the merge with set/v0.2.144 at 050a9b999 (first-hour-rewrite's tutorial rows): the same five, the same cause and
+   proof on the merged tree. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

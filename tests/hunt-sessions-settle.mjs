@@ -1622,6 +1622,8 @@ async function installGround(db, row = groundRow) {
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
 }
 
+/* the most XP one hr_apply call may credit a skill, under its c_max_xp_delta (12,000,000: 2026-10-27-core-bodies.sql) */
+const XP_CALL_MAX = 10000000;
 async function admin(db, uid, delta) {
   const v = await one(db, 'select version from public.player_state where user_id = $1 and slot = 0', [uid]);
   const [r] = await makeExec(db)('select public.hr_apply($1::uuid, 0, $2::bigint, $3::uuid, $4::text::jsonb) as r',
@@ -1642,7 +1644,14 @@ async function character(db, M, uid, o) {
     await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3) on conflict (user_id, slot, item_id) do update set qty = excluded.qty', [uid, item, qty]);
   }
   if (o.level) {
-    await admin(db, uid, { xp: Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, o.level)])) });
+    /* skills at the Level, in calls of at most XP_CALL_MAX a skill: hr_apply refuses more in one call (c_max_xp_delta 12,000,000 a skill, xp_clamp),
+       and on the Level clock (27 P-3) a skill past about 57 holds more than that */
+    const want = Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, o.level)]));
+    while (Object.values(want).some((x) => x > 0)) {
+      const part = Object.fromEntries(Object.entries(want).filter(([, x]) => x > 0).map(([k, x]) => [k, Math.min(x, XP_CALL_MAX)]));
+      await admin(db, uid, { xp: part });
+      for (const [k, x] of Object.entries(part)) want[k] -= x;
+    }
     /* Level XP is credited only by the hunt settle (kills only): a fixture sets it directly. */
     await db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [uid, M.XP.charXpForLevel(o.level) + (o.levelXpOver || 0)]);
   }

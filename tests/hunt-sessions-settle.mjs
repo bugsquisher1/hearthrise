@@ -156,7 +156,9 @@
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
 //   STORE      an empty bag under the default switch buys from the store: every
-//              unit journalled supply_buy at the catalogue price, the gold
+//              unit journalled supply_buy at its row's price at the hero's Level
+//              (off the Danger scale, 1062-store-step.sql; the scale's depth is
+//              tests/store-step.mjs SS-BILL), the gold
 //              moved = coins − store gold, the tally's Waste carries it; under
 //              `end` the store sells nothing.
 //   END        under `end`, a dry essential heal line ends the hunt heals_out.

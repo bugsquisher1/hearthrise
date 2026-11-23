@@ -5,7 +5,7 @@
 -- STATUS: supabase/migration-notes/1062-store-step.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1061-store-step-catalogue.generated.sql (hr_store_price and its
 --   tables) and after 1056/1057 (the Danger scale it reads). Applied as ONE transaction by the apply tool; never begin/commit here.
---   Ends with its §6 self-check.
+--   Ends with its §5 self-check.
 --
 -- ── WHY ──────────────────────────────────────────────────────────────────────
 -- A store row was priced once, at its own made-at Level, so a hero far deeper than a row's step paid that row's price: the store, the
@@ -24,7 +24,7 @@
 --   OFF THE SCALE (a tier ground, the Tower, a hall, a call, town): the hero's Level (wage.js levelStep), the fallback Tyler named for
 --     a hero with no held step. NOT the row's step: one rule, so a Level 400 hero eating Salted Shrimp pays a Level 400 price per point.
 --   THE ROW'S OWN STEP stays its LIST price only (supply-basics.js `price`, hr_hunt_basic_supplies.price): the shop's buy-back cap for
---     the crafted partner reads it. A use never does (§6 (b), tests/store-step.mjs SS-CLASS).
+--     the crafted partner reads it. A use never does (§5 (b), tests/store-step.mjs SS-CLASS).
 --   Every floor is step-free (the crafted partner's), so no step prices a use under what keeps buy-then-vendor a loss.
 --
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
@@ -809,7 +809,7 @@ $b$)) t(n, fn, find, repl)
   end loop;
 end $mig$;
 
--- ── §6 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
+-- ── §5 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 do $chk$
 declare
   v_fn  text;
@@ -840,7 +840,7 @@ begin
   -- (c) THE STEP, on a probe hero made by the real verb (rolled back): in town it is the hero's Level, held to 1..step_max
   perform set_config('request.jwt.claim.sub', v_u::text, true);
   insert into auth.users (id) values (v_u) on conflict (id) do nothing;
-  insert into public.hr_access_allowlist (user_id, note) values (v_u, 'store-step §6 probe') on conflict (user_id) do nothing;
+  insert into public.hr_access_allowlist (user_id, note) values (v_u, 'store-step §5 probe') on conflict (user_id) do nothing;
   if coalesce(public.hr_create_character(0)->>'ok', '') <> 'true' then raise exception 'VERIFY(c): the probe hero was refused'; end if;
   v_lvl := greatest(1, coalesce(public.hr_level_of(v_u, 0), 1));
   v_s := public.hr_store_step(null, v_u, 0);

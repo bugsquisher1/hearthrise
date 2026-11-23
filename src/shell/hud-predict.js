@@ -17,11 +17,12 @@ import { MONSTERS } from '../data/monsters.js';
 import { REVEAL_BANDS } from '../data/loot-bands.js';
 import { analyzerOf, huntOf, bidOf } from '../session/hunt-sections.js';
 
-/** What a kind's kill is worth on average to one hero there (`share` = 1 / the heroes there): { gold, loot } at the shop's bids. */
-function worth(kind, share, bid) {
+/** What a kind's kills are worth on average to one hero there (`share`: 1 / the heroes there a kill, summed; `coin`: the same times each
+    swing's coin multiple, the Danger scale's dial, src/hunt-view/hud-ledger.js): { gold, loot } at the shop's bids. */
+function worth(kind, share, coin, bid) {
   const row = MONSTERS[kind];
   if (!row) return { gold: 0, loot: 0 };
-  const gold = Array.isArray(row.gp) ? share * (Number(row.gp[0]) + Number(row.gp[1])) / 2 : 0;
+  const gold = Array.isArray(row.gp) ? coin * (Number(row.gp[0]) + Number(row.gp[1])) / 2 : 0;
   let loot = 0;
   for (const d of row.drops || []) {
     if (REVEAL_BANDS.includes(d.band)) continue;   // a rare piece is the server's reveal, saved at once
@@ -36,7 +37,8 @@ export function gainsFigures(g, bid) {
   if (!g) return null;
   let kills = 0, gold = 0, loot = 0;
   for (const n of Object.values(g.kills || {})) kills += n;
-  for (const [kind, x] of Object.entries(g.share || {})) { const w = worth(kind, x, bid); gold += w.gold; loot += w.loot; }
+  const coin = g.coin || g.share || {};
+  for (const [kind, x] of Object.entries(g.share || {})) { const w = worth(kind, x, Number(coin[kind]) || 0, bid); gold += w.gold; loot += w.loot; }
   return { levelXp: Math.max(0, Math.floor(g.lx || 0)), kills, gold: Math.floor(gold), lootValue: Math.floor(loot) };
 }
 

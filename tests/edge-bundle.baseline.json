@@ -353,6 +353,11 @@
         "bytes": 3625976,
         "on": "2026-11-23",
         "why": "merge set/v0.2.144 (foundations, trades, text sweep, climb fix, reds-4, halls formula + monster-formula, Tower cost pin, gear phase A) over lane/stage3-pipeline's amount pipeline; refCompany's pipeline body"
+      },
+      {
+        "bytes": 3626355,
+        "on": "2026-11-23",
+        "why": "lane/stage3-pipeline: the formula role armor in the pipeline's base share (+379 B)"
       }
     ]
   }

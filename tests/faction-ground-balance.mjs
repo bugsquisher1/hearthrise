@@ -15,6 +15,10 @@
 //             its ground doesn't, a region the kit disagrees with, and a join monster that is no boss are each refused by name; a staged
 //             ground alone is no imbalance (a region opens its grounds in pairs, it may draft them one at a time)
 //   FG-SHAPE  a pack's hunt row with no region, or a side that isn't one, is refused at load (shape.js definePack)
+//   FG-STOCK  a side gives no power (19-power-ledger.md row 17): a side or a piece naming any key outside its shape (a stat, a step,
+//             a modifier, a rule) is refused; every side has a row and an open piece; a paid piece has a price and a free one none
+//   FG-PRICE  a paid piece costs its wage hours at the company's top Level, rounded up (src/data/wage.js), and grows with it; a free piece
+//             is 0; the wearable pieces are exactly the stock's worn rows (25-factions.md section 2.4)
 //   FG-EDGE   src/data/factions.js stays out of the hr-accrue bundle and the page's module list: the engine never reads a faction
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -85,7 +89,35 @@ async function arms(F, S, H) {
   refused('a ground the kit paints in another region', 'FG-KIT', { edit: (gs) => gs.map((h) => (h.id === 'the_slake' ? { ...h, region: 'greenhaven' } : h)) });
   refused('a join monster that is no boss', 'FG-JOIN', { ctx: { rules: { ...F.FACTION_RULES, joinAfter: 'rat' } } });
   refused('a join monster that does not exist', 'FG-JOIN', { ctx: { rules: { ...F.FACTION_RULES, joinAfter: 'zz_nobody' } } });
-  refused('a piece that spells a hero\'s name', 'FG-RULES', { ctx: { outfits: { ...F.FACTION_OUTFITS, hollys_light: { side: sides[0], hours: 300 } } } });
+  refused('a piece that spells a hero\'s name', 'FG-RULES', { ctx: { stock: { ...F.FACTION_STOCK, hollys_light: { side: sides[0], mark: 600, kind: 'outfit_addon' } } } });
+  /* FG-STOCK: a side gives no power (19-power-ledger.md row 17, 25-factions.md section 3), and the stock's own shape */
+  const first = Object.keys(F.FACTION_STOCK).find((id) => F.FACTION_STOCK[id].kind === 'outfit');
+  refused('a piece that names a stat', 'FG-RULES', { ctx: { stock: { ...F.FACTION_STOCK, [first]: { ...F.FACTION_STOCK[first], attackPm: 20 } } } });
+  refused('a piece that names a step', 'FG-RULES', { ctx: { stock: { ...F.FACTION_STOCK, [first]: { ...F.FACTION_STOCK[first], steps: 1 } } } });
+  refused('a side that names a modifier', 'FG-RULES', { ctx: { sides: { ...F.FACTIONS, [sides[0]]: { ...F.FACTIONS[sides[0]], mods: { hpPm: 50 } } } } });
+  refused('a side that names a rule', 'FG-RULES', { ctx: { sides: { ...F.FACTIONS, [sides[1]]: { ...F.FACTIONS[sides[1]], rule: 'heal_received' } } } });
+  refused('a side with no row', 'FG-RULES', { ctx: { sides: { [sides[0]]: F.FACTIONS[sides[0]] } } });
+  refused('a paid piece with no price', 'FG-RULES', { ctx: { stock: { ...F.FACTION_STOCK, zz_banner: { side: sides[0], mark: 60, kind: 'hall_banner' } } } });
+  refused('a free piece with a price', 'FG-RULES', { ctx: { stock: { ...F.FACTION_STOCK, zz_cape: { side: sides[0], mark: 60, kind: 'outfit', wageHoursPm: 1000 } } } });
+  const closeSide = Object.fromEntries(Object.entries(F.FACTION_STOCK).map(([id, p]) => [id, p.side === sides[1] ? { ...p, opensWith: 'mounts' } : p]));
+  refused('a side with no open piece', 'FG-RULES', { ctx: { stock: closeSide } });
+  /* FG-PRICE: a paid piece costs its wage hours at the Level, rounded up; a free piece is 0; nothing else has a price */
+  const W = await import(DATA + 'wage.js' + V);
+  const odd = [85, 86, 87, 88, 89, 90, 91, 92].find((L) => W.wage(L) % 2 === 1);
+  const half = { zz_cloth: { side: sides[0], mark: 60, kind: 'mount_cloth', wageHoursPm: 1500 } };
+  if (odd === undefined) bad.push('FG-PRICE no odd wage between Levels 85 and 92: the read broke');
+  else if (F.stockPrice('zz_cloth', odd, half) !== Math.ceil(1.5 * W.wage(odd))) bad.push(`FG-PRICE 1.5 wage hours at Level ${odd} cost ${F.stockPrice('zz_cloth', odd, half)}, not ${Math.ceil(1.5 * W.wage(odd))}`);
+  for (const [id, p] of Object.entries(F.FACTION_STOCK)) {
+    const paid = p.kind === 'hall_banner' || p.kind === 'mount_cloth';
+    for (const L of [85, 200, 1000]) {
+      const got = F.stockPrice(id, L);
+      if (paid ? got !== p.wageHoursPm / 1000 * W.wage(L) : got !== 0) bad.push(`FG-PRICE ${id} at Level ${L} costs ${got}`);
+    }
+    if (paid && !(F.stockPrice(id, 200) > F.stockPrice(id, 85))) bad.push(`FG-PRICE ${id} does not grow with the Level`);
+  }
+  if (F.stockPrice('zz_nobody', 100) !== null) bad.push('FG-PRICE a piece that does not exist has a price');
+  const worn = Object.keys(F.FACTION_STOCK).filter((id) => ['outfit', 'outfit_addon'].includes(F.FACTION_STOCK[id].kind));
+  if (worn.join() !== Object.keys(F.FACTION_OUTFITS).join()) bad.push('FG-PRICE the wearable pieces are not the stock\'s worn rows: ' + Object.keys(F.FACTION_OUTFITS).join());
   /* a staged ground alone is no imbalance */
   const staged = F.factionGroundProblems(planted(H, S, { grounds: [{ ...H.HUNTS[0], id: 'zz_ground_d', region: NEXT, standingFor: sides[0], staged: true }] }));
   if (staged.length) bad.push('FG-PLANT a staged third ground is refused: ' + staged.join('; '));
@@ -132,7 +164,14 @@ export const MUTANTS = {
   hall_free: { why: 'a hall may pay a side its ground doesn\'t', factions: [["if (r.standingFor !== want) out.push(", "if (false) out.push("]] },
   kit_ignored: { why: 'a region kit may paint a ground of another region', factions: [["&& h.region !== reg) out.push(", "&& false) out.push("]] },
   join_any: { why: 'any monster opens joining', factions: [["if (!krell || krell.boss !== true) out.push(", "if (!krell) out.push("]] },
-  names_allowed: { why: 'a piece may spell a hero\'s name', factions: [["if (/holly|harry/i.test(id)) out.push(", "if (false) out.push("]] },
+  names_allowed: { why: 'a piece may spell a hero\'s name', factions: [["if (/holly|harry|venn|rowe/i.test(id)) out.push(", "if (false) out.push("]] },
+  stock_power: { why: 'a piece may name a stat or a step', factions: [["if (!STOCK_KEYS.has(k)) out.push(", "if (false) out.push("]] },
+  side_power: { why: 'a side may name a modifier or a rule', factions: [["if (!FACTION_KEYS.has(k)) out.push(", "if (false) out.push("]] },
+  side_missing: { why: 'a side may have no FACTIONS row', factions: [["if (!own(sides, s)) out.push(", "if (false) out.push("]] },
+  paid_free: { why: 'a paid piece may have no price', factions: [["if (kind.paid && !whole(p.wageHoursPm", "if (false && !whole(p.wageHoursPm"]] },
+  side_closed: { why: 'a side may open no piece', factions: [["if (!n) out.push(s + ' has no open piece", "if (false) out.push(s + ' has no open piece"]] },
+  price_floor: { why: 'a price rounds down', factions: [["+ 999n) / 1000n", ") / 1000n"]] },
+  price_flat: { why: 'a price ignores the Level', factions: [["BigInt(wage(wageStep(L)))", "BigInt(wage(wageStep(85)))"]] },
   shape_no_region: { why: 'a pack loads with no region', shape: [["if (!REGIONS.includes(p.hunt.region)) no(", "if (false) no("]] },
   shape_any_side: { why: 'a pack loads paying no side', shape: [["if ('standingFor' in p.hunt && !STANDING_SIDES.includes(p.hunt.standingFor)) no(", "if (false) no("]] },
 };
@@ -143,7 +182,7 @@ async function main() {
   try { bad = [...await run(), ...await edge()]; } catch (e) { console.error('faction-ground-balance HARNESS: ' + (e.stack || e)); process.exit(2); }
   if (!mutate) {
     if (bad.length) { console.error('faction-ground-balance RED:\n  ' + bad.join('\n  ')); process.exit(1); }
-    console.log('faction-ground-balance: every hunt row names its region, no ground before Krell pays a side, and a planted region after him holds the even rule (FG-LIVE, FG-PLANT, FG-SHAPE, FG-EDGE green)');
+    console.log('faction-ground-balance: every hunt row names its region, no ground before Krell pays a side, and a planted region after him holds the even rule (FG-LIVE, FG-PLANT, FG-STOCK, FG-PRICE, FG-SHAPE, FG-EDGE green)');
     return;
   }
   if (bad.length) { console.error('faction-ground-balance --mutate: the CLEAN arm is red, so no mutant verdict means anything:\n  ' + bad.join('\n  ')); process.exit(1); }

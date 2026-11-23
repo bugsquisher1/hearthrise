@@ -121,10 +121,11 @@ function gapOf(ground, step) {
 function depthRatio(ground, step, rate) {
   return gapPayRatio(gapOf(ground, step), rate);
 }
-/** THE PAY RULE ON A WHOLE GAP (04 section 7: pay = reference pay x payStep ^ gap, the gap held to PAY.gapMax above, never under PAY.floor
-    below): the one ratio a scale ground's depth and the Burning Tower's floors both pay by (src/core/hunt/tower.js towerShareXp). */
+/** THE PAY RULE ON A WHOLE GAP (04 section 7: pay = reference pay x payStep ^ gap, never under PAY.floor below; the caller holds the gap to
+    its ceiling, gapOf here, src/core/hunt/tower.js towerShareXp on the Tower): the one ratio a scale ground's depth and the Burning Tower's
+    floors both pay by. */
 export function gapPayRatio(gap, rate) {
-  const g = Math.min(PAY.gapMax, Math.trunc(Number(gap) || 0));
+  const g = Math.trunc(Number(gap) || 0);
   return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floor, 1 / powStep(1 + rate, -g));
 }
 

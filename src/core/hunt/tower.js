@@ -239,7 +239,7 @@ export function towerXpMax(floor, run = TOWER) {
  */
 export function towerShareXp(level, floor, run = TOWER) {
   const L = Number.isInteger(level) && level >= 1 ? level : 1;
-  return levelShareAt(L, run.pay.refKillsHead) * gapPayRatio(towerLevelOf(floor, run) - L, PAY.payStepXp) * (run.pay.payPm / 1000)
+  return levelShareAt(L, run.pay.refKillsHead) * gapPayRatio(Math.min(PAY.gapMax, towerLevelOf(floor, run) - L), PAY.payStepXp) * (run.pay.payPm / 1000)
     * towerShareOf(floor, run);
 }
 

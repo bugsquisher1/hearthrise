@@ -695,7 +695,7 @@ const MUTANTS = [
   { name: 'the Tower pays the hunting table, not the Level share', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/xp-share.js',
     from: '  if (run && world && Number.isInteger(world.towerFloor)) return towerSplit(heroes, sc, run, world.towerFloor);', to: '' },
   { name: 'depth does not pay in the Tower', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/tower.js',
-    from: '  return levelShareAt(L, run.pay.refKillsHead) * gapPayRatio(towerLevelOf(floor, run) - L, PAY.payStepXp) * (run.pay.payPm / 1000)',
+    from: '  return levelShareAt(L, run.pay.refKillsHead) * gapPayRatio(Math.min(PAY.gapMax, towerLevelOf(floor, run) - L), PAY.payStepXp) * (run.pay.payPm / 1000)',
     to: '  return levelShareAt(L, run.pay.refKillsHead) * (run.pay.payPm / 1000)' },
   { name: 'a swarm\'s kill pays a whole reference kill', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/tower.js',
     from: '    * towerShareOf(floor, run);', to: '    * 1;' },

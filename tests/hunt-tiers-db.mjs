@@ -23,6 +23,7 @@
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text (HT-7's: OPEN_FILE's).
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
+import { withdrawScale } from './_tier-path.mjs';
 import { wholeViewOrRerun, applyOrder, packSqlOf } from '../tools/pack/whole.mjs';
 import { packIds } from '../tools/pack/files.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
@@ -287,7 +288,8 @@ async function main() {
     process.exitCode = escaped ? 1 : 0;
     return;
   }
-  const boot = () => bootReplay();
+  /* every arm here is the tier path; the Thicket joined the Danger scale (lane/scale-early-grounds), so its scale rows leave this database */
+  const boot = async () => { const b = await bootReplay(); await withdrawScale(b.db, [THICKET]); return b; };
   const problems = [...await bothPaths(boot), ...await aFour(boot), ...await asItStands(boot), ...await dialsTwice((await boot()).db)];
   for (const p of problems) console.log('FAIL  ' + p);
   console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters, the dials are the data\'s twice, the row names its tier from the open on both paths)');

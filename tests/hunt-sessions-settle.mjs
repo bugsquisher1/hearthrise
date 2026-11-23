@@ -333,6 +333,7 @@ import { isMain } from './_is-main.mjs';
 import { setGold } from './_gold.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
+import { withdrawScale } from './_tier-path.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -1624,11 +1625,6 @@ async function installGround(db, row = groundRow) {
      opened on its id would freeze the default stance; the fixture ground is not the Cellar, so its scale row is withdrawn in this database
      only (and its store depth with it), and every tier arm here reads what it always read */
   await withdrawScale(db, rows.map((g) => g.hunt));
-}
-/* A ground's Danger scale rows withdrawn in this database (its store depth first: hr_store_grounds names the scale's grounds) */
-async function withdrawScale(db, hunts) {
-  if (await one(db, "select to_regclass('public.hr_store_grounds') is not null")) await db.query('delete from public.hr_store_grounds where hunt_id = any($1::text[])', [hunts]);
-  if (await one(db, "select to_regclass('public.hr_danger_grounds') is not null")) await db.query('delete from public.hr_danger_grounds where hunt_id = any($1::text[])', [hunts]);
 }
 
 async function admin(db, uid, delta) {

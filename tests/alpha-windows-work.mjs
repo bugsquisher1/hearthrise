@@ -519,7 +519,7 @@ async function checks(overrides, shots, opts) {
         /* AW-60n the note under the two sales reads aloud as sentences (audit 2026-11-18 A14: "Keeps worn, higher-tier and Rare pieces Keeps 8 Material
            stacks" ran on): an outgrown Stone Maul for Sell spare gear, the kept Materials for Sell all junk, each part closed by its own stop */
         const note = await say('[data-hs-win="shop"] .hw-sell-note');
-        if (!/^Sell spare gear keeps [^.]+\. Keeps \d+ Material stacks [^.]*\.$/.test(note || '')) fails.push('AW-60n the Sell tab\'s note reads ' + JSON.stringify(note));
+        if (!/^Sell spare gear: keeps [^·]+ · Sell all junk: keeps \d+ Material stacks [^·.]*$/.test(note || '')) fails.push('AW-60n the Sell tab\'s note reads ' + JSON.stringify(note));
         /* Selling the counting tool warns in the sale's own confirmation. */
         await page.click('[data-hs-win="shop"] .hw-line[data-item="iron_axe"] [data-hs-act="sell"]');
         await page.waitForTimeout(150);
@@ -928,7 +928,7 @@ const MUTANTS = [
   ['AW-22T the band reads Gathering and crafting again', 'src/data/shell-windows.js', "label: 'Gathering and crafting', title: 'Skills',", "label: 'Gathering and crafting',"],
   ['AW-73 the phone card\'s cross lies on its words', 'src/styles/shell.css', '.hs-pointer:not(.is-min) > .hs-coach-close { position: relative; top: auto; right: auto;', '.hs-pointer:not(.is-min) > .hs-coach-close { position: static;'],
   ['a skill opens no work', 'src/shell/windows/work.js', "attr(li, 'data-hs-act', door ? 'open-skill' : away ? 'open-place' : null);", "attr(li, 'data-hs-act', away ? 'open-place' : null);"],
-  ['AW-60n the Sell note runs on again (audit A14)', 'src/data/text/shop.js', "  spare_keeps: 'Sell spare gear keeps worn, higher-tier and Rare pieces.',", "  spare_keeps: 'Keeps worn, higher-tier and Rare pieces',"],
+  ['AW-60n the Sell note runs on again (audit A14)', 'src/data/text/shop.js', "  spare_keeps: 'Sell spare gear: keeps worn, higher-tier and Rare pieces',", "  spare_keeps: 'Keeps worn, higher-tier and Rare pieces',"],
   ['AW-22F Farming goes nowhere again (audit A4)', 'src/shell/windows/work.js', '    const away = elsewhereOf(id);', '    const away = null;'],
   ['the client cannot declare gathering', 'src/session/edge-intents.js', "(v.kind === 'artisan' || v.kind === 'gather')", "v.kind === 'artisan'"],
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return skillShortWords(", "  if (false) return skillShortWords("],

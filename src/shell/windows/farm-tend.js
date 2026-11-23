@@ -139,5 +139,5 @@ export function tendLine(r, why) {
   if ((b.bought || []).length) s.push(t('farm.tended_bought', { seeds: listWords(b.bought.map((x) => whole(x.qty) + ' ' + itemNameFor(x.seed, x.qty))), gold: gold(b.gold) }));
   for (const f of b.failed || []) s.push(t('farm.tended_failed_' + f.step, { n: f.i + 1 }), why({ error: f.error }));
   s.push(...emptyWords((b.empty || []).filter((e) => e.why !== 'unplanted')));
-  return s.map((x) => String(x).replace(/\.$/, '')).filter(Boolean).join('. ') + '.';
+  return s.map((x) => String(x).replace(/\.$/, '')).filter(Boolean).join(' · ');
 }

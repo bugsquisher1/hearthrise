@@ -30,6 +30,9 @@ import { ABILITIES, abilitySkill } from '../data/abilities.js';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js';
 import { LANE_OF } from './hunt/conditions.js';
 import { gearPartPm } from './hunt/danger.js';
+import { defenseGearPm } from './hunt/amount.js';
+import { AMOUNT } from '../data/amount.js';
+import { skillLevelPm } from './bands.js';
 import { blowsPmOf, armorPmOf } from './temper.js';
 import { resistProfile } from './elements.js';
 
@@ -136,8 +139,23 @@ export function heroSnapshot(state, c) {
   const selfHealPm = c.eq && c.eq.selfHealPm > 0 ? c.eq.selfHealPm : 0;
   /* THE GEAR PART (src/core/hunt/danger.js gearPartPm, the gear table's): what the power step reads on the Danger scale, only there. */
   const gearPm = gearPartPm(c.equipment, c.items, c.temperSteps);
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
+  /* THE SKILL PART (src/core/bands.js, lane/foundations-block): the skill of the style in use, as the Level the reference career reaches it, over
+     the hero's own Level, in thousandths (0 on the career line; the power step reads it at POWER.weightSkillPm, on the Danger scale only) */
+  const level = charLevelFromXp(state.levelXp);
+  const skillLv = skillLevelPm((c.profile || DEFAULT_PROFILE).damageSkill, levelsOf(state.skills)[(c.profile || DEFAULT_PROFILE).damageSkill]);
+  const skillGapPm = skillLv === null ? 0 : skillLv - 1000 * level;
+  /* THE AMOUNT PIPELINE'S READS (src/core/hunt/amount.js, on the Danger scale only; lane/stage3-pipeline): the gear part split into the
+     armor and ward ratings by weight, the weapon's top share of a reference health (data/amount.js blowTopBp), the crit chance and a
+     damage food's bonus, each turned into conditional steps there. Every hero carries them; off the scale nothing reads them. */
+  const dg = defenseGearPm(c.equipment, c.items, c.temperSteps);
+  const wt = (c.eq && c.eq.weaponType) || 'neutral';
+  const blowBp = Object.prototype.hasOwnProperty.call(AMOUNT.blowTopBp, wt) ? AMOUNT.blowTopBp[wt] : AMOUNT.blowTopBp.neutral;
+  const critPm = Math.round((Number(roll.critChance) || 0) * 1000);
+  const buffDmgPm = Math.round((Number(typeof c.bonus === 'function' ? c.bonus('damage') : 0) || 0) * 1000);
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level,
     gearPm,
+    skillGapPm,
+    armorGearPm: dg.armorPm, wardPm: dg.wardPm, blowBp, critPm, buffDmgPm,
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
     ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
@@ -373,6 +391,11 @@ export function memberSide(mi, ctx) {
         ...(typeof h.risk === 'string' && h.risk ? { risk: h.risk, danger: Number.isInteger(h.danger) ? h.danger : 0 } : {}),
         hold: Number.isInteger(h.hold) ? h.hold : null,
         leaveTogether: h.leaveTogether === true,
+        /* THE ROADS (src/core/talents.js; hunt-spawn.js heroSetup): the moves of another weapon the bar may hold and the build the settle
+           grants at every boundary (combat-sim.js syncUnit). Without them here a borrowed move never read its native blow and no build
+           reached the engine: both only on a hero that has them */
+        ...(Array.isArray(h.borrowed) && h.borrowed.length ? { borrowed: h.borrowed } : {}),
+        ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null },
     },
   };
@@ -514,6 +537,9 @@ export function frozenOf(side, kinds, atMs, monsters) {
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
     snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), gearPm: snap.gearPm || 0,
+      skillGapPm: snap.skillGapPm || 0,
+      armorGearPm: snap.armorGearPm || 0, wardPm: snap.wardPm || 0, blowBp: snap.blowBp || 0, critPm: snap.critPm || 0,
+      buffDmgPm: snap.buffDmgPm || 0,
       acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }

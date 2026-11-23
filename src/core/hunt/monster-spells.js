@@ -44,7 +44,7 @@
 
 import { atTier } from '../../data/hunt-tiers.js';
 import { HUNT_ROLES } from '../../data/hunt-roles.js';
-import { spellRow, castsOf, specOf, spellHit, marked, mends, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js';
+import { spellOn, castsOf, specOf, spellHit, marked, mends, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js';
 import { monsterMaxHit } from '../combat.js';
 import { cheb, los } from './grid.js';
 import { atRest, unitById, dirOf } from './movement.js';
@@ -52,6 +52,7 @@ import { makeEvent } from './events.js';
 import { place, covers } from './shapes.js';
 import { castShape } from './marks.js';
 import { landHit, restart, slowed, rowOf } from './damage.js';
+import { stepsOn } from './amount.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
 import { hasEffect } from './status-effects.js';
@@ -110,7 +111,7 @@ function begin(inst, sc, u, id, sp) {
   if (!Number.isInteger(u.target) || !atRest(u)) return false;
   const t = castTarget(inst, u, sp);
   if (!t) return false;
-  const ms = slowed(u, sp.windupMs);
+  const ms = slowed(u, sp.windupMs, inst);
   const s = mends(sp) ? { kind: 'mend', ox: t.x, oy: t.y, dx: 0, dy: 0, r: 0, len: 0 } : place(specOf(sp), u, t);
   u.cast = { s: id, ms, left: ms, kind: s.kind, x: s.ox, y: s.oy, dx: s.dx, dy: s.dy, r: s.r, len: s.len, ...(mends(sp) ? { t: t.id } : {}) };
   /* a boss's hasted spell under his enrage line waits less (boss-phases.js spellCdOf); every other spell its row's cdMs */
@@ -141,7 +142,7 @@ function land(inst, sc, u, sp) {
   const mended = !!t && t.alive && isAlly(u, t) && t.pocket === u.pocket && t.hp < t.maxHp;
   const struck = s ? inst.world.units.filter((h) => isEnemy(u, h) && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id) : [];
   u.cast = null;
-  restart(u);
+  restart(u, inst);
   sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: mends(sp) ? (mended ? 1 : 0) : struck.length }));
   if (mended) {
     /* (a Withered packmate takes the mend cut: heal-cut.js, the hero's Blight) */
@@ -151,14 +152,16 @@ function land(inst, sc, u, sp) {
   }
   const plain = { id };
   const braced = { id, mult: 1000 - SHIELD_BRACE.markedPm };
-  for (const h of struck) if (h.alive) landHit(inst, sc, u, h, sc.rng.int(lo, top), sp.element || null, marked(sp) && h.shieldWorn === true ? braced : plain, false);
+  /* on the scale the pipeline draws the one roll from the hit's mean (src/core/hunt/amount.js) */
+  const piped = stepsOn(inst);
+  for (const h of struck) if (h.alive) landHit(inst, sc, u, h, piped ? (lo + top) / 2 : sc.rng.int(lo, top), sp.element || null, marked(sp) && h.shieldWorn === true ? braced : plain, false);
 }
 
 /* THE FIRST CASTS of a monster joining a fight: { spell id: ms to wait }, each a drawn whole number of sub-steps (header). */
-function firstCasts(sc, list) {
+function firstCasts(sc, list, row) {
   const cds = {};
   for (const id of list) {
-    const steps = firstCastSteps(spellRow(id));
+    const steps = firstCastSteps(spellOn(row, id));
     const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;
     if (wait > 0) cds[id] = wait;
   }
@@ -172,16 +175,18 @@ export function castSpells(inst, sc) {
     if (!isMonster(u)) continue;
     /* what it casts now (data/monster-spells.js castsOf: its row's list, or nothing while the switch is off) */
     const list = castsOf(rowOf(inst, u.kind));
+    /* a spell row as this monster casts it (data/monster-spells.js spellOn: a derived row's own, monster-formula.js, else the table's) */
+    const mrow = rowOf(inst, u.kind);
     if (u.cast) {
       /* a cast its caster no longer casts (its row gone, off its list, the switch off) lands nothing: a stored windup never outlives a deploy */
-      const why = outOf(u) || (spellRow(u.cast.s) && list.includes(u.cast.s) ? null : 'reset');
+      const why = outOf(u) || (spellOn(mrow, u.cast.s) && list.includes(u.cast.s) ? null : 'reset');
       if (why) { drop(u, sc, why); continue; }
     }
     if (!u.alive) continue;
     if (!list.length && !u.cast && !u.spellCds) continue;
     /* out of the fight with nothing winding up: its waits are forgotten, and it draws its first casts again when it joins one */
     if (!u.cast && !Number.isInteger(u.target)) { u.spellCds = null; continue; }
-    if (!u.spellCds) u.spellCds = firstCasts(sc, list);
+    if (!u.spellCds) u.spellCds = firstCasts(sc, list, mrow);
     else {
       const next = {};
       for (const [k, ms] of Object.entries(u.spellCds)) { const left = ms - sc.dtMs; if (left > 0) next[k] = left; }
@@ -190,14 +195,14 @@ export function castSpells(inst, sc) {
     if (u.cast) {
       u.cast.left = Math.max(0, u.cast.left - sc.dtMs);
       /* (a spell due to land after a hero went under the Danger scale's line waits: the break-off resets its caster first, danger.js breaksOff) */
-      if (u.cast.left === 0 && !breaksOff(inst)) land(inst, sc, u, spellRow(u.cast.s));
+      if (u.cast.left === 0 && !breaksOff(inst)) land(inst, sc, u, spellOn(mrow, u.cast.s));
       continue;
     }
     /* A SILENCED caster (status-effects.js: Cold Palm's Silenced) starts nothing while it lasts; its waits run on, so it casts when it ends */
     if (hasEffect(u, 'silence')) continue;
     for (const id of list) {
       if (u.spellCds && u.spellCds[id] > 0) continue;
-      if (begin(inst, sc, u, id, spellRow(id))) break;
+      if (begin(inst, sc, u, id, spellOn(mrow, id))) break;
     }
   }
 }

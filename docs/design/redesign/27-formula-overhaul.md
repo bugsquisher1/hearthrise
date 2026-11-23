@@ -65,14 +65,14 @@ One row per formula family. "04" is the intended formula (`04-math-strategy.md` 
 
 | # | Family | 04 formula | Code today | State | Needs | Order |
 |---|---|---|---|---|---|---|
-| D-1 | A hero's blow | Base share of the target's reference health x `s ^ gap`, one roll spread (§2, §12) | `src/core/combat.js:391` (`maxHit = 0.35 x skill + 0.6 x gear + 2`, rolls 1 to max), `:31` weakness, `:63` attack interval | OLD | P-0, P-4 | 3 |
-| D-2 | Hit chance | Dropped, or one fixed base miss (§2) | `src/data/to-hit.js:30` (ratio rails 5% to 97%), `:33` (`REF_HERO` table monsters' aim is inverted from) | OLD | D-1 | 3 (retire) |
-| D-3 | Armor, ward, resistances | Armor and ward as defense ratings in the same contest, no cap (§2) | `src/core/mitigation.js:53` (dodge / absorb / ward against the attacker's Level), `src/data/core-model.js:196` (`ARMOUR_MITIGATION`, 60% cap), `src/data/elements.js:51`, `:63` | OLD | D-1 | 3 |
-| D-4 | Spells and runes | A move's base share and cost share in the rule table (§12, §13) | `src/data/abilities.js:385` (`castAmount`: share of `maxHit`), `:136` (`ABILITY_RULES`), `src/data/runes.js:46` (`RUNE_TIERS`) | OLD | D-1 | 3 |
-| D-5 | Healing (spells, food, drinks) | Share of reference health x `s ^ (healer's rating - Level)` (§3) | Heal shares on `abilities.js` rows (share of the caster's biggest hit), `src/data/core-model.js:268` (`FOOD_HEAL_SCALE` 12), supply rows | OLD | D-1 | 3 |
-| D-6 | Mana | `manaSeconds`, `manaRegen`, cost as a share (§3) | `VITALS` mana 100 + 10 L, `abilities.js:138` regen | OLD | D-1 | 3 |
-| D-7 | Regeneration, rest, readiness | `restRate`, pulls on readiness (§3, §8) | Readiness built (`danger.js` `readyPm` 800). Rates old: `core-model.js` `inFightRegenPermillePerS` 3, `src/data/hunt-tuning.js:38` (`oocRegenPermillePerS` 60) | OLD | D-1 | 3 |
-| D-8 | Crit, element and bane caps | Conditional steps under `conditionalStepsMax` (§2) | `combat.js:64` (crit), `:267` (set bonus), `src/core/elements.js:56`, `:60`, `core-model.js:284` (`MAX_BANE_MULT`), `src/core/perks.js:87` | OLD | D-1, P-6 | 3 |
+| D-1 | A hero's blow | Base share of the target's reference health x `s ^ gap`, one roll spread (§2, §12) | `src/core/combat.js:391` (`maxHit = 0.35 x skill + 0.6 x gear + 2`, rolls 1 to max), `:31` weakness, `:63` attack interval | NEW on the scale (`src/core/hunt/amount.js`, lane/stage3-pipeline) | P-0, P-4 | 3 |
+| D-2 | Hit chance | Dropped, or one fixed base miss (§2) | `src/data/to-hit.js:30` (ratio rails 5% to 97%), `:33` (`REF_HERO` table monsters' aim is inverted from) | SWITCH (`AMOUNT.hitRoll`, true for 0.3.0) | D-1 | 3 (retire) |
+| D-3 | Armor, ward, resistances | Armor and ward as defense ratings in the same contest, no cap (§2) | `src/core/mitigation.js:53` (dodge / absorb / ward against the attacker's Level), `src/data/core-model.js:196` (`ARMOUR_MITIGATION`, 60% cap), `src/data/elements.js:51`, `:63` | NEW on the scale (armor and ward ratings, `defenseSplit` in steps) | D-1 | 3 |
+| D-4 | Spells and runes | A move's base share and cost share in the rule table (§12, §13) | `src/data/abilities.js:385` (`castAmount`: share of `maxHit`), `:136` (`ABILITY_RULES`), `src/data/runes.js:46` (`RUNE_TIERS`) | NEW on the scale (shares of the caster's top; a version's step is still a base-share multiplier) | D-1 | 3 |
+| D-5 | Healing (spells, food, drinks) | Share of reference health x `s ^ (healer's rating - Level)` (§3) | Heal shares on `abilities.js` rows (share of the caster's biggest hit), `src/data/core-model.js:268` (`FOOD_HEAL_SCALE` 12), supply rows | NEW on the scale (heals through the contest; food a share of the ground Level's reference) | D-1 | 3 |
+| D-6 | Mana | `manaSeconds`, `manaRegen`, cost as a share (§3) | `VITALS` mana 100 + 10 L, `abilities.js:138` regen | PART (costs as shares of the reference mana; pool still `VITALS`, `manaSeconds` read only) | D-1 | 3 |
+| D-7 | Regeneration, rest, readiness | `restRate`, pulls on readiness (§3, §8) | Readiness built (`danger.js` `readyPm` 800). Rates old: `core-model.js` `inFightRegenPermillePerS` 3, `src/data/hunt-tuning.js:38` (`oocRegenPermillePerS` 60) | OLD (scale-free permille rates; `restRate` not yet a lever) | D-1 | 3 |
+| D-8 | Crit, element and bane caps | Conditional steps under `conditionalStepsMax` (§2) | `combat.js:64` (crit), `:267` (set bonus), `src/core/elements.js:56`, `:60`, `core-model.js:284` (`MAX_BANE_MULT`), `src/core/perks.js:87` | NEW on the scale (conditional steps: crit as its mean, answers, marks, slows, Tempering) | D-1, P-6 | 3 |
 | D-9 | Statuses (bleed, chill, sickness) | A tick is a share of reference health x `s ^ gap`, a mark or slow is steps (§2, §12) | `src/data/statuses.js:74` (bleed ticks 1 to 3 flat, `blowPm` 33, rune-tier permille). **In flight: `lane/e2-e3-statuses`** | HAND | D-1 | 4 |
 
 ### 1.5 Drops
@@ -151,7 +151,7 @@ A row can only be rebuilt once the rows it is measured against are final, or it 
 | 0 | The step, the reference company, the wage, the scale's pay, bought time | P-0, P-6, G-1, M-4, E-1, E-2, E-3, E-4, E-5, S-3, S-4 | Everything else is a multiple of these | Done |
 | 1 | **The hours a Level takes** | P-1 | Sizes every kill's pay, the skill clock, death in hours, drops in hours | **Done in this lane** |
 | 2 | (reserved: the reference times) | `fightShare`, role seconds to kill | 04 §14 stage 1 normalization. Written as levers by stage 3's lane, solved by bisection after stage 4 | Owed |
-| 3 | **The amount pipeline**: the fight in steps | D-1 to D-8, P-4, P-5 | Monsters are sized against what the reference company deals and takes. Until a blow is `base share x s ^ gap`, every monster number is sized against the old chain | Not started (biggest lane) |
+| 3 | **The amount pipeline**: the fight in steps | D-1 to D-8, P-4, P-5 | Monsters are sized against what the reference company deals and takes. Until a blow is `base share x s ^ gap`, every monster number is sized against the old chain | **Built on the scale** (lane/stage3-pipeline, §2.2); P-5, D-7 and off-scale grounds still old |
 | 4 | **Monsters and statuses derived** | M-1, M-2 columns, M-3, D-9 | Health from seconds to kill, blow from pressure, ticks as shares | **In flight** (monster-formula, e2-e3-statuses) |
 | 5 | **The gear catalogue on steps** | G-2 | Phase A can go now. Phase B needs stage 3 | Not started |
 | 6 | Bands re-cut in absolute steps, every ground on the scale, the pay gap read against the hero's Level | S-5, M-5, E-10, F-1 | Needs stages 3 to 5 final, then one `new-ground.mjs` run a ground | Not started (wave 2) |
@@ -167,7 +167,7 @@ A row can only be rebuilt once the rows it is measured against are final, or it 
 - **`lane/monster-formula` (stage 4) runs before stage 3.** That is fine only if the generator takes the hero side as an input. A monster's health must be written as "the reference company's damage a second at gap 0 x the role's seconds to kill", read from the engine's own hero output, never a typed line in Level. Then when stage 3 replaces the hero's blow, the monsters re-derive by re-running the generator and nothing is re-fitted by hand. A health or blow number typed as a function of Level is the old family and fails this row.
 - **`lane/e2-e3-statuses` (stage 4).** A tick must be a share of the target's reference health, so it scales with the contest and not with a flat 1 to 3. A slow or a mark is a conditional step inside `conditionalStepsMax`. The rune-tier permille table goes: a rune tier is a step.
 
-### 2.2 Scope: the amount pipeline (stage 3, not started)
+### 2.2 Scope: the amount pipeline (stage 3, built on the scale 2026-11-23)
 
 The biggest lane, and the hub. An engine batch (L in `04` §12).
 
@@ -179,6 +179,12 @@ The biggest lane, and the hub. An engine batch (L in `04` §12).
 - Levers it adds: `weightGear`, `weightSkill`, `rollSpread`, the armor / ward split (3), `manaSeconds`, `manaRegen`, `sustainFree`, `sustainHealer`, `restRate`.
 - Proof: 04 §14 stage 0, the scale test (Levels 30, 300, 3,000 at gap 0 read the same), the slope test and the weights test.
 - Both paths (CLAUDE.md §4): a hunt viewed and a hunt with the browser closed play the same.
+
+**Built (lane/stage3-pipeline, 2026-11-23).** On the Danger scale only (off it the old chain plays, byte for byte: engine-parity's four tier pins held). `src/core/hunt/amount.js`, levers in `src/data/amount.js`, test `tests/hunt-core/amount.mjs`:
+- a hero's blow = move share x `blowTopBp[weapon]` / 10000 x refHealth(ground refLevel) x s ^ round(offense - R + conditional) x roll; a monster's blow = its row's blow at the step x `pressurePm` / 1000 x refHealth(hero L) / refHealth(refLevel) x s ^ round(R - armor or ward + conditional) x roll; a heal or a shell = share x top x refHealth(healer L) x s ^ round(offense - L + heal steps) x roll. R is the reference company's rating (`bands.js bandAbs refPm`), the ratings `bands.js ratingPm`, refHealth `150 + 10 (L - 1)`, the roll `rollSpreadPm` 200, rounded once.
+- MEASURED, the scale test (Muster moved to Level L as shares, the roll to hit off, 6 seeds x 4 h): held 370.8 / 372.2 / 370.1 / 369.0 (sd 4 to 6) at Levels 30 / 60 / 300 / 3,000, XP 0.61x the formula at each, kit share 0.29 to 0.30, fall backs 1.8 to 2.3 an hour, no death, the front's share 0.82 to 0.83, sustain 140 / 795 / 63 at each. Passes.
+- MEASURED, the reduced matrix (6 seeds x 8 h from step 0, held from hour 3, the roll to hit on): Muster L60 Steady holds 618 (before the pipeline 620), XP 1.01x, kit 0.29, no Careful or Steady death; Hask's Ford L52 593 (588), XP 1.11x; the Bone Wing outgrew its old band (1.77x), re-cut by `new-ground.mjs` (ref 540, top 605), then 1.04x. C-2 fails both before and after and further after: a weapon a tier back moves Muster's Steady hold -1.7 steps (before -15.5), armor -7.8 (-22.2): a gear tier is only its rating steps now (`weightGearPm` / `weightGearBelowPm`, the designer's). The roll to hit off needs `pressurePm` about 230 (200 holds 642).
+- Still old math: P-5 (heavy armor's health, light armor's mana), D-7's rates, a version's `stepPm` and the stance and guard multipliers as base shares, the to-hit ratio while `hitRoll` holds, monster rows (stage 4), and every ground off the scale (stage 6).
 
 ### 2.3 Scope: the gear catalogue on steps (stage 5, not started)
 

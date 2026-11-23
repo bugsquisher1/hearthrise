@@ -347,7 +347,7 @@ const cases = {
     if (row.n !== 'Scored Fire Rune') return 'the store\'s tier-2 Fire rune is named ' + JSON.stringify(row.n) + ', not by its tier ("Scored Fire Rune")';
     const want = ['Cost: ' + cast.mana + ' mana, 1 Scored Fire Rune (' + row.price + ' g)', 'Each monster hit: ' + loPct + '% to ' + hiPct + '% of Max Hit as ember',
       'Never less than ' + Math.floor((fb.base[0] * cast.power) / 1000) + '–' + Math.floor((fb.base[1] * cast.power) / 1000) + ' a hit',
-      (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters.'];
+      (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters'];
     const said = M.shell.facts.hoverLines(slot, ctx, null, null).map((l) => l.text);
     if (JSON.stringify(said) !== JSON.stringify(want)) return 'the hover reads ' + JSON.stringify(said) + ', the engine cast ' + JSON.stringify(want);
     if (hits.length !== 2 || hits.some((n) => n < lo || n > hi)) return 'the engine landed ' + JSON.stringify(hits) + ' where the bar says ' + lo + '–' + hi;
@@ -855,9 +855,9 @@ const cases = {
     const { factsOf, aloneReason, aloneNote } = M.shell.facts;
     const slam = factsOf({ type: 'ability', id: 'frost_slam' }), shell = factsOf({ type: 'ability', id: 'shelter' });
     const say = (f) => [f.type, f.alone, ...f.effect, f.unlock].join(' | ');
-    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12.') return 'Frost Slam reads ' + say(slam);
+    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12') return 'Frost Slam reads ' + say(slam);
     /* (THE SPELL RULE: its shell is a share of the tank's blow, version I with no rune read, never under its beginner's floor) */
-    if (say(shell) !== 'Shields every hero near you | Party only | Blocks damage up to 289% of Max Hit | Never less than 30 | Unlocks at Melee 20.') return 'Shelter reads ' + say(shell);
+    if (say(shell) !== 'Shields every hero near you | Party only | Blocks damage up to 289% of Max Hit | Never less than 30 | Unlocks at Melee 20') return 'Shelter reads ' + say(shell);
     const deep = factsOf({ type: 'ability', id: 'frost_slam', store: 'plain_graven_ice_rune' }, { bag: [], skills: { melee: { level: 60 } }, store: M.SB.BASIC_SUPPLIES.filter((b) => b.id === 'plain_graven_ice_rune') });
     if (!deep.effect.includes('Causes chill for 4 s, 50% slower attacks and casts')) return 'a Graven slam reads ' + JSON.stringify(deep.effect);
     const sl = { action: { type: 'ability', id: 'frost_slam' }, conditions: [], join: 'and' };
@@ -865,7 +865,7 @@ const cases = {
     if (!greyed || greyed.code !== 'party_only' || greyed.text !== 'Party only' || !greyed.strike) return 'a party spell alone reads ' + JSON.stringify(greyed);
     if (aloneReason(sl, false) || aloneReason(sl, null)) return 'a party spell in a party (or unknown) is greyed';
     if (aloneReason({ action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' }, true)) return 'an alone spell alone is greyed';
-    return aloneNote(sl.action, 1) === 'Party only, does nothing alone' && aloneNote(sl.action, 2) === '' ? null : 'Configure action says ' + JSON.stringify([aloneNote(sl.action, 1), aloneNote(sl.action, 2)]);
+    return aloneNote(sl.action, 1) === 'Party only (no effect solo)' && aloneNote(sl.action, 2) === '' ? null : 'Configure action says ' + JSON.stringify([aloneNote(sl.action, 1), aloneNote(sl.action, 2)]);
   },
   /* AN IGNORE LIST BINDS ONLY WHERE IT AIMS (spell content, Coordinator 2026-10-23): a food, drink, heal or shield slot never
      reads one, so the Configure window saves none on it (bar-draft slotForSave), and the "can never fire" check never
@@ -918,16 +918,16 @@ const cases = {
     const has = (x, type, effect, unlock) => x.type === type && effect.every((e) => x.effect.includes(e)) && x.unlock === unlock;
     /* (the words are the text home's, src/data/text/bar.js: the shipped target lines, a line's and a ring's own beside them) */
     const rows = [
-      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10.'],
-      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10.'],
+      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10'],
+      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10'],
       /* THE SPELL RULE: a share of the hero's blow, in % of Max Hit, and the row's beginner's floor (abilities.js base) */
-      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14.'],
-      ['spring_tide', 'Hero and nearby allies', ['Heals 951% of Max Hit', 'Never less than 150'], 'Unlocks at Magic 20.'],
+      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14'],
+      ['spring_tide', 'Hero and nearby allies', ['Heals 951% of Max Hit', 'Never less than 150'], 'Unlocks at Magic 20'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
     if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
     /* a status with no slow and no mark still says how long it lasts, and Sickness what it does */
-    if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s, 10% more damage taken')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
+    if (!f('rend').effect.includes('Causes bleed for 6 s') || !f('green_sickness').effect.includes('Causes sickness for 6 s, 10% more damage taken')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
     /* a shot spell's cost line says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
     const src = ['raking_shot', 'power_strike'].map((id) => f(id).cost);
     if (src.join('|') !== 'Cost: 10 mana, 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);
@@ -1115,11 +1115,11 @@ const mutants = [
   { name: 'every slot is walked between pulls', case: 'mends-between-pulls',
     edits: [['src/core/hunt/abilities.js', 'const mends = (row) => !!row && MEND_TARGETS.includes(row.target);', 'const mends = (row) => !!row;']] },
   { name: 'a recast refunds nothing (Andy)', case: 'barrier-recast-refunds',
-    edits: [['src/core/hunt/abilities.js', '  const refund = shieldRefund(u, row, paid, pm);', '  const refund = 0;']] },
+    edits: [['src/core/hunt/abilities.js', '  const refund = shieldRefund(u, row, paid, pm, inst);', '  const refund = 0;']] },
   { name: 'a recast refunds the whole cast whatever was used', case: 'barrier-recast-refunds',
     edits: [['src/core/hunt/abilities.js', '  return Math.min(mana, Math.floor((standing * mana) / lands));', '  return mana;']] },
   { name: 'a full shell is recast', case: 'barrier-recast-refunds',
-    edits: [['src/core/hunt/abilities.js', "    if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm)) return { why: 'no_target' };\n", '']] },
+    edits: [['src/core/hunt/abilities.js', "    if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm, inst)) return { why: 'no_target' };\n", '']] },
   { name: 'Magic XP is paid on refunded mana', case: 'barrier-recast-refunds',
     edits: [['src/core/hunt/abilities.js', "{ u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult:", "{ u: u.id, ability: row.id, t: pick.target.id, mana: paid, magicXpMult:"]] },
   { name: '[bar] the hover casts version I whatever store rune the slot names', case: 'the-bar-states-the-cast-the-engine-makes', also: ['src'],
@@ -1155,7 +1155,7 @@ const mutants = [
   { name: '[spell-content] a version costs version I\'s mana', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = versionOf(row, 1);']] },
   { name: '[spell rule] a cast reads a fixed blow, not its hero\'s', case: 'output-grows-with-the-blow-not-mana',
-    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));', '  const dmg = () => roll(sc, hitRange(10, row));']] },
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => { const r = hitRange(blow, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };', '  const dmg = () => { const r = hitRange(10, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };']] },
   { name: '[spell rule] a cast grows with its skill level too (the retired lvPm, twice over the blow)', case: 'output-grows-with-the-blow-not-mana',
     edits: [['src/core/hunt/abilities.js', '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = Math.floor((v.outPm * s.pm * (1000 + 10 * (skillLevel(h, row) - 1))) / 1000000);']] },
   { name: 'a store rune fires at full power (r07)', case: 'spell-casts-the-spent-runes-version',
@@ -1179,7 +1179,7 @@ const mutants = [
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',
-    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blowOf(u, row), u.maxHp, pm) || {});', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
+    edits: [['src/core/hunt/abilities.js', '    const a = /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blow, u.maxHp, pm) || {});', '    const a = /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
   { name: 'a sized version is read as the row', case: 'version-output-scales-numbers',
     edits: [['src/data/abilities.js', '  return Number.isInteger(mana) ? { mana, outPm: versionStep(n) } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
@@ -1212,7 +1212,7 @@ const mutants = [
   /* the shield it plants is Mend's own amount (lane/c-hollow-proofs 2026-11-20, re-aimed by lane/c-spell-rule): dropping the heal line alone sent Mend
      down the shield path with no shield share on its row, makeEvent refused the empty amount and the throw read as the catch, the case unrun */
   { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
-    edits: [['src/core/hunt/abilities.js', '      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row.overShieldPm); break; }\n',
+    edits: [['src/core/hunt/abilities.js', '      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row.overShieldPm, piped); break; }\n',
       "      if (heals(row)) { u.shield = amount().heal; u.shieldBy = u.id; sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield })); break; }\n"]] },
   { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',
     edits: [['src/data/abilities.js', 'disciplines: DISCIPLINE_IDS, universal: true,', "disciplines: ['destruction', 'restoration'], universal: true,"]] },
@@ -1241,7 +1241,7 @@ const mutants = [
   { name: 'a cast does not set its cooldown', case: 'cd-set',
     edits: [['src/core/hunt/abilities.js', "  if (readyAt(hero.cds, row.id) > atMs || clockOf(hero, row, atMs) === null) return 'cooldown';", '']] },
   { name: 'mana is not checked', case: 'no-mana-no-cast',
-    edits: [['src/core/hunt/abilities.js', "  if (int(hero.mana) < row.mana) return 'mana';", ''], ['src/core/hunt/abilities.js', "    if (int(hero.mana) < v.mana) return { why: 'mana' };", '']] },
+    edits: [['src/core/hunt/abilities.js', "  if (int(hero.mana) < row.mana) return 'mana';", ''], ['src/core/hunt/abilities.js', "    if (int(hero.mana) < mana) return { why: 'mana' };", '']] },
   { name: 'a rune is never taken from the bag', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', '  for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }', '']] },
   { name: 'the action set skips nothing', case: 'action-set-skips',
@@ -1310,7 +1310,7 @@ const mutants = [
   { name: '[tank runes] alone and party only together pass validate', case: 'rows-validate',
     edits: [['src/data/abilities.js', "if (r.party !== undefined && r.alone === true) bad(", "if (false) bad("]] },
   { name: '[tank runes] a party shield heals instead', case: 'party-shield-shells-the-party',
-    edits: [['src/core/hunt/abilities.js', "        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row.overShieldPm); continue; }\n", "        if (true) { healOne(u, a, amount().heal || 1, sc, sg); continue; }\n"]] },
+    edits: [['src/core/hunt/abilities.js', "        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row.overShieldPm, piped); continue; }\n", "        if (true) { healOne(u, a, amount().heal || 1, sc, sg); continue; }\n"]] },
   { name: '[tank runes] a party shield lowers a bigger shell', case: 'party-shield-shells-the-party',
     edits: [['src/core/hunt/shields.js', "  if (!t || t.alive !== true || !(n > int(t.shield))) return false;\n", "  if (!t || t.alive !== true) return false;\n"]] },
   { name: '[tank runes] a party shield reaches the whole map', case: 'party-shield-shells-the-party',

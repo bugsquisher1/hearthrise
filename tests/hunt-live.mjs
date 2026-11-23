@@ -373,8 +373,12 @@ function withRows(M, rows, fn) {
 }
 
 /* THE BUG #61 PARTY'S GEAR AS IT STOOD ON 2026-10-22 (LV-PULL's balance-blind arm, like WARRENS_BEFORE_STEP): the gear formula (lane/gear-catalogue-steps,
-   src/core/gear-stats.js) re-cut these pieces by a point or two, and a Steel Sword a point stronger finished lap 1 before a blow landed, so the laps this
-   arm reads came out other than it plays them. Who pulls and holds is balance-blind: the party fights on its own day's numbers. */
+   src/core/gear-stats.js) re-cut these pieces by a point or two (Steel Sword atk 12 -> 14, str 10 -> 11). MEASURED on those numbers (lane/live-refresh-bug):
+   under "Take turns" Eddie dies at 1,044 s, and server() never ends a dead member's hunt (it seats him again as a new unit), so every closed commit from there
+   reads "off the holder"; viewed, Eddie's Melee 42 lands inside its own window (624-640 s), the server counts it from the next swing (combat-sim.js
+   syncUnit) and one blow lands a point harder than the browser's frozen Eddie, so that commit is diverged before any commit can name his key. The
+   page restarts on it (live-link.js: a diverged commit asks for a start point); run() restarts only on a matched one, so the rest read off and
+   "refreshed at none". Not a page bug. Who pulls and holds is balance-blind: the party fights on its own day's numbers. */
 const PARTY_61_GEAR = Object.freeze({
   steel_sword: { atkB: 12, strB: 10 }, iron_sword: { atkB: 7, strB: 6 }, iron_helm: { defB: 5 }, steel_helm: { defB: 10 },
   bronze_platebody: { defB: 6, rangeAtkB: -2, magicAtkB: -3 }, steel_platelegs: { defB: 15, rangeAtkB: -4, magicAtkB: -8 }, bronze_boots: { defB: 2, rangeAtkB: -1, magicAtkB: -1 },
@@ -1036,6 +1040,32 @@ function rules(M) {
     ok('LV-DOWN', v.verdicts.length >= 7 && bad.length === 0, `viewed: ${bad.length} of ${v.verdicts.length} commits off the prediction`);
   }
 
+  { // LV-STEPS: THE AMOUNT PIPELINE, BOTH PATHS (lane/stage3-pipeline; src/core/hunt/amount.js, 27 D-1 to D-8). A two-hero party on the
+    // Danger scale (Muster Barrows, the leader's plan on Steady from the ground as built): every blow, spell, tick and heal goes through the
+    // one step contest. BROWSER CLOSED: the server's commits play the scale (the world carries the stance) and land blows both ways. VIEWED:
+    // the browser, holding only its peer's frozen row (the pipeline's reads ride it: member.js frozenOf), predicts every commit.
+    const mk = () => {
+      const mis = [memberOf(M, 'a', 0, 'tank', 60), memberOf(M, 'b', 1, 'melee_dps', 60)];
+      mis[0].hero = { ...mis[0].hero, risk: 'steady', danger: 0 };
+      return mis;
+    };
+    const srv = server(M, mk(), { hunt: 'muster_barrows' });
+    let onScale = false, hits = 0, taken = 0;
+    for (let t = T0 + 16000; t <= T0 + 96000; t += 16000) {
+      const c = srv.commit(t);
+      if (!c || !srv.inst.world) break;
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      onScale = onScale || w.risk === 'steady';
+      const heroes = new Set(w.units.filter((u) => u.side === 'hero').map((u) => u.id));
+      for (const e of c.tl.hunt_events) if (e.type === 'dmg') { if (heroes.has(e.t)) taken++; else hits++; }
+    }
+    const v = run(M, mk(), 96000, { server: { hunt: 'muster_barrows' } });
+    const bad = v.verdicts.filter((x) => x.v !== 'match');
+    console.log(`  LV-STEPS Muster on Steady, 96 s: ${hits} blows landed on monsters, ${taken} on the heroes; viewed ${v.verdicts.length - bad.length} of ${v.verdicts.length} commits matched`);
+    ok('LV-STEPS', onScale && hits > 10 && taken > 5, `CONTROL: closed, the scale ${onScale ? 'played' : 'never played'} with ${hits} blows at monsters and ${taken} at heroes`);
+    ok('LV-STEPS', v.verdicts.length >= 5 && bad.length === 0, `viewed: ${bad.length} of ${v.verdicts.length} commits off the prediction (${bad.slice(0, 3).map((x) => x.t - T0 + ':' + x.v).join(', ')})`);
+  }
+
   { // LV-T: A SECOND TANK FIGHTS (Andy / Tyler 10-20: "not moving to the mobs ... when he has to move after
     // initial placement"). Two shield heroes, the pack on the leader: the second walks to its own target,
     // lands at least 60% of the leader's blows (was 25-40%) and is never more than 3 s with no engaged
@@ -1239,7 +1269,9 @@ function rules(M) {
          the browser on his Melee 41 rolls, and a swing he hit on the server missed in the browser 150 s on (752 s under "One tank holds" on
          the one party table; 1,024 s before it, on the board since 11-08; the rule read 736 s for a day). Each commit names the peers' keys at
          its window's start (hunt-settle.js huntPeerKeys); a key the prediction does not run restarts it from the start point (run's refresh,
-         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop). */
+         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop).
+         0 off holds only while the level's OWN window agrees: the server counts a level from the next swing, and the first commit that names it is
+         the one after (keys at the window's start). One that moves a blow first is diverged, and the page restarts on that (PARTY_61_GEAR). */
       const vm = andy(hold);
       const peerLv = () => JSON.stringify([vm[0], vm[1]].map((m) => [M.XP.charLevelFromXp(m.levelXp), M.XP.levelsOf(m.skills)]));
       let lvWas = null, moves = 0;
@@ -2196,6 +2228,8 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  /* LV-STEPS (lane/stage3-pipeline): the browser's peer fights on the pipeline's reads from its frozen row */
+  ["the browser's peer drops its weapon's top (LV-STEPS)", 'src/core/member.js', 'blowBp: snap.blowBp || 0,', 'blowBp: 0,', /^LV-STEPS: viewed/],
   ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '', /^LV-TANK: a tank alone: browser closed/],
   /* LV-HUD (lane/c-settle-flush): the HUD's ledger, each half planted away */
   ['the HUD ledger never counts the viewer\'s Level XP (LV-HUD)', 'src/hunt-view/hud-ledger.js', "lx: me && typeof me.levelGained === 'function' ? Math.floor(me.levelGained()) : last.lx", 'lx: last.lx', /^LV-HUD: the prediction between saves/],
@@ -2255,7 +2289,7 @@ const MUTANTS = [
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
-  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
+  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list, mrow);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
   ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
   ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
   ["Turning Cut a sword alone's again (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a club at Melee \d+: browser closed/],

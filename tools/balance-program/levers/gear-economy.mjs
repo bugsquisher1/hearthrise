@@ -146,7 +146,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays Traits until wave 4'),
     ev: 'STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
-    at: [at('src/data/danger.js', "ladderTier: 5, traits: traitPool('muster_barrows')")],
+    at: [at('src/data/danger.js', 'muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5,')],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
     range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
     touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
@@ -156,7 +156,7 @@ export const GEAR_ECONOMY = [
   /* THE POWER LEDGER (lane/ledger-l1-l3, 19-power-ledger.md sections 1, 2 and 5 L1 and L3; Tyler 2026-11-22: the ramp only on what a hero
      grows into, never on gear, Traits, Signatures or Temper) */
   L('gear.trait-rank-gate', 'equipment', 'archetype', 'The highest Trait rank a ground rolls, by its entry Level', {
-    at: [at('src/data/danger.js', "traits: traitPool('muster_barrows'), entryLevel: 55 })")],
+    at: [at('src/data/danger.js', "traits: traitPool('muster_barrows'), entryLevel: 55,")],
     def: 'rank r rolls on a ground only if traitSteps[r-1] <= conditionalStepsMax x ramp(the ground\'s entry Level) (gear-steps.js maxRankAt): rank 1 from entry 40, rank 2 from 70, rank 3 from 100; entryLevel is the hunt\'s band floor; carry-over only onto the same slot at the same tier or higher (GEAR_STEPS.carryOver)',
     range: 'entryLevel equal to its hunt\'s band floor (GS-5); the gate reads rampLevel',
     touches: 'where a high-rank Trait can be found, so which ground a Trait hunter picks and what the market holds', out: [...KILL, ...SURVIVE], f: [],
@@ -179,6 +179,41 @@ export const GEAR_ECONOMY = [
     tests: [['tests/hunt-core/status-effects.mjs', 'aura-party-rule: reach, one per key, the ally\'s cap, the power step, never cast']], testReads: ['AURAS'],
     perturb: NP('not-built', 'no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)'),
     ev: 'MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)' }),
+  /* THE ROADS SAMPLE (lane/roads-sample, 17-talent-tree.md v3, 19 L8): every number on a node is a lever of the build slice; the rules,
+     the borrow bands and near fall-back are its dials. All dark behind TALENT_RULES.live */
+  L('roads.rules', 'equipment', 'global', 'The Roads: a point a Level, vow slots, borrowed moves, the idle point\'s cost', {
+    at: [at('src/data/talents.js', 'pointSharePm: 333,')],
+    def: 'one point a Level from pointFrom; vows at vowSlots Levels; at most maxBorrowed borrowed moves; an unspent point, or a rank stone on a move never cast, costs pointSharePm of a step on offense and defense, never ramped (src/core/talents.js grantsOf, the ledger\'s ranks slice)',
+    range: 'pointSharePm 333 (19 row 2: a third of a Level\'s step); vow slots 30 / 50 / 200 (R8); 2 borrows (17 section 3)',
+    touches: 'how much a hero loses by not spending, how many vows a build holds and when', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'path-rules, idle-points, walk-through']], testReads: ['TALENT_RULES'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live; the Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs'),
+    ev: 'STATED (17-talent-tree.md v3 section 2, 19-power-ledger.md row 2)' }),
+  L('roads.borrow-bands', 'equipment', 'global', 'The Roads: borrowing priced by value, and the Level a borrow opens at', {
+    at: [at('src/data/talents.js', 'Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),'), at('src/data/talents.js', 'openFloor: 20, openLevel'), at('src/data/talents.js', '  shelter: 8.5,')],
+    def: 'a borrowed move\'s penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)',
+    range: 'bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3',
+    touches: 'which hybrid builds exist at which Level, and how much a borrowed move adds', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'borrow-opens']], testReads: ['BORROW_VALUES'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live'),
+    ev: 'MEASURED (18-roads-review-measured.md section 3, 23-spell-audit.md)' }),
+  L('roads.nodes', 'equipment', 'content', 'The Roads sample\'s nodes: crossroads, waystones and vows, in steps and move modifiers', {
+    at: [at('src/data/talents.js', "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),"), at('src/data/talents.js', "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),"),
+      at('src/data/talents.js', "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),"), at('src/data/talents.js', "effects: [rule('challenge_self_heal'), mod('*heal', { outPm: -30 })] }),")],
+    def: 'each node\'s effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always (src/data/talents.js, src/core/talents.js grantsOf)',
+    range: 'crossroads options within 3 steps on any ground, waystones at most 3 on their best cell, vows +10 best / -8 worst (17 section 9)',
+    touches: 'which build is best on which ground, and the gap between the best saved build and the suggested road', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'ramp-and-caps, engine-rows, real-settle-both-paths']], testReads: ['TALENT_NODES'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live; alloc-run.mjs measures the five allocations'),
+    ev: 'STATED (17-talent-tree.md v3 sections 5 to 7; the Lab sizes them)' }),
+  L('roads.near-fall', 'equipment', 'global', 'Near fall-back: how close to the stance\'s line a Roads condition fires', {
+    at: [at('src/core/hunt/talent-rows.js', 'export const NEAR_FALL_PM = 150;')],
+    def: 'a hero is near fall-back when its HP is under its stance\'s fall line (the holder\'s x HOLDER.linePm) plus NEAR_FALL_PM permille (src/core/hunt/talent-rows.js holds)',
+    range: '150 (17 section 5: 15 points over the line)',
+    touches: 'how often Last Stand and every near-fall node fires on each stance', out: SURVIVE, f: [],
+    tests: [['tests/hunt-core/talents.mjs', 'ramp-and-caps']], testReads: ['near_fall'],
+    perturb: NP('not-built', 'dark behind TALENT_RULES.live'),
+    ev: 'STATED (17-talent-tree.md v3 section 5)' }),
 
   /* THE INNER FLAME, TEMPER ON STEPS, IMBUEMENTS, CARRY-OVER AND PERSONAL LOOT (lane/flame-temper-build, 21-flame-temper-imbue-loot.md;
      all dark: four hr_flags switches in 1063-flame-temper.sql; the server reads each through 1063-flame-temper-catalogue.generated.sql) */
@@ -465,6 +500,76 @@ export const GEAR_ECONOMY = [
     tests: [['tests/company-trades.mjs', 'the Premium day']], testReads: ['WORK_DAY'],
     perturb: NP('outside-hunt', 'town work is not a hunt cell'),
     ev: 'STATED (09-crafting.md section 4.7 start value)' }),
+  /* ── THE TRADES ON ONE CURVE (lane/trade-formulas, 2026-11-22; 09-crafting.md section 4, built in 4.8). Every number town work has is
+     src/core/trades.js on these rows; the server's copy and twins are 1063-trade-formulas-catalogue.generated.sql (tools/gen-trades.mjs) */
+  L('econ.trade-work', 'economy', 'global', 'Town work behind a kit-hour: the line and stage shares, the ladder, the durable goods', {
+    at: [at('src/data/trades.js', 'lineShare: Object.freeze({ draught: 0.2, imbuement: 0.1 }),'), at('src/data/trades.js', 'stageShare: Object.freeze({ gather: 0.5, refine: 0.2, make: 0.3 }),'),
+      at('src/data/trades.js', 'rungs: Object.freeze({ count: 10, span: 10 }),')],
+    def: 'a kit kind\'s work = kitWork (econ.store-kit) x its line\'s share (meal 0.35, charge 0.35, draught 0.2, imbuement 0.1) x its split x its kit-hours, split gather 0.5 / refine 0.2 / make 0.3 along its chain; a raw unit is one meal\'s gathering (0.07 h); rung r opens at trade Level 1 + 10 (r - 1); a Temper kit holds 21\'s TEMPER_STEPS.kitHoursPm over townWageShare (0.4 work-hours); an imbuement is 21\'s IMBUE.hours over its slots (20 / 3) kit-hours, its quality life (src/data/trades.js BORROWED)',
+    range: '09 4.3: the line and stage shares each sum to 1 (validate refuses otherwise); 09 4.7 kitWork 0.5 to 1.2. The rung span is JUDGMENT (the XP window must be at least a rung). SQL twin hr_trade_kinds (1063, generated)',
+    touches: 'how much town labor a hunted hour asks for (09 5.3 the labor ratio) and so every crafted price', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-ROWS, TF-BILL, TF-HOUR: every kit kind\'s work from its line, one bill a style, a work-hour worth townWageShare']], testReads: ['TRADE_LEVERS', 'LINE_SHARE', 'KINDS'],
+    perturb: NP('outside-hunt', 'town work is not a hunt cell; tools/balance-program/redesign/trades/measure.mjs plays the closed-form job'),
+    ev: 'MEASURED (lane/trade-formulas, v1-climb Muster Barrows, the mixed MID four, 6 seeds x 8 h at Levels 60 / 63 / 70, tools/balance-program/redesign/trades/lab-muster.json, priced by measure.mjs into measured.txt): the Steady four at Level 60 burns 1.14 meal-line and 1.07 charge kit-hours a hero-hour; the labor ratio of a 10 h day 1.09 (1.18 with tools), of the 6 h mix 0.66; 1.0 and 0.6 at the reference' }),
+  L('econ.trade-curve', 'economy', 'global', 'Yield, quality and speed on one curve', {
+    at: [at('src/data/trades.js', 'yield: Object.freeze({ atReq: 0.75, noFailSpan: 15, cap: 1.25, masteryReturn: 0.1, benchMax: 0.1 }),'),
+      at('src/data/trades.js', 'quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5 }),'), at('src/data/trades.js', 'speedAt99: 1.25,'), at('src/data/trades.js', 'masteryCap: 3,')],
+    def: 'for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up',
+    range: '09 4.4 and 4.7 (Masteries: three an account, CR-Q1 a). SQL twins hr_trade_yield_pm, hr_trade_fine_pm, hr_trade_master_pm, hr_trade_speed_pm (1063, generated, swept by TF-TWIN)',
+    touches: 'material waste on the newest rung (the XP route), the quality of made kit, the value of a work-hour (0.11 to 0.19 hours of wage at Level 1, 0.28 at 50 on the first rung, 0.46 at 99 with a Mastery and a bench: measured.txt)', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-09: 09\'s curve ends; TF-SETTLE: the dice land on it; TF-TWIN: the SQL is the JS']], testReads: ['TRADE_PM', 'yieldPm', 'finePm', 'masterPm', 'speedPm'],
+    perturb: NP('outside-hunt', 'town work is not a hunt cell; measure.mjs plays the job over seeds'),
+    ev: 'STATED (09-crafting.md section 4.4 start values)' }),
+  L('econ.trade-table', 'economy', 'global', 'Trade XP to 99', {
+    at: [at('src/data/trades.js', 'table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),'), at('src/data/trades.js', 'xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),')],
+    def: 'hours for Level n = h1 x 1.045^(n - 1), 1,000 hours to 99 (6.6 to Level 10, 104 to 50, 669 to 90); XP is seconds of work; full XP on a rung within 20 Levels of its own, falling to a quarter over the next 20',
+    range: '09 4.5 and 4.7: hoursTo99 600 to 1,500. The XP window and floor are JUDGMENT (09 names them, gives no value). SQL twin hr_trade_xp, hr_trade_level, hr_trade_xp_pm (1063, generated)',
+    touches: 'how long a company takes to 99 in a trade (39 days of four heroes\' full work days, 09 2.6)', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-09: the table\'s hours; TF-TWIN: the Level from XP']], testReads: ['tradeXpTable', 'tradeLevel', 'xpPm'],
+    perturb: NP('outside-hunt', 'trade XP is town work'),
+    ev: 'STATED (09-crafting.md section 4.5)' }),
+  L('econ.job-fee', 'economy', 'global', 'The job fee', {
+    at: [at('src/data/trades.js', 'jobFee: 0.25,')],
+    def: 'a job making a finished good burns 0.25 x its Plain V, rounded up, at the start; a refined good or a part pays none, so a chain pays once',
+    range: '09 4.7: 0.10 to 0.35. SQL twin hr_trade_job_fee (1063, generated)',
+    touches: 'the one crafting sink that grows with the player economy (09 5.6); a work-hour nets 0.75 of its goods\' V', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-09: rounded up once, finished goods only']], testReads: ['jobFee'],
+    perturb: NP('outside-hunt', 'a gold sink of town work'),
+    ev: 'STATED (09-crafting.md section 4.7)' }),
+  L('econ.store-lag', 'economy', 'global', 'The store a tier behind, and its floor', {
+    at: [at('src/data/trades.js', 'store: Object.freeze({ lagSteps: 20, floorShare: 0.4, budgetHours: 1 }),')],
+    def: 'the store asks ceil(storeCeiling x V of the Plain good at the hero\'s band step less 20) for the meal and charge lines only, and bids floor(0.4 x V), at most 1 hour of wage an account a day',
+    range: '09 4.7: lagSteps 10 to 30 (one gear tier, GEAR_STEPS.tierSteps), floorShare 0.2 to 0.5, budget 0.5 to 2 hours; validate refuses a bid at or over the ask. SQL twins hr_trade_store_step, hr_trade_store_ask, hr_trade_store_bid (1063)',
+    touches: 'the supply bill on store basics (0.215 hours of wage a hunted hour at Steady L60 on the measured burn) and the floor\'s faucet (0.88 hours of wage an account-day on the 6 h mix, 3.6% of minted coin, inside the 1 hour budget)', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-STORE: a tier behind at the ceiling, dearer and weaker than crafted, the bid under the ask']], testReads: ['storeAsk', 'storeBid', 'storeStep'],
+    flags: [flag('contradictory', 'The live store (econ.store-kit) prices a use at the buyer\'s step with no lag (lane/econ-followups) and gives three quarters of its crafted partner\'s effect (about 82 steps behind, not 20): the formula\'s store good, a tier behind in strength and price at once, is not yet the hunt\'s (wave 4)', 'src/data/store-kit.js header; tools/balance-program/redesign/trades/measure.mjs; COMPUTED')],
+    perturb: NP('outside-hunt', 'the cells buy at the live catalogue\'s price (econ.store-kit) until the store moves onto this rule'),
+    ev: 'MEASURED (lane/trade-formulas, measure.mjs on trades/lab-muster.json: the formula\'s store 0.211 of gross against the live store\'s 0.278 at Steady L60; Careful 0.197, Bold 0.219)' }),
+  L('econ.tool-wear', 'economy', 'global', 'Tools that break after 12 hours of use', {
+    at: [at('src/data/trades.js', 'tool: Object.freeze({ hours: 12, lifeRung: 0.25, work: 1.0 }),')],
+    def: 'a Plain tool lasts 12 work-hours (Fine 15, Master 18), holds 1 work-hour of goods (a smithed head on a cut haft), works at full speed on a job at or under its band and by the contest curve behind (93% a band); the store rents one a tier behind at storeCeiling',
+    range: 'RULED (Tyler 2026-11-22): 12 hours. 09 4.7: lifeRung 0.15 to 0.35, work 0.5 to 1.5. Ships with the Crown tools (20 section 1.4). SQL twins hr_trade_tool_life_ms, hr_trade_tool_speed_pm, hr_trade_tool_rent (1063)',
+    touches: 'a steady Smithing and Woodcrafting demand: 0.023 hours of wage a work-hour, a twelfth more labor', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-09: 12 / 15 / 18 h, 93% a band behind']], testReads: ['toolLifeMs', 'toolSpeedPm'],
+    perturb: NP('outside-hunt', 'town work'),
+    ev: 'STATED (Tyler 2026-11-22; 09-crafting.md section 3.7)' }),
+  L('econ.stream-cover', 'economy', 'global', 'The cover of each hunting stream', {
+    at: [at('src/data/trades.js', 'cover: Object.freeze({ common_part: 1.25, remains: 1.5, rare_part: 1.0, scrap: 1.2 }),')],
+    def: 'a hero who uses a stream\'s sinks fully burns cover hour-units for each one that hero drops; a hunted input is the cover x its share x the kind\'s kit-hours (a draught 1.25 hour-units of common parts, a rune 0.15 of remains, an imbuement 6.67 of rare parts and 1.0 of remains)',
+    range: '09 4.7 and 5.4: 1.0 to 2.0, never under 1 (validate refuses: the stream floods)',
+    touches: 'how fast hunted parts and remains leave the economy', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-ROWS: every hunted input is cover x share x kit-hours']], testReads: ['TRADE_LEVERS'],
+    perturb: NP('outside-hunt', 'a sink size, read by the job slice'),
+    ev: 'STATED (09-crafting.md sections 4.7 and 5.4)' }),
+  L('econ.trade-kinds', 'economy', 'content', 'The trades\' kinds of good', {
+    at: [at('src/data/trades.js', 'export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });')],
+    rows: rows('a kind\'s trade, stage, line split, opening rung and input shares', [home('src/data/trades.js#BASE_KINDS', 'keys'), home('src/data/trades.js#RUNE_KINDS', 'keys')]),
+    def: 'one row a good (ore, logs, fish, grain, herbs, rune stone; bars, shafts, cut stone; meals, drinks, charges a style, imbuements, Temper kits, draughts, the camp pot, tools and hafts): shares, rungs and names only, never a count, time, XP or price (TF-ROWS)',
+    range: 'JUDGMENT for each opening rung and the meal / drink split (0.5 each: the measured four restores 95% mana); validate refuses a kind that breaks a rule',
+    touches: 'which goods exist and what they are made from', out: [], f: [],
+    tests: [['tests/trade-formulas.mjs', 'TF-ROWS: no typed yield']], testReads: ['KINDS'],
+    perturb: NP('outside-hunt', 'content'),
+    ev: 'CONFIRMED (read)' }),
   L('econ.blessing-price', 'economy', 'global', 'The Blessing\'s price', {
     at: [at('src/data/blessings.js', '  hoursPm: 1000,'), at('src/data/blessings.js', '  freeUntilLevel: 30,')],
     def: 'free under Level freeUntilLevel, then ceil(hoursPm / 1000 x wage(levelStep(L))) (src/core/wage.js blessingPrice): one hour of the hero\'s wage at the start (16,365 gold at Level 60)',

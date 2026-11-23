@@ -1,13 +1,14 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/character/index.js — THE CHARACTER WINDOW (hotkey C).
 //
-// One window, four tabs, each its own module:
+// One window, its tabs, each its own module:
 //   sheet.js    Character: portrait, role, level, vitals, the combat skills,
 //               the engine's combat numbers, the bestiary, the XP bonuses
 //   outfit.js   Outfit: the preview, the outfit grid, the dyes, Save (one intent)
 //   deaths.js   Deaths: the server's death log
 //   titles.js   Titles: what this hero has earned the right to be called
 //   faction.js  Faction: the hero's side, standing, swap and the pieces standing buys (only while the server sends its section)
+//   talents.js  Talents: the points to spend, the next fork, Spend as suggested (only while the server sends its section)
 //   state.js    the window's display scratch
 // Built once per opening, patched in place on every envelope and display tick
 // (src/render/paint.js).
@@ -34,8 +35,9 @@ import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facin
 import { deathsHtml, patchDeaths, actDeaths } from './deaths.js';
 import { titlesHtml, patchTitles, actTitles } from './titles.js';
 import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js';
+import { talentsHtml, patchTalents, actTalents, talentsShown, TALENTS_TAB } from './talents.js';
 
-const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['deaths', 'Deaths']]);
+const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['talents', TALENTS_TAB], ['deaths', 'Deaths']]);
 /* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */
 const PORTRAIT_SCALE = 1;
 
@@ -70,11 +72,12 @@ export function renderCharacter(ctx) {
   wantArt(ctx.doc);
   if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; sc.price = null; sc.priceAskedAt = 0; }
   return '<div class="hw-cs">'
-    + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (id === 'faction' ? ' hidden' : '') + '>' + esc(l) + '</button>').join('') + '</div>'
+    + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (id === 'faction' || id === 'talents' ? ' hidden' : '') + '>' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-cs-pane" data-pane="sheet">' + sheetHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="outfit">' + outfitHtml(ctx.glyphs) + '</div>'
     + '<div class="hw-cs-pane" data-pane="titles">' + titlesHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="faction">' + factionHtml() + '</div>'
+    + '<div class="hw-cs-pane" data-pane="talents">' + talentsHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="deaths">' + deathsHtml() + '</div>'
     + '</div>';
 }
@@ -114,6 +117,10 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   const fx = factionShown(cs);
   if (!fx && sc.tab === 'faction') sc.tab = 'sheet';
   prop(root.querySelector('.hw-tab[data-tab="faction"]'), 'hidden', !fx);
+  /* The Talents tab, the same: the server sends its section only while the Roads switch is on (1064-roads-sample.sql). */
+  const tl = talentsShown(cs);
+  if (!tl && sc.tab === 'talents') sc.tab = 'sheet';
+  prop(root.querySelector('.hw-tab[data-tab="talents"]'), 'hidden', !tl);
   for (const b of root.querySelectorAll('.hw-tab[data-tab]')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hw-cs-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   askSheet(cs, sc);
@@ -130,6 +137,7 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
     paintCanvas(ctx.doc, body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesFor(d.outfit));
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else if (sc.tab === 'faction') patchFaction(body, ctx, sc);
+  else if (sc.tab === 'talents') patchTalents(body, ctx, sc);
   else patchDeaths(body, ctx, sc);
 };
 
@@ -142,6 +150,7 @@ renderCharacter.act = function actCharacter(ctx, body, action, ev, t) {
   if (sc.tab === 'outfit' && actOutfit(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'titles' && actTitles(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'faction' && actFaction(ctx, sc, action, ev, t, repaint)) return true;
+  if (sc.tab === 'talents' && actTalents(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'deaths' && actDeaths(sc, action, ev, t, repaint)) return true;
   return false;
 };

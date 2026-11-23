@@ -79,7 +79,7 @@ const WANT = {
   lost: 'Death cost: 1,200 Level XP and 40 ' + SKILLS_DEF.melee.name + ' XP',
   level: 'Tyler: Level ' + (FLOOR + 2) + ' to Level ' + (FLOOR + 1),
   saved: '2 Blessings saved 300 Level XP, used up',
-  town: 'Tyler: back in town, full HP and mana',
+  town: 'Tyler: back in town · Full HP and mana',
 };
 /* The why reads the Level died at (the row's level_from, in range), not the hero's Level now (the fixture's is 1). */
 const WHY_IN_RANGE = 'Tip: better armor, eat sooner, or a smaller pull';
@@ -144,7 +144,7 @@ async function pure(base) {
   if (words(BARE).level !== '') fail(fails, 'DP-0b an older row (no Level pair) names a Level: ' + JSON.stringify(words(BARE).level));
   if (words(took).saved !== '3 Blessings saved 300 Level XP, used up') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
   if (words(Object.assign({}, took, { saved: {} })).saved !== '3 Blessings used up') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
-  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessings. Shop → Services') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
+  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessings · Shop → Services') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
   const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'level' ? levelBlock(charXpForLevel(2)) : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
   const tookWhy = deathWords(tookCs, { session: SESSION, row: deathLogOf(tookCs)[0] }).why;
   if (tookWhy !== WHY_IN_RANGE) fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));
@@ -431,10 +431,10 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
           const s7 = endedHere();
           Object.assign(s7.env[0].hunt.session, { end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'left' });
           const z = await fresh(s7);
-          const homeLine = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).filter((n) => /came home too/.test(n.textContent)).length);
+          const homeLine = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).filter((n) => /Party ended · /.test(n.textContent)).length);
           if (!z.ok || !(await wait(z.page, (q) => !!document.querySelector(q), SUM, 4000))) fails.push('DP-7 [' + tag + '] the ended hunt opened no summary');
           else {
-            await wait(z.page, () => Array.from(document.querySelectorAll('.hw-alert-text')).some((n) => /came home too/.test(n.textContent)), null, 4000);
+            await wait(z.page, () => Array.from(document.querySelectorAll('.hw-alert-text')).some((n) => /Party ended · /.test(n.textContent)), null, 4000);
             if ((await homeLine(z.page)) !== 1) fails.push('DP-7 [' + tag + '] CONTROL: no came-home line stands with the summary');
             const reads = s7.calls.length;
             await z.page.click('[data-hs-close="hunt-summary"]');

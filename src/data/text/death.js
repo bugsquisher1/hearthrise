@@ -14,11 +14,11 @@ export const DEATH_TEXT = Object.freeze({
   killed: 'Killed by {monster}',
   lost: 'Death cost: {xp}',
   lost_none: 'Death cost: no XP',
-  town: '{name}: back in town, full HP and mana',
+  town: '{name}: back in town · Full HP and mana',
   /* Said only when the row's level_to is under its level_from. */
   level_dropped: '{name}: Level {from} to Level {to}',
   /* No Blessing was held. {free} is free_until while Blessings are free for this hero, else nothing. */
-  no_blessing: 'No Blessings{free}. Shop → Services',
+  no_blessing: 'No Blessings{free} · Shop → Services',
   free_until: ' (free until Level {level})',
   /* {count} is how many Blessings the death used up (the row's `blessings`), {xp} what they kept. */
   blessing_kept: { one: 'Blessing saved {xp}, used up', other: '{count} Blessings saved {xp}, used up' },

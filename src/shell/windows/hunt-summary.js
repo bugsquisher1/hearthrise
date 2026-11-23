@@ -398,7 +398,7 @@ function doTown(ctx, cs, sc, repaint, cur, step) {
     return;
   }
   if (step === 'bless') {
-    runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => { const b = blessingsOf(cs); return b ? t('shop.bless_all_done', { of: b.tiers.length }) : ''; }, cs).then(mark);
+    runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => { const b = blessingsOf(cs); return b ? t('shop.bless_all_done', { count: b.tiers.length }) : ''; }, cs).then(mark);
   }
 }
 
@@ -443,7 +443,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     const own = how === 'party' ? ownPartyOf(ctx, cs) : null;
     if (own) againAll(ctx, cs, sc, repaint, own);
     else if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);
-    else if (how === 'enter') runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out.', cs);
+    else if (how === 'enter') runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out…', cs);
     return true;
   }
   return false;

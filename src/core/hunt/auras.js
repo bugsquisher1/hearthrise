@@ -18,6 +18,7 @@ import { AURAS } from '../../data/auras.js';
 import { ABILITIES } from '../../data/abilities.js';
 import { cheb } from './grid.js';
 import { isHero, isAlly } from './sides.js';
+import { withTalentRows } from './talent-rows.js';
 
 const NONE = Object.freeze([]);
 
@@ -44,8 +45,16 @@ function wearers(inst) {
   return out;
 }
 
-/** The ledger rows the party's auras put on hero `unit` now (none for a monster, a dead hero or a party wearing no aura). */
+/** THE LEDGER ROWS THAT HOLD ON HERO `unit` NOW beside its own `ledger`, read by danger.js powerPm at every blow: the party's auras on it
+    (below), and its own Roads rows whose condition holds now (src/core/hunt/talent-rows.js; none with no build). None for a monster or a
+    dead hero. */
 export function auraRowsOn(inst, unit) {
+  const auras = partyAurasOn(inst, unit);
+  return Array.isArray(unit && unit.talentWhen) && unit.talentWhen.length ? withTalentRows(inst, unit, auras) : auras;
+}
+
+/* The ledger rows the party's auras put on hero `unit` now (none for a monster, a dead hero or a party wearing no aura). */
+function partyAurasOn(inst, unit) {
   if (!inst || !inst.world || !isHero(unit) || unit.alive !== true) return NONE;
   const ws = wearers(inst);
   if (!ws.length) return NONE;

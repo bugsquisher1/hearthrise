@@ -23,7 +23,7 @@
 //              one the server's plan refuses for a full bag): the card shows outgrown, cannot start, death, in that order, and one more;
 //              with the company's "Wear upgrades" line on, plain gear is not a decision and the count drops
 //   NY-TOP     a hero held at a Danger-scale ground's band top has outgrown it, "Go to" the next open scale ground; a step under is none
-//   NY-RECRUITS the account's one hero with the server's recruit press ready: "3 recruits are ready to join {Name} at Level 5." with
+//   NY-RECRUITS the account's one hero with the server's recruit press ready: "3 recruits ready · Join {Name} at Level 5" with
 //              Recruit (opens All characters); a press not ready, or no offer, is no row (Tyler RD-Q6 a, 1053-recruits.sql)
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -104,13 +104,13 @@ const ARMS = {
     const kinds = off.shown.map((r) => r.kind);
     if (JSON.stringify(kinds) !== '["outgrown","cannot_start","death"]' || off.more !== 1) out.push('with the line off the card reads ' + JSON.stringify(off));
     const say = Object.fromEntries(off.shown.map((r) => [r.kind, r.text]));
-    if (say.outgrown !== 'Tess has outgrown Mill Cellar.') out.push('the outgrown row reads ' + JSON.stringify(say.outgrown));
-    if (say.cannot_start !== 'Dorn\'s bag is full.') out.push('the cannot start row reads ' + JSON.stringify(say.cannot_start));
+    if (say.outgrown !== 'Tess: Mill Cellar outgrown') out.push('the outgrown row reads ' + JSON.stringify(say.outgrown));
+    if (say.cannot_start !== 'Dorn: bag full') out.push('the cannot start row reads ' + JSON.stringify(say.cannot_start));
     if (say.death !== 'Wren died · Death cost 4,200 Level XP · No Blessing active') out.push('the death row reads ' + JSON.stringify(say.death));
     if (off.shown.some((r) => /[;—–]/.test(r.text))) out.push('a row has a semicolon or a dash');
     const all = X.N.needsRowsOf({ peers: () => peers, plan, wearOn: false });
     const gear = all.find((r) => r.kind === 'gear_choice');
-    if (!gear || !/^Better gear is waiting for \d+ heroe?s?\.$/.test(gear.text)) out.push('the gear row reads ' + JSON.stringify(gear));
+    if (!gear || !/^Better gear waiting: \d+ heroe?s?$/.test(gear.text)) out.push('the gear row reads ' + JSON.stringify(gear));
     /* with the company's line on, plain gear goes on at the next Start by itself: no decision */
     const on = X.N.rankNeeds(X.N.needsRowsOf({ peers: () => peers.map((p) => (p.slot === 2 ? p : p)), plan, wearOn: true }));
     const onGear = X.N.needsRowsOf({ peers: () => [peers[2]], plan: null, wearOn: true }).find((r) => r.kind === 'gear_choice');
@@ -169,7 +169,7 @@ ARMS['NY-REGEAR'] = async (X) => {
     return { slot, status: 'open', read: (k) => env[k] };
   };
   const r1 = X.N.needsRowsOf({ peers: () => [out0(2, 'mill_cellar')], plan: null, wearOn: true }).find((r) => r.kind === 'gear_choice');
-  if (!r1 || r1.go !== 'regear' || r1.label !== 'Equip upgrades and go back in' || JSON.stringify(r1.slots) !== '[2]' || r1.text !== '1 hero out hunting holds better gear.') out.push('a hero out hunting reads ' + JSON.stringify(r1));
+  if (!r1 || r1.go !== 'regear' || r1.label !== 'Equip upgrades and go back in' || JSON.stringify(r1.slots) !== '[2]' || r1.text !== 'Better gear unworn: 1 hero hunting') out.push('a hero out hunting reads ' + JSON.stringify(r1));
   const r2 = X.N.needsRowsOf({ peers: () => [out0(2, room)], plan: null, wearOn: true }).find((r) => r.kind === 'gear_choice');
   if (r2) out.push('a boss room offers the press: ' + JSON.stringify(r2));
   const town = hero(1, 'Bryn', 'stamina', { equipment: {}, inventory: Object.assign({}, FIXTURE.inventory, { bronze_helm: 1 }) });
@@ -179,14 +179,14 @@ ARMS['NY-REGEAR'] = async (X) => {
 };
 
 /* NY-RECRUITS (Tyler RD-Q6 a, 1053-recruits.sql): the account's one hero whose server section says the recruit press is ready reads
-   "3 recruits are ready to join {Name} at Level 5." with Recruit, which opens All characters (go 'recruits'); a press not ready yet, or no
+   "3 recruits ready · Join {Name} at Level 5" with Recruit, which opens All characters (go 'recruits'); a press not ready yet, or no
    section (a company of two or more, the press made), is no row. */
 ARMS['NY-RECRUITS'] = async (X) => {
   const out = [];
   const offer = (ready) => ({ recruits: { ready, at: 5, level: 5, first: 0, slots: [1, 2, 3], sets: ['tank', 'healer', 'ranger'] } });
   const row = (peers) => X.N.needsRowsOf({ peers: () => peers, plan: null, wearOn: true }).find((r) => r.kind === 'recruits');
   const r1 = row([hero(0, 'Tess', 'stamina', offer(true))]);
-  if (!r1 || r1.text !== '3 recruits are ready to join Tess at Level 5.' || r1.label !== 'Recruit' || r1.go !== 'recruits' || r1.slot !== 0) out.push('a ready press reads ' + JSON.stringify(r1));
+  if (!r1 || r1.text !== '3 recruits ready · Join Tess at Level 5' || r1.label !== 'Recruit' || r1.go !== 'recruits' || r1.slot !== 0) out.push('a ready press reads ' + JSON.stringify(r1));
   const r2 = row([hero(0, 'Tess', 'stamina', offer(false))]);
   if (r2) out.push('a press not ready yet is a row: ' + JSON.stringify(r2));
   const r3 = row([hero(0, 'Tess', 'stamina', { recruits: null }), hero(1, 'Bryn', 'stamina', { recruits: null })]);

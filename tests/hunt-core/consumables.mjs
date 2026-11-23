@@ -385,7 +385,7 @@ const mutants = [
   { name: 'span: the instant half is not credited', case: 'span-healed-attended-and-away',
     edits: [['src/core/hunt/consumables.js', "  if (stat === 'hp') healed(u, landed, line.id, sc);\n  /* The hero's own stack", "  /* The hero's own stack"]] },
   { name: 'a food heals 0', case: 'tally-healed-is-hp-restored',
-    edits: [['src/core/hunt/consumables.js', '  const amount = lineAmount(hero.hs, line);', '  const amount = 0 * lineAmount(hero.hs, line);']] },
+    edits: [['src/core/hunt/consumables.js', '  const amount = supplyOn(inst, u, stat, lineAmount(hero.hs, line));', '  const amount = 0 * supplyOn(inst, u, stat, lineAmount(hero.hs, line));']] },
   { name: 'the over-time ticks are not credited', case: 'tally-healed-is-hp-restored',
     edits: [['src/core/hunt/consumables.js', "      if (stat === 'hp') healed(u, landed, item, sc);\n", '']] },
   { name: 'food waits for the running over-time half', case: 'food-during-over-time',

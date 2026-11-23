@@ -46,7 +46,7 @@ export const floorOf = (F, rule) => Math.floor((lowestSeed(F) - rule.floorUnder)
  * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level).
  * `pay` is danger.js PAY, `depths` danger.js DEPTHS, `rule` danger.js BAND_RULE. Returns { band, verdict, notes, info, cells }.
  */
-export function bandFromReports({ ref, top, floor }, pay, depths, rule) {
+export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = null) {
   if (!floor) throw new Error('bandFromReports: no LOW cell (the floor is where a fresh company at the entry Level holds, 12-targets 3.1)');
   if (!rule || ![rule.floorUnder, rule.floorTo, rule.refTo, rule.topTo].every((x) => Number.isInteger(x) && x >= 0) || !(rule.floorTo > 0 && rule.refTo > 0 && rule.topTo > 0)) throw new Error('bandFromReports: no band rule (src/data/danger.js BAND_RULE)');
   const R = steadyCell(ref), T = steadyCell(top), F = steadyCell(floor);
@@ -61,10 +61,37 @@ export function bandFromReports({ ref, top, floor }, pay, depths, rule) {
   if (!(floorStep < refStep && refStep < topStep)) notes.push('the band is not floor < ref < top (' + floorStep + ' / ' + refStep + ' / ' + topStep + '): the LOW four holds at or over the MID four, so the Level band reads too narrow');
   else if (topStep - floorStep < depths - 1) notes.push('the band ' + floorStep + '..' + topStep + ' is under one step a depth');
   if (T.held.mean > refStep + pay.gapMax) info.push('the BIS four held ' + T.held.mean + ', past refStep + gapMax: the top is the pay cap, not the four');
-  if (floorStep < refStep && refStep < topStep) info.push('the fresh four holds depth ' + depthOf(lowestSeed(F), band, depths) + ' (its lowest seed), the MID four depth ' + depthOf(R.held.mean, band, depths) + ', ' + ((topStep - floorStep) / (depths - 1)).toFixed(1) + ' steps a depth');
+  /* (own steps cut evenly: the wave-1 reading; with the absolute band the game cuts depths in absolute steps, src/core/bands.js depthAt) */
+  if (!abs && floorStep < refStep && refStep < topStep) info.push('the fresh four holds depth ' + depthOf(lowestSeed(F), band, depths) + ' (its lowest seed), the MID four depth ' + depthOf(R.held.mean, band, depths) + ', ' + ((topStep - floorStep) / (depths - 1)).toFixed(1) + ' steps a depth');
   band._lowDepth = depthOf(lowestSeed(F), band, depths);
+  if (abs) absoluteChecks(abs, R, notes, info);
   const verdict = deaths.length ? 'STAGED' : notes.length ? 'REVIEW' : 'OPEN';
-  return { band, verdict, notes, info, cells: { ref: { L: R.L, held: R.held.mean, killsPerH: R.killsPerH }, top: { L: T.L, held: T.held.mean }, floor: { L: F.L, held: F.held.mean, lowest: lowestSeed(F) } } };
+  return { band, verdict, notes, info, cells: { ref: { L: R.L, held: R.held.mean, killsPerH: R.killsPerH, ...(R.sustain ? { sustain: R.sustain } : {}) }, top: { L: T.L, held: T.held.mean }, floor: { L: F.L, held: F.held.mean, lowest: lowestSeed(F) } } };
+}
+
+/* THE ABSOLUTE BAND'S CHECKS (lane/foundations-block; src/data/bands.js, src/core/bands.js bandAbs). The band is a FORMULA of the ground's
+   entry Level, top Level and tier in absolute steps; the three cells measure where its three companies hold on the ground's own rows (the
+   bridge). `abs` (absent: the wave-1 cut alone, as R10's and band-floor's evidence was read):
+     band       { floorPm, refPm, topPm } the formula's band (thousandths of a Level)
+     prevTopPm  the top of the scale ground one tier under this one (null: none), for 27 K-6's handover
+     refLevel   the row's refLevel (27 K-5): the MID cell must be measured there, or the bridge's reference point is another company
+     sustain    src/data/sustain.js SUSTAIN: the reference company's sustain shares on Steady inside their bands (04 section 3)
+   Each failure is a note (REVIEW), never a silent pass. */
+function absoluteChecks(abs, R, notes, info) {
+  const b = abs.band, L = (pm) => (pm / 1000).toFixed(1);
+  if (!b) { notes.push('no absolute band (src/core/bands.js bandAbs: the row needs entryLevel, refLevel and gearLevel, its hunt a Level band)'); return; }
+  info.push('absolute band (Levels of reference strength, src/core/bands.js): floor ' + L(b.floorPm) + ', reference ' + L(b.refPm) + ', top ' + L(b.topPm));
+  if (!(b.floorPm < b.refPm && b.refPm < b.topPm)) notes.push('the absolute band is not floor < reference < top (' + L(b.floorPm) + ' / ' + L(b.refPm) + ' / ' + L(b.topPm) + ')');
+  if (Number.isFinite(abs.prevTopPm) && abs.prevTopPm < b.floorPm) notes.push('27 K-6: the ground a tier under tops out at ' + L(abs.prevTopPm) + ', under this floor ' + L(b.floorPm) + ': moving on would skip strength');
+  if (Number.isInteger(abs.refLevel) && R.L !== abs.refLevel) notes.push('the MID cell was measured at Level ' + R.L + ', the row refLevel is ' + abs.refLevel + ' (27 K-5)');
+  const S = abs.sustain, got = R.sustain;
+  if (S && got) {
+    for (const [k, have] of [['freePm', got.freePm], ['healerPm', got.spellPm], ['supplyPm', got.foodPm]]) {
+      const [lo, hi] = S[k].band;
+      if (!(have >= lo && have <= hi)) notes.push('04 section 3: the reference company ' + k + ' reads ' + have + ', its band is ' + lo + ' to ' + hi + ' (src/data/sustain.js)');
+    }
+    info.push('sustain at the reference: regeneration ' + got.freePm + ', heal spells ' + got.spellPm + ', food ' + got.foodPm + ' permille of ' + got.takenPmS + ' permille of max HP taken a hero-second');
+  }
 }
 
 /* THE PRINT: what a band is a measurement of. The ground's route and pockets (who stands where, how many, what joins), its pull and
@@ -76,12 +103,15 @@ function stable(v) {
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().filter((k) => v[k] !== undefined && typeof v[k] !== 'function').map((k) => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
   return JSON.stringify(v === undefined ? null : v);
 }
-export function packPrint(ground, monsters, monstersOn) {
+export function packPrint(ground, monsters, monstersOn, switchOf = null) {
   if (!ground) throw new Error('packPrint: no ground row');
   const shape = {
     route: ground.route,
     pockets: ground.route.map((i) => { const p = ground.pockets[i]; return { pull: p.pull, pack: p.pack || null, spawns: p.spawns, adds: p.adds || null }; }),
     respawnMs: ground.respawnMs, pullDist: ground.pullDist, groupFit: ground.groupFit, densityMax: ground.densityMax,
+    /* THE MONSTERS' SWITCH (src/data/danger.js DANGER_GROUNDS `monsters`, lane/monster-formula): a ground on the formula plays other numbers
+       than its rows, so the print carries it; on its rows (or with no switch named) the print is what it always was */
+    ...(switchOf === 'formula' ? { monsters: 'formula' } : {}),
   };
   const ids = [...monstersOn(ground)].sort();
   const rows = Object.fromEntries(ids.map((id) => [id, Object.fromEntries(Object.entries(monsters[id] || { missing: true }).filter(([k]) => !MONSTER_WORDS.has(k)))]));

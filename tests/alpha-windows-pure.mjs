@@ -92,7 +92,7 @@ async function pure() {
     if (lootKept(bag, { locked: new Set(['bones']) }, shop, null).worth !== 9) fails.push('AW-0 a locked stack is counted among what Sell all loot keeps');
   }
   const bones = usesOf('bones');
-  if (!bones.some((l) => /^Burn it in the Great Hearth to train Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
+  if (!bones.some((l) => /^Great Hearth: trains Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   const knot = usesOf('den_knot');
   if (!knot.some((l) => /^Great Hearth: Inner Flame XP burst, fire burns deep amber for Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
   /* AW-20: what cooks is read off the recipe rows (no id list); the bench refuses in words, from the server's level. */
@@ -103,7 +103,7 @@ async function pure() {
   if (lootToSell([{ id: 'raw_wolf_meat', qty: 4 }, { id: 'rat_tail', qty: 1 }]).join() !== 'rat_tail') fails.push('AW-20 Sell all loot would sell the raw meat');
   const meat = usesOf('raw_wolf_meat');
   /* Cook Wolf Meat opens at Cooking 1 (designer 2026-11-11, lane/d-small-calls), so the level refusal is probed on Raw Panther Meat (Cooking 25). */
-  if (!meat.includes('Cook it into food (requires Cooking 1)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
+  if (!meat.includes('Cookable (requires Cooking 1)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
   const cs = (lv, inv, st) => ({ read: (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
   const wolf = buryRecipeOf('raw_wolf_meat'), panther = buryRecipeOf('raw_panther_meat');
   const words = [buryBlock(cs(1, { raw_panther_meat: 3 }), panther), buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
@@ -151,7 +151,7 @@ async function pure() {
   const said = [workBlock(wcs(1, { copper_ore: 1 }), bronze, false), workBlock(wcs(1, { copper_ore: 2 }), bronze, true),
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
-  if (said.join('|') !== 'Needs 2 Copper Ore, have 1. Gathered with Mining.|Not while a hunt is running.|Requires Smithing 3, now 1||5|No Copper Ore in bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
+  if (said.join('|') !== 'Needs 2 Copper Ore, have 1. Gathered with Mining.|Not while hunting|Requires Smithing 3, now 1||5|No Copper Ore in bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
   /* A gathering row on a full bag says so (audit 2026-11-13: the node paid nothing, forever, with no word): the product needs a new
      stack and the server's cap has none. Holding the product, or one free stack, it starts. */
   const gcs = (inv, cap) => ({ read: (k) => (k === 'skills' ? { mining: { xp: 0, level: 1 } } : k === 'inventory' ? inv : k === 'state' ? { bank_cap: cap } : null) });
@@ -198,9 +198,9 @@ async function planRules(base) {
       buryBlock(cs, { skill: 'prayer' })];
     const yard = said(at('training_yard_melee')), hunt = said(at('wickstead'));
     const busy = 'Not available while training';
-    if (JSON.stringify(yard) !== JSON.stringify(['Stop training to change gear', 'Stop training to put these on.', 'Stop training to change gear', busy, busy, busy])
-      || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to put these on.', 'Leave the hunt to change gear', 'Dispatch loot works in town',
-        'Not available while hunting', 'Not while a hunt is running.']))
+    if (JSON.stringify(yard) !== JSON.stringify(['Stop training to change gear', 'Stop training to equip', 'Stop training to change gear', busy, busy, busy])
+      || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to equip', 'Leave the hunt to change gear', 'Dispatch loot works in town',
+        'Not available while hunting', 'Not while hunting']))
       fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
     /* Storage's note, its press's answer and the bag's Deposit (storage-model.js storeAwayWords): "Storage is in town" read as if the hero had left town */
     const { storeAwayWords } = await imp('src/shell/storage-model.js');
@@ -220,7 +220,7 @@ async function planRules(base) {
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
   const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
   const waits = sharedCooldownOf([wire('power_strike'), wire('flame_strike')], 1);
-  if (waits !== 'Waits for Power Strike in slot 1 when both are ready') fails.push('AW-27 a spell sharing a cooldown reads ' + JSON.stringify(waits));
+  if (waits !== 'Shared cooldown: slot 1 (Power Strike)') fails.push('AW-27 a spell sharing a cooldown reads ' + JSON.stringify(waits));
   const STORE = FIXTURE.hunt_settings.store;
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [], slots: [], store: STORE }, state: { gold: 500 }, inventory: {},
@@ -234,10 +234,10 @@ async function planRules(base) {
      fix; Salted Trout (1 death in 12 h there) is under it too; a ground that names no floor (the Slake: Salted Shrimp 0 deaths in 8 h) says nothing */
   const fedAt = (hunt, store) => say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_lobster', 100), slot('consume', store, null)], store: STORE },
     inventory: { cooked_lobster: 100 } }), { hunt });
-  const weakLine = '!Slot 2: Salted Shrimp heals too little here. Pick Salted Lobster';
+  const weakLine = '!Slot 2: Salted Shrimp too weak here · Use Salted Lobster';
   const fedReads = [fedAt('muster_barrows', 'salted_shrimp'), fedAt('muster_barrows', 'salted_trout'), fedAt('muster_barrows', 'salted_lobster'), fedAt('the_slake', 'salted_shrimp'), fedAt('millrace_sewer', 'salted_shrimp')];
-  if (!fedReads[0].includes(weakLine) || !/^!Slot 2: Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
-    || fedReads.slice(2).some((x) => /heals too little/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
+  if (!fedReads[0].includes(weakLine) || !/^!Slot 2: Salted Trout too weak here/m.test(fedReads[1].split(' | ').find((x) => /too weak here/.test(x)) || '')
+    || fedReads.slice(2).some((x) => /too weak here/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
   /* KRELL'S HOLD WARNS LIKE THE BARROWS (the full-game audit's A25, 2026-11-18: a Level 85 tank on the start bar died there in 81 minutes and its
      page said nothing). The Hold names its measured floor (Salted Trout, in the kit a hero arrives in), so the start bar's Salted Shrimp is
      told on its page, naming the slot; a bar on Salted Trout is not. */
@@ -257,14 +257,14 @@ async function planRules(base) {
       gladePrep: prepSays(glade, 'mosslight_glade'), lobsterPrep: prepSays(heroAt('salted_lobster', 55, 845), 'muster_barrows'),
       /* under the Barrows' band (Level 5) its floor says nothing, as its page does (the 139 audit's B2): the range line says what is wrong */
       underPrep: prepSays(heroAt('salted_shrimp', 5, 190), 'muster_barrows') };
-    const want = 'Slot 2: Salted Shrimp heals 72 of 845 HP. Pick Salted Lobster';
+    const want = 'Slot 2: Salted Shrimp heals 72 of 845 HP · Use Salted Lobster';
     if (got.barrowsCard !== '!' + want || got.barrowsPrep.food !== want || !/: weak food$/.test(got.barrowsPrep.line)
       || got.gladeCard || got.gladePrep.food || /weak food/.test(got.gladePrep.line) || got.lobsterPrep.food || /weak food/.test(got.lobsterPrep.line)
       || got.underPrep.food || /weak food/.test(got.underPrep.line))
       fails.push('AW-27 the weak store food on the card and in Hunt prep reads ' + JSON.stringify(got));
   }
   const holdReads = [fedAt('krells_hold', 'salted_shrimp'), fedAt('krells_hold', 'salted_trout')];
-  if (!holdReads[0].includes('!Slot 2: Salted Shrimp heals too little here. Pick Salted Trout') || /heals too little/.test(holdReads[1]))
+  if (!holdReads[0].includes('!Slot 2: Salted Shrimp too weak here · Use Salted Trout') || /too weak here/.test(holdReads[1]))
     fails.push('AW-27 Krell\'s Hold\'s page on the start bar reads ' + JSON.stringify(holdReads));
   /* ...AT THE HERO'S LEVEL, WITH ITS NUMBERS, ON THE SLOT TOO, AND THE GROUND SAYS IT EXPECTS A HEALER (lane/d-audit-balance-2, the playthrough
      audit's F14: in range on Normal a hero died in 8 minutes and nothing said the food was too weak). The floor is the one measured for the
@@ -283,26 +283,26 @@ async function planRules(base) {
        the band's first Level the measured floor speaks */
     const atFive = ['hasks_ford', 'the_slake', 'muster_barrows', 'pyre_field', 'krells_hold'].map((g) => prepAt('salted_shrimp', g, 5, 190));
     const edge = [prepAt('salted_shrimp', 'muster_barrows', 54, 840), prepAt('salted_shrimp', 'muster_barrows', 55, 845)];
-    if (atFive.some(Boolean) || edge[0] !== '' || edge[1] !== 'Slot 1: Salted Shrimp heals 72 of 845 HP. Pick Salted Lobster')
+    if (atFive.some(Boolean) || edge[0] !== '' || edge[1] !== 'Slot 1: Salted Shrimp heals 72 of 845 HP · Use Salted Lobster')
       fails.push('AW-27 the food lines under and at a band read ' + JSON.stringify(atFive.concat(edge)));
     const prep = [prepAt('salted_shrimp', 'muster_barrows', 56, 850), prepAt('salted_trout', 'muster_barrows', 64, 990),
       prepAt('salted_trout', 'muster_barrows', 65, 1011), prepAt('salted_shrimp', 'muster_barrows', 65, 1011), prepAt('salted_shrimp', 'the_slake', 50, 819),
       prepAt('salted_shrimp', 'krells_hold', 85, 1208), prepAt('salted_shrimp', 'krells_hold', 88, 1305)];
-    if (prep[0] !== 'Slot 1: Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
-      || prep[1] !== 'Slot 1: Salted Trout heals 120 of 990 HP. Pick Salted Lobster' || prep[2] !== '' || prep[3] !== 'Slot 1: Salted Shrimp heals 72 of 1,011 HP. Pick Salted Trout' || prep[4] !== ''
-      || prep[5] !== 'Slot 1: Salted Shrimp heals 72 of 1,208 HP. Pick Salted Trout' || prep[6] !== '')
+    if (prep[0] !== 'Slot 1: Salted Shrimp heals 72 of 850 HP · Use Salted Lobster'
+      || prep[1] !== 'Slot 1: Salted Trout heals 120 of 990 HP · Use Salted Lobster' || prep[2] !== '' || prep[3] !== 'Slot 1: Salted Shrimp heals 72 of 1,011 HP · Use Salted Trout' || prep[4] !== ''
+      || prep[5] !== 'Slot 1: Salted Shrimp heals 72 of 1,208 HP · Use Salted Trout' || prep[6] !== '')
       fails.push('AW-27 the weak store food at the hero\'s Level reads ' + JSON.stringify(prep));
     /* ...naming every slot that holds it, and with no server store row for the food it says nothing (no client copy of a heal) */
     const two = settingsView({ preset: 0, slots: [slot('consume', 'salted_shrimp', null), slot('consume', 'cooked_lobster', 9), slot('consume', 'salted_shrimp', null)], store: STORE });
     const said = [weakFoodWords('prep', weakFoodOf(two, 'salted_trout'), 0), weakFoodWords('prep', weakFoodOf(two, 'salted_trout'), 990, 'Bryony'),
       weakFoodWords('prep', weakFoodOf(Object.assign({}, two, { store: [] }), 'salted_trout'), 990)];
-    if (said[0] !== 'Slots 1 and 3: Salted Shrimp heals too little here. Pick Salted Trout' || said[1] !== 'Bryony\'s slots 1 and 3: Salted Shrimp heals 72 of 990 HP. Pick Salted Trout' || said[2] !== '')
+    if (said[0] !== 'Slots 1 and 3: Salted Shrimp too weak here · Use Salted Trout' || said[1] !== 'Bryony\'s slots 1 and 3: Salted Shrimp heals 72 of 990 HP · Use Salted Trout' || said[2] !== '')
       fails.push('AW-27 the weak food line\'s slots read ' + JSON.stringify(said));
     const facts = (o) => Object.assign({ set: bar('salted_shrimp'), bag: [], hero: { mana: 0 }, worn: null, skills: {}, pack: null, party: 1, alone: true, holding: false, test: null,
       ground: 'muster_barrows', level: 56, hpMax: 850, healed: false }, o);
     const on = (id, o) => slotWhy(slot('consume', id, null), facts(o));
     const why = [on('salted_shrimp'), on('salted_lobster'), on('salted_shrimp', { healed: true }), on('salted_shrimp', { ground: 'the_slake' }), on('salted_shrimp', { ground: null }), on('cooked_shrimp')];
-    if (!why[0] || why[0].code !== 'food_weak' || why[0].strike !== false || why[0].text !== 'Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
+    if (!why[0] || why[0].code !== 'food_weak' || why[0].strike !== false || why[0].text !== 'Salted Shrimp: heals 72 of 850 HP · Use Salted Lobster'
       || why.slice(1).some((x) => x && x.code === 'food_weak')) fails.push('AW-27 the bar\'s weak food slot reads ' + JSON.stringify(why));
     const notes = [healerNote('muster_barrows', 56, 'melee', false), healerNote('muster_barrows', 56, 'ranged', false), healerNote('muster_barrows', 56, 'magic', false),
       healerNote('muster_barrows', 56, 'melee', true), healerNote('muster_barrows', 65, 'melee', false), healerNote('the_slake', 50, 'melee', false)];
@@ -463,7 +463,7 @@ async function planRules(base) {
   const { ABILITIES } = await imp('src/data/abilities.js');
   for (const id of Object.keys(ABILITIES)) {
     const req = factsOf({ type: 'ability', id }).requires || '';
-    const said = req.replace(/^Works with |\.$/g, '').toLowerCase().split(' or ');
+    const said = req.replace(/^Weapon: |\.$/g, '').toLowerCase().split(' or ');
     if (new Set(said).size !== said.length) fails.push('AW-27 ' + id + ' reads ' + JSON.stringify(req));
   }
   const { HOW_YOU_FIGHT } = await imp('src/data/how-to-play.js');
@@ -813,7 +813,7 @@ async function planRules(base) {
   const noBid = new Map([['bones', 1]]);
   const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
     planBlock('practice_bow', 'sell', noBid, false)].join('|');
-  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|Shop doesn\'t buy starting kit') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  if (planSaid !== '|Shop won\'t buy this|Shop won\'t buy this|Shop doesn\'t buy starting kit') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
   /* AW-70 SELL SPARE GEAR (designer 2026-11-03; optimizer panel, its quit moment: "sell-all, hand-sell 17-20 armor stacks" each return). One sale with its total first: what the hero has outgrown,
      of any weight or family; never what Equip upgrades wants, an empty slot's piece, a higher tier than worn, a Rare, the start kit, what the bench made from the kit (nothing sells another), or a stack locked or planned Keep or Deposit. */
   const { spareSale } = await imp('src/shell/bag-model.js');
@@ -849,7 +849,7 @@ async function planRules(base) {
   if (lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines.length) fails.push('AW-70 Sell all junk would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines));
   if (madeFromKit('klappas_club') !== 'practice_club' || madeFromKit('cooked_shrimp') || madeFromKit('bronze_helm')) fails.push('AW-70 made from the kit reads ' + [madeFromKit('klappas_club'), madeFromKit('cooked_shrimp'), madeFromKit('bronze_helm')].join());
   const saleWords = (await imp('src/shell/item-lore.js')).rareSaleWords;
-  if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Klub.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
+  if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Klappa\'s Klub: one only (Practice Club not sold)' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
   const big = spareSale(stack(Array.from({ length: 70 }, () => 'bronze_helm')), IRON, rulesAre(), { bids: new Map([['bronze_helm', 10]]) }, {});
   if (big.lines.length !== 64 || big.total !== 64 * 3 * 10 || big.more !== 6 || big.capped) fails.push('AW-70 past the engine\'s 64 lines a sale reads ' + big.lines.length + ' lines, ' + big.total + ' gp, ' + big.more + ' more, capped ' + big.capped);
   /* AW-70b BULK SALES OF A BIG BAG (audit F18, 2026-11-15: a Level 60 bag of 145 outgrown stacks; replayed on the local world 11-16: Sell spare gear
@@ -912,9 +912,9 @@ async function planRules(base) {
     if (!big || big[0].max !== 100000 || big[0].have !== 250000) fails.push('AW-65 a stack past one carry offers ' + JSON.stringify(big));
     const pack = carryRows(hunting(open));
     const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, pack);
-    if (!food || !food.strike || food.text !== 'None in this hunt, 40 Cooked Shrimp in backpack, press to carry them in') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
+    if (!food || !food.strike || food.text !== 'None in this hunt, 40 Cooked Shrimp in backpack (press to carry in)') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
     const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, null, pack);
-    if (!rune || rune.text !== 'No Fire rune in this hunt, 14 in backpack, press to carry them in') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
+    if (!rune || rune.text !== 'No Fire rune in this hunt, 14 in backpack (press to carry in)') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
     /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
     const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null, null);
     if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Can't cast Fire runes yet/.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
@@ -938,7 +938,7 @@ async function planRules(base) {
     const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
     if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
     const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
-    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt, 40 Mithril Arrows in backpack, press to carry them in') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
+    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt, 40 Mithril Arrows in backpack (press to carry in)') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
     const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, null);
     if (!none || none.text !== 'Out of Cooked Shrimp: next food or drink slot takes over') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
   }
@@ -964,7 +964,7 @@ async function itemTruthRules(base) {
     const it = ITEMS[id] || DRINK_ITEMS[id], uses = usesOf(id), said = uses.join('. '), srcs = sourcesOf(id).join('. ');
     if (!uses.length || /undefined|NaN/.test(said + srcs + kindWords(id))) fails.push('AW-60 ' + id + ' reads ' + JSON.stringify([kindWords(id), srcs, said]));
     if (/Fired from/.test(said) && !(it.slot === 'ammo' && it.reqSkill === 'ranged')) fails.push('AW-60 ' + id + ' says it is fired from a bow: ' + said);
-    if (it.slot === 'ammo' && it.reqSkill === 'ranged' && !/Fired from a bow or crossbow/.test(said)) fails.push('AW-60 the shot ' + id + ' reads ' + said);
+    if (it.slot === 'ammo' && it.reqSkill === 'ranged' && !/Bow or crossbow ammo/.test(said)) fails.push('AW-60 the shot ' + id + ' reads ' + said);
     if (it.slot === 'ammo' && it.reqSkill === 'melee' && !/sharpens a melee weapon, wears out every \d+ swings/.test(said)) fails.push('AW-60 the whetstone ' + id + ' reads ' + said);
     if (it.slot === 'ammo' && it.reqSkill === 'magic' && !/^Rune/.test(kindWords(id))) fails.push('AW-60 the rune ' + id + ' is headed ' + kindWords(id));
     if (/Sell it at the shop/.test(said) && !(Number(it.v) > 0)) fails.push('AW-60 ' + id + ' says to sell it, and the shop bids nothing on it');
@@ -975,7 +975,7 @@ async function itemTruthRules(base) {
     if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {
       const pc = Math.round(it.toolSpeed * 100) + '%';
-      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/Works from the bag only/.test(said) || !/best tool counts$/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
+      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/Works from the bag/.test(said) || !/best tool counts\)$/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
       if (kindWords(id) !== 'Tool') fails.push('AW-60 the tool ' + id + ' is headed ' + kindWords(id));
     }
     /* who buys it: the row's book value is what the server's bid and the market's rule read */
@@ -1035,7 +1035,7 @@ async function itemTruthRules(base) {
   if (whereToGet('copper_ore') !== 'Gathered with Mining') fails.push('AW-60 a level 1 node\'s source sends a hero to its goblins too: ' + whereToGet('copper_ore'));
   if (whereToGet('normal_plank') !== 'Made with Crafting') fails.push('AW-60 a level 1 recipe\'s source reads ' + whereToGet('normal_plank'));
   if (!/^Made with Crafting \d+$/.test(whereToGet('timber_beam'))) fails.push('AW-60 the Timber Beam\'s source reads ' + whereToGet('timber_beam'));
-  if (!/Farming \d+\. Dropped by .* at Mill Cellar/.test(whereToGet('wheat'))) fails.push('AW-60 Wheat\'s source reads ' + whereToGet('wheat'));
+  if (!/Farming \d+ · Dropped by .* at Mill Cellar/.test(whereToGet('wheat'))) fails.push('AW-60 Wheat\'s source reads ' + whereToGet('wheat'));
   /* THE WEIGHHOUSE SAYS WHY, by the server's reason. */
   if (!/starting kit/.test(notListableWords('start_kit')) || !/own use only/.test(notListableWords('no_value')) || !/own use only/.test(notListableWords('no_shop_price'))) fails.push('AW-60 the Weighhouse says ' + notListableWords('start_kit') + ' / ' + notListableWords('no_value'));
   const keptLine = keptWords([{ name: 'Cooked Shrimp', why: 'start_kit' }, { name: 'Chalked Earth Rune', why: 'no_value' }, { name: 'Bronze Arrows', why: 'no_value' }]);
@@ -1182,7 +1182,7 @@ async function panelLeftovers(base) {
   const burning = { read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: bones.recipe.id } : null) };
   if (buryLabel(bones, 59) !== 'Burn all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Burn all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
   const { rareSaleWords } = await imp('src/shell/item-lore.js');
-  if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'This sells rare finds: 3 Alpha Fang.' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
+  if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'Sells rare finds: 3 Alpha Fang' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
   /* (the hero-slot offer left with the purchase, FB-5 2026-11-21: all four slots are free; the line over the roster is tests/client-boot-pure.mjs B-11's) */
   const { jobReplacedWords } = await imp('src/shell/town-work.js');
   const worker = (state, hunt) => ({ read: (k) => (k === 'state' ? state : k === 'hunt' ? hunt : null) });
@@ -1286,7 +1286,7 @@ const MUTANTS = [
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/core/upgrade-pick.js', '  if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
-  ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',", "  shared_cooldown: 'Shares a cooldown with {action} in slot {slot}',"],
+  ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Shared cooldown: slot {slot} ({action})',", "  shared_cooldown: 'Never fires: slot {slot} ({action})',"],
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/core/upgrade-pick.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? ', pick '", "(fixes.length > 9 ? ', pick '"],
   ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],

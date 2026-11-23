@@ -69,11 +69,11 @@ export function carryLinesOf(plan, riskOf = null) {
     if (h.job && hasText('away.carry_job_' + h.job)) parts.push(t('away.carry_job_' + h.job));
     /* what the Start did on the way out: the pieces the server put on, a wear the gate refused (the wear's answer, carryOn `wore`), the
        seat, Tamsin's task (the press's answer) */
-    if (h.wore && h.wore.length) parts.push(t('away.carry_wore', { name, items: h.wore.map((id) => itemNameFor(id, 1)).join(', ') }));
-    if (h.wearRefused) parts.push(t('away.carry_wear_refused', { name }));
-    if (h.seat === 'seated' && h.joins) parts.push(t('away.carry_seated', { name, partner: h.joins }));
-    if (h.task) parts.push(t('away.carry_task', { name }));
-    out.push({ slot: h.slot, go: h.state === 'go' || h.state === 'went', text: parts.join(' ') });
+    if (h.wore && h.wore.length) parts.push(t('away.carry_wore', { items: h.wore.map((id) => itemNameFor(id, 1)).join(', ') }));
+    if (h.wearRefused) parts.push(t('away.carry_wear_refused'));
+    if (h.seat === 'seated' && h.joins) parts.push(t('away.carry_seated', { partner: h.joins }));
+    if (h.task) parts.push(t('away.carry_task'));
+    out.push({ slot: h.slot, go: h.state === 'go' || h.state === 'went', text: parts.join(' · ') });
   }
   return out;
 }

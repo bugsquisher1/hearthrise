@@ -48,10 +48,8 @@ import { COMBAT_BALANCE } from './combat.js';
 import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js';
 import { createRng } from './rng.js';
 import { charLevelFromXp } from './xp.js';
-import { densityFor, partyPick, HUNT_GROUNDS, monstersOn } from '../data/hunt-grounds.js';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js';
-import { MONSTERS } from '../data/monsters.js';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js';
+import { densityFor, partyPick } from '../data/hunt-grounds.js';
+import { DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { stepSwing } from './hunt/world-step.js';
 import { makeEvent, trackStep } from './hunt/events.js';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js';
@@ -62,15 +60,17 @@ import { BOSS_CALLS } from '../data/boss-calls.js';
 import { roomOf } from './hunt/boss-room.js';
 import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js';
 import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js';
-import { runRulesOf } from '../data/tower.js';
 import { sessionPayOf } from '../data/session-modes.js';
-import { dangerOn, dangerDial, openDanger, riskOf } from './hunt/danger.js';
+import { dangerOn, dangerDial, openDanger, riskOf, heroCount } from './hunt/danger.js';
+import { huntPlayOf, swingRows } from './hunt/play-rows.js';
 import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
+import { syncTalents } from './hunt/talent-rows.js';
 import { traitSwing } from './trait-roll.js';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js';
+export { huntPlayOf };   // the one door to a monster row (hunt/play-rows.js)
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -97,46 +97,6 @@ const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead:
 const tierPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return (lead && lead.hero.tier) || DEFAULT_TIER; };
 /* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js): the same leader's stance and the step it starts at, or null (a tier hunt). Read once, when the world opens. */
 const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return riskOf(lead && lead.hero); };
-
-/**
- * WHAT AN INSTANCE PLAYS ON `groundId` UNDER THE SERVER'S `scale` (src/data/scaled-hunts.js; Tyler 2026-11-07 "party would scale to the
- * leader"). `scale` is { level } when the server says the leader's paid hours scale this window (hr_scaled_hunt_of: the switch on, hours
- * banked, the leader past the ground's band), else null. The SAME answer on the server's settle and the browser's live view:
- *   level     the Level the ground plays at, or null (unscaled, and a scale the data can't play is unscaled too: never half a scale)
- *   monsters  the catalogue with the ground's roster on its scaled rows, the ONE door every reader of a monster row takes (world-step.js
- *             inst.monsters, hunt-rewards.js ctx.monsters); null unscaled, so an unscaled hunt reads exactly what it always read, except
- *             on a ground with its own drop rows (groundDropsOn: the catalogue with those rows on its monsters)
- *   tierOf    a tier pick's row: unscaled, the ground's own (hunt-tiers.js); scaled, the sheet's at the scaled floor (scaledTierRow), and a
- *             pick the scaled ground doesn't offer (Deadly) plays Normal
- *   normalOf  true for a pick that plays Normal for that reason: its frozen pull goes with it (the ground as it stands)
- * THE BURNING TOWER (src/core/hunt/tower.js) is never scaled and plays Normal whatever the leader picked (one difficulty: the floor is the dial);
- * its `monsters` are the floor standing's table, which simulateHuntInstance sets on this answer floor by floor (a fresh object every call).
- */
-export function huntPlayOf(groundId, scale) {
-  if (runRulesOf(groundId)) return { level: null, monsters: null, tierOf: () => null, normalOf: () => true };
-  const asked = scale && Number.isInteger(scale.level) ? scale.level : null;
-  const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;
-  if (level === null) return { level: null, monsters: groundDropsOn(groundId, MONSTERS), tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
-  const scaled = Object.assign({}, MONSTERS, scaledMonsters(MONSTERS, groundId, level));
-  const monsters = groundDropsOn(groundId, scaled) || scaled;
-  const own = (id) => scaledTierRow(groundId, id, level);
-  return { level, monsters, tierOf: (id) => own(id) || tierRowOf(groundId, DEFAULT_TIER), normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };
-}
-
-/* A GROUND'S OWN DROP ROWS (src/data/hunt-grounds.js `drops`: the Catacombs' wings, src/data/catacomb-wings.js; lane/r10-more-grounds): every
-   monster that stands on the ground carries them after its own rows, so no earlier draw on the seeded stream moves (loot-bands.js), through the
-   instance's one door to a monster row. Null for a ground with none, so every other hunt reads exactly what it always read. The unscaled
-   table is built once a ground (the same rows every call, viewed or settled). */
-const GROUND_DROPS = new Map();
-function groundDropsOn(groundId, base) {
-  const g = Object.prototype.hasOwnProperty.call(HUNT_GROUNDS, groundId) ? HUNT_GROUNDS[groundId] : null;
-  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;
-  if (base === MONSTERS && GROUND_DROPS.has(groundId)) return GROUND_DROPS.get(groundId);
-  const out = Object.assign({}, base);
-  for (const id of monstersOn(g)) if (out[id]) out[id] = { ...out[id], drops: (out[id].drops || []).concat(g.drops) };
-  if (base === MONSTERS) GROUND_DROPS.set(groundId, out);
-  return out;
-}
 
 /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
    the server's hunt_parties.hold_seat) as that member's unit, or null (the tanks take turns; that seat is not in
@@ -172,6 +132,7 @@ const rolesOf = (ms) => ms.map((m) => m.hero.role);
    raise-only inside a hunt (a Level is never lost in one: a death ends it).
    `roles`: the party standing in the world at this instant (inWorld), whose
    make-up decides a setting the player left unset (roles.settingsOf). */
+const PIPELINE_SNAP = Object.freeze(['armorGearPm', 'wardPm', 'blowBp', 'critPm', 'buffDmgPm']);
 function syncUnit(u, m, roles) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
@@ -181,6 +142,10 @@ function syncUnit(u, m, roles) {
   u.armour = snap.armour || null;
   /* THE GEAR PART (src/core/hunt/danger.js powerPm: the power step, read on the Danger scale only), the same: never persisted. */
   u.gearPm = Number.isInteger(snap.gearPm) ? snap.gearPm : 0;
+  /* THE SKILL PART (the same power step, lane/foundations-block), the same: never persisted. */
+  u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;
+  /* THE AMOUNT PIPELINE'S READS (src/core/hunt/amount.js, on the Danger scale only), the same: never persisted. */
+  for (const k of PIPELINE_SNAP) u[k] = Number.isInteger(snap[k]) ? snap[k] : 0;
   /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
   if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;
@@ -196,6 +161,7 @@ function syncUnit(u, m, roles) {
      persisted, absent with nothing borrowed (abilities.js blowOf). */
   const bb = borrowBlowsOf(m.hero.borrowed, snap.level);
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
+  syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
@@ -323,6 +289,7 @@ export function simulateHuntInstance(inst, ctx) {
   let world = inst.world || null;
   /* A SCALED HUNT (huntPlayOf): its rows, its tier and its pull, the same for every swing of this span. */
   const play = huntPlayOf(ctx.ground.id, ctx.scale || null);
+  const monsOf = (onScale) => swingRows(ctx.ground.id, play, onScale);
   /* A TRAINING GROUND (src/core/hunt/training.js): its one dummy as built at any pick, the trained skill its only pay, and no stamina
      spent or proposed (the server's pool rests while the hero trains): the same for every member, from the ground, never stored. */
   const train = trainOf(ctx.ground);
@@ -437,10 +404,10 @@ export function simulateHuntInstance(inst, ctx) {
           /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first), or on the
              Danger scale at the step its plan starts at (src/core/hunt/danger.js; never on a yard, a room, the Tower or a scaled hunt). */
           const plan = train || tw || room || play.level !== null ? null : riskPick(standing);
-          const tier = plan ? dangerDial(ctx.ground, plan.step) : play.tierOf(tierPick(standing));
+          const tier = plan ? dangerDial(ctx.ground, plan.step, standing.length) : play.tierOf(tierPick(standing));
           if (tw) play.monsters = towerMonsters(ctx.towerFloor, tw);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
-            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters, ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}), ...(plan ? { density: tier.pull[0] } : {}) });
+            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: monsOf(!!plan), ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}), ...(plan ? { density: tier.pull[0] } : {}) });
           if (plan) openDanger(world, plan.risk, tier.step);
           fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
@@ -497,7 +464,7 @@ export function simulateHuntInstance(inst, ctx) {
       world.density = densityFor(ctx.ground, world.units.filter((u) => isHero(u)).length,
         pickOf(members.filter((m) => !m.left && m.unitId !== null)));
       /* ON THE DANGER SCALE (src/core/hunt/danger.js dangerDial): the step's own pull, and its dial in place of the tier's */
-      const scale = dangerOn(world) ? dangerDial(ctx.ground, world.danger) : null;
+      const scale = dangerOn(world) ? dangerDial(ctx.ground, world.danger, heroCount(world)) : null;
       if (scale) world.density = scale.pull[0];
       /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
          in a world just made (every member that enters with it has joined by now). */
@@ -509,7 +476,7 @@ export function simulateHuntInstance(inst, ctx) {
       /* the floor standing's table on the Tower (read before the swing: a room cleared in it stands again only after the stair) */
       if (tw) play.monsters = towerMonsters(world.towerFloor, tw);
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground, grid: ctx.grid, heroes, tier: scale || tier, ...(play.monsters ? { monsters: play.monsters } : {}),
+        ground, grid: ctx.grid, heroes, tier: scale || tier, ...(monsOf(!!scale) ? { monsters: monsOf(!!scale) } : {}),
         ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}), ...(fullPay ? {} : { xpPm: pay.xpPm }) });
       seen(r.events);
       for (const t of r.track) track.push(t);

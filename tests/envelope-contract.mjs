@@ -355,7 +355,8 @@ function contract(R, cs, body, tl) {
   need('rename', !!rn && isNum(rn.price) && rn.price > 0 && isNum(rn.level) && typeof rn.available === 'boolean',
     'renameOf yields ' + JSON.stringify(rn) + ' from ' + JSON.stringify(body.rename));
   const bl = R.IS.blessingsOf(cs);
-  need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 3 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
+  /* ONE Blessing (1063-level-costs.sql: hr_blessings_view's one-row `tiers`, tier 1; the three tiers and their tables are gone) */
+  need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 1 && bl.tiers[0].tier === 1 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
     'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
   // the Character window (2026-10-25-character-sheet.sql): before any `sheet` call the sheet is not fresh
   const csh = R.CS.characterSheetOf(cs);
@@ -424,6 +425,9 @@ function sheetContract(R, cs, body) {
   const tt = R.CS.titlesOf(cs);
   need('titles', !!tt && tt.rows.length > 0 && tt.rows.every((r) => isNum(r.price) && isNum(r.kills) && isNum(r.have)),
     'titlesOf yields ' + JSON.stringify(tt) + ' from ' + JSON.stringify(body.titles));
+  /* talents (1064-roads-sample.sql): the Roads switch is off, so the server projects null and the reader yields null (the tab stays hidden) */
+  need('talents', body.talents === null && R.TL.talentsOf(cs, 'shield', 'party') === null,
+    'talentsOf yields ' + JSON.stringify(R.TL.talentsOf(cs, 'shield', 'party')) + ' from ' + JSON.stringify(body.talents));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
     'deathLogOf yields ' + JSON.stringify(dl) + ' from ' + JSON.stringify(body.death_log));
@@ -436,7 +440,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
-  'work_day', 'gold_estimate', 'watched']);
+  'work_day', 'gold_estimate', 'watched', 'talents']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -500,6 +504,7 @@ async function readers(root) {
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
     GE: await import(u('src/session/gold-estimate-sections.js')),
     RC: await import(u('src/session/recruit-sections.js')),
+    TL: await import(u('src/session/talent-intents.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),

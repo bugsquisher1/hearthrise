@@ -332,7 +332,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (head.voice !== 'That\'s all 120. Let me get your pay.') fails.push('TW-14 with a done task in town she says ' + JSON.stringify(head.voice));
         /* TW-1 THE BOX ON A HELD TASK SAYS WHAT IT DOES (audit 2026-11-15 F6: it read "Keep" beside Abandon): its label names taking the task again, its hover both states */
         const box = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-entry[data-task="thicket_gray_wolves"] .ht-keep'); return l && { label: l.textContent, why: l.getAttribute('title') }; });
-        if (!box || box.label !== 'Repeat' || box.why !== 'Ticked: repeats once she pays') fails.push('TW-1 the box on a held task reads ' + JSON.stringify(box));
+        if (!box || box.label !== 'Repeat' || box.why !== 'Ticked: repeats after payout') fails.push('TW-1 the box on a held task reads ' + JSON.stringify(box));
         /* TW-9 no line on screen keeps the riddles (Tyler 2026-10-24: "this is weird dialogue") */
         const all = await page.evaluate(() => (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent);
         if (OLD_WORDS.test(all)) fails.push('TW-9 her window still says "' + OLD_WORDS.exec(all)[0] + '"');

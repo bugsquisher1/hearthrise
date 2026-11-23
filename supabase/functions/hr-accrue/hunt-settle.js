@@ -58,6 +58,7 @@ import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
+import { charLevelFromXp } from '../../../src/core/xp.js';
 import { huntPlayOf } from '../../../src/core/combat-sim.js';
 import { COMBAT_BALANCE } from '../../../src/core/combat.js';
 import { memberSide, frozenOf, frozenKey } from '../../../src/core/member.js';
@@ -663,7 +664,8 @@ export async function readHuntSettle(o, mode) {
   /* EACH HERO AS ITS OWN CHARACTER READS (heroSetup): never the party this read saw. A setting the player left unset is the
      role's default for the party standing in the world at each boundary, the engine's to read (KNOWN-F1, 2026-11-18). */
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, leaveTogether: m._leaveTogether,
+      talents: m._talents, level: charLevelFromXp(m.levelXp), lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -777,6 +779,10 @@ function memberInput(m, inst, perks) {
     relicMults: env.account_bestiary && typeof env.account_bestiary === 'object' && env.account_bestiary.relic_mult
       && typeof env.account_bestiary.relic_mult === 'object' ? env.account_bestiary.relic_mult : null,
     _weaponType: weaponType, _options: options, _bar: m.session.bar,
+    /* THE ROADS (hr_state_of's `talents` section, hr_talents_view): the hero's owned nodes, null while the switch is off or none are
+       owned; the engine grants them at every boundary (src/core/talents.js grantsOf, combat-sim.js syncUnit) */
+    _talents: env.talents && typeof env.talents === 'object' && env.talents.live === true && env.talents.nodes && typeof env.talents.nodes === 'object'
+      ? env.talents.nodes : null,
     /* THE PARTY LEADER (hr_hunt_instance_read `leads`, 2026-11-01-party-leader-density.sql): its density is the pull. */
     _leads: m.leads === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the party's hold seat (hr_hunt_instance_read `hold_seat`, the server's

@@ -82,7 +82,7 @@ async function run(base) {
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
     /* G7 (Tyler 2026-11-11): "no good hunt" only when NO ground holds the Level; a ground that does (its row reads "In your range") is named right for it */
     const held = rows.filter((g) => g.band[0] <= lv && lv <= g.band[1]).sort((x, y) => y.band[0] - x.band[0])[0];
-    const said = held ? held.name + ': right for Level ' + lv + ', tough monsters. Easier: ' + r.row.name + ' (Levels ' + r.row.band[0] + '–' + r.row.band[1] + ')'
+    const said = held ? held.name + ': right for Level ' + lv + ', tough monsters · Easier: ' + r.row.name + ' (Levels ' + r.row.band[0] + '–' + r.row.band[1] + ')'
       : 'No good hunt for Level ' + lv + ' yet. Nearest below: ' + r.row.name;
     if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith(said))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
@@ -98,7 +98,7 @@ async function run(base) {
   const lone = (lv) => HL.recommendation(lv, 1, rows);
   const warrens = rows.find((r) => r.hunt === 'coppercap_warrens') || {};
   const soloAt = warrens.soloFrom;
-  ok('G4', Number.isInteger(soloAt) && lone(soloAt - 1).row.hunt === 'mosslight_glade' && lone(soloAt - 1).note === 'Coppercap Warrens: right for Level ' + (soloAt - 1) + ', tough monsters. Easier: Mosslight Glade (Levels 16–31)'
+  ok('G4', Number.isInteger(soloAt) && lone(soloAt - 1).row.hunt === 'mosslight_glade' && lone(soloAt - 1).note === 'Coppercap Warrens: right for Level ' + (soloAt - 1) + ', tough monsters · Easier: Mosslight Glade (Levels 16–31)'
     && !/party|one hero|solo/i.test(lone(soloAt - 1).note || ''), 'a lone Level ' + (soloAt - 1) + ' reads ' + JSON.stringify(Number.isInteger(soloAt) && lone(soloAt - 1).note));
   ok('G4', Number.isInteger(soloAt) && HL.fitsGroup(warrens, 1, soloAt) && !HL.fitsGroup(warrens, 1, soloAt - 1) && !HL.fitsGroup(warrens, 1, null),
     'the Warrens fits a lone hero at ' + [soloAt - 1, soloAt, null].map((lv) => lv + ': ' + HL.fitsGroup(warrens, 1, lv)).join(', ') + ' (from its soloFrom ' + soloAt + ' only)');
@@ -108,8 +108,8 @@ async function run(base) {
   const under = soloAt - 2;
   const lostThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
   const wonThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });
-  ok('G7', lostThere.note === 'Coppercap Warrens: right for Level ' + under + ', but lost 1,250 gp/h solo. Easier: Mosslight Glade (Levels 16–31)'
-    && (wonThere.note || '').startsWith('Coppercap Warrens: right for Level ' + under + ', tough monsters. ') && !/no good hunt/i.test(lostThere.note + wonThere.note) && (HL.recommendation(top + 5, 1, rows).note || '').startsWith('No good hunt for Level ' + (top + 5) + ' yet. '),
+  ok('G7', lostThere.note === 'Coppercap Warrens: right for Level ' + under + ', lost 1,250 gp/h solo · Easier: Mosslight Glade (Levels 16–31)'
+    && (wonThere.note || '').startsWith('Coppercap Warrens: right for Level ' + under + ', tough monsters · ') && !/no good hunt/i.test(lostThere.note + wonThere.note) && (HL.recommendation(top + 5, 1, rows).note || '').startsWith('No good hunt for Level ' + (top + 5) + ' yet · '),
     'a lone Level ' + under + ' reads ' + JSON.stringify([lostThere.note, wonThere.note]));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
@@ -210,7 +210,7 @@ async function run(base) {
     const grown = has ? HL.seatsOutgrown(cellar, duo, 5) : [];
     if (has) ok('G9', grown.map((s) => s.name).join() === 'Wren' && HL.outgrownWords(cellar, grown, duo) === 'Ground outgrown at Level 5: Wren, Level 5',
       'Enter\'s off line reads ' + JSON.stringify(HL.outgrownWords(cellar, grown, duo)));
-    if (has) ok('G9', HL.outgrownWords(cellar, HL.seatsOutgrown(cellar, null, 5), null) === 'Ground outgrown at Level 5, pick a harder one' && HL.seatsOutgrown(cellar, null, 4).length === 0
+    if (has) ok('G9', HL.outgrownWords(cellar, HL.seatsOutgrown(cellar, null, 5), null) === 'Outgrown at Level 5 · Pick a harder ground' && HL.seatsOutgrown(cellar, null, 4).length === 0
       && HL.seatsOutgrown(rows.find((r) => r.hunt === 'meadowbrook_thicket'), duo, 5).length === 0, 'alone, or a ground with no exit, reads wrong');
     ok('G9', win.includes('const off = now ? \'\' : enterOffWords(party) || outgrownWords(r, grown, party);') && win.includes('if (off) prop(enter, \'disabled\', true);'),
       'the Hunts window does not turn Enter off for an outgrown seat');

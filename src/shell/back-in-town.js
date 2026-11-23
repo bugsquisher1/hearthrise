@@ -149,7 +149,7 @@ export function townSteps(o) {
   const top = b && b.tiers.length ? b.tiers[b.tiers.length - 1].permille : null;
   const does = Number.isSafeInteger(top) && top > 0 ? t('summary.bless_does', { pct: Math.round(top / 10) + '%' }) : '';
   const price = cost > 0 ? t('summary.bless_cost', { total: gold(cost) }) : t('summary.bless_free', { level: b && b.freeUntil !== null ? b.freeUntil : '' });
-  add({ id: 'bless', count: offer ? missing.length : 0, title: t('summary.bless_n', { names: listWords(missing.map((x) => ROMAN[x.tier] || String(x.tier))) }),
+  add({ id: 'bless', count: offer ? missing.length : 0, title: b && b.tiers.length === 1 ? t('summary.bless_none') : t('summary.bless_n', { names: listWords(missing.map((x) => ROMAN[x.tier] || String(x.tier))) }),
     words: !offer ? '' : [does, price].filter(Boolean).join(' · '),
     verb: t('summary.bless'), icon: null, tiers: missing.map((x) => x.tier) });
   /* RECRUIT YOUR PARTY (designer D-1, the Path's first_level_5; Tyler RD-Q6 a): a ground outgrown while the server offers the recruit press.

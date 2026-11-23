@@ -36,8 +36,11 @@
 //                                  (lane/c-settle-flush, 30-plan L12): the poll of a running prediction CONFIRMS (hunt-ask.js confirm)
 //                                  and saves only at the 90 s flush or at once on a death, a Level or a rare drop (hunt-settle.js flushDue)
 //   krell4_L80_deadly_closed       the same four, browser closed (its away hours; with the watched row, the nightly's band, below)
-//   tower4_L80_climb               the same four climbing the Burning Tower from landing 30 (a party climbs as one instance), closed, to
-//                                  its first death or 12 windows (from landing 30, 50 or 70 this four dies 15-22 minutes in)
+//   tower4_L80_climb               the same four climbing the Burning Tower from floor 1 (a party climbs as one instance), closed, to
+//                                  its first death or 12 windows. From floor 1, not landing 30, since the Tower's floors are formulas
+//                                  (lane/tower-boss-formula: a four tops out near its Level + 25 to 35): from landing 30 three of the four
+//                                  died 9.5 minutes in, so the hour measured a party mostly dead; from floor 1 one seat falls about 12.5
+//                                  minutes in and three climb the whole 20 (MEASURED 2026-11-23)
 //   supply4_L50_hasks_ford_deadly  THE SUPPLY-HEAVY FOUR, the Own four's shape (28's REAL 216-row mix): Level 50 on Hask's Ford,
 //                                  Deadly, tier-4 kit, every role on its played bar, a third of its supplies carried, closed
 //
@@ -330,7 +333,7 @@ async function townHero(db, M, base) {
 
 const KIT10 = { level: 10, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
 const KIT20 = { level: 20, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
-const TOWER_FOUR = Object.freeze({ ...HEAVY_FOUR, hunt: 'the_burning_tower', tier: null, tower: Object.freeze({ landing: 30 }) });
+const TOWER_FOUR = Object.freeze({ ...HEAVY_FOUR, hunt: 'the_burning_tower', tier: null, tower: Object.freeze({ landing: 0 }) });
 export const FIXTURES = Object.freeze({
   lone_L10_meadowbrook_thicket: { door: 'closed', build: (db, M) => accountsParty(db, M, 1, 'meadowbrook_thicket', KIT10, 100) },
   party4_L20_millrace_sewer: { door: 'closed', build: (db, M) => accountsParty(db, M, 4, 'millrace_sewer', KIT20, 200) },
@@ -502,6 +505,17 @@ async function unfence(db) {
   }
 }
 
+/* EVERY FIXTURE ROLLS ITS OWN DICE (set reds 5, 2026-11-23). pinDice's counting gen_random_uuid is a SEQUENCE, and a sequence is not
+   rolled back with the savepoint: unrewound, a fixture's session and instance ids (the keys of its hunt seed) were the count every
+   fixture before it drew, so the Tower four's climb died earlier in the full run than alone (statements/hero hour 44.3 full, 39.8
+   --only tower4, 37.7 --only L80: one settle count, a different paid-hours denominator). Rewound to the value read before the first
+   fixture, each fixture plays the same swings whatever ran before it, whatever --only names and in every --selftest plant. */
+let DICE0 = null;
+async function rewindDice(db) {
+  if (DICE0 === null) [DICE0] = await q(db, 'select last_value::text as v, is_called as c from public.hr_test_uuid_seq');
+  await db.query(`select setval('public.hr_test_uuid_seq', $1::bigint, $2::boolean)`, [DICE0.v, DICE0.c]);
+}
+
 /** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint. `plant`: the selftest's defect. */
 async function measureAll(db, M, { plant = null, only = null } = {}) {
   const out = {};
@@ -510,6 +524,7 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
   try {
     for (const [name, f] of Object.entries(FIXTURES)) {
       if (only && !name.includes(only)) continue;
+      await rewindDice(db);
       await db.query('savepoint fx');
       try {
         if (plant === 'unit_row') await db.exec(UNIT_ROW);

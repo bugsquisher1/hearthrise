@@ -45,6 +45,9 @@ export const LEDGER_SLICES = Object.freeze({
   build: Object.freeze({ max: POWER_LEDGER.buildStepsMax, ramps: true, signed: true }),
   consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: true, signed: false }),
   temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: false, signed: false }),
+  /* talent ranks are ON THE CURVE (19 row 2: "inside the Level, not on top. An unspent point is -1/3"): a cap of 0 on the signed net, so
+     only the idle points' cost counts (src/core/talents.js grantsOf), whole at every Level (ranks take no ramp) */
+  ranks: Object.freeze({ max: 0, ramps: false, signed: true }),
   /* closed (`open: false`): its cap is 0 until clans ship, so a row written early counts nothing */
   clan: Object.freeze({ max: POWER_LEDGER.clanStepsMax, ramps: false, signed: false, open: false }),
 });

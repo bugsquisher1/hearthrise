@@ -67,6 +67,10 @@ export const TOWER_RULES = Object.freeze({
   landingLimitMs: 600000,
   stairMs: 4000,
   fit: 'both',
+  /* THE MONSTERS' SWITCH (lane/monster-formula, as DANGER_GROUNDS `monsters`): 'rows' the stat sheet's formula at the floor's Level (today);
+     'formula' each band's reach role's derived stats (src/core/hunt/monster-formula.js formulaAt) against the reference company of the
+     floor's Level, at a gap of the floor's depth. Flipping it moves every room: re-measure the Tower (tests/tower-climb.mjs) */
+  monsters: 'rows',
   minLevel: 10,
   /* STARTING VALUES, MEASURED (the header): one Level a floor, and 1.6 Danger steps a floor (x1.0056 HP and blow a floor, x1.058 a band) */
   steps: Object.freeze({ levelPm: 1000, depthPm: 2300 }),

@@ -37,6 +37,7 @@ import { STATUSES, STATUS_KEYS, validateStatus, ticks, slowAt } from '../../data
 import { heroElementPermille } from '../elements.js';
 import { makeEvent } from './events.js';
 import { landHit } from './damage.js';
+import { stepsOn, healAmount } from './amount.js';
 import { healTaken } from './heal-cut.js';
 import { isHero, isEnemy } from './sides.js';
 import { cheb } from './grid.js';
@@ -137,10 +138,15 @@ export function applyStatus(inst, unit, row, source, sc) {
 /* ONE TICK of a ticking stack `st` of `row` held by `unit`: a damage tick on it, a heal tick on it, or a ground patch's tick on every
    enemy of its holder standing in it. Answers nothing; the unit's `alive` tells the caller whether it fell. */
 function tickOne(inst, sc, unit, row, st, units) {
-  const roll = row.tick[0] === row.tick[1] ? row.tick[0] : sc.rng.int(row.tick[0], row.tick[1]);
-  const amount = tickAmount(roll, st.scale);
+  /* ON THE SCALE (src/core/hunt/amount.js, 27 section 2.1: "a tick is a share of the target's reference health"): the tick's MEAN, a share
+     of its source's top, goes to the pipeline, which draws its one roll; the event names what landed */
+  const piped = stepsOn(inst);
+  const roll = piped ? 0 : row.tick[0] === row.tick[1] ? row.tick[0] : sc.rng.int(row.tick[0], row.tick[1]);
+  const amount = piped ? ((row.tick[0] + row.tick[1]) / 2) * (st.scale / 1000) : tickAmount(roll, st.scale);
   if (row.heals) {
-    const got = Math.max(0, Math.min(healTaken(unit, amount), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0)));
+    const healer = piped ? (st.src === null ? null : units.find((u) => u.id === st.src) || null) || unit : null;
+    const n = piped ? healAmount(inst, healer, amount, { rng: sc.rng }) : amount;
+    const got = Math.max(0, Math.min(healTaken(unit, n), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0)));
     sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: got, heals: true }));
     if (got > 0) {
       unit.hp = Math.floor(Number(unit.hp) || 0) + got;
@@ -150,16 +156,19 @@ function tickOne(inst, sc, unit, row, st, units) {
   }
   if (row.ground) {
     const r = row.ground.r;
-    sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType, x: st.at[0], y: st.at[1] }));
+    if (!piped) sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType, x: st.at[0], y: st.at[1] }));
+    let landed = 0;
     for (const m of units) {
       if (m.alive !== true || !isEnemy(unit, m) || cheb(m, { x: st.at[0], y: st.at[1] }) > r) continue;
-      landHit(inst, sc, unit, m, amount, row.damageType, { id: st.s, dot: true });
+      landed += landHit(inst, sc, unit, m, amount, row.damageType, { id: st.s, dot: true }).dmg || 0;
     }
+    if (piped) sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: landed, element: row.damageType, x: st.at[0], y: st.at[1] }));
     return;
   }
   const source = st.src === null ? null : (units.find((u) => u.id === st.src) || null);
-  sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType }));
-  landHit(inst, sc, source, unit, amount, row.damageType, { id: st.s, dot: true });
+  if (!piped) sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType }));
+  const hit = landHit(inst, sc, source, unit, amount, row.damageType, { id: st.s, dot: true });
+  if (piped) sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: hit.dmg || 0, element: row.damageType }));
 }
 
 /** Status hook: stacks tick and expire. */

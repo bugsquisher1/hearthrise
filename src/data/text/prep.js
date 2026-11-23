@@ -71,14 +71,14 @@ export const PREP_TEXT = Object.freeze({
   gold: 'Gold reserve',
   keep_at_least: 'Gold reserve, gp',
   gold_word: 'gp',
-  gold_line: 'Below this, stops buying supplies and ends the hunt',
+  gold_line: 'Below this: no more supplies, hunt ends',
 
   /* THE ACTION BAR GRID. */
   bar: 'Action bar',
   bar_count: '{n} of {max} slots',
-  bar_hint: 'Drag to move or swap. + to fill. Slot 1 fires first',
+  bar_hint: 'Drag: move or swap · +: fill · Slot 1 fires first',
   slot_empty: 'Slot {n}: empty',
-  slot_filled: 'Slot {n}: {name}.',
+  slot_filled: 'Slot {n}: {name}',
   slot_off: 'Off',
   slot_always: 'Fires when ready',
   sorted: 'Sorted: moves, food and drink, then ammo',
@@ -101,7 +101,7 @@ export const PREP_TEXT = Object.freeze({
   /* THE FOOTER. */
   save_and_use: 'Save and use',
   unsaved: 'Unsaved changes',
-  changed: 'Changed on the bar, load again to save',
+  changed: 'Bar changed · Load again to save',
   load_again: 'Load again',
   reading_setup: 'Loading setup…',
   ready_head: 'Ready to hunt?',
@@ -123,9 +123,9 @@ export const PREP_TEXT = Object.freeze({
 
   /* STORE FOOD TOO WEAK HERE (src/shell/weak-food.js, the one rule): a ground's Before you go and a keyed hall's door. {where} the bar's
      slots holding it (food_where*), {food} the bar's best store food, {want} the store food measured safe here. */
-  food_weak: '{where}: {food} heals too little here. Pick {want}',
+  food_weak: '{where}: {food} too weak here · Use {want}',
   /* the same with the server's numbers, when it has sent this hero's HP: {heal} what one {food} heals, {hp} the hero's full HP */
-  food_weak_hp: '{where}: {food} heals {heal} of {hp} HP. Pick {want}',
+  food_weak_hp: '{where}: {food} heals {heal} of {hp} HP · Use {want}',
   /* {n} the slot number ("4"), or the numbers ("4 and 6"); {name} another hero of this account in the party */
   food_where: 'Slot {n}',
   food_where_many: 'Slots {n}',

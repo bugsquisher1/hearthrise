@@ -47,12 +47,12 @@ export function patchDeaths(body, ctx, sc) {
     patch: (li, r) => {
       const open = sc.openDeath === r.id;
       text(li.querySelector('.hw-dl-by'), r.monster ? 'Killed by ' + monsterName(r.monster) : 'Died');
-      text(li.querySelector('.hw-dl-where'), r.hunt ? 'Died in ' + (HUNT_NAME.get(r.hunt) || r.hunt) + ' and returned to town' : '');
+      text(li.querySelector('.hw-dl-where'), r.hunt ? 'Died in ' + (HUNT_NAME.get(r.hunt) || r.hunt) : '');
       text(li.querySelector('.hw-dl-when'), whenWords(r.atMs, now));
       text(li.querySelector('.hw-dl-xp'), r.xp === null ? '' : r.xp > 0 ? whole(r.xp) + ' XP lost' : 'No XP lost');
       attr(li.querySelector('.hw-dl-head'), 'aria-expanded', String(open));
       const lost = Object.entries(r.xpLost).map(([k, n]) => whole(n) + ' ' + (k === 'level' ? 'Level' : (SKILLS_DEF[k] && SKILLS_DEF[k].name) || k) + ' XP');
-      text(li.querySelector('.hw-dl-more'), open ? (lost.length ? 'Dying cost ' + lost.join(', ') + '.' : 'Dying cost no XP.') + ' ' + new Date(r.atMs).toLocaleString() : '');
+      text(li.querySelector('.hw-dl-more'), open ? (lost.length ? 'Dying cost ' + lost.join(', ') + '.' : 'No XP lost') + ' ' + new Date(r.atMs).toLocaleString() : '');
       cls(li, 'is-open', open);
     },
   });

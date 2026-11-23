@@ -180,7 +180,7 @@ async function run(mutant) {
       'FT-2 the answer reads ' + JSON.stringify(r.body));
     bill = FT.farmTendOf(cs);
     ok(!!bill && !FT.tendHasWork(bill) && WT.tendPress(cs, sc) === null, 'FT-2 the next bill still has work: ' + JSON.stringify(bill));
-    ok(r.ok && /^Harvested \d+ Turnips?\. Planted 1 plot\. Watered 2 plots\. \+[\d,]+ Farming XP\.$/.test(WT.tendLine(r, (x) => x.error)),
+    ok(r.ok && /^Harvested \d+ Turnips? · Planted 1 plot · Watered 2 plots · \+[\d,]+ Farming XP$/.test(WT.tendLine(r, (x) => x.error)),
       'FT-2 the line after the press reads ' + JSON.stringify(r.ok && WT.tendLine(r, (x) => x.error)));
 
     // ── FT-3 ──
@@ -225,7 +225,7 @@ async function run(mutant) {
       'FT-4 the press at the bill\'s gold answered ' + JSON.stringify(paid) + ' (purse ' + (await purse(A)) + ', plots ' + JSON.stringify(await plots(A)) + ')');
     ok(Number(await one("select count(*)::text from public.player_ledger where user_id = $1 and intent = 'farm_tend_seed' and qty = 1 and gold = -5 and purse = 2", [A])) === 1,
       'FT-4 the bought seed is not journalled once (qty 1, gold -5, the purse after)');
-    ok(paid.ok && /Bought 1 Turnip Seed for 5 gp\..*Plot 2 stays empty because you have no Turnip Seed and not enough gold to buy one\.$/.test(WT.tendLine(paid, (x) => x.error)),
+    ok(paid.ok && /Bought 1 Turnip Seed for 5 gp · .*Plot 2: empty \(no Turnip Seed, not enough gold\)$/.test(WT.tendLine(paid, (x) => x.error)),
       'FT-4 the line after the press reads ' + JSON.stringify(paid.ok && WT.tendLine(paid, (x) => x.error)));
 
     // ── FT-5 ── plot 1 stands empty; the seeds are in Storage this time
@@ -263,7 +263,7 @@ async function run(mutant) {
     // ── FT-7 ──
     const turnipMakes = WT.cropMakes('turnip');
     const moonMakes = WT.cropMakes('moonbloom');
-    ok(/^Makes Turnip Juice, a mana drink \(\d+ mana\)$/.test(turnipMakes) && /^Cooked into Moonbloom Elixir/.test(moonMakes),
+    ok(/^Makes Turnip Juice \(\+\d+ mana\)$/.test(turnipMakes) && /^Cooked into Moonbloom Elixir/.test(moonMakes),
       'FT-7 the seed rows read ' + JSON.stringify([turnipMakes, moonMakes]));
 
     // ── FT-8 ──

@@ -472,7 +472,7 @@ const mutants = [
     edits: [[D, "    const sharePm = paid !== true && paid.source === 'store' ? BASIC_SHOT_PM : undefined;", '    const sharePm = undefined;']] },
   { name: 'a caster basic swings free', case: 'caster-basic-costs-mana', edits: [[D, '      if (row.basic) {', '      if (false) {']] },
   { name: 'a caster swings on an empty pool', case: 'caster-basic-costs-mana',
-    edits: [[D, '        return (Number(u.mana) || 0) >= row.basic.mana ?', '        return true ?'], ['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;\n', '']] },
+    edits: [[D, '        return (Number(u.mana) || 0) >= mana ?', '        return true ?'], ['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;\n', '']] },
   { name: 'the basic\'s mana trains nothing', case: 'caster-basic-costs-mana',
     edits: [['src/core/hunt-rewards.js', "      case 'shot': {", "      case 'shot_': {"]] },
   { name: 'a loaded rune still prices the caster\'s blow', case: 'caster-basic-costs-mana',
@@ -487,7 +487,7 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', "  return pickSlot(inst, u, h, rows, act(true), null, 'attack', sc && sc.atMs) || pickSlot(inst, u, h, rows, act(false), sc, 'attack');", "  return pickSlot(inst, u, h, rows, act(false), sc, 'attack');"]] },
   { name: 'the worn ammo waits behind the bar (Andy #63)', case: 'worn-ammo-before-the-store',
     edits: [['src/core/hunt/conditions.js', '  return ruled.concat(worn ? [worn] : [], plain);', '  return ruled.concat(plain, worn ? [worn] : []);']] },
-  { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }', 'export function restart(u) { u.swingLeftMs = 0; }']] },
+  { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'export function restart(u, inst) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs, inst); }', 'export function restart(u, inst) { u.swingLeftMs = 0; }']] },
 ];
 
 await suite('hunt-core/damage', cases, mutants);

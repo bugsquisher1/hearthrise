@@ -1,0 +1,24 @@
+
+V1 on hasks_ford (6 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady         700 +- 0          0   100   100      0      0     0.9     56.9      0     0  0 (0/0/0)                       4  {"hold":1727,"climb":998}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        1.33x  sd 0.01  n 6  window 4 h  seeds 1.33 1.34 1.34 1.33 1.33 1.33
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L52  coin 13289 +- 46  income 15104 +- 182  store 3817  kit share 0.25 (meal 106, drink 2747, charge 964, shot 0)  loot by band: common 393, uncommon 143, scarce 1279, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, healer
+  base:steady       hammer 0.852  healer 0.148
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 16.46 land 67.93% hit 31.07 (4100.17/h) | healer dps 9.08 land 85.63% hit 37.82 (586.33/h)
+                    fordsunk(null) 55.4/h 33.5 s 542 | banded_pikeman(null) 163.6/h 34 s 512 | bannerman(null) 19/h 30 s 208 | ledger_wight(null) 37.6/h 32.2 s 847
+                    broke off by: 
+
+wall 35 s

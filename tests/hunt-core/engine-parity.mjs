@@ -138,13 +138,23 @@ const SEED = '-4611686018427387904';
    sewer-2 hold. Cause: every piece's stats are now the one gear formula's (src/data/gear-profiles.js, src/core/gear-stats.js), so the four's
    ladder pieces under Dawnsteel moved a point or two (the per-tier hand tables are gone). Proof: src/data/gear-stats.generated.js written back
    with the OLD catalogue's stats for every id, over this tree's src/core and hr-accrue (the scale view included): every pin holds (exit 0).
-   RE-PINNED 2026-11-23 (lane/named-pieces, the two re-pins above merged): before --write only warrens-4 failed (kills 203 -> 200, the gear
-   formula's move), glade-4's shield_break pin held; the written baseline is the two causes together, nothing else. */
+   RE-PINNED 2026-11-23 again (merged with set/v0.2.144 at 9825bfcb2, which re-pinned glade-4 itself after set-reds-3): warrens-4 alone, as above
+   (kills 203 -> 200). Proof on this merge: the old catalogue's stats written back hold every one of the set's pins (exit 0).
+   PINNED 2026-11-23 (lane/stage3-pipeline), ONE NEW SCENARIO, THE FOUR TIER PINS HELD: muster-steps-4 plays the Danger scale (its leader's plan on
+   Steady from step 0), so every blow, spell, tick, heal and shell of it goes through the amount pipeline (src/core/hunt/amount.js; 27 D-1 to D-8).
+   Cause of the pin: no scenario played the scale, so the pipeline had no byte-identity pin; its mutant (one pipeline blow one point higher) moves it.
+   The pipeline runs only on the scale: warrens-4, glade-4, glade-1-kite and sewer-2 held world, timeline, tally and kills (203 / 479 / 134 / 104),
+   diffed against the pin before this lane; muster-steps-4 172 kills.
+   RE-PINNED 2026-11-23 (lane/stage3-pipeline merged with set/v0.2.144 at 319590c72), muster-steps-4 ONLY: the four tier scenarios hold the
+   set's own pin to the byte (world, timeline, tally, kills 200 / 492 / 140 / 99), diffed against it; the scale scenario moves at every settle
+   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-1-kite': { hunt: 'mosslight_glade', L: 26, roles: ['ranger'], fullSet: true, settles: 12 },
   'sewer-2': { hunt: 'millrace_sewer', L: 20, roles: ['melee_dps', 'healer'], settles: 12 },
+  /* the Danger scale and its amount pipeline (lane/stage3-pipeline): a four on Muster Barrows, the leader's plan on Steady from the ground as built */
+  'muster-steps-4': { hunt: 'muster_barrows', L: 60, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, plan: { risk: 'steady', danger: 0 }, settles: 12 },
 });
 
 const h12 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 12);
@@ -154,6 +164,7 @@ function fingerprint(P, sc) {
   const settles = [];
   const r = P.run(sc.hunt, sc.L, sc.roles, { spanMs: sc.settles * WINDOW, windowMs: WINDOW, secret: SEED, fullSet: sc.fullSet === true,
     ...(Number.isInteger(sc.density) ? { density: sc.density } : {}),
+    ...(sc.plan ? { plan: sc.plan } : {}),
     onWindow: (out) => {
       settles.push({
         world: h12([out.worldSwingFrom, out.worldSwingTo, out.settledTo, out.world === null ? 'null' : out.world].join('|')),
@@ -287,6 +298,11 @@ const mutants = [
     edits: [['src/core/hunt/damage.js', '  let amount = rollAttack(sc.rng, accuracy, maxHit);\n',
       "  let amount = rollAttack(sc.rng, accuracy, maxHit);\n  if (amount > 0 && t.side === 'mon' && t.hp > 2 * amount + 20 && ++globalThis.__parityRolls === 1) amount += 5;\n"]],
     before: () => { globalThis.__parityRolls = 0; } },
+  /* the amount pipeline (lane/stage3-pipeline): one blow on the scale one point higher moves muster-steps-4's pin */
+  { name: 'one pipeline blow on the scale is one point higher', only: ['muster-steps-4'],
+    edits: [['src/core/hunt/amount.js', '  const n = Math.max(1, Math.round(base * mult * (roll / 1000) * ratioOf(steps)));\n',
+      "  const n = Math.max(1, Math.round(base * mult * (roll / 1000) * ratioOf(steps))) + (++globalThis.__pipeBlows === 40 ? 1 : 0);\n"]],
+    before: () => { globalThis.__pipeBlows = 0; } },
   /* the optimizations, each broken (lane/r-engine-profile): every one must move the pin, or the pin does not hold it */
   { name: 'a ranged hero\'s spot search forgets the monsters beside a tile (roles.js besideNear)', only: ['glade-4'],
     edits: [['src/core/hunt/roles.js', 'const near = mons.filter((m) => cheb(m, c) <= r + 1);', 'const near = [];']] },

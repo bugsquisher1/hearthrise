@@ -10,13 +10,13 @@
 --   begin/commit here. Ends with its §4 self-check.
 -- EDGE: the death's price moved in the engine (src/core/action-rules.js levelDeathLoss: the lesser of the share and the hours), so the
 --   hr-accrue that carries it deploys WITH this release. Either order is safe: an old engine proposes the share, which the new bound
---   refuses past Level 61 (`death_xp_over`, the settle retried next tick by the new engine once deployed); a new engine proposes the
+--   refuses past Level 63 (`death_xp_over`, the settle retried next tick by the new engine once deployed); a new engine proposes the
 --   lesser, inside the old bound (the share). Apply this file and the catalogue first, then deploy, to keep that window empty.
 --
 -- ── THE DESIGN (docs/design/redesign/02-architecture.md sections 1b and 6, 04-math-strategy.md sections 5 and 11) ──────────────
 --   THE DEATH. A death takes the LESSER of the share (6% of the total Level XP, as before) and the hours (DEATH_HOURS = 7.5 reference
---     hours of progress at the hero's Level: the hours table's Level XP an hour there). Past Level 61 the hours bind, so a death weighs
---     the same 7.5 hours at Level 62 and at Level 4,000 (the share alone was 62 hours at 200 and 887 at 1,000); under it the share binds,
+--     hours of progress at the hero's Level: the hours table's Level XP an hour there). Past Level 63 the hours bind, so a death weighs
+--     the same 7.5 hours at Level 64 and at Level 4,000 (the share alone was 62 hours at 200 and 887 at 1,000); under it the share binds,
 --     so a young hero never falls back to Level 1. It can take a Level, never below Level 1. Skills keep the share of their progress.
 --     Engine: src/core/action-rules.js levelDeathLoss. Server bound: hr_death_xp_mode_max (the catalogue file), the hours rounded up.
 --   THE BLESSING. ONE Blessing replaces the three tiers. Held, it cuts what one death takes (Level and skills) by bless_cut_pm (50%);

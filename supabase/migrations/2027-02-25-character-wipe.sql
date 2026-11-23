@@ -123,6 +123,9 @@ declare
     'player_skills', 'player_state', 'player_workers',
     /* a hero's lifetime count of Talent resets (1063-level-costs.sql): its first reset is free once ever, a wiped hero starts at none */
     'player_talent_resets',
+    /* the company's flame, each hero's Temper ranks, worn imbuements and loot pity (1063-flame-temper.sql): an account's and its heroes',
+       earned by heroes the wipe clears; a wiped account lights its flame again from Level 1 and its heroes start with no Temper or pity */
+    'company_flame', 'hero_temper', 'hero_worn_imbue', 'hero_pity',
     'session_claims', 'social_presence', 'town_bodies', 'town_moves', 'town_positions', 'town_seen', 'town_snapshot', 'world_finds'];
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
   c_keep constant text[] := array[
@@ -143,7 +146,7 @@ declare
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_danger_grounds', 'hr_danger_rules', 'hr_danger_stances', 'hr_db_samples', 'hr_depot_config',
     'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
-    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_level_costs', 'hr_work_day', 'hr_store_terms', 'hr_store_grounds', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
+    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_level_costs', 'hr_work_day', 'hr_store_terms', 'hr_store_grounds', 'hr_trade_kinds', 'hr_trade_levers', 'hr_trade_xp', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',
@@ -186,7 +189,10 @@ declare
     /* the social catalogue (1040-social-catalogue.generated.sql): the clan rules, Global's batch and slow mode, the friend link's window */
     'hr_clan_rules', 'hr_chat_global_rule', 'hr_chat_slow_mode', 'hr_friend_link_rule',
     /* the Great Hearth's rule (1042-hearthrise-live-events-catalogue.generated.sql) */
-    'hr_hearth_fire_rule'];
+    'hr_hearth_fire_rule',
+    /* the flame, Temper, imbuement, loot-pity and carry-over catalogues (1063-flame-temper-catalogue.generated.sql) */
+    'hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels', 'hr_imbue_rules',
+    'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

@@ -90,6 +90,6 @@ export const CATACOMB_TEXT = Object.freeze({
   /* A FALL IN THE CATACOMBS (session-modes.js `catacomb`: no death loss): Keeper Dunn carries the hero up, it never "died". */
   fell: '{name} was carried up',
   end_carried: 'Carried up, no XP lost',
-  alert_carried: '{name}: carried up out of the Catacombs, no XP lost',
+  alert_carried: '{name}: carried out of the Catacombs · No XP lost',
   again_off: 'Start: Catacombs tab, Great Hearth',
 });

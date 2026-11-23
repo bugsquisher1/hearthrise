@@ -245,8 +245,13 @@ export function challengeable(inst, k) {
   const holds = holderTank(inst) === k;
   /* a non-holder takes only what is on a hero that is not a tank */
   const onNonTank = (m) => { const t = unitById(inst, m.target); return !!t && isAlly(k, t) && !isTank(t); };
-  return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));
+  return engaged(inst, k).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= tauntReach(k) && (holds || onNonTank(m)));
 }
+
+/* THE CHALLENGE'S REACH AND HOLD for tank `k`: CHALLENGE's, or its Roads build's (combat-sim.js syncUnit writes tauntRadius and
+   tauntHoldMs from src/core/talents.js grantsOf; absent with no build) */
+const tauntReach = (k) => (Number.isInteger(k.tauntRadius) && k.tauntRadius > 0 ? k.tauntRadius : CHALLENGE.radius);
+const tauntHold = (k) => (Number.isInteger(k.tauntHoldMs) && k.tauntHoldMs > 0 ? k.tauntHoldMs : CHALLENGE.holdMs);
 
 /**
  * THE CHALLENGE'S EFFECT, the one writer of a taunt: every monster `challengeable`
@@ -256,7 +261,7 @@ export function challengeable(inst, k) {
  */
 export function challengeFrom(inst, sc, k) {
   const took = challengeable(inst, k);
-  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = CHALLENGE.holdMs; }
+  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = tauntHold(k); }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
   return took.length;
 }

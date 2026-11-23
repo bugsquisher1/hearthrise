@@ -26,13 +26,12 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: nothing here draws a die.
 // ============================================================
 
-import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } from '../../data/danger.js';
+import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, GEAR_STEPS, HOLDER } from '../../data/danger.js';
+import { MONSTER_FORMULA } from '../../data/monster-roles.js';
 import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
 import { levelHoursOf } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
-import { ledgerSteps } from '../power-ledger.js';
-import { auraRowsOn } from './auras.js';
 import { temperLevelsOn } from '../temper-steps.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
@@ -87,16 +86,47 @@ function basePull(ground) {
  *   xpPm   1000: a kill's Level XP on the scale is a share of each killer's own Level (levelShareXp, xp-share.js), never its row's
  *   coinPm a kill's coin: PAY.coinPm x the pull's share x the depth ratio at COIN_STEP (hunt-rewards.js payKill), so a pull of any size
  *          pays the as-built pull's coin times the scale's gold level, and an HOUR a step deeper pays the wage's coin ratio more
+ *   dropPm a kill's own drop table, permille of each row's chance (drops.js effectiveDropChance, never past one roll a kill): the pull's share
+ *          over the reference pull's x the depth ratio at LOOT_STEP (lane/foundations-block, 04 section 7 payStepLoot), so at the reference
+ *          step the table plays as written and an HOUR a step deeper drops PAY.payStepLoot more of it, as coin pays payStepCoin more
  */
-export function dangerDial(ground, step) {
+export function dangerDial(ground, step, heroes = REF_HEROES) {
   const s = stepOn(ground, step);
   const n0 = basePull(ground);
-  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
+  const pull = pullAt(n0, s);
   const share = n0 / pull;
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;
-  return { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
+  /** @type {Record<string, any>} */
+  const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
+  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
+  return formulaPull(ground, s, heroes, dial);
 }
+/* A FORMULA GROUND'S PULL (DANGER_GROUNDS `monsters: 'formula'`, src/core/hunt/monster-formula.js): sized to the party, heroes x
+   MONSTER_FORMULA.encounterPerHero at the ground's reference step, growing by pullStep from there, each monster the step's ratio over it.
+   Its coin keeps the as-built pull's share (`dial.coinPm`), so a kill pays the same coin on either switch and the server's ceiling a kill
+   (hr_danger_grounds.coin_pm_max) holds. Any other ground: the dial as it is. */
+function formulaPull(ground, s, heroes, dial) {
+  const fg = groundRow(ground);
+  if (!fg || fg.monsters !== 'formula' || !Number.isInteger(fg.refLevel)) return dial;
+  const nf = formulaBasePull(fg, heroes);
+  const pull = pullAt(nf, s);
+  const each = 1000 * powStep(1 + DANGER.powerStep, s) * (nf / pull);
+  return { ...dial, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each };
+}
+/* THE REFERENCE COMPANY'S SIZE (04 section 1: four heroes) */
+export const REF_HEROES = 4;
+/** THE PULL AT STEP 0 OF A FORMULA GROUND `g` (a DANGER_GROUNDS row) for `heroes` heroes: at the ground's reference step a pull is heroes x
+    MONSTER_FORMULA.encounterPerHero, and it grows by DANGER.pullStep a step from there like every pull (04 section 8: "an encounter grows
+    with the party", so a lone hero and a four have the same time budget). */
+export function formulaBasePull(g, heroes) {
+  const n = Math.max(1, Math.min(REF_HEROES, Number.isInteger(heroes) && heroes > 0 ? heroes : REF_HEROES));
+  return (n * MONSTER_FORMULA.encounterPerHero) / powStep(1 + DANGER.pullStep, g.refStep);
+}
+/* the pull's size at step s from an as-built mean n0 (the dial's own rounding and box) */
+const pullAt = (n0, s) => Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
+/* the ground's reference step (0 on a ground with no row, which the server never opens on the scale) */
+const refOf = (ground) => { const row = groundRow(ground); return row ? stepOn(ground, row.refStep) : 0; };
 /* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
    carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
    wage's payStepCoin a PULL, coin an HOUR rose only (1 + payStepCoin) / (1 + powerStep), 0.05% a step, and loot (a kill's rows, no depth
@@ -104,10 +134,13 @@ export function dangerDial(ground, step) {
    pays the step's length back too, so an hour a step deeper pays payStepCoin more: one coin ratio a step, per hour, across grounds (the
    wage) and inside one. At the reference step it is 1: the reference hour is unchanged. One multiplication, exactly rounded everywhere. */
 const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
+/* THE LOOT RATIO A PULL (lane/foundations-block, 04 section 7 payStepLoot, 26 rank 6 "loot follows depth"): the same hour-neutral shape as
+   COIN_STEP, so an hour a step deeper drops PAY.payStepLoot more of the kill's own table. */
+const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33). One home: src/data/wage.js powSquare. */
-const powStep = powSquare;
+export const powStep = powSquare;
 
 /* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
    held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held
@@ -132,14 +165,14 @@ export function gapPayRatio(gap, rate) {
 /* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js POWER, the gear table src/data/gear-steps.js through it) ── */
 /* A piece's item Level: its row's `iL` (every scale ground's drop carries its ground's: src/data/danger.js scaleItemLevels); a piece no
    scale ground drops has none, and its `reqLv` stands in. */
-const itemLevelOf = (it) => {
+export const itemLevelOf = (it) => {
   const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : it.reqLv)));
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 /**
  * A HERO'S GEAR PART, in thousandths of a step (member.js heroSnapshot, from the server's gear and the catalogue): each worn piece's item
  * Level x its slot's weight (GEAR_STEPS.slotPm; a two-handed weapon also carries GEAR_STEPS.twoHand's other slots). A whole kit at item
- * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (powerPm).
+ * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (amount.js ratings).
  * TEMPER (src/core/temper-steps.js; 21 section 2): `temperSteps`, the server's seated ranks by slot, add +ilPerRank item Level a rank to
  * whatever that slot wears (a two-handed weapon's carries with it; an empty slot adds nothing). Absent: the part is what it was.
  */
@@ -158,15 +191,9 @@ export function gearPartPm(equipment, items, temperSteps) {
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
-/* A gear part's power steps against the ground's base item Level at weightGear (under the base at weightGearBelow, one-sided: lane/econ-levers):
-   whole steps, held inside the scale (a safe float). */
-function gearSteps(partPm, row) {
-  if (!row || !Number.isInteger(row.gearLevel) || !Number.isInteger(partPm)) return 0;
-  const gap = partPm - 1000 * row.gearLevel;
-  const s = Math.round((gap * (gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)) / (1000 * 1000));
-  return Math.max(-DANGER.stepMax, Math.min(DANGER.stepMax, s));
-}
-/* (1 + powerStep) ^ steps, either sign, once per whole step (a hunt's heroes wear a handful of kits) */
+/* THE POWER STEP ON A BLOW lives in the amount pipeline now (src/core/hunt/amount.js, lane/stage3-pipeline, 27 D-1 to D-8): the gear part,
+   the skill part and the ledger are the hero's ratings in the one step contest, no longer a patch after the old chain. */
+/* (1 + powerStep) ^ steps, either sign, once per whole step (the Burning Tower's depth, src/core/hunt/tower.js) */
 const RATIO = new Map();
 export function stepRatio(steps) {
   let r = RATIO.get(steps);
@@ -175,28 +202,6 @@ export function stepRatio(steps) {
     if (RATIO.size < 4096) RATIO.set(steps, r);
   }
   return r;
-}
-
-/**
- * THE POWER STEP ON A BLOW (damage.js hurt, after the armor chain; the shield's share is still to come): on the scale, a hero's blow at a
- * monster grows by its gear's steps over the ground's base item Level, and a blow at a hero shrinks by the same (the unit's `gearPm`,
- * member.js heroSnapshot). Answers the permille the blow moves by (temper.js temperedAmount, the part of a point one draw): `pm` as given
- * off the scale, at the ground's base, or for any other pair (a heal is never here). `pm` is the move the blow already carries (Tempering),
- * folded in so the blow draws once.
- */
-export function powerPm(inst, source, target, pm) {
-  const base = Number.isFinite(pm) ? pm : 0;
-  if (!inst || !dangerOn(inst.world)) return base;
-  const row = groundRow(inst.ground);
-  /* the gear base, plus the conditional steps that hold now, each slice held to its cap (src/core/power-ledger.js: 0 until a source writes) */
-  let steps = 0;
-  if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
-  else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
-  /* (and the party's auras on the hero, src/core/hunt/auras.js: ledger rows by the party-row rule) */
-  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense', auraRowsOn(inst, source)));
-  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense', auraRowsOn(inst, target)));
-  if (!steps) return base;
-  return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }
 
 /* THE HOURS A LEVEL TAKES (lane/formula-overhaul, 2026-11-22): the formula of src/data/core-model.js LEVEL_HOURS, ceiling x L^2 /
@@ -240,9 +245,12 @@ export function openDanger(world, risk, step) {
   world.lowBy = '';
 }
 
+/** The heroes standing in a world (a formula ground's pull is sized to them: dangerDial). */
+export const heroCount = (world) => (world && Array.isArray(world.units) ? world.units.reduce((n, u) => n + (isHero(u) ? 1 : 0), 0) : REF_HEROES);
+
 /* The step's dial and pull size on the instance from now (the swing's other readers see it at once). */
 function applyStep(inst) {
-  const dial = dangerDial(inst.ground, inst.world.danger);
+  const dial = dangerDial(inst.ground, inst.world.danger, heroCount(inst.world));
   inst.tier = dial;
   inst.world.density = dial.pull[0];
   return dial;

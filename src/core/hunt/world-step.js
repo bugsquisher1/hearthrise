@@ -95,6 +95,8 @@ function stepWorld(world, swingCtx, track, events) {
   const heroes = world.units.filter((u) => isHero(u) && u.alive);
   for (let i = 0; i < n; i++) {
     sc.atMs = atMs + i * HUNT_TUNING.stepMs;
+    /* the sub-step's clock on the instance too, for a reader handed no context (talent-rows.js: a Roads row held "for 4 s" after a cast) */
+    inst.atMs = sc.atMs;
     inst.ix = null;
     occupancy(inst);
     for (const hook of SUBSTEP) hook(inst, sc);

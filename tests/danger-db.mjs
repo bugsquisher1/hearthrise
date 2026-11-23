@@ -22,7 +22,8 @@
 //        1057's §7 f, and 1056's §6 i.)
 //   DZ-6 THE FALLS, BOTH PATHS (R2, 1057-danger-falls.sql): a four with no stance that last held step 760 (far past its edge) opens at 740, played
 //        at Muster's band top 710 (lane/r10: no step past the top), and
-//        falls back. Browser closed in 90 s windows and hunt viewed in 45 s windows, to the same instant: every seat's session stores the SAME
+//        falls back. Browser closed in four 90 s windows and hunt viewed in nine 45 s windows (each door warms one window first: 450 s), to the same instant (lane/stage3-pipeline: under the amount
+//        pipeline the steel four fell 11 times in the old 270 s, so report_falls_max's cap went unexercised; 360 s): every seat's session stores the SAME
 //        report `falls` and `deep` on both doors (the engine names each fall's hero by seat and its monster; the server folds them), byte for
 //        byte; there are falls (control), more than report_falls_max of them made and the last report_falls_max kept (control: the first,
 //        from the start, is gone), each a seat of the four and a monster of the ground, the deepest step the start; and the `hunt` section
@@ -30,6 +31,10 @@
 //        THE LEDGER (19-power-ledger L7, folded into 1057 while staged): the same doors store the same `heal` (the company's healing by
 //        source), `took` (its damage taken by seat) and `sup` (each hero's store bill and time by step bucket), byte for byte; the first two
 //        alike on every seat, every seat's time adds to the hours hunted, and the `hunt` section names each seat that took damage.
+//   DZ-7 LONG WINDOWS, THEN A SHORT ONE, BOTH PATHS (lane/danger-bound-fix): a four that climbs fast (the rune kit) settles three windows
+//        of the settle's longest span, then one of a single swing, browser closed (the tick) and hunt viewed (the hello; the short window at
+//        a switch's collect floor): every window lands with no refusal, because each settle proves the world IT carries against ITS OWN
+//        window's climb (hr_hunt_apply_instance, hr_danger_prove). Control: the last long window climbed past the short one's budget.
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
@@ -68,21 +73,26 @@ const planWith = (risk, held) => async ({ db, uids, asUser, one: q, idem: id }) 
 };
 
 async function door(db, which, o = {}) {
-  const windows = o.windows || WINDOWS;
+  /* `o.seq`: the window ends to settle after the warm one, in units of windowMs from the hunt's start (default 2..windows+1, every
+     window one windowMs long), each an end or [end, the viewed hello's options for that window]; `o.warm`: the warm window's options.
+     DZ-7 skips ends to settle long windows, then a short one. */
+  const seq = (o.seq || Array.from({ length: o.windows || WINDOWS }, (_, i) => i + 2)).map((s) => (Array.isArray(s) ? s : [s, undefined]));
+  const windows = Math.max(...seq.map(([w]) => w)) - 1;
   const run = await prepare({ heroes: o.heroes || 1, windows, ...(o.windowMs ? { windowMs: o.windowMs } : {}), hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: o.gear || GEAR,
     beforeEnter: planWith(o.risk === undefined ? 'steady' : o.risk, o.held || [HELD]) });
   /* the step each window's stored world stands at (the server's row after the commit), so a check reads the climb, not one window's end;
-     `o.each(db, world)` reads the server after each window (DZ-2's section) */
-  const steps = [];
+     `o.each(db, world)` reads the server after each window (DZ-2's section); `o.trace` collects the same steps where a refused window
+     throws before this returns (DZ-7) */
+  const steps = o.trace || [];
   const stored = async () => {
     const t = await one(db, 'select world::text from public.hunt_instances where hunt_id = $1', [MUSTER]);
     const w = t ? decodeStored(JSON.parse(t)) : null;
     steps.push(w && Number.isInteger(w.danger) ? w.danger : null);
     if (o.each) await o.each(db, w);
   };
-  await run.warm();
+  await run.warm(o.warm);
   await stored();
-  for (let w = 2; w <= windows + 1; w++) { await run.step(w); await stored(); }
+  for (const [w, so] of seq) { await run.step(w, so); await stored(); }
   const row = (await db.query(`select i.id, i.risk, i.danger, i.danger_top, i.refusals, i.world::text as world, s.user_id, s.id as sid,
         t.report->'falls' as falls
       from public.hunt_instances i join public.hunt_sessions s on s.instance_id = i.id left join public.hunt_session_tally t on t.session_id = s.id
@@ -179,8 +189,8 @@ async function fallsBothPaths(boot) {
   const DEEP = 760, START = DEEP - DANGER.startMargin;
   /* (lane/r10) a start held past the band's top plays AT the top (src/core/hunt/danger.js stepOn): the deepest step the four stood at */
   const PLAYED = Math.min(START, DANGER_GROUNDS[MUSTER].topStep);
-  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 3, windowMs: 90000 });
-  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 7, windowMs: 45000 });
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 4, windowMs: 90000 });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 9, windowMs: 45000 });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
   const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
   const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep, x.heal, x.took, x.sup]));
@@ -217,11 +227,54 @@ async function fallsBothPaths(boot) {
   return problems;
 }
 
+/* DZ-7 LONG WINDOWS, THEN A SHORT ONE (lane/danger-bound-fix, CONFLICTS.md 2026-11-22 "THE DANGER BOUND READS THE WORLD ONE WINDOW
+   LATE"): each window's world is proved against ITS OWN window's climb budget. A Level 60 four in the rune kit on Steady from step 0
+   (it climbs fast enough to show it), the warm window, LONGS windows of the settle's longest span (hunt-settle.js HUNT_SETTLE_SPAN_MS:
+   an offline catch-up, or a viewed hello's slice), then one window of one swing. Browser closed: every window the world tick's. Hunt
+   viewed: every window the viewed hello's, the warm and the short one at the floor a switch's collect settles at mid-hunt (an equip:
+   set-activity.js collectCurrentWindow, minWindowMs 0). Every window lands, and neither the instance nor a seat counts a refusal.
+   (The bug: the settle proved the PREVIOUS window's stored world against the CURRENT window's budget, so a short window after an honest
+   climb was refused danger_climb, counted on each seat toward its forfeit.) CONTROL: the last long window's world climbed past the
+   highest step stored before it by more than the short window may climb. */
+const SWING_MS = 2000, SPAN_MS = 120000, LONGS = 3;
+const RUNE = Object.freeze({ helmet: 'rune_helm', body: 'rune_platebody', pants: 'rune_platelegs', boots: 'rune_boots', gloves: 'rune_gauntlets', belt: 'rune_belt',
+  weapon: 'rune_sword', shield: 'coppercap_shield' });
+async function longThenShort(boot) {
+  const problems = [];
+  const start = HELD - DANGER.startMargin;
+  const per = SPAN_MS / SWING_MS;
+  const ends = Array.from({ length: LONGS }, (_, i) => 1 + (i + 1) * per);
+  for (const [which, name, so] of [['fire', 'browser closed', undefined], ['viewed', 'hunt viewed', { minWindowMs: 0 }]]) {
+    const { db } = await boot();
+    const trace = [];
+    let r = null, err = null;
+    try {
+      r = await door(db, which, { heroes: 4, held: [HELD, HELD, HELD, HELD], gear: RUNE, windowMs: SWING_MS, warm: so,
+        seq: [...ends, [ends[LONGS - 1] + 1, so]], trace });
+    } catch (e) { err = e; }
+    const rule = (await db.query('select climb_max, clean_run, regroup_ms from public.hr_danger_rules where id')).rows[0];
+    const climbOf = (ms) => rule.climb_max * (Math.floor(ms / (rule.clean_run * rule.regroup_ms)) + 1);
+    const before = trace.slice(0, LONGS), last = trace[LONGS];
+    if (!(before.every(Number.isInteger) && Number.isInteger(last) && last - Math.max(start, ...before) > climbOf(SWING_MS))) {
+      problems.push('DZ-7 CONTROL ' + name + ': the windows stood at ' + JSON.stringify(trace) + ' from the start ' + start + ': the last long one never climbed past a '
+        + SWING_MS + ' ms window\'s budget of ' + climbOf(SWING_MS) + (err ? ' (' + String(err.message).slice(0, 160) + ')' : ''));
+      continue;
+    }
+    if (err) { problems.push('DZ-7 ' + name + ': the short window after the long ones was refused: ' + String(err.message).slice(0, 240)); continue; }
+    const seats = Number(await one(db, 'select coalesce(sum(refusals), 0) from public.hunt_sessions where instance_id = $1', [r.id]));
+    if (Number(r.refusals) !== 0 || seats !== 0) problems.push('DZ-7 ' + name + ': ' + r.refusals + ' instance and ' + seats + ' seat refusal(s)');
+    if (trace.length !== LONGS + 2 || !Number.isInteger(trace[LONGS + 1])) problems.push('DZ-7 ' + name + ': the windows stored ' + JSON.stringify(trace));
+  }
+  return problems;
+}
+
 /* SQL mutants, patched into the booted replay: the body as it landed, one change. */
 const MUTANTS = [
   { name: 'the freeze ignores the margin', fn: 'public.hr_danger_freeze()', find: "- coalesce(v_margin, 0)", repl: '- 0', want: /^DZ-1 .*froze/ },
   { name: 'the engine never reads the frozen stance', fn: 'public.hr_hunt_instance_read(uuid,integer)', find: "jsonb_build_object('risk', v_i.risk, 'danger', v_i.danger)", repl: "jsonb_build_object('risk', null, 'danger', null)", want: /^DZ-1 .*(not the scale|refused|THREW)/ },
-  { name: 'the climb bound admits no honest climb', fn: 'public.hr_danger_bound(uuid,uuid,integer,bigint)', find: 'if v_step > v_top + v_climb then', repl: 'if v_step > v_top then', want: /^(DZ-1 .*refused|THREW)/ },
+  { name: 'the climb bound admits no honest climb', fn: 'public.hr_danger_prove(uuid,text,bigint)', find: 'if v_step > v_top + v_climb then', repl: 'if v_step > v_top then', want: /^(DZ-1 .*refused|THREW)/ },
+  /* lane/danger-bound-fix: the settle proves the world stored BEFORE the window (the previous one's) against this window's climb */
+  { name: 'the settle proves the stored world, a window late', fn: 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', find: 'public.hr_danger_prove(p_instance, v_world, v_win)', repl: 'public.hr_danger_prove(p_instance, v_i.world, v_win)', want: /^DZ-7 (browser closed|hunt viewed): the short window/, late: true },
   { name: 'the end never stamps the held step', fn: 'public.hr_danger_end_stamp()', find: 'on conflict (user_id, slot, hunt_id) do update set danger_held = excluded.danger_held;', repl: 'on conflict (user_id, slot, hunt_id) do nothing;', want: /^DZ-3/ },
   { name: 'the section reads the plan for the hunt', fn: 'public.hr_danger_view(uuid,integer)', find: "'step', coalesce(case when jsonb_typeof(v_w->'step') = 'number' then (v_w->>'step')::int end, v_i.danger),", repl: "'step', v_i.danger,", want: /^DZ-2/ },
   { name: 'a party starts at its leader\'s held step', fn: 'public.hr_danger_freeze()', find: 'select m.user_id, m.slot from public.hunt_party_members m where m.party_id = new.instance_id\n          union ', repl: '', want: /^DZ-4/, four: true },
@@ -249,7 +302,7 @@ async function main() {
         return b;
       };
       let got = [];
-      try { got = m.four ? await aFour(boot) : m.off ? await byDefault(boot) : m.falls ? await fallsBothPaths(boot) : await bothPaths(boot); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+      try { got = m.four ? await aFour(boot) : m.off ? await byDefault(boot) : m.falls ? await fallsBothPaths(boot) : m.late ? await longThenShort(boot) : await bothPaths(boot); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       if (got.some((p) => /HARNESS/.test(p))) { console.log('  HARNESS ' + m.name + ': ' + got[0]); process.exitCode = 2; return; }
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;
@@ -260,9 +313,9 @@ async function main() {
     return;
   }
   const boot = () => bootReplay();
-  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await byDefault(boot), ...await fallsBothPaths(boot)];
+  const problems = [...await bothPaths(boot), ...await aFour(boot), ...await byDefault(boot), ...await fallsBothPaths(boot), ...await longThenShort(boot)];
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'danger-db: ' + problems.length + ' FAILED' : 'danger-db: green (both paths, the section, the end stamp, a four from its lowest held step, the default stance, the falls both paths)');
+  console.log(problems.length ? 'danger-db: ' + problems.length + ' FAILED' : 'danger-db: green (both paths, the section, the end stamp, a four from its lowest held step, the default stance, the falls both paths, a long window then a short one both paths)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

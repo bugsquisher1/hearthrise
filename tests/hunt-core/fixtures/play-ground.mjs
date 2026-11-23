@@ -114,7 +114,7 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25), unless
        opts.start gives its own Level XP and skill XP (a career run carries them from one run to the next). */
     const st = (start && start(role, i, L)) || {};
@@ -129,7 +129,10 @@ export async function loadPlay(root) {
       skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: Number.isInteger(gold) ? gold : 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
       hero: SPAWN.heroSetup({ weaponType: wornRoleKey(equipment, ITEMS), options: { ...(role === 'healer' ? { role: 'healer' } : {}), ...(options ? options(role, i, L) : {}) },
-        bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: leaveTogether === true }),
+        bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: leaveTogether === true,
+        /* opts.roads ((role, seat) -> { nodeId: value } | null): the hero's Roads build as hr_talents_view projects it and the settle hands
+           it to heroSetup (hunt-settle.js memberInput `_talents`), at the hero's Level */
+        ...(roads ? { talents: roads(role, i), level: XP.charLevelFromXp(Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L)) } : {}) }),
     };
   };
   const run = (huntId, L, roles, opts = {}) => {
@@ -137,7 +140,7 @@ export async function loadPlay(root) {
     const ground = opts.ground || G.HUNT_GROUNDS[huntId], grid = gridOfMap(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
-      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold));
+      typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold, typeof opts.roads === 'function' ? opts.roads : null));
     /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
        (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });
@@ -147,6 +150,8 @@ export async function loadPlay(root) {
     if (typeof opts.buffs === 'function') for (const m of members) m.buffs = opts.buffs(m);
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
+    /* opts.plan: the Danger scale's plan on every hero ({ risk, danger }: the stance and the step it starts at, as the server freezes it) */
+    if (opts.plan) for (const m of members) m.hero = Object.assign({}, m.hero, opts.plan);
     /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */
     if (opts.temper) for (const m of members) m.perks = { temper: opts.temper };
     /* opts.talents ((role, seat) -> { force, footing, grit, reserve } permille, or null): a hero's Talents beside its rungs, on m.perks.talents

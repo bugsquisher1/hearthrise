@@ -142,8 +142,15 @@ Object.assign(MONSTER_SPELLS, foldRows('spell', MONSTER_SPELLS, GROUND_PACKS, (p
 const own = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(MONSTER_SPELLS, id);
 /** The spell row of id `id`, or null. */
 export const spellRow = (id) => (own(id) ? MONSTER_SPELLS[id] : null);
+/* A DERIVED ROW'S OWN SPELLS (src/core/hunt/monster-formula.js: a role's wind-up or mend on a formula ground, its number and cooldown the
+   formula's): `spellRows` on the monster row an instance plays, read before the table. No catalogue row carries one. */
+const ownOn = (m, id) => !!m && !!m.spellRows && typeof id === 'string' && Object.prototype.hasOwnProperty.call(m.spellRows, id);
 /** The spell ids monster row `m` casts, in its own order (a name no row holds is skipped; validate refuses it). */
 export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(own) : []);
+/** The derived spell ids a row lists that the table does not hold (its own `spellRows`), in its own order. */
+export const derivedSpellsOf = (m) => (m && m.spellRows && Array.isArray(m.spells) ? m.spells.filter((id) => !own(id) && ownOn(m, id)) : []);
+/** The spell row of id `id` as monster row `m` casts it: its own derived row (spellRows), else the table's. */
+export const spellOn = (m, id) => (ownOn(m, id) ? m.spellRows[id] : spellRow(id));
 
 /* THE SWITCH (lane/b-area-set): ONE ROW turns every monster's spells on or off, so the feature can ship dark while its balance is
    tuned and be turned on without touching a monster row. Off, `castsOf` answers none: the engine starts no cast, drops one still winding
@@ -157,7 +164,7 @@ export const spellsOf = (m) => (m && Array.isArray(m.spells) ? m.spells.filter(o
    green, measured on the priority board ("2026-11-10 Spell tuning"). Off again is this one word. */
 export const SPELL_SWITCH = { live: true };
 /** The spell ids monster row `m` casts NOW: its list while the switch is on, none while it is off. The engine's one read. */
-export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);
+export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m).concat(derivedSpellsOf(m)) : []);
 
 /** The shape spec a row casts ({ shape, r }, { shape, len } or { shape } for a group spell). */
 export const specOf = (row) => {

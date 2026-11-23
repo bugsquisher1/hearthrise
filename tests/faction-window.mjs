@@ -255,7 +255,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (addons.length) fails.push('FW-3 add-ons with no art are offered: ' + addons.join(', '));
       if (/Art in progress|arrive later/.test(await tabText(page))) fails.push('FW-3 the tab still promises art: ' + (await tabText(page)).slice(-200));
       await page.click('[data-hs-act="fx-claim"][data-piece="flamebearer"]');
-      const said = await wait(page, () => /needs 25 h First Flame standing\. Standing: 24 h/.test(document.querySelector('.hw-cs-faction .hh-intent-msg')?.textContent || ''));
+      const said = await wait(page, () => /requires 25 h First Flame standing \(have 24 h\)/.test(document.querySelector('.hw-cs-faction .hh-intent-msg')?.textContent || ''));
       const sent = verbs(s);
       const keys = sent.length ? Object.keys(sent[0].body).sort().join(',') : '';
       if (sent.length !== 1 || sent[0].name !== 'hr_faction_outfit_claim' || keys !== 'p_idem,p_piece,p_slot' || sent[0].body.p_piece !== 'flamebearer') fails.push('FW-3 Claim sent ' + JSON.stringify(sent));

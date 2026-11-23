@@ -365,14 +365,14 @@
         "why": "play-rows.js split out of combat-sim.js (ONE-PATH 600-line rule), on top of stage 3"
       },
       {
-        "bytes": 3751325,
+        "bytes": 3693209,
         "on": "2026-11-23",
-        "why": "lane/talent-effects: the engine pieces the Roads, Signatures and Traits share (heal-rules.js, reactions.js, react-queue.js) and the 44 option rows mapped to them"
+        "why": "typecheck fixes: JSDoc on hurt() result, refStep param, Number() bisection bounds (+ bytes)"
       },
       {
-        "bytes": 3753102,
+        "bytes": 3753293,
         "on": "2026-11-23",
-        "why": "lane/talent-effects: cast-targets.js split out of abilities.js (+ its header), castsNow and harmful as data helpers"
+        "why": "lane/talent-effects: the engine pieces the Roads, Signatures and Traits share (heal-rules.js, reactions.js, react-queue.js, cast-targets.js) and the 44 option rows mapped to them"
       }
     ]
   }

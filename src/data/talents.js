@@ -354,6 +354,7 @@ const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms'
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
 
 /** Every problem with the map (or `nodes`, a map of the same shape: a test plants a defective row), as strings. Empty = valid. */
+/** @param {readonly object[]} [nodes] @param {{ moves?: string[] }} [opts] */
 export function validate(nodes = TALENT_NODES, opts = {}) {
   const out = [];
   const moves = opts.moves || null;   // a test passes the live move ids; the data module imports no ability table

@@ -223,6 +223,10 @@ export const REASONS = Object.freeze({
   'src/shell/windows/boss-hall-pane.js': [
     { cond: '!open', words: "text(box.querySelector('.hw-call-line'), hallWords(said, hall))", where: 'Open the hall: the line above the press says why (out hunting, only the party leader can open it, no key in the bag), or how many keys the hero has' },
   ],
+  /* the Talents tab (lane/roads-sample, 1064-roads-sample.sql): Spend as suggested is off with no point to spend, and its line says so */
+  'src/shell/windows/character/talents.js': [
+    { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested: the line beside it says No points while the server\'s section holds none to spend (the busy line says Spending… for a press)' },
+  ],
   /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
   'src/shell/windows/character/faction.js': [
     { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },

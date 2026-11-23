@@ -64,7 +64,11 @@ const HOW = {
   greater_mend: { family: 'water', after: 'power_strike', cond: [{ op: 'lt', value: 80, metric: 'ally_hp_pct', subject: 'lowest' }] },
   /* Shelter's own trigger (a monster's cast warning) never fired on Muster Barrows in a 1 h probe: no condition, so it casts whenever a
      wounded, unshelled hero is in its radius and it is ready (the engine's target rule) */
-  shelter: { family: 'earth', after: 'greater_mend', cond: [] },
+  /* (the engine's borrow, lane/roads-v0-remeasure: the row's own trigger now that it is a party under 80%, abilities.js) */
+  shelter: { family: 'earth', after: 'greater_mend', cond: [], engineCond: ABILITIES.shelter.trigger },
+  /* lane/roads-v0-remeasure: Hoarfrost and Protective Ward on their native played bars' conditions (the mage's, the healer's) */
+  hoarfrost: { family: 'ice', after: 'turning_cut', cond: AOE(2) },
+  protective_ward: { family: 'earth', after: 'power_strike', cond: [{ op: 'lt', value: 95, metric: 'ally_hp_pct', subject: 'lowest' }] },
   challenge: { family: null, after: 'challenge', cond: [] },
   fireball: { family: 'fire', after: 'turning_cut', cond: AOE(2) },
   frost_lance: { family: 'ice', after: 'turning_cut', cond: [] },
@@ -114,15 +118,26 @@ const PLANS = {
   /* V0 (lane/roads-borrow-values, 17 section 3): every town move with no measured value, at full power in a four that lacks it, against
      its own base (18 section 3's method), lent by THE ENGINE'S OWN BORROW (heroSetup `borrowed`: the native row on the native weapon's
      blow, 17's rule since 18 measured on clones). Greater Mend again on the sword in N (17 asks for a re-measure; its row moved since q2) */
+  /* lane/roads-v0-remeasure: EVERY row of BORROW_VALUES on this one path (the older moves were clones on the borrower's blow, q1 to q3):
+     Shelter on the healer in M, Fireball, Frost Lance and Hoarfrost on the hammer in NM, Hunter's Mark on the sword in NB, Protective
+     Ward on the sword in N (the engine's 1 tile; v0rules has its 7) */
   v0: [cellOf('M', 'M'), cellOf('M+FS@ham', 'M', [[0, 'flame_strike', 'engine', 0]]), cellOf('M+RE@ham', 'M', [[0, 'rend', 'engine', 0]]),
+    cellOf('M+SH@heal', 'M', [[3, 'shelter', 'engine', 0]]),
     cellOf('N', 'N'), cellOf('N+CR@sw', 'N', [[3, 'circle_of_renewal', 'engine', 0]]), cellOf('N+GM@sw', 'N', [[3, 'greater_mend', 'engine', 0]]),
+    cellOf('N+PW@sw', 'N', [[3, 'protective_ward', 'engine', 0]]),
+    cellOf('NM', 'NM'), cellOf('NM+FB@ham', 'NM', [[0, 'fireball', 'engine', 0]]), cellOf('NM+FL@ham', 'NM', [[0, 'frost_lance', 'engine', 0]]),
+    cellOf('NM+HF@ham', 'NM', [[0, 'hoarfrost', 'engine', 0]]),
+    cellOf('NB', 'NB'), cellOf('NB+HM@sw', 'NB', [[1, 'hunters_mark', 'engine', 0]]),
     cellOf('T', 'T'), cellOf('T+TC@tank', 'T', [[0, 'turning_cut', 'engine', 0]]),
     cellOf('Y', 'Y'), cellOf('Y+PS@axes', 'Y', [[0, 'power_strike', 'engine', 0]])],
   /* V0 of the two moves the engine's own borrow cannot play as 17 rules them, on roads-lend-rules.json (make-lend.mjs): a borrowed SHOT
      (Raking Shot: the borrower looses the free Bronze Arrow it carries, the melee seats carrying one in both cells) and a borrowed ALLY
      HEAL's native reach (Greater Mend at 7 tiles; v0's N+GM@sw is the engine's 1 tile) */
   v0rules: [cellOf('NB', 'NB', [], ARROWS), cellOf('NB+RS@sw', 'NB', [[1, 'raking_shot', 'engine', 0]], ARROWS),
-    cellOf('N', 'N'), cellOf('N+GM@sw:reach7', 'N', [[3, 'greater_mend', 'engine', 0]])],
+    cellOf('N', 'N'), cellOf('N+GM@sw:reach7', 'N', [[3, 'greater_mend', 'engine', 0]]),
+    /* lane/roads-v0-remeasure: Protective Ward at its native 7 tiles, and Challenge taunting from the hammer (17's "from any seat") */
+    cellOf('N+PW@sw:reach7', 'N', [[3, 'protective_ward', 'engine', 0]]),
+    cellOf('M', 'M'), cellOf('M+CH@ham', 'M', [[0, 'challenge', 'engine', 0]])],
   /* Q5: one cell, timed */
   time: [cellOf('M', 'M')],
   /* E3 (lane/e2-e3-statuses): Open Fire on the healer as sized (build slice, ramped) and whole, and Warm Stone on the hammer (pm null: the row as it is) */
@@ -156,8 +171,11 @@ for (const c of plan) {
     }
     lent[seat] = cid;
     if (engine && playedBar(role, { magic }).some((s) => s.action.type === 'ability' && s.action.id === id)) continue;
-    const action = how.family ? { id: cid, type: 'ability', own: ownRunes(how.family), store: storeRune(how.family, shoppingTier(role, how.family, magic, 'real')), onEmpty: 'store' } : { id: cid, type: 'ability' };
-    addSlotsBySeat[seat] = { after: how.after, slots: [...((addSlotsBySeat[seat] && addSlotsBySeat[seat].slots) || []), { id: 'p_' + cid, join: 'and', conditions: how.cond, action }] };
+    /* (lane/roads-v0-remeasure) an engine borrow's store rune is bought for the skill its versions read (abilitySkill: Shelter's Melee on
+       a healer, held at its unlock), not Magic: a Magic-tier rune past the borrower's Melee never casts */
+    const tierSkill = engine ? (b.cell.skillsBySeat[seat] || {})[sk] || 1 : magic;
+    const action = how.family ? { id: cid, type: 'ability', own: ownRunes(how.family), store: storeRune(how.family, shoppingTier(role, how.family, tierSkill, 'real')), onEmpty: 'store' } : { id: cid, type: 'ability' };
+    addSlotsBySeat[seat] = { after: how.after, slots: [...((addSlotsBySeat[seat] && addSlotsBySeat[seat].slots) || []), { id: 'p_' + cid, join: 'and', conditions: engine && how.engineCond ? how.engineCond : how.cond, action }] };
   }
   const cell = { ...b.cell, options: { risk: RISK, danger: START }, hours: HOURS, seeds: 1, ...(c.borrows.length ? { addSlotsBySeat } : {}),
     ...(borrowedBySeat.some(Boolean) ? { borrowedBySeat } : {}), ...(c.extra || {}) };

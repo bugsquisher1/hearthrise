@@ -433,6 +433,11 @@
         "bytes": 3782813,
         "on": "2026-11-23",
         "why": "+1,826 B: refHeld field + refHeldOf and depthRarePm on the reference hold (lane/depth-reading-fix)"
+      },
+      {
+        "bytes": 3792818,
+        "on": "2026-11-23",
+        "why": "lane/scale-early-grounds: the Mill Cellar and the Thicket on the Danger scale (src/data/danger.js two rows and their comment, monsters.js roles and drop hours on eight monsters, core/hunt/danger.js the coin level and the pay at the hold, bands.js the strong four's wearable tier); no new file reached"
       }
     ]
   }

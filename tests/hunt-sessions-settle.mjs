@@ -1620,6 +1620,15 @@ async function installGround(db, row = groundRow) {
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
+  /* THE FIXTURE PLAYS THE TIER PATH (lane/scale-early-grounds): the real Cellar is on the Danger scale now (1061 hr_danger_grounds), so a hunt
+     opened on its id would freeze the default stance; the fixture ground is not the Cellar, so its scale row is withdrawn in this database
+     only (and its store depth with it), and every tier arm here reads what it always read */
+  await withdrawScale(db, rows.map((g) => g.hunt));
+}
+/* A ground's Danger scale rows withdrawn in this database (its store depth first: hr_store_grounds names the scale's grounds) */
+async function withdrawScale(db, hunts) {
+  if (await one(db, "select to_regclass('public.hr_store_grounds') is not null")) await db.query('delete from public.hr_store_grounds where hunt_id = any($1::text[])', [hunts]);
+  if (await one(db, "select to_regclass('public.hr_danger_grounds') is not null")) await db.query('delete from public.hr_danger_grounds where hunt_id = any($1::text[])', [hunts]);
 }
 
 async function admin(db, uid, delta) {
@@ -1685,6 +1694,9 @@ async function character(db, M, uid, o) {
 async function hunter(db, M, o) {
   const HUNT = o.realGround && o.hunt ? o.hunt : 'mill_cellar';
   if (o.realGround) fixtureRow = null; else await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
+  /* o.tierPath (lane/scale-early-grounds): an arm whose subject is a tier-path rule (the density pick, the party class table) on a real
+     ground that is now on the Danger scale withdraws that ground's scale rows in its own transaction, so the server freezes no stance */
+  if (o.realGround && o.tierPath) await withdrawScale(db, [HUNT]);
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
@@ -4537,7 +4549,7 @@ const DB_ARMS = {
     for (const [path, door] of Object.entries(DOORS)) {
       await db.query('savepoint role_worn');
       /* a real ground with no exit: the Cellar's hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and these heroes are Level 25 */
-      const h = await hunter(db, M, { realGround: true, hunt: 'meadowbrook_thicket', party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      const h = await hunter(db, M, { realGround: true, tierPath: true, hunt: 'meadowbrook_thicket', party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_sword')
                         on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0]]);
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'shield', 'practice_shield')
@@ -4877,7 +4889,7 @@ const DB_ARMS = {
   DENSITY: async (db, M) => inTx(db, async () => {
     const problems = [];
     try {
-      const h = await hunter(db, M, { realGround: true, minutesAgo: 22, level: 2, density: 8,
+      const h = await hunter(db, M, { realGround: true, tierPath: true, minutesAgo: 22, level: 2, density: 8,
         inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
       /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns is the Cellar's rows as built (a party's
          own Normal pull, which once widened it, is retired: Tyler 2026-11-11), so only the pick can admit these kills. */

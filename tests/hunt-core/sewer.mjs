@@ -1540,7 +1540,12 @@ const cases = {
     const ps = pick && M.tut.cardFor(pick, deep());
     if (!ps || ps.id !== 'risk_pick' || ps.text !== 'Hunts → ' + ground.name + ' → Risk' || ps.textIn !== 'Steady is set · Bold pays more and can die') return 'at Level ' + L + ' the Risk card reads ' + JSON.stringify(ps && [ps.id, ps.text, ps.textIn]);
     if (id(deep({ danger: { risk: 'steady', held: {}, playing: null } })) === 'risk_pick') return 'a Risk picked, the Risk card is still up';
-    if (id(deep({ charLevel: floor, levelXp: M.xp.charXpForLevel(floor) })) === 'risk_pick') return 'the Risk card comes before a party ground is on the scale';
+    /* (lane/scale-early-grounds) the gate is a party ground ON THE SCALE at the hero's Level: read at the first Level from the recruits' on that no
+       open scale ground's band holds (the Thicket's band now starts at the recruits' 5, so the Sewer's floor is no longer such a Level) */
+    const covered = (x) => Object.keys(M.danger.DANGER_GROUNDS).some((g) => { const h = M.HUNTS[g]; return h && !h.staged && h.band[0] >= M.recruits.RECRUITS.atLevel && x >= h.band[0] && x <= h.band[1]; });
+    const bare = Array.from({ length: 400 }, (_, i) => M.recruits.RECRUITS.atLevel + i).find((x) => !covered(x));
+    if (!Number.isInteger(bare)) return 'CONTROL: every Level from the recruits\' on is on a scale ground';
+    if (id(deep({ charLevel: bare, levelXp: M.xp.charXpForLevel(bare) })) === 'risk_pick') return 'the Risk card comes at Level ' + bare + ', before a party ground is on the scale (floor ' + floor + ')';
     const hunting = deep({ huntId: ground.id, read: new Set([...deep().read, 'risk_pick']), danger: { risk: 'steady', held: {}, playing: { hunt: ground.id, from: 'steady', risk: 'steady', start: 0, step: 0, cool: 0 } }, depth: { depth: 1, of: 20 } });
     const dc = M.tut.cardFor(M.tut.currentCard(hunting), hunting);
     if (!dc || dc.id !== 'depth' || dc.title !== 'Depth 1 of 20' || dc.text !== 'Depth climbs by itself · Deeper pays more') return 'on the scale the depth card reads ' + JSON.stringify(dc && [dc.id, dc.title, dc.text]);

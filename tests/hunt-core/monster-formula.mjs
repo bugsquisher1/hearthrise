@@ -133,8 +133,10 @@ const CASES = {
     /* coin a kill on the switch is the as-built pull's: the same number the switch off pays */
     const asBuilt = (step) => { const n0 = ground.route.reduce((a, p) => a + ground.pockets[p].spawns.length, 0) / ground.route.length;
       const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, step)))); return n0 / pull; };
-    const dz = M.danger.dangerDial(ground, g.refStep, 4);
-    if (!close(dz.coinPm, asBuilt(g.refStep) * PAY.coinPm, 1e-6)) return 'on the switch a kill pays ' + dz.coinPm + ' coin permille, the as-built pull ' + asBuilt(g.refStep) * PAY.coinPm;
+    /* (lane/scale-early-grounds) read at the pay's reference (where the reference four holds, refHeld) and the ground's own coin level */
+    const payRef = g.refHeld === undefined ? g.refStep : g.refHeld, level = Number.isInteger(g.coinPm) ? g.coinPm : PAY.coinPm;
+    const dz = M.danger.dangerDial(ground, payRef, 4);
+    if (!close(dz.coinPm, asBuilt(payRef) * level, 1e-6)) return 'on the switch a kill pays ' + dz.coinPm + ' coin permille, the as-built pull ' + asBuilt(payRef) * level;
     return null;
   },
   'dial-off'(M) {

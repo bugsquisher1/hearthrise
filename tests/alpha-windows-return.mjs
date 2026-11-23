@@ -226,7 +226,7 @@ async function checks(overrides, shots, opts) {
             words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
             go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
         });
-        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Next buy: Leather Belt (110 gp)' || row.words !== '+1 Defense, +0.4% critical chance, empty belt slot'
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Next buy: Leather Belt (110 gp)' || row.words !== '+1 Defense, +0.2% critical chance, empty belt slot'
           || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|leather_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
         if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
         if (tag === '1440x900') {

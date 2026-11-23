@@ -1,10 +1,10 @@
 {
   "schema": "hearthrise.balance-patch/1",
   "name": "combat-2: the crossbow's own line (a heavier bolt, less accuracy)",
-  "why": "52-review-combat H6. The crossbow's seven tier rows sit within 5% of the bow's. This moves them along the hammer's shape: accuracy down about a quarter, strength up about a third (the staff's strength line). Content rows only. It targets pace: only the crossbow way should move, and the review's claim that accuracy is worth about an eighth of strength predicts it moves up.",
+  "why": "52-review-combat H6. The crossbow's seven tier rows sit within 5% of the bow's. This moves them along the hammer's shape: accuracy down about a quarter, strength up about a third (the staff's strength line). Content rows only. It targets pace: only the crossbow way should move, and the review's claim that accuracy is worth about an eighth of strength predicts it moves up. Re-aimed 2026-11-23 (lane/ci-reds-client-1123): the tier rows are gone, every piece's numbers are the gear formula's (src/data/gear-profiles.js), so the same move is the crossbow profile's two weights at the old top rung's ratios (accuracy x0.767, 43 to 33; strength x1.324, 37 to 49)",
   "kind": "coefficient",
   "edits": [
-    { "file": "src/data/gear-tiers.js", "from": "atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],", "to": "atk: [4, 6, 10, 14, 20, 26, 33], str: [4, 9, 14, 21, 29, 38, 49]," }
+    { "file": "src/data/gear-profiles.js", "from": "  crossbow: Object.freeze({ curve: 'offense', rangeAtkB: 1024, rangeStrB: 881 }),", "to": "  crossbow: Object.freeze({ curve: 'offense', rangeAtkB: 786, rangeStrB: 1167 })," }
   ],
   "targets": ["pace"]
 }

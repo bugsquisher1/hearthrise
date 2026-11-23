@@ -443,3 +443,17 @@ Borrowing: the Sword · Shield town is reachable at Level 29, but Turning Cut's 
 - Builds: Bleed Axe takes Gash, Armor Breaker and Crush and Bleed take Stagger.
 - Walk-through: Level 5 suggests Long Hold. Still doable: it's an option on the same crossroads.
 - Open question added on Frost Slam.
+
+## Changes from the full map
+
+2026-11-23, lane/roads-countries (game designer). Every country and border is now data in `src/data/talents.js` (269 nodes, 171 options), each option on a piece the engine plays. Where this doc names an option the engine can't play, it is re-written to keep its job:
+
+- **Nothing held** (Strong Shelter and Strong Ward, `29-tuning-pass.md` 3.8). Quick Slam and Wide Slam pay in Chill, since Frost Slam lands no blow, so their "−20% damage" never bit.
+- **No target-health or monster-type reads.** Finishing, Opening, Clean Sweep, Reaping, Picked and Aimed (vs marked) become what the hit leaves behind: Sickness, Weakened, Sapped, Armor Break, Chill, a second hit later, or the overkill carried to the next enemy.
+- **Bleed's cap and tick speed have no seam.** Its picks and the axe's four waystones move Bleed's length and strength. Spread is Jagged Rend (target Sick). Vows: Open Wounds (crits lay 2 stacks), Frenzy (kills ready Rend sooner), Bleed Out (Bleed +40%), Clean Cuts (overkill carried).
+- **Hunter's Mark's own numbers have no seam.** Its picks are what marking does for the archer: Hunter's Focus, Quick Mark, Calm Mark, Stalking Mark, Ready Mark, Sharp Mark.
+- **Weapon and stance vows.** Single Combat, Braced and Point Blank hold alone, Long Range in a party. Duelist's Guard and Marked Prey ride a cast. Cold Focus and Fire Focus pay in the other element's damage.
+- **Hybrids that repeated a country option at no cost** are re-written to join the two countries (Barbed Arrows, Frost Arrows, Mana Arrows, Wide Wounds, Hamstring, Cold Shoulder, Rime Plate, Second Strike, Tempered Strikes, Pressing Guard, Shield Wall, Covering Strike).
+- **Towns wait on the Lab.** A town move with no measured value (Power Strike, Flame Strike, Turning Cut, Rend, Raking Shot, Circle of Renewal) shows and lends nothing until it is measured. Four towns wait whole: Club · Dual Axe, Dual Axe · Ranged, Restoration · Sword, Sword · Club. Their hybrids and vows work now.
+- **Shared roads are walked by every weapon that casts the move.** After Shelter, a Shield hero's suggested road goes on to Power Strike and Flame Strike in Sword (section 13). A club hero goes on to Power Strike, an axe or sword hero to Turning Cut.
+- **Quarry Blow and Undertow have no road.** Stagger replaces one in wave 3 and the other is cut.

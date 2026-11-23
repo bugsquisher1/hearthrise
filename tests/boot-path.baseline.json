@@ -250,6 +250,12 @@
         "gzipBytes": 953675,
         "on": "2026-11-23",
         "why": "talent-effects engine pieces (heal-rules, reactions, react-queue, cast-targets) ride core/hunt into the town stage, +6.0 KB gzip; the talents switch stays off but the engine is one path"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955184,
+        "on": "2026-11-23",
+        "why": "+1.5 KB gzip: the whole Roads map as data (src/data/talents.js, 269 nodes), read by the talents window on the town stage"
       }
     ]
   }

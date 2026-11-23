@@ -271,8 +271,14 @@ export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, de
 export const RISKS = Object.freeze({
   careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),
   steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),
-  bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),
+  bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),
 });
+/* BOLD FIGHTS EVERY PULL TO THE END (`breakOff: false`; the designer, lane/designer-reads-1123, 2026-11-23, 29-tuning-pass.md section 7.2).
+   Careful and Steady break a pull off the moment a hero is under their line (src/core/hunt/danger.js breaksOff), so they fall back before
+   a death (RD-Q3 a). Bold does not: it finishes the pull it started, and reads its line only when the pull ends (pullEnds). So Bold's risk
+   is the party's, not the size of one monster's blow, and it is real on every ground. MEASURED (v1-climb, the Steady mixed four's company
+   on Bold, 8 seeds x 10 h, tools/balance-program/redesign/reads): deaths a party-day Hask's Ford 0 -> 0.38, Muster Barrows 0.25 -> 1.0,
+   the Bone Wing 0 -> 1.0, all inside C-4's 0.3 to 1.5. A missing field breaks off (the safe default). */
 /* Bold's fall line 120 -> 80 (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md, C-4: Bold dies 0.3 to 1.5 times a party-day and loses the day to
    Steady). On Muster Barrows' formula monsters Bold at 120 died 0 to 0.17 times a day, so it won every day; at 80 0.25 (Muster) and 1.0 (Hask's
    Ford), at 60 0.88 on Muster (8 seeds x 10 h each, tools/balance-program/redesign/tuning/r2). The thresholds move, not a pay factor (27 section 4) */

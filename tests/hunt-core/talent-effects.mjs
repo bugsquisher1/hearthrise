@@ -434,12 +434,13 @@ const cases = {
   },
   'every-option-playable': (M) => {
     const held = M.T.heldRules();
-    if (held.join() !== 'shield_duration') return 'rules still held: ' + held.join(', ');
+    /* none held since lane/tuning-pass re-worded the two shield-duration nodes (29-tuning-pass.md 3.8) */
+    if (held.length) return 'rules still held: ' + held.join(', ');
     /* every option and every waystone or vow with effects reaches the engine: a mod, a reaction, healing received or a unit rule */
     for (const n of M.TD.TALENT_NODES) {
       const lists = n.kind === 'crossing' ? [] : [...(n.options || []).map((o) => [o.id, o.effects]), ...(n.effects ? [[null, n.effects]] : [])];
       for (const [pick, fx] of lists) {
-        if (fx.every((e) => e.kind === 'rule')) { if (fx.some((e) => e.id !== 'shield_duration')) return n.id + ':' + pick + ' plays nothing'; continue; }
+        if (fx.every((e) => e.kind === 'rule')) return n.id + ':' + pick + ' plays nothing';
         for (const e of fx) if (!['step', 'mod', 'react', 'heal_in', 'unit', 'borrow', 'rule'].includes(e.kind)) return n.id + ' an unknown effect';
       }
     }

@@ -30,12 +30,15 @@ const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 &
 const SEEDS = Number(arg('seeds', 6)), HOURS = Number(arg('hours', 6)), WORKERS = Number(arg('workers', 6)), SETTLE_H = Number(arg('settle', 1));
 const RISK = arg('risk', 'steady');
 const LEVELS = String(arg('levels', '30,60,120')).split(',').map(Number);
-const HEROES = arg('hero', 'both') === 'both' ? ['shield', 'restoration'] : [arg('hero')];
 /* the scale ground a hero of that Level hunts (src/data/danger.js DANGER_GROUNDS entryLevel): the Ford (45) under Muster, Muster (55-75),
    the Bone Wing (165) past it. None is cut for Level 30 or 120 yet (V8 is owed a scale ground under 55, R10): read those two as nearest. */
 const GROUND_AT = (L) => (L < 50 ? 'hasks_ford' : L < 100 ? 'muster_barrows' : 'catacomb_bone_wing');
 const FOUR = ['tank', 'bow', 'mage', 'healer'];
-const SEAT = { shield: 0, restoration: 3 };
+/* each country's seat: the four's own seat, or a melee four with the weapon in the second seat (lane/roads-countries) */
+const MELEE = (w) => ['tank', w, 'mage', 'healer'];
+const SEATS = { shield: [FOUR, 0], restoration: [FOUR, 3], ranged: [FOUR, 1], destruction: [FOUR, 2], sword: [MELEE('sword'), 1], club: [MELEE('hammer'), 1], dual_axe: [MELEE('axes'), 1] };
+/* --hero shield | restoration | both | all | a comma list of countries */
+const HEROES = arg('hero', 'both') === 'both' ? ['shield', 'restoration'] : arg('hero') === 'all' ? Object.keys(SEATS) : String(arg('hero')).split(',');
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
@@ -89,13 +92,14 @@ const jobs = [], cells = [];
 for (const hero of HEROES) for (const L of LEVELS) {
   const ground = GROUND_AT(L);
   const start = await heldStart(ROOT, ground);
-  const b = buildCell(D, K, { L, gear: 'mid', styles: FOUR, tier: 'normal', ground });
+  const [four, seat] = SEATS[hero];
+  const b = buildCell(D, K, { L, gear: 'mid', styles: four, tier: 'normal', ground });
   const allocs = allocations(hero, L);
   for (const [name, build] of Object.entries(allocs)) {
     const probs = T.buildProblems(build, L);
     if (probs.length) { console.error('alloc-run: ' + hero + ' L' + L + ' ' + name + ' is not a legal build: ' + JSON.stringify(probs)); process.exit(2); }
     const id = hero + ':L' + L + ':' + name;
-    const roadsBySeat = FOUR.map((_, i) => (i === SEAT[hero] ? build : null));
+    const roadsBySeat = four.map((_, i) => (i === seat ? build : null));
     const cell = { ...b.cell, options: { risk: RISK, danger: start }, hours: HOURS, seeds: 1, roadsBySeat };
     cells.push({ id, hero, L, ground, name, spent: T.pointsSpent(build), points: T.pointsAt(L), grants: T.grantsOf(build, hero, L) });
     for (let s = 0; s < SEEDS; s++) jobs.push({ key: id + '#' + s, job: { ...cell, id: 'ALLOC:' + id + '#' + s, seedBase: 1000 + s } });

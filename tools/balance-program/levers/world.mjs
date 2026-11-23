@@ -330,10 +330,10 @@ export const WORLD = [
     ev: 'MEASURED (V1, V1.1: 12 seeds x 12 h x 4 cells)' }),
   L('danger.stances', 'monster-stats', 'archetype', 'Risk stance thresholds', {
     at: [at(DZ, "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),"), at(DZ, "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),"),
-      at(DZ, "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),")],
+      at(DZ, "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),")],
     def: 'a stance is its fall back trigger and its climb threshold, permille of max HP read on the lowest HP any hero reached in a pull; a death settles it one notch safer',
     range: 'fallPm < cleanPm <= 1000. RD-Q3 a: Careful and Steady never die, Bold is the only stance that can',
-    touches: 'where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day', out: SURVIVE, f: ['C-TIER'],
+    touches: 'where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day; Bold 80/300 since lane/tuning-pass (2026-11-23: on Muster Barrows formula monsters Bold at 120 died 0 to 0.17 a day and won every day; at 80 0.25 on Muster and 1.0 on Hask Ford, 8 seeds x 10 h; tools/balance-program/redesign/tuning/r2)', out: SURVIVE, f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'rule and breakoff: the trigger and the climb threshold']], testReads: ['RISKS'],
     perturb: NP('player-policy', 'the stance is the player\'s risk choice; the V1 and V2 probes play each'),
     ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
@@ -344,7 +344,7 @@ export const WORLD = [
     touches: 'how deep a four with a tank holds: the Challenge pulls every blow onto one hero, and read on the stance\'s own line the tank\'s dip broke the pull (23-spell-audit.md section 3: no Challenge held 63 steps deeper)', out: SURVIVE, f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'holder: the tank\'s line, the margin, the climb and the named HP']], testReads: ['HOLDER'],
     perturb: NP('not-in-runs', 'played by spell-run.mjs (plan P) on the real engine'),
-    ev: 'MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h)' }),
+    ev: 'MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md)' }),
   L('danger.pay', 'monster-rewards', 'global', 'Pay by depth', {
     at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120,')],
     def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x PAY.coinPm / 1000 x ((1 + WAGE.payStepCoin) x (1 + powerStep))^gap (danger.js COIN_STEP: a pull pays its own length back, so an HOUR a step deeper pays the one coin ratio, econ.wage-step); under the reference both read the pay floor',
@@ -355,7 +355,7 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only; the server bounds it (hr_danger_level_xp_max, 1055)'),
     ev: 'MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)' }),
   L('danger.coin-level', 'monster-rewards', 'global', 'The scale\'s coin level', {
-    at: [at(DZ, 'floor: 0.5, coinPm: 6400,')],
+    at: [at(DZ, 'floor: 0.575, coinPm: 6100,')],
     def: 'a scale kill\'s coin is its row\'s roll x coinPm / 1000, before the pull\'s share and the depth ratio (src/core/hunt/danger.js dangerDial)',
     range: 'set TOGETHER with the store (econ.store-kit) and the wage (econ.wage-base): a whole-gold store use can price a Steady four\'s kit at 0.2 to 0.3 of its pay only where an hour pays about 16,000 gold at Level 60 (the old tier paid 12,776 there, the scale at 1000 paid 4,797). The server\'s coin bound reads it (hr_danger_grounds.coin_pm_max, 1055)',
     touches: 'every coin a scale kill pays, and through the wage every price in hours of wage', out: GOLD, f: ['C-TIER', 'P22'],
@@ -381,7 +381,7 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'a cut, not a play: tools/new-ground.mjs re-measures every ground with it'),
     ev: 'MEASURED (lane/band-floor 2026-11-22, tools/new-ground.mjs --write, 8 seeds x 12 h, tools/balance-program/redesign/grounds): Muster Barrows\' fresh four held 333 to 424 against R10\'s floor 480; the rule cuts 320' }),
   L('danger.pay-floor', 'monster-rewards', 'global', 'Pay floor under the reference step', {
-    at: [at(DZ, 'refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5,')],
+    at: [at(DZ, 'refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.575,')],
     def: 'under a ground\'s reference step the depth ratio a kill pays (XP and coin) falls to floor and no further, so a shallower stance pays in kills an hour, not twice (12-targets 2.1)',
     range: '0 to 1 of the hours table. 12-targets 2.1 starts it at 0.85 and rules "if Careful misses 0.55x to 0.70x of Steady, the floor moves, not the stances"',
     touches: 'Careful\'s pay an hour against Steady\'s (C-5); Steady and Bold hold near or over the reference, so it barely touches them', out: [...PACE, ...GOLD], f: ['P01', 'P02', 'P22'],
@@ -466,7 +466,7 @@ export const WORLD = [
     flags: [flag('redundant', 'A measured table by Level that stands in for the reference company\'s damage in steps; it retires when hero power is counted in steps (04 section 1, wave 3)', 'JUDGMENT')],
     ev: 'MEASURED (lane/monster-formula, v1-climb.mjs C0 readers: dps a hunted second a head on each ground\'s reference four, a front\'s damage a landed swing over the roll: tools/balance-program/redesign/mf)' }),
   L('danger.power-gear-below', 'monster-stats', 'global', 'The power step under the ground\'s gear Level', {
-    at: [at(DZ, 'weightGearBelowPm: 500,')],
+    at: [at(DZ, 'weightGearBelowPm: 750,')],
     def: 'one-sided: a gear part UNDER the hero\'s Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/bands.js ratingPm, read by the amount pipeline (src/core/hunt/amount.js)',
     range: '0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to',
     touches: 'how far a company under the ground\'s gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster\'s base)', out: [...KILL, ...SURVIVE], f: ['C-TIER'],

@@ -1,0 +1,28 @@
+
+V1 on hasks_ford (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       672.3 +- 3.4      2.3  51.8  83.6   38.3      4     0.7    162.5      0     0  1 (0/1/1)                       6  {"hold":7051,"climb":2464,"fall":233}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        2.01x  sd 0.08  n 6  window 6 h  seeds 2.04 2.02 1.9 2.14 1.98 2
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 21424 +- 344  income 27464 +- 489  store 5897  kit share 0.21 (meal 117, drink 2104, charge 2125, shot 1551)  loot by band: common 1227, uncommon 431, scarce 4383, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 1  bow 0  mage 0  healer 0
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 20.46 land 50.18% hit 45.34 (3780.5/h) | bow dps 17.64 land null% hit null (0/h) | mage dps 24.74 land null% hit null (0/h) | healer dps 9.95 land null% hit null (0/h)
+                    banded_pikeman(null) 514.9/h 5.6 s 125 | fordsunk(null) 234.9/h 8.6 s 181 | bannerman(null) 52.3/h 6.5 s 226 | ledger_wight(null) 171.3/h 6.9 s 308
+                    broke off by: fall:ledger_wight@0 119, fall:fordsunk@0 71, fall:banded_pikeman@0 43
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 56.4 (depth 18)  free 103  spell 874  food 24  taken 15.03 pm/s
+
+wall 46 s

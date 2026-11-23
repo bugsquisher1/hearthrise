@@ -48,6 +48,9 @@ const rat = Object.freeze({ side: 'mon', id: 2, kind: 'rat', alive: true });
 const refL = (M) => M.dangerData.DANGER_GROUNDS[G].refLevel;
 const gearL = (M) => M.dangerData.DANGER_GROUNDS[G].gearLevel;
 
+/* the gear part (thousandths) that puts a hero of Level Lpm at rating R under Lpm: the gap read at POWER.weightGearBelowPm (lane/tuning-pass:
+   the weight is a lever, so the fixture reads it instead of assuming a half) */
+const gearRating = (M, R, Lpm) => Lpm + Math.round(((R - Lpm) * 1000) / M.dangerData.POWER.weightGearBelowPm);
 const cases = {
   reference(M) {
     const A = M.amount, D = M.amountData, inst = instOn('steady', M);
@@ -61,7 +64,7 @@ const cases = {
     if (tr.steps !== 0) return 'the reference blow reads ' + tr.steps + ' steps';
     if (n !== want) return 'the reference blow lands ' + n + ', want ' + want + ' (half the top of a ' + A.refHealth(L0) + ' reference health)';
     /* a hero 40 Levels up whose rating is the reference's (its kit under its Level) lands the same blow: a monster's reference health is its ground's */
-    const R = A.refRatingPm({ id: G }), up = heroAt(L0 + 40, 2 * R - 1000 * (L0 + 40));
+    const R = A.refRatingPm({ id: G }), up = heroAt(L0 + 40, gearRating(M, R, 1000 * (L0 + 40)));
     if (A.offensePm(up) !== R) return 'CONTROL: the Level ' + (L0 + 40) + ' hero rates ' + A.offensePm(up);
     if (A.blowAmount(inst, { source: up, target: rat, mean: 500, el: 1000, rng: LOW }) !== want) return 'a hero at the reference rating 40 Levels up lands a different blow (its own Level read)';
     const t2 = {};
@@ -106,7 +109,7 @@ const cases = {
       const healer = heroAt(L, 1000 * L);
       const heal = A.healAmount(inst, healer, 1000, { rng: LOW }) / A.refHealth(L);
       /* a monster's blow at a hero whose armor rating is the ground's reference (a gap of 0): its share of that hero's reference health */
-      const g = L * 1000 >= R ? 2 * R - 1000 * L : R;
+      const g = L * 1000 >= R ? gearRating(M, R, 1000 * L) : R;
       const target = heroAt(L, g, { armorGearPm: g });
       const tr = {};
       const hit = A.blowAmount(inst, { source: rat, target, mean: 1000, el: 1000, rng: LOW, trace: tr }) / A.refHealth(L);

@@ -157,6 +157,74 @@ const cases = {
     if (row.hitPm !== Math.floor(M.AB.ABILITIES.fireball.hitPm / 2)) return 'the penalty did not reach what it lands: ' + row.hitPm;
     return null;
   },
+  /* THE WHOLE MAP (lane/roads-countries; 17 sections 4 to 7): every weapon a country, every live move a road but the two 17 and 23 retire
+     (Quarry Blow, replaced by Stagger in wave 3; Undertow, cut), four vows a country, every border row its town, hybrid and vow, and a
+     shared move's road walked by every weapon that casts it (a Shield hero reaches Power Strike's road in Sword, 17 section 13) */
+  'whole-map': (M) => {
+    const TD = M.TD, T = M.T, AB = M.AB;
+    const RETIRED = ['quarry_blow', 'undertow'];
+    for (const d of AB.DISCIPLINE_IDS) if (!TD.COUNTRY_ROADS[d] || !TD.COUNTRY_ROADS[d].length) return 'weapon ' + d + ' has no country';
+    for (const m of Object.keys(AB.ABILITIES)) {
+      const has = TD.TALENT_NODES.some((n) => n.move === m && n.kind === 'crossroads');
+      if (RETIRED.includes(m) ? has : !has) return 'move ' + m + (has ? ' is retired but has a road' : ' has no road');
+    }
+    for (const d of AB.DISCIPLINE_IDS) {
+      const vows = TD.TALENT_NODES.filter((n) => n.kind === 'vow' && n.country === d).length;
+      if (vows !== 4) return 'country ' + d + ' has ' + vows + ' vows of 4';
+    }
+    for (const [a, b] of TD.BORDERS) for (const k of ['border', 'hybrid', 'vow']) {
+      if (!TD.TALENT_NODES.some((n) => n.kind === k && n.countries && n.countries.includes(a) && n.countries.includes(b))) return 'border ' + a + ' · ' + b + ' has no ' + k;
+    }
+    for (const d of AB.DISCIPLINE_IDS) for (const m of AB.disciplineAbilities(d)) {
+      if (RETIRED.includes(m) || !TD.NODE_INDEX[m + '.x2']) continue;
+      if (!T.suggestedOrder(d, 'party').some(([id]) => id === m + '.x2')) return d + ' casts ' + m + ' but never walks its road';
+    }
+    return null;
+  },
+  /* EVERY NODE LANDS (17 section 9: "no dead nodes"): each mod names a field its move's row reads (outPm on a row that lands something, a
+     status's time, strength and second status on a row with a status, a ring's reach on a ring, an area's side on an area, a heal's or a
+     shell's pieces on a heal or a shell, the Challenge's on the Challenge), each reaction's `of` a move that lands blows, each cast window
+     a move that exists. A field the row never reads is a dead pick */
+  'every-node-lands': (M) => {
+    const A = M.AB.ABILITIES;
+    const lands = (r) => ['hitPm', 'healPm', 'shieldPm', 'healHpPm'].some((k) => Number.isInteger(r[k]));
+    const support = (r) => M.AB.heals(r) || M.AB.shells(r);
+    const shape = (r) => ['area', 'line', 'ring'].includes(r.target);
+    const READS = {
+      outPm: lands, statusMs: (r) => !!r.status, statusPm: (r) => !!r.status, also: (r) => !!r.status, windupSlowPm: (r) => !!r.status,
+      r: (r) => r.target === 'ring', maxHits: (r) => Number.isInteger(r.maxHits), radius: (r) => Number.isInteger(r.radius),
+      side: (r) => r.target === 'area', ground: shape, pick: (r, v) => (v === 'target' ? shape(r) : r.target === 'ally' || r.target === 'party'),
+      extra: (r) => r.target === 'ally', range: (r) => r.target === 'ally', limit: (r) => r.target === 'party', refund: (r) => r.target === 'ally' && M.AB.shells(r),
+      holdMs: (r) => r.target === 'taunt', tauntRadius: (r) => r.target === 'taunt', holdAll: (r) => r.target === 'taunt',
+      overShieldPm: (r) => M.AB.heals(r), healOfShieldPm: (r) => M.AB.shells(r), manaBackNearPm: (r) => M.AB.heals(r),
+      hotMs: (r) => M.AB.heals(r), hotPm: (r) => M.AB.heals(r), hotAll: (r) => M.AB.heals(r), alsoPm: (r) => M.AB.heals(r), alsoPick: (r) => M.AB.heals(r),
+      cleanse: (r) => M.AB.heals(r), manaToHealedPm: (r) => M.AB.heals(r), solo: (r) => !!r.party,
+      cdMs: () => true, cdPm: () => true, mana: () => true, manaPm: () => true, manaOnCastPm: () => true,
+    };
+    for (const k of ['nearFallPm', 'notNearFallPm', 'frontPm', 'backPm', 'selfPm', 'othersPm', 'tankPm', 'tauntingPm', 'onWindupPm']) READS[k] = support;
+    const groups = { '*heal': (r) => M.AB.heals(r), '*spell': (r) => M.AB.abilitySkill(r) === 'magic' && r.mana > 0 };
+    for (const n of M.TD.TALENT_NODES) {
+      const lists = [...(n.options || []).map((o) => [o.id, o.effects]), ...(n.effects ? [[null, n.effects]] : [])];
+      for (const [pick, fx] of lists) for (const e of fx) {
+        const at = n.id + (pick ? ':' + pick : '') + ' ';
+        if (e.kind === 'mod') {
+          const rows = groups[e.move] ? Object.values(A).filter(groups[e.move]) : [A[e.move]];
+          for (const f of Object.keys(e)) {
+            if (f === 'kind' || f === 'move') continue;
+            if (!READS[f]) return at + 'mod field ' + f + ' has no reader in this check';
+            if (!rows.some((r) => r && READS[f](r, e[f]))) return at + e.move + ' never reads ' + f;
+          }
+        } else if (e.kind === 'react') {
+          if (e.of && !(A[e.of] && lands(A[e.of]) && !M.AB.heals(A[e.of]))) return at + 'reacts to ' + e.of + ', which lands no blow';
+          if ((e.do === 'cast' || e.do === 'reset') && e.move !== '*heal' && !A[e.move]) return at + e.do + ' names no move';
+        } else if (e.kind === 'step' || e.kind === 'heal_in') {
+          const m = e.when && /^cast:([a-z_]+):/.exec(e.when);
+          if (m && !A[m[1]]) return at + 'a cast window on no move ' + m[1];
+        }
+      }
+    }
+    return null;
+  },
   'engine-rows': (M) => {
     const T = M.T;
     /* the tank's build: Long Hold and the reach waystone at Level 200 (cooldown 12 s, hold 12 s, reach 7) */
@@ -228,6 +296,9 @@ const mutants = [
   { name: 'unspent points cost nothing', case: 'idle-points', edits: [[T, '  if (idle > 0) {\n', '  if (idle < 0) {\n']] },
   { name: 'a borrow opens at once', case: 'borrow-opens', edits: [[T, '    if (!band || L < band.opensAt) continue;', '    if (!band) continue;']] },
   { name: 'a borrow pays no penalty', case: 'borrow-opens', edits: [[TR, "  const f = (1000 + (mod.outPm || 0)) * (1000 - (mod.penaltyPm || 0));", '  const f = (1000 + (mod.outPm || 0)) * 1000;']] },
+  { name: 'a pick whose move never reads its field', case: 'every-node-lands', edits: [['src/data/talents.js', "[mod('rend', { statusMs: 3000 })]", "[mod('power_strike', { statusMs: 3000 })]"]] },
+  { name: 'a reaction on a move that lands no blow', case: 'every-node-lands', edits: [['src/data/talents.js', "{ of: 'turning_cut', pm: 10, to: 'self' }", "{ of: 'challenge', pm: 10, to: 'self' }"]] },
+  { name: 'a shared road is never walked', case: 'whole-map', edits: [[T, ".flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));", ".flatMap(() => []);"]] },
   { name: 'the cast path reads the shared rows', case: 'engine-rows', edits: [['src/core/hunt/abilities.js', '  const ABILITIES = rowsFor(hero);\n', '']] },
   { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'm.queued = false; m.holdMs = tauntHold(k); }', 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }']] },
   { name: 'a conditional row always holds', case: 'engine-rows', edits: [[TR, '  for (const r of when) if (holds(inst, u, r.when)) (out || (out = rows.slice())).push(r);', '  for (const r of when) (out || (out = rows.slice())).push(r);']] },

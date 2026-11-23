@@ -138,7 +138,11 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         if (errors.length) fails.push('SV-1 console errors: ' + errors.join(' | ').slice(0, 300));
         // SV-2
         const quote = await txt(page, '.hw-stam-quote');
-        if (!/Adds 2 h for 1,400/.test(quote || '') || !/Blocks today: 1 of 2/.test(quote || '')) fails.push('SV-2 the quote line reads ' + JSON.stringify(quote));
+        if (!/^\+2 h for 1,400/.test(quote || '') || !/Blocks today: 1 of 2/.test(quote || '')) fails.push('SV-2 the quote line reads ' + JSON.stringify(quote));
+        /* the quote stands under its stamina line on the tab's 8 px rhythm (visual pass 2: a bare paragraph, the browser's 16 px above and below) */
+        const gap = await page.evaluate(() => { const p = '[data-hs-win="shop"] [data-pane="services"] ', a = document.querySelector(p + '.hw-stam-now'), b = document.querySelector(p + '.hw-stam-quote');
+          return a && b ? Math.round(b.getBoundingClientRect().top - a.getBoundingClientRect().bottom) : null; });
+        if (gap === null || gap > 8) fails.push('SV-2 the quote stands ' + gap + ' px under the stamina line');
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="stam-ask"]', 'SV-2');
         await page.waitForTimeout(150);
         if (sent(s, 'hr_time_buy').length) fails.push('SV-2 Buy sent a purchase before the confirmation');
@@ -155,7 +159,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
           fails.push('SV-3 the tiers read ' + JSON.stringify(rows));
         }
         const note = await txt(page, '.hw-bless-note');
-        if (note !== 'Each Blessing: −32% death XP loss. Used up on death. Free until Level 30') fails.push('SV-3 the note reads ' + JSON.stringify(note));
+        if (note !== 'Each Blessing: −32% death XP loss · Used up on death · Free until Level 30') fails.push('SV-3 the note reads ' + JSON.stringify(note));
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless"][data-tier="2"]', 'SV-3');
         await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
         const bl = sent(s, 'hr_blessing_buy');

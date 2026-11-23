@@ -268,7 +268,7 @@ export function renderWork() {
     + '<p class="hs-note hw-work-end" role="status"></p>'
     /* THE WORK DAY AND THE COMPANY'S TRADES (1059-company-trades.sql): today's town work left, and whose Levels the ledger shows. */
     + '<p class="hs-note hw-work-day" role="status"></p>'
-    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>'
+    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Pick a skill to gather or craft</p>'
     + '<p class="hs-note hw-work-company">' + esc(t('work.company_trades')) + '</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'

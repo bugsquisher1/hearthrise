@@ -828,7 +828,7 @@ async function staminaBuy(open, fails, done) {
   await done(a, tag);
   /* Cannot be bought: Buy off with the server's words, the "+" still there; a premium hero is not told about premium. */
   for (const [label, prep, words, premium] of [
-    ['today\'s blocks bought', freeHero(25000, { available: false, why: 'block_limit', block_ms: H2, n: 2, bought: 2, per_day: 2 }), /^Today's blocks are bought\. More after midnight UTC$/, true],
+    ['today\'s blocks bought', freeHero(25000, { available: false, why: 'block_limit', block_ms: H2, n: 2, bought: 2, per_day: 2 }), /^All blocks bought today · Resets 00:00 UTC$/, true],
     ['not enough gold, a premium hero', (env) => { freeHero(100, QUOTE)(env); env.premium = { active: true }; }, /^Not enough gold$/, false]]) {
     const o = await open(vp, HUNT, prep);
     if (!o.up) { fails.push('PH-9 [' + label + '] the hunt did not mount'); await o.ctx.close(); continue; }

@@ -41,7 +41,7 @@ export const HUD_TEXT = Object.freeze({
   stam_premium: 'Premium: +{hours} h stamina cap',
   stam_unpriced: 'No block price yet',
   stam_quote: 'One block: +{hours} for {price}',
-  stam_day: 'Blocks today: {n} of {max}. Each one costs more',
+  stam_day: 'Blocks today: {n} of {max} · Price rises per block',
   stam_go: 'Buy',
   stam_go_for: 'Buy for {price}',
   stam_go_plus: 'Buy +{hours} for {price}',

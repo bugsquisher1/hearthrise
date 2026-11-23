@@ -64,7 +64,7 @@ export function patchStance(det, ctx, o) {
   /* every reason the pick is off is said on the line under it (say-why SW-2): a member's Risk is its leader's, and before the server's
      section comes the pick is being read; a press out says Sending… on the page's line. A plan with no Risk reads the default's line (R5). */
   text(box.querySelector('.hw-stance-note'), o.follower ? t('hunts.stance_leader') : !d ? t('hunts.stance_reading')
-    : t('hunts.stance_line_' + risk) + (later ? ' ' + t('hunts.stance_next') : ''));
+    : t('hunts.stance_line_' + risk) + (later ? ' · ' + t('hunts.stance_next') : ''));
   const held = d ? depthOf(o.hunt, d.held[o.hunt]) : null;
   text(box.querySelector('.hw-stance-depth'), !d ? '' : held ? t('hunts.depth_held', held) : t('hunts.depth_new'));
   const gold = risk ? goldEstimateOf(ctx.character, o.hunt, risk) : null;

@@ -1,5 +1,19 @@
 # Art Director — running log
 
+## 2026-11-22 - visual pass 2 (lane/visual-pass-2, from set/v0.2.144)
+
+Screens since R7: stamina block panel + Services, the Risk pick, the cause line (end and return cards), the Work day line, Party tabs and
+"Invite a player". Played on local-world serve with a Level 1 hero sent into Muster Barrows (dies at Depth 1, so depths are real but low).
+Lessons worth keeping:
+- **A new `<p>` with no rule gets the browser's 16 px margins.** `.hw-stam-quote` stood 16 px off its own stamina line. Measure the gap to the
+  line above, not only the size.
+- **A boxed button turned into a link keeps the box's padding** (`.hw-hd-party-do .hh-tool` 10 px): its words stand in from the column.
+- **Read the words a screen puts beside the new line.** The Carry on line said "Normal" on a ground that has no tiers; the pick said "Held
+  depth: Depth 1". Neither was in the brief.
+- Driving: a throwaway Playwright script against `local-world serve` (sign in, run a steps module, save PNGs to the scratchpad) beats the
+  pane's 800 px downscaled shots for reading 14 px text; `wait N --away` then a fresh context brings the return card (wait for
+  `[data-hs-win="away"]`, it can take a few seconds).
+
 ## 2026-11-21 - FB-5's first hour, read when it landed (lane/r-art-first-hour, from set/v0.2.144 7842bc626)
 
 Read only; findings in `docs/design/overhaul/review/09-art-first-hour.md` (3 BLOCKER, 7 FIX, 9 NOTE). Lessons worth keeping:

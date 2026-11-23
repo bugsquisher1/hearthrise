@@ -12,7 +12,7 @@
 //
 // THE MEASURE: the replayed chain (PGlite), the real engine (tests/hunt-sessions-settle.mjs HARNESS), the real verbs as `authenticated`.
 //   LC-RULE     THE DEATH'S RULE (src/core/action-rules.js levelDeathLoss): the lesser of DEATH_XP_LOSS of the total Level XP and DEATH_HOURS
-//               of the hours table's Level XP an hour at the hero's Level; the share binds to Level 61 and the hours from 62 (a death at
+//               of the hours table's Level XP an hour at the hero's Level; the share binds to Level 63 and the hours from 64 (a death at
 //               Level 200 costs 7.5 hours, not the share's 62); never more than the hero holds; never less for more XP at any Level to
 //               the last step; a mode's share of 0 takes nothing. The Blessing (src/core/wage.js blessingPrice): free under its Level,
 //               then hoursPm of an hour of the wage at the Level. A reset (resetPrice): hoursPm of the wage, x growth a paid reset, null
@@ -142,11 +142,11 @@ const ARMS = {
   'LC-RULE': async () => {
     const p = [];
     const lv = AR.levelDeathLoss;
-    for (const L of [10, 30, 60, 61]) {
+    for (const L of [10, 30, 60, 63]) {
       const x = C(L) + 7;
       if (lv(x) !== Math.floor(x * DEATH_XP_LOSS)) p.push(`a Level ${L} death costs ${lv(x)}, not the share ${Math.floor(x * DEATH_XP_LOSS)}`);
     }
-    for (const L of [62, 70, 200, 1000, 4000]) {
+    for (const L of [64, 70, 200, 1000, 4000]) {
       const x = C(L) + 7;
       if (lv(x) !== hoursXp(L)) p.push(`a Level ${L} death costs ${lv(x)}, not DEATH_HOURS of its Level (${hoursXp(L)})`);
       if (!(hoursXp(L) < Math.floor(x * DEATH_XP_LOSS))) p.push(`CONTROL: at Level ${L} the hours (${hoursXp(L)}) do not undercut the share`);

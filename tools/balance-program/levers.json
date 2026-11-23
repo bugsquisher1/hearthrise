@@ -1819,7 +1819,7 @@
    "sites": [
     {
      "file": "src/data/hunt-sessions.js",
-     "line": 155,
+     "line": 156,
      "text": "export const DEATH_HOURS = 7.5;",
      "binding": "DEATH_HOURS"
     }
@@ -12441,7 +12441,7 @@
    "sites": [
     {
      "file": "src/data/hunt-sessions.js",
-     "line": 182,
+     "line": 183,
      "text": "export const STAMINA_MAX_MS = Object.freeze({ free: 10 * 3600000, premium: 12 * 3600000 });",
      "binding": "STAMINA_MAX_MS"
     }

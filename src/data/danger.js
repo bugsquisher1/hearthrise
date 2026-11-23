@@ -167,8 +167,8 @@ export const DANGER_GROUNDS = Object.freeze({
      monsters' fit, not for a band. */
   muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),
   hasks_ford: ground({ refStep: 590, floorStep: 470, topStep: 700, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45 }),
-  catacomb_bone_wing: ground({ refStep: 480, floorStep: 380, topStep: 540, refKillsHead: 160, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165 }),
-  catacomb_flooded_wing: ground({ refStep: 440, floorStep: 350, topStep: 505, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165 }),
+  catacomb_bone_wing: ground({ refStep: 480, floorStep: 385, topStep: 535, refKillsHead: 155, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165 }),
+  catacomb_flooded_wing: ground({ refStep: 440, floorStep: 355, topStep: 500, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165 }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

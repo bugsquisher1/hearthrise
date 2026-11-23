@@ -41,9 +41,9 @@ import { sourceQuery } from './lib/version-stamp.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT_NAME = '1063-level-costs-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
-/* the Levels each twin is pinned at: the free line either side, the death's crossover (the share binds to 61, the hours from 62), the
+/* the Levels each twin is pinned at: the free line either side, the death's crossover (the share binds to 63, the hours from 64), the
    Danger scale's measured Levels, the 20-400 checkpoints, past them, and the last step */
-export const PIN_LEVELS = Object.freeze([1, 5, 10, 20, 29, 30, 31, 50, 60, 61, 62, 63, 70, 100, 200, 400, 1000, 2000, 4000]);
+export const PIN_LEVELS = Object.freeze([1, 5, 10, 20, 29, 30, 31, 50, 60, 61, 62, 63, 64, 70, 100, 200, 400, 1000, 2000, 4000]);
 
 async function load(root) {
   const q = sourceQuery(root);

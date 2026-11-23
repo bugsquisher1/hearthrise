@@ -150,9 +150,8 @@ async function doomed(db, M, mode) {
   await rewind(db);
   const h = await H.hunter(db, M, { ...H.DOOMED, beforeEnter: mode === 'tower' ? () => db.query(TOWER) : undefined });
   await db.query('update public.hr_tick_config set enabled = true where id');
-  /* all three Blessings, held since long before the hunt (hr_blessing_take reads those bought before the window began) */
-  await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at)
-                    select $1, 0, t.tier, 0, now() - interval '2 days' from public.hr_blessing_tiers t`, [UID]);
+  /* the ONE Blessing (1063-level-costs.sql), held since long before the hunt (hr_blessing_take reads one bought before the window began) */
+  await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, 1, 0, now() - interval '2 days')`, [UID]);
   return h;
 }
 async function play(db, M, mode, door) {
@@ -171,8 +170,9 @@ async function play(db, M, mode, door) {
 /* ── MD-DOORS ─────────────────────────────────────────────────────────────── */
 async function doorsArm(db, M) {
   const bad = [];
-  const tiers = Number(await one(db, 'select count(*) from public.hr_blessing_tiers'));
-  const top = Number(await one(db, 'select max(permille) from public.hr_blessing_tiers'));
+  /* the ONE Blessing (1063-level-costs.sql): one held, its cut the catalogue's */
+  const tiers = 1;
+  const top = Number(await one(db, 'select bless_cut_pm from public.hr_level_costs where id'));
   const runs = {};
   for (const door of ['closed', 'viewed']) {
     for (const mode of ['hunt', 'tower']) {

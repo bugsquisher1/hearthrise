@@ -397,9 +397,9 @@ async function blessArm(db, { H, M }, attended) {
   const p = [];
   const uid = H.UIDS[0];
   const h = await H.hunter(db, M, H.DOOMED);
-  await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) select $1, 0, t.tier, 0, now() - interval '2 days'
-                   from public.hr_blessing_tiers t`, [uid]);
-  const pm = Number(await H.one(db, 'select max(permille) from public.hr_blessing_tiers'));
+  /* the ONE Blessing (1063-level-costs.sql): one row, its cut the catalogue's */
+  await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, 1, 0, now() - interval '2 days')`, [uid]);
+  const pm = Number(await H.one(db, 'select bless_cut_pm from public.hr_level_costs where id'));
   const raws = [];
   for (const t of H.ticksOf(attended ? 90000 : 20 * 60000, 20 * 60000)(h.from)) {
     if (attended) {
@@ -415,7 +415,7 @@ async function blessArm(db, { H, M }, attended) {
   const deaths = await H.q(db, "select data from public.hunt_session_events where session_id = $1 and type = 'death' order by id", [h.sid]);
   if (deaths.length !== 1) return [`CONTROL: the doomed hero died ${deaths.length} time(s), want once`];
   const used = await H.q(db, "select meta from public.player_ledger where user_id = $1 and intent = 'blessing_used'", [uid]);
-  if (used.length !== 1) p.push(`${used.length} blessing_used rows (want 1: the death uses every tier)`);
+  if (used.length !== 1) p.push(`${used.length} blessing_used rows (want 1: the death uses the Blessing)`);
   if (Number(await H.one(db, 'select count(*) from public.player_blessings where user_id = $1', [uid])) !== 0) p.push('the blessings were not used up');
   const saved = (used[0] && used[0].meta.saved) || {};
   const kept = deaths[0].data.xp_lost || {};
@@ -513,7 +513,8 @@ const MUTANTS = [
     ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },
   /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,
      so there is no second death for the mutant to protect.) */
-  { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
+  /* hr_blessing_take is RESTATED last by 1063-level-costs.sql (the one Blessing): planted in the body that runs. */
+  { arm: 'A-BLESS-ATTENDED', file: '1063-level-costs.sql', why: 'a death does not use the Blessing up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
   /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member.

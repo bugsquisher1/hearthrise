@@ -5840,6 +5840,9 @@ const DB_MUTANTS = [
   /* 1005-lever-horizon.sql: each lever's deferral, planted away */
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] a Blessing bought mid-hunt counts from now again', fn: 'public.hr_blessing_buy(integer,integer,bigint,uuid)',
     find: 'values (v_uid, p_slot, 1, v_price, public.hr_hunt_lever_at(v_uid, p_slot));', replace: 'values (v_uid, p_slot, 1, v_price, now());' },
+  /* MOVED here from tests/settle-hooks.mjs (lane/level-costs): with ONE Blessing that arm holds it before the window; this one buys it inside */
+  { arm: 'NO-DODGE-LEVERS', name: '[level-costs] a Blessing bought during the window covers it (the take reads no bought_at)', fn: 'public.hr_blessing_take(uuid,integer,uuid,jsonb,timestamp with time zone)',
+    find: '   where b.user_id = p_user and b.slot = p_slot and b.bought_at <= p_from;', replace: '   where b.user_id = p_user and b.slot = p_slot;' },
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the settle never reads a hold (a bar, option or setup change plays at once)', fn: 'public.hr_hunt_setup_of(hunt_sessions)',
     find: 'where h.session_id = p_s.id and h.until >= p_s.settled_to', replace: 'where false' },
   { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the horizon is the settled point (no look-ahead held)', fn: 'public.hr_hunt_seed_horizon(uuid)',

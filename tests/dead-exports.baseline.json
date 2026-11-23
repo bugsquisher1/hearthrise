@@ -51,7 +51,6 @@
     "src/data/item-art.js WITHHELD_BESPOKE_ART",
     "src/data/item-authority.js FARM_SERVER_ARM_ENABLED",
     "src/data/item-effects.js effectsAreLive",
-    "src/data/loot-bands.js BAND_TARGETS",
     "src/data/loot-bands.js LOOT_GROUPS",
     "src/data/loot-bands.js PENDING_ROWS",
     "src/data/loot-bands.js SLOT_LIMITS",

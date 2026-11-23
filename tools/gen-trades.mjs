@@ -158,7 +158,7 @@ const FUNS = [
 export function buildSql(r) {
   const L = r.lever;
   const cols = Object.keys(L);
-  const kindRows = r.kinds.map((k) => `  (${lit(k.id)}, ${lit(k.trade)}, ${lit(k.stage)}, ${lit(k.line)}, ${k.opens}, ${lit(k.ships)}, ${lit(k.rolls)}, ${k.final}, ${k.workUh}, ${k.ownUh}, `
+  const kindRows = r.kinds.map((k) => `  (${lit(k.id)}, ${lit(k.trade)}, ${lit(k.stage)}, ${lit(k.line)}, ${k.opens}, ${lit(k.ships)}, ${lit(k.rolls)}, ${k.lifePm}, ${k.final}, ${k.workUh}, ${k.ownUh}, `
     + `${jsonLit(Object.fromEntries(k.inputs.map((i) => [i.kind, i.n])))}, ${jsonLit(Object.fromEntries(k.hunted.map((h) => [h.stream, h.pm])))})`).join(',\n');
   const xpRows = r.xp.map((x, i) => `(${i + 1}, ${x})`).join(', ');
   const shipped = r.kinds.filter((k) => k.ships === 'v030').length;
@@ -183,7 +183,7 @@ export function buildSql(r) {
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
 -- missing and their rows upserted (a kind the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
--- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-8): V anchors the job fee, the store's
+-- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-10): V anchors the job fee, the store's
 -- ask and bid and the market's bands once the job slice reads it.
 -- REVERSIBLE: drop the functions and the three tables.
 -- ════════════════════════════════════════════════════════════════════════
@@ -210,6 +210,7 @@ create table if not exists public.hr_trade_kinds (
   opens    int    not null check (opens >= 1),
   ships    text   not null check (ships in ('v030', 'later')),
   rolls    text   check (rolls in ('step', 'life')),
+  life_pm  int    not null check (life_pm between 0 and 1000),
   final    boolean not null,
   work_uh  bigint not null check (work_uh >= 1),
   own_uh   bigint not null check (own_uh >= 1 and own_uh <= work_uh),
@@ -234,10 +235,10 @@ comment on table public.hr_trade_xp is '${OUT_NAME}: the XP (seconds of work) to
 insert into public.hr_trade_levers (id, ${cols.join(', ')}, power_step) values
   (true, ${cols.map((c) => L[c]).join(', ')}, '${r.powerStep}'::float8)
 on conflict (id) do update set ${[...cols, 'power_step'].map((c) => `${c} = excluded.${c}`).join(', ')};
-insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, final, work_uh, own_uh, inputs, hunted) values
+insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, life_pm, final, work_uh, own_uh, inputs, hunted) values
 ${kindRows}
 on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
-  ships = excluded.ships, rolls = excluded.rolls, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
+  ships = excluded.ships, rolls = excluded.rolls, life_pm = excluded.life_pm, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
   inputs = excluded.inputs, hunted = excluded.hunted;
 delete from public.hr_trade_kinds where kind <> all (array[${r.kinds.map((k) => lit(k.id)).join(', ')}]);
 insert into public.hr_trade_xp (level, xp) values
@@ -320,7 +321,7 @@ begin
   if not found then return null; end if;
   v_q := case when k.rolls is null then 0 else least(2, greatest(0, coalesce(p_q, 0))) end;
   v_step := greatest(0, coalesce(p_band, 0)) * c.tier_steps + case when k.rolls = 'step' then v_q * c.quality_steps else 0 end;
-  v_life := case when k.rolls = 'life' then 1000 + c.tool_life_rung_pm * v_q else 1000 end;
+  v_life := 1000 + k.life_pm * v_q;
   return div(k.work_uh::numeric * c.town_wage_share_pm * public.hr_wage(v_step) * v_life, 1000000000000)::bigint;
 end $fn$;
 

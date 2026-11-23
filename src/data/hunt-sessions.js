@@ -147,6 +147,13 @@ export function coverSellable(item, isSupply) {
    permille). */
 export const DEATH_XP_LOSS = 0.06;
 
+/* THE DEATH IN HOURS (lane/level-costs, 2026-11-22; 04-math-strategy.md section 5 deathHours; Tyler 2026-11-22: a per-hero cost reads
+   the hero's LEVEL). A death's Level XP is the LESSER of the share above and DEATH_HOURS reference hours of progress at the hero's Level
+   (action-rules.js levelHourXp). The share binds to Level 61 (a young hero never falls back to Level 1), the hours from 62 (the same
+   weight at every Level). 7.5 is parity with the share at Level 60, where the stances were measured (12-targets.md C-4). Server copy:
+   hr_level_costs.death_hours_pm (tools/gen-level-costs.mjs), bound hr_death_xp_mode_max. LEVER level.death-hours, a starting value. */
+export const DEATH_HOURS = 7.5;
+
 /* The Analyzer keeps a character's last this-many hunts (ruling §2); an older
    ended hunt, its bag lines, tally and timeline are pruned when a new one
    starts. Its ledger rows are never touched: player_ledger is append-only. */

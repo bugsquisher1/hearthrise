@@ -327,8 +327,8 @@
     "remains": 1
    },
    "V": 2181,
-   "Vfine": 2225,
-   "Vmaster": 2270,
+   "Vfine": 2727,
+   "Vmaster": 3272,
    "fee": 546,
    "ask": null,
    "bid": 872
@@ -384,18 +384,18 @@
    "line": null,
    "opensAt": 21,
    "ships": "v030",
-   "workH": 0.986,
-   "ownH": 0.3,
+   "workH": 0.414,
+   "ownH": 0.12,
    "inputs": {
-    "bar": 7
+    "bar": 3
    },
    "hunted": {},
-   "V": 4033,
+   "V": 1693,
    "Vfine": null,
    "Vmaster": null,
-   "fee": 1009,
+   "fee": 424,
    "ask": null,
-   "bid": 1613
+   "bid": 677
   },
   {
    "kind": "haft",
@@ -1949,8 +1949,8 @@
    "L": 1,
    "route": "newest",
    "laborHoursPerGood": 0.716,
-   "value": 0.186,
-   "afterFee": 0.14,
+   "value": 0.191,
+   "afterFee": 0.144,
    "xpPerH": 3593
   },
   {
@@ -1958,8 +1958,8 @@
    "L": 1,
    "route": "first",
    "laborHoursPerGood": 0.716,
-   "value": 0.186,
-   "afterFee": 0.14,
+   "value": 0.191,
+   "afterFee": 0.144,
    "xpPerH": 3593
   },
   {
@@ -1967,8 +1967,8 @@
    "L": 15,
    "route": "newest",
    "laborHoursPerGood": 0.662,
-   "value": 0.202,
-   "afterFee": 0.151,
+   "value": 0.207,
+   "afterFee": 0.157,
    "xpPerH": 3472
   },
   {
@@ -1976,8 +1976,8 @@
    "L": 15,
    "route": "first",
    "laborHoursPerGood": 0.542,
-   "value": 0.247,
-   "afterFee": 0.185,
+   "value": 0.257,
+   "afterFee": 0.195,
    "xpPerH": 3472
   },
   {
@@ -1985,8 +1985,8 @@
    "L": 30,
    "route": "newest",
    "laborHoursPerGood": 0.563,
-   "value": 0.238,
-   "afterFee": 0.178,
+   "value": 0.247,
+   "afterFee": 0.187,
    "xpPerH": 3572
   },
   {
@@ -1994,8 +1994,8 @@
    "L": 30,
    "route": "first",
    "laborHoursPerGood": 0.5,
-   "value": 0.268,
-   "afterFee": 0.201,
+   "value": 0.283,
+   "afterFee": 0.216,
    "xpPerH": 2368
   },
   {
@@ -2003,8 +2003,8 @@
    "L": 50,
    "route": "newest",
    "laborHoursPerGood": 0.563,
-   "value": 0.238,
-   "afterFee": 0.178,
+   "value": 0.248,
+   "afterFee": 0.188,
    "xpPerH": 3410
   },
   {
@@ -2012,8 +2012,8 @@
    "L": 50,
    "route": "first",
    "laborHoursPerGood": 0.5,
-   "value": 0.268,
-   "afterFee": 0.202,
+   "value": 0.29,
+   "afterFee": 0.223,
    "xpPerH": 853
   },
   {
@@ -2021,8 +2021,8 @@
    "L": 50,
    "route": "+mastery+bench",
    "laborHoursPerGood": 0.5,
-   "value": 0.271,
-   "afterFee": 0.204,
+   "value": 0.317,
+   "afterFee": 0.25,
    "xpPerH": 853
   },
   {
@@ -2030,8 +2030,8 @@
    "L": 70,
    "route": "newest",
    "laborHoursPerGood": 0.529,
-   "value": 0.253,
-   "afterFee": 0.19,
+   "value": 0.266,
+   "afterFee": 0.203,
    "xpPerH": 3469
   },
   {
@@ -2039,8 +2039,8 @@
    "L": 70,
    "route": "first",
    "laborHoursPerGood": 0.471,
-   "value": 0.286,
-   "afterFee": 0.215,
+   "value": 0.314,
+   "afterFee": 0.243,
    "xpPerH": 867
   },
   {
@@ -2048,8 +2048,8 @@
    "L": 70,
    "route": "+mastery+bench",
    "laborHoursPerGood": 0.471,
-   "value": 0.289,
-   "afterFee": 0.218,
+   "value": 0.354,
+   "afterFee": 0.283,
    "xpPerH": 867
   },
   {
@@ -2057,8 +2057,8 @@
    "L": 90,
    "route": "newest",
    "laborHoursPerGood": 0.499,
-   "value": 0.269,
-   "afterFee": 0.202,
+   "value": 0.29,
+   "afterFee": 0.223,
    "xpPerH": 3521
   },
   {
@@ -2066,8 +2066,8 @@
    "L": 90,
    "route": "first",
    "laborHoursPerGood": 0.444,
-   "value": 0.303,
-   "afterFee": 0.228,
+   "value": 0.341,
+   "afterFee": 0.266,
    "xpPerH": 880
   },
   {
@@ -2075,8 +2075,8 @@
    "L": 90,
    "route": "+mastery+bench",
    "laborHoursPerGood": 0.444,
-   "value": 0.307,
-   "afterFee": 0.232,
+   "value": 0.39,
+   "afterFee": 0.315,
    "xpPerH": 880
   },
   {
@@ -2084,8 +2084,8 @@
    "L": 99,
    "route": "newest",
    "laborHoursPerGood": 0.509,
-   "value": 0.265,
-   "afterFee": 0.199,
+   "value": 0.301,
+   "afterFee": 0.235,
    "xpPerH": 3456
   },
   {
@@ -2093,8 +2093,8 @@
    "L": 99,
    "route": "first",
    "laborHoursPerGood": 0.444,
-   "value": 0.303,
-   "afterFee": 0.228,
+   "value": 0.344,
+   "afterFee": 0.269,
    "xpPerH": 864
   },
   {
@@ -2102,33 +2102,33 @@
    "L": 99,
    "route": "+mastery+bench",
    "laborHoursPerGood": 0.444,
-   "value": 0.308,
-   "afterFee": 0.233,
+   "value": 0.398,
+   "afterFee": 0.323,
    "xpPerH": 864
   },
   {
    "kind": "temper_kit",
    "L": 30,
    "route": "newest",
-   "laborHoursPerGood": 1.187,
-   "value": 0.208,
+   "laborHoursPerGood": 0.496,
+   "value": 0.209,
    "afterFee": 0.156,
-   "xpPerH": 3516
+   "xpPerH": 3567
   },
   {
    "kind": "temper_kit",
    "L": 30,
    "route": "first",
-   "laborHoursPerGood": 1.039,
-   "value": 0.237,
-   "afterFee": 0.178,
-   "xpPerH": 3516
+   "laborHoursPerGood": 0.433,
+   "value": 0.239,
+   "afterFee": 0.179,
+   "xpPerH": 3567
   },
   {
    "kind": "temper_kit",
    "L": 50,
    "route": "newest",
-   "laborHoursPerGood": 1.126,
+   "laborHoursPerGood": 0.472,
    "value": 0.219,
    "afterFee": 0.164,
    "xpPerH": 3597
@@ -2137,7 +2137,7 @@
    "kind": "temper_kit",
    "L": 50,
    "route": "first",
-   "laborHoursPerGood": 0.879,
+   "laborHoursPerGood": 0.369,
    "value": 0.28,
    "afterFee": 0.21,
    "xpPerH": 2385
@@ -2146,91 +2146,91 @@
    "kind": "temper_kit",
    "L": 50,
    "route": "+mastery+bench",
-   "laborHoursPerGood": 0.664,
-   "value": 0.371,
-   "afterFee": 0.278,
+   "laborHoursPerGood": 0.277,
+   "value": 0.374,
+   "afterFee": 0.28,
    "xpPerH": 2385
   },
   {
    "kind": "temper_kit",
    "L": 70,
    "route": "newest",
-   "laborHoursPerGood": 1.079,
-   "value": 0.228,
-   "afterFee": 0.171,
-   "xpPerH": 3559
+   "laborHoursPerGood": 0.451,
+   "value": 0.229,
+   "afterFee": 0.172,
+   "xpPerH": 3582
   },
   {
    "kind": "temper_kit",
    "L": 70,
    "route": "first",
-   "laborHoursPerGood": 0.843,
-   "value": 0.292,
-   "afterFee": 0.219,
-   "xpPerH": 890
+   "laborHoursPerGood": 0.353,
+   "value": 0.293,
+   "afterFee": 0.22,
+   "xpPerH": 895
   },
   {
    "kind": "temper_kit",
    "L": 70,
    "route": "+mastery+bench",
-   "laborHoursPerGood": 0.636,
-   "value": 0.387,
-   "afterFee": 0.29,
-   "xpPerH": 890
+   "laborHoursPerGood": 0.265,
+   "value": 0.391,
+   "afterFee": 0.293,
+   "xpPerH": 895
   },
   {
    "kind": "temper_kit",
    "L": 90,
    "route": "newest",
-   "laborHoursPerGood": 1.037,
-   "value": 0.238,
-   "afterFee": 0.178,
-   "xpPerH": 3521
+   "laborHoursPerGood": 0.433,
+   "value": 0.239,
+   "afterFee": 0.179,
+   "xpPerH": 3565
   },
   {
    "kind": "temper_kit",
    "L": 90,
    "route": "first",
-   "laborHoursPerGood": 0.81,
-   "value": 0.304,
-   "afterFee": 0.228,
-   "xpPerH": 880
+   "laborHoursPerGood": 0.339,
+   "value": 0.305,
+   "afterFee": 0.229,
+   "xpPerH": 891
   },
   {
    "kind": "temper_kit",
    "L": 90,
    "route": "+mastery+bench",
-   "laborHoursPerGood": 0.612,
-   "value": 0.402,
-   "afterFee": 0.302,
-   "xpPerH": 880
+   "laborHoursPerGood": 0.254,
+   "value": 0.407,
+   "afterFee": 0.305,
+   "xpPerH": 891
   },
   {
    "kind": "temper_kit",
    "L": 99,
    "route": "newest",
-   "laborHoursPerGood": 1.059,
+   "laborHoursPerGood": 0.445,
    "value": 0.233,
    "afterFee": 0.174,
-   "xpPerH": 3564
+   "xpPerH": 3586
   },
   {
    "kind": "temper_kit",
    "L": 99,
    "route": "first",
-   "laborHoursPerGood": 0.794,
+   "laborHoursPerGood": 0.333,
    "value": 0.311,
    "afterFee": 0.233,
-   "xpPerH": 891
+   "xpPerH": 896
   },
   {
    "kind": "temper_kit",
    "L": 99,
    "route": "+mastery+bench",
-   "laborHoursPerGood": 0.599,
-   "value": 0.411,
-   "afterFee": 0.309,
-   "xpPerH": 891
+   "laborHoursPerGood": 0.25,
+   "value": 0.415,
+   "afterFee": 0.311,
+   "xpPerH": 896
   }
  ],
  "labor": {

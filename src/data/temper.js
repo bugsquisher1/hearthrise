@@ -154,3 +154,30 @@ export const TEMPER_OFFERS = Object.freeze(TEMPER_TRACKS.flatMap((track) => tier
 
 /** The offer-id set the Edge may forward to hr_unlock_buy (supabase/functions/hr-accrue/gold-ladder-catalogue.js). */
 export const TEMPER_OFFER_IDS = Object.freeze(TEMPER_OFFERS.map((r) => r.offer_id));
+
+/* ── TEMPER ON STEPS (systems, lane/flame-temper-build, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md section 2, 19 L11) ──
+   THE RULE THAT REPLACES THE RUNGS ON THE SCALE. The smith tempers a hero's GEAR SLOT, never a piece: five ranks a slot, each +1 item Level
+   (ilPerRank) on whatever the slot wears, slot-weighted inside the gear part (src/core/hunt/danger.js gearPartPm; GEAR_STEPS.slotPm), so a
+   whole kit at rank 5 is +5 steps (src/data/power-ledger.js temperStepsMax). Rank r opens at hero Level rankEvery x r (40, 80, 120, 160,
+   200: 21 D-2). It never counts for the wear check. A rank never leaves the hero: not on a death, a sale, a swap or a listing.
+   SEATED ON A TIER. A slot's ranks sit on the tier they were bought or re-seated on. A piece of a HIGHER tier in that slot leaves them
+   unseated (they count 0) until re-seated for carryPm x the ranks' full price at the new item step (D-3); the same or a lower tier keeps
+   them seated.
+   THE PRICE, in hours of wage at the worn piece's item Level (src/data/wage.js wage): a full slot is hoursPm x 13 slots x slotPm / 1000
+   (a whole kit 39 hours, weapon 7.8, a ring 1.95); rank r takes r / 15 of it (1 + 2 + 3 + 4 + 5). kitSharePm of it is Temper Kits
+   (Smithing goods, 09 chain 3), the rest a fee in gold, burned. A kit is kitHoursPm of wage: ASSUMED (0.1 h), owed with the kit's recipe.
+   kitItem null: the kit is not an item yet, so the server refuses a rank (`kits_owed`) until it is: no rank is sold for gold alone.
+   STARTING VALUES (21 section 2.2 levers; the Lab moves them in band): rankEvery 40 (30 to 50), hoursPm 3000 (2 to 4 hours a piece),
+   kitSharePm 500 (300 to 700), carryPm 350 (250 to 500).
+   The server's catalogue (hr_temper_rules, hr_temper_slots) is written from this by tools/gen-flame-temper.mjs. Behind the hr_flags
+   switch `temper_steps` (off at apply): the old rungs above stay the smith's offer until it flips. */
+export const TEMPER_STEPS = Object.freeze({
+  ranks: 5,
+  ilPerRank: 1,
+  rankEvery: 40,
+  hoursPm: 3000,
+  kitSharePm: 500,
+  carryPm: 350,
+  kitHoursPm: 100,
+  kitItem: null,
+});

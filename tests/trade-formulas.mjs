@@ -57,9 +57,10 @@ const OUT_NAME = '1063-trade-formulas-catalogue.generated.sql';
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [T, D, SK, GS, DG, W] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/store-kit.js'),
-    imp('src/data/gear-steps.js'), imp('src/data/danger.js'), imp('src/data/wage.js')]);
-  return { T, D, STORE_KIT: SK.STORE_KIT, GEAR_STEPS: GS.GEAR_STEPS, DANGER: DG.DANGER, wage: W.wage, cat: T.tradeCatalogue() };
+  const [T, D, SK, GS, DG, W, IR, TP] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/store-kit.js'),
+    imp('src/data/gear-steps.js'), imp('src/data/danger.js'), imp('src/data/wage.js'), imp('src/data/imbue-rules.js'), imp('src/data/temper.js')]);
+  return { T, D, STORE_KIT: SK.STORE_KIT, GEAR_STEPS: GS.GEAR_STEPS, DANGER: DG.DANGER, wage: W.wage, IMBUE: IR.IMBUE, IMBUE_SLOTS: IR.IMBUE_SLOTS,
+    TEMPER_STEPS: TP.TEMPER_STEPS, cat: T.tradeCatalogue() };
 }
 
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
@@ -110,7 +111,7 @@ const ARMS = {
   'TF-ROWS'(X) {
     const { T, D, STORE_KIT, cat } = X;
     const out = [];
-    const ALLOWED = new Set(['trade', 'stage', 'line', 'split', 'effect', 'opens', 'from', 'parts', 'hunted', 'rolls', 'ships', 'budget', 'family', 'forTrade']);
+    const ALLOWED = new Set(['trade', 'stage', 'line', 'split', 'effect', 'opens', 'from', 'parts', 'hunted', 'rolls', 'life', 'ships', 'budget', 'family', 'forTrade']);
     for (const [id, k] of Object.entries(D.KINDS)) {
       for (const key of Object.keys(k)) if (!ALLOWED.has(key)) out.push(`${id} types its own ${key}: a kind row holds shares, rungs and names only`);
       for (const m of k.from || []) for (const key of Object.keys(m)) if (key !== 'kind' && key !== 'share') out.push(`${id}'s material ${m.kind} types its own ${key}`);
@@ -119,7 +120,7 @@ const ARMS = {
     for (const k of Object.values(cat.kinds)) {
       const row = D.KINDS[k.id];
       if (!row.line) continue;
-      const kh = row.effect === 'imbue' ? D.TRADE_LEVERS.imbue.hours / D.TRADE_LEVERS.imbue.slots : row.effect;
+      const kh = row.effect === 'imbue' ? D.BORROWED.imbueHours / D.BORROWED.imbueSlots : row.effect;
       const want = Math.round(STORE_KIT.kitWork * D.LINE_SHARE[row.line] * row.split * kh * 1e6);
       if (k.budgetUh !== want) out.push(`${k.id}'s work is ${k.budgetUh} uh, not kitWork x its line x its split x its kit-hours (${want})`);
       for (const h of k.hunted) {
@@ -131,6 +132,12 @@ const ARMS = {
     for (const r of cat.recipes) if (r.R !== T.rungLevel(r.rung) || r.rung < cat.kinds[r.kind].opens) out.push(`recipe ${r.kind} rung ${r.rung} opens at ${r.R}`);
     const per = Object.fromEntries(Object.keys(D.KINDS).map((id) => [id, cat.recipes.filter((r) => r.kind === id).length]));
     for (const [id, n] of Object.entries(per)) if (n !== T.TRADE_PM.rungCount - D.KINDS[id].opens + 1) out.push(`${id} has ${n} recipes, not one a rung from its own`);
+    /* the numbers 21 owns are read, never copied: an imbuement's life and slots and its life rung, a Temper kit's worth */
+    const B = D.BORROWED, { IMBUE, IMBUE_SLOTS, TEMPER_STEPS } = X;
+    if (B.imbueHours !== IMBUE.hours || B.imbueSlots !== Object.keys(IMBUE_SLOTS).length || Math.round(B.imbueLifeRung * 1000) !== IMBUE.lifeRungPm) out.push('the imbuement\'s life, slots or life rung is not 21\'s (src/data/imbue-rules.js IMBUE)');
+    const kitUh = Math.round((TEMPER_STEPS.kitHoursPm / 1000 / STORE_KIT.townWageShare) * 1e6);
+    if (cat.kinds.temper_kit.budgetUh !== kitUh) out.push(`a Temper kit holds ${cat.kinds.temper_kit.budgetUh} uh of work, not 21's kitHoursPm over townWageShare (${kitUh})`);
+    if (cat.kinds.imbuement.lifePm !== IMBUE.lifeRungPm || cat.kinds.imbuement.rolls !== 'life') out.push('an imbuement\'s quality is not its life at 21\'s rung (21 D-7)');
     return out;
   },
 
@@ -146,7 +153,7 @@ const ARMS = {
       if (v.size !== 1) out.push(`at band ${band} the charges are worth ${[...v].join(' / ')}: one style pays more`);
     }
     /* one hero's kit-hour of all four lines: a meal, a drink, one style's charge, a draught, and the share of an imbuement an hour */
-    const imbueH = D.TRADE_LEVERS.imbue.hours / D.TRADE_LEVERS.imbue.slots;
+    const imbueH = D.BORROWED.imbueHours / D.BORROWED.imbueSlots;
     const k = cat.kinds;
     const kitUh = k.meal.budgetUh + k.drink.budgetUh + k.honing_stone.budgetUh + k.draught.budgetUh + k.imbuement.budgetUh / imbueH;
     if (!near(kitUh, STORE_KIT.kitWork * 1e6, 2)) out.push(`one kit-hour of the four lines is ${kitUh} uh of work, not kitWork (${STORE_KIT.kitWork * 1e6})`);
@@ -351,7 +358,7 @@ const JS_MUTANTS = [
   ['the Mastery adds without the flag', 'TF-09', 'src/core/trades.js', '(mastery ? TRADE_PM.masteryReturn : 0)', 'TRADE_PM.masteryReturn'],
   ['speed reads no Level', 'TF-09', 'src/core/trades.js', '((TRADE_PM.speedAt99 - 1000) * lv(L)) / TRADE_PM.maxLevel', '0'],
   ['the XP window is never left', 'TF-09', 'src/core/trades.js', 'if (d <= TRADE_PM.xpWindow) return 1000;', 'return 1000;'],
-  ['a tool\'s quality adds no life', 'TF-09', 'src/core/trades.js', "Math.round((TRADE_PM.toolMs * lifePmOf(q, 'life')) / 1000)", 'TRADE_PM.toolMs'],
+  ['a tool\'s quality adds no life', 'TF-09', 'src/core/trades.js', 'Math.round((TRADE_PM.toolMs * lifePmOf(q, TRADE_PM.toolLifeRung)) / 1000)', 'TRADE_PM.toolMs'],
   ['the contest curve rounds up', 'TF-09', 'src/core/trades.js', 'Math.floor(1000 / powSquare(', 'Math.ceil(1000 / powSquare('],
   ['V ignores the quality rung', 'TF-09', 'src/core/trades.js', 'Math.max(0, Math.min(2, q | 0)) * TRADE_PM.qualitySteps', '0'],
   ['the fee rounds down', 'TF-09', 'src/core/trades.js', '* big(count) + 999n) / 1000n', '* big(count)) / 1000n'],

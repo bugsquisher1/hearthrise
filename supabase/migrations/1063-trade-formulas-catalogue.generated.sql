@@ -19,7 +19,7 @@
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
 -- missing and their rows upserted (a kind the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
--- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-8): V anchors the job fee, the store's
+-- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-10): V anchors the job fee, the store's
 -- ask and bid and the market's bands once the job slice reads it.
 -- REVERSIBLE: drop the functions and the three tables.
 -- ════════════════════════════════════════════════════════════════════════
@@ -69,6 +69,7 @@ create table if not exists public.hr_trade_kinds (
   opens    int    not null check (opens >= 1),
   ships    text   not null check (ships in ('v030', 'later')),
   rolls    text   check (rolls in ('step', 'life')),
+  life_pm  int    not null check (life_pm between 0 and 1000),
   final    boolean not null,
   work_uh  bigint not null check (work_uh >= 1),
   own_uh   bigint not null check (own_uh >= 1 and own_uh <= work_uh),
@@ -93,46 +94,46 @@ comment on table public.hr_trade_xp is '1063-trade-formulas-catalogue.generated.
 insert into public.hr_trade_levers (id, rung_count, rung_span, max_level, at_req_pm, no_fail_span, cap_pm, mastery_return_pm, bench_max_pm, fine_base_pm, fine_top_pm, master_top_pm, quality_steps, speed_at99_pm, xp_window, xp_floor_pm, job_fee_pm, town_wage_share_pm, store_ceiling_pm, store_lag, floor_share_pm, store_budget_pm, tool_ms, tool_life_rung_pm, tier_steps, power_step) values
   (true, 10, 10, 99, 750, 15, 1250, 100, 100, 100, 600, 500, 5, 1250, 20, 250, 250, 250, 1500, 20, 400, 1000, 43200000, 250, 20, '0.0035'::float8)
 on conflict (id) do update set rung_count = excluded.rung_count, rung_span = excluded.rung_span, max_level = excluded.max_level, at_req_pm = excluded.at_req_pm, no_fail_span = excluded.no_fail_span, cap_pm = excluded.cap_pm, mastery_return_pm = excluded.mastery_return_pm, bench_max_pm = excluded.bench_max_pm, fine_base_pm = excluded.fine_base_pm, fine_top_pm = excluded.fine_top_pm, master_top_pm = excluded.master_top_pm, quality_steps = excluded.quality_steps, speed_at99_pm = excluded.speed_at99_pm, xp_window = excluded.xp_window, xp_floor_pm = excluded.xp_floor_pm, job_fee_pm = excluded.job_fee_pm, town_wage_share_pm = excluded.town_wage_share_pm, store_ceiling_pm = excluded.store_ceiling_pm, store_lag = excluded.store_lag, floor_share_pm = excluded.floor_share_pm, store_budget_pm = excluded.store_budget_pm, tool_ms = excluded.tool_ms, tool_life_rung_pm = excluded.tool_life_rung_pm, tier_steps = excluded.tier_steps, power_step = excluded.power_step;
-insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, final, work_uh, own_uh, inputs, hunted) values
-  ('ore', 'mining', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
-  ('rune_stone', 'mining', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
-  ('log', 'woodcutting', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
-  ('fish', 'fishing', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
-  ('grain', 'farming', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
-  ('herb', 'farming', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
-  ('bar', 'smithing', 'refine', null, 1, 'v030', null, false, 98000, 28000, '{"ore":1}'::jsonb, '{}'::jsonb),
-  ('shaft', 'woodcrafting', 'refine', null, 1, 'v030', null, false, 98000, 28000, '{"log":1}'::jsonb, '{}'::jsonb),
-  ('cut_stone', 'runecutting', 'refine', null, 1, 'v030', null, false, 98000, 28000, '{"rune_stone":1}'::jsonb, '{}'::jsonb),
-  ('meal', 'cooking', 'make', 'meal', 1, 'v030', 'step', true, 140000, 70000, '{"fish":1}'::jsonb, '{}'::jsonb),
-  ('drink', 'cooking', 'make', 'meal', 1, 'v030', 'step', true, 140000, 70000, '{"grain":1}'::jsonb, '{}'::jsonb),
-  ('honing_stone', 'smithing', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"bar":2}'::jsonb, '{}'::jsonb),
-  ('arrowhead', 'smithing', 'make', null, 1, 'v030', null, false, 140000, 42000, '{"bar":1}'::jsonb, '{}'::jsonb),
-  ('arrow', 'woodcrafting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 42000, '{"arrowhead":1,"shaft":1}'::jsonb, '{}'::jsonb),
-  ('bolt', 'woodcrafting', 'make', 'charge', 2, 'v030', 'step', true, 280000, 42000, '{"arrowhead":1,"shaft":1}'::jsonb, '{}'::jsonb),
-  ('ward_charm', 'woodcrafting', 'make', 'charge', 3, 'v030', 'step', true, 280000, 84000, '{"shaft":2}'::jsonb, '{}'::jsonb),
-  ('imbuement', 'artificing', 'make', 'imbuement', 1, 'v030', 'step', true, 533333, 533333, '{}'::jsonb, '{"rare_part":6667,"remains":1000}'::jsonb),
-  ('draught', 'alchemy', 'make', 'draught', 1, 'later', 'step', true, 150000, 80000, '{"herb":1}'::jsonb, '{"common_part":1250}'::jsonb),
-  ('camp_pot', 'cooking', 'make', 'draught', 5, 'later', 'step', true, 670000, 320000, '{"grain":5}'::jsonb, '{"common_part":5000}'::jsonb),
-  ('temper_kit', 'smithing', 'make', null, 3, 'v030', null, true, 986000, 300000, '{"bar":7}'::jsonb, '{}'::jsonb),
-  ('haft', 'woodcrafting', 'make', null, 2, 'later', null, false, 542000, 150000, '{"shaft":4}'::jsonb, '{}'::jsonb),
-  ('rune_earth', 'runecutting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
-  ('rune_water', 'runecutting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
-  ('rune_fire', 'runecutting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
-  ('rune_ice', 'runecutting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
-  ('rune_poison', 'runecutting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
-  ('rune_rupture', 'runecutting', 'make', 'charge', 1, 'v030', 'step', true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
-  ('tool_pick', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_axe', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_rod', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_hoe', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_knife', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_hammer', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_saw', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_chisel', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_graver', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_mortar', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb)
+insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, life_pm, final, work_uh, own_uh, inputs, hunted) values
+  ('ore', 'mining', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
+  ('rune_stone', 'mining', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
+  ('log', 'woodcutting', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
+  ('fish', 'fishing', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
+  ('grain', 'farming', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
+  ('herb', 'farming', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
+  ('bar', 'smithing', 'refine', null, 1, 'v030', null, 0, false, 98000, 28000, '{"ore":1}'::jsonb, '{}'::jsonb),
+  ('shaft', 'woodcrafting', 'refine', null, 1, 'v030', null, 0, false, 98000, 28000, '{"log":1}'::jsonb, '{}'::jsonb),
+  ('cut_stone', 'runecutting', 'refine', null, 1, 'v030', null, 0, false, 98000, 28000, '{"rune_stone":1}'::jsonb, '{}'::jsonb),
+  ('meal', 'cooking', 'make', 'meal', 1, 'v030', 'step', 0, true, 140000, 70000, '{"fish":1}'::jsonb, '{}'::jsonb),
+  ('drink', 'cooking', 'make', 'meal', 1, 'v030', 'step', 0, true, 140000, 70000, '{"grain":1}'::jsonb, '{}'::jsonb),
+  ('honing_stone', 'smithing', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"bar":2}'::jsonb, '{}'::jsonb),
+  ('arrowhead', 'smithing', 'make', null, 1, 'v030', null, 0, false, 140000, 42000, '{"bar":1}'::jsonb, '{}'::jsonb),
+  ('arrow', 'woodcrafting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 42000, '{"arrowhead":1,"shaft":1}'::jsonb, '{}'::jsonb),
+  ('bolt', 'woodcrafting', 'make', 'charge', 2, 'v030', 'step', 0, true, 280000, 42000, '{"arrowhead":1,"shaft":1}'::jsonb, '{}'::jsonb),
+  ('ward_charm', 'woodcrafting', 'make', 'charge', 3, 'v030', 'step', 0, true, 280000, 84000, '{"shaft":2}'::jsonb, '{}'::jsonb),
+  ('imbuement', 'artificing', 'make', 'imbuement', 1, 'v030', 'life', 250, true, 533333, 533333, '{}'::jsonb, '{"rare_part":6667,"remains":1000}'::jsonb),
+  ('draught', 'alchemy', 'make', 'draught', 1, 'later', 'step', 0, true, 150000, 80000, '{"herb":1}'::jsonb, '{"common_part":1250}'::jsonb),
+  ('camp_pot', 'cooking', 'make', 'draught', 5, 'later', 'step', 0, true, 670000, 320000, '{"grain":5}'::jsonb, '{"common_part":5000}'::jsonb),
+  ('temper_kit', 'smithing', 'make', null, 3, 'v030', null, 0, true, 414000, 120000, '{"bar":3}'::jsonb, '{}'::jsonb),
+  ('haft', 'woodcrafting', 'make', null, 2, 'later', null, 0, false, 542000, 150000, '{"shaft":4}'::jsonb, '{}'::jsonb),
+  ('rune_earth', 'runecutting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
+  ('rune_water', 'runecutting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
+  ('rune_fire', 'runecutting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
+  ('rune_ice', 'runecutting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
+  ('rune_poison', 'runecutting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
+  ('rune_rupture', 'runecutting', 'make', 'charge', 1, 'v030', 'step', 0, true, 280000, 84000, '{"cut_stone":2}'::jsonb, '{"remains":150}'::jsonb),
+  ('tool_pick', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_axe', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_rod', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_hoe', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_knife', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_hammer', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_saw', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_chisel', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_graver', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
+  ('tool_mortar', 'smithing', 'make', null, 2, 'later', 'life', 250, true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb)
 on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
-  ships = excluded.ships, rolls = excluded.rolls, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
+  ships = excluded.ships, rolls = excluded.rolls, life_pm = excluded.life_pm, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
   inputs = excluded.inputs, hunted = excluded.hunted;
 delete from public.hr_trade_kinds where kind <> all (array['ore', 'rune_stone', 'log', 'fish', 'grain', 'herb', 'bar', 'shaft', 'cut_stone', 'meal', 'drink', 'honing_stone', 'arrowhead', 'arrow', 'bolt', 'ward_charm', 'imbuement', 'draught', 'camp_pot', 'temper_kit', 'haft', 'rune_earth', 'rune_water', 'rune_fire', 'rune_ice', 'rune_poison', 'rune_rupture', 'tool_pick', 'tool_axe', 'tool_rod', 'tool_hoe', 'tool_knife', 'tool_hammer', 'tool_saw', 'tool_chisel', 'tool_graver', 'tool_mortar']);
 insert into public.hr_trade_xp (level, xp) values
@@ -215,7 +216,7 @@ begin
   if not found then return null; end if;
   v_q := case when k.rolls is null then 0 else least(2, greatest(0, coalesce(p_q, 0))) end;
   v_step := greatest(0, coalesce(p_band, 0)) * c.tier_steps + case when k.rolls = 'step' then v_q * c.quality_steps else 0 end;
-  v_life := case when k.rolls = 'life' then 1000 + c.tool_life_rung_pm * v_q else 1000 end;
+  v_life := 1000 + k.life_pm * v_q;
   return div(k.work_uh::numeric * c.town_wage_share_pm * public.hr_wage(v_step) * v_life, 1000000000000)::bigint;
 end $fn$;
 
@@ -376,8 +377,8 @@ begin
      or (select count(*) from public.hr_trade_levers) <> 1 then
     raise exception 'VERIFY(a): the catalogue holds % kinds, % Levels, % lever rows', (select count(*) from public.hr_trade_kinds),
       (select count(*) from public.hr_trade_xp), (select count(*) from public.hr_trade_levers); end if;
-  if (select sum(work_uh) from public.hr_trade_kinds) <> 17655333
-     or (select sum(own_uh) from public.hr_trade_kinds) <> 4325333
+  if (select sum(work_uh) from public.hr_trade_kinds) <> 17083333
+     or (select sum(own_uh) from public.hr_trade_kinds) <> 4145333
      or (select count(*) from public.hr_trade_kinds where final) <> 26 then
     raise exception 'VERIFY(a): the kinds'' work is not the data''s'; end if;
   if exists (select 1 from pg_class t where t.oid in ('public.hr_trade_levers'::regclass, 'public.hr_trade_kinds'::regclass, 'public.hr_trade_xp'::regclass)
@@ -784,17 +785,17 @@ begin
     ('ward_charm', 250, 1, 7760061069::bigint, 3104024427::bigint),
     ('ward_charm', 250, 2, 7760061069::bigint, 3104024427::bigint),
     ('imbuement', 0, 0, 1724::bigint, 689::bigint),
-    ('imbuement', 0, 1, 1751::bigint, 700::bigint),
-    ('imbuement', 0, 2, 1787::bigint, 714::bigint),
+    ('imbuement', 0, 1, 2155::bigint, 862::bigint),
+    ('imbuement', 0, 2, 2586::bigint, 1034::bigint),
     ('imbuement', 3, 0, 2181::bigint, 872::bigint),
-    ('imbuement', 3, 1, 2225::bigint, 890::bigint),
-    ('imbuement', 3, 2, 2270::bigint, 908::bigint),
+    ('imbuement', 3, 1, 2727::bigint, 1090::bigint),
+    ('imbuement', 3, 2, 3272::bigint, 1308::bigint),
     ('imbuement', 200, 0, 14781059465::bigint, 5912423786::bigint),
-    ('imbuement', 200, 1, 14781059465::bigint, 5912423786::bigint),
-    ('imbuement', 200, 2, 14781059465::bigint, 5912423786::bigint),
+    ('imbuement', 200, 1, 18476324331::bigint, 7390529732::bigint),
+    ('imbuement', 200, 2, 22171589197::bigint, 8868635678::bigint),
     ('imbuement', 250, 0, 14781059465::bigint, 5912423786::bigint),
-    ('imbuement', 250, 1, 14781059465::bigint, 5912423786::bigint),
-    ('imbuement', 250, 2, 14781059465::bigint, 5912423786::bigint),
+    ('imbuement', 250, 1, 18476324331::bigint, 7390529732::bigint),
+    ('imbuement', 250, 2, 22171589197::bigint, 8868635678::bigint),
     ('draught', 0, 0, 484::bigint, 193::bigint),
     ('draught', 0, 1, 492::bigint, 196::bigint),
     ('draught', 0, 2, 502::bigint, 200::bigint),
@@ -819,10 +820,10 @@ begin
     ('camp_pot', 250, 0, 18568717558::bigint, 7427487023::bigint),
     ('camp_pot', 250, 1, 18568717558::bigint, 7427487023::bigint),
     ('camp_pot', 250, 2, 18568717558::bigint, 7427487023::bigint),
-    ('temper_kit', 0, 0, 3187::bigint, 1274::bigint),
-    ('temper_kit', 3, 0, 4033::bigint, 1613::bigint),
-    ('temper_kit', 200, 0, 27326500765::bigint, 10930600306::bigint),
-    ('temper_kit', 250, 0, 27326500765::bigint, 10930600306::bigint),
+    ('temper_kit', 0, 0, 1338::bigint, 535::bigint),
+    ('temper_kit', 3, 0, 1693::bigint, 677::bigint),
+    ('temper_kit', 200, 0, 11473804581::bigint, 4589521832::bigint),
+    ('temper_kit', 250, 0, 11473804581::bigint, 4589521832::bigint),
     ('haft', 0, 0, 1752::bigint, 700::bigint),
     ('haft', 3, 0, 2217::bigint, 886::bigint),
     ('haft', 200, 0, 15021261069::bigint, 6008504427::bigint),
@@ -1123,15 +1124,15 @@ begin
     ('camp_pot', 200, 1, 4642179390::bigint),
     ('camp_pot', 200, 7, 32495255727::bigint),
     ('camp_pot', 200, 250, 1160544847375::bigint),
-    ('temper_kit', 0, 1, 797::bigint),
-    ('temper_kit', 0, 7, 5578::bigint),
-    ('temper_kit', 0, 250, 199188::bigint),
-    ('temper_kit', 3, 1, 1009::bigint),
-    ('temper_kit', 3, 7, 7058::bigint),
-    ('temper_kit', 3, 250, 252063::bigint),
-    ('temper_kit', 200, 1, 6831625192::bigint),
-    ('temper_kit', 200, 7, 47821376339::bigint),
-    ('temper_kit', 200, 250, 1707906297813::bigint),
+    ('temper_kit', 0, 1, 335::bigint),
+    ('temper_kit', 0, 7, 2342::bigint),
+    ('temper_kit', 0, 250, 83625::bigint),
+    ('temper_kit', 3, 1, 424::bigint),
+    ('temper_kit', 3, 7, 2963::bigint),
+    ('temper_kit', 3, 250, 105813::bigint),
+    ('temper_kit', 200, 1, 2868451146::bigint),
+    ('temper_kit', 200, 7, 20079158017::bigint),
+    ('temper_kit', 200, 250, 717112786313::bigint),
     ('rune_earth', 0, 1, 227::bigint),
     ('rune_earth', 0, 7, 1584::bigint),
     ('rune_earth', 0, 250, 56563::bigint),
@@ -1411,12 +1412,12 @@ begin
       raise exception 'VERIFY(g): a quality % tool lasts % ms in SQL, % in JS', v_r.q, public.hr_trade_tool_life_ms(v_r.q), v_r.ms; end if;
   end loop;
   for v_r in select * from (values
-    ('tool_pick', 0, 439::bigint),
-    ('tool_pick', 19, 439::bigint),
-    ('tool_pick', 20, 439::bigint),
-    ('tool_pick', 60, 512::bigint),
-    ('tool_pick', 4000, 3467146134::bigint),
-    ('tool_pick', 5000, 3755315268::bigint)) p(k, s, rent) loop
+    ('imbuement', 0, 216::bigint),
+    ('imbuement', 19, 216::bigint),
+    ('imbuement', 20, 216::bigint),
+    ('imbuement', 60, 252::bigint),
+    ('imbuement', 4000, 1705851891::bigint),
+    ('imbuement', 5000, 1847632434::bigint)) p(k, s, rent) loop
     if public.hr_trade_tool_rent(v_r.k, v_r.s) is distinct from v_r.rent then
       raise exception 'VERIFY(g): renting % at hero step % costs % an hour in SQL, % in JS', v_r.k, v_r.s, public.hr_trade_tool_rent(v_r.k, v_r.s), v_r.rent; end if;
   end loop;
@@ -1431,7 +1432,7 @@ begin
     ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 297::bigint, 35925::bigint, 297::bigint, 44::bigint, 35925120::bigint),
     ('rune_fire', 4, 45, false, 0, 1000, 100, 18000000::bigint, 66::bigint, 17932::bigint, 65::bigint, 0::bigint, 17932076::bigint),
     ('imbuement', 1, 30, false, 0, 1000, 10, 14400000::bigint, 8::bigint, 9473::bigint, 8::bigint, 0::bigint, 14288364::bigint),
-    ('temper_kit', 3, 21, false, 0, 1000, 6, 7200000::bigint, 6::bigint, 6153::bigint, 5::bigint, 0::bigint, 6153847::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 6, 7200000::bigint, 6::bigint, 2461::bigint, 5::bigint, 0::bigint, 2461539::bigint),
     ('tool_pick', 2, 40, false, 0, 1000, 3, 3600000::bigint, 3::bigint, 975::bigint, 3::bigint, 0::bigint, 1471390::bigint),
     ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 38::bigint, 10625::bigint, 36::bigint, 0::bigint, 10625243::bigint)) p(k, rung, l, m, b, t, n, ms, att, xp, units, ret, spent) loop
     v_j := public.hr_trade_job_bound(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms);

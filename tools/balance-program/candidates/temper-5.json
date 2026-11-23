@@ -1,0 +1,11 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "temper-5",
+ "why": "21-flame-temper-imbue-loot.md T1: a whole kit at Temper 5 (+5 item Levels on every slot, src/data/temper.js TEMPER_STEPS, src/core/temper.js temperedSlotLevels) is 5 steps. Temper adds its seated ranks to each worn piece's item Level inside the gear part (src/core/hunt/danger.js gearPartPm), so +5 on every slot is exactly a gear part 5 item Levels over the kit's: the same kits on the same dice with Muster Barrows' base 5 item Levels lower. Pass: held step +5 +- 2 against the tree (C0), Steady",
+ "base": "tree",
+ "edits": [{ "file": "src/data/danger.js", "from": "gearLevel: tierLevel(3),", "to": "gearLevel: tierLevel(3) - 5," }],
+ "assumptions": [
+  "Temper rank r on a slot is +r item Levels on whatever the slot wears, slot-weighted (GEAR_STEPS.slotPm sums to 1000), so five ranks on every slot is a gear part of +5000 thousandths, the same move as the ground's base 5 lower",
+  "The MID kit sits at Muster's base item Level 60, so the move is on the above-base weight (POWER.weightGearPm 1000), never the one-sided 500"
+ ]
+}

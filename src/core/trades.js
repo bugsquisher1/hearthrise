@@ -33,7 +33,7 @@
 //
 // PURE ESM, dual-runtime. No clock, no Math.random: the dice are src/core/rng.js from the job's seed.
 // ════════════════════════════════════════════════════════════════════════
-import { TRADE_LEVERS, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate } from '../data/trades.js';
+import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate } from '../data/trades.js';
 import { STORE_KIT } from '../data/store-kit.js';
 import { GEAR_STEPS } from '../data/gear-steps.js';
 import { DANGER } from '../data/danger.js';
@@ -66,7 +66,7 @@ export const bandStep = (band) => Math.max(0, Math.floor(Number(band) || 0)) * T
 
 /* ── THE CATALOGUE ─────────────────────────────────────────────────────── */
 
-const effectHours = (k) => (k.effect === 'imbue' ? TRADE_LEVERS.imbue.hours / TRADE_LEVERS.imbue.slots : k.effect);
+const effectHours = (k) => (k.effect === 'imbue' ? BORROWED.imbueHours / BORROWED.imbueSlots : k.effect);
 
 /** Every kind resolved to whole numbers, and the ladder. Throws on a row src/data/trades.js validate refuses. Pure; the same every call. */
 export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LINE_SHARE) {
@@ -78,7 +78,7 @@ export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LIN
     const k = kinds[id];
     if (k.line) return STORE_KIT.kitWork * lines[k.line] * k.split * effectHours(k) * UH;
     if (k.budget === 'tool') return levers.tool.work * UH;
-    if (k.budget === 'temperKit') return levers.temperKitWork * UH;
+    if (k.budget === 'temperKit') return BORROWED.temperKitWork * UH;
     return k.budget.share * budget(k.budget.of === 'tool' ? anyTool : k.budget.of);
   };
   const rawUh = Math.round(budget(RAW_UNIT_OF) * S.gather);
@@ -90,7 +90,9 @@ export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LIN
     /* FINAL: a finished good (a kit kind, a Temper kit, a tool). The job fee is charged on finished goods only, on their whole V, so a
        chain pays it once (09 5.6's fees are jobFee x the kit's value); a refined good and a part pay none */
     const final = k.stage === 'make' && !(k.budget && typeof k.budget === 'object');
-    const base = { id, trade: k.trade, stage: k.stage, line: k.line || null, opens: k.opens, ships: k.ships, rolls: k.rolls || null, final };
+    /* LIFE: a good whose quality is life gains lifePm permille of its V a rung (a tool 09 3.7, an imbuement 21 D-7); 0 for any other */
+    const lifePm = k.rolls === 'life' ? (k.life === 'imbue' ? Math.round(BORROWED.imbueLifeRung * 1000) : pm(levers.tool.lifeRung)) : 0;
+    const base = { id, trade: k.trade, stage: k.stage, line: k.line || null, opens: k.opens, ships: k.ships, rolls: k.rolls || null, lifePm, final };
     if (k.stage === 'gather') return (out[id] = Object.freeze({ ...base, workUh: rawUh, ownUh: rawUh, inputs: Object.freeze([]), hunted: Object.freeze([]) }));
     if (k.stage === 'refine') {
       return (out[id] = Object.freeze({ ...base, workUh: rawUh + refineUh, ownUh: refineUh,
@@ -186,7 +188,7 @@ const big = (n) => BigInt(Math.floor(n));
 /** The item step a good of `band` and quality `q` (0 Plain, 1 Fine, 2 Master) sits at; a 'life' good's quality is life, not step. */
 export const itemStep = (band, q = 0, rolls = 'step') => bandStep(band) + (rolls === 'step' ? Math.max(0, Math.min(2, q | 0)) * TRADE_PM.qualitySteps : 0);
 /** The life factor in permille a good's quality gives ('life' goods only). */
-const lifePmOf = (q, rolls) => (rolls === 'life' ? 1000 + TRADE_PM.toolLifeRung * Math.max(0, Math.min(2, q | 0)) : 1000);
+const lifePmOf = (q, rungPm) => 1000 + (rungPm || 0) * Math.max(0, Math.min(2, q | 0));
 
 /** V in whole gold: `workUh` micro-hours of work at item step `step`, times a life factor in permille. */
 export function valueAt(workUh, step, lifePm = 1000) {
@@ -195,7 +197,7 @@ export function valueAt(workUh, step, lifePm = 1000) {
 /** V of one unit of a resolved kind at `band` and quality `q`. A good that rolls no quality is Plain. */
 export function value(kind, band, q = 0) {
   const qq = kind.rolls ? q : 0;
-  return valueAt(kind.workUh, itemStep(band, qq, kind.rolls || 'step'), lifePmOf(qq, kind.rolls));
+  return valueAt(kind.workUh, itemStep(band, qq, kind.rolls || 'step'), lifePmOf(qq, kind.lifePm));
 }
 /** The job fee, burned at the job's start: jobFee x the Plain V of what it asks to make, a finished good only (0 for any other). */
 export function jobFee(kind, band, count) {
@@ -227,7 +229,7 @@ export const behindPm = (steps) => Math.floor(1000 / powSquare(1 + DANGER.powerS
 /** A tool's work speed in permille on a job of band `jobBand`: full at or above it, the contest curve behind it. */
 export const toolSpeedPm = (toolBand, jobBand) => (toolBand >= jobBand ? 1000 : behindPm((jobBand - toolBand) * TRADE_PM.tierSteps));
 /** A tool's life in work-ms by quality (Plain 12 h, Fine 15, Master 18 at the starting values). */
-export const toolLifeMs = (q = 0) => Math.round((TRADE_PM.toolMs * lifePmOf(q, 'life')) / 1000);
+export const toolLifeMs = (q = 0) => Math.round((TRADE_PM.toolMs * lifePmOf(q, TRADE_PM.toolLifeRung)) / 1000);
 /** The store's rented tool, by the work-hour, for a hero at `heroStep`: storeCeiling x its V there over a Plain tool's hours. */
 export function toolRentPerHour(tool, heroStep) {
   const num = BigInt(TRADE_PM.storeCeiling) * big(tool.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * BigInt(HOUR_MS);

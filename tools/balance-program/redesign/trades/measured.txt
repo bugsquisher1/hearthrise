@@ -15,10 +15,10 @@ THE FORMULA TABLE (band 3, a Level 60 hero; V / Fine / Master in gold, fee and s
   arrow         woodcrafting make   charge    L 1 v030  work   0.28 h own  0.042 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"arrowhead":1,"shaft":1}
   bolt          woodcrafting make   charge    L11 v030  work   0.28 h own  0.042 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"arrowhead":1,"shaft":1}
   ward_charm    woodcrafting make   charge    L21 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"shaft":2}
-  imbuement     artificing   make   imbuement L 1 v030  work  0.533 h own  0.533 h V   2181 / 2225 / 2270  fee 546  bid 872  {} {"rare_part":6.667,"remains":1}
+  imbuement     artificing   make   imbuement L 1 v030  work  0.533 h own  0.533 h V   2181 / 2727 / 3272  fee 546  bid 872  {} {"rare_part":6.667,"remains":1}
   draught       alchemy      make   draught   L 1 later work   0.15 h own   0.08 h V    613 / 626 / 638  fee 154  bid 245  {"herb":1} {"common_part":1.25}
   camp_pot      cooking      make   draught   L41 later work   0.67 h own   0.32 h V   2741 / 2796 / 2852  fee 686  bid 1096  {"grain":5} {"common_part":5}
-  temper_kit    smithing     make             L21 v030  work  0.986 h own    0.3 h V   4033  fee 1009  bid 1613  {"bar":7}
+  temper_kit    smithing     make             L21 v030  work  0.414 h own   0.12 h V   1693  fee 424  bid 677  {"bar":3}
   haft          woodcrafting make             L11 later work  0.542 h own   0.15 h V   2217  fee 0  bid 886  {"shaft":4}
   rune_earth    runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
   rune_water    runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
@@ -159,38 +159,38 @@ A WORK-HOUR'S VALUE, the whole chain, in hours of wage at the goods' band (09 4.
   rune_fire     L99 newest           0.299 labor-h a good  value  0.237  after fee  0.178  XP 3599/h on its own stage
   rune_fire     L99 first            0.225 labor-h a good  value  0.315  after fee  0.237  XP 900/h on its own stage
   rune_fire     L99 +mastery+bench    0.17 labor-h a good  value  0.423  after fee   0.32  XP 900/h on its own stage
-  imbuement     L 1 newest           0.716 labor-h a good  value  0.186  after fee   0.14  XP 3593/h on its own stage
-  imbuement     L 1 first            0.716 labor-h a good  value  0.186  after fee   0.14  XP 3593/h on its own stage
-  imbuement     L15 newest           0.662 labor-h a good  value  0.202  after fee  0.151  XP 3472/h on its own stage
-  imbuement     L15 first            0.542 labor-h a good  value  0.247  after fee  0.185  XP 3472/h on its own stage
-  imbuement     L30 newest           0.563 labor-h a good  value  0.238  after fee  0.178  XP 3572/h on its own stage
-  imbuement     L30 first              0.5 labor-h a good  value  0.268  after fee  0.201  XP 2368/h on its own stage
-  imbuement     L50 newest           0.563 labor-h a good  value  0.238  after fee  0.178  XP 3410/h on its own stage
-  imbuement     L50 first              0.5 labor-h a good  value  0.268  after fee  0.202  XP 853/h on its own stage
-  imbuement     L50 +mastery+bench     0.5 labor-h a good  value  0.271  after fee  0.204  XP 853/h on its own stage
-  imbuement     L70 newest           0.529 labor-h a good  value  0.253  after fee   0.19  XP 3469/h on its own stage
-  imbuement     L70 first            0.471 labor-h a good  value  0.286  after fee  0.215  XP 867/h on its own stage
-  imbuement     L70 +mastery+bench   0.471 labor-h a good  value  0.289  after fee  0.218  XP 867/h on its own stage
-  imbuement     L90 newest           0.499 labor-h a good  value  0.269  after fee  0.202  XP 3521/h on its own stage
-  imbuement     L90 first            0.444 labor-h a good  value  0.303  after fee  0.228  XP 880/h on its own stage
-  imbuement     L90 +mastery+bench   0.444 labor-h a good  value  0.307  after fee  0.232  XP 880/h on its own stage
-  imbuement     L99 newest           0.509 labor-h a good  value  0.265  after fee  0.199  XP 3456/h on its own stage
-  imbuement     L99 first            0.444 labor-h a good  value  0.303  after fee  0.228  XP 864/h on its own stage
-  imbuement     L99 +mastery+bench   0.444 labor-h a good  value  0.308  after fee  0.233  XP 864/h on its own stage
-  temper_kit    L30 newest           1.187 labor-h a good  value  0.208  after fee  0.156  XP 3516/h on its own stage
-  temper_kit    L30 first            1.039 labor-h a good  value  0.237  after fee  0.178  XP 3516/h on its own stage
-  temper_kit    L50 newest           1.126 labor-h a good  value  0.219  after fee  0.164  XP 3597/h on its own stage
-  temper_kit    L50 first            0.879 labor-h a good  value   0.28  after fee   0.21  XP 2385/h on its own stage
-  temper_kit    L50 +mastery+bench   0.664 labor-h a good  value  0.371  after fee  0.278  XP 2385/h on its own stage
-  temper_kit    L70 newest           1.079 labor-h a good  value  0.228  after fee  0.171  XP 3559/h on its own stage
-  temper_kit    L70 first            0.843 labor-h a good  value  0.292  after fee  0.219  XP 890/h on its own stage
-  temper_kit    L70 +mastery+bench   0.636 labor-h a good  value  0.387  after fee   0.29  XP 890/h on its own stage
-  temper_kit    L90 newest           1.037 labor-h a good  value  0.238  after fee  0.178  XP 3521/h on its own stage
-  temper_kit    L90 first             0.81 labor-h a good  value  0.304  after fee  0.228  XP 880/h on its own stage
-  temper_kit    L90 +mastery+bench   0.612 labor-h a good  value  0.402  after fee  0.302  XP 880/h on its own stage
-  temper_kit    L99 newest           1.059 labor-h a good  value  0.233  after fee  0.174  XP 3564/h on its own stage
-  temper_kit    L99 first            0.794 labor-h a good  value  0.311  after fee  0.233  XP 891/h on its own stage
-  temper_kit    L99 +mastery+bench   0.599 labor-h a good  value  0.411  after fee  0.309  XP 891/h on its own stage
+  imbuement     L 1 newest           0.716 labor-h a good  value  0.191  after fee  0.144  XP 3593/h on its own stage
+  imbuement     L 1 first            0.716 labor-h a good  value  0.191  after fee  0.144  XP 3593/h on its own stage
+  imbuement     L15 newest           0.662 labor-h a good  value  0.207  after fee  0.157  XP 3472/h on its own stage
+  imbuement     L15 first            0.542 labor-h a good  value  0.257  after fee  0.195  XP 3472/h on its own stage
+  imbuement     L30 newest           0.563 labor-h a good  value  0.247  after fee  0.187  XP 3572/h on its own stage
+  imbuement     L30 first              0.5 labor-h a good  value  0.283  after fee  0.216  XP 2368/h on its own stage
+  imbuement     L50 newest           0.563 labor-h a good  value  0.248  after fee  0.188  XP 3410/h on its own stage
+  imbuement     L50 first              0.5 labor-h a good  value   0.29  after fee  0.223  XP 853/h on its own stage
+  imbuement     L50 +mastery+bench     0.5 labor-h a good  value  0.317  after fee   0.25  XP 853/h on its own stage
+  imbuement     L70 newest           0.529 labor-h a good  value  0.266  after fee  0.203  XP 3469/h on its own stage
+  imbuement     L70 first            0.471 labor-h a good  value  0.314  after fee  0.243  XP 867/h on its own stage
+  imbuement     L70 +mastery+bench   0.471 labor-h a good  value  0.354  after fee  0.283  XP 867/h on its own stage
+  imbuement     L90 newest           0.499 labor-h a good  value   0.29  after fee  0.223  XP 3521/h on its own stage
+  imbuement     L90 first            0.444 labor-h a good  value  0.341  after fee  0.266  XP 880/h on its own stage
+  imbuement     L90 +mastery+bench   0.444 labor-h a good  value   0.39  after fee  0.315  XP 880/h on its own stage
+  imbuement     L99 newest           0.509 labor-h a good  value  0.301  after fee  0.235  XP 3456/h on its own stage
+  imbuement     L99 first            0.444 labor-h a good  value  0.344  after fee  0.269  XP 864/h on its own stage
+  imbuement     L99 +mastery+bench   0.444 labor-h a good  value  0.398  after fee  0.323  XP 864/h on its own stage
+  temper_kit    L30 newest           0.496 labor-h a good  value  0.209  after fee  0.156  XP 3567/h on its own stage
+  temper_kit    L30 first            0.433 labor-h a good  value  0.239  after fee  0.179  XP 3567/h on its own stage
+  temper_kit    L50 newest           0.472 labor-h a good  value  0.219  after fee  0.164  XP 3597/h on its own stage
+  temper_kit    L50 first            0.369 labor-h a good  value   0.28  after fee   0.21  XP 2385/h on its own stage
+  temper_kit    L50 +mastery+bench   0.277 labor-h a good  value  0.374  after fee   0.28  XP 2385/h on its own stage
+  temper_kit    L70 newest           0.451 labor-h a good  value  0.229  after fee  0.172  XP 3582/h on its own stage
+  temper_kit    L70 first            0.353 labor-h a good  value  0.293  after fee   0.22  XP 895/h on its own stage
+  temper_kit    L70 +mastery+bench   0.265 labor-h a good  value  0.391  after fee  0.293  XP 895/h on its own stage
+  temper_kit    L90 newest           0.433 labor-h a good  value  0.239  after fee  0.179  XP 3565/h on its own stage
+  temper_kit    L90 first            0.339 labor-h a good  value  0.305  after fee  0.229  XP 891/h on its own stage
+  temper_kit    L90 +mastery+bench   0.254 labor-h a good  value  0.407  after fee  0.305  XP 891/h on its own stage
+  temper_kit    L99 newest           0.445 labor-h a good  value  0.233  after fee  0.174  XP 3586/h on its own stage
+  temper_kit    L99 first            0.333 labor-h a good  value  0.311  after fee  0.233  XP 896/h on its own stage
+  temper_kit    L99 +mastery+bench    0.25 labor-h a good  value  0.415  after fee  0.311  XP 896/h on its own stage
 
 LABOR: kitWork 0.8 at the reference (0.64 on v0.3.0's lines), 0.699 on the measured Steady L60 burn
   the labor ratio hunting 6h a hero: 0.6 at the reference (v0.3.0 lines), 0.655 on the measured burn, 0.71 with tools

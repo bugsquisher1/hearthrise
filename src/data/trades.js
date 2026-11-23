@@ -29,6 +29,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { STORE_KIT } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
+import { IMBUE, IMBUE_SLOTS } from './imbue-rules.js';
+import { TEMPER_STEPS } from './temper.js';
 
 export const TRADE_LEVERS = Object.freeze({
   /* 09 4.3: the two lines the store never sells (the meal and charge shares live in STORE_KIT.lineShare). The four sum to one */
@@ -61,14 +63,20 @@ export const TRADE_LEVERS = Object.freeze({
   /* 09 3.7, 4.7 (Tyler 2026-11-22: "tools break after 12 hours of use"): a Plain tool lasts toolHours work-hours, each quality rung adds
      lifeRung of that (Fine 15, Master 18); it holds toolWork work-hours of goods */
   tool: Object.freeze({ hours: 12, lifeRung: 0.25, work: 1.0 }),
-  /* 21-flame-temper-imbue-loot.md 2.2: half a Temper rank's price is Temper Kits. JUDGMENT: a kit holds one work-hour of Smithing, so its V
-     is townWageShare hours of wage at its band (0.25), and a whole kit's first rank takes about five */
-  temperKitWork: 1.0,
-  /* 09 4.3 and 4.7: an imbuement lasts imbueHours hunted hours on one piece, at most imbueSlots on a hero (21 3.2: Edge, Ward, Leech) */
-  imbue: Object.freeze({ hours: 20, slots: 3 }),
   /* 09 5.4 THE COVER RULE: a hero who uses a hunting stream's sinks fully burns cover hour-units for each hour-unit that hero drops
      (an hour-unit is what one hunted hero-hour drops, 13-market 3.2). A hunted input is a share of its stream's cover, never a count */
   cover: Object.freeze({ common_part: 1.25, remains: 1.5, rare_part: 1.0, scrap: 1.2 }),
+});
+
+/* THE NUMBERS 21 OWNS, READ HERE, NEVER COPIED (lane/flame-temper-build's rows; 21-flame-temper-imbue-loot.md sections 2.2 and 3.2):
+     an imbuement lasts IMBUE.hours hunted hours on one piece, one a slot (IMBUE_SLOTS: Edge, Ward, Leech), and its quality is LIFE
+     (21 D-7: lifeRungPm a rung), so one imbuement is hours / slots kit-hours of its line (09 4.3: 0.53 work-hours each);
+     a Temper kit is TEMPER_STEPS.kitHoursPm of wage at its band, so it holds kitHoursPm / townWageShare work-hours of Smithing (0.4). */
+export const BORROWED = Object.freeze({
+  imbueHours: IMBUE.hours,
+  imbueSlots: Object.keys(IMBUE_SLOTS).length,
+  imbueLifeRung: IMBUE.lifeRungPm / 1000,
+  temperKitWork: TEMPER_STEPS.kitHoursPm / 1000 / STORE_KIT.townWageShare,
 });
 
 /* THE TEN TRADES (09 section 1; 20 section 1.4 for what v0.3.0 opens). `tool` is the working name of its tool (09 3.7). `was` names the
@@ -90,7 +98,7 @@ export const TRADES = Object.freeze({
    its share of the line `split`. A part (`budget: { of, share }`) is a share of another kind's whole work, made in its own trade (the
    arrowhead is half an arrow: 09 3.3's join). `from` lists town materials by share of the material work; `parts` lists parts the kind
    takes whole; `hunted` lists hunting streams by share of the stream's cover. `rolls` marks a finished good that rolls quality:
-   'step' (Fine and Master are item steps, 09 4.4) or 'life' (a tool's quality is its life, 09 3.7). `opens` is the rung (JUDGMENT: the
+   'step' (Fine and Master are item steps, 09 4.4) or 'life' (a tool's and an imbuement's quality is life, 09 3.7 and 21 D-7; `life` names whose rung). `opens` is the rung (JUDGMENT: the
    first day's kinds at rung 1, as 09's walk-through has it; the rest staggered so a trade opens a kind every few rungs). */
 const raw = (trade) => Object.freeze({ trade, stage: 'gather', opens: 1, ships: TRADES[trade].ships });
 const refined = (trade, of) => Object.freeze({ trade, stage: 'refine', opens: 1, from: Object.freeze([Object.freeze({ kind: of, share: 1 })]), ships: 'v030' });
@@ -120,7 +128,7 @@ const BASE_KINDS = {
   bolt: freeze({ trade: 'woodcrafting', stage: 'make', line: 'charge', split: 1, effect: 1, opens: 2, parts: ['arrowhead'], from: [share('shaft', 1)], rolls: 'step', ships: 'v030' }),
   ward_charm: freeze({ trade: 'woodcrafting', stage: 'make', line: 'charge', split: 1, effect: 1, opens: 3, from: [share('shaft', 1)], rolls: 'step', ships: 'v030' }),
   /* THE DECISION LINES (09 3.2). An imbuement is imbueHours / imbueSlots kit-hours of its line (21 3.2: 0.53 work-hours each) */
-  imbuement: freeze({ trade: 'artificing', stage: 'make', line: 'imbuement', split: 1, effect: 'imbue', opens: 1, hunted: [hunted('rare_part', 1), hunted('remains', 0.1)], rolls: 'step', ships: 'v030' }),
+  imbuement: freeze({ trade: 'artificing', stage: 'make', line: 'imbuement', split: 1, effect: 'imbue', opens: 1, hunted: [hunted('rare_part', 1), hunted('remains', 0.1)], rolls: 'life', life: 'imbue', ships: 'v030' }),
   draught: freeze({ trade: 'alchemy', stage: 'make', line: 'draught', split: 1, effect: 1, opens: 1, from: [share('herb', 1)], hunted: [hunted('common_part', 1)], rolls: 'step', ships: 'later' }),
   /* the camp pot serves a party of four for an hour in place of their draughts (21 D-1), so it is four kit-hours of the draught line.
      JUDGMENT, out of v0.3.0 (20 section 2) */
@@ -140,7 +148,7 @@ const RUNE_KINDS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.map((f) => ['rune_' 
 
 /* One tool a trade (09 3.7), made by Smithing from bars and a haft. Its work is toolWork (the `budget: 'tool'` rows read it) */
 const TOOL_KINDS = Object.fromEntries(Object.entries(TRADES).map(([t, row]) => ['tool_' + row.tool, freeze({ trade: 'smithing', stage: 'make',
-  budget: 'tool', opens: 2, forTrade: t, parts: ['haft'], from: [share('bar', 1)], rolls: 'life', ships: 'later' })]));
+  budget: 'tool', opens: 2, forTrade: t, parts: ['haft'], from: [share('bar', 1)], rolls: 'life', life: 'tool', ships: 'later' })]));
 
 export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });
 
@@ -180,7 +188,8 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
   /* 09 5.5: the store's bid stays under the store's ask, so buying basics and selling the crafted good never prints gold */
   if (!(L.store.floorShare < STORE_KIT.storeCeiling)) out.push('the store bids at or over what it asks');
   if (!(L.tool.hours > 0) || !permille(L.tool.lifeRung) || !(L.tool.work > 0)) out.push('a tool must last and hold work');
-  if (!Number.isInteger(L.imbue.slots) || L.imbue.slots < 1 || !(L.imbue.hours > 0)) out.push('the imbuement life and slots must be positive');
+  if (!Number.isInteger(BORROWED.imbueSlots) || BORROWED.imbueSlots < 1 || !(BORROWED.imbueHours > 0) || !permille(BORROWED.imbueLifeRung)) out.push('the imbuement\'s life, slots and life rung (21) must be positive');
+  if (!(BORROWED.temperKitWork > 0)) out.push('a Temper kit (21) must hold work');
   for (const [k, v] of Object.entries(L.cover)) if (!(v >= 1)) out.push('the ' + k + ' cover ' + v + ' is under 1: the stream floods (09 5.4)');
   if (!kinds[RAW_UNIT_OF] || kinds[RAW_UNIT_OF].line !== 'meal') out.push('the raw unit is not read off a meal');
   const ids = Object.keys(kinds);
@@ -216,6 +225,7 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
       if (k.budget) out.push(id + ': a kit kind is sized by its line, not a budget');
     } else if (k.stage === 'make' && !k.budget) out.push(id + ': a made kind with no line needs a budget');
     if (k.rolls && !['step', 'life'].includes(k.rolls)) out.push(id + ': rolls ' + k.rolls);
+    if ((k.rolls === 'life') !== ['tool', 'imbue'].includes(k.life)) out.push(id + ': a good whose quality is life names whose life rung it reads (tool or imbue), and only it');
     if (k.stage !== 'make' && k.rolls) out.push(id + ': only a made good rolls quality');
     if (k.stage === 'make' && !(k.from || []).length && !(k.hunted || []).length) out.push(id + ': a made kind with no input');
   }

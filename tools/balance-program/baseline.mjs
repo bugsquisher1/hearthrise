@@ -416,7 +416,7 @@ async function selftest() {
         game = cut(p.results.g); matrix = cut(p.results.m);
         if (game === null || matrix === null) why = 'no death in 0.25 h: the check read nothing';
       }
-      const share = 1 - D.BL.BLESSING_CUT_PERMILLE[2] / 1000;
+      const share = 1 - D.BL.BLESSING.cutPm / 1000;
       check('the baseline plays the game\'s own Blessings: ' + ladder + ' jobs carry the S-5 ladder, a death at 145 keeps ' + game + ' of its loss (the tree\'s table: ' + share + '), where the matrix\'s job keeps ' + matrix,
         ladder === 0 && game !== null && Math.abs(game - share) < 1e-9 && matrix !== null && matrix < game, why);
     }

@@ -63,7 +63,8 @@
 import { TEMPER_MATERIALS } from './temper.js';
 import { WEAPON_FAMILIES } from './gear-tiers.js';
 import { TOWER_WEAPONS } from './tower-weapons.js';
-import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS } from './tower.js';
+import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS, towerLevelAt } from './tower.js';
+import { tierLevel } from './gear-steps.js';
 import { ARMOUR_WEIGHT, SKILL_PLUS_FIELDS } from './core-model.js';
 import { CATACOMB_ARMOR_SHIPPED, CATACOMB_TIERS, WING_LEAN } from './catacomb-armor.js';
 
@@ -102,14 +103,32 @@ const key = (id, family, item, name, from, weaponPm, weaponTier, skillPlus, cind
   ground: TOWER_RULES.hunt, gear: 'weapon', helmetPm: null, armor: Object.freeze({}),
   weapons: Object.freeze(Object.fromEntries(TOWER_WEAPONS.filter((w) => w.key === id).map((w) => [w.family, w.id]))) });
 
-/* The design's four (§5, Tyler 2026-11-14), in `from` order. Counts are the designer's; none is measured in play. Platinum: the
-   coherence pass's C4 says "Ember salts and more Cinders" until a tier 7 ladder exists, with no number for the Cinders: 600 stays the
-   design's, the designer's to raise. THE TOWER'S keys: the Tower window and its art read these four (tower-stage.js, tower-art.mjs). */
+/* THE KEY FORMULAS (lane/tower-boss-formula, 2026-11-22; 02-architecture.md package 7: the Tower's chest; 12-targets.md section 7: its weapons
+   are the top chase). A Tower key's two numbers that follow the climb are GENERATED, never typed:
+     from      THE LANDING WHERE ITS WEAPONS ARE AN UPGRADE: the first landing whose floor Level (src/data/tower.js towerLevelAt) reaches the item
+               Level of its weapons' tier (src/data/gear-steps.js tierLevel). A company that holds that floor stands about 25 Levels under it
+               (tests/tower-climb.mjs TC-CURVE), so a key's weapons are a tier or more over what it wears: "pretty major upgrades" (Tyler
+               2026-11-18). One row moves when the floors' Level formula moves
+     weaponPm  THE ODDS FALL AS KEYS RISE (Tyler 2026-11-14's reversal, 16 / 8 / 4.5 / 2%): KEY_ODDS.firstPm, halved for each metal above the
+               first (160 / 80 / 40 / 20)
+   What a key always holds (Cinders, salts, food) stays the designer's row: none is measured in play. Platinum: the coherence pass's C4 says
+   "Ember salts and more Cinders" until a tier 7 ladder exists. THE TOWER'S keys: the Tower window and its art read these four. */
+export const KEY_ODDS = Object.freeze({ firstPm: 160, fallPm: 500 });
+/* The first landing at or over item Level `iL` on the Tower (towerLevelAt's inverse, held to the first landing). Pure. */
+export function landingForLevel(iL, rules = TOWER_RULES) {
+  const every = rules.landingEvery;
+  let f = every;
+  while (towerLevelAt(f, rules) < iL) f += every;
+  return f;
+}
+const towerKey = (rank, metal, name, weaponTier, skillPlus, cinders, saltsQty, food, foodQty) => key(metal, 'tower', 'tower_key_' + metal, name,
+  landingForLevel(tierLevel(weaponTier)), Math.round(KEY_ODDS.firstPm * (KEY_ODDS.fallPm / 1000) ** rank), weaponTier, skillPlus, cinders, saltsQty,
+  food, foodQty);
 export const CHEST_KEYS = Object.freeze([
-  key('bronze', 'tower', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 15, 'cooked_shrimp', 20),
-  key('silver', 'tower', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 25, 'cooked_lobster', 15),
-  key('gold', 'tower', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 30, 'cooked_lobster', 20),
-  key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 40, 'cooked_lobster', 25),
+  towerKey(0, 'bronze', 'Bronze Key', 2, 1, 50, 15, 'cooked_shrimp', 20),
+  towerKey(1, 'silver', 'Silver Key', 4, 2, 150, 25, 'cooked_lobster', 15),
+  towerKey(2, 'gold', 'Gold Key', 6, 3, 300, 30, 'cooked_lobster', 20),
+  towerKey(3, 'platinum', 'Platinum Key', 7, 4, 600, 40, 'cooked_lobster', 25),
 ]);
 
 /* THE CATACOMB KEYS (Tyler 2026-11-16: "Waterlogged Key" from the Flooded Wing, leans boots; "Bone Key" from the Bone Wing, leans helmets; the

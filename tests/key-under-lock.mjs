@@ -56,7 +56,6 @@ const LOCK = 'perform public.hr_hunt_lock(v_uid, p_slot);';
 /* THE VERBS WITH THE SHAPE THAT ARE SAFE WITHOUT A SECOND READ: the first press's own committed row (or open hunt) refuses the second
    under the lock, before hr_apply. `check` must stay in the body after the lock; drop the entry the day the verb reads under its lock. */
 const SAFE_BY_STATE = Object.freeze({
-  hr_blessing_buy: { check: "'already_blessed'", why: 'the tier row the first press wrote refuses the second' },
   hr_title_buy: { check: "'title_owned'", why: 'the title row the first press wrote refuses the second' },
   hr_house_dummy_unlock: { check: "'already_owned'", why: 'the account_house_dummy row the first press wrote refuses the second' },
   hr_hero_rename: { check: "'same_name'", why: 'the name the first press wrote is the name the second asks for' },

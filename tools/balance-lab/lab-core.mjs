@@ -34,7 +34,8 @@ import { GEAR_LADDERS } from '../../src/data/gear-tiers.js';
 import { SHIELD_ITEMS } from '../../src/data/shields.js';
 import { reachableSources } from '../../src/data/catalogue-coherence.js';
 import { BUILD } from '../../src/build-info.js';
-import { BLESSING_CUT_PERMILLE, blessingPrice } from '../../src/data/blessings.js';
+import { BLESSING } from '../../src/data/blessings.js';
+import { blessingPrice } from '../../src/core/wage.js';
 import { BUFF_MAX_UNTIL_MS } from '../../src/core/buffs.js';
 import { STYLES } from '../balance-sim/styles.mjs';
 import { rateCI, quantile, round, gini, underInto } from '../balance-sim/stats.mjs';
@@ -283,11 +284,12 @@ export function playCell(cell, seeds, hooks = {}) {
   const S = R || cell;
   const real = S.deathRule === 'real';
   const blessings = Number.isInteger(S.blessings) ? S.blessings : 0;
-  const blessedShare = Number.isFinite(S.blessedShare) ? S.blessedShare : 1 - (blessings ? BLESSING_CUT_PERMILLE[blessings - 1] : 0) / 1000;
+  const blessedShare = Number.isFinite(S.blessedShare) ? S.blessedShare : 1 - (blessings ? BLESSING.cutPm : 0) / 1000;
   /* a Level XP row (S-4) rides m.perks.levelXpPm, never the engine's buff rows (cell.mjs, the same split) */
   const levelXpPm = R ? R.levelXpPm || 0 : Math.round(10 * (cell.buffs || []).filter((b) => b.type === 'level_xp').reduce((a, b) => a + (Number(b.magnitude) || 0), 0));
   const engineBuffs = R ? R.buffs : (cell.buffs || []).filter((b) => b.type !== 'level_xp');
-  const blessingsPrice = (L) => { let g = 0; for (let t = 1; t <= blessings; t++) g += blessingPrice(t, L) || 0; return g; };
+  /* the ONE Blessing (lane/level-costs, 2026-11-22): any count above 0 holds it, bought again after each death at the hero's Level */
+  const blessingsPrice = (L) => (blessings ? blessingPrice(L) : 0);
   const totalMs = list.length * cell.hours * 3600000;
   let doneMs = 0;
   for (const seed of list) {

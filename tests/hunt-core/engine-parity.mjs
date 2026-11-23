@@ -127,7 +127,13 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-22 (lane/bar-metrics), A UNIT'S lastMove ONLY: a hero carries the last ability it cast per lane (abilities.js PERSISTED,
    the bar's last_move test), so the stored world, the timeline's unit book and the run's member summary moved. Compared against the base
    tree with lastMove stripped (warrens-4, sewer-2): every settle's events, track, unit book and member share, and the run's totals, are
-   byte-identical; kills 207 / 486 / 139 / 104 held. */
+   byte-identical; kills 207 / 486 / 139 / 104 held.
+   RE-PINNED 2026-11-22 (lane/e2-e3-statuses), ONE NEW EVENT ONLY: glade-4's timeline at settle 12 (and its chain) moved, nothing else. Cause: a
+   shield spent to nothing now says `shield_break` (damage.js landHit, events.js EVENT_VERSION 9), and glade-4's healer's Protective Ward broke
+   once in that window. PROOF THE GENERAL STATUS SYSTEM IS THE OLD ENGINE: Bleed, Chill and Sickness on statuses.js keys and the one reader
+   (status-effects.js), the one shield rule (shields.js offerShield), auras (auras.js, none slotted) and Silenced, played with that one emit
+   switched off, HOLD EVERY PIN (world, timeline and tally at all 48 settles, exit 0); with it on, the diff against the pin before is the
+   two glade-4 timeline hashes, every world and tally hash and every kill count (203 / 479 / 134 / 104) held. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

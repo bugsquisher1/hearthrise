@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-22 · lane/e2-e3-statuses (E2 statuses as rows, E3 auras and shields)
+1. *Prove a migration by switching the one new reading off.* The general status system moved glade-4's timeline only; with the new `shield_break` emit disabled every pin held at all 48 settles, which separates "the engine is the same" from "the engine now says one more thing".
+2. *A hidden row must stay out of the server's catalogue.* `EFFECT_IDS` feeds the bar's SQL vals (1061); a new status id would turn conditions.mjs red without a migration. Rows carry `hidden: true`; the engine reads them, the picker and the server do not, until the move ships.
+3. *A rule built as the doc says can still be dead.* Armor Break on `defenceReduction` moves nothing: monster defence takes at most 2 points off a blow (CONFLICTS.md, 2026-11-22).
+4. *Offense-only steps buy about half a depth step.* An 11-step offense aura on all four moved damage +3.9% (its budget exactly) and held depth +6 +- 4 (Muster L60, 6 seeds).
+
 ## 2026-11-22 · lane/bar-metrics (the Roads' engine prerequisites, 18-roads-review §9 step 1)
 1. *A new bar test is a registry row, its evaluator and the server's rows.* The metrics block now lives in 1061-bar-metrics.sql (tests/hunt-core/conditions.mjs --print). hr_hunt_cond_check already treats any kind other than pct, count or bool as "one of vals", so the named-value kind `move` only needed the table's kind check widened. No function body changed.
 2. *A test that reads time gets the step's instant passed in, never a world clock.* `testSlot(…, atMs)`, `pickSlot(…, atMs = sc.atMs)`. The display tester takes the world's own instant (live-engine `st.next`). A Mark read with no instant fails safe to "not Marked".
@@ -5347,3 +5353,8 @@ Merged in order: lane/c-tower-all b1e4ab021, lane/a-next-steps ded1b94a6, lane/b
 5. *A wipe decides every new table, and a singleton is reset, not truncated.* hr_hearth_fire's fold returns 0 on a missing row, so truncating it would stop the Hearthrise until 1043 is re-applied. Its count is reset in §1 and k5 proves it.
 6. *Handoff (shell owner):* on the clean build, resizing the window during a hunt raises one "ResizeObserver loop completed" error (widgets re-sized inside the observer's own pass). Found while probing TW-8 and not fixed here.
 7. *Attribute a cost rise by bisecting archived trees, by kind.* G16's +7% / +19% journal rows were all `hunt supply_own`: the to-hit ratio (2398754cb) makes the L10 hero use supplies in 7 of 12 windows (its parent: 4). The tool was a one-line kind breakdown in per-player-cost's ledgerOf (not committed) and `git archive <sha> src tests supabase tools package.json` into `.scratch/` (ignored; node_modules resolve upward). The row is already one a hero a save, and 1047 folds it hourly, so the re-pin was the honest fix. The cut left is a single accrue + supplies row (hr_apply), an economy-journal change.
+
+## 2026-11-22 · lane/flame-temper-build (21: Inner Flame, Temper on steps, imbuements, personal loot, carry-over)
+1. *Write never checks whether a file exists.* `tests/inner-flame.mjs` was the shipped Hearth's guard; a new guard named after the new system overwrote it, and only guard-hygiene's VACUOUS PROOF line (its smoke step passes --selftest) gave it away. Name a new guard after its rule set (`tests/flame-rules.mjs`) and Glob first.
+2. *A dark server system still needs a consumer for each export* (dead-exports): pure rules the roller or bench will read later earn their keep as the SQL twins' pins in the generator (`tools/gen-flame-temper.mjs`), never as test-only exports.
+3. *Hunted time is `hunt_sessions.settled_to` advancing.* An AFTER UPDATE OF settled_to trigger runs in the settle's own transaction and needs no splice of hr_hunt_apply_member: the flame's decay and imbuement timers ride it, so nothing moves in town and both doors (viewed, tick) count the same windows.

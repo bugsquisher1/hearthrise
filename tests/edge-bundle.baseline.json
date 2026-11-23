@@ -323,6 +323,21 @@
         "bytes": 3409627,
         "on": "2026-11-23",
         "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
+      },
+      {
+        "bytes": 3436602,
+        "on": "2026-11-23",
+        "why": "drops: trait-roll.js roller (dark), drop-hours formula, rarity ladder and pity"
+      },
+      {
+        "bytes": 3465470,
+        "on": "2026-11-23",
+        "why": "E2/E3: statuses as data (status-effects.js), auras, shields, shield_break event"
+      },
+      {
+        "bytes": 3465586,
+        "on": "2026-11-23",
+        "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
       }
     ]
   }

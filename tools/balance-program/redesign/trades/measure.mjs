@@ -33,7 +33,7 @@ const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 &
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 
 const T = await imp('src/core/trades.js');
-const { TRADE_LEVERS, LINE_SHARE } = await imp('src/data/trades.js');
+const { TRADE_LEVERS, BORROWED, LINE_SHARE } = await imp('src/data/trades.js');
 const { STORE_KIT } = await imp('src/data/store-kit.js');
 const { WORK_DAY } = await imp('src/data/work-day.js');
 const { wage } = await imp('src/data/wage.js');
@@ -59,7 +59,7 @@ out.kinds = Object.values(K).map((k) => ({
 
 /* ── THE SUPPLY BILL ─────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const lab = JSON.parse(readFileSync(FROM, 'utf8'));
-const imbuePerH = TRADE_LEVERS.imbue.slots / TRADE_LEVERS.imbue.hours;
+const imbuePerH = BORROWED.imbueSlots / BORROWED.imbueHours;
 const mealLineV = (band) => T.value(K.meal, band, 0) + T.value(K.drink, band, 0);
 const mealLineAsk = (step) => T.storeAsk(K.meal, step) + T.storeAsk(K.drink, step);
 out.bill = [];

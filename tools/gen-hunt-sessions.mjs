@@ -1087,7 +1087,9 @@ function trainingRows(S, groundRowsOut) {
     if (g.bound) {
       if (it.bop !== true || Number(it.v) !== 0 || g.gold !== null) throw new Error(`training item ${g.id} is bound but tradable, worth something, or sold for gold`);
     } else {
-      if (it.bop || !(whole(g.gold) && g.gold >= 1 && g.gold <= 1000000000) || it.v * GR.bidShare !== g.gold) throw new Error(`training item ${g.id}: a gold row must trade at its price ${g.gold} / ${GR.bidShare}`);
+      /* its book is its price / bidShare in whole gold (the price is hours of wage, lane/prices-wage-hours): the market's ceiling, bidShare x book, never
+         passes the Arms Master's own price */
+      if (it.bop || !(whole(g.gold) && g.gold >= 1 && g.gold <= 1000000000) || it.v !== Math.floor(g.gold / GR.bidShare)) throw new Error(`training item ${g.id}: a gold row must trade at its price ${g.gold} / ${GR.bidShare}, whole`);
     }
     gear.push({ id: g.id, skill: g.skill, ms: g.hours * R.hourMs, bound: g.bound, price: g.gold });
   }

@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/econ-followups, backend-architect, 2026-11-22). THE STORE'S PRICE TERMS AND ITS FLOAT8 TWIN, GENERATED (tools/gen-store-prices.mjs from src/data/supply-basics.js STORE_TERMS, src/data/store-kit.js and src/data/danger.js DANGER_GROUNDS): hr_store_terms (one row a store row: line, coef, amount, per, floor), hr_store_grounds (each scale ground's reference wage step, its gearLevel), hr_store_price(basic, step) pinned at every row and step against the JS. ON THE EA SECURITY LIST (13-security-list.md: store prices). ORDER: 1061 in its name, before 1062-store-step.sql (which reads it). EDGE: none (the engine reads the prices the member read hands it)."
+}

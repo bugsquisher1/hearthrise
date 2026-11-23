@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "af429c429ef67035",
+ "authored": "d9ee5337554fe4a3",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -113,7 +113,7 @@
   "flags": {
    "redundant": 40,
    "ineffective": 35,
-   "contradictory": 41
+   "contradictory": 40
   }
  },
  "census": {
@@ -6681,16 +6681,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6760,16 +6760,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6836,16 +6836,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6905,16 +6905,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7189,12 +7189,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7256,12 +7256,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7314,16 +7314,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7457,12 +7457,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10150,16 +10150,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10226,16 +10226,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10418,13 +10418,13 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 99,
+     "line": 106,
      "text": "export const BASIC_SUPPLIES = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     },
     {
      "file": "src/data/supply-basics.js",
-     "line": 220,
+     "line": 243,
      "text": "export const SUPPLY_SHOP_OFFERS = Object.freeze([",
      "binding": "SUPPLY_SHOP_OFFERS"
     }
@@ -10469,7 +10469,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10540,7 +10540,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 56,
+     "line": 59,
      "text": "export const BASIC_EFFECT_SHARE = 0.75;",
      "binding": "BASIC_EFFECT_SHARE"
     }
@@ -10601,7 +10601,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 92,
+     "line": 99,
      "text": "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -11801,12 +11801,13 @@
     ],
     "mentions": [
      "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11924,12 +11925,13 @@
     ],
     "mentions": [
      "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11948,42 +11950,42 @@
    "sites": [
     {
      "file": "src/data/store-kit.js",
-     "line": 42,
+     "line": 52,
      "text": "kitWork: 0.8,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 44,
+     "line": 54,
      "text": "townWageShare: 0.25,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 46,
+     "line": 56,
      "text": "storeCeiling: 1.5,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 48,
+     "line": 58,
      "text": "lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 50,
+     "line": 60,
      "text": "refRestore: 12660,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 51,
+     "line": 61,
      "text": "refCharges: 1390,",
      "binding": "STORE_KIT"
     }
    ],
-   "definition": "every store row's gold a use is storePrice: storeShare (kitWork x townWageShare x storeCeiling = 0.3) x its line's share (meal or charge, 0.35) x wage(the step its crafted partner is made at) x the use's share of what one reference hour burns of that line (refRestore HP and mana, refCharges shots and casts, the Steady four's mean at Level 60); never under the crafted partner's floor (a meal: its book a point / the buy-back, a charge: BASIC_AMMO_PREMIUM x its book, a rune 2 with a book) nor a whole gold",
+   "definition": "every store row's gold a use is storePrice: storeShare (kitWork x townWageShare x storeCeiling = 0.3) x its line's share (meal or charge, 0.35) x wage(the buyer's store step: the hunt's depth on the Danger scale in the wage's unit, else the hero's Level; the row's own made-at step prices only its list price) x the use's share of what one reference hour burns of that line (refRestore HP and mana, refCharges shots and casts, the Steady four's mean at Level 60); never under the crafted partner's floor (a meal: its book a point / the buy-back, a charge: BASIC_AMMO_PREMIUM x its book, a rune 2 with a book) nor a whole gold",
    "range": "09-crafting.md 4.7: kitWork 0.5 to 1.2, townWageShare 0.15 to 0.35, storeCeiling 1.25 to 2.0; line shares 09 4.3. The reference rates are MEASURED (re-measure when the bar or the engine moves them). Target: a store-fed Steady four's kit takes 0.2 to 0.3 of its gross (04 section 11, 09 2.5)",
    "touches": "every store price (the supply bill on every ground) and through the price list every crafted supply's shop bid",
    "outcomes": [
@@ -12044,13 +12046,7 @@
     ],
     "existingPatches": []
    },
-   "flags": [
-    {
-     "kind": "contradictory",
-     "why": "Priced once at the row's own step, not at the buyer's (04 section 3, 09 4.6): a hero far past a row's step pays that row's price; the server change is handed off",
-     "ev": "src/data/store-kit.js header; JUDGMENT"
-    }
-   ],
+   "flags": [],
    "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): the Steady four's kit 0.26 of its gross (4,168 of 16,276), Careful 0.22, Bold 0.28; was 2.04 (9,804 of 4,797) before"
   },
   {
@@ -12060,7 +12056,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 63,
+     "line": 66,
      "text": "export const BASIC_AMMO_PREMIUM = 0.5;",
      "binding": "BASIC_AMMO_PREMIUM"
     }

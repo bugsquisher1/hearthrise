@@ -1,0 +1,9 @@
+
+ROADS time on muster_barrows L60 steady, held start 570, 8 seeds x 1 h, held read from hour 1 (mean +- se over seeds)
+M                          held n/a            deaths 0 (0 seeds)  xp/hd-h 233161.1 +- 4033 gold/hd-h 4900.9 +- 200.4 store/hd-h 11021.4 +- 107.1 heal/h 139929.3 +- 2775.3 drinks/h 489.1 +- 5.7
+     hammer  heal/h 0        self/h 2201.3   dps 25.6    mana/h 5816.3  drinks/h 0     store/h 742.5  shieldIn/h 20307.4 taken/h 115052.6 deaths 0
+     bow     heal/h 0        self/h 0        dps 27.4    mana/h 12012.9 drinks/h 9.3   store/h 15104.6 shieldIn/h 6459.8  taken/h 45403    deaths 0
+     mage    heal/h 0        self/h 0        dps 37.6    mana/h 32302.6 drinks/h 159.1 store/h 14903.9 shieldIn/h 2182.5  taken/h 5806.9   deaths 0
+     healer  heal/h 139929.3 self/h 170.6    dps 16.9    mana/h 48251.8 drinks/h 320.8 store/h 13334.6 shieldIn/h 12.4    taken/h 204.6    deaths 0
+
+wall 31 s on 1 workers; mean seed 4 s for 1 h

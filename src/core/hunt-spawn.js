@@ -76,9 +76,13 @@ export function heroSetup(o) {
     range: row.range,
     element: '',
     settings: { ...own('distance', 'dist'), ...own('chase', 'chase'), ...own('target_mode', 'tmode'), ...own('stance', 'stance'),
-      ...kindPick(opt.target_kind) },
+      ...kindPick(opt.target_kind), ...rowPick(opt.row) },
   };
 }
+
+/* THE ROW (src/core/hunt/monster-roles.js rowOf; wave 2): 'front' or 'back' from the plan, the server's `row` on the options it reads, as
+   settings' `row`; absent, the hero's role decides. Anything else is none. */
+const rowPick = (v) => (v === 'front' || v === 'back' ? { row: v } : {});
 
 /* THE KIND FIRST (targeting.js kindOf; the Krell's Hold design's engine piece 4, remembered per ground): the monster kind the hero
    takes first on this ground, the server's `target_kind` on the options it reads (a MONSTERS id), as settings' `tkind`; absent with
@@ -98,6 +102,9 @@ function heroUnit(id, h, partyRoles, tile) {
   /* THE KIND FIRST is not persisted (the settle writes it at every boundary, combat-sim.js syncUnit): set on the unit it joins with */
   const tkind = h.settings && h.settings.tkind;
   if (typeof tkind === 'string') Object.assign(u, { tkind });
+  /* THE ROW, the same (monster-roles.js rowOf) */
+  const row = h.settings && h.settings.row;
+  if (row === 'front' || row === 'back') Object.assign(u, { row });
   return u;
 }
 

@@ -143,11 +143,20 @@ export const LEVER_MOVES = Object.freeze({
      in inst.tier), so its levers move C-TIER's quantities; the pay is the scale's own and is named with its reason */
   'danger.power-step': ['+tier.hp', '+tier.dmg'],
   'danger.pull': ['+pull.size'],
+  'danger.pay-floor': [['+kill.xp', 'under the reference step a kill pays no less than floor x its table share (danger.js PAY.floor), XP and coin alike']],
+  'danger.power-gear': [['~tier.hp', 'the gear part over the ground\'s gearLevel at weightGearPm steps divides a blow at the hero (danger.js POWER)'],
+    ['~tier.dmg', 'the same steps multiply a blow at a monster; a kit under gearLevel turns both the other way']],
   'danger.start': ['-tier.hp', '-tier.dmg'],
   'danger.climb': ['~tier.hp', '~tier.dmg'],
   'danger.stances': ['~tier.hp', '~tier.dmg'],
   'danger.pay': [['+kill.xp', 'on a stance a kill pays a share of the killer\'s own Level from the hours table (danger.js levelShareXp, read by xp-share.js), x the depth ratio'],
     ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the same depth ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
+  /* lane/r9 (declared by lane/w2-roles-rows, which found graph --check red on them) */
+  'danger.pay-floor': [['+kill.xp', 'under the reference step a kill pays at least floor x the hours table share (danger.js depthRatio), XP and coin'],
+    ['+kill.coin', 'the same floor on the coin ratio (dangerDial coinPm)']],
+  'danger.power-gear': [['~tier.dmg', 'a gear part over the ground\'s gear Level steps a blow at a monster up and a blow at the hero down (danger.js powerPm), so the held step moves']],
+  /* MONSTER ROLES (src/data/monster-roles.js, lane/w2-roles-rows): who takes the blows, not how many */
+  'roles.table': [['~tier.dmg', 'a role moves which hero a monster\'s blow lands on (reach) and adds a share of it on heroes beside the target (splash): the damage a seat takes, so the held step']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],
@@ -157,7 +166,8 @@ export const LEVER_MOVES = Object.freeze({
   'gear.slot-weights': [['~gear.weapon', 'the weights split a kit\'s item Level between slots, summing to 1000 (GS-1): a raised slot takes share from the others'],
     ['~gear.armor', 'the same split, the armor slots\' side']],
   'gear.trait-budget': [['+gear.special', 'a Trait of rank r adds traitSteps[r] to the gear part while its condition holds (gear-steps.js)']],
-  'gear.traits': [['~gear.special', 'each Trait\'s condition and source decide when its steps count and on which ground it rolls']],
+  'gear.trait-trade': [['+gear.special', 'a trade Trait adds tradeSteps to offense and takes traitSteps from defense while its condition holds (traits.js trade)']],
+  'gear.traits': [['~gear.special','each Trait\'s condition and source decide when its steps count and on which ground it rolls']],
   'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
   'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],

@@ -306,3 +306,41 @@ Each sample goes through the Lab before it grows: rows 1 and 2 through V1 and V3
 | 3. The piece moves the held step | The gear part, read by the power step | Owed: R9 |
 | 4. A Rare drops with File Breaker, Captain's Due or Last File | `traitPool('muster_barrows')` | Owed: the roller, wave 4 |
 | 5. A Catacomb Trait drops | Needs the Bone Wing and Flooded Wing as grounds (section 7) | Owed: wave 2 |
+
+### 8.1 The 40 Traits (2026-11-22, lane/traits-20; Tyler picked every one in `14-trait-candidates.md`: "Sadly I like them all")
+
+**How it plays:** every slot has three or more Traits, every seat has four or more sized on it (and more it can use), and each ground drops four to six of them. A Rare rolls one from the ground you hunt. A Very Rare rolls two, and they never do the same job twice.
+
+- **Home:** `src/data/traits.js` (40 rows, numbered as in the doc), re-exported through `src/data/gear-steps.js` so a scale ground still reads its pool from `traitPool(id)`. Still hidden: nothing rolls, drops, plays or shows them, and `tests/gear-steps.mjs` GS-6 holds it.
+- **Sizes:** the steps stay the source (`traitSteps` 4 / 7 / 10). Cards show clean numbers, +1.5 / 2.5 / 3.5% (`GEAR_STEPS.shownPct`), each within a quarter of a point of its steps at `powerStep` 0.35%. In band, as ruled.
+- **Similar Traits share a stacking key**, so they never stack: Soft Scale and Ram's Head, Barred Door and Banded Oath, Tarred Through and Floodmark, First Rank and Early Start, Pyre Tender and Long Rite, Slack Water and Ledge Footing, Goaded and Bolting Team, Keeper's Carry and Stair Bearer, Full Wick with Banked Coals and Full Cellar, Numbed and Sour Vault, Captain's Due and Raised Colors. GS-5 reads the groups from the doc, so a new group there is red until its key is shared.
+- **Party-wide Traits** (Snuffed, Raised Colors, Banded Oath) give every hero the rule, and only one copy in a party counts.
+- **Hask's Bargain is the first trade Trait.** While above 90% health its offense rises by `tradeSteps` (7 / 13 / 18, shown +2.5 / 4.5 / 6.5%) and its defense falls by the rank's `traitSteps` (shown +1.5 / 2.5 / 3.5% damage taken). Net it is 3 / 6 / 8 steps, never over one rank's budget, and its gain stays under `conditionalStepsMax`. The engine reads `trade: true` as two rule rows on one `when` (wave 4).
+- **Bottom of the Quiver's exploit is closed by a start floor.** A Trait that pays for running low counts only on a hunt that started with at least twice its threshold (`startMin`, 100 arrows against 50), so carrying 50 arrows never keeps it on. GS-4 makes every future running-low Trait carry the same floor.
+
+**The Very Rare pair rule** (the roller plays it in wave 4. Its data is the keys, `GEAR_STEPS.traitSlots` and `GEAR_STEPS.veryRareBanned`, and `tests/gear-steps.mjs` GS-5 plays it to prove every slot can roll a pair):
+
+1. The first Trait comes from the ground's pool for that slot, so chasing a Trait still means choosing a ground. The second is any other Trait of the slot, from any ground.
+2. Never two of one stacking key. A pair of one key would count once, a Rare with a dead line.
+3. **No best pair.** The risk is a pair whose conditions cover each other's off time, two halves of one rule that make an always-on number. The key rule already bans the clearest cases (Full Wick with Banked Coals is "strong at any mana", First Rank with Early Start is "fresh" twice). Any other pair the dominance check finds in the best kit on more than `dominanceMaxPm` (40%) of cells goes on `veryRareBanned` and never rolls. The fix is the list, not a smaller number (04 section 10: a dominant rule is a design problem).
+4. Two is the cap (`traitsByRarity`).
+
+**The dominance-check plan** (04 guard 4, run as V7 before anything rolls):
+
+| Step | What runs | Passes when |
+|---|---|---|
+| 1. Size each Trait | Each Trait at rank 3 on its `best` cell (seat and ground) against the same kit without it, 12 seeds x 12 h, held depth read | Every Trait moves the held step by 10 +- 3. Outside that, its steps are wrong (guard 1) |
+| 2. Average share | The same Trait on every scale ground for its seat | Its average gain is at most half its best case (`traitAverageSharePm` 500, guard 2). A Trait over it gets a narrower `when`, not a smaller number |
+| 3. Best kit by cell | For each seat x ground, the kit sampler (04 section 10, wave 4) builds the best one-Trait-a-slot kit from the 40 at rank 3 | No Trait in the best kit on more than 40% of cells, and every Trait best on at least one cell |
+| 4. Pairs | The same search with Very Rares, every allowed pair a slot can hold | No pair in the best kit on more than 40% of cells. A pair over it is banned (`veryRareBanned`) |
+| 5. Stacking cap | The best whole kit per cell against `conditionalStepsMax` | No hero's conditional steps at once over 20, so a whole kit a tier up still beats a kit a tier down |
+
+The first readings to watch, from the doc's own notes: Worrier and Lime Pit (a status the hero keeps up), Full Wick, Full Cellar, First Rank and Early Start (a "fresh" or "full" state a strong party may hold all hunt), Soft Scale on Wyvern Roost (a ground built on one weakness), and Bailey Stand for hall tanks.
+
+**Walk-through (a Very Rare cape from Krell's Hold, today's data only):**
+
+| Step | What the player holds or can reach | Doable? |
+|---|---|---|
+| 1. Hunt Krell's Hold on the scale | Krell's Hold is a ground pack (`src/data/grounds/krells_hold`) | Owed: R10 opens it on the scale |
+| 2. A Very Rare cape drops | Raised Colors is the Hold's cape Trait (`traitPool('krells_hold')`) | Owed: the roller, wave 4 |
+| 3. Its second Trait | The pair rule allows Crag Shelter only, since Captain's Due shares Raised Colors' key | Data yes, roller wave 4 |

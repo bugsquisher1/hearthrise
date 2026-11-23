@@ -83,7 +83,7 @@ export function causeLine(d) {
       : ['report.fell_many', 'report.fell_many_died'];
     parts.push(t(keys[pm === 0 ? 1 : 0], v));
   }
-  return parts.join(' ');
+  return parts.join(' · ');
 }
 
 /** THE EARNED LINE: the server's gold an hour (coins and loot) and its store supplies an hour, in words; '' when it rated no hour. */

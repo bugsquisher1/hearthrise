@@ -1,0 +1,183 @@
+{
+ "ground": "muster_barrows",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 8,
+ "hours": 12,
+ "settleFromH": 6,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 60,
+   "start": 0,
+   "seedsRead": 8,
+   "payX": {
+    "mean": 0.98,
+    "sd": 0.08,
+    "n": 8,
+    "perSeed": [
+     0.92,
+     0.94,
+     0.97,
+     0.91,
+     0.95,
+     1.09,
+     0.92,
+     1.1
+    ],
+    "fromH": 6,
+    "windowH": 6
+   },
+   "held": {
+    "mean": 604.1,
+    "sd": 8.8,
+    "se": 3.1,
+    "perSeed": [
+     596,
+     600,
+     608,
+     594,
+     605,
+     615,
+     596,
+     617
+    ]
+   },
+   "drift": 5.4,
+   "within10": 55.3,
+   "within20": 87.2,
+   "changesPerH": 13,
+   "fallsPerH": 1.3,
+   "reachH": 2.4,
+   "pullsPerH": 60.4,
+   "killsPerH": 448,
+   "xpPerHeroH": 243634,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 1996,
+     "sd": 52,
+     "n": 8
+    },
+    "incomePerHeroH": {
+     "mean": 4823,
+     "sd": 120,
+     "n": 8
+    },
+    "storePerHeroH": {
+     "mean": 11160,
+     "sd": 126,
+     "n": 8
+    },
+    "commonPerHeroH": {
+     "mean": 240,
+     "sd": 3,
+     "n": 8
+    },
+    "uncommonPerHeroH": {
+     "mean": 147,
+     "sd": 8,
+     "n": 8
+    },
+    "scarcePerHeroH": {
+     "mean": 2440,
+     "sd": 114,
+     "n": 8
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 8
+    }
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 12,
+   "fourH": 6,
+   "firstDeathH": [],
+   "nearWipes": 5,
+   "nearWithDeath": 0,
+   "nearWarned": 3,
+   "nearFellAfter": 5,
+   "whys": {
+    "hold": 4033,
+    "climb": 1647,
+    "fall": 106
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.663
+    },
+    {
+     "style": "bow",
+     "mean": 0.305
+    },
+    {
+     "style": "mage",
+     "mean": 0.032
+    },
+    {
+     "style": "healer",
+     "mean": 0
+    }
+   ]
+  }
+ },
+ "wallS": 69,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

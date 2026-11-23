@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "id": "roles-off",
+ "why": "Monster roles and rows off (lane/w2-roles-rows): every monster plays as it did before wave 2 (no reach, no role range, no splash), so paired against the tree its move is what the roles do on the scale",
+ "edits": [
+  {
+   "file": "src/core/hunt/monster-roles.js",
+   "from": "  if (!inst || !dangerOn(inst.world) || !isMonster(m)) return null;",
+   "to": "  if (inst || !inst || dangerOn(null) || !isMonster(m)) return null;"
+  }
+ ],
+ "assumptions": [
+  "roleOf is the one door every role reader goes through (aimOf, reaimOf, rangeOf, splashOn), so null there is wave 1's engine"
+ ]
+}

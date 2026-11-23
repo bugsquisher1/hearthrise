@@ -108,6 +108,8 @@ export default definePack({
          at the hero standing farthest back, and he doesn't walk in. A hero's bow reaches 7, so a Ranger can still out-reach him, and a
          Challenge turns his aim to the tank. */
       range: 5,
+      /* THE SHOOTER (src/data/monster-roles.js, wave 2; the Danger scale only): on the scale he keeps to the back row, the farthest of it */
+      role: 'shooter',
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'iron_bar', ch: 0.3, band: 'common' }, { id: 'lookouts_whistle', ch: 0.08, band: 'uncommon' },
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },

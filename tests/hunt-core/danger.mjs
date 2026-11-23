@@ -390,6 +390,7 @@ const CASES = {
     if (!near(off([g(10, 'a'), g(10, 'b'), g(10, 'c')], 200), 20)) return 'three Traits were not held to the gear cap 20';
     if (!near(off([g(7, 'a'), g(10, 'a')], 200), 10)) return 'two Traits of one key stacked: ' + off([g(7, 'a'), g(10, 'a')], 200);
     if (!near(clampLedger([{ slice: 'temper', raises: 'offense', steps: 5 }], 10).offense, 5)) return 'Temper was scaled by Level';
+    if (sliceCap('clan', 200) !== 0 || clampLedger([{ slice: 'clan', raises: 'offense', steps: 4 }], 200).offense !== 0) return 'the clan slice counts before clans ship';
     /* a trade (Hask's Bargain): its gain whole under the cap, its cost whole */
     const trade = clampLedger([g(18, 'bargain'), g(-10, 'bargain', { raises: 'defense' })], 60);
     if (!near(trade.offense, 18) || !near(trade.defense, -10)) return 'a trade at Level 60 reads ' + JSON.stringify(trade) + ', not its gain and its cost whole';
@@ -568,6 +569,7 @@ const MUTANTS = [
   { name: 'the ramp is never taken', case: 'ledger', edits: [['src/data/power-ledger.js', '  return L >= POWER_LEDGER.rampLevel ? 1 : L / POWER_LEDGER.rampLevel;', '  return 1;']] },
   { name: 'found gear ramps by Level', case: 'ledger', edits: [['src/data/power-ledger.js', '  gear: Object.freeze({ max: null, ramps: false, signed: false }),', '  gear: Object.freeze({ max: null, ramps: true, signed: false }),']] },
   { name: 'Temper ramps by Level', case: 'ledger', edits: [['src/data/power-ledger.js', '  temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: false, signed: false }),', '  temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: true, signed: false }),']] },
+  { name: 'the clan slice opens early', case: 'ledger', edits: [['src/core/power-ledger.js', '  if (s.open === false) return 0;\n', '']] },
   { name: 'a ramping row counts at full size', case: 'ledger', edits: [['src/core/power-ledger.js', '      gains *= k; costs *= k; lent *= k;\n', '']] },
   { name: 'a gains-only slice clamps its costs', case: 'ledger', edits: [['src/core/power-ledger.js', '(signed ? Math.min(cap, gains + costs) : Math.min(cap, gains) + costs)', 'Math.min(cap, gains + costs)']] },
   { name: 'the build slice clamps gains alone', case: 'ledger', edits: [['src/core/power-ledger.js', '(signed ? Math.min(cap, gains + costs) : Math.min(cap, gains) + costs)', '(Math.min(cap, gains) + costs)']] },

@@ -13,7 +13,9 @@
 //   build       talent ranks, crossroads, waystones, vows and borrowed moves, at most buildStepsMax x ramp, on the NET of gains and costs (a
 //               vow's cost always bites, so it may buy past the cap only by paying for it; costs are never clamped)
 //   consumable  imbuements, the draught and the camp pot, at most consumableStepsMax x ramp
-//   temper      Temper on a whole kit, at most temperStepsMax, at every Level (it is the gear's)
+//   temper      Temper on a whole kit, at most temperStepsMax, at every Level (it is the gear's; rank r opens at Level 40r, 21 D-2)
+//   clan        clan, castle, arena and event buffs, at most clanStepsMax, ZERO until clans ship (20-v030-the-roads.md: "a new clan slice
+//               of 4 steps, zero until clans ship"; ledger row 16: a new source takes a slice or is refused)
 // Party-scope rows count once a party, in the wearer's slice. Level, the gear base, Inner Flame, the risk stance, roles, party size,
 // Premium and Blessings take no slice (19 section 1, rows 1 to 3 and 11 to 15).
 //
@@ -22,6 +24,7 @@
 //   buildStepsMax 14       19 section 1 row 7: the choice ceiling, 10% pace (1b and 17 v3 section 9: 5 to 10%)
 //   consumableStepsMax 6   19 section 1 row 10: imbuement 2 each, draught 3, camp pot 2, held to 6
 //   temperStepsMax 5       19 section 1 row 4: ranks 1 to 5, a gear step a rank on a whole kit
+//   clanStepsMax 4         20-v030-the-roads.md: everything at once 55 + 4 = 59, under three tiers (60)
 //
 // PURE ESM. Data only. Imports nothing (src/data/gear-steps.js reads rampLevel here for maxRankAt).
 // ════════════════════════════════════════════════════════════════════════
@@ -31,6 +34,7 @@ export const POWER_LEDGER = Object.freeze({
   buildStepsMax: 14,
   consumableStepsMax: 6,
   temperStepsMax: 5,
+  clanStepsMax: 4,
 });
 
 /* THE SLICES, by the name a ledger row names (`slice`). `max` the cap in steps (null: the gear table's conditionalStepsMax), `ramps` true
@@ -41,6 +45,8 @@ export const LEDGER_SLICES = Object.freeze({
   build: Object.freeze({ max: POWER_LEDGER.buildStepsMax, ramps: true, signed: true }),
   consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: true, signed: false }),
   temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: false, signed: false }),
+  /* closed (`open: false`): its cap is 0 until clans ship, so a row written early counts nothing */
+  clan: Object.freeze({ max: POWER_LEDGER.clanStepsMax, ramps: false, signed: false, open: false }),
 });
 
 /** The ramp at hero Level `level`: min(1, L / rampLevel), 0 under Level 1 or for no Level. One division: exact on every engine. */

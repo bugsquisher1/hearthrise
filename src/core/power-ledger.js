@@ -36,6 +36,7 @@ const shareOf = (slice, level) => (LEDGER_SLICES[slice].ramps ? ramp(level) : 1)
 export function sliceCap(slice, level) {
   if (!own(LEDGER_SLICES, slice)) return 0;
   const s = LEDGER_SLICES[slice];
+  if (s.open === false) return 0;
   const max = s.max === null ? GEAR_STEPS.conditionalStepsMax : s.max;
   return max * shareOf(slice, level);
 }

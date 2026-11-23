@@ -154,8 +154,8 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'no roller reads it until wave 4'),
     ev: 'STATED (19-power-ledger.md section 2 rule 2)' }),
   L('ledger.ramp-slices', 'equipment', 'global', 'The power ledger: the ramp and the slice caps', {
-    at: [at('src/data/power-ledger.js', 'rampLevel: 200,'), at('src/data/power-ledger.js', 'buildStepsMax: 14,'), at('src/data/power-ledger.js', 'consumableStepsMax: 6,'), at('src/data/power-ledger.js', 'temperStepsMax: 5,')],
-    def: 'ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; src/core/power-ledger.js clamps, the power step reads it',
+    at: [at('src/data/power-ledger.js', 'rampLevel: 200,'), at('src/data/power-ledger.js', 'buildStepsMax: 14,'), at('src/data/power-ledger.js', 'consumableStepsMax: 6,'), at('src/data/power-ledger.js', 'temperStepsMax: 5,'), at('src/data/power-ledger.js', 'clanStepsMax: 4,')],
+    def: 'ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it',
     range: 'rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5',
     touches: 'how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/hunt-core/danger.mjs', 'ledger: the caps at Levels 10 to 400, the clamp, the power step']], testReads: ['POWER_LEDGER', 'LEDGER_SLICES'],

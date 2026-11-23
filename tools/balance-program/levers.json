@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "42fbeb9ab1d8131e",
+ "authored": "0024cbff0743a188",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 671,
-  "typed": 15760,
+  "typed": 15761,
   "files": 231,
   "lever": 289,
   "notLever": 382,
@@ -10017,30 +10017,36 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 30,
+     "line": 33,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 31,
+     "line": 34,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 32,
+     "line": 35,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 33,
+     "line": 36,
      "text": "temperStepsMax: 5,",
+     "binding": "POWER_LEDGER"
+    },
+    {
+     "file": "src/data/power-ledger.js",
+     "line": 37,
+     "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
    ],
-   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; src/core/power-ledger.js clamps, the power step reads it",
+   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it",
    "range": "rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5",
    "touches": "how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early",
    "outcomes": [
@@ -16019,11 +16025,12 @@
    "pin": "count",
    "keys": [
     "buildStepsMax",
+    "clanStepsMax",
     "consumableStepsMax",
     "rampLevel",
     "temperStepsMax"
    ],
-   "typed": 4,
+   "typed": 5,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {

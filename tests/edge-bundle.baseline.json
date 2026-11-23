@@ -320,7 +320,12 @@
         "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
       },
       {
-        "bytes": 3410014,
+        "bytes": 3409627,
+        "on": "2026-11-23",
+        "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
+      },
+      {
+        "bytes": 3410042,
         "on": "2026-11-23",
         "why": "+415 B (lane/ci-reds-db, re-raised on the merged set): the Catacombs' wing rows name their roster ground (pack --selftest) and catacomb-wings.js reads the pack through grounds/index.js (gen-hunts --selftest)"
       }

@@ -50,7 +50,7 @@ export const WAGE = Object.freeze({
 });
 
 /* r ^ n for a whole n >= 0, by squaring: the same multiplications in the same order as hr_wage's loop */
-function powSquare(r, n) {
+export function powSquare(r, n) {
   let out = 1, b = r, k = n;
   while (k > 0) { if (k % 2 === 1) out *= b; b *= b; k = Math.floor(k / 2); }
   return out;

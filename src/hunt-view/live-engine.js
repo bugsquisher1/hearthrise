@@ -49,6 +49,7 @@ import { aloneIn } from '../core/hunt/abilities.js';
 import { xpMultFor } from '../core/live-events.js';
 import { towerOf, towerEndsAt } from '../core/hunt/tower.js';
 import { noteGains, hudGainsSince } from './hud-ledger.js';
+import { dangerOn, dangerDial } from '../core/hunt/danger.js';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -279,7 +280,8 @@ export function createLiveEngine(o) {
     if (!(sim.nextSwingAtMs > at)) { s.ended = true; const e = new Error('live: the instance has ended'); e.ended = true; throw e; }
     s.world = sim.world;
     s.next = sim.nextSwingAtMs;
-    noteGains(s, sim, monsters);
+    /* the swing's coin multiple for the HUD's gold line (display only): the scale's dial at the step the world stands at */
+    noteGains(s, sim, monsters, s.world && dangerOn(s.world) ? dangerDial(s.where.ground, s.world.danger).coinPm : undefined);
     if (s.world) {
       const text = encodeWorld(s.world);
       s.hashes.set(s.world.swing, worldHash(text));

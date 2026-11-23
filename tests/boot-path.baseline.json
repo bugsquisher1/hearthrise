@@ -211,7 +211,13 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 920957,
+        "gzipBytes": 920990,
+        "on": "2026-11-23",
+        "why": "arch pass HUD gold fix (hud-ledger reads the scale coin multiple) at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 921016,
         "on": "2026-11-23",
         "why": "catacomb-wings.js reads the Unmarked Catacombs through grounds/index.js and its wing rows name their roster ground (lane/ci-reds-db: gen-hunts --selftest, pack --selftest), re-raised on the merged set"
       }

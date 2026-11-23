@@ -94,7 +94,7 @@ const noun = (one, other) => Object.freeze([one, other]);
 const STACKING = Object.freeze(Object.values(STATUSES).filter((s) => s.maxStacks > 1));
 const STACKS = Object.freeze(Object.fromEntries(STACKING.map((s) => [s.id, s.name + ' stacks'])));
 const STACK_MAX = STACKING.reduce((n, s) => Math.max(n, s.maxStacks), 1);
-/** @typedef {{ id: string, say: string, unit?: string | readonly string[], subjectAfter?: boolean, value: string, ops: readonly string[],
+/** @typedef {{ id: string, say: string, tip?: string, unit?: string | readonly string[], subjectAfter?: boolean, value: string, ops: readonly string[],
     range?: readonly number[], subject?: Readonly<Record<string, string>>, slotOnly?: boolean }} Metric */
 /** @type {readonly Metric[]} */
 export const METRICS = Object.freeze([

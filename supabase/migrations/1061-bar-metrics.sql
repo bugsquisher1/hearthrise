@@ -26,8 +26,9 @@
 -- Any time after 2027-04-15-area-conditions.sql (the last full replace of these rows). It must apply BEFORE the client
 -- that offers the four ships (the bar check would refuse them), and with or before the hr-accrue deploy whose engine
 -- evaluates them (an older engine drops a slot naming an unknown metric: conditions.js heroSlots keeps only valid slots).
--- That deploy also adds `lastMove` to the persisted world (its shape fingerprint moves), so every open instance restarts
--- its world once at the deploy (world-state.js decodeStored), as every persisted-field change has.
+-- That engine also persists a unit's `lastMove` (the world's shape moves): the shape row is folded into the STAGED
+-- 1058-hunting-blocks-hunt-sessions-catalogue.generated.sql, which applies with that deploy (hunts pause world_shape_pending
+-- between the two, as at every shape move).
 -- REVERSIBILITY: re-apply the ⟦metrics⟧ block of 2027-04-15-area-conditions.sql (the 'move' word may stay).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -43,7 +44,7 @@ begin
 end $mig$;
 
 -- ── §1 THE KIND WORD 'move' ──────────────────────────────────────────────────
--- (the column check was written inline, so its name is Postgres's: dropped by what it reads, re-added by name)
+-- (the column check was written inline: dropped by what it reads, re-added under the name Postgres gave it)
 do $mig$
 declare v_c text;
 begin
@@ -53,7 +54,7 @@ begin
     execute format('alter table public.hr_hunt_condition_metrics drop constraint %I', v_c);
   end loop;
 end $mig$;
-alter table public.hr_hunt_condition_metrics add constraint hr_hunt_condition_metrics_kind_word
+alter table public.hr_hunt_condition_metrics add constraint hr_hunt_condition_metrics_kind_check
   check (kind in ('pct', 'count', 'bool', 'effect', 'move'));
 
 -- ── §2 THE CONDITION METRICS ─────────────────────────────────────────────────

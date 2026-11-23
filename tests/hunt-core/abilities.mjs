@@ -920,7 +920,15 @@ const cases = {
     /* the area conditions, picked: each starts on a test that can hold, in plain words */
     const said = ['party_hp_pct', 'enemy_casting', 'in_fight', 'target_weak', 'target_resists'].map((id) => conditionWords(conditionFor(id)));
     const want = ['the party’s HP is below 50%', 'the pack has at least 1 monster casting at me', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
-    return JSON.stringify(said) === JSON.stringify(want) ? null : 'the area conditions read ' + JSON.stringify(said);
+    if (JSON.stringify(said) !== JSON.stringify(want)) return 'the area conditions read ' + JSON.stringify(said);
+    /* THE ROADS' FOUR (lane/bar-metrics): the sentence the picker reads and the short label the slot's title reads (conditionTip) */
+    const { conditionTip } = M.shell.draft;
+    const roads = [{ metric: 'target_hp_pct', op: 'lt', value: 30 }, { metric: 'target_marked', op: 'eq', value: true }, { metric: 'target_stacks', op: 'gte', value: 3, subject: 'bleed' },
+      { metric: 'last_move', op: 'eq', value: 'rend' }, { metric: 'last_move', op: 'ne', value: 'quarry_blow' }];
+    const words = roads.map((c) => [conditionWords(c), conditionTip(c)]);
+    const wantWords = [['my target’s HP is below 30%', 'Target health below 30%'], ['my target is Marked', 'Target is Marked'],
+      ['my target has at least 3 Bleed stacks', 'Target Bleed stacks 3+'], ['my last move is Rend', 'Last move: Rend'], ['my last move is not Quarry Blow', 'Last move: not Quarry Blow']];
+    return JSON.stringify(words) === JSON.stringify(wantWords) ? null : 'the Roads\' tests read ' + JSON.stringify(words);
   },
   /* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"):
      every worn set that plays Melee damage keeps the slot (a sword alone, two axes, a club or hammer, bare hands) and every other one drops it

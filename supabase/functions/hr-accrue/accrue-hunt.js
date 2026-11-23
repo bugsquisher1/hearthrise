@@ -8,7 +8,7 @@
 import { COMBAT_BALANCE } from '../../../src/core/combat.js';
 /* THE ONE COMBAT LOOP (src/core/combat-sim.js simulateHuntInstance): a fight is a
    hunt instance, solo or party, priced only by accrueHunt below. */
-import { simulateHuntInstance } from '../../../src/core/combat-sim.js';
+import { simulateHuntInstance, fightItems } from '../../../src/core/combat-sim.js';
 /* A LIVE EVENT'S XP DIAL at each kill's own time, from the windows the server read for each member (2027-03-22-live-events.sql). */
 import { xpMultFor } from '../../../src/core/live-events.js';
 /* HUNT SESSIONS (ruling HR-2026-10-14, lane C2). The session model is
@@ -20,7 +20,6 @@ import { seederFor } from './hunt-seed.js';
 /* THE MEMBER ASSEMBLY, the bonus chain and the weapon profile (src/core/member.js): shared with the
    browser's live view of a hunt (option B, 2026-10-19). */
 import { memberSide, sharePurses } from '../../../src/core/member.js';
-import { scaleItems } from '../../../src/core/gear-stats.js';
 /* THE INSTANCE WORLD a settle resumes and leaves (src/core/hunt/world-state.js),
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
@@ -138,9 +137,9 @@ export function accrueHunt(inp) {
   if (!(fromMs > 0) || !(toMs > fromMs)) return { accrued: false, reason: SKIP.TOO_SOON };
   if (!inp.ground || !inp.grid) return { accrued: false, reason: SKIP.NO_TARGET };
   const tickMs = COMBAT_BALANCE.tickMs;
-  /* ON A DANGER-SCALE GROUND every worn piece fights at the ground's base item Level (src/core/gear-stats.js scaleItems): its item Level is
-     the power step, never its stats. Any other ground: the catalogue as written. */
-  const ctx = { items: scaleItems(inp.items || {}, inp.ground), monsters: inp.monsters || {} };
+  /* A FIGHT ON THE DANGER SCALE sizes every worn piece at the ground's base item Level (combat-sim.js fightItems, gear-stats.js scaleItems):
+     its item Level is the power step, never its stats. Any other fight, a tier hunt on a scale ground included: the catalogue as written. */
+  const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members, inp.scale), monsters: inp.monsters || {} };
   const sides = (inp.members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((mi) => memberSide(mi, ctx));
   /* ONE PURSE PER ACCOUNT (2026-12-15-account-gold.sql): an account's heroes in this instance spend the same gold. */
   sharePurses(sides);

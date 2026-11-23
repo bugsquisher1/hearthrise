@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "fc997f7b44e7e887",
+ "authored": "cf38f44d9bbb3c95",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -111,17 +111,17 @@
    "none": 20
   },
   "flags": {
-   "redundant": 42,
+   "redundant": 41,
    "ineffective": 34,
    "contradictory": 38
   }
  },
  "census": {
-  "bindings": 712,
-  "typed": 16019,
-  "files": 246,
+  "bindings": 713,
+  "typed": 16024,
+  "files": 247,
   "lever": 306,
-  "notLever": 406,
+  "notLever": 407,
   "unclaimed": 0
  },
  "problems": [],
@@ -5558,7 +5558,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 115,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5944,7 +5944,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 115,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6414,8 +6414,8 @@
      "binding": "BOSS_KINDS"
     }
    ],
-   "definition": "a boss is its base stat role (the elite) x its encounter's row (ground, hall, keeper, add: HP x3.125, blow x1.1, XP x1.043 of the elite, a blow held to 33% of the floor hero) and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)",
-   "range": "ppm 100000..20000000 on HP, blow and XP; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)",
+   "definition": "a boss is its base stat role (the elite) x its encounter's row: ground and keeper HP x3.125, blow x1.1, the elite's to-hit, a blow held to 33% of the floor hero; hall (a keyed hall's boss on its switch, src/core/hunt/hall-formula.js) HP x38, blow x2.75, to-hit +0.45, held to 65%; add (a hall's named add) HP x1, blow x2, to-hit +0.45, held to 40%; XP x1.043 of the elite for every kind; and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)",
+   "range": "ppm 100000..50000000 on HP, blow and XP; hitPm -500..600; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)",
    "touches": "every boss fight and the Tower's landings",
    "outcomes": [
     "dps",
@@ -6455,18 +6455,26 @@
       "reads": [
        "BOSS_KINDS"
       ]
+     },
+     {
+      "file": "tests/hunt-core/hall-formula.mjs",
+      "what": "derive",
+      "reads": [
+       "BOSS_KINDS"
+      ]
      }
     ],
     "mentions": [
+     "tests/hunt-core/hall-formula.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
     "gap": "not-in-runs",
-    "note": "the matrix plays no boss room; tools/balance-sim/boss-call-table.mjs fits halls apart",
+    "note": "the matrix plays no boss room; tools/balance-program/redesign/halls/hall-bench.mjs fits halls apart",
     "existingPatches": []
    },
    "flags": [
@@ -6474,14 +6482,9 @@
      "kind": "contradictory",
      "why": "The boss blow is held to a third of the FLOOR hero's HP however deep he lives: a designer rule, never ruled by Tyler",
      "ev": "44 X-BOSS-FLOOR-CAP, CONFIRMED"
-    },
-    {
-     "kind": "redundant",
-     "why": "Lord Krell and the hall's Captain Hask still carry hand-fitted rows (Krell 18,000 HP / atk 247 / aim 290 against the formula boss's 2,482 / 103 / 70); their re-fit on the hall kind waits on the ship bar",
-     "ev": "lane/tower-boss-formula, CONFIRMED"
     }
    ],
-   "evidence": "CONFIRMED (read)"
+   "evidence": "MEASURED (tools/balance-program/redesign/halls/hall-bench.mjs, Krell's Hall at 98, 40 seeds a cell: a tank, healer and two damage four 93%, one gear tier under 33%, a pair, four damage dealers and a tank with two healers 0%; lane/hall-formula)"
   },
   {
    "id": "mon.boss-rooms",
@@ -6490,7 +6493,7 @@
    "sites": [
     {
      "file": "src/data/boss-halls.js",
-     "line": 37,
+     "line": 38,
      "text": "limitMs: 10 * 60000,",
      "binding": "BOSS_HALL_RULES"
     },
@@ -6585,7 +6588,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 46,
+    "mentionCount": 47,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6673,7 +6676,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 47,
+    "mentionCount": 48,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8040,11 +8043,12 @@
     "mentions": [
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8146,11 +8150,12 @@
     "mentions": [
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8209,11 +8214,12 @@
     "mentions": [
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/hall-formula.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9105,7 +9111,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 115,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9175,7 +9181,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 115,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9296,7 +9302,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 115,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9415,7 +9421,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 115,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15280,6 +15286,10 @@
    "why": "a memo bound (64 derived tables kept): a cache size, no outcome reads it"
   },
   {
+   "at": "src/core/hunt/hall-formula.js#hallTable",
+   "why": "a memo bound (64 derived hall tables kept): a cache size, no outcome reads it"
+  },
+  {
    "at": "src/core/reference-company.js#HEROES",
    "why": "the reference company is four heroes by definition (04 section 1): a shape, as REF_HEROES"
   },
@@ -17400,12 +17410,13 @@
    "keys": [
     "blowPpm",
     "floorCapPm",
+    "hitPm",
     "hpPpm",
     "rampCapPm",
     "rampPm",
     "xpPpm"
    ],
-   "typed": 21,
+   "typed": 23,
    "bindings": 1
   },
   "src/data/boss-halls.js#BOSS_HALL_RULES": {

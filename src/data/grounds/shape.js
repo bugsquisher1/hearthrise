@@ -75,7 +75,8 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                no id ending _called; the boss's prize is his own drops, xp and gp; an add is `add`, a named add `boss` and `add` both, piece 6).
                The keyed-hall contract of lane/b-barrow-boss-room (boss-halls.js, gen-hunt-sessions hallRows). FOLDED (lane/b-barrow-integrate):
                boss-halls.js BOSS_HALLS[id], hunts.js HALL_HUNTS and hunt-grounds.js HALL_GROUNDS (the room `<id>_hall`), and its rows into
-               MONSTERS. A staged pack's hall is staged with it: served nowhere, no door on any page (boss-halls.js OPEN_BOSS_HALLS)
+               MONSTERS. A staged pack's hall is staged with it: served nowhere, no door on any page (boss-halls.js OPEN_BOSS_HALLS).
+               `formula` (optional, lane/hall-formula): true plays its bosses on the formula (src/core/hunt/hall-formula.js), the hall's switch
      fuel      (optional, lane/b-pack-fields: engine piece 10) the ground's NAMED FUEL, a src/data/hearth.js NAMED_FUELS row plus its item:
                { item, xp, req, flame, secs, chunk }. `item` is one of the pack's own items. CARRIED, NOT FOLDED: hr_hearth_named is a server
                catalogue (tools/gen-hearth-catalogue.mjs), so the fold into NAMED_FUELS lands with the pack's ship. tools/pack.mjs lintFields
@@ -121,7 +122,7 @@ function spellsWhy(p) {
   }
   return null;
 }
-const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'storeFloor']);
+const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'storeFloor', 'formula']);
 const isSpot = (s) => isObj(s) && ID.test(String(s.monster)) && Number.isInteger(s.x) && Number.isInteger(s.y);
 
 /** A pack's `hall`, checked for shape: answers why it is malformed, or null. The data half (the key item, the rows) is tools/pack.mjs lintHall. */
@@ -131,6 +132,7 @@ function hallWhy(p) {
   for (const k of Object.keys(h)) if (!HALL_KEYS.includes(k)) return 'hall has an unknown field ' + k;
   if (typeof h.key !== 'string' || !(p.items && h.key in p.items)) return 'hall.key is not one of the pack\'s own items';
   if (h.storeFloor !== undefined && !/^salted_[a-z]+$/.test(String(h.storeFloor))) return 'hall.storeFloor is not a store food id (salted_...)';
+  if (h.formula !== undefined && typeof h.formula !== 'boolean') return 'hall.formula is not true or false (its bosses on the formula: src/core/hunt/hall-formula.js)';
   if (p.items[h.key].opens !== p.id) return 'hall.key ' + h.key + ' does not open ' + p.id + ' (its item\'s `opens`)';
   if (!isObj(h.words) || typeof h.words.boss !== 'string' || typeof h.words.Boss !== 'string') return 'hall.words is not { boss, Boss }';
   if (!isObj(h.hunt) || 'id' in h.hunt || 'called' in h.hunt || 'hall' in h.hunt || typeof h.hunt.name !== 'string') return 'hall.hunt is not a HALL_HUNTS row less its id and hall';

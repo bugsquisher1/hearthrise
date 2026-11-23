@@ -343,6 +343,11 @@
         "bytes": 3526416,
         "on": "2026-11-23",
         "why": "lane/monster-formula merged on the set: monsters derived from role rows (src/core/hunt/monster-formula.js, src/core/reference-company.js, MONSTER_FORMULA and the role dials, the armor door beside Armor Break), with lane/tower-boss-formula carried in (src/data/bosses.js, the Tower on the scale), engine code the settle runs"
+      },
+      {
+        "bytes": 3533686,
+        "on": "2026-11-23",
+        "why": "lane/hall-formula: src/core/hunt/hall-formula.js, the keyed hall's bosses on the formula behind the hall's switch (huntPlayOf's one door), and the boss kinds' to-hit lever"
       }
     ]
   }

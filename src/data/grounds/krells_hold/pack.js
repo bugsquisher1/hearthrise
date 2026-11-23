@@ -272,6 +272,14 @@ export default definePack({
        parties wins 40 of 40 on Swordfish and 38 to 40 of 40 on Salted Lobster, and on Salted Trout 23 to 31 of 40 in 19 of them (deaths). So
        the card asks for Lobster, at 180 gold a bite against Swordfish's 432. */
     storeFloor: 'salted_lobster',
+    /* THE HALL'S SWITCH (lane/hall-formula, 2026-11-23): ON. Lord Krell and Captain Hask fight on the stat formula at their boss kinds
+       (src/core/hunt/hall-formula.js; the dials are src/data/bosses.js BOSS_KINDS.hall and .add), not on the hand lines on their rows below,
+       which only a switch turned off reads. Measured (tools/balance-program/redesign/halls/hall-bench.mjs, 40 seeds a cell, the door's bar,
+       gear before his first win; krell-after.txt): at 98 a tank, healer and two damage four wins about 90%, the same four one gear tier
+       under about a third, a pair, a hero alone, four damage dealers and a tank with two healers 0%. At the floor (85) the four wins about
+       40%, at 110 all of them. Before (the hand lines, krell-before.txt): at 98 100%, 88%, and the tank with two healers 100%. Off: delete
+       this line (the guards' own off-plant, tests/hunt-core/hall-formula.mjs OFF, anchors on it). */
+    formula: true,
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
       bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and two more'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',

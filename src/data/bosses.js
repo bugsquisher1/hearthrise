@@ -33,10 +33,10 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const BOSS_KINDS = Object.freeze({
-  ground: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, floorCapPm: 330, rampPm: 40, rampCapPm: 1400 }),
-  hall: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, floorCapPm: 330, rampPm: 60, rampCapPm: 1600 }),
-  keeper: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, floorCapPm: 330, rampPm: 100, rampCapPm: 1800 }),
-  add: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, floorCapPm: 330, rampPm: 0, rampCapPm: 1000 }),
+  ground: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, hitPm: 0, floorCapPm: 330, rampPm: 40, rampCapPm: 1400 }),
+  hall: Object.freeze({ role: 'elite', hpPpm: 20000000, blowPpm: 2800000, xpPpm: 1043478, hitPm: 450, floorCapPm: 650, rampPm: 60, rampCapPm: 1600 }),
+  keeper: Object.freeze({ role: 'elite', hpPpm: 3125000, blowPpm: 1100000, xpPpm: 1043478, hitPm: 0, floorCapPm: 330, rampPm: 100, rampCapPm: 1800 }),
+  add: Object.freeze({ role: 'elite', hpPpm: 1000000, blowPpm: 2000000, xpPpm: 1043478, hitPm: 450, floorCapPm: 400, rampPm: 0, rampCapPm: 1000 }),
 });
 
 /** The boss stat role of kind `kind` laid over the base role row `base` (balance-sheet.js MONSTER_ROLES shape: hp, hit, blow, def,
@@ -44,7 +44,7 @@ export const BOSS_KINDS = Object.freeze({
 export function bossRole(base, kind) {
   const k = BOSS_KINDS[kind];
   if (!k || !base) throw new Error('bosses: no boss kind ' + kind);
-  const out = { ...base, hp: (base.hp * k.hpPpm) / 1e6, blow: (base.blow * k.blowPpm) / 1e6, xp: (base.xp * k.xpPpm) / 1e6 };
+  const out = { ...base, hp: (base.hp * k.hpPpm) / 1e6, blow: (base.blow * k.blowPpm) / 1e6, xp: (base.xp * k.xpPpm) / 1e6, hit: (base.hit || 0) + k.hitPm / 1000 };
   delete out.gentleHp;
   if (k.floorCapPm !== null) out.floorCap = k.floorCapPm / 1000;
   return Object.freeze(out);
@@ -78,7 +78,9 @@ export function validateBosses(kinds = BOSS_KINDS, roles = []) {
   for (const [id, k] of Object.entries(kinds || {})) {
     if (!k || typeof k !== 'object') { out.push(id + ': no row'); continue; }
     if (roles.length && !roles.includes(k.role)) out.push(id + ': its role ' + k.role + ' is no stat role');
-    for (const f of ['hpPpm', 'blowPpm', 'xpPpm']) if (!Number.isInteger(k[f]) || k[f] < 100000 || k[f] > 20000000) out.push(id + ': ' + f + ' is not a whole ppm 100000..20000000');
+    /* up to 50x its role (a hall's boss is a long party fight against the role's one-monster row: lane/hall-formula) */
+    for (const f of ['hpPpm', 'blowPpm', 'xpPpm']) if (!Number.isInteger(k[f]) || k[f] < 100000 || k[f] > 50000000) out.push(id + ': ' + f + ' is not a whole ppm 100000..50000000');
+    if (!Number.isInteger(k.hitPm) || k.hitPm < -500 || k.hitPm > 600) out.push(id + ': hitPm is not a whole permille -500..600');
     if (k.floorCapPm !== null && (!Number.isInteger(k.floorCapPm) || k.floorCapPm < 100 || k.floorCapPm > 1000)) out.push(id + ': floorCapPm is not null or 100..1000');
     if (!Number.isInteger(k.rampPm) || k.rampPm < 0 || k.rampPm > 500) out.push(id + ': rampPm is not a whole permille a minute 0..500');
     if (!Number.isInteger(k.rampCapPm) || k.rampCapPm < 1000 || k.rampCapPm > 3000) out.push(id + ': rampCapPm is not 1000..3000');

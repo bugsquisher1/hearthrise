@@ -46,9 +46,9 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 712 (in 246 files, 16019 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 713 (in 247 files, 16024 typed numbers) |
 | Claimed by a lever | 306 |
-| Claimed by a not-a-lever reason | 406 |
+| Claimed by a not-a-lever reason | 407 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -112,7 +112,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `mon.spell-warning` A monster spell's warning and roll | SPELL_ROLL.lowPm 500 is the hero spell's hitLowPm 500 written again | 44 X-ROLL-TWINS, CONFIRMED |
 | redundant | `mon.tier-overrides` Per-ground tier dials | The exact case Tyler's formula brief names: each compensates kill reward on one ground. A formula fix at the kill reward lets every ground take TIER_DIALS whole | 44 X-TIER-PER-GROUND, CONFIRMED. Knobs.json notKnobs |
 | redundant | `mon.scaled-danger` Scaled-hunt exceptions | A per-ground combat number. The cause is the bow against a melee pack | 44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS |
-| redundant | `mon.boss-kinds` Boss kinds and the ramp | Lord Krell and the hall's Captain Hask still carry hand-fitted rows (Krell 18,000 HP / atk 247 / aim 290 against the formula boss's 2,482 / 103 / 70). Their re-fit on the hall kind waits on the ship bar | lane/tower-boss-formula, CONFIRMED |
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
 | redundant | `danger.ref-step` A ground's reference step, band and kill rate | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
 | redundant | `mf.ref` The reference company a formula ground is anchored on | A measured table by Level that stands in for the reference company's damage in steps. It retires when hero power is counted in steps (04 section 1, wave 3) | JUDGMENT |
@@ -294,7 +293,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `mf.ref` The reference company a formula ground is anchored on | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
 | not-in-runs | `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe through the candidates mf-muster / mf-hasks / mf-wing (tools/balance-program/redesign/mf). No matrix run plans a stance |
 | not-in-runs | `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | Monster HP, damage, armor, resistances and behavior | played by the V1 probe |
-| not-in-runs | `mon.boss-kinds` Boss kinds and the ramp | Monster HP, damage, armor, resistances and behavior | the matrix plays no boss room. Tools/balance-sim/boss-call-table.mjs fits halls apart |
+| not-in-runs | `mon.boss-kinds` Boss kinds and the ramp | Monster HP, damage, armor, resistances and behavior | the matrix plays no boss room. Tools/balance-program/redesign/halls/hall-bench.mjs fits halls apart |
 | not-in-runs | `mon.boss-rooms` Boss room clocks (halls and called bosses) | Monster HP, damage, armor, resistances and behavior | no run plays a hall. The hall grader at Levels 25, 52 and 75 is owed (13-build-plan) |
 | not-in-runs | `mon.run-rooms` Tower and Catacomb rooms | Monster HP, damage, armor, resistances and behavior | tools/balance-sim/tower-curve.mjs plays climbs apart from the matrix |
 | not-in-runs | `mon.scaled-danger` Scaled-hunt exceptions | Monster HP, damage, armor, resistances and behavior | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |

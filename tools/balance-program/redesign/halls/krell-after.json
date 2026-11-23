@@ -1,0 +1,283 @@
+{
+ "hall": "krells_hold",
+ "switchOn": true,
+ "forced": false,
+ "seeds": 40,
+ "rows": [
+  "lord_krell L110 HP 30180 atk 258 aim 290 eva 60 def 35",
+  "hall_hask L100 HP 724 atk 173 aim 280 eva 59 def 32",
+  "hall_grave_guard L92 HP 182 atk 78 aim 269 eva 64 def 58"
+ ],
+ "cells": [
+  {
+   "level": 85,
+   "label": "1 tank",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0.9,
+   "timeouts": 4,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "2 tank+healer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0,
+   "timeouts": 40,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "3 tank+healer+hammer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 tank+healer+hammer+mage",
+   "seeds": 40,
+   "win": 43,
+   "killS": 430,
+   "deathsPerTry": 0.58,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 tank+healer+bow+axes",
+   "seeds": 40,
+   "win": 18,
+   "killS": 424,
+   "deathsPerTry": 0.83,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 one gear tier under",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 untouched bar",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1.05,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "4 four dps, no tank or healer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 85,
+   "label": "3 tank+two healers",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0.2,
+   "timeouts": 32,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "1 tank",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0.38,
+   "timeouts": 25,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "2 tank+healer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0,
+   "timeouts": 40,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "3 tank+healer+hammer",
+   "seeds": 40,
+   "win": 23,
+   "killS": 592,
+   "deathsPerTry": 0.6,
+   "timeouts": 7,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 tank+healer+hammer+mage",
+   "seeds": 40,
+   "win": 93,
+   "killS": 398,
+   "deathsPerTry": 0.08,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 tank+healer+bow+axes",
+   "seeds": 40,
+   "win": 88,
+   "killS": 394,
+   "deathsPerTry": 0.13,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 one gear tier under",
+   "seeds": 40,
+   "win": 33,
+   "killS": 452,
+   "deathsPerTry": 0.68,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 untouched bar",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1.03,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "4 four dps, no tank or healer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 98,
+   "label": "3 tank+two healers",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0,
+   "timeouts": 40,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "1 tank",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0.18,
+   "timeouts": 33,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "2 tank+healer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0,
+   "timeouts": 40,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "3 tank+healer+hammer",
+   "seeds": 40,
+   "win": 60,
+   "killS": 560,
+   "deathsPerTry": 0.4,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+hammer+mage",
+   "seeds": 40,
+   "win": 100,
+   "killS": 372,
+   "deathsPerTry": 0,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 tank+healer+bow+axes",
+   "seeds": 40,
+   "win": 98,
+   "killS": 364,
+   "deathsPerTry": 0.03,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 one gear tier under",
+   "seeds": 40,
+   "win": 70,
+   "killS": 424,
+   "deathsPerTry": 0.3,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 untouched bar",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1.03,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "4 four dps, no tank or healer",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 1,
+   "timeouts": 0,
+   "other": 0
+  },
+  {
+   "level": 110,
+   "label": "3 tank+two healers",
+   "seeds": 40,
+   "win": 0,
+   "killS": null,
+   "deathsPerTry": 0,
+   "timeouts": 40,
+   "other": 0
+  }
+ ]
+}

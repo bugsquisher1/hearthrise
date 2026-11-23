@@ -66,6 +66,7 @@ import { runRulesOf } from '../data/tower.js';
 import { sessionPayOf } from '../data/session-modes.js';
 import { dangerOn, dangerDial, openDanger, riskOf, heroCount } from './hunt/danger.js';
 import { formulaOn, formulaTable } from './hunt/monster-formula.js';
+import { hallTable } from './hunt/hall-formula.js';
 import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 import { traitSwing } from './trait-roll.js';
@@ -117,7 +118,8 @@ export function huntPlayOf(groundId, scale) {
   if (runRulesOf(groundId)) return { level: null, monsters: null, tierOf: () => null, normalOf: () => true };
   const asked = scale && Number.isInteger(scale.level) ? scale.level : null;
   const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;
-  if (level === null) return { level: null, monsters: groundDropsOn(groundId, MONSTERS), tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
+  /* A KEYED HALL WITH ITS SWITCH ON (src/core/hunt/hall-formula.js): its bosses on the formula, through the one door (never scaled: a hall has no scale) */
+  if (level === null) return { level: null, monsters: hallTable(groundId, MONSTERS) || groundDropsOn(groundId, MONSTERS), tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
   const scaled = Object.assign({}, MONSTERS, scaledMonsters(MONSTERS, groundId, level));
   const monsters = groundDropsOn(groundId, scaled) || scaled;
   const own = (id) => scaledTierRow(groundId, id, level);

@@ -1,0 +1,29 @@
+krells_hold (krells_hold_hall), switch off, 40 seeds a cell
+  lord_krell L110 HP 18000 atk 247 aim 290 eva 137 def 80
+  hall_hask L100 HP 700 atk 170 aim 280 eva 112 def 72
+  hall_grave_guard L92 HP 182 atk 78 aim 269 eva 64 def 58
+Level  win%  kill(s)  deaths/try  timeouts  party
+   85     0        -        0.65        14  1 tank
+   85     0        -           0        40  2 tank+healer
+   85    18      532        0.85         0  3 tank+healer+hammer
+   85    98      328        0.03         0  4 tank+healer+hammer+mage
+   85    20      386         0.8         0  4 one gear tier under
+   85     0        -        1.05         0  4 untouched bar
+   85     0        -           1         0  4 four dps, no tank or healer
+   85    28      592         0.2        21  3 tank+two healers
+   98     0        -        0.18        33  1 tank
+   98     0        -        0.05        38  2 tank+healer
+   98    85      474        0.15         0  3 tank+healer+hammer
+   98   100      296           0         0  4 tank+healer+hammer+mage
+   98    88      348        0.13         0  4 one gear tier under
+   98     8      284        0.93         0  4 untouched bar
+   98     0        -           1         0  4 four dps, no tank or healer
+   98   100      536           0         0  3 tank+two healers
+  110     0        -        0.05        38  1 tank
+  110     0        -        0.18        33  2 tank+healer
+  110    90      438         0.1         0  3 tank+healer+hammer
+  110   100      274           0         0  4 tank+healer+hammer+mage
+  110   100      316           0         0  4 one gear tier under
+  110    20      268        0.83         0  4 untouched bar
+  110     0        -           1         0  4 four dps, no tank or healer
+  110   100      496           0         0  3 tank+two healers

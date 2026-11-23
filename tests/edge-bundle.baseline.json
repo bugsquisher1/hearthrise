@@ -433,6 +433,11 @@
         "bytes": 3782813,
         "on": "2026-11-23",
         "why": "+1,826 B: refHeld field + refHeldOf and depthRarePm on the reference hold (lane/depth-reading-fix)"
+      },
+      {
+        "bytes": 3776720,
+        "on": "2026-11-23",
+        "why": "cut locked in (6093 bytes)"
       }
     ]
   }

@@ -73,6 +73,8 @@
 //   manaPerHit, manaPerKill: mana back to the caster for each monster a hit of the cast landed on / each one it killed (the Storm
 //     spells, B3), never more in all than the cast cost (a spell is never a mana engine) and never past max mana. Magic XP is paid
 //     on the mana the cast kept (src/core/hunt/abilities.js fire: the cast event's `mana` is net of it, as a shell's refund is)
+//   prefers: monster roles (monster-roles.js MONSTER_ROLES ids) a one-target strike takes first among the monsters in its reach,
+//     before the hero's own target (src/core/hunt/abilities.js targetFor; the Danger scale only, where monsters play roles)
 //   unlock: a level in the row's own skill (abilitySkill) the ability waits for: a slot set up
 //     early is kept and waits (`level`, the wait a locked rune version gives), never refused
 //   trigger: the conditions a NEW slot of the row starts with, when suggestedTrigger's generic one
@@ -102,6 +104,7 @@ import { isRune, runeTierOf, RUNE_TIERS, versionStep } from './runes.js';
 import { shapeProblem } from './shape-kinds.js';
 import { FIST_LINE, FIST_ELEMENTS } from './fists.js';
 import { NECROTIC_STORM } from './necrotic-storm.js';
+import { MONSTER_ROLES } from './monster-roles.js';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -160,8 +163,13 @@ const ab = (o) => Object.freeze({ rune: null, ammo: 0, magicXpMult: 0, active: t
 
 export const ABILITIES = Object.freeze([
   /* shield — the tank's Melee. The Challenge is a SUPPORT cast (it strikes nothing): the bar fires it like every
-     other ability, and its target rule finds a monster only while one is off the tank (targeting.js challengeable). */
-  ab({ id: 'challenge', n: 'Challenge', disciplines: ['shield'], lane: 'support', cdMs: 8000, mana: 0, target: 'taunt' }),
+     other ability, and its target rule finds a monster only while one is off the tank (targeting.js challengeable).
+     A NEW SLOT STARTS ON "my HP is at least 60%" (`trigger`; docs/design/redesign/23-spell-audit.md section 3): taunt while you can take
+     it. MEASURED there (Muster Barrows, Level 60, Steady, 6 paired seeds): fired every time it could, the Challenge held the tank's four
+     63 steps shallower than none at all; on this condition it kept 62% of that depth for a sixth of the supply bill, still 322 casts an
+     hour. Alone it never fires (no monster is ever off the tank), so it is PARTY ONLY (`party`) and the bar says so. */
+  ab({ id: 'challenge', n: 'Challenge', disciplines: ['shield'], party: true, lane: 'support', cdMs: 8000, mana: 0, target: 'taunt',
+    trigger: [{ metric: 'self_hp_pct', op: 'gte', value: 60 }] }),
   /* THE TANK'S RUNE SPELLS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be party only
      I think"; the designer's board section "2026-11-19 Tank rune spells"). They hold and protect, never kill: a tank alone levels
      slowly on purpose (Tyler 2026-11-19), so both are PARTY ONLY (`party`) and neither is on a default bar (the new-spell prompt
@@ -174,10 +182,12 @@ export const ABILITIES = Object.freeze([
   /* SHELTER: an EARTH rune spell, the stone shields' family. Every living hero within 8 tiles, the tank too, gets a shell of 289% of
      the tank's own largest blow (version I; the step a deeper rune buys on top, runes.js; the store's rune lands 75%), never lowering a
      bigger shell already standing: 0.85 of a same-Level monster's largest blow at Level 60 on a Graven rune, as before the spell rule.
-     A new slot starts on a monster's cast warning (`trigger`): it shells the party before a group spell lands. Every 30 s. */
+     A new slot starts when the party has at least 2 heroes under 80% (`trigger`; 23-spell-audit.md section 4): it shells a party that is
+     being worn down. It started on a monster's cast warning, which never fired on the scale grounds (MEASURED there: no Muster Barrows
+     or Hask's Ford monster casts, 0 casts in 6 x 8 h); that comes back once a Caster body walks a scale ground. Every 30 s. */
   ab({ id: 'shelter', n: 'Shelter', disciplines: ['shield'], party: true, lane: 'support', cdMs: 30000, mana: 25, rune: 'chalked_earth_rune', unlock: 20,
     target: 'party', shieldPm: 2890, base: 30, radius: 8, magicXpMult: 250,
-    trigger: [{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'any' }], versions: [25, 30, 36, 43, 52] }),
+    trigger: [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }], versions: [25, 30, 36, 43, 52] }),
   /* The blade's own strikes: a sword swings them with a shield (the tank) or alone (Melee damage, Tyler 2026-10-23). */
   ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield', 'sword'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_fire_rune',
     target: 'enemy', hitPm: 1400, base: [8, 14], element: 'ember', magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
@@ -205,14 +215,17 @@ export const ABILITIES = Object.freeze([
      rune strike is: the player's pick, offered by the new-spell prompt. */
   ab({ id: 'quarry_blow', n: 'Quarry Blow', disciplines: ['club'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_earth_rune',
     target: 'enemy', hitPm: 1400, base: [8, 14], magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
-  /* bow / crossbow — Ranger */
+  /* bow / crossbow — Ranger. HUNTER'S MARK lands on the bow's own target while it is unmarked, so the party's blows land on it (23-spell-
+     audit.md section 4: on the healthiest in reach it often marked a monster nobody was hitting yet), else the healthiest in reach. */
   ab({ id: 'hunters_mark', n: "Hunter's Mark", disciplines: ['ranged'], lane: 'support', cdMs: 12000, mana: 8, target: 'mark',
     bonusPct: 20, durMs: 8000 }),
   ab({ id: 'flame_volley', n: 'Flame Volley', disciplines: ['ranged'], lane: 'offense', cdMs: 10000, mana: 15, rune: 'chalked_fire_rune', ammo: 3,
     target: 'area', hitPm: 860, base: [5, 9], element: 'ember', magicXpMult: 250, versions: [15, 18, 22, 26, 31] }),
-  /* the Ranger's free shot, 1.2 of the bow's own average landed shots (21-combat B5's opening, as Power Strike) */
+  /* the Ranger's free shot, 1.2 of the bow's own average landed shots (21-combat B5's opening, as Power Strike). It PICKS ITS MARK
+     (`prefers`, 23-spell-audit.md section 4: the bow's job is the back row): a Shooter, Caster or Stalker in reach first, else the
+     bow's own target. */
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
-    target: 'enemy', hitPm: 750, base: [7, 12] }),
+    target: 'enemy', prefers: ['shooter', 'caster', 'stalker'], hitPm: 750, base: [7, 12] }),
   /* RAKING SHOT (the area-spells design): an arrow line with no element, 4 tiles from the hero through its aim, each monster on
      it hit for 80% of the hero's own largest blow (hitPm). Two shots of the bar's ammo a cast. The Ranger's area that a slime's
      element resistance never touches (Andy 11-06: every Ranger area was fire). PROVISIONAL, unmeasured. */
@@ -236,7 +249,10 @@ export const ABILITIES = Object.freeze([
     shieldPm: 2290, base: 40, whenBelowPct: 85, magicXpMult: 1600, versions: [30, 36, 43, 52, 62] }),
   /* staff — Healer (restoration). Its heals are WATER rune spells (spring water closes wounds, the approved map);
      Greater Mend's mana ladder is the designer's own example (25/30/36/43/52, d3-manacost). A heal is a share of the staff's own blow
-     (the spell rule), sized to today's Level 60: Greater Mend 1.42 of a same-Level monster's largest blow on a Graven rune. */
+     (the spell rule), sized to today's Level 60: Greater Mend 1.42 of a same-Level monster's largest blow on a Graven rune.
+     NOT ADOPTED (23-spell-audit.md section 6's Lab variant, lane/moves-pass-1): Greater Mend -20% (2540) with Circle of Renewal +30% (2080)
+     cut the healing, not split it (Circle's own rule, two heroes hurt, held its casts at 172 -> 179 an hour): every four held 12 to 22 steps
+     shallower and earned 5 to 9% less Level XP (spell-run.mjs plan P, Muster L60 Steady, 6 paired seeds x 8 h). */
   ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], lane: 'heal', cdMs: 2000, mana: 25, rune: 'chalked_water_rune', target: 'ally',
     healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',
@@ -481,6 +497,9 @@ export function validate(rows = ABILITIES) {
     if (r.len !== undefined && r.target !== 'line') bad('only a line has a len');
     if (r.r !== undefined && r.target !== 'ring') bad('only a ring has an r');
     if (r.unlock !== undefined && !(Number.isInteger(r.unlock) && r.unlock >= 2 && r.unlock <= 99)) bad('unlock is a level 2..99 in the row\'s skill');
+    /* A strike's preferred marks: monster roles, each once, on a one-target row (an area picks its aim by count) */
+    if (r.prefers !== undefined && !(r.target === 'enemy' && Array.isArray(r.prefers) && r.prefers.length >= 1 && new Set(r.prefers).size === r.prefers.length
+      && r.prefers.every((id) => Object.prototype.hasOwnProperty.call(MONSTER_ROLES, id)))) bad('prefers is a list of monster roles, each once, on a one-target strike');
     /* A row's own starting rule: at most three plain conditions (conditions.js slotProblem judges each against the registry:
        tests/hunt-core/abilities.mjs rows-validate). */
     if (r.trigger !== undefined && !(Array.isArray(r.trigger) && r.trigger.length >= 1 && r.trigger.length <= 3

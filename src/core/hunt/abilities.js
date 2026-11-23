@@ -56,6 +56,8 @@ import { cheb, dist2, los } from './grid.js';
 import { makeEvent } from './events.js';
 import { landHit } from './damage.js';
 import { challengeable, challengeFrom, holderTank } from './targeting.js';
+import { roleOf as monsterRoleOf } from './monster-roles.js';
+import { MONSTER_ROLES } from '../../data/monster-roles.js';
 import { applyStatus, statusRow } from './status.js';
 import { levelOf } from '../xp.js';
 import { ammoPerShot } from '../ammo.js';
@@ -109,11 +111,24 @@ function targetFor(inst, hero, h, row, sc, cx) {
   switch (row.target) {
     /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank. */
     case 'taunt': return challengeable(inst, hero).length ? hero : null;
+    /* THE MARK (23-spell-audit.md section 4): the hero's own target while it is unmarked, so the party's blows land on it; else the
+       healthiest in reach (a pull just begun), never one already marked */
     case 'mark': {
+      const own = near.find((m) => m.id === hero.target);
+      if (own && !(own.markUntil > sc.atMs)) return own;
       const t = near.slice().sort((a, b) => (int(b.hp) - int(a.hp)) || (a.id - b.id))[0];
       return t && !(t.markUntil > sc.atMs) ? t : null;
     }
-    case 'enemy': return near[0] || null;
+    /* A STRIKE THAT PICKS ITS MARK (`prefers`, monster roles: Precision Shot takes a Shooter, Caster or Stalker in reach first, the
+       bow's job of reaching the back row, 23 section 4); else, as every strike, the hero's own target, then the nearest. Off the Danger
+       scale no monster plays a role (monster-roles.js roleOf), so it is the hero's own target. */
+    case 'enemy': {
+      if (Array.isArray(row.prefers)) {
+        const picked = near.find((m) => { const r = monsterRoleOf(inst, m); return !!r && row.prefers.some((id) => MONSTER_ROLES[id] === r); });
+        if (picked) return picked;
+      }
+      return near[0] || null;
+    }
     case 'area': {
       if (cx && cx.aim && cx.aim.alive) return cx.aim;
       const b = bestAim(inst, hero, h.range, areaSpec(row).n, cx && cx.slot);

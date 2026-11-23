@@ -64,8 +64,8 @@ const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
    and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09), (the area moves, 2027-04-18), and Flame Volley back on the bow's set
    (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19), and the spell rule's melee set (Cleave merged into Turning Cut, Rend the axes'
-   strike: lane/c-spell-rule 2026-11-21). */
-const BAR_MIGRATION = 'supabase/migrations/1027-spell-rule-default-bar.sql';
+   strike: lane/c-spell-rule 2026-11-21), and the tank's Challenge on "my HP is at least 60%" (lane/moves-pass-1, 23-spell-audit section 3). */
+const BAR_MIGRATION = 'supabase/migrations/1062-challenge-default-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);

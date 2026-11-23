@@ -282,6 +282,14 @@ v0.3.0 ships when every line below is true.
 - V4 (the heal rule) decides whether borrowing heals ships at all. If it fails, Greater Mend stays unborrowable in v0.3.0, which is the ledger's own fallback.
 - The Challenge made a tank's four 63 steps shallower (`23` section 3). MV lands before R-S so the Shield country isn't built on it.
 
+## Changes from the first-hour rewrite
+
+2026-11-23, `lane/first-hour-rewrite`, game designer. H1's text and coach half, built ahead of R10, F1 and K1 so each turns on when its lane lands.
+
+- **Built:** the coach's Talent point at Level 2 (Character → Talents → Spend as suggested), the depth card, the fall back card, the Risk pick at the first party ground on the scale, every recruit gathered into one party with the next one named, Tamsin's party task (the Rat King) for a company, and a Blessing card only on Bold or after a death. The Path's tier rows are gone; its `depth` and `risk` rows read `DANGER_GROUNDS`, so R10 turns them on. Help, the hero pick and the Risk lines say the redesign's rules (10 h day, hunting blocks, only Bold dies, runes made in town).
+- **Played on `local-world`, a fresh club hero:** Level 5 at 19 minutes in the Cellar, then one press for three recruits. Level 13 after the first 10 h day in the Sewer.
+- **Still owed:** step 3 and step 11 wait on R10. Step 7 (the stoke rule) waits on F1 and step 15 (the rest plan) on `company.js`. Recruits' points spent at the grant and a standing "Spend as suggested" rule are both still owed (HANDOFFS 2026-11-23).
+
 ## Changes from the spell audit
 
 2026-11-22, from `23-spell-audit.md`, and Tyler's rulings the same day (Updraft cut, the tank falls back at 15% on Steady).

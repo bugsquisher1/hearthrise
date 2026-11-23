@@ -30,7 +30,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { changedFiles, guardSources, touchedBy } from './lib/guard-deps.mjs';
+import { changedFiles, guardSources, touchedBy, importsOf } from './lib/guard-deps.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
 /* The mapping is shared with tools/mutant-gate.mjs (CI's --mutate/--selftest gate): one rule, two callers. */
@@ -172,6 +172,8 @@ function selftest() {
       ['tests/view-x.mjs', "const s = readFileSync(join(ROOT, 'src/world/local-world.js'), 'utf8');\n"],
       ['tests/member-x.mjs', "const m = await import(pathToFileURL(join(SRC, 'core', 'member.js')).href); const t = 'core/member.js';\n"],
       ['tests/fixture-x.mjs', "const f = 'tests/fixtures/member.js';\n"],
+      ['tests/tick-x.mjs', 'const f = `${DIR}tick-contract.js`; const g = `${DIR}side-tick-gather.js`;\n'],
+      ['tests/probe-x.mjs', "const PROBE = \"import('./tests/activity-seam.mjs').then((m) => m.runAll())\";\n"],
     ]);
     const tb = (f) => [...impl.touched([f], SRC).keys()].sort().join(',');
     const hand = impl.pickTests([['tests/char-wipe-world.mjs', 'x'], ['tests/ci-shape.mjs', 'y']], new Set(['tests/char-wipe-world.mjs']));
@@ -180,6 +182,9 @@ function selftest() {
       [tb('tools/qa/local-world.mjs') === 'tests/walk-world.mjs', 'an edit to qa/local-world.mjs picks the walk that imports it'],
       [tb('src/data/world.js') === 'tests/data-x.mjs', 'src/data/world.js picks the guard naming it, not one naming src/world/local-world.js'],
       [tb('src/core/member.js') === 'tests/member-x.mjs', 'a literal\'s directories bind as the tail of the real path (core/member.js names src/core/member.js; tests/fixtures/member.js does not)'],
+      [tb('services/world-tick/tick-contract.js') === 'tests/tick-x.mjs' && tb('services/world-tick/tick-gather.js') === '',
+        'a template\'s fill names a file (${DIR}tick-contract.js); side-tick-gather.js is not tick-gather.js'],
+      [tb('tests/activity-seam.mjs') === 'tests/probe-x.mjs', 'a ./ import evaluated from the root (a probe string) still picks its importer'],
       [[...hand.keys()].join(',') === 'tests/ci-shape.mjs', 'a by-hand tool (tests/guards-unregistered.json) is named, never run'],
       [[...got.keys()].join(',') === 'tests/ci-shape.mjs', 'run-ci-local is never scheduled'],
       [def.includes('--as-release') && def.includes('--plant') && def[def.indexOf('--base') + 1] === 'origin/set/v1', '--run proves as a release does (--as-release), against the lane\'s base'],
@@ -211,6 +216,8 @@ function selftest() {
     ['imports matched by basename (local-world.mjs is world.mjs)', { ...real, touched: (c, s) => touchedBy(c, s, { imports: oldImports }) }],
     ['path strings matched by basename suffix', { ...real, touched: (c, s) => touchedBy(c, s, { names: oldNames }) }],
     ['path strings matched by file name, any directory', { ...real, touched: (c, s) => touchedBy(c, s, { names: stemNames }) }],
+    ['a ./ import resolved against the importer only', { ...real, touched: (c, s) => touchedBy(c, s, {
+      imports: (t, src) => new Set([...importsOf(t, src)].filter((p) => !src.includes(`'./${p}'`))) }) }],
     ['by-hand tools run', { ...real, pickTests: (e) => pickTests(e) }],
     ['run-ci-local is scheduled', { ...real, pickTests: (e) => new Map([...e].filter(([t]) => t.startsWith('tests/') && !basename(t).startsWith('_'))) }],
     ['--run proves every touched proof again', { ...real, proofArgs: (a, b) => proofArgs([...a, '--proofs'], b) }],

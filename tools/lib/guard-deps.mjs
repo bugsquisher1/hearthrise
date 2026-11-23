@@ -62,14 +62,24 @@ export function refPattern(path) {
   const stem = basename(path).replace(/\.(generated\.)?(js|mjs|ts|sql|css|html|json|sh)$/, '');
   if (stem.length < 4) return null;
   /* An import or a path string of the file, not any mention: `from '../src/core/member.js'`, `'src/core/member.js'`. */
-  return new RegExp(`['"\`]((?:[^'"\`\\n]*/)?)${esc(stem)}\\.(?:generated\\.)?(?:js|mjs|ts|sql|css|html|json|sh)`, 'g');
+  /* The name starts the literal or follows a non-name character (`/`, `}` of a template, `(`): never `-`, `_`, `.` or a letter. */
+  return new RegExp(`['"\`]([^'"\`\\n]*?)(?<![\\w.-])${esc(stem)}\\.(?:generated\\.)?(?:js|mjs|ts|sql|css|html|json|sh)`, 'g');
 }
 
 /** The directory a literal names, as path segments a real path must end with: `../src/core/` -> ['src', 'core'];
-    `${SRC}/core/` -> ['core'] (the part a template fills is unknown, so only what follows it binds). */
+    `${SRC}/core/` -> ['core'], a route glob's `src/` after its stars -> ['src'], `http://127.0.0.1:8080/` -> [] (only the
+    trailing run of plain segments binds: a template's fill, a glob, a host or a sentence before them is unknown). */
 function literalDirs(dir) {
-  const known = dir.slice(dir.lastIndexOf('}') + 1);
-  return known.split('/').filter((s) => s && s !== '.' && s !== '..');
+  if (!dir.endsWith('/')) return [];                          // `${D}tick.js`, `(boot.js`: no directory spelled
+  const segs = dir.split('/');
+  const out = [];
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const s = segs[i];
+    if (s === '' && i === segs.length - 1) continue;          // the trailing slash
+    if (!/^[\w.@-]+$/.test(s) || s === '.' || s === '..') break;
+    out.unshift(s);
+  }
+  return out;
 }
 
 /**
@@ -91,10 +101,14 @@ export function namesPath(src, path) {
 /* A static (`from '…'`, `import '…'`) or dynamic (`import('…')`) import of a relative .mjs specifier. */
 const IMPORT_SPEC = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"`])(\.{1,2}\/[^'"`\n]*?\.mjs)\1/g;
 
-/** The repo paths `importer`'s source imports, each specifier resolved against the importer's own directory. */
+/** The repo paths `importer`'s source imports, each specifier resolved against the importer's own directory; a `./` one also
+    against the repo root (a probe string evaluated from the root: `import('./tests/activity-seam.mjs')` in artisan-accrual). */
 export function importsOf(importer, src) {
   const out = new Set();
-  for (const m of src.matchAll(IMPORT_SPEC)) out.add(posix.normalize(posix.join(posix.dirname(importer), m[2])));
+  for (const m of src.matchAll(IMPORT_SPEC)) {
+    out.add(posix.normalize(posix.join(posix.dirname(importer), m[2])));
+    if (m[2].startsWith('./')) out.add(posix.normalize(m[2]));
+  }
   return out;
 }
 

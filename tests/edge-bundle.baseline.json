@@ -358,6 +358,11 @@
         "bytes": 3692589,
         "on": "2026-11-23",
         "why": "stage 3 fight pipeline (amount.js) + talents together on the integrated tree"
+      },
+      {
+        "bytes": 3693018,
+        "on": "2026-11-23",
+        "why": "play-rows.js split out of combat-sim.js (ONE-PATH 600-line rule), on top of stage 3"
       }
     ]
   }

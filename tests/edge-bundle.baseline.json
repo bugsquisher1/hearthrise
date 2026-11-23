@@ -415,7 +415,17 @@
         "why": "+borrow values: six town V0 rows and the not_offered refusal (lane/roads-borrow-values) on top of the ci-reds drop chances"
       },
       {
-        "bytes": 3781799,
+        "bytes": 3780713,
+        "on": "2026-11-23",
+        "why": "lane/client-talent-floaters: +740 B, src/data/monster-roles.js roleSpellId/roleSpellRow, the one home of a formula role's derived spell id (mf_<role>), which monster-formula.js now builds through and the client names (the log read 'Mf brute'); re-raised on the merged set"
+      },
+      {
+        "bytes": 3780753,
+        "on": "2026-11-23",
+        "why": "+bytes: JSDoc type note in monster-roles.js roleSpellRow clearing typecheck after the floaters merge"
+      },
+      {
+        "bytes": 3782579,
         "on": "2026-11-23",
         "why": "lane/depth-reading-fix: the depth reading's middle point is a measured hold (src/core/bands.js refHeldOf, DANGER_GROUNDS refHeld), read by the Rare odds (drop-rate.js); Muster's floor re-cut 575; +1826 bytes, the field, its reader and their reasons"
       }

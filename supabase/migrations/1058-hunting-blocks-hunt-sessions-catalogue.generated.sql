@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 1d316960ca5cfb3326cffcc7c5355c4b590b3f8bf0ea6bec9a0368f9b2b0cdf2
+--   digest: a95a0239b0c608b0424bf3f7242b9dfec57764236c0266289f13c249ac273bd4
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   636 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
@@ -814,11 +814,11 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('plain_scored_water_rune', 'ammo', 'scored_water_rune', 0, 0, 2),
   ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 1),
   ('plain_water_rune', 'ammo', 'chalked_water_rune', 0, 0, 1),
-  ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 26),
+  ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 24),
   ('salted_shark', 'heal', 'cooked_shark', 396, 0, 72),
-  ('salted_shrimp', 'heal', 'cooked_shrimp', 72, 0, 8),
-  ('salted_swordfish', 'heal', 'cooked_swordfish', 288, 0, 37),
-  ('salted_trout', 'heal', 'cooked_trout', 120, 0, 14),
+  ('salted_shrimp', 'heal', 'cooked_shrimp', 72, 0, 6),
+  ('salted_swordfish', 'heal', 'cooked_swordfish', 288, 0, 33),
+  ('salted_trout', 'heal', 'cooked_trout', 120, 0, 12),
   ('thin_carrot_juice', 'mana', 'carrot_juice', 0, 120, 16),
   ('thin_emberfruit_cordial', 'mana', 'emberfruit_cordial', 0, 480, 238),
   ('thin_goldenroot_tea', 'mana', 'goldenroot_tea', 0, 396, 129),

@@ -10,9 +10,16 @@
 // (the timeline de-duplicates).
 //
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
-// kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
+// kinds (src/session/hunt-sections.js). An unknown unit reads "Someone". What
+// an event's source is called (a move, a status, an engine piece, a Roads
+// reaction) is src/render/source-names.js's, never its id.
+// A status is said once until it ends (logFor): a refresh lands `status_on`
+// again on a unit that still carries it, and the end of a status the log
+// never said, or of a unit it saw die, is no news.
 // ════════════════════════════════════════════════════════════════════════
 import { LOG_MAX_LINES } from '../data/combat-text.js';
+import { STATUSES, harmful } from '../data/statuses.js';
+import { sourceName } from '../render/source-names.js';
 import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js';
 import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js';
 import { MONSTERS, monsterRangeOf } from '../data/monsters.js';
@@ -20,9 +27,11 @@ import { ABILITIES, abilitySkill } from '../data/abilities.js';
 import { huntOf, partyOf } from '../session/hunt-sections.js';
 import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js';
 import { tallyOf, tallyLine } from '../session/tally-sections.js';
-import { t } from '../render/player-text.js';
+import { t, hasText } from '../render/player-text.js';
 
 const LOGS = new WeakMap();
+/* the most unit:status pairs the log remembers as said (a long hunt's live units carry a few each; past this it forgets them all) */
+const HELD_MAX = 4096;
 
 function namer(cs) {
   const h = huntOf(cs);
@@ -70,6 +79,15 @@ function unlockedBy(skill, level) {
 /* Is unit `u` a monster that shoots? A namer with no `shoots` (a test's) reads every blow as a hit. */
 const shot = (n, u) => typeof n.shoots === 'function' && n.shoots(u);
 
+/* A STATUS landing or ending on `who` (statuses.js: its row's name): its own line when it has one (log.status_on_bleed), else by what it
+   does: a patch its holder left on the ground, a helpful one (a heal over time, a guard, a boon), a harmful one. */
+function statusWords(ev, who) {
+  const row = Object.hasOwn(STATUSES, ev.status) ? STATUSES[ev.status] : null;
+  const on = ev.type === 'status_on' ? 'on' : 'off';
+  const kind = hasText('log.status_' + on + '_' + ev.status) ? '_' + ev.status : !row ? '' : row.ground ? '_ground' : harmful(row) ? '' : '_good';
+  return t('log.status_' + on + kind, { who, status: sourceName(ev.status) });
+}
+
 /**
  * One event as a line, or null when it is not a log line.
  * @returns {{key: string, type: string, units: number[], text: string, quiet?: boolean}|null}  `quiet`: nothing happened to anyone (a miss), so it wears no cost color
@@ -79,6 +97,8 @@ export function lineOf(ev, n) {
   const line = (type, text) => ({ key: ev.key, type, units: [ev.u, ev.t].filter(Number.isInteger), text });
   switch (ev.type) {
     case 'dmg': {
+      /* a Bodyguard's share (damage.js landOn): the guard takes part of a blow at a back-row ally */
+      if (ev.ability === 'bodyguard') return line('taken', t('log.guard', { target: b, n: ev.amount }));
       const how = ev.ability && ev.ability !== 'basic' ? ' with ' + abilityName(ev.ability) : '';
       /* a shooter's plain blow is a shot from range, not a hit at arm's length */
       if (!how && !n.isHero(ev.u) && shot(n, ev.u)) return line('taken', t('log.shot', { who: a, target: b, n: ev.amount }));
@@ -87,7 +107,14 @@ export function lineOf(ev, n) {
     /* The screen shows a miss as a spark and no word (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04: "the combat log can still say blah blah missed you"). */
     case 'miss': if (!n.isHero(ev.u) && shot(n, ev.u)) return Object.assign(line('taken', t(ev.dodge === true ? 'log.shot_dodge' : 'log.shot_miss', { who: a, target: b })), { quiet: true });
       return Object.assign(ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.'), { quiet: true });
-    case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
+    case 'heal': {
+      /* a heal that names its source (a Mending tick, a reaction, a leech, a monster's mend: its `spell`) says it */
+      const id = typeof ev.ability === 'string' && ev.ability ? ev.ability : typeof ev.spell === 'string' && ev.spell ? ev.spell : null;
+      const src = id ? sourceName(id) : null;
+      if (src && ev.u === ev.t) return line('heal', t('log.heal_self_with', { who: a, n: ev.amount, source: src }));
+      if (src) return line('heal', t('log.heal_with', { who: a, target: b, n: ev.amount, source: src }));
+      return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
+    }
     /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
     case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');
     /* A skill level that unlocks a move (abilities.js unlock) says so: nothing else told a player Turning Cut was ready (lane/d-area-playtest). */
@@ -105,8 +132,7 @@ export function lineOf(ev, n) {
     }
     /* A monster's spell winding up (monster-spells.js): the screen marks it, the log names it (a group spell reaches everyone). */
     case 'spell': return line('status', t(ev.shape === 'group' ? 'log.spell_group' : 'log.spell', { who: a, spell: abilityName(ev.spell) }));
-    case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');
-    case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
+    case 'status_on': case 'status_off': return line('status', statusWords(ev, b));
     case 'death': return line('death', (n.isHero(ev.u) ? a : 'Hero') + ' was killed by ' + monsterName(ev.monster) + '.');
     case 'rare_drop': return line('loot', (Number.isInteger(ev.u) ? 'Rare drop for ' + a + ': ' : 'Rare drop: ') + itemName(ev.item) + '!');
     case 'rare_roll': {
@@ -138,7 +164,20 @@ export function logFor(cs) {
     if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);
     version++;
   };
-  cs.timeline.subscribe((ev) => { const l = lineOf(ev, namer(cs)); if (l) push(l); });
+  /* A STATUS IS SAID ONCE UNTIL IT ENDS (the header): unit -> the statuses said on it. Cold Iron's Chill lands on every melee blow and a
+     Frozen Ground patch's every second, so each refresh as a line filled the 200 with one word; a kill forgets the unit's. */
+  const held = new Map();
+  const news = (ev) => {
+    if (ev.type === 'kill') { held.delete(ev.t); return true; }
+    if (ev.type !== 'status_on' && ev.type !== 'status_off') return true;
+    const said = held.get(ev.t);
+    if (ev.type === 'status_off') return !!said && said.delete(ev.status);
+    if (said && said.has(ev.status)) return false;
+    if (!said && held.size >= HELD_MAX) held.clear();
+    if (said) said.add(ev.status); else held.set(ev.t, new Set([ev.status]));
+    return true;
+  };
+  cs.timeline.subscribe((ev) => { if (!news(ev)) return; const l = lineOf(ev, namer(cs)); if (l) push(l); });
   /* TAMSIN'S TALLY DONE: the server's count reached its target in a settle (the `tally` section). Logged
      once, as the change arrives; a task already done when this page first read it is not news. */
   let done = null;

@@ -605,7 +605,9 @@ async function runTests(M) {
     eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
     eq(sell.words, 'Marked Sell: Rat Tail and Slime Gel', 'the sale says whose rule it is');
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
-    eq(r.steps[0].words, 'Upgrade: Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)', 'Equip says what goes on');
+    /* the gloves' numbers are the gear formula's (src/data/gear-stats.generated.js: leather is Defense, Ranged and 0.2% critical chance), so a
+       sword hero's first gain is the Defense */
+    eq(r.steps[0].words, 'Upgrade: Leather Gloves (+1 Defense) and Bronze Belt (+2 Defense)', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
     eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt, frees 1 bag space', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
@@ -692,8 +694,8 @@ async function runTests(M) {
     eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Ironbound Shield (200 gp)', '+2 Defense vs Practice Shield', 'ironbound_shield',
       { kind: 'shop', item: 'ironbound_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
     /* a bare slot first, though dearer; a piece worse than the worn one, another style's, or past the purse is never named */
-    const bare = buy({ equipment: noBelt, shop: shop(['ironbound_shield', 200], ['bronze_belt', 200]) });
-    eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (200 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first');
+    const bare = buy({ equipment: noBelt, shop: shop(['ironbound_shield', 200], ['bronze_belt', 250]) });
+    eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (250 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first, though dearer (the Ironbound at 200 is cheaper)');
     eq(buy({ purse: 199 }), null, 'past the purse, nothing');
     eq(buy({ equipment: { ...tank, shield: 'ironbound_shield' } }), null, 'what is worn already is not bought again');
     eq(buy({ shop: shop(['ironbound_shield', 200, 'tool']) }), null, 'only the Shop\'s gear');
@@ -722,7 +724,7 @@ async function runTests(M) {
     /* the Shop's Bronze Belt moves a worn Leather Belt to the chosen weight, and the line says what the move gives up beside what it adds; a worn
        Studded Leather Belt (tier 2) is never moved to it (a lower tier) */
     const move = buy({ equipment: { ...dressed, belt: 'leather_belt' }, shop: shop(['bronze_belt', 220]) });
-    eq(move && [move.kind, move.title, move.words], ['gear', 'Next buy: Bronze Belt (220 gp)', '+1 Defense, +22 health, -0.4% critical chance vs Leather Belt'], 'a move to the chosen weight, its cost said');
+    eq(move && [move.kind, move.title, move.words], ['gear', 'Next buy: Bronze Belt (220 gp)', '+1 Defense, +22 health, -0.2% critical chance vs Leather Belt'], 'a move to the chosen weight, its cost said');
     eq(buy({ equipment: { ...dressed, belt: 'studded_belt' }, shop: shop(['bronze_belt', 220]) }).kind, 'find', 'never a lower tier');
     eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
     /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */

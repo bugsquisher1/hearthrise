@@ -206,7 +206,7 @@ export const MONSTERS = {
   stag: { name: 'Stag', icon: '🦌', tier: 2, cls: 'mammal', family: 'Mammal',
     hp: 26, atk: 9, aim: 26, evasion: 12, def: 1, xp: 32, gp: [5, 14],
     drops: [{ id: 'wolf_pelt', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .55 },
-      { id: 'studded_boots', ch: .0038, salvage: true }] }, // .004 -> .0038 (lane/c-tohit-ratio, 2026-11-20): the to-hit ratio kills the stag faster, 0.49 h a pair (field-salvage's floor 0.5)
+      { id: 'studded_boots', ch: .0036, salvage: true }] }, // .004 -> .0038 (11-20) -> .0036 (11-23): faster kills, 0.49 h a pair each time (field-salvage's floor 0.5)
   /* FOLD-32: `jackal` merged INTO `wolf` via MONSTER_ALIAS. Two Tier-2 Mammal
      pack canines; the canine ladder is already five rungs and does not need two
      animals on rung two. */
@@ -253,7 +253,7 @@ export const MONSTERS = {
     elements: { ember: 50, frost: -15 },
     hp: 27, atk: 10, aim: 27, evasion: 13, def: 2, xp: 40, gp: [7, 17],
     drops: [{ id: 'dragon_scale', ch: .3 }, { id: 'coal', ch: .35 }, { id: 'bones', ch: .7 },
-      { id: 'studded_gloves', ch: .004, salvage: true }] },
+      { id: 'studded_gloves', ch: .0037, salvage: true }] }, // .004 -> .0037 (11-23): as the stag's
   water_elemental: { name: 'Water Elemental', icon: '💧', tier: 2, cls: 'elemental', family: 'Elemental',
     elements: { ember: -15, frost: 50 },
     hp: 30, atk: 9, aim: 26, evasion: 13, def: 2, xp: 35, gp: [6, 16],

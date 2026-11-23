@@ -77,6 +77,14 @@ export const LEVER_CARRIERS = Object.freeze([
     read: (m) => (m.STAMINA_REFILL ? [['refill', 'STAMINA_REFILL']] : []) },
   { file: 'shops.js', what: 'a hero slot on sale (SHOP_OFFERS character_slot.N)', claims: [],
     read: (m) => { const out = []; const walk = (o) => { if (!o || typeof o !== 'object') return; if (typeof o.id === 'string' && /^character_slot\.\d+$/.test(o.id) && Array.isArray(o.cost)) out.push(['hero-slot', o.id]); for (const v of Object.values(o)) walk(v); }; walk(m.SHOP_OFFERS); return out; } },
+  /* the Trait roller's faucet (src/core/trait-roll.js): a Rare every N hunted hours, depth's multiplier, the top open rank and its cap. The
+     sweep sees only topRankMaxPm (it reads "MaxPm" as xp); the carrier claims the whole table, so a new field in it is this lever's */
+  { file: 'drop-hours.js', what: 'the Trait roller\'s hours, depth and top rank (DROP_HOURS)', claims: [/^DROP_HOURS\./],
+    read: (m) => (m.DROP_HOURS ? [['drop-hours', 'DROP_HOURS']] : []) },
+  /* the company flame's luck on the Rare and Very Rare chance and its lift of the top open rank (21 section 1.2, D-4); dark behind the
+     hr_flags switch inner_flame until the roller reads it */
+  { file: 'inner-flame.js', what: 'the company flame\'s luck and top rank (FLAME)', claims: [/^FLAME\./],
+    read: (m) => (m.FLAME && m.FLAME.luckMaxPm > 0 ? [['flame-luck', 'FLAME']] : []) },
 ]);
 
 /* KEYS a carrier answers that are not a lever, each with its reason. */
@@ -101,6 +109,9 @@ export const SWEEP_NOT_LEVERS = Object.freeze({
      only by src/core/hunt/danger.js dangerDial beside the depth ratio, which the classed carriers of a ground's or a tier's coin never reach */
   'danger.js': [[/^PAY\.coinPm$/, 'the scale\'s coin level (lever danger.coin-level, levers.mjs), read by danger.js dangerDial, not a ground or tier coin dial'],
     [/^GEAR_STEPS\.dominanceMaxPm$/, 'gear-steps.js GEAR_STEPS re-exported by danger.js (lane/r9), the same Trait guard as in gear-steps.js']],
+  /* a boss kind is its base role (the elite) times its encounter's row: the boss side of the monster stat formula, as STAT_FORMULA above is
+     the monster side. What a boss pays is what it is written to, not a lever a player stacks (levers.mjs registers it as mon.boss-kinds) */
+  'bosses.js': [[/^BOSS_KINDS\.\*\.xpPpm$/,'a boss kind\'s stat row over its role (lever mon.boss-kinds, levers.mjs): the boss stat formula, what a boss is written to, like STAT_FORMULA']],
 });
 
 /* Modules a node scan cannot load, each with its reason. */

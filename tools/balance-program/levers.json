@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "a7bf4a8a6cadc921",
+ "authored": "d8fa2127929bf79a",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 237,
+  "levers": 238,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 9,
@@ -82,14 +82,14 @@
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 45,
+   "economy": 46,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
    "global": 127,
    "archetype": 32,
-   "content": 50,
+   "content": 51,
    "exception-intentional": 17,
    "exception-accidental": 11
   },
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 34,
+   "not-playable:outside-hunt": 35,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 41,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 128,
+   "asserted": 129,
    "mentioned only": 89,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 759,
-  "typed": 17022,
+  "bindings": 760,
+  "typed": 17042,
   "files": 260,
-  "lever": 333,
+  "lever": 334,
   "notLever": 426,
   "unclaimed": 0
  },
@@ -9913,7 +9913,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 34,
+     "distinct": 40,
      "low": 0.06,
      "high": 1
     }
@@ -10157,7 +10157,7 @@
       "trophy"
      ],
      "rows": 320,
-     "distinct": 76,
+     "distinct": 79,
      "low": 0.0005,
      "high": 0.05
     }
@@ -11985,31 +11985,31 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 33,
+     "line": 34,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 34,
+     "line": 35,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 35,
+     "line": 36,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 36,
+     "line": 37,
      "text": "temperStepsMax: 5,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 37,
+     "line": 38,
      "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
@@ -12235,13 +12235,13 @@
     },
     {
      "file": "src/data/talents.js",
-     "line": 98,
+     "line": 101,
      "text": "shelter: 8.5,",
      "binding": "BORROW_VALUES"
     }
    ],
    "definition": "a borrowed move's penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)",
-   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3",
+   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 (validate refuses a missing one): the town moves power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values)",
    "touches": "which hybrid builds exist at which Level, and how much a borrowed move adds",
    "outcomes": [
     "dps",
@@ -12275,7 +12275,7 @@
     "asserts": [
      {
       "file": "tests/hunt-core/talents.mjs",
-      "what": "borrow-opens",
+      "what": "borrow-opens, town-values",
       "reads": [
        "BORROW_VALUES"
       ]
@@ -12294,7 +12294,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (18-roads-review-measured.md section 3, 23-spell-audit.md)"
+   "evidence": "MEASURED (18-roads-review-measured.md sections 3 and 7, 23-spell-audit.md; tools/balance-program/redesign/roads/v0.mjs)"
   },
   {
    "id": "roads.nodes",
@@ -12303,67 +12303,67 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 183,
+     "line": 190,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 245,
+     "line": 252,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 304,
+     "line": 311,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 549,
+     "line": 556,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 544,
+     "line": 551,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 318,
+     "line": 325,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 358,
+     "line": 365,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 385,
+     "line": 392,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 416,
+     "line": 423,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 481,
+     "line": 488,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 567,
+     "line": 574,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     }
@@ -15208,6 +15208,55 @@
    "evidence": "STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)"
   },
   {
+   "id": "econ.faction-stock",
+   "category": "economy",
+   "name": "The quartermasters' stock (the two sides' pieces)",
+   "sites": [
+    {
+     "file": "src/data/factions.js",
+     "line": 78,
+     "text": "export const FACTION_STOCK = Object.freeze({",
+     "binding": "FACTION_STOCK"
+    }
+   ],
+   "definition": "one row a piece a side: its standing mark in company hero-minutes (40 / 120 / 200 / 400 / 600 h), its kind, and for a hall or mount piece wageHoursPm (20 and 30 wage hours) priced ceil(wageHoursPm / 1000 x wage(levelStep(top Level))) at the company's highest Level (src/data/factions.js stockPrice); outfit pieces free; looks only, 0 power steps (ledger row 17)",
+   "range": "the designer's (25-factions.md section 2.4; lane/factions-morrow-hills: the company's top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1067, generated, pinned at four Levels). The paid rows are CLOSED until the hall's wall and mounts show them",
+   "touches": "a once-per-company looks sink; under 1% of minted coin either way (25 section 3)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/faction-ground-balance.mjs",
+      "what": "FG-PRICE: the wage hours at the Level, rounded up, growing with it; FG-STOCK: no power key",
+      "reads": [
+       "FACTION_STOCK",
+       "stockPrice"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/faction-ground-balance.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a piece is claimed or bought in town, never by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (25-factions.md section 2.4 starting values)"
+  },
+  {
    "id": "econ.reset-price",
    "category": "economy",
    "name": "Talent reset price",
@@ -16835,7 +16884,7 @@
   },
   {
    "at": "src/data/factions.js#*",
-   "why": "faction swap timing and outfit hours: no power, gold or XP in these rows"
+   "why": "faction swap timing, the day fuse, the week cap and the sides: no power, gold or XP in these rows (the gold of the stock is econ.faction-stock)"
   },
   {
    "at": "src/data/boss-halls.js#namedWaveOf",
@@ -19646,13 +19695,19 @@
   "src/data/talents.js#BORROW_VALUES": {
    "pin": "count",
    "keys": [
+    "circle_of_renewal",
     "fireball",
+    "flame_strike",
     "frost_lance",
+    "greater_mend",
     "hoarfrost",
+    "power_strike",
     "protective_ward",
-    "shelter"
+    "rend",
+    "shelter",
+    "turning_cut"
    ],
-   "typed": 5,
+   "typed": 11,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {
@@ -20204,6 +20259,15 @@
     "xpPerHour"
    ],
    "typed": 31,
+   "bindings": 1
+  },
+  "src/data/factions.js#FACTION_STOCK": {
+   "pin": "count",
+   "keys": [
+    "mark",
+    "wageHoursPm"
+   ],
+   "typed": 14,
    "bindings": 1
   },
   "src/data/talent-reset.js#TALENT_RESET": {

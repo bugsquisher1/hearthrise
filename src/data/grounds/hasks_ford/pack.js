@@ -119,19 +119,19 @@ export default definePack({
       /* the swarm, the common majority: the company's foot, still in its files. A blade skates off the ribs (the bestiary's
          words). Their boots and helmets, their bones for the Hearth. */
       weaponResist: ['sword'],
-      drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.5, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.4, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_boots', everyHours: 1.077, ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.077, ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.077, ch: 0.008, band: 'scarce' },
-        { id: 'mithril_helm', everyHours: 1.077, ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.077, ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.077, ch: 0.008, band: 'scarce' },
-        { id: 'maple_crossbow', everyHours: 1.435, ch: 0.006, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.468, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.374, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.0749, band: 'uncommon' },
+        { id: 'mithril_boots', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.077, ch: 0.00749, band: 'scarce' },
+        { id: 'mithril_helm', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.077, ch: 0.00749, band: 'scarce' },
+        { id: 'maple_crossbow', everyHours: 1.435, ch: 0.00562, band: 'scarce' }],
       hp: 67, atk: 28, aim: 79, evasion: 23, def: 2, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
          legs, and the weed that grew through them. */
       weaponResist: ['ranged'],
-      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.1136, ch: 0.16, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', everyHours: 0.56, ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.56, ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.56, ch: 0.0325, band: 'scarce' },
-        { id: 'mithril_hatchets', everyHours: 0.7, ch: 0.026, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.468, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.151, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.0749, band: 'uncommon' },
+        { id: 'mithril_platelegs', everyHours: 0.56, ch: 0.0304, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.56, ch: 0.0304, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.56, ch: 0.0304, band: 'scarce' },
+        { id: 'mithril_hatchets', everyHours: 0.7, ch: 0.0243, band: 'scarce' }],
       hp: 112, atk: 29, aim: 73, evasion: 36, def: 12, xp: 863, gp: [16, 50], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
@@ -139,18 +139,18 @@ export default definePack({
          spell sinks into the cold (the bestiary's words). The bodies. A lone hero meets about 20 an hour, so its Scarce rows sit
          at the 5% ceiling. Its id is its own: monsters.js holds an old `wight` row with no ground, which a pack can't replace. */
       weaponResist: ['magic'],
-      drops: [{ id: 'bones', everyHours: 0.0545, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.091, ch: 0.3, band: 'common' }, { id: 'ledger_leaf', everyHours: 0.341, ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platebody', everyHours: 0.545, ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 0.545, ch: 0.05, band: 'scarce' }, { id: 'warlock_body', everyHours: 0.545, ch: 0.05, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0545, ch: 0.468, band: 'common' }, { id: 'grave_dust', everyHours: 0.091, ch: 0.281, band: 'common' }, { id: 'ledger_leaf', everyHours: 0.341, ch: 0.0749, band: 'uncommon' },
+        { id: 'mithril_platebody', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'warlock_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }],
       hp: 71, atk: 40, aim: 117, evasion: 24, def: 2, xp: 601, gp: [10, 32], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. His shield,
          about hourly (a lone hero meets about 20 an hour, so its row sits at the 5% ceiling), and the gloves and belts. */
       weaponResist: ['ranged'],
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.273, ch: 0.3, band: 'common' }, { id: 'toll_token', everyHours: 0.818, ch: 0.1, band: 'uncommon' },
-        { id: 'mithril_faced_shield', everyHours: 1.636, ch: 0.05, band: 'scarce' },
-        { id: 'mithril_gauntlets', everyHours: 19.5, ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 19.5, ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', everyHours: 19.5, ch: 0.0042, band: 'rare' },
-        { id: 'mithril_belt', everyHours: 19.5, ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 19.5, ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', everyHours: 19.5, ch: 0.0042, band: 'rare' }],
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.273, ch: 0.281, band: 'common' }, { id: 'toll_token', everyHours: 0.818, ch: 0.0936, band: 'uncommon' },
+        { id: 'mithril_faced_shield', everyHours: 1.636, ch: 0.0468, band: 'scarce' },
+        { id: 'mithril_gauntlets', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'warlock_gloves', everyHours: 19.5, ch: 0.00393, band: 'rare' },
+        { id: 'mithril_belt', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'warlock_belt', everyHours: 19.5, ch: 0.00393, band: 'rare' }],
       hp: 166, atk: 39, aim: 103, evasion: 42, def: 18, xp: 1399, gp: [24, 74], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the

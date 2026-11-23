@@ -256,6 +256,18 @@
         "gzipBytes": 955184,
         "on": "2026-11-23",
         "why": "+1.5 KB gzip: the whole Roads map as data (src/data/talents.js, 269 nodes), read by the talents window on the town stage"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955213,
+        "on": "2026-11-23",
+        "why": "Hask's Ford drop chances re-derived at three significant digits (refKillsHead 235), lane/ci-reds-client-1123"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 955229,
+        "on": "2026-11-23",
+        "why": "six measured town borrow values and the not_offered refusal in talents data/core (lane/roads-borrow-values)"
       }
     ]
   }

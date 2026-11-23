@@ -192,11 +192,11 @@ export const GEAR_ECONOMY = [
   L('roads.borrow-bands', 'equipment', 'global', 'The Roads: borrowing priced by value, and the Level a borrow opens at', {
     at: [at('src/data/talents.js', 'Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),'), at('src/data/talents.js', 'openFloor: 20, openLevel'), at('src/data/talents.js', '  shelter: 8.5,')],
     def: 'a borrowed move\'s penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)',
-    range: 'bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3',
+    range: 'bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 (validate refuses a missing one): the town moves power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values)',
     touches: 'which hybrid builds exist at which Level, and how much a borrowed move adds', out: [...KILL, ...SURVIVE], f: [],
-    tests: [['tests/hunt-core/talents.mjs', 'borrow-opens']], testReads: ['BORROW_VALUES'],
+    tests: [['tests/hunt-core/talents.mjs', 'borrow-opens, town-values']], testReads: ['BORROW_VALUES'],
     perturb: NP('not-built', 'dark behind TALENT_RULES.live'),
-    ev: 'MEASURED (18-roads-review-measured.md section 3, 23-spell-audit.md)' }),
+    ev: 'MEASURED (18-roads-review-measured.md sections 3 and 7, 23-spell-audit.md; tools/balance-program/redesign/roads/v0.mjs)' }),
   L('roads.nodes', 'equipment', 'content', 'The Roads sample\'s nodes: crossroads, waystones and vows, in steps and move modifiers', {
     at: [at('src/data/talents.js', "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),"), at('src/data/talents.js', "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),"),
       at('src/data/talents.js', "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),"), at('src/data/talents.js', "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),"),
@@ -582,6 +582,14 @@ export const GEAR_ECONOMY = [
     perturb: P('the cells pay blessingGold after each death (cell.mjs blessingsPrice)'),
     flags: [flag('contradictory', 'Free under Level 30: a Level threshold that changes a price on purpose (a young hero\'s death is under 2.5 h, its wage-priced Blessing more than its hours pay)', '44 P-X20; kept by the designer 2026-11-22')],
     ev: 'STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)' }),
+  L('econ.faction-stock', 'economy', 'content', 'The quartermasters\' stock (the two sides\' pieces)', {
+    at: [at('src/data/factions.js', 'export const FACTION_STOCK = Object.freeze({')],
+    def: 'one row a piece a side: its standing mark in company hero-minutes (40 / 120 / 200 / 400 / 600 h), its kind, and for a hall or mount piece wageHoursPm (20 and 30 wage hours) priced ceil(wageHoursPm / 1000 x wage(levelStep(top Level))) at the company\'s highest Level (src/data/factions.js stockPrice); outfit pieces free; looks only, 0 power steps (ledger row 17)',
+    range: 'the designer\'s (25-factions.md section 2.4; lane/factions-morrow-hills: the company\'s top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1067, generated, pinned at four Levels). The paid rows are CLOSED until the hall\'s wall and mounts show them',
+    touches: 'a once-per-company looks sink; under 1% of minted coin either way (25 section 3)', out: [], f: [],
+    tests: [['tests/faction-ground-balance.mjs', 'FG-PRICE: the wage hours at the Level, rounded up, growing with it; FG-STOCK: no power key']], testReads: ['FACTION_STOCK', 'stockPrice'],
+    perturb: NP('outside-hunt', 'a piece is claimed or bought in town, never by a cell'),
+    ev: 'STATED (25-factions.md section 2.4 starting values)' }),
   L('econ.reset-price', 'economy', 'global', 'Talent reset price', {
     at: [at('src/data/talent-reset.js', '  hoursPm: 500,'), at('src/data/talent-reset.js', '  growthNum: 2,'), at('src/data/talent-reset.js', '  perDay: 16,')],
     def: 'a paid reset costs ceil(hoursPm / 1000 x wage(levelStep(L)) x (growthNum / growthDen)^n), n the resets paid that UTC day (src/core/wage.js resetPrice); a new hero\'s first and Premium\'s first of the day are free and not counted; perDay is a blast radius',

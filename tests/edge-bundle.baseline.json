@@ -395,7 +395,27 @@
         "why": "+33,442 B: the Roads' whole map, src/data/talents.js from the sample (103 nodes) to every country and border (269 nodes, 171 options), read by the engine through core/talents.js grantsOf"
       },
       {
-        "bytes": 3779592,
+        "bytes": 3777956,
+        "on": "2026-11-23",
+        "why": "+190 B: factions.js stock rows and stockPrice (lane/factions-morrow-hills), read by the engine's ground side lookup"
+      },
+      {
+        "bytes": 3778006,
+        "on": "2026-11-23",
+        "why": "+50 B: Hask's Ford drop chances re-derived at three significant digits by gen-drop-hours --write after the tuning pass's refKillsHead 235 (lane/ci-reds-client-1123)"
+      },
+      {
+        "bytes": 3778023,
+        "on": "2026-11-23",
+        "why": "+17 B: two field-salvage chances under the faster kills of the 11-23 set (stag .0036, salamander .0037, field-salvage's 0.5 h floor; lane/ci-reds-client-1123)"
+      },
+      {
+        "bytes": 3779973,
+        "on": "2026-11-23",
+        "why": "+borrow values: six town V0 rows and the not_offered refusal (lane/roads-borrow-values) on top of the ci-reds drop chances"
+      },
+      {
+        "bytes": 3781799,
         "on": "2026-11-23",
         "why": "lane/depth-reading-fix: the depth reading's middle point is a measured hold (src/core/bands.js refHeldOf, DANGER_GROUNDS refHeld), read by the Rare odds (drop-rate.js); Muster's floor re-cut 575; +1826 bytes, the field, its reader and their reasons"
       }

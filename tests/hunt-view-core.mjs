@@ -37,6 +37,8 @@
 //   HUD-2 the HUD shows the SAVED figures plus that, recomputed on every read: a save that credits less than the prediction ran
 //         (it ran ahead) REPLACES it, the XP ring never shows a whole Level the save has not, and no prediction shows without one
 //   HUD-3 display only: only the two HUD widgets read src/shell/hud-predict.js, and it asks the server nothing
+//   HUD-4 on the Danger scale the gold line between saves reads the swing's coin multiple (the dial's coinPm, as payKill pays), not the
+//         row's bare roll: a kill at coinPm 6400 shows 6.4 x its coin (lane/arch-pass; it read 1x and stepped up 6.4x at each save)
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -424,6 +426,17 @@ async function rules(M) {
     ok('HUD-3', users.sort().join() === allowed.join(), 'the prediction is read by ' + users.join(', ') + ' (only the two HUD widgets may)');
     const own = readFileSync(join(M.base, 'src/shell/hud-predict.js'), 'utf8');
     ok('HUD-3', !/\b(rpc|accrue|edgeIntent)\(|intents\.js/.test(own), 'the prediction module asks the server something');
+  }
+  { // HUD-4 THE GOLD LINE BETWEEN SAVES FOLLOWS THE SCALE'S COIN MULTIPLE (src/hunt-view/hud-ledger.js noteGains coinPm)
+    const st = (coinPm) => {
+      const s = { sides: [{ mi: { self: true }, member: { unitId: 1 }, levelGained: () => 0 }], gains: [{ at: 0, lx: 0, kills: {}, share: {} }], next: 2000,
+        world: { units: [{ side: 'hero', alive: true }, { side: 'hero', alive: true }] } };
+      M.HL.noteGains(s, { events: [{ type: 'kill', t: 0 }], units: [['slime']] }, { slime: {} }, coinPm);
+      return M.HP.gainsFigures(M.HL.hudGainsSince(s.gains, -1), () => null);
+    };
+    const off = st(undefined), on = st(6400);
+    /* slime rolls 1 coin; two heroes there: off the scale half a coin each, at coinPm 6400 3.2 (floored 0 and 3) */
+    ok('HUD-4', off.gold === 0 && on.gold === 3 && on.kills === 1, 'a slime kill between two heroes reads gold ' + off.gold + ' off the scale and ' + on.gold + ' at coinPm 6400 (want 0 and 3)');
   }
 
   return fails;

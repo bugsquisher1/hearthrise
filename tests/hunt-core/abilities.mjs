@@ -451,6 +451,38 @@ const cases = {
     if (mk !== want) return 'a marked monster took ' + mk + ' of a blow the unmarked one took ' + un + ' of, want ' + want;
     return hit(marked, row.durMs) === un ? null : 'the mark outlived its ' + row.durMs + ' ms';
   },
+  /* THE BOW'S TWO TARGETS (lane/moves-pass-1, 23-spell-audit.md section 4). Precision Shot takes a monster whose role reaches past the
+     front (`prefers`: a Shooter, Caster or Stalker) in reach before the bow's own target, on the Danger scale where monsters play roles;
+     off it, the bow's own target. Hunter's Mark lands on the bow's own target while it is unmarked, else the healthiest unmarked in reach. */
+  'bow-picks-its-marks': async (M) => {
+    const { MONSTERS } = await import(pathToFileURL(join(M.root, 'src/data/monsters.js')).href + sourceQuery(M.root));
+    const { openDanger } = await import(pathToFileURL(join(M.root, 'src/core/hunt/danger.js')).href + sourceQuery(M.root));
+    const roles = Object.assign({}, MONSTERS, { rat: Object.assign({}, MONSTERS.rat, { role: 'brute' }), slime: Object.assign({}, MONSTERS.slime, { role: 'stalker' }) });
+    const shot = (onScale) => {
+      const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
+      const x = oneHero(M, { role: 'ranger', target: 10 }, { hs, bar: ['precision_shot'], range: 7, ammo: 'iron_arrows' },
+        [{ x: 13, y: 3, hp: 5000, maxHp: 5000 }, { x: 16, y: 3, hp: 5000, maxHp: 5000, kind: 'slime' }]);
+      x.inst.monsters = roles;
+      if (onScale) openDanger(x.w, 'steady', 0);
+      x.sc.rng = rngOf(M, 3);
+      M.abilities.castAbilities(x.inst, x.sc);
+      const c = x.sc.events.find((e) => e.type === 'cast' && e.ability === 'precision_shot');
+      return c ? c.t : null;
+    };
+    if (shot(true) !== 11) return 'on the scale Precision Shot took monster ' + shot(true) + ', not the Stalker (11) behind the bow\'s own target';
+    if (shot(false) !== 10) return 'off the scale Precision Shot took monster ' + shot(false) + ', not the bow\'s own target (10)';
+    const mark = (ownHp, markOwn) => {
+      const x = oneHero(M, { role: 'ranger', target: 10 }, { bar: ['hunters_mark'], range: 7 },
+        [{ x: 14, y: 3, hp: ownHp, maxHp: 5000 }, { x: 15, y: 3, hp: 5000, maxHp: 5000 }, { x: 15, y: 4, hp: 4000, maxHp: 5000 }]);
+      if (markOwn) { x.w.units.find((u) => u.id === 10).markUntil = 99999; }
+      M.abilities.castAbilities(x.inst, x.sc);
+      const c = x.sc.events.find((e) => e.type === 'cast' && e.ability === 'hunters_mark');
+      return c ? c.t : null;
+    };
+    if (mark(1000, false) !== 10) return 'the Mark took monster ' + mark(1000, false) + ', not the bow\'s own target (10)';
+    if (mark(1000, true) !== 11) return 'with its own target marked the Mark took monster ' + mark(1000, true) + ', not the healthiest unmarked (11)';
+    return null;
+  },
   /* MEND, THE UNIVERSAL SELF-HEAL (roadmap p21; Bible §17): every discipline's bar keeps it (it counts against none of
      the three), it heals its own caster on the heal lane with mana and no rune, it needs missing HP (at full health it
      never casts, so it never pays Magic XP for nothing), and it pays Magic at the physical builds' quarter. */
@@ -920,7 +952,15 @@ const cases = {
     /* the area conditions, picked: each starts on a test that can hold, in plain words */
     const said = ['party_hp_pct', 'enemy_casting', 'in_fight', 'target_weak', 'target_resists'].map((id) => conditionWords(conditionFor(id)));
     const want = ['the party’s HP is below 50%', 'the pack has at least 1 monster casting at me', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
-    return JSON.stringify(said) === JSON.stringify(want) ? null : 'the area conditions read ' + JSON.stringify(said);
+    if (JSON.stringify(said) !== JSON.stringify(want)) return 'the area conditions read ' + JSON.stringify(said);
+    /* THE ROADS' FOUR (lane/bar-metrics): the sentence the picker reads and the short label the slot's title reads (conditionTip) */
+    const { conditionTip } = M.shell.draft;
+    const roads = [{ metric: 'target_hp_pct', op: 'lt', value: 30 }, { metric: 'target_marked', op: 'eq', value: true }, { metric: 'target_stacks', op: 'gte', value: 3, subject: 'bleed' },
+      { metric: 'last_move', op: 'eq', value: 'rend' }, { metric: 'last_move', op: 'ne', value: 'quarry_blow' }];
+    const words = roads.map((c) => [conditionWords(c), conditionTip(c)]);
+    const wantWords = [['my target’s HP is below 30%', 'Target health below 30%'], ['my target is Marked', 'Target is Marked'],
+      ['my target has at least 3 Bleed stacks', 'Target Bleed stacks 3+'], ['my last move is Rend', 'Last move: Rend'], ['my last move is not Quarry Blow', 'Last move: not Quarry Blow']];
+    return JSON.stringify(words) === JSON.stringify(wantWords) ? null : 'the Roads\' tests read ' + JSON.stringify(words);
   },
   /* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"):
      every worn set that plays Melee damage keeps the slot (a sword alone, two axes, a club or hammer, bare hands) and every other one drops it
@@ -1055,6 +1095,13 @@ async function withRows(root, edits) {
 }
 
 const mutants = [
+  /* lane/moves-pass-1: the bow's two targets */
+  { name: 'Precision Shot shoots the bow\'s own target again', case: 'bow-picks-its-marks',
+    edits: [['src/data/abilities.js', "target: 'enemy', prefers: ['shooter', 'caster', 'stalker'], hitPm: 750,", "target: 'enemy', hitPm: 750,"]] },
+  { name: 'a preferred role is read off the scale too', case: 'bow-picks-its-marks',
+    edits: [['src/core/hunt/abilities.js', 'const r = monsterRoleOf(inst, m);', 'const r = MONSTER_ROLES[((inst.monsters || {})[m.kind] || {}).role];']] },
+  { name: 'the Mark takes the healthiest again', case: 'bow-picks-its-marks',
+    edits: [['src/core/hunt/abilities.js', '      if (own && !(own.markUntil > sc.atMs)) return own;\n', '']] },
   { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
     edits: [['src/data/abilities.js', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600,', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1200,']] },
   { name: "a healer's basic trains Magic at another rate", case: 'a-mage-and-a-healer-train-alike',
@@ -1108,7 +1155,7 @@ const mutants = [
   { name: '[spell-content] a version costs version I\'s mana', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = versionOf(row, 1);']] },
   { name: '[spell rule] a cast reads a fixed blow, not its hero\'s', case: 'output-grows-with-the-blow-not-mana',
-    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, hitRange(10, row));']] },
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));', '  const dmg = () => roll(sc, hitRange(10, row));']] },
   { name: '[spell rule] a cast grows with its skill level too (the retired lvPm, twice over the blow)', case: 'output-grows-with-the-blow-not-mana',
     edits: [['src/core/hunt/abilities.js', '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = Math.floor((v.outPm * s.pm * (1000 + 10 * (skillLevel(h, row) - 1))) / 1000000);']] },
   { name: 'a store rune fires at full power (r07)', case: 'spell-casts-the-spent-runes-version',
@@ -1128,11 +1175,11 @@ const mutants = [
   { name: '[rune ladder] the bar lets a spell name another family\'s store rune', case: 'store-rune-is-the-one-the-slot-names',
     edits: [['src/core/hunt/conditions.js', '  return !!family && !!ITEMS[b.partner] && ITEMS[b.partner].family === family;', '  return !!family && !!ITEMS[b.partner] && !!ITEMS[b.partner].family;']] },
   { name: '[rune ladder] a deeper store row priced off the ladder', case: 'store-rune-is-the-one-the-slot-names',
-    edits: [['src/data/supply-basics.js', "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);", "  t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), 1);"]] },
+    edits: [['src/data/supply-basics.js', "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));", 'export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map(() => 7));']] },
   { name: 'a hit ignores its power', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '  const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };', '  const hitTag = { id: row.id };']] },
   { name: 'a heal and a shield ignore their version', case: 'version-output-scales-numbers',
-    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blowOf(u, row), u.maxHp, pm) || {});', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, 1000) || {});']] },
   { name: 'a sized version is read as the row', case: 'version-output-scales-numbers',
     edits: [['src/data/abilities.js', '  return Number.isInteger(mana) ? { mana, outPm: versionStep(n) } : { mana: row ? row.mana : 0, outPm: 1000 };', '  return { mana: row ? row.mana : 0, outPm: 1000 };']] },
   { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
@@ -1180,7 +1227,7 @@ const mutants = [
   { name: 'the mark never wears off', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
   { name: 'bleed lands from a blow of 1 whatever the caster', case: 'bleed-scales-with-the-casters-blow',
-    edits: [['src/core/hunt/abilities.js', '    const hit = Number.isInteger(u.maxHit) && u.maxHit > 0 ? u.maxHit : 1;', '    const hit = 1;']] },
+    edits: [['src/core/hunt/abilities.js', '    const hit = Number.isInteger(own) && own > 0 ? own : 1;', '    const hit = 1;']] },
   { name: 'a rune names a family that is not one of the seven', case: 'rows-validate',
     edits: [['src/data/stonecraft.js', 'ammoPerShot: 1, family, runeTier: t.tier });', "ammoPerShot: 1, family: family === 'rupture' ? 'blood' : family, runeTier: t.tier });"]] },
   { name: 'a rune casts a sixth tier', case: 'rows-validate',

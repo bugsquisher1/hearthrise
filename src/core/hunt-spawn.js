@@ -8,7 +8,7 @@ import { HUNT_INDEX } from '../data/hunts.js';
 import { densityFor, partyPick } from '../data/hunt-grounds.js';
 import { MONSTERS } from '../data/monsters.js';
 import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js';
-import { disciplineAbilities } from '../data/abilities.js';
+import { disciplineAbilities, ABILITIES } from '../data/abilities.js';
 import { makeUnit, makeWorld } from './hunt/world-state.js';
 import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js';
 import { pickLeader, settingsOf } from './hunt/roles.js';
@@ -32,7 +32,10 @@ export function huntFor(activeId) {
  * by combat-sim.js syncUnit and heroUnit): a hero is the same whatever party read it.
  * Null when the weapon has no role.
  *
- * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), lead (leads its party),
+ * BORROWED MOVES (src/core/borrow-blow.js): `o.borrowed`, the server's list of ability ids this hero may hold from another weapon
+ * (the Roads write it; absent until they do), joins its discipline's for the bar, and each one reads its native weapon's blow.
+ *
+ * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), lead (leads its party), borrowed,
  *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns),
  *            leaveTogether (the hero's "Leave if anyone leaves the hunt or dies") }
  */
@@ -41,7 +44,11 @@ export function heroSetup(o) {
   const role = roleForWeapon(o.weaponType || 'neutral', opt.role);
   if (!role) return null;
   const row = HUNT_ROLES[role];
-  const allowed = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));
+  const native = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));
+  /* a borrowed move: an ability row of another discipline, once (a universal row is every weapon's already) */
+  const borrowed = Array.isArray(o.borrowed) ? [...new Set(o.borrowed)].filter((id) => typeof id === 'string'
+    && Object.prototype.hasOwnProperty.call(ABILITIES, id) && !ABILITIES[id].universal && !native.includes(id)) : [];
+  const allowed = native.concat(borrowed);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
   /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */
   const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });
@@ -52,6 +59,7 @@ export function heroSetup(o) {
        hero's discipline can act on, then an empty ability lane's role rule set
        (ROLE_RULES) and, for a hero whose bar holds nothing, the start kit's bar. */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
+    borrowed,
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */

@@ -128,6 +128,9 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
       for (const k of new Set([...Object.keys(base), ...Object.keys(row)])) {
         if (WORDS.has(k) || ATTR_FIELDS.has(k)) continue;
         if (k === 'critB' && s.attr[0] === 'crit') continue;
+        /* `iL` is the Danger scale's mark on a scale ground's drop (src/data/danger.js scaleItemLevels), not a number of the piece: hunt-core/danger
+           ilevel holds every scale drop to its ground's */
+        if (k === 'iL') continue;
         if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('SA2 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', the standard ' + s.base + ' has ' + JSON.stringify(base[k]));
       }
     } else if (row.slot === 'shield') {

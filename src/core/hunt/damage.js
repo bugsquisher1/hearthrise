@@ -262,7 +262,7 @@ export function resolveAttacks(inst, sc) {
       if (!reaches(inst, u, t) || !atRest(u)) continue;
       /* THE DANGER SCALE'S FALL BACK (danger.js breaksOff): once a hero is under the stance's line, no monster swings again in this pull;
          the party breaks off at the next sub-step (pull-cycle.js breakOff). Off the scale it never holds. */
-      if (breaksOff(inst.world)) continue;
+      if (breaksOff(inst)) continue;
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);
@@ -272,7 +272,7 @@ export function resolveAttacks(inst, sc) {
          of it, each its own roll; none once a hero is under the stance's line (the fall back stops every blow). Off the scale: none. */
       const sp = splashOn(inst, u, t);
       for (const h of sp.heroes) {
-        if (breaksOff(inst.world)) break;
+        if (breaksOff(inst)) break;
         if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000)), 0);
       }
       continue;

@@ -398,7 +398,7 @@ function doTown(ctx, cs, sc, repaint, cur, step) {
     return;
   }
   if (step === 'bless') {
-    runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => { const b = blessingsOf(cs); return b ? t('shop.bless_all_done', { of: b.tiers.length }) : ''; }, cs).then(mark);
+    runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => { const b = blessingsOf(cs); return b ? t('shop.bless_all_done', { count: b.tiers.length }) : ''; }, cs).then(mark);
   }
 }
 

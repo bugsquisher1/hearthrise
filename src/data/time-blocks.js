@@ -19,8 +19,8 @@
 // "PRETTY PRICEY" (Tyler 2026-11-22; 04 section 11): a hunted hour pays about one hour of wage, so a block hour priced at
 // priceHourPm 2,000 (2.0 hours of wage) makes the day's first block cost about twice what its 2 h pay, and the second three
 // times. A player buys XP, drops and remains with it, never more gold. Worked at the calibrated wage (src/data/wage.js): a
-// Level 60 hero's first block costs 4 x wage(60) = 19,312 gold and its second 6 x wage(60) = 28,968, where a Steady hour at
-// Level 60 pays about 4,800 (tools/balance-program/redesign/w/fit.mjs). The price reads the hero's LEVEL, never its depth
+// Level 60 hero's first block costs 4 x wage(60) = 65,460 gold and its second 6 x wage(60) = 98,190, where a Steady hour at
+// Level 60 pays about 16,300 (tools/balance-program/redesign/w/fit.mjs). The price reads the hero's LEVEL, never its depth
 // (Tyler 2026-11-22: "some things, like stamina, should be based off of level"): src/core/wage.js levelStep.
 //
 // PURE ESM. Data only.

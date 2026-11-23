@@ -25,6 +25,7 @@ import { memberSide, sharePurses } from '../../../src/core/member.js';
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
 import { reportProposal, barPlayedOf, gearWornOf } from '../../../src/core/hunt/report.js';
+import { dangerOn } from '../../../src/core/hunt/danger.js';
 import { BOSS_CALLS } from '../../../src/data/boss-calls.js';
 import { roomOf } from '../../../src/core/hunt/boss-room.js';
 /* THE WORLD BOUND (hunt_instances.world <= worldMaxBytes UTF-8 bytes): the engine
@@ -82,10 +83,12 @@ const utf8Bytes = (text) => new TextEncoder().encode(text).length;
    THE HUNT REPORT (GR-66, FB-7; src/core/hunt/report.js): the window's lowest
    health with its monster and blow, close calls, each bar rule's uses and
    waits, the bar as played and the gear worn. The database folds it into
-   hunt_session_tally.report in the tally's one write (1053-hunt-report.sql). */
-function analyzerOf(sim, unitIds, unitId, side) {
+   hunt_session_tally.report in the tally's one write (1053-hunt-report.sql).
+   THE LEDGER (19-power-ledger L7; report.js ledgerWalk), on the Danger scale: `ledger` { step the window ended at, the span it played,
+   each hero's seat }, the same for a hunt viewed and one with the browser closed (both settle here). */
+function analyzerOf(sim, unitIds, unitId, side, ledger) {
   if (!Number.isInteger(unitId)) return null;
-  const t = tallyEvents(sim.events, { heroes: unitIds, kinds: sim.kinds }).heroes[unitId];
+  const t = tallyEvents(sim.events, { heroes: unitIds, kinds: sim.kinds, ...(ledger ? { scale: ledger } : {}) }).heroes[unitId];
   if (!t) return null;
   const hero = side && side.member && side.member.hero;
   return { dealt: t.dealt, taken: t.taken, healed: t.healed,
@@ -158,6 +161,10 @@ export function accrueHunt(inp) {
     { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
       ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode, ...(Number.isInteger(inp.towerFloor) ? { towerFloor: inp.towerFloor } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
+  /* THE LEDGER'S WINDOW (analyzerOf): on the scale, the swings this settle played and the seat of each hero (the server's hunt_sessions.seat) */
+  const ledger = sim.world && dangerOn(sim.world) ? { step: sim.world.danger, fromMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), toMs: sim.nextSwingAtMs,
+    seats: Object.fromEntries(sides.filter((s) => Number.isInteger(sim.members[s.mi.key] && sim.members[s.mi.key].unitIdEver) && Number.isSafeInteger(s.mi.seat))
+      .map((s) => [sim.members[s.mi.key].unitIdEver, s.mi.seat])) } : null;
 
   const out = [];
   for (const s of sides) {
@@ -165,7 +172,7 @@ export function accrueHunt(inp) {
     const hs = s.hs;
     if (hs.swingIndex === swingFrom.get(s.mi.key) && !hs.endedReason) continue;   // walked nothing: nothing to settle
     out.push({ key: s.mi.key, user: s.mi.user, slot: s.mi.slot, ...memberDelta(s, summary, fromMs, toMs, tickMs),
-      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s) });
+      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s, ledger) });
     if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {
       const row = out[out.length - 1];
       row.analyzer = { ...(row.analyzer || {}), fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };

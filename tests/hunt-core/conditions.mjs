@@ -56,15 +56,16 @@ const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
    written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
 const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
 /* The metrics (Green Sickness's mark, the heal aimed at yourself; 2027-01-13-spell-content.sql, lane b-spell-content, Tyler
-   2026-10-23), then once more: the area spells' five conditions and Chill (lane/b-area-engine, Tyler 2026-11-08). */
-const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
+   2026-10-23), then the area spells' five conditions and Chill (2027-04-15-area-conditions.sql, lane/b-area-engine, Tyler 2026-11-08),
+   then the Roads' four bar tests (lane/bar-metrics, 2026-11-22): the last full replace of the rows. */
+const METRICS_MIGRATION = 'supabase/migrations/1061-bar-metrics.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
    and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09), (the area moves, 2027-04-18), and Flame Volley back on the bow's set
    (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19), and the spell rule's melee set (Cleave merged into Turning Cut, Rend the axes'
-   strike: lane/c-spell-rule 2026-11-21). */
-const BAR_MIGRATION = 'supabase/migrations/1027-spell-rule-default-bar.sql';
+   strike: lane/c-spell-rule 2026-11-21), and the tank's Challenge on "my HP is at least 60%" (lane/moves-pass-1, 23-spell-audit section 3). */
+const BAR_MIGRATION = 'supabase/migrations/1062-challenge-default-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -154,8 +155,8 @@ function party(M, o) {
        at a 2 s boundary, so the druid's under-80% rule never fired (main: 79.1%, 13 heals). 900-1300 HP: 6-11 heals, no death. */
     member(M, 'a-knight', 'tank', { seat: 0, hp: 1200, def: 2, maxHit: 5 }),
     member(M, 'b-ranger', 'ranger', { seat: 1, ammo: 'bronze_arrows', maxHit: 4,
-      bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
-      slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst')] }),
+      bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 }, ...(x.rangerBag || {}) },
+      slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst'), ...(x.rangerAbilities || [])] }),
     member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, bag: { chalked_water_rune: { loaded: 500 } }, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])], stopRules: x.druidStop }),
     member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { chalked_fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
   ];
@@ -255,7 +256,7 @@ const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 const arr = (a) => (a && a.length ? 'array[' + a.map(q).join(', ') + ']::text[]' : "'{}'::text[]");
 export function metricRowsSql(M) {
   return M.CM.METRICS.map((m) => '  (' + [q(m.id), q(m.value), arr(m.ops), m.range ? m.range[0] : 'null', m.range ? m.range[1] : 'null',
-    arr(m.subject ? Object.keys(m.subject) : []), m.slotOnly ? 'true' : 'false', arr(m.value === 'effect' ? M.CM.EFFECT_IDS : [])].join(', ') + ')').join(',\n');
+    arr(m.subject ? Object.keys(m.subject) : []), m.slotOnly ? 'true' : 'false', arr(M.CM.VALUE_IDS[m.value] || [])].join(', ') + ')').join(',\n');
 }
 export function actionIdRowsSql(M) {
   const ids = [];
@@ -651,6 +652,64 @@ const cases = {
     ].filter(([cond, want]) => holds(cond) !== want);
     if (holds(c('item_qty', 'eq', 7, 'item'), slot('consume', 'cooked_shrimp')) !== true) bad.push(['the slot item of a food slot']);
     return bad.length ? 'wrong: ' + JSON.stringify(bad) : null;
+  },
+  /* THE ROADS' FOUR BAR TESTS (lane/bar-metrics, 18-roads-review §3 item 4): my target's health, a running Hunter's Mark, the stacks
+     of a stacking status on it, and my last move on the slot's own lane (any lane for a supply slot or a stop rule). */
+  'roads-metrics': (M) => {
+    const h = hero(M, 1, 12, 3, { target: 10 });
+    const rat = mon(M, 10, 0, 13, 3, { hp: 25, maxHp: 100, target: 1, markPm: 200, markUntil: 5000,
+      statuses: [0, 1, 2].map(() => ({ s: 'bleed', src: 1, left: 3000, next: 1000, scale: 1000 })) });
+    const inst = instOf(M, world(M, [h, rat]));
+    const holds = (cond, o) => M.cond.holds(Object.assign({ inst, u: h, h: null, slot: ab('power_strike'), atMs: 4000 }, o || {}), cond);
+    const bad = [
+      [c('target_hp_pct', 'lt', 30), true], [c('target_hp_pct', 'lt', 25), false], [c('target_hp_pct', 'lte', 25), true],
+      [c('target_marked', 'eq', true), true], [c('target_marked', 'eq', false), false],
+      [c('target_stacks', 'gte', 3, 'bleed'), true], [c('target_stacks', 'gte', 4, 'bleed'), false], [c('target_stacks', 'eq', 3), true],
+      [c('last_move', 'ne', 'rend'), true], [c('last_move', 'eq', 'rend'), false],
+    ].filter(([cond, want]) => holds(cond) !== want);
+    if (bad.length) return 'wrong: ' + JSON.stringify(bad);
+    /* a Mark is read against the sub-step's instant, as damage.js reads it: run out at 5000, and no instant reads no Mark */
+    if (holds(c('target_marked', 'eq', true), { atMs: 5000 }) || holds(c('target_marked', 'eq', true), { atMs: undefined })) return 'a run-out Mark, or one read with no instant, still holds';
+    /* no target: nobody (a percent and a Mark fail), no stacks */
+    h.target = null;
+    if (holds(c('target_hp_pct', 'lt', 101)) || holds(c('target_marked', 'eq', false)) === false || !holds(c('target_stacks', 'eq', 0, 'bleed'))) return 'no target read as a target';
+    h.target = 10;
+    /* THE LAST MOVE by lane: an offense slot reads the last offense cast (a Mark between two strikes breaks no rotation), a supply slot
+       and a stop rule the last cast of any lane */
+    h.lastMove = { offense: 'quarry_blow', support: 'hunters_mark', any: 'hunters_mark' };
+    if (!holds(c('last_move', 'eq', 'quarry_blow'))) return 'an offense slot did not read the last offense move';
+    if (!holds(c('last_move', 'eq', 'hunters_mark'), { slot: slot('consume', 'cooked_shrimp') })) return 'a supply slot did not read the last move of any lane';
+    /* the engine writes it: a fired cast is the last move on its lane and on any lane */
+    const sc = Object.assign(subStep(7000), { rng: M.rng.createRng(M.rng.hashSeed('roads', 1)) });
+    const r = heroRow(M, {});
+    inst.heroes = { 1: r };
+    h.mana = 100;
+    M.abilities.fire(inst, h, { row: M.AD.ABILITIES.power_strike, target: rat, lines: [] }, sc);
+    if (JSON.stringify(h.lastMove) !== JSON.stringify({ offense: 'power_strike', support: 'hunters_mark', any: 'power_strike' })) return 'a cast wrote ' + JSON.stringify(h.lastMove);
+    /* the bar check: the four as written, and the bounds */
+    const p = (cond) => M.cond.slotProblem(ab('power_strike', [cond]));
+    const ok = [c('target_hp_pct', 'lt', 30), c('target_marked', 'eq', true), c('target_stacks', 'gte', 3, 'bleed'), c('last_move', 'eq', 'rend')].map(p).filter(Boolean);
+    if (ok.length) return 'the bar refused a Roads test: ' + JSON.stringify(ok);
+    const refused = [[c('last_move', 'eq', 'meteor'), 'bad_value'], [c('last_move', 'gt', 'rend'), 'bad_op'], [c('target_stacks', 'gte', 6, 'bleed'), 'bad_value'],
+      [c('target_stacks', 'gte', 1, 'chill'), 'bad_subject'], [c('target_marked', 'eq', 1), 'bad_value']]
+      .filter(([cond, why]) => (p(cond) || {}).error !== why);
+    if (refused.length) return 'the bar took a bad Roads test: ' + JSON.stringify(refused.map(([cond]) => [cond, p(cond)]));
+    return M.cond.stopRulesProblem([{ conditions: [c('target_hp_pct', 'lt', 10), c('last_move', 'eq', 'mend')], join: 'or', forMs: 0 }]) ? 'a stop rule refused target health or the last move' : null;
+  },
+  /* A ROTATION THE BAR COULD NOT MAKE (18-roads-review-design 4.4, "Needs rotation"): the Ranger's two strikes, each only when it was not
+     the last, alternate; a Mark rides the support lane between them. One run whole and one cut into windows every 2 s are identical,
+     so the last move and the Mark survive a settle cut (a viewed hunt and a closed one are the one hunt). */
+  'roads-rotation-span': (M) => {
+    const o = { spanMs: 60000, rangerBag: { chalked_fire_rune: { loaded: 50 } },
+      rangerAbilities: [ab('hunters_mark'), ab('precision_shot', [c('last_move', 'ne', 'precision_shot')]), ab('flame_volley', [c('last_move', 'ne', 'flame_volley')])] };
+    const whole = runParty(M, [], o);
+    const cut = runParty(M, [2000, 4000, 6000, 10000, 14000, 20000, 30000, 44000], o);
+    const ranger = whole.unit('b-ranger');
+    const strikes = whole.events.filter((e) => e.type === 'cast' && e.u === ranger && (e.ability === 'precision_shot' || e.ability === 'flame_volley')).map((e) => e.ability);
+    const marks = whole.events.filter((e) => e.type === 'cast' && e.u === ranger && e.ability === 'hunters_mark').length;
+    if (strikes.filter((a) => a === 'precision_shot').length < 2 || strikes.filter((a) => a === 'flame_volley').length < 2 || !marks) return 'too few casts to judge: ' + strikes.join() + ' marks ' + marks;
+    if (strikes.some((a, i) => i && a === strikes[i - 1])) return 'the strikes did not alternate: ' + strikes.join();
+    return whole.key === cut.key ? null : 'a settle cut changed the rotation';
   },
   /* THE AREA SPELLS' CONDITIONS (Tyler 2026-11-08; the board's "2026-11-08 Area spells" §2b test cases). */
   'area-spell-metrics': (M) => {
@@ -1086,7 +1145,7 @@ const cases = {
     let store;
     try { store = readFileSync(join(M.root, STORE_MIGRATION), 'utf8'); } catch { return STORE_MIGRATION + ' is missing'; }
     let area;
-    try { area = readFileSync(join(M.root, AREA_MIGRATION), 'utf8'); } catch { return AREA_MIGRATION + ' is missing'; }
+    try { area = readFileSync(join(M.root, METRICS_MIGRATION), 'utf8'); } catch { return METRICS_MIGRATION + ' is missing'; }
     let roles;
     try { roles = readFileSync(join(M.root, VIEW_MIGRATION), 'utf8'); } catch { return VIEW_MIGRATION + ' is missing'; }
     let bars;
@@ -1258,6 +1317,10 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", "slot('raking_shot', RAKING_WHEN)]),"]] },
   { name: 'the tank\'s default set casts Flame Strike (a rune spell to speed a lone tank, ruled out 2026-11-19)', case: 'default-rune-spells',
     edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),"]] },
+  { name: 'a Mark is read with no clock (a run-out Mark still holds)', case: 'roads-metrics', edits: [['src/core/hunt/conditions.js', 'int(t.markPm) > 0 && int(t.markUntil) > cx.atMs', 'int(t.markPm) > 0']] },
+  { name: 'the last move is read off any lane for every slot', case: 'roads-metrics', edits: [['src/core/hunt/conditions.js', "cx.u.lastMove[row ? row.lane : 'any']", "cx.u.lastMove.any"]] },
+  { name: 'a cast never writes the last move (no rotation)', case: 'roads-rotation-span', edits: [['src/core/hunt/abilities.js', '{ [row.lane]: row.id, any: row.id });', '{});']] },
+  { name: 'the last move is not persisted (a settle cut forgets it)', case: 'roads-rotation-span', edits: [['src/core/hunt/abilities.js', ", ['lastMove', 'json']]),", ']),']] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },

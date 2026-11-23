@@ -119,6 +119,9 @@
 //              its unsaved check moves no row and sends no track; a Blessing, a leave, the stance and a setup switch pulled after it
 //              (seeds past the death shown, the save 19.5 s old) each leave the death as it was, the hunt viewed (a forced save
 //              between) and with the browser closed. CONTROL: the confirm door alone writes what 10 s saves write.
+//   WATCHED    the watched stamp (lane/watched-stamp, 1060-watched-stamp.sql): every viewed ask marks the hero's numbers at its
+//              read, its own instant; the tick marks nothing; a return whose goodbye was lost is judged from the last viewed ask's
+//              mark, the hunt viewed and with the browser closed in between; the return's first ask keeps naming the absence's mark.
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -153,7 +156,9 @@
 //              start + the limit's minutes, a town-side automatic end, nothing bought, browser closed and viewed; the
 //              database refuses that end before the minutes and with a kill in its window.
 //   STORE      an empty bag under the default switch buys from the store: every
-//              unit journalled supply_buy at the catalogue price, the gold
+//              unit journalled supply_buy at its row's price at the hero's Level
+//              (off the Danger scale, 1062-store-step.sql; the scale's depth is
+//              tests/store-step.mjs SS-BILL), the gold
 //              moved = coins − store gold, the tally's Waste carries it; under
 //              `end` the store sells nothing.
 //   END        under `end`, a dry essential heal line ends the hunt heals_out.
@@ -2255,6 +2260,77 @@ const DB_ARMS = {
     fixtureRow = groundRow;
     return problems;
   }),
+  /* WATCHED (lane/watched-stamp, 1060-watched-stamp.sql; AR-6 follow-up): the server marks what the player watched. THE HUNT VIEWED:
+     every viewed ask through the shipped door (`live`; a start point, then the confirm door every 16 s, saved or not) marks the
+     hero's numbers as the record it answered with says them (a saving ask's commit marks again, after its save) at its own instant;
+     while the hero is watched the `watched` section is null. THE BROWSER CLOSED, THE GOODBYE LOST: the tick's 90 s windows settle 20 minutes on and
+     move no mark; the return's first read names the last viewed ask's mark, so the card counts what the closed windows earned, never
+     the watched minutes; the return's first viewed ask moves the mark and still names the absence's; a hero watched since a return
+     over the gap old has no section. CONTROL: the watched minutes earned Level XP (else the arm proves nothing). */
+  WATCHED: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const BASE = Date.UTC(2026, 9, 15, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    await pinNow(BASE);
+    const h = await hunter(db, M, { ...STRONG, fromMs: BASE });
+    const xp = async () => Number(await one(db, 'select level_xp from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const row = async () => (await q(db, `select mark, away, floor(extract(epoch from at) * 1000)::bigint as at_ms,
+      floor(extract(epoch from back) * 1000)::bigint as back_ms from public.hunt_watch where user_id = $1 and slot = 0`, [UID]))[0] || null;
+    const section = async (t) => { await pinNow(t); return one(db, "select public.hr_state_of($1::uuid, 0)->'watched'", [UID]); };
+    const ask = async (t, confirm) => {
+      await pinNow(t);
+      return M.HS.settleHunt({ exec: makeExec(db), user: UID, slot: 0, mode: 'settle', bucket: null, project: true, live: true,
+        ...(confirm ? { confirm: true } : {}), grounds: groundsOf(M), atMs: t });
+    };
+    /* THE HUNT VIEWED: a start point at 16 s, then the confirm door every 16 s for four minutes */
+    const xp0 = await xp();
+    let last = null; let unsaved = 0; let saved = 0;
+    for (let t = BASE + 16000, i = 0; t <= BASE + 4 * 60000; t += 16000, i++) {
+      const v = await ask(t, i > 0);
+      if (v.outcome === 'confirmed') unsaved++; else if (v.outcome === 'paid') saved++;
+      /* the record the ask answered with: the saved Level XP after it (an unsaved confirm moved none) */
+      const after = await xp();
+      const r = await row();
+      if (!r || r.mark.s !== h.sid || Number(r.mark.at) !== t || Number(r.at_ms) !== t || Number(r.mark.xp) !== after || r.mark.h !== 'mill_cellar'
+          || !Number.isSafeInteger(r.mark.lv) || !Number.isSafeInteger(r.mark.kills) || !Number.isSafeInteger(r.mark.gold)) {
+        problems.push(`viewed ask at +${(t - BASE) / 1000} s (${v.outcome}) marked ${JSON.stringify(r)}, want the session, its instant and the Level XP ${after} it answered with`); break;
+      }
+      if (r.away !== null) { problems.push(`continuous watching recorded an absence: ${JSON.stringify(r.away)}`); break; }
+      if ((await section(t)) !== null) { problems.push(`a hero being watched has a section at +${(t - BASE) / 1000} s`); break; }
+      last = r;
+    }
+    if (!last) return problems.length ? problems : ['harness: no viewed ask landed'];
+    if (!unsaved || !saved) problems.push(`CONTROL: ${unsaved} unsaved and ${saved} saving asks; the arm needs both kinds of viewed ask`);
+    const tLast = Number(last.at_ms);
+    if (!(Number(last.mark.xp) > xp0)) return [...problems, `CONTROL: four watched minutes earned no Level XP (${xp0} -> ${last.mark.xp})`];
+    /* THE BROWSER CLOSED: the tick's windows, no goodbye; no mark moves */
+    await run(db, M, tLast, () => Array.from({ length: 13 }, (_, i) => tLast + (i + 1) * 90000), { clock: pinNow });
+    const closed = await row();
+    if (JSON.stringify(closed) !== JSON.stringify(last)) problems.push(`the tick moved the mark: ${JSON.stringify(closed)} (was ${JSON.stringify(last)})`);
+    const xpBack = await xp();
+    if (!(xpBack > Number(last.mark.xp))) return [...problems, `CONTROL: twenty closed minutes earned no Level XP (${last.mark.xp} -> ${xpBack})`];
+    /* THE RETURN: its first read names the last viewed ask's mark, so the card counts only the closed minutes */
+    const tBack = tLast + 20 * 60000 + 5000;
+    const named = await section(tBack);
+    if (JSON.stringify(named) !== JSON.stringify(last.mark)) problems.push(`the return's first read names ${JSON.stringify(named)}, not the last viewed ask's mark ${JSON.stringify(last.mark)}`);
+    else if (xpBack - named.xp >= xpBack - xp0) problems.push('the card would count the watched minutes as away');
+    /* ...its first viewed ask moves the mark and still names the absence's; a second inside the gap moves neither */
+    await ask(tBack, false);
+    const r1 = await row();
+    if (!r1 || Number(r1.at_ms) !== tBack || JSON.stringify(r1.away) !== JSON.stringify(last.mark) || Number(r1.back_ms) !== tBack) {
+      problems.push(`the return's first ask left ${JSON.stringify(r1)}`);
+    }
+    if (JSON.stringify(await section(tBack)) !== JSON.stringify(last.mark)) problems.push('after the return\'s first ask the section no longer names the absence\'s mark');
+    await ask(tBack + 16000, true);
+    const r2 = await row();
+    if (!r2 || JSON.stringify(r2.away) !== JSON.stringify(last.mark) || Number(r2.back_ms) !== tBack) problems.push(`an ask inside the gap moved the absence: ${JSON.stringify(r2)}`);
+    /* ...and a hero watched since a return over the gap old is being watched: no section */
+    let tWatch = tBack + 16000;
+    while (tWatch < tBack + 2 * 60000) { tWatch += 16000; await ask(tWatch, true); }
+    const late = await section(tWatch);
+    if (late !== null) problems.push(`${(tWatch - tBack) / 1000} s into the return, watched every 16 s, the section reads ${JSON.stringify(late)} (${JSON.stringify(await row())})`);
+    return problems;
+  }),
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, { ...STRONG, minutesAgo: 10, options: { stance: 'defensive', distance: 3 } });
@@ -2713,7 +2789,8 @@ const DB_ARMS = {
     /* (1) EVERY TIER, AT ITS OWN LEVEL: read usable, buy only that row, charge the catalogue's price per cast; closed and viewed agree. */
     for (const t of M.RUNES.RUNE_TIERS) {
       const id = storeId(t.tier);
-      const price = M.SB.BASIC_INDEX[id] && M.SB.BASIC_INDEX[id].price;
+      /* STORE-STEP (1062-store-step.sql): off the Danger scale a cast costs its row at the hero's Level (mage() sets it to t.level) */
+      const price = M.SB.storeUsePrice(id, t.level);
       const seen = {};
       await inTx(db, async () => {
         await pinNow(FROM);
@@ -2791,7 +2868,8 @@ const DB_ARMS = {
     const CHALKED = M.RUNES.runeId('fire', 1);
     const SCORED = M.RUNES.runeId('fire', 2);
     const SHOP = 'plain_fire_rune';
-    const price = M.SB.BASIC_INDEX[SHOP] && M.SB.BASIC_INDEX[SHOP].price;
+    /* STORE-STEP (1062-store-step.sql): off the Danger scale a cast costs its row at the hero's Level (mage() below: Level 20) */
+    const price = M.SB.BASIC_INDEX[SHOP] ? M.SB.storeUsePrice(SHOP, 20) : null;
     if (!(price > 0) || M.SB.BASIC_INDEX[SHOP].partner !== CHALKED) return [`CONTROL: the shop's tier-1 Fire rune is ${JSON.stringify(M.SB.BASIC_INDEX[SHOP])}`];
     const FIRE = M.RUNES.RUNE_TIERS.map((t) => M.RUNES.runeId('fire', t.tier));
     const CUTS = { closed: Array.from({ length: 12 }, (_, i) => (i + 1) * 30000), viewed: [17345, 41111, 77777, 120000, 151515, 199999, 243210, 300000, 333333, 360000] };
@@ -2992,15 +3070,20 @@ const DB_ARMS = {
   STORE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0 }, gold: 5000 });
+    const lv0 = await one(db, 'select public.hr_level_of($1::uuid, 0)', [UID]);
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
+    const lv1 = await one(db, 'select public.hr_level_of($1::uuid, 0)', [UID]);
     const rows = await q(db, `select meta from public.player_ledger where session_id = $1 and kind = 'hunt' and intent = 'supply_buy' order by id`, [sid]);
     if (!rows.length) return ['CONTROL: an empty bag under switch bought nothing'];
     let cost = 0;
     for (const r of rows) {
       for (const [id, x] of Object.entries(r.meta.items)) {
-        const b = M.SB.BASIC_INDEX[id];
-        if (!b || x.price !== b.price) problems.push(`${id} was sold at ${x.price}, the catalogue says ${b && b.price}`);
+        /* STORE-STEP (1062-store-step.sql): off the Danger scale a use is priced at the buyer's Level (src/core/wage.js levelStep), the
+           Level its window opened at: some Level from the hunt's first to its last */
+        const at = [];
+        for (let L = lv0; L <= lv1; L++) at.push(M.SB.storeUsePrice(id, L));
+        if (!M.SB.BASIC_INDEX[id] || !at.includes(x.price)) problems.push(`${id} was sold at ${x.price}, its price at the hero's Levels ${lv0}-${lv1} is ${[...new Set(at)].join(' / ')}`);
         cost += x.qty * x.price;
       }
     }
@@ -4511,7 +4594,7 @@ const DB_ARMS = {
     const problems = [];
     const GRIEFER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
       options: { supply_source: 'store', on_empty: 'end', gold_floor: 0,
-        slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
+        slots: [{ action: { type: 'consume', id: 'salted_trout' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
     const h = await hunter(db, M, { party: [{ ...STRONG }, GRIEFER] });
     const [A, B] = UIDS; const [sA, sB] = h.sids;
     await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'", [A]);
@@ -4519,7 +4602,8 @@ const DB_ARMS = {
        so every meal past the purse sells a bone and a window that eats more meals than it loots bones sells from the bag: the
        race. At 50 g one bone covered three meals, and on the formula's rats (lane/b-ground-formula-2: fewer bites, coin
        [1, 2]) the 20 minutes held two covers, each of a bone the same window looted. */
-    const meal = M.SB.BASIC_SUPPLIES.find((x) => x.id === 'salted_shrimp').price;
+    /* the store's Salted Trout (its derived price, lane/econ-levers: the 8 g shrimp let the coins outrun the meals) */
+    const meal = M.SB.BASIC_SUPPLIES.find((x) => x.id === 'salted_trout').price;
     await db.query('insert into public.hr_hunt_cover_items (item_id, unit) values ($1, $2) on conflict (item_id) do update set unit = $2', ['bones', meal]);
     const exec = makeExec(db);
     /* (1) honest windows until the next one's proposal sells B's bones to cover its store food */
@@ -4546,7 +4630,7 @@ const DB_ARMS = {
     };
     /* THE RACE, on the commit statement itself: B's bones leave the bag after the read, come back after the commit */
     const grief = async (text, params) => {
-      if (text !== M.HS.HUNT_APPLY_SQL) return exec(text, params);
+      if (text !== M.HS.HUNT_APPLY_SQL && text !== M.HS.HUNT_APPLY_WATCHED_SQL) return exec(text, params);   // a viewed ask's commit too
       const held = Number(await one(db, "select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'), 0)", [B]));
       if (held > 0) await bank('deposit', held);
       try { return await exec(text, params); } finally { if (held > 0) await bank('withdraw', held); }
@@ -4965,13 +5049,14 @@ const DB_ARMS = {
     /* THE ENGINE BEFORE THE DEPLOY: the real engine writing field list OLD and reading OLD as its own. It predates
        the edge's shape check, so the read's world_shape never reaches it. */
     const oldEngine = async (text, params) => {
-      if (text === M.HS.HUNT_APPLY_SQL) {
+      if (text === M.HS.HUNT_APPLY_SQL || text === M.HS.HUNT_APPLY_WATCHED_SQL) {   // a viewed ask's commit too
         const st = JSON.parse(params[2]);
         st.world = swapS(st.world, NEW, OLD);
         params = [params[0], params[1], JSON.stringify(st), ...params.slice(3)];
       }
       const rows = await exec(text, params);
-      if (text === M.HS.HUNT_READ_SQL) {
+      /* both reads: the tick's and a viewed ask's (HUNT_READ_WATCHED_SQL, the same statement plus the watched mark) */
+      if (text === M.HS.HUNT_READ_SQL || text === M.HS.HUNT_READ_WATCHED_SQL) {
         for (const r of rows) { const i = r.inst && r.inst.instance; if (i) { i.world = swapS(i.world, OLD, NEW); delete i.world_shape; } }
       }
       return rows;
@@ -5295,6 +5380,11 @@ const MUTANTS = [
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);', to: '  const toMs = Math.min(endMs, inst.play.stopMs);' },
   /* THE FLUSH (lane/c-settle-flush): the confirm door, and each reason it saves at once, planted away */
+  /* THE WATCHED STAMP (lane/watched-stamp): a viewed ask that marks nothing leaves the return counting from a stale stamp */
+  { arm: 'WATCHED', name: '[watched-stamp] a viewed ask reads without the mark', file: join(FN, 'hunt-settle.js'),
+    from: "  const [read] = await (mode === 'settle' && o.live === true && o.watch !== false", to: '  const [read] = await (false' },
+  { arm: 'WATCHED', name: '[watched-stamp] a viewed ask\'s save marks nothing (the mark lags the record it answered)', file: join(FN, 'hunt-settle.js'),
+    from: "      watch: mode === 'settle' && o.live === true ? { user, slot } : null });", to: '      watch: null });' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] a confirm always saves (no flush)', file: join(FN, 'hunt-settle.js'),
     from: "if (o.confirm === true && mode === 'settle' && !degraded && flushDue(plan, p.out) === null) {", to: 'if (false) {' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the flush never comes due', file: join(FN, 'hunt-settle.js'),
@@ -5374,7 +5464,7 @@ const MUTANTS = [
   { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: 'src/core/member.js',
     from: '  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);', to: '  state.playerMaxHp = v.maxHp - 1;' },
   { arm: 'ECON-1', name: 'the T1 store drink back at the heal\'s 15 g a point (72 mana for 1080 g): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
-    from: "'turnip_juice', 72, 10)", to: "'turnip_juice', 72, 1080)" },
+    from: "const mana = (id, n, partner, restores) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price: restorePrice(partner, restores, 'mana') });", to: "const mana = (id, n, partner, restores) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price: partner === 'turnip_juice' ? 1080 : restorePrice(partner, restores, 'mana') });" },
   { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
     from: "  const vs = h && isMonster(t) && typeof h.rollsVs === 'function' ? h.rollsVs(rowOf(inst, t.kind), t.kind) : null;",
     to: "  const vs = null;" },
@@ -5580,7 +5670,7 @@ const MUTANTS = [
   { arm: 'REPORT', name: 'the bar as played is never sent', file: join(FN, 'accrue-hunt.js'),
     from: 'barPlayedOf(hero ? hero.slots : null)', to: 'barPlayedOf(null)' },
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrue-hunt.js'),
-    from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s) });', to: '      analyzer: null });' },
+    from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver, s, ledger) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
     from: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));', to: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, 0)));' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
@@ -5666,7 +5756,7 @@ const DB_MUTANTS = [
   { arm: 'RUNE-LADDER', name: '[rune ladder] a slot may name a row of no price', fn: 'public.hr_hunt_slot_check(jsonb)',
     find: "if v_store is null or v_type <> 'ability' or not coalesce(public.hr_hunt_rune_spells()->v_id->'store' ? v_store, false)", replace: "if false" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the settle charges a store rune at another row\'s price', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
-    find: "select q.price, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;", replace: "select q.price + 1, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;" },
+    find: "select public.hr_store_price(q.basic_id, v_sstep), q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;", replace: "select public.hr_store_price(q.basic_id, v_sstep) + 1, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;" },
   /* RUNE SUPPLY PER SLOT (2027-03-24-rune-supply.sql): each server rule goes red on its own defect; the engine's are tests/hunt-core/abilities.mjs's. */
   { arm: 'RUNE-SUPPLY', name: '[rune supply] a slot naming no shop rune buys nothing when its runes run out (the old stop)', fn: 'public.hr_hunt_rune_supply(jsonb)',
     find: "if v_on = 'store' and v_store is null then", replace: "if false then" },
@@ -6008,6 +6098,12 @@ const DB_MUTANTS = [
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The
    C2 settle file's are kept verbatim (its self-check is the proof that applied it). */
 const SQL_MUTANTS = [
+  /* lane/watched-stamp (1060-watched-stamp.sql): the file's §4 refuses a section that names a hero being watched, and a return's ask
+     that drops the absence's mark. */
+  { file: '1060-watched-stamp.sql', name: '[watched stamp] the section names the fresh mark of a hero being watched',
+    find: '  if w.at <= now() - public.hr_hunt_watch_gap() then return w.mark; end if;', replace: '  return w.mark;' },
+  { file: '1060-watched-stamp.sql', name: '[watched stamp] the return\'s ask drops the absence\'s mark',
+    find: '     set away = case when w.at <= now() - public.hr_hunt_watch_gap() then w.mark else w.away end,', replace: '     set away = w.away,' },
   /* lane/c-hunt-report FB-7 (1053-hunt-report.sql): the file's §5 refuses a shape check that lets an unnamed key (or the database's own
      `dry`) through from the edge, a fold that forgets a window's close calls, and a fold that keeps the later of two equal falls. */
   { file: '1053-hunt-report.sql', name: '[hunt report] the edge may propose any key', find: '      else return false;\n    end case;', replace: '      else null;\n    end case;' },

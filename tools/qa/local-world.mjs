@@ -145,6 +145,12 @@ export async function moveClocks(tx, ms, how = {}) {
   if (how.away) {
     await tx.query(`update public.player_state set client_state = jsonb_set(client_state, '{awaySeen,at}', to_jsonb((client_state->'awaySeen'->>'at')::bigint - $1::bigint))
       where jsonb_typeof(client_state->'awaySeen'->'at') = 'number'`, [ms]);
+    /* ...and the server's watched mark (1060-watched-stamp.sql), the return's other baseline: the absence ages it as it ages the page's stamp */
+    if ((await tx.query(`select to_regclass('public.hunt_watch') is not null as t`)).rows[0].t) {
+      const at = (c) => `case when ${c} is null then null else jsonb_set(${c}, '{at}', to_jsonb((${c}->>'at')::bigint - $1::bigint)) end`;
+      await tx.query(`update public.hunt_watch set mark = ${at('mark')}, away = ${at('away')}, at = at - make_interval(secs => $1::float8 / 1000),
+        back = back - make_interval(secs => $1::float8 / 1000)`, [ms]);
+    }
   }
   if (how.town) {
     const back = `make_interval(secs => $1::float8 / 1000)`;
@@ -864,6 +870,17 @@ async function selftest() {
     const want = Date.parse(at(1 - 30));
     if (!rows.bought.every((d) => new Date(d).getTime() === want)) fails.push('a skip left player_blessings.bought_at behind: ' + JSON.stringify(rows.bought) + ' (want ' + at(1 - 30) + ')');
     if (new Date(rows.settled).getTime() !== Date.parse(at(2 - 30))) fails.push('a skip did not move the open hunt: ' + JSON.stringify(rows.settled));
+    /* AN ABSENCE AGES THE SERVER'S WATCHED MARK (1060-watched-stamp.sql) as it ages the page's stamp; a skip in view leaves it */
+    await pg.exec(`create table public.hunt_watch (user_id int, slot int, mark jsonb, at timestamptz, away jsonb, back timestamptz)`);
+    await pg.query(`insert into public.hunt_watch values (7, 0, $1, $2, null, null)`, [JSON.stringify({ s: 'x', at: T + 120000, xp: 5 }), at(2)]);
+    await pg.transaction((tx) => moveClocks(tx, 30 * 60000, {}));
+    const still = (await pg.query(`select mark, at from public.hunt_watch`)).rows[0];
+    if (still.mark.at !== T + 120000 || new Date(still.at).getTime() !== T + 120000) fails.push('a skip in view moved the watched mark: ' + JSON.stringify(still));
+    await pg.transaction((tx) => moveClocks(tx, 30 * 60000, { away: true }));
+    const aged = (await pg.query(`select mark, at, away from public.hunt_watch`)).rows[0];
+    if (aged.mark.at !== T + 120000 - 30 * 60000 || new Date(aged.at).getTime() !== T + 120000 - 30 * 60000 || aged.mark.xp !== 5 || aged.away !== null) {
+      fails.push('an absence did not age the watched mark (and only its clocks): ' + JSON.stringify(aged));
+    }
   } finally { await pg.close(); }
   for (const f of fails) console.log('  RED  ' + f);
   console.log(fails.length ? 'local-world --selftest: RED' : 'local-world --selftest: production refused by name; the mover moves epochs and nothing else; a skip keeps a Blessing before the window it was bought for');

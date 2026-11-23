@@ -1,0 +1,24 @@
+
+V1 on hasks_ford (4 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       574.6 +- 1.7      3.3  53.6  87.5   41.7    5.1     0.6    167.5      0     0  8 (0/3/8)                       8  {"hold":5852,"climb":1959,"fall":224}
+high:steady       597.2 +- 1.4      4.6  45.3  78.4   37.8    4.5     0.7      161      0     0  1 (0/0/1)                       8  {"hold":5696,"climb":1818,"fall":211}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.86x  sd 0.02  n 4  window 8 h  seeds 0.88 0.86 0.87 0.84
+  high:steady        1.05x  sd 0.01  n 4  window 8 h  seeds 1.04 1.06 1.04 1.07
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L45  coin 12707 +- 59  income 15613 +- 100  store 3039  kit share 0.19 (meal 132, drink 1136, charge 724, shot 1047)  loot by band: common 613, uncommon 225, scarce 2068, other 0  n 4
+  high:steady       L55  coin 13327 +- 46  income 16509 +- 169  store 2893  kit share 0.18 (meal 124, drink 999, charge 724, shot 1046)  loot by band: common 662, uncommon 232, scarce 2288, other 0  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+  high:steady         22.5 steps (sd 3, se 1.5, n 4)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 1  bow 0  mage 0  healer 0
+  high:steady       hammer 1  bow 0  mage 0  healer 0
+
+wall 34 s

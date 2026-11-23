@@ -16,7 +16,7 @@ Each target says what the player feels, the range it must land in, and the reade
 | C-2 | **Better heroes go deeper, and I can see it.** A few Levels or one gear tier visibly moves the depth held | +3 Levels or one gear tier moves the hold 1 to 3 depths | V1 "levels" and "weapon" cells | Measured for Levels (Level 70 held 614 against 590). The gear half waits for the power step (R4, R9) |
 | C-3 | **On Careful or Steady my heroes don't die.** They pull back before it goes wrong | 0 deaths a party-day; a lone slip is under 1 in 50 party-days | V2 deaths by stance | Measured: 0 in 48 seed-days on each, after the trigger fix |
 | C-4 | **Bold pays if I watch, and costs me if I leave it.** It is a choice, not the obvious best | Bold beats Steady in a 2 h watched session; Steady beats Bold over a 10 h day; Bold dies 0.3 to 1.5 times a party-day; no wipes | V2 | Measured: Bold beats Steady in 2 h sessions in 4 of 4 cells, loses over a day in 3 of 4, 0.4 to 1.1 deaths, 0 wipes. The fourth cell (weapon one band back) is a V2 lever, see 2.1 |
-| C-5 | **Careful is the safe choice, not a punishment.** It pays less, but not so little that nobody picks it | Careful earns 0.55x to 0.70x of Steady an hour | V2 pay by stance, from a held start | Not met: 0.28x against 0.72x. Fixed by the pay floor in 2.1 and re-measured by R4 |
+| C-5 | **Careful is the safe choice, not a punishment.** It pays less, but not so little that nobody picks it | Careful earns 0.55x to 0.70x of Steady an hour | V2 pay by stance, from a held start | Met with the floor 0.5 (lane/econ-levers on R9's tree, 6 seeds x 8 h from a held start): Careful over Steady 0.65 / 0.60 / 0.57 at Levels 60 / 63 / 70 |
 | C-6 | **A party of four is worth it.** Each head earns more in a four than the same heroes alone | 1.2x to 1.6x a head, in XP and in gold | V6 | Owed. Pay by depth is the lever, so the four's deeper hold is the bonus |
 | C-7 | **A lone hero is slower but fair** (RD-Q7 a) | A lone hero earns 0.5x to 0.8x of a four's head | V6 | Owed |
 | C-8 | **The first hunt starts near where I left off.** No two hours of climbing from zero each time | A returning company is at its held depth within 15 minutes | V1 `--start-from` | Built: start = lowest held step minus 20. First ever hunt climbs about 2 h; see the ground band in section 3, which starts it at the band's floor instead |
@@ -24,6 +24,7 @@ Each target says what the player feels, the range it must land in, and the reade
 | C-10 | **Every ground has a top, and reaching it means move on.** | A good four reaches a ground's top in 1 to 3 days of play at the ground's top Level | Band reader (new) | Owed. Defined in section 3 |
 | C-11 | **The next ground pays more from its first depth.** Moving on is never a pay cut | Depth 1 of the next ground pays at least 1.1x depth 20 of the last, for a company that can hold it | Band reader | Owed |
 | C-12 | **A Level is a Level forever.** Level 200 is a big deal, and Level 400 still moves | One Level or one gear tier is the same share of depth at Level 20, 400 and past it | V8 | Owed |
+| C-13 | **Early power comes from Levels and gear** (Tyler 2026-11-22: "the buffs are way too strong too early"). Talents, vows, Traits, Signatures, borrows, Temper and consumables grow in, full at Level 200 | Level and gear are 85% or more of a hero through the first week (to about Level 28), 80% or more at Level 60 | `19-power-ledger.md` V8 | Owed. COMPUTED 90% / 90% / 80 to 86% at Levels 10 / 30 / 60 |
 
 The five hard lines (HC-1 to HC-5) stand as they are. A target with no reader by the end of stage 4 is dropped, not carried.
 
@@ -38,7 +39,8 @@ Every ruling below is the designer's and final. None is a money call.
 **How it plays:** Careful sits a few depths shallower than Steady and earns about two thirds as much an hour. It never feels like a penalty for playing safe.
 
 - **Today:** pay a kill = 1.007^(step − refStep), capped 120 steps above. Below `refStep` it falls with no floor, so Careful's shallower hold costs it twice: fewer kills and less a kill. That is the 0.28x.
-- **Ruling:** pay a kill is never below **0.85x** the hours table. Above that, depth pays as today, up to the band's top (section 3). The stance's cost is then fewer kills an hour, which is the honest cost of pulling back sooner.
+- **Ruling:** pay a kill is never below a floor of the hours table, XP and coin alike. Above that, depth pays as today, up to the band's top (section 3). The stance's cost is then fewer kills an hour, which is the honest cost of pulling back sooner.
+- **The floor is 0.5x, not the 0.85x first written** (lane/econ-levers, 2026-11-22, the check below run on 6 seeds x 8 h): Careful's shallow pulls die fast, so at 0.85 it would earn about 1.07x of Steady (COMPUTED from its measured pay with no floor); at 0.5 it earns 0.62x (MEASURED) (0.55x the table against Steady's 0.89x). `src/data/danger.js` PAY.floor, `src/core/hunt/danger.js` depthRatio, built by lane/r9 the same day (R9 read Careful over Steady 0.68 / 0.63 / 0.58 at Levels 60 / 63 / 70).
 - **Bold's edge stays as it is.** It is already a real choice (C-4). The fourth V2 cell, where Bold also wins a full day when gear is a band behind, is fixed by the ruling in 2.2 rather than by Bold's numbers: a company behind on gear runs out of mana and HP faster, and readiness then holds Bold back.
 - **Why not equal pay?** If stances paid the same an hour, no one would pick Bold, and Careful would be free. A third of Steady (today) is too far; Steady at about 1.4x Careful is a gap you feel and still choose.
 - **Check:** R4 re-measures from a held start on 4+ seeds. Careful must land at 0.55x to 0.70x of Steady (C-5). If it doesn't, the floor moves, not the stances.
@@ -156,6 +158,7 @@ Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/re
   - **Top (depth 20)** is where a strong four at the ground's top Level, in the ground's best base tier, holds on Steady.
   - **Middle** is `refStep`, where the ground pays its standard rate.
 - **Muster Barrows, as a start:** floor 480, middle 590, top 710 (about 12 steps a depth). These are taken from V1's held steps and the existing 120-step pay cap, and the Lab tunes them.
+- **The floor is measured, not mirrored (designer, 2026-11-22, lane/band-floor; `src/data/danger.js BAND_RULE`):** a fresh four at the entry Level held 320.9 on Muster, 160 steps under the 480 floor, so it could not hold depth 1. Every band's floor is now the fresh four's lowest seed less 10. Muster reads floor 320, middle 590, top 710 (about 20 steps a depth, the middle near depth 14). The depths are even from floor to top, so a company entering at Level 55 climbs most of the band as it Levels.
 - **The next ground's floor sits just under this ground's top,** so a company that tops one ground starts the next one at depth 1 to 3. That overlap is the hand-off.
 - **A first-ever hunt starts at the band's floor,** not step 0, which removes most of the 2 h opening climb (C-8).
 
@@ -173,7 +176,7 @@ Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/re
 - **Confirmed:** the base tier (the item's base numbers) is fixed by the ground.
 - **Depth raises two things only:**
   - **Rare odds:** ×1 at depth 1, rising to ×3 at depth 20 (a starting value).
-  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five).
+  - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five), up to the ground's highest rank: rank II only on grounds entered at Level 70 or more, rank III at 100 or more (`19-power-ledger.md` section 2, 2026-11-22). Muster Barrows rolls rank I.
 - **Never the base numbers.** If depth raised them, one ground would hold the best gear forever, and moving on would be pointless. That was Tyler's worry, and this rule answers it.
 - **Why move on, then?** The next ground's base tier is higher. A whole kit from there beats a whole kit from here, Traits and all (section 8: every Trait on a hero together is held to one tier). A single good Rare still outlives a few bases, and carry-over moves its Trait onto a new one. Both feel good: the old Rare had a life, then you outgrew it.
 

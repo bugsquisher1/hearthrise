@@ -185,6 +185,10 @@ export const AWAY_TEXT = Object.freeze({
   needs_more: { one: '{count} more', other: '{count} more' },
   needs_outgrown: '{name}: {ground} outgrown',
   needs_outgrown_go: 'Go to {ground}',
+  /* the top of a Danger-scale ground (src/shell/needs-you/outgrown.js, lane/r10): a label, the next open ground on the scale, a Go button */
+  needs_top_next: 'Ready for: {ground}',
+  needs_top_max: 'Max depth reached',
+  needs_top_go: 'Go',
   needs_bag_full: '{name}: bag full',
   needs_ran_out: '{name}: out of {thing}',
   needs_thing_gold_out: 'gold',

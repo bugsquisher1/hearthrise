@@ -68,7 +68,7 @@
 // ============================================================
 
 import { isHero } from './sides.js';
-import { emptyReport, reportEvent, addReport } from './report.js';
+import { emptyReport, reportEvent, addReport, ledgerWalk } from './report.js';
 
 /** An empty tally: every field the analyzer reads, at zero. */
 export function emptyTally() {
@@ -113,8 +113,10 @@ export function rosterOf(world) {
 
 /**
  * The tally delta of one window's events, per hero and party. `roster` =
- * { heroes: [unit ids], kinds: { unit id: monster kind }, sustain?: true, hp?: { unit id: [from, to] } }
- * (rosterOf(world); `sustain` counts the sustain block, `hp` its regeneration anchors: see the header);
+ * { heroes: [unit ids], kinds: { unit id: monster kind }, sustain?: true, hp?: { unit id: [from, to] },
+ *   scale?: { step, fromMs, toMs, seats: { unit id: seat } } }
+ * (rosterOf(world); `sustain` counts the sustain block, `hp` its regeneration anchors: see the header; `scale`, on the Danger scale only,
+ * the report's ledger: the step the window ENDED at, the span it played and each hero's seat, report.js ledgerWalk);
  * a window with events and no roster is refused, never guessed.
  */
 export function tallyEvents(events, roster = null) {
@@ -124,6 +126,7 @@ export function tallyEvents(events, roster = null) {
   const ids = new Set(roster ? roster.heroes : []);
   const kinds = (roster && roster.kinds) || {};
   const sus = !!(roster && roster.sustain === true);
+  const walk = roster && roster.scale ? ledgerWalk(events, roster.scale) : null;
   const heroOf = (id, ev) => {
     if (!ids.has(id)) throw new Error('tally: ' + ev.type + ' at ' + ev.atMs + ' credits unit ' + id + ', who is not a hero of this hunt');
     if (!heroes[id]) heroes[id] = emptyTally();
@@ -187,8 +190,9 @@ export function tallyEvents(events, roster = null) {
       default: break;
     }
     if (sus) sustainOf(ev, ids, heroOf);
-    reportEvent(ev, ids, kinds, (id, e) => heroOf(id, e).report);
+    reportEvent(ev, ids, kinds, (id, e) => heroOf(id, e).report, walk);
   }
+  if (walk) walk.close((id) => heroOf(id, { type: 'ledger', atMs: null }).report, ids);
   if (sus && roster.hp) regenOf(roster.hp, ids, heroOf);
   const party = emptyTally();
   for (const id of Object.keys(heroes).sort((a, b) => a - b)) addTally(party, heroes[id]);

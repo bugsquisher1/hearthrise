@@ -17,7 +17,7 @@
 // ci-run: node tools/mutant-gate.mjs node tests/gold-estimate.mjs --mutate
 //
 //   GE-RULE    the estimate is the wage at the hero's Level held to the ground's band top, times the Risk's ratio, to two figures: Level 63
-//              Steady on Muster Barrows is 4,900; Careful under Steady under Bold; past the top it stops; under the floor, off the scale or
+//              Steady on Muster Barrows is the wage at its Level, rounded (derived, not typed); Careful under Steady under Bold; past the top it stops; under the floor, off the scale or
 //              for an unknown Risk there is none
 //   GE-READ    the section reads exactly what the server sent, and a missing, negative, fractional or string value reads null
 //   GE-HUNTS   the Hunts window draws "Est. 4,900 gold/hr (before supplies)" under the Risk pick at the plan's Risk (Steady when the
@@ -74,7 +74,7 @@ const ARMS = {
   'GE-RULE': async (X) => {
     const out = [];
     const e = (r, L) => X.GE.goldEstimate(M, r, L);
-    if (e('steady', 63) !== 4900) out.push('Level 63 Steady reads ' + e('steady', 63) + ', want 4,900 (wage(63) = ' + X.W.wage(63) + ')');
+    { const want = X.GE.roundAbout(X.W.wage(63)); if (e('steady', 63) !== want) out.push('Level 63 Steady reads ' + e('steady', 63) + ', want ' + want + ' (wage(63) = ' + X.W.wage(63) + ')'); }
     if (!(e('careful', 63) < e('steady', 63) && e('steady', 63) < e('bold', 63))) out.push('the Risks are out of order: ' + [e('careful', 63), e('steady', 63), e('bold', 63)]);
     if (e('steady', 76) !== e('steady', 75) || e('steady', 4000) !== e('steady', 75) || e('steady', 74) > e('steady', 75)) out.push('past the band top it does not stop: ' + [e('steady', 74), e('steady', 75), e('steady', 76), e('steady', 4000)]);
     if (e('steady', 54) !== null || e('steady', 1) !== null || e('steady', 55) === null) out.push('the band floor is not kept: ' + [e('steady', 1), e('steady', 54), e('steady', 55)]);

@@ -22,10 +22,14 @@
 //                2026-11-14, the GE-WORDS rule: the earned line's "Gold/hr: 4,812" passes), the word first, the swing and the spell in the house's
 //                voice, a death's hunting time from the hunt's own Level XP an hour, the change line with what the slot did before
 //   HR-CAUSE     THE CAUSE LINE on the Danger scale (lane R5): from a fixture hunt section with the report's `deep` and two `falls` and the
-//                session's risk_end / danger_end, "Held Depth 14 of 20 on Steady. The deepest it went was Depth 15 of 20. Fell back 2
+//                session's risk_end / danger_end, "Held Depth 16 of 20 on Steady. The deepest it went was Depth 17 of 20. Fell back 2
 //                times. Last time Bran was down to 23% from a Giant Rat.", the same off the free analyzer (browser closed), off the
 //                stored card and on the return card, the open hunt's from the `danger` section; a death, a nameless fall, none, the
 //                cap's "or more"; nothing off the scale; depths only (a forged step-sized depth is dropped by the residue)
+//   HR-LEDGER    THE LEDGER LINES (19-power-ledger L7): the server's report `heal`, `took` (with hr_hunt_view's `seats` names) and `sup`
+//                read the same off the `hunt` section and the free analyzer (browser closed): "Healing: Mend 41% · Greater Mend 30% ·
+//                Shelter 19%", "Damage taken: Bran 64% · Ash 36%", "Supplies/hr at Depth 16: 4,180" (a depth held under supMinMs left out), on
+//                the end card's risk block, through the residue and on the return card; a seat with no name reads "Seat N"; none off the scale
 //   HR-RESIDUE   the card keeps the facts through the residue's bound, and a forged or oversized report is cut to its bound or dropped
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -60,15 +64,15 @@ const SERVER = Object.freeze({
 });
 const DEATHS = [{ id: 9, session: 's1', xp: 5000, saved: { level: 1250 }, blessings: 1 }];
 /* ON THE DANGER SCALE (1057-danger-falls.sql): the same report on Muster Barrows with its deepest step and two falls back, as hr_hunt_view
-   projects them (each fall's seat named), and the session's end stance. Muster's band is 480..710 (src/data/danger.js): step 650 is Depth 15,
-   632 Depth 14. */
+   projects them (each fall's seat named), and the session's end stance. Muster's band is 320..710 (src/data/danger.js): step 650 is Depth 17,
+   632 Depth 16. */
 const MUSTER = 'muster_barrows';
 const SCALE = Object.freeze(Object.assign({}, SERVER, { deep: 650, falls: [
   { at: START + 600000, from: 640, to: 622, hero: 1, pm: 300, monster: 'rat', name: 'Ash' },
   { at: START + 900000, from: 650, to: 632, hero: 0, pm: 230, monster: 'rat', name: 'Bran' }] }));
 const HUNT_VIEW = Object.freeze({ session_id: 's7', ended: true, session: { id: 's7', hunt_id: MUSTER, ended_at: new Date(START + 7200000).toISOString(),
   end_reason: 'stamina', risk_end: 'steady', danger_end: 632, tally: { kills: 50, report: SCALE } } });
-const CAUSE = 'Held Depth 14 of 20 (Steady) · Deepest Depth 15 of 20 · Fell back 2 times (last Bran at 23%, Giant Rat)';
+const CAUSE = 'Held Depth 16 of 20 (Steady) · Deepest Depth 17 of 20 · Fell back 2 times (last Bran at 23%, Giant Rat)';
 
 const ARMS = {
   'HR-FACTS': async (X) => {
@@ -134,7 +138,7 @@ const ARMS = {
     const s = X.SM.endedSessionOf(cs);
     if (!s || s.riskEnd !== 'steady' || s.dangerEnd !== 632 || s.hunt !== MUSTER) out.push('the ended session reads ' + JSON.stringify(s && { riskEnd: s.riskEnd, dangerEnd: s.dangerEnd, hunt: s.hunt }));
     const viewed = X.REC.depthFactsOf(cs, 's7');
-    const want = { risk: 'steady', held: 14, deep: 15, of: 20, n: 2, last: ['Bran', 230, 'rat'] };
+    const want = { risk: 'steady', held: 16, deep: 17, of: 20, n: 2, last: ['Bran', 230, 'rat'], heal: [], took: [], sup: [] };
     if (JSON.stringify(viewed) !== JSON.stringify(want)) out.push('the depth facts read ' + JSON.stringify(viewed) + '\n      want ' + JSON.stringify(want));
     if (X.W.causeLine(viewed) !== CAUSE) out.push('the cause line reads ' + JSON.stringify(X.W.causeLine(viewed)) + '\n      want ' + JSON.stringify(CAUSE));
     /* the browser closed: the free analyzer's session block (risk_end / danger_end beside the report) gives the same facts */
@@ -157,10 +161,10 @@ const ARMS = {
     const open = csOf({ hunt: { session_id: 's8', session: { id: 's8', hunt_id: MUSTER, tally: { report: SCALE } } },
       danger: { risk: 'bold', held: {}, playing: { hunt: MUSTER, from: 'bold', risk: 'steady', start: 600, step: 650, cool: 0 } } });
     const live = X.W.causeLine(X.REC.depthFactsOf(open, 's8'));
-    if (!/^Held Depth 15 of 20 \(Steady\), deepest reached · Fell back 2 times \(last /.test(live)) out.push('the open hunt reads ' + JSON.stringify(live));
+    if (!/^Held Depth 17 of 20 \(Steady\), deepest reached · Fell back 2 times \(last /.test(live)) out.push('the open hunt reads ' + JSON.stringify(live));
     /* one fall that was a death, a fall with no name and an unknown monster, none at all */
     const one = (fall) => X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650, falls: [fall] }), { hunt: MUSTER, risk: 'careful', step: 650 }));
-    if (one({ at: 1, from: 650, to: 530, hero: 2, pm: 0, monster: 'rat', name: 'Cole' }) !== 'Held Depth 15 of 20 (Careful), deepest reached · Fell back once · Cole killed by Giant Rat') out.push('a death reads ' + JSON.stringify(one({ at: 1, from: 650, to: 530, pm: 0, monster: 'rat', name: 'Cole' })));
+    if (one({ at: 1, from: 650, to: 530, hero: 2, pm: 0, monster: 'rat', name: 'Cole' }) !== 'Held Depth 17 of 20 (Careful), deepest reached · Fell back once · Cole killed by Giant Rat') out.push('a death reads ' + JSON.stringify(one({ at: 1, from: 650, to: 530, pm: 0, monster: 'rat', name: 'Cole' })));
     if (!/Fell back once · Hero at 9% \(unknown\)$/.test(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' }))) out.push('a nameless fall reads ' + JSON.stringify(one({ at: 1, from: 650, to: 632, pm: 95, monster: 'unknown' })));
     if (!/Never fell back$/.test(X.W.causeLine(X.HR.depthFacts(X.RS.reportFrom({ deep: 650 }), { hunt: MUSTER, risk: 'steady', step: 640 })))) out.push('no falls says nothing of them');
     /* the cap: the server keeps the last 12, so 12 reads as "or more" */
@@ -174,6 +178,43 @@ const ARMS = {
     /* depths only, plain words */
     const all = [CAUSE, live];
     if (all.some((x) => unplain(x) || /\b6[0-9]{2}\b/.test(x))) out.push('a cause line has a step, a semicolon, a dash or a colon joining clauses: ' + JSON.stringify(all));
+    return out;
+  },
+  'HR-LEDGER': async (X) => {
+    const out = [];
+    /* Muster's band 320..710: the bucket 630 (its middle 635) is Depth 16, 600 Depth 15; the bucket 650 held 5 minutes is left out, and Cooked Shrimp, a fourth source, out of the line but not of the shares */
+    const LEDGER = Object.assign({}, SCALE, { heal: { mend: 410, greater_mend: 300, shelter: 190, cooked_shrimp: 100 }, took: { 0: 640, 1: 360 },
+      sup: { 630: [4180, 3600000], 600: [2000, 1800000], 650: [900, 300000] }, seats: { 0: 'Bran', 1: 'Ash' } });
+    const csOf = (sections, cards) => ({ slot: 0, read: (k) => sections[k], record: { residue: { huntSummaries: cards || [] } } });
+    const view = { session_id: 's7', ended: true, session: Object.assign({}, HUNT_VIEW.session, { tally: { kills: 50, report: LEDGER } }) };
+    const viewed = X.REC.depthFactsOf(csOf({ hunt: view }), 's7');
+    const LINES = ['Healing: Mend 41% · Greater Mend 30% · Shelter 19%', 'Damage taken: Bran 64% · Ash 36%', 'Supplies/hr at Depth 15: 4,000', 'Supplies/hr at Depth 16: 4,180'];
+    const got = X.W.ledgerLines(viewed);
+    if (JSON.stringify(got) !== JSON.stringify(LINES)) out.push('the ledger reads ' + JSON.stringify(got) + '\n      want ' + JSON.stringify(LINES));
+    /* the browser closed: the free analyzer's session block carries the same report */
+    const an = X.HSEC.analyzerFrom({ read: () => null }, { tier: 'basic', session: { id: 's7', hunt: MUSTER, report: LEDGER, risk_end: 'steady', danger_end: 632 }, hero: { kills: 50, xp: { level: 100 } } });
+    const closed = an && an.session ? X.HR.reportFacts(X.RS.reportFrom(an.session.report), { hunt: an.session.hunt, risk: an.session.riskEnd, step: an.session.dangerEnd }) : null;
+    if (!closed || JSON.stringify(X.W.ledgerLines(closed.depth)) !== JSON.stringify(LINES)) out.push('the closed door reads ' + JSON.stringify(closed && X.W.ledgerLines(closed.depth)));
+    /* the end card's risk block ends on them, the residue keeps them, the return card shows them */
+    const f = X.HR.reportFacts(X.RS.reportFrom(LEDGER), { hunt: MUSTER, risk: 'steady', step: 632 });
+    const lines = X.W.riskLines(f, null).map((l) => l.text);
+    if (JSON.stringify(lines.slice(-5)) !== JSON.stringify([CAUSE, ...LINES])) out.push('the risk block ends on ' + JSON.stringify(lines.slice(-5)));
+    const card = X.HSUM.sanitizeSummary({ id: 's7', hunt: MUSTER, report: f });
+    if (JSON.stringify(X.W.ledgerLines(card.report.depth)) !== JSON.stringify(LINES)) out.push('the residue changed the ledger: ' + JSON.stringify(card.report.depth));
+    const back = X.AWAY.awayBlockOf(csOf({}, [card]), { session: 's7', facts: { hunt: MUSTER } });
+    if (JSON.stringify(back.ledger) !== JSON.stringify(LINES)) out.push('the return card reads ' + JSON.stringify(back.ledger));
+    /* a seat the server named nobody for, one seat alone (no split to say), and a tier ground */
+    const nameless = X.W.ledgerLines(X.HR.depthFacts(X.RS.reportFrom(Object.assign({}, LEDGER, { seats: {} })), { hunt: MUSTER, risk: 'steady', step: 632 }));
+    if (nameless[1] !== 'Damage taken: Seat 1 64% · Seat 2 36%') out.push('a nameless seat reads ' + JSON.stringify(nameless[1]));
+    const solo = X.W.ledgerLines(X.HR.depthFacts(X.RS.reportFrom(Object.assign({}, LEDGER, { took: { 0: 5 } })), { hunt: MUSTER, risk: 'steady', step: 632 }));
+    if (solo.some((l) => /^Damage taken/.test(l))) out.push('one seat reads a split: ' + JSON.stringify(solo));
+    /* a depth held five minutes is no hour to read: left out even with room for it */
+    const brief = X.W.ledgerLines(X.HR.depthFacts(X.RS.reportFrom(Object.assign({}, LEDGER, { sup: { 630: [4180, 3600000], 650: [900, 300000] } })), { hunt: MUSTER, risk: 'steady', step: 632 }));
+    if (brief.some((l) => /Depth 17/.test(l))) out.push('a depth held five minutes reads an hour: ' + JSON.stringify(brief));
+    if (X.HR.reportFacts(X.RS.reportFrom(LEDGER), { hunt: 'mill_cellar', risk: 'steady', step: 632 }).depth !== null) out.push('a tier ground has a ledger');
+    /* a forged residue: shares past a whole, a depth past the band */
+    const forged = X.HSUM.sanitizeSummary({ id: 's7', hunt: MUSTER, report: Object.assign({}, f, { depth: Object.assign({}, f.depth, { heal: [['mend', 5000]], sup: [[99, 5], [14, 4180]] }) }) });
+    if (JSON.stringify(forged.report.depth.heal) !== '[]' || JSON.stringify(forged.report.depth.sup) !== '[[14,4180]]') out.push('the residue kept a forged ledger: ' + JSON.stringify(forged.report.depth));
     return out;
   },
   'HR-RESIDUE': async (X) => {
@@ -210,8 +251,16 @@ const MUTANTS = [
   ['the open hunt ignores the danger section', 'HR-CAUSE', 'src/hunt-view/summary-recorder.js', 'live = p && p.hunt === s.hunt ? p : null', 'live = null'],
   ['the cap is not said', 'HR-CAUSE', 'src/shell/hunt-report.js', 'd.n >= HUNT_REPORT.fallsMax', 'd.n > HUNT_REPORT.fallsMax'],
   ['the residue keeps a step as a depth', 'HR-CAUSE', 'src/session/hunt-summaries.js', 'n >= 1 && n <= of ? n : null', 'n >= 1 ? n : null'],
-  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', "const depthWords = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';", "const depthWords = '';"],
+  ['the return card drops the cause line', 'HR-CAUSE', 'src/shell/windows/away.js', 'depthWords = causeLine(depth);', "depthWords = '';"],
   ['a line joins clauses on a colon (labels, Tyler 2026-11-14)', 'HR-WORDS', 'src/data/text/report.js', "other: '{what} used {count} times · {pct}% of healing' }", "other: '{what} used {count} times: it did {pct}% of healing' }"],
+  /* THE LEDGER (19-power-ledger L7) */
+  ['the healing shares are of the shown sources only', 'HR-LEDGER', 'src/hunt-view/hunt-report.js', '.map(([src, n]) => [src, permille(n, healAll)])', '.map(([src, n], _i, a) => [src, permille(n, a.reduce((x, y) => x + y[1], 0))])'],
+  ['the seats are not named by the server', 'HR-LEDGER', 'src/session/report-sections.js', 'took: tookOf(raw.took, raw.seats)', 'took: tookOf(raw.took, null)'],
+  ['a depth held a moment is said', 'HR-LEDGER', 'src/hunt-view/hunt-report.js', '.filter(([, x]) => x[1] >= HUNT_REPORT.supMinMs)', '.filter(() => true)'],
+  ['the supplies are an hour of the whole hunt', 'HR-LEDGER', 'src/hunt-view/hunt-report.js', 'Math.round((g * 3600000) / ms)', 'Math.round(g)'],
+  ['the residue drops the ledger', 'HR-LEDGER', 'src/session/hunt-summaries.js', "heal: pairs(v.heal, (p) => (Array.isArray(p) && id(p[0]) && pm(p[1]) ? [p[0], p[1]] : null), 8),", 'heal: [],'],
+  ['the return card shows no ledger', 'HR-LEDGER', 'src/shell/windows/away.js', 'const ledger = depthWords ? ledgerLines(depth) : [];', 'const ledger = [];'],
+  ['the end card shows no ledger', 'HR-LEDGER', 'src/shell/hunt-report.js', '  if (cause) for (const l of ledgerLines(r.depth)) out.push({ text: l });', ''],
   ['a report with only a low reads as none','HR-FACTS', 'src/session/report-sections.js', "if (!isObj(raw) || !Object.keys(raw).length) return null;", "if (!isObj(raw) || !raw.fired) return null;"],
 ];
 

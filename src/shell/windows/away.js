@@ -31,7 +31,7 @@ import { spanWords, staminaFreeOf, staminaShort } from '../after-hunt.js';
 import { outgrownGroundOf } from '../back-in-town.js';
 import { refusalWords, playCapOf } from '../intent-words.js';
 import { summariesOf, depthFactsOf, earnRatesOf } from '../../hunt-view/summary-recorder.js';
-import { causeLine, earnedLine } from '../hunt-report.js';
+import { causeLine, earnedLine, ledgerLines } from '../hunt-report.js';
 import { roomOfHunt } from '../../data/boss-halls.js';
 import { trainingOf as trainedBy } from '../../data/training.js';
 import { runRulesOf } from '../../data/tower.js';
@@ -104,9 +104,11 @@ export function awayBlockOf(cs, a) {
   /* THE CAUSE LINE (lane R5, ../hunt-report.js causeLine): on a Danger scale ground, where the hunt held and why it fell back, the hunt's
      own card's facts or the open hunt's read now (summary-recorder.js depthFactsOf); '' off the scale. THE EARNED LINE follows it (lane/gold-per-hour,
      ../hunt-report.js earnedLine): the server's gold an hour and supplies an hour for that session, beside the Hunts window's estimate */
-  const depthWords = hunt && cs && a.session ? causeLine(depthFactsOf(cs, a.session)) : '';
+  const depth = hunt && cs && a.session ? depthFactsOf(cs, a.session) : null, depthWords = causeLine(depth);
   const cause = depthWords ? [depthWords, earnedLine(earnRatesOf(cs, a.session))].filter(Boolean).join(' · ') : '';
-  return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, when, stamina, go, label,
+  /* THE LEDGER LINES (19-power-ledger L7, ../hunt-report.js ledgerLines) under it: healing by source, damage taken by seat, supplies by depth */
+  const ledger = depthWords ? ledgerLines(depth) : [];
+  return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, ledger, when, stamina, go, label,
     ground: ground ? ground.hunt : null, rest,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */
     summary: go === 'again' || go === 'ground', bless: blessOf(cs, f) };
@@ -135,7 +137,7 @@ function heroRow(ctx) {
   return element(ctx.doc, '<li class="haway-hero"><header class="haway-head"><h3 class="haway-name"></h3><span class="haway-place"></span></header>'
     + resultHtml()
     + '<p class="haway-best"><span class="hsum-ico"></span><span class="haway-best-name"><small>' + t('away.card_best') + '</small><b></b></span></p>'
-    + '<p class="haway-why"></p><p class="haway-cause"></p><p class="haway-when"></p>'
+    + '<p class="haway-why"></p><p class="haway-cause"></p><div class="haway-ledger"></div><p class="haway-when"></p>'
     + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="away-bless" hidden></button><span class="haway-stamina"></span></div>'
     /* stamina short: the loops that use none, each a press (awayBlockOf `rest`) */
@@ -176,6 +178,7 @@ renderAway.patch = function patchAway(body, ctx) {
       text(best.querySelector('b'), b.best ? itemName(b.best) : '');
       text(li.querySelector('.haway-why'), b.why);
       text(li.querySelector('.haway-cause'), b.cause);
+      rows(li.querySelector('.haway-ledger'), b.ledger.map((l, i) => ({ i, l })), { key: (x) => String(x.i), build: () => element(ctx.doc, '<p class="haway-cause"></p>'), patch: (el, x) => text(el, x.l) });
       text(li.querySelector('.haway-when'), b.when);
       text(li.querySelector('.haway-stamina'), b.stamina);
       const go = li.querySelector('[data-hs-act="away-go"]');

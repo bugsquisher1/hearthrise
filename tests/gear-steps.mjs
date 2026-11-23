@@ -7,6 +7,8 @@
 //   GS-1  THE SLOT WEIGHTS: one positive whole permille for every equip slot (src/data/gathering.js EQUIP_SLOTS, ammo excluded) and no
 //         other, summing to exactly 1000, so a whole kit at item Level X is a gear part of X. A two-handed weapon names real slots
 //   GS-2  THE TIER: tierSteps a positive whole number, tierLevel(t) = t x tierSteps, wearAhead whole and inside one tier
+//         GS-3 also: the Trait rank a ground rolls by its entry Level (maxRankAt, 19 L3: ranks open at entry 40, 70, 100) and carry-over
+//         onto the same slot at the same tier or higher; GS-5: every scale ground's entryLevel is its hunt's band floor and maxRank the ramp's
 //   GS-3  THE TRAIT BUDGET (04 section 10's five guards as numbers): three ranks rising, rank 1 to rank 3 under a third of a tier (so a
 //         rank 3 on an old base loses to a rank 1 on the next), conditionalStepsMax at least rank 3 and at most a tier, the average
 //         share and the dominance share inside (0, 1000), three rank depths starting at depth 1 inside the band, pity on the Rare roll,
@@ -21,7 +23,8 @@
 //         counts only on a hunt started with at least twice its threshold
 //   GS-5  THE POOL: the 40 of 14-trait-candidates.md by number, name and ground; every Trait slot holds 2 or more Traits of 2 or more
 //         keys (so a Very Rare can roll), every similar group the doc lists shares one key, no Very Rare pair shares a key, every
-//         ground's pool serves 2 or more seats; every scale ground's gearLevel is a whole tier and its traits are exactly its pool
+//         ground's pool serves 2 or more seats; every scale ground's gearLevel is a whole tier and its traits are exactly its pool;
+//         THE ROLL (GEAR_STEPS.traitRoll, 24-content-pipeline.md G8): slot first, then the (ground, slot) cell, no cell over cellMax
 //   GS-6  HIDDEN: the only file under src/ or supabase/functions/ that imports gear-steps.js is src/data/danger.js, the only one that
 //         imports traits.js is gear-steps.js (the generated preload list src/app/game-modules.js may name both), and no other src
 //         file names a Trait's id or name (no drop table, item, text or screen)
@@ -35,7 +38,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { GEAR_STEPS, tierLevel } from '../src/data/gear-steps.js';
+import { GEAR_STEPS, tierLevel, maxRankAt } from '../src/data/gear-steps.js';
+import { POWER_LEDGER } from '../src/data/power-ledger.js';
+import { HUNT_INDEX } from '../src/data/hunts.js';
 import { TRAITS, traitPool } from '../src/data/traits.js';
 import { DANGER, DANGER_GROUNDS, DEPTHS } from '../src/data/danger.js';
 import { GROUND_PACKS } from '../src/data/grounds/index.js';
@@ -60,7 +65,7 @@ const HOMES = new Set(['src/data/gear-steps.js', 'src/data/traits.js']);
 /* the doc's words for a ground and a slot heading */
 const DOC_GROUNDS = Object.freeze({
   'Muster Barrows': 'muster_barrows', 'Pyre Field': 'pyre_field', 'Krell\'s Hold': 'krells_hold', 'Carter\'s Rest': 'carters_rest',
-  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
+  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Hask\'s Ford': 'hasks_ford', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
 });
 const DOC_SLOTS = Object.freeze({ Weapon: 'weapon', Shield: 'shield', Body: 'body', Legs: 'pants', Helmet: 'helmet', Boots: 'boots',
   Gloves: 'gloves', Belt: 'belt', Cape: 'cape', Necklace: 'necklace', Ring: 'ring', Earrings: 'earrings' });
@@ -143,6 +148,17 @@ export function problems(d) {
   const rd = G.rankDepths || [];
   if (rd.length !== ts.length || rd[0] !== 1 || !rd.every((x, i) => Number.isInteger(x) && x <= d.DEPTHS && (i === 0 || x > rd[i - 1]))) out.push('GS-3 rankDepths is not one rising start a rank from depth 1');
   if (!G.pity || G.pity.rare !== true) out.push('GS-3 the Rare roll has no pity');
+  /* THE RANK A GROUND ROLLS (19 section 2, L3): rank r iff traitSteps[r-1] <= conditionalStepsMax x ramp(entry); the doc's readings
+     (rank 1 from entry 40, rank 2 from 70, rank 3 from 100) at the starting values */
+  const R = d.POWER_LEDGER.rampLevel;
+  for (const e of [0, 1, 39, 40, 55, 69, 70, 99, 100, 150, 200, 400]) {
+    const want = ts.filter((s) => s * R <= G.conditionalStepsMax * Math.min(e, R)).length;
+    if (d.maxRankAt(e) !== want) out.push('GS-3 maxRankAt(' + e + ') is ' + d.maxRankAt(e) + ', the ramp gives ' + want);
+  }
+  if ([39, 40, 69, 70, 99, 100].map((e) => d.maxRankAt(e)).join() !== '0,1,1,2,2,3') out.push('GS-3 ranks do not open at entry 40, 70 and 100');
+  /* CARRY-OVER (L3): onto the same slot, a tier the same or higher, as data */
+  const co = G.carryOver || {};
+  if (co.slot !== 'same' || !Number.isInteger(co.tierMin) || co.tierMin < 0) out.push('GS-3 carry-over is not onto the same slot at the same tier or higher');
   /* the piece's rarity criterion (13-market.md 2.3): a Rare one Trait, a Very Rare two, and every Trait on one slot only */
   const tb = G.traitsByRarity || {};
   if (tb.rare !== 1 || tb.very_rare !== 2 || Object.keys(tb).length !== 2) out.push('GS-3 traitsByRarity is not a Rare 1, a Very Rare 2');
@@ -230,6 +246,12 @@ export function problems(d) {
     if (keys.size !== 1) out.push('GS-5 the similar group #' + g.join(' #') + ' does not share one stacking key');
   }
   const pools = new Set(rows.map(([, t]) => t.source));
+  /* THE ROLL: slot first, then one Trait of the (ground, slot) cell; a cell holds at most cellMax (a new Trait dilutes only its cell) */
+  const roll = G.traitRoll || {};
+  if (roll.slotFirst !== true || !(Number.isInteger(roll.cellMax) && roll.cellMax >= 1) || !(Number.isInteger(roll.seatsMin) && roll.seatsMin >= 2)) out.push('GS-5 traitRoll is not slot first with a whole cellMax and a seatsMin of 2 or more');
+  const cells = new Map();
+  for (const [id, t] of rows) { const k = t.source + ' ' + t.slot; cells.set(k, (cells.get(k) || []).concat(id)); }
+  for (const [k, ids] of cells) if (ids.length > (roll.cellMax || 0)) out.push('GS-5 the cell ' + k + ' holds ' + ids.length + ' Traits, over traitRoll.cellMax ' + roll.cellMax + ': ' + ids.join(', '));
   for (const src of pools) {
     const pool = d.traitPool(src);
     if (new Set(pool.map((id) => d.TRAITS[id].best.seat)).size < 2) out.push('GS-5 ' + src + '\'s pool serves one seat');
@@ -244,6 +266,11 @@ export function problems(d) {
     if (!Number.isInteger(g.gearLevel) || g.gearLevel <= 0 || g.gearLevel % G.tierSteps) out.push('GS-5 ' + gid + ' gearLevel is not a whole tier');
     const pool = Object.keys(d.TRAITS).filter((id) => d.TRAITS[id].source === gid);
     if (JSON.stringify([...(g.traits || [])].sort()) !== JSON.stringify(pool.sort())) out.push('GS-5 ' + gid + ' traits are not its pool');
+    /* its entry Level is its hunt's band floor (one source), and its max rank the ramp's at it (L3) */
+    const hunt = d.HUNT_INDEX[gid];
+    const floor = hunt && Array.isArray(hunt.band) ? hunt.band[0] : undefined;
+    if (!Number.isInteger(g.entryLevel) || g.entryLevel !== floor) out.push('GS-5 ' + gid + ' entryLevel ' + g.entryLevel + ' is not its hunt\'s band floor ' + floor);
+    if (g.maxRank !== d.maxRankAt(g.entryLevel)) out.push('GS-5 ' + gid + ' maxRank ' + g.maxRank + ' is not maxRankAt(' + g.entryLevel + ')');
   }
   /* GS-6 */
   const strip = (s) => s.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -261,7 +288,7 @@ export function problems(d) {
   return out;
 }
 
-const real = () => ({ GEAR_STEPS, TRAITS, tierLevel, traitPool, veryRarePairs, DANGER, DANGER_GROUNDS, DEPTHS, GROUND_PACKS,
+const real = () => ({ GEAR_STEPS, TRAITS, tierLevel, maxRankAt, POWER_LEDGER, HUNT_INDEX, traitPool, veryRarePairs, DANGER, DANGER_GROUNDS, DEPTHS, GROUND_PACKS,
   EQUIP_SLOTS, METRICS, OPERATORS, EFFECT_IDS, HUNT_ROLES, ITEMS, files: srcFiles(),
   doc: readDoc(readFileSync(join(ROOT, 'docs', 'design', 'redesign', '14-trait-candidates.md'), 'utf8')) });
 /* a copy whose pool readers read the copy's rows */
@@ -280,6 +307,12 @@ const MUTANTS = [
   ['GS-1 two-handed names no slot', (d) => { d.GEAR_STEPS.twoHand = ['weapon', 'offhand']; }],
   ['GS-2 tierLevel off by a tier', (d) => { d.tierLevel = (t) => (t + 1) * d.GEAR_STEPS.tierSteps; }],
   ['GS-2 wearAhead past a tier', (d) => { d.GEAR_STEPS.wearAhead = d.GEAR_STEPS.tierSteps + 1; }],
+  ['GS-3 every rank on every ground', (d) => { d.maxRankAt = () => 3; }],
+  ['GS-3 the rank gate on the floored ramp', (d) => { d.maxRankAt = (e) => d.GEAR_STEPS.traitSteps.filter((s) => s <= d.GEAR_STEPS.conditionalStepsMax * Math.max(0.5, Math.min(1, e / 200))).length; }],
+  ['GS-3 carry-over onto a lower tier', (d) => { d.GEAR_STEPS.carryOver = { slot: 'same', tierMin: -1 }; }],
+  ['GS-3 carry-over across slots', (d) => { d.GEAR_STEPS.carryOver = { slot: 'any', tierMin: 0 }; }],
+  ['GS-5 an entry Level off its band', (d) => { d.DANGER_GROUNDS.muster_barrows.entryLevel = 70; }],
+  ['GS-5 a max rank over its entry', (d) => { d.DANGER_GROUNDS.muster_barrows.maxRank = 3; }],
   ['GS-3 rank spread a third of a tier', (d) => { d.GEAR_STEPS.traitSteps = [2, 5, 9]; }],
   ['GS-3 ranks not rising', (d) => { d.GEAR_STEPS.traitSteps = [4, 4, 6]; }],
   ['GS-3 conditional cap over a tier', (d) => { d.GEAR_STEPS.conditionalStepsMax = d.GEAR_STEPS.tierSteps + 1; }],
@@ -325,6 +358,8 @@ const MUTANTS = [
   ['GS-5 a pool of one seat', (d) => { for (const id of d.traitPool('wyvern_roost')) d.TRAITS[id].best.seat = 'ranger'; }],
   ['GS-5 a pair roller that pairs one key', (d) => { d.veryRarePairs = (tr, b, src, s) => (s === 'cape' ? [['captains_due', 'raised_colors']] : []); }],
   ['GS-5 a slot whose only pairs are banned', (d) => { d.GEAR_STEPS.veryRareBanned = ['banded_oath+bottom_of_the_quiver', 'banded_oath+full_cellar', 'banded_oath+hasks_bargain', 'banded_oath+lookouts_promise', 'bottom_of_the_quiver+full_cellar', 'bottom_of_the_quiver+hasks_bargain', 'bottom_of_the_quiver+lookouts_promise', 'full_cellar+hasks_bargain', 'full_cellar+lookouts_promise', 'hasks_bargain+lookouts_promise']; }],
+  ['GS-5 a cell of three', (d) => { d.TRAITS.keepers_carry.source = 'catacomb_bone_wing'; d.TRAITS.keepers_carry.best.ground = 'catacomb_bone_wing'; }],
+  ['GS-5 a roll that is not slot first', (d) => { d.GEAR_STEPS.traitRoll = { ...d.GEAR_STEPS.traitRoll, slotFirst: false }; }],
   ['GS-5 a ground off the tier', (d) => { d.DANGER_GROUNDS.muster_barrows.gearLevel += 5; }],
   ['GS-5 a pool that drops a Trait', (d) => { d.DANGER_GROUNDS.muster_barrows.traits = ['file_breaker']; }],
   ['GS-6 a screen imports the gear table', (d) => { d.files.set('src/shell/x.js', "import { GEAR_STEPS } from '../data/gear-steps.js';"); }],

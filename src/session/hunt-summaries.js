@@ -86,7 +86,7 @@ function reportOf(v) {
   };
 }
 
-/* THE CAUSE LINE'S FACTS on the Danger scale (hunt-report.js depthFacts): { risk, held, deep, of, n, last [name, pm, monster] | null }, depths
+/* THE CAUSE LINE'S FACTS on the Danger scale (hunt-report.js depthFacts): { risk, held, deep, of, n, last [name, pm, monster] | null, heal, took, sup }, depths
    only (1..of, never a step), the falls counted up to the report's cap; null when it is not one. */
 const DEPTHS_MAX = 100, FALLS_MAX = 32;
 const depthNo = (n, of) => (Number.isSafeInteger(n) && n >= 1 && n <= of ? n : null);
@@ -97,8 +97,13 @@ function depthOf(v) {
   const l = v.last;
   const last = Array.isArray(l) && typeof l[0] === 'string' && nat(l[1]) !== null && l[1] <= 1000 && id(l[2]) ? [l[0].slice(0, 40), l[1], l[2]] : null;
   const n = nat(v.n) !== null && v.n <= FALLS_MAX ? v.n : 0;
-  return { risk: typeof v.risk === 'string' && REASON.test(v.risk) ? v.risk : null, held, deep, of: v.of, n, last: n > 0 ? last : null };
+  return { risk: typeof v.risk === 'string' && REASON.test(v.risk) ? v.risk : null, held, deep, of: v.of, n, last: n > 0 ? last : null,
+    /* THE LEDGER (19-power-ledger L7, hunt-report.js ledgerFacts): healing by source, damage taken by seat, supplies an hour by depth */
+    heal: pairs(v.heal, (p) => (Array.isArray(p) && id(p[0]) && pm(p[1]) ? [p[0], p[1]] : null), 8),
+    took: pairs(v.took, (p) => (Array.isArray(p) && typeof p[0] === 'string' && nat(p[1]) !== null && p[1] <= 9 && pm(p[2]) ? [p[0].slice(0, 40), p[1], p[2]] : null), 10),
+    sup: pairs(v.sup, (p) => (Array.isArray(p) && depthNo(p[0], v.of) !== null && nat(p[1]) !== null ? [p[0], p[1]] : null), 4) };
 }
+const pm = (n) => nat(n) !== null && n <= 1000;
 
 /* A TRAINING SESSION'S CARD (summary-model.js trainingCard): the skill, its XP from the session's tally, and from the server's
    last stop the gold its fee rows took and the skill's level before and after. Each figure the server's, or null. */

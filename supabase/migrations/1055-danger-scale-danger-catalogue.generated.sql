@@ -76,7 +76,7 @@ delete from public.hr_danger_rules;
 insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
   pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per, default_risk) values
   (true, 4000, 8, 15000, 20, 8, 2, 1500, 3500, 7000,
-   7000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[], 'steady');
+   4000, 120, 120, '{5,17.5,37.5,75,150,250,400,625,875}'::numeric[], '{0.6,2,5.28,8.64,10.8,14.4,18,26.88,40.32}'::numeric[], 'steady');
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values
   ('careful', 0, 450, 650, 'careful'),
@@ -84,7 +84,7 @@ insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death
   ('bold', 2, 120, 300, 'steady');
 delete from public.hr_danger_grounds;
 insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_max) values
-  ('muster_barrows', 590, 1001, 867);
+  ('muster_barrows', 590, 1001, 4239);
 
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
 create or replace function public.hr_danger_hours_for(p_level int)

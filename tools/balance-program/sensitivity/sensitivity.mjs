@@ -263,7 +263,7 @@ async function selftest() {
   {
     const { pathToFileURL } = await import('node:url');
     const imp = (root, p) => import(pathToFileURL(resolve(root, p)).href);
-    const s = await plantScratch(pointPatch(ROOT, { respawn: 2, spellCost: 2, spellCooldown: 2, foodPrice: 2, drinkPrice: 2 }).patch);
+    const s = await plantScratch(pointPatch(ROOT, { respawn: 2, spellCost: 2, spellCooldown: 2, foodPrice: 2, drinkPrice: 0.5 }).patch);
     try {
       const here = (await imp(ROOT, 'src/data/hunt-grounds.js')).HUNT_GROUNDS, there = (await imp(s.root, 'src/data/hunt-grounds.js')).HUNT_GROUNDS;
       const miss = ctx.spec.openGrounds.filter((g) => there[g].respawnMs !== here[g].respawnMs * 2);
@@ -274,8 +274,13 @@ async function selftest() {
       const badAb = rows(A0).filter((a) => { const b = by.get(a.id); return !b || b.mana !== a.mana * 2 || b.cdMs !== a.cdMs * 2 || JSON.stringify(b.versions || []) !== JSON.stringify((a.versions || []).map((v) => v * 2)); }).map((a) => a.id);
       ok(rows(A0).length > 20 && !badAb.length, 'spellCost x2 and spellCooldown x2 double every ability\'s mana, versions and cooldown (' + (badAb.join(', ') || rows(A0).length + ' abilities') + ')');
       const S0 = (await imp(ROOT, 'src/data/supply-basics.js')).BASIC_SUPPLIES, S1 = (await imp(s.root, 'src/data/supply-basics.js')).BASIC_SUPPLIES;
-      const badS = S0.filter((x) => x.kind === 'heal' || x.kind === 'mana').filter((x) => (S1.find((y) => y.id === x.id) || {}).price !== x.price * 2).map((x) => x.id);
-      ok(!badS.length, 'foodPrice x2 and drinkPrice x2 double every store heal\'s and drink\'s price (' + (badS.join(', ') || 'all') + ')');
+      /* the store's prices are derived (lane/econ-levers, src/data/store-kit.js): foodPrice x2 (the ceiling) and drinkPrice x0.5 (the reference
+         restore) each double the wage's share in a meal's price, so a row the share sets reads about x4 and a row its crafted floor holds
+         never falls */
+      const restore = S0.filter((x) => x.kind === 'heal' || x.kind === 'mana');
+      const after = (x) => (S1.find((y) => y.id === x.id) || {}).price;
+      const fell = restore.filter((x) => !(after(x) >= x.price)).map((x) => x.id), rose = restore.filter((x) => after(x) >= 3 * x.price);
+      ok(!fell.length && rose.length >= 3, 'foodPrice x2 and drinkPrice x0.5 raise the derived store meal prices about x4 and lower none (' + (fell.join(', ') || rose.length + ' rows x3 or more') + ')');
     } finally { s.done(); }
     /* the same for the families that scale a field wherever it is written: every value under that key, anywhere in the module's data */
     const under = (o, keys, out = []) => { if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { if (keys.includes(k)) out.push(JSON.stringify(v)); else under(v, keys, out); } return out; };
@@ -283,7 +288,7 @@ async function selftest() {
     const s2 = await plantScratch(pointPatch(ROOT, { spellPower: 2, healPower: 2, shieldPower: 2, weaponDamage: 2, weaponAccuracy: 2, armorValue: 2, runePrice: 2, regroup: 2 }).patch);
     try {
       const checks = [['src/data/abilities.js', 'ABILITIES', ['hitPm', 'healPm', 'healHpPm', 'shieldPm'], 20], ['src/data/gear-tiers.js', 'WEAPON_FAMILIES', ['atk', 'str'], 10],
-        ['src/data/gear-tiers.js', 'ARMOUR_SLOTS', ['def'], 6], ['src/data/supply-basics.js', 'STORE_RUNE_PRICE', null, 1], ['src/data/hunt-tuning.js', 'HUNT_TUNING', ['regroupMs'], 1]];
+        ['src/data/gear-tiers.js', 'ARMOUR_SLOTS', ['def'], 6], ['src/data/supply-basics.js', 'BASIC_AMMO_PREMIUM', null, 1], ['src/data/hunt-tuning.js', 'HUNT_TUNING', ['regroupMs'], 1]];
       for (const [file, name, keys, least] of checks) {
         const a = (await imp(ROOT, file))[name], b = (await imp(s2.root, file))[name];
         const va = keys ? under(a, keys) : [JSON.stringify(a)], vb = keys ? under(b, keys) : [JSON.stringify(b)];

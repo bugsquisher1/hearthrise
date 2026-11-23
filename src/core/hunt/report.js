@@ -35,6 +35,16 @@
 //          party's fold of its heroes (each credited the company's falls)
 //          and any cut of the windows keep the same list. Absent with none.
 //   Both are the company's: every hero of the hunt is credited them alike.
+//   THE LEDGER (19-power-ledger L7), ON THE DANGER SCALE (the tally's roster carries `scale`: the step the window ended at, its span and
+//   each hero's seat; off it none of these is counted):
+//   heal   the company's healing by source: { ability | item | 'heal': n } off every hero's `heal` (a monster's mend is no hero's),
+//          credited to every hero alike
+//   took   the company's damage taken by seat: { seat: n } off every blow at a hero from anyone but a hero, every hero alike
+//   sup    the hero's OWN store bill and time by held step: { bucket: [gold, ms] }, the bucket the step's first HUNT_REPORT.supStep
+//          multiple. The step at an event is walked off the window's `danger` events (the step changes only where a pull ends): the
+//          first one's `step` before it, each one's `to` after it, the roster's end step with none. The time is the window's span cut
+//          at those instants, so any cut of the windows adds to the same sums. (The party fold over its heroes adds the company's maps
+//          once a hero; nothing reads the party's report.)
 // The edge adds what the events do not hold (hr-accrue accrue-hunt.js): the
 // bar as played (`bar`) and the gear worn (`gear`); the database adds when an
 // own stack ran dry (`dry`, its own hunt_session_events rows).
@@ -73,7 +83,8 @@ function lower(a, b) {
  * answers that hero's report (the tally makes it); `ids` the heroes, `kinds`
  * every unit's kind.
  */
-export function reportEvent(ev, ids, kinds, reportOf) {
+export function reportEvent(ev, ids, kinds, reportOf, scale = null) {
+  if (scale) ledgerEvent(ev, ids, reportOf, scale);
   switch (ev.type) {
     case 'dmg': {
       /* a blow at a hero from anyone but a hero, with its HP after it and its max */
@@ -111,6 +122,50 @@ export function reportEvent(ev, ids, kinds, reportOf) {
     }
     default:
   }
+}
+
+/* THE LEDGER'S COUNTERS off one event (the header's `heal`, `took`, `sup` gold); `scale.at` the step the walk stands at (ledgerWalk). */
+function ledgerEvent(ev, ids, reportOf, scale) {
+  const every = (ev2, fn) => { for (const id of [...ids].sort((a, b) => a - b)) fn(reportOf(id, ev2)); };
+  if (ev.type === 'heal' && ids.has(ev.u)) {
+    const n = nat(ev.amount), src = ev.ability || ev.item || 'heal';
+    if (n > 0 && ID64.test(src)) every(ev, (r) => { r.heal = r.heal || {}; bump(r.heal, src, n); });
+  } else if (ev.type === 'dmg' && ids.has(ev.t) && !ids.has(ev.u)) {
+    const n = nat(ev.amount), seat = scale.seats ? scale.seats[ev.t] : undefined;
+    if (n > 0 && Number.isSafeInteger(seat) && seat >= 0 && seat <= 9) every(ev, (r) => { r.took = r.took || {}; bump(r.took, String(seat), n); });
+  } else if ((ev.type === 'eat' || ev.type === 'drink' || ev.type === 'cast') && ev.source === 'store' && ids.has(ev.u)) {
+    const g = nat(ev.gold);
+    if (g > 0) supAdd(reportOf(ev.u, ev), scale.at, g, 0);
+  } else if (ev.type === 'danger' && nat(ev.to) !== null) scale.at = ev.to;
+}
+
+const bucketOf = (step) => String(Math.floor(step / HUNT_REPORT.supStep) * HUNT_REPORT.supStep);
+function supAdd(r, step, g, ms) {
+  if (nat(step) === null) return;
+  r.sup = r.sup || {};
+  const k = bucketOf(step), x = r.sup[k] || [0, 0];
+  r.sup[k] = [x[0] + g, x[1] + ms];
+}
+
+/**
+ * THE LEDGER'S WALK over one window (the tally calls it): `scale` = { step (the window's END step), fromMs, toMs, seats { unit: seat } }.
+ * Answers the walker the events are read with (`at` the step before the first pull end), and `close(reportOf, ids)` credits each hero
+ * the window's time by the step it stood at.
+ */
+export function ledgerWalk(events, scale) {
+  const ends = events.filter((e) => e.type === 'danger' && nat(e.step) !== null && nat(e.to) !== null);
+  /** @type {{ seats: any, at: any, close?: (reportOf: any, ids: any) => void }} */
+  const walk = { seats: scale.seats || null, at: ends.length ? ends[0].step : nat(scale.step) };
+  const from = nat(scale.fromMs), to = nat(scale.toMs);
+  walk.close = (reportOf, ids) => {
+    if (from === null || to === null || to <= from) return;
+    let at = from, step = ends.length ? ends[0].step : nat(scale.step);
+    const spans = [];
+    for (const e of ends) { const t = Math.min(to, Math.max(at, nat(e.atMs) || 0)); if (t > at) spans.push([step, t - at]); at = t; step = e.to; }
+    if (to > at) spans.push([step, to - at]);
+    for (const id of [...ids].sort((a, b) => a - b)) for (const [st, ms] of spans) supAdd(reportOf(id, null), st, 0, ms);
+  };
+  return walk;
 }
 
 /* One fall back off its `danger` event (the header's `falls` entry), or null when the event cannot say one. */
@@ -153,7 +208,7 @@ function addCounts(a, b, deep) {
  */
 export function addReport(a, b) {
   const x = isMap(a) ? a : emptyReport(), y = isMap(b) ? b : emptyReport();
-  /** @type {{ low: any, close: number, fired: object, waits: object, bar?: any, gear?: any, dry?: Record<string, number>, falls?: object[], deep?: number }} */
+  /** @type {{ low: any, close: number, fired: object, waits: object, bar?: any, gear?: any, dry?: Record<string, number>, falls?: object[], deep?: number, heal?: object, took?: object, sup?: object }} */
   const out = { low: lower(x.low, y.low), close: (nat(x.close) || 0) + (nat(y.close) || 0),
     fired: addCounts(x.fired, y.fired, false), waits: addCounts(x.waits, y.waits, true) };
   for (const k of ['bar', 'gear']) { const v = k in y ? y[k] : x[k]; if (v !== undefined) out[k] = v; }
@@ -166,6 +221,17 @@ export function addReport(a, b) {
   if (Array.isArray(x.falls) || Array.isArray(y.falls)) out.falls = foldFalls(x.falls, y.falls);
   const deep = [x.deep, y.deep].filter((v) => nat(v) !== null);
   if (deep.length) out.deep = Math.max(...deep);
+  /* THE LEDGER (absent off the scale): the counts added, the supplies' gold and time added bucket by bucket */
+  for (const k of ['heal', 'took']) if (isMap(x[k]) || isMap(y[k])) out[k] = addCounts(x[k], y[k], false);
+  if (isMap(x.sup) || isMap(y.sup)) {
+    const sup = {};
+    for (const src of [x.sup, y.sup]) for (const [k, v] of Object.entries(isMap(src) ? src : {})) {
+      if (!Array.isArray(v)) continue;
+      const a = sup[k] || [0, 0];
+      sup[k] = [a[0] + (nat(v[0]) || 0), a[1] + (nat(v[1]) || 0)];
+    }
+    out.sup = sup;
+  }
   return out;
 }
 
@@ -246,5 +312,16 @@ export function reportProposal(r, bar, gear) {
       out.falls = falls.map((f) => ({ at: f.at, from: f.from, to: f.to, ...('hero' in f ? { hero: f.hero } : {}), pm: f.pm, monster: f.monster }));
     }
   }
+  /* THE LEDGER (1057-danger-falls.sql hr_hunt_report_ok, folded in while staged): healing by source (an id, at most 16), damage taken by
+     seat (one digit), the supplies' [gold, ms] by step bucket (at most 32, a step of the scale), whole numbers of at most 12 digits */
+  const heal = capped12(r.heal, ID64, 16), took = capped12(r.took, SEAT, 10);
+  if (Object.keys(heal).length) out.heal = heal;
+  if (Object.keys(took).length) out.took = took;
+  const sup = Object.entries(isMap(r.sup) ? r.sup : {}).filter(([k, v]) => /^[0-9]{1,4}$/.test(k) && Number(k) <= STEP_MAX && Array.isArray(v)
+    && v.length === 2 && v.every((n) => nat(n) !== null && n <= MAX12) && (v[0] > 0 || v[1] > 0)).sort((a, b) => Number(a[0]) - Number(b[0])).slice(0, 32);
+  if (sup.length) out.sup = Object.fromEntries(sup.map(([k, v]) => [k, [v[0], v[1]]]));
   return out;
 }
+const MAX12 = 999999999999, SEAT = /^[0-9]$/;
+const capped12 = (m, key, max) => Object.fromEntries(Object.entries(isMap(m) ? m : {}).filter(([k, n]) => key.test(k) && nat(n) !== null && n > 0 && n <= MAX12)
+  .sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(0, max));

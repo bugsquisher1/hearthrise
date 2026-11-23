@@ -24,6 +24,12 @@
 // A page flickering in and out of view writes at most once per LEAVE_EVERY_MS. A hunt that ended in view gets one last
 // stamp with its final numbers, or the return would credit what the player watched.
 //
+// THE SERVER'S MARK (AR-6 follow-up, 2026-11-22; 1060-watched-stamp.sql). No goodbye is certain: a crash or an OS kill sends
+// nothing, and the return then counted up to one renewal (10 min) of watched hunting as earned away. The server marks the hero's
+// numbers at each viewed ask (hunt-settle.js, the `watched` section: the mark before this return, else null), so a return is
+// judged from the LATER of the page's own stamp and that mark (judgedStampOf): a lost goodbye overstates by at most one ask
+// (16 s), a landed one is later and wins. The page's own stamp still renews as above; only the judgment reads the mark.
+//
 // THE RETURN (panel 2026-11-01, played): the line says what to do next: the stamina left, or how long ago a hunt ended and
 // the stamina rested since. And markBack records the hunt the player came back to (residue `coach.back`), so the coach's
 // "just now" cards stand aside and no card opens over it (hunt-tutorial.js fresh_hunt, launcher-coach.js restsNow).
@@ -60,7 +66,7 @@
 //     goes on to) trains, and the return says "Melee 28 to 34" from two server answers.
 // ════════════════════════════════════════════════════════════════════════
 import { levelOf, deathLogOf } from '../session/character-sections.js';
-import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../session/hunt-sections.js';
+import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf, watchedOf } from '../session/hunt-sections.js';
 import { nameOf, skillsOf } from '../session/item-sections.js';
 import { huntAfterOf } from '../session/hunt-after-sections.js';
 import { pastHuntOf } from '../session/past-hunt.js';
@@ -99,6 +105,12 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const stampOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.awaySeen;
   return isObj(r) && typeof r.s === 'string' && Number.isSafeInteger(r.at) ? r : null;
+};
+/* THE STAMP A RETURN IS JUDGED FROM (see the header, THE SERVER'S MARK): the later of the page's own and the server's watched mark.
+   Only the judgment reads it; the page's own stamp keeps its own renewals (stampAway). */
+const judgedStampOf = (cs) => {
+  const own = stampOf(cs), seen = watchedOf(cs);
+  return seen && (!own || seen.at > own.at) ? seen : own;
 };
 
 /**
@@ -197,7 +209,7 @@ function diedWords(cs, session, card = false) {
  * @returns {{id: string, kind: 'away', session: string, text: string, said?: string, ended?: boolean, at?: number, cameAt?: number, minutes?: number, levels?: number, facts?: object}|null}
  */
 export function awayRecapOf(cs) {
-  return awayRecapFrom(cs, stampOf(cs));
+  return awayRecapFrom(cs, judgedStampOf(cs));
 }
 
 /** awayRecapOf against a given stamp `was` (the line keeps its own, `stamp`: the alert centre judges it again once the hunt the yard took
@@ -344,7 +356,7 @@ export function awayLineNow(cs, a) {
 /** May the line be judged now? False until the record and the server's clock are in, and while a town job's return waits for the settle that pays it (./away-work.js). */
 export function awaySettled(cs) {
   if (!cs.record || !Number.isFinite(serverNowOf(cs))) return false;
-  const was = stampOf(cs);
+  const was = judgedStampOf(cs);
   return !isWorkStamp(was) || awayWorkSettled(cs, was, AWAY_MIN_MS);
 }
 
@@ -361,7 +373,7 @@ export function markBack(cs, session, at) {
  * seconds after Enter), already older than the shortest absence the line speaks of. There are no numbers to tell, but its just-now cards are old, so they stand aside as on any return.
  */
 export function backWithNoStamp(cs) {
-  const h = huntOf(cs), was = stampOf(cs), a = analyzerOf(cs);
+  const h = huntOf(cs), was = judgedStampOf(cs), a = analyzerOf(cs);
   if (!h || h.ended || (was && was.s === h.sessionId) || !a || !Number.isFinite(a.sessionMs) || a.sessionMs < AWAY_MIN_MS) return false;
   return markBack(cs, h.sessionId);
 }

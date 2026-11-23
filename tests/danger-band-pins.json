@@ -1,0 +1,74 @@
+{
+ "_why": "THE DANGER BANDS AS MEASURED (lane/content-pipeline, docs/design/redesign/24-content-pipeline.md section 2). Each scale ground's band and the print of the rows it was measured on (tools/lib/danger-band.mjs packPrint). Written by `node tools/new-ground.mjs <ground> ... --write`, never by hand: tests/content-coherence.mjs CC-2 reds a DANGER_GROUNDS band that differs from its pin (unless the pin carries `hand`, the reason it was set by hand) and a ground whose pack or monster rows changed since (re-measure). Seeded 2026-11-22 from R10's reports (tools/balance-program/redesign/r10).",
+ "_generated_by": "node tools/new-ground.mjs <ground> --write",
+ "grounds": {
+  "muster_barrows": {
+   "refStep": 590,
+   "floorStep": 320,
+   "topStep": 710,
+   "print": "b46ea08577d50f1c",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 55,
+    "top": 75,
+    "mid": 65
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/muster_barrows-{floor,top,ref}.json"
+   ],
+   "hand": "refStep 590 is held by hand: it is the scale's pay anchor (12-targets 3.1; lane/ledger-l10 set PAY.coinPm 6400 on it with the Steady four at Level 60 holding 619), and this run's MID four at Level 65 held 634.5 (refStep 630 by the rule). Moving it re-prices Muster's XP and coin, an economy call measured with coinPm, not a floor call. The floor (320) and top (710) are the band rule's, measured here (lane/band-floor, 24-content-pipeline.md G3)"
+  },
+  "hasks_ford": {
+   "refStep": 590,
+   "floorStep": 470,
+   "topStep": 700,
+   "refKillsHead": 220,
+   "print": "b832fc681050d1d8",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 45,
+    "top": 60,
+    "mid": 52
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/hasks_ford-{floor,top,ref}.json"
+   ]
+  },
+  "catacomb_bone_wing": {
+   "refStep": 480,
+   "floorStep": 380,
+   "topStep": 540,
+   "refKillsHead": 160,
+   "print": "c78b59371fab46b6",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 165,
+    "top": 185,
+    "mid": 175
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-{floor,top,ref}.json"
+   ]
+  },
+  "catacomb_flooded_wing": {
+   "refStep": 440,
+   "floorStep": 350,
+   "topStep": 505,
+   "refKillsHead": 150,
+   "print": "e9b8d7f0d61e2c41",
+   "verdict": "STAGED",
+   "levels": {
+    "entry": 165,
+    "top": 185,
+    "mid": 175
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-{floor,top,ref}.json"
+   ]
+  }
+ }
+}

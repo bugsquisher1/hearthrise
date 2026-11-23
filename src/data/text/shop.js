@@ -51,9 +51,13 @@ export const SHOP_TEXT = Object.freeze({
   /* Blessings in the Services tab (src/shell/windows/services.js): all of them in one press, one server purchase each. */
   bless_all: 'Bless all',
   bless_all_busy: 'Blessing…',
-  bless_all_done: 'All {of} Blessings on',
+  /* ...one Blessing (lane/level-costs, 2026-11-22) reads Blessed; several, how many are on. {count} the server's tiers. */
+  bless_all_done: { one: 'Blessed', other: 'All {count} Blessings on' },
   /* Why Bless all is off, said under it. */
-  bless_all_on: 'All Blessings on',
+  bless_all_on: { one: 'Blessed', other: 'All Blessings on' },
+  /* A Blessing's row and its answer: one Blessing is just "Blessing"; several carry their tier ({n} "II"). */
+  bless_name: { one: 'Blessing', other: 'Blessing {n}' },
+  bless_gained: { one: 'Blessed', other: '{name} gained' },
   bless_all_short: 'Not enough gold for the next Blessing',
   /* A bought hunting block in the Services tab (1058-hunting-blocks.sql, the `time_blocks` section): 2 h each, dearer each time, a daily cap. */
   block_quote: '+{hours} for {price} · Blocks today: {n} of {max} · Price rises per block',

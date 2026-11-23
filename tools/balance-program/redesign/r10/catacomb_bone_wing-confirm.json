@@ -1,0 +1,257 @@
+{
+ "ground": "catacomb_bone_wing",
+ "levels": [
+  175,
+  178,
+  185
+ ],
+ "seeds": 4,
+ "hours": 12,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 175,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 1.09,
+    "sd": 0.01,
+    "n": 4,
+    "perSeed": [
+     1.1,
+     1.07,
+     1.11,
+     1.09
+    ],
+    "fromH": 4,
+    "windowH": 8
+   },
+   "held": {
+    "mean": 431.6,
+    "sd": 2.1,
+    "se": 1.1,
+    "perSeed": [
+     433,
+     428,
+     433,
+     432
+    ]
+   },
+   "drift": -0.3,
+   "within10": 48.4,
+   "within20": 83.1,
+   "changesPerH": 29.3,
+   "fallsPerH": 3.5,
+   "reachH": 0.6,
+   "pullsPerH": 135.1,
+   "killsPerH": 519,
+   "xpPerHeroH": 1044223,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 5273,
+     "sd": 39,
+     "n": 4
+    },
+    "incomePerHeroH": {
+     "mean": 6836,
+     "sd": 47,
+     "n": 4
+    },
+    "storePerHeroH": {
+     "mean": 14781,
+     "sd": 55,
+     "n": 4
+    },
+    "commonPerHeroH": {
+     "mean": 658,
+     "sd": 2,
+     "n": 4
+    },
+    "uncommonPerHeroH": {
+     "mean": 695,
+     "sd": 19,
+     "n": 4
+    },
+    "scarcePerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 4
+    },
+    "otherPerHeroH": {
+     "mean": 210,
+     "sd": 17,
+     "n": 4
+    }
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 12,
+   "fourH": 8,
+   "firstDeathH": [],
+   "nearWipes": 4,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 4,
+   "whys": {
+    "hold": 4906,
+    "climb": 1425,
+    "fall": 152
+   }
+  },
+  "high:steady": {
+   "id": "high:steady",
+   "variant": "high",
+   "risk": "steady",
+   "L": 185,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 1.19,
+    "sd": 0.05,
+    "n": 4,
+    "perSeed": [
+     1.17,
+     1.25,
+     1.19,
+     1.14
+    ],
+    "fromH": 4,
+    "windowH": 8
+   },
+   "held": {
+    "mean": 442.3,
+    "sd": 4.2,
+    "se": 2.1,
+    "perSeed": [
+     442,
+     448,
+     442,
+     437
+    ]
+   },
+   "drift": -2.1,
+   "within10": 53.4,
+   "within20": 80.9,
+   "changesPerH": 29.2,
+   "fallsPerH": 3.3,
+   "reachH": 0.6,
+   "pullsPerH": 133.3,
+   "killsPerH": 519,
+   "xpPerHeroH": 1177272,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 5606,
+     "sd": 93,
+     "n": 4
+    },
+    "incomePerHeroH": {
+     "mean": 7163,
+     "sd": 111,
+     "n": 4
+    },
+    "storePerHeroH": {
+     "mean": 14823,
+     "sd": 41,
+     "n": 4
+    },
+    "commonPerHeroH": {
+     "mean": 668,
+     "sd": 19,
+     "n": 4
+    },
+    "uncommonPerHeroH": {
+     "mean": 702,
+     "sd": 53,
+     "n": 4
+    },
+    "scarcePerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 4
+    },
+    "otherPerHeroH": {
+     "mean": 186,
+     "sd": 22,
+     "n": 4
+    }
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 12,
+   "fourH": 8,
+   "firstDeathH": [],
+   "nearWipes": 1,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 1,
+   "whys": {
+    "hold": 4854,
+    "climb": 1397,
+    "fall": 147
+   }
+  }
+ },
+ "wallS": 39,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "high:steady": {
+   "from": "base:steady",
+   "to": "high:steady",
+   "mean": 10.8,
+   "sd": 6.4,
+   "se": 3.2,
+   "n": 4
+  },
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

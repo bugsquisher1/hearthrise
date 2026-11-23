@@ -86,18 +86,18 @@
    "xpPerHeroH": 11077163,
    "gold": {
     "coinPerHeroH": {
-     "mean": 10878,
-     "sd": 58,
+     "mean": 53226,
+     "sd": 280,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 12617,
-     "sd": 55,
+     "mean": 54965,
+     "sd": 259,
      "n": 4
     },
     "storePerHeroH": {
-     "mean": 21631,
-     "sd": 131,
+     "mean": 5832,
+     "sd": 28,
      "n": 4
     },
     "commonPerHeroH": {
@@ -121,6 +121,22 @@
      "n": 4
     }
    },
+   "kit": {
+    "meal": 447,
+    "drink": 0,
+    "charge": 1436,
+    "shot": 3949
+   },
+   "kitIds": {
+    "salted_lobster": 17.2,
+    "plain_dawnpoint_arrows": 658.2,
+    "plain_carved_fire_rune": 115.6,
+    "plain_carved_ice_rune": 133,
+    "plain_earth_rune": 9,
+    "plain_carved_poison_rune": 51.4,
+    "plain_carved_earth_rune": 68.1,
+    "plain_water_rune": 322.3
+   },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
@@ -138,12 +154,20 @@
    }
   }
  },
- "wallS": 30,
+ "wallS": 22,
  "candidate": "C0",
  "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
   "levels:steady": null,
   "weapon:steady": null,
   "armor:steady": null,
-  "high:steady": null
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
  }
 }

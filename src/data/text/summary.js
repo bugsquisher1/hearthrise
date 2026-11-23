@@ -49,6 +49,8 @@ export const SUMMARY_TEXT = Object.freeze({
   deposit_words: { one: 'Marked Deposit: {names}, frees 1 bag space', other: 'Marked Deposit: {names}, frees {count} bag spaces' },
   /* Bless: the Blessings not on, each at the price the server quotes now. */
   bless_n: 'Bless {names}',
+  /* ...one Blessing (lane/level-costs, 2026-11-22): the row's title is its state, its press is Bless */
+  bless_none: 'Not blessed',
   /* what a Blessing does (L03, retention R6): {pct} the cut with every tier on, the server's top tier */
   bless_does: 'Death XP loss −{pct} · Used up on death',
   bless_free: 'Free until Level {level}',

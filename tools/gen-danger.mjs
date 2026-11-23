@@ -11,7 +11,7 @@
 //                       default_risk (DEFAULT_RISK: the stance a hunt on the scale plays when its plan names none; 1057-danger-falls.sql)
 //   hr_danger_stances   per stance: rank (0 the safest), fall_pm, clean_pm, after_death (the stance a death settles to, never bolder)
 //   hr_danger_grounds   per ground the scale opens on: ref_step, share_pm_max (the most of a row's health one monster carries at any step),
-//                       coin_pm_max (the most of a row's coin one kill pays: that share x the depth ratio at the gap ceiling)
+//                       coin_pm_max (the most of a row's coin one kill pays: that share x PAY.coinPm x the depth ratio at the gap ceiling, at danger.js COIN_STEP, the wage's coin ratio an hour)
 //   hr_danger_hours_for(level)     danger.js hoursForLevel
 //   hr_danger_level_xp_max(level)  ceil(danger.js levelShareXp at the gap ceiling): the most one kill alone pays a hero of that Level
 //
@@ -32,7 +32,8 @@ import { isMain } from '../tests/_is-main.mjs';
 import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '1055-danger-scale-danger-catalogue.generated.sql';
+/* 1055 made the tables (applied or staged, it is history now); lane/r10-more-grounds's grounds and bands are this forward file */
+export const OUT_NAME = '1061-danger-grounds-danger-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -43,13 +44,13 @@ export const PIN_LEVELS = Object.freeze([1, 9, 40, 60, 75, 300, 1000]);
 async function load(root) {
   const v = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
-  const [data, core, model, grounds, tuning] = await Promise.all([imp('src/data/danger.js'), imp('src/core/hunt/danger.js'), imp('src/data/core-model.js'),
-    imp('src/data/hunt-grounds.js'), imp('src/data/hunt-tuning.js')]);
-  return { data, core, model, grounds, tuning };
+  const [data, core, model, grounds, tuning, wage] = await Promise.all([imp('src/data/danger.js'), imp('src/core/hunt/danger.js'), imp('src/data/core-model.js'),
+    imp('src/data/hunt-grounds.js'), imp('src/data/hunt-tuning.js'), imp('src/data/wage.js')]);
+  return { data, core, model, grounds, tuning, wage };
 }
 
 /** The resolved rows of the data, refused on a defect. */
-export function rowsOf({ data, core, model, grounds, tuning }) {
+export function rowsOf({ data, core, model, grounds, tuning, wage }) {
   const { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS } = data;
   const ids = Object.keys(RISKS);
   ids.forEach((id, rank) => {
@@ -69,7 +70,7 @@ export function rowsOf({ data, core, model, grounds, tuning }) {
   const rules = {
     step_max: DANGER.stepMax, pull_max: DANGER.pullMax, respawn_ms: DANGER.respawnMs, start_margin: DANGER.startMargin,
     climb_max: CLIMB.climbMax, clean_run: CLIMB.cleanRun, regroup_ms: tuning.HUNT_TUNING.regroupMs, power_step_ppm: ppm(DANGER.powerStep, 'powerStep'),
-    pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(PAY.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
+    pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(wage.WAGE.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
     ref_kills_head: PAY.refKillsHead, hours_at: spans.map((s) => s[0]), hours_per: spans.map((s) => s[1]), default_risk: data.DEFAULT_RISK,
   };
   for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'regroup_ms', 'gap_max', 'ref_kills_head']) {
@@ -78,12 +79,23 @@ export function rowsOf({ data, core, model, grounds, tuning }) {
   const ground = [];
   for (const id of Object.keys(DANGER_GROUNDS).sort()) {
     const g = grounds.HUNT_GROUNDS[id];
-    const open = grounds.OPEN_GROUNDS ? (Array.isArray(grounds.OPEN_GROUNDS) ? grounds.OPEN_GROUNDS.includes(id) : own(grounds.OPEN_GROUNDS, id)) : true;
-    if (!g || g.hunt !== id || !open || own(grounds.TOWER_GROUNDS || {}, id) || own(grounds.TRAINING_GROUNDS || {}, id) || own(grounds.HALL_GROUNDS || {}, id) || own(grounds.CALLED_GROUNDS || {}, id)) {
-      throw new Error('gen-danger: ' + id + ' is no open hunting ground whose hunt is its id');
+    if (!g || g.hunt !== id || own(grounds.TOWER_GROUNDS || {}, id) || own(grounds.TRAINING_GROUNDS || {}, id) || own(grounds.HALL_GROUNDS || {}, id) || own(grounds.CALLED_GROUNDS || {}, id)) {
+      throw new Error('gen-danger: ' + id + ' is no hunting ground whose hunt is its id');
     }
     const ref = DANGER_GROUNDS[id].refStep;
     if (!Number.isInteger(ref) || ref < 0 || ref > DANGER.stepMax) throw new Error('gen-danger: ' + id + ' refStep ' + ref);
+    /* THE BAND (lane/r10-more-grounds; 12-targets.md 3.1): floor under the reference under the top, inside the scale; the engine climbs no
+       step past the top and pays no more there (src/core/hunt/danger.js stepOn, gapOf) */
+    const { floorStep: lo, topStep: hi } = DANGER_GROUNDS[id];
+    if (!Number.isInteger(lo) || !Number.isInteger(hi) || !(lo >= 0 && lo < ref && ref < hi && hi <= DANGER.stepMax)) throw new Error('gen-danger: ' + id + ' band ' + lo + ' / ' + ref + ' / ' + hi + ' is not floor < refStep < top inside the scale');
+    /* A GROUND'S OWN KILL RATE is never under the scale's: the server bounds a kill by hr_danger_level_xp_max at PAY.refKillsHead, and a
+       ground split over fewer kills would pay a kill over it */
+    const rk = DANGER_GROUNDS[id].refKillsHead;
+    if (rk !== undefined && !(Number.isInteger(rk) && rk >= PAY.refKillsHead)) throw new Error('gen-danger: ' + id + ' refKillsHead ' + rk + ' is under the scale\'s ' + PAY.refKillsHead + ' (the server\'s ceiling a kill)');
+    /* A STAGED GROUND (its hunt `staged`: the Catacombs' wings) is carried in the data and judged here, and served only once it opens: the
+       server's freeze opens the scale on these rows alone, and a staged ground is no hr_hunt_grounds row */
+    const open = grounds.OPEN_GROUNDS ? (Array.isArray(grounds.OPEN_GROUNDS) ? grounds.OPEN_GROUNDS.includes(id) : own(grounds.OPEN_GROUNDS, id)) : true;
+    if (!open) continue;
     /* the most of a row's health one monster carries at any step: the dial's hpPm over the step's power ratio */
     let share = 0, pw = 1;
     for (let s = 0; s <= DANGER.stepMax; s++, pw *= 1 + DANGER.powerStep) share = Math.max(share, core.dangerDial(g, s).hpPm / 1000 / pw);
@@ -118,8 +130,13 @@ export function buildSql(r) {
 -- levelShareXp at the gap ceiling, pinned to the JS values at Levels ${PIN_LEVELS.join(', ')} (§3).
 -- READERS: 1056-danger-scale.sql's freeze (the stance and the start step a hunt opens at), its bound (a window on the scale) and the
 -- \`danger\` section. The engine reads the same numbers from the data.
--- ORDER: 1055 in its name, after 1054 (the world shape) and before 1056. Idempotent: the tables are made if missing and their rows
--- rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- MORE GROUNDS (lane/r10-more-grounds, systems-engineer, 2026-11-22; 12-targets.md 3 and 7): every open ground of DANGER_GROUNDS, each with its
+-- band (floor < reference < top, measured: tools/balance-program/redesign/r10). The engine climbs no step past a ground's top and pays no more
+-- there, so each coin ceiling below is read at min(gapMax, top - reference). A staged ground (the Catacombs' two wings) is judged by the
+-- generator and left out of the rows until it opens.
+-- ORDER: ${OUT_NAME.slice(0, 4)} in its name: after 1055 (the first cut of this catalogue, which made the tables) and 1056/1057 (their
+-- readers). Idempotent: the tables are made if missing and their rows rewritten whole, the functions restated, so a second apply is
+-- byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; two internal functions revoked from
 -- every client role. No value moves here.
 -- DEFAULT (lane/r2-danger-falls, backend-architect, 2026-11-22; 02 package 8, "the first party ground runs on Steady"): hr_danger_rules.default_risk,
@@ -280,14 +297,20 @@ async function selftest() {
   tryRows('a trigger over its climb line', (d) => ({ RISKS: { ...d.RISKS, steady: { ...d.RISKS.steady, fallPm: 500, cleanPm: 450 } } }));
   tryRows('a ground that is no hunting ground', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, the_burning_tower: { refStep: 10 } } }));
   tryRows('a ground unknown', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, nowhere: { refStep: 10 } } }));
-  tryRows('a reference step past the scale', (d) => ({ DANGER_GROUNDS: { muster_barrows: { refStep: d.DANGER.stepMax + 1 } } }));
+  tryRows('a reference step past the scale', (d) => ({ DANGER_GROUNDS: { muster_barrows: { ...d.DANGER_GROUNDS.muster_barrows, refStep: d.DANGER.stepMax + 1 } } }));
+  tryRows('a band whose top is under its reference', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, muster_barrows: { ...d.DANGER_GROUNDS.muster_barrows, topStep: d.DANGER_GROUNDS.muster_barrows.refStep } } }));
+  tryRows('a band whose floor is over its reference', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, muster_barrows: { ...d.DANGER_GROUNDS.muster_barrows, floorStep: d.DANGER_GROUNDS.muster_barrows.refStep + 1 } } }));
+  tryRows('a band past the scale', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, muster_barrows: { ...d.DANGER_GROUNDS.muster_barrows, topStep: d.DANGER.stepMax + 1 } } }));
+  tryRows('a ground split over fewer kills than the ceiling', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, hasks_ford: { ...d.DANGER_GROUNDS.hasks_ford, refKillsHead: d.PAY.refKillsHead - 1 } } }));
+  /* a staged ground is judged, never served: the wings are in the data and out of the rows */
+  { const r = rowsOf(base); if (r.ground.some((g) => g.id.startsWith('catacomb_'))) bites.push('a staged ground was written to the catalogue'); }
   tryRows('a pay step no whole ppm', (d) => ({ PAY: { ...d.PAY, payStepXp: 0.0070001 } }));
   tryRows('a default stance that is no stance', () => ({ DEFAULT_RISK: 'reckless' }));
   /* the twin's pin is the engine's: a hand edit of the file's pins or the data is caught by --check, and the SQL twin by its self-check */
   const sql = buildSql(rowsOf(base));
   if (!/VERIFY\(c\)/.test(sql) || !/hr_danger_level_xp_max/.test(sql)) bites.push('the twins are not pinned');
   if (bites.length) { console.error('gen-danger --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-danger --selftest: 9 refusals bite');
+  console.log('gen-danger --selftest: 13 refusals bite, a staged ground stays out');
 }
 
 if (isMain(import.meta.url)) {

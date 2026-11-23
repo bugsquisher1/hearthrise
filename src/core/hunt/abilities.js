@@ -56,6 +56,8 @@ import { cheb, dist2, los } from './grid.js';
 import { makeEvent } from './events.js';
 import { landHit } from './damage.js';
 import { challengeable, challengeFrom, holderTank } from './targeting.js';
+import { roleOf as monsterRoleOf } from './monster-roles.js';
+import { MONSTER_ROLES } from '../../data/monster-roles.js';
 import { applyStatus, statusRow } from './status.js';
 import { levelOf } from '../xp.js';
 import { ammoPerShot } from '../ammo.js';
@@ -70,12 +72,15 @@ import { healTaken } from './heal-cut.js';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
-    ['shield', 'int'], ['shieldBy', 'int?'], ['markPm', 'int'], ['markUntil', 'int']]),
+    ['shield', 'int'], ['shieldBy', 'int?'], ['markPm', 'int'], ['markUntil', 'int'], ['lastMove', 'json']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
+/* THE BLOW A CAST OF `row` READS (the spell rule's M): the caster's own largest blow, or, for a move it BORROWS from another weapon, that
+   weapon's reference blow at its Level (src/core/borrow-blow.js; `borrowBlows`, written by the settle at every boundary, never persisted). */
+const blowOf = (u, row) => (u && u.borrowBlows && row && Number.isInteger(u.borrowBlows[row.id]) ? u.borrowBlows[row.id] : u && u.maxHit);
 const readyAt = (o, k) => (o && typeof o === 'object' && Number.isInteger(o[k]) ? o[k] : 0);
 /* (unit-index.js: frozen lists, read once a sub-step in a swing; a caller that reorders one copies it) */
 /* The living units on `u`'s side (sides.js): its allies, itself among them. In a hunt, the living heroes. */
@@ -106,11 +111,24 @@ function targetFor(inst, hero, h, row, sc, cx) {
   switch (row.target) {
     /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank. */
     case 'taunt': return challengeable(inst, hero).length ? hero : null;
+    /* THE MARK (23-spell-audit.md section 4): the hero's own target while it is unmarked, so the party's blows land on it; else the
+       healthiest in reach (a pull just begun), never one already marked */
     case 'mark': {
+      const own = near.find((m) => m.id === hero.target);
+      if (own && !(own.markUntil > sc.atMs)) return own;
       const t = near.slice().sort((a, b) => (int(b.hp) - int(a.hp)) || (a.id - b.id))[0];
       return t && !(t.markUntil > sc.atMs) ? t : null;
     }
-    case 'enemy': return near[0] || null;
+    /* A STRIKE THAT PICKS ITS MARK (`prefers`, monster roles: Precision Shot takes a Shooter, Caster or Stalker in reach first, the
+       bow's job of reaching the back row, 23 section 4); else, as every strike, the hero's own target, then the nearest. Off the Danger
+       scale no monster plays a role (monster-roles.js roleOf), so it is the hero's own target. */
+    case 'enemy': {
+      if (Array.isArray(row.prefers)) {
+        const picked = near.find((m) => { const r = monsterRoleOf(inst, m); return !!r && row.prefers.some((id) => MONSTER_ROLES[id] === r); });
+        if (picked) return picked;
+      }
+      return near[0] || null;
+    }
     case 'area': {
       if (cx && cx.aim && cx.aim.alive) return cx.aim;
       const b = bestAim(inst, hero, h.range, areaSpec(row).n, cx && cx.slot);
@@ -198,7 +216,7 @@ function runeFor(h, row, action) {
  * Null = no shot. Pure, and it reports no wait (pickSlot with no lane). The swing's own order and passes
  * (conditions.js attackOrder: carried stock first, the worn ammo ahead of the bar's other ammo, the store last).
  */
-function castShotOf(inst, hero, h) {
+function castShotOf(inst, hero, h, atMs) {
   const rows = slotsFor(h, 'attack');
   const order = attackOrder(rows.length ? rows : [DEFAULT_ATTACK_ROW]);
   const act = (own) => (slot) => {
@@ -207,7 +225,7 @@ function castShotOf(inst, hero, h) {
     const l = own ? ownShotLine(h, id) : shotLine(h, id);
     return l.id && !l.why ? { id } : null;
   };
-  const got = pickSlot(inst, hero, h, order, act(true)) || pickSlot(inst, hero, h, order, act(false));
+  const got = pickSlot(inst, hero, h, order, act(true), null, undefined, atMs) || pickSlot(inst, hero, h, order, act(false), null, undefined, atMs);
   return got ? got.pick.id : null;
 }
 
@@ -274,7 +292,7 @@ export function aloneIn(world, hero) {
 }
 
 /* The shell `row` lands from caster `u` at `pm` permille (abilities.js castAmount: a share of its own blow), 0 for a row that lays none. */
-const landsShield = (u, row, pm) => { const a = castAmount(row, u && u.maxHit, u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };
+const landsShield = (u, row, pm) => { const a = castAmount(row, blowOf(u, row), u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };
 
 /**
  * ARCANE BARRIER'S REFUND (Tyler 2026-10-23, from Andy's reports: it stays self-only, and recasting it while its
@@ -333,7 +351,7 @@ export function firstUsable(inst, hero, sc, only) {
     /* A slot whose supplies the purse cannot pay WAITS (gold_short) and the next slot is tried. It never
        ends the hunt from here: out of gold ends a hunt only for the action actually taken (Tyler 10-14),
        and a slot that cannot pay is never taken (fire() pays what this answered affordable). */
-    const s = suppliesFor(h, row, slot.action, row.ammo > 0 ? castShotOf(inst, hero, h) : null);
+    const s = suppliesFor(h, row, slot.action, row.ammo > 0 ? castShotOf(inst, hero, h, sc.atMs) : null);
     /* OUT OF RUNES, AND THE SLOT SAYS LEAVE (Tyler 2026-11-08): its turn came with none of its ticked runes left, so the hunt
        ends `runes_out` at the hero's next boundary (action-rules.js END_ORDER; a flag of the span, as goldOut), naming the spell. */
     if (s.why === 'runes_out' && typeof h.hs.runesOut !== 'string') h.hs.runesOut = row.id;
@@ -382,7 +400,7 @@ function effect(inst, u, row, t, sc, v) {
   const el = row.element || null;
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
   /* What a heal or a shell lands (abilities.js castAmount: a share of the caster's blow, Mend's of its max HP, at the cast's pm). */
-  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});
+  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blowOf(u, row), u.maxHp, pm) || {});
   /** @type {{ id: string, mult?: number, weakPm?: number }} */
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */
@@ -391,7 +409,7 @@ function effect(inst, u, row, t, sc, v) {
   const sg = !!(v && v.surge);
   /* One hit's roll: the row's share of the hero's own largest blow, never under its beginner's floor (abilities.js hitRange); the
      version's pm rides the hit's tag. */
-  const dmg = () => roll(sc, hitRange(u.maxHit, row));
+  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));
   /* ONE HIT OF THIS CAST on `m`: the blow (damage.js landHit), then what the row returns from it: its leech (leechBack), and for a row
      that gives mana back, the hit and the kill it counts (`v.back`). A row with neither does exactly the blow. */
   const back = v && v.back ? v.back : null;
@@ -405,7 +423,8 @@ function effect(inst, u, row, t, sc, v) {
      Sickness) reads neither. */
   const afflict = (m) => {
     if (!row.status) return;
-    const hit = Number.isInteger(u.maxHit) && u.maxHit > 0 ? u.maxHit : 1;
+    const own = blowOf(u, row);
+    const hit = Number.isInteger(own) && own > 0 ? own : 1;
     applyStatus(inst, m, statusRow(row.status), { u: u.id, maxHit: hit, runeTier: (v && v.version) || 1 }, sc);
   };
   switch (row.target) {
@@ -483,6 +502,9 @@ export function fire(inst, u, pick, sc) {
   const took = clockOf(u, row, sc.atMs);
   u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs }, took ? { [took]: sc.atMs + ABILITIES[took].cdMs } : {});
   u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
+  /* THE LAST MOVE (condition-metrics.js last_move: a rotation, "after Quarry Blow"): the row cast last on its lane and on any lane,
+     persisted with the world so a settle cut between two casts reads the same. */
+  u.lastMove = Object.assign({}, u.lastMove && typeof u.lastMove === 'object' ? u.lastMove : {}, { [row.lane]: row.id, any: row.id });
   /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. A rune
      spell names the rune it spent (`supply`, the analyzer's supply count), the version it cast and its power
      (permille of the row's numbers: a store rune's basic version is under 1000). */

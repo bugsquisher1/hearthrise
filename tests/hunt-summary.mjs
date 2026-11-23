@@ -617,6 +617,9 @@ async function runTests(M) {
     eq(steps({ blessings: said }).steps[3].words, 'Death XP loss −75% · Used up on death · Free until Level 30', 'Bless says what a Blessing does');
     eq(steps({ blessings: { ...said, tiers: said.tiers.map((x) => ({ ...x, price: 1000, held: x.tier === 1 })) }, purse: 5000 }).steps[3].words,
       'Death XP loss −75% · Used up on death · Cost: 2,000 gp', '...and what the ones not on cost');
+    /* ONE BLESSING (lane/level-costs, 2026-11-22): its row reads as a state, "Not blessed", never "Bless I" */
+    const one = steps({ blessings: { tiers: [{ tier: 1, price: 0, held: false, permille: 750 }], freeUntil: 30 } }).steps.find((s) => s.id === 'bless');
+    eq(one && [one.title, one.verb], ['Not blessed', 'Bless'], 'one Blessing reads Not blessed, its press Bless');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });

@@ -17,7 +17,7 @@
     "the change was intended. Never edit a hash by hand to make a build green —",
     "a red hash is the check working."
   ],
-  "generated": "2026-11-22",
+  "generated": "2026-11-23",
   "project": "nezapsylztqbbwuwembx",
   "postgres": {
     "production": "17.x",
@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3204,
+  "replay_ms": 18181,
   "counts": {
-    "tracked_names": 1066,
-    "entries": 891
+    "tracked_names": 1073,
+    "entries": 898
   },
   "functions": [
     {
@@ -1503,12 +1503,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "2fe73422b767f80ebb597d62fa817410",
-        "norm_len": 52242,
+        "md5": "406f0ad28ad568c64388d6e470d313da",
+        "norm_len": 53013,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1004-tick-pack-heroes.sql, 1032-approved-cuts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1032-approved-cuts.sql."
+      "why": "STAGED for the v0.2.144 release by 1004-tick-pack-heroes.sql, 1032-approved-cuts.sql, 1059-no-party-finder.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1059-no-party-finder.sql."
     },
     {
       "sig": "hr_backfill_lifetime_facts(p_user uuid)",
@@ -2352,6 +2352,7 @@
         "restate"
       ],
       "touched_by": [
+        "1062-store-step.sql",
         "2027-04-24-boss-call-series.sql"
       ],
       "live": {
@@ -2361,11 +2362,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "a816b2749c4f5b26c52f68e5ffad860d",
-        "norm_len": 2565,
+        "md5": "c9811ec831613c0b20191147c852f0fa",
+        "norm_len": 2799,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1062-store-step.sql."
     },
     {
       "sig": "hr_boss_call_quote(p_user uuid, p_slot integer, p_call text)",
@@ -4950,16 +4952,17 @@
         "restate"
       ],
       "touched_by": [
-        "1055-danger-scale-danger-catalogue.generated.sql"
+        "1055-danger-scale-danger-catalogue.generated.sql",
+        "1061-danger-grounds-danger-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "66013cbe25fb217e8be6b922c23299d6",
-        "norm_len": 882,
+        "md5": "199a40644437fe572ca4f4509142c5c6",
+        "norm_len": 884,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1055-danger-scale-danger-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql, 1061-danger-grounds-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1061-danger-grounds-danger-catalogue.generated.sql."
     },
     {
       "sig": "hr_danger_level_xp_max(p_level integer)",
@@ -4969,16 +4972,17 @@
         "restate"
       ],
       "touched_by": [
-        "1055-danger-scale-danger-catalogue.generated.sql"
+        "1055-danger-scale-danger-catalogue.generated.sql",
+        "1061-danger-grounds-danger-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "a09a6196e3ea257c03ae132f1f9e7322",
-        "norm_len": 756,
+        "md5": "8019684ea5bfe00ce679717480d034d1",
+        "norm_len": 758,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1055-danger-scale-danger-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql, 1061-danger-grounds-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1061-danger-grounds-danger-catalogue.generated.sql."
     },
     {
       "sig": "hr_danger_of(p_instance uuid)",
@@ -5026,7 +5030,8 @@
         "restate"
       ],
       "touched_by": [
-        "1056-danger-scale.sql"
+        "1056-danger-scale.sql",
+        "1062-store-step.sql"
       ],
       "live": null,
       "replay": {
@@ -6990,6 +6995,42 @@
       "agree": true
     },
     {
+      "sig": "hr_gold_estimate(p_hunt text, p_risk text, p_level integer)",
+      "name": "hr_gold_estimate",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-gold-estimate-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "678416e381644a4f14c97a0815b2a043",
+        "norm_len": 1343,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-gold-estimate-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-gold-estimate-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_gold_estimate_view(p_user uuid, p_slot integer)",
+      "name": "hr_gold_estimate_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-gold-estimate-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "193e91e6bd7c366f770d7866def8858b",
+        "norm_len": 1187,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-gold-estimate-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-gold-estimate-catalogue.generated.sql."
+    },
+    {
       "sig": "hr_gold_given_add(p_user uuid, p_slot integer, p_gold bigint)",
       "name": "hr_gold_given_add",
       "tracked_by": [
@@ -8180,6 +8221,7 @@
         "1005-lever-horizon.sql",
         "1053-hunt-report.sql",
         "1056-danger-scale.sql",
+        "1062-store-step.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-10-25-settle-hooks.sql",
         "2026-10-27-core-bodies.sql",
@@ -8209,12 +8251,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "d8d2ab7ea6312b260d6fdf89fb0bdd73",
-        "norm_len": 43455,
+        "md5": "3bfdce73fb36467541281c69c67a1dfb",
+        "norm_len": 44253,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1053-hunt-report.sql, 1056-danger-scale.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1056-danger-scale.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1053-hunt-report.sql, 1056-danger-scale.sql, 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1062-store-step.sql."
     },
     {
       "sig": "hr_hunt_bag_fuse()",
@@ -9141,6 +9183,7 @@
       "touched_by": [
         "1005-lever-horizon.sql",
         "1046-settle-plans.sql",
+        "1062-store-step.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-10-25-settle-hooks.sql",
         "2026-10-27-core-bodies.sql",
@@ -9156,12 +9199,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "91dc343798d496d43960df4f92baf090",
-        "norm_len": 3709,
+        "md5": "a3199320f8529e2eae94f7e290659803",
+        "norm_len": 4028,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1046-settle-plans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1046-settle-plans.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1046-settle-plans.sql, 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1062-store-step.sql."
     },
     {
       "sig": "hr_hunt_member_state(p_user uuid, p_slot integer)",
@@ -9879,8 +9922,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "e3517deaef68465bae54e6e0400313a2",
-        "norm_len": 3821,
+        "md5": "cc73af84580f8e193ff68a2744b727b2",
+        "norm_len": 5761,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -9899,8 +9942,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "e63872acc19c3f19a8a3d792352025b0",
-        "norm_len": 5303,
+        "md5": "afb7343b94a8e5666681f082d7e12363",
+        "norm_len": 6964,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -10349,6 +10392,7 @@
         "restate"
       ],
       "touched_by": [
+        "1062-store-step.sql",
         "2026-10-23-hunt-settings-options.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-10-25-action-conditions.sql",
@@ -10369,11 +10413,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "44178b8fc575c6501e63297228f17c52",
-        "norm_len": 12550,
+        "md5": "c1ea149d99b87961d303f110e809070a",
+        "norm_len": 12834,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1062-store-step.sql."
     },
     {
       "sig": "hr_hunt_settle_held(p_instance uuid, p_world_from bigint, p_first jsonb, p_answer jsonb)",
@@ -10434,6 +10479,7 @@
       "touched_by": [
         "1005-lever-horizon.sql",
         "1025-own-heroes-apart.sql",
+        "1062-store-step.sql",
         "2026-10-21-hunt-sessions.sql",
         "2026-10-22-hunt-sessions-settle.sql",
         "2026-10-23-hunt-supply-ledger.sql",
@@ -10459,12 +10505,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "c867e1b25a3f3fadb319cd90dd58a95d",
-        "norm_len": 23845,
+        "md5": "7fd4f5489c0fbe3a4273a22ac20039ea",
+        "norm_len": 24152,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1025-own-heroes-apart.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1062-store-step.sql."
     },
     {
       "sig": "hr_hunt_setup_hold()",
@@ -10968,12 +11014,66 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "ebc7a4de197ac868f9bda339c5337634",
-        "norm_len": 5703,
+        "md5": "8541275858fe99b428fb8c1a8134a383",
+        "norm_len": 6433,
         "source": "computed-from-replay"
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1053-hunt-report.sql, 1057-danger-falls.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1057-danger-falls.sql."
+    },
+    {
+      "sig": "hr_hunt_watch_gap()",
+      "name": "hr_hunt_watch_gap",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-watched-stamp.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7125fc1aa7c178e046188be2938abfd7",
+        "norm_len": 160,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-watched-stamp.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-watched-stamp.sql."
+    },
+    {
+      "sig": "hr_hunt_watch_note(p_user uuid, p_slot integer)",
+      "name": "hr_hunt_watch_note",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-watched-stamp.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "463b671addaee5296034a12a2d847fa3",
+        "norm_len": 2869,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-watched-stamp.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-watched-stamp.sql."
+    },
+    {
+      "sig": "hr_hunt_watch_view(p_user uuid, p_slot integer)",
+      "name": "hr_hunt_watch_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1060-watched-stamp.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a118507806d2ee12b7b211ae9277d4b8",
+        "norm_len": 674,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1060-watched-stamp.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1060-watched-stamp.sql."
     },
     {
       "sig": "hr_hunt_weapon_of(p_user uuid, p_slot integer)",
@@ -17153,6 +17253,45 @@
       "agree": true
     },
     {
+      "sig": "hr_store_price(p_basic text, p_step integer)",
+      "name": "hr_store_price",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1061-store-step-catalogue.generated.sql",
+        "1062-store-step.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "4cd6debb1cb70f5ce57582aae3a67b9e",
+        "norm_len": 1105,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1061-store-step-catalogue.generated.sql, 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1062-store-step.sql."
+    },
+    {
+      "sig": "hr_store_step(p_instance uuid, p_user uuid, p_slot integer)",
+      "name": "hr_store_step",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1062-store-step.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "3d671527ad007866894e60f8adba64a8",
+        "norm_len": 2167,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1062-store-step.sql."
+    },
+    {
       "sig": "hr_tally_accept(p_slot integer, p_task text, p_weight text, p_idem uuid)",
       "name": "hr_tally_accept",
       "tracked_by": [
@@ -20327,8 +20466,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "50e8fc02866d791cec92f6af2b48c446",
-        "norm_len": 731,
+        "md5": "8ca3be337415db71bdb00c2476010db4",
+        "norm_len": 732,
         "source": "computed-from-replay"
       },
       "agree": false,

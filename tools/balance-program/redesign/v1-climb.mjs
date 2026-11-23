@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/redesign/v1-climb.mjs — THE ROADMAP'S PROBE V1, ON THE REAL ENGINE (lane/v1-climb, 2026-11-21).
 //
-//   node tools/balance-program/redesign/v1-climb.mjs [--seeds 8] [--hours 12] [--workers 8] [--json <file>] [--only id,id]
+//   node tools/balance-program/redesign/v1-climb.mjs [--seeds 8] [--hours 12] [--workers 8] [--json <file>] [--only id,id] [--gear low|mid|bis]
 //
 // docs/design/redesign/05-roadmap.md stage 4, V1 "the climb": a four settles at a step, a small change in power moves that step, and a fall
 // back comes before a wipe on Careful and Steady. Every number is read off the engine's own `danger` events (src/core/hunt/danger.js: one
@@ -33,6 +33,9 @@ const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 &
 const SEEDS = Number(arg('seeds', 8)), HOURS = Number(arg('hours', 12)), WORKERS = Number(arg('workers', 8)), SETTLE_H = Number(arg('settle', 4));
 const GROUND = arg('ground', 'muster_barrows'), L = Number(arg('level', 60)), L2 = Number(arg('level2', 70)), ABOVE = Number(arg('above', 680));
 const ONLY = arg('only') ? arg('only').split(',') : null;
+/* --gear low|mid|bis (lane/r10): every cell's kit state (grid-kit.mjs), MID by default. A ground's band reads LOW at its entry Level (a fresh
+   company) and BIS at its top Level (a strong four): tools/balance-program/redesign/r10 */
+const KIT = arg('gear', 'mid');
 /* --styles a,b,c,d (lane/w2-roles-rows): the four's styles, seat by seat (progression-grid.mjs MAIN), in place of the matrix's mixed four */
 const STYLES = arg('styles') ? arg('styles').split(',') : ['hammer', 'bow', 'mage', 'healer'];
 const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bold'];
@@ -46,6 +49,7 @@ const D = await loadGridData(ROOT), K = await loadKits(ROOT);
    to the end of the four, as a multiple of the hours table at the Level it stood at mid-window (danger.js hoursForLevel), so the opening
    climb never counts. Off the danger log's clock: cell.mjs `trace` keeps Level XP and paid hours a window */
 const { hoursForLevel } = await imp('src/core/hunt/danger.js');
+const { BASIC_INDEX: BASICS } = await imp('src/data/supply-basics.js');
 const { charXpForLevel, charLevelFromXp } = await imp('src/core/xp.js');
 const PAY_FROM_H = Number(arg('pay-from', SETTLE_H));
 /* --candidate <id> (lane/r4): play a Lab candidate (tools/balance-program/candidates/<id>.json) on its scratch copy in place of the tree;
@@ -72,7 +76,7 @@ const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
-  const b = buildCell(D, K, { L: v.L, gear: 'mid', styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
+  const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}) });
   const start = startOf(id, v);
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true };
   cells.push({ id, variant: v.id, risk, L: v.L, start });
@@ -156,7 +160,16 @@ function readSeed(res, start) {
   const perHeroH = (k) => (heroH > 0 ? res.heroes.reduce((a, h) => a + ((h.raw && h.raw[k]) || 0), 0) / heroH : null);
   /* the loot by band (src/data/loot-bands.js) at the store's price, a hunted hero-hour (cell.mjs lootPerH, weighted by each hero's hours) */
   const bandPerHeroH = (b) => (heroH > 0 ? res.heroes.reduce((a, h) => a + ((h.lootPerH && h.lootPerH[b]) || 0) * (h.hours || 0), 0) / heroH : null);
+  /* THE KIT BY LINE (lane/econ-levers, 2026-11-22): the store bill a hunted hero-hour by what it bought (supply-basics.js kind: a heal is
+     a meal, a mana row a drink, a rune row a charge, an arrow or bolt a shot), from each hero's buys at the catalogue's price */
+  const kit = {}, kitIds = {};
+  for (const h of res.heroes) for (const [id, n] of Object.entries(h.buysPerH || {})) {
+    const b = BASICS[id] || {}, line = b.kind === 'heal' ? 'meal' : b.kind === 'mana' ? 'drink' : /_rune$/.test(id) ? 'charge' : 'shot';
+    kit[line] = (kit[line] || 0) + (heroH > 0 ? (n * (h.hours || 0) * (b.price || 0)) / heroH : 0);
+    kitIds[id] = (kitIds[id] || 0) + (heroH > 0 ? (n * (h.hours || 0)) / heroH : 0);
+  }
   return {
+    kit, kitIds,
     coinPerHeroH: perHeroH('coin'), incomePerHeroH: perHeroH('income'), storePerHeroH: perHeroH('store'),
     commonPerHeroH: bandPerHeroH('common'), uncommonPerHeroH: bandPerHeroH('uncommon'), scarcePerHeroH: bandPerHeroH('scarce'), otherPerHeroH: bandPerHeroH('other'),
     held: wt ? wsum / wt : null, halves: halves.map((x) => (x.t ? x.s / x.t : null)), timeAt, wt,
@@ -205,6 +218,9 @@ for (const c of cells) {
       const v = seeds.map((x) => x[k]).filter((x) => x !== null);
       return [k, { mean: r0(mean(v)), sd: r0(sd(v)), n: v.length }];
     })),
+    kit: ['meal', 'drink', 'charge', 'shot'].reduce((o, k) => ((o[k] = r0(mean(seeds.map((x) => x.kit[k] || 0)))), o), {}),
+    /* uses a hunted hero-hour of each store row */
+    kitIds: (() => { const o = {}; for (const x of seeds) for (const [id, n] of Object.entries(x.kitIds)) o[id] = (o[id] || 0) + n / seeds.length; return Object.fromEntries(Object.entries(o).map(([k, n]) => [k, r1(n)])); })(),
     deaths: seeds.reduce((a, x) => a + x.deaths, 0), wipes: seeds.filter((x) => x.wipe).length, seedsWithADeath: seeds.filter((x) => x.deaths > 0).length,
     huntedH: r1(mean(seeds.map((x) => x.huntedH))), fourH: r1(mean(seeds.map((x) => x.fourH))),
     firstDeathH: seeds.map((x) => r1(x.firstDeathH)).filter((x) => x !== null),
@@ -244,6 +260,8 @@ console.log('\npay from a held start (hour ' + PAY_FROM_H + ' to the four\'s end
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + String(c.payX.mean).padStart(5) + 'x  sd ' + c.payX.sd + '  n ' + c.payX.n + '  window ' + c.payX.windowH + ' h  seeds ' + c.payX.perSeed.join(' '));
 console.log('\ngold a hunted hero-hour over the whole hunt (coin; coin + loot at the store\'s price, no Rares; the store bill), mean +- sd over seeds');
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' L' + c.L + '  coin ' + c.gold.coinPerHeroH.mean + ' +- ' + c.gold.coinPerHeroH.sd + '  income ' + c.gold.incomePerHeroH.mean + ' +- ' + c.gold.incomePerHeroH.sd + '  store ' + c.gold.storePerHeroH.mean
+  + '  kit share ' + (c.gold.incomePerHeroH.mean ? Math.round((100 * c.gold.storePerHeroH.mean) / c.gold.incomePerHeroH.mean) / 100 : 'n/a')
+  + ' (meal ' + c.kit.meal + ', drink ' + c.kit.drink + ', charge ' + c.kit.charge + ', shot ' + c.kit.shot + ')'
   + '  loot by band: common ' + c.gold.commonPerHeroH.mean + ', uncommon ' + c.gold.uncommonPerHeroH.mean + ', scarce ' + c.gold.scarcePerHeroH.mean + ', other ' + c.gold.otherPerHeroH.mean + '  n ' + c.gold.coinPerHeroH.n);
 console.log('\npower moves (paired seeds): the held step at the changed power minus at base');
 for (const [k, m] of Object.entries(report.moves)) if (m) console.log('  ' + k.padEnd(16) + ' ' + String(m.mean).padStart(7) + ' steps (sd ' + m.sd + ', se ' + m.se + ', n ' + m.n + ')');

@@ -1,0 +1,24 @@
+
+V1 on catacomb_flooded_wing (4 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady         439 +- 0.7      0.3  54.9  89.7   33.5    3.5     0.6    154.5      0     0  3 (0/0/3)                       8  {"hold":5644,"climb":1609,"fall":158}
+high:steady       453.8 +- 2        0.3  43.4  74.6     28      3     0.6    151.1      0     0  2 (0/0/2)                       8  {"hold":5448,"climb":1660,"fall":140}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        1.31x  sd 0.01  n 4  window 8 h  seeds 1.3 1.31 1.3 1.32
+  high:steady        1.51x  sd 0.04  n 4  window 8 h  seeds 1.56 1.48 1.5 1.52
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L175  coin 49134 +- 226  income 51703 +- 201  store 5065  kit share 0.1 (meal 263, drink 277, charge 1149, shot 3375)  loot by band: common 1523, uncommon 843, scarce 0, other 204  n 4
+  high:steady       L185  coin 50378 +- 462  income 52965 +- 498  store 5088  kit share 0.1 (meal 309, drink 243, charge 1154, shot 3382)  loot by band: common 1545, uncommon 849, scarce 0, other 194  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+  high:steady         14.5 steps (sd 1.7, se 0.9, n 4)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.837  bow 0.044  mage 0.053  healer 0.066
+  high:steady       hammer 0.808  bow 0.05  mage 0.063  healer 0.078
+
+wall 44 s

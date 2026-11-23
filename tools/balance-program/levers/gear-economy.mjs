@@ -136,13 +136,31 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays Traits until wave 4'),
     ev: 'STATED (the Coordinator 2026-11-22: +2.5 / 4.5 / 6.5% gain, clean percents on the card)' }),
   L('gear.ground-tier', 'equipment', 'archetype', 'The base tier a scale ground drops', {
-    at: [at('src/data/danger.js', 'gearLevel: tierLevel(3)')],
+    at: [at('src/data/danger.js', "ladderTier: 5, traits: traitPool('muster_barrows')")],
     def: 'a scale ground drops ONE base item Level at every depth (Muster Barrows tier 3, item Level 60); depth raises only the Rare odds and the Trait rank',
     range: 'a whole tier (GS-5); the next ground\'s base is a tier up',
     touches: 'why a company moves on: the next ground\'s plain piece beats this ground\'s Rare base (12-targets 3.3)', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/gear-steps.mjs', 'GS-5 a whole tier and its pool']], testReads: ['DANGER_GROUNDS'],
-    perturb: NP('not-built', 'no drop table reads it yet (R10)'),
+    perturb: NP('not-built', 'read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step; no matrix RUN names a scale ground'),
     ev: 'STATED (Muster Barrows is a Level 55-75 ground)' }),
+  /* THE POWER LEDGER (lane/ledger-l1-l3, 19-power-ledger.md sections 1, 2 and 5 L1 and L3; Tyler 2026-11-22: the ramp only on what a hero
+     grows into, never on gear, Traits, Signatures or Temper) */
+  L('gear.trait-rank-gate', 'equipment', 'archetype', 'The highest Trait rank a ground rolls, by its entry Level', {
+    at: [at('src/data/danger.js', "traits: traitPool('muster_barrows'), entryLevel: 55 })")],
+    def: 'rank r rolls on a ground only if traitSteps[r-1] <= conditionalStepsMax x ramp(the ground\'s entry Level) (gear-steps.js maxRankAt): rank 1 from entry 40, rank 2 from 70, rank 3 from 100; entryLevel is the hunt\'s band floor; carry-over only onto the same slot at the same tier or higher (GEAR_STEPS.carryOver)',
+    range: 'entryLevel equal to its hunt\'s band floor (GS-5); the gate reads rampLevel',
+    touches: 'where a high-rank Trait can be found, so which ground a Trait hunter picks and what the market holds', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/gear-steps.mjs', 'GS-3 the rank gate and carry-over, GS-5 entryLevel and maxRank']], testReads: ['DANGER_GROUNDS', 'GEAR_STEPS'],
+    perturb: NP('not-built', 'no roller reads it until wave 4'),
+    ev: 'STATED (19-power-ledger.md section 2 rule 2)' }),
+  L('ledger.ramp-slices', 'equipment', 'global', 'The power ledger: the ramp and the slice caps', {
+    at: [at('src/data/power-ledger.js', 'rampLevel: 200,'), at('src/data/power-ledger.js', 'buildStepsMax: 14,'), at('src/data/power-ledger.js', 'consumableStepsMax: 6,'), at('src/data/power-ledger.js', 'temperStepsMax: 5,'), at('src/data/power-ledger.js', 'clanStepsMax: 4,')],
+    def: 'ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it',
+    range: 'rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5',
+    touches: 'how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/danger.mjs', 'ledger: the caps at Levels 10 to 400, the clamp, the power step']], testReads: ['POWER_LEDGER', 'LEDGER_SLICES'],
+    perturb: NP('not-built', 'no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4)'),
+    ev: 'STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)' }),
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {
@@ -158,12 +176,11 @@ export const GEAR_ECONOMY = [
   /* ── 17. CONSUMABLE COSTS AND EFFECTIVENESS ────────────────────────────────────────────────────────────────────────────────── */
   L('cons.store-supplies', 'consumables', 'content', 'Store food and drink: heal, mana and price', {
     at: [at('src/data/supply-basics.js', 'export const BASIC_SUPPLIES'), at('src/data/supply-basics.js', 'export const SUPPLY_SHOP_OFFERS')],
-    def: 'five store heals (Salted Shrimp 72 HP for 14 gold ... Salted Shark 396 for 693) and five drinks; the cooked twins sell back',
+    def: 'five store heals and six drinks, each heal or mana typed (three quarters of its crafted partner); every PRICE is derived (econ.store-kit: Salted Shrimp 7 ... Salted Shark 72, Thin Turnip Juice 9 ... Thin Emberfruit Cordial 238); the crafted twins\' price list follows it',
     range: 'whole; the basics are three quarters of their crafted partner (B1)',
     touches: 'the supply bill, the gold profit of every hard ground', out: [...GOLD, 'suppliesPerH', 'deathsPer1000h'], f: ['E18', 'E30'],
     tests: [['tests/supplies-catalogue.mjs', 'the basics and their partners']], testReads: ['BASIC_SUPPLIES', 'BASIC_EFFECT_SHARE'],
     perturb: P('the cells buy store food (storePerH)', 'healPrice'),
-    flags: [flag('redundant', 'Five hand prices, 0.19 to 1.75 gold a hit point, nine times apart, while coin a kill is a formula', '44 S-X02, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('cons.food-heal-scale', 'consumables', 'global', 'The food heal scale', {
     at: [at('src/data/core-model.js', 'export const FOOD_HEAL_SCALE = 12')],
@@ -182,8 +199,8 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('cons.rune-price', 'consumables', 'archetype', 'Store rune price by tier', {
     at: [at('src/data/supply-basics.js', 'export const STORE_RUNE_PRICE = ')],
-    def: '1, 8, 12, 28, 44 gold a rune by tier',
-    range: 'whole, rising',
+    def: 'the store\'s rune ladder by tier, DERIVED (econ.store-kit): 1 / 2 / 2 / 3 / 5 gold a cast (was the hand-typed 1 / 8 / 12 / 28 / 44)',
+    range: 'whole, never falling (B6)',
     touches: 'the caster\'s and the axes\' supply bill (Rend spends a 1 g rune a cast on the default bar)', out: GOLD, f: ['E18'],
     perturb: P(),
     flags: [flag('contradictory', 'A default bar that spends gold (Rend on the two-axe default)', '44 X-REND-DEFAULT, CONFIRMED')],
@@ -334,13 +351,13 @@ export const GEAR_ECONOMY = [
     perturb: NP('outside-hunt', 'a block is bought in town or mid-hunt, never by a cell; tools/balance-program/stamina-day.mjs models the day'),
     ev: 'MEASURED (lane/w-wage 2026-11-22, tools/balance-program/redesign/w/fit.mjs: the first block costs 2.0x the gross gold its 2 h pay on Steady at Levels 60, 63 and 70)' }),
   L('econ.wage-base', 'economy', 'global', 'The wage at step 0', {
-    at: [at('src/data/wage.js', 'wageBase: 3800,')],
+    at: [at('src/data/wage.js', 'wageBase: 12880,')],
     def: 'wage(step) = floor(wageBase x (1 + payStepCoin)^step) (src/core/wage.js): gold one reference hunted hero-hour pays (coin + loot at the store\'s price, no Rares)',
-    range: 'set so wage(60/63/70) meets the Steady four\'s pay on the Danger scale (pay / wage 0.99 to 1.01). SQL twin hr_wage (1058, generated)',
+    range: 'set so wage(60/63/70) meets the Steady four\'s pay on the Danger scale (pay / wage 0.99 to 1.01); it moves with the scale\'s coin level (danger.coin-level), never alone. SQL twin hr_wage (1058, generated)',
     touches: 'every price written in hours of wage: bought hunting and work blocks (at the hero\'s Level), 13-market V and fees (at depth, wave 4)', out: [], f: [],
     tests: [['tests/hunting-blocks.mjs', 'HB-WAGE: the server\'s wage is the JS wage at every step']], testReads: ['WAGE', 'wage'],
     perturb: NP('outside-hunt', 'a price, never read by a cell; tools/balance-program/redesign/w/fit.mjs reads it against the measured pay'),
-    ev: 'MEASURED (v1-climb.mjs, Muster Barrows, Steady, held start, 6 seeds x 8 h: 4,797 / 4,906 / 5,055 gold an hour at Levels 60 / 63 / 70)' }),
+    ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): 16,276 / 16,562 / 17,143 gold an hour at Levels 60 / 63 / 70 against wage 16,365 / 16,563 / 17,032 (0.99 / 1.00 / 1.01); was 4,797 / 4,906 / 5,055 at 3,800 (lane/w-wage)' }),
   L('econ.gold-estimate-risk', 'economy', 'global', 'A Risk\'s gold an hour against Steady, as the Hunts window estimates it', {
     at: [at('src/data/gold-estimate.js', 'riskPm: Object.freeze({ careful: 630, steady: 1000, bold: 1270 }),')],
     def: 'the Hunts window\'s "About N gold an hour, before supplies" on a scale ground = floor(wage(min(Level, band top)) x riskPm / 1000) to two figures (src/core/gold-estimate.js); Steady is 1000 by definition (the wage is a Steady hour)',
@@ -352,12 +369,31 @@ export const GEAR_ECONOMY = [
   L('econ.wage-step', 'economy', 'global', 'The wage\'s growth a step', {
     at: [at('src/data/wage.js', 'payStepCoin: 0.004,')],
     def: 'the wage grows (1 + payStepCoin) a step; a hero\'s Level is its step (levelStep), a good\'s band or item step is its depth',
-    range: '04 section 11: 0.2% to 0.5%. Not the engine\'s PAY.payStepCoin (0.7%, coin a Danger step deeper inside one ground); one number once bands are absolute (wave 2)',
-    touches: 'how prices in hours of wage grow with Level and depth', out: [], f: [],
+    range: '04 section 11: 0.2% to 0.5%. THE ONE COIN RATIO (lane/econ-levers 2026-11-22): the engine\'s depth coin inside a ground reads it too (src/core/hunt/danger.js dangerDial), the old PAY.payStepCoin 0.7% is retired',
+    touches: 'how prices in hours of wage grow with Level and depth, and how much more coin a pull pays a step deeper on the scale', out: GOLD, f: [],
     tests: [['tests/hunting-blocks.mjs', 'HB-WAGE: never falling, held at the last step']], testReads: ['WAGE', 'wage'],
     perturb: NP('outside-hunt', 'a price, never read by a cell; fit.mjs fits it'),
-    flags: [flag('contradictory', 'Two coin ratios a step: this one across grounds (0.4%) and the engine\'s depth pay inside one ground (0.7%); 04 means one', 'src/data/wage.js; 04 section 11')],
+    tests: [['tests/hunting-blocks.mjs', 'HB-WAGE: never falling, held at the last step'], ['tests/hunt-core/danger.mjs', 'scale: a pull\'s coin grows (1 + payStepCoin) a step'], ['tests/econ-levers.mjs', 'EL-COIN: no second coin ratio']], testReads: ['WAGE', 'wage', 'PAY'],
     ev: 'MEASURED (the Lab\'s pinned baseline, four on Normal on its own ground, Levels 20-400, fitted in logs weighted by the Level hours table: 0.39%)' }),
+  L('econ.store-kit', 'economy', 'global', 'The store\'s basics, priced in hours of wage', {
+    at: [at('src/data/store-kit.js', 'kitWork: 0.8,'), at('src/data/store-kit.js', 'townWageShare: 0.25,'), at('src/data/store-kit.js', 'storeCeiling: 1.5,'),
+      at('src/data/store-kit.js', 'lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),'), at('src/data/store-kit.js', 'refRestore: 12660,'), at('src/data/store-kit.js', 'refCharges: 1390,')],
+    def: 'every store row\'s gold a use is storePrice: storeShare (kitWork x townWageShare x storeCeiling = 0.3) x its line\'s share (meal or charge, 0.35) x wage(the buyer\'s store step: the hunt\'s depth on the Danger scale in the wage\'s unit, else the hero\'s Level; the row\'s own made-at step prices only its list price) x the use\'s share of what one reference hour burns of that line (refRestore HP and mana, refCharges shots and casts, the Steady four\'s mean at Level 60); never under the crafted partner\'s floor (a meal: its book a point / the buy-back, a charge: BASIC_AMMO_PREMIUM x its book, a rune 2 with a book) nor a whole gold',
+    range: '09-crafting.md 4.7: kitWork 0.5 to 1.2, townWageShare 0.15 to 0.35, storeCeiling 1.25 to 2.0; line shares 09 4.3. The reference rates are MEASURED (re-measure when the bar or the engine moves them). Target: a store-fed Steady four\'s kit takes 0.2 to 0.3 of its gross (04 section 11, 09 2.5)',
+    touches: 'every store price (the supply bill on every ground) and through the price list every crafted supply\'s shop bid', out: GOLD, f: ['E18'],
+    tests: [['tests/econ-levers.mjs', 'EL-PRICE, EL-KIT: every row derived, the Steady four\'s kit 0.2 to 0.3 of its pay'], ['tests/supplies-catalogue.mjs', 'B1, B3, B6'], ['tests/craft-wages.mjs', 'W-ROOM, W-RUNE, W-STEP']], testReads: ['STORE_KIT', 'storePrice', 'BASIC_SUPPLIES'],
+    perturb: P('the cells buy at the catalogue\'s price (storePerH)'),
+    /* (the 'contradictory' flag "priced once at the row's own step" is RESOLVED, lane/econ-followups 2026-11-22: a use is priced at the
+       buyer's store step on the server, 1062-store-step.sql; a row's own step prices only its list price) */
+    ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): the Steady four\'s kit 0.26 of its gross (4,168 of 16,276), Careful 0.22, Bold 0.28; was 2.04 (9,804 of 4,797) before' }),
+  L('econ.ammo-floor', 'economy', 'global', 'A store charge\'s floor under its crafted partner', {
+    at: [at('src/data/supply-basics.js', 'export const BASIC_AMMO_PREMIUM = 0.5;')],
+    def: 'a store shot or cast costs at least BASIC_AMMO_PREMIUM x its crafted partner\'s book value (the floor store-kit.js storePrice reads)',
+    range: '0.5: the shop bids at most half the store\'s list for the crafted partner, so the store stays above the bid and buying basics never prints gold (was 1: a mithril arrow\'s 4 g a shot was the bow\'s whole bill)',
+    touches: 'the Ranger\'s and the caster\'s store bill', out: GOLD, f: ['E18'],
+    tests: [['tests/supplies-catalogue.mjs', 'B1: a shot at least the premium x its partner\'s book'], ['tests/econ-levers.mjs', 'EL-PRICE']], testReads: ['BASIC_AMMO_PREMIUM'],
+    perturb: P(),
+    ev: 'was 1 before lane/econ-levers. MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): shots 1,519 and runes 969 gold a hero-hour of the Steady four at Level 60 (2 g a mithril arrow and an Etched rune)' }),
   L('econ.work-day', 'economy', 'global', 'A hero\'s daily town work', {
     at: [at('src/data/work-day.js', 'freeMin: 480,')],
     def: 'a hero\'s town work (a gathering job or a bench run) stops for the UTC day after freeMin minutes of it; the next day opens a fresh cap',

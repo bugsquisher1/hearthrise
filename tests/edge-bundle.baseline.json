@@ -268,6 +268,61 @@
         "bytes": 3324005,
         "on": "2026-11-22",
         "why": "40 hidden Traits (src/data/traits.js via gear-steps.js), +11,149 B, ships with the release edge deploy"
+      },
+      {
+        "bytes": 3338850,
+        "on": "2026-11-23",
+        "why": "econ levers: store-kit.js and supply-basics.js priced from the wage, the one coin ratio and the one-sided gear weight in the engine (+14,845 B)"
+      },
+      {
+        "bytes": 3341027,
+        "on": "2026-11-23",
+        "why": "watched stamp: viewed asks record the hero's numbers (+2,177 B)"
+      },
+      {
+        "bytes": 3353871,
+        "on": "2026-11-23",
+        "why": "lane/bar-metrics (Systems 2026-11-22): the Roads' four bar tests reach the engine (condition-metrics rows, conditions.js evaluators, a unit's lastMove) and the borrowed-blow seam (new core/borrow-blow.js, ~5 KB with its formula header; hunt-spawn borrowed, combat-sim syncUnit, abilities.js blowOf): +12,844 bytes, no new data module reached"
+      },
+      {
+        "bytes": 3372297,
+        "on": "2026-11-23",
+        "why": "R10: three grounds on the Danger scale (Hask's Ford, the two Catacomb wings), refKillsHead per ground, iL on scale drops"
+      },
+      {
+        "bytes": 3385050,
+        "on": "2026-11-23",
+        "why": "lane/ledger-l1-l3: the power ledger's clamp and slices (src/core/power-ledger.js, src/data/power-ledger.js) read by the power step, gear-steps.js maxRankAt and carry-over, re-raised on the merged set"
+      },
+      {
+        "bytes": 3393787,
+        "on": "2026-11-23",
+        "why": "L7+L10: coin a pull steps with power so gold/hr follows depth; heal/took/sup report counters"
+      },
+      {
+        "bytes": 3393871,
+        "on": "2026-11-23",
+        "why": "report.js ledgerWalk JSDoc type for close (typecheck-ratchet TS2339), +84 B"
+      },
+      {
+        "bytes": 3400399,
+        "on": "2026-11-23",
+        "why": "lane/moves-pass-1: the holder's line (danger.js marginPm, holderTank), Precision Shot's preferred roles and the Mark's own target (abilities.js targetFor), their data rows and measured notes"
+      },
+      {
+        "bytes": 3404831,
+        "on": "2026-11-23",
+        "why": "band floor: BAND_RULE and the re-cut bands in danger.js, traitRoll in gear-steps.js"
+      },
+      {
+        "bytes": 3409599,
+        "on": "2026-11-23",
+        "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
+      },
+      {
+        "bytes": 3409627,
+        "on": "2026-11-23",
+        "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
       }
     ]
   }

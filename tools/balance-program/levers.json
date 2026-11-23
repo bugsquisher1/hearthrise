@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "63a16b7f20138862",
+ "authored": "3f21c8e31483f1af",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 188,
+  "levers": 196,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -76,19 +76,19 @@
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 25,
+   "monster-stats": 27,
    "spawn": 11,
-   "monster-rewards": 14,
+   "monster-rewards": 16,
    "rare-drops": 6,
-   "equipment": 15,
+   "equipment": 17,
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
-   "economy": 33
+   "economy": 35
   },
   "byClass": {
-   "global": 86,
-   "archetype": 27,
+   "global": 92,
+   "archetype": 29,
    "content": 47,
    "exception-intentional": 17,
    "exception-accidental": 11
@@ -96,32 +96,32 @@
   "byPerturb": {
    "knob": 31,
    "not-playable:dead": 8,
-   "patch": 75,
+   "patch": 77,
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 19,
+   "not-playable:not-in-runs": 23,
    "variant": 5,
-   "not-playable:not-built": 11,
+   "not-playable:not-built": 13,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 77,
+   "asserted": 85,
    "mentioned only": 91,
    "none": 20
   },
   "flags": {
-   "redundant": 41,
+   "redundant": 40,
    "ineffective": 35,
-   "contradictory": 41
+   "contradictory": 40
   }
  },
  "census": {
-  "bindings": 668,
-  "typed": 15779,
-  "files": 229,
-  "lever": 286,
-  "notLever": 382,
+  "bindings": 679,
+  "typed": 15813,
+  "files": 233,
+  "lever": 292,
+  "notLever": 387,
   "unclaimed": 0
  },
  "problems": [],
@@ -2000,7 +2000,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 111,
+     "line": 114,
      "text": "export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal: 1000 });",
      "binding": "ABILITY_LANES"
     }
@@ -2096,10 +2096,11 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/spell-rule.mjs",
      "tests/hunt-core/tower-weapons-play.mjs",
      "tests/tower-chest.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2675,7 +2676,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 138,
+     "line": 143,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2761,7 +2762,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 140,
+     "line": 145,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2862,11 +2863,12 @@
      }
     ],
     "mentions": [
+     "tests/econ-levers.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/spell-rule.mjs",
      "tests/hunt-sessions-settle.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2898,7 +2900,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 208,
+     "line": 221,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -2939,11 +2941,11 @@
      "tests/balance-guard.mjs",
      "tests/boss-hall-advice.mjs",
      "tests/bug-triage.mjs",
+     "tests/content-coherence.mjs",
      "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/conditions.mjs",
-     "tests/hunt-core/effect-readers.mjs"
+     "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3244,7 +3246,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 335,
+     "line": 353,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3281,12 +3283,12 @@
      "tests/area-spells-server.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-hall-advice.mjs",
+     "tests/content-coherence.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs",
-     "tests/hunt-core/effect-readers.mjs",
-     "tests/hunt-core/elements.mjs"
+     "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4452,7 +4454,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 133,
+     "line": 138,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -4950,9 +4952,10 @@
     ],
     "mentions": [
      "tests/balance-sheet.mjs",
+     "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/monster-roles.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5220,7 +5223,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5606,7 +5609,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6169,7 +6172,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 41,
+    "mentionCount": 44,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6185,8 +6188,8 @@
     ],
     "today": {
      "table": "src/data/hunt-grounds.js HUNT_GROUNDS",
-     "rows": 15,
-     "carrying": 15,
+     "rows": 17,
+     "carrying": 17,
      "distinct": 3,
      "low": 32000,
      "high": 90000
@@ -6257,7 +6260,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 42,
+    "mentionCount": 45,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6275,14 +6278,14 @@
     "today": [
      {
       "table": "src/data/hunt-grounds.js HUNT_GROUNDS",
-      "rows": 15,
-      "carrying": 15,
-      "values": 195
+      "rows": 17,
+      "carrying": 17,
+      "values": 207
      },
      {
       "table": "src/data/hunts.js HUNTS",
-      "rows": 18,
-      "carrying": 75,
+      "rows": 20,
+      "carrying": 83,
       "distinct": 13,
       "low": 1,
       "high": 16
@@ -6299,13 +6302,13 @@
    "sites": [
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 509,
+     "line": 514,
      "text": "export const DENSITY_FULL_BOX = 8;",
      "binding": "DENSITY_FULL_BOX"
     },
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 513,
+     "line": 518,
      "text": "export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });",
      "binding": "DENSITY_PICK"
     }
@@ -6575,7 +6578,7 @@
    "sites": [
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 160,
+     "line": 163,
      "text": "export const GROUND_NODE_KINDS = Object.freeze({",
      "binding": "GROUND_NODE_KINDS"
     }
@@ -6628,7 +6631,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 75,
+     "line": 78,
      "text": "powerStep: 0.0035,",
      "binding": "DANGER"
     }
@@ -6678,16 +6681,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6706,19 +6709,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 76,
+     "line": 79,
      "text": "pullStep: 0.00175,",
      "binding": "DANGER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 78,
+     "line": 81,
      "text": "pullMax: 8,",
      "binding": "DANGER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 81,
+     "line": 84,
      "text": "stepMax: 4000,",
      "binding": "DANGER"
     }
@@ -6757,16 +6760,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6785,13 +6788,13 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 82,
+     "line": 85,
      "text": "readyPm: 800,",
      "binding": "DANGER"
     },
     {
      "file": "src/data/danger.js",
-     "line": 79,
+     "line": 82,
      "text": "respawnMs: 15000,",
      "binding": "DANGER"
     }
@@ -6833,16 +6836,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6861,7 +6864,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 83,
+     "line": 86,
      "text": "startMargin: 20,",
      "binding": "DANGER"
     }
@@ -6902,16 +6905,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6930,7 +6933,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 123,
+     "line": 212,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -6999,19 +7002,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 130,
+     "line": 219,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 131,
+     "line": 220,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 132,
+     "line": 221,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7069,18 +7072,87 @@
    "evidence": "MEASURED (V1.1, v2-stance.mjs)"
   },
   {
+   "id": "danger.holder-line",
+   "category": "monster-stats",
+   "name": "The holding tank's line",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 232,
+     "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
+     "binding": "HOLDER"
+    }
+   ],
+   "definition": "the lap's holding tank (targeting.js holderTank) reads every stance's fall back trigger and climb threshold times linePm / 1000 (Steady 20% and 36%); the pull's margin is the hero furthest under its own line, and a fall back names the HP it reached",
+   "range": "linePm 1..1000 permille, over the largest blow a tank takes (a line under it is a Steady death, RD-Q3 a). Tyler 2026-11-22 ruled 15% (600); MEASURED on Muster L60 with the Challenge on 60%: 600 and 700 let a Muster Knight kill the tank (4 and 5 in 144 h), 800 none in 288 h",
+   "touches": "how deep a four with a tank holds: the Challenge pulls every blow onto one hero, and read on the stance's own line the tank's dip broke the pull (23-spell-audit.md section 3: no Challenge held 63 steps deeper)",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "holder: the tank's line, the margin, the climb and the named HP",
+      "reads": [
+       "HOLDER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/auth-lock.mjs",
+     "tests/delta-key-allowlists.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/party-defense.mjs",
+     "tests/hunt-core/targeting.mjs",
+     "tests/hunt-live.mjs",
+     "tests/trophy-call-sites.mjs",
+     "tests/world-tick-armed-cap.mjs"
+    ],
+    "mentionCount": 12,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by spell-run.mjs (plan P) on the real engine",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h)"
+  },
+  {
    "id": "danger.pay",
    "category": "monster-rewards",
    "name": "Pay by depth",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 92,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });",
+     "line": 104,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });",
      "binding": "PAY"
     }
    ],
-   "definition": "a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground's reference step held to gapMax; coin is the roll x the pull's share x (1 + payStepCoin)^gap",
+   "definition": "a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground's reference step held to gapMax; coin is the roll x the pull's share x PAY.coinPm / 1000 x ((1 + WAGE.payStepCoin) x (1 + powerStep))^gap (danger.js COIN_STEP: a pull pays its own length back, so an HOUR a step deeper pays the one coin ratio, econ.wage-step); under the reference both read the pay floor",
    "range": "payStep = powerStep x a premium (04 section 7: 0.7% is a premium of two); refKillsHead the reference company's kills an hour a head at its reference step; gapMax 120 = at most 2.31x the table",
    "touches": "Level XP and coin an hour on the scale. MEASURED 2026-11-22 (2 seeds x 6 h, Muster): Steady at Level 60 0.72x the hours table over the hunt (the climb included), Bold 0.88x, Careful 0.28x; V1's row pay read ~22x",
    "outcomes": [
@@ -7117,12 +7189,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7135,18 +7207,85 @@
    "evidence": "MEASURED (refKillsHead: v1-climb.mjs base:steady 481 kills an hour), STATED (gapMax)"
   },
   {
-   "id": "danger.ref-step",
+   "id": "danger.coin-level",
    "category": "monster-rewards",
-   "name": "A ground's reference step",
+   "name": "The scale's coin level",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 117,
-     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
+     "line": 104,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });",
+     "binding": "PAY"
+    }
+   ],
+   "definition": "a scale kill's coin is its row's roll x coinPm / 1000, before the pull's share and the depth ratio (src/core/hunt/danger.js dangerDial)",
+   "range": "set TOGETHER with the store (econ.store-kit) and the wage (econ.wage-base): a whole-gold store use can price a Steady four's kit at 0.2 to 0.3 of its pay only where an hour pays about 16,000 gold at Level 60 (the old tier paid 12,776 there, the scale at 1000 paid 4,797). The server's coin bound reads it (hr_danger_grounds.coin_pm_max, 1055)",
+   "touches": "every coin a scale kill pays, and through the wage every price in hours of wage",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "scale: coin follows the step at the wage's ratio",
+      "reads": [
+       "PAY"
+      ]
+     },
+     {
+      "file": "tests/econ-levers.mjs",
+      "what": "EL-PAY, EL-KIT",
+      "reads": [
+       "PAY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/activity-seam.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
+     "tests/boss-call.mjs",
+     "tests/boss-hall.mjs",
+     "tests/cadence-recovery-floor.mjs"
+    ],
+    "mentionCount": 26,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): coin 13,324 a hero-hour at Level 60 on Steady (1,845 at 1000)"
+  },
+  {
+   "id": "danger.ref-step",
+   "category": "monster-rewards",
+   "name": "A ground's reference step, band and kill rate",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1055). The same row's floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground's band into DEPTHS for the player's \"Depth N of 20\": display only, the server reads refStep alone",
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) cut the ground's band into DEPTHS for the player's \"Depth N of 20\"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)",
    "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
    "touches": "the absolute pay on that ground (each step off it is payStepXp)",
    "outcomes": [
@@ -7175,13 +7314,16 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
      "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7189,6 +7331,12 @@
     "gap": "not-in-runs",
     "note": "played by the V1 probe only",
     "existingPatches": []
+   },
+   "rows": {
+    "what": "the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)",
+    "homes": [
+     "src/data/danger.js#DANGER_GROUNDS"
+    ]
    },
    "flags": [
     {
@@ -7200,14 +7348,69 @@
    "evidence": "MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)"
   },
   {
+   "id": "danger.band-rule",
+   "category": "monster-rewards",
+   "name": "How every ground's band is cut from its three Lab cells",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 188,
+     "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
+     "binding": "BAND_RULE"
+    }
+   ],
+   "definition": "tools/new-ground.mjs cuts a ground's band by it (tools/lib/danger-band.mjs bandFromReports): the floor (depth 1) is the fresh LOW four's lowest seed less floorUnder, down to floorTo; refStep the MID four to refTo; topStep the BIS four to topTo, held to refStep + PAY.gapMax",
+   "range": "whole steps. floorUnder 0 to one fall back (CLIMB.fallSteps): 0 opens a first hunt on its edge, a fall back under it the climb takes a pull or two to find",
+   "touches": "where depth 1 and depth 20 sit on every ground, so the depth a player reads, the Trait rank and Rare odds by depth, and the top where pay stops climbing",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract"
+   ],
+   "formulas": [
+    "P02"
+   ],
+   "reach": {
+    "feeds": 3,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/new-ground.mjs",
+      "what": "NG-1 and NG-3: every pinned band cuts back from its evidence, the floor under every fresh four",
+      "reads": [
+       "BAND_RULE"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/new-ground.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "a cut, not a play: tools/new-ground.mjs re-measures every ground with it",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/band-floor 2026-11-22, tools/new-ground.mjs --write, 8 seeds x 12 h, tools/balance-program/redesign/grounds): Muster Barrows' fresh four held 333 to 424 against R10's floor 480; the rule cuts 320"
+  },
+  {
    "id": "danger.pay-floor",
    "category": "monster-rewards",
    "name": "Pay floor under the reference step",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 92,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, payStepCoin: 0.007, gapMax: 120, floor: 0.5 });",
+     "line": 104,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400 });",
      "binding": "PAY"
     }
    ],
@@ -7236,7 +7439,14 @@
     "asserts": [
      {
       "file": "tests/hunt-core/danger.mjs",
-      "what": "pay: under the reference a kill pays the floor, never less",
+      "what": "pay: under the reference a kill pays the floor, never less, XP and coin",
+      "reads": [
+       "PAY"
+      ]
+     },
+     {
+      "file": "tests/econ-levers.mjs",
+      "what": "EL-STANCE: Careful 0.55 to 0.70 of Steady",
       "reads": [
        "PAY"
       ]
@@ -7247,12 +7457,12 @@
      "tests/activity-intent.mjs",
      "tests/activity-seam.mjs",
      "tests/artisan-accrual.mjs",
+     "tests/balance-guard.mjs",
      "tests/boss-call.mjs",
      "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7262,7 +7472,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt)"
+   "evidence": "MEASURED (lane/r9, v1-climb.mjs from a held start: tools/balance-program/redesign/r9/stance-held-L60.txt; lane/econ-levers re-measured with the coin level: tools/balance-program/redesign/econ/after-muster-L60.json)"
   },
   {
    "id": "danger.power-gear",
@@ -7271,9 +7481,9 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 106,
-     "text": "export const POWER = Object.freeze({ weightGearPm: 1000 });",
-     "binding": "PAY"
+     "line": 123,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });",
+     "binding": "POWER"
     }
    ],
    "definition": "on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped",
@@ -7323,16 +7533,15 @@
      }
     ],
     "mentions": [
-     "tests/accrual-engine.mjs",
-     "tests/activity-intent.mjs",
-     "tests/activity-seam.mjs",
-     "tests/artisan-accrual.mjs",
-     "tests/boss-call.mjs",
-     "tests/boss-hall.mjs",
-     "tests/cadence-recovery-floor.mjs",
-     "tests/character-window.mjs"
+     "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/leaderboard-server-source.mjs",
+     "tests/mutation-safety.mjs",
+     "tests/recipe-yield-guard.mjs",
+     "tests/town-works.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7413,9 +7622,10 @@
     ],
     "mentions": [
      "tests/balance-sheet.mjs",
+     "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/monster-roles.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7426,6 +7636,82 @@
    },
    "flags": [],
    "evidence": "MEASURED (lane/w2-roles-rows, v1-climb.mjs 8 seeds x 12 h a lineup, roles on and off)"
+  },
+  {
+   "id": "danger.power-gear-below",
+   "category": "monster-stats",
+   "name": "The power step under the ground's gear Level",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 123,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });",
+     "binding": "POWER"
+    }
+   ],
+   "definition": "one-sided: a gear part UNDER the ground's base item Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/hunt/danger.js gearSteps",
+   "range": "0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to",
+   "touches": "how far a company under the ground's gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster's base)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "power: a tier back moves the blow by the weight under the base, one-sided",
+      "reads": [
+       "POWER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/leaderboard-server-source.mjs",
+     "tests/mutation-safety.mjs",
+     "tests/recipe-yield-guard.mjs",
+     "tests/town-works.mjs"
+    ],
+    "mentionCount": 7,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe (candidates power-tier-back / power-tier-ahead)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows, Steady at Level 60 from a held start, 6 seeds x 12 h, held read from hour 6, paired against the tree: tools/balance-program/redesign/econ/gear-*-L60.json): a tier back -13.2 (se 3.5), a tier ahead +20.3 (se 5.3); at 1000 R9 read -65.2 / +20.8"
   },
   {
    "id": "reward.xp-line",
@@ -7889,7 +8175,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7959,7 +8245,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8080,7 +8366,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8199,7 +8485,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 108,
+    "mentionCount": 111,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8208,11 +8494,12 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "ch on scarce, rare, key and trophy rows, and the reforge patterns' boss drops",
+    "what": "ch on scarce, rare, key and trophy rows, the reforge patterns' boss drops, and the Catacomb wings' named-armor rate (catacomb-wings.js ARMOR_PM_KILL, STATED)",
     "homes": [
      "src/data/monsters.js#MONSTERS",
      "src/data/grounds/*/pack.js#default",
-     "src/data/patterns.js#PATTERNS"
+     "src/data/patterns.js#PATTERNS",
+     "src/data/catacomb-wings.js#ARMOR_PM_KILL"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -8613,10 +8900,11 @@
    "tests": {
     "asserts": [],
     "mentions": [
+     "tests/hunt-core/spell-rule.mjs",
      "tests/temper-buy.mjs",
      "tests/temper-uniques.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9078,7 +9366,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9125,7 +9413,7 @@
    "sites": [
     {
      "file": "src/data/items.js",
-     "line": 23,
+     "line": 24,
      "text": "export const ITEMS={",
      "binding": "ITEMS"
     }
@@ -9176,7 +9464,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9344,13 +9632,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 45,
+     "line": 53,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 46,
+     "line": 54,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -9398,10 +9686,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9420,7 +9709,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 49,
+     "line": 57,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -9467,10 +9756,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9489,31 +9779,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 55,
+     "line": 63,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 71,
+     "line": 86,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 72,
+     "line": 87,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 73,
+     "line": 88,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 74,
+     "line": 89,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -9560,10 +9850,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9647,13 +9938,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 58,
+     "line": 66,
      "text": "tradeSteps: Object.freeze([7, 13, 18]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 61,
+     "line": 69,
      "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
      "binding": "GEAR_STEPS"
     }
@@ -9700,10 +9991,11 @@
      }
     ],
     "mentions": [
+     "tests/content-coherence.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9722,8 +10014,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 117,
-     "text": "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows') }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -9769,23 +10061,195 @@
      }
     ],
     "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
      "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
     "gap": "not-built",
-    "note": "no drop table reads it yet (R10)",
+    "note": "read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step; no matrix RUN names a scale ground",
     "existingPatches": []
    },
    "flags": [],
    "evidence": "STATED (Muster Barrows is a Level 55-75 ground)"
+  },
+  {
+   "id": "gear.trait-rank-gate",
+   "category": "equipment",
+   "name": "The highest Trait rank a ground rolls, by its entry Level",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "rank r rolls on a ground only if traitSteps[r-1] <= conditionalStepsMax x ramp(the ground's entry Level) (gear-steps.js maxRankAt): rank 1 from entry 40, rank 2 from 70, rank 3 from 100; entryLevel is the hunt's band floor; carry-over only onto the same slot at the same tier or higher (GEAR_STEPS.carryOver)",
+   "range": "entryLevel equal to its hunt's band floor (GS-5); the gate reads rampLevel",
+   "touches": "where a high-rank Trait can be found, so which ground a Trait hunter picks and what the market holds",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/gear-steps.mjs",
+      "what": "GS-3 the rank gate and carry-over, GS-5 entryLevel and maxRank",
+      "reads": [
+       "DANGER_GROUNDS",
+       "GEAR_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/content-coherence.mjs",
+     "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/level-curve.mjs",
+     "tests/lineup-v4.mjs"
+    ],
+    "mentionCount": 10,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no roller reads it until wave 4",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (19-power-ledger.md section 2 rule 2)"
+  },
+  {
+   "id": "ledger.ramp-slices",
+   "category": "equipment",
+   "name": "The power ledger: the ramp and the slice caps",
+   "sites": [
+    {
+     "file": "src/data/power-ledger.js",
+     "line": 33,
+     "text": "rampLevel: 200,",
+     "binding": "POWER_LEDGER"
+    },
+    {
+     "file": "src/data/power-ledger.js",
+     "line": 34,
+     "text": "buildStepsMax: 14,",
+     "binding": "POWER_LEDGER"
+    },
+    {
+     "file": "src/data/power-ledger.js",
+     "line": 35,
+     "text": "consumableStepsMax: 6,",
+     "binding": "POWER_LEDGER"
+    },
+    {
+     "file": "src/data/power-ledger.js",
+     "line": 36,
+     "text": "temperStepsMax: 5,",
+     "binding": "POWER_LEDGER"
+    },
+    {
+     "file": "src/data/power-ledger.js",
+     "line": 37,
+     "text": "clanStepsMax: 4,",
+     "binding": "POWER_LEDGER"
+    }
+   ],
+   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it",
+   "range": "rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5",
+   "touches": "how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "ledger: the caps at Levels 10 to 400, the clamp, the power step",
+      "reads": [
+       "POWER_LEDGER"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/gear-steps.mjs",
+     "tests/hunt-core/danger.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no source writes a ledger row yet (Traits wave 4, talents L8, Temper L11, imbuements wave 4)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)"
   },
   {
    "id": "imbue.parts",
@@ -9865,18 +10329,18 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 97,
+     "line": 106,
      "text": "export const BASIC_SUPPLIES = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     },
     {
      "file": "src/data/supply-basics.js",
-     "line": 207,
+     "line": 243,
      "text": "export const SUPPLY_SHOP_OFFERS = Object.freeze([",
      "binding": "SUPPLY_SHOP_OFFERS"
     }
    ],
-   "definition": "five store heals (Salted Shrimp 72 HP for 14 gold ... Salted Shark 396 for 693) and five drinks; the cooked twins sell back",
+   "definition": "five store heals and six drinks, each heal or mana typed (three quarters of its crafted partner); every PRICE is derived (econ.store-kit: Salted Shrimp 7 ... Salted Shark 72, Thin Turnip Juice 9 ... Thin Emberfruit Cordial 238); the crafted twins' price list follows it",
    "range": "whole; the basics are three quarters of their crafted partner (B1)",
    "touches": "the supply bill, the gold profit of every hard ground",
    "outcomes": [
@@ -9907,16 +10371,16 @@
      }
     ],
     "mentions": [
+     "tests/account-gold.mjs",
      "tests/alpha-server.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/boss-hall-advice.mjs",
      "tests/craft-wages.mjs",
+     "tests/econ-levers.mjs",
      "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/conditions.mjs",
-     "tests/hunt-core/drop-tables.mjs",
-     "tests/hunt-core/fixtures/h4.js"
+     "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 19,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9929,13 +10393,7 @@
     ],
     "existingPatches": []
    },
-   "flags": [
-    {
-     "kind": "redundant",
-     "why": "Five hand prices, 0.19 to 1.75 gold a hit point, nine times apart, while coin a kill is a formula",
-     "ev": "44 S-X02, CONFIRMED"
-    }
-   ],
+   "flags": [],
    "evidence": "CONFIRMED (read)"
   },
   {
@@ -9993,7 +10451,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 62,
+     "line": 59,
      "text": "export const BASIC_EFFECT_SHARE = 0.75;",
      "binding": "BASIC_EFFECT_SHARE"
     }
@@ -10054,13 +10512,13 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 90,
-     "text": "export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 28, 44]);",
-     "binding": "STORE_RUNE_PRICE"
+     "line": 99,
+     "text": "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));",
+     "binding": "BASIC_AMMO_PREMIUM"
     }
    ],
-   "definition": "1, 8, 12, 28, 44 gold a rune by tier",
-   "range": "whole, rising",
+   "definition": "the store's rune ladder by tier, DERIVED (econ.store-kit): 1 / 2 / 2 / 3 / 5 gold a cast (was the hand-typed 1 / 8 / 12 / 28 / 44)",
+   "range": "whole, never falling (B6)",
    "touches": "the caster's and the axes' supply bill (Rend spends a 1 g rune a cast on the default bar)",
    "outcomes": [
     "netPerH",
@@ -10078,16 +10536,17 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/hunt-core/abilities.mjs",
+     "tests/econ-levers.mjs",
+     "tests/hunt-core/drop-tables.mjs",
      "tests/supplies-catalogue.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
-     "src/data/supply-basics.js: export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 28, 44]);"
+     "src/data/supply-basics.js: export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));"
     ],
     "existingPatches": []
    },
@@ -10295,7 +10754,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 114,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10355,13 +10814,13 @@
    "sites": [
     {
      "file": "src/data/supplies.js",
-     "line": 161,
+     "line": 162,
      "text": "export const BAG_TARGET_HOURS = 3;",
      "binding": "BAG_TARGET_HOURS"
     },
     {
      "file": "src/data/supplies.js",
-     "line": 169,
+     "line": 170,
      "text": "const BASE_BAG_GUIDES = Object.freeze({",
      "binding": "BASE_BAG_GUIDES"
     }
@@ -10460,7 +10919,7 @@
    "sites": [
     {
      "file": "src/data/party-class-xp.js",
-     "line": 54,
+     "line": 55,
      "text": "export const SOLO_XP_PM = 1150;",
      "binding": "SOLO_XP_PM"
     }
@@ -10519,7 +10978,7 @@
    "sites": [
     {
      "file": "src/data/party-class-xp.js",
-     "line": 79,
+     "line": 80,
      "text": "export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700]);",
      "binding": "PARTY_CLASS_XP"
     }
@@ -10963,11 +11422,12 @@
     ],
     "mentions": [
      "tests/alpha-server.mjs",
+     "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/drop-tables.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11223,13 +11683,13 @@
    "sites": [
     {
      "file": "src/data/wage.js",
-     "line": 39,
-     "text": "wageBase: 3800,",
+     "line": 47,
+     "text": "wageBase: 12880,",
      "binding": "WAGE"
     }
    ],
    "definition": "wage(step) = floor(wageBase x (1 + payStepCoin)^step) (src/core/wage.js): gold one reference hunted hero-hour pays (coin + loot at the store's price, no Rares)",
-   "range": "set so wage(60/63/70) meets the Steady four's pay on the Danger scale (pay / wage 0.99 to 1.01). SQL twin hr_wage (1058, generated)",
+   "range": "set so wage(60/63/70) meets the Steady four's pay on the Danger scale (pay / wage 0.99 to 1.01); it moves with the scale's coin level (danger.coin-level), never alone. SQL twin hr_wage (1058, generated)",
    "touches": "every price written in hours of wage: bought hunting and work blocks (at the hero's Level), 13-market V and fees (at depth, wave 4)",
    "outcomes": [],
    "formulas": [],
@@ -11251,10 +11711,14 @@
      }
     ],
     "mentions": [
+     "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
+     "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11264,7 +11728,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (v1-climb.mjs, Muster Barrows, Steady, held start, 6 seeds x 8 h: 4,797 / 4,906 / 5,055 gold an hour at Levels 60 / 63 / 70)"
+   "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): 16,276 / 16,562 / 17,143 gold an hour at Levels 60 / 63 / 70 against wage 16,365 / 16,563 / 17,032 (0.99 / 1.00 / 1.01); was 4,797 / 4,906 / 5,055 at 3,800 (lane/w-wage)"
   },
   {
    "id": "econ.gold-estimate-risk",
@@ -11322,15 +11786,18 @@
    "sites": [
     {
      "file": "src/data/wage.js",
-     "line": 41,
+     "line": 49,
      "text": "payStepCoin: 0.004,",
      "binding": "WAGE"
     }
    ],
    "definition": "the wage grows (1 + payStepCoin) a step; a hero's Level is its step (levelStep), a good's band or item step is its depth",
-   "range": "04 section 11: 0.2% to 0.5%. Not the engine's PAY.payStepCoin (0.7%, coin a Danger step deeper inside one ground); one number once bands are absolute (wave 2)",
-   "touches": "how prices in hours of wage grow with Level and depth",
-   "outcomes": [],
+   "range": "04 section 11: 0.2% to 0.5%. THE ONE COIN RATIO (lane/econ-levers 2026-11-22): the engine's depth coin inside a ground reads it too (src/core/hunt/danger.js dangerDial), the old PAY.payStepCoin 0.7% is retired",
+   "touches": "how prices in hours of wage grow with Level and depth, and how much more coin a pull pays a step deeper on the scale",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
    "formulas": [],
    "reach": {
     "feeds": 0,
@@ -11347,13 +11814,35 @@
        "WAGE",
        "wage"
       ]
+     },
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "scale: a pull's coin grows (1 + payStepCoin) a step",
+      "reads": [
+       "WAGE",
+       "wage",
+       "PAY"
+      ]
+     },
+     {
+      "file": "tests/econ-levers.mjs",
+      "what": "EL-COIN: no second coin ratio",
+      "reads": [
+       "WAGE",
+       "wage",
+       "PAY"
+      ]
      }
     ],
     "mentions": [
+     "tests/balance-calibration.mjs",
+     "tests/balance-guard.mjs",
+     "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunting-blocks.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11362,14 +11851,177 @@
     "note": "a price, never read by a cell; fit.mjs fits it",
     "existingPatches": []
    },
-   "flags": [
+   "flags": [],
+   "evidence": "MEASURED (the Lab's pinned baseline, four on Normal on its own ground, Levels 20-400, fitted in logs weighted by the Level hours table: 0.39%)"
+  },
+  {
+   "id": "econ.store-kit",
+   "category": "economy",
+   "name": "The store's basics, priced in hours of wage",
+   "sites": [
     {
-     "kind": "contradictory",
-     "why": "Two coin ratios a step: this one across grounds (0.4%) and the engine's depth pay inside one ground (0.7%); 04 means one",
-     "ev": "src/data/wage.js; 04 section 11"
+     "file": "src/data/store-kit.js",
+     "line": 52,
+     "text": "kitWork: 0.8,",
+     "binding": "STORE_KIT"
+    },
+    {
+     "file": "src/data/store-kit.js",
+     "line": 54,
+     "text": "townWageShare: 0.25,",
+     "binding": "STORE_KIT"
+    },
+    {
+     "file": "src/data/store-kit.js",
+     "line": 56,
+     "text": "storeCeiling: 1.5,",
+     "binding": "STORE_KIT"
+    },
+    {
+     "file": "src/data/store-kit.js",
+     "line": 58,
+     "text": "lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),",
+     "binding": "STORE_KIT"
+    },
+    {
+     "file": "src/data/store-kit.js",
+     "line": 60,
+     "text": "refRestore: 12660,",
+     "binding": "STORE_KIT"
+    },
+    {
+     "file": "src/data/store-kit.js",
+     "line": 61,
+     "text": "refCharges: 1390,",
+     "binding": "STORE_KIT"
     }
    ],
-   "evidence": "MEASURED (the Lab's pinned baseline, four on Normal on its own ground, Levels 20-400, fitted in logs weighted by the Level hours table: 0.39%)"
+   "definition": "every store row's gold a use is storePrice: storeShare (kitWork x townWageShare x storeCeiling = 0.3) x its line's share (meal or charge, 0.35) x wage(the buyer's store step: the hunt's depth on the Danger scale in the wage's unit, else the hero's Level; the row's own made-at step prices only its list price) x the use's share of what one reference hour burns of that line (refRestore HP and mana, refCharges shots and casts, the Steady four's mean at Level 60); never under the crafted partner's floor (a meal: its book a point / the buy-back, a charge: BASIC_AMMO_PREMIUM x its book, a rune 2 with a book) nor a whole gold",
+   "range": "09-crafting.md 4.7: kitWork 0.5 to 1.2, townWageShare 0.15 to 0.35, storeCeiling 1.25 to 2.0; line shares 09 4.3. The reference rates are MEASURED (re-measure when the bar or the engine moves them). Target: a store-fed Steady four's kit takes 0.2 to 0.3 of its gross (04 section 11, 09 2.5)",
+   "touches": "every store price (the supply bill on every ground) and through the price list every crafted supply's shop bid",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "E18"
+   ],
+   "reach": {
+    "feeds": 1,
+    "closure": 1
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/econ-levers.mjs",
+      "what": "EL-PRICE, EL-KIT: every row derived, the Steady four's kit 0.2 to 0.3 of its pay",
+      "reads": [
+       "STORE_KIT",
+       "storePrice",
+       "BASIC_SUPPLIES"
+      ]
+     },
+     {
+      "file": "tests/supplies-catalogue.mjs",
+      "what": "B1, B3, B6",
+      "reads": [
+       "BASIC_SUPPLIES"
+      ]
+     },
+     {
+      "file": "tests/craft-wages.mjs",
+      "what": "W-ROOM, W-RUNE, W-STEP",
+      "reads": [
+       "BASIC_SUPPLIES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/econ-levers.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "patch",
+    "note": "the cells buy at the catalogue's price (storePerH)",
+    "from": [
+     "src/data/store-kit.js: kitWork: 0.8,",
+     "src/data/store-kit.js: townWageShare: 0.25,",
+     "src/data/store-kit.js: storeCeiling: 1.5,",
+     "src/data/store-kit.js: lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),",
+     "src/data/store-kit.js: refRestore: 12660,",
+     "src/data/store-kit.js: refCharges: 1390,"
+    ],
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): the Steady four's kit 0.26 of its gross (4,168 of 16,276), Careful 0.22, Bold 0.28; was 2.04 (9,804 of 4,797) before"
+  },
+  {
+   "id": "econ.ammo-floor",
+   "category": "economy",
+   "name": "A store charge's floor under its crafted partner",
+   "sites": [
+    {
+     "file": "src/data/supply-basics.js",
+     "line": 66,
+     "text": "export const BASIC_AMMO_PREMIUM = 0.5;",
+     "binding": "BASIC_AMMO_PREMIUM"
+    }
+   ],
+   "definition": "a store shot or cast costs at least BASIC_AMMO_PREMIUM x its crafted partner's book value (the floor store-kit.js storePrice reads)",
+   "range": "0.5: the shop bids at most half the store's list for the crafted partner, so the store stays above the bid and buying basics never prints gold (was 1: a mithril arrow's 4 g a shot was the bow's whole bill)",
+   "touches": "the Ranger's and the caster's store bill",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "E18"
+   ],
+   "reach": {
+    "feeds": 1,
+    "closure": 1
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/supplies-catalogue.mjs",
+      "what": "B1: a shot at least the premium x its partner's book",
+      "reads": [
+       "BASIC_AMMO_PREMIUM"
+      ]
+     },
+     {
+      "file": "tests/econ-levers.mjs",
+      "what": "EL-PRICE",
+      "reads": [
+       "BASIC_AMMO_PREMIUM"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/econ-levers.mjs",
+     "tests/hunt-core/drop-tables.mjs",
+     "tests/supplies-catalogue.mjs"
+    ],
+    "mentionCount": 3,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "patch",
+    "from": [
+     "src/data/supply-basics.js: export const BASIC_AMMO_PREMIUM = 0.5;"
+    ],
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "was 1 before lane/econ-levers. MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): shots 1,519 and runes 969 gold a hero-hour of the Steady four at Level 60 (2 g a mithril arrow and an Etched rune)"
   },
   {
    "id": "econ.work-day",
@@ -13087,6 +13739,10 @@
    "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
   },
   {
+   "at": "src/core/borrow-blow.js#referenceBlow",
+   "why": "a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows"
+  },
+  {
    "at": "src/data/time-blocks.js#RULED",
    "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
   },
@@ -13141,6 +13797,14 @@
   {
    "at": "src/data/hunt-grounds.js#inRect",
    "why": "geometry"
+  },
+  {
+   "at": "src/data/catacomb-wings.js#WINGS",
+   "why": "each wing's rooms (pocket indexes into the Unmarked Catacombs' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms' monsters are the pack's rows"
+  },
+  {
+   "at": "src/data/catacomb-wings.js#weightsOf",
+   "why": "the pack convention's spawn weight: the head-count of a box at a pull of 4 (a hunts.js display weight)"
   },
   {
    "at": "src/data/statuses.js#slowAt",
@@ -13655,8 +14319,29 @@
    ],
    "bindings": 1
   },
+  "src/data/danger.js#DANGER_GROUNDS": {
+   "pin": "keys",
+   "keys": [
+    "entryLevel",
+    "floorStep",
+    "gearLevel",
+    "ladderTier",
+    "refKillsHead",
+    "refStep",
+    "topStep"
+   ],
+   "bindings": 1
+  },
   "src/data/patterns.js#PATTERNS": {
    "pin": "open",
+   "bindings": 1
+  },
+  "src/data/catacomb-wings.js#ARMOR_PM_KILL": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/hearthfind.js#HEARTHFIND_HOURS_MAX": {
@@ -15204,27 +15889,43 @@
    "typed": 6,
    "bindings": 1
   },
+  "src/data/danger.js#HOLDER": {
+   "pin": "count",
+   "keys": [
+    "linePm"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
   "src/data/danger.js#PAY": {
    "pin": "count",
    "keys": [
+    "coinPm",
     "floor",
     "gapMax",
-    "payStepCoin",
     "payStepXp",
     "refKillsHead"
    ],
    "typed": 5,
    "bindings": 1
   },
-  "src/data/danger.js#DANGER_GROUNDS": {
+  "src/data/danger.js#BAND_RULE": {
    "pin": "count",
    "keys": [
-    "floorStep",
-    "gearLevel",
-    "refStep",
-    "topStep"
+    "floorTo",
+    "floorUnder",
+    "refTo",
+    "topTo"
    ],
    "typed": 4,
+   "bindings": 1
+  },
+  "src/data/danger.js#POWER": {
+   "pin": "count",
+   "keys": [
+    "weightGearBelowPm"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/monster-roles.js#MONSTER_ROLES": {
@@ -15504,6 +16205,18 @@
    "typed": 32,
    "bindings": 1
   },
+  "src/data/power-ledger.js#POWER_LEDGER": {
+   "pin": "count",
+   "keys": [
+    "buildStepsMax",
+    "clanStepsMax",
+    "consumableStepsMax",
+    "rampLevel",
+    "temperStepsMax"
+   ],
+   "typed": 5,
+   "bindings": 1
+  },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {
    "pin": "count",
    "keys": [
@@ -15526,7 +16239,7 @@
    "keys": [
     "·"
    ],
-   "typed": 26,
+   "typed": 11,
    "bindings": 1
   },
   "src/data/supply-basics.js#SUPPLY_SHOP_OFFERS": {
@@ -15534,7 +16247,7 @@
    "keys": [
     "·"
    ],
-   "typed": 33,
+   "typed": 18,
    "bindings": 1
   },
   "src/data/core-model.js#FOOD_HEAL_SCALE": {
@@ -15553,12 +16266,12 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/supply-basics.js#STORE_RUNE_PRICE": {
+  "src/data/supply-basics.js#BASIC_AMMO_PREMIUM": {
    "pin": "count",
    "keys": [
     "·"
    ],
-   "typed": 4,
+   "typed": 1,
    "bindings": 1
   },
   "src/data/consumables.js#CONSUMABLE_RULES": {
@@ -15743,6 +16456,21 @@
     "careful"
    ],
    "typed": 2,
+   "bindings": 1
+  },
+  "src/data/store-kit.js#STORE_KIT": {
+   "pin": "count",
+   "keys": [
+    "buyback",
+    "charge",
+    "kitWork",
+    "meal",
+    "refCharges",
+    "refRestore",
+    "storeCeiling",
+    "townWageShare"
+   ],
+   "typed": 8,
    "bindings": 1
   },
   "src/data/work-day.js#WORK_DAY": {

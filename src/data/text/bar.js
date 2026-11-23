@@ -39,6 +39,7 @@ export const BAR_TEXT = Object.freeze({
   target_taunt: 'Taunts nearby monsters',
   target_mark: 'Marks the target',
   target_enemy: 'Hits the target',
+  target_prefers: 'Hits the target · First target: {roles}',
   target_area: 'Hits monsters around the target',
   /* a line says how long it is, a ring how far it reaches and how many it can hit (the area abilities: Raking Shot, Turning Cut) */
   target_line: 'Hits every monster on a {len}-tile line',
@@ -233,4 +234,19 @@ export const BAR_TEXT = Object.freeze({
   waste_mana: 'At {pct}%: only {missing} mana missing, {lost} of {amount} wasted',
   effect_food: 'Half now, rest over {secs} s · Cooldown: {lane} s',
   effect_drink: 'Half now, rest over {secs} s · Cooldown: {lane} s',
+  /* A CONDITION'S WORDS (src/shell/bar-draft.js conditionWords, conditionTip): whose effect, a yes/no denied, and the short label the
+     slot's hover title reads ("Target health below 30%", "Target Bleed stacks 3+", "Last move: Rend"). {label} is the test's
+     own label (src/data/condition-metrics.js tip), {unit} a percent's % or nothing. */
+  cond_who_target: 'my target',
+  cond_who_ally: 'the ally I would heal',
+  cond_is_not: 'is not',
+  cond_tip_lt: '{label} below {value}{unit}',
+  cond_tip_lte: '{label} at most {value}{unit}',
+  cond_tip_gt: '{label} above {value}{unit}',
+  cond_tip_gte: '{label} at least {value}{unit}',
+  cond_tip_eq: '{label} exactly {value}{unit}',
+  cond_tip_ne: '{label} not {value}{unit}',
+  cond_tip_count_plus: '{label} {value}+',
+  cond_tip_named: '{label}: {name}',
+  cond_tip_named_not: '{label}: not {name}',
 });

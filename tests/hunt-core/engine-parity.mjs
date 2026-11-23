@@ -123,7 +123,11 @@ const SEED = '-4611686018427387904';
    on a world with a stance, and no scenario plans one.
    RE-PINNED 2026-11-22 (lane/r2-danger-falls), THE STORED WORLD STRING ONLY: the world carries what a fall back names (danger.js PERSISTED
    world `lowHero`, `lowBy`: null and '' on every tier hunt). Diffed against the pin before: only the 4 x 12 `each` world hashes and the 4
-   chain world hashes moved; every timeline and tally hash and every kill count (207 / 486 / 139 / 104) held. No scenario plans a stance. */
+   chain world hashes moved; every timeline and tally hash and every kill count (207 / 486 / 139 / 104) held. No scenario plans a stance.
+   RE-PINNED 2026-11-22 (lane/bar-metrics), A UNIT'S lastMove ONLY: a hero carries the last ability it cast per lane (abilities.js PERSISTED,
+   the bar's last_move test), so the stored world, the timeline's unit book and the run's member summary moved. Compared against the base
+   tree with lastMove stripped (warrens-4, sewer-2): every settle's events, track, unit book and member share, and the run's totals, are
+   byte-identical; kills 207 / 486 / 139 / 104 held. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

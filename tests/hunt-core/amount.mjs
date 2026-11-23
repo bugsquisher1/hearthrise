@@ -84,12 +84,15 @@ const cases = {
     if (t.steps !== -up || w.steps !== 0) return 'armor and ward read ' + t.steps + ' and ' + w.steps + ' steps, not ' + -up + ' and 0';
     /* the split: a heavy piece spends more of its item Level on armor, a light one on ward, a medium one evenly */
     const sp = M.amountData.defenseSplit;
-    if (!(sp.heavy.armorPm > sp.heavy.wardPm && sp.light.wardPm > sp.light.armorPm && sp.medium.armorPm === sp.medium.wardPm)) return 'the armor and ward split is not heavy-armor, light-ward, medium-even';
+    if (!(sp.heavy.armorSteps > sp.heavy.wardSteps && sp.light.wardSteps > sp.light.armorSteps && sp.medium.armorSteps === sp.medium.wardSteps)) return 'the armor and ward split is not heavy-armor, light-ward, medium-even';
     const heavy = Object.keys(M.ITEMS).find((id) => M.ITEMS[id].slot === 'body' && M.ITEMS[id].armourClass === 'plate' && M.ITEMS[id].reqLv > 10);
     const light = Object.keys(M.ITEMS).find((id) => M.ITEMS[id].slot === 'body' && M.ITEMS[id].armourClass === 'cloth' && M.ITEMS[id].reqLv > 10);
     if (!heavy || !light) return 'CONTROL: no plate or cloth body piece';
     const dh = A.defenseGearPm({ body: heavy }, M.ITEMS), dl = A.defenseGearPm({ body: light }, M.ITEMS);
     if (!(dh.armorPm > dh.wardPm) || !(dl.wardPm > dl.armorPm)) return 'a plate body splits ' + JSON.stringify(dh) + ', a cloth one ' + JSON.stringify(dl);
+    /* in steps: the same plate 100 item Levels up keeps the same armor over ward (a share would grow) */
+    const W = M.dangerData.GEAR_STEPS.slotPm.body, lv = M.ITEMS[heavy].reqLv;
+    if (dh.armorPm - dh.wardPm !== W * (sp.heavy.armorSteps - sp.heavy.wardSteps) || dh.armorPm !== W * (lv + sp.heavy.armorSteps)) return 'a plate body\'s split is not its steps on its item Level: ' + JSON.stringify(dh);
     return null;
   },
   scale(M) {
@@ -208,7 +211,8 @@ const A = 'src/core/hunt/amount.js';
 const mutants = [
   { name: 'the gap never reaches the blow', case: 'slope', edits: [[A, '  const steps = Math.round(gap + cond);\n  const sp = AMOUNT.rollSpreadPm;\n  const roll = c.rng.int(', '  const steps = Math.round(cond);\n  const sp = AMOUNT.rollSpreadPm;\n  const roll = c.rng.int(']] },
   { name: 'armor and ward swapped', case: 'slope', edits: [[A, 'gearPm: int(ward ? u.wardPm : u.armorGearPm)', 'gearPm: int(ward ? u.armorGearPm : u.wardPm)']] },
-  { name: 'a heavy piece spends evenly', case: 'slope', edits: [['src/data/amount.js', 'heavy: Object.freeze({ armorPm: 1250, wardPm: 750 })', 'heavy: Object.freeze({ armorPm: 1000, wardPm: 1000 })']] },
+  { name: 'a heavy piece spends evenly', case: 'slope', edits: [['src/data/amount.js', 'heavy: Object.freeze({ armorSteps: 15, wardSteps: -15 })', 'heavy: Object.freeze({ armorSteps: 0, wardSteps: 0 })']] },
+  { name: 'the split is a share of the item Level', case: 'slope', edits: [['src/core/hunt/amount.js', '    armorPm += w * (itemLevelOf(it) + (split ? split.armorSteps : 0));', '    armorPm += Math.floor((w * itemLevelOf(it) * (split ? 1000 + 17 * split.armorSteps : 1000)) / 1000);']] },
   { name: 'the reference health read at the hero\'s Level for a blow at a monster', case: 'reference', edits: [[A, '(topBpOf(source) / 10000) * refHealth(L0);', '(topBpOf(source) / 10000) * refHealth(lvOf(source));']] },
   { name: 'pressure never read', case: 'reference', edits: [[A, 'base = c.mean * (AMOUNT.pressurePm / 1000) *', 'base = c.mean *']] },
   { name: 'a monster\'s blow at a hero read on the ground\'s Level alone', case: 'scale', edits: [[A, ' * (refHealth(L) / refHealth(L0));', ';']] },

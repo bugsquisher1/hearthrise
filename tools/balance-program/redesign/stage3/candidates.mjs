@@ -47,7 +47,9 @@ for (const L of [30, 60, 300, 3000]) {
       ...(d ? [{ file: 'src/core/hunt/amount.js', from: '  const L0 = refLevelOf(inst.ground);\n  return Math.max(1, Math.round((n * refMana(lvOf(u))) / refMana(L0)));', to: '  const L0 = 60;\n  return Math.max(1, Math.round((n * refMana(lvOf(u))) / refMana(L0)));' },
         { file: 'src/core/hunt/amount.js', from: '  const L0 = refLevelOf(inst.ground), L = lvOf(u);', to: '  const L0 = 60, L = lvOf(u);' }] : []),
       ...(d ? [{ file: 'src/core/hunt/danger.js', from: '  const each = 1000 * powStep(1 + DANGER.powerStep, s) * share;', to: '  const each = 1000 * powStep(1 + DANGER.powerStep, s) * share * ' + k + ';' },
-        { file: 'src/core/hunt/danger.js', from: '  return Number.isFinite(n) && n > 0 ? n : 0;', to: '  return Number.isFinite(n) && n > 0 ? Math.max(1, n + ' + d + ') : 0;' }] : [])],
+        /* (a piece Muster drops carries the moved row's gearLevel as its iL already, src/data/danger.js scaleItemLevels: only a reqLv moves) */
+        { file: 'src/core/hunt/danger.js', from: '  const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : it.reqLv)));',
+          to: '  const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : Math.max(1, it.reqLv + ' + d + '))));' }] : [])],
     assumptions: ['content (monster rows, item Levels, skills) moved to Level ' + L + ' as shares; the engine untouched'] });
 }
 /* the roll to hit off on today's Muster: the switch's own reading (27 K-2) */

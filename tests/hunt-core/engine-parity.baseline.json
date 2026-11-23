@@ -278,6 +278,75 @@
      "tally": "5278194c98ea"
     }
    ]
+  },
+  "muster-steps-4": {
+   "settles": 12,
+   "kills": 172,
+   "world": "f81437d82983",
+   "timeline": "a320fff89524",
+   "tally": "73103a9c1cb2",
+   "each": [
+    {
+     "world": "542040580777",
+     "timeline": "fd7aa211b682",
+     "tally": "acf354f764fe"
+    },
+    {
+     "world": "d197676b5026",
+     "timeline": "7866a2c2504b",
+     "tally": "c3996d24c059"
+    },
+    {
+     "world": "c5501fdd464a",
+     "timeline": "abc7d8d343c2",
+     "tally": "c19fd3516abd"
+    },
+    {
+     "world": "02f2741513d8",
+     "timeline": "74872bb602f4",
+     "tally": "088836ead25a"
+    },
+    {
+     "world": "e0cd4adc2243",
+     "timeline": "285f26cb6e79",
+     "tally": "16dc0e0dc26e"
+    },
+    {
+     "world": "13e2a5a38724",
+     "timeline": "8606f9a84c1f",
+     "tally": "a3031ed5f9a9"
+    },
+    {
+     "world": "2f9099da174f",
+     "timeline": "7acfe00b36df",
+     "tally": "44ede02bd407"
+    },
+    {
+     "world": "d6c2efd72e94",
+     "timeline": "43333e66d2aa",
+     "tally": "ff38457a44ec"
+    },
+    {
+     "world": "351719c0ed04",
+     "timeline": "dfd8318abfd8",
+     "tally": "0cfe6dee1359"
+    },
+    {
+     "world": "485a5f60f9c7",
+     "timeline": "5870ab4a793e",
+     "tally": "ef9041a28302"
+    },
+    {
+     "world": "12e1963dfc58",
+     "timeline": "4c504c7c6c5c",
+     "tally": "96b7de2103f5"
+    },
+    {
+     "world": "b84ae94826ec",
+     "timeline": "d181cd8bed83",
+     "tally": "b85d3e90907d"
+    }
+   ]
   }
  }
 }

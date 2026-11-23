@@ -105,8 +105,9 @@ export function stepsOf(mult) {
 /* a gain held to the conditional ceiling; a cost whole */
 const held = (n) => (n > CAP ? CAP : n);
 
-/** THE GEAR PART BY ARMOR WEIGHT (data/amount.js defenseSplit): { armorPm, wardPm }, each piece's item Level x its slot's weight x its weight's
-    split (a piece with no armor weight whole on both), thousandths. The gear part (danger.js gearPartPm) is their mean on a mixed kit. */
+/** THE GEAR PART BY ARMOR WEIGHT (data/amount.js defenseSplit): { armorPm, wardPm }, each piece's item Level plus its weight's split in
+    steps (heavy more armor and less ward, light the reverse, medium and a piece with no weight neither), x its slot's weight, thousandths.
+    ADDITIVE, so a heavy piece is the same steps of armor at item Level 30 and 3,000 (a share of the item Level would grow with it). */
 export function defenseGearPm(equipment, items) {
   const eq = equipment || {}, W = GEAR_STEPS.slotPm;
   const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
@@ -118,8 +119,8 @@ export function defenseGearPm(equipment, items) {
     const w = carried && slot === 'weapon' ? carried.reduce((a, s) => a + (W[s] || 0), 0) : carried && carried.includes(slot) ? 0 : W[slot];
     if (!it || !w) continue;
     const split = it.slot && ARMOUR_WEIGHT[it.armourClass] ? AMOUNT.defenseSplit[ARMOUR_WEIGHT[it.armourClass]] : null;
-    armorPm += Math.floor((w * itemLevelOf(it) * (split ? split.armorPm : 1000)) / 1000);
-    wardPm += Math.floor((w * itemLevelOf(it) * (split ? split.wardPm : 1000)) / 1000);
+    armorPm += w * (itemLevelOf(it) + (split ? split.armorSteps : 0));
+    wardPm += w * (itemLevelOf(it) + (split ? split.wardSteps : 0));
   }
   return { armorPm, wardPm };
 }

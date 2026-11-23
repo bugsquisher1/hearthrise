@@ -36,10 +36,12 @@
 //                  40 to 50% of a blow at the reference company (mitigation.js: a heavy front's absorb at its 60% cap, a medium back's 50%
 //                  dodge, a light back's ward under the cap); the chain is gone on the scale, and this one number puts the reference
 //                  company's damage taken back where it was. Stage 1's normalization (04 section 14) solves it by bisection on the engine
-//   defenseSplit   D-3, ARMOR AND WARD: an armor piece spends its item Level between the two defense ratings by its weight, permille of
-//                  its item Level: heavy mostly armor, light mostly ward, medium even (04 section 2, three rows). A blow with an element
-//                  (a spell, a necrotic or storm swing) reads ward; a plain blow reads armor. A piece with no weight (a weapon, jewelry, a
-//                  shield, a cape) counts whole on both
+//   defenseSplit   D-3, ARMOR AND WARD: an armor piece spends its item Level between the two defense ratings by its weight, in steps
+//                  added to its item Level on each: heavy more armor and less ward, light the reverse, medium even (04 section 2, three
+//                  rows). In STEPS, not a share of the item Level: a share grew with the item Level, so the same plate was 15 steps of armor
+//                  at item Level 60 and 75 at 300, and the scale test failed on it (MEASURED, stage3 scale cells). 15 is the share's size at
+//                  the reference (1.25 x 60). A blow with an element (a spell, a necrotic or storm swing) reads ward; a plain blow reads
+//                  armor. A piece with no weight (a weapon, jewelry, a shield, a cape) counts its item Level on both
 //   critBp         D-8: a critical blow is no longer a second roll. A hero's crit chance c (gear, sets, Keen) is worth its mean,
 //                  1 + c x (critMult - 1), as conditional steps in the gear slice (src/core/power-ledger.js, under conditionalStepsMax)
 // Every other D-8 multiplier (the weapon weakness, bane, an element's bonus, a mark, a slow, the hero's resistances, Tempering) is turned
@@ -54,8 +56,8 @@ export const AMOUNT = Object.freeze({
   blowTopBp: Object.freeze({ sword: 580, hammer: 740, axe: 595, ranged: 600, magic: 820, neutral: 580 }),
   pressurePm: 450,
   defenseSplit: Object.freeze({
-    heavy: Object.freeze({ armorPm: 1250, wardPm: 750 }),
-    medium: Object.freeze({ armorPm: 1000, wardPm: 1000 }),
-    light: Object.freeze({ armorPm: 750, wardPm: 1250 }),
+    heavy: Object.freeze({ armorSteps: 15, wardSteps: -15 }),
+    medium: Object.freeze({ armorSteps: 0, wardSteps: 0 }),
+    light: Object.freeze({ armorSteps: -15, wardSteps: 15 }),
   }),
 });

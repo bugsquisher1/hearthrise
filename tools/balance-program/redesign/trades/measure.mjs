@@ -39,7 +39,7 @@ const { WORK_DAY } = await imp('src/data/work-day.js');
 const { wage } = await imp('src/data/wage.js');
 const { BASIC_INDEX } = await imp('src/data/supply-basics.js');
 
-const FROM = resolve(ROOT, arg('from', 'tools/balance-program/redesign/econ/l10-after-muster.json'));
+const FROM = resolve(ROOT, arg('from', 'tools/balance-program/redesign/trades/lab-muster.json'));
 const SEEDS = Number(arg('seeds', 200));
 const HOUR = 3600000;
 const cat = T.tradeCatalogue();

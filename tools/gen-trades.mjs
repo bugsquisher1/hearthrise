@@ -172,7 +172,7 @@ export function buildSql(r) {
 -- WHAT (lane/trade-formulas, backend-architect, 2026-11-22; 09-crafting.md section 4, built in 4.8; 13-market.md section 3.2): the trades'
 -- catalogue and every formula the server needs to price, check and settle town work, so no number is typed twice.
 --   hr_trade_levers   1 row: the levers as whole numbers.
---   hr_trade_kinds    ${r.kinds.length} kinds (${shipped} ship in v0.3.0, ${r.kinds.length - shipped} later), rewritten whole: work in micro-hours (V's) and an attempt's own
+--   hr_trade_kinds    ${r.kinds.length} kinds (${shipped} ship in v0.3.0, ${r.kinds.length - shipped} later), upserted: work in micro-hours (V's) and an attempt's own
 --                     work, inputs { kind: n } and hunted inputs { stream: permille of an hour-unit }. A RECIPE is (kind, rung): rung r opens
 --                     at trade Level 1 + (r - 1) x ${L.rung_span} (${r.cat.recipes.length} recipes); its band is the job's.
 --   hr_trade_xp       ${r.xp.length} rows: XP (seconds of work) to reach each trade Level; ${Math.round(r.xp[98] / 3600)} hours to 99.
@@ -181,7 +181,7 @@ export function buildSql(r) {
 -- READERS: none yet. The job slice (09 section 6: the job row, its start and settle verbs, banded stacks) reads them; until it lands no
 -- verb, engine or client reads this file, and the live town work (hr_activities, the old rows) is untouched.
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
--- missing and their rows rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- missing and their rows upserted (a kind the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
 -- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-8): V anchors the job fee, the store's
 -- ask and bid and the market's bands once the job slice reads it.
@@ -229,15 +229,20 @@ comment on table public.hr_trade_kinds is '${OUT_NAME}: one row a kind of good, 
 comment on table public.hr_trade_xp is '${OUT_NAME}: the XP (seconds of work) to reach each trade Level (src/core/trades.js tradeXpTable).';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
-delete from public.hr_trade_levers;
+-- Upserted, never deleted and re-made: once the job slice points a row at a kind (a job, a stack), a catalogue change rewrites the kind
+-- in place, and dropping a kind something still holds is refused by its key rather than taken silently.
 insert into public.hr_trade_levers (id, ${cols.join(', ')}, power_step) values
-  (true, ${cols.map((c) => L[c]).join(', ')}, '${r.powerStep}'::float8);
-delete from public.hr_trade_kinds;
+  (true, ${cols.map((c) => L[c]).join(', ')}, '${r.powerStep}'::float8)
+on conflict (id) do update set ${[...cols, 'power_step'].map((c) => `${c} = excluded.${c}`).join(', ')};
 insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, final, work_uh, own_uh, inputs, hunted) values
-${kindRows};
-delete from public.hr_trade_xp;
+${kindRows}
+on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
+  ships = excluded.ships, rolls = excluded.rolls, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
+  inputs = excluded.inputs, hunted = excluded.hunted;
+delete from public.hr_trade_kinds where kind <> all (array[${r.kinds.map((k) => lit(k.id)).join(', ')}]);
 insert into public.hr_trade_xp (level, xp) values
-  ${xpRows};
+  ${xpRows}
+on conflict (level) do update set xp = excluded.xp;
 
 -- ── §3 THE TWINS (internal; src/core/trades.js, line for line) ───────────────
 create or replace function public.hr_trade_yield_pm(p_level int, p_r int, p_mastery boolean, p_bench_pm int)

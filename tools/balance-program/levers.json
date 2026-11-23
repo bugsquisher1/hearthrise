@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "ac104993a89728b2",
+ "authored": "4ff2d79e282c4861",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -12196,7 +12196,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (lane/trade-formulas, measure.mjs on the v1-climb reading: the labor ratio at a 10 h day 1.2 on the measured Steady L60 burn, 1.0 at the reference)"
+   "evidence": "MEASURED (lane/trade-formulas, v1-climb Muster Barrows, the mixed MID four, 6 seeds x 8 h at Levels 60 / 63 / 70, tools/balance-program/redesign/trades/lab-muster.json, priced by measure.mjs into measured.txt): the Steady four at Level 60 burns 1.14 meal-line and 1.07 charge kit-hours a hero-hour; the labor ratio of a 10 h day 1.09 (1.18 with tools), of the 6 h mix 0.66; 1.0 and 0.6 at the reference"
   },
   {
    "id": "econ.trade-curve",
@@ -12230,7 +12230,7 @@
    ],
    "definition": "for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up",
    "range": "09 4.4 and 4.7 (Masteries: three an account, CR-Q1 a). SQL twins hr_trade_yield_pm, hr_trade_fine_pm, hr_trade_master_pm, hr_trade_speed_pm (1063, generated, swept by TF-TWIN)",
-   "touches": "material waste on the newest rung (the XP route), the quality of made kit, the value of a work-hour (0.18 at Level 1 to 0.46 at 99 with a Mastery and a bench, hours of wage)",
+   "touches": "material waste on the newest rung (the XP route), the quality of made kit, the value of a work-hour (0.11 to 0.19 hours of wage at Level 1, 0.28 at 50 on the first rung, 0.46 at 99 with a Mastery and a bench: measured.txt)",
    "outcomes": [],
    "formulas": [],
    "reach": {
@@ -12386,7 +12386,7 @@
    ],
    "definition": "the store asks ceil(storeCeiling x V of the Plain good at the hero's band step less 20) for the meal and charge lines only, and bids floor(0.4 x V), at most 1 hour of wage an account a day",
    "range": "09 4.7: lagSteps 10 to 30 (one gear tier, GEAR_STEPS.tierSteps), floorShare 0.2 to 0.5, budget 0.5 to 2 hours; validate refuses a bid at or over the ask. SQL twins hr_trade_store_step, hr_trade_store_ask, hr_trade_store_bid (1063)",
-   "touches": "the supply bill on store basics (0.24 hours of wage a hunted hour at Steady L60, measured burn) and the floor's faucet (under 3% of minted coin)",
+   "touches": "the supply bill on store basics (0.215 hours of wage a hunted hour at Steady L60 on the measured burn) and the floor's faucet (0.88 hours of wage an account-day on the 6 h mix, 3.6% of minted coin, inside the 1 hour budget)",
    "outcomes": [],
    "formulas": [],
    "reach": {
@@ -12422,11 +12422,11 @@
    "flags": [
     {
      "kind": "contradictory",
-     "why": "The live store (econ.store-kit) still prices each basic at its crafted partner's own step and gives three quarters of its effect (82 steps behind, not 20): the formula's store is not yet the hunt's",
-     "ev": "tools/balance-program/redesign/trades/measure.mjs; COMPUTED"
+     "why": "The live store (econ.store-kit) prices a use at the buyer's step with no lag (lane/econ-followups) and gives three quarters of its crafted partner's effect (about 82 steps behind, not 20): the formula's store good, a tier behind in strength and price at once, is not yet the hunt's (wave 4)",
+     "ev": "src/data/store-kit.js header; tools/balance-program/redesign/trades/measure.mjs; COMPUTED"
     }
    ],
-   "evidence": "MEASURED (lane/trade-formulas, measure.mjs: the formula's store 0.218 of gross against the live store's 0.283 at Steady L60)"
+   "evidence": "MEASURED (lane/trade-formulas, measure.mjs on trades/lab-muster.json: the formula's store 0.211 of gross against the live store's 0.278 at Steady L60; Careful 0.197, Bold 0.219)"
   },
   {
    "id": "econ.tool-wear",

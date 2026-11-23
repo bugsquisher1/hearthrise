@@ -8,7 +8,7 @@
 -- WHAT (lane/trade-formulas, backend-architect, 2026-11-22; 09-crafting.md section 4, built in 4.8; 13-market.md section 3.2): the trades'
 -- catalogue and every formula the server needs to price, check and settle town work, so no number is typed twice.
 --   hr_trade_levers   1 row: the levers as whole numbers.
---   hr_trade_kinds    37 kinds (24 ship in v0.3.0, 13 later), rewritten whole: work in micro-hours (V's) and an attempt's own
+--   hr_trade_kinds    37 kinds (24 ship in v0.3.0, 13 later), upserted: work in micro-hours (V's) and an attempt's own
 --                     work, inputs { kind: n } and hunted inputs { stream: permille of an hour-unit }. A RECIPE is (kind, rung): rung r opens
 --                     at trade Level 1 + (r - 1) x 10 (350 recipes); its band is the job's.
 --   hr_trade_xp       99 rows: XP (seconds of work) to reach each trade Level; 1000 hours to 99.
@@ -17,7 +17,7 @@
 -- READERS: none yet. The job slice (09 section 6: the job row, its start and settle verbs, banded stacks) reads them; until it lands no
 -- verb, engine or client reads this file, and the live town work (hr_activities, the old rows) is untouched.
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
--- missing and their rows rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- missing and their rows upserted (a kind the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
 -- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-8): V anchors the job fee, the store's
 -- ask and bid and the market's bands once the job slice reads it.
@@ -88,10 +88,11 @@ comment on table public.hr_trade_kinds is '1063-trade-formulas-catalogue.generat
 comment on table public.hr_trade_xp is '1063-trade-formulas-catalogue.generated.sql: the XP (seconds of work) to reach each trade Level (src/core/trades.js tradeXpTable).';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
-delete from public.hr_trade_levers;
+-- Upserted, never deleted and re-made: once the job slice points a row at a kind (a job, a stack), a catalogue change rewrites the kind
+-- in place, and dropping a kind something still holds is refused by its key rather than taken silently.
 insert into public.hr_trade_levers (id, rung_count, rung_span, max_level, at_req_pm, no_fail_span, cap_pm, mastery_return_pm, bench_max_pm, fine_base_pm, fine_top_pm, master_top_pm, quality_steps, speed_at99_pm, xp_window, xp_floor_pm, job_fee_pm, town_wage_share_pm, store_ceiling_pm, store_lag, floor_share_pm, store_budget_pm, tool_ms, tool_life_rung_pm, tier_steps, power_step) values
-  (true, 10, 10, 99, 750, 15, 1250, 100, 100, 100, 600, 500, 5, 1250, 20, 250, 250, 250, 1500, 20, 400, 1000, 43200000, 250, 20, '0.0035'::float8);
-delete from public.hr_trade_kinds;
+  (true, 10, 10, 99, 750, 15, 1250, 100, 100, 100, 600, 500, 5, 1250, 20, 250, 250, 250, 1500, 20, 400, 1000, 43200000, 250, 20, '0.0035'::float8)
+on conflict (id) do update set rung_count = excluded.rung_count, rung_span = excluded.rung_span, max_level = excluded.max_level, at_req_pm = excluded.at_req_pm, no_fail_span = excluded.no_fail_span, cap_pm = excluded.cap_pm, mastery_return_pm = excluded.mastery_return_pm, bench_max_pm = excluded.bench_max_pm, fine_base_pm = excluded.fine_base_pm, fine_top_pm = excluded.fine_top_pm, master_top_pm = excluded.master_top_pm, quality_steps = excluded.quality_steps, speed_at99_pm = excluded.speed_at99_pm, xp_window = excluded.xp_window, xp_floor_pm = excluded.xp_floor_pm, job_fee_pm = excluded.job_fee_pm, town_wage_share_pm = excluded.town_wage_share_pm, store_ceiling_pm = excluded.store_ceiling_pm, store_lag = excluded.store_lag, floor_share_pm = excluded.floor_share_pm, store_budget_pm = excluded.store_budget_pm, tool_ms = excluded.tool_ms, tool_life_rung_pm = excluded.tool_life_rung_pm, tier_steps = excluded.tier_steps, power_step = excluded.power_step;
 insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, final, work_uh, own_uh, inputs, hunted) values
   ('ore', 'mining', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
   ('rune_stone', 'mining', 'gather', null, 1, 'v030', null, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
@@ -129,10 +130,14 @@ insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls
   ('tool_saw', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
   ('tool_chisel', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
   ('tool_graver', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb),
-  ('tool_mortar', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb);
-delete from public.hr_trade_xp;
+  ('tool_mortar', 'smithing', 'make', null, 2, 'later', 'life', true, 1084000, 150000, '{"haft":1,"bar":4}'::jsonb, '{}'::jsonb)
+on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
+  ships = excluded.ships, rolls = excluded.rolls, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
+  inputs = excluded.inputs, hunted = excluded.hunted;
+delete from public.hr_trade_kinds where kind <> all (array['ore', 'rune_stone', 'log', 'fish', 'grain', 'herb', 'bar', 'shaft', 'cut_stone', 'meal', 'drink', 'honing_stone', 'arrowhead', 'arrow', 'bolt', 'ward_charm', 'imbuement', 'draught', 'camp_pot', 'temper_kit', 'haft', 'rune_earth', 'rune_water', 'rune_fire', 'rune_ice', 'rune_poison', 'rune_rupture', 'tool_pick', 'tool_axe', 'tool_rod', 'tool_hoe', 'tool_knife', 'tool_hammer', 'tool_saw', 'tool_chisel', 'tool_graver', 'tool_mortar']);
 insert into public.hr_trade_xp (level, xp) values
-  (1, 0), (2, 2198), (3, 4494), (4, 6894), (5, 9402), (6, 12023), (7, 14762), (8, 17624), (9, 20615), (10, 23740), (11, 27006), (12, 30419), (13, 33985), (14, 37713), (15, 41607), (16, 45677), (17, 49931), (18, 54375), (19, 59020), (20, 63873), (21, 68945), (22, 74246), (23, 79784), (24, 85572), (25, 91621), (26, 97941), (27, 104547), (28, 111449), (29, 118662), (30, 126199), (31, 134076), (32, 142307), (33, 150909), (34, 159897), (35, 169290), (36, 179106), (37, 189364), (38, 200083), (39, 211284), (40, 222990), (41, 235222), (42, 248004), (43, 261362), (44, 275321), (45, 289909), (46, 305152), (47, 321082), (48, 337728), (49, 355124), (50, 373302), (51, 392298), (52, 412149), (53, 432894), (54, 454572), (55, 477225), (56, 500898), (57, 525636), (58, 551487), (59, 578502), (60, 606732), (61, 636233), (62, 667061), (63, 699277), (64, 732942), (65, 768122), (66, 804885), (67, 843303), (68, 883449), (69, 925402), (70, 969243), (71, 1015056), (72, 1062931), (73, 1112961), (74, 1165242), (75, 1219876), (76, 1276968), (77, 1336629), (78, 1398975), (79, 1464127), (80, 1532210), (81, 1603357), (82, 1677706), (83, 1755400), (84, 1836591), (85, 1921435), (86, 2010098), (87, 2102750), (88, 2199571), (89, 2300750), (90, 2406481), (91, 2516971), (92, 2632432), (93, 2753089), (94, 2879176), (95, 3010936), (96, 3148626), (97, 3292512), (98, 3442873), (99, 3600000);
+  (1, 0), (2, 2198), (3, 4494), (4, 6894), (5, 9402), (6, 12023), (7, 14762), (8, 17624), (9, 20615), (10, 23740), (11, 27006), (12, 30419), (13, 33985), (14, 37713), (15, 41607), (16, 45677), (17, 49931), (18, 54375), (19, 59020), (20, 63873), (21, 68945), (22, 74246), (23, 79784), (24, 85572), (25, 91621), (26, 97941), (27, 104547), (28, 111449), (29, 118662), (30, 126199), (31, 134076), (32, 142307), (33, 150909), (34, 159897), (35, 169290), (36, 179106), (37, 189364), (38, 200083), (39, 211284), (40, 222990), (41, 235222), (42, 248004), (43, 261362), (44, 275321), (45, 289909), (46, 305152), (47, 321082), (48, 337728), (49, 355124), (50, 373302), (51, 392298), (52, 412149), (53, 432894), (54, 454572), (55, 477225), (56, 500898), (57, 525636), (58, 551487), (59, 578502), (60, 606732), (61, 636233), (62, 667061), (63, 699277), (64, 732942), (65, 768122), (66, 804885), (67, 843303), (68, 883449), (69, 925402), (70, 969243), (71, 1015056), (72, 1062931), (73, 1112961), (74, 1165242), (75, 1219876), (76, 1276968), (77, 1336629), (78, 1398975), (79, 1464127), (80, 1532210), (81, 1603357), (82, 1677706), (83, 1755400), (84, 1836591), (85, 1921435), (86, 2010098), (87, 2102750), (88, 2199571), (89, 2300750), (90, 2406481), (91, 2516971), (92, 2632432), (93, 2753089), (94, 2879176), (95, 3010936), (96, 3148626), (97, 3292512), (98, 3442873), (99, 3600000)
+on conflict (level) do update set xp = excluded.xp;
 
 -- ── §3 THE TWINS (internal; src/core/trades.js, line for line) ───────────────
 create or replace function public.hr_trade_yield_pm(p_level int, p_r int, p_mastery boolean, p_bench_pm int)

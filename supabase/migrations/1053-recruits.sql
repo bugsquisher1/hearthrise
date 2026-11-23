@@ -37,10 +37,12 @@
 --      (no_character with no hero; recruits_taken with more than one hero or the mark written; recruits_not_ready + at + level under
 --      at_level) · then ALL OR NOTHING, in one subtransaction:
 --        the mark ('recruits'), and for each recruit: hr_create_character__as(slot, set) (the slot gate, the (user, slot) lock, the
---        6/hour creation budget, the practice set of its job worn, the hero kit once a slot, its own ledger row), its name (the player's,
+--        6/hour creation budget, the practice set of its job worn, the hero kit once a slot, a bow's shot loaded from that kit into its
+--        ammo slot (1038 THE SHOT, lane/recruits-ammo-talents 2026-11-23), its own ledger row), its name (the player's,
 --        refused name_taken + index when another hero or another account's display name holds it; else the first free name of
 --        hr_recruit_names in this account's order, single given names first; name_needed + index when none is free), the first hero's base
---        colours, its Level XP set to hr_char_xp_for_level(level) with the version bumped, its health set to its town max (hr_vitals_of),
+--        colours, its Level XP set to hr_char_xp_for_level(level) with the version bumped (while Talents are lit, 1069's standing rule
+--        spends the Level's points along the recruit's own job road on that write), its health set to its town max (hr_vitals_of),
 --        and ONE player_ledger row (kind admin, intent recruit, meta: level, from_xp 0, to_xp, set, first, named, key).
 --      Any refusal inside it unwinds every hero, name and the mark. The receipt { ok, level, heroes: [{ slot, name, set }] } is journalled
 --      in player_intents under the key; the answer adds `envelope`, the first hero's hr_state_of (rule 11: its `recruits` section is now null).

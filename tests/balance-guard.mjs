@@ -538,7 +538,8 @@ async function selftest(workers) {
   plant('a pace over the 2.5x cap: the four on Deadly x1.6 Level XP', (c) => firstClean(c, 'G3'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':four'].levelXpPerH *= 1.6; }, cal);
   plant('a stack over its cap: the gear pool +25% Level XP', (c) => firstClean(c, 'G10', (r) => /xp$/.test(r.at)), (J, r) => { const [p, seat] = r.at.split(' '); J.rows[seat + '-pool:' + p].levelXpPerH *= 1.25; });
   plant('a cost over the allowance: one more statement on every settle', (c) => firstClean(c, 'G16', (r) => r.at === 'ownfour'), (J) => { for (const f of Object.values(J.data.costIn.fixtures)) f.statements_a_settle += 1; }, { also: (c) => c.find((l) => l.id === 'G16').rows.filter((r) => r.status !== 'RED').map((r) => 'G16 ' + r.at) });
-  plant('Deadly loses gold: the Krell-kit four\'s store bill x4', (c) => firstClean(c, 'G8'), (J, r) => { J.rows['four-real:' + r.at].storePerH *= 4; }, cal);
+  /* RE-AIMED (lane/econ-levers: under the store's derived prices a bill x4 stayed inside the keep): the bill set past the four's gold in */
+  plant('Deadly loses gold: the Krell-kit four\'s store bill past its gold in', (c) => firstClean(c, 'G8'), (J, r) => { const x = J.rows['four-real:' + r.at]; x.storePerH = (1.25 * x.incomePerH) / (1 - GC.G8_OWN_SHARE); }, cal);
   plant('a ground pays less than the one before: the Glade\'s gold in under the Thicket\'s', (c) => firstClean(c, 'G7', (r) => pointOf(r.at) === 'glade'), (J) => { J.rows['ref:glade:lone'].incomePerH = J.rows['ref:thicket:lone'].incomePerH * 0.9; });
   plant('the lone hammer runs away: x1.3 Level XP', (c) => firstClean(c, 'G1'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':lone'].levelXpPerH *= 1.3; });
   plant('one way runs away alone: the bow x2 Level XP', (c) => firstClean(c, 'G2'), (J, r) => { J.rows['way:' + pointOf(r.at) + ':bow'].levelXpPerH *= 2; });

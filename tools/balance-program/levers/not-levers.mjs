@@ -61,7 +61,11 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)' },
   { at: 'src/data/work-day.js#WORK_BLOCK_RULED', why: 'Tyler\'s ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice' },
   { at: 'src/core/gold-estimate.js#roundAbout', why: 'display rounding of the Hunts window\'s gold estimate to two significant figures (a power of ten): no fight, purse or clock reads it' },
-  { at: 'src/core/work-day.js#*', why: 'calendar arithmetic of the work day (ms a UTC day, ms a minute, the YYYY-MM-DD fields, a window\'s days scanned): the hours are the levers (econ.work-day, econ.work-premium)' },
+  { at: 'src/core/trades.js#UH', why: 'a unit: micro-hours in an hour (the catalogue counts work in them)' },
+  { at: 'src/core/trades.js#HOUR_MS', why: 'a unit: ms in an hour' },
+  { at: 'src/core/trades.js#jobBound', why: 'the XP unit (worked ms x the XP factor permille over 10^6 is seconds of work): the rate is econ.trade-table' },
+  { at: 'src/data/trades.js#permille', why: 'the validator\'s float tolerance' },
+  { at: 'src/core/work-day.js#*', why:'calendar arithmetic of the work day (ms a UTC day, ms a minute, the YYYY-MM-DD fields, a window\'s days scanned): the hours are the levers (econ.work-day, econ.work-premium)' },
   /* player choice bounds and history */
   { at: 'src/data/hunt-sessions.js#SESSION_LIMITS', why: 'the hours a player may set a hunt to (1..24) and the bag lines shown' },
   { at: 'src/data/hunt-sessions.js#STAMINA_LOW_MIN', why: 'a low-stamina warning' }, { at: 'src/data/hunt-sessions.js#SESSIONS_KEPT', why: 'hunt history kept' },

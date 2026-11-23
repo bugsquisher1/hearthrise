@@ -142,6 +142,12 @@
         "gzipBytes": 914554,
         "on": "2026-11-22",
         "why": "40 hidden Trait rows reach town through danger.js -> gear-steps.js (re-export of traits.js); data only, nothing shown until wave 4 wires drops"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 914615,
+        "on": "2026-11-23",
+        "why": "visual pass 2: label rewrites on report, Risk, services, work and carry-on lines plus their style rules at town"
       }
     ]
   }

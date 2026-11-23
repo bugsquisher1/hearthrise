@@ -545,9 +545,80 @@ const BORDER_NODES = [
     effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),
 ];
 
+/* ── THE OTHER EIGHT BORDERS (17 section 6; game-designer, lane/roads-countries). A border's road leaves both countries' first move road
+   at crossroads I: its town, then its hybrid crossroads, then its hybrid vow. A town's move with no measured V0 (BORROW_VALUES null) is
+   shown and never lent until the Lab measures it; its other move works. Where 17 wrote a hybrid the engine cannot play, or one that
+   repeats a country's own option at no cost, it is re-written to one that joins the two countries ── */
+const useMove = (m) => opt('use_' + m, 'Use ' + MOVE_NAMES[m], 'Use ' + MOVE_NAMES[m] + ' with any weapon', [borrow(m)]);
+function border(a, b, moves, hybrid, vow) {
+  const id = 'border.' + a + '_' + b, C = [a, b];
+  return [
+    node({ id: id + '.town', kind: 'border', countries: C, after: [COUNTRY_ROADS[a][0] + '.x1', COUNTRY_ROADS[b][0] + '.x1'], n: 'Border town', options: moves.map(useMove) }),
+    node({ id: id + '.x', kind: 'hybrid', countries: C, after: [id + '.town'], n: 'Hybrid crossroads', needs: { crossroadsIn: C }, options: hybrid }),
+    node({ id: id + '.vow', kind: 'vow', countries: C, after: [id + '.x'], needs: { crossroadsIn: C }, n: vow.n, tip: vow.tip, effects: vow.effects }),
+  ];
+}
+const MORE_BORDERS = [
+  ...border('club', 'dual_axe', ['rend', 'turning_cut'],
+    [opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),
+      opt('crushing_cuts', 'Crushing Cuts', 'Rend: Armor Break 6 s', [react('rend_break', 'hit', 'status', { of: 'rend', status: 'armor_break' })]),
+      opt('heavy_bleed', 'Heavy Bleed', 'Bleed +15% damage', [mod('rend', { statusPm: 150 })])],
+    { n: 'Butcher', tip: 'Crits: Armor Break 6 s · +10% Rend mana cost',
+      effects: [react('butcher_break', 'crit', 'status', { status: 'armor_break' }), mod('rend', { manaPm: 100 })] }),
+  ...border('dual_axe', 'ranged', ['rend', 'raking_shot'],
+    [opt('barbed_arrows', 'Barbed Arrows', 'Hits: 1 Bleed stack · once per 4 s a target',
+      [react('barbed_bleed', 'hit', 'status', { status: 'bleed', clockMs: 4000, per: 'target' })], true),
+      opt('hamstring', 'Hamstring', 'Rend: Chill 2 s', [react('rend_chill', 'hit', 'status', { of: 'rend', status: 'chill', ms: 2000 })], 'solo'),
+      opt('skinners_draw', 'Skinner\'s Draw', 'Kills: +3% mana', [react('skinner_mana', 'kill', 'mana', { pm: 30 })])],
+    { n: 'Blood Trail', tip: 'Hits: 1 Bleed stack · once per 2 s a target · −3% damage dealt',
+      effects: [react('trail_bleed', 'hit', 'status', { status: 'bleed', clockMs: 2000, per: 'target' }), step('offense', -8, 'border.dual_axe_ranged.vow')] }),
+  ...border('ranged', 'destruction', ['hunters_mark', 'frost_lance'],
+    [opt('mana_arrows', 'Mana Arrows', 'Precision Shot +20% damage · +6 mana', [mod('precision_shot', { outPm: 200, mana: 6 })], true),
+      opt('frost_arrows', 'Frost Arrows', 'Flame Volley: Chill 2 s · −15% damage',
+        [react('volley_chill', 'hit', 'status', { of: 'flame_volley', status: 'chill', ms: 2000 }), mod('flame_volley', { outPm: -150 })]),
+      opt('hexed_arrows', 'Hexed Arrows', 'Precision Shot: Sapped 6 s · −10% damage',
+        [react('precision_sap', 'hit', 'status', { of: 'precision_shot', status: 'sapped' }), mod('precision_shot', { outPm: -100 })], 'party')],
+    { n: 'Spellbow', tip: 'Hits: Chill 2 s · once per 4 s a target · −3% damage dealt',
+      effects: [react('spellbow_chill', 'hit', 'status', { status: 'chill', ms: 2000, clockMs: 4000, per: 'target' }), step('offense', -8, 'border.ranged_destruction.vow')] }),
+  ...border('destruction', 'shield', ['hoarfrost', 'challenge'],
+    [opt('cold_shoulder', 'Cold Shoulder', 'Frost Slam: Weakened', [mod('frost_slam', { also: 'weakened' })], true),
+      opt('rime_plate', 'Rime Plate', 'Hit in melee: attacker Chilled 2 s · once per 6 s',
+        [react('rime_chill', 'hit_taken', 'status', { status: 'chill', ms: 2000, melee: true, clockMs: 6000 })], 'solo'),
+      opt('frozen_guard', 'Frozen Guard', 'After Hoarfrost: −3% damage taken for 4 s', [step('defense', 8, 'frozen_guard', 'cast:hoarfrost:4000')])],
+    { n: 'Winter Guard', tip: 'Hits: Sapped 4 s · once per 6 s a target · −3% damage dealt',
+      effects: [react('winter_sap', 'hit', 'status', { status: 'sapped', ms: 4000, clockMs: 6000, per: 'target' }), step('offense', -8, 'border.destruction_shield.vow')] }),
+  ...border('restoration', 'sword', ['circle_of_renewal', 'flame_strike'],
+    [opt('mending_strike', 'Mending Strike', 'Flame Strike heals the lowest-health ally for 25% of damage dealt',
+      [react('flame_mend', 'hit', 'heal', { of: 'flame_strike', pm: 250, to: 'lowest' })], true),
+      opt('mana_strike', 'Mana Strike', 'Power Strike hits: +2% mana', [react('power_mana', 'hit', 'mana', { of: 'power_strike', pm: 20 })]),
+      opt('second_strike', 'Second Strike', 'After Mend: +4% damage for 4 s', [step('offense', 11, 'second_strike', 'cast:mend:4000')], 'solo')],
+    { n: 'Mending Blade', tip: 'Hits: 8% of damage heals the lowest-health ally · −3% healing',
+      effects: [react('blade_mend', 'hit', 'heal', { pm: 80, to: 'lowest' }), mod('*heal', { outPm: -30 })] }),
+  ...border('sword', 'club', ['flame_strike', 'power_strike'],
+    [opt('tempered_strikes', 'Tempered Strikes', 'After Turning Cut: +3% damage for 3 s', [step('offense', 8, 'tempered_strikes', 'cast:turning_cut:3000')], true),
+      opt('cutting_weight', 'Cutting Weight', 'Turning Cut +15% damage · +2 mana', [mod('turning_cut', { outPm: 150, mana: 2 })]),
+      opt('iron_rhythm', 'Iron Rhythm', 'Turning Cut hits: +0.5% mana', [react('turn_mana', 'hit', 'mana', { of: 'turning_cut', pm: 5 })])],
+    { n: 'Smith\'s Arm', tip: 'After Turning Cut: +6.5% damage for 4 s · Power Strike +2 s cooldown',
+      effects: [step('offense', 18, 'smiths_arm', 'cast:turning_cut:4000'), mod('power_strike', { cdMs: 2000 })] }),
+  ...border('destruction', 'restoration', ['frost_lance', 'greater_mend'],
+    [opt('cold_mercy', 'Cold Mercy', 'Frost Lance heals the lowest-health ally for 20% of damage dealt',
+      [react('lance_mend', 'hit', 'heal', { of: 'frost_lance', pm: 200, to: 'lowest' })], true),
+      opt('sick_fire', 'Sick Fire', 'Fireball: Sick 6 s · −15% damage',
+        [react('fireball_sicken', 'hit', 'status', { of: 'fireball', status: 'sickness' }), mod('fireball', { outPm: -150 })], 'party'),
+      opt('still_water', 'Still Water', 'After Hoarfrost: +6% healing received for 4 s', [healIn(60, 'cast:hoarfrost:4000')])],
+    { n: 'Hedge Healer', tip: 'Mend +40% healing · also heals the lowest-health ally for 40% · −3% damage dealt',
+      effects: [mod('mend', { outPm: 400, alsoPm: 400, alsoPick: 'lowest' }), step('offense', -8, 'border.destruction_restoration.vow')] }),
+  ...border('sword', 'shield', ['turning_cut', 'challenge'],
+    [opt('pressing_guard', 'Pressing Guard', 'After Challenge: +4% damage for 4 s', [step('offense', 11, 'pressing_guard', 'cast:challenge:4000')], true),
+      opt('shield_wall', 'Shield Wall', 'While you hold a taunt: +3% damage', [step('offense', 8, 'shield_wall', 'taunting')]),
+      opt('covering_strike', 'Covering Strike', 'After Flame Strike: −3% damage taken for 4 s', [step('defense', 8, 'covering_strike', 'cast:flame_strike:4000')], 'solo')],
+    { n: 'Off Tank', tip: 'While you hold a taunt: −6% damage taken · −3% damage dealt',
+      effects: [step('defense', 17, 'off_tank', 'taunting'), step('offense', -8, 'border.sword_shield.vow')] }),
+];
+
 /** EVERY NODE, in map order (a node's `after` always names an earlier row). */
 export const TALENT_NODES = Object.freeze([...HEARTH_NODES, ...SHIELD_NODES, ...RESTORATION_NODES, ...SWORD_NODES, ...CLUB_NODES, ...AXE_NODES,
-  ...RANGED_NODES, ...DESTRUCTION_NODES, ...BORDER_NODES]);
+  ...RANGED_NODES, ...DESTRUCTION_NODES, ...BORDER_NODES, ...MORE_BORDERS]);
 
 /** The rows by id. */
 export const NODE_INDEX = Object.freeze(Object.fromEntries(TALENT_NODES.map((n) => [n.id, n])));

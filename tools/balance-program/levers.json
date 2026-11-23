@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c11ddcb0b3284f7a",
+ "authored": "b137ae9a21bb853f",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 753,
-  "typed": 17073,
+  "typed": 16820,
   "files": 260,
   "lever": 327,
   "notLever": 426,
@@ -2197,7 +2197,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 73,
+     "line": 80,
      "text": "export const GEAR_PROFILES = Object.freeze({",
      "binding": "GEAR_PROFILES"
     }
@@ -2271,7 +2271,7 @@
    "sites": [
     {
      "file": "src/data/library2-items.js",
-     "line": 242,
+     "line": 229,
      "text": "const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];",
      "binding": "AMMO_STR"
     },
@@ -3883,19 +3883,19 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 89,
+     "line": 99,
      "text": "plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 91,
+     "line": 101,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 92,
+     "line": 102,
      "text": "cloth: Object.freeze({ curve: 'defense', defB: 305, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),",
      "binding": "GEAR_PROFILES"
     },
@@ -4415,7 +4415,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 91,
+     "line": 101,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     }
@@ -7796,7 +7796,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 232,
+     "line": 244,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7865,26 +7865,26 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 239,
+     "line": 251,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 240,
+     "line": 252,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 241,
-     "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
+     "line": 253,
+     "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
    ],
    "definition": "a stance is its fall back trigger and its climb threshold, permille of max HP read on the lowest HP any hero reached in a pull; a death settles it one notch safer",
    "range": "fallPm < cleanPm <= 1000. RD-Q3 a: Careful and Steady never die, Bold is the only stance that can",
-   "touches": "where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day",
+   "touches": "where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day; Bold 80/300 since lane/tuning-pass (2026-11-23: on Muster Barrows formula monsters Bold at 120 died 0 to 0.17 a day and won every day; at 80 0.25 on Muster and 1.0 on Hask Ford, 8 seeds x 10 h; tools/balance-program/redesign/tuning/r2)",
    "outcomes": [
     "takenPerH",
     "healPerH",
@@ -7941,7 +7941,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 252,
+     "line": 271,
      "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
      "binding": "HOLDER"
     }
@@ -8001,7 +8001,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h)"
+   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md)"
   },
   {
    "id": "danger.pay",
@@ -8010,8 +8010,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 109,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400, payStepLoot: 0.004 });",
+     "line": 113,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.575, coinPm: 6100, payStepLoot: 0.004 });",
      "binding": "PAY"
     }
    ],
@@ -8077,8 +8077,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 109,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400, payStepLoot: 0.004 });",
+     "line": 113,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.575, coinPm: 6100, payStepLoot: 0.004 });",
      "binding": "PAY"
     }
    ],
@@ -8145,8 +8145,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 187,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'rows' }),",
+     "line": 199,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8219,7 +8219,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 208,
+     "line": 220,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8275,8 +8275,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 109,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400, payStepLoot: 0.004 });",
+     "line": 113,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.575, coinPm: 6100, payStepLoot: 0.004 });",
      "binding": "PAY"
     }
    ],
@@ -8348,8 +8348,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 133,
-     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 250 });",
+     "line": 141,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 750, weightSkillPm: 250 });",
      "binding": "POWER"
     }
    ],
@@ -9028,8 +9028,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 133,
-     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 250 });",
+     "line": 141,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 750, weightSkillPm: 250 });",
      "binding": "POWER"
     }
    ],
@@ -9105,8 +9105,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 133,
-     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 250 });",
+     "line": 141,
+     "text": "export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 750, weightSkillPm: 250 });",
      "binding": "POWER"
     }
    ],
@@ -9182,8 +9182,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 109,
-     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5, coinPm: 6400, payStepLoot: 0.004 });",
+     "line": 113,
+     "text": "export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.575, coinPm: 6100, payStepLoot: 0.004 });",
      "binding": "PAY"
     }
    ],
@@ -10619,36 +10619,36 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 54,
+     "line": 59,
      "text": "export const GEAR_CURVES = Object.freeze({",
      "binding": "GEAR_CURVES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 60,
+     "line": 67,
      "text": "export const GEAR_CURVE_TOP = 88;",
      "binding": "GEAR_CURVE_TOP"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 61,
+     "line": 68,
      "text": "export const GEAR_SCALE_STAT_PM = 500;",
      "binding": "GEAR_SCALE_STAT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 64,
+     "line": 71,
      "text": "export const GEAR_SLOT_PM = Object.freeze({",
      "binding": "GEAR_SLOT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 69,
+     "line": 76,
      "text": "export const GEAR_EVEN_SHARE_PM = 75;",
      "binding": "GEAR_EVEN_SHARE_PM"
     }
    ],
-   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground's base item Level to its own, so the power step carries the tier",
+   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), and two straight lines, guard (a shield: 3 at item Level 1 to 15 at 88) and jewel (a ring: 1 at 1 to 7 at 84; 28-named-pieces.md section 3), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground's base item Level to its own, so the power step carries the tier",
    "range": "coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels",
    "touches": "damage taken by gear state",
    "outcomes": [
@@ -10759,11 +10759,11 @@
     ],
     "today": {
      "table": "src/data/slot-ladders.js SLOT_ITEMS",
-     "rows": 29,
-     "carrying": 10,
-     "distinct": 7,
+     "rows": 28,
+     "carrying": 15,
+     "distinct": 8,
      "low": 1,
-     "high": 8
+     "high": 10
     }
    },
    "flags": [
@@ -10864,13 +10864,13 @@
    "sites": [
     {
      "file": "src/data/wave3-uniques.js",
-     "line": 9,
+     "line": 12,
      "text": "export const WAVE3_ITEMS = withGearStats({",
      "binding": "WAVE3_ITEMS"
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 131,
+     "line": 125,
      "text": "export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
      "binding": "SAMPLE"
     }
@@ -11096,7 +11096,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11104,7 +11104,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11197,19 +11197,19 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
-      "carrying": 399,
-      "distinct": 32,
+      "rows": 700,
+      "carrying": 370,
+      "distinct": 23,
       "low": 1,
-      "high": 95
+      "high": 88
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
-      "carrying": 194,
-      "distinct": 43,
+      "rows": 700,
+      "carrying": 184,
+      "distinct": 37,
       "low": 1,
-      "high": 120
+      "high": 90
      }
     ]
    },
@@ -11834,8 +11834,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 187,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'rows' }),",
+     "line": 199,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -11909,8 +11909,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 187,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'rows' }),",
+     "line": 199,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12309,25 +12309,25 @@
     },
     {
      "file": "src/data/talents.js",
-     "line": 222,
+     "line": 228,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 282,
+     "line": 288,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 300,
+     "line": 306,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 295,
+     "line": 301,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     }
@@ -13355,7 +13355,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13363,7 +13363,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 729,
+      "rows": 700,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -14274,8 +14274,8 @@
    "sites": [
     {
      "file": "src/data/gold-estimate.js",
-     "line": 23,
-     "text": "riskPm: Object.freeze({ careful: 630, steady: 1000, bold: 1270 }),",
+     "line": 27,
+     "text": "riskPm: Object.freeze({ careful: 760, steady: 1000, bold: 1190 }),",
      "binding": "GOLD_ESTIMATE"
     }
    ],
@@ -14423,14 +14423,14 @@
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 60,
-     "text": "refRestore: 12660,",
+     "line": 64,
+     "text": "refRestore: 16950,",
      "binding": "STORE_KIT"
     },
     {
      "file": "src/data/store-kit.js",
-     "line": 61,
-     "text": "refCharges: 1390,",
+     "line": 65,
+     "text": "refCharges: 1500,",
      "binding": "STORE_KIT"
     }
    ],
@@ -14491,8 +14491,8 @@
      "src/data/store-kit.js: townWageShare: 0.25,",
      "src/data/store-kit.js: storeCeiling: 1.5,",
      "src/data/store-kit.js: lineShare: Object.freeze({ meal: 0.35, charge: 0.35 }),",
-     "src/data/store-kit.js: refRestore: 12660,",
-     "src/data/store-kit.js: refCharges: 1390,"
+     "src/data/store-kit.js: refRestore: 16950,",
+     "src/data/store-kit.js: refCharges: 1500,"
     ],
     "existingPatches": []
    },
@@ -17608,15 +17608,11 @@
   "src/data/slot-ladders.js#SLOT_ITEMS": {
    "pin": "keys",
    "keys": [
-    "atkB",
     "critB",
-    "magicAtkB",
-    "magicStrB",
     "rangeAtkB",
     "rangeStrB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "v"
    ],
@@ -17641,11 +17637,8 @@
   "src/data/champions.js#CHAMPION_ITEMS": {
    "pin": "keys",
    "keys": [
-    "atkB",
-    "critB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "v"
    ],
@@ -17662,9 +17655,6 @@
   "src/data/library2-items.js#BANE_GEAR": {
    "pin": "keys",
    "keys": [
-    "magicStrB",
-    "rangeAtkB",
-    "rangeStrB",
     "reqLv",
     "tier",
     "v"
@@ -17753,20 +17743,14 @@
   "src/data/items.js#ITEMS": {
    "pin": "keys",
    "keys": [
-    "atkB",
     "critB",
-    "defB",
     "durationMs",
     "foodTier",
     "heals",
-    "magicAtkB",
-    "magicStrB",
     "magnitude",
-    "rangeAtkB",
     "rangeStrB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "toolSpeed",
     "toolTier",
@@ -19393,7 +19377,7 @@
     "c1",
     "c2"
    ],
-   "typed": 6,
+   "typed": 10,
    "bindings": 1
   },
   "src/data/gear-profiles.js#GEAR_CURVE_TOP": {
@@ -19450,26 +19434,17 @@
   "src/data/wave3-uniques.js#WAVE3_ITEMS": {
    "pin": "count",
    "keys": [
-    "atkB",
-    "critB",
-    "defB",
-    "magicAtkB",
-    "magicStrB",
-    "rangeAtkB",
-    "rangeStrB",
     "reqLv",
     "steadyPm",
-    "strB",
     "tier",
     "v"
    ],
-   "typed": 72,
+   "typed": 7,
    "bindings": 1
   },
   "src/data/special-attributes.js#SAMPLE": {
    "pin": "count",
    "keys": [
-    "critB",
     "mult",
     "physical",
     "pm",
@@ -19477,7 +19452,7 @@
     "tier",
     "v"
    ],
-   "typed": 19,
+   "typed": 16,
    "bindings": 1
   },
   "src/data/special-attributes.js#SPECIAL_ATTRIBUTES": {
@@ -19674,7 +19649,7 @@
     "windupSlowPm",
     "·"
    ],
-   "typed": 31,
+   "typed": 32,
    "bindings": 1
   },
   "src/data/talents.js#RESTORATION_NODES": {
@@ -19705,7 +19680,7 @@
     "stillRegenPm",
     "·"
    ],
-   "typed": 52,
+   "typed": 53,
    "bindings": 1
   },
   "src/data/talents.js#BORDER_NODES": {

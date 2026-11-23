@@ -5,7 +5,7 @@
 //
 // The store's prices, the wage, the scale's coin level and ratio, and the pay floor are one lever set: a Steady four's kit must take 0.2 to
 // 0.3 of what its hour pays, and that hour must pay about one hour of wage. These arms hold the set against the kept real-engine reading
-// (tools/balance-program/redesign/econ/after-muster-L60.json: the mixed MID four at Muster Barrows from a held start, 6 seeds x 8 h): a
+// (REPORT below: the mixed MID four at Muster Barrows, read from its held hours): a
 // price, the wage or the coin moved without re-measuring turns one red.
 //
 //   EL-PRICE    every store row's price is store-kit.js storePrice of its crafted partner: nothing typed
@@ -43,7 +43,9 @@ import { RUNE_TIERS, isRune, runeTierOf, versionLevel } from '../src/data/runes.
 import { SHOP_BUYBACK_RATE } from '../supabase/functions/hr-accrue/catalogue.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const REPORT = 'tools/balance-program/redesign/econ/after-muster-L60.json';
+/* the kept reading since the tuning pass (lane/tuning-pass, 2026-11-23, 29-tuning-pass.md): Muster Barrows on its monster formula, the
+   amount pipeline, floor 0.575, coinPm 6100, 8 seeds x 10 h from step 0, held from hour 4 (tools/balance-program/redesign/tuning/matrix.sh) */
+export const REPORT = 'tools/balance-program/redesign/tuning/final/c0-muster-ref.json';
 /* the kept reading's ground (its cells' held steps are this ground's own Danger steps) */
 const MUSTER = 'muster_barrows';
 const KIT_BAND = [0.2, 0.3], KIT_OTHER_MAX = 0.33, PAY_BAND = [0.75, 1.33], STEADY_PAY = [0.95, 1.05], CAREFUL_XP = [0.55, 0.7];

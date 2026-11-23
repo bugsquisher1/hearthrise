@@ -338,8 +338,8 @@ for (const [item, why] of [['not_a_real_item_id', 'an unknown item id'], ['bone_
 {
   await as(UID);
   const r = await attempt(`insert into public.market_listings (seller_user_id, seller_slot, seller_name, item_id, qty, ask_each)
-                            values ('${UID}', 3, 'x', 'abyssal_greaves', 5, 999999)`);
-  if (r.ok) pass('M1 STILL OPEN (expected): 5x abyssal_greaves listed while owning zero. This migration does not fix M1; market-v2 does.');
+                            values ('${UID}', 3, 'x', 'dawnforged_signet', 5, 999999)`);
+  if (r.ok) pass('M1 STILL OPEN (expected): 5x dawnforged_signet listed while owning zero. This migration does not fix M1; market-v2 does.');
   else fail(`M1 appears to be fixed (${r.code} ${r.message}) — if that is intentional, update this test AND the migration header, `
           + 'which currently states in writing that M1 is unmitigated.');
 }

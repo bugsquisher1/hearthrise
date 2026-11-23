@@ -4,7 +4,8 @@
 // docs/design/redesign/04-math-strategy.md section 10 ("a base is an item Level ... no variance in the base"), 02-architecture.md package
 // 2, src/data/gear-steps.js. The levers are src/data/gear-profiles.js; its header holds the formula in one line:
 //
-//   stat k  =  profile[k] x share(slot) x budget(curve, item Level) x rarityPm / 10^9,   then statPlus[k] for a named piece
+//   stat k  =  profile[k] x share(slot) x budget(curve, item Level) x rarityPm / 10^9   (a named piece too: no row carries an offset,
+//                                                                                        docs/design/redesign/28-named-pieces.md)
 //
 // Whole numbers, rounded half away from zero; a critical chance (critB) to a thousandth. A stat that rounds to 0 is left off the row.
 //
@@ -82,7 +83,7 @@ const roundStat = (k, x) => {
 };
 
 /**
- * THE FORMULA. `base` = { slot, iL, profile (a GEAR_PROFILES key), rarity, twoHanded, plus (statPlus) }. Answers the base stats, in
+ * THE FORMULA. `base` = { slot, iL, profile (a GEAR_PROFILES key), rarity, twoHanded }. Answers the base stats, in
  * GEAR_STAT_FIELDS order, each non-zero; throws on a profile or slot the tables don't know (a row the generator must not guess at).
  */
 export function gearStats(base) {
@@ -92,43 +93,31 @@ export function gearStats(base) {
   if (!share) throw new Error('gear-stats: no share for slot ' + base.slot);
   const rarityPm = own(RARITY_PM, base.rarity) ? RARITY_PM[base.rarity] : 1000;
   const budget = budgetOf(p.curve, base.iL);
-  const plus = base.plus || {};
   const out = {};
   const even = p.even || {};
   for (const k of GEAR_STAT_FIELDS) {
     /* a field listed under `even` is the same on every piece of the profile (GEAR_EVEN_SHARE_PM in place of the slot's share) */
     const byEven = !Number.isFinite(p[k]) && Number.isFinite(even[k]);
     const pk = byEven ? even[k] : Number.isFinite(p[k]) ? p[k] : 0;
-    const f = pk ? roundStat(k, (pk * (byEven ? GEAR_EVEN_SHARE_PM : share) * budget * rarityPm) / 1e9) : 0;
-    const v = roundStat(k, f + (Number.isFinite(plus[k]) ? plus[k] : 0));
+    const v = pk ? roundStat(k, (pk * (byEven ? GEAR_EVEN_SHARE_PM : share) * budget * rarityPm) / 1e9) : 0;
     if (v !== 0) out[k] = v;
   }
-  for (const k of Object.keys(plus)) if (!GEAR_STAT_FIELDS.includes(k)) throw new Error('gear-stats: statPlus names ' + k + ', not a base stat');
-  return out;
-}
-
-/* two stated offsets, stat by stat (a piece made "as" another keeps that one's offset and adds its own) */
-function addPlus(a, b) {
-  if (!a) return b || null;
-  if (!b) return a;
-  const out = { ...a };
-  for (const [k, v] of Object.entries(b)) out[k] = (out[k] || 0) + v;
   return out;
 }
 
 /**
  * A catalogue row's formula input at item Level `iL` (its own when omitted), or null for a row with no profile. A row that says
  * `statsAs: <id>` (a second supply chain of a tier, a special piece on its standard piece) is that row of `items`: its profile, slot,
- * hands and item Level, its offset and the row's own on top.
+ * hands and item Level. A row that still says `statPlus` (an offset from the formula, retired by 28-named-pieces.md) is refused.
  */
 export function baseOf(row, iL, items) {
   const as = row && typeof row.statsAs === 'string' ? (items && own(items, row.statsAs) ? items[row.statsAs] : undefined) : null;
   if (as === undefined) throw new Error('gear-stats: statsAs ' + row.statsAs + ' is not an item');
+  if (row && row.statPlus !== undefined) throw new Error('gear-stats: ' + (row.n || 'a row') + ' carries statPlus; a named piece is its name, a rule, a Trait or a Signature (28-named-pieces.md)');
   const src = as || row;
   const profile = profileKeyOf(src);
   if (!profile) return null;
-  return { slot: src.slot, iL: iL === undefined ? itemLevelOfRow(src) : iL, profile, rarity: row.rarity, twoHanded: src.twoHanded === true,
-    plus: addPlus(as ? as.statPlus : null, row.statPlus) };
+  return { slot: src.slot, iL: iL === undefined ? itemLevelOfRow(src) : iL, profile, rarity: row.rarity, twoHanded: src.twoHanded === true };
 }
 
 /** A row's stats by the formula (at item Level `iL`, its own when omitted; `items` resolves a statsAs), or null for a row with no profile. */
@@ -143,7 +132,7 @@ export const scaleStatLevel = (base, own) => base + ((own - base) * GEAR_SCALE_S
 const VIEWS = new WeakMap();
 /**
  * THE CATALOGUE AS A DANGER-SCALE GROUND FIGHTS IT: `items` with every gear row's base stats re-derived at the ground's base item Level
- * (DANGER_GROUNDS[ground.id].gearLevel) moved GEAR_SCALE_STAT_PM of the way to the piece's own (scaleStatLevel), its statPlus kept; every other field (its `iL`, read by the power step) as it was. `items` itself
+ * (DANGER_GROUNDS[ground.id].gearLevel) moved GEAR_SCALE_STAT_PM of the way to the piece's own (scaleStatLevel); every other field (its `iL`, read by the power step) as it was. `items` itself
  * on any other ground. Built once per catalogue and base item Level. One reader per world: hr-accrue's settle, the start point's frozen
  * peers and the browser's live view all fight through it (supabase/functions/hr-accrue/accrue-hunt.js, hunt-settle.js,
  * src/hunt-view/live-engine.js), so the three agree to the bit.

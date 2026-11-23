@@ -99,11 +99,11 @@ delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values
   ('careful', 0, 450, 650, 'careful'),
   ('steady', 1, 250, 450, 'careful'),
-  ('bold', 2, 120, 300, 'steady');
+  ('bold', 2, 80, 300, 'steady');
 delete from public.hr_danger_grounds;
 insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_max) values
-  ('hasks_ford', 590, 1001, 4167),
-  ('muster_barrows', 590, 1001, 5894);
+  ('hasks_ford', 590, 1001, 3814),
+  ('muster_barrows', 590, 1426, 5212);
 
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
 create or replace function public.hr_danger_hours_for(p_level int)

@@ -74,17 +74,27 @@ const EQUIPMENT = Object.freeze({
   gloves: 'choirbone_gauntlets',
   cape: 'wyrmgilt_mantle',
 });
+/* THE KIT, FROZEN HERE (lane/named-pieces 2026-11-23): these four tier-8 pieces were never obtainable and were CUT from the catalogue
+   (docs/design/redesign/28-named-pieces.md (d)). The pinned rates were measured on them, so the band character wears them as a test-local
+   kit, row for row as they shipped, until the three Emberheart sources are re-measured on a kit a player can wear (they are
+   `later` content: no open ground spawns them). Changing a number here changes what is measured. */
+const KIT = Object.freeze({ ...ITEMS,
+  dragonfang_pike: { n: 'Dragonfang Pike', type: 'weapon', slot: 'weapon', weaponType: 'sword', reqSkill: 'level', reqLv: 95, iL: 95, rarity: 'legendary', atkB: 48, strB: 46, critB: 0.06 },
+  slagheart_platebody: { n: 'Slagheart Platebody', type: 'armor', slot: 'body', armourClass: 'plate', rarity: 'unique', tier: 8, reqSkill: 'level', reqLv: 88, iL: 88, defB: 120 },
+  choirbone_gauntlets: { n: 'Choirbone Gauntlets', type: 'armor', slot: 'gloves', armourClass: 'plate', rarity: 'unique', tier: 8, reqSkill: 'level', reqLv: 88, iL: 88, defB: 31 },
+  wyrmgilt_mantle: { n: 'Wyrmgilt Mantle', type: 'armor', slot: 'cape', steadyPm: 285, rarity: 'unique', tier: 8, reqSkill: 'level', reqLv: 88, iL: 88, atkB: 6 },
+});
 
 function measure(monsterId) {
   const m = MONSTERS[monsterId];
   if (!m) return null;
   /* Level 90 with Melee and Defense at it (core rebuild: no Attack/Strength/Hitpoints). */
   const skills = { melee: skillXpForLevel('melee', LEVEL), defense: skillXpForLevel('defense', LEVEL) };
-  const eq = equipmentStats(EQUIPMENT, ITEMS);
+  const eq = equipmentStats(EQUIPMENT, KIT);
   /* The hunt engine's ONE interval (accrual.js accrueHunt): gear and style no
      longer move a hunt's swing (Tyler 2026-10-14, MDR §2). */
   const tickMs = COMBAT_BALANCE.tickMs;
-  const HERO_HP = vitalsOf({ levelXp: charXpForLevel(LEVEL), skills, equipment: EQUIPMENT, items: ITEMS }).maxHp;
+  const HERO_HP = vitalsOf({ levelXp: charXpForLevel(LEVEL), skills, equipment: EQUIPMENT, items: KIT }).maxHp;
   const state = {
     activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
     /* The core rebuild: max HP is DERIVED from the Level and the armour worn (src/core/vitals.js), never typed
@@ -94,10 +104,10 @@ function measure(monsterId) {
   };
   const ctx = {
     away: true, fromMs: 0, toMs: 3600000, tickMs,
-    rng: createRng(SEED), monsters: MONSTERS, items: ITEMS,
+    rng: createRng(SEED), monsters: MONSTERS, items: KIT,
     bonus: () => 0, family: 'sword', activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, {
-      eq, equipment: EQUIPMENT, items: ITEMS, skills, bonus: () => 0,
+      eq, equipment: EQUIPMENT, items: KIT, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE,
     }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),

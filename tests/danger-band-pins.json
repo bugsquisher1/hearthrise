@@ -4,26 +4,28 @@
  "grounds": {
   "muster_barrows": {
    "refStep": 590,
-   "floorStep": 320,
-   "topStep": 710,
-   "print": "b46ea08577d50f1c",
+   "floorStep": 525,
+   "topStep": 700,
+   "print": "6ec9cb22f4adcc29",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
     "top": 75,
-    "mid": 65
+    "mid": 60
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/grounds/muster_barrows-{floor,top,ref}.json"
+    "tools/balance-program/redesign/tuning/final/c0-muster-ref.json",
+    "tools/balance-program/redesign/tuning/final/c0-muster-top.json",
+    "tools/balance-program/redesign/tuning/final/c0-muster-floor.json"
    ],
-   "hand": "refStep 590 is held by hand: it is the scale's pay anchor (12-targets 3.1; lane/ledger-l10 set PAY.coinPm 6400 on it with the Steady four at Level 60 holding 619), and this run's MID four at Level 65 held 634.5 (refStep 630 by the rule). Moving it re-prices Muster's XP and coin, an economy call measured with coinPm, not a floor call. The floor (320) and top (710) are the band rule's, measured here (lane/band-floor, 24-content-pipeline.md G3)"
+   "hand": "refStep 590 is held by hand (lane/tuning-pass, 2026-11-23, docs/design/redesign/29-tuning-pass.md 3.5): Muster Barrows plays its monster formula, which anchors every monster at refStep, so refStep is the monsters' anchor as well as the pay's: moved, the monsters move with it and the four holds the same distance over it (the MID four held 608.9 here, the rule cuts 610). The floor (525) and top (700) are the band rule's, measured on this tree"
   },
   "hasks_ford": {
    "refStep": 590,
-   "floorStep": 470,
-   "topStep": 700,
-   "refKillsHead": 220,
+   "floorStep": 565,
+   "topStep": 675,
+   "refKillsHead": 235,
    "print": "b832fc681050d1d8",
    "verdict": "OPEN",
    "levels": {
@@ -33,13 +35,15 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/grounds/hasks_ford-{floor,top,ref}.json"
+    "tools/balance-program/redesign/tuning/final/c0-ford-ref.json",
+    "tools/balance-program/redesign/tuning/final/c0-ford-top.json",
+    "tools/balance-program/redesign/tuning/final/c0-ford-floor.json"
    ]
   },
   "catacomb_bone_wing": {
-   "refStep": 540,
-   "floorStep": 500,
-   "topStep": 605,
+   "refStep": 520,
+   "floorStep": 475,
+   "topStep": 580,
    "refKillsHead": 185,
    "print": "c78b59371fab46b6",
    "verdict": "OPEN",
@@ -50,16 +54,18 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/grounds/catacomb_bone_wing-{floor,top,ref}.json"
+    "tools/balance-program/redesign/tuning/final/c0-bone-ref.json",
+    "tools/balance-program/redesign/tuning/final/c0-bone-top.json",
+    "tools/balance-program/redesign/tuning/final/c0-bone-floor.json"
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 530,
-   "floorStep": 480,
-   "topStep": 595,
-   "refKillsHead": 200,
+   "refStep": 500,
+   "floorStep": 430,
+   "topStep": 565,
+   "refKillsHead": 205,
    "print": "e9b8d7f0d61e2c41",
-   "verdict": "OPEN",
+   "verdict": "STAGED",
    "levels": {
     "entry": 165,
     "top": 185,
@@ -67,7 +73,9 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-{floor,top,ref}.json"
+    "tools/balance-program/redesign/tuning/final/c0-flooded-ref.json",
+    "tools/balance-program/redesign/tuning/final/c0-flooded-top.json",
+    "tools/balance-program/redesign/tuning/final/c0-flooded-floor.json"
    ]
   }
  }

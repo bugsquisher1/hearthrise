@@ -1,0 +1,7 @@
+V1: 6 seed jobs (1 cells x 6 seeds x 10 h) on 14 workers; hasks_ford, Levels 52 / 55 / 70
+[1/6] base:steady#0 25 s, 25 s elapsed
+[2/6] base:steady#1 25 s, 25 s elapsed
+[3/6] base:steady#5 25 s, 26 s elapsed
+[4/6] base:steady#2 25 s, 26 s elapsed
+[5/6] base:steady#4 26 s, 26 s elapsed
+[6/6] base:steady#3 26 s, 26 s elapsed

@@ -280,10 +280,12 @@ export default definePack({
        under 25% (20), a pair, a hero alone, four damage dealers and an untouched bar 0%; other damage pairs 40 to 63% (43 to 73), so who
        comes matters. At 98 93 to 100% (93 to 100), one gear tier under 73% (88). The card's "two more" is not true at 85 on either: tests/
        boss-hall-advice.mjs HA-WIN reads 20 fours under 75% on the hand lines and 20 on these (CONFLICTS.md 2026-11-23). Off: delete this
-       line (the guard's own off-plant, tests/hunt-core/hall-formula.mjs OFF, anchors on it). */
+       line (the guard's own off-plant, tests/hunt-core/hall-formula.mjs OFF, anchors on it).
+       THE CARD NAMES THE FOUR THAT WINS (the designer, lane/tuning-pass 2026-11-23, 29-tuning-pass.md): a tank, a healer, a hammer and a mage,
+       93% at 85 on these readings, the only four over 75% there; "two more" holds from about 98. */
     formula: true,
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
-      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and two more'] },
+      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer, a hammer and a mage'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals

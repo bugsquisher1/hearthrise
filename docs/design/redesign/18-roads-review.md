@@ -16,8 +16,8 @@ Three independent reviews, none by the Roads' author: design and balance (`18-ro
 | Move branches (16) | Docs. The base moves exist in `abilities.js` |
 | Points per Level, resets by Level, saved builds | Docs (02 1b). Reset price uses the wage, which is built |
 | Power step, gear in steps, Traits, wage | **Built** on the set (R9, G, W) |
-| Auto bar | Built. It can't test target health %, Marks, Bleed stacks or the last move cast (CODE) |
-| Block | Doesn't exist in the engine (CODE) |
+| Auto bar | Built. Target health %, a running Mark, a status's stacks and the last move on the slot's lane are bar tests since lane/bar-metrics (2026-11-22; server rows staged, 1061-bar-metrics.sql) |
+| Block | No damage-share block. A block is the guarded miss the engine already has (see §9 step 1) |
 | Fist line | Switched off in data (CODE) |
 | Prayer | Not in the game or the redesign. The Inner Flame is the closest system |
 
@@ -117,6 +117,11 @@ Everything else above is a design or engineering call we'll make.
 ## 9. Roadmap
 
 1. **Engine first.** The 4 bar metrics and a decision on block. A ruling on which blow a borrowed cast uses. These decide which nodes are alive.
+   **Done (Systems, lane/bar-metrics, 2026-11-22):**
+   - **Bar tests.** `target_hp_pct`, `target_marked`, `target_stacks` (any status that stacks, Bleed today) and `last_move` (on the slot's own lane, so a Mark between two strikes doesn't break a rotation). They read state the world persists, so a viewed hunt and a closed one agree (tests/hunt-core/conditions.mjs `roads-rotation-span`).
+   - **Borrowed blow.** A borrowed move reads its native weapon's reference blow at the hero's Level: the native family's rung worn at that Level and the reference hero's main skill (`src/core/borrow-blow.js`). At Level 60 that's 40 for a staff, against 46 for a hammer on the same reference. So this rule alone barely touches the borrowed Greater Mend, whose value comes from cast count on an idle lane. Step 2's heal rule still has to fix that.
+   - **Block: wait (JUDGMENT, with COMPUTED numbers).** A block already exists: a monster blow that misses a shield holder. It pays Defense twice (COMBAT_XP.blockMult). A worn shield also takes 30% off a marked spell (SHIELD_BRACE). At Level 60, a shield's guard of 9 to 13 cuts the blows that land from 70% to 64-66% at the formula's hardest to-hit, and from 40% to 33-35% at its softest (to-hit.js against the reference hero). Answering, Riposte and Shield Priest can key on that event at no balance cost. A damage-share block would be a second defense layer for one style. It wouldn't fix solo Shield either: Challenge needs a monster off the tank, and Frost Slam and Shelter are party only. It would also need its own lever rows and a Muster v1-climb run (6+ seeds) on held depth before any node could cite it. It belongs with step 2's pricing, measured, if the re-keyed nodes play flat.
+
 2. **Pricing.** Value-based borrowing and the heal rule, measured.
 3. **Data model.** Nodes as data rows in steps, borders as data, presets with a gap cap.
 4. **Sample.** Shield, Restoration and their border with your 3 decisions applied: 5 Lab allocations plus a two-build plan, played on a phone with "Spend as suggested" on and off.

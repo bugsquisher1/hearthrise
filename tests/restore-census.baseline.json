@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-22",
+ "generated": "2026-11-23",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1600,7 +1600,7 @@
   },
   "hr_hunt_condition_metrics": {
    "class": "seeded",
-   "replay": 14,
+   "replay": 18,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the condition metrics a bar slot or stop rule may test (src/data/condition-metrics.js METRICS). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_config": {
@@ -1957,7 +1957,7 @@
   },
   "hr_shop_supply_offers": {
    "class": "seeded",
-   "replay": 40,
+   "replay": 70,
    "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql, tools/gen-alpha-catalogue.mjs --check from src/data/supply-basics.js): the shop's packable supplies and their prices. Rebuilt from repo, never restored."
   },
   "hr_sink_rules": {

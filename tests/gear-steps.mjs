@@ -39,6 +39,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { GEAR_STEPS, tierLevel, maxRankAt } from '../src/data/gear-steps.js';
 import { POWER_LEDGER } from '../src/data/power-ledger.js';
+import { HUNT_INDEX } from '../src/data/hunts.js';
 import { TRAITS, traitPool } from '../src/data/traits.js';
 import { DANGER, DANGER_GROUNDS, DEPTHS } from '../src/data/danger.js';
 import { GROUND_PACKS } from '../src/data/grounds/index.js';
@@ -259,8 +260,8 @@ export function problems(d) {
     const pool = Object.keys(d.TRAITS).filter((id) => d.TRAITS[id].source === gid);
     if (JSON.stringify([...(g.traits || [])].sort()) !== JSON.stringify(pool.sort())) out.push('GS-5 ' + gid + ' traits are not its pool');
     /* its entry Level is its hunt's band floor (one source), and its max rank the ramp's at it (L3) */
-    const pack = d.GROUND_PACKS.find((p) => p.id === gid);
-    const floor = pack && pack.hunt && Array.isArray(pack.hunt.band) ? pack.hunt.band[0] : undefined;
+    const hunt = d.HUNT_INDEX[gid];
+    const floor = hunt && Array.isArray(hunt.band) ? hunt.band[0] : undefined;
     if (!Number.isInteger(g.entryLevel) || g.entryLevel !== floor) out.push('GS-5 ' + gid + ' entryLevel ' + g.entryLevel + ' is not its hunt\'s band floor ' + floor);
     if (g.maxRank !== d.maxRankAt(g.entryLevel)) out.push('GS-5 ' + gid + ' maxRank ' + g.maxRank + ' is not maxRankAt(' + g.entryLevel + ')');
   }
@@ -280,7 +281,7 @@ export function problems(d) {
   return out;
 }
 
-const real = () => ({ GEAR_STEPS, TRAITS, tierLevel, maxRankAt, POWER_LEDGER, traitPool, veryRarePairs, DANGER, DANGER_GROUNDS, DEPTHS, GROUND_PACKS,
+const real = () => ({ GEAR_STEPS, TRAITS, tierLevel, maxRankAt, POWER_LEDGER, HUNT_INDEX, traitPool, veryRarePairs, DANGER, DANGER_GROUNDS, DEPTHS, GROUND_PACKS,
   EQUIP_SLOTS, METRICS, OPERATORS, EFFECT_IDS, HUNT_ROLES, ITEMS, files: srcFiles(),
   doc: readDoc(readFileSync(join(ROOT, 'docs', 'design', 'redesign', '14-trait-candidates.md'), 'utf8')) });
 /* a copy whose pool readers read the copy's rows */

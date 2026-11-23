@@ -177,7 +177,7 @@ const cases = {
     const none = () => ({ pass: false, mask: 0, ignored: false });
     const bad = [];
     for (const m of M.CM.METRICS) {
-      const value = m.value === 'pct' ? 50 : m.value === 'count' ? 3 : m.value === 'bool' ? true : M.CM.EFFECT_IDS[0];
+      const value = m.value === 'pct' ? 50 : m.value === 'count' ? 3 : m.value === 'bool' ? true : M.CM.VALUE_IDS[m.value][0];
       const subjects = m.subject ? Object.keys(m.subject) : [undefined];
       for (const op of m.ops) for (const subject of subjects) {
         const c = Object.assign({ metric: m.id, op, value }, subject ? { subject } : {});
@@ -294,7 +294,7 @@ const MUTANTS = [
   { name: 'a fight with nothing engaged reads as waiting', case: 'between-pulls',
     edits: [['src/hunt-view/live-engine.js', '  if (!u || !u.alive || !engaged(inst, u).length) return null;\n  const h = { hs: member.hs', '  if (!u || !u.alive) return null;\n  const h = { hs: member.hs']] },
   { name: 'the tester writes to the world it reads', case: 'display-only',
-    edits: [['src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot);\n', '    const t = testSlot(inst, u, h, slot);\n    u.mana -= 1;\n']] },
+    edits: [['src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot, atMs);\n', '    const t = testSlot(inst, u, h, slot, atMs);\n    u.mana -= 1;\n']] },
   { name: 'the words read a different footprint from the slot\'s', case: 'configure-note',
     edits: [['src/shell/slot-waits.js', "  if (c.metric === 'enemies_in_aoe') return areaTopOf(slot, null);\n", '']] },
   { name: 'a slot ignoring its hero\'s target is read as a failed condition', case: 'ignored',

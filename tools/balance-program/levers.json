@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "0024cbff0743a188",
+ "authored": "f981552d1c2dafd5",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 671,
-  "typed": 15761,
-  "files": 231,
-  "lever": 289,
-  "notLever": 382,
+  "bindings": 675,
+  "typed": 15799,
+  "files": 233,
+  "lever": 290,
+  "notLever": 385,
   "unclaimed": 0
  },
  "problems": [],
@@ -2096,10 +2096,11 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/spell-rule.mjs",
      "tests/hunt-core/tower-weapons-play.mjs",
      "tests/tower-chest.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2675,7 +2676,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 138,
+     "line": 140,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2761,7 +2762,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 140,
+     "line": 142,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2899,7 +2900,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 208,
+     "line": 210,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -3245,7 +3246,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 335,
+     "line": 337,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -4453,7 +4454,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 133,
+     "line": 135,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -6170,7 +6171,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 41,
+    "mentionCount": 42,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6186,8 +6187,8 @@
     ],
     "today": {
      "table": "src/data/hunt-grounds.js HUNT_GROUNDS",
-     "rows": 15,
-     "carrying": 15,
+     "rows": 17,
+     "carrying": 17,
      "distinct": 3,
      "low": 32000,
      "high": 90000
@@ -6258,7 +6259,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 42,
+    "mentionCount": 43,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6276,14 +6277,14 @@
     "today": [
      {
       "table": "src/data/hunt-grounds.js HUNT_GROUNDS",
-      "rows": 15,
-      "carrying": 15,
-      "values": 195
+      "rows": 17,
+      "carrying": 17,
+      "values": 207
      },
      {
       "table": "src/data/hunts.js HUNTS",
-      "rows": 18,
-      "carrying": 75,
+      "rows": 20,
+      "carrying": 83,
       "distinct": 13,
       "low": 1,
       "high": 16
@@ -6300,13 +6301,13 @@
    "sites": [
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 509,
+     "line": 514,
      "text": "export const DENSITY_FULL_BOX = 8;",
      "binding": "DENSITY_FULL_BOX"
     },
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 513,
+     "line": 518,
      "text": "export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });",
      "binding": "DENSITY_PICK"
     }
@@ -6576,7 +6577,7 @@
    "sites": [
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 160,
+     "line": 163,
      "text": "export const GROUND_NODE_KINDS = Object.freeze({",
      "binding": "GROUND_NODE_KINDS"
     }
@@ -6931,7 +6932,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 140,
+     "line": 186,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7000,19 +7001,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 147,
+     "line": 193,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 148,
+     "line": 194,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 149,
+     "line": 195,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7205,16 +7206,16 @@
   {
    "id": "danger.ref-step",
    "category": "monster-rewards",
-   "name": "A ground's reference step",
+   "name": "A ground's reference step, band and kill rate",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 134,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 155,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
-   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1055). The same row's floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground's band into DEPTHS for the player's \"Depth N of 20\": display only, the server reads refStep alone",
+   "definition": "the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server's hr_danger_grounds, 1060). The same row's floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground's band into DEPTHS for the player's \"Depth N of 20\"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground's own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)",
    "range": "whole steps. A bridge, not a per-ground dial: a step is of the ground's own rows until the bands are re-cut in one unit (wave 2), then it goes",
    "touches": "the absolute pay on that ground (each step off it is payStepXp)",
    "outcomes": [
@@ -7244,12 +7245,14 @@
     ],
     "mentions": [
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/lineup-v4.mjs",
+     "tests/needs-you.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7257,6 +7260,12 @@
     "gap": "not-in-runs",
     "note": "played by the V1 probe only",
     "existingPatches": []
+   },
+   "rows": {
+    "what": "the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)",
+    "homes": [
+     "src/data/danger.js#DANGER_GROUNDS"
+    ]
    },
    "flags": [
     {
@@ -8358,11 +8367,12 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "ch on scarce, rare, key and trophy rows, and the reforge patterns' boss drops",
+    "what": "ch on scarce, rare, key and trophy rows, the reforge patterns' boss drops, and the Catacomb wings' named-armor rate (catacomb-wings.js ARMOR_PM_KILL, STATED)",
     "homes": [
      "src/data/monsters.js#MONSTERS",
      "src/data/grounds/*/pack.js#default",
-     "src/data/patterns.js#PATTERNS"
+     "src/data/patterns.js#PATTERNS",
+     "src/data/catacomb-wings.js#ARMOR_PM_KILL"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -8763,10 +8773,11 @@
    "tests": {
     "asserts": [],
     "mentions": [
+     "tests/hunt-core/spell-rule.mjs",
      "tests/temper-buy.mjs",
      "tests/temper-uniques.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9275,7 +9286,7 @@
    "sites": [
     {
      "file": "src/data/items.js",
-     "line": 23,
+     "line": 24,
      "text": "export const ITEMS={",
      "binding": "ITEMS"
     }
@@ -9872,8 +9883,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 134,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 155,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -9920,18 +9931,20 @@
     ],
     "mentions": [
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/lineup-v4.mjs",
+     "tests/needs-you.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
     "gap": "not-built",
-    "note": "no drop table reads it yet (R10)",
+    "note": "read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step; no matrix RUN names a scale ground",
     "existingPatches": []
    },
    "flags": [],
@@ -9944,8 +9957,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 134,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 155,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -9993,12 +10006,14 @@
     ],
     "mentions": [
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/lineup-v4.mjs",
+     "tests/needs-you.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10666,13 +10681,13 @@
    "sites": [
     {
      "file": "src/data/supplies.js",
-     "line": 161,
+     "line": 162,
      "text": "export const BAG_TARGET_HOURS = 3;",
      "binding": "BAG_TARGET_HOURS"
     },
     {
      "file": "src/data/supplies.js",
-     "line": 169,
+     "line": 170,
      "text": "const BASE_BAG_GUIDES = Object.freeze({",
      "binding": "BASE_BAG_GUIDES"
     }
@@ -10771,7 +10786,7 @@
    "sites": [
     {
      "file": "src/data/party-class-xp.js",
-     "line": 54,
+     "line": 55,
      "text": "export const SOLO_XP_PM = 1150;",
      "binding": "SOLO_XP_PM"
     }
@@ -10830,7 +10845,7 @@
    "sites": [
     {
      "file": "src/data/party-class-xp.js",
-     "line": 79,
+     "line": 80,
      "text": "export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700]);",
      "binding": "PARTY_CLASS_XP"
     }
@@ -13595,6 +13610,10 @@
    "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
   },
   {
+   "at": "src/core/borrow-blow.js#referenceBlow",
+   "why": "a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows"
+  },
+  {
    "at": "src/data/time-blocks.js#RULED",
    "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
   },
@@ -13649,6 +13668,14 @@
   {
    "at": "src/data/hunt-grounds.js#inRect",
    "why": "geometry"
+  },
+  {
+   "at": "src/data/catacomb-wings.js#WINGS",
+   "why": "each wing's rooms (pocket indexes into the Unmarked Catacombs' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms' monsters are the pack's rows"
+  },
+  {
+   "at": "src/data/catacomb-wings.js#weightsOf",
+   "why": "the pack convention's spawn weight: the head-count of a box at a pull of 4 (a hunts.js display weight)"
   },
   {
    "at": "src/data/statuses.js#slowAt",
@@ -14163,8 +14190,29 @@
    ],
    "bindings": 1
   },
+  "src/data/danger.js#DANGER_GROUNDS": {
+   "pin": "keys",
+   "keys": [
+    "entryLevel",
+    "floorStep",
+    "gearLevel",
+    "ladderTier",
+    "refKillsHead",
+    "refStep",
+    "topStep"
+   ],
+   "bindings": 1
+  },
   "src/data/patterns.js#PATTERNS": {
    "pin": "open",
+   "bindings": 1
+  },
+  "src/data/catacomb-wings.js#ARMOR_PM_KILL": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/hearthfind.js#HEARTHFIND_HOURS_MAX": {
@@ -15720,18 +15768,6 @@
     "gapMax",
     "payStepXp",
     "refKillsHead"
-   ],
-   "typed": 5,
-   "bindings": 1
-  },
-  "src/data/danger.js#DANGER_GROUNDS": {
-   "pin": "count",
-   "keys": [
-    "entryLevel",
-    "floorStep",
-    "gearLevel",
-    "refStep",
-    "topStep"
    ],
    "typed": 5,
    "bindings": 1

@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-22 · lane/bar-metrics (the Roads' engine prerequisites, 18-roads-review §9 step 1)
+1. *A new bar test is a registry row, its evaluator and the server's rows.* The metrics block now lives in 1061-bar-metrics.sql (tests/hunt-core/conditions.mjs --print). hr_hunt_cond_check already treats any kind other than pct, count or bool as "one of vals", so the named-value kind `move` only needed the table's kind check widened. No function body changed.
+2. *A test that reads time gets the step's instant passed in, never a world clock.* `testSlot(…, atMs)`, `pickSlot(…, atMs = sc.atMs)`. The display tester takes the world's own instant (live-engine `st.next`). A Mark read with no instant fails safe to "not Marked".
+3. *A persisted unit field moves the world shape.* Regenerate the hunt-sessions catalogue into the newest STAGED forward file (1058 here). Otherwise every DB guard settles nothing (`world_shape_pending`).
+4. *"Last move" is read per lane.* A rotation lives on the offense lane, and a Mark or a Challenge cast between two strikes would break "after Quarry Blow" if the test read every lane. A supply slot or a stop rule reads the last move on any lane.
+5. *The borrowed-blow rule alone doesn't price the borrowed heal.* At Level 60 the staff's reference blow is 40 against the hammer's 46, so a hammer's Greater Mend loses about 13%, nowhere near the +49.9 steps. The value comes from cast count on an idle lane, so step 2's heal rule has to fix it.
+
 ## 2026-11-22 · lane/v1-climb V1.1 (Steady must not die; Bold's own answer)
 1. *A fall back between pulls cannot answer a spike inside one.* Breaking a pull off at the next sub-step still let one Steady seed die (a burst from over 25% to 0 inside a sub-step); stopping every monster swing and spell landing the moment a hero is under the line (damage.js resolveAttacks, monster-spells.js castSpells, both reading danger.js breaksOff) made Steady deathless in 48 seed-days at its own thresholds, so it gave up no depth (held 589-635 against 592-634).
 2. *A cascade is a re-climb, not a fall.* Bold's wipes came from the three left after the front died climbing back to the four's edge under the same thresholds; settling the stance one notch safer after a death (RISKS afterDeath) ended the wipes (0 in 96 Bold days over two settings) without touching the death itself.

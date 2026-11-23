@@ -347,9 +347,10 @@ export const WORLD = [
     tests: [['tests/hunt-core/danger.mjs', 'scale: coin follows the step at the wage\'s ratio'], ['tests/econ-levers.mjs', 'EL-PAY, EL-KIT']], testReads: ['PAY'],
     perturb: NP('not-in-runs', 'played by the V1 probe only'),
     ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): coin 13,324 a hero-hour at Level 60 on Steady (1,845 at 1000)' }),
-  L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step', {
+  L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step, band and kill rate', {
     at: [at(DZ, 'muster_barrows: ground({ refStep: 590')],
-    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1055). The same row\'s floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground\'s band into DEPTHS for the player\'s "Depth N of 20": display only, the server reads refStep alone',
+    rows: rows('the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
+    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1060). The same row\'s floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground\'s band into DEPTHS for the player\'s "Depth N of 20"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground\'s own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)',
     range: 'whole steps. A bridge, not a per-ground dial: a step is of the ground\'s own rows until the bands are re-cut in one unit (wave 2), then it goes',
     touches: 'the absolute pay on that ground (each step off it is payStepXp)', out: PACE, f: ['P02'],
     tests: [['tests/hunt-core/danger.mjs', 'pay: Muster\'s reference step pays the table']], testReads: ['DANGER_GROUNDS'],
@@ -487,7 +488,7 @@ export const WORLD = [
 
   /* ── 19. RARE-DROP PROBABILITIES ───────────────────────────────────────────────────────────────────────────────────────────── */
   L('rare.band-rows', 'rare-drops', 'content', 'Scarce, Rare, Key and Trophy drop chances', {
-    rows: rows('ch on scarce, rare, key and trophy rows, and the reforge patterns\' boss drops', [MON_ROWS, PACKS, home('src/data/patterns.js#PATTERNS', 'open')], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
+    rows: rows('ch on scarce, rare, key and trophy rows, the reforge patterns\' boss drops, and the Catacomb wings\' named-armor rate (catacomb-wings.js ARMOR_PM_KILL, STATED)', [MON_ROWS, PACKS, home('src/data/patterns.js#PATTERNS', 'open'), home('src/data/catacomb-wings.js#ARMOR_PM_KILL', 'count')], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
     names: ['MONSTERS', 'BAND_TARGETS'],
     def: 'each row\'s chance typed by hand until a test measures its hours inside its band (Scarce 0.75 to 1.5 h, Rare 10 to 20 h, Key 1.5 to 3 h, Trophy 100 to 150 h a hero at the floor)',
     range: 'BAND_TARGETS (a target table) and the 0.95 cap. Ruled 2026-11-20: generous to Krell, rarer after',

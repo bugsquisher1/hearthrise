@@ -89,7 +89,8 @@ const fitOf = (ground) => (ground.pockets.some((p) => p.forParty) ? 'party' : gr
 function resolve() {
   const out = {};
   for (const g of Object.keys(HUNT_GROUNDS)) {
-    if (normalOnly(g)) continue;
+    /* a ground built for the Danger scale alone (`scaleOnly`: the Catacombs' wings, src/data/catacomb-wings.js) plays a stance, never a tier */
+    if (normalOnly(g) || HUNT_GROUNDS[g].scaleOnly === true) continue;
     const floor = HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0];
     out[g] = {};
     for (const id of TIER_IDS) if (id !== DEFAULT_TIER) {

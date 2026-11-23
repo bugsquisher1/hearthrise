@@ -362,7 +362,7 @@ const mutants = [
     edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }",
       "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }"]] },
   { name: 'the last slot is tried first', case: 'slot-one-first',
-    edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot(inst, u, h, row.slot);', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot(inst, u, h, row.slot);']] },
+    edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot(inst, u, h, row.slot, atMs);', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot(inst, u, h, row.slot, atMs);']] },
   { name: 'a store use is free', case: 'configured-store-slot',
     edits: [['src/core/action-rules.js', '    hs.purse = Math.max(0, int(hs.purse, 0)) - b.price;', '    hs.purse = Math.max(0, int(hs.purse, 0));']] },
   { name: 'the starter bar drinks first (a drink starves food)', case: 'starter-bar',

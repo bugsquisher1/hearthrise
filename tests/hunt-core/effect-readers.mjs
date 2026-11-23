@@ -157,7 +157,7 @@ const cases = {
 
 const mutants = [
   { name: '[spell-roles] heroSetup stops reading the discipline lists', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt-spawn.js', "  const allowed = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));", '  const allowed = [];']] },
+    edits: [['src/core/hunt-spawn.js', "  const native = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));", '  const native = [];']] },
   { name: 'a row promises a field nothing reads', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "target: 'mark',\n    bonusPct: 20, durMs: 8000 }),", "target: 'mark',\n    bonusPct: 20, durMs: 8000, slowPct: 30 }),"]] },
   { name: 'the mark bonus is never applied', case: 'every-row-field-has-a-reader',
@@ -166,8 +166,8 @@ const mutants = [
   { name: 'bleed stops reading its share of the blow', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/status.js', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * 33 * row.tierPermille[tier - 1]) / 1000));']] },
   { name: '[spell rule] the engine stops asking castAmount (a heal row promises a share the engine never lands)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, u.maxHit, u.maxHp, pm) || {});', '  const amount = () => ({ heal: 10, shield: 10 });'],
-      ['src/core/hunt/abilities.js', "const landsShield = (u, row, pm) => { const a = castAmount(row, u && u.maxHit, u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };", 'const landsShield = () => 10;']] },
+    edits: [['src/core/hunt/abilities.js', '  const amount = () => /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blowOf(u, row), u.maxHp, pm) || {});', '  const amount = () => ({ heal: 10, shield: 10 });'],
+      ['src/core/hunt/abilities.js', "const landsShield = (u, row, pm) => { const a = castAmount(row, blowOf(u, row), u && u.maxHp, pm); return a && a.shield ? a.shield : 0; };", 'const landsShield = () => 10;']] },
   { name: '[spell rule] castAmount stops reading healPm', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (row.target === \'ally\' || row.target === \'party\') return { heal: at(floored(of(maxHit, 3000))) };'],
       /* (and the heal predicate beside it: a row's healPm is dead only when neither reads it) */
@@ -183,7 +183,7 @@ const mutants = [
   { name: '[area-engine] the 3x3 side is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };", "  if (row.target === 'area') return { shape: 'square', n: 3 };"]] },
   { name: '[area-engine] the engine stops sharing a hitPm blow (blowShare)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, [1, 2]);']] },
+    edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));', '  const dmg = () => roll(sc, [1, 2]);']] },
   { name: '[spell rule] versionOf stops reading the versions', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', '  const mana = row && Array.isArray(row.versions) ? row.versions[n - 1] : undefined;', '  const mana = undefined;']] },
   { name: '[party rule] the engine stops asking partyOnly (a row promises Party only and the engine casts it alone)', case: 'every-row-field-has-a-reader',
@@ -191,7 +191,7 @@ const mutants = [
   { name: '[party rule] partyOnly stops reading the row', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', 'export const partyOnly = (row, role) => !!row && (row.party === true || (Array.isArray(row.party) && row.party.includes(role)));', 'export const partyOnly = (row, role) => !!row && role === \'tank\';']] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',
-    edits: [['src/core/hunt/abilities.js', "['markUntil', 'int']]),", "['markUntil', 'int'], ['slowUntil', 'int']]),"]] },
+    edits: [['src/core/hunt/abilities.js', "['markUntil', 'int'], ['lastMove', 'json']]),", "['markUntil', 'int'], ['lastMove', 'json'], ['slowUntil', 'int']]),"]] },
 ];
 
 const R = makeReport('hunt-core/effect-readers');

@@ -48,6 +48,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/boss-halls.js#namedWaveOf', why: 'a words builder' }, { at: 'src/data/clans.js#*', why: 'clan names, tags and invite days (the founding gold is econ.clans)' },
   { at: 'src/data/danger.js#DEPTHS', why: 'how many depths a ground\'s band is cut into for the player\'s "Depth N of 20" words (12-targets 3.1): display, the server and the engine read steps' },
   { at: 'src/core/hunt/danger.js#stepRatio', why: 'a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it' },
+  { at: 'src/core/borrow-blow.js#referenceBlow', why: 'a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows' },
   /* rulings (Tyler's numbers, not dials: validate refuses a move) */
   { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)' },
   { at: 'src/data/work-day.js#WORK_BLOCK_RULED', why: 'Tyler\'s ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice' },
@@ -61,6 +62,8 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/hunt-after.js#*', why: 'what a hero does after a hunt: the player\'s job counts and a grace' },
   { at: 'src/data/rule-subjects.js#ACTION_SET_LIMITS', why: 'how many presets and slots the bar editor holds' },
   { at: 'src/data/hunt-grounds.js#MAX_SEATS', why: 'seats on an instance (4): a shape' }, { at: 'src/data/hunt-grounds.js#inRect', why: 'geometry' },
+  { at: 'src/data/catacomb-wings.js#WINGS', why: 'each wing\'s rooms (pocket indexes into the Unmarked Catacombs\' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms\' monsters are the pack\'s rows' },
+  { at: 'src/data/catacomb-wings.js#weightsOf', why: 'the pack convention\'s spawn weight: the head-count of a box at a pull of 4 (a hunts.js display weight)' },
   { at: 'src/data/statuses.js#slowAt', why: 'rounding (+500 / 1000)' }, { at: 'src/data/gear-tiers.js#round5', why: 'rounding to fives' },
   /* engine plumbing: units, rounding, randomness, hashing, geometry, budgets */
   { at: 'src/core/rng.js#*', why: 'the seeded random stream' }, { at: 'src/core/combat-sim.js#seedOf', why: 'a seed' }, { at: 'src/core/member.js#frozenKey', why: 'a hash' },

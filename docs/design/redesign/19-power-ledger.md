@@ -22,7 +22,7 @@ Sizes are the most a source gives on the cell that suits it best, at full size (
 | 6 | **Signature** | Conditional or rule | **10** (half a tier, was "one tier") | Inside the gear slice | None. Through the gear slice cap | Doc (15) |
 | 7 | **Crossroads, waystones, final form, Mileposts** | Conditional or rule | Best and worst option at most 3 apart on any ground | **Build slice: 14** | Numbers × ramp. Cap × ramp | Doc (17 v3) |
 | 8 | **Vows** (3 slots: 30, 50, 200) | Trade | +18 on its condition, −8 always. Net +10 best, −8 worst, about 0 on the mix | Inside the build slice. Gains minus costs clamped at 14. Costs never clamped | Numbers × ramp | Doc (17 v3) |
-| 9 | **Borrowed moves** (2, fists 3) | A move on an idle lane | Priced to its value band: never over a vow | Inside the build slice (Lab-held) | Opens at `max(20, 200 × V ÷ 14)` Levels | MEASURED (18-measured), rule doc |
+| 9 | **Borrowed moves** (2) | A move on an idle lane | Priced to its value band: never over a vow | Inside the build slice (Lab-held) | Opens at `max(20, 200 × V ÷ 14)` Levels | MEASURED (18-measured), rule doc |
 | 10 | **Imbuements, draught, camp pot** | Conditional, timed | Imbuement 2 each (3 a hero), draught 3, camp pot 2 (once a party) | **Consumable slice: 6**. Three imbuements fill it, so a draught or a camp pot is chosen in place of an imbuement, never on top (`21` D-1) | Numbers × ramp. Cap × ramp | Cap built (`src/data/power-ledger.js`). Imbuing not built (CODE) |
 | 11 | **Inner Flame** | Luck | 0 steps. Moves how often a Rare drops and its rank | Under `kitSpreadMax` (20) | None | Doc (02 2b) |
 | 12 | **Risk stance** | Where the edge sits | 0 steps. Changes the fall-back and climb lines | Pay: Careful 0.55 to 0.70 of Steady (C-5). Bold beats Steady watched, loses over a day (C-4) | None | Built (`RISKS`), MEASURED |
@@ -143,7 +143,7 @@ None of these touch the live game until wave 3 or 4 ships its system. The order 
 | **L10 Gold and depth** | Engine (investigation) | Why +50 held steps moved gold −4 ± 64 when coin a kill is × 1.004 a step (`danger.js` PAY, `wage.js` `payStepCoin`). Read kills an hour and loot at the store's price per depth | Systems | Nothing |
 | **L11 Temper on steps** | Data | `temper.js` rebuilt on gear steps: ranks 1 to 5, rank r opens at Level 40r (`21` D-2), each rank +1 item Level on its slot × slot weight, never × ramp, Temper stays with the slot, priced by `temperHours` (09). Replaces the 1% rungs on scale grounds | Designer | L1. Wave 4 |
 | **L12 Roles content** | Data | A Caster and a Warder body (12-targets row 2), and two more scale grounds (R10), so the library test has three role mixes | Designer | Already planned |
-| **L13 Fist generalist** | Data | When `FIST_LINE.live`: fist strikes' shares 10% under the other weapons', borrow bands one softer, 3 borrow slots | Designer | L6 |
+| **L13 The support** | Data + engine | `22-fists-support.md` section 6: the `support` role and `wraps` key, the start set, Armor Break, the interrupt and `caster` target, the alone rule, `selfHealPm` retired, `fists` renamed `wraps`. Party-scope nodes count at their party sum in the wearer's slice | Designer, Systems | E2, E3 |
 
 ## 6. Validation: Lab runs that prove the budget
 
@@ -162,7 +162,7 @@ Every run: Muster Barrows unless named, held start, 8 seeds, Steady unless named
 | V9 | The supply bill with vows and borrows | Store kit 0.2 to 0.3 of pay with the library's suggested builds | `node tools/balance-program/redesign/roads/roads-run.mjs --plan q1 --seeds 8 --hours 8` (store column), then the library builds | Runs today for borrows. Owed: vows (L8) |
 | V10 | The luck ceiling with the Signature inside the gear slice | Lucky against unlucky kit at most 20 steps at the 10th and 90th percentile | `node tools/balance-program/redesign/kit-sampler.mjs --levels 60,120,200 --hours 40,200,1000` | Owed: the kit sampler (04 section 10) |
 | V11 | Party size with builds worn | C-6 1.2 to 1.6 a head in a four, C-7 solo 0.5 to 0.8 | V6 with `--parties 1,4` | Owed with V6 |
-| V12 | The fist generalist | Top 3 in no cell, bottom 3 in no cell | V6 with `--builds fist` | Owed: `FIST_LINE.live`, L13 |
+| V12 | The support against a fourth damage dealer | `22-fists-support.md` 4.1: within 14 steps on every cell, ahead by 7+ on 25%+ of cells and behind by 7+ on 25%+, ahead on at most 50% | V6 with `--builds support` (22 run F7) | Owed: L13, the `support` style, V6 |
 | V13 | Gold follows depth | Gold a hero-hour rises with held depth at about `payStepCoin` a step | `node tools/balance-program/redesign/roads/roads-run.mjs --plan q1 --seeds 8 --hours 8` (gold against held) | Runs today. Feeds L10 |
 
 **Order:** V1, V2 and V13 now. V4 before L6. V5, V7, V9 with the sample (L8). V6, V8, V10, V11 once R10 opens more scale grounds.

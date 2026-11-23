@@ -94,6 +94,7 @@ import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js';
 import { START_EQUIPMENT, START_BAR } from './start-kit.js';
 import { HEARTH_FUELS } from './hearth.js';
 import { RECRUITS } from './recruits.js';
+import { DANGER_GROUNDS, DEPTHS } from './danger.js';
 import { BAR_TEXT } from './text/bar.js';
 import { t } from './player-text.js';
 
@@ -124,6 +125,8 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep'),
   house: anchor('the House (src/shell/windows/house.js), its icon, then Buy', 'house', true),
   characters: anchor('the character strip\'s Character list (a phone: Heroes, then its sheet\'s), then Create hero on the characters screen', 'characters'),
+  /* THE ROADS (lane/first-hour-rewrite): the Character window's Talents tab (shown only while the server sends the `talents` section), then Spend as suggested */
+  talents: anchor('the Character window\'s Talents tab (src/shell/windows/character/talents.js), its icon, the Talents tab, then Spend as suggested', 'character', true, 'talents'),
   strip: anchor('the character strip (src/app/character-strip.js), another hero\'s tab'),
 });
 
@@ -160,6 +163,8 @@ const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes, played: the quit minute was 9, with nothing asked for five minutes and only junk in the bag).
    Her Cellar task is taken before the first hunt, counts inside it, and pays a helmet the hero wears at once. Its count and label are her row's. */
 const RATS = tallyTask('cellar_giant_rats');
+/* The party's first task, on the party's first ground (the Rat King in the Sewer): what a company of recruits is offered in place of the wolves. */
+const KING = tallyTask('sewer_rat_king');
 const RATS_WORDS = Object.freeze({ label: RATS.label, count: RATS.count, ground: HUNT_INDEX[CELLAR].name, level: HUNT_INDEX[THICKET].band[0], next: HUNT_INDEX[THICKET].name });
 /* The first hour's lessons are for a hero under the Thicket's floor. */
 const UNDER_THICKET = { kind: 'level_at', at: 1, below: HUNT_INDEX[THICKET].band[0] };
@@ -290,8 +295,21 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hunt_topbar', IN_TOWN, { holdOpen: true, when: [HUNTING, UNDER_THICKET, { kind: 'tally_counted', task: RATS.id }] }),
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
+  /* A TALENT POINT (the Roads, 17 section 13: a point from Level 2; lane/first-hour-rewrite): first among the reactive cards, so a hero meets it
+     in the first hunt at Level 2. One press spends every point along the suggested road. Passed by while the switch is off (no `talents`
+     section). Got it hides it: the Talents tab keeps the count, and a standing "Spend as suggested" rule is owed (20 section 3.3). */
+  step('talent_point', t('coach.talent_point_title'), t('coach.talent_point'),
+    'talents', orGotIt({ kind: 'talents_spent' }), { reactive: true, gotIt: true, when: [{ kind: 'level_at', at: 2 }, { kind: 'talents_left' }],
+      inWindow: t('coach.talent_point_in'),
+      hooks: ['[data-hs-win="character"] .hw-tab[data-tab="talents"]', '[data-hs-win="character"] [data-hs-act="tl-suggested"]:not([disabled])'] }),
+  /* THE DANGER SCALE, ONCE (02 package 3; 12-targets 2.6: the player sees only "Depth N of 20"): the first hunt on a ground the scale opens on */
+  step('depth', 'Depth', t('coach.depth'),
+    'hud_vitals', READ, { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, { kind: 'on_scale' }] }),
+  /* THE FIRST FALL BACK, EXPLAINED (20 section 3.1: "nothing explained the edge before"): the newest hunt's report holds one and no death */
+  step('fell_back', t('coach.fell_back_title'), t('coach.fell_back'),
+    'hud_vitals', READ, { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'fell_back' }] }),
   step('stamina_low', 'Stamina low',
-    'Press + beside stamina to top up',
+    t('coach.stamina_low'),
     'hud_vitals', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }], hooks: ['[data-coach-hook="stamina-buy"]'] }),
   step('first_death', 'Defeated',
     'Shop → Services → Bless',
@@ -307,7 +325,8 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('fight_settings', 'Taking a beating?',
     'Set the stance on your bar to Defensive',
     'hud_vitals', { kind: 'any', of: [READ, { kind: 'stance_changed' }] },
-    { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
+    /* off the scale only: on it the party falls back by itself and the Risk is the answer (fell_back, risk_pick) */
+    { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'off_scale' }, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
   /* THE RECRUITS (Tyler RD-Q6 a, 2026-11-22; 1053-recruits.sql): one hero first; when the server says its recruit press is ready (Level 5, the
      `recruits` section), this card points at it: All characters, then its one press. Done when the account holds a second hero. */
   step('more_heroes', 'Your recruits are ready',
@@ -321,10 +340,18 @@ export const HUNT_TUTORIAL = Object.freeze([
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
   /* A card that asks never walls (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt, and nothing behind it was reached). */
+  /* Every hero in one party (played 2026-11-23: done on the first invite, it left two recruits standing in town): it stays, naming the next
+     hero outside the party, until none is left, or its Got it. */
   step('party_own', 'Hunt together',
     'Right-click a hero\'s tab → Invite to party',
-    'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
+    'strip', { kind: 'any', asks: true, of: [READ, { kind: 'party_gathered' }, { kind: 'party_hunted' }] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_out' }],
       hooks: ['.char-tab[data-slot="{other}"]'] }),
+  /* THE RISK PICK, AT THE FIRST PARTY GROUND ON THE SCALE (20 sections 1.2 and 3.1; the Hunts window's Risk row, company-pane.js). Steady is set
+     with no press, so the card says so and names the one stance that can die. Passed by until a ground at the recruits' Level is on the scale. */
+  step('risk_pick', t('coach.risk_pick_title'), 'Hunts → Risk',
+    'hunt_picker', orGotIt({ kind: 'risk_set' }), { reactive: true, knowledge: true, gotIt: true,
+      when: [IN_TOWN, { kind: 'level_at', at: RECRUITS.atLevel }, { kind: 'scale_ground' }],
+      hooks: ['[data-hs-win="hunts"] [data-hs-act="stance"][data-risk="steady"]'] }),
   step('equip_upgrades', 'Better gear found',
     'Bag → Equip upgrades',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],
@@ -416,9 +443,11 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* ── C. The first return: sell or keep, cook, styles, Blessings before danger, Tamsin ── */
   /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
      wolves" came after the wolves). */
-  step('bless', 'Before the wolves',
+  /* ONLY WHERE A HERO CAN DIE (RD-Q3 a, Tyler 2026-11-22: Careful and Steady fall back before a death, only Bold dies; lane/first-hour-rewrite):
+     a party on Steady never needs it, so the card waits for Bold or a death on record. */
+  step('bless', t('coach.bless_title'),
     'Shop → Services → Bless',
-    'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
+    'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'can_die' }, { kind: 'below_free' }],
       inWindow: 'Press Bless', hooks: TO_BLESS }),
   /* FINISHED BY THE SERVER, NEVER BY A READ (retention dive 2026-11-20: Got it on it meant never again, and junk comes back every hunt): a sale or the
      Thicket finishes it; Got it hides it for this visit only (src/shell/launcher.js visitOf), so it never walls and comes back on the next return. */
@@ -446,7 +475,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('go_below', 'Into the sewer, together',
     'Hunts → The Sewer → Enter with party',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
-  step('tamsins_task', 'Tamsin\'s wolves',
+  step('tamsins_task', 'Tamsin\'s next task',
     TAMSIN_WAY,
     'tally', orGotIt({ kind: 'tally_taken', task: WOLVES.id }), { gotIt: true, when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
@@ -503,7 +532,7 @@ export const HUNT_TUTORIAL = Object.freeze([
       when: [IN_TOWN, { kind: 'level_at', at: CLOAK.reqLv }, { kind: 'carries', item: 'wolf_pelt', n: CLOAK_PELTS }] }),
   step('bless_paid', 'Blessings cost gold now',
     'Shop → Services → Bless',
-    'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'at_free' }, { kind: 'unblessed' }],
+    'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'can_die' }, { kind: 'at_free' }, { kind: 'unblessed' }],
       hooks: TO_BLESS }),
   step('weighhouse', 'The Weighhouse is open',
     'List items for other players to buy',
@@ -605,6 +634,23 @@ function canShoot(f) {
   return ids.some((id) => !!id && shootsItem(f.role, ITEMS[id]) && (f.carried[id] > 0 || (Array.isArray(f.store) && f.store.some((r) => r && r.partner === id))));
 }
 const heroesOn = (f) => (Array.isArray(f.roster) ? f.roster.filter((h) => h && Number.isInteger(h.slot)) : null);
+/* The account's other heroes playing in town and outside this hero's party (the roster's names against the server's seat names), or null
+   while either is unknown. */
+const outsideParty = (f) => {
+  const hs = heroesOn(f);
+  /* a hero in no party has no seats to read: every other hero is outside it */
+  const seated = Array.isArray(f.partyNames) ? f.partyNames : f.inParty === false ? [] : null;
+  if (!hs || !seated) return null;
+  return hs.filter((h) => h.slot !== f.self && h.open === true && h.hunting === false && !!h.name && !seated.includes(h.name));
+};
+/* The running hunt's place on the Danger scale ({ hunt, step, risk } from the `danger` section), or null off the scale. */
+const scaleHunt = (f) => (f.danger && f.danger.playing && f.danger.playing.hunt === f.huntId && DANGER_GROUNDS[f.huntId] ? f.danger.playing : null);
+/* THE FIRST RISK PICK (20-v030-the-roads.md 1.2: risk is taught at the first party ground, not before): the lowest open ground on the scale
+   whose band holds the hero's Level and opens at the recruits' Level or later, or null. Derived from DANGER_GROUNDS, so a ground R10 puts on
+   the scale joins by itself. */
+const riskGround = (f) => Object.keys(DANGER_GROUNDS).map((id) => HUNT_INDEX[id])
+  .filter((h) => !!h && h.staged !== true && h.band[0] >= RECRUITS.atLevel && f.charLevel >= h.band[0] && f.charLevel <= h.band[1])
+  .sort((a, b) => a.band[0] - b.band[0])[0] || null;
 
 /* ── WHERE THE HERO HAS BEEN (#58, Andy 10-22: the Thicket card came back every time he left the Thicket) ── */
 /* The monster kinds that tell `pocket` (or a LATER pocket) has been pulled: kinds standing in a pocket
@@ -764,6 +810,25 @@ const FACTS = Object.freeze({
   heroes: (p, f) => known(heroesOn(f), (h) => h.length >= p.atLeast),
   own_hero_in_town: (p, f) => known(heroesOn(f), (h) => h.some((x) => x.slot !== f.self && x.open === true && x.hunting === false)),
   partied: (p, f) => f.inParty === true || f.partied === true,
+  /* THE COMPANY IN ONE PARTY (lane/first-hour-rewrite, played 2026-11-23: after the first invite the card moved on and two recruits stood in
+     town): an own hero the roster shows playing, in town and outside this hero's party (`partyNames`, the server's seats), or none left */
+  own_hero_out: (p, f) => known(outsideParty(f), (o) => o.length > 0),
+  party_gathered: (p, f) => known(outsideParty(f), (o) => o.length === 0 && f.inParty === true),
+  /* a party personal best on any ground (the server's): this hero has hunted in a party, so it knows how to make one */
+  party_hunted: (p, f) => f.partied === true,
+  /* THE ROADS (the `talents` section, null while the switch is off: every card on it is passed by) */
+  talents_left: (p, f) => known(f.talents, (tl) => tl.left > 0),
+  talents_spent: (p, f) => known(f.talents, (tl) => tl.left === 0),
+  /* THE DANGER SCALE (the `danger` section; `falls` the newest hunt's report). A ground the scale opens on is a DANGER_GROUNDS row */
+  /* no `danger` section is the tier path (danger-sections.js: null, none), so a hunt with none is off the scale */
+  on_scale: (p, f) => !!f.huntId && !!scaleHunt(f),
+  off_scale: (p, f) => !!f.huntId && !scaleHunt(f),
+  fell_back: (p, f) => known(f.falls, (n) => n > 0),
+  risk_set: (p, f) => known(f.danger, (d) => !!d.risk),
+  scale_ground: (p, f) => !!riskGround(f),
+  /* where a hero can die (RD-Q3 a: Careful and Steady fall back first, only Bold dies): Bold in the plan or in the running hunt, or a death on record */
+  can_die: (p, f) => (f.danger === undefined && f.death === undefined ? null
+    : !!f.death || (!!f.danger && (f.danger.risk === 'bold' || (!!f.danger.playing && f.danger.playing.risk === 'bold')))),
   /* a press the shell recorded (Got it), or a reactive card on screen long enough to read */
   read: (p, f, c) => (f.read instanceof Set ? f.read.has(c.id) : null),
 });
@@ -1000,6 +1065,12 @@ const SAY = Object.freeze({
   },
   /* the weight that costs this hero's style nothing, named on the press (her window's line beside the picker says what each gives) */
   tamsins_task: (f) => {
+    /* A HERO IN A PARTY, or back from the party's ground, takes the party's task there (played 2026-11-23: a company of four in the Sewer was sent
+       to the lone wolves): the Rat King, on the ground it hunts */
+    if (f.inParty === true || reached(f, KING.hunt)) {
+      const words = { label: KING.label, count: KING.count };
+      return { text: t('coach.tamsins_task_party', words), textIn: t('coach.tamsins_task_party_in', words), ring: { task: KING.id } };
+    }
     const w = WEIGHT_FOR_ROLE[f.role];
     return { text: TAMSIN_WAY, textIn: w ? t('coach.tamsins_task_in', { weight: w, label: WOLVES.label }) : t('coach.tamsins_task_in_any', { label: WOLVES.label }) };
   },
@@ -1019,8 +1090,18 @@ const SAY = Object.freeze({
   },
   /* unstated until the server's recruit press is ready (never a card on a guess): its count in the words */
   more_heroes: (f) => (f.recruits && f.recruits.ready === true ? { text: t('coach.more_heroes', { count: f.recruits.count }) } : null),
+  talent_point: () => ({ text: t('coach.talent_point'), textIn: t('coach.talent_point_in') }),
+  /* "Depth 4 of 20", the HUD's own words for the server's step (`depth`: src/session/danger-sections.js depthOf over the `danger` section) */
+  depth: (f) => {
+    const d = scaleHunt(f) && f.depth && Number.isInteger(f.depth.depth) ? f.depth : null;
+    return d ? { title: t('coach.depth_title', { depth: d.depth, of: d.of || DEPTHS }), text: t('coach.depth') } : null;
+  },
+  risk_pick: (f) => {
+    const g = riskGround(f);
+    return g ? { text: t('coach.risk_pick', { ground: g.name }), textIn: t('coach.risk_pick_in'), ring: { hunt: g.id } } : null;
+  },
   party_own: (f) => {
-    const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
+    const o = (outsideParty(f) || []).find((x) => x.name);
     return o ? { text: t('coach.party_own', { name: o.name }), other: o.slot } : null;
   },
   fuel_hearth: (f) => {
@@ -1107,7 +1188,7 @@ export function cardFor(card, facts) {
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
   /* `said.anchor`: the words moved on to another surface (Klappa's Klub: from the bench to the bag), so the ring goes with them */
-  return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
+  return Object.freeze({ ...card, ...(said.title ? { title: said.title } : {}), ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 
 /* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────

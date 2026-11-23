@@ -15,6 +15,9 @@
 //   tutorial-town-chain    sell or keep, Blessings (the server's numbers), Tamsin's weight per role, paid, setups
 //   tutorial-reactive      ate, drank, a beating, more heroes, hunt together, upgrades, storage, stamina, a death,
 //                          paid Blessings, juice, a house, own runes: each on its own fact and worded from it
+//   first-hour-roads       the redesign's first hour on the rebuilt chain: the Roads off and on (a Talent point at Level 2, nothing else
+//                          moved), the recruits gathered one named invite at a time, Tamsin's party task, the Risk pick, the depth, a fall
+//                          back explained, and a Blessing only on Bold (lane/first-hour-rewrite, 2026-11-23)
 //   first-dangerous-run    ONE card offers the first Dangerous run at Level 8 to a hero in armor on head and body (server facts), names a ground
 //                          of its range with the tier, rings its Dangerous press, and never comes back once read or taken
 //   tutorial-second-hero   a second hero skips the knowledge cards and keeps the ones that set its own state
@@ -52,6 +55,8 @@ async function load(root) {
   M.sets = await imp('src/data/world/atlas-sets.js');
   M.classes = await imp('src/data/monster-classes.js');
   M.tut = await imp('src/data/hunt-tutorial.js');
+  M.danger = await imp('src/data/danger.js');
+  M.recruits = await imp('src/data/recruits.js');
   M.hl = await imp('src/shell/hunt-list.js');
   M.cm = await imp('src/data/condition-metrics.js');
   M.kit = await imp('src/data/start-kit.js');
@@ -305,6 +310,8 @@ function walkChain(M, T, extra) {
     cook_catch: () => set({ skillXp: { ...f.skillXp, cooking: 30 } }),
     styles: () => read('styles'),
     bless: () => set({ blessings: { ...f.blessings, held: f.blessings.of, prices: [] } }),
+    /* the Roads (switch on): Spend as suggested spends every point left */
+    talent_point: () => set({ talents: { ...f.talents, left: 0 } }),
     tamsins_task: () => set({ tally: tallyFact([[WOLVES, 0]], [RATS]) }),
     /* in the Thicket the hero eats, and "Eat on time" comes (the two read-on-sight cards it meets on the way are read) */
     into_the_thicket: () => set({ huntId: 'meadowbrook_thicket', visited: new Set([...f.visited, 'meadowbrook_thicket']), sellable: null,
@@ -560,7 +567,10 @@ const cases = {
     if (id(tutAt(M, K, 1, { read: new Set(['styles', 'tamsins_rats']) })) !== 'to_the_cellar') return 'Got it on Tamsin\'s rats leads to ' + id(tutAt(M, K, 1, { read: new Set(['styles', 'tamsins_rats']) }));
     if (id(tutAt(M, K, 1, { read: new Set(['styles']), tally: tallyFact([['cellar_giant_rats', 0]], []) })) !== 'to_the_cellar') return 'her rats taken, the next card is not the Cellar';
     const back = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3, read: new Set(seen.concat('styles')), blessings: tutAt(M, K, floor).blessings });
-    if (id(back) !== 'bless') return 'back from the Cellar the first card is ' + id(back) + ', not the Blessings';
+    /* RD-Q3 a (only Bold dies; lane/first-hour-rewrite): back from the Cellar on Steady the first card is the sale, and the Blessing card waits
+       for a hero who can die (Bold in its plan, or a death on record) */
+    if (id(back) !== 'sell_loot') return 'back from the Cellar the first card is ' + id(back) + ', not Sell junk';
+    if (id({ ...back, danger: { risk: 'bold', held: {}, playing: null } }) !== 'bless') return 'back from the Cellar on Bold the first card is ' + id({ ...back, danger: { risk: 'bold', held: {}, playing: null } }) + ', not the Blessings';
     /* the bow: the worn set says nothing is loaded (fact `ammo`); unknown says nothing */
     const B = tutKit(M, null, 'practice_bow', null);
     const bow = (more) => tutAt(M, B, 1, { ammo: null, ...(more || {}) });
@@ -752,7 +762,7 @@ const cases = {
        done, the helmet worn in town, then back down, and "Out to the brook" only on that second trip */
     /* PLANT YOUR LAND IN TOWN (audit 2026-11-18 A4): home from the first hunt, before back down, never two minutes into it */
     const want = ['tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'bar_intro', 'rats_count', 'tamsin_owes', 'styles', 'equip_upgrades', 'plant_land', 'back_down', 'earn_the_thicket',
-      'leave_cellar', 'bless', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
+      'leave_cellar', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
       'loot_rules', 'cook_catch', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
     /* NO SOLO WALL: paid, a solo hero at the Sewer's floor is done (What next), at any Level up to the Sewer's top. */
@@ -1022,10 +1032,13 @@ const cases = {
     const T = tutKit(M, 'tank');
     const steps = walkChain(M, T);
     const said = (id) => (steps.find((s) => s.id === id) || {}).card;
-    const bless = said('bless');
-    if (!bless || bless.text !== 'Shop → Services → Bless') return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
+    /* the Blessing card only where a hero can die (RD-Q3 a): never on the Steady walk, and on Bold it names the Services press */
+    if (said('bless')) return 'a hero on Steady is asked to bless';
+    const bold = walkChain(M, T, { danger: { risk: 'bold', held: {}, playing: null } });
+    const bless = (bold.find((s) => s.id === 'bless') || {}).card;
+    if (!bless || bless.text !== 'Shop → Services → Bless' || bless.title !== 'Bless before Bold') return 'the Blessing card on Bold reads ' + JSON.stringify(bless && [bless.title, bless.text]);
     const tam = said('tamsins_task');
-    if (!tam || tam.textIn !== 'Pick heavy armor, then Take Gray Wolves' || tam.text !== 'Open Tamsin\'s tally → Take 200 Gray Wolves') return 'Tamsin\'s card reads ' + JSON.stringify(tam && [tam.text, tam.textIn]);
+    if (!tam || tam.textIn !== 'Pick heavy armor, then Take Gray Wolves' || tam.text !== 'Town → Tamsin\'s tally → Take 200 Gray Wolves') return 'Tamsin\'s card reads ' + JSON.stringify(tam && [tam.text, tam.textIn]);
     /* a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
     const lv = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'first_level');
     if (!lv || /\bLevel \d/.test(lv.title + ' ' + lv.text)) return 'the first-Level card (shown at Level 1) names a Level: ' + JSON.stringify(lv && lv.title);
@@ -1046,7 +1059,7 @@ const cases = {
     /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" beside a tally reading 200/200): her row done, the card says what is left (her gold), in the hunt and in town */
     const WOLVES = 'thicket_gray_wolves', RATS = 'cellar_giant_rats';
     const down = { ...held, tally: tallyFact([[WOLVES, 200, true]], [RATS]) };
-    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt · Collect 480 gp from Tamsin'], ['in town', { ...down, huntId: null }, "Open Tamsin's tally → collect 480 gp"]]) {
+    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt · Collect 480 gp from Tamsin'], ['in town', { ...down, huntId: null }, "Town → Tamsin's tally → collect 480 gp"]]) {
       /* in the Thicket it is the card up; in town another card may lead, so her card's words are read from its own row */
       const step = facts.huntId ? M.tut.currentCard(facts) : M.tut.HUNT_TUTORIAL.find((s) => s.id === 'tamsin_pays'), c = step && Object.assign({ id: step.id }, M.tut.cardFor(step, facts));
       if (!c || c.id !== 'tamsin_pays' || c.text !== next) return 'her wolves counted, ' + where + ' the paid card reads ' + JSON.stringify(c && { id: c.id, text: c.text });
@@ -1456,7 +1469,9 @@ const cases = {
     const seen = walkChain(M, T, vet).map((x) => x.id);
     const know = M.tut.HUNT_TUTORIAL.filter((r) => r.knowledge).map((r) => r.id);
     if (seen.some((id) => know.includes(id))) return 'a second hero meets ' + seen.filter((id) => know.includes(id)).join(', ');
-    for (const id of ['food_when', 'bless', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
+    for (const id of ['food_when', 'tamsins_task']) if (!seen.includes(id)) return 'a second hero never meets ' + id + ' (' + seen.join(' > ') + ')';
+    /* its Blessing is its own state: a second hero on Bold is still told */
+    if (!walkChain(M, T, { ...vet, danger: { risk: 'bold', held: {}, playing: null } }).some((x) => x.id === 'bless')) return 'a second hero on Bold never meets bless';
     /* its runes: a hatchet hero who put Rend on Carried runes only, with none, is struck, and a second hero is still told */
     const axes = walkChain(M, carriedOnly(tutKit(M, null, 'practice_hatchets'), ['rend']), vet).map((x) => x.id);
     if (!axes.includes('spell_runes')) return 'a second hatchet hero never meets spell_runes (' + axes.join(' > ') + ')';
@@ -1470,6 +1485,75 @@ const cases = {
       const c = M.tut.currentCard(tutAt(M, T, lv, { ...pair, visited: new Set(['mill_cellar']), levelXp: M.xp.charXpForLevel(lv) + 3 }));
       if (c && c.id === 'party_own') return 'a Level ' + lv + ' hero in the Cellar stretch is asked to Hunt together before its own steps';
     }
+    return null;
+  },
+  /* THE REDESIGN'S FIRST HOUR, PLAYED ON THE REBUILT CHAIN (lane/first-hour-rewrite, 2026-11-23; 20-v030-the-roads.md section 3). The same club
+     hero walks the chain with the Roads switch off and on (on: a Talent point at Level 2, spent as suggested, and nothing else moves), then
+     the company: the recruits, every hero into one party one named invite at a time, the party's ground and Tamsin's party task; then the
+     Danger scale's cards on the first party ground the scale opens on (the Risk pick, the depth, a fall back explained, a Blessing only on Bold). */
+  'first-hour-roads': (M) => {
+    const K = tutKit(M, null, 'practice_club');
+    const id = (f) => (M.tut.currentCard(f) || {}).id || null;
+    const off = walkChain(M, K).map((x) => x.id);
+    const on = walkChain(M, K, { talents: { points: 1, left: 1 } });
+    const onIds = on.map((x) => x.id);
+    const at = onIds.indexOf('talent_point');
+    if (at < 0 || onIds[at - 1] !== 'first_level') return 'with the Roads on, the Talent point does not follow Level 2: ' + onIds.join(' > ');
+    if (onIds.filter((x) => x !== 'talent_point').join() !== off.join()) return 'the Roads on moves the rest of the first hour: ' + onIds.join(' > ') + ' vs ' + off.join(' > ');
+    const tp = on[at].card;
+    if (tp.title !== 'Talent point' || tp.text !== 'Character → Talents → Spend as suggested' || M.tut.coachWindow(tp) !== 'character' || M.tut.coachTab(tp) !== 'talents') return 'the Talent card reads ' + JSON.stringify(tp && [tp.title, tp.text, tp.anchor]);
+    if (off.includes('talent_point')) return 'with the Roads off a Talent card comes';
+    /* THE COMPANY: Level 5 in town, the recruits joined, the party made one invite at a time (played 2026-11-23: done on the first invite) */
+    const floor = M.HUNTS.millrace_sewer.band[0];
+    const town = on.find((s) => s.id === 'tamsins_task').facts;
+    const roster = [{ slot: 0, level: floor, name: 'Brannoc', open: true, hunting: false }, { slot: 1, level: floor, name: 'Tess', open: true, hunting: false },
+      { slot: 2, level: floor, name: 'Lark', open: true, hunting: false }, { slot: 3, level: floor, name: 'Bren', open: true, hunting: false }];
+    const co = (names, more) => ({ ...town, roster, self: 0, name: 'Brannoc', slotsOwned: 4, playLimit: 4, recruits: null,
+      inParty: names.length >= 2, partyNames: names, levelXp: M.xp.charXpForLevel(floor), charLevel: floor, ...(more || {}) });
+    const invites = [];
+    for (let seated = ['Brannoc']; seated.length <= 4; ) {
+      const c = M.tut.currentCard(co(seated));
+      const said = c && M.tut.cardFor(c, co(seated));
+      if (seated.length === 4) { if (c && c.id === 'party_own') return 'the whole company seated, Hunt together is still up'; break; }
+      if (!said || said.id !== 'party_own') return 'with ' + seated.join(', ') + ' seated the card is ' + (said && said.id) + ', not Hunt together';
+      const next = /Right-click (\w+)'s tab/.exec(said.text);
+      if (!next || seated.includes(next[1])) return 'Hunt together names ' + JSON.stringify(said.text) + ' with ' + seated.join(', ') + ' seated';
+      invites.push(next[1]);
+      seated = [...seated, next[1]];
+    }
+    if (invites.join() !== 'Tess,Lark,Bren') return 'the invites named ' + invites.join(', ');
+    const four = co(['Brannoc', 'Tess', 'Lark', 'Bren']);
+    if (id(four) !== 'go_below') return 'the company of four in town meets ' + id(four) + ', not the Sewer';
+    /* TAMSIN FOLLOWS THE PARTY: back from the Sewer, her task is the Rat King, never the lone wolves */
+    const back = { ...four, visited: new Set([...four.visited, 'millrace_sewer']) };
+    const tam = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'tamsins_task');
+    const tw = M.tut.cardFor(tam, back);
+    if (!/the Rat King/.test(tw.text) || /Wolves/.test(tw.text + tw.textIn) || tw.ring.task !== 'sewer_rat_king') return 'a party\'s Tamsin card reads ' + JSON.stringify([tw.text, tw.textIn, tw.ring]);
+    /* THE DANGER SCALE: the first party ground the scale opens on (DANGER_GROUNDS, a floor at the recruits' Level or later). Never the Cellar. */
+    const ground = Object.keys(M.danger.DANGER_GROUNDS).map((g) => M.HUNTS[g]).filter((h) => h && !h.staged && h.band[0] >= M.recruits.RECRUITS.atLevel)
+      .sort((a, b) => a.band[0] - b.band[0])[0];
+    if (!ground) return 'no open ground is on the scale';
+    const L = ground.band[0];
+    const deep = (more) => ({ ...four, levelXp: M.xp.charXpForLevel(L), charLevel: L, partied: true, read: new Set([...four.read, 'go_below', 'tamsins_task']),
+      danger: { risk: null, held: {}, playing: null }, ...(more || {}) });
+    const pick = M.tut.currentCard(deep());
+    const ps = pick && M.tut.cardFor(pick, deep());
+    if (!ps || ps.id !== 'risk_pick' || ps.text !== 'Hunts → ' + ground.name + ' → Risk' || ps.textIn !== 'Steady is set · Bold pays more and can die') return 'at Level ' + L + ' the Risk card reads ' + JSON.stringify(ps && [ps.id, ps.text, ps.textIn]);
+    if (id(deep({ danger: { risk: 'steady', held: {}, playing: null } })) === 'risk_pick') return 'a Risk picked, the Risk card is still up';
+    if (id(deep({ charLevel: floor, levelXp: M.xp.charXpForLevel(floor) })) === 'risk_pick') return 'the Risk card comes before a party ground is on the scale';
+    const hunting = deep({ huntId: ground.id, read: new Set([...deep().read, 'risk_pick']), danger: { risk: 'steady', held: {}, playing: { hunt: ground.id, from: 'steady', risk: 'steady', start: 0, step: 0, cool: 0 } }, depth: { depth: 1, of: 20 } });
+    const dc = M.tut.cardFor(M.tut.currentCard(hunting), hunting);
+    if (!dc || dc.id !== 'depth' || dc.title !== 'Depth 1 of 20' || dc.text !== 'Depth climbs by itself · Deeper pays more') return 'on the scale the depth card reads ' + JSON.stringify(dc && [dc.id, dc.title, dc.text]);
+    if (id({ ...hunting, huntId: 'mill_cellar', danger: null, depth: null }) === 'depth') return 'off the scale the depth card is up';
+    const fell = { ...hunting, huntId: null, read: new Set([...hunting.read, 'depth']), falls: 1 };
+    if (id(fell) !== 'fell_back') return 'a fall back in the report shows ' + id(fell) + ', not Fell back';
+    if (id({ ...fell, falls: 0 }) === 'fell_back') return 'no fall back, yet the card is up';
+    /* a Blessing only where a hero can die */
+    /* every other card read: the Blessing card alone is judged, on the full table (a table without an Enter card has no Level cap) */
+    const others = new Set(M.tut.HUNT_TUTORIAL.map((r) => r.id).filter((x) => x !== 'bless'));
+    const blessFacts = (danger) => ({ ...tutAt(M, K, floor, { visited: new Set(['mill_cellar']), read: others, hid: others }), danger });
+    if (id(blessFacts({ risk: 'steady', held: {}, playing: null })) === 'bless') return 'a hero on Steady is asked to bless';
+    if (id(blessFacts({ risk: 'bold', held: {}, playing: null })) !== 'bless') return 'a hero on Bold is never asked to bless: ' + id(blessFacts({ risk: 'bold', held: {}, playing: null }));
     return null;
   },
   'tutorial-no-wall': (M) => {
@@ -2228,7 +2312,20 @@ const mutants = [
   { name: 'the gold card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when:", "'strip', { kind: 'partied' }, { reactive: true, when:"]] },
+    edits: [['src/data/hunt-tutorial.js', "'strip', { kind: 'any', asks: true, of: [READ, { kind: 'party_gathered' }, { kind: 'party_hunted' }] }, { reactive: true, gotIt: true, when:", "'strip', { kind: 'any', of: [{ kind: 'party_gathered' }, { kind: 'party_hunted' }] }, { reactive: true, when:"]] },
+  /* THE WHOLE COMPANY, NOT ONE INVITE (lane/first-hour-rewrite, played 2026-11-23: done on the first invite, two recruits stood in town) */
+  { name: 'Hunt together is done on the first invite', case: 'first-hour-roads',
+    edits: [['src/data/hunt-tutorial.js', "party_gathered: (p, f) => known(outsideParty(f), (o) => o.length === 0 && f.inParty === true),", "party_gathered: (p, f) => f.inParty === true,"]] },
+  { name: 'the Talent card opens the Character window on its sheet, not its Talents tab', case: 'first-hour-roads',
+    edits: [['src/data/hunt-tutorial.js', "then Spend as suggested', 'character', true, 'talents'),", "then Spend as suggested', 'character', true),"]] },
+  { name: 'a hero on Steady is asked to bless (only Bold dies)', case: 'first-hour-roads',
+    edits: [['src/data/hunt-tutorial.js', "    : !!f.death || (!!f.danger && (f.danger.risk === 'bold' ||", "    : true || (!!f.danger && (f.danger.risk === 'bold' ||"]] },
+  { name: 'a company is sent to the lone wolves', case: 'first-hour-roads',
+    edits: [['src/data/hunt-tutorial.js', 'if (f.inParty === true || reached(f, KING.hunt)) {', 'if (false) {']] },
+  { name: 'the depth card does not say the depth', case: 'first-hour-roads',
+    edits: [['src/data/hunt-tutorial.js', "return d ? { title: t('coach.depth_title', { depth: d.depth, of: d.of || DEPTHS }), text: t('coach.depth') } : null;", "return d ? { text: t('coach.depth') } : null;"]] },
+  { name: 'the Risk card stays up once a Risk is picked', case: 'first-hour-roads',
+    edits: [['src/data/hunt-tutorial.js', 'risk_set: (p, f) => known(f.danger, (d) => !!d.risk),', 'risk_set: (p, f) => known(f.danger, (d) => false),']] },
   { name: 'Cash in says nothing of the party on a member\'s screen', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "  leave_cellar: (f) => ({ text: f.inParty === true ?", "  leave_cellar: (f) => ({ text: f.inParty === 'never' ?"]] },
   { name: 'the coach names gear no player can get (the copy audit\'s five)', case: 'coach-gear-by-level',

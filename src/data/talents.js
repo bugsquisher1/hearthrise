@@ -31,10 +31,10 @@
 //               { kind: 'heal_in', pm, when?, scope? }   HEALING RECEIVED: pm more of every heal the hero takes while `when` holds;
 //                    scope 'warded': on an ally holding this hero's shell instead (src/core/hunt/heal-cut.js healIn). pm x ramp(L)
 //               { kind: 'unit', ... }      A UNIT RULE (UNIT_FIELDS): Hold Fast's no-switch, Bodyguard's share, Still Mind's regen
-//               { kind: 'rule', id }       A RULE THE ENGINE CANNOT PLAY (lane/talent-effects built the rest as the pieces above; one is
-//                    left, `shield_duration`: a shell has no duration in the engine, so a longer one is a design call): held at 0 by the
-//                    engine, listed by heldRules() and in the lane's report. "Every node fires on the dummy analyzer before it ships" (17 section 9): TALENT_RULES.live stays false
-//                    while a sample node the suggested path takes is held
+//               { kind: 'rule', id }       A RULE THE ENGINE CANNOT PLAY: held at 0 by the engine, listed by heldRules() and in the lane's
+//                    report. The map names none (the designer, lane/roads-countries: a shell stands until a blow spends it, so the two
+//                    "longer shell" nodes became bigger ones). "Every node fires on the dummy analyzer before it ships" (17 section 9):
+//                    TALENT_RULES.live stays false while a node the suggested path takes is held
 //   needs     a hybrid or a hybrid vow: { crossroadsIn: [country, country] } (17 section 6: "Requires a crossroads in both countries")
 //
 // SIZES (17 section 9, 19 section 1). Step rows in steps of DANGER.powerStep (0.35% power a step): a vow +18 on its condition and -8
@@ -225,8 +225,9 @@ const SHIELD_NODES = [
     way('Quick Stone', 'Shelter −5 s cooldown', [mod('shelter', { cdMs: -5000 })]),
     [opt('ready_shelter', 'Ready Shelter', 'Casts when an ally is near fall-back · +10 s cooldown',
       [react('shelter_on_near_fall', 'near_fall', 'cast', { move: 'shelter' }), mod('shelter', { cdMs: 10000 })]),
-      /* HELD: a shell has no duration in the engine (it stands until spent, shields.js), so a longer one is nothing: the designer's call */
-      opt('long_shelter', 'Long Shelter', '+4 s shield duration', [rule('shield_duration')], true),
+      /* (the designer, lane/roads-countries: a shell stands until a blow spends it, shields.js, so Long Shelter's "+4 s" had nothing to
+         lengthen. Its job, a shell that lasts through more blows, is now a bigger one on a slower clock) */
+      opt('firm_shelter', 'Firm Shelter', '+25% shield · +5 s cooldown', [mod('shelter', { outPm: 250, cdMs: 5000 })], true),
       opt('bright_shelter', 'Bright Shelter', '+6% healing received while shielded', [healIn(60, 'shielded')])],
     way('Guarding Stone', 'Shelter: +10% shield on allies near fall-back', [mod('shelter', { nearFallPm: 100 })])),
   /* THE VOWS (17 section 7): beside the country's first crossroads; +18 on the condition, −8 always; never a max-health cost */
@@ -286,8 +287,8 @@ const RESTORATION_NODES = [
       opt('twin_ward', 'Twin Ward', 'Shields 2 allies · −40% shield each', [mod('protective_ward', { extra: 1, outPm: -400 })]),
       /* "on recast": the ward may be cast again on an ally holding this healer's own chipped ward, the part left coming back as mana */
       opt('lasting_ward', 'Lasting Ward', 'Unused shield returns as mana on recast · −20% shield', [mod('protective_ward', { refund: true, outPm: -200 })])],
-    /* HELD: a shell has no duration in the engine (shields.js), so a longer one is nothing: the designer's call */
-    way('Long Ward', 'Ward +1 s', [rule('shield_duration')]),
+    /* (the designer, lane/roads-countries: a ward stands until spent, so "+1 s" became a bigger ward) */
+    way('Thick Ward', 'Ward +5% shield', [mod('protective_ward', { outPm: 50 })]),
     [opt('quick_ward', 'Quick Ward', '−30% cooldown · −20% shield', [mod('protective_ward', { cdPm: -300, outPm: -200 })], true),
       opt('mending_ward', 'Mending Ward', '+6% healing received while the ward holds', [healIn(60, null, 'warded')]),
       opt('deep_ward', 'Deep Ward', '+30% shield · +6 s cooldown', [mod('protective_ward', { outPm: 300, cdMs: 6000 })])],

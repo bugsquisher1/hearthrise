@@ -113,7 +113,7 @@ export function buildSql(r) {
 -- check every spend, saved build and suggested walk against (1064-roads-sample.sql), so the server never trusts a client node, link or pick.
 --   hr_talent_rules        1 row: live ${R.live} (THE SWITCH: false projects nothing and every verb refuses talents_closed), a point a Level
 --                          from ${R.pointFrom}, vow slots at ${R.vowSlots.join(' / ')}, ${R.maxBorrowed} borrowed moves, ${R.savedMax} saved builds
---   hr_talent_nodes        ${r.nodes.length} nodes (the sample: the Great Hearth, Shield, Restoration, Shield · Restoration)
+--   hr_talent_nodes        ${r.nodes.length} nodes (the whole map: the Great Hearth, seven countries, nine borders)
 --   hr_talent_options      ${r.options.length} options, each lent move with the Level it opens at
 --   hr_talent_suggest      ${r.suggest.length} steps of "Spend as suggested" (${r.open.length} disciplines x ${PLANS.join(', ')}), never a vow
 --   hr_talent_open         ${r.open.length} open roads, hr_talent_disciplines ${r.disciplines.length} role keys

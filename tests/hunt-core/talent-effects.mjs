@@ -14,7 +14,8 @@
 //   mana-returns        Thrifty Mending, Mana Circle, Full Spring, Lasting Ward's refund on recast, Still Mind's regen
 //   echo-and-carry      a second hit lands its share later, exactly; an overkill carries to the nearest monster, capped
 //   unit-rules          Hold Fast keeps monsters on the tank, Bodyguard takes its share, Drawing Challenge holds a Stalker
-//   every-option-playable  every option and waystone row of the map reaches the engine; the one held rule is listed with its reason
+//   every-option-playable  every option and waystone row of the map reaches the engine; no rule is held (the designer re-worded the two
+//                       shell-duration nodes, lane/roads-countries)
 //   real-settle-both-paths  a tank and a healer with many pieces in a real four: 10-minute and 100-second windows play one hunt, and the
 //                       pieces fire (Mending ticks, reaction heals)
 //
@@ -434,12 +435,12 @@ const cases = {
   },
   'every-option-playable': (M) => {
     const held = M.T.heldRules();
-    if (held.join() !== 'shield_duration') return 'rules still held: ' + held.join(', ');
+    if (held.length) return 'rules still held: ' + held.join(', ');
     /* every option and every waystone or vow with effects reaches the engine: a mod, a reaction, healing received or a unit rule */
     for (const n of M.TD.TALENT_NODES) {
       const lists = n.kind === 'crossing' ? [] : [...(n.options || []).map((o) => [o.id, o.effects]), ...(n.effects ? [[null, n.effects]] : [])];
       for (const [pick, fx] of lists) {
-        if (fx.every((e) => e.kind === 'rule')) { if (fx.some((e) => e.id !== 'shield_duration')) return n.id + ':' + pick + ' plays nothing'; continue; }
+        if (fx.every((e) => e.kind === 'rule')) return n.id + ':' + pick + ' plays nothing';
         for (const e of fx) if (!['step', 'mod', 'react', 'heal_in', 'unit', 'borrow', 'rule'].includes(e.kind)) return n.id + ' an unknown effect';
       }
     }

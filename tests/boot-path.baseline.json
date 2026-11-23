@@ -274,6 +274,12 @@
         "gzipBytes": 955922,
         "on": "2026-11-23",
         "why": "two town modules for named events: render/source-names.js and text/fight.js (lane/client-talent-floaters)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 956019,
+        "on": "2026-11-23",
+        "why": "eleven refusal lines for Talents and faction pieces (lane/ci-reds-db-1123)"
       }
     ]
   }

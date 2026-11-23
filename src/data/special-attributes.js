@@ -6,7 +6,7 @@
 // "by unique i mean having a special attribute" and "maybe the legs have a % physical resistance". A special piece is the
 // standard piece of its slot and tier plus ONE attribute. It drops (armor, shields and weapons); high-end jewelry is crafted.
 //
-// TWO ARE SHIPPED, TWO ARE HIDDEN (Widow's Fang left the sample with the crit attribute, lane/named-pieces 2026-11-23). Krell's Tollgate and the Banded Legguards (`shipped: true`; Tyler 2026-11-14: "a pair of
+// TWO ARE SHIPPED, TWO ARE HIDDEN (Widow's Fang left the sample, lane/named-pieces 2026-11-23). Krell's Tollgate and the Banded Legguards (`shipped: true`; Tyler 2026-11-14: "a pair of
 // pally legs a tank shield") are real items since lane/c-krell-uniques: their home pack (src/data/grounds/krells_hold/pack.js)
 // reads the row, the text and the roll's slice FROM HERE, so this file stays the one place they are written. The other two
 // are in no ITEMS row, no monster's drops, no recipe, no catalogue and no generator until Tyler approves the sample
@@ -62,8 +62,15 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
     cap: Object.freeze({ value: 6, where: 'NEW: src/data/special-attributes.js GEAR_SKILL_CAP.weaponSkill, armor and cape together; the weapon adds its own on top' }),
     slots: Object.freeze(['helmet', 'gloves', 'body', 'cape']), hook: null, unproven: Object.freeze(['magic']),
   }),
-  /* (+ critical chance is CUT: a flat number on top of the base, docs/design/redesign/27-formula-overhaul.md 2.3 and 28-named-pieces.md.
-     Its one piece, Widow's Fang, left the sample with it.) */
+  /* + critical chance on basic blows. Weapons only (leather armor carries its own small crit as a standard stat). Its sample piece,
+     Widow's Fang, is cut (docs/design/redesign/28-named-pieces.md); the kind stays only for the staged weapon line past Dawnsteel
+     (tools/balance-sim/staged/weapon-line.js), whose sort into Traits or Signatures is 27-formula-overhaul.md 2.3's, still owed. */
+  crit: Object.freeze({
+    field: 'critB', keys: null, unit: 'chance',
+    at: Object.freeze({ 2: 0.06, 3: 0.06, 4: 0.08, 5: 0.08, 6: 0.1, 7: 0.1 }),
+    cap: Object.freeze({ value: 0.6, where: 'src/core/combat.js COMBAT_BALANCE.critCap' }),
+    slots: Object.freeze(['weapon']), hook: null,
+  }),
   /* 10% more damage to one monster class, on the standard weapon's numbers. The engine's ceiling is 1.4; a row uses 1.1. */
   bane: Object.freeze({
     field: 'bane', keys: null, unit: 'mult',

@@ -124,7 +124,7 @@ Each of these was its tier's piece plus a bump, and the creature, dungeon or sys
 | 70 | `panthers_eye_pendant` | Panther's Eye Pendant | necklace, 68 | later (Panther) | (d) | Cut. Crit |
 | 71 | `wraithsilk_shroud` | Wraithsilk Shroud | body, 52 | later (Grave Banshee) | (d) | Cut. Cloth that fought like leather |
 | 72 | `widows_fang` | Widow's Fang | sword, 38 | none | (d) | Cut. Crit |
-| 73 | `special:widows_fang` | Widow's Fang (the special sample) | sword, 15 | hidden sample | (d) | Cut, and the special-attribute plan's crit attribute with it. Crit is a flat number |
+| 73 | `special:widows_fang` | Widow's Fang (the special sample) | sword, 15 | hidden sample | (d) | Cut. Crit is a flat number. The crit attribute kind stays only for the staged weapon line past Dawnsteel, whose sort is owed (section 5) |
 | 74 | `plaguewarden_greaves` | Plaguewarden Leg Plates | legs, 54 | none | (d) | Cut. Plate penalty bought off |
 | 75 | `hollow_sigil_ring` | Hollow Sigil Ring | ring, 35 | none | (d) | Cut. A Magic-leaning ring |
 | 76 | `fangdart_recurve` | Fangdart Recurve | bow, 36 | none | (d) | Cut. Crit for damage |
@@ -189,6 +189,7 @@ Verified by `node tools/gen-gear.mjs` (the table above is its output, rounded) a
 - **Jewel perks** (Keen, Surge, Follow-through, Steady, Focus, `src/data/jewelry.js`) are the other half of phase A item 3. They are chances and shares, not stat offsets, so this lane didn't touch them. They belong with the Trait pool's ring and earring rows.
 - **Homes:** the Trollhide Cape fits Carter's Rest and the Dragonrib Bow fits Wyvern Roost. The Barrow King's champion goes onto Muster Barrows for its mantle's Trait to drop.
 - **Renames:** Shadowsilk Cape and Void Censer use filler words (`DESIGN_STANDARDS.md`).
+- **The staged weapon line past Dawnsteel** (`tools/balance-sim/staged/weapon-line.js`) carries crit and bane uniques built on the special-attribute plan. They hold no offset, so they aren't in this table, but their crit is the same flat number and goes in the same sort.
 - **Bane size.** A bane today is up to +40% (`MAX_BANE_MULT`), far past a Trait's 3.5%. It needs its size in the power ledger with the rest of the conditional numbers (`27` G-3).
 
 ## 6. Guards

@@ -678,22 +678,22 @@ async function runTests(M) {
 
   await t('T5 with gold to spend the card names ONE next buy the purse covers, from the server\'s sections, last and never the gold press', async () => {
     const { NB } = M;
-    /* audit 2026-11-15 F12/F20 and the Practice Shield worn to 87: a tank at 31 with the Shop's Bronze-Rimmed Shield on offer */
+    /* audit 2026-11-15 F12/F20 and the Practice Shield worn to 87: a tank at 31 with an Ironbound Shield on offer (the Bronze-Rimmed is the Practice Shield's equal since 28-named-pieces.md) */
     const tank = { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', boots: 'bronze_boots', gloves: 'bronze_gauntlets', belt: 'bronze_belt' };
     const noBelt = { ...tank }; delete noBelt.belt;
     const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 } };
     const shop = (...o) => ({ offers: o.map(([item, price, kind]) => ({ offer: 'shop.' + item, item, kind: kind || 'gear', price })), bids: new Map() });
-    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
+    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: shop(['ironbound_shield', 200]),
       temper: null, dummy: null, home: null, bag: [], bank: [] }, over || {}));
     const shield = buy();
-    eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
-      { kind: 'shop', item: 'bronze_rimmed_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
+    eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Ironbound Shield (200 gp)', '+2 Defense vs Practice Shield', 'ironbound_shield',
+      { kind: 'shop', item: 'ironbound_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
     /* a bare slot first, though dearer; a piece worse than the worn one, another style's, or past the purse is never named */
-    const bare = buy({ equipment: noBelt, shop: shop(['bronze_rimmed_shield', 140], ['bronze_belt', 200]) });
+    const bare = buy({ equipment: noBelt, shop: shop(['ironbound_shield', 200], ['bronze_belt', 200]) });
     eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (200 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first');
-    eq(buy({ purse: 139 }), null, 'past the purse, nothing');
-    eq(buy({ equipment: { ...tank, shield: 'bronze_rimmed_shield' } }), null, 'what is worn already is not bought again');
-    eq(buy({ shop: shop(['bronze_rimmed_shield', 140, 'tool']) }), null, 'only the Shop\'s gear');
+    eq(buy({ purse: 199 }), null, 'past the purse, nothing');
+    eq(buy({ equipment: { ...tank, shield: 'ironbound_shield' } }), null, 'what is worn already is not bought again');
+    eq(buy({ shop: shop(['ironbound_shield', 200, 'tool']) }), null, 'only the Shop\'s gear');
     /* THE PLAN'S WEIGHT RULE, AND WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to
        a heavy hero at Level 9 and they stayed on to 85; designer ruling 2b of 2026-11-18). Next buy reads upgradePlan's rule (upgrade-plan.js
        weightFits), never its own: a bare slot takes any weight, so a heavy hero's bare gloves slot is sold the medium pair, as a medium hero's is;
@@ -758,7 +758,7 @@ async function runTests(M) {
     /* on the card: one row, last, Show opens where it is bought, and it is never the gold press */
     const none = { ops: {}, picks: [], choices: [] };
     const solo = steps({ plan: none, bag: bag.filter((r) => r.id !== 'rat_tail'), rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
-    eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'Show', 'bronze_rimmed_shield']], 'again'],
+    eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Next buy: Ironbound Shield (200 gp)', '+2 Defense vs Practice Shield', 'Show', 'ironbound_shield']], 'again'],
       'with the bag sorted the card still names the buy, and Hunt again stays the press');
     const all = steps({ buy: shield });
     eq([all.steps.map((s) => s.id), all.primary], [['equip', 'sell', 'deposit', 'bless', 'buy'], 'equip'], 'after the other steps, never ahead of them');

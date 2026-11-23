@@ -25,6 +25,10 @@
 //   FROST SLAM (2026-11-19) the tank's steel sabaton stamping down, ice bursting out from under it every way.
 //   SHELTER    (2026-11-19) the earth's dome over the party: the tank's great helm in front, a mage's hat and a healer's hood.
 //         These two draw their emblems from the world palette only (ON_WORLD_PALETTE; the writer refuses a stray colour).
+//   STAGGER (2026-11-23, wave 3: Quarry Blow reworked, the same tile) the hammer coming down on a quarried stone, split under it.
+//   PARRY   (2026-11-23, wave 3) a sword held across, a blow glancing off its blade in a spark: the sword's guard.
+//   GASH    (2026-11-23, wave 3) a hatchet's head in the middle and its cut swept round it in four red slashes: the axes' ring.
+//         The three wave-3 tiles draw on the world palette only, as the tank's two.
 //
 //   node tools/world-art/ability-tiles.mjs            write assets/icons-bundle/pixel/abilities/<id>.png
 //   node tools/world-art/ability-tiles.mjs --out <d>  write to a folder instead (a preview)
@@ -339,10 +343,66 @@ function quarryBlow() {
   return g;
 }
 
-export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow, frost_slam: frostSlam, shelter, quarry_blow: quarryBlow });
+/* ── THE WAVE-3 ANSWERS (lane/moves-wave-3, 2026-11-23; docs/design/redesign/23-spell-audit.md section 4) ─────────────────────────
+   STAGGER is Quarry Blow reworked (the hammer's Earth rune strike that ends a wind-up), so it keeps Quarry Blow's tile above: the hammer
+   coming down on the stone. PARRY and GASH are new, both on the world palette only. */
+const SPARK = { core: STUD, hot: '#ffd36a', warm: '#f2a03a' };                                     // white, the torch ramp
+const GUARD = { lit: '#e8c547', mid: '#cfa25c', dark: '#7a4f26' };                                 // gold, bronze
+const CUT = { lit: '#c23a2a', mid: '#8e1f1f', deep: '#5e1a1f' };                                    // blood, cloth's dark red
+
+/* PARRY: a sword held across the tile, point up and to the right, a blow glancing off the blade in a spark, the strike's two streaks
+   thrown off past it. The sword's guard, not Challenge's shield held up and not Power Strike's star on its own: the blade is the verb. */
+function parry() {
+  const g = frame();
+  // the blade: a long steel lens from the guard to the point, lit on its upper edge
+  stamp(g, lens([10, 22], [26, 6], (t) => (t > 0.86 ? 1.6 * (1 - t) / 0.14 + 0.3 : 1.6), (t, d, w) => (d > 0.35 * w ? STEEL.a : d > -0.45 * w ? STEEL.b : STEEL.c)));
+  // the fuller: a dark line down the blade's middle
+  for (let t = 0.1; t < 0.78; t += 0.02) { const x = Math.round(10 + 16 * t), y = Math.round(22 - 16 * t); if (g[y][x] === STEEL.b) g[y][x] = STEEL.d; }
+  // the crossguard across the blade, gold, and the grip and pommel below it
+  stamp(g, lens([7, 19], [13, 25], () => 1.1, (t, d) => (d > 0.2 ? GUARD.lit : d > -0.4 ? GUARD.mid : GUARD.dark)));
+  stamp(g, lens([9, 23], [5, 27], () => 1, (t, d) => (d > 0.2 ? HAFT.lit : d > -0.4 ? HAFT.mid : HAFT.dark)));
+  stamp(g, [[4, 27, GUARD.lit], [4, 28, GUARD.mid], [5, 28, GUARD.dark]]);
+  // the blow glancing off: a spark on the blade's edge, white at its heart, torch light round it
+  const sx = 18, sy = 12;
+  for (const [dx, dy, c] of [[0, 0, SPARK.core], [-1, 0, SPARK.core], [0, -1, SPARK.core], [1, 0, SPARK.hot], [0, 1, SPARK.hot], [-2, 0, SPARK.hot], [0, -2, SPARK.hot],
+    [-1, -1, SPARK.hot], [1, -1, SPARK.hot], [-1, 1, SPARK.hot], [-3, 0, SPARK.warm], [-4, 0, SPARK.warm], [0, -3, SPARK.warm], [0, -4, SPARK.warm],
+    [-2, -2, SPARK.warm], [-3, -3, SPARK.warm], [2, -2, SPARK.warm], [3, -3, SPARK.warm], [-2, 2, SPARK.warm], [2, 2, SPARK.warm]]) g[sy + dy][sx + dx] = c;
+  // the strike's streaks, thrown off up and away from the blade
+  for (const [x, y] of [[14, 5], [15, 6], [16, 7], [11, 7], [12, 8], [13, 9]]) g[y][x] = STEEL.a;
+  return g;
+}
+
+/* GASH: the axes' cut swept round the hero in four red slashes, each swelling in its middle and running to a point, with the hatchet's
+   head in the middle and a drop shed off each slash. Rend's three gashes are one target's wounds; this is a ring. */
+function gash() {
+  const g = frame();
+  const cx = 15.5, cy = 16, r0 = 9.2;
+  const ring = [];
+  for (let y = 3; y < 29; y++) for (let x = 3; x < 29; x++) {
+    const r = Math.hypot(x - cx, y - cy), a = (Math.atan2(y - cy, x - cx) * 180 / Math.PI + 360) % 360;
+    // four slashes of 70 degrees, each starting 20 degrees past a quarter turn, swelling in their middle
+    const k = Math.floor(((a + 340) % 360) / 90), f = (((a + 340) % 360) - 90 * k) / 70;
+    if (f < 0 || f > 1) continue;
+    const w = 0.45 + 1.55 * Math.sin(Math.PI * f);
+    const d = r - r0;
+    if (Math.abs(d) > w) continue;
+    const lit = Math.cos((a - 225) * Math.PI / 180) > -0.2;               // the slashes facing the upper-left light
+    ring.push([x, y, d < 0.25 * w ? (lit || d < -0.3 * w ? CUT.lit : CUT.mid) : d < 0.6 * w ? CUT.mid : CUT.deep]);
+  }
+  stamp(g, ring);
+  // the hatchet's head in the middle: a steel bit with its edge lit, on a short bronze haft
+  const head = paint(['..abbc', '.abbbc', 'abbbbd', 'abbbbd', '.abbbc', '..abbc'], { a: STEEL.a, b: STEEL.b, c: STEEL.c, d: STEEL.d }, 12, 13);
+  stamp(g, head);
+  stamp(g, lens([17, 16], [21, 20], () => 0.9, (t, d) => (d > 0.2 ? HAFT.lit : d > -0.4 ? HAFT.mid : HAFT.dark)));
+  // a drop shed off each slash, outward
+  for (const [x, y] of [[26, 9], [24, 27], [5, 22], [8, 5]]) { g[y][x] = CUT.lit; g[y + 1][x] = CUT.deep; }
+  return g;
+}
+
+export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow, frost_slam: frostSlam, shelter, stagger: quarryBlow, parry, gash });
 
 /** The tiles whose emblems are locked to the world palette (the four above them wear their sibling tiles' colours, as the header says). */
-const ON_WORLD_PALETTE = Object.freeze(['frost_slam', 'shelter', 'quarry_blow']);
+const ON_WORLD_PALETTE = Object.freeze(['frost_slam', 'shelter', 'stagger', 'parry', 'gash']);
 
 /** The colours in tile `id` that are neither the world palette's nor the family frame's (frame, field, ink, white): [] when it is locked. */
 function offPalette(id) {

@@ -54,6 +54,8 @@ export const BAR_TEXT = Object.freeze({
   /* a party shield (Shelter), and a ring that lands only its status (Frost Slam: the status's own words, one row a status) */
   target_party_shield: 'Shields every hero near you',
   target_status_ring_chill: 'Chills monsters next to you',
+  /* one target that lands only its status (Parry: the status's own words, one row a status) */
+  target_status_enemy_parried: 'Parries the target',
 
   /* A spell's effect lines. */
   effect_mark: 'Target takes {pct}% more damage for {secs} s',
@@ -80,6 +82,10 @@ export const BAR_TEXT = Object.freeze({
   effect_status_for: 'Causes {status} for {secs} s',
   effect_status_for_slow: 'Causes {status} for {secs} s, {pct}% slower attacks and casts',
   effect_status_for_taken: 'Causes {status} for {secs} s, {pct}% more damage taken',
+  effect_status_for_parry: 'Next attack within {secs} s: no damage',
+  /* the answers to a wind-up (abilities.js interrupts, pushMs: Stagger) */
+  effect_interrupt: 'Interrupts a wind-up',
+  effect_push: 'Next attack {secs} s later',
   /* a spell that waits for a level in its own skill (abilities.js unlock), and its slot while the hero is under it */
   unlock: 'Unlocks at {skill} {level}',
   unlock_wait: 'Requires {skill} {level}, now {have}',

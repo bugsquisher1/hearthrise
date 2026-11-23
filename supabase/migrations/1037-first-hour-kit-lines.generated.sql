@@ -5,14 +5,17 @@
 --   src/data/items.js (each practice item's one equip slot). Any hand edit here is reverted by the next generation and FAILS
 --   `node tools/gen-catalogues.mjs --check`, a preflight in tests/run-sql-tests.mjs and tests/run-smoke.mjs.
 --
---   catalogue digest: b863ee889cfcde207da0b4f4621178695d8b9c5477a06dc1591e793947d273e9
---   14 lines · sets: club, dual_axes, healer, mage, ranger, tank · default set: tank
+--   catalogue digest: e089c48c106ba11ad5edf6a9d5619a05e7978ca6a87e079854d684592cbf58f1
+--   14 lines · sets: club, dual_axes, healer, mage, ranger, tank · default set: tank · loads: ranger bronze_arrows
 --
 -- WHAT THIS IS FOR (lane/c-first-hour FB-5, CE-10). hr_create_character__as (1038-start-kits.sql) reads it:
 --   kit 'account'   once an account (account_kits 'account'), into its first hero's bag
 --   kit 'hero'      once a slot (account_kits 'hero:<slot>'), into that slot's first hero's bag
 --   kit 'practice'  to every hero: the picked set's worn rows in their equip slot, every other practice row in the bag
 -- A pick is a set_id of these rows; default_set marks the set a hero made with no pick wears. Server-only: no client grant.
+-- `loads` (lane/recruits-ammo-talents, 2026-11-23), on a set's worn weapon line: the kit shot that weapon looses (hunt-roles.js
+--   shootsItem, the highest requirement a new hero meets). hr_create_character__as moves ONE of it from the bag to the ammo slot, as an
+--   Equip of the weapon does (src/shell/bag-model.js equipOps), so no server-made bow goes on empty.
 -- ORDER: after 1036-four-starter-slots.sql; BEFORE 1038-start-kits.sql, whose §0 refuses without it. SAFE TO RE-RUN (a full replace).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -26,25 +29,29 @@ create table if not exists public.hr_start_kit_lines (
   default_set boolean not null default false check (kit = 'practice' or not default_set),
   primary key (kit, item_id)
 );
+alter table public.hr_start_kit_lines add column if not exists loads text;
+alter table public.hr_start_kit_lines drop constraint if exists hr_start_kit_lines_loads_ck;
+alter table public.hr_start_kit_lines add constraint hr_start_kit_lines_loads_ck
+  check (loads is null or (kit = 'practice' and worn and equip_slot = 'weapon'));
 alter table public.hr_start_kit_lines enable row level security;
-comment on table public.hr_start_kit_lines is '1037-first-hour-kit-lines.generated.sql: the starting kit by part (account once, hero once a slot, practice weapons to every hero with the picked set worn), generated from src/data/start-kit.js. Read by hr_create_character__as. Server-only.';
+comment on table public.hr_start_kit_lines is '1037-first-hour-kit-lines.generated.sql: the starting kit by part (account once, hero once a slot, practice weapons to every hero with the picked set worn, and the kit shot a set''s worn weapon loads), generated from src/data/start-kit.js. Read by hr_create_character__as. Server-only.';
 
 delete from public.hr_start_kit_lines;
-insert into public.hr_start_kit_lines (item_id, kit, qty, set_id, equip_slot, worn, default_set) values
-  ('shrimp','account',10,null,null,false,false),
-  ('turnip_seed','account',8,null,null,false,false),
-  ('bronze_arrows','hero',50,null,null,false,false),
-  ('coarse_whetstone','hero',10,null,null,false,false),
-  ('cooked_shrimp','hero',20,null,null,false,false),
-  ('practice_club','practice',1,'club','weapon',true,false),
-  ('practice_hatchets','practice',1,'dual_axes','weapon',true,false),
-  ('practice_staff','practice',1,'healer','weapon',true,false),
-  ('practice_wand','practice',1,'mage','weapon',true,false),
-  ('practice_spellbook','practice',1,'mage','shield',true,false),
-  ('practice_bow','practice',1,'ranger','weapon',true,false),
-  ('practice_crossbow','practice',1,'ranger','weapon',false,false),
-  ('practice_sword','practice',1,'tank','weapon',true,true),
-  ('practice_shield','practice',1,'tank','shield',true,true);
+insert into public.hr_start_kit_lines (item_id, kit, qty, set_id, equip_slot, worn, default_set, loads) values
+  ('shrimp','account',10,null,null,false,false,null),
+  ('turnip_seed','account',8,null,null,false,false,null),
+  ('bronze_arrows','hero',50,null,null,false,false,null),
+  ('coarse_whetstone','hero',10,null,null,false,false,null),
+  ('cooked_shrimp','hero',20,null,null,false,false,null),
+  ('practice_club','practice',1,'club','weapon',true,false,null),
+  ('practice_hatchets','practice',1,'dual_axes','weapon',true,false,null),
+  ('practice_staff','practice',1,'healer','weapon',true,false,null),
+  ('practice_wand','practice',1,'mage','weapon',true,false,null),
+  ('practice_spellbook','practice',1,'mage','shield',true,false,null),
+  ('practice_bow','practice',1,'ranger','weapon',true,false,'bronze_arrows'),
+  ('practice_crossbow','practice',1,'ranger','weapon',false,false,null),
+  ('practice_sword','practice',1,'tank','weapon',true,true,null),
+  ('practice_shield','practice',1,'tank','shield',true,true,null);
 
 -- ── Grants: the server's alone (revoke before nothing is granted) ─────────
 revoke all on public.hr_start_kit_lines from public, anon, authenticated;
@@ -69,8 +76,17 @@ begin
   if (select count(distinct set_id) from public.hr_start_kit_lines where default_set) <> 1 then
     raise exception 'hr_start_kit_lines: not exactly one default set';
   end if;
+  -- a shot a set loads is worn in the ammo slot and is a kit line the hero's bag is paid (one unit moves from it)
+  select string_agg(l.set_id || ':' || l.loads, ', ') into v_bad from public.hr_start_kit_lines l
+   where l.loads is not null
+     and (not exists (select 1 from public.hr_item_slots s where s.item_id = l.loads and s.equip_slot = 'ammo')
+          or not exists (select 1 from public.hr_start_kit_lines k where k.item_id = l.loads and k.kit in ('account', 'hero')));
+  if v_bad is not null then raise exception 'hr_start_kit_lines: a set loads a shot that is no kit ammo: %', v_bad; end if;
+  if (select count(*) from public.hr_start_kit_lines where loads is not null) <> 1 then
+    raise exception 'hr_start_kit_lines: % sets load a shot, the generator emitted 1', (select count(*) from public.hr_start_kit_lines where loads is not null);
+  end if;
   if has_table_privilege('anon', 'public.hr_start_kit_lines', 'select') or has_table_privilege('authenticated', 'public.hr_start_kit_lines', 'select,insert,update,delete') then
     raise exception 'hr_start_kit_lines is readable or writable by a client role';
   end if;
-  raise notice 'hr_start_kit_lines OK — 14 lines, digest b863ee889cfcde207da0b4f4621178695d8b9c5477a06dc1591e793947d273e9';
+  raise notice 'hr_start_kit_lines OK — 14 lines, digest e089c48c106ba11ad5edf6a9d5619a05e7978ca6a87e079854d684592cbf58f1';
 end $$;

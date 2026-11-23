@@ -300,7 +300,7 @@ const mutants = [
   { name: 'a narrowed Trait counts on any move', case: 'every-trait', edits: [[TR, '  if (t.move && !moveIs(t.move, cx)) return false;\n', '']] },
   { name: 'a trade has no cost', case: 'every-trait', edits: [[TR, " put('defense', -steps); }", ' }']] },
   { name: 'a boss Trait reads the hero\'s own target, not the blow', case: 'every-trait', edits: [[TR, "    case 'target_is_boss':", "    case 'target_is_boss_x':"]] },
-  { name: 'the area count is never put on the cast', case: 'real-settle', edits: [['src/core/hunt/abilities.js', '      hitTag.area = Number.isInteger(row.maxHits) ? Math.min(hit.length, row.maxHits) : hit.length;\n', '']] },
+  { name: 'the area count is never put on the cast', case: 'real-settle', edits: [['src/core/hunt/abilities.js', '      hitTag.area = reached.length;\n', '']] },
   { name: 'a party Trait reaches its wearer only', case: 'families', edits: [[TR, '    if (w.alive !== true || (w !== u && !isAlly(w, u))) continue;', '    if (w.alive !== true || w !== u) continue;']] },
   { name: 'a party Trait counts on every ally while its wearer is down', case: 'families', edits: [[TR, '    if (w.alive !== true || (w !== u && !isAlly(w, u))) continue;', '    if (w !== u && !isAlly(w, u)) continue;']] },
   { name: 'Traits are not held to the gear slice', case: 'families', edits: [[TR, "take(e, { slice: 'gear', raises: channel, steps: e.steps, key: e.t.key });", "take(e, { slice: 'build', raises: channel, steps: e.steps, key: e.t.key });"]] },

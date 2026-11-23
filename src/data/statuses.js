@@ -43,7 +43,10 @@
 //                 tier of the cast that landed it, the tank rune spells 2026-11-19): slow = round(slowPm x tierPermille[tier-1] / 1000)
 //   silence       true: its unit starts no spell while it lasts (monster-spells.js: its cooldowns still run; a windup already started
 //                 still lands, ending one is Stagger's, 23 section 4)
-//   healCutPm     { hero, monster } permille LESS of every heal its unit takes while it lasts, by the unit's side (heal-cut.js healTaken,
+//   parry         true: its unit's NEXT BLOW lands nothing, and the stack is spent on it (damage.js resolveAttacks: a swing and its
+//                 splash; monster-spells.js land: a wind-up's landing, which is its caster's blow; a mend strikes no hero and spends
+//                 none). A tick is no blow. Fixed: never scaled by skill or rune tier
+//   healCutPm    { hero, monster } permille LESS of every heal its unit takes while it lasts, by the unit's side (heal-cut.js healTaken,
 //                 the one reader). guard (optional): an element; a HERO's resistance to it lowers the hero's cut by the same percent,
 //                 fixed as the stack lands: cut = floor(healCutPm.hero x taken / 1000). A monster's cut is never guarded
 // THE KEYS' COUNT (status-effects.js effectPm): a unit's value of one effect is, over its keys, the key's value summed:
@@ -72,6 +75,7 @@ export const STATUS_KEYS = Object.freeze({
   armor_break: Object.freeze({ combine: 'strongest' }),         // one a monster, the largest counts
   monster_deals_less: Object.freeze({ combine: 'strongest' }),  // Weakened, Shaken, Hard Challenge: the largest counts
   silenced: Object.freeze({ combine: 'strongest' }),            // one at a time, restarts the time
+  parried: Object.freeze({ combine: 'strongest' }),             // one at a time: a second Parry restarts the window, never a second blow
   burning_ground: Object.freeze({ combine: 'strongest' }),
   /* "different sources add, the Lab sets one cap for the total" (15): PROVISIONAL caps, the Lab's to set */
   hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),
@@ -104,6 +108,9 @@ export const STATUSES = Object.freeze({
   /* GREEN SICKNESS's mark (Bible §17 Restoration: "lower-power AoE plus a fixed, non-stacking ~10% damage-taken
      vulnerability for a short duration"; lane b-spell-content, PROVISIONAL): one stack, 6 s, +10% from every blow. */
   sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),
+  /* PARRIED (the sword's Parry, docs/design/redesign/23-spell-audit.md section 4: "your target's next blow within 2 s lands 0"): the
+     monster's next blow, a swing or a wind-up's landing, lands nothing, and the stack is spent on it. Its 2 s is Parry's window. */
+  parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2000, maxStacks: 1, parry: true }),
   /* CHILL (Tyler 2026-11-08, the area-spells design: Hoarfrost's frost; PROVISIONAL, the designer's numbers): its unit's
      swings and spell windups run 30% longer for 4 s, one stack. BY RUNE TIER (the tank rune spells, board 2026-11-19 piece 3):
      30 / 35 / 40 / 45 / 50% on a Chalked .. Graven Ice Rune's cast, for every Ice spell (Hoarfrost, Frost Slam). */
@@ -163,7 +170,7 @@ export const ticks = (row) => Array.isArray(row.tick);
 /** A HARMFUL row on a hero (a cleanse takes it off, src/core/hunt/heal-rules.js): a damage tick, a heal cut, a slow, a silence, more
     taken, less dealt, less armor. A ground patch is its holder's, never on it. */
 export const harmful = (row) => !!row && !row.ground && ((ticks(row) && !row.heals) || !!row.healCutPm || row.slowPm > 0 || row.silence === true
-  || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
+  || row.parry === true || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
 
 /** A SLOWING STACK'S SLOW, permille, at its fixed `scale` (status.js stackScale: the landing's tier share, 1000 with none):
     round(slowPm x scale / 1000). One formula for the engine (damage.js slowed) and the bar's words. 0 for a row that slows nothing. */
@@ -184,13 +191,13 @@ const ID = /^[a-z0-9_]{1,32}$/;
 const SIGNED = Object.freeze(['takenPm', 'dealtPm', 'armorPm']);
 const TICK_FIELDS = Object.freeze(['tick', 'everyMs', 'blowPm', 'damageType', 'heals', 'lays']);
 const KNOWN = new Set(['id', 'name', 'key', 'durationMs', 'maxStacks', 'refresh', 'hidden', ...TICK_FIELDS, 'tierPermille', 'ground',
-  ...SIGNED, 'slowPm', 'silence', 'healCutPm', 'guard']);
-/** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, healCutPm. */
+  ...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm', 'guard']);
+/** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry, healCutPm. */
 export function effectsOf(row) {
   const out = [];
   if (row.tick !== undefined) out.push('tick');
   if (row.ground !== undefined) out.push('ground');
-  for (const k of [...SIGNED, 'slowPm', 'silence', 'healCutPm']) if (row[k] !== undefined) out.push(k);
+  for (const k of [...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm']) if (row[k] !== undefined) out.push(k);
   return out;
 }
 
@@ -213,7 +220,7 @@ export function validateStatus(row) {
   for (const k of ['durationMs', 'maxStacks']) posInt(k);
   onGrid('durationMs');
   const fx = effectsOf(row);
-  if (!fx.length) out.push(at + 'does nothing: it needs an effect (tick, ground, takenPm, dealtPm, armorPm, slowPm, silence or healCutPm)');
+  if (!fx.length) out.push(at + 'does nothing: it needs an effect (tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry or healCutPm)');
   /* ONE SCALE A STACK: a tick's (its source's blow), a tiered slow's (its rune tier) or a guarded heal cut's (the hero's guard) */
   const scaled = [row.tick !== undefined, row.slowPm !== undefined && row.tierPermille !== undefined, row.healCutPm !== undefined].filter(Boolean).length;
   if (scaled > 1) out.push(at + 'a tick, a tiered slow and a heal cut each fix a stack\'s scale: one a row');
@@ -223,6 +230,7 @@ export function validateStatus(row) {
   }
   if (row.slowPm !== undefined && (!Number.isInteger(row.slowPm) || row.slowPm <= 0 || row.slowPm > 1000)) out.push(at + 'slowPm must be an integer 1..1000');
   if (row.silence !== undefined && row.silence !== true) out.push(at + 'silence is true or absent');
+  if (row.parry !== undefined && row.parry !== true) out.push(at + 'parry is true or absent');
   if (row.healCutPm !== undefined) {
     const c = row.healCutPm;
     if (!c || typeof c !== 'object' || Object.keys(c).sort().join() !== 'hero,monster' || !['hero', 'monster'].every((k) => Number.isInteger(c[k]) && c[k] > 0 && c[k] < 1000)) {

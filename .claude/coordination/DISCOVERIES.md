@@ -4,6 +4,16 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-23 · qa-engineer (lane/ci-reds-orphans) · the orphaned "not mine" reds on set/v0.2.144
+
+| # | Found | Sev | Affected | Action |
+|---|---|---|---|---|
+| 1 | tools/lib/guard-deps.mjs matched by basename: an import of `…/qa/local-world.mjs` counted as an import of `levers/world.mjs` (`\b` sits between `-` and `w`), and a path string `src/session/scaled-hunts.js` counted for `src/data/hunts.js`. Over the tree: 247 import pairs and about 4,200 path pairs picked by a name that was not theirs; every one of those checked was another file | P2 | tools/lib/guard-deps.mjs (guards-for, mutant-gate, preflight, mutant-scope) | Fixed: imports resolve to the real path (a `./` probe string also from the root), path strings bind on the whole file name and the tail of their directories; guards-for --selftest cases + 4 mutants |
+| 2 | guards-for ran by-hand tools no workflow runs (the `*-world.mjs` walks, the retired T-03 party-class-xp-line), so lanes reported their reds as the set's | P2 | tools/guards-for.local.mjs | Fixed: tests/guards-unregistered.json `guards` entries are named, never run |
+| 3 | The three world walks were stale against the redesign, not game bugs: a hero needs a way picked at creation (GR-24), a heroless account sees one slot (RD-Q6 a), and Hask's Ford is a Danger scale ground where Steady falls back | P3 | tests/char-wipe-world.mjs, hero-colors-world.mjs, away-recap-world.mjs | Fixed; all three green locally |
+| 4 | Bold at Level 12 on Hask's Ford held Depth 1 (the bottom) for 100 s of play with 10 fall backs, the last at 7% HP, and no death. A fall back from Depth 1 has nowhere to go: is that a stance that can die? | P3 | src/core/hunt/danger.js, src/data/danger.js RISKS | Route: game-designer (Bold at the floor step: die, or keep falling back) |
+| 5 | balance-sheet.mjs is red on the set head (`ref-hero-generated`, GitHub db-replay-8 too), so it judges no mutant while red | P2 | tests/balance-sheet.mjs | Route: the balance lane that owns ref-hero rows |
+
 ## 2026-11-22 · systems-engineer (lane/ar6-goodbye-stamp) · AR-6, the lost goodbye stamp
 
 | # | Found | Sev | Affected | Action |

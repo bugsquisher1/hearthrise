@@ -536,8 +536,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/gear-steps.mjs --mutate
       # EVERY PIECE OF GEAR IS THE ONE FORMULA'S (lane/gear-catalogue-steps, src/core/gear-stats.js, src/data/gear-profiles.js): the
       # generated stat table is what the generator writes, no item module types a stat by hand, rarity never sizes the base, and on a
-      # Danger-scale ground every reader fights each piece at the ground's base item Level (the power step alone carries the tier).
-      - name: Gear stats - derived by one formula, the scale view (9 mutants)
+      # Danger-scale ground every reader fights each piece halfway from the ground's base item Level to its own (the power step carries the tier).
+      - name: Gear stats - derived by one formula, the scale view (11 mutants)
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-gear-catalogue.mjs --check

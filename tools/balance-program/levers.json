@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "6a96d8a6765f55a9",
+ "authored": "91a8c5093fd14dc6",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -107,8 +107,8 @@
   },
   "byTest": {
    "asserted": 84,
-   "mentioned only": 90,
-   "none": 21
+   "mentioned only": 91,
+   "none": 20
   },
   "flags": {
    "redundant": 40,
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 684,
-  "typed": 16284,
+  "bindings": 686,
+  "typed": 16287,
   "files": 236,
-  "lever": 295,
+  "lever": 297,
   "notLever": 389,
   "unclaimed": 0
  },
@@ -2058,7 +2058,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 61,
+     "line": 71,
      "text": "export const GEAR_PROFILES = Object.freeze({",
      "binding": "GEAR_PROFILES"
     }
@@ -3508,19 +3508,19 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 77,
+     "line": 87,
      "text": "plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 79,
+     "line": 89,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 80,
+     "line": 90,
      "text": "cloth: Object.freeze({ curve: 'defense', defB: 300, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),",
      "binding": "GEAR_PROFILES"
     },
@@ -4038,7 +4038,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 79,
+     "line": 89,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     }
@@ -6684,12 +6684,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6763,12 +6763,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6839,12 +6839,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6908,12 +6908,12 @@
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs",
-     "tests/hunt-report.mjs"
+     "tests/hunt-core/tally.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6975,14 +6975,14 @@
     "mentions": [
      "tests/alpha-server.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/shell-core.mjs",
      "tests/tower-board.mjs",
-     "tests/tower-chest.mjs",
-     "tests/tower-climb.mjs"
+     "tests/tower-chest.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7316,13 +7316,13 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/needs-you.mjs"
+     "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8909,24 +8909,36 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 46,
+     "line": 52,
      "text": "export const GEAR_CURVES = Object.freeze({",
      "binding": "GEAR_CURVES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 52,
+     "line": 58,
+     "text": "export const GEAR_CURVE_TOP = 88;",
+     "binding": "GEAR_CURVE_TOP"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 59,
+     "text": "export const GEAR_SCALE_STAT_PM = 500;",
+     "binding": "GEAR_SCALE_STAT_PM"
+    },
+    {
+     "file": "src/data/gear-profiles.js",
+     "line": 62,
      "text": "export const GEAR_SLOT_PM = Object.freeze({",
      "binding": "GEAR_SLOT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 57,
+     "line": 67,
      "text": "export const GEAR_EVEN_SHARE_PM = 75;",
      "binding": "GEAR_EVEN_SHARE_PM"
     }
    ],
-   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); on a Danger-scale ground every piece is read at the ground's base item Level",
+   "definition": "a whole kit's offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder's hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground's base item Level to its own, so the power step carries the tier",
    "range": "coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels",
    "touches": "damage taken by gear state",
    "outcomes": [
@@ -8953,15 +8965,19 @@
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [],
-    "mentions": [],
-    "mentionCount": 0,
-    "verdict": "none"
+    "mentions": [
+     "tests/gear-stats.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "note": "the kits read the table",
     "from": [
      "src/data/gear-profiles.js: export const GEAR_CURVES = Object.freeze({",
+     "src/data/gear-profiles.js: export const GEAR_CURVE_TOP = 88;",
+     "src/data/gear-profiles.js: export const GEAR_SCALE_STAT_PM = 500;",
      "src/data/gear-profiles.js: export const GEAR_SLOT_PM = Object.freeze({",
      "src/data/gear-profiles.js: export const GEAR_EVEN_SHARE_PM = 75;"
     ],
@@ -9145,7 +9161,7 @@
     {
      "file": "src/data/special-attributes.js",
      "line": 131,
-     "text": "export const SPECIAL_SAMPLE = Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
+     "text": "export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
      "binding": "SAMPLE"
     }
    ],
@@ -9203,7 +9219,7 @@
     "planned": "gearExchange",
     "from": [
      "src/data/wave3-uniques.js: export const WAVE3_ITEMS = withGearStats({",
-     "src/data/special-attributes.js: export const SPECIAL_SAMPLE = Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>"
+     "src/data/special-attributes.js: export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>"
     ],
     "existingPatches": []
    },
@@ -9354,7 +9370,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 115,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9452,7 +9468,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 115,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10052,13 +10068,13 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/needs-you.mjs"
+     "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10128,13 +10144,13 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/needs-you.mjs"
+     "tests/lineup-v4.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10742,7 +10758,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 115,
+    "mentionCount": 116,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -16062,6 +16078,22 @@
     "c2"
    ],
    "typed": 6,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_CURVE_TOP": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/gear-profiles.js#GEAR_SCALE_STAT_PM": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/gear-profiles.js#GEAR_SLOT_PM": {

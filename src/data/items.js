@@ -769,7 +769,7 @@ export const ITEMS={
 
 
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
-  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 1, strB: 7, critB: 0.06 }, reqSkill:'level', reqLv:95, rarity:'legendary'},
+  dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 6, strB: 11, critB: 0.06 }, reqSkill:'level', reqLv:95, rarity:'legendary'},
   elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
 
 

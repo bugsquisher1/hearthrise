@@ -128,5 +128,5 @@ const SAMPLE = {
 /* THE SAMPLE AS IT SHIPS: each row's base stats DERIVED (src/data/gear-profiles.js; tools/gen-gear-catalogue.mjs writes them under
    'special:<id>', since a hidden row's id can be a live item's too): a row with a `base` is that standard piece at its item Level (the
    attribute on top), one without sits on its ladder by its stated `statPlus`. */
-export const SPECIAL_SAMPLE = Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>
-  [id, Object.freeze({ ...s, row: withGearStats({ [id]: s.row }, 'special:')[id] })])));
+export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>
+  [id, Object.freeze({ ...s, row: withGearStats({ [id]: s.row }, 'special:')[id] })]))));

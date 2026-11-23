@@ -65,6 +65,10 @@ const variants = [
   { id: 'weapon', L, step: 'step:weapon', risks: RISKS },
   /* lane/r4: every armor piece one gear band back (with `weapon`, the two halves of one gear tier) */
   { id: 'armor', L, step: 'step:armor', risks: RISKS },
+  /* lane/gear-catalogue-steps: one whole gear tier each way on the shipped kits (C-2), weapon and armor together: back is the LOW pieces, up the
+     next gear band's MID pieces (progression-grid.mjs buildCell 'step:back' / 'step:up') */
+  { id: 'back', L, step: 'step:back', risks: RISKS },
+  { id: 'up', L, step: 'step:up', risks: RISKS },
   { id: 'high', L: L2, risks: RISKS },
   { id: 'above', L, risks: ['steady'], start: ABOVE },
 ];
@@ -242,6 +246,8 @@ for (const risk of RISKS) {
   report.moves['levels:' + risk] = paired('base:' + risk, 'levels:' + risk);
   report.moves['weapon:' + risk] = paired('base:' + risk, 'weapon:' + risk);
   report.moves['armor:' + risk] = paired('base:' + risk, 'armor:' + risk);
+  report.moves['back:' + risk] = paired('base:' + risk, 'back:' + risk);
+  report.moves['up:' + risk] = paired('base:' + risk, 'up:' + risk);
   report.moves['high:' + risk] = paired('base:' + risk, 'high:' + risk);
 }
 report.wallS = Math.round((Date.now() - t0) / 1000);

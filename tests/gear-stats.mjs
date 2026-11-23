@@ -8,8 +8,9 @@
 //         what the generator would write.
 //   GSF-2 NO STAT BY HAND: no item module types a base stat on a gear row as a number; a named piece states `statPlus`, never a raw number.
 //   GSF-3 RARITY NEVER SIZES THE BASE (04-math-strategy section 10 rule 1): the same piece at every rarity has the same stats.
-//   GSF-4 ON THE SCALE A PIECE IS ITS ITEM LEVEL: on every Danger-scale ground (scaleItems) every rung of a ladder fights with the same stats,
-//         its own `iL` kept for the power step, a named piece keeps its offset, and any other ground reads the catalogue itself.
+//   GSF-4 ON THE SCALE THE STEP CARRIES THE TIER: on a Danger-scale ground (scaleItems) every piece fights with the formula's stats at the
+//         ground's base item Level moved GEAR_SCALE_STAT_PM (under 1000) of the way to its own, its own `iL` kept for the power step, a
+//         named piece keeps its offset, and any other ground reads the catalogue itself.
 //   GSF-5 ONE VIEW FOR EVERY READER: the edge settle, the start point's frozen peers and the browser's live view all fight through scaleItems
 //         on the instance's own ground (so the three agree to the bit).
 //   GSF-6 THE CURVES CLIMB: within every ladder (GEAR_LADDERS) no rung's base stat is smaller in size than the rung below it.
@@ -24,7 +25,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import * as GS from '../src/core/gear-stats.js';
-import { GEAR_STAT_FIELDS, RARITY_PM } from '../src/data/gear-profiles.js';
+import { GEAR_STAT_FIELDS, RARITY_PM, GEAR_SCALE_STAT_PM } from '../src/data/gear-profiles.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
 import { ITEMS } from '../src/data/items.js';
@@ -69,14 +70,18 @@ export function check(o) {
     for (const r of Object.keys(RARITY_PM)) if (at(r) !== one) out.push('GSF-3 a ' + r + ' ' + profile + ' piece is sized unlike a common one');
   }
   /* GSF-4 */
-  const scaleGround = Object.keys(DANGER_GROUNDS)[0];
+  const scaleGround = Object.keys(DANGER_GROUNDS)[0], gl = DANGER_GROUNDS[scaleGround].gearLevel;
+  if (!(o.scalePm >= 0 && o.scalePm < 1000)) out.push('GSF-4 GEAR_SCALE_STAT_PM ' + o.scalePm + ': the stats would carry the whole tier on top of the power step');
   const view = o.scaleItems(o.items, { id: scaleGround });
   if (o.scaleItems(o.items, { id: 'no_such_ground' }) !== o.items) out.push('GSF-4 a ground off the scale does not read the catalogue itself');
   if (view === o.items) out.push('GSF-4 ' + scaleGround + ' fights the catalogue as written');
   else {
     for (const l of GEAR_LADDERS) {
       const ids = l.ids.filter((id) => id && view[id]);
-      for (const id of ids.slice(1)) if (!same(view[id], view[ids[0]])) { out.push('GSF-4 on ' + scaleGround + ' ' + id + ' fights unlike ' + ids[0] + ' (' + l.key + ')'); break; }
+      for (const id of ids) {
+        const want = o.GS.statsOfRow(o.items[id], o.GS.scaleStatLevel(gl, o.GS.baseOf(o.items[id], undefined, o.items).iL), o.items);
+        if (!same(view[id], want)) { out.push('GSF-4 on ' + scaleGround + ' ' + id + ' fights ' + JSON.stringify(statsOf(view[id])) + ', not the formula at its scale Level ' + JSON.stringify(want)); break; }
+      }
       for (const id of ids) if (o.items[id].iL !== view[id].iL) out.push('GSF-4 ' + id + ' lost its item Level on the scale');
     }
     const named = Object.keys(o.items).find((id) => o.items[id] && o.items[id].statPlus && o.items[id].statPlus.critB > 0 && o.items[id].slot === 'weapon');
@@ -97,7 +102,7 @@ export function check(o) {
 function live() {
   const sources = Object.fromEntries(MODULES.map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
   const readers = Object.fromEntries([...new Set(READERS.map(([f]) => f))].map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
-  return { GS, items: ITEMS, fists: FIST_ITEMS, sample: SPECIAL_SAMPLE, table: readFileSync(OUT, 'utf8').replace(/\r/g, ''), sources, readers, scaleItems: GS.scaleItems };
+  return { GS, items: ITEMS, fists: FIST_ITEMS, sample: SPECIAL_SAMPLE, table: readFileSync(OUT, 'utf8').replace(/\r/g, ''), sources, readers, scaleItems: GS.scaleItems, scalePm: GEAR_SCALE_STAT_PM };
 }
 
 const MUTANTS = [
@@ -106,6 +111,20 @@ const MUTANTS = [
   ['GSF-2', 'a named row types its damage', (o) => { o.sources['src/data/wave3-uniques.js'] = o.sources['src/data/wave3-uniques.js'].replace("weaponType:'sword',statPlus:", "weaponType:'sword',strB:9,statPlus:"); }],
   ['GSF-3', 'a Rare piece is bigger', (o) => { const g = o.GS; o.GS = { ...g, gearStats: (b) => { const s = g.gearStats(b); return b.rarity === 'rare' ? { ...s, defB: (s.defB || 0) + 1 } : s; } }; }],
   ['GSF-4', 'the scale view is the catalogue', (o) => { o.scaleItems = (items) => items; }],
+  ['GSF-4', 'the stats carry the whole tier on the scale', (o) => { o.scalePm = 1000; }],
+  ['GSF-4', 'the scale view sizes every piece at the base alone', (o) => {
+    const g = o.GS;
+    o.scaleItems = (items, gr) => {
+      const L = DANGER_GROUNDS[gr.id] && DANGER_GROUNDS[gr.id].gearLevel;
+      if (!L) return items;
+      const v = {};
+      for (const [k, it] of Object.entries(items)) {
+        const st = g.isGearRow(it) && g.profileKeyOf(it) ? g.statsOfRow(it, L, items) : null;
+        v[k] = st ? { ...Object.fromEntries(Object.entries(it).filter(([x]) => !GEAR_STAT_FIELDS.includes(x))), ...st } : it;
+      }
+      return v;
+    };
+  }],
   ['GSF-4', 'the scale view drops the item Level', (o) => { const f = o.scaleItems; o.scaleItems = (items, g) => { const v = f(items, g); if (v === items) return v; const w = {}; for (const [k, it] of Object.entries(v)) { const { iL, ...r } = it; void iL; w[k] = r; } return w; }; }],
   ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: scaleItems(inp.items || {}, inp.ground)', 'items: inp.items || {}'); }],
   ['GSF-5', 'the browser fights the catalogue as written', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('{ items: scaleItems(items, where.ground) }', '{ items }'); }],
@@ -128,5 +147,5 @@ if (isMain(import.meta.url)) {
   }
   const out = check(live());
   if (out.length) { console.error('gear-stats: RED\n  ' + out.slice(0, 40).join('\n  ')); process.exit(1); }
-  console.log('gear-stats: every piece is the formula\'s, no stat by hand, rarity never sizes the base, on the scale a piece is its item Level (one view for every reader), every ladder climbs');
+  console.log('gear-stats: every piece is the formula\'s, no stat by hand, rarity never sizes the base, on the scale the step carries the tier (one view for every reader), every ladder climbs');
 }

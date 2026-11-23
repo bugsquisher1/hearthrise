@@ -21,8 +21,8 @@ export const GEAR_ECONOMY = [
     flags: [flag('ineffective', 'The ladder ends at tier 7 (Level 88); past Level 110 kill speed falls on today\'s gear', '44 Levels table (88, 111, 300), MEASURED there')],
     ev: 'CONFIRMED (read)' }),
   L('gear.armor-table', 'equipment', 'global', 'Gear stat budget: the curves and the slot split', {
-    at: [at('src/data/gear-profiles.js', 'export const GEAR_CURVES'), at('src/data/gear-profiles.js', 'export const GEAR_SLOT_PM'), at('src/data/gear-profiles.js', 'export const GEAR_EVEN_SHARE_PM')],
-    def: 'a whole kit\'s offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder\'s hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); on a Danger-scale ground every piece is read at the ground\'s base item Level',
+    at: [at('src/data/gear-profiles.js', 'export const GEAR_CURVES'), at('src/data/gear-profiles.js', 'export const GEAR_CURVE_TOP'), at('src/data/gear-profiles.js', 'export const GEAR_SCALE_STAT_PM'), at('src/data/gear-profiles.js', 'export const GEAR_SLOT_PM'), at('src/data/gear-profiles.js', 'export const GEAR_EVEN_SHARE_PM')],
+    def: 'a whole kit\'s offense and defense points at item Level iL, c0 + c1 iL + c2 iL^2 (offense 210 and defense 625 at Dawnsteel, the ladder\'s hand-drawn shapes fitted), split by slot (armor as the shipped plate: helm 70, platebody 144, platelegs 102, boots and belt 48, gauntlets 37 permille); held past item Level 88 (GEAR_CURVE_TOP); on a Danger-scale ground a piece is read GEAR_SCALE_STAT_PM 500 of the way from the ground\'s base item Level to its own, so the power step carries the tier',
     range: 'coefficients above 0; the slot split sums to 1000 with the weapon, off-hand and jewels',
     touches: 'damage taken by gear state', out: SURVIVE, f: ['C-GEAR-ARMOR'],
     perturb: P('the kits read the table'),

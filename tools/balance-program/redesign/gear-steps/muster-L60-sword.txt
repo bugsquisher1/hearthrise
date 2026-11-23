@@ -1,0 +1,1 @@
+V1: 6 seed jobs (1 cells x 6 seeds x 12 h) on 18 workers; muster_barrows, Levels 60 / 63 / 70

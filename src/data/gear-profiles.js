@@ -22,9 +22,15 @@
 // writes every piece's stats into src/data/gear-stats.generated.js (`--check`: the drift guard), and each item module reads them back
 // through withGearStats below, so a new tier or a new piece is one data row and the stats follow.
 //
-// ON THE DANGER SCALE (src/data/danger.js DANGER_GROUNDS) a piece is its item Level and nothing else (gear-steps.js header): the engine
-// reads every worn piece's stats at the ground's base item Level (src/core/gear-stats.js scaleItems), so the profile says how a piece
-// fights and the power step alone says how strong it is. Off the scale the stats are read at the piece's own item Level.
+// ON THE DANGER SCALE (src/data/danger.js DANGER_GROUNDS) a piece's stats are read at the ground's base item Level moved GEAR_SCALE_STAT_PM
+// of the way to the piece's own (src/core/gear-stats.js scaleItems): the power step carries the tier, and the stats carry only that share
+// of it, so the two never stack into a cliff (the shipped tier back read -38 held steps and up +29 with the stats whole, 6 seeds x 12 h,
+// tools/balance-program/redesign/gear-steps/before-muster-L60; at 0 the stats carried nothing and a shipped weapon-and-armor tier moved
+// +8 / -3, under one depth, gear-steps/view-0). Off the scale the stats are read at the piece's own item Level.
+//   GEAR_SCALE_STAT_PM 500   JUDGMENT, measured to land C-2 (12-targets: one gear tier moves the hold 1 to 3 depths): gear-steps/*.txt
+//   GEAR_CURVE_TOP 88         the item Level the stat curve is drawn to (Dawnsteel). Past it a piece's base stats hold and only its item Level
+//                             (the power step) grows: the curve is the seven-tier ladder's shape, and squared it would triple a Catacomb
+//                             piece's armor at item Level 160. The staged lines past Dawnsteel keep their own budget (tools/balance-sim/staged)
 //
 // STARTING VALUES, NOT RULINGS (lane/gear-catalogue-steps 2026-11-22; the Lab tunes them, in band is enough):
 //   GEAR_CURVES   the SHAPES the seven-tier ladder's attack and armor tables were hand-drawn on, fitted by least squares over all seven
@@ -47,6 +53,10 @@ export const GEAR_CURVES = Object.freeze({
   offense: Object.freeze({ c0: 19.2, c1: 1.15, c2: 0.0116 }),
   defense: Object.freeze({ c0: 38.8, c1: 2.23, c2: 0.0504 }),
 });
+
+/* the header: the curve's top item Level, and the share of a piece's item-Level gap its stats keep on the Danger scale (permille) */
+export const GEAR_CURVE_TOP = 88;
+export const GEAR_SCALE_STAT_PM = 500;
 
 /* the share of a whole kit's stat budget each slot carries (permille; the header) */
 export const GEAR_SLOT_PM = Object.freeze({

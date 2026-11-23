@@ -10,15 +10,15 @@
 //
 // THREE READERS:
 //   tools/gen-gear-catalogue.mjs   every piece's stats, written to src/data/gear-stats.generated.js (the data layer can't import this)
-//   scaleItems                     the engine's view of the catalogue on a Danger-scale ground: every worn piece's stats at the ground's
-//                                  base item Level (src/data/danger.js DANGER_GROUNDS gearLevel), so a piece is its item Level and nothing
-//                                  else there (gear-steps.js header) and one gear tier moves a hero exactly the power step's steps
+//   scaleItems                     the engine's view of the catalogue on a Danger-scale ground: every worn piece's stats near the ground's
+//                                  base item Level (GEAR_SCALE_STAT_PM of the way to its own; src/data/danger.js DANGER_GROUNDS gearLevel),
+//                                  so the power step carries the tier and the stats never stack a cliff on it
 //   the tests                      tests/gear-stats.mjs
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
 
-import { GEAR_STAT_FIELDS, GEAR_CURVES, GEAR_PROFILES, GEAR_SLOT_PM, GEAR_EVEN_SHARE_PM, RARITY_PM } from '../data/gear-profiles.js';
+import { GEAR_STAT_FIELDS, GEAR_CURVES, GEAR_PROFILES, GEAR_SLOT_PM, GEAR_EVEN_SHARE_PM, GEAR_CURVE_TOP, GEAR_SCALE_STAT_PM, RARITY_PM } from '../data/gear-profiles.js';
 import { GEAR_STEPS, DANGER_GROUNDS } from '../data/danger.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -62,10 +62,10 @@ export function shareOf(slot, twoHanded) {
   return one;
 }
 
-/** A whole kit's points of `curve` at item Level iL (GEAR_CURVES). */
+/** A whole kit's points of `curve` at item Level iL (GEAR_CURVES), held at the curve's top past GEAR_CURVE_TOP. */
 export function budgetOf(curve, iL) {
   const c = GEAR_CURVES[curve];
-  const L = Math.max(0, Number(iL) || 0);
+  const L = Math.min(GEAR_CURVE_TOP, Math.max(0, Number(iL) || 0));
   return c ? c.c0 + c.c1 * L + c.c2 * L * L : 0;
 }
 
@@ -138,10 +138,12 @@ export function statsOfRow(row, iL, items) {
 }
 
 /* ── THE SCALE VIEW ── */
+/** The item Level a piece of item Level `own` is sized at on a ground whose base is `base`: GEAR_SCALE_STAT_PM of the way from the base. */
+export const scaleStatLevel = (base, own) => base + ((own - base) * GEAR_SCALE_STAT_PM) / 1000;
 const VIEWS = new WeakMap();
 /**
  * THE CATALOGUE AS A DANGER-SCALE GROUND FIGHTS IT: `items` with every gear row's base stats re-derived at the ground's base item Level
- * (DANGER_GROUNDS[ground.id].gearLevel), its statPlus kept; every other field (its `iL`, read by the power step) as it was. `items` itself
+ * (DANGER_GROUNDS[ground.id].gearLevel) moved GEAR_SCALE_STAT_PM of the way to the piece's own (scaleStatLevel), its statPlus kept; every other field (its `iL`, read by the power step) as it was. `items` itself
  * on any other ground. Built once per catalogue and base item Level. One reader per world: hr-accrue's settle, the start point's frozen
  * peers and the browser's live view all fight through it (supabase/functions/hr-accrue/accrue-hunt.js, hunt-settle.js,
  * src/hunt-view/live-engine.js), so the three agree to the bit.
@@ -155,7 +157,7 @@ export function scaleItems(items, ground) {
   if (hit) return hit;
   const view = {};
   for (const [id, it] of Object.entries(items)) {
-    const s = isGearRow(it) ? statsOfRow(it, row.gearLevel, items) : null;
+    const s = isGearRow(it) && profileKeyOf(it) ? statsOfRow(it, scaleStatLevel(row.gearLevel, baseOf(it, undefined, items).iL), items) : null;
     if (!s) { view[id] = it; continue; }
     const r = {};
     for (const [k, v] of Object.entries(it)) if (!GEAR_STAT_FIELDS.includes(k)) r[k] = v;

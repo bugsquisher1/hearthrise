@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b137ae9a21bb853f",
+ "authored": "9dcbc13a3089b643",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 753,
-  "typed": 16820,
+  "bindings": 759,
+  "typed": 17021,
   "files": 260,
-  "lever": 327,
+  "lever": 333,
   "notLever": 426,
   "unclaimed": 0
  },
@@ -9913,7 +9913,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 34,
+     "distinct": 39,
      "low": 0.06,
      "high": 1
     }
@@ -10157,7 +10157,7 @@
       "trophy"
      ],
      "rows": 320,
-     "distinct": 76,
+     "distinct": 79,
      "low": 0.0005,
      "high": 0.05
     }
@@ -12303,33 +12303,69 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 166,
+     "line": 183,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 228,
+     "line": 245,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 288,
+     "line": 304,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 306,
+     "line": 549,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 301,
+     "line": 544,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 318,
+     "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
+     "binding": "SWORD_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 358,
+     "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
+     "binding": "CLUB_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 385,
+     "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
+     "binding": "AXE_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 416,
+     "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
+     "binding": "RANGED_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 481,
+     "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
+     "binding": "DESTRUCTION_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 567,
+     "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
+     "binding": "MORE_BORDERS"
     }
    ],
    "definition": "each node's effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status's strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)",
@@ -19692,6 +19728,110 @@
     "tauntingPm"
    ],
    "typed": 5,
+   "bindings": 1
+  },
+  "src/data/talents.js#SWORD_NODES": {
+   "pin": "count",
+   "keys": [
+    "cdMs",
+    "effects",
+    "mana",
+    "manaPm",
+    "ms",
+    "outPm",
+    "pm",
+    "·"
+   ],
+   "typed": 31,
+   "bindings": 1
+  },
+  "src/data/talents.js#CLUB_NODES": {
+   "pin": "count",
+   "keys": [
+    "capPm",
+    "cdMs",
+    "clockMs",
+    "effects",
+    "maxHits",
+    "ms",
+    "outPm",
+    "pm",
+    "·"
+   ],
+   "typed": 17,
+   "bindings": 1
+  },
+  "src/data/talents.js#AXE_NODES": {
+   "pin": "count",
+   "keys": [
+    "capMs",
+    "capPm",
+    "cdPm",
+    "effects",
+    "ms",
+    "pm",
+    "statusMs",
+    "statusPm"
+   ],
+   "typed": 16,
+   "bindings": 1
+  },
+  "src/data/talents.js#RANGED_NODES": {
+   "pin": "count",
+   "keys": [
+    "capMs",
+    "capPm",
+    "cdMs",
+    "effects",
+    "mana",
+    "manaOnCastPm",
+    "manaPm",
+    "ms",
+    "outPm",
+    "pm",
+    "r",
+    "·"
+   ],
+   "typed": 46,
+   "bindings": 1
+  },
+  "src/data/talents.js#DESTRUCTION_NODES": {
+   "pin": "count",
+   "keys": [
+    "capMs",
+    "capPm",
+    "cdMs",
+    "cdPm",
+    "clockMs",
+    "effects",
+    "mana",
+    "manaPm",
+    "ms",
+    "outPm",
+    "pm",
+    "r",
+    "statusMs",
+    "statusPm",
+    "·"
+   ],
+   "typed": 51,
+   "bindings": 1
+  },
+  "src/data/talents.js#MORE_BORDERS": {
+   "pin": "count",
+   "keys": [
+    "alsoPm",
+    "cdMs",
+    "clockMs",
+    "effects",
+    "mana",
+    "ms",
+    "outPm",
+    "pm",
+    "statusPm",
+    "·"
+   ],
+   "typed": 40,
    "bindings": 1
   },
   "src/core/hunt/talent-rows.js#NEAR_FALL_PM": {

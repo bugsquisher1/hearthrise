@@ -64,7 +64,9 @@ const ROW_OF_REACH = Object.freeze({ front: 'front', back: 'back', spread: 'fron
 
 /* Is `m` still held by a Challenge for its role? A role holds for `heldPm` of the Challenge's hold (absent: all of it): a stalker at 500
    breaks off once half the hold has run and dives again, until the tank's next Challenge (which waits for the hold to run out). */
-const held = (role, m) => m.holdMs > 0 && m.holdMs * 1000 > CHALLENGE.holdMs * (1000 - (Number.isInteger(role.heldPm) ? role.heldPm : 1000));
+/* (a challenger whose Challenge holds a Stalker for its whole time, Drawing Challenge: its `tauntFull`, talent-rows.js syncTalents, holds it so) */
+const held = (role, m, inst) => m.holdMs > 0 && (fullHold(inst, m) || m.holdMs * 1000 > CHALLENGE.holdMs * (1000 - (Number.isInteger(role.heldPm) ? role.heldPm : 1000)));
+const fullHold = (inst, m) => !!inst && inst.world.units.some((h) => h.id === m.target && h.tauntFull === true && h.alive === true);
 
 /**
  * WHOM ROLE `role`'S REACH TAKES for monster `m`: the first living enemy hero inside its pack's area by the reach's order (BEFORE),
@@ -93,7 +95,7 @@ export function reachPick(inst, m, role) {
  */
 export function reaimOf(inst, m) {
   const role = roleOf(inst, m);
-  if (!role || role.reach === 'spread' || held(role, m)) return null;
+  if (!role || role.reach === 'spread' || held(role, m, inst)) return null;
   const pick = reachPick(inst, m, role);
   if (pick === null || pick === m.target) return null;
   const cur = inst.world.units.find((u) => u.id === m.target && u.alive && isHero(u));

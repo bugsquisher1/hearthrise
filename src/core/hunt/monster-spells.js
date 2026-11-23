@@ -13,7 +13,7 @@
 //           past 1 tile), starts the FIRST spell of its list whose cooldown is up. Its shape is fixed then (shapes.js
 //           place: a group spell everywhere, a ring or a cone on the caster, a blast on the target's tile, a line through
 //           it) and persisted on the caster as `cast` (marks.js reads it); the windup is the row's, stretched by a Chill on
-//           the caster as it starts (damage.js slowed). A marked spell re-aims every ranged hero and caster at once
+//           the caster as it starts (damage.js slowedWindup). A marked spell re-aims every ranged hero and caster at once
 //           (roles.js: they step off; Melee holds). A `spell` event tells the screen the shape and the windup.
 //   windup  the caster stands (movement.js) and makes no swing (damage.js).
 //   landing at the windup's end every living hero the shape covers (a group spell: every one) is hit once, in id order,
@@ -51,7 +51,7 @@ import { atRest, unitById, dirOf } from './movement.js';
 import { makeEvent } from './events.js';
 import { place, covers } from './shapes.js';
 import { castShape } from './marks.js';
-import { landHit, restart, slowed, rowOf } from './damage.js';
+import { landHit, restart, slowedWindup, rowOf } from './damage.js';
 import { stepsOn } from './amount.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
@@ -111,7 +111,7 @@ function begin(inst, sc, u, id, sp) {
   if (!Number.isInteger(u.target) || !atRest(u)) return false;
   const t = castTarget(inst, u, sp);
   if (!t) return false;
-  const ms = slowed(u, sp.windupMs, inst);
+  const ms = slowedWindup(u, sp.windupMs, inst);
   const s = mends(sp) ? { kind: 'mend', ox: t.x, oy: t.y, dx: 0, dy: 0, r: 0, len: 0 } : place(specOf(sp), u, t);
   u.cast = { s: id, ms, left: ms, kind: s.kind, x: s.ox, y: s.oy, dx: s.dx, dy: s.dy, r: s.r, len: s.len, ...(mends(sp) ? { t: t.id } : {}) };
   /* a boss's hasted spell under his enrage line waits less (boss-phases.js spellCdOf); every other spell its row's cdMs */

@@ -74,7 +74,8 @@ export const FORMULA_IO = Object.freeze({
     { as: { landHit: 'fight.targets' }, skip: { living: 'a party heal or shell walks the living heroes', weakPm: 'the hit\'s weak share is passed on to hurt: C-ELEMENT-MON\'s', challengeFrom: 'a taunt row is handed to C-TARGET\'s challengeFrom' },
       note: 'effect is the one resolver of a cast, so it is also a home of the hit, the heal, the shell, the mark, the leech and the cast\'s power. Area and extra targets are the part it decides itself' }),
   'C-CLOCKS': f(['src/core/combat.js#COMBAT_BALANCE.tickMs', 'src/core/hunt/damage.js#slowed,slowPmOf'], ['+unit.slow'], ['clock.swing', ['clock.cast', 'lanes and cooldowns are rows of src/data/abilities.js ABILITIES and ABILITY_LANES']]),
-  'C-MANA': f(['src/core/hunt/abilities.js#regenMana'], ['+hero.maxMana', '+flame.rate'], ['hero.manaRegen', ['hero.manaCost', 'a cast\'s mana is its row\'s in src/data/abilities.js ABILITIES, spent in fire']]),
+  'C-MANA': f(['src/core/hunt/abilities.js#regenMana'], ['+hero.maxMana', '+flame.rate'], ['hero.manaRegen', ['hero.manaCost', 'a cast\'s mana is its row\'s in src/data/abilities.js ABILITIES, spent in fire']],
+    { skip: { readyAt: 'Still Mind (a Roads unit rule, dark behind TALENT_RULES.live): the time since the last cast gates a regen bonus; no live hero carries one' } }),
   'C-REGEN': f(['src/core/hunt/pull-cycle.js#tickHeroes'], ['+hero.maxHp', '+flame.rate', '-heal.cut'], ['hero.regen'], { as: { hp: 'hero.regen', maxHp: 'hero.maxHp' } }),
   // ── combat: the monster's blow and the hero's armor ──
   'C-MON-BLOW': f(['src/core/combat.js#monsterMaxHit,COMBAT_BALANCE.monsterAttackDamageScale,COMBAT_BALANCE.monsterDamageScaleByTier'], ['+mon.atk', ['+tier.dmg', 'the tier\'s dial multiplies atk before this is called (src/data/hunt-tiers.js atTier)']], ['mon.maxHit'], { as: { atk: 'mon.atk' } }),

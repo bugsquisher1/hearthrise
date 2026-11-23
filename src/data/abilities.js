@@ -400,7 +400,8 @@ export function castAmount(row, maxHit, maxHp, pm) {
     through its aim, a ring of `r` round the hero; null for a row that strikes no shape. */
 export function areaSpec(row) {
   if (!row) return null;
-  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };
+  /* (a wider square: a modded row's fx.side, src/core/hunt/talent-rows.js, Wide Sickness) */
+  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide + (row.fx && Number.isInteger(row.fx.side) ? row.fx.side : 0) };
   if (row.target === 'line') return { shape: 'line', len: row.len };
   if (row.target === 'ring') return { shape: 'ring', r: Number.isInteger(row.r) ? row.r : 1 };
   return null;

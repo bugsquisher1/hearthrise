@@ -21,6 +21,7 @@
 // ============================================================
 
 import { effectPm } from './status-effects.js';
+import { healInPm } from './talent-rows.js';
 
 /** The permille unit `u` loses from every heal now (status-effects.js effectPm: the strongest live heal-cutting stack's), 0 with none,
     never the whole heal. */
@@ -30,4 +31,15 @@ export const healCutPmOf = (u) => Math.min(999, effectPm(u, 'healCutPm'));
 export function healTaken(u, n) {
   const cut = healCutPmOf(u);
   return cut > 0 && n > 0 ? n - Math.floor((n * cut) / 1000) : n;
+}
+
+/**
+ * THE ONE HEAL DOOR FOR A HERO'S HEALS (lane/talent-effects): a heal of `n` on `u` less its cut (healTaken), then the healing `u` RECEIVES
+ * now (talent-rows.js healInPm: its own and its ward-caster's rows, capped) on what is left: landed + floor(landed x pm / 1000), never
+ * under 0. A unit with no such row lands exactly healTaken's. Callers: abilities.js (a cast's heal and its leech), status.js (a heal tick).
+ */
+export function healIn(inst, u, n) {
+  const cut = healTaken(u, n);
+  const pm = cut > 0 ? healInPm(inst, u) : 0;
+  return pm ? Math.max(0, cut + Math.floor((cut * pm) / 1000)) : cut;
 }

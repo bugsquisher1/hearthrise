@@ -30,13 +30,22 @@ const VALUE = Object.freeze({
   slowPm: (u, row, st) => slowAt(row, st.scale),
   healCutPm: (u, row, st) => (!row.healCutPm ? 0
     : isHero(u) ? Math.floor((row.healCutPm.hero * (Number.isInteger(st.scale) ? st.scale : 1000)) / 1000) : row.healCutPm.monster),
+  /* A WIND-UP'S SLOW (monster-spells.js begin, damage.js slowedWindup): the stack's slow at its wind-up share (`wu`, a branch's: Slowing
+     Frost) or else its own share (`pw`); `windupStepsPm` the same, only from a stack that names a wind-up share (the Danger scale reads
+     a plain slow as steps off the unit's blows, never on its wind-up) */
+  windupSlowPm: (u, row, st) => Math.trunc((slowAt(row, st.scale) * (Number.isInteger(st.wu) ? st.wu : Number.isInteger(st.pw) ? st.pw : 1000)) / 1000),
+  windupStepsPm: (u, row, st) => (Number.isInteger(st.wu) ? Math.trunc((slowAt(row, st.scale) * st.wu) / 1000) : 0),
 });
+/* the fields a stack's own share (`pw`, a branch's status strength: status.js tuneStacks) moves: what it does to blows and swings */
+const POWERED = new Set(['takenPm', 'dealtPm', 'armorPm', 'slowPm']);
 
-/** One stack's value of `field` on unit `u`, permille (0 when its row has none; throws on a field no reader knows). */
+/** One stack's value of `field` on unit `u`, permille (0 when its row has none; throws on a field no reader knows). A stack tuned by a
+    branch (`pw`, permille) does that share of it. */
 export function stackValue(u, row, st, field) {
   const f = VALUE[field];
   if (!f) throw new Error('status-effects: no reader for ' + field);
-  return f(u, row, st);
+  const v = f(u, row, st);
+  return v && POWERED.has(field) && Number.isInteger(st.pw) ? Math.trunc((v * st.pw) / 1000) : v;
 }
 
 /** Unit `u`'s value of one effect `field` now, permille: its keys summed, each counted by its combine rule. 0 with none. */

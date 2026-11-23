@@ -242,7 +242,7 @@ const MUTANTS = [
   { name: 'the row setting is ignored', case: 'rows', edits: [['src/core/hunt/monster-roles.js', '  if (u && ROWS.includes(u.row)) return u.row;\n', '']] },
   { name: 'the row setting never reaches the unit', case: 'play', edits: [['src/core/combat-sim.js', "  if (row === 'front' || row === 'back') u.row = row; else if (u.row !== undefined) delete u.row;\n", '']] },
   { name: 'a role never re-aims', case: 'redive', edits: [['src/core/hunt/targeting.js', '  for (const m of engagedMonstersOf(inst)) { const id = reaimOf(inst, m); if (id !== null) retarget(inst, m, id, sc); }\n', '']] },
-  { name: 'a Challenge\'s hold is ignored', case: 'redive', edits: [['src/core/hunt/monster-roles.js', " || role.reach === 'spread' || held(role, m)) return null;", " || role.reach === 'spread') return null;"]] },
+  { name: 'a Challenge\'s hold is ignored', case: 'redive', edits: [['src/core/hunt/monster-roles.js', " || role.reach === 'spread' || held(role, m, inst)) return null;", " || role.reach === 'spread') return null;"]] },
   { name: 'a stalker is held the whole hold', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '(Number.isInteger(role.heldPm) ? role.heldPm : 1000)', '1000']] },
   { name: 'every role breaks a hold early', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '(Number.isInteger(role.heldPm) ? role.heldPm : 1000)', '(Number.isInteger(role.heldPm) ? role.heldPm : 500)']] },
   { name: 'a brute leaves a front hero for a nearer one', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '  if (keep) return rowOf(cur) === keep ? null : pick;', '  if (keep) return pick;']] },

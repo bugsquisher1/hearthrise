@@ -38,7 +38,7 @@ import { heroElementPermille } from '../elements.js';
 import { makeEvent } from './events.js';
 import { landHit } from './damage.js';
 import { stepsOn, healAmount } from './amount.js';
-import { healTaken } from './heal-cut.js';
+import { healIn } from './heal-cut.js';
 import { isHero, isEnemy } from './sides.js';
 import { cheb } from './grid.js';
 
@@ -135,9 +135,75 @@ export function applyStatus(inst, unit, row, source, sc) {
   return stacks;
 }
 
+/* Does ground stack `st` (radius `r`) held by `unit` reach unit `m`: a living enemy of its holder within r tiles of its tile */
+function inPatch(unit, m, st, r) {
+  if (m.alive !== true || !isEnemy(unit, m) || cheb(m, { x: st.at[0], y: st.at[1] }) > r) return false;
+  return true;
+}
+
+/* A HEAL TICK of `n` on `unit` from stack `st`: through the one heal door (heal-rules.js healIn: its cut, and the healing it receives),
+   never past its max; a `status_tick` always, a `heal` naming the status when any landed */
+function healTick(inst, sc, unit, st, n) {
+  const got = Math.max(0, Math.min(healIn(inst, unit, n), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0)));
+  sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: got, heals: true }));
+  if (got > 0) {
+    unit.hp = Math.floor(Number(unit.hp) || 0) + got;
+    sc.emit(makeEvent('heal', sc.atMs, { u: st.src === null ? unit.id : st.src, t: unit.id, amount: got, ability: st.s }));
+  }
+}
+
+/* A FIXED TICK (`st.amt`): a heal over time heals its unit (healTick); a second hit lands exactly its HP from its source (damage.js
+   `exact`). */
+function tickFixed(inst, sc, unit, row, st, units) {
+  if (row.heals) { healTick(inst, sc, unit, st, st.amt); return; }
+  const source = st.src === null ? null : (units.find((u) => u.id === st.src) || null);
+  const hit = landHit(inst, sc, source, unit, st.amt, row.damageType, { id: st.s, dot: true, exact: true });
+  sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: hit.dmg || 0, element: row.damageType }));
+}
+
+/**
+ * LAY A STACK WITH ITS OWN TICK AND TIME (the engine pieces: a heal over time, a second hit; src/core/hunt/heal-rules.js, reactions.js):
+ * `row`'s status on `unit` from unit `by` (applyStatus: its refresh and its stack count), then the stack it laid runs `ms` (a whole number
+ * of the row's ticks; with `once`, one tick at its end) and ticks `amt` whole HP each, at least 1. Answers the stack, or null when nothing landed.
+ */
+export function layStack(inst, sc, unit, row, by, amt, ms, once) {
+  if (applyStatus(inst, unit, row, { u: by ? by.id : null, maxHit: 1, runeTier: 1 }, sc) === null) return null;
+  const src = by ? by.id : null;
+  let st = null;
+  for (const s of unit.statuses) if (s.s === row.id && s.src === src && s.left === row.durationMs) st = s;
+  if (!st) return null;
+  /* ONCE (a second hit): one tick at the end of ms; else whole ticks of the row's every */
+  const every = once ? ms : row.everyMs;
+  const n = once ? 1 : Math.max(1, Math.floor(ms / every));
+  st.left = n * every;
+  st.next = every;
+  st.amt = Math.max(1, Math.floor(amt));
+  return st;
+}
+
+/** A LONGER STATUS (a modded row's statusMs, talent-rows.js moddedRow): the stack of status `id` source `src` just laid on `m` (its time
+    still the row's whole duration) runs `ms` longer. Its `left` is persisted with the world, so a viewed and a closed hunt run it out alike. */
+export function stretchStatus(m, id, src, ms) {
+  const full = statusRow(id).durationMs;
+  for (const st of stacksOf(m)) if (st.s === id && st.src === src && st.left === full) st.left = full + ms;
+}
+
+/** TUNE THE STACKS of status `id` that unit `src` holds on `unit` (a branch's status strength, talent-rows.js moddedRow): `pw` permille of
+    what it does (status-effects.js), `wu` permille of its slow on a monster's wind-up. A field absent is left as it is. */
+export function tuneStacks(unit, id, src, pw, wu) {
+  for (const st of stacksOf(unit)) {
+    if (st.s !== id || st.src !== src) continue;
+    if (Number.isInteger(pw) && pw !== 1000) st.pw = Math.max(0, pw);
+    if (Number.isInteger(wu)) st.wu = Math.max(0, wu);
+  }
+}
+
 /* ONE TICK of a ticking stack `st` of `row` held by `unit`: a damage tick on it, a heal tick on it, or a ground patch's tick on every
    enemy of its holder standing in it. Answers nothing; the unit's `alive` tells the caller whether it fell. */
 function tickOne(inst, sc, unit, row, st, units) {
+  /* A STACK WITH ITS OWN TICK (`amt`, whole HP fixed as it landed: layStack, a heal over time or a second hit) reads no roll and no
+     pipeline: the share was taken from what already landed */
+  if (Number.isInteger(st.amt) && !row.ground) { tickFixed(inst, sc, unit, row, st, units); return; }
   /* ON THE SCALE (src/core/hunt/amount.js, 27 section 2.1: "a tick is a share of the target's reference health"): the tick's MEAN, a share
      of its source's top, goes to the pipeline, which draws its one roll; the event names what landed */
   const piped = stepsOn(inst);
@@ -145,21 +211,20 @@ function tickOne(inst, sc, unit, row, st, units) {
   const amount = piped ? ((row.tick[0] + row.tick[1]) / 2) * (st.scale / 1000) : tickAmount(roll, st.scale);
   if (row.heals) {
     const healer = piped ? (st.src === null ? null : units.find((u) => u.id === st.src) || null) || unit : null;
-    const n = piped ? healAmount(inst, healer, amount, { rng: sc.rng }) : amount;
-    const got = Math.max(0, Math.min(healTaken(unit, n), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0)));
-    sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: got, heals: true }));
-    if (got > 0) {
-      unit.hp = Math.floor(Number(unit.hp) || 0) + got;
-      sc.emit(makeEvent('heal', sc.atMs, { u: st.src === null ? unit.id : st.src, t: unit.id, amount: got, ability: st.s }));
-    }
+    healTick(inst, sc, unit, st, piped ? healAmount(inst, healer, amount, { rng: sc.rng }) : amount);
+    return;
+  }
+  if (row.ground && row.lays) {
+    /* A PATCH THAT LAYS A STATUS (frozen ground): every enemy of its holder in it takes `lays` from the holder, in id order, no draw */
+    const laid = statusRow(row.lays);
+    for (const m of units) if (inPatch(unit, m, st, row.ground.r)) applyStatus(inst, m, laid, { u: unit.id, maxHit: 1, runeTier: 1 }, sc);
     return;
   }
   if (row.ground) {
-    const r = row.ground.r;
     if (!piped) sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType, x: st.at[0], y: st.at[1] }));
     let landed = 0;
     for (const m of units) {
-      if (m.alive !== true || !isEnemy(unit, m) || cheb(m, { x: st.at[0], y: st.at[1] }) > r) continue;
+      if (!inPatch(unit, m, st, row.ground.r)) continue;
       landed += landHit(inst, sc, unit, m, amount, row.damageType, { id: st.s, dot: true }).dmg || 0;
     }
     if (piped) sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: landed, element: row.damageType, x: st.at[0], y: st.at[1] }));

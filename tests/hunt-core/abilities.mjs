@@ -1212,7 +1212,7 @@ const mutants = [
   /* the shield it plants is Mend's own amount (lane/c-hollow-proofs 2026-11-20, re-aimed by lane/c-spell-rule): dropping the heal line alone sent Mend
      down the shield path with no shield share on its row, makeEvent refused the empty amount and the throw read as the catch, the case unrun */
   { name: '[spell-content] Mend shields instead of healing', case: 'mend-heals-only-the-hurt',
-    edits: [['src/core/hunt/abilities.js', '      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row.overShieldPm, piped); break; }\n',
+    edits: [['src/core/hunt/abilities.js', '      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row, piped, cast); break; }\n',
       "      if (heals(row)) { u.shield = amount().heal; u.shieldBy = u.id; sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield })); break; }\n"]] },
   { name: '[spell-content] Mend is kept off a physical bar', case: 'mend-heals-only-the-hurt',
     edits: [['src/data/abilities.js', 'disciplines: DISCIPLINE_IDS, universal: true,', "disciplines: ['destruction', 'restoration'], universal: true,"]] },
@@ -1257,7 +1257,7 @@ const mutants = [
       /* the bar's own door (conditions.js attackItem, Andy a41) opened too: two doors keep a whetstone from a bow */
       ['src/core/hunt/conditions.js', 'SHOOTERS.some((r) => shootsItem(r, ITEMS[id]))', "!!ITEMS[id] && ITEMS[id].reqSkill !== 'magic'"]] },
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',
-    edits: [['src/core/hunt/abilities.js', '  const got = Math.max(0, Math.min(n, missing));', '  const got = Math.max(0, n);']] },
+    edits: [['src/core/hunt/heal-rules.js', '    const got = Math.max(0, Math.min(cut, missing));', '    const got = Math.max(0, cut);']] },
   { name: 'Challenge pulls nothing', case: 'taunt-pulls-back',
     edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u); break;", "    case 'taunt': break;"]] },
   { name: 'fractional mana is dropped every sub-step', case: 'mana-regen',
@@ -1310,7 +1310,7 @@ const mutants = [
   { name: '[tank runes] alone and party only together pass validate', case: 'rows-validate',
     edits: [['src/data/abilities.js', "if (r.party !== undefined && r.alone === true) bad(", "if (false) bad("]] },
   { name: '[tank runes] a party shield heals instead', case: 'party-shield-shells-the-party',
-    edits: [['src/core/hunt/abilities.js', "        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row.overShieldPm, piped); continue; }\n", "        if (true) { healOne(u, a, amount().heal || 1, sc, sg); continue; }\n"]] },
+    edits: [['src/core/hunt/abilities.js', "        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row, piped, cast); continue; }\n", "        if (true) { healOne(u, a, amount().heal || 1, sc, sg); continue; }\n"]] },
   { name: '[tank runes] a party shield lowers a bigger shell', case: 'party-shield-shells-the-party',
     edits: [['src/core/hunt/shields.js', "  if (!t || t.alive !== true || !(n > int(t.shield))) return false;\n", "  if (!t || t.alive !== true) return false;\n"]] },
   { name: '[tank runes] a party shield reaches the whole map', case: 'party-shield-shells-the-party',

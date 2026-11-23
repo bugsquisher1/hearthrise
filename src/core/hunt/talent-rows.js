@@ -22,15 +22,24 @@
 //   taunting          a living monster is held on the hero by its Challenge (holdMs)
 //   cast:<move>:<ms>  the hero cast <move> within <ms> (its cooldown clock less the move's own cooldown as this hero casts it)
 //
+// THE ENGINE PIECES' READERS (lane/talent-effects; the Roads, Signatures and Traits share them, src/data/talents.js effect kinds):
+//   row.fx                   a modded row's piece fields (MOD_FX: heal over time, a second target, per-target output, mana returns, a
+//                            status's strength, a patch), read by abilities.js and heal-rules.js; absent on a row with none
+//   healInPm(inst, u)        THE HEALING `u` RECEIVES now, permille over its heals: its own `heal_in` rows whose condition holds, and the
+//                            `warded` rows of the hero whose shell it holds, added, held to TALENT_RULES.healInCapPm (heal-cut.js healIn)
+//   outPmFor(inst, u, row, t) what cast `row` of hero `u` lands on target `t`, permille: 1000 plus every per-target field that holds
+//   nearFall(inst, u, hp)    is hero `u` near fall-back at `hp` (the `near_fall` condition, the reactions' crossing)
+//
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
 import { ABILITIES } from '../../data/abilities.js';
 import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { RISKS, HOLDER } from '../../data/danger.js';
-import { CHALLENGE } from '../../data/hunt-roles.js';
+import { CHALLENGE, HUNT_ROLES } from '../../data/hunt-roles.js';
+import { TALENT_RULES, MOD_FX } from '../../data/talents.js';
 import { holderTank } from './targeting.js';
-import { statusRow } from './status.js';
+import { rowOf as standsIn } from './monster-roles.js';
 import { isHero, isAlly, isMonster } from './sides.js';
 import { grantsOf } from '../talents.js';
 
@@ -69,6 +78,10 @@ export function moddedRow(row, mod) {
   if (mod.maxHits && Number.isInteger(row.maxHits)) o.maxHits = Math.max(1, row.maxHits + mod.maxHits);
   if (mod.overShieldPm) o.overShieldPm = Math.max(0, (row.overShieldPm || 0) + mod.overShieldPm);
   if (mod.solo && row.party === true) delete o.party;
+  /* THE PIECES (MOD_FX): carried on the row as `fx`, read where the cast lands (abilities.js, heal-rules.js) */
+  let fx = null;
+  for (const k of MOD_FX) if (mod[k] !== undefined) (fx || (fx = {}))[k] = mod[k];
+  if (fx) o.fx = Object.freeze(fx);
   const out = Object.freeze(o);
   byRow.set(row, out);
   return out;
@@ -99,13 +112,6 @@ export function rowsFor(u) {
   return t;
 }
 
-/** A LONGER STATUS (a modded row's statusMs): the stack of status `id` source `src` just laid on `m` (its time still the row's whole
-    duration) runs `ms` longer. Its `left` is persisted with the world, so a viewed and a closed hunt run it out alike. */
-export function stretchStatus(m, id, src, ms) {
-  const full = statusRow(id).durationMs;
-  for (const st of (m && Array.isArray(m.statuses) ? m.statuses : NONE)) if (st.s === id && st.src === src && st.left === full) st.left = full + ms;
-}
-
 /* is monster `m` held on hero `u` by its Challenge */
 const heldOn = (m, u) => !!m && m.alive === true && m.holdMs > 0 && m.target === u.id;
 
@@ -115,13 +121,7 @@ export function holds(inst, u, when) {
   switch (when) {
     case 'party': return units.some((x) => x !== u && isAlly(u, x) && x.alive === true);
     case 'solo': return !units.some((x) => x !== u && isAlly(u, x) && x.alive === true);
-    case 'near_fall': {
-      const st = inst && inst.world && RISKS[inst.world.risk];
-      if (!st || !(u.maxHp > 0)) return false;
-      /* the hero holding the Challenge reads its stance's line x HOLDER.linePm (danger.js marginOf), and near it the same 15 points over */
-      const line = holderTank(inst) === u ? Math.floor((st.fallPm * HOLDER.linePm) / 1000) : st.fallPm;
-      return u.hp * 1000 < (line + NEAR_FALL_PM) * u.maxHp;
-    }
+    case 'near_fall': return nearFall(inst, u, u.hp);
     case 'shielded': return (u.shield | 0) > 0;
     case 'taunting': return units.some((m) => isMonster(m) && heldOn(m, u));
     default: break;
@@ -139,7 +139,58 @@ export function holds(inst, u, when) {
   return false;
 }
 
-const TALENT_KEYS = ['ledger', 'talentWhen', 'moveMods', 'tauntHoldMs', 'tauntRadius'];
+/** IS HERO `u` NEAR FALL-BACK at `hp` (the `near_fall` condition): within NEAR_FALL_PM of its stance's fall-back line, the Challenge
+    holder's line x HOLDER.linePm (danger.js marginOf). On the Danger scale only: off it there is no line, so never. */
+export function nearFall(inst, u, hp) {
+  const st = inst && inst.world && RISKS[inst.world.risk];
+  if (!st || !u || !(u.maxHp > 0)) return false;
+  const line = holderTank(inst) === u ? Math.floor((st.fallPm * HOLDER.linePm) / 1000) : st.fallPm;
+  return hp * 1000 < (line + NEAR_FALL_PM) * u.maxHp;
+}
+
+/* is any engaged monster winding up a spell now (monster-spells.js `cast`, its time left) */
+const windingUp = (inst) => (inst && inst.world ? inst.world.units : NONE).some((m) => isMonster(m) && m.alive === true && m.cast && m.cast.left > 0);
+
+/* THE PER-TARGET FIELDS (src/data/talents.js MOD_FX): each a permille more (or less) of what a heal or a shell lands on a target it
+   holds for. One table, so a new field is a row here and in the data's list. */
+const ON_TARGET = Object.freeze({
+  nearFallPm: (inst, u, t) => nearFall(inst, t, t.hp),
+  notNearFallPm: (inst, u, t) => !nearFall(inst, t, t.hp),
+  frontPm: (inst, u, t) => standsIn(t) === 'front',
+  backPm: (inst, u, t) => standsIn(t) === 'back',
+  selfPm: (inst, u, t) => t === u,
+  othersPm: (inst, u, t) => t !== u,
+  tankPm: (inst, u, t) => !!(HUNT_ROLES[t.role] && HUNT_ROLES[t.role].tank),
+  tauntingPm: (inst, u, t) => holds(inst, t, 'taunting'),
+  onWindupPm: (inst) => windingUp(inst),
+});
+/** WHAT CAST `row` OF HERO `u` LANDS ON TARGET `t`, permille of its number: 1000 plus every per-target field of its `fx` that holds, never
+    under 0. 1000 for a row with none. */
+export function outPmFor(inst, u, row, t) {
+  const fx = row && row.fx;
+  if (!fx || !t) return 1000;
+  let pm = 1000;
+  for (const k of Object.keys(ON_TARGET)) if (Number.isInteger(fx[k]) && ON_TARGET[k](inst, u, t)) pm += fx[k];
+  return Math.max(0, pm);
+}
+
+/** THE HEALING HERO `u` RECEIVES NOW, permille over every heal it takes (heal-cut.js healIn): its own `heal_in` rows (scope self) whose
+    condition holds, and the `warded` rows of the living hero whose shell it holds, added and held to TALENT_RULES.healInCapPm. 0 with none. */
+export function healInPm(inst, u) {
+  if (!u || !isHero(u)) return 0;
+  let pm = 0;
+  for (const r of Array.isArray(u.healIn) ? u.healIn : NONE) if (r.scope !== 'warded' && (!r.when || holds(inst, u, r.when))) pm += r.pm;
+  if ((u.shield | 0) > 0 && Number.isInteger(u.shieldBy) && inst && inst.world) {
+    const by = inst.world.units.find((x) => x.id === u.shieldBy);
+    for (const r of by && by.alive === true && Array.isArray(by.healIn) ? by.healIn : NONE) if (r.scope === 'warded') pm += r.pm;
+  }
+  return Math.max(-TALENT_RULES.healInCapPm, Math.min(TALENT_RULES.healInCapPm, pm));
+}
+
+/* THE GRANTS A BOUNDARY WRITES ON A UNIT (never persisted): the step rows, the move rows, the Challenge's reach, hold and full hold, the
+   reactions (reactions.js), the healing received, and the unit rules (Hold Fast's no-switch, Bodyguard's share, Still Mind's regen) */
+const UNIT_RULES = ['noSwitch', 'guardPm', 'guardR', 'stillMs', 'stillRegenPm'];
+const TALENT_KEYS = ['ledger', 'talentWhen', 'moveMods', 'tauntHoldMs', 'tauntRadius', 'tauntFull', 'reacts', 'healIn', ...UNIT_RULES];
 
 /** WRITE HERO `m`'s GRANTS ON UNIT `u` at Level `level` (combat-sim.js syncUnit, every boundary): the header's fields from
     src/core/talents.js grantsOf, or none of them for a hero with no build. */
@@ -152,6 +203,10 @@ export function syncTalents(u, hero, level) {
   const ch = g.mods.challenge;
   if (ch && ch.holdMs) u.tauntHoldMs = Math.max(STEP, CHALLENGE.holdMs + ch.holdMs); else if (u.tauntHoldMs !== undefined) delete u.tauntHoldMs;
   if (ch && ch.tauntRadius) u.tauntRadius = Math.max(1, CHALLENGE.radius + ch.tauntRadius); else if (u.tauntRadius !== undefined) delete u.tauntRadius;
+  if (ch && ch.holdAll) u.tauntFull = true; else if (u.tauntFull !== undefined) delete u.tauntFull;
+  if (g.reacts.length) u.reacts = g.reacts; else if (u.reacts) delete u.reacts;
+  if (g.healIn.length) u.healIn = g.healIn; else if (u.healIn) delete u.healIn;
+  for (const k of UNIT_RULES) if (g.unit[k] !== undefined) u[k] = g.unit[k]; else if (u[k] !== undefined) delete u[k];
 }
 
 /** `rows` (the party's auras on hero `u`, auras.js auraRowsOn) with `u`'s own conditional Roads rows that hold now appended: `rows` itself

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b8692f42837dbf7f",
+ "authored": "c11ddcb0b3284f7a",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 753,
-  "typed": 17016,
+  "typed": 17073,
   "files": 260,
   "lever": 327,
   "notLever": 426,
@@ -3037,7 +3037,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 101,
+     "line": 106,
      "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
@@ -3076,7 +3076,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 30,
+    "mentionCount": 31,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3104,13 +3104,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 95,
+     "line": 100,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 82,
+     "line": 87,
      "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
      "binding": "TIERS"
     }
@@ -3149,7 +3149,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3166,58 +3166,82 @@
   {
    "id": "spell.statuses-hidden",
    "category": "spells",
-   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground",
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 118,
+     "line": 123,
      "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 121,
+     "line": 126,
      "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 123,
+     "line": 128,
      "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 125,
+     "line": 130,
      "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 128,
+     "line": 133,
      "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 133,
+     "line": 138,
      "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 134,
+     "line": 139,
      "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 135,
+     "line": 140,
      "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 146,
+     "text": "mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 149,
+     "text": "echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 152,
+     "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 155,
+     "text": "frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     }
    ],
-   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed), takenPm / dealtPm (Weakened -80, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), each for durationMs",
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), each for durationMs",
    "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
    "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
    "outcomes": [
@@ -3261,6 +3285,13 @@
       ]
      },
      {
+      "file": "tests/hunt-core/talent-effects.mjs",
+      "what": "heal-over-time, status-strength, echo-and-carry",
+      "reads": [
+       "STATUSES"
+      ]
+     },
+     {
       "file": "tests/hunt-core/monster-spells.mjs",
       "what": "silenced-starts-nothing",
       "reads": [
@@ -3278,7 +3309,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3373,13 +3404,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 105,
+     "line": 110,
      "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 106,
+     "line": 111,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3412,7 +3443,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3624,7 +3655,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 28,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4254,7 +4285,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 113,
+     "line": 118,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -4285,7 +4316,7 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12116,13 +12147,19 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 62,
+     "line": 71,
      "text": "pointSharePm: 333,",
+     "binding": "TALENT_RULES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 77,
+     "text": "healInCapPm: 300,",
      "binding": "TALENT_RULES"
     }
    ],
    "definition": "one point a Level from pointFrom; vows at vowSlots Levels; at most maxBorrowed borrowed moves; an unspent point, or a rank stone on a move never cast, costs pointSharePm of a step on offense and defense, never ramped (src/core/talents.js grantsOf, the ledger's ranks slice)",
-   "range": "pointSharePm 333 (19 row 2: a third of a Level's step); vow slots 30 / 50 / 200 (R8); 2 borrows (17 section 3)",
+   "range": "pointSharePm 333 (19 row 2: a third of a Level's step); vow slots 30 / 50 / 200 (R8); 2 borrows (17 section 3); healInCapPm 300, the healing a hero receives from every source added (PROVISIONAL: 15 \"Healing done: add\", the Lab sets the cap)",
    "touches": "how much a hero loses by not spending, how many vows a build holds and when",
    "outcomes": [
     "dps",
@@ -12164,9 +12201,10 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/hunt-core/talent-effects.mjs",
      "tests/hunt-core/talents.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12185,19 +12223,19 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 74,
+     "line": 85,
      "text": "Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),",
      "binding": "BORROW_BANDS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 78,
+     "line": 89,
      "text": "export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });",
      "binding": "BORROW_OPEN"
     },
     {
      "file": "src/data/talents.js",
-     "line": 87,
+     "line": 98,
      "text": "shelter: 8.5,",
      "binding": "BORROW_VALUES"
     }
@@ -12265,30 +12303,36 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 152,
+     "line": 166,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 203,
+     "line": 222,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 259,
+     "line": 282,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 277,
-     "text": "effects: [rule('challenge_self_heal'), mod('*heal', { outPm: -30 })] }),",
+     "line": 300,
+     "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
+     "binding": "BORDER_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 295,
+     "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     }
    ],
-   "definition": "each node's effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always (src/data/talents.js, src/core/talents.js grantsOf)",
+   "definition": "each node's effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status's strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)",
    "range": "crossroads options within 3 steps on any ground, waystones at most 3 on their best cell, vows +10 best / -8 worst (17 section 9)",
    "touches": "which build is best on which ground, and the gap between the best saved build and the suggested road",
    "outcomes": [
@@ -12327,6 +12371,13 @@
       "reads": [
        "TALENT_NODES"
       ]
+     },
+     {
+      "file": "tests/hunt-core/talent-effects.mjs",
+      "what": "every case",
+      "reads": [
+       "TALENT_NODES"
+      ]
      }
     ],
     "mentions": [],
@@ -12349,7 +12400,7 @@
    "sites": [
     {
      "file": "src/core/hunt/talent-rows.js",
-     "line": 39,
+     "line": 48,
      "text": "export const NEAR_FALL_PM = 150;",
      "binding": "NEAR_FALL_PM"
     }
@@ -12912,7 +12963,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -18637,6 +18688,7 @@
     "blowPm",
     "dealtPm",
     "durationMs",
+    "everyMs",
     "hero",
     "maxStacks",
     "monster",
@@ -18644,7 +18696,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 28,
+   "typed": 36,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {
@@ -19551,12 +19603,13 @@
   "src/data/talents.js#TALENT_RULES": {
    "pin": "count",
    "keys": [
+    "healInCapPm",
     "options",
     "pointSharePm",
     "savedBuildsMax",
     "vowSlots"
    ],
-   "typed": 6,
+   "typed": 7,
    "bindings": 1
   },
   "src/data/talents.js#BORROW_BANDS": {
@@ -19593,46 +19646,77 @@
   "src/data/talents.js#HEARTH_NODES": {
    "pin": "count",
    "keys": [
+    "alsoPm",
+    "hotMs",
     "mana",
     "manaPm",
-    "outPm"
+    "nearFallPm",
+    "notNearFallPm",
+    "outPm",
+    "·"
    ],
-   "typed": 5,
+   "typed": 11,
    "bindings": 1
   },
   "src/data/talents.js#SHIELD_NODES": {
    "pin": "count",
    "keys": [
+    "capMs",
     "cdMs",
     "effects",
+    "guardPm",
     "holdMs",
+    "ms",
+    "othersPm",
     "outPm",
     "statusMs",
+    "statusPm",
+    "windupSlowPm",
     "·"
    ],
-   "typed": 19,
+   "typed": 31,
    "bindings": 1
   },
   "src/data/talents.js#RESTORATION_NODES": {
    "pin": "count",
    "keys": [
+    "alsoPm",
+    "backPm",
     "cdMs",
     "cdPm",
+    "clockMs",
+    "frontPm",
+    "hotMs",
+    "hotPm",
     "mana",
+    "manaBackNearPm",
+    "manaOnCastPm",
     "manaPm",
+    "manaToHealedPm",
+    "nearFallPm",
+    "notNearFallPm",
+    "onWindupPm",
     "outPm",
+    "pm",
     "radius",
-    "statusMs"
+    "range",
+    "statusMs",
+    "stillMs",
+    "stillRegenPm",
+    "·"
    ],
-   "typed": 27,
+   "typed": 52,
    "bindings": 1
   },
   "src/data/talents.js#BORDER_NODES": {
    "pin": "count",
    "keys": [
-    "outPm"
+    "healOfShieldPm",
+    "outPm",
+    "pm",
+    "tauntingPm"
    ],
-   "typed": 1,
+   "typed": 5,
    "bindings": 1
   },
   "src/core/hunt/talent-rows.js#NEAR_FALL_PM": {

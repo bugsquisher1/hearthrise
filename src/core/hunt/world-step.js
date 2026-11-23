@@ -41,6 +41,7 @@ import { consume } from './consumables.js';
 import { flushXpGroup } from './xp-share.js';
 import { checkStopRules } from './conditions.js';
 import { isHero } from './sides.js';
+import { drainReactions } from './reactions.js';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {
@@ -99,7 +100,8 @@ function stepWorld(world, swingCtx, track, events) {
     inst.atMs = sc.atMs;
     inst.ix = null;
     occupancy(inst);
-    for (const hook of SUBSTEP) hook(inst, sc);
+    /* a hook's moments set off the heroes' reactions (react-queue.js), drained before the next hook (reactions.js): none queued, none run */
+    for (const hook of SUBSTEP) { hook(inst, sc); if (inst.reactQ) drainReactions(inst, sc); }
     if (heroes.some((u) => !u.alive)) break;
   }
   world.swing += 1;

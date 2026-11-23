@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b137ae9a21bb853f",
+ "authored": "a936fde2debc7ac7",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 237,
+  "levers": 238,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 9,
@@ -82,14 +82,14 @@
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 45,
+   "economy": 46,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
    "global": 127,
    "archetype": 32,
-   "content": 50,
+   "content": 51,
    "exception-intentional": 17,
    "exception-accidental": 11
   },
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 34,
+   "not-playable:outside-hunt": 35,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 41,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 128,
+   "asserted": 129,
    "mentioned only": 89,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 753,
-  "typed": 16820,
+  "bindings": 760,
+  "typed": 17035,
   "files": 260,
-  "lever": 327,
+  "lever": 334,
   "notLever": 426,
   "unclaimed": 0
  },
@@ -11985,31 +11985,31 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 33,
+     "line": 34,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 34,
+     "line": 35,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 35,
+     "line": 36,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 36,
+     "line": 37,
      "text": "temperStepsMax: 5,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 37,
+     "line": 38,
      "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
@@ -12303,33 +12303,69 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 166,
+     "line": 183,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 228,
+     "line": 245,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 288,
+     "line": 304,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 306,
+     "line": 549,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 301,
+     "line": 544,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 318,
+     "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
+     "binding": "SWORD_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 358,
+     "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
+     "binding": "CLUB_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 385,
+     "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
+     "binding": "AXE_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 416,
+     "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
+     "binding": "RANGED_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 481,
+     "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
+     "binding": "DESTRUCTION_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 567,
+     "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
+     "binding": "MORE_BORDERS"
     }
    ],
    "definition": "each node's effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status's strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)",
@@ -15172,6 +15208,55 @@
    "evidence": "STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)"
   },
   {
+   "id": "econ.faction-stock",
+   "category": "economy",
+   "name": "The quartermasters' stock (the two sides' pieces)",
+   "sites": [
+    {
+     "file": "src/data/factions.js",
+     "line": 78,
+     "text": "export const FACTION_STOCK = Object.freeze({",
+     "binding": "FACTION_STOCK"
+    }
+   ],
+   "definition": "one row a piece a side: its standing mark in company hero-minutes (40 / 120 / 200 / 400 / 600 h), its kind, and for a hall or mount piece wageHoursPm (20 and 30 wage hours) priced ceil(wageHoursPm / 1000 x wage(levelStep(top Level))) at the company's highest Level (src/data/factions.js stockPrice); outfit pieces free; looks only, 0 power steps (ledger row 17)",
+   "range": "the designer's (25-factions.md section 2.4; lane/factions-morrow-hills: the company's top Level, so the pressing hero never changes the price). SQL twin hr_faction_piece_price (1067, generated, pinned at four Levels). The paid rows are CLOSED until the hall's wall and mounts show them",
+   "touches": "a once-per-company looks sink; under 1% of minted coin either way (25 section 3)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/faction-ground-balance.mjs",
+      "what": "FG-PRICE: the wage hours at the Level, rounded up, growing with it; FG-STOCK: no power key",
+      "reads": [
+       "FACTION_STOCK",
+       "stockPrice"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/faction-ground-balance.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a piece is claimed or bought in town, never by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (25-factions.md section 2.4 starting values)"
+  },
+  {
    "id": "econ.reset-price",
    "category": "economy",
    "name": "Talent reset price",
@@ -16799,7 +16884,7 @@
   },
   {
    "at": "src/data/factions.js#*",
-   "why": "faction swap timing and outfit hours: no power, gold or XP in these rows"
+   "why": "faction swap timing, the day fuse, the week cap and the sides: no power, gold or XP in these rows (the gold of the stock is econ.faction-stock)"
   },
   {
    "at": "src/data/boss-halls.js#namedWaveOf",
@@ -19694,6 +19779,110 @@
    "typed": 5,
    "bindings": 1
   },
+  "src/data/talents.js#SWORD_NODES": {
+   "pin": "count",
+   "keys": [
+    "cdMs",
+    "effects",
+    "mana",
+    "manaPm",
+    "ms",
+    "outPm",
+    "pm",
+    "·"
+   ],
+   "typed": 31,
+   "bindings": 1
+  },
+  "src/data/talents.js#CLUB_NODES": {
+   "pin": "count",
+   "keys": [
+    "capPm",
+    "cdMs",
+    "clockMs",
+    "effects",
+    "maxHits",
+    "ms",
+    "outPm",
+    "pm",
+    "·"
+   ],
+   "typed": 17,
+   "bindings": 1
+  },
+  "src/data/talents.js#AXE_NODES": {
+   "pin": "count",
+   "keys": [
+    "capMs",
+    "capPm",
+    "cdPm",
+    "effects",
+    "ms",
+    "pm",
+    "statusMs",
+    "statusPm"
+   ],
+   "typed": 16,
+   "bindings": 1
+  },
+  "src/data/talents.js#RANGED_NODES": {
+   "pin": "count",
+   "keys": [
+    "capMs",
+    "capPm",
+    "cdMs",
+    "effects",
+    "mana",
+    "manaOnCastPm",
+    "manaPm",
+    "ms",
+    "outPm",
+    "pm",
+    "r",
+    "·"
+   ],
+   "typed": 46,
+   "bindings": 1
+  },
+  "src/data/talents.js#DESTRUCTION_NODES": {
+   "pin": "count",
+   "keys": [
+    "capMs",
+    "capPm",
+    "cdMs",
+    "cdPm",
+    "clockMs",
+    "effects",
+    "mana",
+    "manaPm",
+    "ms",
+    "outPm",
+    "pm",
+    "r",
+    "statusMs",
+    "statusPm",
+    "·"
+   ],
+   "typed": 51,
+   "bindings": 1
+  },
+  "src/data/talents.js#MORE_BORDERS": {
+   "pin": "count",
+   "keys": [
+    "alsoPm",
+    "cdMs",
+    "clockMs",
+    "effects",
+    "mana",
+    "ms",
+    "outPm",
+    "pm",
+    "statusPm",
+    "·"
+   ],
+   "typed": 40,
+   "bindings": 1
+  },
   "src/core/hunt/talent-rows.js#NEAR_FALL_PM": {
    "pin": "count",
    "keys": [
@@ -20063,6 +20252,15 @@
     "xpPerHour"
    ],
    "typed": 31,
+   "bindings": 1
+  },
+  "src/data/factions.js#FACTION_STOCK": {
+   "pin": "count",
+   "keys": [
+    "mark",
+    "wageHoursPm"
+   ],
+   "typed": 14,
    "bindings": 1
   },
   "src/data/talent-reset.js#TALENT_RESET": {

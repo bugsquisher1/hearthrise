@@ -393,6 +393,11 @@
         "bytes": 3777766,
         "on": "2026-11-23",
         "why": "+33,442 B: the Roads' whole map, src/data/talents.js from the sample (103 nodes) to every country and border (269 nodes, 171 options), read by the engine through core/talents.js grantsOf"
+      },
+      {
+        "bytes": 3777956,
+        "on": "2026-11-23",
+        "why": "+190 B: factions.js stock rows and stockPrice (lane/factions-morrow-hills), read by the engine's ground side lookup"
       }
     ]
   }

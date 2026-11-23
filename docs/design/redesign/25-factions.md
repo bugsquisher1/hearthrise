@@ -174,3 +174,35 @@ Every id below was grepped on the set (`src/data/*`).
 | 7 | Swaps, if they want: 40 hero-hours on the other side's ground | Both sides have an open ground (step 2) | Yes, because the pair opens together (FG-EVEN) |
 
 **Not verified.** Nothing was played: no ground pays a side on the set. The mark sizes and the 40 h swap are judgment, read against the old per-hero pace, not measured.
+
+## 9. Built (lane/factions-morrow-hills, 2026-11-23)
+
+**Data** (`src/data/factions.js`): `FACTION_RULES` (swap 2,400 company hero-minutes, 7-day lock, 1,440-minute hero day fuse, 2,400-minute week cap), `FACTIONS` (one row a side: `face`), `STOCK_KINDS`, `FACTION_STOCK` (ten rows, five a side, the table in 2.4), `FACTION_OUTFITS` (now derived: the stock's worn rows) and `stockPrice`. Sampled as the First Flame's five rows and checked (the validator refused the empty Last Ember side, prices rose with Level), then expanded.
+
+**Server** (STAGED): `1067-faction-company-catalogue.generated.sql` (`tools/gen-factions.mjs` moved forward: `hr_faction_stock`, the rule's company swap and week cap, `hr_faction_piece_price` pinned to `stockPrice` at four Levels) and `1068-faction-company.sql` (the company tables, every faction body restated on the company, `hr_faction_buy` dark, `hr_outfit_owned` on the company's claims, the hero tables dropped).
+
+**Design calls made in the build (JUDGMENT):**
+
+| Call | Why |
+|---|---|
+| A paid piece is priced at the company's TOP Level, not the pressing hero's | It is bought once for every hero. Pricing at the presser would make "log in the low alt to shop" the right move, a chore the first principle calls a bug. The presser still pays |
+| The banner and the mount cloth are CLOSED rows (`opensWith: 'hall_wall'` and `'mounts'`) | Neither the hall's wall nor mounts can show them yet, and every piece needs a use (CLAUDE.md 3.5). The catalogue carries and prices them, the verbs refuse them, the page never lists them. Opening one is deleting `opensWith` |
+| The paid verb (`hr_faction_buy`) ships DARK | A money surface with nothing to buy yet. The §7 self-check and `FS-COMPANY` prove it on a probe that opens a row |
+| Free pieces are Claimed, paid pieces are Bought (two verbs) | One genre word per press. A claim never takes a number; only the buy compares a price |
+| `FACTIONS` carries `face` only | The `color` token in section 5 does not exist in `tokens.css`, and `mark` is the side's own id. The art lane adds the token with the Faction window |
+| A row's keys are an allowlist | "No power" is enforced as shape: any key outside a side's or a piece's shape (a stat, a step, a modifier, a rule) is refused (`FG-STOCK`) |
+| A piece id may not spell any person (Holly, Harry, Venn, Rowe) | Names live in `people.js` only, so renaming a person stays one edit |
+| The week's close is not built | It ships with the social layer (section 4). Its cap is in the rule row now, so the close reads one number |
+
+**Walk-through against the built data and the replayed server** (ids grepped on the lane's tree):
+
+| Step | Does | Holds from steps 1 to N-1 | Doable? |
+|---|---|---|---|
+| 1 | Any hero of the company kills `lord_krell` (`src/data/grounds/krells_hold`, a boss: FG-JOIN) | A party at Krell's band | Yes |
+| 2 | The Morrow Hills patch opens `carters_rest` (`standingFor: 'last_ember'`) and `ox_road` (`'first_flame'`) | Step 1's kill on record | Only once that patch ships (both packs are staged; FG-EVEN holds the pair) |
+| 3 | Any hero presses Join for the company (`hr_faction_join`) | Step 1's kill, on ANY hero | Yes: §7(b) and FS-COMPANY join hero 0 on hero 1's kill |
+| 4 | Heroes hunt their side's ground; every settle adds to the company | A side (step 3), a paying ground (step 2) | Yes: FS-BOTH (viewed and closed) and FS-COMPANY (two heroes sum, each on its own day row) |
+| 5 | At 40 company hero-hours, Claim the Flamebearer or the Emberkeeper; every hero owns the look | Step 4's standing | Yes: `hr_outfit_owned` reads the company's claims (§7(d)); both outfits have sheets and icons (`flamebearer.png`, `emberkeeper.png`) |
+| 6 | Optional swap: 40 company hero-hours on the other side's ground, then Finish | Both sides' grounds open (step 2), the week passed | Yes: §7(f), FS-WORDS |
+
+**Not verified:** nothing was played in the browser (the `factions` switch is off and no open ground pays a side). The marks, the 40 h swap and the two prices are 2.4's starting values, not measured.

@@ -152,7 +152,7 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from public.profiles where id = v_u)
      or exists (select 1 from auth.users where id = v_u) or exists (select 1 from public.hr_access_allowlist where user_id = v_u)
-     or exists (select 1 from public.hr_faction_members where user_id = v_u) or exists (select 1 from public.hr_faction_ledger where user_id = v_u)
+     or exists (select 1 from public.hr_faction_ledger where user_id = v_u)
      or (select scope from public.hr_feature_switches where switch_id = 'factions') is distinct from 'everyone' then
     raise exception 'arm-factions §2(c): the probe leaked a row'; end if;
   -- (d)

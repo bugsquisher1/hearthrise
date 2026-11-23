@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "8b73c5caa314683c",
+ "authored": "5ea06ad1f5c3bbf3",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -121,15 +121,10 @@
   "typed": 17059,
   "files": 261,
   "lever": 334,
-  "notLever": 426,
-  "unclaimed": 1
+  "notLever": 427,
+  "unclaimed": 0
  },
- "problems": [
-  {
-   "kind": "unclaimed",
-   "what": "src/data/how-to-play.js#HELP_NOTES:89 holds 3 typed number(s) [3600000 3600000 60] and no lever row or NOT_LEVERS reason claims it"
-  }
- ],
+ "problems": [],
  "levers": [
   {
    "id": "blow.skill-term",
@@ -16958,6 +16953,10 @@
   {
    "at": "src/data/hearth.js#BURN_SHOW",
    "why": "the burn's show (art timing)"
+  },
+  {
+   "at": "src/data/how-to-play.js#HELP_NOTES",
+   "why": "unit conversions for the help text (ms an hour, minutes an hour): the numbers shown are STAMINA_MAX_MS and RULED, read, not set here"
   },
   {
    "at": "src/data/factions.js#*",

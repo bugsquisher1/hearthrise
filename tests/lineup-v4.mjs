@@ -8,8 +8,8 @@
 //   V4-1  a four of ONE style (hammer x4, bow x4, mage x4, healer x4) earns less Level XP a head an hour than the mixed four (hammer, bow,
 //         mage, healer), each a Steady four from its held start (refStep - startMargin) at the ground's reference Level
 //         (tests/level-curve.mjs REF_LEVEL), MID kits, 3 seeds x 2 h (tools/balance-program/redesign/held-four.mjs)
-//   V4-2  no lineup of LINEUPS is the best on every scale ground. Judged once a second scale ground opens (R10); with one ground it is
-//         printed as not judged, and the rule itself is proven on planted grounds in --mutate.
+//   V4-2  no lineup of LINEUPS is the best on every scale ground. Judged since R10 opened more scale grounds (lane/r10-more-grounds);
+//         with one ground it is printed as not judged, and the rule itself is proven on planted grounds in --mutate.
 // Measured 2026-11-22 on muster_barrows, Level 60, 3 seeds x 2 h: mixed 0.88x the hours table; healer x4 0.58x, mage x4 0.43x,
 // hammer x4 0.19x, bow x4 0.19x.
 //
@@ -97,7 +97,9 @@ async function mutate() {
     ['V4-2 one lineup tops both of two grounds', two('two_mages', 'two_mages'), true],
     ['V4-2 a ground with a lineup unmeasured', { ...two('two_mages', 'two_bows'), lineups: { ...two('two_mages', 'two_bows').lineups, g2: { one_each: 5 } } }, true],
     ['control: two grounds, two different best lineups', two('two_mages', 'two_bows'), false],
-    ['control: one scale ground, V4-2 not judged', { ...w, lineups: null }, false],
+    /* one ground cut from the measured world: V4-2 is not judged with a single ground (R10 opened more, so the cut is explicit) */
+    ['control: one scale ground, V4-2 not judged', { ...w, grounds: [g], lineups: null }, false],
+    ['V4-2 every ground measured but one lineup missing on the real world', w.lineups ? { ...w, lineups: { ...w.lineups, [g]: { ...w.lineups[g], two_bows: undefined } } } : { ...two('two_mages', 'two_bows'), lineups: { g1: two('two_mages', 'two_bows').lineups.g1, g2: {} } }, true],
   ];
   let miss = 0;
   for (const [name, m, wantRed] of cases) {

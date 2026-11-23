@@ -59,17 +59,34 @@ export function proofArgs(argv, base) {
 /* A base a lane can be cut from: a set, next, or main, on origin. Never the lane's own pushed branch (its merge base is HEAD). */
 export const BASE_REF = /^origin\/(set\/v[\w.-]+|next|main)$/;
 /**
- * The lane's base: the candidate whose merge base with HEAD is nearest (fewest commits to HEAD); a ref that already holds HEAD
- * is no base (its diff is empty), and on a tie the earlier candidate wins (upstream, then the newest sets, next, main). Pure.
- * @param {{ ref: string, mergeBase: string|null, ahead: number }[]} cands
+ * The lane's base: the candidate whose merge base with HEAD is nearest (fewest commits to HEAD); on a tie the earlier candidate wins
+ * (upstream, then the newest sets, next, main). Pure.
+ * A ref whose TIP is HEAD is the nearest base there is (0 commits): the lane has not committed yet, so its diff is the worktree's.
+ * (Until 2026-11-23 "a ref that holds HEAD is no base" skipped it, so a lane fresh from the set fell past the set and next to main,
+ * whose diff is the whole set: 2,359 files, 473 tests.) A ref that holds HEAD and moved on (it took the lane in) is read as it stood
+ * before (laneBase, firstWithout); one that could not be is no base.
+ * @param {{ ref: string, tip?: string, mergeBase: string|null, ahead: number }[]} cands
  */
 export function nearestBase(cands, head) {
   let best = null;
   for (const c of cands) {
-    if (!BASE_REF.test(c.ref) || !c.mergeBase || c.mergeBase === head || !Number.isFinite(c.ahead)) continue;
+    if (!BASE_REF.test(c.ref) || !c.mergeBase || !Number.isFinite(c.ahead)) continue;
+    if (c.mergeBase === head && c.tip !== head) continue;
     if (!best || c.ahead < best.ahead) best = c;
   }
   return best;
+}
+
+/**
+ * The newest commit of a first-parent line (newest first) that does NOT hold HEAD, by `holds(sha)`, or null when every commit holds it.
+ * Holding HEAD is true for a prefix of the line (a descendant of a commit that holds HEAD holds it too), so it bisects. Pure.
+ */
+export function firstWithout(chain, holds) {
+  if (!chain.length || holds(chain[chain.length - 1])) return null;
+  if (!holds(chain[0])) return chain[0];
+  let lo = 0, hi = chain.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (holds(chain[mid])) lo = mid; else hi = mid; }
+  return chain[hi];
 }
 
 /** Why --remote must not dispatch, or null. Pure. */
@@ -100,13 +117,23 @@ const git = (args) => {
 const GH = process.env.HR_GH || (existsSync('C:/Program Files/GitHub CLI/gh.exe') ? 'C:/Program Files/GitHub CLI/gh.exe' : 'gh');
 const gh = (args) => spawnSync(GH, args, { encoding: 'utf8', maxBuffer: 1e8 });
 
+/* The candidates as git sees them; `at` is what the diff reads from (the ref, or the commit it stood at before it took the lane in). */
 function laneBase(head) {
   const up = git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']) || '';
-  const sets = (git(['for-each-ref', '--sort=-version:refname', '--count=6', '--format=%(refname:short)', 'refs/remotes/origin/set/']) || '').split('\n').filter(Boolean);
+  /* only the version sets (a set named otherwise, origin/set/wave1, sorted first and took one of the six) */
+  const sets = (git(['for-each-ref', '--sort=-version:refname', '--count=6', '--format=%(refname:short)', 'refs/remotes/origin/set/v*']) || '').split('\n').filter(Boolean);
   const refs = [...new Set([up, ...sets, 'origin/next', 'origin/main'].filter((r) => BASE_REF.test(r)))];
+  const ahead = (mb) => (mb ? Number(git(['rev-list', '--count', `${mb}..HEAD`])) : NaN);
+  const holds = (c) => spawnSync('git', ['merge-base', '--is-ancestor', head, c], { encoding: 'utf8' }).status === 0;
   const cands = refs.map((ref) => {
+    const tip = git(['rev-parse', ref]);
     const mergeBase = git(['merge-base', ref, 'HEAD']);
-    return { ref, mergeBase, ahead: mergeBase ? Number(git(['rev-list', '--count', `${mergeBase}..HEAD`])) : NaN };
+    if (mergeBase !== head || tip === head) return { ref, tip, at: ref, mergeBase, ahead: ahead(mergeBase) };
+    /* the ref took the lane in and moved on: read it as it stood before, so the lane's own commits are its diff */
+    const chain = (git(['rev-list', '--first-parent', '--max-count=5000', ref]) || '').split('\n').filter(Boolean);
+    const was = firstWithout(chain, holds);
+    const mb = was ? git(['merge-base', was, 'HEAD']) : null;
+    return was ? { ref, tip, at: was, mergeBase: mb, ahead: ahead(mb), before: true } : { ref, tip, at: ref, mergeBase, ahead: NaN };
   });
   return nearestBase(cands, head);
 }
@@ -191,7 +218,15 @@ function selftest() {
       [!all.includes('--as-release') && all.includes('--pages') && all.includes('--proofs'), '--proofs is the old run: every touched proof (and --pages passes through)'],
       [impl.proofArgs(['--run', '--no-proofs'], 'b') === null, '--no-proofs runs no proof'],
       [impl.nearestBase(cands, H)?.ref === 'origin/set/v0.2.144', 'the base is the nearest set (a tie keeps the set before next; never the lane\'s own branch)'],
-      [impl.nearestBase([{ ref: 'origin/set/v1', mergeBase: H, ahead: 0 }, { ref: 'origin/main', mergeBase: sha('c'), ahead: 5 }], H)?.ref === 'origin/main', 'a set that already holds HEAD is no base'],
+      /* 2026-11-23: a lane fresh from the set (no commit yet, HEAD is the set's tip, and next's) picked main, 1,753 commits back */
+      [impl.nearestBase([{ ref: 'origin/set/v0.2.144', tip: H, mergeBase: H, ahead: 0 }, { ref: 'origin/next', tip: H, mergeBase: H, ahead: 0 },
+        { ref: 'origin/main', tip: sha('c'), mergeBase: sha('c'), ahead: 1753 }], H)?.ref === 'origin/set/v0.2.144', 'a lane fresh from the set diffs against the set (its tip is HEAD: the nearest), never main'],
+      [impl.nearestBase([{ ref: 'origin/set/v1', tip: sha('9'), mergeBase: H, ahead: 0 }, { ref: 'origin/main', tip: sha('c'), mergeBase: sha('c'), ahead: 5 }], H)?.ref === 'origin/main', 'a set that took HEAD in and moved on, unread, is no base'],
+      [impl.nearestBase([{ ref: 'origin/set/v1', tip: sha('9'), at: sha('8'), mergeBase: sha('7'), ahead: 3, before: true }, { ref: 'origin/main', tip: sha('c'), mergeBase: sha('c'), ahead: 40 }], H)?.at === sha('8'),
+        'a set that took the lane in is read as it stood before (nearer than main)'],
+      [impl.firstWithout(['m4', 'm3', 'm2', 'm1', 'm0'], (c) => c === 'm4' || c === 'm3') === 'm2' && impl.firstWithout(['m1', 'm0'], () => true) === null
+        && impl.firstWithout(['m1', 'm0'], () => false) === 'm1' && impl.firstWithout(['m9', 'm8', 'm7', 'm6', 'm5', 'm4', 'm3', 'm2'], (c) => c > 'm3') === 'm3',
+        'the commit before a ref took the lane in: the newest on its first-parent line that does not hold HEAD'],
       [impl.nearestBase([], H) === null, 'no candidate, no base'],
       [refuse({}) === null, '--remote dispatches a pushed lane branch'],
       [/not on origin/.test(refuse({ remoteSha: null }) || '') && /push first/.test(refuse({ remoteSha: sha('d') }) || ''), '--remote refuses a branch not pushed, or pushed behind HEAD'],
@@ -202,7 +237,7 @@ function selftest() {
         'the run found is the new dispatch of this head, never an older one or a push'],
     ];
   };
-  const real = { pickTests, proofArgs, nearestBase, remoteRefusal, dispatchArgs, pickRun, touched: (c, s) => touchedBy(c, s) };
+  const real = { pickTests, proofArgs, nearestBase, firstWithout, remoteRefusal, dispatchArgs, pickRun, touched: (c, s) => touchedBy(c, s) };
   for (const [c, m] of checks(real)) ok(c, m);
   const by = byHandTools();
   ok(by.has('tests/party-class-xp-line.mjs') && by.has('tests/char-wipe-world.mjs') && !by.has('tests/ci-shape.mjs'), 'the by-hand list is tests/guards-unregistered.json\'s (the retired T-03 and the world walks), no CI guard');
@@ -226,6 +261,9 @@ function selftest() {
     ['the base is always main', { ...real, nearestBase: (c, h) => nearestBase(c.filter((x) => x.ref === 'origin/main'), h) }],
     ['the lane\'s own branch can be its base', { ...real, nearestBase: (c, h) => c.filter((x) => x.mergeBase && x.mergeBase !== h).sort((a, b) => a.ahead - b.ahead)[0] || null }],
     ['a ref holding HEAD is a base', { ...real, nearestBase: (c, h) => nearestBase(c.map((x) => ({ ...x, mergeBase: x.mergeBase === h ? sha('9') : x.mergeBase })), h) }],
+    ['a ref at HEAD is no base (the 11-23 bug: a fresh lane fell to main)', { ...real, nearestBase: (c, h) => nearestBase(c.filter((x) => x.mergeBase !== h), h) }],
+    ['the line\'s tip is read as the commit before', { ...real, firstWithout: (chain) => chain[0] || null }],
+    ['the line\'s oldest is read as the commit before', { ...real, firstWithout: (chain, holds) => (chain.length && !holds(chain[chain.length - 1]) ? chain[chain.length - 1] : null) }],
     ['an unpushed branch is dispatched', { ...real, remoteRefusal: (o) => remoteRefusal({ ...o, remoteSha: o.head }) }],
     ['a release branch is dispatched', { ...real, remoteRefusal: (o) => (/^release\//.test(o.branch) ? null : remoteRefusal(o)) }],
     ['the dispatch is the full sweep', { ...real, dispatchArgs: (b) => ['workflow', 'run', 'smoke.yml', '--ref', b] }],
@@ -245,14 +283,15 @@ function main(args) {
   const t0 = Date.now();
   const head = git(['rev-parse', 'HEAD']);
   const auto = args.includes('--base') ? null : laneBase(head);
-  const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : auto?.ref || 'origin/main';
+  const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : auto?.at || 'origin/main';
   if (args.includes('--remote')) return remote(base);
   const changed = changedFiles(process.cwd(), `${base}...HEAD`, { worktree: true });
   const touched = touchedBy(changed, guardSources(process.cwd()));
   const byHand = byHandTools();
   const pick = pickTests(touched, byHand);
   const list = [...pick.entries()].sort();
-  console.log(`${changed.length} changed files vs ${base}${auto ? ` (the nearest base: ${auto.ahead} commit(s) since its merge base)` : ''} → ${list.length} tests`);
+  const named = auto ? (auto.before ? `${auto.ref} as it stood before it took this lane in (${base.slice(0, 9)})` : auto.ref) : base;
+  console.log(`${changed.length} changed files vs ${named}${auto ? ` (the nearest base: ${auto.ahead} commit(s) since its merge base${auto.ahead === 0 ? ', so the diff is the uncommitted work' : ''})` : ''} → ${list.length} tests`);
   const handOnly = [...touched.keys()].filter((t) => byHand.has(t)).sort();
   if (handOnly.length) console.log(`  not run (by-hand tools no workflow runs, tests/guards-unregistered.json): ${handOnly.join(' ')}`);
   if (!args.includes('--run')) {

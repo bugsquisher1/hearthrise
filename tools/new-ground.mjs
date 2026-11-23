@@ -79,7 +79,10 @@ if (arg('ref')) {
 /* the scale ground one tier under this one (27 K-6: its top must reach this floor), by the rows' gear base */
 const prev = DANGER_GROUNDS[G] ? Object.keys(DANGER_GROUNDS).find((k) => DANGER_GROUNDS[k].gearLevel === DANGER_GROUNDS[G].gearLevel - GEAR_STEPS.tierSteps) : null;
 const abs = DANGER_GROUNDS[G] ? { band: bandAbs(G), prevTopPm: prev && bandAbs(prev) ? bandAbs(prev).topPm : null, refLevel: DANGER_GROUNDS[G].refLevel, sustain: SUSTAIN } : null;
-const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE, abs);
+/* a ground on the monster formula keeps its refStep (the monsters' and the pay's anchor, chosen by hand) and pins the MID four's hold as
+   refHeld, the depth reading's middle point (tools/lib/danger-band.mjs, lane/depth-reading-fix) */
+const anchorStep = DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters === 'formula' ? DANGER_GROUNDS[G].refStep : null;
+const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE, abs, { anchorStep });
 const { _lowDepth, ...band } = cut.band;
 const print = packPrint(ground, MONSTERS, monstersOn, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters);
 const row = DANGER_GROUNDS[G];
@@ -87,8 +90,9 @@ console.log('\n' + G + ' on the Danger scale (the Steady mixed four, v1-climb.mj
 console.log('  MID  Level ' + cut.cells.ref.L + ': held ' + cut.cells.ref.held + ', ' + cut.cells.ref.killsPerH + ' kills an hour');
 console.log('  BIS  Level ' + cut.cells.top.L + ': held ' + cut.cells.top.held);
 console.log('  LOW  Level ' + cut.cells.floor.L + ': held ' + cut.cells.floor.held + ', lowest seed ' + cut.cells.floor.lowest + ' (depth ' + _lowDepth + ' of ' + DEPTHS + ')');
-console.log('  band refStep ' + band.refStep + '  floorStep ' + band.floorStep + '  topStep ' + band.topStep + (band.refKillsHead ? '  refKillsHead ' + band.refKillsHead : '  refKillsHead (PAY.refKillsHead ' + PAY.refKillsHead + ')'));
-if (row) console.log('  today  refStep ' + row.refStep + '  floorStep ' + row.floorStep + '  topStep ' + row.topStep + '  refKillsHead ' + (row.refKillsHead || '-'));
+console.log('  band refStep ' + band.refStep + (anchorStep === null ? '' : ' (the formula\'s anchor, kept)') + '  floorStep ' + band.floorStep + '  topStep ' + band.topStep + (band.refKillsHead ? '  refKillsHead ' + band.refKillsHead : '  refKillsHead (PAY.refKillsHead ' + PAY.refKillsHead + ')')
+  + (band.refHeld !== undefined ? '  refHeld ' + band.refHeld + ' (the reference four\'s hold, the depth reading\'s middle)' : ''));
+if (row) console.log('  today  refStep ' + row.refStep + '  floorStep ' + row.floorStep + '  topStep ' + row.topStep + '  refKillsHead ' + (row.refKillsHead || '-') + '  refHeld ' + (row.refHeld === undefined ? '-' : row.refHeld));
 for (const n of cut.notes) console.log('  note: ' + n);
 for (const n of cut.info) console.log('  info: ' + n);
 console.log('  print of the rows measured: ' + print);

@@ -38,10 +38,10 @@
   },
   "catacomb_bone_wing": {
    "refStep": 480,
-   "floorStep": 385,
-   "topStep": 535,
-   "refKillsHead": 155,
-   "print": "77b191327b476e79",
+   "floorStep": 380,
+   "topStep": 540,
+   "refKillsHead": 160,
+   "print": "c78b59371fab46b6",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
@@ -55,11 +55,11 @@
   },
   "catacomb_flooded_wing": {
    "refStep": 440,
-   "floorStep": 355,
-   "topStep": 500,
+   "floorStep": 350,
+   "topStep": 505,
    "refKillsHead": 150,
-   "print": "ba6d33792854df11",
-   "verdict": "OPEN",
+   "print": "e9b8d7f0d61e2c41",
+   "verdict": "STAGED",
    "levels": {
     "entry": 165,
     "top": 185,

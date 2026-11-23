@@ -3,17 +3,17 @@ V1 on catacomb_flooded_wing (8 seeds x 12 h, held step read from hour 4; step 0 
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       444.6 +- 3       -4.7  51.2  83.3   33.8    3.6     0.6    153.7      0     0  7 (0/1/7)                       8  {"hold":11150,"climb":3253,"fall":341}
+base:steady       438.9 +- 1.6      1.3  48.6  82.2   33.9    3.6     0.6    154.5      0     0  4 (0/0/4)                       8  {"hold":11276,"climb":3230,"fall":320}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        1.04x  sd 0.03  n 8  window 8 h  seeds 1.02 1.09 1.05 1.05 0.99 1.03 1.03 1.06
+  base:steady           1x  sd 0.02  n 8  window 8 h  seeds 1 0.97 1 0.98 1.02 1.03 0.99 1
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L175  coin 39838 +- 591  income 42343 +- 600  store 5044  kit share 0.12 (meal 266, drink 267, charge 1140, shot 3370)  loot by band: common 1516, uncommon 832, scarce 0, other 156  n 8
+  base:steady       L175  coin 38976 +- 492  income 41544 +- 507  store 5066  kit share 0.12 (meal 272, drink 276, charge 1147, shot 3371)  loot by band: common 1523, uncommon 843, scarce 0, other 202  n 8
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.833  bow 0.045  mage 0.055  healer 0.067
+  base:steady       hammer 0.836  bow 0.044  mage 0.053  healer 0.066
 
-wall 47 s
+wall 44 s

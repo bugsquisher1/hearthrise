@@ -147,7 +147,12 @@ const SEED = '-4611686018427387904';
    diffed against the pin before this lane; muster-steps-4 172 kills.
    RE-PINNED 2026-11-23 (lane/stage3-pipeline merged with set/v0.2.144 at 319590c72), muster-steps-4 ONLY: the four tier scenarios hold the
    set's own pin to the byte (world, timeline, tally, kills 200 / 492 / 140 / 99), diffed against it; the scale scenario moves at every settle
-   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172). */
+   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172).
+   RE-PINNED 2026-11-23 (lane/scale-early-grounds), muster-steps-4's TALLY ONLY: its world and timeline held at all 12 settles and so did its
+   kills (170, the set's own), and the four tier scenarios held to the byte. Cause: what a kill PAYS. The pay's reference on a formula ground is
+   where its reference company holds (src/core/hunt/danger.js payRowOf: Muster's refHeld 610, not its monster anchor 590), so a kill's Level XP
+   and coin read 20 steps less of depth, and Muster carries its own coin level (DANGER_GROUNDS coinPm 7000, measured: the reference hour 1.01 of
+   wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

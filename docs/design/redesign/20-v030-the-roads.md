@@ -142,7 +142,7 @@ For each step: what the player holds and can reach from earlier steps only, plus
 | 7 | The flame burns them by the default stoke rule | Step 6's remains | The burn: BUILT. The flame as luck and the default stoke rule: **NEW (F1)** | After F1 |
 | 8 | Back in town at about Level 4: end card, Tamsin, first cook | The 10 Shrimp from step 2. Recipe `cook_shrimp` (Shrimp → Cooked Shrimp, Cooking 1) | Path `first_leave`. `recipes.js cook_shrimp`. The first-cook card: **NEW (H1)** | After H1. The recipe exists |
 | 9 | Level 5: first crossroads | 4 points from steps 5 and later. The first crossroads sits next to rank 3 | `17` section 13 (Level 5, point 4) | After the Roads lanes |
-| 10 | "Outgrown the Mill Cellar", one press for 3 recruits | Hero at Level 5. Recruits at Level 5 (`levelsUnder` 0), jobs from `tank`, `healer`, `ranger`, `club` that the first hero doesn't play. Their Roads points are spent as suggested for their job | `recruits.js RECRUITS` (live, atLevel 5). Path `first_level_5`. 1053 STAGED. Recruits' points: **NEW (H1)** | Yes for the press. Points after H1 |
+| 10 | "Outgrown the Mill Cellar", one press for 3 recruits | Hero at Level 5. Recruits at Level 5 (`levelsUnder` 0), jobs from `tank`, `healer`, `ranger`, `club` that the first hero doesn't play. Their Roads points are spent as suggested for their job | `recruits.js RECRUITS` (live, atLevel 5). Path `first_level_5`. 1053 STAGED. Recruits' points: the standing rule, `1069-talent-standing-rule.sql` STAGED (dark behind the Talents switch). The bow recruit's arrows load at creation (`1038` THE SHOT) | Yes once applied |
 | 11 | Pick the Sewer, see the Risk pick | Four heroes at Level 5. Sewer band [5, 25]: Drain Rat, Culvert Bat, Sump Slime, Kobold Tosher, Cistern Spider | `hunts.js millrace_sewer`. `text/hunts.js stance_careful/steady/bold`. The R1 picker is BUILT on Muster. The Sewer on the scale: **NEW (R10)** | After R10 |
 | 12 | Each monster plays a role | Step 11's monsters | `monster-roles.js` (BUILT, sample only). Sewer rows: **NEW (C2)** | After C2 |
 | 13 | Personal loot | Each hero rolls its own drops | **NEW (P1)** | After P1 |
@@ -164,7 +164,7 @@ For each step: what the player holds and can reach from earlier steps only, plus
 
 | Decision | Made once, where | Remembered by |
 |---|---|---|
-| Spending Roads points | Default "Spend as suggested" | The standing rule. Recruits get it too |
+| Spending Roads points | Default "Spend as suggested" | The standing rule (`player_state.talent_auto`, default party; `hr_talent_auto_set` turns it off; `1069` STAGED). Recruits get it too |
 | A crossroads | The card at that Level | The plan. A second hero can copy the build |
 | Risk | The Hunts card for the first party ground | The plan, for every ground |
 | Burn or keep remains | The default stoke rule | The plan |

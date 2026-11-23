@@ -74,7 +74,7 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
  * row's biggest blow, before the role's maxHitPm), top (the blow that lands after it), spells: { id: spell row }, armorPm } at the
  * REFERENCE STEP (not yet over the dial), plus `steadyShare` (the share of the dialed steady pressure blowCap lets through). Pure.
  * @param {string} roleId
- * @param {{ refLevel: number }} g
+ * @param {{ refLevel: number, refStep?: number }} g
  * @param {string} [kind]
  * @param {{ windup?: any, mend?: any }} [own]
  */

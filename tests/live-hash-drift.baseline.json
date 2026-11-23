@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3109,
+  "replay_ms": 4927,
   "counts": {
-    "tracked_names": 1125,
-    "entries": 950
+    "tracked_names": 1133,
+    "entries": 958
   },
   "functions": [
     {
@@ -17743,6 +17743,60 @@
       "why": "STAGED for the v0.2.144 release by 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1062-store-step.sql."
     },
     {
+      "sig": "hr_talent_build_problem(p_nodes jsonb)",
+      "name": "hr_talent_build_problem",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "ca16e5077f5a1415412e8751ff7baaf4",
+        "norm_len": 2227,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talent_build_save(p_slot integer, p_hunt text, p_nodes jsonb, p_idem uuid)",
+      "name": "hr_talent_build_save",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d3f63b74a751db2a271d3457698b6db6",
+        "norm_len": 4071,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talent_points(p_level integer)",
+      "name": "hr_talent_points",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "1fce0377a3c6dabaf2776bde1765b12a",
+        "norm_len": 373,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
       "sig": "hr_talent_reset(p_slot integer, p_price bigint, p_idem uuid)",
       "name": "hr_talent_reset",
       "tracked_by": [
@@ -17750,16 +17804,17 @@
         "restate"
       ],
       "touched_by": [
-        "1063-level-costs.sql"
+        "1063-level-costs.sql",
+        "1064-roads-sample.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "78e10d3884a87ce289473303050eb9cc",
-        "norm_len": 3969,
+        "md5": "f3c7cc4b25c9cb1640f6d26276e815fe",
+        "norm_len": 4925,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-level-costs.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql, 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
     },
     {
       "sig": "hr_talent_reset_price(p_level integer, p_paid integer)",
@@ -17798,6 +17853,96 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-level-costs.sql."
+    },
+    {
+      "sig": "hr_talent_spend(p_slot integer, p_node text, p_pick text, p_idem uuid)",
+      "name": "hr_talent_spend",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "023e235ac65625b6c8f8670dc2a9542e",
+        "norm_len": 3695,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talent_spend_problem(p_nodes jsonb, p_node text, p_pick text, p_level integer)",
+      "name": "hr_talent_spend_problem",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "cec966bdc8532d9e281aef5b21e31055",
+        "norm_len": 2189,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talent_spend_suggested(p_slot integer, p_plan text, p_idem uuid)",
+      "name": "hr_talent_spend_suggested",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c3ff4b7779370b6e455b831af768843d",
+        "norm_len": 4515,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talent_spent(p_nodes jsonb)",
+      "name": "hr_talent_spent",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a58e1c02cf355eee1292228a80029e17",
+        "norm_len": 491,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talents_view(p_user uuid, p_slot integer)",
+      "name": "hr_talents_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1064-roads-sample.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c6f18393e0056ad98a26665a19d38b69",
+        "norm_len": 1734,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
     },
     {
       "sig": "hr_tally_accept(p_slot integer, p_task text, p_weight text, p_idem uuid)",

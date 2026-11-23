@@ -212,6 +212,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* ON THE SCALE a mark and a dealer's status are conditional steps (src/core/hunt/amount.js), never a multiplier */
   const tag = piped ? (markPm || dealtPm ? Object.assign({}, ability, { markPm, dealerPm: dealtPm }) : ability)
     : markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability;
+  /** @type {{ dmg: number, killed: boolean, absorbed?: number }} */
   const r = hurt(inst, target, amount, source, element, tag, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;

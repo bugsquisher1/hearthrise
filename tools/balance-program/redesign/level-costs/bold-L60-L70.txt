@@ -1,0 +1,6 @@
+base:bold     L60  deaths a party-day 1.00  hunted h a hero 8.70  deaths take 20.3% of the day's Level XP (per seed 26.5% +- 11.3 se)  a death 7.38 / 7.32 / 7.61 / 7.72 h
+base:steady   L60  deaths a party-day 0.00  hunted h a hero 10.00  deaths take 0.0% of the day's Level XP (per seed 0.0% +- 0.0 se)  a death  h
+high:steady   L70  deaths a party-day 0.00  hunted h a hero 10.00  deaths take 0.0% of the day's Level XP (per seed 0.0% +- 0.0 se)  a death  h
+high:bold     L70  deaths a party-day 0.67  hunted h a hero 8.74  deaths take 11.8% of the day's Level XP (per seed 15.5% +- 5.1 se)  a death 7.50 / 7.50 / 7.50 / 7.50 h
+base   Bold over Steady, a 10 h day: gross 0.85, unblessed 0.68, blessed at 50% 0.77
+high   Bold over Steady, a 10 h day: gross 0.83, unblessed 0.73, blessed at 50% 0.78

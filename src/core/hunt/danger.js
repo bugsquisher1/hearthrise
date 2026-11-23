@@ -31,6 +31,7 @@ import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
 import { levelHoursOf } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
+import { temperLevelsOn } from '../temper-steps.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -129,7 +130,13 @@ function gapOf(ground, step) {
 /* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. Under the
    reference it never falls past PAY.floor (12-targets 2.1): a shallower hold costs its kills an hour, not twice. */
 function depthRatio(ground, step, rate) {
-  const g = gapOf(ground, step);
+  return gapPayRatio(gapOf(ground, step), rate);
+}
+/** THE PAY RULE ON A WHOLE GAP (04 section 7: pay = reference pay x payStep ^ gap, never under PAY.floor below; the caller holds the gap to
+    its ceiling, gapOf here, src/core/hunt/tower.js towerShareXp on the Tower): the one ratio a scale ground's depth and the Burning Tower's
+    floors both pay by. */
+export function gapPayRatio(gap, rate) {
+  const g = Math.trunc(Number(gap) || 0);
   return g >= 0 ? powStep(1 + rate, g) : Math.max(PAY.floor, 1 / powStep(1 + rate, -g));
 }
 
@@ -144,23 +151,36 @@ export const itemLevelOf = (it) => {
  * A HERO'S GEAR PART, in thousandths of a step (member.js heroSnapshot, from the server's gear and the catalogue): each worn piece's item
  * Level x its slot's weight (GEAR_STEPS.slotPm; a two-handed weapon also carries GEAR_STEPS.twoHand's other slots). A whole kit at item
  * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (amount.js ratings).
+ * TEMPER (src/core/temper-steps.js; 21 section 2): `temperSteps`, the server's seated ranks by slot, add +ilPerRank item Level a rank to
+ * whatever that slot wears (a two-handed weapon's carries with it; an empty slot adds nothing). Absent: the part is what it was.
  */
-export function gearPartPm(equipment, items) {
+export function gearPartPm(equipment, items, temperSteps) {
   const eq = equipment || {}, W = GEAR_STEPS.slotPm;
   const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
+  const levelOn = (slot) => { const il = itemLevelOf(at(slot)); return il > 0 ? il + temperLevelsOn(temperSteps, slot) : 0; };
   const weapon = at('weapon');
   const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;
   let sum = 0;
   for (const slot of Object.keys(W)) {
     if (carried && carried.includes(slot)) continue;
-    sum += W[slot] * itemLevelOf(at(slot));
+    sum += W[slot] * levelOn(slot);
   }
-  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * itemLevelOf(weapon);
+  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * levelOn('weapon');
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
 /* THE POWER STEP ON A BLOW lives in the amount pipeline now (src/core/hunt/amount.js, lane/stage3-pipeline, 27 D-1 to D-8): the gear part,
    the skill part and the ledger are the hero's ratings in the one step contest, no longer a patch after the old chain. */
+/* (1 + powerStep) ^ steps, either sign, once per whole step (the Burning Tower's depth, src/core/hunt/tower.js) */
+const RATIO = new Map();
+export function stepRatio(steps) {
+  let r = RATIO.get(steps);
+  if (r === undefined) {
+    r = steps >= 0 ? powStep(1 + DANGER.powerStep, steps) : 1 / powStep(1 + DANGER.powerStep, -steps);
+    if (RATIO.size < 4096) RATIO.set(steps, r);
+  }
+  return r;
+}
 
 /* THE HOURS A LEVEL TAKES (lane/formula-overhaul, 2026-11-22): the formula of src/data/core-model.js LEVEL_HOURS, ceiling x L^2 /
    ((L + half) x (L + early)), whole levers, multiplications and one division: the browser and the edge agree to the bit, and the server's
@@ -182,9 +202,13 @@ export const refKillsOf = (ground) => {
  * table gives one kill at the reference rate, times the depth ratio. 04 section 5: "a kill pays a share of the killer's own Level".
  */
 export function levelShareXp(level, step, ground) {
+  return levelShareAt(level, refKillsOf(ground)) * depthRatio(ground, step, PAY.payStepXp);
+}
+/** The hours table's share of Level `level` one kill pays at the reference, over `refKills` kills a head an hour: (XP to the next Level /
+    the hours that Level takes) / refKills. The reference half of every Level-share kill (levelShareXp, the Tower's towerShareXp). */
+export function levelShareAt(level, refKills) {
   const L = Number.isInteger(level) && level >= 1 ? level : 1;
-  const toNext = charXpForLevel(L + 1) - charXpForLevel(L);
-  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);
+  return (charXpForLevel(L + 1) - charXpForLevel(L)) / (hoursForLevel(L) * refKills);
 }
 
 /** A world opening on the scale: its stance and the step its plan starts at, nothing climbed yet. */

@@ -210,7 +210,7 @@ const mutants = [
   { name: 'the gap never reaches the blow', case: 'slope', edits: [[A, '  const steps = Math.round(gap + cond);\n  const sp = AMOUNT.rollSpreadPm;\n  const roll = c.rng.int(', '  const steps = Math.round(cond);\n  const sp = AMOUNT.rollSpreadPm;\n  const roll = c.rng.int(']] },
   { name: 'armor and ward swapped', case: 'slope', edits: [[A, 'gearPm: int(ward ? u.wardPm : u.armorGearPm)', 'gearPm: int(ward ? u.armorGearPm : u.wardPm)']] },
   { name: 'a heavy piece spends evenly', case: 'slope', edits: [['src/data/amount.js', 'heavy: Object.freeze({ armorSteps: 15, wardSteps: -15 })', 'heavy: Object.freeze({ armorSteps: 0, wardSteps: 0 })']] },
-  { name: 'the split is a share of the item Level', case: 'slope', edits: [['src/core/hunt/amount.js', '    armorPm += w * (itemLevelOf(it) + (split ? split.armorSteps : 0));', '    armorPm += Math.floor((w * itemLevelOf(it) * (split ? 1000 + 17 * split.armorSteps : 1000)) / 1000);']] },
+  { name: 'the split is a share of the item Level', case: 'slope', edits: [['src/core/hunt/amount.js', '    armorPm += w * (il + (split ? split.armorSteps : 0));', '    armorPm += Math.floor((w * il * (split ? 1000 + 17 * split.armorSteps : 1000)) / 1000);']] },
   { name: 'the reference health read at the hero\'s Level for a blow at a monster', case: 'reference', edits: [[A, '(topBpOf(source) / 10000) * refHealth(L0);', '(topBpOf(source) / 10000) * refHealth(lvOf(source));']] },
   { name: 'pressure never read', case: 'reference', edits: [[A, 'base = c.mean * (AMOUNT.pressurePm / 1000) *', 'base = c.mean *']] },
   { name: 'a monster\'s blow at a hero read on the ground\'s Level alone', case: 'scale', edits: [[A, ' * (refHealth(L) / refHealth(L0));', ';']] },

@@ -131,7 +131,7 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 
 //                       skillGapPm). On the line it is 0, so the reference company and every band measured on it are unchanged. STARTING VALUE:
 //                       a quarter, 04's three-way mean with Level and gear (JUDGMENT); evidence tools/balance-program/redesign/foundations
 export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 250 });
-export { GEAR_STEPS } from './gear-steps.js';
+export { GEAR_STEPS, CARRY, TRAITS } from './gear-steps.js';
 
 /* a scale ground's row, with the highest Trait rank its entry Level lets its pool roll (19-power-ledger.md section 2, lane L3; gear-steps.js
    maxRankAt): entryLevel is its hunt's band floor (tests/gear-steps.mjs GS-5 holds the two equal). Muster Barrows (55) and Hask's Ford (45)

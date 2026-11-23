@@ -786,7 +786,7 @@ const MUTANTS = [
   { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
   { name: 'the hours are not the formula', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelHoursOf(level);', '  return levelHoursOf(level) * (level > 60 ? 1.01 : 1);']] },
   { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
-  { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * refKillsOf(ground));']] },
+  { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelShareAt(level, refKillsOf(ground)) * depthRatio(ground, step, PAY.payStepXp);', '  return levelShareAt(level, refKillsOf(ground));']] },
   { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },
   /* lane/econ-levers: one coin ratio a step, and the floor on coin too */
   { name: 'coin climbs at the XP ratio again', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };', 'coinPm: share * depthRatio(ground, s, PAY.payStepXp) * PAY.coinPm };']] },
@@ -837,7 +837,7 @@ const MUTANTS = [
   { name: 'the power step plays off the scale', case: 'power', edits: [['src/core/hunt/amount.js', 'export const stepsOn = (inst) => !!inst && dangerOn(inst.world) && refLevelOf(inst.ground) !== null;', 'export const stepsOn = (inst) => !!inst && refLevelOf(inst.ground) !== null;']] },
   { name: 'armor raises the blows at its wearer', case: 'power', edits: [['src/core/hunt/amount.js', '    gap = (R - defensePm(target, c.ward)) / 1000;', '    gap = (defensePm(target, c.ward) - R) / 1000;']] },
   { name: 'a tier of armor is half its steps at the hero', case: 'power', edits: [['src/core/hunt/amount.js', '    gap = (R - defensePm(target, c.ward)) / 1000;', '    gap = (R - defensePm(target, c.ward)) / 2000;']] },
-  { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * itemLevelOf(at(slot));', '    sum += 100 * itemLevelOf(at(slot));']] },
+  { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * levelOn(slot);', '    sum += 100 * levelOn(slot);']] },
   { name: 'a two-handed weapon leaves the off-hand weight empty', case: 'power', edits: [['src/core/hunt/danger.js', "const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;", 'const carried = null;']] },
   { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/amount.js', '  const r = b ? b.refPm :', '  const r = b ? b.refPm - 20000 :']] },
   { name: 'the weight under the base is the weight over it', case: 'power', edits: [['src/core/bands.js', 'const wG = gGap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;', 'const wG = POWER.weightGearPm;']] },

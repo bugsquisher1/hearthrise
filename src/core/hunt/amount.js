@@ -38,6 +38,7 @@ import { VITALS, ARMOUR_WEIGHT } from '../../data/core-model.js';
 import { powSquare } from '../../data/wage.js';
 import { ratingPm, bandAbs } from '../bands.js';
 import { ledgerSteps } from '../power-ledger.js';
+import { temperLevelsOn } from '../temper-steps.js';
 import { auraRowsOn } from './auras.js';
 import { dangerOn, itemLevelOf } from './danger.js';
 import { isHero, isMonster } from './sides.js';
@@ -109,7 +110,7 @@ const held = (n) => (n > CAP ? CAP : n);
 /** THE GEAR PART BY ARMOR WEIGHT (data/amount.js defenseSplit): { armorPm, wardPm }, each piece's item Level plus its weight's split in
     steps (heavy more armor and less ward, light the reverse, medium and a piece with no weight neither), x its slot's weight, thousandths.
     ADDITIVE, so a heavy piece is the same steps of armor at item Level 30 and 3,000 (a share of the item Level would grow with it). */
-export function defenseGearPm(equipment, items) {
+export function defenseGearPm(equipment, items, temperSteps) {
   const eq = equipment || {}, W = GEAR_STEPS.slotPm;
   const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
   const weapon = at('weapon');
@@ -120,8 +121,10 @@ export function defenseGearPm(equipment, items) {
     const w = carried && slot === 'weapon' ? carried.reduce((a, s) => a + (W[s] || 0), 0) : carried && carried.includes(slot) ? 0 : W[slot];
     if (!it || !w) continue;
     const split = it.slot && ARMOUR_WEIGHT[it.armourClass] ? AMOUNT.defenseSplit[ARMOUR_WEIGHT[it.armourClass]] : null;
-    armorPm += w * (itemLevelOf(it) + (split ? split.armorSteps : 0));
-    wardPm += w * (itemLevelOf(it) + (split ? split.wardSteps : 0));
+    /* (Temper on steps, src/core/temper-steps.js: a slot's seated ranks are item Levels on what it wears, as in the gear part) */
+    const il = itemLevelOf(it) + temperLevelsOn(temperSteps, slot);
+    armorPm += w * (il + (split ? split.armorSteps : 0));
+    wardPm += w * (il + (split ? split.wardSteps : 0));
   }
   return { armorPm, wardPm };
 }

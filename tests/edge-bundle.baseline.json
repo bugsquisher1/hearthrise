@@ -320,19 +320,29 @@
         "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
       },
       {
-        "bytes": 3438467,
+        "bytes": 3409627,
         "on": "2026-11-23",
-        "why": "lane/e2-e3-statuses merged with set/v0.2.144: the general status system (statuses.js keys and the hidden E2 rows, core/hunt/status-effects.js the one reader by field, status.js keys/refresh/ground/heal ticks), shields.js (one shield a hero), auras (data/auras.js, core/hunt/auras.js)"
+        "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
       },
       {
-        "bytes": 3484519,
+        "bytes": 3436602,
         "on": "2026-11-23",
-        "why": "merge: foundations-block (bands, drop-rate, trait-roll) + e2-e3 statuses (auras, effect rows), both lanes' own raises combined"
+        "why": "drops: trait-roll.js roller (dark), drop-hours formula, rarity ladder and pity"
       },
       {
-        "bytes": 3510628,
+        "bytes": 3465470,
         "on": "2026-11-23",
-        "why": "lane/stage3-pipeline: the amount pipeline (src/core/hunt/amount.js, src/data/amount.js) on the scale, read by the settle"
+        "why": "E2/E3: statuses as data (status-effects.js), auras, shields, shield_break event"
+      },
+      {
+        "bytes": 3465586,
+        "on": "2026-11-23",
+        "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
+      },
+      {
+        "bytes": 3542612,
+        "on": "2026-11-23",
+        "why": "merge set/v0.2.144 (tower-boss-formula, flame-temper, level-costs, e2-e3) over lane/stage3-pipeline's amount pipeline (src/core/hunt/amount.js) and the merged foundations-block (bands, drop-rate, trait-roll)"
       }
     ]
   }

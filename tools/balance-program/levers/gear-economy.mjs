@@ -180,6 +180,51 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)'),
     ev: 'MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)' }),
 
+  /* THE INNER FLAME, TEMPER ON STEPS, IMBUEMENTS, CARRY-OVER AND PERSONAL LOOT (lane/flame-temper-build, 21-flame-temper-imbue-loot.md;
+     all dark: four hr_flags switches in 1063-flame-temper.sql; the server reads each through 1063-flame-temper-catalogue.generated.sql) */
+  L('flame.levers', 'rare-drops', 'global', 'The Inner Flame: burn, room, luck, top rank, curve, fuel worth', {
+    at: [at('src/data/inner-flame.js', '  decayPpm1: 80000,'), at('src/data/inner-flame.js', '  coverPm: 1500,'), at('src/data/inner-flame.js', '  luckMaxPm: 600,'),
+      at('src/data/inner-flame.js', '  luckHalfMpts: 25000,'), at('src/data/inner-flame.js', '  topRankPm: 500,'), at('src/data/inner-flame.js', '  pointsTo99: 6000,'),
+      at('src/data/inner-flame.js', '  fuelRef: 100,')],
+    def: 'decay(FL) = decayPpm1 - (decayPpm1 - decayPpm99) x (FL - 1) / 98 a hunted hero-hour; room = cover / decay; luck = luckMax x H / (H + luckHalf) on the Rare and Very Rare chance; top rank = topRankPm x (1 + luck) under topRankMaxPm; Flame Level on a 1.045 curve to 6,000 points; a unit of band b is 1 / fuelRef points x (1 + powerStep)^(b - top)',
+    range: 'decayPm1 50 to 120, decayPm99 30 to 60, cover 1.25 to 2.0, luckMax 0.4 to 0.8, luckHalf 15 to 40 points, topRank 400 to 600 / 650 to 900, pointsTo99 4,000 to 10,000, burst 150 to 400 (21 section 1.2); fuelRef MEASURED owed (F1)',
+    touches: 'how often a fed company finds a Rare, and what Remains are worth on the fire against the market', out: GOLD, f: [],
+    tests: [['tests/flame-rules.mjs', 'FR-1 to FR-6: the table, both paths, the curve, the burn, the stoke rule, the top rank']], testReads: ['FLAME', 'FLAME_LEVELS', 'FLAME_FUEL'],
+    perturb: NP('not-built', 'no roller reads luck until lane/drop-formula (wave 4); the switch inner_flame is off'),
+    ev: 'STATED (21 section 1.2; fuelRef ASSUMED until F1)' }),
+  L('temper.steps', 'equipment', 'global', 'Temper on steps: ranks by Level, price in hours of wage, the re-seat', {
+    at: [at('src/data/temper.js', '  rankEvery: 40,'), at('src/data/temper.js', '  hoursPm: 3000,'), at('src/data/temper.js', '  kitSharePm: 500,'), at('src/data/temper.js', '  carryPm: 350,')],
+    def: 'five ranks a gear slot, rank r open at Level rankEvery x r, each +1 item Level on the slot inside the gear part (slot-weighted, a whole kit at 5 = 5 steps); a full slot costs hoursPm x 13 x slotPm / 1000 hours of wage at the worn item Level, rank r r/15 of it, kitSharePm in Temper Kits and the rest a fee; a new tier re-seats for carryPm of the ranks',
+    range: 'rankEvery 30 to 50, hoursPm 2,000 to 4,000, kitSharePm 300 to 700, carryPm 250 to 500 (21 section 2.2)',
+    touches: 'Temper as a lifelong sink and its +5 steps at Level 200', out: [...KILL, ...SURVIVE, ...GOLD], f: [],
+    tests: [['tests/temper-steps.mjs', 'TS-1 to TS-4: ranks, prices, the seat, the gear part']], testReads: ['TEMPER_STEPS'],
+    perturb: NP('not-built', 'the switch temper_steps is off and the Temper Kit is not an item; T1 measured with tools/balance-program/candidates/temper-5.json'),
+    ev: 'STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)' }),
+  L('imbue.rules', 'imbuements', 'global', 'Imbuements: 2 steps each, 20 hunted hours, the fee', {
+    at: [at('src/data/imbue-rules.js', '  hours: 20,'), at('src/data/imbue-rules.js', '  feeHoursPm: 400,'), at('src/data/imbue-rules.js', "convert: { element: 'fire', sharePm: 50 },")],
+    def: 'three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp',
+    range: 'hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)',
+    touches: 'a consumable choice in place of a draught; Remains to the bench as well as the fire', out: [...KILL, ...SURVIVE, ...GOLD], f: [],
+    tests: [['tests/imbue.mjs', 'IM-1 to IM-4: the rows, life, the fee, the band']], testReads: ['IMBUE', 'IMBUE_RULES'],
+    perturb: NP('not-built', 'the switch imbuements is off; the bench, the items and the fight conditions are owed (21 section 3.9)'),
+    ev: 'STATED (21 section 3.2; the shares behind each size ASSUMED until I1)' }),
+  L('carry.price', 'economy', 'global', 'Carry-over: parts and a fee a Trait step', {
+    at: [at('src/data/gear-steps.js', 'export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });')],
+    def: 'every Trait of a piece onto a plain base of the same slot, same or higher tier: 2 + rank parts of the Trait home ground a Trait, hoursPerStepPm / 1000 hours of wage a Trait step at the new base item Level, workPm / 1000 work-hours',
+    range: 'hoursPerStep 0.3 to 1.0, parts 1 + rank to 4 + rank, work 0.5 to 2 (21 section 2.3)',
+    touches: 'how long a good Rare lives against buying new at the next tier', out: GOLD, f: [],
+    tests: [['tests/temper-steps.mjs', 'TS-5 carry-over']], testReads: ['CARRY'],
+    perturb: NP('not-built', 'the verb waits for trait_pieces (wave 4)'),
+    ev: 'STATED (21 section 2.3)' }),
+  L('loot.pity', 'rare-drops', 'global', 'Personal loot pity: growth and the base share', {
+    at: [at('src/data/party.js', '  pityGrowPm: 4000,'), at('src/data/party.js', '  pityBasePm: 438,')],
+    def: 'a hero rolls at p0 x (1 + grow x x), x the sum of p0 over its misses since its last find, p0 = p x base; base is the mean of exp(-x - grow x^2 / 2), so the long-run rate is the stated one',
+    range: 'grow so the 90th percentile of rolls to a find is under 2x the mean (L2); base follows grow',
+    touches: 'how even the Rares a hero finds are', out: GOLD, f: [],
+    tests: [['tests/personal-loot.mjs', 'PL-1 to PL-5: no flood, the stated rate, p90 under 2x, the integral, both paths']], testReads: ['PERSONAL_LOOT'],
+    perturb: NP('not-built', 'the roller is lane/drop-formula\'s; the switch personal_loot is off'),
+    ev: 'COMPUTED (the integral; L2 owed)' }),
+
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {
     at: [at('src/data/imbuements.js', 'export const IMBUE_TIER_FLOORS'), at('src/data/imbuements.js', 'export const IMBUE_DROP')],
@@ -283,14 +328,6 @@ export const GEAR_ECONOMY = [
     perturb: K('partyXp'),
     flags: [flag('contradictory', 'Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build; the class table is live (patches/party-xp-by-size.json plays the ruling)', 'rulings-of-record S-10'),
       flag('redundant', 'Nine cells hand-fitted, three re-cut for one measured case each', '44 P-X08, CONFIRMED')],
-    ev: 'CONFIRMED (read)' }),
-  L('party.run-xp', 'party', 'exception-intentional', 'Run ground party table', {
-    at: [at('src/data/tower.js', 'export const TOWER_PARTY_XP = ')],
-    def: 'the Tower and the Catacombs share a kill by size only: 1000 / 1100 / 1200 / 1300, no solo boost',
-    range: 'permille; a head never earns more than a hero alone (validateTower)',
-    touches: 'run ground pace', out: [], f: ['P22'],
-    perturb: NP('not-in-runs'),
-    flags: [flag('contradictory', 'Its pair and three rows are ASSUMED', '44 P-X09, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('party.under-floor', 'party', 'exception-intentional', 'Under-floor Level share', {
     at: [at('src/data/hunt-tuning.js', 'partyShareRangePm: 667')],
@@ -428,16 +465,23 @@ export const GEAR_ECONOMY = [
     tests: [['tests/company-trades.mjs', 'the Premium day']], testReads: ['WORK_DAY'],
     perturb: NP('outside-hunt', 'town work is not a hunt cell'),
     ev: 'STATED (09-crafting.md section 4.7 start value)' }),
-  L('econ.blessing-price', 'economy', 'archetype', 'Blessing prices', {
-    at: [at('src/data/blessings.js', 'freeUntilLevel: 30')],
-    rows: rows('base and perLevel of each Blessing', [home('src/data/blessings.js#BLESSING_TIERS', 'count')]),
-    def: 'free under Level 30, then base + perLevel x (L - 30): 100 + 10, 150 + 15, 200 + 20',
-    range: 'whole. SQL twin hr_blessing_price (generated)',
-    touches: 'the death insurance bill', out: ['netPerH'], f: ['E37'],
-    perturb: P('the cells pay blessingGold after each death (progression-grid.mjs blessedShareAt)'),
-    flags: [flag('ineffective', 'From Level 30 all three Blessings cost minutes of gold and save days of XP: never a choice', '44 Levels table (30 on), COMPUTED there'),
-      flag('contradictory', 'Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms', '44 P-X20, CONFIRMED')],
-    ev: 'CONFIRMED (read)' }),
+  L('econ.blessing-price', 'economy', 'global', 'The Blessing\'s price', {
+    at: [at('src/data/blessings.js', '  hoursPm: 1000,'), at('src/data/blessings.js', '  freeUntilLevel: 30,')],
+    def: 'free under Level freeUntilLevel, then ceil(hoursPm / 1000 x wage(levelStep(L))) (src/core/wage.js blessingPrice): one hour of the hero\'s wage at the start (16,365 gold at Level 60)',
+    range: 'the designer\'s (Tyler 2026-11-22: one price that grows with Level; a per-hero cost reads the hero\'s Level). SQL twin hr_blessing_price (1063, generated)',
+    touches: 'the death insurance bill: a gold sink that grows with Level', out: ['netPerH'], f: ['E37'],
+    tests: [['tests/level-costs.mjs', 'the price at the wage, free under its Level, charged once']], testReads: ['BLESSING', 'blessingPrice'],
+    perturb: P('the cells pay blessingGold after each death (cell.mjs blessingsPrice)'),
+    flags: [flag('contradictory', 'Free under Level 30: a Level threshold that changes a price on purpose (a young hero\'s death is under 2.5 h, its wage-priced Blessing more than its hours pay)', '44 P-X20; kept by the designer 2026-11-22')],
+    ev: 'STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)' }),
+  L('econ.reset-price', 'economy', 'global', 'Talent reset price', {
+    at: [at('src/data/talent-reset.js', '  hoursPm: 500,'), at('src/data/talent-reset.js', '  growthNum: 2,'), at('src/data/talent-reset.js', '  perDay: 16,')],
+    def: 'a paid reset costs ceil(hoursPm / 1000 x wage(levelStep(L)) x (growthNum / growthDen)^n), n the resets paid that UTC day (src/core/wage.js resetPrice); a new hero\'s first and Premium\'s first of the day are free and not counted; perDay is a blast radius',
+    range: '04 section 11: resetHours 0.5 (band 0.25 to 1), resetGrowth 2 (band 1.5 to 3). SQL twin hr_talent_reset_price (1063, generated); the verb hr_talent_reset is DARK until Talents exist',
+    touches: 'a gold sink that grows with Level, once Talents exist', out: [], f: [],
+    tests: [['tests/level-costs.mjs', 'first free, then the wage price x2, Premium\'s daily free, the verb dark']], testReads: ['TALENT_RESET', 'resetPrice'],
+    perturb: NP('outside-hunt', 'a reset is bought in town, never by a cell'),
+    ev: 'STATED (04-math-strategy.md section 11 starting values)' }),
   L('econ.temper-price', 'economy', 'content', 'Tempering prices', {
     at: [at('src/data/temper.js', 'export const TEMPER_TIERS'), at('src/data/temper.js', 'export const TEMPER_MATERIALS'), at('src/data/temper.js', 'export const TEMPER_UNIQUE_BANDS')],
     def: 'a first rung a tier (2,000 / 7,000 / 8,000 / 12,000 / 16,000 / 40,000), each rung double the last; salts 10..160 a rung; unique bands 60k..1.6M, shut',

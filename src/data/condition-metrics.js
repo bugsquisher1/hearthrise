@@ -91,7 +91,7 @@ const PCT = '%';
 const noun = (one, other) => Object.freeze([one, other]);
 /* THE STATUSES THAT STACK (statuses.js maxStacks over 1: Bleed today): the subjects of "my target has at least 3 Bleed stacks", and the
    most any of them carries, its range's top. A new stacking status is a row there and is a subject here by itself. */
-const STACKING = Object.freeze(Object.values(STATUSES).filter((s) => s.maxStacks > 1 && !s.hidden && !s.ground));
+const STACKING = Object.freeze(Object.values(/** @type {Record<string, any>} */ (STATUSES)).filter((s) => s.maxStacks > 1 && !s.hidden && !s.ground));
 const STACKS = Object.freeze(Object.fromEntries(STACKING.map((s) => [s.id, s.name + ' stacks'])));
 const STACK_MAX = STACKING.reduce((n, s) => Math.max(n, s.maxStacks), 1);
 /** @typedef {{ id: string, say: string, tip?: string, unit?: string | readonly string[], subjectAfter?: boolean, value: string, ops: readonly string[],
@@ -152,7 +152,7 @@ export const ATTACK_KINDS = Object.freeze({ loaded: 'the loaded ammo' });
 /* The effect ids an `effect` value may name: every status a player meets (a HIDDEN row, statuses.js, waits for its move: the engine reads it
    already, conditions.js effect_missing, and it joins this list, and the server's catalogue with it, when its move ships). A ground patch is
    on no unit's list. */
-export const EFFECT_IDS = Object.freeze(Object.values(STATUSES).filter((s) => !s.hidden && !s.ground).map((s) => s.id));
+export const EFFECT_IDS = Object.freeze(Object.values(/** @type {Record<string, any>} */ (STATUSES)).filter((s) => !s.hidden && !s.ground).map((s) => s.id));
 /* The ability ids a `move` value may name (last_move): every ability row, whoever's it is (a move a hero cannot cast is a test that
    never holds, never a refusal). */
 export const MOVE_IDS = Object.freeze(Object.keys(ABILITIES));

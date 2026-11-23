@@ -101,7 +101,8 @@ export const LEVER_MOVES = Object.freeze({
   'mon.leash': ['~aggro'],
   'mon.tier-overrides': ['~tier.dmg', '~tier.hp', '~tier.xp', '~tier.pull'],
   'mon.scaled-danger': ['+mon.atk', '+mon.aim'],
-  'mon.run-rooms': ['+mon.level', '+mon.atk'],
+  'mon.run-rooms': ['+mon.level', '+mon.hp', '+mon.atk'],
+  'mon.boss-kinds': ['~mon.hp', '~mon.atk'],
   'mon.spell-warning': ['~mon.spell'],
   // ── spawns ──
   'spawn.composition': ['~pull.rows'],
@@ -147,6 +148,7 @@ export const LEVER_MOVES = Object.freeze({
   /* THE DANGER SCALE (src/data/danger.js, lane/v1-climb): on a stance the step writes the dial the tier row writes off it (danger.js dangerDial
      in inst.tier), so its levers move C-TIER's quantities; the pay is the scale's own and is named with its reason */
   'danger.power-step': ['+tier.hp', '+tier.dmg'],
+  'danger.loot-step': [['+pull.rows', 'on the scale the table of a kill rolls at dropPm: an hour a step deeper drops payStepLoot more of it (danger.js dangerDial dropPm)']],
   'danger.pull': ['+pull.size'],
   'danger.start': ['-tier.hp', '-tier.dmg'],
   'danger.climb': ['~tier.hp', '~tier.dmg'],
@@ -193,11 +195,22 @@ export const LEVER_MOVES = Object.freeze({
   'gear.trait-rank-gate': [['+gear.special', 'a later entry Level opens a higher Trait rank on the ground (gear-steps.js maxRankAt), so more steps a found Trait can carry']],
   'ledger.aura': [['+gear.special', 'an aura is a party ledger row on every ally in reach (src/core/hunt/auras.js auraRowsOn), counted by clampLedger as the slices are']],
   'ledger.ramp-slices': [['+gear.special', 'a higher slice cap or an earlier ramp lets more conditional steps count on a hero at once (power-ledger.js clampLedger)']],
+  /* lane/flame-temper-build (21-flame-temper-imbue-loot.md): all dark behind hr_flags; the roller and the bench read them later */
+  'flame.levers': [['+drop.base', 'a taller fire multiplies the Rare and Very Rare chance by (1 + luck) (inner-flame.js luckPm), read by the roller (wave 4)'],
+    ['+sink.other', 'Remains burned on the fire are taken off the market (hr_flame_burn)']],
+  'temper.steps': [['+gear.special', 'each seated rank is +1 item Level on its slot inside the gear part (danger.js gearPartPm)'], ['+sink.temper', 'ranks and re-seats are priced in hours of wage, burned']],
+  'imbue.rules': [['+gear.special', 'an imbuement is 2 steps on its cell in the consumable slice (power-ledger.js), once the fight reads its condition'], ['+sink.other', 'the apply fee and the parts are burned']],
+  'carry.price': [['+sink.other', 'parts and a fee in hours of wage a Trait step, burned (carry-over.js carryQuote)']],
+  'loot.pity': [['~drop.base', 'pity keeps the long-run Rare rate the stated one and narrows the spread between heroes (personal-loot.js)']],
   'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
   'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],
   'econ.wage-base': [['+refill.price', 'every block price is written in hours of wage (wage.js wage, read by blockPrice)'],
+    ['+blessing.price', 'the Blessing is written in hours of wage at the hero\'s Level (wage.js blessingPrice, lane/level-costs)'],
+    ['+reset.price', 'a Talent reset is written in hours of wage at the hero\'s Level (wage.js resetPrice, lane/level-costs)'],
     ['+sink.other', 'market prices and fees are written in hours of wage too (wave 4)']],
+  /* THE PER-HERO COSTS BY LEVEL (lane/level-costs, 2026-11-22): the reset's price is outside the register's formulas */
+  'econ.reset-price': [['+reset.price', 'a reset costs hoursPm of an hour of wage at the hero\'s Level, x growth a paid reset that day (src/core/wage.js resetPrice)']],
   'econ.wage-step': [['+refill.price', 'the wage grows by it a Level step, and a block is priced at the hero\'s step'],
     ['+sink.other', 'the same growth by depth for market prices and fees (wave 4)'],
     ['+kill.coin', 'the one coin ratio (lane/econ-levers): an hour a step deeper on the scale pays (1 + payStepCoin) more coin, a pull (1 + payStepCoin)(1 + powerStep) (dangerDial coinPm, COIN_STEP)']],

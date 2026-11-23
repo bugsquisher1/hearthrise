@@ -251,7 +251,8 @@ export function validate(rows = STATUSES) {
     const shape = (r) => effectsOf(r).join() + '|' + r.maxStacks + '|' + (r.refresh || 'restart');
     if (new Set(list.map(shape)).size > 1) out.push('stacking key ' + key + ': its rows ' + list.map((r) => r.id).join(', ') + ' differ in effect, maxStacks or refresh');
   }
-  for (const [key, k] of Object.entries(STATUS_KEYS)) {
+  for (const [key, kRow] of Object.entries(STATUS_KEYS)) {
+    /** @type {any} */ const k = kRow;
     if (!ID.test(key)) out.push('stacking key ' + key + ' is not [a-z0-9_]');
     if (!k || (k.combine !== 'strongest' && k.combine !== 'add')) out.push('stacking key ' + key + ': combine is strongest or add');
     if (k && k.capPm !== undefined && !(k.combine === 'add' && Number.isInteger(k.capPm) && k.capPm > 0 && k.capPm <= 1000)) out.push('stacking key ' + key + ': capPm is an add key\'s whole cap 1..1000');

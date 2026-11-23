@@ -314,7 +314,7 @@ export function judgeGrid(D, grid, o = {}) {
       for (const L of levels.filter((x) => x >= w.levels[0])) {
         const c = get(L, 'mid', 1, 'normal');
         if (!c) continue;
-        const price = [1, 2, 3].reduce((s, t) => s + (D.BL.blessingPrice(t, L) || 0), 0), saved = (T.deathXp(L) * (1 - blessedShareOf(D))) / c.rates.levelXpPerH;
+        const price = D.WG.blessingPrice(L), saved = (T.deathXp(L) * (1 - blessedShareOf(D))) / c.rates.levelXpPerH;
         add(band, 'Level ' + L, c.rates.netPerH > 0 ? price / c.rates.netPerH / saved : null, { shown: Math.round(price) + ' gold, saves ' + saved.toFixed(1) + ' h' });
       }
       continue;

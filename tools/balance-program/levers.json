@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "3f21c8e31483f1af",
+ "authored": "d9ee5337554fe4a3",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 196,
+  "levers": 197,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
@@ -80,14 +80,14 @@
    "spawn": 11,
    "monster-rewards": 16,
    "rare-drops": 6,
-   "equipment": 17,
+   "equipment": 18,
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
    "economy": 35
   },
   "byClass": {
-   "global": 92,
+   "global": 93,
    "archetype": 29,
    "content": 47,
    "exception-intentional": 17,
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 23,
    "variant": 5,
-   "not-playable:not-built": 13,
+   "not-playable:not-built": 14,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 85,
+   "asserted": 86,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 679,
-  "typed": 15813,
-  "files": 233,
-  "lever": 292,
+  "bindings": 680,
+  "typed": 15894,
+  "files": 234,
+  "lever": 293,
   "notLever": 387,
   "unclaimed": 0
  },
@@ -5223,7 +5223,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5609,7 +5609,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6172,7 +6172,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 44,
+    "mentionCount": 45,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6260,7 +6260,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 45,
+    "mentionCount": 46,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7318,12 +7318,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8175,7 +8175,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8245,7 +8245,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8366,7 +8366,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8485,7 +8485,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8499,7 +8499,7 @@
      "src/data/monsters.js#MONSTERS",
      "src/data/grounds/*/pack.js#default",
      "src/data/patterns.js#PATTERNS",
-     "src/data/catacomb-wings.js#ARMOR_PM_KILL"
+     "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -9632,13 +9632,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 53,
+     "line": 54,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 54,
+     "line": 55,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -9687,10 +9687,11 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9709,7 +9710,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 57,
+     "line": 58,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -9757,10 +9758,11 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9779,31 +9781,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 63,
+     "line": 64,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 86,
+     "line": 87,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 87,
+     "line": 88,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 89,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 90,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -9851,10 +9853,11 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9932,19 +9935,104 @@
    "evidence": "STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)"
   },
   {
+   "id": "gear.rarity-hours",
+   "category": "equipment",
+   "name": "The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll",
+   "sites": [
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 52,
+     "text": "chDigits: 3,",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 55,
+     "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 56,
+     "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 57,
+     "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 62,
+     "text": "depthPm: Object.freeze([1000, 3000]),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 63,
+     "text": "topRankPm: 500,",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 64,
+     "text": "topRankMaxPm: 800,",
+     "binding": "DROP_HOURS"
+    }
+   ],
+   "definition": "a Rare (one Trait) about every 40 hunted hours a hero at the ground's reference step, a Very Rare (two) every 400, a given Signature every 45 on its home; each chance is 1 / (hours x the ground's reference kills a head an hour), / heroes at the kill; depth multiplies the Rare and Very Rare odds x1 at depth 1 to x3 at depth 20, read against the reference's depth; the top open rank lands topRankPm x (1 + luck), at most topRankMaxPm; a made cape or jewel rolls at its part's hours over the rung's",
+   "range": "each rung inside its band (rare 30 to 60, very rare 300 to 600, signature 30 to 60: DF-3); depth x1 to x3; top rank 400 to 600 of 1000 capped 650 to 900 (21 section 1.2)",
+   "touches": "hours to a first Trait piece (p10 / p50 / p90), the Trait pieces in the market, the flame's worth",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/drop-formula.mjs",
+      "what": "DF-3 the ladder, DF-4 the roller, DF-5 the settle",
+      "reads": [
+       "DROP_HOURS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "dark: GEAR_STEPS.traitsLive false, nothing hands the settle a roll (tools/balance-program/redesign/drops/first-trait.mjs reads the roller alone)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (09-crafting 5.6 and 13-market 3.2: 40 and 400; 15: 30 to 60; 12-targets 3.3: x1 to x3; 21 D-4: the top rank)"
+  },
+  {
    "id": "gear.trait-trade",
    "category": "equipment",
    "name": "A trade Trait's gain, and the percents a Trait card shows",
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 66,
+     "line": 67,
      "text": "tradeSteps: Object.freeze([7, 13, 18]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 69,
+     "line": 70,
      "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
      "binding": "GEAR_STEPS"
     }
@@ -9992,10 +10080,11 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10065,12 +10154,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10141,12 +10230,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14207,6 +14296,7 @@
     "enrageAtkPm",
     "enragePm",
     "evasion",
+    "everyHours",
     "forParty",
     "frost",
     "gather",
@@ -14336,7 +14426,7 @@
    "pin": "open",
    "bindings": 1
   },
-  "src/data/catacomb-wings.js#ARMOR_PM_KILL": {
+  "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS": {
    "pin": "count",
    "keys": [
     "·"
@@ -16203,6 +16293,19 @@
     "wearAhead"
    ],
    "typed": 32,
+   "bindings": 1
+  },
+  "src/data/drop-hours.js#DROP_HOURS": {
+   "pin": "count",
+   "keys": [
+    "band",
+    "chDigits",
+    "depthPm",
+    "everyHours",
+    "topRankMaxPm",
+    "topRankPm"
+   ],
+   "typed": 13,
    "bindings": 1
   },
   "src/data/power-ledger.js#POWER_LEDGER": {

@@ -15,9 +15,12 @@
 // THE DROP ROWS (`drops` on the ground row): every kill on the wing rolls them after its own monster's rows (src/core/combat-sim.js
 // huntPlayOf, the instance's one door to a monster row). Each wing carries all 24 pieces, leaning to its slot the way its key did
 // (catacomb-armor.js WING_LEAN: the Bone Wing 70% helmets, the Flooded Wing 70% boots), in the Rare band (loot-bands.js).
-//   ARMOR_PM_KILL 12   STATED (a lever for the Lab, not a ruling): permille of kills that drop a named piece on either wing. At the Steady
-//                      four's 120 kills a head an hour (danger.js PAY.refKillsHead) a leaning piece comes about every 12 hours a hero and the
-//                      other slot's about every 28 (the Rare band is 10 to 20: the other wing is where the other slot is farmed)
+//   ARMOR_EVERY_HOURS 0.7  STATED (a lever for the Lab, not a ruling): one named piece, either slot, about every 0.7 hunted hours a hero of
+//                      the reference party (src/data/drop-hours.js, lane/drop-formula 2026-11-22: drops authored in hours). Each row's chance
+//                      is derived from the wing's own reference kills a head an hour (danger.js DANGER_GROUNDS refKillsHead), so a leaning piece
+//                      comes about every 12 hours a hero and the other slot's about every 28 (the Rare band is 10 to 20: the other wing is
+//                      where the other slot is farmed) at any kill rate. It was ARMOR_PM_KILL 12 a thousand kills, stated at PAY.refKillsHead's
+//                      120: at the wings' measured 160 and 150 that read a leaning piece every 9 and 10 h, under the band
 // THE TRAITS STAY HIDDEN (gear-steps.js): each wing's pool is danger.js DANGER_GROUNDS `traits`, and nothing rolls them until wave 4.
 //
 // STAGED with the Catacombs (CLAUDE.md section 3.5: half-built features stay hidden): the map is unpainted past its floor (map.js), so no
@@ -33,9 +36,11 @@
 
 import catacombs from './grounds/unmarked_catacombs/pack.js';
 import { CATACOMB_ARMOR, WING_LEAN } from './catacomb-armor.js';
+import { DANGER_GROUNDS } from './danger.js';
+import { DROP_HOURS, chanceOf, roundChance } from './drop-hours.js';
 
-/* STATED: permille of kills on a wing that drop one named piece (header) */
-export const ARMOR_PM_KILL = 12;
+/* STATED: hunted hours a hero to one named piece on a wing, either slot (header) */
+export const ARMOR_EVERY_HOURS = 0.7;
 
 /* `pockets` are indexes into the Unmarked Catacombs' own route, walked in this order; `lean` the catacomb-armor.js WING_LEAN row */
 const WINGS = Object.freeze([
@@ -49,12 +54,16 @@ const WINGS = Object.freeze([
     start: Object.freeze([[4, 17], [3, 17], [5, 17], [4, 18]]) }),
 ]);
 
-/* One wing's drop rows: all 24 pieces, each slot's share of ARMOR_PM_KILL split evenly over that slot's pieces. Rows in CATACOMB_ARMOR's
-   order, so a piece added there never moves an earlier row's draw. */
-function wingDrops(lean) {
+/* One wing's drop rows: all 24 pieces, each slot's share of ARMOR_EVERY_HOURS's pieces split evenly over that slot's pieces, as hours a
+   piece (drop-hours.js: a ground row, so every kill on the wing rolls it), and the chance those hours give at the wing's reference kills
+   (src/core/drop-rate.js rowChance reads the same). Rows in CATACOMB_ARMOR's order, so a piece added there never moves an earlier row's draw. */
+function wingDrops(id, lean) {
   const w = WING_LEAN[lean];
   const count = (slot) => CATACOMB_ARMOR.filter((r) => r.slot === slot).length;
-  return Object.freeze(CATACOMB_ARMOR.map((r) => Object.freeze({ id: r.id, ch: (ARMOR_PM_KILL * w[r.slot]) / (1000 * 1000 * count(r.slot)), band: 'rare' })));
+  return Object.freeze(CATACOMB_ARMOR.map((r) => {
+    const everyHours = Number(((ARMOR_EVERY_HOURS * 1000 * count(r.slot)) / w[r.slot]).toPrecision(DROP_HOURS.chDigits));
+    return Object.freeze({ id: r.id, everyHours, ch: roundChance(chanceOf(everyHours, DANGER_GROUNDS[id].refKillsHead)), band: 'rare' });
+  }));
 }
 
 const g = catacombs.ground;
@@ -80,7 +89,7 @@ export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map(
   pockets: Object.freeze(w.pockets.map((p) => g.pockets[p])),
   route: Object.freeze(w.pockets.map((_, i) => i)),
   respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,
-  drops: wingDrops(w.lean),
+  drops: wingDrops(w.id, w.lean),
   /* the guards' facts, as a pack states them (shape.js `checks`): the drop pace's reference group is the pack's, the value pin each wing's
      own floor hour, MEASURED (tests/hunt-core/drop-tables.mjs floor-hour) */
   checks: Object.freeze({ dropRef: catacombs.checks.dropRef, valueToday: w.valueToday }),

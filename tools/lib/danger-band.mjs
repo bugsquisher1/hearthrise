@@ -88,11 +88,12 @@ export const sameBand = (row, pin) => BAND_KEYS.every((k) => (row[k] === undefin
 
 /**
  * Rewrite the band numbers on an EXISTING DANGER_GROUNDS row in danger.js's source text (the row is one line:
- * `  <id>: Object.freeze({ refStep: N, floorStep: N, topStep: N, [refKillsHead: N, ]...`). Returns the new text, or null when the row
- * is not there (a new ground's row is a design decision: its gear base, drop home and Trait pool are written by hand).
+ * `  <id>: <wrapper>({ refStep: N, floorStep: N, topStep: N, [refKillsHead: N, ]...`, the wrapper `ground` or `Object.freeze`, whichever
+ * the file uses today). Returns the new text, or null when the row is not there (a new ground's row is a design decision: its gear
+ * base, drop home and Trait pool are written by hand).
  */
 export function rewriteRow(src, id, band) {
-  const re = new RegExp('^(  ' + id + ': Object\\.freeze\\(\\{ )refStep: \\d+, floorStep: \\d+, topStep: \\d+, (?:refKillsHead: \\d+, )?', 'm');
+  const re = new RegExp('^(  ' + id + ': [\\w.]+\\(\\{ )refStep: \\d+, floorStep: \\d+, topStep: \\d+, (?:refKillsHead: \\d+, )?', 'm');
   if (!re.test(src)) return null;
   return src.replace(re, (_, head) => head + 'refStep: ' + band.refStep + ', floorStep: ' + band.floorStep + ', topStep: ' + band.topStep + ', '
     + (band.refKillsHead !== undefined ? 'refKillsHead: ' + band.refKillsHead + ', ' : ''));

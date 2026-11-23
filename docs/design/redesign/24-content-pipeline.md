@@ -9,7 +9,7 @@ Built in this lane (lane/content-pipeline, systems):
 | Tool | What it does | Its test |
 |---|---|---|
 | `node tools/new-ground.mjs <ground> --entry L --top L [--mid L] [--write]` | Runs the three v1-climb cells R10 ran by hand (LOW at entry, BIS at top, MID at the middle), cuts the band by R10's rule, prints OPEN / REVIEW / STAGED. `--write` sets the band on the ground's row and pins it with a print of the rows it was measured on | `tests/new-ground.mjs`: R10's three bands come back exactly from R10's own reports |
-| `tests/content-coherence.mjs` (+ `--mutate`, 28 mutants) | Every scale ground has a band, gear base, one drop home and a Trait pool. Its band matches the pin and was measured on its current rows. Every Trait and Signature has a home that exists. Every live move has an icon, and its road and Signature once the Roads are live | its own `--mutate` |
+| `tests/content-coherence.mjs` (+ `--mutate`, 29 mutants) | Every scale ground has a band, gear base, one drop home and a Trait pool. Its band matches the pin and was measured on its current rows. Every Trait and Signature has a home that exists. Every live move has an icon, and its road and Signature once the Roads are live | its own `--mutate` |
 | `node tools/content-checklist.mjs move <id>` / `weapon <discipline>` | The section 3.6 and 3.7 tables as a checklist for one id, ticked from the data | `tests/content-checklist.mjs` |
 | `tests/danger-band-pins.json` | The measured band of each scale ground and its print. Written by `new-ground --write` only | read by CC-2 |
 
@@ -28,7 +28,7 @@ All four run in one CI step next to gear-steps (`.github/workflows/smoke.yml`, j
 
 | | |
 |---|---|
-| **Steps** | 1. Author the pack: `node tools/pack.mjs new <id> --like <ground> --band lo,hi`, then `pack.mjs propose <id> --write` for the formula's stats. 2. `pack.mjs check <id>` (lint, plus the grader on the real engine). 3. Pick the gear base (`gearLevel: tierLevel(t)`), the drop home (`ladderTier` or `named`) and the Trait pool (`traitPool('<id>')`). These are design calls. 4. `node tools/new-ground.mjs <id> --entry lo --top hi` (about 3 × 4 seeds × 12 h on 6 workers). It prints the row to paste. 5. Paste the row, then `node tools/new-ground.mjs <id> ... --write` pins it. 6. `node tools/gen-danger.mjs` and a staged migration (`node tools/new-migration.mjs <slug>`). 7. `pack.mjs ship <id>` for the ground's own server rows |
+| **Steps** | 1. Author the pack: `node tools/pack.mjs new <id> --like <ground> --band lo,hi`, then `pack.mjs propose <id> --write` for the formula's stats. 2. `pack.mjs check <id>` (lint, plus the grader on the real engine). 3. Pick the gear base (`gearLevel: tierLevel(t)`), the drop home (`ladderTier` or `named`) and the Trait pool (`traitPool('<id>')`). These are design calls. `entryLevel` is the hunt's band floor (it sets the highest Trait rank, `maxRankAt`). 4. `node tools/new-ground.mjs <id> --entry lo --top hi` (about 3 × 4 seeds × 12 h on 6 workers). It prints the row to paste. 5. Paste the row, then `node tools/new-ground.mjs <id> ... --write` pins it. 6. `node tools/gen-danger.mjs` and a staged migration (`node tools/new-migration.mjs <slug>`). 7. `pack.mjs ship <id>` for the ground's own server rows |
 | **Data** | `src/data/grounds/<id>/{pack,map}.js`, the row in `src/data/danger.js DANGER_GROUNDS`, the pin in `tests/danger-band-pins.json` |
 | **Code** | None |
 | **Generators** | `tools/pack.mjs`, `tools/new-ground.mjs` (new), `tools/gen-danger.mjs` (server catalogue `hr_danger_grounds`), `tools/gen-hunt-sessions.mjs` |

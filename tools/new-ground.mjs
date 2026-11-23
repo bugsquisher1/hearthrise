@@ -83,8 +83,9 @@ if (!argv.includes('--write')) { console.log('\n(dry run: --write sets the band 
 if (!row) {
   console.log('\nNo DANGER_GROUNDS row for ' + G + ' yet. Paste this into src/data/danger.js (the gear base, drop home and Trait pool are yours),');
   console.log('then run again with --write so the pin records the print:\n');
-  console.log('  ' + G + ': Object.freeze({ refStep: ' + band.refStep + ', floorStep: ' + band.floorStep + ', topStep: ' + band.topStep + ', '
-    + (band.refKillsHead ? 'refKillsHead: ' + band.refKillsHead + ', ' : '') + 'gearLevel: tierLevel(<tier>), ladderTier: <tier> /* or named */, traits: traitPool(\'' + G + '\') }),');
+  console.log('  ' + G + ': ground({ refStep: ' + band.refStep + ', floorStep: ' + band.floorStep + ', topStep: ' + band.topStep + ', '
+    + (band.refKillsHead ? 'refKillsHead: ' + band.refKillsHead + ', ' : '') + 'gearLevel: tierLevel(<tier>), ladderTier: <tier> /* or named */, traits: traitPool(\'' + G + '\'), '
+    + 'entryLevel: ' + (levels.entry || '<its hunt\'s band floor>') + ' }),');
   process.exit(1);
 }
 const DJS = join(ROOT, 'src', 'data', 'danger.js');

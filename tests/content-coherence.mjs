@@ -96,6 +96,7 @@ export function problems(d) {
     if (!Array.isArray(row.traits)) reds.push(at + 'no Trait pool');
     else if (!row.traits.length) (d.traitsLive ? reds : warns).push(at + 'an empty Trait pool: no Trait has its home here' + (d.traitsLive ? '' : ' (hidden: Traits)'));
     for (const id of row.traits || []) if (!d.traits[id] || d.traits[id].source !== g) reds.push(at + 'pool Trait ' + id + (d.traits[id] ? ' lives on ' + d.traits[id].source : ' is no Trait'));
+    if (!(Number.isInteger(row.entryLevel) && row.entryLevel > 0)) reds.push(at + 'no entryLevel (its Trait ranks and its LOW cell read it; tests/gear-steps.mjs GS-5 holds it to its hunt)');
     if (row.refKillsHead !== undefined && !(Number.isInteger(row.refKillsHead) && row.refKillsHead > d.pay.refKillsHead)) reds.push(at + 'refKillsHead ' + row.refKillsHead + ' not over PAY.refKillsHead ' + d.pay.refKillsHead);
   }
   /* CC-2 */
@@ -172,6 +173,7 @@ export const MUTANTS = [
   ['CC-1 no Trait pool at all', (d) => { delete d.danger[first(d)].traits; }],
   ['CC-1 live Traits, an empty pool', (d) => { d.traitsLive = true; d.danger[first(d)].traits = []; }],
   ['CC-1 a pool Trait from another ground', (d) => { const g = first(d), other = Object.keys(d.traits).find((id) => d.traits[id].source !== g); d.danger[g].traits.push(other); }],
+  ['CC-1 no entry Level', (d) => { delete d.danger[first(d)].entryLevel; }],
   ['CC-1 refKillsHead under the ceiling', (d) => { d.danger[first(d)].refKillsHead = d.pay.refKillsHead - 1; }],
   ['CC-2 a band nobody measured', (d) => { const g = Object.keys(d.danger).find((x) => !d.pins[x].hand); d.danger[g].refStep += 10; }],
   ['CC-2 a ground re-fit since its band', (d) => { d.prints[first(d)] = 'f'.repeat(16); }],

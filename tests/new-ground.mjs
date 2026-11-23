@@ -44,7 +44,8 @@ ok(muster.band.refStep === DANGER_GROUNDS.muster_barrows.refStep && muster.band.
 ok(muster.notes.some((n) => /under the floor/.test(n)) && muster.verdict === 'REVIEW', 'NG-3 muster LOW under the floor not read: ' + muster.verdict + ' ' + muster.notes.join(' | '));
 /* NG-4 */
 const src = readFileSync(join(ROOT, 'src', 'data', 'danger.js'), 'utf8');
-const lineOf = (text, g) => text.split('\n').find((l) => l.startsWith('  ' + g + ': Object.freeze({'));
+const lineOf = (text, g) => text.split('\n').find((l) => new RegExp('^  ' + g + ': [\\w.]+\\(\\{ refStep').test(l));
+ok(lineOf(src, 'muster_barrows') && lineOf(src, 'hasks_ford'), 'NG-4 the DANGER_GROUNDS rows are not one line each in the refStep, floorStep, topStep order (tools/lib/danger-band.mjs rewriteRow)');
 const a = rewriteRow(src, 'muster_barrows', { refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130 });
 ok(a && /refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130, gearLevel: tierLevel\(3\)/.test(lineOf(a, 'muster_barrows')), 'NG-4 muster row not rewritten: ' + (a && lineOf(a, 'muster_barrows')));
 ok(a && lineOf(a, 'hasks_ford') === lineOf(src, 'hasks_ford'), 'NG-4 another row moved');

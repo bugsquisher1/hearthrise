@@ -8,10 +8,12 @@
 //   DZ-1 BOTH PATHS: a Level 60 four on Muster Barrows whose leader's plan names Steady, each of whom last held step 20 there (it opens
 //        at the ground as built and climbs): browser closed (the tick's `fire` door) and hunt viewed (index.ts's hello, the `viewed` door) from
 //        one anchor. The instance froze steady at 20 - start_margin (0),
-//        every window landed (no refusal), the stored world plays the scale (a stance, a step it climbed to), the two doors store the same world and pay the
+//        every window landed (no refusal), the stored world plays the scale (a stance, a step past the start a window's stored world climbed
+//        to, and back at or under the start only by a fall its report names), the two doors store the same world and pay the
 //        same Level XP, and every kill paid the scale's share of the hero's own Level (src/core/hunt/danger.js levelShareXp) at a step the
 //        window could stand at, never its row's XP.
-//   DZ-2 THE SECTION: a reload's `danger` section names the frozen stance, the start and the stored world's step (the server's numbers).
+//   DZ-2 THE SECTION: a reload's `danger` section names the frozen stance, the start and the stored world's step (the server's numbers),
+//        after the last window and after every window whose world stood off the start (control: at least one did).
 //   DZ-3 THE END: the session ends with the world's stance and step stamped on its row, and the hero's held step on the ground is that step.
 //   DZ-4 A FOUR: the leader's stance is the party's, and the party opens a margin under its LOWEST held step (a weaker hero sets the start).
 //   DZ-5 THE DEFAULT (1057-danger-falls.sql, the Coordinator's R2 add-on; 02 package 8): the same hero whose plan names NO stance, and sends no
@@ -22,8 +24,9 @@
 //        at Muster's band top 710 (lane/r10: no step past the top), and
 //        falls back. Browser closed in 90 s windows and hunt viewed in 45 s windows, to the same instant: every seat's session stores the SAME
 //        report `falls` and `deep` on both doors (the engine names each fall's hero by seat and its monster; the server folds them), byte for
-//        byte; there are falls (control), at most report_falls_max of them, each a seat of the four and a monster of the ground, the deepest
-//        step the start; and the `hunt` section names each fall's hero by the character that held the seat.
+//        byte; there are falls (control), more than report_falls_max of them made and the last report_falls_max kept (control: the first,
+//        from the start, is gone), each a seat of the four and a monster of the ground, the deepest step the start; and the `hunt` section
+//        names each fall's hero by the character that held the seat.
 //        THE LEDGER (19-power-ledger L7, folded into 1057 while staged): the same doors store the same `heal` (the company's healing by
 //        source), `took` (its damage taken by seat) and `sup` (each hero's store bill and time by step bucket), byte for byte; the first two
 //        alike on every seat, every seat's time adds to the hours hunted, and the `hunt` section names each seat that took damage.
@@ -42,12 +45,11 @@ const MUSTER = 'muster_barrows';
 /* the step the hero last held there: shallow enough that a Level 60 climbs inside the guard's windows (the section and the climb bound read a moved step) */
 const HELD = 20;
 /* Item Level 30 steel under Muster's gearLevel 60 (src/data/danger.js): the power step (lane/r9, the gear table's gear part) is live, well
-   under the ground (half its slots empty), so DZ-1 to DZ-5's both-path checks hold with it in play. */
+   under the ground (half its slots empty), so DZ-1 to DZ-6's both-path checks hold with it in play. DZ-6 wears it too (lane/dz1-fix): at the
+   band top (710, lane/r10) under the one-sided gear weight (lane/econ-levers) it falls back 19 times in its windows and never dies, where
+   lane/r9's rune kit held after 9 and left report_falls_max's cap unexercised. (lane/r9 moved DZ-6 to rune because steel died in its first
+   pull at 740 under the two-sided weight; DZ-6's controls name either drift.) */
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
-/* (lane/r9) A STRONGER KIT for DZ-6: every weapon and armor piece item Level 60 (no jewelry, so a gear part near 40). In steel,
-   at 740 (far past its edge) died in its first pull before it could fall back, and the falls are what DZ-6 reads. */
-const REF_KIT = Object.freeze({ helmet: 'rune_helm', body: 'rune_platebody', pants: 'rune_platelegs', boots: 'rune_boots', gloves: 'rune_gauntlets', belt: 'rune_belt',
-  weapon: 'rune_sword', shield: 'coppercap_shield' });
 const idem = () => crypto.randomUUID();
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
 
@@ -69,28 +71,58 @@ async function door(db, which, o = {}) {
   const windows = o.windows || WINDOWS;
   const run = await prepare({ heroes: o.heroes || 1, windows, ...(o.windowMs ? { windowMs: o.windowMs } : {}), hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: o.gear || GEAR,
     beforeEnter: planWith(o.risk === undefined ? 'steady' : o.risk, o.held || [HELD]) });
+  /* the step each window's stored world stands at (the server's row after the commit), so a check reads the climb, not one window's end;
+     `o.each(db, world)` reads the server after each window (DZ-2's section) */
+  const steps = [];
+  const stored = async () => {
+    const t = await one(db, 'select world::text from public.hunt_instances where hunt_id = $1', [MUSTER]);
+    const w = t ? decodeStored(JSON.parse(t)) : null;
+    steps.push(w && Number.isInteger(w.danger) ? w.danger : null);
+    if (o.each) await o.each(db, w);
+  };
   await run.warm();
-  for (let w = 2; w <= windows + 1; w++) await run.step(w);
-  const row = (await db.query(`select i.id, i.risk, i.danger, i.danger_top, i.refusals, i.world::text as world, s.user_id, s.id as sid
-      from public.hunt_instances i join public.hunt_sessions s on s.instance_id = i.id where i.hunt_id = $1 order by s.entered_at, s.user_id limit 1`, [MUSTER])).rows[0];
+  await stored();
+  for (let w = 2; w <= windows + 1; w++) { await run.step(w); await stored(); }
+  const row = (await db.query(`select i.id, i.risk, i.danger, i.danger_top, i.refusals, i.world::text as world, s.user_id, s.id as sid,
+        t.report->'falls' as falls
+      from public.hunt_instances i join public.hunt_sessions s on s.instance_id = i.id left join public.hunt_session_tally t on t.session_id = s.id
+      where i.hunt_id = $1 order by s.entered_at, s.user_id limit 1`, [MUSTER])).rows[0];
   const xp = Number(await one(db, 'select level_xp - public.hr_char_xp_for_level(60) from public.player_state where user_id = $1 and slot = 0', [row.user_id]));
   const kills = Number(await one(db, `select coalesce(sum((l.meta->>'kills')::numeric), 0) from public.player_ledger l join public.hunt_sessions s on s.id = l.session_id
       where s.user_id = $1 and jsonb_typeof(l.meta->'kills') = 'number'`, [row.user_id]));
   const rowXpMax = Number(await one(db, `select max(b.xp_max) from public.hr_hunt_kill_bounds b join public.hr_hunt_ground_spawns sp on sp.monster_id = b.monster_id where sp.hunt_id = $1`, [MUSTER]));
   const headroom = Number(await one(db, `select public.hr_hunt_limit('value_headroom')`));
-  return { ...row, xp, kills, rowXpMax, headroom, db };
+  return { ...row, steps, xp, kills, rowXpMax, headroom, db };
 }
 
 async function bothPaths(boot) {
   const problems = [];
-  const closed = await door((await boot()).db, 'fire', { heroes: 4, held: [HELD, HELD, HELD, HELD] });
-  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, held: [HELD, HELD, HELD, HELD] });
   const start = HELD - DANGER.startMargin;
+  /* DZ-2 reads a reload's section after each window whose stored world stands OFF the start: there the world's step and the plan's differ,
+     whatever window the trajectory ends on (lane/dz1-fix: a run that falls back to its start by the last window hid a section that read
+     the plan's step) */
+  const sections = [];
+  const eachSection = async (db, w) => {
+    if (!w || !Number.isInteger(w.danger) || w.danger === start) return;
+    const uid = await one(db, 'select user_id from public.hunt_sessions where hunt_id = $1 order by entered_at, user_id limit 1', [MUSTER]);
+    sections.push({ sec: (await one(db, 'select public.hr_state_of($1::uuid, 0)', [uid])).danger, risk: w.risk, step: w.danger });
+  };
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, held: [HELD, HELD, HELD, HELD] });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, held: [HELD, HELD, HELD, HELD], each: eachSection });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) {
     if (r.risk !== 'steady' || r.danger !== start) problems.push('DZ-1 ' + name + ': the instance froze ' + r.risk + ' at ' + r.danger + ', want steady at ' + start);
     if (Number(r.refusals) !== 0) problems.push('DZ-1 ' + name + ': ' + r.refusals + ' window(s) refused');
     const w = r.world ? decodeStored(JSON.parse(r.world)) : null;
-    if (!w || !['steady', 'careful'].includes(w.risk) || !(Number.isInteger(w.danger) && w.danger > start)) problems.push('DZ-1 ' + name + ': the stored world plays ' + JSON.stringify(w && { risk: w.risk, danger: w.danger }) + ', not the scale');
+    /* the scale: a stance, a step past the start some window's stored world climbed to, and a world back at or under its start only by a
+       fall its report names (lane/dz1-fix: an honest Steady fall back of CLIMB.fallSteps from a shallow climb lands on the start of 0,
+       which one window's end alone cannot tell from a world that never climbed) */
+    const falls = Array.isArray(r.falls) ? r.falls : [];
+    const climbed = r.steps.every((s) => Number.isInteger(s) && s >= 0 && s <= DANGER.stepMax) && Math.max(...r.steps) > start;
+    const fellBack = Number.isInteger(w && w.danger) && falls.some((f) => Number.isInteger(f.to) && f.to <= w.danger && f.from > f.to);
+    if (!w || !['steady', 'careful'].includes(w.risk) || !climbed || !(Number.isInteger(w.danger) && (w.danger > start || fellBack))) {
+      problems.push('DZ-1 ' + name + ': the stored world plays ' + JSON.stringify(w && { risk: w.risk, danger: w.danger }) + ' (window steps ' + JSON.stringify(r.steps)
+        + ', falls ' + JSON.stringify(falls.map((f) => [f.from, f.to])) + '), not the scale');
+    }
     if (!(r.xp > 0)) problems.push('DZ-1 ' + name + ': no Level XP was paid');
     /* a kill pays each hero its share over the heroes there (one to four), at a step between the deepest fall and the most it can climb */
     const g = HUNT_GROUNDS[MUSTER], lo = Math.floor(levelShareXp(60, Math.max(0, start - CLIMB.deathSteps - CLIMB.fallSteps), g) / 4);
@@ -99,12 +131,14 @@ async function bothPaths(boot) {
   }
   if (closed.world !== viewed.world) problems.push('DZ-1 the two doors stored different worlds');
   if (closed.xp !== viewed.xp) problems.push('DZ-1 browser closed pays ' + closed.xp + ' Level XP, hunt viewed ' + viewed.xp);
-  /* DZ-2 the section, on the viewed door's db (its hunt still open) */
+  /* DZ-2 the section, on the viewed door's db (its hunt still open): after the last window, and after each window that stood off the start */
   const sec = (await one(viewed.db, 'select public.hr_state_of($1::uuid, 0)', [viewed.user_id])).danger;
   const w = decodeStored(JSON.parse(viewed.world));
-  if (!sec || sec.risk !== 'steady' || !sec.playing || sec.playing.from !== 'steady' || sec.playing.start !== start || sec.playing.step !== w.danger || sec.playing.risk !== w.risk) {
-    problems.push('DZ-2 a reload reads ' + JSON.stringify(sec) + ', the world stands at ' + w.risk + ' ' + w.danger);
-  }
+  const sectionWrong = (s, risk, step) => !s || s.risk !== 'steady' || !s.playing || s.playing.from !== 'steady' || s.playing.start !== start
+    || s.playing.step !== step || s.playing.risk !== risk;
+  if (sectionWrong(sec, w.risk, w.danger)) problems.push('DZ-2 a reload reads ' + JSON.stringify(sec) + ', the world stands at ' + w.risk + ' ' + w.danger);
+  if (!sections.length) problems.push('DZ-2 CONTROL: no window\'s stored world stood off the start ' + start + ' (steps ' + JSON.stringify(viewed.steps) + '), so the section\'s step cannot tell the world from the plan');
+  for (const x of sections) if (sectionWrong(x.sec, x.risk, x.step)) problems.push('DZ-2 a reload mid-hunt reads ' + JSON.stringify(x.sec) + ', the world stood at ' + x.risk + ' ' + x.step);
   /* DZ-3 the end */
   await viewed.db.query("select public.hr_hunt_close($1, 'left', now(), true)", [viewed.sid]);
   const end = (await viewed.db.query('select s.risk_end, s.danger_end, d.danger_held from public.hunt_sessions s left join public.hunt_density d on d.user_id = s.user_id and d.slot = s.slot and d.hunt_id = s.hunt_id where s.id = $1', [viewed.sid])).rows[0];
@@ -145,8 +179,8 @@ async function fallsBothPaths(boot) {
   const DEEP = 760, START = DEEP - DANGER.startMargin;
   /* (lane/r10) a start held past the band's top plays AT the top (src/core/hunt/danger.js stepOn): the deepest step the four stood at */
   const PLAYED = Math.min(START, DANGER_GROUNDS[MUSTER].topStep);
-  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 3, windowMs: 90000 });
-  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 7, windowMs: 45000 });
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 3, windowMs: 90000 });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 7, windowMs: 45000 });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
   const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
   const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep, x.heal, x.took, x.sup]));
@@ -157,6 +191,10 @@ async function fallsBothPaths(boot) {
     const falls = Array.isArray(x.falls) ? x.falls : [];
     if (!falls.length) { problems.push('DZ-6 CONTROL: seat ' + x.seat + ' stored no fall back from step ' + START); continue; }
     if (falls.length > HUNT_REPORT.fallsMax) problems.push('DZ-6 seat ' + x.seat + ' stored ' + falls.length + ' falls, past ' + HUNT_REPORT.fallsMax);
+    /* the first fall is from the step the start played at (the deepest step); the report keeps the LAST falls, so a stored fall from there
+       means the four fell at most report_falls_max times and the cap was never exercised (lane/dz1-fix: lane/econ-levers' one-sided gear
+       weight left the four holding after exactly 12 falls, and the cap's mutant escaped) */
+    if (falls.some((f) => f.from === PLAYED)) problems.push('DZ-6 CONTROL: seat ' + x.seat + ' still stores its first fall from ' + PLAYED + ' (' + falls.length + ' stored): the four fell at most ' + HUNT_REPORT.fallsMax + ' times, so report_falls_max\'s cap is not exercised');
     if (x.deep !== PLAYED) problems.push('DZ-6 seat ' + x.seat + '\'s deepest step reads ' + x.deep + ', the start played at ' + PLAYED + ' (held ' + START + ')');
     for (const f of falls) {
       if (!(Number.isInteger(f.hero) && f.hero >= 0 && f.hero < 4) || !monsters.has(f.monster) || !(f.to < f.from) || !(f.pm < 1000)) problems.push('DZ-6 seat ' + x.seat + ' stored a fall ' + JSON.stringify(f));

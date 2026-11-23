@@ -47,7 +47,7 @@ import { temperedAmount } from '../temper.js';
 import { swingRow, crossLines, guardPmOf, rampTick } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
-import { splashOn, roleMaxHit } from './monster-roles.js';
+import { splashOn, roleMaxHit, rowOf as standsIn } from './monster-roles.js';
 import { monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
@@ -55,7 +55,9 @@ import { effectPm } from './status-effects.js';
 import { noteHurt, breaksOff } from './danger.js';
 import { stepsOn, blowAmount, manaOn } from './amount.js';
 import { AMOUNT } from '../../data/amount.js';
-import { isEnemy, isHero, isMonster } from './sides.js';
+import { isEnemy, isAlly, isHero, isMonster } from './sides.js';
+import { queueOn, reactorsOf } from './react-queue.js';
+import { nearFall } from './talent-rows.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -87,6 +89,16 @@ export function slowed(u, ms, inst) {
      no clock stretches */
   const pm = inst && stepsOn(inst) ? 0 : slowPmOf(u);
   if (!pm) return ms;
+  const step = HUNT_TUNING.stepMs;
+  return Math.ceil((ms * (1000 + pm)) / (1000 * step)) * step;
+}
+
+/** A WIND-UP of `ms` that monster `u` starts now (monster-spells.js begin): slowed as `slowed` stretches a swing, by its slowing stacks'
+    wind-up share (status-effects.js windupSlowPm: a stack's own, or a branch's `wu`, Slowing Frost). ON THE SCALE a plain slow is steps
+    off the unit's blows and stretches no clock, so only a stack that names a wind-up share stretches it (windupStepsPm). */
+export function slowedWindup(u, ms, inst) {
+  const pm = effectPm(u, inst && stepsOn(inst) ? 'windupStepsPm' : 'windupSlowPm');
+  if (!(pm > 0)) return ms;
   const step = HUNT_TUNING.stepMs;
   return Math.ceil((ms * (1000 + pm)) / (1000 * step)) * step;
 }
@@ -124,6 +136,9 @@ function armorKept(inst, target) {
 export function hurt(inst, target, amount, source, element, ability, rng) {
   if (!target || !target.alive) return { dmg: 0, killed: false };
   /* NO IMMUNITIES (Tyler 2026-11-06): the target's element profile is a percentage, never 0 (core/elements.js). */
+  /* AN EXACT AMOUNT (an engine piece's: a second hit, an overkill carried, a bodyguard's share; its HP already taken from a blow that
+     went through the chain) lands as it is, the shield first, never through the chain again */
+  if (ability && ability.exact === true) return landOn(inst, target, source, Math.max(1, Math.floor(amount)), true);
   const el = elementOn(target, element);
   /* ON THE DANGER SCALE, THE AMOUNT PIPELINE (src/core/hunt/amount.js): `amount` is the move's MEAN in its source's units, and the one
      pipeline lands it (base share, the step contest with every conditional step, one roll, the reference health), rounded once. The
@@ -171,14 +186,30 @@ function pipedAmount(inst, target, mean, source, element, ability, el, rng) {
     critMult: COMBAT_BALANCE.critMult, rng });
 }
 /* WHAT A BLOW DOES ONCE ITS AMOUNT IS KNOWN (both chains): the target's shield first, then HP. */
-function landOn(inst, target, source, n) {
+function landOn(inst, target, source, n, exact) {
+  /* A BODYGUARD (a hero's unit rule guardPm / guardR, Bodyguard): a monster's blow at a back-row hero within the guard's reach gives the
+     guard its share, landed after this one by landHit (`guard`); the rest lands here */
+  const g = exact ? null : guardFor(inst, target, source);
+  const share = g ? Math.floor((n * g.guardPm) / 1000) : 0;
+  if (share > 0) n -= share;
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   /* A TRAINING DUMMY (src/core/hunt/training.js): its blow never takes a hero under the floor, and it never falls (whole again before anyone reads a kill). */
   const dmg = dummyBlow(isMonster(source) ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed));
   target.hp -= dmg;
   if (isMonster(target)) dummyStands(rowOf(inst, target.kind), target);
-  return { dmg, absorbed, killed: target.hp <= 0 };
+  /* `over`: what the blow had past the HP it took (an overkill, reactions.js carry) */
+  return { dmg, absorbed, killed: target.hp <= 0, over: Math.max(0, n - absorbed - dmg), ...(share > 0 ? { guard: { u: g, n: share } } : {}) };
+}
+
+/* THE GUARD a monster `source`'s blow at hero `target` shares with: the first living ally hero by id with a guard share whose reach holds
+   the target, the target standing in the back row and not the guard. Null with none (a hunt with no guard reads one list and stops). */
+function guardFor(inst, target, source) {
+  if (!isMonster(source) || !isHero(target) || !inst || !inst.world) return null;
+  const gs = inst.guards || (inst.guards = inst.world.units.filter((u) => isHero(u) && u.guardPm > 0));
+  if (!gs.length || standsIn(target) !== 'back') return null;
+  for (const u of gs) if (u !== target && u.alive === true && isAlly(u, target) && cheb(u, target) <= (u.guardR | 0)) return u;
+  return null;
 }
 
 /**
@@ -212,6 +243,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* ON THE SCALE a mark and a dealer's status are conditional steps (src/core/hunt/amount.js), never a multiplier */
   const tag = piped ? (markPm || dealtPm ? Object.assign({}, ability, { markPm, dealerPm: dealtPm }) : ability)
     : markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability;
+  /** @type {{ dmg: number, killed: boolean, absorbed?: number, guard?: { u: any, n: number } }} */
   const r = hurt(inst, target, amount, source, element, tag, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
@@ -244,7 +276,29 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     fallen(inst, target, sc);
     if (isMonster(target)) { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); focusBack(source, target); }
   }
+  /* THE GUARD'S SHARE (landOn `guard`, Bodyguard): what it took off this blow lands on the guard as it is, after it */
+  if (r.guard) landHit(inst, sc, source, r.guard.u, r.guard.n, element, { id: 'bodyguard', dot: true, exact: true });
+  if (reactorsOf(inst).length) noteMoments(inst, source, target, before, r, ability, crit, shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0) ? shieldBy : null);
   return r;
+}
+
+/* THE MOMENTS A HERO'S REACTIONS READ (react-queue.js), from one landed blow: the dealer's hit, crit and kill (a tick or an exact piece
+   is no hit; a kill says what the blow had past the HP it took), the target's hit taken (from beside it: melee), an ally hit by a
+   monster, a hero falling across its near-fall line (talent-rows.js nearFall), and a shell broken (its caster's). Queued only. */
+function noteMoments(inst, source, target, before, r, ability, crit, brokeBy) {
+  const id = (ability && ability.id) || 'basic';
+  const blow = !(ability && ability.dot);
+  if (isHero(source)) {
+    if (blow && r.dmg > 0) queueOn(inst, source, 'hit', { t: target, dmg: r.dmg, ability: id });
+    if (blow && crit && r.dmg > 0) queueOn(inst, source, 'crit', { t: target, dmg: r.dmg, ability: id });
+    if (r.killed && isMonster(target)) queueOn(inst, source, 'kill', { t: target, over: r.over || 0, ability: id });
+  }
+  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });
+  if (!isHero(target) || !(r.dmg > 0)) return;
+  if (blow) queueOn(inst, target, 'hit_taken', { src: source, melee: isMonster(source) && cheb(source, target) <= 1, ability: id });
+  const rs = reactorsOf(inst);
+  if (blow && isMonster(source)) for (const h of rs) if (h !== target && isAlly(h, target)) queueOn(inst, h, 'ally_hit', { t: target, src: source });
+  if (target.alive && !nearFall(inst, target, before) && nearFall(inst, target, target.hp)) for (const h of rs) if (isAlly(h, target)) queueOn(inst, h, 'near_fall', { t: target });
 }
 
 /* FOCUS (src/data/jewelry.js): the hero whose blow fell a monster gets `focusPm` permille of its max mana back (at least 1), never past

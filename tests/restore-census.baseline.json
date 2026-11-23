@@ -697,6 +697,9 @@
   "hearthfind_log",
   "hero_pity",
   "hero_plans",
+  "hero_talent_builds",
+  "hero_talent_log",
+  "hero_talents",
   "hero_tally",
   "hero_tally_claims",
   "hero_tally_given",
@@ -1104,6 +1107,21 @@
    "wiped_at_cutover": true,
    "note": "2027-01-19-play-cap.sql, ships EMPTY. The network each hero started playing from (hr_play_claim), counted by the per-network play cap only while the hero plays (hr_playing). At most one row per hero. An empty table under-counts the networks of heroes already playing until they start again; nothing a player earned is in it."
   },
+  "hero_talent_builds": {
+   "class": "restore_only",
+   "note": "PLAYER VALUE (1064-roads-sample.sql): a hero's saved Roads build per hunt (17 section 14). Written only by hr_talent_build_save. Lost, the plans are gone (free to save again); no power or gold moves.",
+   "wiped_at_cutover": true
+  },
+  "hero_talent_log": {
+   "class": "restore_only",
+   "note": "PLAYER VALUE (1064-roads-sample.sql): the append-only journal of every Talents verb (spend, suggested, save, reset). Lost, the audit trail of builds and resets is gone; nothing reads it to decide a spend.",
+   "wiped_at_cutover": true
+  },
+  "hero_talents": {
+   "class": "restore_only",
+   "note": "PLAYER VALUE (1064-roads-sample.sql): a hero's owned Roads nodes, every Talent point it spent. Written only by the Talents verbs. Lost, the hero reads as every point unspent (each idle point costs a third of a step) until it spends again, and a reset may have been paid for the build. Wiped with the hero at EA.",
+   "wiped_at_cutover": true
+  },
   "hero_tally": {
    "class": "restore_only",
    "wiped_at_cutover": false,
@@ -1308,7 +1326,7 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 172,
+   "replay": 176,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 2026-10-25-town-walk.sql registered hr_town_move and hr_town_walkers for authenticated (delete-then-insert). 123 since 2026-10-31-party-create-retire.sql deleted the hr_hunt_party_create row (the first invite makes the party); APPLIED in v0.2.20, production and replay converged. 112 IN THE REPLAY SINCE 2026-12-04-world-actions-cut.sql deleted the twelve raid_strike / world_event_* / hr_rally_pledge_state / clan_board_* / clan_hunt_declare / clan_tier_up / clan_work_complete rows with their functions. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 95 IN THE REPLAY SINCE 2027-01-18-dead-surfaces-cut.sql deleted the hr_worker_hire / hr_worker_assign rows with their functions (§1) and the 23 clan-door rows whose EXECUTE it revoked from every client role (§3: clan_* + hr_clan_browser; bodies and clan tables kept). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 102 IN THE REPLAY SINCE 2027-02-20-players-online-revoke.sql deleted the hr_players_online row with its grant (hr_social_poll answers the count). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 128 IN THE REPLAY SINCE 2027-03-26-signout-presence.sql registered hr_presence_leave() (no argument) for authenticated, delete-then-insert keyed on (proname, grantee): sign-out says the caller's own client is gone. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only). 132 IN THE REPLAY SINCE 2027-04-19-key-under-lock.sql §2 deleted the hr_companion_grant row with its EXECUTE (revoked from every request role; no src/ caller). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only). 133 IN THE REPLAY SINCE 2027-04-20-boss-hall.sql §4 registered hr_boss_hall_enter(p_slot integer, p_hall text, p_idem uuid) for authenticated, delete-then-insert keyed on (proname, grantee): a keyed hall's one door. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 134 since 2027-04-22-target-kind.sql registered hr_hunt_target_kind_set for authenticated (APPLIED 2026-11-14). 138 IN THE REPLAY SINCE 2027-04-22-faction-standing.sql §4 registered hr_faction_join(p_slot integer, p_faction text, p_idem uuid), hr_faction_swap_start(p_slot integer, p_faction text, p_idem uuid), hr_faction_swap_finish(p_slot integer, p_idem uuid) and hr_faction_outfit_claim(p_slot integer, p_piece text, p_idem uuid) for authenticated, delete-then-insert keyed on (proname, grantee). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 141 IN THE REPLAY SINCE 2027-04-23-training-gear.sql registered hr_training_gear_buy, hr_training_gear_open and hr_training_gear_switch for authenticated. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only)."
   },
   "hr_client_write_baseline": {
@@ -2071,7 +2089,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 62,
+   "replay": 63,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -2088,6 +2106,36 @@
    "class": "seeded",
    "replay": 49,
    "note": "Generated catalogue (1061-store-step-catalogue.generated.sql, tools/gen-store-prices.mjs from src/data/supply-basics.js STORE_TERMS): a store use's price terms, one row per hr_hunt_basic_supplies row. Empty, hr_store_price answers null and every store use is refused not_for_sale (a hunt on store supplies ends on its empty line): nothing is sold, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_talent_disciplines": {
+   "class": "seeded",
+   "replay": 12,
+   "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): a worn role key to its discipline. Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_talent_nodes": {
+   "class": "seeded",
+   "replay": 103,
+   "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): every Roads node, its kind, country, move, links and needs. Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_talent_open": {
+   "class": "seeded",
+   "replay": 7,
+   "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): the open road the suggested rule spends into, per discipline. Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_talent_options": {
+   "class": "seeded",
+   "replay": 64,
+   "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): every pickable option and the move a border or the crossing lends, with its opening Level. Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_talent_rules": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): the one row of the Roads rules and THE SWITCH (live). Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_talent_suggest": {
+   "class": "seeded",
+   "replay": 270,
+   "note": "Generated catalogue (1064-roads-sample-catalogue.generated.sql, tools/gen-talents.mjs from src/data/talents.js and src/core/talents.js): the Spend as suggested order per discipline and plan, never a vow. Empty, every Talents verb answers catalogue_missing or unknown_node and hr_talents_view projects nothing; no build is granted, no gold moves. Rebuilt from repo, never restored."
   },
   "hr_tally_config": {
    "class": "seeded",

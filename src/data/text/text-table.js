@@ -37,6 +37,7 @@ import { SHOP_TEXT } from './shop.js';
 import { SLOTS_TEXT } from './slots.js';
 import { SUMMARY_TEXT } from './summary.js';
 import { TALLY_TEXT } from './tally.js';
+import { TALENTS_TEXT } from './talents.js';
 import { TEMPER_TEXT } from './temper.js';
 import { WINDOWS_TEXT } from './windows.js';
 import { WIKI_TEXT } from './wiki.js';
@@ -73,6 +74,7 @@ export const TEXT = Object.freeze({
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
   summary: SUMMARY_TEXT,
+  talents: TALENTS_TEXT,
   tally: TALLY_TEXT,
   temper: TEMPER_TEXT,
   tower: TOWER_TEXT,

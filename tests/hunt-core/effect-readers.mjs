@@ -187,7 +187,7 @@ const mutants = [
   { name: '[spell rule] the engine stops reading the version (versionOf)', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', '    const v = versionOf(row, s.version);', '    const v = { mana: row.mana, outPm: 1000 };']] },
   { name: '[area-engine] the 3x3 side is read by nothing', case: 'every-row-field-has-a-reader',
-    edits: [['src/data/abilities.js', "  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };", "  if (row.target === 'area') return { shape: 'square', n: 3 };"]] },
+    edits: [['src/data/abilities.js', "  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide + (row.fx && Number.isInteger(row.fx.side) ? row.fx.side : 0) };", "  if (row.target === 'area') return { shape: 'square', n: 3 };"]] },
   { name: '[area-engine] the engine stops sharing a hitPm blow (blowShare)', case: 'every-row-field-has-a-reader',
     edits: [['src/core/hunt/abilities.js', '  const dmg = () => { const r = hitRange(blow, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };', '  const dmg = () => { const r = [1, 2]; return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };']] },
   { name: '[spell rule] versionOf stops reading the versions', case: 'every-row-field-has-a-reader',

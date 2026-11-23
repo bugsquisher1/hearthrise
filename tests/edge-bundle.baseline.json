@@ -360,14 +360,29 @@
         "why": "stage 3 fight pipeline (amount.js) + talents together on the integrated tree"
       },
       {
-        "bytes": 3696387,
+        "bytes": 3693018,
         "on": "2026-11-23",
-        "why": "lane/tuning-pass: the tuned levers' evidence comments in src/data/danger.js (Muster's formula switch, PAY floor and coin, POWER below-weight, Bold line, holder line), store-kit.js (the re-read store rates), gold-estimate.js and talents.js (the designer's rulings), and the re-cut band rows; no new module reached"
+        "why": "play-rows.js split out of combat-sim.js (ONE-PATH 600-line rule), on top of stage 3"
       },
       {
-        "bytes": 3696441,
+        "bytes": 3693209,
         "on": "2026-11-23",
-        "why": "lane/tuning-pass: the holder line kept at 800, its measured evidence (600/700/800 by ground) stated on HOLDER in src/data/danger.js"
+        "why": "typecheck fixes: JSDoc on hurt() result, refStep param, Number() bisection bounds (+ bytes)"
+      },
+      {
+        "bytes": 3753293,
+        "on": "2026-11-23",
+        "why": "lane/talent-effects: the engine pieces the Roads, Signatures and Traits share (heal-rules.js, reactions.js, react-queue.js, cast-targets.js) and the 44 option rows mapped to them"
+      },
+      {
+        "bytes": 3753516,
+        "on": "2026-11-23",
+        "why": "+223 B: JSDoc type notes (damage.js guard, abilities cast, world-step inst, statuses validate) clearing typecheck-ratchet after the talent-effects merge"
+      },
+      {
+        "bytes": 3757368,
+        "on": "2026-11-23",
+        "why": "lane/tuning-pass (merged on the set): the tuned levers' evidence comments in src/data/danger.js (Muster's formula switch, the pay floor and coin, the gear weight under the base, the Bold line, the holder line kept), store-kit.js (the re-read store rates), gold-estimate.js and talents.js (the designer's rulings), and the re-cut band rows; no new module reached"
       }
     ]
   }

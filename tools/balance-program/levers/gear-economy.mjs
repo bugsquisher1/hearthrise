@@ -182,9 +182,9 @@ export const GEAR_ECONOMY = [
   /* THE ROADS SAMPLE (lane/roads-sample, 17-talent-tree.md v3, 19 L8): every number on a node is a lever of the build slice; the rules,
      the borrow bands and near fall-back are its dials. All dark behind TALENT_RULES.live */
   L('roads.rules', 'equipment', 'global', 'The Roads: a point a Level, vow slots, borrowed moves, the idle point\'s cost', {
-    at: [at('src/data/talents.js', 'pointSharePm: 333,')],
+    at: [at('src/data/talents.js', 'pointSharePm: 333,'), at('src/data/talents.js', 'healInCapPm: 300,')],
     def: 'one point a Level from pointFrom; vows at vowSlots Levels; at most maxBorrowed borrowed moves; an unspent point, or a rank stone on a move never cast, costs pointSharePm of a step on offense and defense, never ramped (src/core/talents.js grantsOf, the ledger\'s ranks slice)',
-    range: 'pointSharePm 333 (19 row 2: a third of a Level\'s step); vow slots 30 / 50 / 200 (R8); 2 borrows (17 section 3)',
+    range: 'pointSharePm 333 (19 row 2: a third of a Level\'s step); vow slots 30 / 50 / 200 (R8); 2 borrows (17 section 3); healInCapPm 300, the healing a hero receives from every source added (PROVISIONAL: 15 "Healing done: add", the Lab sets the cap)',
     touches: 'how much a hero loses by not spending, how many vows a build holds and when', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/hunt-core/talents.mjs', 'path-rules, idle-points, walk-through']], testReads: ['TALENT_RULES'],
     perturb: NP('not-built', 'dark behind TALENT_RULES.live; the Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs'),
@@ -199,11 +199,12 @@ export const GEAR_ECONOMY = [
     ev: 'MEASURED (18-roads-review-measured.md section 3, 23-spell-audit.md)' }),
   L('roads.nodes', 'equipment', 'content', 'The Roads sample\'s nodes: crossroads, waystones and vows, in steps and move modifiers', {
     at: [at('src/data/talents.js', "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),"), at('src/data/talents.js', "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),"),
-      at('src/data/talents.js', "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),"), at('src/data/talents.js', "effects: [rule('challenge_self_heal'), mod('*heal', { outPm: -30 })] }),")],
-    def: 'each node\'s effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always (src/data/talents.js, src/core/talents.js grantsOf)',
+      at('src/data/talents.js', "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),"), at('src/data/talents.js', "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),"),
+      at('src/data/talents.js', "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),")],
+    def: 'each node\'s effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status\'s strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)',
     range: 'crossroads options within 3 steps on any ground, waystones at most 3 on their best cell, vows +10 best / -8 worst (17 section 9)',
     touches: 'which build is best on which ground, and the gap between the best saved build and the suggested road', out: [...KILL, ...SURVIVE], f: [],
-    tests: [['tests/hunt-core/talents.mjs', 'ramp-and-caps, engine-rows, real-settle-both-paths']], testReads: ['TALENT_NODES'],
+    tests: [['tests/hunt-core/talents.mjs', 'ramp-and-caps, engine-rows, real-settle-both-paths'], ['tests/hunt-core/talent-effects.mjs', 'every case']], testReads: ['TALENT_NODES'],
     perturb: NP('not-built', 'dark behind TALENT_RULES.live; alloc-run.mjs measures the five allocations'),
     ev: 'STATED (17-talent-tree.md v3 sections 5 to 7; the Lab sizes them)' }),
   L('roads.near-fall', 'equipment', 'global', 'Near fall-back: how close to the stance\'s line a Roads condition fires', {

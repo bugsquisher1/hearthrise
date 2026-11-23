@@ -77,6 +77,11 @@ export const STATUS_KEYS = Object.freeze({
   hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),
   hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),
   heal_over_time: Object.freeze({ combine: 'add' }),
+  /* THE ENGINE PIECES' STACKS (lane/talent-effects: src/core/hunt/heal-rules.js, reactions.js). Each stack of a ticking row here carries
+     its own fixed tick (`amt`, whole HP, fixed as it lands: a share of the heal or blow that laid it), so it reads no blow and no roll */
+  mending: Object.freeze({ combine: 'add' }),          // a heal laid over time: each caster's its own stack
+  echo: Object.freeze({ combine: 'add' }),             // a second hit a few seconds later
+  frozen_ground: Object.freeze({ combine: 'strongest' }),
 });
 
 const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);
@@ -134,10 +139,31 @@ export const STATUSES = Object.freeze({
   emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),
   renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,
     tick: Object.freeze([1, 1]), everyMs: 1000, durationMs: 6000, maxStacks: 1, blowPm: 150, tierPermille: TIERS, heals: true }),
+
+  /* ── THE ENGINE PIECES (lane/talent-effects; the Roads, Signatures and Traits share them). Hidden: no live move lands one. ── */
+  /* MENDING (Steady Mend, Lingering Mending, Lasting Circle: "heals over N s"): a heal laid over time. Its stack's tick is the heal's
+     share, fixed as it lands (`amt`), and its time the move's (`hotMs`, a whole number of ticks); up to 4 casters' at once, each its own. */
+  mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',
+    tick: Object.freeze([1, 1]), everyMs: 1000, durationMs: 6000, maxStacks: 4, blowPm: 1, tierPermille: TIERS, heals: true }),
+  /* ECHO (15 "a second hit a few seconds later", Slow Burn): one tick of a fixed share of the blow that laid it, at the end of its time */
+  echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',
+    tick: Object.freeze([1, 1]), everyMs: 2000, durationMs: 2000, maxStacks: 5, blowPm: 1, tierPermille: TIERS, damageType: 'physical' }),
+  /* SAPPED (Weakening Sickness: "Sick enemies: -6% damage dealt"): beside Sickness, on the "monster deals less" key */
+  sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),
+  /* FROZEN GROUND (Cold Ground: "Frozen ground 4 s, chills enemies on it"): a patch round the tank that lays Chill on every enemy in it
+     each second (`lays`), one a hero */
+  frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',
+    ground: Object.freeze({ r: 1 }), tick: Object.freeze([1, 1]), everyMs: 1000, durationMs: 4000, maxStacks: 1, blowPm: 1,
+    tierPermille: TIERS, lays: 'chill' }),
 });
 
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */
 export const ticks = (row) => Array.isArray(row.tick);
+
+/** A HARMFUL row on a hero (a cleanse takes it off, src/core/hunt/heal-rules.js): a damage tick, a heal cut, a slow, a silence, more
+    taken, less dealt, less armor. A ground patch is its holder's, never on it. */
+export const harmful = (row) => !!row && !row.ground && ((ticks(row) && !row.heals) || !!row.healCutPm || row.slowPm > 0 || row.silence === true
+  || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
 
 /** A SLOWING STACK'S SLOW, permille, at its fixed `scale` (status.js stackScale: the landing's tier share, 1000 with none):
     round(slowPm x scale / 1000). One formula for the engine (damage.js slowed) and the bar's words. 0 for a row that slows nothing. */
@@ -156,7 +182,7 @@ export function slowScaleAt(row, tier) {
 const ID = /^[a-z0-9_]{1,32}$/;
 /* the effect fields, and the fields a ticking effect owns */
 const SIGNED = Object.freeze(['takenPm', 'dealtPm', 'armorPm']);
-const TICK_FIELDS = Object.freeze(['tick', 'everyMs', 'blowPm', 'damageType', 'heals']);
+const TICK_FIELDS = Object.freeze(['tick', 'everyMs', 'blowPm', 'damageType', 'heals', 'lays']);
 const KNOWN = new Set(['id', 'name', 'key', 'durationMs', 'maxStacks', 'refresh', 'hidden', ...TICK_FIELDS, 'tierPermille', 'ground',
   ...SIGNED, 'slowPm', 'silence', 'healCutPm', 'guard']);
 /** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, healCutPm. */
@@ -222,14 +248,18 @@ export function validateStatus(row) {
     if (row.tierPermille === undefined) out.push(at + 'tierPermille must be a non-empty list of integers >= 1000');
     /* a tick hurts as 'physical' or an element (src/data/elements.js, contract §1.5), or heals: one or the other */
     if (row.heals !== undefined && (row.heals !== true || row.damageType !== undefined)) out.push(at + 'a tick heals (heals: true) or deals a damageType, never both');
-    if (row.heals === undefined && row.damageType !== PHYSICAL && !isElement(row.damageType)) out.push(at + 'damageType must be physical or an element id, got ' + row.damageType);
+    /* LAYS (frozen ground): a ground patch whose tick lays a status on every enemy in it instead of dealing damage */
+    if (row.lays !== undefined) {
+      if (row.ground === undefined || row.damageType !== undefined || row.heals !== undefined) out.push(at + 'a patch that lays a status is a ground status with no damageType');
+      if (typeof row.lays !== 'string' || !ID.test(row.lays) || row.lays === row.id) out.push(at + 'lays names another status id');
+    } else if (row.heals === undefined && row.damageType !== PHYSICAL && !isElement(row.damageType)) out.push(at + 'damageType must be physical or an element id, got ' + row.damageType);
   } else {
     for (const k of TICK_FIELDS) if (row[k] !== undefined) out.push(at + 'a status that does not tick has no ' + k);
   }
   if (row.ground !== undefined) {
     const g = row.ground;
     if (!g || typeof g !== 'object' || Object.keys(g).join() !== 'r' || !Number.isInteger(g.r) || g.r < 0 || g.r > 3) out.push(at + 'ground is { r }, a whole radius 0..3 tiles');
-    if (row.tick === undefined || row.heals !== undefined) out.push(at + 'a ground status ticks damage');
+    if (row.tick === undefined || row.heals !== undefined) out.push(at + 'a ground status ticks damage (or lays a status)');
     if (fx.some((k) => k !== 'tick' && k !== 'ground')) out.push(at + 'a ground status only ticks (its holder carries nothing else)');
     if (row.refresh !== 'keep') out.push(at + 'a ground status keeps each patch (refresh keep)');
   }
@@ -237,12 +267,14 @@ export function validateStatus(row) {
 }
 
 /** Every problem with the table, as strings. Empty = valid. */
-export function validate(rows = STATUSES) {
+/** @param {Record<string, any>} [rows] */
+export function validate(rows = /** @type {Record<string, any>} */ (STATUSES)) {
   const out = [];
   const byKey = new Map();
   for (const [key, row] of Object.entries(rows)) {
     if (!row || row.id !== key) out.push('status key ' + key + ' must equal its row id');
     out.push(...validateStatus(row));
+    if (row && row.lays !== undefined && !(Object.prototype.hasOwnProperty.call(rows, row.lays) && !rows[row.lays].ground)) out.push('status ' + key + ': lays ' + row.lays + ', no status row that is not a ground');
     if (row && Object.prototype.hasOwnProperty.call(STATUS_KEYS, row.key)) { if (!byKey.has(row.key)) byKey.set(row.key, []); byKey.get(row.key).push(row); }
   }
   /* ONE KEY, ONE EFFECT: rows sharing a key do the same things (so "the stronger" compares like with like), stack to the same count,

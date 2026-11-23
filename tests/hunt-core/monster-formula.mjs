@@ -289,7 +289,7 @@ const MUTANTS = [
 ];
 /* the engine half, each planted with the switch on (play) or off (play-off) */
 const PLAY_MUTANTS = [
-  { name: 'the settle plays the hand rows on the scale', on: true, edits: [['src/core/combat-sim.js', '  const monsOf = (onScale) => (onScale && formulaOn(ctx.ground.id)', '  const monsOf = (onScale) => (false && formulaOn(ctx.ground.id)']] },
+  { name: 'the settle plays the hand rows on the scale', on: true, edits: [['src/core/hunt/play-rows.js', '  return onScale && formulaOn(groundId)', '  return false && formulaOn(groundId)']] },
   { name: 'a derived wind-up is never cast', on: true, edits: [['src/data/monster-spells.js', 'spellsOf(m).concat(derivedSpellsOf(m)) : []);', 'spellsOf(m) : []);']] },
 ];
 

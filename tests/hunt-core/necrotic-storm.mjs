@@ -403,7 +403,7 @@ const mutants = [
   { name: 'food heals a Withered hero whole', case: 'withered-cuts',
     edits: [['src/core/hunt/consumables.js', "  if (stat === 'hp') n = healTaken(u, n);\n", '']] },
   { name: 'a spell heals a Withered target whole', case: 'withered-cuts',
-    edits: [['src/core/hunt/abilities.js', '  n = healTaken(t, n);\n', '']] },
+    edits: [['src/core/hunt/heal-rules.js', '    const cut = healIn(inst, t, n);\n', '    const cut = n;\n']] },
   { name: 'the leech is never cut', case: 'withered-cuts',
     edits: [['src/core/hunt/abilities.js', 'Math.min(healTaken(u, Math.floor((took * row.leechPm) / 1000)), int(u.maxHp)', 'Math.min(Math.floor((took * row.leechPm) / 1000), int(u.maxHp)']] },
   { name: 'the own heal is never cut', case: 'withered-cuts',

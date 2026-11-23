@@ -32,6 +32,7 @@ import { engagedFoesOf, engagedMonstersOf, livingMonstersOf, livingHeroesOf, her
 import { sideOf, isEnemy, isAlly, isHero, isMonster } from './sides.js';
 import { rangeOf, aimOf } from './shooters.js';
 import { reaimOf } from './monster-roles.js';
+import { queueOn } from './react-queue.js';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).
@@ -43,6 +44,9 @@ export const PERSISTED = Object.freeze({
   world: Object.freeze([['leaderLast', 'int?'], ['hold', 'int?'], ['holdNext', 'int?']]),
   pack: Object.freeze([]),
 });
+
+/* Is h a living hero whose monsters may not switch off it (Hold Fast: its unit rule noSwitch, talent-rows.js syncTalents) */
+const lockedOn = (h) => !!h && h.noSwitch === true && h.alive === true && isHero(h);
 
 /** The role row a unit plays, or null (a monster, or a hero with no role). */
 export const roleOf = (u) => (isHero(u) && HUNT_ROLES[u.role]) || null;
@@ -155,8 +159,14 @@ export function basicTarget(inst, u) {
   return null;
 }
 
-function retarget(inst, m, id, sc) {
+/** THE ONE WRITER OF A MONSTER'S TARGET (every turn below; a test drives it): Hold Fast keeps it, a held turn away is a taunt lost. */
+export function retarget(inst, m, id, sc) {
   if (m.target === id) return;
+  const was = isMonster(m) && Number.isInteger(m.target) ? unitById(inst, m.target) : null;
+  /* HOLD FAST (a hero's unit rule noSwitch): a monster on it keeps it while it stands; only its fall or its leaving turns the monster */
+  if (lockedOn(was)) return;
+  /* A TAUNT LOST EARLY: a monster still held on its challenger turns away (a Stalker breaking off, a peel): the challenger's reactions */
+  if (was && m.holdMs > 0 && isHero(was) && was.alive === true) queueOn(inst, was, 'taunt_lost', { m });
   m.target = id;
   staleIndex(inst);
   if (Number.isInteger(id)) sc.emit(makeEvent('target', sc.atMs, { u: m.id, t: id }));
@@ -241,6 +251,11 @@ export function holderTank(inst) {
 
 /** The monsters a Challenge by tank `k` would take now (none when `k` is not a living tank). */
 export function challengeable(inst, k) {
+  /* (none on a hero whose monsters may not switch off it: Hold Fast, lockedOn) */
+  return inReachOf(inst, k).filter((m) => !lockedOn(unitById(inst, m.target)));
+}
+/* the monsters tank `k`'s Challenge reaches and may take by the one-holder rule */
+function inReachOf(inst, k) {
   if (!isTank(k) || !k.alive) return [];
   const holds = holderTank(inst) === k;
   /* a non-holder takes only what is on a hero that is not a tank */
@@ -263,6 +278,7 @@ export function challengeFrom(inst, sc, k) {
   const took = challengeable(inst, k);
   for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = tauntHold(k); }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
+  if (took.length) queueOn(inst, k, 'taunt', { n: took.length });
   return took.length;
 }
 

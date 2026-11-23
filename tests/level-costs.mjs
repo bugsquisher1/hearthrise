@@ -29,7 +29,9 @@
 //   LC-BLESS    THE PURCHASE, AS THE CLIENT MAKES IT: a new hero's section is one Blessing at 0 gold and buys it free; a Level 40 hero's
 //               section quotes the JS price, a wrong price is quote_changed and moves nothing, the right one moves exactly it (one shop
 //               row), a replayed key charges nothing, a second is already_blessed, a tier 2 is unknown_tier, anon cannot buy
-//   LC-RESET    THE RESET, DARK: neither the signed-in client nor anon may run hr_talent_reset or its quote; on the server's own path
+//   LC-RESET    THE RESET, BEHIND THE TALENTS SWITCH (1064-roads-sample.sql opens it to the signed-in client, refused talents_closed while
+//               hr_talent_rules.live is false: nothing charged, nothing counted); anon may not run it, no client may read its quote; with
+//               the switch on inside the arm's rolled-back transaction
 //               the first is free, the next is the JS price at the hero's Level, a wrong price is quote_changed, the one after costs
 //               the JS x growth, Premium's first of the day is free and not counted (the next still at one paid), a replay charges nothing
 // Exit: 0 green · 1 a red arm or a missed mutant · 2 a harness problem.
@@ -252,12 +254,23 @@ const ARMS = {
     await setLevel(db, 60);
     await db.query("update public.hr_flags set enabled = false where key = 'beta_premium'");
     await db.query('update public.player_state set premium_until = null where user_id = $1 and slot = 0', [UID]);
+    /* THE GATE as shipped: the switch off, the signed-in client's press is refused and moves nothing; anon is never let in */
+    await db.query('update public.hr_talent_rules set live = false where id');
+    const closed = await as(db, UID, 'select public.hr_talent_reset(0, 0::bigint, $1::uuid) as r', [idem()], 'authenticated');
+    const cr = closed;
+    if (!cr || cr.error !== 'talents_closed') p.push('a signed-in reset with the Talents switch off answered ' + JSON.stringify(closed).slice(0, 160));
+    if (Number(await one(db, "select count(*) from public.player_ledger where user_id = $1 and intent like 'talent\_reset%'", [UID])) !== 0
+      || (await one(db, 'select resets from public.player_talent_resets where user_id = $1 and slot = 0', [UID])) != null) p.push('a closed reset wrote a row');
     for (const role of ['authenticated', 'anon']) {
-      const r = await as(db, UID, 'select public.hr_talent_reset(0, 0::bigint, $1::uuid) as r', [idem()], role);
-      if (!r || !r.thrown || !/permission denied/.test(r.thrown)) p.push(`${role} reached the dark hr_talent_reset: ${JSON.stringify(r).slice(0, 160)}`);
+      if (role === 'anon') {
+        const r = await as(db, UID, 'select public.hr_talent_reset(0, 0::bigint, $1::uuid) as r', [idem()], role);
+        if (!r || !r.thrown || !/permission denied/.test(r.thrown)) p.push(`anon reached hr_talent_reset: ${JSON.stringify(r).slice(0, 160)}`);
+      }
       const qr = await as(db, UID, 'select public.hr_talent_reset_quote($1::uuid, 0) as r', [UID], role);
       if (!qr || !qr.thrown || !/permission denied/.test(qr.thrown)) p.push(`${role} reached the reset's quote: ${JSON.stringify(qr).slice(0, 160)}`);
     }
+    /* THE PRICE with the switch on (rolled back with the arm): the server's own path */
+    await db.query('update public.hr_talent_rules set live = true where id');
     const reset = async (price, key = idem()) => {
       await db.query('delete from public.hr_rate_counters where user_id = $1', [UID]);
       return asOwner(db, UID, 'select public.hr_talent_reset(0, $1::bigint, $2::uuid)', [price, key]);
@@ -324,6 +337,9 @@ const MUTANTS = [
     find: 'and not v_prem_used then', repl: 'then' },
   { arm: 'LC-RESET', name: 'a press at a stale price is charged the server\'s new one (no quote_changed)', fn: 'public.hr_talent_reset(integer,bigint,uuid)',
     find: 'if v_price <> p_price then', repl: 'if false then' },
+  /* the Talents switch (1064-roads-sample.sql): a reset that ignores it is reachable by any signed-in client while the Roads are dark */
+  { arm: 'LC-RESET', name: 'the reset ignores the Talents switch', fn: 'public.hr_talent_reset(integer,bigint,uuid)',
+    find: "if not coalesce((select live from public.hr_talent_rules where id), false) then", repl: 'if false then' },
 ];
 
 async function main() {

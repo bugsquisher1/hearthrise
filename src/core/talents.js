@@ -17,12 +17,15 @@
 //            (tiles, solo) whole from the start; a borrowed move's penalty (`penaltyPm`) whole (a price, not a talent number)
 //   borrowed the moves of another weapon the hero may slot, open at L (17 section 3: by value), at most maxBorrowed
 //   held     the rule ids the build names that the engine cannot play yet (data/talents.js `rule`): 0 in the engine, listed for the report
+//   reacts   the build's reactions (src/core/hunt/reactions.js), pm x ramp(L); healIn its healing-received rows, pm x ramp(L); unit its
+//            unit rules (UNIT_FIELDS: pm fields x ramp(L), the rest whole). A mod's flags whole and its words as written (MOD_FLAGS,
+//            MOD_WORDS); its pieces ride the modded row as `fx` (src/core/hunt/talent-rows.js moddedRow)
 // A vow counts only on a hero wielding its country's weapon (17 section 7: "Requires Level 30 and its weapon").
 //
 // PURE ESM, dual-runtime (the edge imports it through combat-sim.js). No DOM, no clock, no Math.random.
 // ============================================================
 
-import { TALENT_RULES, TALENT_NODES, NODE_INDEX, BORROW_BANDS, BORROW_OPEN, BORROW_VALUES, COUNTRY_ROADS, HEARTH, MOD_WHOLE, MOD_NUMBERS, PICK_KINDS } from '../data/talents.js';
+import { TALENT_RULES, TALENT_NODES, NODE_INDEX, BORROW_BANDS, BORROW_OPEN, BORROW_VALUES, COUNTRY_ROADS, HEARTH, MOD_WHOLE, MOD_NUMBERS, MOD_FLAGS, MOD_WORDS, UNIT_FIELDS, PICK_KINDS } from '../data/talents.js';
 import { ABILITIES, heals, abilitySkill } from '../data/abilities.js';
 import { POWER_LEDGER, ramp } from '../data/power-ledger.js';
 import { HUNT_TUNING } from '../data/hunt-tuning.js';
@@ -247,16 +250,20 @@ export function grantsOf(nodesIn, discipline, level) {
     penalty[m] = band.penaltyPm;
   }
   const moves = castable(discipline, borrowed);
-  const ledger = [], when = [], held = [], raw = {};
+  const ledger = [], when = [], held = [], raw = {}, reacts = [], healIn = [], unitRaw = {};
   /* a vow counts only on its weapon: its country is the hero's, or one of a hybrid vow's two */
   const wields = (n) => !isVow(n) || (n.countries ? n.countries.includes(discipline) : countryOf(n) === discipline);
   const apply = (fx) => {
     for (const e of fx || NONE) {
       if (e.kind === 'step') (e.when ? when : ledger).push({ slice: 'build', raises: e.raises, steps: e.steps, key: e.key, ...(e.when ? { when: e.when } : {}) });
       else if (e.kind === 'rule') { if (!held.includes(e.id)) held.push(e.id); }
+      /* THE PIECES (lane/talent-effects): a reaction, the healing received, a unit rule; their pm numbers x ramp(L) below */
+      else if (e.kind === 'react') reacts.push(e);
+      else if (e.kind === 'heal_in') healIn.push(e);
+      else if (e.kind === 'unit') { for (const f of Object.keys(e)) if (f !== 'kind') unitRaw[f] = UNIT_FIELDS[f] === 'flag' ? true : (unitRaw[f] || 0) + e[f]; }
       else if (e.kind === 'mod') for (const m of groupOf(e.move, moves)) {
         const r = raw[m] || (raw[m] = {});
-        for (const f of Object.keys(e)) if (f !== 'kind' && f !== 'move') r[f] = f === 'solo' ? true : (r[f] || 0) + e[f];
+        for (const f of Object.keys(e)) if (f !== 'kind' && f !== 'move') r[f] = MOD_FLAGS.includes(f) ? true : own(MOD_WORDS, f) ? e[f] : (r[f] || 0) + e[f];
       }
     }
   };
@@ -285,11 +292,18 @@ export function grantsOf(nodesIn, discipline, level) {
       const g = f === 'cdMs' || f === 'statusMs' || f === 'holdMs' ? Math.round(v / STEP) * STEP : Math.round(v);
       if (g) o[f] = g;
     }
-    if (r.solo) o.solo = true;
+    for (const f of MOD_FLAGS) if (r[f]) o[f] = true;
+    for (const f of Object.keys(MOD_WORDS)) if (typeof r[f] === 'string') o[f] = r[f];
     if (penalty[m]) o.penaltyPm = penalty[m];
     if (Object.keys(o).length) mods[m] = Object.freeze(o);
   }
-  const out = Object.freeze({ ledger: Object.freeze(ledger), when: Object.freeze(when), mods: Object.freeze(mods), borrowed: Object.freeze(borrowed), held: Object.freeze(held), idle });
+  /* THE PIECES' NUMBERS x ramp(L): a reaction's and a healing-received row's pm, a unit rule's pm fields (at least 1 point while any is held) */
+  const rampPm = (n) => (n > 0 ? Math.max(1, Math.round(n * k)) : n < 0 ? Math.min(-1, Math.round(n * k)) : 0);
+  const unit = {};
+  for (const [f, v] of Object.entries(unitRaw)) unit[f] = UNIT_FIELDS[f] === 'pm' ? rampPm(v) : v;
+  const out = Object.freeze({ ledger: Object.freeze(ledger), when: Object.freeze(when), mods: Object.freeze(mods), borrowed: Object.freeze(borrowed), held: Object.freeze(held), idle,
+    reacts: Object.freeze(reacts.map((e) => Object.freeze(Number.isInteger(e.pm) ? { ...e, pm: rampPm(e.pm) } : { ...e }))),
+    healIn: Object.freeze(healIn.map((e) => Object.freeze({ ...e, pm: rampPm(e.pm) }))), unit: Object.freeze(unit) });
   if (MEMO.size < 2048) MEMO.set(memo, out);
   return out;
 }

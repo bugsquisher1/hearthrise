@@ -400,7 +400,8 @@ export function castAmount(row, maxHit, maxHp, pm) {
     through its aim, a ring of `r` round the hero; null for a row that strikes no shape. */
 export function areaSpec(row) {
   if (!row) return null;
-  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };
+  /* (a wider square: a modded row's fx.side, src/core/hunt/talent-rows.js, Wide Sickness) */
+  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide + (row.fx && Number.isInteger(row.fx.side) ? row.fx.side : 0) };
   if (row.target === 'line') return { shape: 'line', len: row.len };
   if (row.target === 'ring') return { shape: 'ring', r: Number.isInteger(row.r) ? row.r : 1 };
   return null;
@@ -412,6 +413,9 @@ export const DISCIPLINE_SKILL = Object.freeze(Object.fromEntries(DISCIPLINE_IDS.
     roles for a caster playing one of them (Brand and Reave: the tank). The engine's gate (src/core/hunt/abilities.js firstUsable, the
     unit's role) and the bar's words (src/shell/action-facts.js, the server's hunt_settings role) read this one rule. */
 export const partyOnly = (row, role) => !!row && (row.party === true || (Array.isArray(row.party) && row.party.includes(role)));
+/** May a caster of role `role` cast `row` now, alone in the world (`solo`) or not: a party-only row never alone, an `alone` row never in a party
+    (a reaction's out-of-turn cast, src/core/hunt/abilities.js castNow; the bar's own test is firstUsable's filter). */
+export const castsNow = (row, role, solo) => !!row && !(solo && partyOnly(row, role)) && !(!solo && row.alone === true);
 /** The ability ids discipline `d` may hold, in data order (its own rows and every universal row). */
 export const disciplineAbilities = (d) => Object.values(ABILITIES).filter((a) => a.disciplines.includes(d)).map((a) => a.id);
 /** The skill `row`'s unlock, versions and output level on: its own `skill` when it names one (a universal row always does), else

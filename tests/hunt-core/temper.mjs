@@ -373,7 +373,7 @@ const mutants = [
   { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/gear-stats.generated.js', '"copper_studs": f({', '"copper_studs": f({ defB: 1, atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 }), "copper_studs~shipped": f({']] },
   { name: 'a Houndskin Cloak past the step', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, steadyPm: 120,']] },
   { name: 'a cape with nothing on it', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22,']] },
-  { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/abilities.js', '  if (!piped) n = temperedAmount(n, u.blowsPm, sc.rng);\n', '  if (!piped) n = n;\n']] },
+  { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/heal-rules.js', '  if (!piped) n = temperedAmount(n, u.blowsPm, sc.rng);\n', '  if (!piped) n = n;\n']] },
   { name: 'a rung-0 hero carries a zero, so its snapshot changed', case: 'the-snapshot-carries-only-a-rung', edits: [[MB, '...(blowsPm ? { blowsPm } : {})', 'blowsPm']] },
   { name: 'the coach spends the food money', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', 'f.gold < r.gold * 2) return null;', 'f.gold < r.gold) return null;']] },
   { name: 'the gold card never names the smith', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', "return { text: smith ? t('coach.goal_temper'", "return { text: false ? t('coach.goal_temper'"]] },

@@ -97,7 +97,7 @@ export function stepsOf(mult) {
   if (!(mult > 0) || mult === 1) return 0;
   const hit = STEPS.get(mult);
   if (hit !== undefined) return hit;
-  let lo = -DANGER.stepMax, hi = DANGER.stepMax;
+  let lo = -Number(DANGER.stepMax), hi = Number(DANGER.stepMax);
   while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ratioOf(mid) <= mult) lo = mid; else hi = mid; }
   /* nearest of lo and hi, compared without a division: mult / r(lo) against r(hi) / mult */
   const n = mult * mult <= ratioOf(lo) * ratioOf(hi) ? lo : hi;

@@ -19,8 +19,9 @@
 //              own; the same mix six bands on hits at least 30% harder at every height; the rows pay no coin and drop nothing; the server's
 //              per-floor bound (hr_tower_floors) is the engine's own, row for row, and its room_size the fewest any room holds
 //   TC-CURVE   A COMPANY TOPS OUT NEAR ITS LEVEL (Andy 2026-11-18: 1 -> 182 at Level 74, "100-170 felt the same"): played fours at Levels 30, 74
-//              and 110 each climb from floor 1 to a death between floor L and L + 45, higher at each Level, and the bands the 74 felt hit more
-//              than one seat hardest (the mixes ask different questions)
+//              and 110 climb from floor 1 to a death, 8 climbs a Level: the TYPICAL climb (the lower median) tops out between floor L and L + 45,
+//              none tops out more than a band under L, the typical climb beats every climb of the Level below, and the bands the 74 felt hit
+//              more than one seat hardest (the mixes ask different questions)
 //   TC-BOSS    the formula's boss role is the elite x the ground kind (src/data/bosses.js), every boss row has a kind; a ramped row swings
 //              x(1 + rampPm a minute) of its fight clock, capped, and the clock runs only while it holds a target; a played landing's Keeper
 //              fights on the keeper row with its clock in the stored world
@@ -227,8 +228,13 @@ function floorTimeRun(M) {
    the party skill line; no player's data) at three Levels climbs from floor 1 on the real settle, read by tools/balance-sim/tower-curve.mjs.
    MEASURED on this lane (3 seeds a Level, 70 min at most): Level 30 tops 59 / 59 / 68, Level 74 101 / 102 / 104, Level 110 126 / 128 / 129,
    every climb ending `died`; at 74 the lowest seat is the tank on the Line, the Swarm and the Wall and the bow on the Volley, the Stalkers and
-   the Choir. On the old Level line the same four reached 148-155 with the heat and no band asked the back row anything. */
-const CURVE = Object.freeze({ levels: Object.freeze([30, 74, 110]), party: Object.freeze(['tank', 'bow', 'mage', 'healer']), seeds: 2, minutes: 70, over: 45 });
+   the Choir. On the old Level line the same four reached 148-155 with the heat and no band asked the back row anything.
+   THE TARGET IS THE TYPICAL CLIMB (game designer, lane/tower-curve, 2026-11-23; CONFLICTS 11-23 TC-CURVE). A climb is dice: on set f385c30e1,
+   8 seeds, Level 110 tops 109 / 109 / 128 / 129 / 129 / 130 / 134 / 134, and both 109s fall to the floor-110 Keeper, the landing at the four's
+   own Level. Losing to your own Level's Keeper on a bad roll is the Tower working, so the guard asks the typical climb (the lower median: half
+   the climbs reach it) for L to L + 45 and lets no climb stop more than a band (landingEvery floors) under L. 2 seeds let one reshuffle flip
+   the verdict (it did twice, 097657e60 and 318e6d76d); 8 cost about 1 s a climb. Level 30 tops 59-69 (typical 59), Level 74 101-104 (102). */
+const CURVE = Object.freeze({ levels: Object.freeze([30, 74, 110]), party: Object.freeze(['tank', 'bow', 'mage', 'healer']), seeds: 8, minutes: 70, over: 45 });
 async function curveArm(_db, M) {
   const bad = [];
   const every = M.TD.TOWER_RULES.landingEvery;
@@ -242,8 +248,11 @@ async function curveArm(_db, M) {
     const climbs = await TCV.measure({ runner, starts: [1], seeds: CURVE.seeds, minutes: CURVE.minutes, party: [...CURVE.party], level });
     const tops = climbs.map((c) => c.top).sort((a, b) => a - b);
     if (climbs.some((c) => c.ended !== 'died')) bad.push(`TC-CURVE a Level ${level} four's climb ended ${climbs.map((c) => c.ended)} (want each to find its top and die there)`);
-    if (tops[0] < level || tops[tops.length - 1] > level + CURVE.over) bad.push(`TC-CURVE a Level ${level} four topped out on ${tops.join(' / ')} (want floor ${level} to ${level + CURVE.over})`);
-    if (tops[0] <= last) bad.push(`TC-CURVE a Level ${level} four reached no higher than the Level below (${tops[0]} against ${last})`);
+    /* the typical climb: the lower median, a top at least half the climbs reach */
+    const typical = tops[Math.floor((tops.length - 1) / 2)];
+    if (typical < level || typical > level + CURVE.over) bad.push(`TC-CURVE a Level ${level} four topped out on a typical ${typical} (each ${tops.join(' / ')}; want the typical climb on floor ${level} to ${level + CURVE.over})`);
+    if (tops[0] < level - every) bad.push(`TC-CURVE a Level ${level} four topped out on ${tops[0]}, more than a band under its Level (each ${tops.join(' / ')}; want none under floor ${level - every})`);
+    if (typical <= last) bad.push(`TC-CURVE a Level ${level} four's typical climb reached no higher than every climb of the Level below (${typical} against ${last})`);
     last = tops[tops.length - 1];
     /* the bands it felt (a typical low under 95%) ask different seats: at least two seats are the lowest somewhere */
     const felt = TCV.bandTable(climbs, every, Math.ceil((last + 1) / every) * every).filter((r) => r.low !== null && r.low < 95);
@@ -711,6 +720,9 @@ const MUTANTS = [
      their Level), the rooms that never read the depth, every band the same mix (one seat asked everything), the room's share forgotten */
   { name: 'the floors have no depth', arm: 'curve', want: /^TC-CURVE a Level [0-9]+ four topped out/, file: 'src/data/tower.js',
     from: '  steps: Object.freeze({ levelPm: 1000, depthPm: 2300 }),', to: '  steps: Object.freeze({ levelPm: 1000, depthPm: 0 }),' },
+  /* the other side of the band (lane/tower-curve): floors twice as steep stop every four under its own Level */
+  { name: 'the floors are twice as steep', arm: 'curve', want: /^TC-CURVE a Level [0-9]+ four topped out/, file: 'src/data/tower.js',
+    from: '  steps: Object.freeze({ levelPm: 1000, depthPm: 2300 }),', to: '  steps: Object.freeze({ levelPm: 1000, depthPm: 4600 }),' },
   { name: 'the rooms never read the depth', arm: 'room', want: /^TC-ROOM/, file: 'src/core/hunt/tower.js',
     from: '  const k = stepRatio(towerDepthOf(floor, run)) * share;', to: '  const k = share;' },
   { name: 'every band is the Line', arm: 'room', want: /^TC-ROOM/, file: 'src/data/tower.js',

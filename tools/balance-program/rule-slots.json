@@ -74,7 +74,7 @@
     { "id": "deterministic", "says": "the same hero gives the same answer" }
    ],
    "families": [
-    { "id": "shipped", "kind": "shipped", "what": "6% of ALL Level XP and 6% of each combat skill's progress, times the session mode's share", "source": "today's P28 (Tyler 2026-11-09); 04-math-strategy.md section 5 'Death' names it" },
+    { "id": "shipped", "kind": "shipped", "what": "the lesser of 6% of ALL Level XP and 7.5 hours of the hours table's progress at the hero's Level (lane/level-costs, 2026-11-22), and 6% of each combat skill's progress, times the session mode's share", "source": "P28 (Tyler 2026-11-09) with 04-math-strategy.md section 5 'Death' (deathHours) built on it" },
     { "id": "copy", "kind": "identity", "what": "the shipped module through the overlay, unchanged" },
     { "id": "hours", "kind": "formula", "what": "Hours of progress: 7.5 hours of the pace contract at the hero's Level (parity with 6% at Level 60), never below Level 1", "source": "04-math-strategy.md section 5 'Death' (deathHours)", "added": "2026-11-21", "expires": "2027-02-21" }
    ]

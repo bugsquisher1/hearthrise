@@ -325,9 +325,19 @@
         "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
       },
       {
-        "bytes": 3457470,
+        "bytes": 3436602,
         "on": "2026-11-23",
-        "why": "lane/monster-formula: monsters derived from role rows (src/core/hunt/monster-formula.js, src/core/reference-company.js, the role dials and MONSTER_FORMULA in src/data/monster-roles.js, the armor door), plus lane/tower-boss-formula merged into it (src/data/bosses.js, the Tower as a scale ground): both are engine code the settle runs"
+        "why": "drops: trait-roll.js roller (dark), drop-hours formula, rarity ladder and pity"
+      },
+      {
+        "bytes": 3465470,
+        "on": "2026-11-23",
+        "why": "E2/E3: statuses as data (status-effects.js), auras, shields, shield_break event"
+      },
+      {
+        "bytes": 3465586,
+        "on": "2026-11-23",
+        "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
       }
     ]
   }

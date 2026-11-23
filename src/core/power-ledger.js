@@ -81,8 +81,11 @@ export function clampLedger(rows, level) {
   return out;
 }
 
-/** A unit's clamped steps in one channel (src/core/hunt/danger.js powerPm): its `ledger` rows at its `heroLv`. 0 with no rows. */
-export function ledgerSteps(unit, channel) {
-  if (!unit || !Array.isArray(unit.ledger) || unit.ledger.length === 0) return 0;
-  return clampLedger(unit.ledger, unit.heroLv)[channel] || 0;
+/** A unit's clamped steps in one channel (src/core/hunt/danger.js powerPm): its `ledger` rows, and `extra` rows that hold on it now (the
+    party's auras, src/core/hunt/auras.js), at its `heroLv`. 0 with no rows. */
+export function ledgerSteps(unit, channel, extra) {
+  const own = unit && Array.isArray(unit.ledger) ? unit.ledger : [];
+  const rows = Array.isArray(extra) && extra.length ? own.concat(extra) : own;
+  if (!unit || rows.length === 0) return 0;
+  return clampLedger(rows, unit.heroLv)[channel] || 0;
 }

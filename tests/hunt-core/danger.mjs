@@ -370,15 +370,16 @@ const CASES = {
   },
   pay(M) {
     const { PAY, DANGER_GROUNDS } = M.dangerData;
-    const { LEVEL_PACE } = M.coreModel;
-    const t = [[0, 0], ...LEVEL_PACE.targets];
-    for (let i = 1; i < t.length; i++) {
-      const mid = (t[i - 1][0] + t[i][0]) / 2, per = (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0]);
-      if (Number.isInteger(mid) && Math.abs(M.danger.hoursForLevel(mid) - per) > 1e-9) return 'Level ' + mid + ' takes ' + M.danger.hoursForLevel(mid) + ' h, its span ' + per;
+    /* lane/formula-overhaul: the hours a Level takes is core-model.js LEVEL_HOURS's formula, ceiling x L^2 / ((L + half) x (L + early)),
+       rising without a jump and levelling off under its ceiling */
+    const { LEVEL_HOURS } = M.coreModel;
+    for (const L of [1, 2, 9, 40, 60, 75, 300, 1000, 5000]) {
+      const want = (LEVEL_HOURS.ceiling * L * L) / ((L + LEVEL_HOURS.half) * (L + LEVEL_HOURS.early));
+      if (M.danger.hoursForLevel(L) !== want) return 'Level ' + L + ' takes ' + M.danger.hoursForLevel(L) + ' h, the formula ' + want;
     }
     for (let L = 1; L < 1200; L++) {
       const a = M.danger.hoursForLevel(L), b = M.danger.hoursForLevel(L + 1);
-      if (!(b >= a) || b - a > 2) return 'the hours a Level takes jump or fall at Level ' + L + ': ' + a + ' -> ' + b;
+      if (!(b >= a) || b - a > 2 || !(b < LEVEL_HOURS.ceiling)) return 'the hours a Level takes jump, fall or pass the ceiling at Level ' + L + ': ' + a + ' -> ' + b;
     }
     const g = { id: 'muster_barrows' }, ref = DANGER_GROUNDS.muster_barrows.refStep;
     for (const L of [1, 9, 40, 60, 75, 300]) {
@@ -688,7 +689,7 @@ const MUTANTS = [
   { name: 'a size change puts a jump in the curve', case: 'scale', edits: [['src/core/hunt/danger.js', 'const share = n0 / pull;', 'const share = 1;']] },
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },
   { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
-  { name: 'the hours jump at a target Level', case: 'pay', edits: [['src/core/hunt/danger.js', '    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);', '    if (L <= b) return ha;']] },
+  { name: 'the hours are not the formula', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelHoursOf(level);', '  return levelHoursOf(level) * (level > 60 ? 1.01 : 1);']] },
   { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
   { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelShareAt(level, refKillsOf(ground)) * depthRatio(ground, step, PAY.payStepXp);', '  return levelShareAt(level, refKillsOf(ground));']] },
   { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },
@@ -735,15 +736,15 @@ const MUTANTS = [
   { name: 'the build slice clamps gains alone', case: 'ledger', edits: [['src/core/power-ledger.js', '(signed ? Math.min(cap, gains + costs) : Math.min(cap, gains) + costs)', '(Math.min(cap, gains) + costs)']] },
   { name: 'one key stacks', case: 'ledger', edits: [['src/core/power-ledger.js', 'if (r.steps > 0) kv[0] = Math.max(kv[0], r.steps);', 'if (r.steps > 0) kv[0] += r.steps;']] },
   { name: 'an ally\'s party row fills the hero\'s cap', case: 'ledger', edits: [['src/core/power-ledger.js', 'if (g > mine) lent += g; else gains += mine;', 'if (g > mine) gains += g; else gains += mine;']] },
-  { name: 'the engine never reads the ledger', case: 'ledger', edits: [['src/core/hunt/danger.js', "  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));\n", '  if (false) steps += 0;\n']] },
-  { name: 'a defense row raises the blow at the hero', case: 'ledger', edits: [['src/core/hunt/danger.js', "steps -= Math.round(ledgerSteps(target, 'defense'));", "steps += Math.round(ledgerSteps(target, 'defense'));"]] },
+  { name: 'the engine never reads the ledger', case: 'ledger', edits: [['src/core/hunt/danger.js', "  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense', auraRowsOn(inst, source)));\n", '  if (false) steps += 0;\n']] },
+  { name: 'a defense row raises the blow at the hero', case: 'ledger', edits: [['src/core/hunt/danger.js', "steps -= Math.round(ledgerSteps(target, 'defense', auraRowsOn(inst, target)));", "steps += Math.round(ledgerSteps(target, 'defense', auraRowsOn(inst, target)));"]] },
   { name: 'the power step is never read', case: 'power', edits: [['src/core/hunt/danger.js', '  if (!inst || !dangerOn(inst.world)) return base;\n', '  return base;\n']] },
   { name: 'the power step plays off the scale', case: 'power', edits: [['src/core/hunt/danger.js', '  if (!inst || !dangerOn(inst.world)) return base;\n', '  if (!inst) return base;\n']] },
   { name: 'armor raises the blows at its wearer', case: 'power', edits: [['src/core/hunt/danger.js', 'steps = -gearSteps(target.gearPm, row);', 'steps = gearSteps(target.gearPm, row);']] },
   { name: 'the defense step sits under the armor cap', case: 'power', edits: [
     ['src/core/hunt/damage.js', 'mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng)', 'mitigate(n, el, armourVs(inst, target, source), isHero(target) ? (target.armorPm || 0) - powerPm(inst, source, target, 0) : target.armorPm, rng)'],
     ['src/core/hunt/damage.js', '  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));', '  if (pm && isMonster(target)) n = Math.max(1, temperedAmount(n, pm, rng));']] },
-  { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * itemLevelOf(at(slot));', '    sum += 100 * itemLevelOf(at(slot));']] },
+  { name: 'the slot weights are dropped', case: 'power', edits: [['src/core/hunt/danger.js', '    sum += W[slot] * levelOn(slot);', '    sum += 100 * levelOn(slot);']] },
   { name: 'a two-handed weapon leaves the off-hand weight empty', case: 'power', edits: [['src/core/hunt/danger.js', "const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;", 'const carried = null;']] },
   { name: 'the ground reads no gear Level', case: 'power', edits: [['src/core/hunt/danger.js', '  const gap = partPm - 1000 * row.gearLevel;', '  const gap = partPm;']] },
   { name: 'the weight under the base is the weight over it', case: 'power', edits: [['src/core/hunt/danger.js', '(gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm)', 'POWER.weightGearPm']] },

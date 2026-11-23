@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "59e4a4d7df4351d3",
+ "authored": "4b8205095c61bd9a",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,65 +63,65 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 203,
+  "levers": 208,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
-   "level-scaling": 7,
+   "level-scaling": 9,
    "weapon-power": 6,
-   "spells": 12,
+   "spells": 14,
    "healing-shielding": 2,
    "armor-mitigation": 5,
    "resistances": 5,
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 34,
-   "spawn": 12,
+   "monster-stats": 28,
+   "spawn": 11,
    "monster-rewards": 16,
-   "rare-drops": 6,
-   "equipment": 17,
-   "imbuements": 1,
+   "rare-drops": 8,
+   "equipment": 20,
+   "imbuements": 2,
+   "economy": 37,
    "consumables": 9,
-   "party": 6,
-   "economy": 35
+   "party": 6
   },
   "byClass": {
-   "global": 95,
-   "archetype": 33,
-   "content": 47,
-   "exception-intentional": 17,
+   "global": 104,
+   "archetype": 28,
+   "content": 49,
+   "exception-intentional": 16,
    "exception-accidental": 11
   },
   "byPerturb": {
    "knob": 31,
    "not-playable:dead": 8,
-   "patch": 77,
+   "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 25,
+   "not-playable:outside-hunt": 26,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 30,
+   "not-playable:not-in-runs": 24,
    "variant": 5,
-   "not-playable:not-built": 13,
+   "not-playable:not-built": 22,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 93,
-   "mentioned only": 90,
+   "asserted": 99,
+   "mentioned only": 89,
    "none": 20
   },
   "flags": {
-   "redundant": 42,
-   "ineffective": 35,
+   "redundant": 41,
+   "ineffective": 34,
    "contradictory": 38
   }
  },
  "census": {
-  "bindings": 689,
-  "typed": 15883,
-  "files": 236,
-  "lever": 295,
-  "notLever": 394,
+  "bindings": 708,
+  "typed": 15970,
+  "files": 244,
+  "lever": 305,
+  "notLever": 403,
   "unclaimed": 0
  },
  "problems": [],
@@ -371,10 +371,10 @@
      "tests/core-purity.mjs",
      "tests/hearthfind-boss-rate.mjs",
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/hunt-core/monster-spells.mjs"
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-fixture.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -622,7 +622,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 256,
+     "line": 284,
      "text": "export const MAX_BANE_MULT = 1.40;",
      "binding": "MAX_BANE_MULT"
     }
@@ -841,7 +841,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 130,
+     "line": 158,
      "text": "export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });",
      "binding": "SKILL_CURVE"
     }
@@ -898,7 +898,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 187,
+     "line": 215,
      "text": "hitXpPerDamage: 1.5,",
      "binding": "COMBAT_XP"
     }
@@ -960,7 +960,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 188,
+     "line": 216,
      "text": "defenseXpPerLevelPermille: 200,",
      "binding": "COMBAT_XP"
     }
@@ -1545,19 +1545,82 @@
    "evidence": "CONFIRMED (read)"
   },
   {
+   "id": "level.hours",
+   "category": "level-scaling",
+   "name": "Hours a Level takes",
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": 106,
+     "text": "export const LEVEL_HOURS = Object.freeze({ ceiling: 20, half: 100, early: 6 });",
+     "binding": "LEVEL_HOURS"
+    }
+   ],
+   "definition": "hunted hours of the reference company (a Steady four at its ground's reference step) for Level L = ceiling x L^2 / ((L + half) x (L + early)); the pay a scale kill makes is derived from it (danger.js levelShareXp), and LEVEL_PACE.targets is derived from it",
+   "range": "ceiling 16 to 24, half 60 to 140, early 2 to 10, whole numbers (server twin hr_danger_hours_for, tools/gen-danger.mjs). Design promises held by tests/level-curve.mjs C8: Level 10 in the first 10 h day, Level 200 in 120 to 240 days, levels off",
+   "touches": "hours to every Level on the scale (so days to every gear tier and band), Level XP a kill (the server bound hr_danger_level_xp_max), the skill clock once skills run on time parity (04 section 4)",
+   "outcomes": [
+    "hoursPerLevel",
+    "netLevelXpPerH"
+   ],
+   "formulas": [
+    "P01"
+   ],
+   "reach": {
+    "feeds": 6,
+    "closure": 79
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/level-curve.mjs",
+      "what": "C7 a Steady four at its held depth earns it, C8 its design promises",
+      "reads": [
+       "LEVEL_HOURS",
+       "levelHoursOf"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "pay: the engine reads the formula",
+      "reads": [
+       "LEVEL_HOURS",
+       "levelHoursOf"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/danger.mjs",
+     "tests/level-curve.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "a design target the pay is derived from: a move changes Levels an hour by construction, never what a company holds (tools/balance-program/redesign/hours/fit.mjs reads it back)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "DESIGN (27-formula-overhaul.md P-1, game designer 2026-11-22), MEASURED read-back (hours/fit.mjs)"
+  },
+  {
    "id": "level.hero-hp",
    "category": "level-scaling",
    "name": "Hero HP a Level",
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 136,
+     "line": 164,
      "text": "hpBase: 150,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 137,
+     "line": 165,
      "text": "hpPerLevel: 10,",
      "binding": "VITALS"
     }
@@ -1600,7 +1663,6 @@
     ],
     "mentions": [
      "tests/alpha-windows-inventory.mjs",
-     "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/pull-cycle.mjs",
      "tests/hunt-scene-live.mjs",
@@ -1608,7 +1670,7 @@
      "tests/hunt-summary.mjs",
      "tests/vitals-armed-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -1633,13 +1695,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 138,
+     "line": 166,
      "text": "manaBase: 100,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 139,
+     "line": 167,
      "text": "manaPerLevel: 10,   // Tyler 2026-10-19: \"10 and 10\"",
      "binding": "VITALS"
     }
@@ -1666,7 +1728,6 @@
     "asserts": [],
     "mentions": [
      "tests/alpha-windows-inventory.mjs",
-     "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/pull-cycle.mjs",
      "tests/hunt-scene-live.mjs",
@@ -1674,7 +1735,7 @@
      "tests/hunt-summary.mjs",
      "tests/vitals-armed-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -1727,10 +1788,11 @@
      "tests/area-spells-server.mjs",
      "tests/hunt-floor-warning.mjs",
      "tests/hunt-sessions-settle.mjs",
+     "tests/level-costs.mjs",
      "tests/mode-death.mjs",
      "tests/rule-slots.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -1751,20 +1813,83 @@
    "evidence": "CONFIRMED (read)"
   },
   {
+   "id": "level.death-hours",
+   "category": "level-scaling",
+   "name": "Death cost in hours of progress",
+   "sites": [
+    {
+     "file": "src/data/hunt-sessions.js",
+     "line": 155,
+     "text": "export const DEATH_HOURS = 7.5;",
+     "binding": "DEATH_HOURS"
+    }
+   ],
+   "definition": "a death takes the LESSER of the share (level.death-loss) and DEATH_HOURS reference hours of progress at the hero's Level (the hours table's Level XP an hour there, src/core/action-rules.js levelHourXp): past Level 61 a death weighs the same hours at every Level",
+   "range": "04 section 5 deathHours; start 7.5 (parity with the share at Level 60, where the stances were measured). A whole permille of an hour (tools/gen-level-costs.mjs). SQL twin hr_death_hours_xp, the bound hr_death_xp_mode_max (1063, generated)",
+   "touches": "net Level XP after Bold deaths past Level 61",
+   "outcomes": [
+    "netLevelXpPerH"
+   ],
+   "formulas": [
+    "P28"
+   ],
+   "reach": {
+    "feeds": 1,
+    "closure": 2
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/level-costs.mjs",
+      "what": "the hours rule on both doors at Level 200",
+      "reads": [
+       "DEATH_HOURS"
+      ]
+     },
+     {
+      "file": "tests/hunt-sessions-settle.mjs",
+      "what": "DEATHXP-RULE",
+      "reads": [
+       "DEATH_HOURS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-sessions-settle.mjs",
+     "tests/level-costs.mjs",
+     "tests/rule-slots.mjs"
+    ],
+    "mentionCount": 3,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "patch",
+    "note": "the cells price a death with the tree's levelDeathLoss (progression-grid.mjs deathXpAt), so a patch is read",
+    "from": [
+     "src/data/hunt-sessions.js: export const DEATH_HOURS = 7.5;"
+    ],
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/level-costs 2026-11-22, v1-climb.mjs Muster Barrows, 6 seeds x 10 h from a held start: a Bold death costs 7.3 to 7.7 h at Level 60 and 7.50 h at 70; Bold's deaths take 20% of its four's day of Level XP at 60, 12% at 70)"
+  },
+  {
    "id": "level.blessing-cut",
    "category": "level-scaling",
-   "name": "Blessing cuts of a death",
+   "name": "The Blessing's cut of a death",
    "sites": [
     {
      "file": "src/data/blessings.js",
-     "line": 53,
-     "text": "export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);",
-     "binding": "BLESSING_CUT_PERMILLE"
+     "line": 32,
+     "text": "cutPm: 500,",
+     "binding": "BLESSING"
     }
    ],
-   "definition": "three Blessings cut a death's XP loss by 25, 50 and 75%",
-   "range": "permille rising, under 1000. RULED (Tyler 2026-11-10)",
-   "touches": "net Level XP after deaths",
+   "definition": "the ONE Blessing cuts the death it is held for by cutPm of its loss (Level XP and every combat skill alike), and is used up (hr_blessing_take)",
+   "range": "1..1000. The designer's (Tyler 2026-11-22: the redesign's one price replaces 25 / 50 / 75). SQL row hr_level_costs.bless_cut_pm (1063, generated)",
+   "touches": "net Level XP after Bold deaths",
    "outcomes": [
     "netLevelXpPerH"
    ],
@@ -1776,7 +1901,7 @@
     "feeds": 2,
     "closure": 2
    },
-   "class": "archetype",
+   "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [
@@ -1784,26 +1909,36 @@
       "file": "tests/hunt-sessions-settle.mjs",
       "what": "the cut in the settle",
       "reads": [
-       "BLESSING_CUT_PERMILLE"
+       "BLESSING"
+      ]
+     },
+     {
+      "file": "tests/level-costs.mjs",
+      "what": "the cut on both doors",
+      "reads": [
+       "BLESSING"
       ]
      }
     ],
     "mentions": [
-     "tests/hunt-sessions-settle.mjs"
+     "tests/hunt-core/sewer.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/level-costs.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
     "kind": "patch",
-    "note": "the cells buy Blessings by blessedShareAt (progression-grid.mjs), so a patch is read",
+    "note": "the cells hold the Blessing by `blessings` (cell.mjs), so a patch is read",
     "from": [
-     "src/data/blessings.js: export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);"
+     "src/data/blessings.js: cutPm: 500,"
     ],
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "CONFIRMED (read)"
+   "evidence": "MEASURED (lane/level-costs 2026-11-22: unblessed, Bold nets 0.68 / 0.73 of Steady's day at Levels 60 / 70; at 500 0.77 / 0.78: C-4 holds at any cut)"
   },
   {
    "id": "level.mode-share",
@@ -1980,10 +2115,10 @@
      "tests/core-purity.mjs",
      "tests/hearthfind-boss-rate.mjs",
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/hunt-core/monster-spells.mjs"
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-fixture.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2002,7 +2137,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 114,
+     "line": 115,
      "text": "export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal: 1000 });",
      "binding": "ABILITY_LANES"
     }
@@ -2678,7 +2813,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 143,
+     "line": 144,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2764,7 +2899,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 145,
+     "line": 146,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2902,14 +3037,14 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 221,
+     "line": 222,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 84,
-     "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
+     "line": 101,
+     "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
    ],
@@ -2947,7 +3082,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -2955,7 +3090,7 @@
     "planned": "takesMoreCap",
     "from": [
      "src/data/abilities.js: bonusPct: 20, durMs: 8000 }),",
-     "src/data/statuses.js: sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),"
+     "src/data/statuses.js: sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),"
     ],
     "existingPatches": []
    },
@@ -2975,15 +3110,15 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 78,
+     "line": 95,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 79,
-     "text": "tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),",
-     "binding": "STATUSES"
+     "line": 82,
+     "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
+     "binding": "TIERS"
     }
    ],
    "definition": "scale = max(tier share, floor(maxHit x 33 x tier share / 1000)); a tick of 1..3 x scale a stack a second, 5 stacks, 6 s",
@@ -3017,17 +3152,221 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
      "src/data/statuses.js: blowPm: 33,",
-     "src/data/statuses.js: tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),"
+     "src/data/statuses.js: const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);"
     ],
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "spell.statuses-hidden",
+   "category": "spells",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 118,
+     "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 121,
+     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 123,
+     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 125,
+     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 128,
+     "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 133,
+     "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 134,
+     "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 135,
+     "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
+     "binding": "STATUSES"
+    }
+   ],
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed), takenPm / dealtPm (Weakened -80, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), each for durationMs",
+   "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
+   "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-STATUS"
+   ],
+   "reach": {
+    "feeds": 4,
+    "closure": 79
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "each status ticks or applies, keys and caps",
+      "reads": [
+       "STATUSES",
+       "STATUS_KEYS"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/monster-spells.mjs",
+      "what": "silenced-starts-nothing",
+      "reads": [
+       "STATUSES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bug-triage.mjs",
+     "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/effect-readers.mjs",
+     "tests/hunt-core/elements.mjs",
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-core/necrotic-storm.mjs",
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 8,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read; tests/hunt-core/status-effects.mjs)"
+  },
+  {
+   "id": "spell.status-keys",
+   "category": "spells",
+   "name": "Stacking keys: how one effect's sources count",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 77,
+     "text": "hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),",
+     "binding": "STATUS_KEYS"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 78,
+     "text": "hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),",
+     "binding": "STATUS_KEYS"
+    }
+   ],
+   "definition": "a unit's value of an effect is its keys summed; a strongest key counts its largest stack alone, an add key its rows added and held to capPm (src/core/hunt/status-effects.js effectPm, 15 \"Stacking keys\")",
+   "range": "capPm 1..1000 on an add key (validate); 300 PROVISIONAL, \"the Lab sets one cap for the total\"",
+   "touches": "how far stacked damage-taken or damage-dealt sources reach on one hero",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-STATUS"
+   ],
+   "reach": {
+    "feeds": 4,
+    "closure": 79
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "keys-combine",
+      "reads": [
+       "STATUS_KEYS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no hero carries an add-key status yet",
     "existingPatches": []
    },
    "flags": [],
@@ -3040,13 +3379,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 88,
-     "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
+     "line": 105,
+     "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 89,
+     "line": 106,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3076,15 +3415,16 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
-     "src/data/statuses.js: chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
+     "src/data/statuses.js: chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "src/data/statuses.js: tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),"
     ],
     "existingPatches": []
@@ -3248,7 +3588,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 353,
+     "line": 354,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3290,7 +3630,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 25,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3310,19 +3650,19 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 197,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 170,
+     "line": 198,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 171,
+     "line": 199,
      "text": "ward: Object.freeze({ perPointPm: 1500 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3386,13 +3726,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 197,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 170,
+     "line": 198,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3456,7 +3796,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 172,
+     "line": 200,
      "text": "capPm: 600,",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3530,13 +3870,13 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 140,
+     "line": 168,
      "text": "heavyHpPermille: 280,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 141,
+     "line": 169,
      "text": "lightManaPermille: 350,",
      "binding": "VITALS"
     }
@@ -3571,7 +3911,6 @@
     "asserts": [],
     "mentions": [
      "tests/alpha-windows-inventory.mjs",
-     "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/pull-cycle.mjs",
      "tests/hunt-scene-live.mjs",
@@ -3579,7 +3918,7 @@
      "tests/hunt-summary.mjs",
      "tests/vitals-armed-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3913,7 +4252,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 96,
+     "line": 113,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -3941,9 +4280,10 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4014,10 +4354,10 @@
      "tests/core-purity.mjs",
      "tests/hearthfind-boss-rate.mjs",
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/hunt-core/monster-spells.mjs"
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-fixture.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4294,7 +4634,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 144,
+     "line": 172,
      "text": "inFightRegenPermillePerS: 3,",
      "binding": "VITALS"
     },
@@ -4341,9 +4681,9 @@
      "tests/hunt-core/first-week-bands.mjs",
      "tests/hunt-core/grid.mjs",
      "tests/hunt-core/leash.mjs",
-     "tests/hunt-core/monster-formula.mjs"
+     "tests/hunt-core/necrotic-storm.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 16,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4361,7 +4701,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 196,
+     "line": 224,
      "text": "export const FLAME_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });",
      "binding": "FLAME_REGEN"
     }
@@ -4457,7 +4797,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 138,
+     "line": 139,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -4784,7 +5124,7 @@
      "tests/ground-boss.mjs",
      "tests/hearthfind-boss-rate.mjs"
     ],
-    "mentionCount": 19,
+    "mentionCount": 18,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5119,10 +5459,10 @@
      "tests/core-purity.mjs",
      "tests/hearthfind-boss-rate.mjs",
      "tests/hunt-core/damage.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/hunt-core/monster-spells.mjs"
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-fixture.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5215,7 +5555,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5261,7 +5601,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 200,
+     "line": 228,
      "text": "export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });",
      "binding": "MONSTER_LEVEL_BY_TIER"
     }
@@ -5601,7 +5941,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5996,13 +6336,13 @@
     },
     {
      "file": "src/data/tower.js",
-     "line": 181,
+     "line": 177,
      "text": "export const CATACOMB_RULES = Object.freeze({",
      "binding": "CATACOMB_RULES"
     },
     {
      "file": "src/data/tower.js",
-     "line": 84,
+     "line": 80,
      "text": "export const TOWER_MIXES = Object.freeze([",
      "binding": "TOWER_MIXES"
     }
@@ -6035,12 +6375,11 @@
      "tests/catacombs-window.mjs",
      "tests/catacombs.mjs",
      "tests/entry-gates.mjs",
-     "tests/hunt-core/monster-formula.mjs",
      "tests/mode-death.mjs",
      "tests/tower-chest.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6758,9 +7097,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6837,9 +7176,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6913,9 +7252,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6982,9 +7321,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7003,7 +7342,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 217,
+     "line": 212,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7072,19 +7411,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 224,
+     "line": 219,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 225,
+     "line": 220,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 226,
+     "line": 221,
      "text": "bold: Object.freeze({ fallPm: 120, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7148,7 +7487,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 237,
+     "line": 232,
      "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
      "binding": "HOLDER"
     }
@@ -7265,7 +7604,7 @@
      "tests/boss-hall.mjs",
      "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 28,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7333,7 +7672,7 @@
      "tests/boss-hall.mjs",
      "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 28,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7352,8 +7691,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 172,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, refLevel: 60, monsters: 'rows', traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -7390,12 +7729,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/level-curve.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7426,7 +7765,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 193,
+     "line": 188,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -7536,7 +7875,7 @@
      "tests/boss-hall.mjs",
      "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 28,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7634,20 +7973,20 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 82,
-     "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
+     "line": 61,
+     "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor' }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 84,
+     "line": 62,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 90,
-     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
+     "line": 65,
+     "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing' }),",
      "binding": "MONSTER_ROLES"
     }
    ],
@@ -7697,11 +8036,10 @@
     "mentions": [
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7712,517 +8050,6 @@
    },
    "flags": [],
    "evidence": "MEASURED (lane/w2-roles-rows, v1-climb.mjs 8 seeds x 12 h a lineup, roles on and off)"
-  },
-  {
-   "id": "mf.role-dials",
-   "category": "monster-stats",
-   "name": "Role power dials (armor, seconds to kill, pressure, wind-up share and size)",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 80,
-     "text": "armor: 0.3, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 83,
-     "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 86,
-     "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 89,
-     "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 91,
-     "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 95,
-     "text": "armor: 0.25, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
-     "binding": "MONSTER_ROLES"
-    }
-   ],
-   "definition": "a formula monster at a gap of 0 (the ground's reference company on its reference step): its armor takes that share off every hero blow (damage.js hurt through monster-formula.js monsterArmorPm, the one door an armor answer such as Armor Break moves); health = (1 - armor) x secondsToKill x the company's damage a fighting second; it deals pressure x the reference hero's health a second, windupShare of it as wind-ups of windupSize of that health each (one every windupSize / (windupShare x pressure) s), the rest as steady blows (src/core/hunt/monster-formula.js roleStats)",
-   "range": "secondsToKill 0.5 to 60, pressure 0 to 0.1, windupShare 0 to 0.9, windupSize 0 to 0.5 (tests/hunt-core/monster-formula.mjs data). Content the designer owns (04 section 6: \"those are content rows\"); a wind-up must stay under the Steady line's cushion (about 0.25 of a hero's health at its top) or Steady dies (12-targets C-3)",
-   "touches": "held depth, the supply bill, deaths by stance, kills an hour and the front seat's share of the damage on every formula ground",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract",
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare",
-    "takenPerH"
-   ],
-   "formulas": [
-    "C-MON-STATS"
-   ],
-   "reach": {
-    "feeds": 12,
-    "closure": 79
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "derive, data",
-      "reads": [
-       "MONSTER_ROLES",
-       "roleStats"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/hunt-core/monster-roles.mjs",
-     "tests/tower-climb.mjs"
-    ],
-    "mentionCount": 5,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe through the candidates mf-muster / mf-hasks / mf-wing (tools/balance-program/redesign/mf); no matrix run plans a stance",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "MEASURED (lane/monster-formula, v1-climb.mjs against C0 on Muster Barrows, Hask's Ford and the Bone Wing: tools/balance-program/redesign/mf/summary.txt)"
-  },
-  {
-   "id": "mf.mend",
-   "category": "monster-stats",
-   "name": "A Warder's mend",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 96,
-     "text": "mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
-     "binding": "MONSTER_ROLES"
-    }
-   ],
-   "definition": "a formula Warder puts back `seconds` of the reference company's damage on its most hurt packmate every `everyS` seconds (a mend spell, monster-spells.js)",
-   "range": "seconds 0 to 3, everyS over the wind-up. A mend the spell bounds clamp is red (monster-formula.mjs data)",
-   "touches": "how long a pull with a Warder lasts, so focus fire",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract"
-   ],
-   "formulas": [
-    "C-MON-STATS"
-   ],
-   "reach": {
-    "feeds": 12,
-    "closure": 79
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "derive",
-      "reads": [
-       "MONSTER_ROLES"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/hunt-core/monster-roles.mjs",
-     "tests/tower-climb.mjs"
-    ],
-    "mentionCount": 5,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe (candidate mf-hasks: the Bannerman)",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "MEASURED (lane/monster-formula: tools/balance-program/redesign/mf/summary.txt)"
-  },
-  {
-   "id": "mf.encounter-per-hero",
-   "category": "spawn",
-   "name": "Monsters a pull brings a hero",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 120,
-     "text": "encounterPerHero: 2,",
-     "binding": "MONSTER_FORMULA"
-    }
-   ],
-   "definition": "on a formula ground a pull brings heroes x encounterPerHero monsters at the reference step, growing by DANGER.pullStep a step to the full box (src/core/hunt/danger.js formulaPull), so a lone hero and a four meet the same time budget (04 section 8)",
-   "range": "over 0, with the reference four at most DANGER.pullMax (tests/hunt-core/monster-formula.mjs data). A kill pays the as-built pull's coin either way (the server's ceiling a kill)",
-   "touches": "kills an hour, the length of a pull and so the supply bill, a lone hero against a four (C-6, C-7)",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract",
-    "levelXpPerH",
-    "netLevelXpPerH",
-    "hoursPerLevel",
-    "xContract"
-   ],
-   "formulas": [
-    "C-TIER"
-   ],
-   "reach": {
-    "feeds": 8,
-    "closure": 79
-   },
-   "class": "global",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "dial",
-      "reads": [
-       "MONSTER_FORMULA",
-       "formulaBasePull"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/hunt-core/monster-formula.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe (candidates mf-*)",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "STATED (2: the reference four meets the full box of 8 at its reference step, as the hand rows' pull does on Muster Barrows)"
-  },
-  {
-   "id": "mf.encounter-size",
-   "category": "monster-stats",
-   "name": "A formula monster size by encounter type",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 122,
-     "text": "pull: Object.freeze({ killMult: 1 }),",
-     "binding": "MONSTER_FORMULA"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 123,
-     "text": "boss: Object.freeze({ killMult: 8 }),",
-     "binding": "MONSTER_FORMULA"
-    }
-   ],
-   "definition": "by encounter type (a pack, a boss): killMult x the role secondsToKill. A boss ramp is its kind's, one home for every boss (src/data/bosses.js)",
-   "range": "killMult 1 or more",
-   "touches": "a boss fight length",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract"
-   ],
-   "formulas": [
-    "C-MON-STATS"
-   ],
-   "reach": {
-    "feeds": 12,
-    "closure": 79
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "derive, ramp",
-      "reads": [
-       "MONSTER_FORMULA"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/hunt-core/monster-formula.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe (Captain Hask on Muster Barrows)",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "STATED (a boss x8 a pull monster)"
-  },
-  {
-   "id": "mf.windup-scale",
-   "category": "monster-stats",
-   "name": "Wind-up size and frequency (the death-risk dials)",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 125,
-     "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
-     "binding": "MONSTER_FORMULA"
-    }
-   ],
-   "definition": "x every formula wind-up's hit (size) and x the time between them (every), at once",
-   "range": "over 0. The size is what Bold dies of and Steady must not (12-targets C-3, C-4)",
-   "touches": "deaths by stance",
-   "outcomes": [
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-MON-STATS"
-   ],
-   "reach": {
-    "feeds": 12,
-    "closure": 79
-   },
-   "class": "global",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "derive",
-      "reads": [
-       "MONSTER_FORMULA"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/hunt-core/monster-formula.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "STATED (1 and 1: the role rows carry the fit)"
-  },
-  {
-   "id": "mf.blow-cap",
-   "category": "monster-stats",
-   "name": "A formula monster's largest steady blow",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 126,
-     "text": "blowCap: 0.2,",
-     "binding": "MONSTER_FORMULA"
-    }
-   ],
-   "definition": "no steady blow lands over blowCap of its target's reference health after its armor; a role whose pressure would need more is held there (roleStats steadyShare reports the share let through)",
-   "range": "0 to 1; under the Steady line's cushion (monster-roles.js maxHitPm's reason)",
-   "touches": "one-blow deaths on the back row",
-   "outcomes": [
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-MON-STATS"
-   ],
-   "reach": {
-    "feeds": 12,
-    "closure": 79
-   },
-   "class": "global",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "derive",
-      "reads": [
-       "MONSTER_FORMULA"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/hunt-core/monster-formula.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe",
-    "existingPatches": []
-   },
-   "flags": [],
-   "evidence": "STATED"
-  },
-  {
-   "id": "mf.ref",
-   "category": "monster-stats",
-   "name": "The reference company a formula ground is anchored on",
-   "sites": [
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 128,
-     "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
-     "binding": "MONSTER_FORMULA"
-    },
-    {
-     "file": "src/data/monster-roles.js",
-     "line": 129,
-     "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
-     "binding": "MONSTER_FORMULA"
-    }
-   ],
-   "definition": "a formula monster's aim and evasion land hit and heroHit on the reference hero of the ground's refLevel (to-hit.js); takePm is the share of a landed blow's roll that reaches the reference target after its armor; dps is the reference company's damage a hunted second a head by Level, over fightShare a fighting second",
-   "range": "MEASURED, never tuned for an outcome: re-measured when a hero formula moves (04: \"nothing to re-fit when a hero formula moves\" holds once heroes are counted in steps, wave 3). A bridge like refStep",
-   "touches": "every formula number's scale",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract",
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-MON-STATS"
-   ],
-   "reach": {
-    "feeds": 12,
-    "closure": 79
-   },
-   "class": "exception-intentional",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/monster-formula.mjs",
-      "what": "derive, data",
-      "reads": [
-       "MONSTER_FORMULA",
-       "refCompany"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/hunt-core/monster-formula.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "note": "played by the V1 probe",
-    "existingPatches": []
-   },
-   "rows": {
-    "what": "the scale grounds' reference Level and their one data switch (monsters: rows | formula)",
-    "homes": [
-     "src/data/danger.js#DANGER_GROUNDS"
-    ]
-   },
-   "flags": [
-    {
-     "kind": "redundant",
-     "why": "A measured table by Level that stands in for the reference company's damage in steps; it retires when hero power is counted in steps (04 section 1, wave 3)",
-     "ev": "JUDGMENT"
-    }
-   ],
-   "evidence": "MEASURED (lane/monster-formula, v1-climb.mjs C0 readers: dps a hunted second a head on each ground's reference four, a front's damage a landed swing over the roll: tools/balance-program/redesign/mf)"
   },
   {
    "id": "danger.power-gear-below",
@@ -8762,7 +8589,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8832,7 +8659,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8953,7 +8780,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9072,7 +8899,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9086,7 +8913,7 @@
      "src/data/monsters.js#MONSTERS",
      "src/data/grounds/*/pack.js#default",
      "src/data/patterns.js#PATTERNS",
-     "src/data/catacomb-wings.js#ARMOR_PM_KILL"
+     "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -9960,7 +9787,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10058,7 +9885,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10226,13 +10053,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 53,
+     "line": 54,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 54,
+     "line": 55,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -10281,10 +10108,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10303,7 +10132,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 57,
+     "line": 58,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -10351,10 +10180,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10373,31 +10204,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 63,
+     "line": 64,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 86,
+     "line": 87,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 87,
+     "line": 88,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 89,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 90,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -10445,10 +10276,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10526,19 +10359,104 @@
    "evidence": "STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)"
   },
   {
+   "id": "gear.rarity-hours",
+   "category": "equipment",
+   "name": "The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll",
+   "sites": [
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 52,
+     "text": "chDigits: 3,",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 55,
+     "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 56,
+     "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 57,
+     "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 62,
+     "text": "depthPm: Object.freeze([1000, 3000]),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 63,
+     "text": "topRankPm: 500,",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 64,
+     "text": "topRankMaxPm: 800,",
+     "binding": "DROP_HOURS"
+    }
+   ],
+   "definition": "a Rare (one Trait) about every 40 hunted hours a hero at the ground's reference step, a Very Rare (two) every 400, a given Signature every 45 on its home; each chance is 1 / (hours x the ground's reference kills a head an hour), / heroes at the kill; depth multiplies the Rare and Very Rare odds x1 at depth 1 to x3 at depth 20, read against the reference's depth; the top open rank lands topRankPm x (1 + luck), at most topRankMaxPm; a made cape or jewel rolls at its part's hours over the rung's",
+   "range": "each rung inside its band (rare 30 to 60, very rare 300 to 600, signature 30 to 60: DF-3); depth x1 to x3; top rank 400 to 600 of 1000 capped 650 to 900 (21 section 1.2)",
+   "touches": "hours to a first Trait piece (p10 / p50 / p90), the Trait pieces in the market, the flame's worth",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/drop-formula.mjs",
+      "what": "DF-3 the ladder, DF-4 the roller, DF-5 the settle",
+      "reads": [
+       "DROP_HOURS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "dark: GEAR_STEPS.traitsLive false, nothing hands the settle a roll (tools/balance-program/redesign/drops/first-trait.mjs reads the roller alone)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (09-crafting 5.6 and 13-market 3.2: 40 and 400; 15: 30 to 60; 12-targets 3.3: x1 to x3; 21 D-4: the top rank)"
+  },
+  {
    "id": "gear.trait-trade",
    "category": "equipment",
    "name": "A trade Trait's gain, and the percents a Trait card shows",
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 66,
+     "line": 67,
      "text": "tradeSteps: Object.freeze([7, 13, 18]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 69,
+     "line": 70,
      "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
      "binding": "GEAR_STEPS"
     }
@@ -10586,10 +10504,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10608,8 +10528,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 172,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, refLevel: 60, monsters: 'rows', traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -10659,12 +10579,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/level-curve.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10683,8 +10603,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 172,
-     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, refLevel: 60, monsters: 'rows', traits: traitPool('muster_barrows'), entryLevel: 55 }),",
+     "line": 167,
+     "text": "muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -10735,12 +10655,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/monster-formula.mjs",
-     "tests/level-curve.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10831,9 +10751,10 @@
     ],
     "mentions": [
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/imbue.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10844,6 +10765,455 @@
    },
    "flags": [],
    "evidence": "STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)"
+  },
+  {
+   "id": "ledger.aura",
+   "category": "equipment",
+   "name": "Party auras: steps on every ally in reach while the move is slotted",
+   "sites": [
+    {
+     "file": "src/data/auras.js",
+     "line": 28,
+     "text": "open_fire: Object.freeze({ id: 'open_fire', name: 'Open Fire', key: 'party_damage', radius: 8, slice: 'build', raises: 'offense', steps: 11 }),",
+     "binding": "AURAS"
+    }
+   ],
+   "definition": "an aura move slotted on a bar (target aura) puts its row's steps, in its slice and channel, on every living hero of its side within radius tiles as a ledger row scope party: on an ally whole and outside its own cap, on the wearer inside its slice, one per key a party (src/core/hunt/auras.js, src/core/power-ledger.js)",
+   "range": "radius 1 to 12 tiles, steps 1 to 40 at full size (validate); Open Fire 11 steps (+4% damage, 22 section 2.2) in the build slice, so 3.3 at Level 60",
+   "touches": "the party's damage (offense) or blows taken (defense) on the Danger scale while a support wears a fire",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "aura-party-rule: reach, one per key, the ally's cap, the power step, never cast",
+      "reads": [
+       "AURAS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)"
+  },
+  {
+   "id": "flame.levers",
+   "category": "rare-drops",
+   "name": "The Inner Flame: burn, room, luck, top rank, curve, fuel worth",
+   "sites": [
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 42,
+     "text": "decayPpm1: 80000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 44,
+     "text": "coverPm: 1500,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 45,
+     "text": "luckMaxPm: 600,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 46,
+     "text": "luckHalfMpts: 25000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 47,
+     "text": "topRankPm: 500,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 50,
+     "text": "pointsTo99: 6000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 53,
+     "text": "fuelRef: 100,",
+     "binding": "FLAME"
+    }
+   ],
+   "definition": "decay(FL) = decayPpm1 - (decayPpm1 - decayPpm99) x (FL - 1) / 98 a hunted hero-hour; room = cover / decay; luck = luckMax x H / (H + luckHalf) on the Rare and Very Rare chance; top rank = topRankPm x (1 + luck) under topRankMaxPm; Flame Level on a 1.045 curve to 6,000 points; a unit of band b is 1 / fuelRef points x (1 + powerStep)^(b - top)",
+   "range": "decayPm1 50 to 120, decayPm99 30 to 60, cover 1.25 to 2.0, luckMax 0.4 to 0.8, luckHalf 15 to 40 points, topRank 400 to 600 / 650 to 900, pointsTo99 4,000 to 10,000, burst 150 to 400 (21 section 1.2); fuelRef MEASURED owed (F1)",
+   "touches": "how often a fed company finds a Rare, and what Remains are worth on the fire against the market",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/flame-rules.mjs",
+      "what": "FR-1 to FR-6: the table, both paths, the curve, the burn, the stoke rule, the top rank",
+      "reads": [
+       "FLAME",
+       "FLAME_LEVELS",
+       "FLAME_FUEL"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/activity-intent.mjs",
+     "tests/flame-rules.mjs",
+     "tests/hearth-fuel-rate.mjs",
+     "tests/hearth-moods.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/inner-flame.mjs",
+     "tests/town-shows.mjs"
+    ],
+    "mentionCount": 7,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no roller reads luck until lane/drop-formula (wave 4); the switch inner_flame is off",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 1.2; fuelRef ASSUMED until F1)"
+  },
+  {
+   "id": "temper.steps",
+   "category": "equipment",
+   "name": "Temper on steps: ranks by Level, price in hours of wage, the re-seat",
+   "sites": [
+    {
+     "file": "src/data/temper.js",
+     "line": 177,
+     "text": "rankEvery: 40,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 178,
+     "text": "hoursPm: 3000,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 179,
+     "text": "kitSharePm: 500,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 180,
+     "text": "carryPm: 350,",
+     "binding": "TEMPER_STEPS"
+    }
+   ],
+   "definition": "five ranks a gear slot, rank r open at Level rankEvery x r, each +1 item Level on the slot inside the gear part (slot-weighted, a whole kit at 5 = 5 steps); a full slot costs hoursPm x 13 x slotPm / 1000 hours of wage at the worn item Level, rank r r/15 of it, kitSharePm in Temper Kits and the rest a fee; a new tier re-seats for carryPm of the ranks",
+   "range": "rankEvery 30 to 50, hoursPm 2,000 to 4,000, kitSharePm 300 to 700, carryPm 250 to 500 (21 section 2.2)",
+   "touches": "Temper as a lifelong sink and its +5 steps at Level 200",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/temper-steps.mjs",
+      "what": "TS-1 to TS-4: ranks, prices, the seat, the gear part",
+      "reads": [
+       "TEMPER_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/temper-steps.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the switch temper_steps is off and the Temper Kit is not an item; T1 measured with tools/balance-program/candidates/temper-5.json",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)"
+  },
+  {
+   "id": "imbue.rules",
+   "category": "imbuements",
+   "name": "Imbuements: 2 steps each, 20 hunted hours, the fee",
+   "sites": [
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 28,
+     "text": "hours: 20,",
+     "binding": "IMBUE"
+    },
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 33,
+     "text": "feeHoursPm: 400,",
+     "binding": "IMBUE"
+    },
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 46,
+     "text": "fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'fire', sharePm: 50 },",
+     "binding": "IMBUE_RULES"
+    }
+   ],
+   "definition": "three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp",
+   "range": "hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)",
+   "touches": "a consumable choice in place of a draught; Remains to the bench as well as the fire",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/imbue.mjs",
+      "what": "IM-1 to IM-4: the rows, life, the fee, the band",
+      "reads": [
+       "IMBUE",
+       "IMBUE_RULES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/imbue.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the switch imbuements is off; the bench, the items and the fight conditions are owed (21 section 3.9)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 3.2; the shares behind each size ASSUMED until I1)"
+  },
+  {
+   "id": "carry.price",
+   "category": "economy",
+   "name": "Carry-over: parts and a fee a Trait step",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 112,
+     "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
+     "binding": "CARRY"
+    }
+   ],
+   "definition": "every Trait of a piece onto a plain base of the same slot, same or higher tier: 2 + rank parts of the Trait home ground a Trait, hoursPerStepPm / 1000 hours of wage a Trait step at the new base item Level, workPm / 1000 work-hours",
+   "range": "hoursPerStep 0.3 to 1.0, parts 1 + rank to 4 + rank, work 0.5 to 2 (21 section 2.3)",
+   "touches": "how long a good Rare lives against buying new at the next tier",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/temper-steps.mjs",
+      "what": "TS-5 carry-over",
+      "reads": [
+       "CARRY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/account-wallet.mjs",
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/alpha-windows-hunts.mjs",
+     "tests/alpha-windows-pure.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/carry-on.mjs",
+     "tests/client-intent-surface.mjs"
+    ],
+    "mentionCount": 22,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the verb waits for trait_pieces (wave 4)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 2.3)"
+  },
+  {
+   "id": "loot.pity",
+   "category": "rare-drops",
+   "name": "Personal loot pity: growth and the base share",
+   "sites": [
+    {
+     "file": "src/data/party.js",
+     "line": 37,
+     "text": "pityGrowPm: 4000,",
+     "binding": "PERSONAL_LOOT"
+    },
+    {
+     "file": "src/data/party.js",
+     "line": 38,
+     "text": "pityBasePm: 438,",
+     "binding": "PERSONAL_LOOT"
+    }
+   ],
+   "definition": "a hero rolls at p0 x (1 + grow x x), x the sum of p0 over its misses since its last find, p0 = p x base; base is the mean of exp(-x - grow x^2 / 2), so the long-run rate is the stated one",
+   "range": "grow so the 90th percentile of rolls to a find is under 2x the mean (L2); base follows grow",
+   "touches": "how even the Rares a hero finds are",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/personal-loot.mjs",
+      "what": "PL-1 to PL-5: no flood, the stated rate, p90 under 2x, the integral, both paths",
+      "reads": [
+       "PERSONAL_LOOT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/personal-loot.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the roller is lane/drop-formula's; the switch personal_loot is off",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "COMPUTED (the integral; L2 owed)"
   },
   {
    "id": "imbue.parts",
@@ -10997,7 +11367,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 240,
+     "line": 268,
      "text": "export const FOOD_HEAL_SCALE = 12;",
      "binding": "FOOD_HEAL_SCALE"
     }
@@ -11348,7 +11718,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12071,7 +12441,7 @@
    "sites": [
     {
      "file": "src/data/hunt-sessions.js",
-     "line": 175,
+     "line": 182,
      "text": "export const STAMINA_MAX_MS = Object.freeze({ free: 10 * 3600000, premium: 12 * 3600000 });",
      "binding": "STAMINA_MAX_MS"
     }
@@ -12263,9 +12633,10 @@
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunting-blocks.mjs",
+     "tests/level-costs.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12387,9 +12758,10 @@
      "tests/econ-levers.mjs",
      "tests/gold-intents.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunting-blocks.mjs",
+     "tests/level-costs.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12669,18 +13041,24 @@
   {
    "id": "econ.blessing-price",
    "category": "economy",
-   "name": "Blessing prices",
+   "name": "The Blessing's price",
    "sites": [
     {
      "file": "src/data/blessings.js",
-     "line": 37,
+     "line": 34,
+     "text": "hoursPm: 1000,",
+     "binding": "BLESSING"
+    },
+    {
+     "file": "src/data/blessings.js",
+     "line": 36,
      "text": "freeUntilLevel: 30,",
-     "binding": "BLESSING_RULES"
+     "binding": "BLESSING"
     }
    ],
-   "definition": "free under Level 30, then base + perLevel x (L - 30): 100 + 10, 150 + 15, 200 + 20",
-   "range": "whole. SQL twin hr_blessing_price (generated)",
-   "touches": "the death insurance bill",
+   "definition": "free under Level freeUntilLevel, then ceil(hoursPm / 1000 x wage(levelStep(L))) (src/core/wage.js blessingPrice): one hour of the hero's wage at the start (16,365 gold at Level 60)",
+   "range": "the designer's (Tyler 2026-11-22: one price that grows with Level; a per-hero cost reads the hero's Level). SQL twin hr_blessing_price (1063, generated)",
+   "touches": "the death insurance bill: a gold sink that grows with Level",
    "outcomes": [
     "netPerH"
    ],
@@ -12691,43 +13069,106 @@
     "feeds": 2,
     "closure": 2
    },
-   "class": "archetype",
+   "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
-    "asserts": [],
-    "mentions": [
-     "tests/hunt-core/sewer.mjs"
+    "asserts": [
+     {
+      "file": "tests/level-costs.mjs",
+      "what": "the price at the wage, free under its Level, charged once",
+      "reads": [
+       "BLESSING",
+       "blessingPrice"
+      ]
+     }
     ],
-    "mentionCount": 1,
-    "verdict": "mentioned only"
+    "mentions": [
+     "tests/hunt-core/sewer.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/level-costs.mjs"
+    ],
+    "mentionCount": 4,
+    "verdict": "asserted"
    },
    "perturb": {
     "kind": "patch",
-    "note": "the cells pay blessingGold after each death (progression-grid.mjs blessedShareAt)",
+    "note": "the cells pay blessingGold after each death (cell.mjs blessingsPrice)",
     "from": [
+     "src/data/blessings.js: hoursPm: 1000,",
      "src/data/blessings.js: freeUntilLevel: 30,"
     ],
     "existingPatches": []
    },
-   "rows": {
-    "what": "base and perLevel of each Blessing",
-    "homes": [
-     "src/data/blessings.js#BLESSING_TIERS"
-    ]
-   },
    "flags": [
     {
-     "kind": "ineffective",
-     "why": "From Level 30 all three Blessings cost minutes of gold and save days of XP: never a choice",
-     "ev": "44 Levels table (30 on), COMPUTED there"
-    },
-    {
      "kind": "contradictory",
-     "why": "Free under Level 30: a Level threshold that changes a price on purpose, kept only if Tyler confirms",
-     "ev": "44 P-X20, CONFIRMED"
+     "why": "Free under Level 30: a Level threshold that changes a price on purpose (a young hero's death is under 2.5 h, its wage-priced Blessing more than its hours pay)",
+     "ev": "44 P-X20; kept by the designer 2026-11-22"
     }
    ],
-   "evidence": "CONFIRMED (read)"
+   "evidence": "STATED (lane/level-costs 2026-11-22: it saves 3.75 h of progress at the cut for 1.0 h of the wage, about 1.4 h of net coin)"
+  },
+  {
+   "id": "econ.reset-price",
+   "category": "economy",
+   "name": "Talent reset price",
+   "sites": [
+    {
+     "file": "src/data/talent-reset.js",
+     "line": 25,
+     "text": "hoursPm: 500,",
+     "binding": "TALENT_RESET"
+    },
+    {
+     "file": "src/data/talent-reset.js",
+     "line": 27,
+     "text": "growthNum: 2,",
+     "binding": "TALENT_RESET"
+    },
+    {
+     "file": "src/data/talent-reset.js",
+     "line": 31,
+     "text": "perDay: 16,",
+     "binding": "TALENT_RESET"
+    }
+   ],
+   "definition": "a paid reset costs ceil(hoursPm / 1000 x wage(levelStep(L)) x (growthNum / growthDen)^n), n the resets paid that UTC day (src/core/wage.js resetPrice); a new hero's first and Premium's first of the day are free and not counted; perDay is a blast radius",
+   "range": "04 section 11: resetHours 0.5 (band 0.25 to 1), resetGrowth 2 (band 1.5 to 3). SQL twin hr_talent_reset_price (1063, generated); the verb hr_talent_reset is DARK until Talents exist",
+   "touches": "a gold sink that grows with Level, once Talents exist",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/level-costs.mjs",
+      "what": "first free, then the wage price x2, Premium's daily free, the verb dark",
+      "reads": [
+       "TALENT_RESET",
+       "resetPrice"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/level-costs.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a reset is bought in town, never by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (04-math-strategy.md section 11 starting values)"
   },
   {
    "id": "econ.temper-price",
@@ -13768,7 +14209,7 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 230,
+     "line": 258,
      "text": "export const FLAME_FUEL = Object.freeze({",
      "binding": "FLAME_FUEL"
     }
@@ -13790,10 +14231,11 @@
     "asserts": [],
     "mentions": [
      "tests/activity-intent.mjs",
+     "tests/flame-rules.mjs",
      "tests/hearth-fuel-rate.mjs",
      "tests/inner-flame.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14086,6 +14528,34 @@
    "why": "the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys"
   },
   {
+   "at": "src/core/inner-flame.js#MINUTE_MS",
+   "why": "a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)"
+  },
+  {
+   "at": "src/core/inner-flame.js#roomMpts",
+   "why": "units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)"
+  },
+  {
+   "at": "src/core/inner-flame.js#decay",
+   "why": "units: 60 minutes x a million parts (decayPpm is the lever)"
+  },
+  {
+   "at": "src/core/imbue.js#HOUR_MS",
+   "why": "a unit: the milliseconds in an hour (IMBUE.hours is the lever)"
+  },
+  {
+   "at": "src/core/personal-loot.js#UNIT",
+   "why": "a unit: hero_pity holds millionths of x"
+  },
+  {
+   "at": "src/core/temper-steps.js#rankQuote",
+   "why": "units: milli-hours x permille (TEMPER_STEPS is the lever)"
+  },
+  {
+   "at": "src/core/temper-steps.js#seatPrice",
+   "why": "units: milli-hours x permille (TEMPER_STEPS.carryPm is the lever)"
+  },
+  {
    "at": "src/**#validate*",
    "why": "a validator: its bounds are the valid range (field 3) of the lever it checks"
   },
@@ -14286,18 +14756,6 @@
    "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
   },
   {
-   "at": "src/core/hunt/danger.js#REF_HEROES",
-   "why": "the reference company is four heroes by definition (04 section 1), and a party has at most four: a shape, as TIER_SIZES"
-  },
-  {
-   "at": "src/core/hunt/monster-formula.js#formulaTable",
-   "why": "a memo bound (64 derived tables kept): a cache size, no outcome reads it"
-  },
-  {
-   "at": "src/core/reference-company.js#HEROES",
-   "why": "the reference company is four heroes by definition (04 section 1): a shape, as REF_HEROES"
-  },
-  {
    "at": "src/core/borrow-blow.js#referenceBlow",
    "why": "a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows"
   },
@@ -14368,6 +14826,10 @@
   {
    "at": "src/data/statuses.js#slowAt",
    "why": "rounding (+500 / 1000)"
+  },
+  {
+   "at": "src/core/hunt/heal-cut.js#healCutPmOf",
+   "why": "a bound: a heal cut never takes a heal whole (999 of 1000)"
   },
   {
    "at": "src/data/gear-tiers.js#round5",
@@ -14778,6 +15240,7 @@
     "enrageAtkPm",
     "enragePm",
     "evasion",
+    "everyHours",
     "forParty",
     "frost",
     "gather",
@@ -14898,7 +15361,6 @@
     "gearLevel",
     "ladderTier",
     "refKillsHead",
-    "refLevel",
     "refStep",
     "topStep"
    ],
@@ -14908,7 +15370,7 @@
    "pin": "open",
    "bindings": 1
   },
-  "src/data/catacomb-wings.js#ARMOR_PM_KILL": {
+  "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS": {
    "pin": "count",
    "keys": [
     "·"
@@ -15343,16 +15805,6 @@
     "·"
    ],
    "typed": 3,
-   "bindings": 1
-  },
-  "src/data/blessings.js#BLESSING_TIERS": {
-   "pin": "count",
-   "keys": [
-    "base",
-    "perLevel",
-    "tier"
-   ],
-   "typed": 6,
    "bindings": 1
   },
   "src/data/hero-rename.js#HERO_RENAME": {
@@ -15924,6 +16376,15 @@
    "typed": 33,
    "bindings": 1
   },
+  "src/data/core-model.js#LEVEL_HOURS": {
+   "pin": "count",
+   "keys": [
+    "ceiling",
+    "early"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
   "src/data/core-model.js#VITALS": {
    "pin": "count",
    "keys": [
@@ -15945,12 +16406,21 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/blessings.js#BLESSING_CUT_PERMILLE": {
+  "src/data/hunt-sessions.js#DEATH_HOURS": {
    "pin": "count",
    "keys": [
     "·"
    ],
-   "typed": 3,
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/blessings.js#BLESSING": {
+   "pin": "count",
+   "keys": [
+    "cutPm",
+    "freeUntilLevel"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/session-modes.js#SESSION_MODES": {
@@ -16049,7 +16519,9 @@
   "src/data/statuses.js#STATUSES": {
    "pin": "count",
    "keys": [
+    "armorPm",
     "blowPm",
+    "dealtPm",
     "durationMs",
     "hero",
     "maxStacks",
@@ -16058,7 +16530,23 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 18,
+   "typed": 28,
+   "bindings": 1
+  },
+  "src/data/statuses.js#TIERS": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 4,
+   "bindings": 1
+  },
+  "src/data/statuses.js#STATUS_KEYS": {
+   "pin": "count",
+   "keys": [
+    "capPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/rule-subjects.js#SPARE_MANA": {
@@ -16523,35 +17011,12 @@
   "src/data/monster-roles.js#MONSTER_ROLES": {
    "pin": "count",
    "keys": [
-    "armor",
-    "everyS",
     "heldPm",
     "maxHitPm",
     "pm",
-    "pressure",
-    "range",
-    "seconds",
-    "secondsToKill",
-    "windupMs",
-    "windupShare",
-    "windupSize"
+    "range"
    ],
-   "typed": 34,
-   "bindings": 1
-  },
-  "src/data/monster-roles.js#MONSTER_FORMULA": {
-   "pin": "count",
-   "keys": [
-    "blowCap",
-    "defPerLevel",
-    "dps",
-    "fightShare",
-    "heroHit",
-    "hit",
-    "killMult",
-    "takePm"
-   ],
-   "typed": 13,
+   "typed": 5,
    "bindings": 1
   },
   "src/data/balance-sheet.js#GROUND_XP_FIT": {
@@ -16829,6 +17294,19 @@
    "typed": 32,
    "bindings": 1
   },
+  "src/data/drop-hours.js#DROP_HOURS": {
+   "pin": "count",
+   "keys": [
+    "band",
+    "chDigits",
+    "depthPm",
+    "everyHours",
+    "topRankMaxPm",
+    "topRankPm"
+   ],
+   "typed": 13,
+   "bindings": 1
+  },
   "src/data/power-ledger.js#POWER_LEDGER": {
    "pin": "count",
    "keys": [
@@ -16839,6 +17317,86 @@
     "temperStepsMax"
    ],
    "typed": 5,
+   "bindings": 1
+  },
+  "src/data/auras.js#AURAS": {
+   "pin": "count",
+   "keys": [
+    "radius",
+    "steps"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
+  "src/data/inner-flame.js#FLAME": {
+   "pin": "count",
+   "keys": [
+    "burstPm",
+    "coverPm",
+    "curvePm",
+    "decayPpm1",
+    "decayPpm99",
+    "levelMax",
+    "luckHalfMpts",
+    "luckMaxPm",
+    "pointsTo99",
+    "stokeBuyMax",
+    "topRankMaxPm",
+    "topRankPm",
+    "two_thirds"
+   ],
+   "typed": 13,
+   "bindings": 1
+  },
+  "src/data/temper.js#TEMPER_STEPS": {
+   "pin": "count",
+   "keys": [
+    "carryPm",
+    "hoursPm",
+    "kitSharePm",
+    "rankEvery",
+    "ranks"
+   ],
+   "typed": 5,
+   "bindings": 1
+  },
+  "src/data/imbue-rules.js#IMBUE": {
+   "pin": "count",
+   "keys": [
+    "feeHoursPm",
+    "hours",
+    "lifeRungPm",
+    "parts",
+    "remains",
+    "workPm"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/imbue-rules.js#IMBUE_RULES": {
+   "pin": "count",
+   "keys": [
+    "pm",
+    "sharePm"
+   ],
+   "typed": 3,
+   "bindings": 1
+  },
+  "src/data/gear-steps.js#CARRY": {
+   "pin": "count",
+   "keys": [
+    "hoursPerStepPm"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/party.js#PERSONAL_LOOT": {
+   "pin": "count",
+   "keys": [
+    "pityBasePm",
+    "pityGrowPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {
@@ -17095,12 +17653,13 @@
    "typed": 2,
    "bindings": 1
   },
-  "src/data/blessings.js#BLESSING_RULES": {
+  "src/data/talent-reset.js#TALENT_RESET": {
    "pin": "count",
    "keys": [
-    "freeUntilLevel"
+    "hoursPm",
+    "perDay"
    ],
-   "typed": 1,
+   "typed": 2,
    "bindings": 1
   },
   "src/data/temper.js#TEMPER_TIERS": {

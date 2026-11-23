@@ -13,11 +13,12 @@
 // TOGETHER in one real settle (the edge's propose + commit, tick mode), so an
 // ordering or interaction defect between them cannot hide:
 //   H-ALL          one 20-minute window with pickups and the hunt's one death
-//                  (the core rebuild). Tiers 1-2 bought before the window, tier 3
-//                  bought during it; three picked-up items planned sell / ignore /
+//                  (the core rebuild). The ONE Blessing (1063-level-costs.sql) bought
+//                  before the window; three picked-up items planned sell / ignore /
 //                  ignore-but-LOCKED. Then: the death keeps loss − floor(loss x
-//                  tier-2 permille), tiers 1-2 are used up and tier 3 is
-//                  kept; NOTHING SELLS AT PICKUP (Tyler 2026-10-25, 2027-01-23-
+//                  the Blessing's cut), the Blessing is used up (one bought during a
+//                  window covering it is tests/hunt-sessions-settle.mjs NO-DODGE-LEVERS's
+//                  proof); NOTHING SELLS AT PICKUP (Tyler 2026-10-25, 2027-01-23-
 //                  loot-dispatch.sql: a sell plan waits in the bag for Dispatch
 //                  loot; no loot_sell row, the bag holds what a no-rule window
 //                  holds), the ignored one is gone, the locked one is kept; the
@@ -97,9 +98,9 @@ const ARMS = {
     await say("select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [ignoreIt, idem()]);
     await say("select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [lockIt, idem()]);
     await say('select public.hr_item_lock(0, $1, true, $2::uuid)', [lockIt, idem()]);
-    await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at)
-      select $1, 0, t.tier, 0, case when t.tier < 3 then now() - interval '2 days' else now() end from public.hr_blessing_tiers t`, [uid]);
-    const pm2 = Number(await H.one(db, 'select permille from public.hr_blessing_tiers where tier = 2'));
+    /* the ONE Blessing (1063-level-costs.sql), bought before the window: its cut is the catalogue's */
+    await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, 1, 0, now() - interval '2 days')`, [uid]);
+    const pm2 = Number(await H.one(db, 'select bless_cut_pm from public.hr_level_costs where id'));
     const raws = [];
     await once(raws);
     const B = await snap(H, db, uid, h.sid);
@@ -126,7 +127,7 @@ const ARMS = {
     const got = debit.length === 1 ? debit[0].meta.xp : null;
     for (const [k, v] of Object.entries(want)) if (!got || Number(got[k] || 0) !== v) p.push(`death_xp ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
     const held = (await H.q(db, 'select tier from public.player_blessings where user_id = $1 order by tier', [uid])).map((r) => r.tier);
-    if (JSON.stringify(held) !== '[3]') p.push(`held tiers after the death ${JSON.stringify(held)} (want [3]: bought during the window)`);
+    if (JSON.stringify(held) !== '[]') p.push(`held Blessings after the death ${JSON.stringify(held)} (want none: the death used it up)`);
     if (rows.filter((r) => r.intent === 'blessing_used').length !== 1) p.push('want ONE blessing_used row');
     return [...new Set(p)];
   },
@@ -196,8 +197,8 @@ const MUTANTS = [
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
   { arm: 'H-ALL', why: 'the settle skips the blessing',
     ...memberPlant('    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', '    v_bless := null;') },
-  { arm: 'H-ALL', file: '2026-10-25-blessings.sql', why: 'a tier bought during the window covers it',
-    find: '   where b.user_id = p_user and b.slot = p_slot and b.bought_at <= p_from', repl: '   where b.user_id = p_user and b.slot = p_slot' },
+  /* ('a tier bought during the window covers it' MOVED, lane/level-costs: with ONE Blessing this arm holds it before the window, so the
+     time filter is proven where a Blessing is bought inside the window: tests/hunt-sessions-settle.mjs NO-DODGE-LEVERS, its DB mutant.) */
   { arm: 'H-ALL', file: LOOT, why: 'the pickup filter takes a locked item',
     find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule = 'ignore'" },
   { arm: 'H-ALL', file: LOOT, why: 'a sell plan acts at pickup again',

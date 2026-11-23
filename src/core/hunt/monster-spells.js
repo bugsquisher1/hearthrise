@@ -54,6 +54,7 @@ import { castShape } from './marks.js';
 import { landHit, restart, slowed, rowOf } from './damage.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
+import { hasEffect } from './status-effects.js';
 import { breaksOff } from './danger.js';
 import { isEnemy, isAlly, isMonster } from './sides.js';
 
@@ -194,6 +195,8 @@ export function castSpells(inst, sc) {
       if (u.cast.left === 0 && !breaksOff(inst)) land(inst, sc, u, spellOn(mrow, u.cast.s));
       continue;
     }
+    /* A SILENCED caster (status-effects.js: Cold Palm's Silenced) starts nothing while it lasts; its waits run on, so it casts when it ends */
+    if (hasEffect(u, 'silence')) continue;
     for (const id of list) {
       if (u.spellCds && u.spellCds[id] > 0) continue;
       if (begin(inst, sc, u, id, spellOn(mrow, id))) break;

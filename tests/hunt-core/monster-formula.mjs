@@ -38,6 +38,7 @@ const load = async (root) => {
   M.roleData = await imp('src/data/monster-roles.js');
   M.spells = await imp('src/data/monster-spells.js');
   M.bosses = await imp('src/data/bosses.js');
+  M.statuses = await imp('src/data/statuses.js');
   M.tower = await imp('src/core/hunt/tower.js');
   M.towerData = await imp('src/data/tower.js');
   M.tiers = await imp('src/data/hunt-tiers.js');
@@ -146,12 +147,19 @@ const CASES = {
     if (!k || !(k.armorPm > 0)) return 'CONTROL: the Barrow Knight has no derived armor';
     const rng = { chance: () => false, int: (a) => a };
     const N = 100000;
-    const hit = (monsters) => M.hunt.damage.hurt({ world: { risk: 'steady', units: [] }, ground: { id: 'muster_barrows' }, monsters, tier: null },
-      { side: 'mon', id: 2, kind: 'muster_knight', alive: true, hp: 1e9, maxHp: 1e9 }, N, { side: 'hero', id: 1 }, null, null, rng).dmg;
+    const hit = (monsters, statuses) => M.hunt.damage.hurt({ world: { risk: 'steady', units: [] }, ground: { id: 'muster_barrows' }, monsters, tier: null },
+      { side: 'mon', id: 2, kind: 'muster_knight', alive: true, hp: 1e9, maxHp: 1e9, ...(statuses ? { statuses } : {}) }, N, { side: 'hero', id: 1 }, null, null, rng).dmg;
     const hand = hit(M.MONSTERS), f = hit(t);
     const want = Math.floor(((N - M.combat.defenceReduction(k)) * (1000 - k.armorPm)) / 1000);
     if (f !== want) return 'a blow of ' + N + ' on the formula Knight landed ' + f + ', its armor ' + k.armorPm + ' says ' + want;
     if (hand !== N - M.combat.defenceReduction(M.MONSTERS.muster_knight)) return 'a blow on the hand Knight lost more than its flat defense: ' + hand;
+    /* ARMOR BREAK (src/data/statuses.js armor_break, armorPm -250) moves the role's armor through the same door as the defence */
+    const ab = M.statuses && M.statuses.STATUSES && M.statuses.STATUSES.armor_break;
+    if (!ab || !(ab.armorPm < 0)) return 'CONTROL: no Armor Break row with an armorPm';
+    const broken = hit(t, [{ s: 'armor_break', left: 3000 }]);
+    const kept = Math.floor((k.armorPm * (1000 + ab.armorPm)) / 1000);
+    const wantB = Math.floor(((N - M.combat.defenceReduction(k)) * (1000 - kept)) / 1000);
+    if (broken !== wantB) return 'under Armor Break the formula Knight took ' + broken + ', its broken armor ' + kept + ' says ' + wantB;
     return null;
   },
   switch(M) {
@@ -249,6 +257,7 @@ async function playOffCase(root) {
 const MUTANTS = [
   { name: 'health ignores secondsToKill', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);', 'const hp = 4 * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);']] },
   { name: 'health ignores armor', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight * (1 - armorPm / 1000);', 'const hp = R.secondsToKill * enc.killMult * ref.dpsFight;']] },
+  { name: 'Armor Break never reaches the role armor', case: 'armor', edits: [['src/core/hunt/damage.js', "  const pm = arm > 0 ? effectPm(target, 'armorPm') : 0;", '  const pm = 0;']] },
   { name: 'armor never reaches the blow', case: 'armor', edits: [['src/core/hunt/damage.js', '  if (arm > 0 && n > 0) n = Math.floor((n * (1000 - arm)) / 1000);\n', '']] },
   { name: 'armor plays on a hand row', case: 'armor', edits: [['src/core/hunt/monster-formula.js', 'return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 0;', 'return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 300;']] },
   { name: 'the steady blow carries the wind-up share too', case: 'derive', edits: [['src/core/hunt/monster-formula.js', 'const steadyDps = (1 - w) * R.pressure * ref.hp;', 'const steadyDps = R.pressure * ref.hp;']] },

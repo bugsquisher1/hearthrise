@@ -292,12 +292,12 @@ try {
   if (want('AR-10')) { // AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that dies with the page closed and goes on to the yard keeps its card
     const p = await open('yardroll');
     await p.createHero('Yardley');
-    /* the setup a player reaches in hours, as this world's own rows: Level 12 (the yard opens at 10), gold for its fee, three Blessings, and
+    /* the setup a player reaches in hours, as this world's own rows: Level 12 (the yard opens at 10), gold for its fee, the one Blessing (1063-level-costs.sql), and
        "When the hunt ends: Train Melee at the yard" (frozen on the hunt at Enter) */
     const uid = (await world.db.query('select id from auth.users where email = $1', [p.email])).rows[0].id;
     await world.db.query(`update public.player_state set level_xp = public.hr_char_xp_for_level(12), after_choice = 'train', after_skill = 'melee' where user_id = $1`, [uid]);
     await world.db.query('update public.account_wallet set gold = 50000 where user_id = $1', [uid]);
-    for (const tier of [1, 2, 3]) await world.db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, $2, 0, now() - interval '2 hours') on conflict do nothing`, [uid, tier]);
+    await world.db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, 1, 0, now() - interval '2 hours') on conflict do nothing`, [uid]);
     await p.reload();
     if (!(await p.page.$('.hs-launchers'))) await p.page.click('[data-app="play"][data-slot="0"]');
     await p.page.waitForSelector('.hs-launchers');
@@ -320,7 +320,7 @@ try {
     await q.shot('ar10-yard-took-over');
     step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
       !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford\. Killed by .+\. Death cost: [\d,]+ Level XP/.test(line)
-      && /3 Blessings saved [\d,]+ Level XP[^.]*, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
+      && /\bBlessing saved [\d,]+ Level XP[^.]*, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
     await q.close();
   }
   if (want('AR-11')) { // AR-11 the Cellar outgrown with the page closed

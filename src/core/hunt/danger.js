@@ -30,9 +30,11 @@ import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } 
 import { MONSTER_FORMULA } from '../../data/monster-roles.js';
 import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
-import { LEVEL_PACE } from '../../data/core-model.js';
+import { levelHoursOf } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { ledgerSteps } from '../power-ledger.js';
+import { auraRowsOn } from './auras.js';
+import { temperLevelsOn } from '../temper-steps.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -64,10 +66,12 @@ export function riskOf(hero) {
   return { risk: hero.risk, step: clampStep(hero.danger) };
 }
 
-/* THE GROUND AS BUILT: the mean size of its route's pockets (each pocket's `spawns`, the pull a density of 0 makes). Once a ground. */
-const BASE = new Map();
+/* THE GROUND AS BUILT: the mean size of its route's pockets (each pocket's `spawns`, the pull a density of 0 makes). Once a ground ROW:
+   keyed by the row itself, not its id, so a what-if copy of a ground (play-ground.mjs opts.ground, a test's stage) never reads the
+   original's size, nor the original the copy's (lane/drop-formula 2026-11-22: the cache was keyed by id). */
+const BASE = new WeakMap();
 function basePull(ground) {
-  const k = ground && ground.id;
+  const k = ground;
   if (BASE.has(k)) return BASE.get(k);
   const route = Array.isArray(ground.route) && ground.route.length ? ground.route : ground.pockets.map((_, i) => i);
   const n = route.reduce((a, p) => a + ground.pockets[p].spawns.length, 0) / route.length;
@@ -159,18 +163,21 @@ const itemLevelOf = (it) => {
  * A HERO'S GEAR PART, in thousandths of a step (member.js heroSnapshot, from the server's gear and the catalogue): each worn piece's item
  * Level x its slot's weight (GEAR_STEPS.slotPm; a two-handed weapon also carries GEAR_STEPS.twoHand's other slots). A whole kit at item
  * Level X is 1000 X; an empty slot adds 0; ammo has no weight (a supply). Whole numbers. Read only on the scale (powerPm).
+ * TEMPER (src/core/temper-steps.js; 21 section 2): `temperSteps`, the server's seated ranks by slot, add +ilPerRank item Level a rank to
+ * whatever that slot wears (a two-handed weapon's carries with it; an empty slot adds nothing). Absent: the part is what it was.
  */
-export function gearPartPm(equipment, items) {
+export function gearPartPm(equipment, items, temperSteps) {
   const eq = equipment || {}, W = GEAR_STEPS.slotPm;
   const at = (slot) => (eq[slot] && items ? items[eq[slot]] : null);
+  const levelOn = (slot) => { const il = itemLevelOf(at(slot)); return il > 0 ? il + temperLevelsOn(temperSteps, slot) : 0; };
   const weapon = at('weapon');
   const carried = weapon && weapon.twoHanded === true ? GEAR_STEPS.twoHand : null;
   let sum = 0;
   for (const slot of Object.keys(W)) {
     if (carried && carried.includes(slot)) continue;
-    sum += W[slot] * itemLevelOf(at(slot));
+    sum += W[slot] * levelOn(slot);
   }
-  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * itemLevelOf(weapon);
+  if (carried) sum += carried.reduce((a, s) => a + (W[s] || 0), 0) * levelOn('weapon');
   return sum;
 }
 const groundRow = (ground) => (ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null);
@@ -208,35 +215,24 @@ export function powerPm(inst, source, target, pm) {
   let steps = 0;
   if (isHero(source) && isMonster(target)) steps = gearSteps(source.gearPm, row);
   else if (isMonster(source) && isHero(target)) steps = -gearSteps(target.gearPm, row);
-  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense'));
-  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense'));
+  /* (and the party's auras on the hero, src/core/hunt/auras.js: ledger rows by the party-row rule) */
+  if (isHero(source) && isMonster(target)) steps += Math.round(ledgerSteps(source, 'offense', auraRowsOn(inst, source)));
+  else if (isMonster(source) && isHero(target)) steps -= Math.round(ledgerSteps(target, 'defense', auraRowsOn(inst, target)));
   if (!steps) return base;
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }
 
-/* THE HOURS A LEVEL TAKES (LEVEL_PACE.targets, Tyler's ruling 2026-10-25 section 2: [Level, cumulative hunting hours]). Each span of the
-   table is its hours over its Levels; the hours for Level L are read straight between the spans' middles (flat before the first and
-   after the last), so the pay a kill makes never jumps at a target Level. Rationals only: the browser and the edge agree to the bit. */
-const SPANS = (() => {
-  const t = [[0, 0], ...LEVEL_PACE.targets];
-  const out = [];
-  for (let i = 1; i < t.length; i++) out.push([(t[i - 1][0] + t[i][0]) / 2, (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0])]);
-  return Object.freeze(out.map((p) => Object.freeze(p)));
-})();
+/* THE HOURS A LEVEL TAKES (lane/formula-overhaul, 2026-11-22): the formula of src/data/core-model.js LEVEL_HOURS, ceiling x L^2 /
+   ((L + half) x (L + early)), whole levers, multiplications and one division: the browser and the edge agree to the bit, and the server's
+   twin (tools/gen-danger.mjs hr_danger_hours_for) computes the same rational. The 2026-10-25 hand table it replaced is retired. */
 export function hoursForLevel(level) {
-  const L = Number.isInteger(level) && level >= 1 ? level : 1;
-  if (L <= SPANS[0][0]) return SPANS[0][1];
-  for (let i = 1; i < SPANS.length; i++) {
-    const [a, ha] = SPANS[i - 1], [b, hb] = SPANS[i];
-    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);
-  }
-  return SPANS[SPANS.length - 1][1];
+  return levelHoursOf(level);
 }
 
 /* THE KILLS A HEAD AN HOUR THE HOURS TABLE IS SPLIT OVER: the ground's own, measured at its reference step (DANGER_GROUNDS refKillsHead,
    lane/r10-more-grounds: a Steady four on Hask's Ford kills 220 a head an hour where Muster's kills 120), else PAY.refKillsHead. Never under
    it (tools/gen-danger.mjs refuses one), so the server's one ceiling a kill (hr_danger_level_xp_max) bounds every ground. */
-const refKillsOf = (ground) => {
+export const refKillsOf = (ground) => {
   const row = groundRow(ground);
   return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;
 };

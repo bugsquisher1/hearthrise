@@ -3,6 +3,8 @@
 // tools/balance-program/redesign/roads/roads-run.mjs — THE ROADS REVIEW'S BORROWED-MOVE CELLS, ON THE REAL ENGINE (lane/roads-review-measure).
 //
 //   node tools/balance-program/redesign/roads/roads-run.mjs --plan q1 [--seeds 6] [--hours 8] [--workers 6] [--json out.json]
+//   node tools/balance-program/redesign/roads/roads-run.mjs --plan e3 --candidate tools/balance-program/redesign/e3/e3-lab.json
+//                 (lane/e2-e3-statuses: a candidate's OWN rows slotted as they are, a borrow of power null: the sample aura and shield move)
 //
 // docs/design/redesign/18-roads-review-measured.md. Every cell: Muster Barrows, Level 60, the matrix's MID kits and played bars
 // (progression-grid.mjs buildCell), Steady, a HELD START (the ground's refStep less DANGER.startMargin: held-four.mjs heldStart), one hunt
@@ -58,6 +60,10 @@ const HOW = {
   fireball: { family: 'fire', after: 'turning_cut', cond: AOE(2) },
   frost_lance: { family: 'ice', after: 'turning_cut', cond: [] },
   hunters_mark: { family: null, after: 'challenge', cond: [] },
+  /* E3's samples (e3-lab.json): an aura move holds while slotted; Warm Stone takes the ally-shield target rule (an ally under 70%, unshielded) */
+  t_open_fire: { family: null, after: 'greater_mend', cond: [] },
+  t_open_fire_whole: { family: null, after: 'greater_mend', cond: [] },
+  t_warm_stone: { family: null, after: 'power_strike', cond: [] },
 };
 const storeRune = (family, tier) => (tier === 'chalked' ? `plain_${family}_rune` : `plain_${tier}_${family}_rune`);
 const ownRunes = (family) => RUNE_TIERS.map(([, t]) => `${t}_${family}_rune`).reverse();
@@ -88,18 +94,21 @@ const PLANS = {
   l10: [cellOf('M', 'M'), cellOf('M+GM@ham:1000', 'M', [[0, 'greater_mend', 1000, 7]])],
   /* Q5: one cell, timed */
   time: [cellOf('M', 'M')],
+  /* E3 (lane/e2-e3-statuses): Open Fire on the healer as sized (build slice, ramped) and whole, and Warm Stone on the hammer (pm null: the row as it is) */
+  e3: [cellOf('M', 'M'), cellOf('M+FIRE@heal', 'M', [[3, 't_open_fire', null, 0]]), cellOf('M+FIREW@heal', 'M', [[3, 't_open_fire_whole', null, 0]]),
+    cellOf('M+WS@ham', 'M', [[0, 't_warm_stone', null, 0]])],
 };
 const plan = PLANS[PLAN];
 if (!plan) { console.error('roads-run: no plan ' + PLAN + ' (' + Object.keys(PLANS).join(', ') + ')'); process.exit(2); }
 
-const TREE = await C.treeOf(C.readCandidate(join(HERE, 'roads-lend.json')));
+const TREE = await C.treeOf(C.readCandidate(arg('candidate') ? resolve(ROOT, arg('candidate')) : join(HERE, 'roads-lend.json')));
 const jobs = [], cells = [];
 for (const c of plan) {
   const styles = BASES[c.base];
   const b = buildCell(D, K, { L, gear: 'mid', styles, tier: 'normal', ground: GROUND });
   const addSlotsBySeat = styles.map(() => null), lent = {};
   for (const [seat, id, pm, reach] of c.borrows) {
-    const style = styles[seat], role = STYLES[style].role, how = HOW[id], cid = lentId(id, DISC[style], pm, reach);
+    const style = styles[seat], role = STYLES[style].role, how = HOW[id], cid = pm === null ? id : lentId(id, DISC[style], pm, reach);
     const magic = (b.cell.skillsBySeat[seat] || {}).magic || L;
     const action = how.family ? { id: cid, type: 'ability', own: ownRunes(how.family), store: storeRune(how.family, shoppingTier(role, how.family, magic, 'real')), onEmpty: 'store' } : { id: cid, type: 'ability' };
     addSlotsBySeat[seat] = { after: how.after, slots: [...((addSlotsBySeat[seat] && addSlotsBySeat[seat].slots) || []), { id: 'p_' + cid, join: 'and', conditions: how.cond, action }] };

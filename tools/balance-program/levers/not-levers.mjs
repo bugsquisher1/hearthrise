@@ -16,6 +16,14 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/party-class-xp.js#said', why: 'a builder of the printed lines' },
   { at: 'src/data/party-class-xp.js#lines', why: 'a builder of the printed lines' },
   { at: 'src/data/party-class-xp.js#row', why: 'the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys' },
+  /* units of the Inner Flame, Temper, imbuement and loot arithmetic (lane/flame-temper-build): a scale, never a balance choice */
+  { at: 'src/core/inner-flame.js#MINUTE_MS', why: 'a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)' },
+  { at: 'src/core/inner-flame.js#roomMpts', why: 'units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)' },
+  { at: 'src/core/inner-flame.js#decay', why: 'units: 60 minutes x a million parts (decayPpm is the lever)' },
+  { at: 'src/core/imbue.js#HOUR_MS', why: 'a unit: the milliseconds in an hour (IMBUE.hours is the lever)' },
+  { at: 'src/core/personal-loot.js#UNIT', why: 'a unit: hero_pity holds millionths of x' },
+  { at: 'src/core/temper-steps.js#rankQuote', why: 'units: milli-hours x permille (TEMPER_STEPS is the lever)' },
+  { at: 'src/core/temper-steps.js#seatPrice', why: 'units: milli-hours x permille (TEMPER_STEPS.carryPm is the lever)' },
   /* validators and audit bands: quoted as ranges */
   { at: 'src/**#validate*', why: 'a validator: its bounds are the valid range (field 3) of the lever it checks' },
   { at: 'src/data/monster-classes.js#TIER_BANDS', why: 'audit bands every hand monster row must land inside (auditRoster): the valid range of mon.rows' },
@@ -67,7 +75,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/hunt-grounds.js#MAX_SEATS', why: 'seats on an instance (4): a shape' }, { at: 'src/data/hunt-grounds.js#inRect', why: 'geometry' },
   { at: 'src/data/catacomb-wings.js#WINGS', why: 'each wing\'s rooms (pocket indexes into the Unmarked Catacombs\' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms\' monsters are the pack\'s rows' },
   { at: 'src/data/catacomb-wings.js#weightsOf', why: 'the pack convention\'s spawn weight: the head-count of a box at a pull of 4 (a hunts.js display weight)' },
-  { at: 'src/data/statuses.js#slowAt', why: 'rounding (+500 / 1000)' }, { at: 'src/data/gear-tiers.js#round5', why: 'rounding to fives' },
+  { at: 'src/data/statuses.js#slowAt', why: 'rounding (+500 / 1000)' }, { at: 'src/core/hunt/heal-cut.js#healCutPmOf', why: 'a bound: a heal cut never takes a heal whole (999 of 1000)' }, { at: 'src/data/gear-tiers.js#round5', why: 'rounding to fives' },
   /* engine plumbing: units, rounding, randomness, hashing, geometry, budgets */
   { at: 'src/core/rng.js#*', why: 'the seeded random stream' }, { at: 'src/core/combat-sim.js#seedOf', why: 'a seed' }, { at: 'src/core/member.js#frozenKey', why: 'a hash' },
   { at: 'src/core/hunt-track.js#*', why: 'the hunt track\'s size limits and hash' }, { at: 'src/core/hunt/world-state.js#*', why: 'world state codec' }, { at: 'src/core/hunt/events.js#*', why: 'the event format version' },

@@ -8,13 +8,8 @@ O=tools/balance-program/redesign/gear-steps
 FROM=${1:-}
 run() { name=$1; shift; if [ -n "$FROM" ] && [ "$name" != "$FROM" ]; then echo "$name skipped"; return; fi; FROM=; node $V --seeds 6 --hours 12 --workers 18 --risks steady "$@" --json $O/$name.json > $O/$name.txt 2>&1; echo "$name exit $?"; }
 # the standard mixed four (hammer, bow, mage, healer): the shipped tier each way, weapon and armor together and apart
-run muster-L60 --ground muster_barrows --level 60 --only base,back,up,weapon,armor
-# one whole kit one tier (GEAR_STEPS.tierSteps item Levels) each way: the power step's own move (the candidates, re-cut for the scale view)
-run muster-L60-kit-ahead --ground muster_barrows --level 60 --only base --candidate power-tier-ahead
-run muster-L60-kit-back --ground muster_barrows --level 60 --only base --candidate power-tier-back
+run muster-L60 --ground muster_barrows --level 60 --only base,back,up
 run hasks-L52 --ground hasks_ford --level 52 --only base,back,up
-run hasks-L52-kit-ahead --ground hasks_ford --level 52 --only base --candidate power-tier-ahead
-run hasks-L52-kit-back --ground hasks_ford --level 52 --only base --candidate power-tier-back
 # the band's ends: Muster at 70, Hask's at 45
 run muster-L70 --ground muster_barrows --level 70 --only base,back,up
 run hasks-L45 --ground hasks_ford --level 45 --only base,back,up
@@ -24,3 +19,6 @@ run muster-L60-axes --ground muster_barrows --level 60 --only base --styles axes
 run muster-L60-sword --ground muster_barrows --level 60 --only base --styles sword,crossbow,mage,healer
 run hasks-L52-swordtank --ground hasks_ford --level 52 --only base --styles tank,crossbow,mage,healer
 run hasks-L52-axes --ground hasks_ford --level 52 --only base --styles axes,bow,mage,healer
+# the power step's own move for a whole kit one tier each way (the candidates re-cut for the scale view; GEAR_SCALE_STAT_PM does not touch it):
+# view-0/muster-L60-kit-*, view-0/hasks-L52-kit-* (the step reads danger.js itemLevelOf, the view gear-stats.js itemLevelOfRow), and on the
+# set's own tree before this lane before-muster-L60-kit-ahead. view-0/ is the same plan at GEAR_SCALE_STAT_PM 0.

@@ -196,6 +196,12 @@
         "gzipBytes": 920659,
         "on": "2026-11-23",
         "why": "moves pass 1: Challenge default bar, prefers targets and tooltip lines at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920727,
+        "on": "2026-11-23",
+        "why": "band floor: re-cut bands and Trait re-homes read at town"
       }
     ]
   }

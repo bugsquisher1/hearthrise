@@ -33,21 +33,21 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Regeneration | 4 | 3 | 0 | 0 | 1 | 2 | 2 | 0 |
 | Monster HP, damage, armor, resistances and behavior | 27 | 9 | 6 | 4 | 8 | 7 | 9 | 13 |
 | Spawn pacing and encounter composition | 11 | 6 | 1 | 3 | 1 | 1 | 5 | 4 |
-| Monster XP and loot values | 15 | 6 | 1 | 2 | 6 | 3 | 4 | 7 |
+| Monster XP and loot values | 16 | 7 | 1 | 2 | 6 | 3 | 5 | 8 |
 | Equipment stats and progression | 17 | 5 | 4 | 8 | 0 | 0 | 8 | 11 |
 | Imbuement effects | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 7 | 1 | 3 | 0 | 3 | 2 | 3 | 3 |
 | Rare-drop probabilities | 6 | 2 | 0 | 3 | 1 | 0 | 4 | 3 |
 | Economy sources and sinks | 35 | 21 | 3 | 10 | 1 | 0 | 30 | 22 |
-| **All** | **195** | 91 | 29 | 47 | 28 | 31 | 82 | 84 |
+| **All** | **196** | 92 | 29 | 47 | 28 | 31 | 83 | 85 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 678 (in 233 files, 15809 typed numbers) |
-| Claimed by a lever | 291 |
+| Top-level bindings in the rule code that hold a typed number | 679 (in 233 files, 15813 typed numbers) |
+| Claimed by a lever | 292 |
 | Claimed by a not-a-lever reason | 387 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
@@ -262,6 +262,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `regen.fist-wraps` The fist wraps' own heal | Regeneration | fists are a hidden two-row sample with no way in the engine's style list |
 | not-built | `resist.storm-necrotic` Storm mana burn and Necrotic heal cut | Resistances | dark behind src/data/necrotic-storm.js live: false. The knobs stormDrain and necroticCut move numbers no cell reads until a patch switches it on |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |

@@ -23,7 +23,8 @@
 //         counts only on a hunt started with at least twice its threshold
 //   GS-5  THE POOL: the 40 of 14-trait-candidates.md by number, name and ground; every Trait slot holds 2 or more Traits of 2 or more
 //         keys (so a Very Rare can roll), every similar group the doc lists shares one key, no Very Rare pair shares a key, every
-//         ground's pool serves 2 or more seats; every scale ground's gearLevel is a whole tier and its traits are exactly its pool
+//         ground's pool serves 2 or more seats; every scale ground's gearLevel is a whole tier and its traits are exactly its pool;
+//         THE ROLL (GEAR_STEPS.traitRoll, 24-content-pipeline.md G8): slot first, then the (ground, slot) cell, no cell over cellMax
 //   GS-6  HIDDEN: the only file under src/ or supabase/functions/ that imports gear-steps.js is src/data/danger.js, the only one that
 //         imports traits.js is gear-steps.js (the generated preload list src/app/game-modules.js may name both), and no other src
 //         file names a Trait's id or name (no drop table, item, text or screen)
@@ -64,7 +65,7 @@ const HOMES = new Set(['src/data/gear-steps.js', 'src/data/traits.js']);
 /* the doc's words for a ground and a slot heading */
 const DOC_GROUNDS = Object.freeze({
   'Muster Barrows': 'muster_barrows', 'Pyre Field': 'pyre_field', 'Krell\'s Hold': 'krells_hold', 'Carter\'s Rest': 'carters_rest',
-  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
+  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Hask\'s Ford': 'hasks_ford', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
 });
 const DOC_SLOTS = Object.freeze({ Weapon: 'weapon', Shield: 'shield', Body: 'body', Legs: 'pants', Helmet: 'helmet', Boots: 'boots',
   Gloves: 'gloves', Belt: 'belt', Cape: 'cape', Necklace: 'necklace', Ring: 'ring', Earrings: 'earrings' });
@@ -245,6 +246,12 @@ export function problems(d) {
     if (keys.size !== 1) out.push('GS-5 the similar group #' + g.join(' #') + ' does not share one stacking key');
   }
   const pools = new Set(rows.map(([, t]) => t.source));
+  /* THE ROLL: slot first, then one Trait of the (ground, slot) cell; a cell holds at most cellMax (a new Trait dilutes only its cell) */
+  const roll = G.traitRoll || {};
+  if (roll.slotFirst !== true || !(Number.isInteger(roll.cellMax) && roll.cellMax >= 1) || !(Number.isInteger(roll.seatsMin) && roll.seatsMin >= 2)) out.push('GS-5 traitRoll is not slot first with a whole cellMax and a seatsMin of 2 or more');
+  const cells = new Map();
+  for (const [id, t] of rows) { const k = t.source + ' ' + t.slot; cells.set(k, (cells.get(k) || []).concat(id)); }
+  for (const [k, ids] of cells) if (ids.length > (roll.cellMax || 0)) out.push('GS-5 the cell ' + k + ' holds ' + ids.length + ' Traits, over traitRoll.cellMax ' + roll.cellMax + ': ' + ids.join(', '));
   for (const src of pools) {
     const pool = d.traitPool(src);
     if (new Set(pool.map((id) => d.TRAITS[id].best.seat)).size < 2) out.push('GS-5 ' + src + '\'s pool serves one seat');
@@ -351,6 +358,8 @@ const MUTANTS = [
   ['GS-5 a pool of one seat', (d) => { for (const id of d.traitPool('wyvern_roost')) d.TRAITS[id].best.seat = 'ranger'; }],
   ['GS-5 a pair roller that pairs one key', (d) => { d.veryRarePairs = (tr, b, src, s) => (s === 'cape' ? [['captains_due', 'raised_colors']] : []); }],
   ['GS-5 a slot whose only pairs are banned', (d) => { d.GEAR_STEPS.veryRareBanned = ['banded_oath+bottom_of_the_quiver', 'banded_oath+full_cellar', 'banded_oath+hasks_bargain', 'banded_oath+lookouts_promise', 'bottom_of_the_quiver+full_cellar', 'bottom_of_the_quiver+hasks_bargain', 'bottom_of_the_quiver+lookouts_promise', 'full_cellar+hasks_bargain', 'full_cellar+lookouts_promise', 'hasks_bargain+lookouts_promise']; }],
+  ['GS-5 a cell of three', (d) => { d.TRAITS.keepers_carry.source = 'catacomb_bone_wing'; d.TRAITS.keepers_carry.best.ground = 'catacomb_bone_wing'; }],
+  ['GS-5 a roll that is not slot first', (d) => { d.GEAR_STEPS.traitRoll = { ...d.GEAR_STEPS.traitRoll, slotFirst: false }; }],
   ['GS-5 a ground off the tier', (d) => { d.DANGER_GROUNDS.muster_barrows.gearLevel += 5; }],
   ['GS-5 a pool that drops a Trait', (d) => { d.DANGER_GROUNDS.muster_barrows.traits = ['file_breaker']; }],
   ['GS-6 a screen imports the gear table', (d) => { d.files.set('src/shell/x.js', "import { GEAR_STEPS } from '../data/gear-steps.js';"); }],

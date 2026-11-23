@@ -27,8 +27,8 @@
 // (its base's merge base..HEAD), which the gate scopes by the same switch: never wider than a release.
 // The proofs read COMMITTED files, as GitHub does: commit first.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { basename } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { changedFiles, guardSources, touchedBy } from './lib/guard-deps.mjs';
 import { isMain } from '../tests/_is-main.mjs';
@@ -37,8 +37,18 @@ import { isMain } from '../tests/_is-main.mjs';
 /* Never scheduled here, whatever the diff touches: run-ci-local is a way to reproduce a GitHub red, not a gate
    (CLAUDE.md §3.3), and on 2026-11-11 six lanes ran it at once because their diffs touched CI files. */
 export const NEVER_SCHEDULED = Object.freeze(['tests/run-ci-local.mjs']);
-export const pickTests = (entries) => new Map([...entries]
-  .filter(([t]) => t.startsWith('tests/') && !basename(t).startsWith('_') && !NEVER_SCHEDULED.includes(t)));
+/* NOT A CI TEST (2026-11-23, lane/ci-reds-orphans): a file tests/guards-unregistered.json names under `guards` is one no workflow
+   runs (guard-hygiene RULE 3 keeps that true), by hand only: the *-world.mjs walks (minutes each, a browser and the replayed chain)
+   and the retired T-03 party-class-xp-line. Lanes read their reds as the set's; they are named, never run, here. A
+   `being-registered` entry is on its way into CI and still runs. */
+export function byHandTools(root = process.cwd()) {
+  try {
+    const g = JSON.parse(readFileSync(join(root, 'tests/guards-unregistered.json'), 'utf8')).guards || {};
+    return new Set(Object.entries(g).filter(([f, v]) => !f.startsWith('$') && v && v.disposition !== 'being-registered').map(([f]) => `tests/${f}`));
+  } catch { return new Set(); }
+}
+export const pickTests = (entries, byHand = new Set()) => new Map([...entries]
+  .filter(([t]) => t.startsWith('tests/') && !basename(t).startsWith('_') && !NEVER_SCHEDULED.includes(t) && !byHand.has(t)));
 
 /** preflight.local.mjs's argv for this run's proofs, or null for none. The default is --as-release; --proofs is the old run. Pure. */
 export function proofArgs(argv, base) {
@@ -153,7 +163,24 @@ function selftest() {
     const runs = [{ databaseId: 1, headSha: H, event: 'workflow_dispatch', createdAt: '2026-11-21T01:00:00Z' }, { databaseId: 2, headSha: sha('e'), event: 'workflow_dispatch', createdAt: '2026-11-21T01:05:00Z' },
       { databaseId: 3, headSha: H, event: 'workflow_dispatch', createdAt: '2026-11-21T01:04:00Z' }, { databaseId: 4, headSha: H, event: 'push', createdAt: '2026-11-21T01:06:00Z' }];
     const dis = impl.dispatchArgs('lane/c-x', sha('a'), H);
+    /* BY THE REAL PATH (2026-11-23): an edit to tools/balance-program/levers/world.mjs pulled every tests/*-world.mjs (they import
+       tools/qa/local-world.mjs) into a lane's list, by basename */
+    const SRC = new Map([
+      ['tests/walk-world.mjs', "import { openWorld } from '../tools/qa/local-world.mjs';\n"],
+      ['tests/levers-x.mjs', "import { W } from '../tools/balance-program/levers/world.mjs';\n"],
+      ['tests/data-x.mjs', "const s = readFileSync(join(ROOT, 'src/data/world.js'), 'utf8');\n"],
+      ['tests/view-x.mjs', "const s = readFileSync(join(ROOT, 'src/world/local-world.js'), 'utf8');\n"],
+      ['tests/member-x.mjs', "const m = await import(pathToFileURL(join(SRC, 'core', 'member.js')).href); const t = 'core/member.js';\n"],
+      ['tests/fixture-x.mjs', "const f = 'tests/fixtures/member.js';\n"],
+    ]);
+    const tb = (f) => [...impl.touched([f], SRC).keys()].sort().join(',');
+    const hand = impl.pickTests([['tests/char-wipe-world.mjs', 'x'], ['tests/ci-shape.mjs', 'y']], new Set(['tests/char-wipe-world.mjs']));
     return [
+      [tb('tools/balance-program/levers/world.mjs') === 'tests/levers-x.mjs', 'an edit to levers/world.mjs picks its importer only, never a walk importing qa/local-world.mjs'],
+      [tb('tools/qa/local-world.mjs') === 'tests/walk-world.mjs', 'an edit to qa/local-world.mjs picks the walk that imports it'],
+      [tb('src/data/world.js') === 'tests/data-x.mjs', 'src/data/world.js picks the guard naming it, not one naming src/world/local-world.js'],
+      [tb('src/core/member.js') === 'tests/member-x.mjs', 'a literal\'s directories bind as the tail of the real path (core/member.js names src/core/member.js; tests/fixtures/member.js does not)'],
+      [[...hand.keys()].join(',') === 'tests/ci-shape.mjs', 'a by-hand tool (tests/guards-unregistered.json) is named, never run'],
       [[...got.keys()].join(',') === 'tests/ci-shape.mjs', 'run-ci-local is never scheduled'],
       [def.includes('--as-release') && def.includes('--plant') && def[def.indexOf('--base') + 1] === 'origin/set/v1', '--run proves as a release does (--as-release), against the lane\'s base'],
       [!all.includes('--as-release') && all.includes('--pages') && all.includes('--proofs'), '--proofs is the old run: every touched proof (and --pages passes through)'],
@@ -170,9 +197,21 @@ function selftest() {
         'the run found is the new dispatch of this head, never an older one or a push'],
     ];
   };
-  const real = { pickTests, proofArgs, nearestBase, remoteRefusal, dispatchArgs, pickRun };
+  const real = { pickTests, proofArgs, nearestBase, remoteRefusal, dispatchArgs, pickRun, touched: (c, s) => touchedBy(c, s) };
   for (const [c, m] of checks(real)) ok(c, m);
+  const by = byHandTools();
+  ok(by.has('tests/party-class-xp-line.mjs') && by.has('tests/char-wipe-world.mjs') && !by.has('tests/ci-shape.mjs'), 'the by-hand list is tests/guards-unregistered.json\'s (the retired T-03 and the world walks), no CI guard');
+  /* the basename rules this replaced: a stem anywhere at the end of a name, any directory */
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const stemOf = (p) => basename(p).replace(/\.(generated\.)?(js|mjs|ts|sql|css|html|json|sh)$/, '');
+  const oldImports = (t, s) => ({ has: (h) => new RegExp(`(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*)['"\`][^'"\`]*\\b${esc(stemOf(h))}\\.mjs['"\`]`).test(s) });
+  const oldNames = (s, p) => new RegExp(`['"\`][^'"\`]*${esc(stemOf(p))}\\.(?:generated\\.)?(?:js|mjs|ts|sql|css|html|json|sh)`).test(s);
+  const stemNames = (s, p) => new RegExp(`['"\`/]${esc(stemOf(p))}\\.(?:js|mjs)`).test(s);
   for (const [label, impl] of [
+    ['imports matched by basename (local-world.mjs is world.mjs)', { ...real, touched: (c, s) => touchedBy(c, s, { imports: oldImports }) }],
+    ['path strings matched by basename suffix', { ...real, touched: (c, s) => touchedBy(c, s, { names: oldNames }) }],
+    ['path strings matched by file name, any directory', { ...real, touched: (c, s) => touchedBy(c, s, { names: stemNames }) }],
+    ['by-hand tools run', { ...real, pickTests: (e) => pickTests(e) }],
     ['run-ci-local is scheduled', { ...real, pickTests: (e) => new Map([...e].filter(([t]) => t.startsWith('tests/') && !basename(t).startsWith('_'))) }],
     ['--run proves every touched proof again', { ...real, proofArgs: (a, b) => proofArgs([...a, '--proofs'], b) }],
     ['--proofs is ignored', { ...real, proofArgs: (a, b) => proofArgs(a.filter((x) => x !== '--proofs'), b) }],
@@ -202,9 +241,13 @@ function main(args) {
   const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : auto?.ref || 'origin/main';
   if (args.includes('--remote')) return remote(base);
   const changed = changedFiles(process.cwd(), `${base}...HEAD`, { worktree: true });
-  const pick = pickTests(touchedBy(changed, guardSources(process.cwd())));
+  const touched = touchedBy(changed, guardSources(process.cwd()));
+  const byHand = byHandTools();
+  const pick = pickTests(touched, byHand);
   const list = [...pick.entries()].sort();
   console.log(`${changed.length} changed files vs ${base}${auto ? ` (the nearest base: ${auto.ahead} commit(s) since its merge base)` : ''} → ${list.length} tests`);
+  const handOnly = [...touched.keys()].filter((t) => byHand.has(t)).sort();
+  if (handOnly.length) console.log(`  not run (by-hand tools no workflow runs, tests/guards-unregistered.json): ${handOnly.join(' ')}`);
   if (!args.includes('--run')) {
     for (const [t, why] of list) console.log(`  node ${t}   (${why})`);
     console.log(`  + the proofs a release runs for this diff: node tools/preflight.local.mjs --proofs --as-release --list --base ${base}`);

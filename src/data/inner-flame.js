@@ -89,7 +89,7 @@ export const FLAME_FUEL = (() => {
 /** Every problem with the levers, as text; [] when sound (tests/flame-rules.mjs, tools/gen-flame-temper.mjs refuses to write on any). */
 export function validateFlame() {
   const out = [], F = FLAME, int = (v) => Number.isInteger(v);
-  for (const [k, v] of Object.entries(F)) if (k !== 'stokeKeeps' && !(int(v) && v > 0)) out.push('FLAME.' + k + ' is not a whole number above 0');
+  for (const [k, v] of Object.entries(F)) if (k !== 'stokeKeeps' && !(typeof v === 'number' && int(v) && v > 0)) out.push('FLAME.' + k + ' is not a whole number above 0');
   if (!(F.decayPpm99 < F.decayPpm1)) out.push('FLAME: the burn at 99 must be under the burn at 1 (the Level is the reward)');
   if (!(F.coverPm > 1000)) out.push('FLAME.coverPm must be over 1000: the room stands over the own-drops height');
   if (!(F.topRankPm <= F.topRankMaxPm && F.topRankMaxPm <= 1000)) out.push('FLAME: topRankPm <= topRankMaxPm <= 1000');

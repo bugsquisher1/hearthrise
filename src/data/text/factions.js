@@ -108,9 +108,9 @@ export const FACTIONS_TEXT = Object.freeze({
   claimed: '{piece} claimed',
 
   /* Refusals that carry the server's numbers. */
-  short_standing: '{piece} needs {need} {side} standing. Standing: {have}',
-  short_swap: 'Swap needs {need} on their grounds. Done: {have}',
-  cooldown: 'Changed sides recently. Next swap: {time}',
+  short_standing: '{piece}: requires {need} {side} standing (have {have})',
+  short_swap: 'Swap: requires {need} on their grounds (done {have})',
+  cooldown: 'Recently swapped · Next swap: {time}',
   /* a span under a minute, as the labels read it ("Standing: 0 h") */
   no_time: '0 h',
   days: { one: '{count} day', other: '{count} days' },

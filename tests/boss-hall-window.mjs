@@ -225,9 +225,9 @@ async function checks(overrides) {
     if (!pn.noHall.hidden) fails.push('BH-1 a ground with no hall shows the section');
     /* Labels (lane/d-labels-sweep, Tyler 2026-11-14 "Those are much better"): the food floor, then the "What wins" label over the tips. */
     if (pn.shrimp.bars !== 'Requires Salted Lobster or better on every bar What wins'
-      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Slot 1: Salted Shrimp heals too little here. Pick Salted Lobster') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
+      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Slot 1: Salted Shrimp too weak here · Use Salted Lobster') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
     /* the hall's door says it in the one weak-food rule's words, naming the slot (the full-game audit's A25: "Change that slot" named none) */
-    if (pn.peer.food !== 'Mender\'s slot 1: Salted Shrimp heals too little here. Pick Salted Lobster') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
+    if (pn.peer.food !== 'Mender\'s slot 1: Salted Shrimp too weak here · Use Salted Lobster') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
     if (pn.lobster.food !== null || !pn.plainBars) fails.push('BH-1 the food line shows on Salted Lobster, or a hall with no advice shows a bar line: ' + JSON.stringify([pn.lobster, pn.plainBars]));
     if (pn.otherSetup.food !== null) fails.push('BH-1 the hall judges the bar on now while another setup is picked to go: ' + JSON.stringify(pn.otherSetup));
     for (const [k, x] of Object.entries(pn)) if (/[{}]/.test(Object.values(x).join(' '))) fails.push('BH-1 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
@@ -261,7 +261,7 @@ async function checks(overrides) {
     /* BH-1 once per slot, in the hall's band: Salted Shrimp at 85 is the ground's line (Pick Salted Trout), not a second pick here; Salted Trout
        at 85 is the hall's own; at Level 5 nothing (under the hall's band) */
     const kf = r.krellTable.food;
-    if (kf.shrimp85 !== null || kf.trout85 !== 'Slot 1: Salted Trout heals too little here. Pick Salted Lobster' || kf.trout5 !== null)
+    if (kf.shrimp85 !== null || kf.trout85 !== 'Slot 1: Salted Trout too weak here · Use Salted Lobster' || kf.trout5 !== null)
       fails.push('BH-1 Krell\'s hall food line reads ' + JSON.stringify(kf));
     const kp = r.krellTable.page;
     if (kp.ahead.tableHead !== 'Loot table: 16 pieces, one roll a day' || kp.ahead.table.join('|') !== r.krellTable.first.join('|')) fails.push('BH-7 Krell\'s page, the first win ahead, lists ' + JSON.stringify([kp.ahead.tableHead, kp.ahead.table]));

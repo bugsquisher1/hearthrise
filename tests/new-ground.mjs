@@ -17,6 +17,10 @@
 //   NG-4  --write's row edit sets the band on an existing row, adds or drops refKillsHead, leaves every other row alone, and refuses
 //         a ground with no row (a new ground's gear base, drop home and Trait pool are the designer's)
 //   NG-5  the print moves when a ground's monster numbers or pockets move, and not for a name, an icon or a drop
+//   NG-6  THE MEASURING CHECK OF THE ABSOLUTE BAND (lane/foundations-block; src/core/bands.js bandAbs, src/data/sustain.js): every pinned
+//         ground's evidence read with its formula band keeps its pin's verdict (today's rows pass), and each failure the check exists for is
+//         a REVIEW note: a ground a tier under that tops out under this floor (27 K-6), a MID cell measured off the row's refLevel (27 K-5),
+//         and a reference company whose regeneration, heal spells or food leave their sustain bands (04 section 3)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -28,6 +32,8 @@ const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { DANGER_GROUNDS, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
 const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
 const { MONSTERS } = await imp('src/data/monsters.js');
+const { bandAbs } = await imp('src/core/bands.js');
+const { SUSTAIN } = await imp('src/data/sustain.js');
 const PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
 const json = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
 const R10 = 'tools/balance-program/redesign/r10/';
@@ -94,6 +100,30 @@ ok(packPrint(moved, MONSTERS, monstersOn) !== base, 'NG-5 a pocket losing a mons
 /* (lane/monster-formula) the ground's monsters switch: on the formula its rows play other numbers, so the print moves; on its rows it stays */
 ok(packPrint(g, MONSTERS, monstersOn, 'formula') !== base, 'NG-5 the monsters switch to the formula kept the print');
 ok(packPrint(g, MONSTERS, monstersOn, 'rows') === base, 'NG-5 a ground on its rows moved the print');
+
+/* NG-6 */
+const absOf = (g, o = {}) => ({ band: bandAbs(g), prevTopPm: null, refLevel: DANGER_GROUNDS[g].refLevel, sustain: SUSTAIN, ...o });
+for (const [g, pin] of Object.entries(PINS)) {
+  if (!DANGER_GROUNDS[g] || pin.hand) continue;
+  const ev = evidenceOf(g, pin), c = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, absOf(g, { refLevel: ev.ref.levels[0] }));
+  ok(c.verdict === pin.verdict, 'NG-6 ' + g + ' with its absolute band reads ' + c.verdict + ', its pin ' + pin.verdict + ': ' + c.notes.join(' | '));
+  ok(c.info.some((x) => /absolute band/.test(x)), 'NG-6 ' + g + ' does not print its absolute band');
+}
+{
+  const g = 'muster_barrows', ev = evidenceOf(g, PINS[g]), b = bandAbs(g);
+  const gap = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, absOf(g, { prevTopPm: b.floorPm - 1000, refLevel: ev.ref.levels[0] }));
+  ok(gap.verdict === 'REVIEW' && gap.notes.some((x) => /K-6/.test(x)), 'NG-6 a ground a tier under topping out under the floor was not a K-6 note: ' + gap.verdict);
+  const off = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, absOf(g, { refLevel: ev.ref.levels[0] + 5 }));
+  ok(off.verdict === 'REVIEW' && off.notes.some((x) => /K-5/.test(x)), 'NG-6 a MID cell off the refLevel was not a K-5 note: ' + off.verdict);
+  const withSustain = (sus) => ({ ...ev, ref: { ...ev.ref, cells: { ...ev.ref.cells, 'base:steady': { ...ev.ref.cells['base:steady'], sustain: sus } } } });
+  const inBand = { freePm: SUSTAIN.freePm.at, spellPm: SUSTAIN.healerPm.at, foodPm: SUSTAIN.supplyPm.at, takenPmS: 10 };
+  const fine = bandFromReports(withSustain(inBand), PAY, DEPTHS, BAND_RULE, absOf(g, { refLevel: ev.ref.levels[0] }));
+  ok(fine.verdict === PINS[g].verdict && fine.info.some((x) => /sustain at the reference/.test(x)), 'NG-6 a sustain reading in band moved the verdict or went unprinted: ' + fine.notes.join(' | '));
+  for (const [k, field] of [['freePm', 'freePm'], ['healerPm', 'spellPm'], ['supplyPm', 'foodPm']]) {
+    const bad = bandFromReports(withSustain({ ...inBand, [field]: SUSTAIN[k].band[1] + 1 }), PAY, DEPTHS, BAND_RULE, absOf(g, { refLevel: ev.ref.levels[0] }));
+    ok(bad.verdict === 'REVIEW' && bad.notes.some((x) => x.includes(k)), 'NG-6 a reference ' + k + ' over its band was not a note');
+  }
+}
 
 if (fails.length) { console.error('new-ground: ' + fails.length + ' failed\n  ' + fails.join('\n  ')); process.exit(1); }
 console.log('new-ground: every pinned band cuts back from its evidence, the floor sits under every fresh four, verdicts read the deaths, the row edit and the print hold');

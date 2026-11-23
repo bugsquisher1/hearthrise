@@ -221,7 +221,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
         if (!/Tempering Salts: 4\/20, 1 in Storage/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
         const way = await txt(page, '.hw-temper-way');
-        if (!/Tempering Salts: requires Smithing 15 \(now \d+\), made from 1 Iron Bar and 1 Bone Chips\. Bone Chips drop from /.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+        if (!/Tempering Salts: requires Smithing 15 \(now \d+\) · Made from 1 Iron Bar and 1 Bone Chips · Bone Chips: dropped by /.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
       }
       await ctx.close();
     }
@@ -234,7 +234,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         const way = (await txt(page, '.hw-temper-way')) || '';
         const ins = (ARTISAN_RECIPES.smithing.find((r) => r.output === 'fine_temper_salts') || {}).inputs || {};
         const where = dropWhereWords('big_bones').replace(/^Dropped by /, '');
-        if (!where || !way.includes('made from ' + ins.iron_bar + ' Iron Bars and ' + ins.big_bones + ' Big Bones') || !way.includes('Big Bones drop from ' + where + '.'))
+        if (!where || !way.includes('Made from ' + ins.iron_bar + ' Iron Bars and ' + ins.big_bones + ' Big Bones') || !way.includes('Big Bones: dropped by ' + where))
           fails.push('SV-10 the way never says where Big Bones drop (' + JSON.stringify(where) + '): ' + JSON.stringify(way));
       }
       await ctx.close();
@@ -267,11 +267,11 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         await press(page, P + '[data-hs-act="temper-yes"]', 'SV-9');
         /* while the smith works the player reads back up the sheet; the answer still lands where it is seen (played at 844x390: half of it stood under the foot) */
         await page.evaluate(() => { document.querySelector('[data-hs-win="shop"] .hs-win-body').scrollTop = 0; });
-        const landed = await wait(page, () => /is at rung 2/.test(document.querySelector('.hw-services').textContent) && /Also sold at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
+        const landed = await wait(page, () => /: rung 2/.test(document.querySelector('.hw-services').textContent) && /Also sold at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
         /* the line that holds the answer, wherever the window put it, against every other line of the tab that shows */
         const cover = () => page.evaluate(() => {
           const lines = Array.from(document.querySelectorAll('.hw-services p, .hw-services li, .hw-services h3, .hw-services small')).filter((e) => e.getClientRects().length && e.textContent.trim());
-          const m = lines.find((e) => /is at rung 2/.test(e.textContent) && !e.querySelector('p, li'));
+          const m = lines.find((e) => /: rung 2/.test(e.textContent) && !e.querySelector('p, li'));
           if (!m) return { none: true };
           const a = m.getBoundingClientRect(), body = m.closest('.hs-win-body').getBoundingClientRect();
           const under = lines.filter((e) => e !== m && !e.contains(m) && !m.contains(e)).filter((e) => { const b = e.getBoundingClientRect(); return b.bottom > a.top + 1 && b.top < a.bottom - 1 && b.right > a.left && b.left < a.right; });
@@ -309,7 +309,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Bronze');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Not temperable, requires gear from Level 15/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
+        if (!/Not temperable \(requires Level 15\+ gear\)/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }
@@ -319,7 +319,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Mithril');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Not temperable yet, rungs only for Level 15 to 30 gear/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
+        if (!/Not temperable \(Levels 15–30 only\)/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }
@@ -331,8 +331,8 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Dawnsteel');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]'), a = await txt(page, '.hw-temper [data-track="armor"]');
-        if (!/Dawnsteel Sword/.test(b || '') || !/Rung 2\/5: damage and heals \+0\.8%\. Next: \+1\.2%\. Smaller rungs: 0\.4% each/.test(b || '')) fails.push('SV-7 a Dawnsteel Sword reads ' + JSON.stringify(b));
-        if (!/Rung 5\/5: damage taken -2%, max\. Smaller rungs: 0\.4% each/.test(a || '') || !(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 Dawnsteel armor reads ' + JSON.stringify(a));
+        if (!/Dawnsteel Sword/.test(b || '') || !/Rung 2\/5: damage and heals \+0\.8% · Next: \+1\.2% · Smaller rungs: 0\.4% each/.test(b || '')) fails.push('SV-7 a Dawnsteel Sword reads ' + JSON.stringify(b));
+        if (!/Rung 5\/5: damage taken -2%, max · Smaller rungs: 0\.4% each/.test(a || '') || !(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 Dawnsteel armor reads ' + JSON.stringify(a));
         if (!/160,000/.test((await txt(page, '.hw-temper [data-track="blows"] button')) || '')) fails.push('SV-7 the Dawnsteel rung is not at the server\'s price: ' + JSON.stringify(await txt(page, '.hw-temper [data-track="blows"] button')));
       }
       await ctx.close();
@@ -380,7 +380,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
 const MUTANTS = [
   ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = el.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = el.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', el, sc, repaint);\n    sc.msg = '';"],
   ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
-  ['Dawnsteel never says why its rungs are smaller (SV-7)', 'src/shell/windows/temper-pane.js', "const small = (r.smallPm ? '. ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '') + bands;", "const small = bands;"],
+  ['Dawnsteel never says why its rungs are smaller (SV-7)', 'src/shell/windows/temper-pane.js', "const small = (r.smallPm ? ' · ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '') + bands;", "const small = bands;"],
   ['every tier is told it takes smaller rungs (SV-7)', 'src/session/temper-sections.js', '  return l && l.pm < TEMPER_RUNG_PM ? l.pm : 0;', '  return l ? l.pm : 0;'],
   ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
   ['short of material stays on (SV-8)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || !!short ||"],

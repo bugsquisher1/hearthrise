@@ -62,7 +62,7 @@ export function workDoneOf(cs, sawKey) {
     said = t('work.done_fuel', { name, count: whole(n), item: itemNameFor(input, n) });
   }
   return { id: 'work:' + runKey(run), kind: 'work', session: null,
-    text: said + (sk ? ' ' + t('work.done_level', { skill: skillName(w.skill), level: sk.level }) : '') };
+    text: said + (sk ? ' · ' + t('work.done_level', { skill: skillName(w.skill), level: sk.level }) : '') };
 }
 
 /** The line for the titles earned and not claimed that `told` has not seen, or null. `also`: the other titles' ids, told with it. */

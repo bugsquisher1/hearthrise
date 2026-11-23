@@ -1441,7 +1441,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           return { text: n && n.textContent, px: n && parseFloat(getComputedStyle(n).fontSize), on: !!r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth,
             play: b && getComputedStyle(b.querySelector('.char-unopened-play')).display, shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot,
             open: document.querySelectorAll('.char-tab').length }; });
-        if (!capped || !said || cap.text !== 'Heroes at once: 1. Sign out to pick Fennick' || !(cap.px >= 12) || !cap.on
+        if (!capped || !said || cap.text !== 'Heroes at once: 1 · Sign out to pick Fennick' || !(cap.px >= 12) || !cap.on
           || cap.play !== 'none' || cap.shown !== '0' || cap.open !== 1 || reads() !== before)
           fails.push('B-9 at the play-at-once limit a press on Fennick, not open, reads ' + JSON.stringify({ capped: !!capped, said: !!said, ...cap, asked: reads() - before }));
       }

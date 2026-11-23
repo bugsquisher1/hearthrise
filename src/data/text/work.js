@@ -25,7 +25,7 @@ export const WORK_TEXT = Object.freeze({
   /* A JOB'S COUNT AND ITS "THEN" (1026-job-counts.sql, plan L08): the line's end for a counted job, the how line over a gathering
      skill's rows, and the control that picks what the hero does when the count is done (one pick for the window, Wait by default). */
   now_then_wait: 'Then waits in town',
-  use_gather: 'Runs offline until its count is done',
+  use_gather: 'Runs offline until done',
   count_label: 'How many',
   then_label: 'When it is done',
   then_wait: 'Wait in town',
@@ -36,11 +36,11 @@ export const WORK_TEXT = Object.freeze({
   day_done: 'No town work left today · Resets 00:00 UTC',
   /* THE LINE WHEN A BENCH RUN FINISHES IN VIEW (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word): what it
      made or burned, the server's count, then the skill's level as a label. */
-  done_made: '{name} made {count} {item}.',
+  done_made: '{name}: made {count} {item}',
   /* ...a run whose crafts can burn or roll grades (Cooking, jewelry): the run's tally counts crafts, so no number is said */
-  done_run: '{name} finished making {item}.',
-  done_fuel: '{name} fueled the Great Hearth with {count} {item}.',
-  done_level: '{skill} {level}.',
+  done_run: '{name}: {item} done',
+  done_fuel: '{name}: {count} {item} burned in the Great Hearth',
+  done_level: '{skill} {level}',
   /* A skill ledger's unlock line (src/shell/windows/skills.js unlockLine, the Character sheet's combat skills too): the first thing
      the next level opens, and how many more it opens (all of them, with their kinds, are the line's tooltip). */
   skill_next: 'Lv {level}: {name}',
@@ -65,14 +65,14 @@ export const WORK_TEXT = Object.freeze({
   ladder_head: 'Unlocks',
   /* A rolled job's odds before the roll (src/shell/windows/work.js oddsWords; src/data/jewelry.js): the grade at the hero's server level
      in the job's own skill, the perks it may roll, and what a boss drop set in place of the gem always gives. */
-  odds_at: 'Odds at {skill} {level}: {grade}. {perks}. No bench fee.',
+  odds_at: 'Odds at {skill} {level}: {grade} · {perks} · No bench fee',
   odds_plain: 'Fine {fine}, Hallmarked {hallmarked}, otherwise plain',
   odds_fine: 'Hallmarked {hallmarked}, otherwise Fine',
   odds_sealed: 'always Hallmarked',
   odds_perks: 'Perks: {perks}',
   odds_second: 'Second perk: {perks}',
   odds_or: '{list} or {last}',
-  odds_always: 'Always {perk}. {rest}',
+  odds_always: 'Always {perk} · {rest}',
   /* The bench fee the picked count takes before Start (src/shell/bench-fee.js feeLineWords), with its share of the purse from 10% up. */
   fee_all: '{gold} gold for all {n}',
   fee_n: '{gold} gold for {n}',

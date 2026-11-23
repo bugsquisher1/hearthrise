@@ -145,11 +145,11 @@ function spareOf(cs, items, rules, shop) {
 /* What Sell all junk leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept, spare) {
   const parts = [];
-  /* each part a sentence of its own (audit 2026-11-18 A14: "Keeps worn, higher-tier and Rare pieces Keeps 8 Material stacks" ran on) */
+  /* each part a label of its own, joined by a dot (audit 2026-11-18 A14: "Keeps worn, higher-tier and Rare pieces Keeps 8 Material stacks" ran on) */
   if (spare.lines.length) parts.push(t('shop.spare_keeps'));
   if (kept.ids.length) parts.push(t('shop.junk_keeps', { count: kept.ids.length, worth: gold(kept.worth) }));
   if (plan.capped) parts.push(t('shop.sale_cap', { n: whole(sellQty(Infinity)) }));
-  return parts.join(' ');
+  return parts.join(' · ');
 }
 
 function patchSell(root, st, ctx) {
@@ -170,7 +170,7 @@ function patchSell(root, st, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="sell" data-item="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       const isLocked = locked.has(r.id);
-      text(li.querySelector('small'), '×' + whole(r.qty) + ', ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ', locked' : keptLoot.has(r.id) ? '. ' + t('shop.junk_keeps_it') : spares.has(r.id) ? ', spare' : madeFromKit(r.id) ? '. Sell spare gear keeps it' : ''));
+      text(li.querySelector('small'), '×' + whole(r.qty) + ', ' + gold(bids.get(r.id)) + ' each' + (isLocked ? ', locked' : keptLoot.has(r.id) ? ' · ' + t('shop.junk_keeps_it') : spares.has(r.id) ? ', spare' : madeFromKit(r.id) ? ' · Kept by Sell spare gear' : ''));
       const b = li.querySelector('button');
       /* One sale takes up to the server's limit of a stack: a bigger stack's button says how many, so its price adds up. */
       const take = sellQty(r.qty);
@@ -215,7 +215,7 @@ renderShop.patch = function patchShop(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === st.sc.tab));
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === st.sc.tab);
   text(root.querySelector('.hw-gold'), 'Gold: ' + gold(st.gold));
-  text(root.querySelector('.hw-shop-note'), st.shop ? '' : 'Prices load from the server.');
+  text(root.querySelector('.hw-shop-note'), st.shop ? '' : 'Loading prices…');
   if (st.sc.tab === 'buy') patchBuy(root, st, ctx);
   else if (st.sc.tab === 'sell') patchSell(root, st, ctx);
   else patchServicesPane(root, ctx);

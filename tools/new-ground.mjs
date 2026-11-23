@@ -5,6 +5,11 @@
 //   node tools/new-ground.mjs <ground> --entry L --top L [--mid L] [--seeds 4] [--hours 12] [--workers 6] [--write]
 //   node tools/new-ground.mjs <ground> --ref a.json --top-report b.json --floor c.json [--write]     (read reports already run)
 //
+// THE BAND IS A FORMULA, THIS IS ITS MEASURING CHECK (lane/foundations-block, 2026-11-23; src/data/bands.js): a ground's band in absolute
+// steps is a formula of its entry Level, top Level and tier (src/core/bands.js bandAbs), so it exists before any run. What this measures is
+// the bridge: the own step where the formula's three companies hold (until monsters and blows are on the step, a ground's own step is not
+// an absolute one), and it checks the cut: no Steady death, the bands ordered, 27 K-6's handover from the ground a tier under, the MID cell
+// at the row's refLevel, and the reference company's sustain shares inside src/data/sustain.js's bands.
 // docs/design/redesign/24-content-pipeline.md section 2. R10 cut three bands by hand: three v1-climb runs a ground (LOW kits at the
 // entry Level, BIS at the top Level, MID at the middle), then the rounding and the cap read off by eye into src/data/danger.js. This
 // runs the same three cells (tools/balance-program/redesign/v1-climb.mjs, the Steady mixed four, held from hour 4), cuts the band by
@@ -36,6 +41,10 @@ if (!G) die('usage: node tools/new-ground.mjs <ground> --entry L --top L [--mid 
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { DANGER_GROUNDS, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
+/* THE ABSOLUTE BAND (lane/foundations-block): the band is a formula of the row (src/core/bands.js bandAbs); the cells measure its bridge */
+const { bandAbs, absPmOf, depthAt } = await imp('src/core/bands.js');
+const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
+const { SUSTAIN } = await imp('src/data/sustain.js');
 const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
 const { MONSTERS } = await imp('src/data/monsters.js');
 const ground = HUNT_GROUNDS[G];
@@ -51,7 +60,8 @@ if (arg('ref')) {
 } else {
   const entry = Number(arg('entry')), top = Number(arg('top'));
   if (!(entry > 0 && top > entry)) die('--entry and --top are the ground\'s Level band (entry < top)');
-  const mid = Number(arg('mid', Math.round((entry + top) / 2)));
+  /* the MID cell is the reference company: at the row's refLevel (27 K-5), else the band's middle for a ground with no row yet */
+  const mid = Number(arg('mid', DANGER_GROUNDS[G] && Number.isInteger(DANGER_GROUNDS[G].refLevel) ? DANGER_GROUNDS[G].refLevel : Math.round((entry + top) / 2)));
   levels = { entry, top, mid };
   mkdirSync(OUT, { recursive: true });
   const V1 = join(ROOT, 'tools', 'balance-program', 'redesign', 'v1-climb.mjs');
@@ -66,7 +76,10 @@ if (arg('ref')) {
   reports = { floor: run('floor', entry, 'low'), top: run('top', top, 'bis'), ref: run('ref', mid, 'mid') };
 }
 
-const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE);
+/* the scale ground one tier under this one (27 K-6: its top must reach this floor), by the rows' gear base */
+const prev = DANGER_GROUNDS[G] ? Object.keys(DANGER_GROUNDS).find((k) => DANGER_GROUNDS[k].gearLevel === DANGER_GROUNDS[G].gearLevel - GEAR_STEPS.tierSteps) : null;
+const abs = DANGER_GROUNDS[G] ? { band: bandAbs(G), prevTopPm: prev && bandAbs(prev) ? bandAbs(prev).topPm : null, refLevel: DANGER_GROUNDS[G].refLevel, sustain: SUSTAIN } : null;
+const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE, abs);
 const { _lowDepth, ...band } = cut.band;
 const print = packPrint(ground, MONSTERS, monstersOn, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters);
 const row = DANGER_GROUNDS[G];
@@ -79,6 +92,8 @@ if (row) console.log('  today  refStep ' + row.refStep + '  floorStep ' + row.fl
 for (const n of cut.notes) console.log('  note: ' + n);
 for (const n of cut.info) console.log('  info: ' + n);
 console.log('  print of the rows measured: ' + print);
+/* the measured holds read through the row's bridge as absolute steps (src/core/bands.js absPmOf): where each company sits in Levels of strength */
+if (row) console.log('  as absolute steps on the row: LOW ' + (absPmOf(G, Math.round(cut.cells.floor.held)) / 1000).toFixed(1) + ', MID ' + (absPmOf(G, Math.round(cut.cells.ref.held)) / 1000).toFixed(1) + ', BIS ' + (absPmOf(G, Math.round(cut.cells.top.held)) / 1000).toFixed(1) + ' (refLevel ' + row.refLevel + '); depths LOW ' + depthAt(G, Math.round(cut.cells.floor.lowest)) + ' (lowest seed), MID ' + depthAt(G, Math.round(cut.cells.ref.held)) + ', BIS ' + depthAt(G, Math.round(cut.cells.top.held)));
 
 if (!argv.includes('--write')) { console.log('\n(dry run: --write sets the band on the row and pins it in tests/danger-band-pins.json)'); process.exit(0); }
 if (!row) {

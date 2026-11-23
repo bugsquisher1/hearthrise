@@ -30,6 +30,7 @@ import { ABILITIES, abilitySkill } from '../data/abilities.js';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js';
 import { LANE_OF } from './hunt/conditions.js';
 import { gearPartPm } from './hunt/danger.js';
+import { skillLevelPm } from './bands.js';
 import { blowsPmOf, armorPmOf } from './temper.js';
 import { resistProfile } from './elements.js';
 
@@ -136,8 +137,14 @@ export function heroSnapshot(state, c) {
   const selfHealPm = c.eq && c.eq.selfHealPm > 0 ? c.eq.selfHealPm : 0;
   /* THE GEAR PART (src/core/hunt/danger.js gearPartPm, the gear table's): what the power step reads on the Danger scale, only there. */
   const gearPm = gearPartPm(c.equipment, c.items, c.temperSteps);
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
+  /* THE SKILL PART (src/core/bands.js, lane/foundations-block): the skill of the style in use, as the Level the reference career reaches it, over
+     the hero's own Level, in thousandths (0 on the career line; the power step reads it at POWER.weightSkillPm, on the Danger scale only) */
+  const level = charLevelFromXp(state.levelXp);
+  const skillLv = skillLevelPm((c.profile || DEFAULT_PROFILE).damageSkill, levelsOf(state.skills)[(c.profile || DEFAULT_PROFILE).damageSkill]);
+  const skillGapPm = skillLv === null ? 0 : skillLv - 1000 * level;
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level,
     gearPm,
+    skillGapPm,
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
     ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
@@ -514,6 +521,7 @@ export function frozenOf(side, kinds, atMs, monsters) {
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
     snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), gearPm: snap.gearPm || 0,
+      skillGapPm: snap.skillGapPm || 0,
       acc: snap.acc, maxHit: snap.maxHit, def: snap.def, armour: snap.armour || null, level: snap.level }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }

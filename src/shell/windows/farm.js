@@ -130,11 +130,11 @@ function patchPlot(li, i, st, now) {
   const more = regrow ? p.regrowsLeft : null;
   const vine = regrow && more !== 0;   // a plain harvest leaves the plant growing
   cls(li, 'is-extra', extra);
-  /* The plot's notes, each a sentence without its period, joined by ". " (as the line has always read). */
+  /* The plot's notes, each a label, joined by a dot (Tyler 2026-11-14). */
   text(li.querySelector('.hw-plot-by'), !p ? '' : [p.byName ? t('farm.planted_by', { name: p.byName }) : t('farm.planted_by_hero'),
     extra ? t('farm.note_extra') : '',
     (!regrow ? '' : more === null ? t('farm.note_regrows') : more === 0 ? t('farm.note_last_harvest')
-      : t('farm.note_regrows_n', { count: more }))].filter(Boolean).join('. '));
+      : t('farm.note_regrows_n', { count: more }))].filter(Boolean).join(' · '));
   /* Harvest replants the same crop; an extra plot is only harvested (it takes no new seed); a living vine is kept. */
   const harvest = li.querySelector('.hw-harvest');
   cls(harvest, 'is-on', !!p && p.ready);
@@ -167,7 +167,7 @@ function patchSow(root, st, ctx) {
     const why = st.farming === null ? t('farm.why_reading') : st.farming < c.req ? t('farm.why_farming', { level: c.req })
       : !tier.has(id) ? t('farm.why_tier', { tier: requiredPlotLevel(id) }) : held < 1 ? t(st.prices.has(c.seed) ? 'farm.why_no_seeds_head' : 'farm.why_no_seeds') : '';
     /* Only short of the seed, and the Shop sells it: the price is a link to the Shop's row for it (Tyler 2026-11-08) */
-    const buy = why === t('farm.why_no_seeds_head')
+    const buy = st.farming !== null && st.farming >= c.req && tier.has(id) && held < 1 && st.prices.has(c.seed)
       ? { words: t('farm.shop_sells_seeds', { price: gold(st.prices.get(c.seed)) }), target: targetOf({ kind: 'shop', item: c.seed }) } : null;
     return { id, c, held, why, buy };
   }).sort((a, b) => Number(!!a.why) - Number(!!b.why));
@@ -180,7 +180,7 @@ function patchSow(root, st, ctx) {
       + '<button type="button" class="hh-tool hw-sow-all" data-hs-act="sowall" data-crop="' + esc(r.id) + '"></button></li>'),
     patch: (li, r) => {
       patchParts(li.querySelector('small'), [t('farm.seed_line', { hours: r.c.hours, status: r.why || t(st.seedsWhere, { count: r.held, held: whole(r.held) }) })]
-        .concat(r.buy ? [' ', r.buy] : []));
+        .concat(r.buy ? [' · ', r.buy] : []));
       text(li.querySelector('.hw-seed-makes'), cropMakes(r.id));
       cls(li, 'is-locked', !!r.why);
       prop(li.querySelector('[data-hs-act="sow"]'), 'disabled', !!r.why || st.sc.pending);
@@ -204,7 +204,7 @@ function patchTier(root, st) {
   const adds = up ? unlockedCrops(up.level).filter((id) => requiredPlotLevel(id) === up.level)
     .map((id) => (CROPS[id] && CROPS[id].req > up.farming ? t('farm.tier_crop_needs', { crop: cropName(id), level: CROPS[id].req }) : cropName(id))).join(', ') : '';
   const next = !up ? t('farm.tier_top') : t('farm.tier_next', { tier: up.level, crops: adds, price: gold(up.gold), level: up.farming });
-  text(root.querySelector('.hw-tier'), t('farm.tier_grows', { tier: lv, crops: grows }) + ' ' + next);
+  text(root.querySelector('.hw-tier'), t('farm.tier_grows', { tier: lv, crops: grows }) + ' · ' + next);
   const btn = root.querySelector('[data-hs-act="upgrade"]');
   text(btn, up ? t('farm.improve', { price: gold(up.gold) }) : t('farm.improve_top'));
   const afford = !!up && st.purse !== null && st.purse >= up.gold;
@@ -248,13 +248,13 @@ renderFarm.patch = function patchFarm(body, ctx) {
   if (due && sc.asked !== land && !sc.pending && typeof cs.load === 'function') { sc.asked = land; cs.load(); }
 };
 
-/* "Harvested 3 Turnip (+1,008 Farming XP). Planted again." — from the server's own answer. */
+/* "Harvested 3 Turnip, +1,008 Farming XP · Replanted" — from the server's own answer. */
 function harvestLine(r) {
   const b = r.body || {};
   const rep = b.replant || null;
-  /* Whole sentences, one after another. */
+  /* Labels, one after another (Tyler 2026-11-14). */
   const s = [t('farm.harvested', { qty: whole(b.qty), item: itemNameFor(b.produce, b.qty), xp: whole(b.xp) })];
-  const said = (parts) => parts.map((x) => String(x).replace(/\.$/, '')).join('. ');
+  const said = (parts) => parts.map((x) => String(x).replace(/\.$/, '')).join(' · ');
   if (b.extra) return said(s.concat(t('farm.harvested_extra_gone')));
   if (b.withered) s.push(t('farm.harvested_withered'));
   else if (b.regrew) s.push(!Number.isInteger(b.regrows_left) ? t('farm.harvested_regrows')
@@ -319,7 +319,7 @@ renderFarm.act = function actFarm(ctx, body, action, ev, el) {
     const order = emptyOf(land);   // the server's empty plots at the press, each tried once, in order
     run(sc, repaint, () => sowEach(ctx, sc, repaint, order, crop), t('farm.planting'), (r) => {
       sc.pick = nextEmpty(cs, ctx, -1);
-      return t('farm.planted_many', { crop: cropName(crop), count: r.n }) + (r.stop ? ' ' + t('farm.planted_stopped', { n: r.at + 1, why: farmWords(r.stop) }) : '');
+      return t('farm.planted_many', { crop: cropName(crop), count: r.n }) + (r.stop ? ' · ' + t('farm.planted_stopped', { n: r.at + 1, why: farmWords(r.stop) }) : '');
     });
     return true;
   }

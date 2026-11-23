@@ -204,7 +204,7 @@ function patchPage(root, v) {
   patchAsks(root, ctx, sc, page, v.off);
   const none = root.querySelector('.hw-mk-asks-none');
   const empty = page && !page.asks.length;
-  text(none, !page ? '' : empty ? (s ? noneWords(s, now) : 'No one is selling this.') : '');
+  text(none, !page ? '' : empty ? (s ? noneWords(s, now) : 'No sellers') : '');
   cls(none, 'is-on', !!empty);
   if (page) { patchBuy(root, v, page); patchLine(root, ctx, page); } else cls(root.querySelector('.hw-mk-buy'), 'is-on', false);
 }

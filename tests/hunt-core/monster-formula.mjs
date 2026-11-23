@@ -51,7 +51,7 @@ const load = async (root) => {
 
 /* the switch on Muster Barrows, as a planted edit (the shipped row's own words) */
 const TOWER_ON = ['src/data/tower.js', "  monsters: 'rows',", "  monsters: 'formula',"];
-const MUSTER_ON = ['src/data/danger.js', "ladderTier: 5, refLevel: 60, monsters: 'rows',", "ladderTier: 5, refLevel: 60, monsters: 'formula',"];
+const MUSTER_ON = ['src/data/danger.js', "entryLevel: 55, refLevel: 60, monsters: 'rows' })", "entryLevel: 55, refLevel: 60, monsters: 'formula' })"];
 const close = (a, b, rel) => Math.abs(a - b) <= rel * Math.max(1, Math.abs(b));
 /* a scale ground's row with its switch on (derive reads only the row) */
 const onRow = (M, id) => ({ ...M.dangerData.DANGER_GROUNDS[id], monsters: 'formula' });

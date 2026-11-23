@@ -29,7 +29,7 @@ import { sheetXpLine } from '../../live-events-view.js';
 /* [key, label] of each number line; a line shows only when its value exists. A value is a number and its unit, a genre stat
    line ("Hit chance 69%"); what it is measured against is its tooltip, so no value wraps (UI audit 2026-11-18 #8). */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Bag space'], ['stamina', 'Stamina']]);
-const VITAL_TIPS = Object.freeze({ regen: 'Health and mana recovery. Source: Inner Flame', speed: 'Walking speed in tiles a second', cap: 'Spaces in the bag' });
+const VITAL_TIPS = Object.freeze({ regen: 'Health and mana recovery · Source: Inner Flame', speed: 'Walking speed in tiles a second', cap: 'Spaces in the bag' });
 const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defense'],
   ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward'], ['steady', 'Damage cut'], ['temper', 'Tempered']]);
 /* What each line means and what it is measured against, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
@@ -37,17 +37,17 @@ const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], 
    monster of the hero's own Level: a stronger one gets through more. */
 const COMBAT_TIPS = Object.freeze({
   accuracy: 'Chance to hit a target with no armor',
-  defence: 'Monsters miss more. Source: Defense skill, shield',
-  dodge: 'Chance a blow misses, vs a monster of your Level. Source: Medium armor',
-  absorb: 'Share of each blow blocked, vs a monster of your Level. Source: Heavy armor',
-  ward: 'Flat damage off each blow. Source: Light armor',
-  steady: 'Share off each blow, applied last. Source: cape, some foods',
-  temper: 'Smith upgrades on worn gear: damage dealt, damage taken. Get: Shop → Services',
+  defence: 'Monsters miss more · Source: Defense skill, shield',
+  dodge: 'Chance a blow misses, vs a monster of your Level · Source: Medium armor',
+  absorb: 'Share of each blow blocked, vs a monster of your Level · Source: Heavy armor',
+  ward: 'Flat damage off each blow · Source: Light armor',
+  steady: 'Share off each blow, applied last · Source: cape, some foods',
+  temper: 'Smith upgrades on worn gear: damage dealt, damage taken · Get: Shop → Services',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
-const LEVEL_TIP = 'Level XP: monster kills only. Each Level: more health and mana\n'
-  + 'Heavy: more health. Light: more mana. Death: lose XP, even a Level';
+const LEVEL_TIP = 'Level XP: monster kills only · Each Level: more health and mana\n'
+  + 'Heavy: more health · Light: more mana · Death: lose XP, even a Level';
 
 const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
   + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';

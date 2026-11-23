@@ -36,9 +36,8 @@ import { partyBestLine } from '../data/party-class-xp.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 import { MONSTERS } from '../data/monsters.js';
 import { SUPPLIES, healerWanted } from '../data/supplies.js';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js';
-import { levelDeathLoss } from '../core/action-rules.js';
-import { charXpForLevel } from '../core/xp.js';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js';
+import { levelDeathShare } from '../core/action-rules.js';
 import { whole, gold } from '../render/format.js';
 import { t } from '../render/player-text.js';
 
@@ -46,7 +45,7 @@ const PACK_QTY_MAX = 100000;
 /* A line of several labels: each on its own line (the warning keeps line breaks, windows.css). */
 const LINES = '\n';
 /* The advice over the list stays one line (it shares the window's height with the page): its two labels as two fragments. */
-const ADVICE = '. ';
+const ADVICE = ' · ';
 
 /** "Recommended: 2+ players" for this hunt's ground (Tyler 2026-11-14: a label, not a sentence), or ''. */
 export function partyNote(hunt) {
@@ -178,8 +177,8 @@ export function rangeWords(r, level, cutPermille) {
   const gap = r.band[0] - level;
   const cut = Number.isInteger(cutPermille) && cutPermille > 0 ? Math.min(1000, cutPermille) : 0;
   /* one decimal at most: 6% x (1 - 750/1000) = 1.5%. The share a death takes at THIS Level (lane/level-costs: the lesser of the share
-     and the hours, src/core/action-rules.js levelDeathLoss), so past Level 61 the line says the smaller share the hours make */
-  const x = charXpForLevel(level), full = x > 0 ? (levelDeathLoss(x) * 100) / x : DEATH_XP_LOSS * 100;
+     and the hours, src/core/action-rules.js levelDeathShare), so past Level 63 the line says the smaller share the hours make */
+  const full = levelDeathShare(level) * 100;
   const loss = Math.round(full * (1000 - cut) / 100) / 10;
   return [t('hunts.range_under', { count: gap }), (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS),
     cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })].join(LINES);

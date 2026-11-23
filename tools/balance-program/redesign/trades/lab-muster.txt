@@ -1,0 +1,112 @@
+V1: 54 seed jobs (9 cells x 6 seeds x 8 h) on 3 workers; muster_barrows, Levels 60 / 63 / 70
+[1/54] base:careful#1 68 s, 70 s elapsed
+[2/54] base:careful#2 70 s, 71 s elapsed
+[3/54] base:careful#0 72 s, 73 s elapsed
+[4/54] base:careful#3 72 s, 142 s elapsed
+[5/54] base:careful#4 72 s, 143 s elapsed
+[6/54] base:careful#5 73 s, 146 s elapsed
+[7/54] base:steady#0 81 s, 222 s elapsed
+[8/54] base:steady#1 82 s, 225 s elapsed
+[9/54] base:steady#2 83 s, 228 s elapsed
+[10/54] base:steady#3 82 s, 304 s elapsed
+[11/54] base:steady#4 80 s, 305 s elapsed
+[12/54] base:steady#5 95 s, 324 s elapsed
+[13/54] base:bold#1 112 s, 417 s elapsed
+[14/54] base:bold#0 114 s, 418 s elapsed
+[15/54] base:bold#2 129 s, 452 s elapsed
+[16/54] base:bold#4 87 s, 505 s elapsed
+[17/54] base:bold#3 94 s, 510 s elapsed
+[18/54] base:bold#5 98 s, 550 s elapsed
+[19/54] levels:careful#0 79 s, 584 s elapsed
+[20/54] levels:careful#1 75 s, 586 s elapsed
+[21/54] levels:careful#2 84 s, 634 s elapsed
+[22/54] levels:careful#3 94 s, 678 s elapsed
+[23/54] levels:careful#4 96 s, 682 s elapsed
+[24/54] levels:careful#5 109 s, 743 s elapsed
+[25/54] levels:steady#0 105 s, 783 s elapsed
+[26/54] levels:steady#1 102 s, 784 s elapsed
+[27/54] levels:steady#2 90 s, 833 s elapsed
+[28/54] levels:steady#4 87 s, 871 s elapsed
+[29/54] levels:steady#3 93 s, 876 s elapsed
+[30/54] levels:steady#5 97 s, 931 s elapsed
+[31/54] levels:bold#0 75 s, 947 s elapsed
+[32/54] levels:bold#1 83 s, 959 s elapsed
+[33/54] levels:bold#2 67 s, 998 s elapsed
+[34/54] levels:bold#3 75 s, 1022 s elapsed
+[35/54] levels:bold#4 77 s, 1036 s elapsed
+[36/54] levels:bold#5 61 s, 1059 s elapsed
+[37/54] high:careful#0 66 s, 1088 s elapsed
+[38/54] high:careful#1 64 s, 1100 s elapsed
+[39/54] high:careful#2 70 s, 1129 s elapsed
+[40/54] high:careful#3 68 s, 1156 s elapsed
+[41/54] high:careful#4 68 s, 1168 s elapsed
+[42/54] high:careful#5 70 s, 1199 s elapsed
+[43/54] high:steady#0 84 s, 1239 s elapsed
+[44/54] high:steady#1 88 s, 1256 s elapsed
+[45/54] high:steady#2 101 s, 1300 s elapsed
+[46/54] high:steady#3 95 s, 1334 s elapsed
+[47/54] high:steady#4 91 s, 1347 s elapsed
+[48/54] high:steady#5 86 s, 1386 s elapsed
+[49/54] high:bold#1 63 s, 1410 s elapsed
+[50/54] high:bold#0 86 s, 1420 s elapsed
+[51/54] high:bold#2 83 s, 1469 s elapsed
+[52/54] high:bold#3 85 s, 1495 s elapsed
+[53/54] high:bold#4 85 s, 1505 s elapsed
+[54/54] high:bold#5 68 s, 1538 s elapsed
+
+V1 on muster_barrows (6 seeds x 8 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful      449.3 +- 3.6      5.7  38.3  66.4     23      2     1.4     84.5      0     0  0 (0/0/0)                       7  {"hold":2732,"climb":1230,"fall":88}
+base:steady       603.9 +- 9.8     30.3  32.5  57.5   14.9    1.1     1.9     62.3      0     0  1 (0/0/1)                       7  {"hold":1990,"climb":947,"fall":45}
+base:bold         643.9 +- 12.6      19    29  53.6   15.2    1.2     1.7     61.3      6     0  35 (6/6/35)                   4.8  {"hold":1920,"climb":923,"fall":86,"death":6} first deaths at h 4.5,5.4,6.6,5.4,5.2
+levels:careful    459.9 +- 6.8       17  33.3  62.3   22.2    2.2     1.4     83.8      0     0  0 (0/0/0)                       7  {"hold":2722,"climb":1201,"fall":93}
+levels:steady     614.7 +- 4       24.7  30.4  60.6   14.5    0.9     1.9     60.3      0     0  0 (0/0/0)                       7  {"hold":1910,"climb":940,"fall":37}
+levels:bold         640 +- 29      11.6  24.3  45.7   16.9      1     1.6     59.8      4     0  25 (4/4/25)                   4.5  {"hold":1863,"climb":927,"fall":73,"death":4} first deaths at h 3.6,3.7,7.8,1.9
+high:careful      489.1 +- 12.5    19.6  35.2  63.9   21.2    1.8     1.3     81.4      0     0  0 (0/0/0)                       7  {"hold":2649,"climb":1180,"fall":75}
+high:steady       632.8 +- 4.8     26.9  35.8  63.2   14.3      1     1.7     59.2      0     0  0 (0/0/0)                       7  {"hold":1861,"climb":933,"fall":42}
+high:bold         664.4 +- 20.9    23.9  22.2  45.3   14.6    0.8     1.8     57.7      4     0  21 (4/1/21)                   5.4  {"hold":1740,"climb":962,"fall":59,"death":4} first deaths at h 3.5,2.7
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       0.55x  sd 0.01  n 6  window 7 h  seeds 0.56 0.56 0.55 0.55 0.54 0.54
+  base:steady        0.99x  sd 0.08  n 6  window 7 h  seeds 0.92 0.95 1.01 0.96 1.14 0.97
+  base:bold          1.13x  sd 0.05  n 6  window 4.8 h  seeds 1.06 1.08 1.18 1.12 1.16 1.18
+  levels:careful     0.55x  sd 0.01  n 6  window 7 h  seeds 0.57 0.55 0.56 0.56 0.55 0.54
+  levels:steady      1.03x  sd 0.03  n 6  window 7 h  seeds 1.01 1.03 1 1.05 1 1.08
+  levels:bold        1.13x  sd 0.13  n 6  window 4.5 h  seeds 1.08 1.21 1.12 1.23 1.21 0.9
+  high:careful       0.59x  sd 0.04  n 6  window 7 h  seeds 0.58 0.58 0.68 0.58 0.58 0.56
+  high:steady        1.13x  sd 0.02  n 6  window 7 h  seeds 1.13 1.11 1.14 1.16 1.1 1.14
+  high:bold           1.3x  sd 0.11  n 6  window 5.4 h  seeds 1.34 1.17 1.44 1.35 1.34 1.15
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L60  coin 10097 +- 128  income 13683 +- 141  store 3737  kit share 0.27 (meal 3, drink 1248, charge 900, shot 1586)  loot by band: common 361, uncommon 180, scarce 3043, other 0  n 6
+  base:steady       L60  coin 13718 +- 485  income 16634 +- 472  store 4619  kit share 0.28 (meal 78, drink 1839, charge 1028, shot 1672)  loot by band: common 293, uncommon 143, scarce 2480, other 0  n 6
+  base:bold         L60  coin 15013 +- 1286  income 17948 +- 1021  store 5066  kit share 0.28 (meal 283, drink 1969, charge 1110, shot 1703)  loot by band: common 295, uncommon 152, scarce 2487, other 0  n 6
+  levels:careful    L63  coin 9892 +- 120  income 13467 +- 162  store 3727  kit share 0.28 (meal 4, drink 1216, charge 910, shot 1596)  loot by band: common 364, uncommon 179, scarce 3031, other 0  n 6
+  levels:steady     L63  coin 14321 +- 303  income 17101 +- 396  store 4608  kit share 0.27 (meal 90, drink 1811, charge 1033, shot 1673)  loot by band: common 290, uncommon 145, scarce 2345, other 0  n 6
+  levels:bold       L63  coin 14984 +- 2215  income 17890 +- 1766  store 4919  kit share 0.27 (meal 268, drink 1910, charge 1108, shot 1633)  loot by band: common 290, uncommon 151, scarce 2465, other 0  n 6
+  high:careful      L70  coin 9979 +- 305  income 13512 +- 210  store 4463  kit share 0.33 (meal 3, drink 1126, charge 918, shot 2416)  loot by band: common 368, uncommon 183, scarce 2981, other 0  n 6
+  high:steady       L70  coin 15735 +- 166  income 18516 +- 162  store 5303  kit share 0.29 (meal 84, drink 1678, charge 1030, shot 2510)  loot by band: common 280, uncommon 142, scarce 2359, other 0  n 6
+  high:bold         L70  coin 17566 +- 1884  income 20476 +- 1277  store 5416  kit share 0.26 (meal 249, drink 1855, charge 1148, shot 2164)  loot by band: common 288, uncommon 149, scarce 2473, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+  levels:careful      10.8 steps (sd 8.4, se 3.4, n 6)
+  high:careful        40.2 steps (sd 15.1, se 6.2, n 6)
+  levels:steady       10.7 steps (sd 11.3, se 4.6, n 6)
+  high:steady         28.8 steps (sd 12.1, se 4.9, n 6)
+  levels:bold           -4 steps (sd 34.5, se 14.1, n 6)
+  high:bold           20.3 steps (sd 25.4, se 10.4, n 6)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:careful      hammer 0.68  bow 0.263  mage 0.056  healer 0
+  base:steady       hammer 0.706  bow 0.26  mage 0.033  healer 0
+  base:bold         hammer 0.606  bow 0.326  mage 0.057  healer 0.011
+  levels:careful    hammer 0.672  bow 0.27  mage 0.058  healer 0
+  levels:steady     hammer 0.697  bow 0.262  mage 0.041  healer 0
+  levels:bold       hammer 0.573  bow 0.352  mage 0.056  healer 0.019
+  high:careful      hammer 0.66  bow 0.281  mage 0.059  healer 0
+  high:steady       hammer 0.682  bow 0.271  mage 0.047  healer 0
+  high:bold         hammer 0.594  bow 0.248  mage 0.146  healer 0.011
+
+wall 1538 s

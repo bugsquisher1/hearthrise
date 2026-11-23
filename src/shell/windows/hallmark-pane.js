@@ -30,7 +30,7 @@ const perkName = (p) => (JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p);
 const pctOf = (pm) => (Math.round(pm) / 10) + '%';
 
 /* The gem's line when the hero holds none: where it comes from, from the catalogue (item-lore.js whereToGet), so a new tier's gem says its own home. */
-const gemShort = (id) => t('jewel.gem_short', { gem: itemName(id), where: whereToGet(id) ? whereToGet(id) + '. ' : '' });
+const gemShort = (id) => t('jewel.gem_short', { gem: itemName(id), where: whereToGet(id) ? whereToGet(id) + ' · ' : '' });
 
 /* What one row needs and why its button is off: the first thing missing, in the order the server checks it. */
 const levelShort = (o, lv) => t('jewel.requires', { skill: benchName(o.skill), need: o.level, have: lv });

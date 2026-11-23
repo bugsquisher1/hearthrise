@@ -4,7 +4,7 @@
  "why": "Armor Break's -25% armor, held on every Muster Barrows monster from the formula (lane/monster-formula, the Coordinator's 2026-11-23 ask): the upper bound of what the status buys, through the one door it will move (monster-formula.js monsterArmorPm). Paired against mf-muster on the same dice: the held step it adds is what an armor answer is worth on a Brute-heavy mix",
  "base": "tree",
  "edits": [
-  { "file": "src/data/danger.js", "from": "ladderTier: 5, refLevel: 60, monsters: 'rows',", "to": "ladderTier: 5, refLevel: 60, monsters: 'formula'," },
+  { "file": "src/data/danger.js", "from": "entryLevel: 55, refLevel: 60, monsters: 'rows' })", "to": "entryLevel: 55, refLevel: 60, monsters: 'formula' })" },
   { "file": "src/core/hunt/monster-formula.js", "from": "return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? row.armorPm : 0;", "to": "return row && Number.isInteger(row.armorPm) && row.armorPm > 0 ? Math.round(row.armorPm * 0.75) : 0;" }
  ],
  "assumptions": [

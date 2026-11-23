@@ -41,13 +41,13 @@ export const BAG_TEXT = Object.freeze({
   confirm_remaining: { one: 'Remaining: {count} stack', other: 'Remaining: {count} stacks' },
   /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',
-  put_away: { one: 'Put away {count} stack.', other: 'Put away {count} stacks.' },
+  put_away: { one: 'Put away {count} stack', other: 'Put away {count} stacks' },
   storage_away: 'Storage is in town',
   /* Lock and Unlock: ONE lock of every selected stack (all or nothing). */
   locking: 'Locking…',
   unlocking: 'Unlocking…',
-  locked_n: { one: 'Locked {count} stack.', other: 'Locked {count} stacks.' },
-  unlocked_n: { one: 'Unlocked {count} stack.', other: 'Unlocked {count} stacks.' },
+  locked_n: { one: 'Locked {count} stack', other: 'Locked {count} stacks' },
+  unlocked_n: { one: 'Unlocked {count} stack', other: 'Unlocked {count} stacks' },
   locks_reading: 'Loading locks…',
   /* An outfit's bundle (the Key Warden): Use owns the outfit for this hero (src/shell/windows/inventory/outfit-bundle.js). Labels. */
   bundle_owned: 'Outfit already owned',
@@ -58,7 +58,7 @@ export const BAG_TEXT = Object.freeze({
   /* A pattern (src/data/patterns.js): Learn opens its recipe for this hero (src/shell/windows/inventory/pattern.js). Labels. */
   pattern_known: 'Pattern already learned',
   /* the first press arms the learn (a tradeable Rare, used up): the second learns it */
-  pattern_confirm: 'Press again to learn it for this hero',
+  pattern_confirm: 'Press again to learn',
   pattern_busy: 'Learning…',
   pattern_learned: 'Recipe learned: {recipe}',
   /* The Storage window (src/shell/windows/storage.js). Its Expand reads the server's offer (hr_bag_expand_view). */
@@ -67,14 +67,14 @@ export const BAG_TEXT = Object.freeze({
   store_in_bag: 'In bag',
   /* the bag's count beside its head, worded as the storage's beside it ('3 of 100 stacks'): side by side, 'In bag Bag 23 / 100' said Bag twice */
   store_bag_of: '{n} of {cap} stacks',
-  store_no_match: 'Nothing here matches.',
+  store_no_match: 'No matches',
   store_empty: 'Storage empty',
   store_bag_empty: 'Bag empty',
   store_reading: 'Loading storage…',
-  store_help_touch: 'Press: move one. Hold: choose how many',
-  store_help_mouse: 'Press: move one. Shift-press: move all. Right-click or hold: choose how many',
-  store_more_room: 'More room: build storage chests in the House. Next: {name} (+{n} stacks)',
-  store_all_built: 'Every storage chest is built.',
+  store_help_touch: 'Press: move one · Hold: choose amount',
+  store_help_mouse: 'Press: move one · Shift-press: move all · Right-click or hold: choose amount',
+  store_more_room: 'More room: House storage chests · Next: {name} (+{n} stacks)',
+  store_all_built: 'All storage chests built',
   store_taking: 'Withdrawing…',
   store_putting: 'Depositing…',
   /* the answer: {n} the count, {item} its name, {slower} the tool-loss line or nothing */
@@ -82,12 +82,12 @@ export const BAG_TEXT = Object.freeze({
   store_put: 'Deposited {n} {item}',
   store_aria_take: '{item}: withdraw',
   store_aria_put: '{item}: deposit',
-  store_kept: { one: '{count} more kept free for market listings', other: '{count} more kept free for market listings' },
+  store_kept: { one: '+{count} reserved for market listings', other: '+{count} reserved for market listings' },
   store_dispatch_tip: 'Deposits and sells each stack as planned',
   /* DEPOSIT ALL MATERIALS (audit 2026-11-18 A8): one press for every Material stack that fits; {n} the stacks it names now */
   store_mats_n: 'Deposit all materials ({n})',
   store_mats_tip: 'Every Material stack in the bag, unlocked, whole',
-  store_mats_left: { one: 'Storage full: {count} material stack stays in the bag', other: 'Storage full: {count} material stacks stay in the bag' },
+  store_mats_left: { one: 'Storage full: {count} material stack left in bag', other: 'Storage full: {count} material stacks left in bag' },
   /* a press made while another is out waits its turn (the same audit: fast presses were dropped or refused) */
   store_queued: { one: 'Moving… {count} more waiting', other: 'Moving… {count} more waiting' },
   store_took_stacks: { one: 'Withdrew {count} stack', other: 'Withdrew {count} stacks' },

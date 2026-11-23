@@ -148,7 +148,7 @@ export function confirmWords(c) {
   const p = c.plan;
   const n = p.lines.length;
   const lines = [];
-  if (c.empty) lines.push(p.kept.length ? 'Everything chosen is locked, so nothing will be sold.' : 'The shop has no price for these yet.');
+  if (c.empty) lines.push(p.kept.length ? 'All selected are locked · Nothing sold' : 'No shop price yet');
   else lines.push('Sell ' + (n === 1 ? itemName(p.lines[0].item) + ' ×' + p.lines[0].qty : n + ' stacks') + '?');
   if (p.kept.length) lines.push(p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.');
   if (p.unpriced.length) lines.push(p.unpriced.length + (p.unpriced.length === 1 ? ' stack has' : ' stacks have') + ' no shop price and stays.');

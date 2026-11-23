@@ -184,6 +184,8 @@ function syncUnit(u, m, roles) {
   u.armour = snap.armour || null;
   /* THE GEAR PART (src/core/hunt/danger.js powerPm: the power step, read on the Danger scale only), the same: never persisted. */
   u.gearPm = Number.isInteger(snap.gearPm) ? snap.gearPm : 0;
+  /* THE SKILL PART (the same power step, lane/foundations-block), the same: never persisted. */
+  u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;
   /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
   if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;

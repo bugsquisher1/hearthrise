@@ -329,6 +329,12 @@ export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {
   const hours = Math.floor(((DEATH_HOURS * pm) / 1000) * levelHourXp(charLevelFromXp(x)));
   return Math.max(0, Math.min(share, hours));
 }
+/** The share of its total Level XP a death takes from a hero at the start of Level `level` (levelDeathLoss), 0 to DEATH_XP_LOSS: the
+    Hunts list's warning line reads this, so no window takes the Level curve itself (tests/session-core.mjs LVL-0). */
+export function levelDeathShare(level) {
+  const x = charXpForLevel(Number.isInteger(level) && level >= 1 ? level : 1);
+  return x > 0 ? levelDeathLoss(x) / x : DEATH_XP_LOSS;
+}
 export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
   const x = Math.max(0, Math.floor(Number(xp) || 0));
   const f = Number(fraction);

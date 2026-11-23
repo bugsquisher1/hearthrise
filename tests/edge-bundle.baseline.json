@@ -340,19 +340,14 @@
         "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
       },
       {
-        "bytes": 3526416,
+        "bytes": 3499652,
         "on": "2026-11-23",
-        "why": "lane/monster-formula merged on the set: monsters derived from role rows (src/core/hunt/monster-formula.js, src/core/reference-company.js, MONSTER_FORMULA and the role dials, the armor door beside Armor Break), with lane/tower-boss-formula carried in (src/data/bosses.js, the Tower on the scale), engine code the settle runs"
+        "why": "set/v0.2.144 batch on the integrated tree (lane/set-reds-3 after lane/ci-reds-db), +34,066 B, measured per merge with pack(); every byte is read by the settle, none client-only, nothing avoidable found. lane/flame-temper-build +9,146 B (its in-lane raise to 3,418,773 lost when the set took the statuses side of this file: core/temper-steps.js 3.8 KB new, data/temper.js +2.1 KB, party.js pity +1.4 KB, gear-steps.js CARRY +1.1 KB, danger.js, member.js). lane/tower-boss-formula +20,375 B, never raised in its lane: data/bosses.js 7.1 KB new (boss kinds, the ramp), data/tower.js +4.7 KB (floor Level, depth and pay formulas, the mixes), core/hunt/tower.js +3.6 KB, chests.js key formulas +1.4 KB, boss-phases.js ramp +1.4 KB, danger.js +0.8 KB, the rest under 0.4 KB each. lane/level-costs +1,702 B (action-rules.js levelHourXp and the death in hours, hunt-sessions.js DEATH_HOURS). lane/formula-overhaul +1,713 B (core-model.js LEVEL_HOURS +2.3 KB, danger.js -0.6 KB). lane/ci-reds-db +415 B. lane/set-reds-3 +715 B (action-rules.js levelDeathShare so the Hunts list takes no Level curve, LVL-0; danger.js re-exports tierLevel for chests.js, GS-6; the DEATH_HOURS crossover note)"
       },
       {
-        "bytes": 3533686,
+        "bytes": 3553425,
         "on": "2026-11-23",
-        "why": "lane/hall-formula: src/core/hunt/hall-formula.js, the keyed hall's bosses on the formula behind the hall's switch (huntPlayOf's one door), and the boss kinds' to-hit lever"
-      },
-      {
-        "bytes": 3535227,
-        "on": "2026-11-23",
-        "why": "lane/hall-formula: the hall kind's defense lever and the hall switch's measured notes (bosses.js, krells_hold pack)"
+        "why": "merge of set/v0.2.144 under lane/monster-formula (monster-formula.js, reference-company.js, roles) and lane/hall-formula (hall-formula.js, the boss kinds' hit and defense levers)"
       }
     ]
   }

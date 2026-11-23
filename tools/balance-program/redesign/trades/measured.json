@@ -1,0 +1,2267 @@
+{
+ "from": "tools/balance-program/redesign/trades/lab-muster.json",
+ "seeds": 100,
+ "kinds": [
+  {
+   "kind": "ore",
+   "trade": "mining",
+   "stage": "gather",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.07,
+   "ownH": 0.07,
+   "inputs": {},
+   "hunted": {},
+   "V": 286,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 114
+  },
+  {
+   "kind": "rune_stone",
+   "trade": "mining",
+   "stage": "gather",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.07,
+   "ownH": 0.07,
+   "inputs": {},
+   "hunted": {},
+   "V": 286,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 114
+  },
+  {
+   "kind": "log",
+   "trade": "woodcutting",
+   "stage": "gather",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.07,
+   "ownH": 0.07,
+   "inputs": {},
+   "hunted": {},
+   "V": 286,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 114
+  },
+  {
+   "kind": "fish",
+   "trade": "fishing",
+   "stage": "gather",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.07,
+   "ownH": 0.07,
+   "inputs": {},
+   "hunted": {},
+   "V": 286,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 114
+  },
+  {
+   "kind": "grain",
+   "trade": "farming",
+   "stage": "gather",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.07,
+   "ownH": 0.07,
+   "inputs": {},
+   "hunted": {},
+   "V": 286,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 114
+  },
+  {
+   "kind": "herb",
+   "trade": "farming",
+   "stage": "gather",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.07,
+   "ownH": 0.07,
+   "inputs": {},
+   "hunted": {},
+   "V": 286,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 114
+  },
+  {
+   "kind": "bar",
+   "trade": "smithing",
+   "stage": "refine",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.098,
+   "ownH": 0.028,
+   "inputs": {
+    "ore": 1
+   },
+   "hunted": {},
+   "V": 400,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 160
+  },
+  {
+   "kind": "shaft",
+   "trade": "woodcrafting",
+   "stage": "refine",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.098,
+   "ownH": 0.028,
+   "inputs": {
+    "log": 1
+   },
+   "hunted": {},
+   "V": 400,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 160
+  },
+  {
+   "kind": "cut_stone",
+   "trade": "runecutting",
+   "stage": "refine",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.098,
+   "ownH": 0.028,
+   "inputs": {
+    "rune_stone": 1
+   },
+   "hunted": {},
+   "V": 400,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": null,
+   "ask": null,
+   "bid": 160
+  },
+  {
+   "kind": "meal",
+   "trade": "cooking",
+   "stage": "make",
+   "line": "meal",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.14,
+   "ownH": 0.07,
+   "inputs": {
+    "fish": 1
+   },
+   "hunted": {},
+   "V": 572,
+   "Vfine": 584,
+   "Vmaster": 596,
+   "fee": 143,
+   "ask": 794,
+   "bid": 228
+  },
+  {
+   "kind": "drink",
+   "trade": "cooking",
+   "stage": "make",
+   "line": "meal",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.14,
+   "ownH": 0.07,
+   "inputs": {
+    "grain": 1
+   },
+   "hunted": {},
+   "V": 572,
+   "Vfine": 584,
+   "Vmaster": 596,
+   "fee": 143,
+   "ask": 794,
+   "bid": 228
+  },
+  {
+   "kind": "honing_stone",
+   "trade": "smithing",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "bar": 2
+   },
+   "hunted": {},
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "arrowhead",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.14,
+   "ownH": 0.042,
+   "inputs": {
+    "bar": 1
+   },
+   "hunted": {},
+   "V": 572,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": 0,
+   "ask": null,
+   "bid": 228
+  },
+  {
+   "kind": "arrow",
+   "trade": "woodcrafting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.042,
+   "inputs": {
+    "arrowhead": 1,
+    "shaft": 1
+   },
+   "hunted": {},
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "bolt",
+   "trade": "woodcrafting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 11,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.042,
+   "inputs": {
+    "arrowhead": 1,
+    "shaft": 1
+   },
+   "hunted": {},
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "ward_charm",
+   "trade": "woodcrafting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 21,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "shaft": 2
+   },
+   "hunted": {},
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "imbuement",
+   "trade": "artificing",
+   "stage": "make",
+   "line": "imbuement",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.533,
+   "ownH": 0.533,
+   "inputs": {},
+   "hunted": {
+    "rare_part": 6.667,
+    "remains": 1
+   },
+   "V": 2181,
+   "Vfine": 2727,
+   "Vmaster": 3272,
+   "fee": 546,
+   "ask": null,
+   "bid": 872
+  },
+  {
+   "kind": "draught",
+   "trade": "alchemy",
+   "stage": "make",
+   "line": "draught",
+   "opensAt": 1,
+   "ships": "later",
+   "workH": 0.15,
+   "ownH": 0.08,
+   "inputs": {
+    "herb": 1
+   },
+   "hunted": {
+    "common_part": 1.25
+   },
+   "V": 613,
+   "Vfine": 626,
+   "Vmaster": 638,
+   "fee": 154,
+   "ask": null,
+   "bid": 245
+  },
+  {
+   "kind": "camp_pot",
+   "trade": "cooking",
+   "stage": "make",
+   "line": "draught",
+   "opensAt": 41,
+   "ships": "later",
+   "workH": 0.67,
+   "ownH": 0.32,
+   "inputs": {
+    "grain": 5
+   },
+   "hunted": {
+    "common_part": 5
+   },
+   "V": 2741,
+   "Vfine": 2796,
+   "Vmaster": 2852,
+   "fee": 686,
+   "ask": null,
+   "bid": 1096
+  },
+  {
+   "kind": "temper_kit",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 21,
+   "ships": "v030",
+   "workH": 0.414,
+   "ownH": 0.12,
+   "inputs": {
+    "bar": 3
+   },
+   "hunted": {},
+   "V": 1693,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": 424,
+   "ask": null,
+   "bid": 677
+  },
+  {
+   "kind": "haft",
+   "trade": "woodcrafting",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 0.542,
+   "ownH": 0.15,
+   "inputs": {
+    "shaft": 4
+   },
+   "hunted": {},
+   "V": 2217,
+   "Vfine": null,
+   "Vmaster": null,
+   "fee": 0,
+   "ask": null,
+   "bid": 886
+  },
+  {
+   "kind": "rune_earth",
+   "trade": "runecutting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "cut_stone": 2
+   },
+   "hunted": {
+    "remains": 0.15
+   },
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "rune_water",
+   "trade": "runecutting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "cut_stone": 2
+   },
+   "hunted": {
+    "remains": 0.15
+   },
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "rune_fire",
+   "trade": "runecutting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "cut_stone": 2
+   },
+   "hunted": {
+    "remains": 0.15
+   },
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "rune_ice",
+   "trade": "runecutting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "cut_stone": 2
+   },
+   "hunted": {
+    "remains": 0.15
+   },
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "rune_poison",
+   "trade": "runecutting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "cut_stone": 2
+   },
+   "hunted": {
+    "remains": 0.15
+   },
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "rune_rupture",
+   "trade": "runecutting",
+   "stage": "make",
+   "line": "charge",
+   "opensAt": 1,
+   "ships": "v030",
+   "workH": 0.28,
+   "ownH": 0.084,
+   "inputs": {
+    "cut_stone": 2
+   },
+   "hunted": {
+    "remains": 0.15
+   },
+   "V": 1145,
+   "Vfine": 1168,
+   "Vmaster": 1192,
+   "fee": 287,
+   "ask": 1587,
+   "bid": 458
+  },
+  {
+   "kind": "tool_pick",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_axe",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_rod",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_hoe",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_knife",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_hammer",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_saw",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_chisel",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_graver",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  },
+  {
+   "kind": "tool_mortar",
+   "trade": "smithing",
+   "stage": "make",
+   "line": null,
+   "opensAt": 11,
+   "ships": "later",
+   "workH": 1.084,
+   "ownH": 0.15,
+   "inputs": {
+    "haft": 1,
+    "bar": 4
+   },
+   "hunted": {},
+   "V": 4434,
+   "Vfine": 5543,
+   "Vmaster": 6652,
+   "fee": 1109,
+   "ask": null,
+   "bid": 1773
+  }
+ ],
+ "bill": [
+  {
+   "cell": "base:careful",
+   "L": 60,
+   "band": 3,
+   "hpPerH": 22,
+   "manaPerH": 9360,
+   "shotsPerH": 793,
+   "castsPerH": 539,
+   "mealKh": 0.74,
+   "chargeKh": 0.96,
+   "grossPerH": 13683,
+   "wage": 16365,
+   "grossOverWage": 0.84,
+   "craftedPerH": 2272,
+   "craftedHoursOfWage": 0.139,
+   "craftedOfGross": 0.166,
+   "storePerH": 2698,
+   "storeHoursOfWage": 0.165,
+   "storeOfGross": 0.197,
+   "engineStorePerH": 3737,
+   "engineStoreOfGross": 0.273
+  },
+  {
+   "cell": "base:steady",
+   "L": 60,
+   "band": 3,
+   "hpPerH": 648,
+   "manaPerH": 13788,
+   "shotsPerH": 836,
+   "castsPerH": 657,
+   "mealKh": 1.14,
+   "chargeKh": 1.07,
+   "grossPerH": 16634,
+   "wage": 16365,
+   "grossOverWage": 1.02,
+   "craftedPerH": 2862,
+   "craftedHoursOfWage": 0.175,
+   "craftedOfGross": 0.172,
+   "storePerH": 3516,
+   "storeHoursOfWage": 0.215,
+   "storeOfGross": 0.211,
+   "engineStorePerH": 4619,
+   "engineStoreOfGross": 0.278
+  },
+  {
+   "cell": "base:bold",
+   "L": 60,
+   "band": 3,
+   "hpPerH": 2354,
+   "manaPerH": 14772,
+   "shotsPerH": 852,
+   "castsPerH": 705,
+   "mealKh": 1.35,
+   "chargeKh": 1.12,
+   "grossPerH": 17948,
+   "wage": 16365,
+   "grossOverWage": 1.1,
+   "craftedPerH": 3157,
+   "craftedHoursOfWage": 0.193,
+   "craftedOfGross": 0.176,
+   "storePerH": 3925,
+   "storeHoursOfWage": 0.24,
+   "storeOfGross": 0.219,
+   "engineStorePerH": 5066,
+   "engineStoreOfGross": 0.282
+  },
+  {
+   "cell": "levels:careful",
+   "L": 63,
+   "band": 3,
+   "hpPerH": 22,
+   "manaPerH": 9120,
+   "shotsPerH": 798,
+   "castsPerH": 545,
+   "mealKh": 0.72,
+   "chargeKh": 0.97,
+   "grossPerH": 13467,
+   "wage": 16563,
+   "grossOverWage": 0.81,
+   "craftedPerH": 2260,
+   "craftedHoursOfWage": 0.136,
+   "craftedOfGross": 0.168,
+   "storePerH": 2680,
+   "storeHoursOfWage": 0.162,
+   "storeOfGross": 0.199,
+   "engineStorePerH": 3727,
+   "engineStoreOfGross": 0.277
+  },
+  {
+   "cell": "levels:steady",
+   "L": 63,
+   "band": 3,
+   "hpPerH": 756,
+   "manaPerH": 13584,
+   "shotsPerH": 836,
+   "castsPerH": 662,
+   "mealKh": 1.13,
+   "chargeKh": 1.08,
+   "grossPerH": 17101,
+   "wage": 16563,
+   "grossOverWage": 1.03,
+   "craftedPerH": 2858,
+   "craftedHoursOfWage": 0.173,
+   "craftedOfGross": 0.167,
+   "storePerH": 3510,
+   "storeHoursOfWage": 0.212,
+   "storeOfGross": 0.205,
+   "engineStorePerH": 4608,
+   "engineStoreOfGross": 0.269
+  },
+  {
+   "cell": "levels:bold",
+   "L": 63,
+   "band": 3,
+   "hpPerH": 2225,
+   "manaPerH": 14328,
+   "shotsPerH": 816,
+   "castsPerH": 702,
+   "mealKh": 1.31,
+   "chargeKh": 1.09,
+   "grossPerH": 17890,
+   "wage": 16563,
+   "grossOverWage": 1.08,
+   "craftedPerH": 3074,
+   "craftedHoursOfWage": 0.186,
+   "craftedOfGross": 0.172,
+   "storePerH": 3810,
+   "storeHoursOfWage": 0.23,
+   "storeOfGross": 0.213,
+   "engineStorePerH": 4919,
+   "engineStoreOfGross": 0.275
+  },
+  {
+   "cell": "high:careful",
+   "L": 70,
+   "band": 3,
+   "hpPerH": 22,
+   "manaPerH": 8448,
+   "shotsPerH": 805,
+   "castsPerH": 550,
+   "mealKh": 0.67,
+   "chargeKh": 0.97,
+   "grossPerH": 13512,
+   "wage": 17032,
+   "grossOverWage": 0.79,
+   "craftedPerH": 2209,
+   "craftedHoursOfWage": 0.13,
+   "craftedOfGross": 0.163,
+   "storePerH": 2610,
+   "storeHoursOfWage": 0.153,
+   "storeOfGross": 0.193,
+   "engineStorePerH": 4463,
+   "engineStoreOfGross": 0.33
+  },
+  {
+   "cell": "high:steady",
+   "L": 70,
+   "band": 3,
+   "hpPerH": 691,
+   "manaPerH": 12588,
+   "shotsPerH": 837,
+   "castsPerH": 660,
+   "mealKh": 1.05,
+   "chargeKh": 1.08,
+   "grossPerH": 18516,
+   "wage": 17032,
+   "grossOverWage": 1.09,
+   "craftedPerH": 2760,
+   "craftedHoursOfWage": 0.162,
+   "craftedOfGross": 0.149,
+   "storePerH": 3374,
+   "storeHoursOfWage": 0.198,
+   "storeOfGross": 0.182,
+   "engineStorePerH": 5303,
+   "engineStoreOfGross": 0.286
+  },
+  {
+   "cell": "high:bold",
+   "L": 70,
+   "band": 3,
+   "hpPerH": 2074,
+   "manaPerH": 13920,
+   "shotsPerH": 721,
+   "castsPerH": 722,
+   "mealKh": 1.26,
+   "chargeKh": 1.04,
+   "grossPerH": 20476,
+   "wage": 17032,
+   "grossOverWage": 1.2,
+   "craftedPerH": 2961,
+   "craftedHoursOfWage": 0.174,
+   "craftedOfGross": 0.145,
+   "storePerH": 3654,
+   "storeHoursOfWage": 0.215,
+   "storeOfGross": 0.178,
+   "engineStorePerH": 5416,
+   "engineStoreOfGross": 0.265
+  }
+ ],
+ "billTarget": {
+  "craftedAllLines": 0.2,
+  "storeAllLines": 0.3,
+  "craftedV030": 0.16,
+  "storeV030MealAndCharge": 0.194
+ },
+ "styleUnits": {
+  "shotsPerBowHour": 3344,
+  "castsPerCasterHour": 1314,
+  "refCharges": 1390
+ },
+ "workHour": [
+  {
+   "kind": "ore",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.094,
+   "value": 0.186,
+   "afterFee": 0.186,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "ore",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.094,
+   "value": 0.186,
+   "afterFee": 0.186,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "ore",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.083,
+   "value": 0.209,
+   "afterFee": 0.209,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "ore",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.069,
+   "value": 0.254,
+   "afterFee": 0.254,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "ore",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.073,
+   "value": 0.239,
+   "afterFee": 0.239,
+   "xpPerH": 3575
+  },
+  {
+   "kind": "ore",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.066,
+   "value": 0.267,
+   "afterFee": 0.267,
+   "xpPerH": 2370
+  },
+  {
+   "kind": "ore",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.07,
+   "value": 0.25,
+   "afterFee": 0.25,
+   "xpPerH": 3581
+  },
+  {
+   "kind": "ore",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.063,
+   "value": 0.28,
+   "afterFee": 0.28,
+   "xpPerH": 895
+  },
+  {
+   "kind": "ore",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.052,
+   "value": 0.336,
+   "afterFee": 0.336,
+   "xpPerH": 895
+  },
+  {
+   "kind": "ore",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.067,
+   "value": 0.262,
+   "afterFee": 0.262,
+   "xpPerH": 3589
+  },
+  {
+   "kind": "ore",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.06,
+   "value": 0.293,
+   "afterFee": 0.293,
+   "xpPerH": 897
+  },
+  {
+   "kind": "ore",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.05,
+   "value": 0.352,
+   "afterFee": 0.352,
+   "xpPerH": 897
+  },
+  {
+   "kind": "ore",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.064,
+   "value": 0.274,
+   "afterFee": 0.274,
+   "xpPerH": 3594
+  },
+  {
+   "kind": "ore",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.057,
+   "value": 0.306,
+   "afterFee": 0.306,
+   "xpPerH": 899
+  },
+  {
+   "kind": "ore",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.048,
+   "value": 0.367,
+   "afterFee": 0.367,
+   "xpPerH": 899
+  },
+  {
+   "kind": "ore",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.064,
+   "value": 0.273,
+   "afterFee": 0.273,
+   "xpPerH": 3578
+  },
+  {
+   "kind": "ore",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.056,
+   "value": 0.31,
+   "afterFee": 0.31,
+   "xpPerH": 895
+  },
+  {
+   "kind": "ore",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.047,
+   "value": 0.373,
+   "afterFee": 0.373,
+   "xpPerH": 895
+  },
+  {
+   "kind": "fish",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.094,
+   "value": 0.186,
+   "afterFee": 0.186,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "fish",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.094,
+   "value": 0.186,
+   "afterFee": 0.186,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "fish",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.083,
+   "value": 0.209,
+   "afterFee": 0.209,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "fish",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.069,
+   "value": 0.254,
+   "afterFee": 0.254,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "fish",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.073,
+   "value": 0.239,
+   "afterFee": 0.239,
+   "xpPerH": 3575
+  },
+  {
+   "kind": "fish",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.066,
+   "value": 0.267,
+   "afterFee": 0.267,
+   "xpPerH": 2370
+  },
+  {
+   "kind": "fish",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.07,
+   "value": 0.25,
+   "afterFee": 0.25,
+   "xpPerH": 3581
+  },
+  {
+   "kind": "fish",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.063,
+   "value": 0.28,
+   "afterFee": 0.28,
+   "xpPerH": 895
+  },
+  {
+   "kind": "fish",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.052,
+   "value": 0.336,
+   "afterFee": 0.336,
+   "xpPerH": 895
+  },
+  {
+   "kind": "fish",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.067,
+   "value": 0.262,
+   "afterFee": 0.262,
+   "xpPerH": 3589
+  },
+  {
+   "kind": "fish",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.06,
+   "value": 0.293,
+   "afterFee": 0.293,
+   "xpPerH": 897
+  },
+  {
+   "kind": "fish",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.05,
+   "value": 0.352,
+   "afterFee": 0.352,
+   "xpPerH": 897
+  },
+  {
+   "kind": "fish",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.064,
+   "value": 0.274,
+   "afterFee": 0.274,
+   "xpPerH": 3594
+  },
+  {
+   "kind": "fish",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.057,
+   "value": 0.306,
+   "afterFee": 0.306,
+   "xpPerH": 899
+  },
+  {
+   "kind": "fish",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.048,
+   "value": 0.367,
+   "afterFee": 0.367,
+   "xpPerH": 899
+  },
+  {
+   "kind": "fish",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.064,
+   "value": 0.273,
+   "afterFee": 0.273,
+   "xpPerH": 3578
+  },
+  {
+   "kind": "fish",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.056,
+   "value": 0.31,
+   "afterFee": 0.31,
+   "xpPerH": 895
+  },
+  {
+   "kind": "fish",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.047,
+   "value": 0.373,
+   "afterFee": 0.373,
+   "xpPerH": 895
+  },
+  {
+   "kind": "meal",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.219,
+   "value": 0.16,
+   "afterFee": 0.12,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "meal",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.219,
+   "value": 0.16,
+   "afterFee": 0.12,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "meal",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.187,
+   "value": 0.188,
+   "afterFee": 0.141,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "meal",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.139,
+   "value": 0.252,
+   "afterFee": 0.189,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "meal",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.154,
+   "value": 0.227,
+   "afterFee": 0.171,
+   "xpPerH": 3575
+  },
+  {
+   "kind": "meal",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.131,
+   "value": 0.268,
+   "afterFee": 0.201,
+   "xpPerH": 2370
+  },
+  {
+   "kind": "meal",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.147,
+   "value": 0.238,
+   "afterFee": 0.179,
+   "xpPerH": 3581
+  },
+  {
+   "kind": "meal",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.125,
+   "value": 0.282,
+   "afterFee": 0.212,
+   "xpPerH": 895
+  },
+  {
+   "kind": "meal",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.106,
+   "value": 0.336,
+   "afterFee": 0.253,
+   "xpPerH": 895
+  },
+  {
+   "kind": "meal",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.141,
+   "value": 0.25,
+   "afterFee": 0.188,
+   "xpPerH": 3589
+  },
+  {
+   "kind": "meal",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.119,
+   "value": 0.295,
+   "afterFee": 0.222,
+   "xpPerH": 897
+  },
+  {
+   "kind": "meal",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.101,
+   "value": 0.353,
+   "afterFee": 0.267,
+   "xpPerH": 897
+  },
+  {
+   "kind": "meal",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.135,
+   "value": 0.262,
+   "afterFee": 0.197,
+   "xpPerH": 3594
+  },
+  {
+   "kind": "meal",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.114,
+   "value": 0.309,
+   "afterFee": 0.233,
+   "xpPerH": 899
+  },
+  {
+   "kind": "meal",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.097,
+   "value": 0.37,
+   "afterFee": 0.28,
+   "xpPerH": 899
+  },
+  {
+   "kind": "meal",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.137,
+   "value": 0.259,
+   "afterFee": 0.195,
+   "xpPerH": 3578
+  },
+  {
+   "kind": "meal",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.113,
+   "value": 0.314,
+   "afterFee": 0.237,
+   "xpPerH": 895
+  },
+  {
+   "kind": "meal",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.095,
+   "value": 0.376,
+   "afterFee": 0.285,
+   "xpPerH": 895
+  },
+  {
+   "kind": "honing_stone",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.551,
+   "value": 0.127,
+   "afterFee": 0.095,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "honing_stone",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.551,
+   "value": 0.127,
+   "afterFee": 0.095,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "honing_stone",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.437,
+   "value": 0.161,
+   "afterFee": 0.12,
+   "xpPerH": 3572
+  },
+  {
+   "kind": "honing_stone",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.281,
+   "value": 0.25,
+   "afterFee": 0.187,
+   "xpPerH": 3572
+  },
+  {
+   "kind": "honing_stone",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.333,
+   "value": 0.211,
+   "afterFee": 0.158,
+   "xpPerH": 3587
+  },
+  {
+   "kind": "honing_stone",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.262,
+   "value": 0.269,
+   "afterFee": 0.202,
+   "xpPerH": 2378
+  },
+  {
+   "kind": "honing_stone",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.318,
+   "value": 0.221,
+   "afterFee": 0.166,
+   "xpPerH": 3592
+  },
+  {
+   "kind": "honing_stone",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.25,
+   "value": 0.282,
+   "afterFee": 0.212,
+   "xpPerH": 898
+  },
+  {
+   "kind": "honing_stone",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.188,
+   "value": 0.378,
+   "afterFee": 0.285,
+   "xpPerH": 898
+  },
+  {
+   "kind": "honing_stone",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.303,
+   "value": 0.232,
+   "afterFee": 0.174,
+   "xpPerH": 3600
+  },
+  {
+   "kind": "honing_stone",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.238,
+   "value": 0.296,
+   "afterFee": 0.223,
+   "xpPerH": 900
+  },
+  {
+   "kind": "honing_stone",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.18,
+   "value": 0.396,
+   "afterFee": 0.299,
+   "xpPerH": 900
+  },
+  {
+   "kind": "honing_stone",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.291,
+   "value": 0.242,
+   "afterFee": 0.182,
+   "xpPerH": 3574
+  },
+  {
+   "kind": "honing_stone",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.229,
+   "value": 0.309,
+   "afterFee": 0.232,
+   "xpPerH": 893
+  },
+  {
+   "kind": "honing_stone",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.173,
+   "value": 0.414,
+   "afterFee": 0.313,
+   "xpPerH": 893
+  },
+  {
+   "kind": "honing_stone",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.299,
+   "value": 0.237,
+   "afterFee": 0.178,
+   "xpPerH": 3599
+  },
+  {
+   "kind": "honing_stone",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.225,
+   "value": 0.315,
+   "afterFee": 0.237,
+   "xpPerH": 900
+  },
+  {
+   "kind": "honing_stone",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.17,
+   "value": 0.423,
+   "afterFee": 0.32,
+   "xpPerH": 900
+  },
+  {
+   "kind": "arrow",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.646,
+   "value": 0.109,
+   "afterFee": 0.081,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "arrow",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.646,
+   "value": 0.109,
+   "afterFee": 0.081,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "arrow",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.487,
+   "value": 0.144,
+   "afterFee": 0.108,
+   "xpPerH": 3590
+  },
+  {
+   "kind": "arrow",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.283,
+   "value": 0.248,
+   "afterFee": 0.186,
+   "xpPerH": 3590
+  },
+  {
+   "kind": "arrow",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.352,
+   "value": 0.199,
+   "afterFee": 0.15,
+   "xpPerH": 3587
+  },
+  {
+   "kind": "arrow",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.262,
+   "value": 0.269,
+   "afterFee": 0.202,
+   "xpPerH": 2378
+  },
+  {
+   "kind": "arrow",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.336,
+   "value": 0.209,
+   "afterFee": 0.157,
+   "xpPerH": 3592
+  },
+  {
+   "kind": "arrow",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.25,
+   "value": 0.282,
+   "afterFee": 0.212,
+   "xpPerH": 898
+  },
+  {
+   "kind": "arrow",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.172,
+   "value": 0.412,
+   "afterFee": 0.31,
+   "xpPerH": 898
+  },
+  {
+   "kind": "arrow",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.32,
+   "value": 0.219,
+   "afterFee": 0.165,
+   "xpPerH": 3600
+  },
+  {
+   "kind": "arrow",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.238,
+   "value": 0.296,
+   "afterFee": 0.223,
+   "xpPerH": 900
+  },
+  {
+   "kind": "arrow",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.165,
+   "value": 0.433,
+   "afterFee": 0.327,
+   "xpPerH": 900
+  },
+  {
+   "kind": "arrow",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.307,
+   "value": 0.229,
+   "afterFee": 0.172,
+   "xpPerH": 3589
+  },
+  {
+   "kind": "arrow",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.229,
+   "value": 0.309,
+   "afterFee": 0.233,
+   "xpPerH": 897
+  },
+  {
+   "kind": "arrow",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.158,
+   "value": 0.453,
+   "afterFee": 0.342,
+   "xpPerH": 897
+  },
+  {
+   "kind": "arrow",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.319,
+   "value": 0.222,
+   "afterFee": 0.167,
+   "xpPerH": 3599
+  },
+  {
+   "kind": "arrow",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.225,
+   "value": 0.315,
+   "afterFee": 0.237,
+   "xpPerH": 900
+  },
+  {
+   "kind": "arrow",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.156,
+   "value": 0.462,
+   "afterFee": 0.349,
+   "xpPerH": 900
+  },
+  {
+   "kind": "rune_fire",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.551,
+   "value": 0.127,
+   "afterFee": 0.095,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "rune_fire",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.551,
+   "value": 0.127,
+   "afterFee": 0.095,
+   "xpPerH": 3584
+  },
+  {
+   "kind": "rune_fire",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.437,
+   "value": 0.161,
+   "afterFee": 0.12,
+   "xpPerH": 3572
+  },
+  {
+   "kind": "rune_fire",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.281,
+   "value": 0.25,
+   "afterFee": 0.187,
+   "xpPerH": 3572
+  },
+  {
+   "kind": "rune_fire",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.333,
+   "value": 0.211,
+   "afterFee": 0.158,
+   "xpPerH": 3587
+  },
+  {
+   "kind": "rune_fire",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.262,
+   "value": 0.269,
+   "afterFee": 0.202,
+   "xpPerH": 2378
+  },
+  {
+   "kind": "rune_fire",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.318,
+   "value": 0.221,
+   "afterFee": 0.166,
+   "xpPerH": 3592
+  },
+  {
+   "kind": "rune_fire",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.25,
+   "value": 0.282,
+   "afterFee": 0.212,
+   "xpPerH": 898
+  },
+  {
+   "kind": "rune_fire",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.188,
+   "value": 0.378,
+   "afterFee": 0.285,
+   "xpPerH": 898
+  },
+  {
+   "kind": "rune_fire",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.303,
+   "value": 0.232,
+   "afterFee": 0.174,
+   "xpPerH": 3600
+  },
+  {
+   "kind": "rune_fire",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.238,
+   "value": 0.296,
+   "afterFee": 0.223,
+   "xpPerH": 900
+  },
+  {
+   "kind": "rune_fire",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.18,
+   "value": 0.396,
+   "afterFee": 0.299,
+   "xpPerH": 900
+  },
+  {
+   "kind": "rune_fire",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.291,
+   "value": 0.242,
+   "afterFee": 0.182,
+   "xpPerH": 3574
+  },
+  {
+   "kind": "rune_fire",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.229,
+   "value": 0.309,
+   "afterFee": 0.232,
+   "xpPerH": 893
+  },
+  {
+   "kind": "rune_fire",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.173,
+   "value": 0.414,
+   "afterFee": 0.313,
+   "xpPerH": 893
+  },
+  {
+   "kind": "rune_fire",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.299,
+   "value": 0.237,
+   "afterFee": 0.178,
+   "xpPerH": 3599
+  },
+  {
+   "kind": "rune_fire",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.225,
+   "value": 0.315,
+   "afterFee": 0.237,
+   "xpPerH": 900
+  },
+  {
+   "kind": "rune_fire",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.17,
+   "value": 0.423,
+   "afterFee": 0.32,
+   "xpPerH": 900
+  },
+  {
+   "kind": "imbuement",
+   "L": 1,
+   "route": "newest",
+   "laborHoursPerGood": 0.716,
+   "value": 0.191,
+   "afterFee": 0.144,
+   "xpPerH": 3593
+  },
+  {
+   "kind": "imbuement",
+   "L": 1,
+   "route": "first",
+   "laborHoursPerGood": 0.716,
+   "value": 0.191,
+   "afterFee": 0.144,
+   "xpPerH": 3593
+  },
+  {
+   "kind": "imbuement",
+   "L": 15,
+   "route": "newest",
+   "laborHoursPerGood": 0.662,
+   "value": 0.207,
+   "afterFee": 0.157,
+   "xpPerH": 3472
+  },
+  {
+   "kind": "imbuement",
+   "L": 15,
+   "route": "first",
+   "laborHoursPerGood": 0.542,
+   "value": 0.257,
+   "afterFee": 0.195,
+   "xpPerH": 3472
+  },
+  {
+   "kind": "imbuement",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.563,
+   "value": 0.247,
+   "afterFee": 0.187,
+   "xpPerH": 3572
+  },
+  {
+   "kind": "imbuement",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.5,
+   "value": 0.283,
+   "afterFee": 0.216,
+   "xpPerH": 2368
+  },
+  {
+   "kind": "imbuement",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.563,
+   "value": 0.248,
+   "afterFee": 0.188,
+   "xpPerH": 3410
+  },
+  {
+   "kind": "imbuement",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.5,
+   "value": 0.29,
+   "afterFee": 0.223,
+   "xpPerH": 853
+  },
+  {
+   "kind": "imbuement",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.5,
+   "value": 0.317,
+   "afterFee": 0.25,
+   "xpPerH": 853
+  },
+  {
+   "kind": "imbuement",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.529,
+   "value": 0.266,
+   "afterFee": 0.203,
+   "xpPerH": 3469
+  },
+  {
+   "kind": "imbuement",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.471,
+   "value": 0.314,
+   "afterFee": 0.243,
+   "xpPerH": 867
+  },
+  {
+   "kind": "imbuement",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.471,
+   "value": 0.354,
+   "afterFee": 0.283,
+   "xpPerH": 867
+  },
+  {
+   "kind": "imbuement",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.499,
+   "value": 0.29,
+   "afterFee": 0.223,
+   "xpPerH": 3521
+  },
+  {
+   "kind": "imbuement",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.444,
+   "value": 0.341,
+   "afterFee": 0.266,
+   "xpPerH": 880
+  },
+  {
+   "kind": "imbuement",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.444,
+   "value": 0.39,
+   "afterFee": 0.315,
+   "xpPerH": 880
+  },
+  {
+   "kind": "imbuement",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.509,
+   "value": 0.301,
+   "afterFee": 0.235,
+   "xpPerH": 3456
+  },
+  {
+   "kind": "imbuement",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.444,
+   "value": 0.344,
+   "afterFee": 0.269,
+   "xpPerH": 864
+  },
+  {
+   "kind": "imbuement",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.444,
+   "value": 0.398,
+   "afterFee": 0.323,
+   "xpPerH": 864
+  },
+  {
+   "kind": "temper_kit",
+   "L": 30,
+   "route": "newest",
+   "laborHoursPerGood": 0.496,
+   "value": 0.209,
+   "afterFee": 0.156,
+   "xpPerH": 3567
+  },
+  {
+   "kind": "temper_kit",
+   "L": 30,
+   "route": "first",
+   "laborHoursPerGood": 0.433,
+   "value": 0.239,
+   "afterFee": 0.179,
+   "xpPerH": 3567
+  },
+  {
+   "kind": "temper_kit",
+   "L": 50,
+   "route": "newest",
+   "laborHoursPerGood": 0.472,
+   "value": 0.219,
+   "afterFee": 0.164,
+   "xpPerH": 3597
+  },
+  {
+   "kind": "temper_kit",
+   "L": 50,
+   "route": "first",
+   "laborHoursPerGood": 0.369,
+   "value": 0.28,
+   "afterFee": 0.21,
+   "xpPerH": 2385
+  },
+  {
+   "kind": "temper_kit",
+   "L": 50,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.277,
+   "value": 0.374,
+   "afterFee": 0.28,
+   "xpPerH": 2385
+  },
+  {
+   "kind": "temper_kit",
+   "L": 70,
+   "route": "newest",
+   "laborHoursPerGood": 0.451,
+   "value": 0.229,
+   "afterFee": 0.172,
+   "xpPerH": 3582
+  },
+  {
+   "kind": "temper_kit",
+   "L": 70,
+   "route": "first",
+   "laborHoursPerGood": 0.353,
+   "value": 0.293,
+   "afterFee": 0.22,
+   "xpPerH": 895
+  },
+  {
+   "kind": "temper_kit",
+   "L": 70,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.265,
+   "value": 0.391,
+   "afterFee": 0.293,
+   "xpPerH": 895
+  },
+  {
+   "kind": "temper_kit",
+   "L": 90,
+   "route": "newest",
+   "laborHoursPerGood": 0.433,
+   "value": 0.239,
+   "afterFee": 0.179,
+   "xpPerH": 3565
+  },
+  {
+   "kind": "temper_kit",
+   "L": 90,
+   "route": "first",
+   "laborHoursPerGood": 0.339,
+   "value": 0.305,
+   "afterFee": 0.229,
+   "xpPerH": 891
+  },
+  {
+   "kind": "temper_kit",
+   "L": 90,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.254,
+   "value": 0.407,
+   "afterFee": 0.305,
+   "xpPerH": 891
+  },
+  {
+   "kind": "temper_kit",
+   "L": 99,
+   "route": "newest",
+   "laborHoursPerGood": 0.445,
+   "value": 0.233,
+   "afterFee": 0.174,
+   "xpPerH": 3586
+  },
+  {
+   "kind": "temper_kit",
+   "L": 99,
+   "route": "first",
+   "laborHoursPerGood": 0.333,
+   "value": 0.311,
+   "afterFee": 0.233,
+   "xpPerH": 896
+  },
+  {
+   "kind": "temper_kit",
+   "L": 99,
+   "route": "+mastery+bench",
+   "laborHoursPerGood": 0.25,
+   "value": 0.415,
+   "afterFee": 0.311,
+   "xpPerH": 896
+  }
+ ],
+ "labor": {
+  "kitWorkAtReference": 0.8,
+  "kitWorkV030": 0.64,
+  "kitWorkMeasuredSteadyL60": 0.699,
+  "ratio": {
+   "6h": {
+    "referenceV030": 0.6,
+    "measured": 0.655,
+    "measuredWithTools": 0.71
+   },
+   "10h": {
+    "referenceV030": 1,
+    "measured": 1.092,
+    "measuredWithTools": 1.183
+   }
+  },
+  "toolHoursOfWagePerWorkHour": 0.023,
+  "toolLifeH": [
+   12,
+   15,
+   18
+  ],
+  "toolRentPerWorkHourL60": 512
+ },
+ "floor": {
+  "huntedHPerHero": 6,
+  "idleWorkHoursPerAccountDay": 8.83,
+  "floorHoursOfWage": 0.883,
+  "budgetHoursOfWage": 1,
+  "mintedHoursOfWage": 24.48
+ }
+}

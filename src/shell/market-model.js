@@ -212,7 +212,7 @@ export function rowWords(s, now) {
 
 /** "No one is selling this. Last sold 2 days ago for 12 each." */
 export function noneWords(s, now) {
-  return 'No one is selling this.' + (s.lastEach !== null ? ' Last sold ' + ageWords(s.lastAt, now) + ' for ' + whole(s.lastEach) + ' each.' : '');
+  return 'No sellers' + (s.lastEach !== null ? ' Last sold ' + ageWords(s.lastAt, now) + ' for ' + whole(s.lastEach) + ' each.' : '');
 }
 
 /** The Sell tab's line for one stack: what the shop pays and what the market says, side by side. */

@@ -33,7 +33,7 @@ renderInspect.patch = function patchInspect(body, ctx) {
     patch: () => {},
   });
   text(body.querySelector('.hi-msg'), !v ? (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' and pick Inspect gear.'
-    : v.pending ? 'Looking…' : v.error ? refusalWords(v.error) : !v.gear.length ? 'Nothing worn.' : '');
+    : v.pending ? 'Looking…' : v.error ? refusalWords(v.error) : !v.gear.length ? 'Nothing worn' : '');
 };
 
 renderInspect.events = Object.freeze(['mouseover', 'mouseout']);

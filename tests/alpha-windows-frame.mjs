@@ -187,7 +187,7 @@ async function checks(overrides, shots, opts) {
           /* the fixture hero is Level 7: the Cellar's hunt ends at 5 (hunt-grounds.js endsAtLevel) and its door refuses it, so Enter is off and
              says so (blind playthrough 2026-11-19, P1; tests/hunt-floor-warning.mjs G9 holds the rule); the hero goes on to the Thicket */
           const cellarOff = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'); return { off: w.querySelector('.hw-hunt-enter').disabled, why: w.querySelector('.hw-enter-why').textContent }; });
-          if (!cellarOff.off || cellarOff.why !== 'Ground outgrown at Level 5, pick a harder one') fails.push('AW-14 a Level 7 hero\'s Cellar Enter reads ' + JSON.stringify(cellarOff));
+          if (!cellarOff.off || cellarOff.why !== 'Outgrown at Level 5 · Pick a harder ground') fails.push('AW-14 a Level 7 hero\'s Cellar Enter reads ' + JSON.stringify(cellarOff));
           await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]');
           await page.waitForTimeout(300);
           await page.click('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter');
@@ -293,7 +293,7 @@ async function checks(overrides, shots, opts) {
            rareSaleWords; set/v0.2.140: with A16 the junk sale above stopped carrying the Fangs, and nothing read the Shop's rare words) */
         await page.click('[data-hs-win="shop"] [data-hs-act="sell"][data-item="alpha_fang"]');
         const rowNote = await page.evaluate(() => { const c = document.querySelector('[data-pane="sell"] .hw-confirm.is-on'); return c ? c.querySelector('.hw-confirm-q').textContent + ' | ' + c.querySelector('.hw-confirm-note').textContent : ''; });
-        if (!/This sells rare finds: 3 Alpha Fang\./.test(rowNote)) fails.push('AW-62 selling the Alpha Fangs on their own row asks: ' + JSON.stringify(rowNote));
+        if (!/Sells rare finds: 3 Alpha Fang/.test(rowNote)) fails.push('AW-62 selling the Alpha Fangs on their own row asks: ' + JSON.stringify(rowNote));
         await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
         await page.keyboard.press('v');
         /* AW-62 Inventory's foot stands inside the window at a laptop's height, the bag scrolling above it, with a card up too */
@@ -373,7 +373,7 @@ async function checks(overrides, shots, opts) {
           await page.waitForTimeout(300);
           const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); const b = w.querySelector('[data-hs-act="again"]'); return { off: b.disabled, why: w.querySelector('.hh-intent-msg').textContent, reason: w.querySelector('.hsum-reason').textContent }; });
           if (!seen.off || seen.why !== 'Hunt again off: Party leader picks the hunt') fails.push('AW-61 a member\'s Hunt again reads ' + JSON.stringify(seen));
-          if (!/Bramwell ran out of stamina, so .* came home too\./.test(seen.reason)) fails.push('AW-61 the member\'s end card reads ' + seen.reason);
+          if (!/Party ended · Bramwell out of stamina/.test(seen.reason)) fails.push('AW-61 the member\'s end card reads ' + seen.reason);
           /* the leader's own press is the party's Start, never a lone Enter */
           s.env.party = Object.assign({}, s.env.party, { self_seat: 0, leader_seat: 0 });
           await pushEnvelope(page, s);

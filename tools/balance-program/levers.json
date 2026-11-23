@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c06d80954bb053ba",
+ "authored": "96ad7d77e91307d0",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,11 +63,11 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 195,
+  "levers": 196,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
-   "level-scaling": 7,
+   "level-scaling": 8,
    "weapon-power": 6,
    "spells": 12,
    "healing-shielding": 2,
@@ -87,7 +87,7 @@
    "economy": 35
   },
   "byClass": {
-   "global": 91,
+   "global": 92,
    "archetype": 29,
    "content": 47,
    "exception-intentional": 17,
@@ -100,13 +100,13 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 22,
+   "not-playable:not-in-runs": 23,
    "variant": 5,
    "not-playable:not-built": 13,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 84,
+   "asserted": 85,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 678,
-  "typed": 15809,
+  "bindings": 679,
+  "typed": 15804,
   "files": 233,
-  "lever": 291,
+  "lever": 292,
   "notLever": 387,
   "unclaimed": 0
  },
@@ -622,7 +622,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 256,
+     "line": 284,
      "text": "export const MAX_BANE_MULT = 1.40;",
      "binding": "MAX_BANE_MULT"
     }
@@ -841,7 +841,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 130,
+     "line": 158,
      "text": "export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });",
      "binding": "SKILL_CURVE"
     }
@@ -898,7 +898,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 187,
+     "line": 215,
      "text": "hitXpPerDamage: 1.5,",
      "binding": "COMBAT_XP"
     }
@@ -960,7 +960,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 188,
+     "line": 216,
      "text": "defenseXpPerLevelPermille: 200,",
      "binding": "COMBAT_XP"
     }
@@ -1545,19 +1545,82 @@
    "evidence": "CONFIRMED (read)"
   },
   {
+   "id": "level.hours",
+   "category": "level-scaling",
+   "name": "Hours a Level takes",
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": 106,
+     "text": "export const LEVEL_HOURS = Object.freeze({ ceiling: 20, half: 100, early: 6 });",
+     "binding": "LEVEL_HOURS"
+    }
+   ],
+   "definition": "hunted hours of the reference company (a Steady four at its ground's reference step) for Level L = ceiling x L^2 / ((L + half) x (L + early)); the pay a scale kill makes is derived from it (danger.js levelShareXp), and LEVEL_PACE.targets is derived from it",
+   "range": "ceiling 16 to 24, half 60 to 140, early 2 to 10, whole numbers (server twin hr_danger_hours_for, tools/gen-danger.mjs). Design promises held by tests/level-curve.mjs C8: Level 10 in the first 10 h day, Level 200 in 120 to 240 days, levels off",
+   "touches": "hours to every Level on the scale (so days to every gear tier and band), Level XP a kill (the server bound hr_danger_level_xp_max), the skill clock once skills run on time parity (04 section 4)",
+   "outcomes": [
+    "hoursPerLevel",
+    "netLevelXpPerH"
+   ],
+   "formulas": [
+    "P01"
+   ],
+   "reach": {
+    "feeds": 5,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/level-curve.mjs",
+      "what": "C7 a Steady four at its held depth earns it, C8 its design promises",
+      "reads": [
+       "LEVEL_HOURS",
+       "levelHoursOf"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "pay: the engine reads the formula",
+      "reads": [
+       "LEVEL_HOURS",
+       "levelHoursOf"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/danger.mjs",
+     "tests/level-curve.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "a design target the pay is derived from: a move changes Levels an hour by construction, never what a company holds (tools/balance-program/redesign/hours/fit.mjs reads it back)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "DESIGN (27-formula-overhaul.md P-1, game designer 2026-11-22), MEASURED read-back (hours/fit.mjs)"
+  },
+  {
    "id": "level.hero-hp",
    "category": "level-scaling",
    "name": "Hero HP a Level",
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 136,
+     "line": 164,
      "text": "hpBase: 150,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 137,
+     "line": 165,
      "text": "hpPerLevel: 10,",
      "binding": "VITALS"
     }
@@ -1632,13 +1695,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 138,
+     "line": 166,
      "text": "manaBase: 100,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 139,
+     "line": 167,
      "text": "manaPerLevel: 10,   // Tyler 2026-10-19: \"10 and 10\"",
      "binding": "VITALS"
     }
@@ -3246,7 +3309,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 350,
+     "line": 353,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3308,19 +3371,19 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 197,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 170,
+     "line": 198,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 171,
+     "line": 199,
      "text": "ward: Object.freeze({ perPointPm: 1500 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3384,13 +3447,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 197,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 170,
+     "line": 198,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3454,7 +3517,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 172,
+     "line": 200,
      "text": "capPm: 600,",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3528,13 +3591,13 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 140,
+     "line": 168,
      "text": "heavyHpPermille: 280,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 141,
+     "line": 169,
      "text": "lightManaPermille: 350,",
      "binding": "VITALS"
     }
@@ -4291,7 +4354,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 144,
+     "line": 172,
      "text": "inFightRegenPermillePerS: 3,",
      "binding": "VITALS"
     },
@@ -4358,7 +4421,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 196,
+     "line": 224,
      "text": "export const FLAME_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });",
      "binding": "FLAME_REGEN"
     }
@@ -5269,7 +5332,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 200,
+     "line": 228,
      "text": "export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });",
      "binding": "MONSTER_LEVEL_BY_TIER"
     }
@@ -10348,7 +10411,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 240,
+     "line": 268,
      "text": "export const FOOD_HEAL_SCALE = 12;",
      "binding": "FOOD_HEAL_SCALE"
     }
@@ -13170,7 +13233,7 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 230,
+     "line": 258,
      "text": "export const FLAME_FUEL = Object.freeze({",
      "binding": "FLAME_FUEL"
     }
@@ -15299,6 +15362,15 @@
     "rise"
    ],
    "typed": 33,
+   "bindings": 1
+  },
+  "src/data/core-model.js#LEVEL_HOURS": {
+   "pin": "count",
+   "keys": [
+    "ceiling",
+    "early"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/core-model.js#VITALS": {

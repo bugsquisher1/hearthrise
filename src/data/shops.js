@@ -1,8 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// Hearthrise — THE PRICE CATALOGUE (HAND-AUTHORED since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from)
-//
-//   catalogue digest: 3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07
-//   89 offers · 187 cost lines · 4 prices that are formulas, not data
+// Hearthrise — THE PRICE CATALOGUE (data since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from).
+// EVERY GOLD AMOUNT IS A FORMULA since lane/prices-wage-hours (2026-11-23): hours of wage or the store's ask, see NO GOLD IS TYPED below;
+// the companions are the one typed holdout (tests/wage-prices.mjs UNCONVERTED).
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js

@@ -39,6 +39,7 @@ export const BAR_TEXT = Object.freeze({
   target_taunt: 'Taunts nearby monsters',
   target_mark: 'Marks the target',
   target_enemy: 'Hits the target',
+  target_prefers: 'Hits the target · First target: {roles}',
   target_area: 'Hits monsters around the target',
   /* a line says how long it is, a ring how far it reaches and how many it can hit (the area abilities: Raking Shot, Turning Cut) */
   target_line: 'Hits every monster on a {len}-tile line',

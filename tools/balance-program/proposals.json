@@ -278,23 +278,6 @@
    "note": "Jewelry and cloaks at their tier 7 numbers (items-2): the upper bound of building them to tier 7. The 6% share of the gear curve past tier 7 is not modelled"
   },
   {
-   "id": "GR-52",
-   "doc": [
-    "G-52",
-    "R14"
-   ],
-   "title": "The store's healing",
-   "modelled": true,
-   "recommended": true,
-   "label": "MEASURED",
-   "layer": "coefficient",
-   "patch": "patches/economy-1.json",
-   "shipsWith": [],
-   "after": [],
-   "before": [],
-   "note": "The store's heal price on one line. Heal size on the gear curve is not modelled. The harness store bill reads about twice real (F5)"
-  },
-  {
    "id": "GR-76",
    "doc": [
     "G-76",
@@ -1611,6 +1594,18 @@
    "ruling": "RULED 2026-11-21 (the sitting S-9, option C: the rested bank is cut)",
    "modelled": false,
    "reason": "BUILT 2026-11-21 by FB-2 (lane/c-formula-steps, 1040-rested-bank-cut.sql): the rested bank is gone from the tree, so patches/progression-3-rested-off.json is empty and the proposed game has nothing to plant. It was an identity on every cell"
+  },
+  {
+   "id": "GR-52",
+   "doc": [
+    "G-52",
+    "R14"
+   ],
+   "title": "The store's healing",
+   "section": "Superseded by an approved redesign change",
+   "ruling": "lane/econ-levers (2026-11-22): every store heal and drink is priced from wage hours (restorePrice, src/data/supply-basics.js)",
+   "modelled": false,
+   "reason": "superseded: the store heal price is now derived from wage hours by lane/econ-levers, so there is no typed price for patches/economy-1.json to move (its last measured reading stays in the R12 and R13 measuredOn lists)"
   }
  ]
 }

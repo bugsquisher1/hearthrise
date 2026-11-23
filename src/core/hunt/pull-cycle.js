@@ -414,7 +414,7 @@ export function runPhase(inst, sc) {
       /* (a pull the leash took home ends too: its margin is read like any pull's) */
       pullEnds(inst, sc);
       w.phase = PHASE.TRAVEL;
-    } else if (breaksOff(w)) breakOff(inst, sc);
+    } else if (breaksOff(inst)) breakOff(inst, sc);
     return;
   }
   if (w.phase === PHASE.REGROUP) {

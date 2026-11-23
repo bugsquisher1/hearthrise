@@ -372,6 +372,20 @@ function withRows(M, rows, fn) {
   try { return fn(); } finally { for (const [T, k, o] of kept) Object.assign(T[k], o); }
 }
 
+/* THE BUG #61 PARTY'S GEAR AS IT STOOD ON 2026-10-22 (LV-PULL's balance-blind arm, like WARRENS_BEFORE_STEP): the gear formula (lane/gear-catalogue-steps,
+   src/core/gear-stats.js) re-cut these pieces by a point or two, and a Steel Sword a point stronger finished lap 1 before a blow landed, so the laps this
+   arm reads came out other than it plays them. Who pulls and holds is balance-blind: the party fights on its own day's numbers. */
+const PARTY_61_GEAR = Object.freeze({
+  steel_sword: { atkB: 12, strB: 10 }, iron_sword: { atkB: 7, strB: 6 }, iron_helm: { defB: 5 }, steel_helm: { defB: 10 },
+  bronze_platebody: { defB: 6, rangeAtkB: -2, magicAtkB: -3 }, steel_platelegs: { defB: 15, rangeAtkB: -4, magicAtkB: -8 }, bronze_boots: { defB: 2, rangeAtkB: -1, magicAtkB: -1 },
+  leather_helmet: { defB: 2, rangeAtkB: 2, magicAtkB: 0, critB: 0.004 }, leather_body: { defB: 3, rangeAtkB: 3, magicAtkB: -1, critB: 0.004 }, leather_boots: { defB: 1, rangeAtkB: 1, critB: 0.004 },
+});
+function withGear(M, rows, fn) {
+  const kept = Object.entries(rows).map(([k, o]) => [k, Object.fromEntries(Object.keys(o).map((f) => [f, M.ITEMS[k][f]]))]);
+  for (const [k, o] of Object.entries(rows)) M.ITEMS[k] = { ...M.ITEMS[k], ...o };
+  try { return fn(); } finally { for (const [k, o] of kept) M.ITEMS[k] = { ...M.ITEMS[k], ...o }; }
+}
+
 function withoutSpells(M, fn) {
   const kept = Object.entries(M.ENGINE_MONSTERS).filter(([, m]) => Object.prototype.hasOwnProperty.call(m, 'spells')).map(([k, m]) => [k, m.spells]);
   for (const [k] of kept) delete M.ENGINE_MONSTERS[k].spells;
@@ -1193,7 +1207,7 @@ function rules(M) {
     /* ...AND THE WARRENS' FIVE ON THEIR ROWS BEFORE 2026-11-19 (monsters a little harder, balance-sheet.js STAT_FORMULA x1.1): on the new rows the bug #61 party
        in its 10-22 gear loses Fremulon mid-lap (Eddie holds his laps under "One tank holds", 85 packs held by another), and a fallen holder ends the laps
        this arm reads. Who pulls and holds is balance-blind; LV-4P plays the Warrens as they ship. */
-    withRows(M, WARRENS_BEFORE_STEP, () => withoutSpells(M, () => {
+    withGear(M, PARTY_61_GEAR, () => withRows(M, WARRENS_BEFORE_STEP, () => withoutSpells(M, () => {
     for (const [mode, hold] of [['Take turns', null], ['One tank holds: Fremulon', 1]]) {
       /* the holder of lap i (by `runs`): the lap's turn, or Fremulon every lap */
       const holderOf = (ids, i) => (hold === null ? ids[i % 2] : ids[1]);
@@ -1243,7 +1257,7 @@ function rules(M) {
       ok('LV-PULL', moves >= 1 && v.refreshes.length >= 1 && v.refreshes.length <= moves, `${mode}, viewed: the peers' levels moved at ${moves} commit(s) and the prediction restarted for them ${v.refreshes.length} time(s) (want 1+ moves; 1+ restarts, never more than the moves)`);
       ok('LV-PULL', wire, `${mode}, viewed: a peer's frozen row keys otherwise in the browser (through JSON) than on the server`);
     }
-    }));
+    })));
   }
 
   { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow

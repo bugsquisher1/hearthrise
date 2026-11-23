@@ -367,8 +367,9 @@ const mutants = [
   { name: 'a Frostfin Supper past a cape step', case: 'a-food-cuts-and-never-guards', edits: [['src/data/items.js', "buff:{type:'defense', magnitude:5,", "buff:{type:'defense', magnitude:12,"]] },
   { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A thick chowder of silverfin, potato and carrot. For five minutes, you take a little less damage from every hit'", "'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard'"]] },
   { name: 'a cut alone has no cap', case: 'the-cape-shares-the-hook-and-the-cap', edits: [[MI, 'const keep = m.keepPm || (armorPm ? 1000 - ARMOUR_MITIGATION.capPm : 0);', 'const keep = m.keepPm;']] },
-  { name: 'a cape guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
-  { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', "copper_studs:        { n: 'Copper Studs',", "copper_studs:        { defB: 1, n: 'Copper Studs',"]] },
+  { name: 'a cape guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22,'], ['src/data/gear-stats.generated.js', '"houndskin_cloak": f({', '"houndskin_cloak": f({ defB: 4, strB: 1 }), "houndskin_cloak~shipped": f({']] },
+  /* a piece's stats are the generated table's (src/data/gear-stats.generated.js, lane/gear-catalogue-steps): a planted guard edits it */
+  { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/gear-stats.generated.js', '"copper_studs": f({', '"copper_studs": f({ defB: 1, atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 }), "copper_studs~shipped": f({']] },
   { name: 'a Houndskin Cloak past the step', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, steadyPm: 120,']] },
   { name: 'a cape with nothing on it', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22,']] },
   { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/abilities.js', '  n = temperedAmount(n, u.blowsPm, sc.rng);\n', '']] },

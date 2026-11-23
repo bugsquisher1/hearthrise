@@ -82,13 +82,13 @@ const BANE_GEAR = {
   // ITEM-NEW-02 · hammer T4 · vs Undead. Warhammer T4 curve (14/28) × 0.85.
   lazlos_maul: {
     n: "Lazlo's Maul", icon: '🔨', v: priced(110, 4), type: 'weapon', slot: 'weapon',
-    weaponType: 'hammer', statPlus: { atkB: 2, strB: 2 }, tier: 4, rarity: 'epic',
+    weaponType: 'hammer', statPlus: { atkB: 1, strB: 1 }, tier: 4, rarity: 'epic',
     reqSkill: 'level', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
     n: 'Dragonrib Bow', icon: '🏹', v: priced(105, 6), type: 'weapon', slot: 'weapon',
-    weaponType: 'ranged', twoHanded: true, statPlus: { rangeAtkB: -7, rangeStrB: -5 },
+    weaponType: 'ranged', twoHanded: true, statPlus: { rangeAtkB: -7, rangeStrB: -6 },
     tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75,
     bane: BANE('dragon'), effects: ['bane'],
   },
@@ -115,7 +115,7 @@ const BANE_GEAR = {
   // ITEM-NEW-07 · hammer T3 · vs Vermin. Warhammer T3 curve (9/19) × 0.85.
   rat_stick: {
     n: 'Rat Stick', icon: '🔨', v: priced(110, 3), type: 'weapon', slot: 'weapon',
-    weaponType: 'hammer', statPlus: { atkB: 1, strB: 1 }, tier: 3, rarity: 'rare',
+    weaponType: 'hammer', statPlus: { atkB: 1 }, tier: 3, rarity: 'rare',
     reqSkill: 'level', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
   },
 };

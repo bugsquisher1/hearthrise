@@ -156,7 +156,7 @@ export const ITEMS={
      steel 12 and mithril 18), Chief's Blade attack 15 (atkB 13, iron's rung) —
      rather than inventing a tier, because `tier` also drives the rarity border
      and the ladder guards, and these two are drops, not rungs. */
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',statPlus: { atkB: 6, strB: 4 }, reqSkill:'level',reqLv:30},
+  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',statPlus: { atkB: 5, strB: 4 }, reqSkill:'level',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
   ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',statPlus: { atkB: 5, strB: 4 }, reqSkill:'level',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',steadyPm: 90,statPlus: { atkB: 2 }, reqSkill:'level',reqLv:30},
   /* defB 2 -> 1, its ladder value: at 2 the tier-2 Studded Boots stopped no more damage (balance ruling 2026-10-25 §9; tests/hunt-core/first-week-bands.mjs armor-rungs).
@@ -386,7 +386,7 @@ export const ITEMS={
   heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:30},
   verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:140},
   verdite_helm: {n:'Verdite Helm', icon:'⛑️', v:1080, type:'armor', slot:'helmet',
-    armourClass:'plate', statPlus: { defB: -1 }, rarity:'rare', tier:4,
+    armourClass:'plate', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
   verdite_platebody: {n:'Verdite Platebody', icon:'🦺', v:2700, type:'armor', slot:'body',
     armourClass:'plate', rarity:'rare', tier:4,
@@ -395,13 +395,13 @@ export const ITEMS={
     statPlus: { defB: -1 }, armourClass:'plate', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
   verdite_blade: {n:'Verdite Blade', icon:'⚔️', v:900, type:'weapon', slot:'weapon',
-    weaponType:'sword', statPlus: { atkB: -1, strB: -1 }, rarity:'rare', tier:4,
+    weaponType:'sword', statPlus: { atkB: -2, strB: -2 }, rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
   /* The band's capstone, and the only sink for the gem: a Heartgarnet is one
      swing at the Mining-56 geode, so the best weapon before Mithril asks a
      smith to have MINED for it rather than to have bought bars. */
   heartgarnet_maul: {n:'Heartgarnet Maul', icon:'🔨', v:990, type:'weapon', slot:'weapon',
-    weaponType:'hammer', statPlus: { atkB: 1, strB: 3 }, rarity:'epic', tier:4,
+    weaponType:'hammer', statPlus: { atkB: 1, strB: 2 }, rarity:'epic', tier:4,
     reqSkill:'level', reqLv:42},
 
   /* ── Recipe outputs: crafting (planks) ── */
@@ -752,11 +752,11 @@ export const ITEMS={
      strength, Codex = magic+crit, etc.) so they read as a reward, not a reskin. */
 
   // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)
-  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 5, strB: 12, critB: 0.02 }, reqSkill:'level', reqLv:35, rarity:'unique'},
+  wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  type:'weapon', slot:'weapon', weaponType:'sword', statPlus: { atkB: 4, strB: 11, critB: 0.02 }, reqSkill:'level', reqLv:35, rarity:'unique'},
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', statPlus: { magicAtkB: -1, critB: 0.04 }, reqSkill:'level', reqLv:45, rarity:'unique'},
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', statPlus: { magicAtkB: -2, magicStrB: -1, critB: 0.04 }, reqSkill:'level', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // obsidian_keep — The Ashen King (Lv 65)

@@ -50,8 +50,8 @@ export const GEAR_STAT_FIELDS = Object.freeze(['defB', 'atkB', 'strB', 'rangeAtk
 
 /* a whole kit's points at item Level iL: c0 + c1 iL + c2 iL^2 */
 export const GEAR_CURVES = Object.freeze({
-  offense: Object.freeze({ c0: 19.2, c1: 1.15, c2: 0.0116 }),
-  defense: Object.freeze({ c0: 38.8, c1: 2.23, c2: 0.0504 }),
+  offense: Object.freeze({ c0: 18.5, c1: 1.4, c2: 0.00885 }),
+  defense: Object.freeze({ c0: 37.85, c1: 2.096, c2: 0.05203 }),
 });
 
 /* the header: the curve's top item Level, and the share of a piece's item-Level gap its stats keep on the Danger scale (permille) */
@@ -87,7 +87,7 @@ export const GEAR_PROFILES = Object.freeze({
   plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),
   /* leather's crit is the same on every piece (the shipped 0.4% a tier a piece, 2.8% at Dawnsteel) */
   leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),
-  cloth: Object.freeze({ curve: 'defense', defB: 300, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),
+  cloth: Object.freeze({ curve: 'defense', defB: 305, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),
   /* CLOAKS AND JEWELS: small, every style alike (a cloak's own attribute, its Steady armor, is an attribute, not a base stat) */
   cape: Object.freeze({ curve: 'offense', strB: 120, rangeStrB: 120, magicStrB: 120 }),
   jewel: Object.freeze({ curve: 'offense', atkB: 200, strB: 200, rangeAtkB: 200, rangeStrB: 200, magicAtkB: 200, magicStrB: 200 }),

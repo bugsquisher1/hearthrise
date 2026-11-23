@@ -320,9 +320,14 @@
         "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
       },
       {
-        "bytes": 3450483,
+        "bytes": 3409627,
         "on": "2026-11-23",
-        "why": "lane/gear-catalogue-steps: the one gear stat formula (src/core/gear-stats.js), its levers (src/data/gear-profiles.js) and the generated stat table (src/data/gear-stats.generated.js) the settle's scale view reads"
+        "why": "store-kit storePrice JSDoc param type (typecheck-ratchet TS2345)"
+      },
+      {
+        "bytes": 3453352,
+        "on": "2026-11-23",
+        "why": "lane/gear-catalogue-steps: the one gear stat formula (src/core/gear-stats.js), its levers (src/data/gear-profiles.js) and the generated stat table with each piece's item Level (src/data/gear-stats.generated.js) the settle's scale view reads"
       }
     ]
   }

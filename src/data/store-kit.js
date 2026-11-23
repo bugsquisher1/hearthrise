@@ -104,6 +104,7 @@ export function storePriceOf(t, step) {
  * THE PRICE OF ONE STORE USE, whole gold: storeTerms of the row at `step` (the row's own made-at Level for its list price, the buyer's
  * store step for a use). The same arithmetic as before the split, so every list price is unchanged.
  */
+/** @param {{ step: number, line: any, amount?: number, partnerAmount?: number, book?: number, rune?: boolean, ammoPremium?: number }} p */
 export function storePrice({ step, ...row }, k = STORE_KIT) {
   return storePriceOf(storeTerms(row, k), step);
 }

@@ -281,6 +281,8 @@
     "node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest": "economy-selftests",
     "node tools/balance-program/targets.mjs --check": "economy-selftests",
+    "node tools/gen-skill-curve.mjs --check": "economy-selftests",
+    "node tools/mutant-gate.mjs node tools/gen-skill-curve.mjs --selftest": "economy-selftests",
     "node tools/gen-talents.mjs --check": "economy-selftests",
     "node tools/mutant-gate.mjs node tools/gen-talents.mjs --selftest": "economy-selftests",
     "node tests/party-flow.mjs": "db-replay-15",

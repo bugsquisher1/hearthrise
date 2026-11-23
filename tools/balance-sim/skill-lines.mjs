@@ -223,7 +223,9 @@ if (isMain(import.meta.url)) {
     let commit = null;
     try { commit = execSync('git rev-parse --short HEAD', { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { commit = null; }
     const snap = buildLines(rows, { generated: new Date().toISOString().slice(0, 10), version: BUILD.version, commit,
-      note: 'Skill levels by Level from careers on the real engine (tools/balance-sim/skill-lines.mjs --run, then --write); never edit by hand.' });
+      note: 'Skill levels by Level from careers on the real engine (tools/balance-sim/skill-lines.mjs --run, then --write); never edit by hand.',
+      /* the curve the careers were measured on (madeOn): this tree's combat skills walk the Level clock */
+      curve: 'time' });
     writeFileSync(SNAPSHOT, JSON.stringify(snap) + '\n');
     console.log('skill-lines --write: ' + Object.keys(snap.lines.alone).length + ' lone lines, ' + Object.keys(snap.lines.party).length + ' party lines -> ' + SNAPSHOT);
     await check(snap);

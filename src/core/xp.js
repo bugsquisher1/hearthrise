@@ -61,10 +61,9 @@ export function xpPct(xp) {
 }
 
 // ── The uncapped skill curves ───────────────────────────────────────────
-/* TOTAL[s-1] = XP to reach level s, grown on demand (already grown, as for every call but the first few, no BigInt is made:
-   skillLevelFromXp asks once per level it walks, and the engine asks it for every hero's skill levels each sub-step; lane/r-engine-profile:
-   3% of a party's engine time). Each step is an exact fraction of whole numbers held in BigInt and floored once, so every runtime and
-   Postgres floor the same value.
+/* TOTAL[s-1] = XP to reach level s, grown on demand (already grown, as for every call but the first few, no BigInt is made: the engine
+   reads every hero's skill levels each sub-step; lane/r-engine-profile: 3% of a party's engine time). Each step is an exact fraction of
+   whole numbers held in BigInt and floored once, so every runtime and Postgres floor the same value.
    THE LEVEL CLOCK (Melee, Ranged, Magic, Defense; src/data/core-model.js SKILL_CURVE): the step from n to n + 1 is
      floor(pacePm x xpPerHealthHour x ceiling x n^2 x refHealth(n) / (1000 x (n + half) x (n + early)))
    (LEVEL_HOURS' levers: levelHoursOf(n) = ceiling x n^2 / ((n + half) x (n + early))), to SKILL_CURVE.top.

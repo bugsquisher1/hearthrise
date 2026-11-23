@@ -33,7 +33,7 @@ One row per formula family. "04" is the intended formula (`04-math-strategy.md` 
 | P-0 | The step and the reference company | `amount = base share x s ^ gap`, `s` = 1 + `powerStep` (§1). Reference company: a Steady four at Level L, kit and skill at Level | `src/data/danger.js:78` (`DANGER.powerStep` 0.35%), `src/core/hunt/danger.js:178` (`powerPm`: the gear part's steps on a blow, applied after the old chain) | NEW | none | 0, done |
 | P-1 | Hours a Level takes | `ceiling x L / (L + half)` plus an early floor (§5) | `src/data/core-model.js:106` (`LEVEL_HOURS` 20 / 100 / 6, `levelHoursOf`), `src/core/hunt/danger.js:195`, server twin in `1061` (staged). **This lane** | NEW | P-0 | 1, done here |
 | P-2 | Level XP curve (the stored total) | None: store a Level and a share of it (§5) | `src/data/core-model.js:68` (`LEVEL_CURVE`, 16 hand-fitted brackets), `src/core/xp.js:117`, SQL `hr_level_curve` | HAND | P-1 | 12 (last) |
-| P-3 | Combat skill XP curve | Time parity: skill level n costs `skillPace` x the hours of Level n (§4) | `src/data/core-model.js:158` (`SKILL_CURVE` 15 x s² x 1.04^s), `:214` (`COMBAT_XP`), `src/data/hunt-xp.js:22` | OLD | P-1, D-1 | 7 |
+| P-3 | Combat skill XP curve | Time parity: skill level n costs `skillPace` x the hours of Level n (§4) | `src/data/core-model.js` `SKILL_CURVE` (`pacePm` 1000, `xpPerHealthHour` 120 MEASURED, `top` 10,000), `src/core/xp.js`, the rating's line `src/core/bands.js skillLevelPm`, SQL `hr_skill_curve` (`1069`, staged); the pay is still `COMBAT_XP` / `src/data/hunt-xp.js` | NEW | P-1, D-1 | 7, done (§2.5) |
 | P-4 | What a rating is made of | Weighted mean of Level, skill and gear item Level (`weightGear`, `weightSkill`) (§1) | Only the gear part is built (`danger.js:123` `POWER.weightGearPm` 1000, `weightGearBelowPm` 500). Skill reaches a blow through `src/core/combat.js:391` and to-hit, not through a weight | OLD | P-0 | 3 |
 | P-5 | Health and mana (the display curve) | One display curve shared by heroes and monsters, cancels in every contest (§1) | `src/data/core-model.js:163` (`VITALS` 150 + 10 L, kept). Heavy armor +28% health and light +35% mana are real power outside the ledger | OLD | P-0 | 3 |
 | P-6 | Power ledger slices | Slices of steps, ramp `min(1, L / 200)` (§12, `19`) | `src/data/power-ledger.js:32`, `:43`, `src/core/power-ledger.js` | NEW | P-0 | 0, done |
@@ -155,7 +155,7 @@ A row can only be rebuilt once the rows it is measured against are final, or it 
 | 4 | **Monsters and statuses derived** | M-1, M-2 columns, M-3, D-9 | Health from seconds to kill, blow from pressure, ticks as shares | **In flight** (monster-formula, e2-e3-statuses) |
 | 5 | **The gear catalogue on steps** | G-2 | Phase A can go now. Phase B needs stage 3 | Not started |
 | 6 | Bands re-cut in absolute steps, every ground on the scale, the pay gap read against the hero's Level | S-5, M-5, E-10, F-1 | Needs stages 3 to 5 final, then one `new-ground.mjs` run a ground | Not started (wave 2) |
-| 7 | Skills on time parity | P-3 | Needs P-1's clock and stage 3's `weightSkill` | Not started |
+| 7 | Skills on time parity | P-3 | Needs P-1's clock and stage 3's `weightSkill` | **Built** (lane/skills-time-parity, §2.5) |
 | 8 | Every price in wage hours, death in hours, town work | P-7, G-5, G-6, E-6, E-7, E-8, E-11, R-6, T-3, T-4, T-5 | Needs the wage (done) and the kit share re-measured after stage 6 | Not started |
 | 9 | Every drop in hours, the roller, pity, Signatures, the flame | R-1, R-2, R-3, R-5, G-3 roller, G-4, G-7 | Needs the reference kill rate after stage 6 | Not started (wave 4) |
 | 10 | Tower and bosses with a ramp | B-1, B-2 | Needs stage 4's role rows and `rampPerMinute` | Not started |
@@ -204,6 +204,36 @@ Done: section 3. What is left, and where it goes:
 - The XP curve under it (P-2) stays as the stored total until stage 12. On the scale it cancels out of pace (a kill pays a share of the next Level), so refitting its brackets now would be a server migration on a number that is going away.
 - Grounds off the scale (Levels 1 to 44 and 76 to 164 today) still pay by the old row XP and the old curve. They follow the formula once they join the scale at stage 6. Until then their pace is the old table's, which matches the formula within about 11% from Level 25 to 400 and is slower on the first day (Level 10 in 6 hours against 4.2) (section 3).
 - `LEVEL_PACE.early` and `newPlayer` (the Mill Cellar promises) are old-content targets. They retire with those grounds at stage 6.
+
+### 2.5 Scope: skills on the Level clock (stage 7, built 2026-11-23)
+
+Built (`lane/skills-time-parity`): `src/data/core-model.js SKILL_CURVE`, `src/core/xp.js`, the rating's skill line `src/core/bands.js skillLevelPm`, the server twin `tools/gen-skill-curve.mjs` (`1069-skill-time-parity.generated.sql`, STAGED), tests `tests/bands.mjs` BD-1 and BD-2, the measurement `tools/balance-program/redesign/skills/parity.mjs`.
+
+- **The formula.** XP from skill level n to n + 1 = `floor(pacePm / 1000 x levelHoursOf(n) x xpPerHealthHour x refHealth(n))`: a skill level costs `skillPace` x the hours that Level takes, counted in the reference skill XP an hour. Levers: `pacePm` (skillPace) 1000, band 800 to 1250; `xpPerHealthHour` 120, MEASURED (the main skill XP a hunted hour of the Steady mixed four's damage dealers over the reference health of their Level, on every scale ground at its reference Level: Hask's Ford 142 / 124, Muster Barrows 132 / 146, the Bone Wing 108 / 99, the Flooded Wing 107 / 111), band 100 to 140; `top` 10,000 (52 years of 10 hour days).
+- **The rating.** A skill reads as the Level the clock gives it: at pace 1000 the skill itself. The measured `SKILL_LINE` table is gone.
+- **Inner Flame** keeps the old geometric curve (`FLAME_SKILL_CURVE`): its Hearth fuel's XP is sized on it, and 21 retires the skill's XP.
+- **Live heroes** keep their XP and read it on the new curve: a skill under 80 reads lower (30 reads 14, 60 reads 44), over 80 higher (100 reads 136).
+
+**Old against new, the hours to a skill** (hunted hours from Level 1 on the hours formula; COMPUTED at the reference rate, MEASURED rates from `parity.mjs` on the grounds the game sends a four to, the hammer's Melee):
+
+| Skill | Old curve, reference rate | Clock, reference rate (the Level's own hours) | Old curve, measured rates | Clock, measured rates |
+|---|---|---|---|---|
+| 10 | 0.3 h | 4.2 h | 0.4 h | 5.8 h |
+| 30 | 10.6 h | 54 h | 14.5 h | 89 h |
+| 60 | 122 h | 215 h | 155 h | 233 h |
+| 100 | 921 h | 543 h | 1,383 h | 933 h |
+
+The hammer's Melee at Level 10 / 30 / 60 / 100 / 150 / 200 on the measured rates: old 20 / 40 / 67 / 81 / 91 / 107, clock 8 / 22 / 56 / 82 / 108 / 165. The old curve put a skill twice its Level in the first day and half of it by Level 200; the clock keeps it near its Level wherever the ground pays the reference rate.
+
+**What it found** (the dial for each, none moved here unless named):
+1. **The grounds off the scale pay skill XP at a third of the scale's rate.** The Glade and the grounds at Levels 80 to 135 pay 34 to 48 XP a point of reference health an hour, the Sewer 81 to 92, the Warrens 91 to 106, the scale 99 to 146. A specialist trails its Level there (Melee 22 at Level 30, 82 at Level 100). Stage 6 (every ground on the scale) closes it.
+2. **Defense pays 0.4 to 0.65 of the main skill** (`COMBAT_XP.defenseXpPerLevelPermille` 200) and **casters' Magic 0.25 to 1.5 of it** (the mage 30 on the wings, the healer 184 on Muster): the pay dials (`COMBAT_XP`, `HUNT_XP`), the designer's.
+3. **The yard's flat 30,000 XP an hour** is the clock's rate only at skill 11 (0.34 of it at 60, 0.22 at 100). Tyler's 1:1 ruling reads as `TRAINING_RULES.xpPerHour` = `xpPerHealthHour` x `refHealthOf(skill)`: one row.
+4. **REF_HERO stays the measured old careers** (Melee 21 at Level 10, 60 at 60, 103 at 200; `tools/gen-ref-hero.mjs` reads the snapshot as measured). Every monster's aim and evasion is written on it, so an early hero on the clock carries less skill than its monsters were written for and a late one more. Re-derive it on the clock with the monster rows (the monster lanes).
+5. **The new player** carries Melee 8 and Defense 7 at Level 10 (the old curve gave 20 and 16) and kills slower: `LEVEL_CURVE` steps 11 to 15 eased 872 to 4,360 XP so Level 15 to 16 takes 4.40 h, inside `start-kit-pace` SK-2's 4.5 (was 4.64).
+6. **Town skills** (gathering and crafting) stay on the capped 99 table (04 section 4), unchanged.
+
+[MUSTER]
 
 ## 3. The hours a Level takes: the rebuild and its result
 

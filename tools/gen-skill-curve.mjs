@@ -25,6 +25,11 @@
 //   Verify:      node tools/gen-skill-curve.mjs --check     (exit 1 on drift)
 //   Selftest:    node tools/gen-skill-curve.mjs --selftest  (every refusal bites)
 //
+// mutant-anchors: none — --selftest plants defects in an in-memory copy of the data and the walk; no tracked file is patched
+// ci-step: economy-selftests | The skill curves - generated from src/data/core-model.js, the Level clock and Inner Flame's, every refusal bites (gen-skill-curve)
+// ci-run: node tools/gen-skill-curve.mjs --check
+// ci-run: node tools/mutant-gate.mjs node tools/gen-skill-curve.mjs --selftest
+//
 // REFUSES (throws, nothing written): a lever that is not a whole number over 0, a top under 200, a curve whose rows do not
 // rise, a total past 2^53 inside the top, and an Inner Flame curve that is not the skill the data names.
 // ════════════════════════════════════════════════════════════════════════

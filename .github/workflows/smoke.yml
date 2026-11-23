@@ -1934,6 +1934,12 @@ jobs:
         run: |
           node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
           node tools/balance-program/targets.mjs --check
+      # tools/gen-skill-curve.mjs
+      - name: The skill curves - generated from src/data/core-model.js, the Level clock and Inner Flame's, every refusal bites (gen-skill-curve)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-skill-curve.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-skill-curve.mjs --selftest
       # tools/gen-talents.mjs
       - name: The Roads catalogue - generated from src/data/talents.js, every refusal bites (gen-talents)
         if: ${{ !cancelled() }}

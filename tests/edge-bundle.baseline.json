@@ -433,6 +433,11 @@
         "bytes": 3782813,
         "on": "2026-11-23",
         "why": "+1,826 B: refHeld field + refHeldOf and depthRarePm on the reference hold (lane/depth-reading-fix)"
+      },
+      {
+        "bytes": 3788001,
+        "on": "2026-11-23",
+        "why": "lane/skills-time-parity (27 P-3, stage 7): the combat skills on the Level clock. src/core/xp.js walks two curves (the clock in BigInt, Inner Flame's geometric) and reads a level by halving; src/data/core-model.js gains SKILL_CURVE's levers with their measured evidence, refHealthOf (one home with amount.js) and FLAME_SKILL_CURVE; src/core/bands.js reads the skill line off the clock (the 54-point SKILL_LINE table is gone). +5,188 bytes"
       }
     ]
   }

@@ -348,6 +348,11 @@
         "bytes": 3533686,
         "on": "2026-11-23",
         "why": "lane/hall-formula: src/core/hunt/hall-formula.js, the keyed hall's bosses on the formula behind the hall's switch (huntPlayOf's one door), and the boss kinds' to-hit lever"
+      },
+      {
+        "bytes": 3535227,
+        "on": "2026-11-23",
+        "why": "lane/hall-formula: the hall kind's defense lever and the hall switch's measured notes (bosses.js, krells_hold pack)"
       }
     ]
   }

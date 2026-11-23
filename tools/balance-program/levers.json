@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "a7f525bd30692c21",
+ "authored": "138f89223b4c1b95",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -6484,7 +6484,7 @@
      "ev": "44 X-BOSS-FLOOR-CAP, CONFIRMED"
     }
    ],
-   "evidence": "MEASURED (tools/balance-program/redesign/halls/hall-bench.mjs, Krell's Hall at 98, 40 seeds a cell: a tank, healer and two damage four 93%, one gear tier under 33%, a pair, four damage dealers and a tank with two healers 0%; lane/hall-formula)"
+   "evidence": "MEASURED (tools/balance-program/redesign/halls/hall-bench.mjs, Krell's Hall at its floor 85, 40 seeds a cell: a tank, healer, hammer and mage 93%, one gear tier under 25%, a pair, four damage dealers and an untouched bar 0%, other damage pairs 40-63%; lane/hall-formula)"
   },
   {
    "id": "mon.boss-rooms",

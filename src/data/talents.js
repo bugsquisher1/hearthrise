@@ -614,13 +614,13 @@ function border(a, b, moves, hybrid, vow) {
   ];
 }
 const MORE_BORDERS = [
-  /* (lane/roads-wave3) the town lends each side the other's wave-3 move: the club Gash, the axes Stagger (it lent Rend and Turning Cut,
-     both the axes' own, so an axe paid a point for nothing). Its picks key on the moves both sides now cast (23 section 8: Crushing Cuts
-     and Heavy Bleed to Stagger and Gash), and Butcher's cost is a step, so it bites a club that never borrowed Gash too */
-  ...border('club', 'dual_axe', ['gash', 'stagger'],
+  /* (lane/roads-wave3) Rend and Stagger, as 17 section 6 lays it: the club borrows Rend, the axes Stagger (it lent Rend and Turning Cut,
+     both the axes' own, so an axe paid a point for nothing). Crushing Cuts keys on Stagger, which both sides now cast (23 section 8), and
+     Butcher's cost is a step, so it bites a club that never borrowed Rend too */
+  ...border('club', 'dual_axe', ['rend', 'stagger'],
     [opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),
       opt('crushing_cuts', 'Crushing Cuts', 'Stagger: 1 Bleed stack', [react('stagger_bleed', 'hit', 'status', { of: 'stagger', status: 'bleed' })]),
-      opt('heavy_bleed', 'Heavy Bleed', 'Gash: Bleed +15% damage', [mod('gash', { statusPm: 150 })])],
+      opt('heavy_bleed', 'Heavy Bleed', 'Bleed +15% damage', [mod('rend', { statusPm: 150 })])],
     { n: 'Butcher', tip: 'Crits: Armor Break 6 s · −3% damage dealt',
       effects: [react('butcher_break', 'crit', 'status', { status: 'armor_break' }), step('offense', -8, 'border.club_dual_axe.vow')] }),
   ...border('dual_axe', 'ranged', ['rend', 'raking_shot'],

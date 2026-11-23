@@ -17,6 +17,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/party-class-xp.js#lines', why: 'a builder of the printed lines' },
   { at: 'src/data/party-class-xp.js#row', why: 'the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys' },
   /* units of the Inner Flame, Temper, imbuement and loot arithmetic (lane/flame-temper-build): a scale, never a balance choice */
+  { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'units in help text: milliseconds in an hour and minutes in an hour, turning STAMINA_MAX_MS and the block minutes into the hours a note prints (stamina.* and the time blocks are the levers)' },
   { at: 'src/core/inner-flame.js#MINUTE_MS', why: 'a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)' },
   { at: 'src/core/inner-flame.js#roomMpts', why: 'units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)' },
   { at: 'src/core/inner-flame.js#decay', why: 'units: 60 minutes x a million parts (decayPpm is the lever)' },

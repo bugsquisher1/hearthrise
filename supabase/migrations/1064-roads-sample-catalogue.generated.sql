@@ -543,7 +543,7 @@ insert into public.hr_talent_options (node_id, option_id, borrow, opens_at) valu
   ('border.shield_restoration.x', 'healing_shelter', null, null),
   ('border.shield_restoration.x', 'guarded_mend', null, null),
   ('border.shield_restoration.x', 'taunting_guard', null, null),
-  ('border.club_dual_axe.town', 'use_gash', 'gash', 120),
+  ('border.club_dual_axe.town', 'use_rend', 'rend', 80),
   ('border.club_dual_axe.town', 'use_stagger', 'stagger', 60),
   ('border.club_dual_axe.x', 'wide_wounds', null, null),
   ('border.club_dual_axe.x', 'crushing_cuts', null, null),

@@ -359,7 +359,7 @@ const mutants = [
   { name: 'not_offered asked after the points', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", ''],
     [T, "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n", "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n  if (!offered(n, pick)) return 'not_offered';\n"]] },
   { name: 'a saved build keeps a pick that lends nothing', case: 'town-values', edits: [[T, "    if (!offered(n, v)) out.push({ node: id, why: 'not_offered' });\n", '']] },
-  { name: 'a town lends a club hero only its own moves', case: 'town-values', edits: [['src/data/talents.js', "...border('club', 'dual_axe', ['gash', 'stagger'],", "...border('club', 'dual_axe', ['turning_cut', 'stagger'],"]] },
+  { name: 'a town lends a club hero only its own moves', case: 'town-values', edits: [['src/data/talents.js', "...border('club', 'dual_axe', ['rend', 'stagger'],", "...border('club', 'dual_axe', ['turning_cut', 'stagger'],"]] },
   { name: 'a pick whose move never reads its field', case: 'every-node-lands', edits: [['src/data/talents.js', "[mod('rend', { statusMs: 3000 })]", "[mod('power_strike', { statusMs: 3000 })]"]] },
   { name: 'a reaction on a move that lands no blow', case: 'every-node-lands', edits: [['src/data/talents.js', "{ of: 'turning_cut', pm: 10, to: 'self' }", "{ of: 'challenge', pm: 10, to: 'self' }"]] },
   { name: 'a status a road lays is hidden from the bar', case: 'bar-can-test', edits: [['src/data/statuses.js', "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs", "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs"]] },

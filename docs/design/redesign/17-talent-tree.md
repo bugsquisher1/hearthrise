@@ -476,3 +476,15 @@ Borrowing: the Sword · Shield town is reachable at Level 29, but Turning Cut's 
 - **Every town move has a value.** Power Strike, Flame Strike, Turning Cut, Rend, Raking Shot and Circle of Renewal are measured (table in section 3), so all four waiting towns lend. Greater Mend is measured again and stays past the last band, not offered until V4.
 - **A pick that lends nothing is refused.** A town or crossing pick whose move has no band answers `not_offered` (the spend, a saved build, the server's twin), so no point buys nothing. A map with an unmeasured town move, or a town that lends nothing at all, doesn't generate.
 - **Open (CONFLICTS 2026-11-23):** four town sides still get nothing (Shield at Shield · Restoration, Dual Axe at Club · Dual Axe, Sword at Sword · Club, Destruction at Destruction · Restoration), and four more lend a move the engine can't cast for them yet (Shelter to a healer, Raking Shot to an axe, Challenge to a mage and to a sword).
+
+## Changes from wave 3
+
+2026-11-23, lane/roads-wave3 (game designer). Parry, Stagger and Gash have their roads (section 5), 299 nodes in all.
+
+- **Each pick is what the move leaves behind.** "A blow you Parry" and "a wind-up it ends" have no seam yet. Riposte and Answering are the damage and the guard for 4 s after Parry. Stagger's picks lay Chill, Weakened, Silenced, Sickness or Armor Break. Long Parry stretches Parried.
+- **Laid Open is Stagger's suggested II pick.** Heavy Stagger's +3 s cooldown costs the interrupts that are Stagger's job.
+- **Unlocks.** Parry and Stagger at Melee 10, Gash at 12, so the new-spell prompt offers each once. A melee hero reaches Melee 10 about Level 7, before these roads start at Level 11. None goes on a default bar.
+- **Parried lasts 2.1 s.** At 2 s, Parry cast on its own rule missed every 2 s group spell.
+- **Towns.** Club · Dual Axe lends Rend and Stagger, Sword · Club Flame Strike and Stagger, so the axes and the sword no longer pay a point there for nothing (two of the four open sides above). Crushing Cuts is Stagger: 1 Bleed stack. Butcher's cost is −3% damage dealt, which bites both sides. V0: Stagger 5.8, Gash 16.2 (`18-roads-review-measured.md` section 7's method).
+- **Shown on the bar.** Armor Break, Weakened, Silenced and Sapped are effects a bar can test, since Roads options lay them.
+- **Measured.** Best found against suggested, in held steps (`alloc-run.mjs --gap-only`, 4 seeds x 6 h): sword 0 at L60 and L120, club +3.3 ± 2.1 at L60 and +2.1 ± 1.6 at L120, axes 0 at both. All inside the 14-step ceiling.

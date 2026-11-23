@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "5ea06ad1f5c3bbf3",
+ "authored": "3c0b3bd6cb3d8cd7",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -6074,7 +6074,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6460,7 +6460,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9894,7 +9894,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9964,7 +9964,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10085,7 +10085,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10204,7 +10204,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10561,7 +10561,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11153,7 +11153,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11251,7 +11251,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11419,13 +11419,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 54,
+     "line": 55,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 55,
+     "line": 56,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -11479,10 +11479,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/temper-steps.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11501,7 +11501,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 58,
+     "line": 59,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -11554,10 +11554,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/temper-steps.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11576,31 +11576,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 64,
+     "line": 65,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 87,
+     "line": 88,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 89,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 90,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 90,
+     "line": 91,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -11653,10 +11653,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/temper-steps.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11825,13 +11825,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 67,
+     "line": 68,
      "text": "tradeSteps: Object.freeze([7, 13, 18]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 70,
+     "line": 71,
      "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
      "binding": "GEAR_STEPS"
     }
@@ -11884,10 +11884,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/temper-steps.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12834,7 +12834,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 112,
+     "line": 114,
      "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
      "binding": "CARRY"
     }
@@ -13445,7 +13445,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13995,7 +13995,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -16999,7 +16999,7 @@
    "why": "units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top"
   },
   {
-   "at": "src/core/hunt/damage.js#pipedAmount",
+   "at": "src/core/hunt/damage.js#pipedBlow",
    "why": "units: two permille factors multiplied (1000000)"
   },
   {

@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 18181,
+  "replay_ms": 2028,
   "counts": {
-    "tracked_names": 1073,
-    "entries": 898
+    "tracked_names": 1108,
+    "entries": 933
   },
   "functions": [
     {
@@ -2132,11 +2132,13 @@
       "sig": "hr_blessing_buy(p_slot integer, p_tier integer, p_price bigint, p_idem uuid)",
       "name": "hr_blessing_buy",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
         "1005-lever-horizon.sql",
+        "1063-level-costs.sql",
         "2026-10-25-blessings.sql",
         "2026-10-27-core-bodies.sql"
       ],
@@ -2147,19 +2149,22 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "5fe04b24d895211f56b098c2404f3f69",
-        "norm_len": 4039,
+        "md5": "abed2db38f14ff2b64be0c0b42a3a41b",
+        "norm_len": 4288,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-level-costs.sql."
     },
     {
       "sig": "hr_blessing_price(p_tier integer, p_level integer)",
       "name": "hr_blessing_price",
       "tracked_by": [
+        "chain",
         "restate"
       ],
       "touched_by": [
+        "1063-level-costs-catalogue.generated.sql",
         "2026-10-25-blessings.sql",
         "2027-02-10-settle-plan-cache.generated.sql"
       ],
@@ -2170,11 +2175,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "214c40a2e05ad7bfeccb50906f6e5148",
-        "norm_len": 621,
+        "md5": "05a7cf45fb2268743f5d97859c841676",
+        "norm_len": 804,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-level-costs-catalogue.generated.sql."
     },
     {
       "sig": "hr_blessing_take(p_user uuid, p_slot integer, p_session uuid, p_dx jsonb, p_from timestamp with time zone)",
@@ -2184,6 +2190,7 @@
         "restate"
       ],
       "touched_by": [
+        "1063-level-costs.sql",
         "2026-10-25-blessings.sql"
       ],
       "live": {
@@ -2193,20 +2200,23 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "912137f4e77fb3cd8086bca04007d2fa",
-        "norm_len": 1875,
+        "md5": "1571ad336e9c661a45b095440a9892ae",
+        "norm_len": 2169,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-level-costs.sql."
     },
     {
       "sig": "hr_blessings_view(p_user uuid, p_slot integer)",
       "name": "hr_blessings_view",
       "tracked_by": [
         "chain",
+        "pin",
         "restate"
       ],
       "touched_by": [
+        "1063-level-costs.sql",
         "2026-10-25-blessings.sql",
         "2026-10-27-core-bodies.sql",
         "2027-02-10-settle-plan-cache.generated.sql"
@@ -2218,11 +2228,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "8b48b927677152b03781c9ef495142fd",
-        "norm_len": 1381,
+        "md5": "5486e7c6540a48294f444ce6125287c3",
+        "norm_len": 1344,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-level-costs.sql."
     },
     {
       "sig": "hr_block_set(p_target text, p_on boolean)",
@@ -2942,6 +2953,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_carry_fee(p_steps integer, p_item_level integer)",
+      "name": "hr_carry_fee",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "9e85f912f00416cec98c768ea5816795",
+        "norm_len": 441,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_carry_on(p_slots integer[], p_gold bigint, p_idem uuid)",
@@ -4957,8 +4986,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "199a40644437fe572ca4f4509142c5c6",
-        "norm_len": 884,
+        "md5": "0d9a121edb0aa52fe74405cd7dea53ef",
+        "norm_len": 624,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -5142,6 +5171,25 @@
       "agree": true
     },
     {
+      "sig": "hr_death_hours_xp(p_level integer, p_pm integer)",
+      "name": "hr_death_hours_xp",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1063-level-costs-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "577f8baa214256b672c8a1f78d3beee6",
+        "norm_len": 931,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-level-costs-catalogue.generated.sql."
+    },
+    {
       "sig": "hr_death_log_view(p_user uuid, p_slot integer)",
       "name": "hr_death_log_view",
       "tracked_by": [
@@ -5201,6 +5249,7 @@
         "restate"
       ],
       "touched_by": [
+        "1063-level-costs-catalogue.generated.sql",
         "2027-04-23-session-modes.sql"
       ],
       "live": {
@@ -5210,11 +5259,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "0940f7dde83498fc1d55b0830c9508f8",
-        "norm_len": 776,
+        "md5": "f70cf8f7c396ed885095400e11669183",
+        "norm_len": 1515,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-level-costs-catalogue.generated.sql."
     },
     {
       "sig": "hr_depot_cap(p_user uuid)",
@@ -6086,10 +6136,12 @@
       "sig": "hr_flag_on(p_key text)",
       "name": "hr_flag_on",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1063-flame-temper.sql",
         "2026-09-13-town-presence.sql",
         "2027-02-10-settle-plan-cache.generated.sql"
       ],
@@ -6100,11 +6152,264 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "b272c893a4b93e8b899ae085ba620496",
-        "norm_len": 469,
+        "md5": "223da404d678ac41cb2ec0d6dcd878a6",
+        "norm_len": 263,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_flame_burn(p_item text, p_count integer, p_slot integer, p_idem uuid)",
+      "name": "hr_flame_burn",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "154a0e0ad747f8c844635eec06ccdbd2",
+        "norm_len": 3921,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_flame_burn_units(p_height bigint, p_fl integer, p_count bigint, p_band integer, p_top integer)",
+      "name": "hr_flame_burn_units",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c1d44eb833a22c017176ee5cdcdcd26b",
+        "norm_len": 1213,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_burst_mpts(p_fl integer)",
+      "name": "hr_flame_burst_mpts",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7b7cc84f1e968577e782020ad3d0449c",
+        "norm_len": 275,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_decay(p_height bigint, p_points bigint, p_carry_ms bigint, p_hero_ms bigint)",
+      "name": "hr_flame_decay",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "53d428bc12d9f0c365881c60372c2ff7",
+        "norm_len": 1352,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_decay_ppm(p_fl integer)",
+      "name": "hr_flame_decay_ppm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "5ce3053307ff235eb98bdc277e50f86e",
+        "norm_len": 363,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_level_of(p_points bigint)",
+      "name": "hr_flame_level_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a010e70c47173f62819ec1ad403e29d8",
+        "norm_len": 293,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_luck_pm(p_height bigint)",
+      "name": "hr_flame_luck_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "982bd6c50137da2c11b7d469ff194557",
+        "norm_len": 348,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_room_mpts(p_fl integer)",
+      "name": "hr_flame_room_mpts",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "af06fb09362b32370906127468fde548",
+        "norm_len": 285,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_stoke_clamp(p_rule jsonb)",
+      "name": "hr_flame_stoke_clamp",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c26d94e65892c8a8ee421ee8a922527e",
+        "norm_len": 1290,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_stoke_set(p_rule jsonb, p_slot integer, p_idem uuid)",
+      "name": "hr_flame_stoke_set",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "721d2200b5d9b525b9d3415b195d3637",
+        "norm_len": 1516,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_flame_temper_settle()",
+      "name": "hr_flame_temper_settle",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "af88172007d37ed8f3f73b5c0b0b633e",
+        "norm_len": 1419,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_flame_top_rank_pm(p_luck integer)",
+      "name": "hr_flame_top_rank_pm",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "3b0dc084a1b9dcaa058656c302402b52",
+        "norm_len": 318,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_view(p_user uuid, p_slot integer)",
+      "name": "hr_flame_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "42f43f6be9352bd9772e694924bab1fe",
+        "norm_len": 977,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_flame_worth_mpts(p_count bigint, p_band integer, p_top integer)",
+      "name": "hr_flame_worth_mpts",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a1539f6cc4a256f1ab88ea1b9b6e8735",
+        "norm_len": 898,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_fnv1a(p_s text)",
@@ -7582,6 +7887,24 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1043-hearthrise.sql (new function, absent on production) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-social merged."
+    },
+    {
+      "sig": "hr_hero_chance(p_ch double precision, p_n integer, p_luck integer)",
+      "name": "hr_hero_chance",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "e5449a2fd58df6bb7bb9ef35644ae627",
+        "norm_len": 414,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_hero_colors_price(p_user uuid, p_slot integer)",
@@ -11125,6 +11448,78 @@
       "agree": true
     },
     {
+      "sig": "hr_imbue_apply(p_slot integer, p_equip_slot text, p_imbue text, p_price bigint, p_idem uuid)",
+      "name": "hr_imbue_apply",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "02b993b7331aa484430dd8e66790af2b",
+        "norm_len": 4505,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_imbue_fee(p_item_level integer, p_hero_level integer)",
+      "name": "hr_imbue_fee",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7891c2bd7d99fc3ff06069d543030e09",
+        "norm_len": 435,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_imbue_life_ms(p_quality text)",
+      "name": "hr_imbue_life_ms",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "3405f3ff59433bed8625b45f8257f645",
+        "norm_len": 402,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_imbues_view(p_user uuid, p_slot integer)",
+      "name": "hr_imbues_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "bff4580a5985ea9b3677c24cf6d41c61",
+        "norm_len": 1112,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
       "sig": "hr_inspect(p_target text, p_slot integer)",
       "name": "hr_inspect",
       "tracked_by": [
@@ -14400,6 +14795,7 @@
         "restate"
       ],
       "touched_by": [
+        "1063-flame-temper.sql",
         "2026-08-15-perk-channel.sql",
         "2026-08-16-artisan-progress-model.sql",
         "2026-08-20-companion-model.sql",
@@ -14415,11 +14811,48 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "b3eb0b5dd563f6811f5942d07e861f7c",
-        "norm_len": 6641,
+        "md5": "df873ffda8cb76f30ba6b3851a5bf8ba",
+        "norm_len": 6883,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_pity_after(p_missed bigint, p_p double precision, p_hit boolean)",
+      "name": "hr_pity_after",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "131fcb43a21d49ebb301d19101fff4f9",
+        "norm_len": 459,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_pity_chance(p_p double precision, p_missed bigint)",
+      "name": "hr_pity_chance",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c633efc20e467cf9969b62e609b6fb25",
+        "norm_len": 493,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_play_cap_guard()",
@@ -17292,6 +17725,63 @@
       "why": "STAGED for the v0.2.144 release by 1062-store-step.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1062-store-step.sql."
     },
     {
+      "sig": "hr_talent_reset(p_slot integer, p_price bigint, p_idem uuid)",
+      "name": "hr_talent_reset",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1063-level-costs.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "78e10d3884a87ce289473303050eb9cc",
+        "norm_len": 3969,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-level-costs.sql."
+    },
+    {
+      "sig": "hr_talent_reset_price(p_level integer, p_paid integer)",
+      "name": "hr_talent_reset_price",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1063-level-costs-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "562a52b236e921682fbe67970fddd687",
+        "norm_len": 924,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-level-costs-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_talent_reset_quote(p_user uuid, p_slot integer)",
+      "name": "hr_talent_reset_quote",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1063-level-costs.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "b31731456485c2e14660d7f8d57f241b",
+        "norm_len": 1962,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-level-costs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-level-costs.sql."
+    },
+    {
       "sig": "hr_tally_accept(p_slot integer, p_task text, p_weight text, p_idem uuid)",
       "name": "hr_tally_accept",
       "tracked_by": [
@@ -17565,6 +18055,150 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_temper_rank(p_slot integer, p_equip_slot text, p_price bigint, p_idem uuid)",
+      "name": "hr_temper_rank",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "81c45b0c0c93beffd4ce5757c61b4031",
+        "norm_len": 4779,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_temper_rank_cap(p_level integer)",
+      "name": "hr_temper_rank_cap",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d72452d981ef3058f860f3cdf4b238f8",
+        "norm_len": 290,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_temper_rank_mh(p_slot text, p_rank integer)",
+      "name": "hr_temper_rank_mh",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d75be12afe7d5f9642284b75f420762c",
+        "norm_len": 507,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_temper_rank_quote(p_slot text, p_rank integer, p_item_level integer)",
+      "name": "hr_temper_rank_quote",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "6d4bcf12a4283a3069104280b701ead1",
+        "norm_len": 683,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_temper_seat(p_slot integer, p_equip_slot text, p_price bigint, p_idem uuid)",
+      "name": "hr_temper_seat",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "02d1733fd857e5fd6e681cc7f791fca2",
+        "norm_len": 3995,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_temper_seat_price(p_slot text, p_ranks integer, p_item_level integer)",
+      "name": "hr_temper_seat_price",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "ab7253bea0d9553236c11bea3340edba",
+        "norm_len": 630,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_temper_steps_of(p_user uuid, p_slot integer)",
+      "name": "hr_temper_steps_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "0575a1b485a6c8a2bba7304b8e3a01d5",
+        "norm_len": 858,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+    },
+    {
+      "sig": "hr_temper_steps_view(p_user uuid, p_slot integer)",
+      "name": "hr_temper_steps_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "bc03c2697554a30d625d506bafe817cc",
+        "norm_len": 1794,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
     },
     {
       "sig": "hr_temper_view(p_user uuid, p_slot integer)",
@@ -18430,10 +19064,12 @@
       "sig": "hr_tower_check(p_session uuid, p_hunt jsonb, p_from timestamp with time zone, p_to timestamp with time zone)",
       "name": "hr_tower_check",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1063-tower-formula.sql",
         "2027-04-24-tower-climb.sql",
         "2027-05-08-catacombs.sql"
       ],
@@ -18444,11 +19080,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "45f561cd77691498f242de5f482dba10",
-        "norm_len": 2901,
+        "md5": "72e18d6f8427894f6a12fc6f5761475f",
+        "norm_len": 3466,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-tower-formula.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1063-tower-formula.sql."
     },
     {
       "sig": "hr_tower_floor_of(p_instance uuid)",
@@ -20939,6 +21576,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_worn_level(p_user uuid, p_slot integer, p_equip_slot text)",
+      "name": "hr_worn_level",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-flame-temper.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "f7620e859f87979a2ceeea452125f984",
+        "norm_len": 398,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
     },
     {
       "sig": "hr_xp_for_level(p_level integer)",

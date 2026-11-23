@@ -244,6 +244,12 @@
         "gzipBytes": 947482,
         "on": "2026-11-23",
         "why": "town load on the integrated tree: talents ~13.4 KB, gear stat table ~5.6 KB, monster/hall formulas ~3.3 KB, stage 3 amount pipeline; all read at town by the live engine and character window"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 953675,
+        "on": "2026-11-23",
+        "why": "talent-effects engine pieces (heal-rules, reactions, react-queue, cast-targets) ride core/hunt into the town stage, +6.0 KB gzip; the talents switch stays off but the engine is one path"
       }
     ]
   }

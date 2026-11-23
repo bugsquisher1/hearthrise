@@ -267,7 +267,8 @@ export function validateStatus(row) {
 }
 
 /** Every problem with the table, as strings. Empty = valid. */
-export function validate(rows = STATUSES) {
+/** @param {Record<string, any>} [rows] */
+export function validate(rows = /** @type {Record<string, any>} */ (STATUSES)) {
   const out = [];
   const byKey = new Map();
   for (const [key, row] of Object.entries(rows)) {

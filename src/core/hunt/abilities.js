@@ -595,6 +595,7 @@ export function fire(inst, u, pick, sc) {
   const gold = pick.lines.reduce((a, l) => a + l.price, 0);
   const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
   const rune = row.rune && pick.lines.length ? pick.lines[0].id : null;
+  /** @type {{ version: any, pm: number, surge?: boolean, cast?: any }} */
   const v = surged(u, row, sc) ? { version, pm: Math.floor((pm * SURGE_MULT_PM) / 1000), surge: true } : { version, pm };
   /* THE PIECES' CONTEXT (heal-rules.js), for a row that carries any */
   const cast = row.fx ? { inst, fx: row.fx, spent, near: false } : null;

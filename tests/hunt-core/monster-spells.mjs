@@ -251,6 +251,26 @@ const cases = {
     M.damage.restart(r);
     return r.swingLeftMs === M.C.COMBAT_BALANCE.tickMs ? null : 'the Chill outlived its 4 s: ' + r.swingLeftMs;
   }),
+  /* SILENCED (lane/e2-e3-statuses, statuses.js silenced: 3 s): a silenced caster starts no spell while it lasts, its wait still running,
+     and starts one the sub-step it wears off; a windup already started still lands */
+  'silenced-starts-nothing': (M) => withSpells(M, [{ ...RING, windupMs: 1600 }], { rat: 't_ring' }, () => {
+    const hush = M.ST.STATUSES.silenced;
+    if (!hush || hush.silence !== true) return 'no Silenced row';
+    const k = H(M, 1, 13, 3, 'tank');
+    const r = mon(M, 10, 0, 14, 3, { target: 1, hp: 9999, maxHp: 9999, swingLeftMs: 50000 });
+    const inst = fightOf(M, [k, r]);
+    const sc = recorder(M, 6);
+    M.status.applyStatus(inst, r, hush, { u: null }, sc);
+    M.movement.occupancy(inst);
+    for (let i = 0; i <= 40; i++) { sc.atMs = i * 100; M.spells.castSpells(inst, sc); M.status.tickStatuses(inst, sc); }
+    const s = of(sc, 'spell')[0];
+    if (!s || s.atMs !== hush.durationMs) return 'a silenced caster started its spell at ' + (s && s.atMs) + ', want the instant Silenced ends (' + hush.durationMs + ')';
+    /* a windup in flight when Silenced lands still lands */
+    M.status.applyStatus(inst, r, hush, { u: null }, sc);
+    for (let i = 41; i <= 60; i++) { sc.atMs = i * 100; M.spells.castSpells(inst, sc); M.status.tickStatuses(inst, sc); }
+    const e = of(sc, 'spell_end')[0];
+    return e && e.why === 'landed' ? null : 'a windup Silenced mid-cast ended ' + JSON.stringify(e);
+  }),
   'ranged-off-melee-holds': (M) => withSpells(M, [RING, BLAST], { rat: 't_ring', slime: 't_blast' }, () => {
     const k = H(M, 1, 13, 3, 'tank');
     /* the ranger HOLDS (chase off, distance 1): only the mark can move it */
@@ -649,6 +669,8 @@ const mutants = [
   { name: 'the drop hook does nothing (the mark closes a sub-step late)', case: 'dropped', edits: [[S, '    const why = outOf(u);\n    if (why) drop(u, sc, why);\n', '']] },
   { name: 'a Chill does not stretch the windup', case: 'chill-slows', edits: [[S, '  const ms = slowed(u, sp.windupMs);', '  const ms = sp.windupMs;']] },
   { name: 'a Chill does not stretch the swing', case: 'chill-slows', edits: [['src/core/hunt/damage.js', 'export function restart(u) { u.swingLeftMs = slowed(u, COMBAT_BALANCE.tickMs); }', 'export function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }']] },
+  { name: 'a Silenced caster starts its spell', case: 'silenced-starts-nothing', edits: [[S, "    if (hasEffect(u, 'silence')) continue;\n", '']] },
+  { name: 'Silenced stops a windup already started', case: 'silenced-starts-nothing', edits: [[S, '    if (u.cast) {\n      u.cast.left = Math.max(0, u.cast.left - sc.dtMs);', "    if (u.cast && hasEffect(u, 'silence')) { drop(u, sc, 'reset'); continue; }\n    if (u.cast) {\n      u.cast.left = Math.max(0, u.cast.left - sc.dtMs);"]] },
   { name: 'a Chill that outlasts its 4 s', case: 'chill-slows', edits: [['src/data/statuses.js', 'durationMs: 4000, maxStacks: 1, slowPm: 300', 'durationMs: 40000, maxStacks: 1, slowPm: 300']] },
   { name: 'a ranged hero holds on a mark', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '      if (marked) stepOff(inst, h, mons, marked);\n', '']] },
   { name: 'a ranged hero held in melee steps off anyway', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '  if (mons.some((m) => m.target === h.id && cheb(m, h) <= 1)) return false;\n', '']] },

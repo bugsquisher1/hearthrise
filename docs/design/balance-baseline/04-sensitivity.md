@@ -106,7 +106,7 @@ Each cell is on the ground the game advises for its Level and party size. That i
 | runePrice | Store charge floor | family, Supplies | x0.5, x0.75, x0.9, x1.1, x1.25, x1.5, x2 |
 | gearSaleRate | What dropped gear sells for | family, Rewards | x0.5, x0.75, x1.25, x1.5, x2 |
 | regroup | Wait between pulls | family, Spawns | x0.2, x0.5, x2, x4 |
-| blessingCut | Blessings' cut of a death | family, Progression | x0.5, x0.75, x1.25 |
+| blessingCut | The Blessing's cut of a death | family, Progression | x0.5, x0.75, x1.25 |
 <!-- /GEN -->
 
 The outcomes the tables name.

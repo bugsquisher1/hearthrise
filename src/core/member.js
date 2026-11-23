@@ -136,7 +136,7 @@ export function heroSnapshot(state, c) {
   /* THE OWN HEAL (combat.js equipmentStats selfHealPm, the fist line's), the same: a number on the unit, only on a hero that wears one. */
   const selfHealPm = c.eq && c.eq.selfHealPm > 0 ? c.eq.selfHealPm : 0;
   /* THE GEAR PART (src/core/hunt/danger.js gearPartPm, the gear table's): what the power step reads on the Danger scale, only there. */
-  const gearPm = gearPartPm(c.equipment, c.items);
+  const gearPm = gearPartPm(c.equipment, c.items, c.temperSteps);
   /* THE SKILL PART (src/core/bands.js, lane/foundations-block): the skill of the style in use, as the Level the reference career reaches it, over
      the hero's own Level, in thousandths (0 on the career line; the power step reads it at POWER.weightSkillPm, on the Danger scale only) */
   const level = charLevelFromXp(state.levelXp);
@@ -287,7 +287,10 @@ export function memberSide(mi, ctx) {
     },
   };
   const h = mi.hero || {};
-  const snapCtx = { eq, equipment, items, bonus, setBonus, profile, temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };
+  const snapCtx = { eq, equipment, items, bonus, setBonus, profile,
+    /* TEMPER ON STEPS (src/core/temper-steps.js): the server's seated ranks by slot (hr_perks_of temperSteps; empty while its switch is off) */
+    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null,
+    temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };
   /* THE HONE (src/core/ammo.js honeOf, lane c-work-fixes 2026-10-22): a whetstone is worn by this
      hero's swing clock (honeWornAt over the persisted swing index) from the hunt's own stock, and it
      pays its bonus only while the hunt still carries one: a spent or unpacked stone is the bare

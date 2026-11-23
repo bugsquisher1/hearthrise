@@ -45,10 +45,10 @@ export const BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });
    Level (MEASURED career, tools/balance-sim/skill-lines.json 'party' lines: hammer for melee, mage for magic, bow for ranged; tests/bands.mjs
    BD-1 holds every point within 1 of the career it was read from, so a re-measured career turns red until this line is read again).
    Straight between points; past the last, the last segment's slope; under Level 1 nothing. Today's skill curve is geometric (SKILL_CURVE),
-   so one skill point is worth many Levels high up (melee 152 at Level 1,000: 0.06 a Level); stage 7 (time parity) makes the line y = x. */
+   so one skill point is worth many Levels high up (melee 146 at Level 1,000: 0.04 a Level); stage 7 (time parity) makes the line y = x. */
 const line = (pts) => Object.freeze(pts.map((p) => Object.freeze(p)));
 export const SKILL_LINE = Object.freeze({
-  melee: line([[1, 2], [10, 18], [20, 28], [30, 34], [40, 41], [50, 46], [60, 52], [75, 61], [100, 70], [125, 77], [150, 83], [175, 87], [200, 91], [250, 99], [300, 105], [400, 116], [500, 123], [1000, 152]]),
-  magic: line([[1, 4], [10, 22], [20, 34], [30, 40], [40, 45], [50, 50], [60, 54], [75, 62], [100, 71], [125, 78], [150, 84], [175, 88], [200, 92], [250, 100], [300, 106], [400, 117], [500, 124], [1000, 154]]),
-  ranged: line([[1, 4], [10, 19], [20, 31], [30, 39], [40, 45], [50, 51], [60, 56], [75, 64], [100, 73], [125, 81], [150, 88], [175, 93], [200, 98], [250, 106], [300, 112], [400, 123], [500, 131], [1000, 161]]),
+  melee: line([[1, 2], [10, 18], [20, 28], [30, 34], [40, 41], [50, 46], [60, 52], [75, 61], [100, 70], [125, 78], [150, 84], [175, 89], [200, 93], [250, 101], [300, 107], [400, 117], [500, 124], [1000, 146]]),
+  magic: line([[1, 4], [10, 22], [20, 34], [30, 40], [40, 45], [50, 50], [60, 54], [75, 62], [100, 71], [125, 79], [150, 85], [175, 90], [200, 94], [250, 102], [300, 108], [400, 118], [500, 125], [1000, 147]]),
+  ranged: line([[1, 4], [10, 19], [20, 31], [30, 39], [40, 45], [50, 51], [60, 56], [75, 64], [100, 73], [125, 83], [150, 90], [175, 95], [200, 100], [250, 108], [300, 114], [400, 124], [500, 131], [1000, 154]]),
 });

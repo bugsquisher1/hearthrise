@@ -28,8 +28,8 @@
 //              outgrown, a hero in another account's party that is not hunting (party_leader); none of them is started or touched
 //   CO-IDEM    two presses are one restart: the same key answers its receipt and starts nothing; a new key finds every hero busy
 //              (nothing_to_carry_on); a gold figure that is not the plan's refuses quote_changed and moves nothing
-//   CO-BLESS   a death that used three Blessings: the plan prices them at the hero's Level (the server's price), the press buys them back
-//              through hr_blessing_buy (journalled, the purse less exactly that) and the hero goes blessed
+//   CO-BLESS   a death that used the ONE Blessing (1063-level-costs.sql): the plan prices it at the hero's Level (the server's price,
+//              hours of the wage), the press buys it back through hr_blessing_buy (journalled, the purse less exactly that), the hero blessed
 //   CO-LOOT    the hero's loot plan runs first (a sell rule: the stack sold, the purse up) and the hero still goes
 //   CO-WORDS   the plan in the player's words: a line a hero, Storage and the store said, a refusal named, no semicolon or dash
 //   CO-APART   (1025-own-heroes-apart.sql) the account's own two in a party, browser closed: the leader runs out of stamina and the member,
@@ -309,8 +309,10 @@ async function blessArm(db, M) {
     await heroes(db, M, A, 1);
     const lv = 34;
     await levelTo(db, M, A, 0, lv);
-    await db.query(`insert into public.account_wallet (user_id, gold) values ($1, 5000) on conflict (user_id) do update set gold = 5000`, [A]);
-    for (const tier of [1, 2, 3]) {
+    /* the ONE Blessing at the hero's Level, twice over: the first buy and the carry-on's buy back */
+    const fund = 2 * Number(await one(db, 'select public.hr_blessing_price(1, $1)::text', [lv]));
+    await db.query(`insert into public.account_wallet (user_id, gold) values ($1, $2) on conflict (user_id) do update set gold = excluded.gold`, [A, fund]);
+    for (const tier of [1]) {
       const price = Number(await one(db, 'select public.hr_blessing_price($1, $2)::text', [tier, lv]));
       const r = await as(db, A, 'select public.hr_blessing_buy(0, $1, $2, $3::uuid)', [tier, price, idem()]);
       if (!r || r.ok !== true) return ['CO-BLESS HARNESS: the first Blessing ' + tier + ' answered ' + JSON.stringify(r)];
@@ -324,7 +326,7 @@ async function blessArm(db, M) {
     await db.query(`select public.hr_hunt_close($1::uuid, 'died', now(), true)`, [sid]);
     await ageEnded(db, A);
     const purse0 = Number(await one(db, 'select public.hr_purse_of($1::uuid)::text', [A]));
-    const want = [1, 2, 3].map(async (t) => Number(await one(db, 'select public.hr_blessing_price($1, $2)::text', [t, lv])));
+    const want = [1].map(async (t) => Number(await one(db, 'select public.hr_blessing_price($1, $2)::text', [t, lv])));
     const prices = await Promise.all(want);
     const p = await plan(db, A);
     const h = p.heroes[0] || {};
@@ -337,7 +339,7 @@ async function blessArm(db, M) {
     const held = (await q(db, 'select tier from public.player_blessings where user_id = $1 and slot = 0 order by tier', [A])).map((x) => Number(x.tier));
     const purse1 = Number(await one(db, 'select public.hr_purse_of($1::uuid)::text', [A]));
     const rows = Number(await buys()) - rows0;
-    if (!v || v.went !== 1 || JSON.stringify(held) !== '[1,2,3]' || purse0 - purse1 !== sum || rows !== 3) {
+    if (!v || v.went !== 1 || JSON.stringify(held) !== '[1]' || purse0 - purse1 !== sum || rows !== 1) {
       bad.push('CO-BLESS the press answered ' + JSON.stringify(v && v.heroes) + ', held ' + JSON.stringify(held) + ', purse ' + purse0 + ' -> ' + purse1 + ' (want -' + sum + '), ' + rows + ' journal rows');
     }
     return bad;

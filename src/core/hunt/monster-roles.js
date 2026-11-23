@@ -25,9 +25,13 @@ import { isEnemy, isAlly, isHero, isMonster } from './sides.js';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
+/* THE BURNING TOWER IS THE SCALE WITH NO TOP (02-architecture.md package 3; lane/tower-boss-formula): a run ground (hunt-grounds.js
+   TOWER_GROUNDS, `tower`) reads every role here as the scale does. Its rows carry their band's reach (src/core/hunt/tower.js towerMonsters). */
+const rolesOn = (inst) => dangerOn(inst.world) || !!(inst.ground && inst.ground.tower === true);
+
 /** The role row monster unit `m` plays on this instance's scale, or null (off the scale, a hero, or a row that names none). */
 export function roleOf(inst, m) {
-  if (!inst || !dangerOn(inst.world) || !isMonster(m)) return null;
+  if (!inst || !rolesOn(inst) || !isMonster(m)) return null;
   const row = (inst.monsters || MONSTERS)[m.kind];
   return row && typeof row.role === 'string' && own(MONSTER_ROLES, row.role) ? MONSTER_ROLES[row.role] : null;
 }

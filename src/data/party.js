@@ -23,6 +23,22 @@ export const PARTY = Object.freeze({
   rareRoll: Object.freeze({ sides: 100, maxRounds: 64 }),
 });
 
+/* PERSONAL LOOT (systems, lane/flame-temper-build, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md section 4). Each hero at a
+   kill rolls each drop row itself at ch / n (n the heroes alive at the kill), so a party drops what its heroes would apart; its Rare rolls
+   read its own company's flame (src/core/inner-flame.js luckPm) and its own pity. Coin stays the even split above. It REPLACES lootSplit's
+   item half and the rare roll the day the roller (lane/drop-formula, wave 4) ships it; until then it is dark: the hr_flags switch
+   `personal_loot` is off and nothing here is read by a hunt.
+   THE PITY (04 guard 5; src/core/personal-loot.js): a hero's chance after missed rolls is p0 x (1 + growPm / 1000 x x), x the sum of p0 over
+   its misses since its last find, p0 = p x basePm / 1000. In x the hours to a find do not depend on the row's rate, so one pair of levers
+   serves every row: at growPm 4000 the 90th percentile of rolls to a find is 1.94x the mean (21 section 4.2 asks under 2x; growth alone
+   can never go under about 1.71x), and basePm 438 is the share of the row's chance that keeps the long-run rate the stated one
+   (the mean of the survival exp(-x - grow x^2 / 2), computed; tests/personal-loot.mjs re-derives both). Lab run L2 moves them. */
+export const PERSONAL_LOOT = Object.freeze({
+  pityGrowPm: 4000,
+  pityBasePm: 438,
+  rarities: Object.freeze(['rare', 'very_rare']),
+});
+
 /* LEAVE TOGETHER (Tyler 2026-10-22): every hero's own box, default on, kept per hero on the server
    (player_state.party_leave_together). When any other member's party hunt ends, a ticked hero is paid up to
    that moment and goes home too (party_member_left / party_member_died); the party stays together. The words

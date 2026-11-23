@@ -12,7 +12,7 @@
 //          envelope carries no `tower`, the Havora window has no Tower door, and hr_tower_start refuses feature_off: nothing shows and nothing opens
 //   TOW-2  the switch ON for everyone again (as the chain leaves it): the Tower window shows floor 1 as the only start, Enter opens a climb
 //          (the server's tower_runs row), and the hunt bar says the floor
-//   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, clears landing 10 and mints its Bronze
+//   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, clears landing 40 (the Bronze Key's generated first landing) and mints its Bronze
 //          Key (the mint's own ledger row); the hero leaves and the end card says the floors and the key, never "died"
 //   TOW-4  THE CHEST: the window shows the key the server minted with the server's chance; Use opens it on the server (a chest_opens row,
 //          the key gone from the bag, the Cinders paid) and the answer is drawn
@@ -88,11 +88,18 @@ try {
     && off.error === 'feature_off', JSON.stringify({ env0, shown0, off }));
   await closeWins();
 
-  /* THE HERO: a Level 25 with Level 25 combat skills (the throwaway local database only), so ten floors are a climb it can make */
-  await sql(`update public.player_state set level_xp = public.hr_char_xp_for_level(25), stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = 0`, [uid]);
+  /* THE HERO: a Level 90 with Level 90 combat skills in an iron kit (the throwaway local database only), so forty floors are a climb it can make (the Bronze Key's
+     first landing is generated: the floor whose Level reaches its weapons' item Level, 40; src/data/chests.js landingForLevel) */
+  await sql(`update public.player_state set level_xp = public.hr_char_xp_for_level(90), stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = 0`, [uid]);
   for (const sk of ['melee', 'ranged', 'magic', 'defense']) {
-    await sql(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, public.hr_skill_xp_for_level($2, 25))
+    await sql(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, public.hr_skill_xp_for_level($2, 90))
       on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, sk]);
+  }
+  /* the iron kit (tools/balance-sim/gear.mjs kitOf('tank', 20)): a bare hero tops out near floor 15 on the formulas' floors */
+  for (const [slot, item] of [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'],
+    ['pants', 'iron_platelegs'], ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']]) {
+    await sql(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3)
+      on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [uid, slot, item]);
   }
   // ── TOW-2 ── the switch back as the chain leaves it: on for everyone
   await sql(`update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'burning_tower'`);
@@ -124,7 +131,7 @@ try {
   const bar = await p.page.evaluate(() => { const e = document.querySelector('.ht-tower'); return e ? { hidden: e.hidden, text: e.textContent } : null; });
   const keyRow = await sql(`select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'tower_key_bronze'`, [uid]);
   const best = await sql('select best_floor, best_landing from public.tower_progress where user_id = $1', [uid]);
-  step('TOW-3 viewed: the server wrote landing 10 and minted its Bronze Key', landed.some((l) => l.landing === 10) && keyRow.length && Number(keyRow[0].qty) === 1,
+  step('TOW-3 viewed: the server wrote landing 40 and minted its Bronze Key', landed.some((l) => l.landing === 40) && keyRow.length && Number(keyRow[0].qty) === landed.length,
     JSON.stringify({ landed, keyRow, best }));
   step('TOW-3 the hunt bar said the floor while the climb ran', !bar || bar.hidden ? (await sql('select count(*)::int as n from public.hunt_sessions where user_id = $1 and ended_at is null', [uid]))[0].n === 0 : /^Floor \d+/.test(bar.text),
     JSON.stringify(bar));
@@ -135,7 +142,7 @@ try {
   }
   const card = await until(p.page, () => /Floors cleared/.test(document.querySelector('.hsum-climb:not([hidden]) .te-rows')?.textContent || ''), null, 60000);
   const reason = await p.page.evaluate(climbCard);
-  step('TOW-3 the end card draws the run and says the floors and the key, never "died"', card && /Floors cleared: 1 to \d+/.test(reason) && /Bronze Key x1/.test(reason) && /run: \d+/.test(reason)
+  step('TOW-3 the end card draws the run and says the floors and the key, never "died"', card && /Floors cleared: 1 to \d+/.test(reason) && /Bronze Key x\d+/.test(reason) && /run: \d+/.test(reason)
     && !/died/i.test(reason) && !(await p.page.$('[data-hs-win="death"]')), reason);
   await p.shot('tower-end-card-1440x900');
 
@@ -147,7 +154,7 @@ try {
     use: document.querySelector('[data-hs-win="tower"] .tc-use')?.disabled }));
   const sec = (await sql('select public.hr_tower_section($1, 0)->\'chest\'->\'keys\'->0 as k', [uid]))[0].k;
   const want = 'Chance: ' + Number((sec.chance_ppm / 10000).toPrecision(2)) + '%';
-  step('TOW-4 the chest shows the minted key and the server\'s chance', chest.have === 'x1' && chest.chance === want && chest.use === false, JSON.stringify({ chest, want }));
+  step('TOW-4 the chest shows the minted key and the server\'s chance', chest.have === 'x' + Number(keyRow[0].qty) && chest.chance === want && chest.use === false, JSON.stringify({ chest, want }));
   await p.shot('tower-chest-1440x900');
   const cinders0 = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_cinders'`, [uid]);
   await p.page.click('[data-hs-win="tower"] .tc-use');
@@ -155,7 +162,7 @@ try {
   const opens = await sql('select key_id, stokes, weapon from public.chest_opens where user_id = $1', [uid]);
   const left = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_key_bronze'`, [uid]);
   const cinders1 = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_cinders'`, [uid]);
-  step('TOW-4 Use opened the key on the server and drew its answer', drawn && opens.length === 1 && opens[0].key_id === 'bronze' && left[0].n === 0 && cinders1[0].n > cinders0[0].n,
+  step('TOW-4 Use opened the key on the server and drew its answer', drawn && opens.length === 1 && opens[0].key_id === 'bronze' && left[0].n === Number(keyRow[0].qty) - 1 && cinders1[0].n > cinders0[0].n,
     JSON.stringify({ drawn, opens, left, cinders0, cinders1 }));
   await p.shot('tower-chest-opened-1440x900');
 

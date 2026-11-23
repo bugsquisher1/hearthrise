@@ -20,22 +20,11 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { STATUSES } from '../../data/statuses.js';
-import { isHero } from './sides.js';
+import { effectPm } from './status-effects.js';
 
-/** The permille unit `u` loses from every heal now (the strongest live heal-cutting stack's), 0 with none. */
-export function healCutPmOf(u) {
-  const list = u && Array.isArray(u.statuses) ? u.statuses : null;
-  if (!list || !list.length) return 0;
-  let best = 0;
-  for (const st of list) {
-    const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
-    if (!row || !row.healCutPm || !(st.left > 0)) continue;
-    const cut = isHero(u) ? Math.floor((row.healCutPm.hero * (Number.isInteger(st.scale) ? st.scale : 1000)) / 1000) : row.healCutPm.monster;
-    if (cut > best) best = cut;
-  }
-  return best;
-}
+/** The permille unit `u` loses from every heal now (status-effects.js effectPm: the strongest live heal-cutting stack's), 0 with none,
+    never the whole heal. */
+export const healCutPmOf = (u) => Math.min(999, effectPm(u, 'healCutPm'));
 
 /** What a heal of `n` lands on `u` (before its missing-HP cap, which each caller keeps): n less its cut. `n` itself with no cut. */
 export function healTaken(u, n) {

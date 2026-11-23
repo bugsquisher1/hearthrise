@@ -327,12 +327,22 @@
       {
         "bytes": 3436602,
         "on": "2026-11-23",
-        "why": "lane/drop-formula merged into lane/foundations-block: the dark Trait roller (trait-roll.js, drop-rate.js, drop-hours.js) and everyHours on the scale packs"
+        "why": "drops: trait-roll.js roller (dark), drop-hours formula, rarity ladder and pity"
       },
       {
-        "bytes": 3454332,
+        "bytes": 3465470,
         "on": "2026-11-23",
-        "why": "lane/foundations-block: the band in absolute steps (src/core/bands.js, src/data/bands.js: one depth for the browser and the edge), the skill part of the power step (member.js), loot by depth (danger.js dialPm, drops.js)"
+        "why": "E2/E3: statuses as data (status-effects.js), auras, shields, shield_break event"
+      },
+      {
+        "bytes": 3465586,
+        "on": "2026-11-23",
+        "why": "statuses merge: JSDoc casts on STATUSES and STATUS_KEYS readers (typecheck)"
+      },
+      {
+        "bytes": 3515858,
+        "on": "2026-11-23",
+        "why": "lane/foundations-block on set 7865133b2: the set itself ships 3,498,522 (32,936 over its own ceiling, from its merges); this lane adds 17,336 (src/core/bands.js, src/data/bands.js: one depth for browser and edge; the skill part; loot by depth)"
       }
     ]
   }

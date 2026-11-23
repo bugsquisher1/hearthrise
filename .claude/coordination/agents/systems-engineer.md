@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-22 · lane/e2-e3-statuses (E2 statuses as rows, E3 auras and shields)
+1. *Prove a migration by switching the one new reading off.* The general status system moved glade-4's timeline only; with the new `shield_break` emit disabled every pin held at all 48 settles, which separates "the engine is the same" from "the engine now says one more thing".
+2. *A hidden row must stay out of the server's catalogue.* `EFFECT_IDS` feeds the bar's SQL vals (1061); a new status id would turn conditions.mjs red without a migration. Rows carry `hidden: true`; the engine reads them, the picker and the server do not, until the move ships.
+3. *A rule built as the doc says can still be dead.* Armor Break on `defenceReduction` moves nothing: monster defence takes at most 2 points off a blow (CONFLICTS.md, 2026-11-22).
+4. *Offense-only steps buy about half a depth step.* An 11-step offense aura on all four moved damage +3.9% (its budget exactly) and held depth +6 +- 4 (Muster L60, 6 seeds).
+
 ## 2026-11-22 · lane/bar-metrics (the Roads' engine prerequisites, 18-roads-review §9 step 1)
 1. *A new bar test is a registry row, its evaluator and the server's rows.* The metrics block now lives in 1061-bar-metrics.sql (tests/hunt-core/conditions.mjs --print). hr_hunt_cond_check already treats any kind other than pct, count or bool as "one of vals", so the named-value kind `move` only needed the table's kind check widened. No function body changed.
 2. *A test that reads time gets the step's instant passed in, never a world clock.* `testSlot(…, atMs)`, `pickSlot(…, atMs = sc.atMs)`. The display tester takes the world's own instant (live-engine `st.next`). A Mark read with no instant fails safe to "not Marked".
@@ -5354,3 +5360,7 @@ Merged in order: lane/c-tower-all b1e4ab021, lane/a-next-steps ded1b94a6, lane/b
 3. *Restructure around a mutant's anchor, don't move it.* tests/hunt-core/danger.mjs pins `coinPm: ... * PAY.coinPm };`, `steps = -gearSteps(...)` and the snapshot's `gearPm,` lines; the new terms went on their own lines so the old mutants kept their anchors.
 4. *A skill on today's geometric curve is worth many Levels high up* (melee 152 at Level 1,000: 0.06 a Level), so weightSkill reads the skill as a Level on the career line; at 250 a skill 10 under its line costs about 5 steps at Level 60 (MEASURED -36.7 with the weight, -26.0 without).
 5. *Handoff (designer):* the sustain shares are read, not yet the engine's input; heal rows and regeneration are checked against them at the reference (tests/sustain.mjs) and become inputs with the amount pipeline.
+## 2026-11-22 · lane/flame-temper-build (21: Inner Flame, Temper on steps, imbuements, personal loot, carry-over)
+1. *Write never checks whether a file exists.* `tests/inner-flame.mjs` was the shipped Hearth's guard; a new guard named after the new system overwrote it, and only guard-hygiene's VACUOUS PROOF line (its smoke step passes --selftest) gave it away. Name a new guard after its rule set (`tests/flame-rules.mjs`) and Glob first.
+2. *A dark server system still needs a consumer for each export* (dead-exports): pure rules the roller or bench will read later earn their keep as the SQL twins' pins in the generator (`tools/gen-flame-temper.mjs`), never as test-only exports.
+3. *Hunted time is `hunt_sessions.settled_to` advancing.* An AFTER UPDATE OF settled_to trigger runs in the settle's own transaction and needs no splice of hr_hunt_apply_member: the flame's decay and imbuement timers ride it, so nothing moves in town and both doors (viewed, tick) count the same windows.

@@ -69,6 +69,7 @@ import { shootsItem } from '../../data/hunt-roles.js';
 import { livingOf, targetedFoesOf, heroesByIdOf } from './unit-index.js';
 import { sideOf, isAlly, isHero } from './sides.js';
 import { healTaken } from './heal-cut.js';
+import { offerShield, overflowShield } from './shields.js';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -333,7 +334,9 @@ export function firstUsable(inst, hero, sc, only) {
      is its mirror: a hero alone in the world never tests it (the bar says "Party only"), and a row party only
      for some roles (Brand and Reave: the tank) a lone hero of those roles (partyOnly, the unit's own role). */
   const solo = aloneIn(inst.world, hero);
+  /* (an AURA move is never cast: it holds while slotted, src/core/hunt/auras.js) */
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
+    && !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].target === 'aura')
     && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane'
     && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))
     && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));
@@ -370,14 +373,17 @@ export function firstUsable(inst, hero, sc, only) {
 }
 
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
-function healOne(u, t, n, sc, surge) {
+function healOne(u, t, n, sc, surge, overShieldPm) {
   /* TEMPERING raises a heal as it raises a blow (src/core/temper.js). */
   n = temperedAmount(n, u.blowsPm, sc.rng);
   /* A WITHERED target takes every heal cut (heal-cut.js: a necrotic hit on it; the guard lowers the cut). */
   n = healTaken(t, n);
-  const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));
+  const missing = int(t.maxHp) - int(t.hp);
+  const got = Math.max(0, Math.min(n, missing));
   t.hp = int(t.hp) + got;
   sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, ...(surge ? { crit: true } : {}) }));
+  /* HEALING PAST FULL KEPT AS A SHIELD (a heal row's overShieldPm, High Tide): its overflow's share, under the one shield rule */
+  if (overShieldPm) overflowShield(sc, u, t, n, missing, overShieldPm);
 }
 const roll = (sc, r) => sc.rng.int(r[0], r[1]);
 
@@ -454,17 +460,15 @@ function effect(inst, u, row, t, sc, v) {
       }
       break;
     }
+    /* A SHIELD lands through the one shield rule (shields.js offerShield: one a hero, a bigger one replaces it); the bar's gates
+       (firstUsable: a self shell recasts only to land more, an ally shield takes a hero holding none) mean every cast here is bigger. */
     case 'self':
-      if (heals(row)) { healOne(u, u, amount().heal, sc, sg); break; }
-      u.shield = amount().shield;
-      u.shieldBy = u.id;
-      sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield }));
+      if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row.overShieldPm); break; }
+      offerShield(sc, u, u, amount().shield);
       break;
     case 'ally':
-      if (heals(row)) { healOne(u, t, amount().heal, sc, sg); break; }
-      t.shield = amount().shield;
-      t.shieldBy = u.id;
-      sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: t.id, amount: t.shield }));
+      if (heals(row)) { healOne(u, t, amount().heal, sc, sg, row.overShieldPm); break; }
+      offerShield(sc, u, t, amount().shield);
       break;
     /* A PARTY row: every living hero within its radius, the caster too, in id order. A heal lands its whole share on each (a
        Tempering rung's part of a point is its only draw); a shield (Shelter) draws nothing and lands max(standing, its shell),
@@ -472,11 +476,8 @@ function effect(inst, u, row, t, sc, v) {
     case 'party':
       for (const a of allies(inst, u).slice().sort((x, y) => x.id - y.id)) {
         if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
-        if (heals(row)) { healOne(u, a, amount().heal, sc, sg); continue; }
-        const n = amount().shield;
-        if (n <= int(a.shield)) continue;
-        a.shield = n; a.shieldBy = u.id;
-        sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: a.id, amount: n }));
+        if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row.overShieldPm); continue; }
+        offerShield(sc, u, a, amount().shield);
       }
       break;
     default: break;

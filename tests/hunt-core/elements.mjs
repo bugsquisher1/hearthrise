@@ -174,7 +174,7 @@ const mutants = [
   { name: 'a former immunity reads as a plain resist', case: 'fire-aoe-hurts-sump-slime',
     edits: [['src/data/monsters.js', '    /* one override (element): the sump shrugs off half of every element. */\n    elements: { ember: 50, frost: 50, poison: 50 },', '    /* one override (element): the sump shrugs off half of every element. */\n    elements: { ember: 25, frost: 50, poison: 50 },']] },
   { name: 'a status may deal any word', case: 'unknown-element-refused',
-    edits: [['src/data/statuses.js', 'if (row.damageType !== PHYSICAL && !isElement(row.damageType))', 'if (typeof row.damageType !== \'string\')']] },
+    edits: [['src/data/statuses.js', 'if (row.heals === undefined && row.damageType !== PHYSICAL && !isElement(row.damageType))', 'if (row.heals === undefined && typeof row.damageType !== \'string\')']] },
   { name: 'a hit effect keyed by an old name', case: 'one-vocabulary',
     edits: [['src/data/hunt-vfx.js', "element: Object.freeze({ ember: 'fx_flame_volley_puff',", "element: Object.freeze({ fire: 'fx_flame_volley_puff',"]] },
   { name: 'a second ELEMENTS list', case: 'one-vocabulary',

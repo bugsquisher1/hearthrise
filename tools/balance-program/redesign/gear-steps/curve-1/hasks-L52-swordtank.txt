@@ -1,0 +1,26 @@
+V1: 6 seed jobs (1 cells x 6 seeds x 12 h) on 18 workers; hasks_ford, Levels 52 / 55 / 70
+[1/6] base:steady#3 50 s, 51 s elapsed
+[2/6] base:steady#2 55 s, 55 s elapsed
+[3/6] base:steady#1 55 s, 56 s elapsed
+[4/6] base:steady#4 56 s, 56 s elapsed
+[5/6] base:steady#0 56 s, 56 s elapsed
+[6/6] base:steady#5 57 s, 57 s elapsed
+
+V1 on hasks_ford (6 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       610.5 +- 4.5      1.2  43.6  78.1     34    5.1     0.7    141.4      1     0  49 (1/4/49)                   6.8  {"hold":7284,"climb":2521,"fall":369,"death":1} first deaths at h 5
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.96x  sd 0.02  n 6  window 6.8 h  seeds 0.97 0.94 0.95 1.01 0.96 0.95
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L52  coin 11107 +- 476  income 13869 +- 332  store 2254  kit share 0.16 (meal 243, drink 1159, charge 852, shot 0)  loot by band: common 572, uncommon 204, scarce 1986, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles tank, crossbow, mage, healer
+  base:steady       tank 0.951  crossbow 0.049  mage 0  healer 0
+
+wall 57 s

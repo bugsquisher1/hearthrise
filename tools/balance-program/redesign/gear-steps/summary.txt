@@ -1,25 +1,25 @@
 before this lane (set/v0.2.144), muster L60: base 622.8, shipped up 29.2 +- 5.8 se (n 6), back -38.3 +- 7.8 se (n 6), whole kit ahead 10.8 +- 5.7 se (n 6)
-muster-L60 (muster_barrows, one depth 11.5 steps): base held 620.9 +- 5.8, deaths 0
-  shipped up      23.5 +- 5.8 se (n 6)   deaths 0
-  shipped back    -27 +- 5.1 se (n 6)   deaths 0
-  whole kit-ahead 20 +- 4 se (n 6)   deaths 0
-  whole kit-back  -8.7 +- 4.7 se (n 6)   deaths 0
-hasks-L52 (hasks_ford, one depth 12 steps): base held 583.5 +- 2.9, deaths 0
-  shipped up      19.8 +- 0.9 se (n 6)   deaths 0
-  shipped back    -6.8 +- 1 se (n 6)   deaths 0
-  whole kit-ahead 15 +- 1.5 se (n 6)   deaths 0
-  whole kit-back  -6.2 +- 1 se (n 6)   deaths 0
-muster-L70 (muster_barrows, one depth 11.5 steps): base held 654.4 +- 6.5, deaths 0
-  shipped up      18.7 +- 3.9 se (n 6)   deaths 0
-  shipped back    -24.5 +- 3.3 se (n 6)   deaths 0
-hasks-L45 (hasks_ford, one depth 12 steps): base held 570.2 +- 1.1, deaths 0
-  shipped up      14.7 +- 1.2 se (n 6)   deaths 0
-  shipped back    -6.8 +- 0.7 se (n 6)   deaths 0
+muster-L60 (muster_barrows, one depth 19.5 steps): base held 627.9 +- 9.3, deaths 0
+  shipped up      10 +- 5.5 se (n 6)   deaths 0
+  shipped back    -24.3 +- 4.5 se (n 6)   deaths 0
+  whole kit-ahead 13.3 +- 5.1 se (n 6)   deaths 0
+  whole kit-back  -15.3 +- 4 se (n 6)   deaths 0
+hasks-L52 (hasks_ford, one depth 11.5 steps): base held 588.3 +- 3.2, deaths 0
+  shipped up      18 +- 2 se (n 6)   deaths 0
+  shipped back    -12.8 +- 0.7 se (n 6)   deaths 0
+  whole kit-ahead 10.2 +- 1.7 se (n 6)   deaths 0
+  whole kit-back  -11 +- 2.1 se (n 6)   deaths 0
+muster-L70 (muster_barrows, one depth 19.5 steps): base held 659.5 +- 13.4, deaths 0
+  shipped up      24 +- 6.6 se (n 6)   deaths 0
+  shipped back    -25.8 +- 8.3 se (n 6)   deaths 0
+hasks-L45 (hasks_ford, one depth 11.5 steps): base held 573.3 +- 1.8, deaths 0
+  shipped up      14.2 +- 1.6 se (n 6)   deaths 0
+  shipped back    -10.3 +- 1.1 se (n 6)   deaths 0
 families (base held, Steady; the ground's band floor..top):
-  muster-L60              held 620.9 +- 5.8  deaths 0  in band
-  muster-L60-swordtank    held 662.6 +- 8.3  deaths 1  OUT OF BAND
-  muster-L60-axes         held 618.2 +- 4.9  deaths 0  in band
-  muster-L60-sword        held 622.1 +- 7.6  deaths 0  in band
-  hasks-L52               held 583.5 +- 2.9  deaths 0  in band
-  hasks-L52-swordtank     held 610.5 +- 4.5  deaths 1  OUT OF BAND
-  hasks-L52-axes          held 581.3 +- 2.8  deaths 0  in band
+  muster-L60              held 627.9 +- 9.3  deaths 0  in band
+  muster-L60-swordtank    held 658.6 +- 5  deaths 0  in band
+  muster-L60-axes         held 621.9 +- 8.7  deaths 0  in band
+  muster-L60-sword        held 624.9 +- 7.4  deaths 0  in band
+  hasks-L52               held 588.3 +- 3.2  deaths 0  in band
+  hasks-L52-swordtank     held 613 +- 1  deaths 0  in band
+  hasks-L52-axes          held 582.7 +- 1.5  deaths 0  in band

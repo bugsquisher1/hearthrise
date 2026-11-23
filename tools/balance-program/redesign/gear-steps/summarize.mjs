@@ -19,8 +19,10 @@ const paired = (A, B) => {
   return d.length ? r1(mean(d)) + ' +- ' + r1(sd(d) / Math.sqrt(d.length)) + ' se (n ' + d.length + ')' : null;
 };
 const cell = (run, id) => (run && run.cells[id + ':steady']) || null;
-const DEPTH = { muster_barrows: (710 - 480) / 20, hasks_ford: (710 - 470) / 20 };
-const BAND = { muster_barrows: [480, 710], hasks_ford: [470, 710] };
+/* the bands as the tree holds them (src/data/danger.js DANGER_GROUNDS) */
+const { DANGER_GROUNDS, DEPTHS } = await import(new URL('../../../../src/data/danger.js', import.meta.url).href);
+const BAND = Object.fromEntries(Object.entries(DANGER_GROUNDS).map(([g, r]) => [g, [r.floorStep, r.topStep]]));
+const DEPTH = Object.fromEntries(Object.entries(BAND).map(([g, [lo, hi]]) => [g, (hi - lo) / DEPTHS]));
 const lines = [];
 const B = read('before-muster-L60'), BK = read('before-muster-L60-kit-ahead');
 if (B) lines.push('before this lane (set/v0.2.144), muster L60: base ' + r1(cell(B, 'base').held.mean) + ', shipped up ' + paired(cell(B, 'base'), cell(B, 'up')) + ', back ' + paired(cell(B, 'base'), cell(B, 'back')) + (BK ? ', whole kit ahead ' + paired(cell(B, 'base'), cell(BK, 'base')) : ''));

@@ -355,7 +355,8 @@ async function doorsArm(db, M) {
   const runs = {};
   for (const door of ['closed', 'viewed']) {
     const r = await H.inTx(db, async () => {
-      const h = await climber(db, M, {});
+      /* a bare Level 20 (a bare Level 12 tops out at floor 9 on the formulas' floors, lane/tower-boss-formula): it crosses a landing */
+      const h = await climber(db, M, { level: 20 });
       const s0 = await rows(db, h);
       try { await drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
       return { s0, s1: await rows(db, h) };

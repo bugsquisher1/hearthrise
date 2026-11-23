@@ -53,7 +53,7 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 | Typed edges (one writes what another reads) | 342 |
 | Edges the formula register declares | 197 |
 | Calls between formula homes, read from the code | 44 |
-| Levers joined, and knobs | 189, 35 |
+| Levers joined, and knobs | 192, 35 |
 | Targets joined, and how many reach a measured outcome | 100, 37 |
 <!-- /graph:counts -->
 
@@ -215,7 +215,7 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 <!-- graph:source -->
 Measured data: sensitivity-matrix, GitHub run 44969087150,44971044252,44972398698,44976040886, tree 0,1,2,3, 68 cells, 0+4 seeds. Rule: the sensitivity lane's own rule: an effect is resolved beyond Student's t times its standard error over the seeds, and beyond half a percent.
 
-Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 158 of 189.
+Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 161 of 192.
 <!-- /graph:source -->
 
 **How a direction is predicted.** A quantity's depth is the fewest mechanics between the lever and it. Its predicted direction is the direction of its shortest paths. If two shortest paths disagree the answer is "mixed" and the graph does not call it. A longer path that disagrees is kept and printed as the counter-path. This is a reading of a graph. It knows directions, never sizes.
@@ -377,11 +377,11 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 <!-- graph:ghosts -->
 | # | Id | Kind | Pair | Levers on the pair | Finding |
 |---|---|---|---|---|---|
-| 1 | `GF-273c0ab9` | carrier | C-MON-STATS / C-TIER | 23 | The register says C-MON-STATS feeds C-TIER, and C-MON-STATS writes nothing C-TIER reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 2 | `GF-4453592c` | call | C-MON-STATS+E01+E23 / C-TIER | 23 | C-TIER reaches `STAT_FORMULA` in the home of C-MON-STATS / E01 / E23 (src/data/balance-sheet.js:511), and no quantity is declared between them (C-MON-STATS / E01 / E23 writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def, kill.xp, kill.coin) |
+| 1 | `GF-273c0ab9` | carrier | C-MON-STATS / C-TIER | 24 | The register says C-MON-STATS feeds C-TIER, and C-MON-STATS writes nothing C-TIER reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 2 | `GF-4453592c` | call | C-MON-STATS+E01+E23 / C-TIER | 24 | C-TIER reaches `STAT_FORMULA` in the home of C-MON-STATS / E01 / E23 (src/data/balance-sheet.js:511), and no quantity is declared between them (C-MON-STATS / E01 / E23 writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def, kill.xp, kill.coin) |
 | 3 | `GF-423fd87d` | carrier | C-MON-STATS / C-WEAKNESS | 18 | The register says C-MON-STATS feeds C-WEAKNESS, and C-MON-STATS writes nothing C-WEAKNESS reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 4 | `GF-67654eda` | feeds | C-MON-STATS / C-PULL | 15 | C-MON-STATS writes mon.hp and C-PULL reads it. The register holds no edge between them |
-| 5 | `GF-ac847334` | carrier | C-TIER / C-SCALED | 14 | The register says C-TIER feeds C-SCALED, and C-TIER writes nothing C-SCALED reads (C-TIER writes tier.dmg, tier.hp, tier.xp, tier.pull) |
+| 5 | `GF-ac847334` | carrier | C-TIER / C-SCALED | 15 | The register says C-TIER feeds C-SCALED, and C-TIER writes nothing C-SCALED reads (C-TIER writes tier.dmg, tier.hp, tier.xp, tier.pull) |
 | 6 | `GF-c8c669bb` | carrier | C-MON-STATS / C-SCALED | 13 | The register says C-MON-STATS feeds C-SCALED, and C-MON-STATS writes nothing C-SCALED reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 7 | `GF-cc24471e` | carrier | C-MON-STATS / C-ELEMENT-MON | 13 | The register says C-MON-STATS feeds C-ELEMENT-MON, and C-MON-STATS writes nothing C-ELEMENT-MON reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 8 | `GF-12adb5f8` | feeds | C-JEWEL-PERKS / E18 | 12 | C-JEWEL-PERKS writes hero.regen and E18 reads it. The register holds no edge between them |
@@ -450,7 +450,7 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 - **Rule code outside every formula's home.**
 
 <!-- graph:unhomed -->
-229 top-level bindings in 113 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, blowsPm, armorPm, ...).
+231 top-level bindings in 115 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, blowsPm, armorPm, ...).
 <!-- /graph:unhomed -->
 
   These are mostly content tables (ground packs, the ability rows, the monster rows) and the plumbing that carries a hero's stats onto a unit. The check does not read them. A number added there is caught by the lever registry's check, not by this one.

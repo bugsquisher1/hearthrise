@@ -24,8 +24,7 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js';
-import { STATUSES } from '../../data/statuses.js';
+import { METRICS, MAX_CONDITIONS, VALUE_IDS } from '../../data/condition-metrics.js';
 import { huntOf, partyOf } from '../../session/hunt-sections.js';
 import { vitalsOf } from '../../session/party-sections.js';
 import { biggestBlowOn } from '../../core/hunt/pull-cycle.js';
@@ -33,7 +32,7 @@ import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { actionIconHtml, itemNameFor } from '../widgets/bits.js';
-import { SLOTS, draftOf, openSlot, cancelOpen, keepInHost, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js';
+import { SLOTS, draftOf, openSlot, cancelOpen, keepInHost, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick, valueName } from '../bar-draft.js';
 import { startSupply } from '../rune-supply.js';
 import { runesHtml, patchRunes, runesEdit } from './configure-runes.js';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js';
@@ -71,7 +70,7 @@ function condHtml(i) {
     + '<span class="ca-num">' + b('dec', 'Lower', '−')
     + '<input class="ca-token ca-val" type="number" inputmode="numeric" data-hs-act="cfg-f" data-f="value" data-i="' + i + '" aria-label="Value"><span class="ca-unit"></span>'
     + b('inc', 'Higher', '+') + '</span><span class="ca-unit ca-noun" hidden></span>' + whose('ca-whose-after')
-    + '<select class="ca-token" data-hs-act="cfg-f" data-f="effect" data-i="' + i + '" aria-label="Effect">' + options(Object.values(STATUSES).map((s) => [s.id, s.name])) + '</select>'
+    + '<select class="ca-token" data-hs-act="cfg-f" data-f="effect" data-i="' + i + '" aria-label="Effect"></select>'
     + '<button type="button" class="hh-tool ca-drop" data-hs-act="cfg" data-x="drop" data-i="' + i + '" aria-label="Remove this condition">×</button></li>';
 }
 
@@ -151,9 +150,13 @@ function patchCond(row, c, i, s, doc) {
   const noun = m.value === 'count' ? unitWords(m, c.value).trim() : '';
   text(row.querySelector('.ca-noun'), noun);
   prop(row.querySelector('.ca-noun'), 'hidden', !noun);
+  /* A NAMED VALUE (condition-metrics.js VALUE_IDS): an effect, or a move ("my last move is [Rend]"), from its kind's ids */
   const eff = row.querySelector('[data-f="effect"]');
-  cls(eff, 'is-on', m.value === 'effect');
-  if (m.value === 'effect') prop(eff, 'value', String(c.value));
+  const ids = VALUE_IDS[m.value] || null;
+  fill(eff, ids ? ids.map((id) => [id, valueName(m, id)]) : []);
+  attr(eff, 'aria-label', m.value === 'move' ? 'Move' : 'Effect');
+  cls(eff, 'is-on', !!ids);
+  if (ids) prop(eff, 'value', String(c.value));
 }
 
 /* One table row (button, role option): icon · name (a locked row's lock and what it needs under it) · its run's number cells

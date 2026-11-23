@@ -176,16 +176,16 @@ export function holdsPackOf(world, unit) {
  * conditions holds it back). For `member`'s hero in `world`, a function slot -> { pass, mask, ignored }: conditions.js testSlot,
  * the one test the settle walks, so the words can't disagree with the fight. It writes nothing to the world, so asking can never
  * move the prediction's hash. Null while the hero is down or no monster is engaged: between pulls every attack waits, and that
- * is not this slot's doing.
+ * is not this slot's doing. `atMs` is the instant that world stands at (a Mark is read against it).
  */
-export function slotTesterOf(world, grid, member, items) {
+export function slotTesterOf(world, grid, member, items, atMs) {
   const u = world && Array.isArray(world.units) ? world.units.find((x) => x.id === member.unitId) : null;
   const inst = { world, grid };
   if (!u || !u.alive || !engaged(inst, u).length) return null;
   const h = { hs: member.hs, range: member.hero.range, ammo: member.hero.ammo, items };
   const target = world.units.find((x) => x.id === u.target) || null;
   return (slot) => {
-    const t = testSlot(inst, u, h, slot);
+    const t = testSlot(inst, u, h, slot, atMs);
     return { pass: t.pass, mask: t.mask, ignored: aimsAtMonsters(slot) && ignores(slot, target) };
   };
 }
@@ -431,7 +431,7 @@ export function createLiveEngine(o) {
     /** The engine's test of a bar slot for hero `unit`, in the world this prediction runs (slotTesterOf). Null when none runs. */
     slotTester(unit) {
       const side = st && st.world && !st.ended ? st.sides.find((x) => x.member.unitId === unit) : null;
-      return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;
+      return side ? slotTesterOf(st.world, st.where.grid, side.member, items, st.next) : null;
     },
     /**
      * THE CLIMB in the world this prediction runs (the Burning Tower): { floor (the room standing, or about to), endsAtMs (the instant its

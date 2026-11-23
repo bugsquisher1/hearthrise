@@ -66,6 +66,7 @@ import { runRulesOf } from '../data/tower.js';
 import { sessionPayOf } from '../data/session-modes.js';
 import { dangerOn, dangerDial, openDanger, riskOf } from './hunt/danger.js';
 import { isHero } from './hunt/sides.js';
+import { borrowBlowsOf } from './borrow-blow.js';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js';
@@ -173,6 +174,10 @@ function syncUnit(u, m, roles) {
   if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;
   /* THE OWN HEAL (the fist line's wraps, src/data/fists.js), the same: never persisted, absent with none (pull-cycle.js tickHeroes). */
   if (snap.selfHealPm) u.selfHealPm = snap.selfHealPm; else if (u.selfHealPm) delete u.selfHealPm;
+  /* BORROWED MOVES' BLOWS (src/core/borrow-blow.js): each one's native weapon's reference blow at the hero's Level now, the same: never
+     persisted, absent with nothing borrowed (abilities.js blowOf). */
+  const bb = borrowBlowsOf(m.hero.borrowed, snap.level);
+  if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);

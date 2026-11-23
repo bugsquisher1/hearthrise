@@ -1223,7 +1223,7 @@ const mutants = [
   { name: '[spell-content] Protective Ward recasts over a standing shield', case: 'friend-shield-and-yourself',
     edits: [['src/core/hunt/abilities.js', " && pct(a) < 100 && (heals(row) || !(int(a.shield) > 0))\n", ' && pct(a) < 100\n']] },
   { name: '[spell-content] Protective Ward shields nothing', case: 'friend-shield-and-yourself',
-    edits: [['src/core/hunt/abilities.js', '      t.shield = amount().shield;\n', '      t.shield = 0;\n']] },
+    edits: [['src/core/hunt/abilities.js', '      offerShield(sc, u, t, amount().shield);\n', '      offerShield(sc, u, t, 0);\n']] },
   { name: '[spell-content] a heal aimed at yourself finds nobody', case: 'friend-shield-and-yourself',
     edits: [['src/core/hunt/conditions.js', "  if (subject === 'self') return cx.u.alive ? cx.u : null;\n", '']] },
   { name: 'an ignore list holds back a food slot', case: 'slot-switch-and-ignore', edits: [['src/core/hunt/conditions.js', "  if (a.type === 'attack_with_item') return true;\n", "  if (a.type === 'attack_with_item' || a.type === 'consume') return true;\n"]] },

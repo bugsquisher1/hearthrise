@@ -80,6 +80,8 @@ export const LEVER_MOVES = Object.freeze({
   'spell.default-bar': ['~hero.manaCost'],
   'spell.bleed': ['+status.tick'],
   'spell.chill': ['+unit.slow'],
+  'spell.statuses-hidden': ['~status.tick', '~status.mark'],
+  'spell.status-keys': ['~status.mark'],
   'heal.shares': ['+hero.healCast', '+hero.shell'],
   'leech.on-kill-perks': ['+hero.leech'],
   // ── armor and resistance ──
@@ -186,6 +188,7 @@ export const LEVER_MOVES = Object.freeze({
   'gear.rarity-hours': [['+gear.special', 'fewer hours a rung (or deeper, or a taller flame) find Trait pieces sooner, so the special gear a kit carries rises (drop-hours.js, trait-roll.js)']],
   /* THE POWER LEDGER (src/data/power-ledger.js, src/core/power-ledger.js, lane/ledger-l1-l3) */
   'gear.trait-rank-gate': [['+gear.special', 'a later entry Level opens a higher Trait rank on the ground (gear-steps.js maxRankAt), so more steps a found Trait can carry']],
+  'ledger.aura': [['+gear.special', 'an aura is a party ledger row on every ally in reach (src/core/hunt/auras.js auraRowsOn), counted by clampLedger as the slices are']],
   'ledger.ramp-slices': [['+gear.special', 'a higher slice cap or an earlier ramp lets more conditional steps count on a hero at once (power-ledger.js clampLedger)']],
   'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */

@@ -31,7 +31,7 @@
 //                 watched hunt (10 s settles) and a closed browser (10 min) land every blow, heal, mana and coin alike; each new
 //                 spell casts; Blight Withers what it hits
 //
-// mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/data/hunt-roles.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js src/shell/action-facts.js src/shell/slot-waits.js
+// mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/data/hunt-roles.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js src/core/hunt/status-effects.js src/shell/action-facts.js src/shell/slot-waits.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT, plant, loadCore, mon, hero, world, instOf, subStep } from './fixtures/h1.js';
@@ -415,7 +415,7 @@ const mutants = [
   { name: 'the guard does not lower the cut', case: 'withered-cuts',
     edits: [['src/core/hunt/status.js', "  if (row.healCutPm) return isHero(unit) && row.guard ? heroElementPermille(unit.resistPm, row.guard) : 1000;\n", '  if (row.healCutPm) return 1000;\n']] },
   { name: 'a monster is cut the hero\'s 30%', case: 'withered-cuts',
-    edits: [['src/core/hunt/heal-cut.js', ' : row.healCutPm.monster;', ' : row.healCutPm.hero;']] },
+    edits: [['src/core/hunt/status-effects.js', ' : row.healCutPm.monster),', ' : row.healCutPm.hero),']] },
   { name: 'a necrotic blow never Withers', case: 'element-rules',
     edits: [['src/core/hunt/damage.js', '  if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);\n', '']] },
   { name: 'a storm blow burns no mana', case: 'element-rules',

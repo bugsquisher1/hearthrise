@@ -29,7 +29,6 @@
 
 import { MONSTERS, monsterLevelOf } from '../../data/monsters.js';
 import { atTier, levelAtTier } from '../../data/hunt-tiers.js';
-import { STATUSES, slowAt } from '../../data/statuses.js';
 import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js';
@@ -51,6 +50,7 @@ import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit } from './monster-roles.js';
 import { elementOnHeroOf } from '../../data/elements.js';
 import { applyStatus, statusRow } from './status.js';
+import { effectPm } from './status-effects.js';
 import { noteHurt, breaksOff, powerPm } from './danger.js';
 import { isEnemy, isHero, isMonster } from './sides.js';
 
@@ -67,29 +67,10 @@ export const PERSISTED = Object.freeze({
   pack: Object.freeze([]),
 });
 
-/* How much more a unit takes from its MARKING statuses (statuses.js takenPm), permille: the strongest live stack's
-   (a marking status never stacks past its row's maxStacks, and two marks of one kind never add). */
-function takenPmOf(u) {
-  let best = 0;
-  for (const st of Array.isArray(u.statuses) ? u.statuses : []) {
-    const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
-    if (row && Number.isInteger(row.takenPm) && row.takenPm > best && st.left > 0) best = row.takenPm;
-  }
-  return best;
-}
-
-/* How much longer a unit's swings and windups run under its SLOWING statuses (statuses.js slowPm, Chill), permille: the
-   strongest stack's, each at the rune tier it landed with (statuses.js slowAt of its fixed scale; status.js tickStatuses drops
-   a stack the sub-step it runs out, so every stack a unit holds is live). */
-function slowPmOf(u) {
-  let best = 0;
-  for (const st of Array.isArray(u.statuses) ? u.statuses : []) {
-    const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
-    const pm = row && Number.isInteger(row.slowPm) ? slowAt(row, st.scale) : 0;
-    if (pm > best) best = pm;
-  }
-  return best;
-}
+/* WHAT A UNIT'S STATUSES DO TO A BLOW AND A CLOCK (status-effects.js effectPm, by stacking key): takenPm (Sickness +, a hero's guard -),
+   dealtPm (Weakened -, a hero's boon +), armorPm (Armor Break: a monster's defence), slowPm (Chill, at the rune tier it landed with). */
+const takenPmOf = (u) => effectPm(u, 'takenPm');
+const slowPmOf = (u) => effectPm(u, 'slowPm');
 
 /** A clock of `ms` that unit `u` starts NOW, slowed by its live slowing statuses (a wiki formula, Chill's slowPm 300 = 30%):
       slowed = ceil(ms x (1000 + slowPm) / 1000 / stepMs) x stepMs   (stepMs: hunt-tuning.js, 100 ms),
@@ -113,6 +94,14 @@ const armourVs = (inst, target, source) => (target.armour
 /* A monster's element permille `el` for a hit tagged `ability`: a weakness (over 1000) at the tag's `weakPm` share, else `el` itself. */
 const weakShare = (el, ability) => (el > 1000 && ability && Number.isInteger(ability.weakPm) ? 1000 + Math.floor(((el - 1000) * ability.weakPm) / 1000) : el);
 
+/* A MONSTER'S DEFENCE AGAINST A BLOW (combat.js defenceReduction), moved by its statuses' armorPm (status-effects.js: Armor Break -250
+   keeps three quarters): floor(reduction x (1000 + armorPm) / 1000), never under 0. Unmoved, the reduction itself. */
+function defenceKept(inst, target) {
+  const red = defenceReduction(rowOf(inst, target.kind));
+  const pm = red > 0 ? effectPm(target, 'armorPm') : 0;
+  return pm ? Math.max(0, Math.floor((red * (1000 + pm)) / 1000)) : red;
+}
+
 /**
  * Apply `amount` from `source` to `target`; answers what landed:
  * { dmg (HP removed), absorbed (shield spent), killed }.
@@ -126,7 +115,7 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   let n = Math.max(0, Math.floor(amount));
   /* A HIT THAT LANDS PART OF A WEAKNESS (`weakPm`, abilities.js: the fist line's strikes, half): the monster's bonus over 1000 at that
      share, a resistance in full (a wiki formula: weak = 1000 + floor((el - 1000) x weakPm / 1000) when el > 1000). */
-  if (isMonster(target)) n = Math.floor((n * weakShare(el, ability)) / 1000) - defenceReduction(rowOf(inst, target.kind));
+  if (isMonster(target)) n = Math.floor((n * weakShare(el, ability)) / 1000) - defenceKept(inst, target);
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
   /* A CALLED BOSS BEHIND HIS ADDS takes his guard's share of every blow (boss-phases.js); any other monster all of it. */
   if (isMonster(target)) n = Math.floor((n * guardPmOf(inst, target)) / 1000);
@@ -167,13 +156,18 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     return { dmg: 0, absorbed: 0, killed: false, dodged: true };
   }
   /* A MARKED target (abilities.js: Hunter's Mark) takes markPm permille more from every blow until
-     markUntil, and a target under a MARKING status (statuses.js takenPm: Green Sickness) its takenPm more,
-     added together and folded into the one multiplier hurt applies (`ability.mult`). */
+     markUntil, and a target under a status that moves what it takes (status-effects.js takenPm: Green Sickness +, a hero's guard -)
+     that much more or less, added together and folded into the one multiplier hurt applies (`ability.mult`). A DEALER under a status
+     that moves what it deals (dealtPm: Weakened -, a boon +) moves it after, its own factor (never under 1 permille). */
   const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
+  const dealtPm = source ? effectPm(source, 'dealtPm') : 0;
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
+  let mult = markPm ? Math.floor((base * Math.max(1, 1000 + markPm)) / 1000) : base;
+  if (dealtPm) mult = Math.floor((mult * Math.max(1, 1000 + dealtPm)) / 1000);
   const before = target.hp;
+  const shieldBy = Number.isInteger(target.shield) && target.shield > 0 ? target.shieldBy : undefined;
   const r = hurt(inst, target, amount, source, element,
-    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability, sc.rng);
+    markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (isMonster(target)) inst.world.fightAt = sc.atMs;
@@ -193,6 +187,11 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
     ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(vit || {}) }));
+  /* A SHIELD THAT BROKE (it held before this blow and is spent now): `shield_break` names the hero who cast it (`by`) and the blow's
+     dealer (`u`), so the bar's triggers and the report read one event (abilities.js offerShield writes every shield). */
+  if (shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0)) {
+    sc.emit(makeEvent('shield_break', sc.atMs, { u, t: target.id, by: Number.isInteger(shieldBy) ? shieldBy : null }));
+  }
   if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);
   if (isMonster(target)) crossLines(inst, sc, target, before);
   if (r.killed) {

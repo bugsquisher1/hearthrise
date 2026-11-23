@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-22 · lane/e2-e3-statuses (E2 statuses as rows, E3 auras and shields)
+1. *Prove a migration by switching the one new reading off.* The general status system moved glade-4's timeline only; with the new `shield_break` emit disabled every pin held at all 48 settles, which separates "the engine is the same" from "the engine now says one more thing".
+2. *A hidden row must stay out of the server's catalogue.* `EFFECT_IDS` feeds the bar's SQL vals (1061); a new status id would turn conditions.mjs red without a migration. Rows carry `hidden: true`; the engine reads them, the picker and the server do not, until the move ships.
+3. *A rule built as the doc says can still be dead.* Armor Break on `defenceReduction` moves nothing: monster defence takes at most 2 points off a blow (CONFLICTS.md, 2026-11-22).
+4. *Offense-only steps buy about half a depth step.* An 11-step offense aura on all four moved damage +3.9% (its budget exactly) and held depth +6 +- 4 (Muster L60, 6 seeds).
+
 ## 2026-11-22 · lane/bar-metrics (the Roads' engine prerequisites, 18-roads-review §9 step 1)
 1. *A new bar test is a registry row, its evaluator and the server's rows.* The metrics block now lives in 1061-bar-metrics.sql (tests/hunt-core/conditions.mjs --print). hr_hunt_cond_check already treats any kind other than pct, count or bool as "one of vals", so the named-value kind `move` only needed the table's kind check widened. No function body changed.
 2. *A test that reads time gets the step's instant passed in, never a world clock.* `testSlot(…, atMs)`, `pickSlot(…, atMs = sc.atMs)`. The display tester takes the world's own instant (live-engine `st.next`). A Mark read with no instant fails safe to "not Marked".

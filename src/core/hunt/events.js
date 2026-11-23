@@ -16,7 +16,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 8;
+export const EVENT_VERSION = 9;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
@@ -59,6 +59,9 @@ export const EVENT_TYPES = Object.freeze({
   cast: Object.freeze(['u', 'ability']),
   heal: Object.freeze(['u', 't', 'amount']),
   shield: Object.freeze(['u', 't', 'amount']),
+  /* damage.js landHit: a shield spent to nothing by a blow (t: its holder; u: the blow's dealer, null for a tick with none; by: the hero
+     who cast the shield, null when unknown) */
+  shield_break: Object.freeze(['t', 'by']),
   mark: Object.freeze(['u', 't']),
   /* status.js */
   status_on: Object.freeze(['t', 'status']),

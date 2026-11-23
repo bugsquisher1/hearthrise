@@ -72,7 +72,7 @@ export function moveSteps(c, id) {
       'Lab: the dummy analyzer and the build library (17 section 9), every option fires on the dummy'),
     step('Its Signature: one row in src/data/signatures.js with `move: \'' + id + '\'` and one home (ground, monster or chest)', c.signatures ? c.signatures.some((s) => s.move === id) : false,
       c.signatures ? 'guard content-coherence CC-5, CC-6; 15 rules: never repeats a branch, works with every branch, 10 steps' : 'owed: src/data/signatures.js does not exist yet'),
-    step('Every new effect on a stacking key (15 "Stacking keys") and every new status in src/data/statuses.js', undefined, 'a new key is a design call; a new status is engine code (24 section 5)'),
+    step('Every new effect on a stacking key (15 "Stacking keys") and every new status in src/data/statuses.js', undefined, 'a new key is a design call (STATUS_KEYS); a new status on the built effects is a row, a new kind of effect is engine code (24 section 5)'),
     step('Borrowable: its V0 measured and its border band (17 section 3, 18-roads-review-measured section 3)', undefined, 'Lab: tools/balance-program/redesign/roads/roads-run.mjs'),
     step('Its words: the row\'s `n`, its tooltip, in Tyler\'s voice, plain English, American spelling', row ? !!row.n : false, 'docs/DESIGN_STANDARDS.md'),
     step('Tests: node tests/content-coherence.mjs, node tests/pixel-icons.mjs, node tests/hunt-core/spell-rule.mjs, node tools/gen-hunt-sessions.mjs --check', undefined, 'run alone, with timeout'),

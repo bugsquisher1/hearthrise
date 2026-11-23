@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "37f84e2c2853860c",
+ "authored": "c1642d75a60eac43",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,13 +63,13 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 204,
+  "levers": 207,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
    "level-scaling": 8,
    "weapon-power": 6,
-   "spells": 12,
+   "spells": 14,
    "healing-shielding": 2,
    "armor-mitigation": 5,
    "resistances": 5,
@@ -80,16 +80,16 @@
    "spawn": 11,
    "monster-rewards": 18,
    "rare-drops": 6,
-   "equipment": 18,
+   "equipment": 19,
    "imbuements": 1,
    "consumables": 9,
    "party": 7,
    "economy": 35
   },
   "byClass": {
-   "global": 99,
+   "global": 100,
    "archetype": 29,
-   "content": 48,
+   "content": 50,
    "exception-intentional": 17,
    "exception-accidental": 11
   },
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 30,
    "variant": 5,
-   "not-playable:not-built": 14,
+   "not-playable:not-built": 17,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 93,
+   "asserted": 96,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 683,
-  "typed": 16001,
-  "files": 236,
-  "lever": 296,
-  "notLever": 387,
+  "bindings": 689,
+  "typed": 16024,
+  "files": 238,
+  "lever": 299,
+  "notLever": 390,
   "unclaimed": 0
  },
  "problems": [],
@@ -2063,7 +2063,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 114,
+     "line": 115,
      "text": "export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal: 1000 });",
      "binding": "ABILITY_LANES"
     }
@@ -2739,7 +2739,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 143,
+     "line": 144,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2825,7 +2825,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 145,
+     "line": 146,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2963,14 +2963,14 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 221,
+     "line": 222,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 84,
-     "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
+     "line": 101,
+     "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
    ],
@@ -3008,7 +3008,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 28,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3016,7 +3016,7 @@
     "planned": "takesMoreCap",
     "from": [
      "src/data/abilities.js: bonusPct: 20, durMs: 8000 }),",
-     "src/data/statuses.js: sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),"
+     "src/data/statuses.js: sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),"
     ],
     "existingPatches": []
    },
@@ -3036,15 +3036,15 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 78,
+     "line": 95,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 79,
-     "text": "tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),",
-     "binding": "STATUSES"
+     "line": 82,
+     "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
+     "binding": "TIERS"
     }
    ],
    "definition": "scale = max(tier share, floor(maxHit x 33 x tier share / 1000)); a tick of 1..3 x scale a stack a second, 5 stacks, 6 s",
@@ -3078,17 +3078,221 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
      "src/data/statuses.js: blowPm: 33,",
-     "src/data/statuses.js: tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),"
+     "src/data/statuses.js: const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);"
     ],
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "spell.statuses-hidden",
+   "category": "spells",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 118,
+     "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 121,
+     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 123,
+     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 125,
+     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 128,
+     "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 133,
+     "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 134,
+     "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 135,
+     "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
+     "binding": "STATUSES"
+    }
+   ],
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed), takenPm / dealtPm (Weakened -80, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), each for durationMs",
+   "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
+   "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-STATUS"
+   ],
+   "reach": {
+    "feeds": 4,
+    "closure": 78
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "each status ticks or applies, keys and caps",
+      "reads": [
+       "STATUSES",
+       "STATUS_KEYS"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/monster-spells.mjs",
+      "what": "silenced-starts-nothing",
+      "reads": [
+       "STATUSES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bug-triage.mjs",
+     "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/effect-readers.mjs",
+     "tests/hunt-core/elements.mjs",
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-core/necrotic-storm.mjs",
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 8,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read; tests/hunt-core/status-effects.mjs)"
+  },
+  {
+   "id": "spell.status-keys",
+   "category": "spells",
+   "name": "Stacking keys: how one effect's sources count",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 77,
+     "text": "hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),",
+     "binding": "STATUS_KEYS"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 78,
+     "text": "hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),",
+     "binding": "STATUS_KEYS"
+    }
+   ],
+   "definition": "a unit's value of an effect is its keys summed; a strongest key counts its largest stack alone, an add key its rows added and held to capPm (src/core/hunt/status-effects.js effectPm, 15 \"Stacking keys\")",
+   "range": "capPm 1..1000 on an add key (validate); 300 PROVISIONAL, \"the Lab sets one cap for the total\"",
+   "touches": "how far stacked damage-taken or damage-dealt sources reach on one hero",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-STATUS"
+   ],
+   "reach": {
+    "feeds": 4,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "keys-combine",
+      "reads": [
+       "STATUS_KEYS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no hero carries an add-key status yet",
     "existingPatches": []
    },
    "flags": [],
@@ -3101,13 +3305,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 88,
-     "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
+     "line": 105,
+     "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 89,
+     "line": 106,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3137,15 +3341,16 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
-     "src/data/statuses.js: chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
+     "src/data/statuses.js: chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "src/data/statuses.js: tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),"
     ],
     "existingPatches": []
@@ -3309,7 +3514,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 353,
+     "line": 354,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3351,7 +3556,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3973,7 +4178,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 96,
+     "line": 113,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -4001,9 +4206,10 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4655,7 +4861,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 138,
+     "line": 139,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -5424,7 +5630,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5810,7 +6016,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6889,9 +7095,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6968,9 +7174,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7044,9 +7250,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7113,9 +7319,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7524,7 +7730,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8640,7 +8846,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8710,7 +8916,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8831,7 +9037,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8950,7 +9156,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 112,
+    "mentionCount": 113,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10629,7 +10835,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10705,7 +10911,7 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10809,6 +11015,74 @@
    },
    "flags": [],
    "evidence": "STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)"
+  },
+  {
+   "id": "ledger.aura",
+   "category": "equipment",
+   "name": "Party auras: steps on every ally in reach while the move is slotted",
+   "sites": [
+    {
+     "file": "src/data/auras.js",
+     "line": 28,
+     "text": "open_fire: Object.freeze({ id: 'open_fire', name: 'Open Fire', key: 'party_damage', radius: 8, slice: 'build', raises: 'offense', steps: 11 }),",
+     "binding": "AURAS"
+    }
+   ],
+   "definition": "an aura move slotted on a bar (target aura) puts its row's steps, in its slice and channel, on every living hero of its side within radius tiles as a ledger row scope party: on an ally whole and outside its own cap, on the wearer inside its slice, one per key a party (src/core/hunt/auras.js, src/core/power-ledger.js)",
+   "range": "radius 1 to 12 tiles, steps 1 to 40 at full size (validate); Open Fire 11 steps (+4% damage, 22 section 2.2) in the build slice, so 3.3 at Level 60",
+   "touches": "the party's damage (offense) or blows taken (defense) on the Danger scale while a support wears a fire",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "aura-party-rule: reach, one per key, the ally's cap, the power step, never cast",
+      "reads": [
+       "AURAS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)"
   },
   {
    "id": "imbue.parts",
@@ -14370,6 +14644,10 @@
    "why": "rounding (+500 / 1000)"
   },
   {
+   "at": "src/core/hunt/heal-cut.js#healCutPmOf",
+   "why": "a bound: a heal cut never takes a heal whole (999 of 1000)"
+  },
+  {
    "at": "src/data/gear-tiers.js#round5",
    "why": "rounding to fives"
   },
@@ -16047,7 +16325,9 @@
   "src/data/statuses.js#STATUSES": {
    "pin": "count",
    "keys": [
+    "armorPm",
     "blowPm",
+    "dealtPm",
     "durationMs",
     "hero",
     "maxStacks",
@@ -16056,7 +16336,23 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 18,
+   "typed": 28,
+   "bindings": 1
+  },
+  "src/data/statuses.js#TIERS": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 4,
+   "bindings": 1
+  },
+  "src/data/statuses.js#STATUS_KEYS": {
+   "pin": "count",
+   "keys": [
+    "capPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/rule-subjects.js#SPARE_MANA": {
@@ -16821,6 +17117,15 @@
     "temperStepsMax"
    ],
    "typed": 5,
+   "bindings": 1
+  },
+  "src/data/auras.js#AURAS": {
+   "pin": "count",
+   "keys": [
+    "radius",
+    "steps"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {

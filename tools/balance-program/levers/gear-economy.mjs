@@ -171,7 +171,7 @@ export const GEAR_ECONOMY = [
     def: 'decay(FL) = decayPpm1 - (decayPpm1 - decayPpm99) x (FL - 1) / 98 a hunted hero-hour; room = cover / decay; luck = luckMax x H / (H + luckHalf) on the Rare and Very Rare chance; top rank = topRankPm x (1 + luck) under topRankMaxPm; Flame Level on a 1.045 curve to 6,000 points; a unit of band b is 1 / fuelRef points x (1 + powerStep)^(b - top)',
     range: 'decayPm1 50 to 120, decayPm99 30 to 60, cover 1.25 to 2.0, luckMax 0.4 to 0.8, luckHalf 15 to 40 points, topRank 400 to 600 / 650 to 900, pointsTo99 4,000 to 10,000, burst 150 to 400 (21 section 1.2); fuelRef MEASURED owed (F1)',
     touches: 'how often a fed company finds a Rare, and what Remains are worth on the fire against the market', out: GOLD, f: [],
-    tests: [['tests/inner-flame.mjs', 'IF-1 to IF-6: the table, both paths, the curve, the burn, the stoke rule, the top rank']], testReads: ['FLAME', 'FLAME_LEVELS', 'FLAME_FUEL'],
+    tests: [['tests/flame-rules.mjs', 'FR-1 to FR-6: the table, both paths, the curve, the burn, the stoke rule, the top rank']], testReads: ['FLAME', 'FLAME_LEVELS', 'FLAME_FUEL'],
     perturb: NP('not-built', 'no roller reads luck until lane/drop-formula (wave 4); the switch inner_flame is off'),
     ev: 'STATED (21 section 1.2; fuelRef ASSUMED until F1)' }),
   L('temper.steps', 'equipment', 'global', 'Temper on steps: ranks by Level, price in hours of wage, the re-seat', {

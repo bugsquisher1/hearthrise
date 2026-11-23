@@ -20,7 +20,6 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/inner-flame.js#MINUTE_MS', why: 'a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)' },
   { at: 'src/core/inner-flame.js#roomMpts', why: 'units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)' },
   { at: 'src/core/inner-flame.js#decay', why: 'units: 60 minutes x a million parts (decayPpm is the lever)' },
-  { at: 'src/core/inner-flame.js#flameView', why: 'units: parts per million (decayPpm is the lever)' },
   { at: 'src/core/imbue.js#HOUR_MS', why: 'a unit: the milliseconds in an hour (IMBUE.hours is the lever)' },
   { at: 'src/core/personal-loot.js#UNIT', why: 'a unit: hero_pity holds millionths of x' },
   { at: 'src/core/temper-steps.js#rankQuote', why: 'units: milli-hours x permille (TEMPER_STEPS is the lever)' },

@@ -92,6 +92,13 @@ export function rowsOf(d) {
   for (const s of ['weapon', 'ring1', 'body']) for (const il of IL_PINS) for (const n of [0, 1, 2, 5]) pins.seat.push([s, n, il, tc.seatPrice(s, n, il)]);
   for (const il of IL_PINS) for (const L of LEVEL_PINS) pins.fee.push([il, L, ic.applyFee(il, L)]);
   for (const st of [0, 4, 7, 10, 20]) for (const il of IL_PINS) pins.carry.push([st, il, d.carry.carryFee(st, il)]);
+  /* and a whole quote: a Rare's one Trait at each rank, onto the next tier's base (the job prices the steps it moves) */
+  const trait = Object.keys(d.danger.TRAITS).sort()[0];
+  for (let rank = 1; rank <= G.traitSteps.length; rank++) for (const il of [60, 80, 200]) {
+    const q = d.carry.carryQuote({ slot: 'weapon', tier: 3, traits: [{ id: trait, rank }] }, { slot: 'weapon', tier: 4, traits: [], itemLevel: il });
+    if (!q.ok) throw new Error('gen-flame-temper: the pinned carry-over quote is refused: ' + q.why);
+    pins.carry.push([q.steps, il, q.fee]);
+  }
   return {
     F, T, I, P, C, G, slots, itemLevels, imbues, levels: d.flameD.FLAME_LEVELS, fuel: d.flameD.FLAME_FUEL, powerStep: d.danger.DANGER.powerStep,
     rampLevel: d.ledger.POWER_LEDGER.rampLevel, pins,
@@ -502,7 +509,7 @@ async function selftest() {
     patch(d);
     try { rowsOf(d); bites.push(name + ': NOT refused'); } catch { /* refused */ }
   };
-  /* the data modules' own validators are proved by tests/inner-flame.mjs and tests/imbue.mjs; here, that a refusal stops the write */
+  /* the data modules' own validators are proved by tests/flame-rules.mjs and tests/imbue.mjs; here, that a refusal stops the write */
   plant('a flame lever the data refuses', (d) => { d.flameD.validateFlame = () => ['planted']; });
   plant('an imbuement row the data refuses', (d) => { d.imbueD.validateImbues = () => ['planted']; });
   plant('Temper past the ledger slice', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, ranks: 6 }; });

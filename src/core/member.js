@@ -280,9 +280,10 @@ export function memberSide(mi, ctx) {
     },
   };
   const h = mi.hero || {};
-  const snapCtx = { eq, equipment, items, bonus, setBonus, profile, temper: mi.perks && mi.perks.temper ? mi.perks.temper : null,
+  const snapCtx = { eq, equipment, items, bonus, setBonus, profile,
     /* TEMPER ON STEPS (src/core/temper-steps.js): the server's seated ranks by slot (hr_perks_of temperSteps; empty while its switch is off) */
-    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null };
+    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null,
+    temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };
   /* THE HONE (src/core/ammo.js honeOf, lane c-work-fixes 2026-10-22): a whetstone is worn by this
      hero's swing clock (honeWornAt over the persisted swing index) from the hunt's own stock, and it
      pays its bonus only while the hunt still carries one: a spent or unpacked stone is the bare

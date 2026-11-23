@@ -17,7 +17,7 @@
 //   TS-1  RANKS BY LEVEL: rank r opens at Level 40r, at most 5 (D-2)
 //   TS-2  THE PRICES (21 section 2.2's table at item Level 60, wage 16,365): weapon rank 1 is 0.52 h (8,510 gold, half in kits); a whole
 //         kit's rank 1 is 2.6 h; the re-seat is 0.35 of the ranks' price at the new item Level (D-3)
-//   TS-3  THE SEAT: ranks count on the same or a lower tier, none above
+//   TS-3  THE SEAT is the server's (hr_temper_steps_of; 1063-flame-temper.sql §7 (c) unseats on a higher tier and re-seats)
 //   TS-4  THE GEAR PART (both paths: the tick door and the player door build the hero with heroSnapshot): +1 item Level a seated rank on
 //         whatever the slot wears, slot-weighted; a whole kit at 5 is +5,000 (5 steps); a two-handed weapon carries its rank on both
 //         weights; an empty slot gains nothing; no ranks: byte for byte what it was
@@ -46,8 +46,6 @@ async function pure(base) {
   if (full !== 39000) out.push('TS-2 a whole kit at 5 is ' + full + ' milli-hours, want 39 hours');
   if (T.seatPrice('weapon', 2, 100) !== 10483) out.push('TS-2 re-seating weapon ranks 1-2 at item Level 100 costs ' + T.seatPrice('weapon', 2, 100) + ', want 0.35 x 1.56 h of 19,199');
   if (T.rankQuote('weapon', 6, 60) !== null || T.rankQuote('nose', 1, 60) !== null) out.push('TS-2 a rank off the table was quoted');
-  /* TS-3 */
-  if (T.seatedRanks(3, 3, 3) !== 3 || T.seatedRanks(3, 3, 2) !== 3 || T.seatedRanks(3, 3, 4) !== 0) out.push('TS-3 the seat does not count the same and lower tiers only');
   /* TS-4: through heroSnapshot, the one builder both paths call */
   const KIT = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody' };
   const { eq, setBonus, profile } = member.loadoutOf(KIT, ITEMS);
@@ -84,7 +82,6 @@ const MUTANTS = [
   ['the fee is the whole price', 'src/core/temper-steps.js', 'fee: Math.ceil((mh * (1000 - T.kitSharePm) * w) / 1000000),', 'fee: Math.ceil((mh * 1000 * w) / 1000000),'],
   ['slot weights ignored in the price', 'src/core/temper-steps.js', 'return Math.ceil((T.hoursPm * SLOTS.length * GEAR_STEPS.slotPm[slot] * r) / (1000 * RANK_SUM));', 'return Math.ceil((T.hoursPm * r) / RANK_SUM);'],
   ['the re-seat costs the whole ranks', 'src/core/temper-steps.js', 'Math.ceil((mh * T.carryPm * wage(whole(itemLevel) || 1)) / 1000000)', 'Math.ceil((mh * 1000 * wage(whole(itemLevel) || 1)) / 1000000)'],
-  ['a higher tier keeps the ranks seated', 'src/core/temper-steps.js', 'wornTier <= seatedTier ?', 'wornTier <= seatedTier + 1 ?'],
   ['the gear part reads no Temper', 'src/core/hunt/danger.js', 'return il > 0 ? il + temperLevelsOn(temperSteps, slot) : 0;', 'return il;'],
   ['an empty slot takes its rank', 'src/core/hunt/danger.js', 'return il > 0 ? il + temperLevelsOn(temperSteps, slot) : 0;', 'return il + temperLevelsOn(temperSteps, slot);'],
   ['the snapshot drops the ranks', 'src/core/member.js', 'const gearPm = gearPartPm(c.equipment, c.items, c.temperSteps);', 'const gearPm = gearPartPm(c.equipment, c.items);'],

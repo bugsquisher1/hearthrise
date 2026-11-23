@@ -308,6 +308,11 @@
         "bytes": 3400399,
         "on": "2026-11-23",
         "why": "lane/moves-pass-1: the holder's line (danger.js marginPm, holderTank), Precision Shot's preferred roles and the Mark's own target (abilities.js targetFor), their data rows and measured notes"
+      },
+      {
+        "bytes": 3410091,
+        "on": "2026-11-23",
+        "why": "lane/flame-temper-build: the engine's gear part reads Temper on steps (src/core/temper-steps.js, src/data/temper.js TEMPER_STEPS), carry-over's levers beside the gear table (src/data/gear-steps.js CARRY, re-exported by src/data/danger.js), and personal loot's pity levers in src/data/party.js; about 9.7 KB, all read or re-exported by modules the edge already bundles"
       }
     ]
   }

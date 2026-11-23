@@ -25,9 +25,6 @@ export function rankCapAt(level) {
   return Math.min(T.ranks, Math.floor(whole(level) / T.rankEvery));
 }
 
-/** The gear tier of an item Level (GEAR_STEPS.tierSteps a tier; tier 0 is the starting kit). */
-export const tierOfLevel = (itemLevel) => Math.floor(whole(itemLevel) / GEAR_STEPS.tierSteps);
-
 /** Rank `rank`'s full price on slot `slot`, in milli-hours of wage: rank / 15 of the slot's full Temper (weapon rank 1: 520). 0 off the table. */
 export function rankMilliHours(slot, rank) {
   const r = whole(rank);
@@ -55,11 +52,6 @@ export function seatPrice(slot, ranks, itemLevel) {
   let mh = 0;
   for (let r = 1; r <= n; r++) mh += rankMilliHours(slot, r);
   return mh === 0 ? 0 : Math.ceil((mh * T.carryPm * wage(whole(itemLevel) || 1)) / 1000000);
-}
-
-/** The ranks that count on a slot whose ranks sit on `seatedTier`, wearing a piece of tier `wornTier`: all of them on the same or a lower tier, none above. */
-export function seatedRanks(rank, seatedTier, wornTier) {
-  return Number.isInteger(seatedTier) && Number.isInteger(wornTier) && wornTier <= seatedTier ? Math.min(T.ranks, whole(rank)) : 0;
 }
 
 /** The item Levels Temper adds on `slot` (danger.js gearPartPm): the seated ranks the server sent, x ilPerRank. 0 with none. */

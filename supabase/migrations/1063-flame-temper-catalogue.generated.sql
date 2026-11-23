@@ -1243,7 +1243,16 @@ begin
     (20, 100, 191990::bigint),
     (20, 120, 207950::bigint),
     (20, 200, 286190::bigint),
-    (20, 400, 635910::bigint)) p(st, il, g) loop
+    (20, 400, 635910::bigint),
+    (4, 60, 32730::bigint),
+    (4, 80, 35452::bigint),
+    (4, 200, 57238::bigint),
+    (7, 60, 57278::bigint),
+    (7, 80, 62041::bigint),
+    (7, 200, 100167::bigint),
+    (10, 60, 81825::bigint),
+    (10, 80, 88630::bigint),
+    (10, 200, 143095::bigint)) p(st, il, g) loop
     if public.hr_carry_fee(v_r.st, v_r.il) <> v_r.g then raise exception 'VERIFY(q): a carry of % steps onto item Level % costs % in SQL, % in JS', v_r.st, v_r.il, public.hr_carry_fee(v_r.st, v_r.il), v_r.g; end if;
   end loop;
   raise notice 'gen-flame-temper: 99 Flame Levels, 4 fuels, 13 Temper slots, 353 item Levels, 5 imbuements; every twin pinned; all green';

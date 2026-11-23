@@ -11,7 +11,7 @@
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
-import { FLAME, FLAME_LEVELS, FLAME_FUEL } from '../data/inner-flame.js';
+import { FLAME, FLAME_LEVELS } from '../data/inner-flame.js';
 import { DANGER } from '../data/danger.js';
 
 const MINUTE_MS = 60000;
@@ -82,12 +82,6 @@ export function fuelWorthMpts(count, band, top) {
   return Math.floor((n * 1000) / FLAME.fuelRef / stepPow(gap));
 }
 
-/** The band of a Remains good (src/data/inner-flame.js FLAME_FUEL), or null for a good that is no fuel. */
-export function fuelBandOf(item) {
-  const r = FLAME_FUEL.find((f) => f.item === item);
-  return r ? r.band : null;
-}
-
 /**
  * THE BURN (hr_flame_burn's twin): up to `count` units of band `band` go on a fire at `height` and Flame Level `fl`, never past the room.
  * Answers { units, mpts, height }: the units taken (the rest stay where they were) and the milli-points they add. The units are the most
@@ -124,10 +118,3 @@ export function clampStoke(rule) {
     sell_rest: r.sell_rest === true,
   };
 }
-
-/** What the Hearth panel reads (21 section 1.5), all from the server's row: { level, height, room, luck, burnPerHourMpts }. */
-export function flameView(row) {
-  const level = levelOf(row && row.points), height = Math.max(0, toInt(row && row.height));
-  return { level, height, room: roomMpts(level), luck: luckPm(height), burnPerHourMpts: Math.floor((height * decayPpm(level)) / 1000000) };
-}
-

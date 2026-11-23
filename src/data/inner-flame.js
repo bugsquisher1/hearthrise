@@ -30,7 +30,7 @@
 // the wage. A unit of band b burns `1 / fuelRef x min(1, (1 + powerStep) ^ (b - top))` points, `top` the company's highest hero Level.
 //
 // DARK. Nothing reads luck into a roll until the roller lands (lane/drop-formula, wave 4); the server's verbs and the settle's decay
-// sit behind the hr_flags switch `inner_flame` (off at apply). tests/inner-flame.mjs holds the levers, the twins and the fuel rows.
+// sit behind the hr_flags switch `inner_flame` (off at apply). tests/flame-rules.mjs holds the levers, the arithmetic and the fuel rows.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -86,7 +86,7 @@ export const FLAME_FUEL = (() => {
   return Object.freeze([...band.entries()].sort((x, y) => (x[0] < y[0] ? -1 : 1)).map(([item, b]) => Object.freeze({ item, band: b })));
 })();
 
-/** Every problem with the levers, as text; [] when sound (tests/inner-flame.mjs, tools/gen-flame-temper.mjs refuses to write on any). */
+/** Every problem with the levers, as text; [] when sound (tests/flame-rules.mjs, tools/gen-flame-temper.mjs refuses to write on any). */
 export function validateFlame() {
   const out = [], F = FLAME, int = (v) => Number.isInteger(v);
   for (const [k, v] of Object.entries(F)) if (k !== 'stokeKeeps' && !(int(v) && v > 0)) out.push('FLAME.' + k + ' is not a whole number above 0');

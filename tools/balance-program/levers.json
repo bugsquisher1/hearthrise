@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "e129a96c858473c0",
+ "authored": "cfea9a80e0e8148c",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 692,
-  "typed": 15850,
+  "bindings": 691,
+  "typed": 15849,
   "files": 239,
   "lever": 297,
-  "notLever": 395,
+  "notLever": 394,
   "unclaimed": 0
  },
  "problems": [],
@@ -10266,8 +10266,8 @@
    "tests": {
     "asserts": [
      {
-      "file": "tests/inner-flame.mjs",
-      "what": "IF-1 to IF-6: the table, both paths, the curve, the burn, the stoke rule, the top rank",
+      "file": "tests/flame-rules.mjs",
+      "what": "FR-1 to FR-6: the table, both paths, the curve, the burn, the stoke rule, the top rank",
       "reads": [
        "FLAME",
        "FLAME_LEVELS",
@@ -10277,13 +10277,14 @@
     ],
     "mentions": [
      "tests/activity-intent.mjs",
+     "tests/flame-rules.mjs",
      "tests/hearth-fuel-rate.mjs",
      "tests/hearth-moods.mjs",
      "tests/hunt-sessions-settle.mjs",
      "tests/inner-flame.mjs",
      "tests/town-shows.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13577,10 +13578,11 @@
     "asserts": [],
     "mentions": [
      "tests/activity-intent.mjs",
+     "tests/flame-rules.mjs",
      "tests/hearth-fuel-rate.mjs",
      "tests/inner-flame.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13883,10 +13885,6 @@
   {
    "at": "src/core/inner-flame.js#decay",
    "why": "units: 60 minutes x a million parts (decayPpm is the lever)"
-  },
-  {
-   "at": "src/core/inner-flame.js#flameView",
-   "why": "units: parts per million (decayPpm is the lever)"
   },
   {
    "at": "src/core/imbue.js#HOUR_MS",

@@ -211,9 +211,10 @@ export const ABILITIES = Object.freeze([
      "guard against one heavy blow"). A support cast on the sword's target that lands only its status, Parried (statuses.js): that
      monster's next blow within 2 s, a swing or a wind-up's landing, lands nothing. Every 10 s, 10 mana, no rune. A new slot starts on "my
      target is winding up" (`trigger`): the parry kept for the heavy blow. The sword alone: with a shield the tank holds with the Challenge. */
-  /* UNLOCKS (the designer, lane/roads-wave3): Parry and Stagger at Melee 10, Gash at 12, so the new-spell prompt says each once (a move
-     with no unlock is never announced, and its road would be nine points on a move the player never heard of). Before the Sewer (band
-     5-25, the first ground whose monsters wind up) neither answer has a wind-up to answer, so the wait costs nothing */
+  /* UNLOCKS (the designer, lane/roads-wave3): Parry at Melee 10, Gash at 12, so the new-spell prompt says each once (a move with no
+     unlock is never announced, and its road would be nine points on a move the player never heard of). Before the Sewer (band 5-25, the
+     first ground whose monsters wind up) Parry has no wind-up to answer, so the wait costs nothing. Stagger keeps none: it is the
+     hammer's rune choice from Level 1 (call 32-5), which the first-hour card already offers (tests/hunt-core/sewer.mjs starter-bars) */
   ab({ id: 'parry', n: 'Parry', disciplines: ['sword'], lane: 'support', cdMs: 10000, mana: 10, unlock: 10, target: 'enemy', status: 'parried',
     trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),
   /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): every melee
@@ -242,7 +243,7 @@ export const ABILITIES = Object.freeze([
      (`interrupts`), and holds its next swing back 1 s (`pushMs`). Every 10 s. A new slot starts on "my target is winding up" (`trigger`).
      Power Strike 6 s, Turning Cut 8 s and this 10 s fill 0.78 of the hammer's offense lane. Off the default bar, as every weapon's rune
      strike is: the player's pick. */
-  ab({ id: 'stagger', n: 'Stagger', disciplines: ['club'], lane: 'offense', cdMs: 10000, mana: 10, unlock: 10, rune: 'chalked_earth_rune',
+  ab({ id: 'stagger', n: 'Stagger', disciplines: ['club'], lane: 'offense', cdMs: 10000, mana: 10, rune: 'chalked_earth_rune',
     target: 'enemy', hitPm: 840, base: [5, 8], interrupts: true, pushMs: 1000, magicXpMult: 250, versions: [10, 12, 14, 17, 21],
     trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),
   /* bow / crossbow — Ranger. HUNTER'S MARK lands on the bow's own target while it is unmarked, so the party's blows land on it (23-spell-

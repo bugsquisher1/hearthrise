@@ -126,7 +126,7 @@ export const STATUSES = Object.freeze({
   ...(NECROTIC_STORM.live ? { withered: Object.freeze({ id: 'withered', name: 'Withered', key: 'withered', durationMs: 6000, maxStacks: 1,
     healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),
 
-  /* ── THE ENGINE'S VOCABULARY for the Roads, the Wraps, Signatures and Traits (E2). Hidden while nothing a player meets lands it. Armor
+  /* ── HIDDEN: the engine's vocabulary for the Roads, the Wraps, Signatures and Traits (E2), while nothing a player meets lands it. Armor
      Break, Weakened, Silenced and Sapped are shown: Roads options lay them, so a bar may test them (lane/roads-wave3; tests/hunt-core/
      talents.mjs bar-can-test) ── */
   /* POISON (15 #7 Floodwater Hatchets: "Rend also applies Poison, 20% of Rend's damage over 6 s"): a poison tick beside Bleed, a share of

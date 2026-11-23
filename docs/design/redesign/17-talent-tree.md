@@ -185,7 +185,7 @@ Wide Circle and Fast Circle are cut: Circle's 8-tile radius already covers the p
 
 | Road | Node | Tooltip |
 |---|---|---|
-| **Stagger** (wave 3, replaces Quarry Blow. Ends the target's wind-up. Melee 10. The club's second road, after Turning Cut's crossroads I) | Crossroads I | **Long Stagger** (Suggested): Stagger: Chill 4 s · **Shaken** (Suggested, solo): Stagger: Weakened 8 s · **Hushing Blow**: Stagger: Silenced 3 s · −20% damage |
+| **Stagger** (wave 3, replaces Quarry Blow. Ends the target's wind-up. From Level 1. The club's second road, after Turning Cut's crossroads I) | Crossroads I | **Long Stagger** (Suggested): Stagger: Chill 4 s · **Shaken** (Suggested, solo): Stagger: Weakened 8 s · **Hushing Blow**: Stagger: Silenced 3 s · −20% damage |
 | | Crossroads II | **Heavy Stagger**: +30% damage · +3 s cooldown · **Laid Open** (Suggested): Stagger: Sick 6 s · −15% damage · **Sure Blow**: Stagger hits: +2% mana |
 | | Waystones | **Stagger −2 mana** / **Stagger: Armor Break 4 s** |
 | **Turning Cut** (Melee 10) | Crossroads I | **Wide Turn** (Suggested): Hits up to 2 tiles away · −25% damage · **Close Turn**: +40% damage · 3 targets max · **Heavy Turn**: +30% damage · +2 s cooldown |
@@ -483,7 +483,7 @@ Borrowing: the Sword · Shield town is reachable at Level 29, but Turning Cut's 
 
 - **Each pick is what the move leaves behind.** "A blow you Parry" and "a wind-up it ends" have no seam yet. Riposte and Answering are the damage and the guard for 4 s after Parry. Stagger's picks lay Chill, Weakened, Silenced, Sickness or Armor Break. Long Parry stretches Parried.
 - **Laid Open is Stagger's suggested II pick.** Heavy Stagger's +3 s cooldown costs the interrupts that are Stagger's job.
-- **Unlocks.** Parry and Stagger at Melee 10, Gash at 12, so the new-spell prompt offers each once. A melee hero reaches Melee 10 about Level 7, before these roads start at Level 11. None goes on a default bar.
+- **Unlocks.** Parry at Melee 10, Gash at 12, so the new-spell prompt offers each once. A melee hero reaches Melee 10 about Level 7, before these roads start at Level 11. Stagger has none: it is the hammer's rune choice from Level 1, offered by the first-hour card. None goes on a default bar.
 - **Parried lasts 2.1 s.** At 2 s, Parry cast on its own rule missed every 2 s group spell.
 - **Towns.** Club · Dual Axe lends Rend and Stagger, Sword · Club Flame Strike and Stagger, so the axes and the sword no longer pay a point there for nothing (two of the four open sides above). Crushing Cuts is Stagger: 1 Bleed stack. Butcher's cost is −3% damage dealt, which bites both sides. V0: Stagger 5.8, Gash 16.2 (`18-roads-review-measured.md` section 7's method).
 - **Shown on the bar.** Armor Break, Weakened, Silenced and Sapped are effects a bar can test, since Roads options lay them.

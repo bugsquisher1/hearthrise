@@ -226,6 +226,12 @@
         "gzipBytes": 925473,
         "on": "2026-11-23",
         "why": "E2/E3: status rows, aura and shield data read by the bar and HUD at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 928498,
+        "on": "2026-11-23",
+        "why": "set/v0.2.144 batch merge (lane/set-reds-3), +2.9 KB gzip to town, measured per module (minified, gzipped) against e3015ddb3: lane/tower-boss-formula about 2.2 KB (data/bosses.js 0.9 KB new, data/tower.js +0.5, core/hunt/tower.js +0.5, boss-phases.js +0.2, chests.js +0.1); lane/flame-temper-build about 0.7 KB (core/temper-steps.js 0.5 KB new, temper.js, party.js, gear-steps.js); lane/level-costs about 0 (blessings.js -0.25 KB against action-rules.js, hunt-list, how-to-play and wiki text); lane/formula-overhaul +0.1 KB (core-model.js LEVEL_HOURS). All are engine modules the viewed hunt runs or the Tower window's data, statically reached by the engine the edge packs (no import() on need without breaking pack-edge's static graph)"
       }
     ]
   }

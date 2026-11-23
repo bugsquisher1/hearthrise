@@ -27,7 +27,7 @@
 // ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
 // ci-run: node tests/drop-formula.mjs
 //
-// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js
+// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -229,6 +229,10 @@ const CASES = {
   'DF-6'(M) {
     if (M.GS.GEAR_STEPS.traitsLive !== false) return 'GEAR_STEPS.traitsLive is ' + M.GS.GEAR_STEPS.traitsLive + ': Traits are dark until wave 4';
     const allowed = new Set(['src/core/trait-roll.js', 'src/core/combat-sim.js', 'src/core/hunt-rewards.js']);
+    /* the generated preload list (tests/module-preload.mjs --write) names every module of the game half, the roller among them (combat-sim
+       reaches it): a name to preload, never an import that could hand a roll, so it may name the file (as GS-6 lets it name gear-steps.js)
+       and is still held to traitDrops */
+    const PRELOAD_LIST = 'src/app/game-modules.js';
     const strip = (s) => s.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     const walk = (abs, rel, out) => {
       if (!existsSync(abs)) return out;
@@ -245,7 +249,7 @@ const CASES = {
       if (allowed.has(rel)) continue;
       const code = strip(text);
       if (/\btraitDrops\b/.test(code)) return rel + ' names traitDrops: it hands the settle a Trait roll while Traits are dark';
-      if (/trait-roll\.js/.test(code)) return rel + ' imports the Trait roller';
+      if (rel !== PRELOAD_LIST && /trait-roll\.js/.test(code)) return rel + ' imports the Trait roller';
     }
     /* the made piece (drop-hours.js made, the rule as data until the bench verb lands): its slots are the bench's, never a dropped slot, and
        its part names an item field the scale grounds' parts carry */
@@ -275,6 +279,8 @@ const MUTANTS = [
   { name: 'the roll draws on the kill\'s r stream', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs)', 'ctx.rng, atMs)']] },
   { name: 'pity kept on the swing, not carried', case: 'DF-5', edits: [['src/core/trait-roll.js', 'pity: drops.pity || (drops.pity = {}),', 'pity: {},']] },
   { name: 'a server file hands the settle a roll', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', 'export const traitDrops = null;\nexport const SEED_DOMAIN =']] },
+  { name: 'another module names the roller', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', "export const ROLLER = './trait-roll.js';\nexport const SEED_DOMAIN ="]] },
+  { name: 'the preload list hands the settle a roll', case: 'DF-6', also: ['src/app'], edits: [['src/app/game-modules.js', 'export const GAME_MODULES =', 'export const traitDrops = null;\nexport const GAME_MODULES =']] },
 ];
 
 async function main() {
@@ -288,7 +294,7 @@ async function main() {
   }
   if (!process.argv.includes('--no-mutate')) {
     for (const mu of MUTANTS) {
-      const p = plant(mu.edits);
+      const p = plant(mu.edits, mu.also || []);
       try {
         let why = null;
         try { why = CASES[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }

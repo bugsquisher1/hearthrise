@@ -99,6 +99,13 @@ export const BORROW_VALUES = Object.freeze({
   hoarfrost: 15.8,
   protective_ward: 16.1,
   greater_mend: null,
+  /* towns of the full map (lane/roads-countries) whose move is owed its V0: never offered until the Lab measures it */
+  power_strike: null,
+  flame_strike: null,
+  turning_cut: null,
+  rend: null,
+  raking_shot: null,
+  circle_of_renewal: null,
 });
 
 /* THE COUNTRIES: a weapon's DISCIPLINES id (src/data/abilities.js), or 'hearth' (the Great Hearth: every hero's) */
@@ -117,6 +124,13 @@ export const COUNTRY_ROADS = Object.freeze({
   hearth: Object.freeze(['mend']),
   shield: Object.freeze(['challenge', 'frost_slam', 'shelter']),
   restoration: Object.freeze(['greater_mend', 'circle_of_renewal', 'spring_tide', 'green_sickness', 'protective_ward']),
+  /* the full map (lane/roads-countries). Parry (Sword) and Gash (Dual Axe) join in wave 3 with their rows. Stagger replaces Quarry Blow
+     then, so until it does the club's one road of its own is Turning Cut (17 section 5) */
+  sword: Object.freeze(['power_strike']),
+  club: Object.freeze(['turning_cut']),
+  dual_axe: Object.freeze(['rend']),
+  ranged: Object.freeze(['precision_shot']),
+  destruction: Object.freeze(['frost_lance']),
 });
 
 /* ── builders ── */
@@ -152,6 +166,9 @@ const way = (n, tip, effects) => ({ n, tip, effects });
 const MOVE_NAMES = fz({
   mend: 'Mend', challenge: 'Challenge', frost_slam: 'Frost Slam', shelter: 'Shelter', greater_mend: 'Greater Mend',
   circle_of_renewal: 'Circle of Renewal', spring_tide: 'Spring Tide', green_sickness: 'Green Sickness', protective_ward: 'Protective Ward',
+  power_strike: 'Power Strike', flame_strike: 'Flame Strike', turning_cut: 'Turning Cut', rend: 'Rend', precision_shot: 'Precision Shot',
+  hunters_mark: 'Hunter\'s Mark', raking_shot: 'Raking Shot', flame_volley: 'Flame Volley', frost_lance: 'Frost Lance', fireball: 'Fireball',
+  hoarfrost: 'Hoarfrost', arcane_barrier: 'Arcane Barrier',
 });
 
 const H = HEARTH;
@@ -197,8 +214,9 @@ const SHIELD_NODES = [
       opt('slowing_frost', 'Slowing Frost', 'Chill slows wind-ups 2× · −50% Chill on attacks', [mod('frost_slam', { statusPm: -500, windupSlowPm: 2000 })])],
     way('Cold Footing', 'Frost Slam usable solo · −30% Chill', [mod('frost_slam', { solo: true, statusPm: -300 })]),
     [opt('cold_ground', 'Cold Ground', 'Frozen ground 4 s · Chills enemies on it', [mod('frost_slam', { ground: 'frozen_ground' })], true),
-      opt('quick_slam', 'Quick Slam', '−3 s cooldown · −20% damage', [mod('frost_slam', { cdMs: -3000, outPm: -200 })]),
-      opt('wide_slam', 'Wide Slam', '+1 tile radius · −15% damage', [mod('frost_slam', { r: 1, outPm: -150 })])],
+      /* (lane/roads-countries: Frost Slam lands no blow, so a "−20% damage" cost never bit; the cost is now its Chill's strength) */
+      opt('quick_slam', 'Quick Slam', '−3 s cooldown · −25% Chill', [mod('frost_slam', { cdMs: -3000, statusPm: -250 })]),
+      opt('wide_slam', 'Wide Slam', '+1 tile radius · −20% Chill', [mod('frost_slam', { r: 1, statusPm: -200 })])],
     way('Wide Ice', 'Frost Slam radius +1 tile', [mod('frost_slam', { r: 1 })])),
   ...road(S, 'shelter', 'frost_slam.x1',
     [opt('steady_shelter', 'Steady Shelter', '−40% shield · −15 s cooldown', [mod('shelter', { outPm: -400, cdMs: -15000 })], true),
@@ -284,6 +302,97 @@ const RESTORATION_NODES = [
     effects: [react('free_heal_near_fall', 'near_fall', 'cast', { move: '*heal', free: true, clockMs: 10000, per: 'target' }), mod('*heal', { outPm: -30 })] }),
 ];
 
+/* ── THE FULL MAP (game-designer, lane/roads-countries, 2026-11-23). Every option plays through a piece the engine has (a mod field its
+   move's row reads, a reaction, a step row on a condition it reads, healing received). Where 16 or 17 wrote an option the engine cannot
+   play (a monster type, a health line on the target, Bleed's tick speed or cap, a mark's own numbers, a lane past 75% full), it is
+   re-written to one it can, keeping its job. Every number is a starting value at full size (Level 200) for the Lab. ── */
+
+/* ── SWORD (17 section 5: Power Strike and Flame Strike live here; Parry joins in wave 3). The sword lane runs full: no cooldown cuts ── */
+const SW = 'sword';
+const SWORD_NODES = [
+  ...road(SW, 'power_strike', 'hearth',
+    [opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),
+      opt('cheap_strike', 'Cheap Strike', '−40% mana · −20% damage', [mod('power_strike', { manaPm: -400, outPm: -200 })]),
+      opt('guard_strike', 'Guard Strike', '−20% damage · −4% damage taken for 3 s',
+        [mod('power_strike', { outPm: -200 }), step('defense', 11, 'guard_strike', 'cast:power_strike:3000')], 'solo')],
+    way('Keen Edge', 'Power Strike +5% damage', [mod('power_strike', { outPm: 50 })]),
+    [opt('driving_strike', 'Driving Strike', 'Hits again for 25% 2 s later', [react('power_strike_echo', 'hit', 'echo', { of: 'power_strike', pm: 250, ms: 2000 })], true),
+      opt('breaking_strike', 'Breaking Strike', 'Armor Break 6 s · −10% damage',
+        [react('power_strike_break', 'hit', 'status', { of: 'power_strike', status: 'armor_break' }), mod('power_strike', { outPm: -100 })], 'party'),
+      opt('rallying_strike', 'Rallying Strike', 'After Power Strike: +2% damage for 4 s', [step('offense', 6, 'rallying_strike', 'cast:power_strike:4000')])],
+    way('Light Grip', 'Power Strike −2 mana', [mod('power_strike', { mana: -2 })])),
+];
+
+/* ── CLUB (17 section 5: Turning Cut lives here; Stagger joins in wave 3). The club lane runs full: no cooldown cuts ── */
+const CL = 'club';
+const CLUB_NODES = [
+  ...road(CL, 'turning_cut', 'hearth',
+    [opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),
+      opt('close_turn', 'Close Turn', '+40% damage · 3 targets max', [mod('turning_cut', { outPm: 400, maxHits: -5 })]),
+      opt('heavy_turn', 'Heavy Turn', '+30% damage · +2 s cooldown', [mod('turning_cut', { outPm: 300, cdMs: 2000 })])],
+    way('Long Arm', 'Turning Cut +1 max target', [mod('turning_cut', { maxHits: 1 })]),
+    [opt('mending_turn', 'Mending Turn', 'Hits: heal yourself 1% max health', [react('turning_cut_mend', 'hit', 'heal', { of: 'turning_cut', pm: 10, to: 'self' })], 'solo'),
+      /* Reaping Turn's "below 30% health" has no seam: its job (finishing a pack) is now the overkill carried */
+      opt('reaping_turn', 'Reaping Turn', 'Kills carry 50% of the overkill to the nearest enemy',
+        [react('turning_cut_reap', 'kill', 'carry', { of: 'turning_cut', pm: 500, r: 2, capPm: 200 })], 'party'),
+      opt('guarded_turn', 'Guarded Turn', 'After Turning Cut: −3% damage taken for 4 s', [step('defense', 8, 'guarded_turn', 'cast:turning_cut:4000')])],
+    way('Loose Grip', 'Turning Cut −2 mana', [mod('turning_cut', { mana: -2 })])),
+];
+
+/* ── DUAL AXE (17 section 5: Rend, 4 waystones; Gash joins in wave 3). Bleed's cap and tick speed have no seam: its waystones and picks
+   move Bleed's length and strength instead ── */
+const DA = 'dual_axe';
+const AXE_NODES = [
+  ...road(DA, 'rend', 'hearth',
+    [opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),
+      /* Spread's jump on a death has no seam: its job (a pack shares the axe's pain) is now a Sickness the whole party hits through */
+      opt('jagged_rend', 'Jagged Rend', 'Target Sick 6 s · −20% Bleed damage', [mod('rend', { also: 'sickness', statusPm: -200 })], 'party'),
+      opt('quick_rend', 'Quick Rend', '−30% cooldown · −20% Bleed damage', [mod('rend', { cdPm: -300, statusPm: -200 })])],
+    way('Long Cut', 'Bleed +1 s', [mod('rend', { statusMs: 1000 })]),
+    [opt('deep_wounds', 'Deep Wounds', 'Bleed +20% damage', [mod('rend', { statusPm: 200 })], true),
+      opt('crippling_cuts', 'Crippling Cuts', 'Target Weakened 8 s · −10% damage',
+        [react('rend_weaken', 'hit', 'status', { of: 'rend', status: 'weakened' }), mod('rend', { outPm: -100 })], 'party'),
+      opt('bloodletting', 'Bloodletting', 'Rend hits: heal yourself 1% max health', [react('rend_mend', 'hit', 'heal', { of: 'rend', pm: 10, to: 'self' })], 'solo')],
+    way('Light Hatchet', 'Rend −2 mana', [mod('rend', { mana: -2 })])),
+];
+
+/* ── RANGED (17 section 5: four moves; Precision Shot is the bow's first road). The bow's offense lane runs 78% full: no cooldown cuts
+   on its shots ── */
+const RA = 'ranged';
+const RANGED_NODES = [
+  ...road(RA, 'precision_shot', 'hearth',
+    [opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),
+      opt('barbed_shot', 'Barbed Shot', '1 Bleed stack · −10% damage',
+        [react('precision_bleed', 'hit', 'status', { of: 'precision_shot', status: 'bleed' }), mod('precision_shot', { outPm: -100 })]),
+      opt('piercing_shot', 'Piercing Shot', 'Kills carry 60% of the overkill to the nearest enemy',
+        [react('precision_pierce', 'kill', 'carry', { of: 'precision_shot', pm: 600, r: 3, capPm: 250 })], 'party')],
+    way('Fletching', 'Precision Shot +5% damage', [mod('precision_shot', { outPm: 50 })]),
+    [opt('double_shot', 'Double Shot', 'Hits again for 30% 2 s later · +2 mana',
+      [react('precision_echo', 'hit', 'echo', { of: 'precision_shot', pm: 300, ms: 2000 }), mod('precision_shot', { mana: 2 })], true),
+      opt('pinning_shot', 'Pinning Shot', 'Chill 2 s', [react('precision_chill', 'hit', 'status', { of: 'precision_shot', status: 'chill', ms: 2000 })], 'solo'),
+      opt('mana_shot', 'Mana Shot', 'Hits: +1% mana', [react('precision_mana', 'hit', 'mana', { of: 'precision_shot', pm: 10 })])],
+    way('Steady Draw', 'Precision Shot −2 mana', [mod('precision_shot', { mana: -2 })])),
+];
+
+/* ── DESTRUCTION (17 section 5: four moves; Frost Lance is the wand's first road, 17 section 13). The wand's offense lane runs 78% full:
+   no cooldown cuts on its strikes ── */
+const DE = 'destruction';
+const DESTRUCTION_NODES = [
+  ...road(DE, 'frost_lance', 'hearth',
+    [opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',
+      [react('lance_chill', 'hit', 'status', { of: 'frost_lance', status: 'chill' }), mod('frost_lance', { outPm: -200 })], true),
+      opt('splintering_lance', 'Splintering Lance', 'Hits again for 35% 2 s later · −15% damage',
+        [react('lance_echo', 'hit', 'echo', { of: 'frost_lance', pm: 350, ms: 2000 }), mod('frost_lance', { outPm: -150 })]),
+      opt('sapping_lance', 'Sapping Lance', 'Sapped 6 s · −10% damage',
+        [react('lance_sap', 'hit', 'status', { of: 'frost_lance', status: 'sapped' }), mod('frost_lance', { outPm: -100 })], 'party')],
+    way('Cold Edge', 'Frost Lance +5% damage', [mod('frost_lance', { outPm: 50 })]),
+    [opt('deep_lance', 'Deep Lance', '+20% damage · +4 mana', [mod('frost_lance', { outPm: 200, mana: 4 })], true),
+      opt('mana_lance', 'Mana Lance', 'Hits: +1.5% mana', [react('lance_mana', 'hit', 'mana', { of: 'frost_lance', pm: 15 })]),
+      opt('through_lance', 'Through Lance', 'Kills carry 60% of the overkill to the nearest enemy',
+        [react('lance_carry', 'kill', 'carry', { of: 'frost_lance', pm: 600, r: 3, capPm: 250 })])],
+    way('Thin Lance', 'Frost Lance −2 mana', [mod('frost_lance', { mana: -2 })])),
+];
+
 /* ── THE SHIELD · RESTORATION BORDER (17 section 6): its road leaves either country's first move road at crossroads I ── */
 const SR = ['shield', 'restoration'];
 const BORDER_NODES = [
@@ -301,7 +410,8 @@ const BORDER_NODES = [
 ];
 
 /** EVERY NODE, in map order (a node's `after` always names an earlier row). */
-export const TALENT_NODES = Object.freeze([...HEARTH_NODES, ...SHIELD_NODES, ...RESTORATION_NODES, ...BORDER_NODES]);
+export const TALENT_NODES = Object.freeze([...HEARTH_NODES, ...SHIELD_NODES, ...RESTORATION_NODES, ...SWORD_NODES, ...CLUB_NODES, ...AXE_NODES,
+  ...RANGED_NODES, ...DESTRUCTION_NODES, ...BORDER_NODES]);
 
 /** The rows by id. */
 export const NODE_INDEX = Object.freeze(Object.fromEntries(TALENT_NODES.map((n) => [n.id, n])));

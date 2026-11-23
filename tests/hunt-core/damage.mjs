@@ -472,7 +472,7 @@ const mutants = [
     edits: [[D, "    const sharePm = paid !== true && paid.source === 'store' ? BASIC_SHOT_PM : undefined;", '    const sharePm = undefined;']] },
   { name: 'a caster basic swings free', case: 'caster-basic-costs-mana', edits: [[D, '      if (row.basic) {', '      if (false) {']] },
   { name: 'a caster swings on an empty pool', case: 'caster-basic-costs-mana',
-    edits: [[D, '        return (Number(u.mana) || 0) >= row.basic.mana ?', '        return true ?'], ['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;\n', '']] },
+    edits: [[D, '        return (Number(u.mana) || 0) >= mana ?', '        return true ?'], ['src/core/hunt/abilities.js', '    if (int(hero.mana) < c.mana) return false;\n', '']] },
   { name: 'the basic\'s mana trains nothing', case: 'caster-basic-costs-mana',
     edits: [['src/core/hunt-rewards.js', "      case 'shot': {", "      case 'shot_': {"]] },
   { name: 'a loaded rune still prices the caster\'s blow', case: 'caster-basic-costs-mana',

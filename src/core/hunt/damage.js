@@ -151,7 +151,7 @@ function pipedAmount(inst, target, mean, source, element, ability, el, rng) {
   if (isMonster(target)) mult = (mult * guardPmOf(inst, target)) / 1000;
   mult = (mult * stanceOf(source).dealt * stanceOf(target).taken) / 1000000;
   return blowAmount(inst, { source, target, mean: Math.max(0, mean), mult, el: isMonster(target) ? weakShare(el, ability) : el, ward: !!element && element !== 'physical',
-    answerPm: ability && ability.answerPm, markPm: ability && ability.markPm, dealtPm: ability && ability.dealtPm, slowPm: source ? slowPmOf(source) : 0,
+    answerPm: ability && ability.answerPm, markPm: ability && ability.markPm, dealerPm: ability && ability.dealerPm, slowPm: source ? slowPmOf(source) : 0,
     critMult: COMBAT_BALANCE.critMult, rng });
 }
 /* WHAT A BLOW DOES ONCE ITS AMOUNT IS KNOWN (both chains): the target's shield first, then HP. */
@@ -194,7 +194,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const before = target.hp;
   const shieldBy = Number.isInteger(target.shield) && target.shield > 0 ? target.shieldBy : undefined;
   /* ON THE SCALE a mark and a dealer's status are conditional steps (src/core/hunt/amount.js), never a multiplier */
-  const tag = piped ? (markPm || dealtPm ? Object.assign({}, ability, { markPm, dealtPm }) : ability)
+  const tag = piped ? (markPm || dealtPm ? Object.assign({}, ability, { markPm, dealerPm: dealtPm }) : ability)
     : markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability;
   const r = hurt(inst, target, amount, source, element, tag, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */

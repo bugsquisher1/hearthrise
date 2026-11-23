@@ -257,7 +257,7 @@ const mutants = [
   { name: 'a ground patch never drops the oldest', case: 'burning-ground', edits: [['src/core/hunt/status.js', '    if (list.filter(mine).length >= row.maxStacks) { const old = list.find(mine); list = list.filter((st) => st !== old); }\n', '']] },
   { name: 'a ground patch reaches one tile further', case: 'burning-ground', edits: [['src/core/hunt/status.js', 'cheb(m, { x: st.at[0], y: st.at[1] }) > r)', 'cheb(m, { x: st.at[0], y: st.at[1] }) > r + 1)']] },
   { name: 'a ground patch burns allies', case: 'burning-ground', edits: [['src/core/hunt/status.js', "if (m.alive !== true || !isEnemy(unit, m) || ", "if (m.alive !== true || m === unit || "]] },
-  { name: 'a heal tick overheals', case: 'heal-over-time', edits: [['src/core/hunt/status.js', 'Math.min(healTaken(unit, amount), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0))', 'healTaken(unit, amount)']] },
+  { name: 'a heal tick overheals', case: 'heal-over-time', edits: [['src/core/hunt/status.js', 'Math.min(healTaken(unit, n), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0))', 'healTaken(unit, n)']] },
   { name: 'a heal tick hurts', case: 'heal-over-time', edits: [['src/core/hunt/status.js', '      unit.hp = Math.floor(Number(unit.hp) || 0) + got;', '      unit.hp = Math.floor(Number(unit.hp) || 0) - got;']] },
   { name: 'Armor Break never reads', case: 'armor-break', edits: [['src/core/hunt/damage.js', "  const pm = red > 0 ? effectPm(target, 'armorPm') : 0;", '  const pm = 0;']] },
   { name: 'a dealer\'s status deals nothing', case: 'dealt-and-taken', edits: [['src/core/hunt/damage.js', "  const dealtPm = source ? effectPm(source, 'dealtPm') : 0;", '  const dealtPm = 0;']] },
@@ -269,7 +269,7 @@ const mutants = [
   { name: 'an aura reaches past its radius', case: 'aura-party-rule', edits: [['src/core/hunt/auras.js', '      if (d > a.radius) continue;\n', '']] },
   { name: 'a dead wearer keeps its aura', case: 'aura-party-rule', edits: [['src/core/hunt/auras.js', '    if (w.alive !== true || (w !== unit && !isAlly(w, unit))) continue;', '    if (w !== unit && !isAlly(w, unit)) continue;']] },
   { name: 'every aura row counts as worn', case: 'aura-party-rule', edits: [['src/core/hunt/auras.js', "scope: 'party', worn: w === unit });", "scope: 'party', worn: true });"]] },
-  { name: 'the power step never reads an aura', case: 'aura-party-rule', edits: [['src/core/hunt/danger.js', "ledgerSteps(source, 'offense', auraRowsOn(inst, source))", "ledgerSteps(source, 'offense')"]] },
+  { name: 'the power step never reads an aura', case: 'aura-party-rule', edits: [['src/core/hunt/amount.js', "heroRows(source, 'offense', c).concat(auraRowsOn(inst, source))", "heroRows(source, 'offense', c)"]] },
   { name: 'an aura move is cast', case: 'aura-party-rule', edits: [['src/core/hunt/abilities.js', "    && !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].target === 'aura')\n", '']] },
 ];
 

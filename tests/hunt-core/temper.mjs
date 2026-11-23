@@ -283,8 +283,9 @@ const cases = {
     const shape = (s) => Object.keys(s).sort().join();
     for (const t of [undefined, null, {}, { 'temper:blows:3': 5, 'temper:armor:3': 5 }]) {
       const snap = M.member.heroSnapshot(state, ctx(t));
-      /* (lane/r9: gearPm, the gear part the power step reads on the Danger scale, ride every snapshot) */
-      if (shape(snap) !== 'acc,armour,def,gearPm,level,maxHit') return JSON.stringify(t) + ' changed the snapshot: ' + shape(snap);
+      /* (lane/r9: gearPm, the gear part the power step reads on the Danger scale, ride every snapshot; lane/foundations-block skillGapPm and
+         lane/stage3-pipeline the amount pipeline's reads, the same) */
+      if (shape(snap) !== 'acc,armorGearPm,armour,blowBp,buffDmgPm,critPm,def,gearPm,level,maxHit,skillGapPm,wardPm') return JSON.stringify(t) + ' changed the snapshot: ' + shape(snap);
     }
     const snap = M.member.heroSnapshot(state, ctx({ 'temper:blows:2': 2, 'temper:armor:2': 5 }));
     if (snap.blowsPm !== 20 || snap.armorPm !== 50) return 'rungs 2 and 5 snap to ' + snap.blowsPm + ' and ' + snap.armorPm;
@@ -350,11 +351,11 @@ const mutants = [
   { name: 'every piece counts the same, whatever it wears', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'if (def > 0) { worn += def; rungs += def * temperRung(', 'if (def > 0) { worn += 1; rungs += temperRung(']] },
   { name: 'a shield carries the Armor rung', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor', 'it && it.slot ? 1 + Math.floor']] },
   /* (lane/r9: the rung rides danger.js powerPm's one draw beside the power step; off the scale powerPm hands it back as it was) */
-  { name: 'Blows is lost in hurt()', case: 'blows-raise-what-lands', edits: [[D, 'source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);', '0);']] },
+  { name: 'Blows is lost in hurt()', case: 'blows-raise-what-lands', edits: [[D, 'source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0;', '0;']] },
   { name: 'Blows raises the swing before the monster\'s defence, so a tough monster doubles it', case: 'blows-raise-what-lands',
-    edits: [[D, 'source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);', '0);'],
+    edits: [[D, 'source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0;', '0;'],
       [D, '  let n = Math.max(0, Math.floor(amount));\n', "  let n = Math.max(0, Math.floor(amount));\n  if (source && source.blowsPm > 0 && isMonster(target)) n = temperedAmount(n, source.blowsPm, rng);\n"]] },
-  { name: 'a hero\'s Blows raises the blows at the hero', case: 'blows-raise-what-lands', edits: [[D, 'source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0);', '(isMonster(target) ? (source && source.blowsPm) || 0 : target.blowsPm || 0));']] },
+  { name: 'a hero\'s Blows raises the blows at the hero', case: 'blows-raise-what-lands', edits: [[D, 'source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0;', '(isMonster(target) ? (source && source.blowsPm) || 0 : target.blowsPm || 0);']] },
   { name: 'hurt() never hands the rng to the chain, so Armor is lost', case: 'armor-lowers-what-reaches-the-hero', edits: [[D, 'mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng)', 'mitigate(n, el, armourVs(inst, target, source))']] },
   { name: 'Armor before the chain: ward makes it worth nothing or double', case: 'armor-lowers-what-reaches-the-hero',
     edits: [[MI, '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', ''], [MI, '  let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);\n', '  let x = temperedAmount(raw, -(armorPm || 0), rng);\n  x = x - Math.floor((x * (m.absorbPm || 0)) / 1000);\n']] },
@@ -371,7 +372,7 @@ const mutants = [
   { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', "copper_studs:        { n: 'Copper Studs',", "copper_studs:        { defB: 1, n: 'Copper Studs',"]] },
   { name: 'a Houndskin Cloak past the step', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, steadyPm: 120,']] },
   { name: 'a cape with nothing on it', case: 'a-cape-steps-like-armor', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22,']] },
-  { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/abilities.js', '  n = temperedAmount(n, u.blowsPm, sc.rng);\n', '']] },
+  { name: 'a heal ignores Blows', case: 'a-heal-is-raised-too', edits: [['src/core/hunt/abilities.js', '  if (!piped) n = temperedAmount(n, u.blowsPm, sc.rng);\n', '  if (!piped) n = n;\n']] },
   { name: 'a rung-0 hero carries a zero, so its snapshot changed', case: 'the-snapshot-carries-only-a-rung', edits: [[MB, '...(blowsPm ? { blowsPm } : {})', 'blowsPm']] },
   { name: 'the coach spends the food money', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', 'f.gold < r.gold * 2) return null;', 'f.gold < r.gold) return null;']] },
   { name: 'the gold card never names the smith', case: 'the-coach-names-the-smith', edits: [['src/data/hunt-tutorial.js', "return { text: smith ? t('coach.goal_temper'", "return { text: false ? t('coach.goal_temper'"]] },

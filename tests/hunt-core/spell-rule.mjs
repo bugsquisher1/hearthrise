@@ -231,7 +231,7 @@ const mutants = [
   { name: 'the version step is never read (every rune casts its share at 1000)', case: 'hits-share-the-blow',
     edits: [[AB, '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = s.pm;']] },
   { name: 'a hit reads a fixed blow of 20, not the caster\'s', case: 'hits-share-the-blow',
-    edits: [[AB, '  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));', '  const dmg = () => roll(sc, hitRange(20, row));']] },
+    edits: [[AB, '  const dmg = () => { const r = hitRange(blow, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };', '  const dmg = () => { const r = hitRange(20, row); return piped ? (r[0] + r[1]) / 2 : roll(sc, r); };']] },
   { name: 'a borrowed cast reads the holder\'s own blow (the reference ignored)', case: 'borrowed-reads-the-native-blow',
     edits: [['src/core/hunt/abilities.js', 'Number.isInteger(u.borrowBlows[row.id]) ? u.borrowBlows[row.id] : u && u.maxHit', 'false ? 0 : u && u.maxHit']] },
   { name: 'the reference blow reads the hero\'s skill-less weapon (no rung)', case: 'borrowed-reads-the-native-blow',

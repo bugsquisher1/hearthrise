@@ -183,7 +183,7 @@ export function blowAmount(inst, c) {
   /* a mark on the target and a slow on the source: each a held conditional step (27 section 2.1) */
   /* (a status that lowers what a unit takes or deals is a whole cost the other way: a hero's guard, Weakened) */
   if (c.markPm) cond += held(stepsOf(Math.max(1, 1000 + c.markPm) / 1000));
-  if (c.dealtPm) cond += held(stepsOf(Math.max(1, 1000 + c.dealtPm) / 1000));
+  if (c.dealerPm) cond += held(stepsOf(Math.max(1, 1000 + c.dealerPm) / 1000));
   if (c.slowPm > 0) cond -= held(stepsOf(1 + c.slowPm / 1000));
   const steps = Math.round(gap + cond);
   const sp = AMOUNT.rollSpreadPm;

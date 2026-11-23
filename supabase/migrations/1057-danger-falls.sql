@@ -53,7 +53,7 @@
 -- ranks on them. The edge proposes; the database bounds every number by its own catalogue (step_max, the stances' triggers, the falls cap)
 -- and derives every name itself from the seat (a forged seat can only name a character that sat in the same instance, i.e. a party member
 -- the reader already sees). `deep` is NOT re-proved against the window's climb bound: a ranked depth must read hunt_instances.danger_top /
--- hunt_density.danger_held, which 1056 re-proves. The default stance changes no bound: hr_danger_bound re-proves whatever stance froze.
+-- hunt_density.danger_held, which 1056 proves. The default stance changes no bound: hr_danger_prove proves whatever stance froze.
 --
 -- ── COST (rows and bytes at 100x players) ────────────────────────────────────
 -- No row and no statement: two keys in a column already written. A scale session's report grows by at most ~1.5 KB (12 falls of ~110 bytes

@@ -18,7 +18,7 @@
 //                      bigger number (02 package 2). The row is here so the formula reads the rarity it is handed, and a lever exists
 //
 // A NAMED OR UNIQUE PIECE (a boss's blade, a crafted signet, a shield with a story) carries `statPlus`: its stated offset from the
-// formula, stat by stat (`{ strB: 7, critB: 0.02 }`), never a raw number. A plain piece carries none. tools/gen-gear-catalogue.mjs
+// formula, stat by stat (`{ strB: 7, critB: 0.02 }`), never a raw number. A plain piece carries none. tools/gen-gear.mjs
 // writes every piece's stats into src/data/gear-stats.generated.js (`--check`: the drift guard), and each item module reads them back
 // through withGearStats below, so a new tier or a new piece is one data row and the stats follow.
 //
@@ -36,7 +36,9 @@
 //   GEAR_CURVES   the SHAPES the seven-tier ladder's attack and armor tables were hand-drawn on, fitted by least squares over all seven
 //                 tiers (attack grows about 11x from Level 1 to 88, armor about 16x), then scaled so DAWNSTEEL (item Level 88, the top of the
 //                 ladder and the base of the staged armor and weapon lines past it, under tools/balance-sim/staged) lands on its
-//                 shipped numbers to the point: offense 210 and defense 625 a whole kit at 88
+//                 shipped numbers to the point: offense 210 and defense 625 a whole kit at 88. Under it the curves were re-cut so the first-week
+//                 rungs hold their bars (tests/hunt-core/first-week-bands.mjs armor-rungs and weapon-rungs: each early tier's piece rounds where
+//                 its rung reads): offense 18.5 / 1.4 / 0.00885, defense 37.85 / 2.096 / 0.05203
 //   profiles      each family's and weight's Dawnsteel piece over its share of that budget (the sword's accuracy is 1000). Below 88 a piece
 //                 is the curve's, so a hand-tuned rung (the hatchets' Iron +2, the warhammer's Iron +3) is gone: no tier has its own number
 //
@@ -101,7 +103,7 @@ export const gearStatsOf = (id) => (Object.prototype.hasOwnProperty.call(GEAR_ST
 
 /**
  * An item module's rows with their DERIVED stats: each row's base stats are dropped and the generated ones put in their place, so no
- * module keeps a stat by hand. A row the generator has not written yet keeps none (tools/gen-gear-catalogue.mjs --check is red until it
+ * module keeps a stat by hand. A row the generator has not written yet keeps none (tools/gen-gear.mjs --check is red until it
  * is written). Rows that are not gear pass through unchanged. `prefix` names a table's own key space in the generated file (the staged
  * special-attribute sample, 'special:', whose ids can be live items' too).
  */

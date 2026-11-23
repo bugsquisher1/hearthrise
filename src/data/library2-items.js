@@ -136,7 +136,7 @@ const BANE_GEAR = {
    together would be a trap.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Leather T4: the Snakeskin piece of its slot, to the number (`statsAs`: tools/gen-gear-catalogue.mjs gives it that row's derived
+/* Leather T4: the Snakeskin piece of its slot, to the number (`statsAs`: tools/gen-gear.mjs gives it that row's derived
    stats, src/data/gear-profiles.js, lane/gear-catalogue-steps). */
 const chitin = (slot, vmul) => ({
   n: 'Chitin ' + slot.label, icon: '🪲', v: priced(vmul, 4, 0.70), type: 'armor',

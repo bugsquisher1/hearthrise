@@ -128,7 +128,7 @@ const SEED = '-4611686018427387904';
    the bar's last_move test), so the stored world, the timeline's unit book and the run's member summary moved. Compared against the base
    tree with lastMove stripped (warrens-4, sewer-2): every settle's events, track, unit book and member share, and the run's totals, are
    byte-identical; kills 207 / 486 / 139 / 104 held.
-   RE-PINNED 2026-11-22 (lane/gear-catalogue-steps), DATA ONLY: glade-4 moved at its last settle (kills 479 as pinned); warrens-4, glade-1-kite and
+   RE-PINNED 2026-11-23 (lane/gear-catalogue-steps, merged with set/v0.2.144 at 0275dfdc1), DATA ONLY: warrens-4 moved at settle 1 (kills 203 -> 200); glade-4, glade-1-kite and
    sewer-2 hold. Cause: every piece's stats are now the one gear formula's (src/data/gear-profiles.js, src/core/gear-stats.js), so the four's
    ladder pieces under Dawnsteel moved a point or two (the per-tier hand tables are gone). Proof: src/data/gear-stats.generated.js written back
    with the OLD catalogue's stats for every id, over this tree's src/core and hr-accrue (the scale view included): every pin holds (exit 0). */

@@ -41,11 +41,11 @@ export const PATCH_KINDS = Object.freeze(['identity', 'coefficient', 'derivation
 /* the trees a planted run reads beside src/core and src/data (play-ground.mjs PLAY_TREES and what the worker's advice imports) */
 export const SCRATCH_TREES = Object.freeze(['supabase/functions/hr-accrue', 'tests/hunt-core/fixtures', 'src/shell', 'src/render']);
 /* the single files: the formula's writer (regen), the helper it imports, and the package that makes src/**.js ES modules */
-const SCRATCH_FILES = Object.freeze(['tools/gen-ground-stats.mjs', 'tools/gen-gear-catalogue.mjs', 'tests/_is-main.mjs', 'package.json']);
+const SCRATCH_FILES = Object.freeze(['tools/gen-ground-stats.mjs', 'tools/gen-gear.mjs', 'tests/_is-main.mjs', 'package.json']);
 /* the files whose numbers the monster rows are written from: an edit there re-writes the rows, as a designer's change would */
 const FORMULA_SOURCES = Object.freeze(['src/data/balance-sheet.js', 'src/data/core-model.js', 'src/data/to-hit.js']);
 /* the files every piece of gear's stats are derived from (src/core/gear-stats.js, lane/gear-catalogue-steps): an edit there re-writes the
-   copy's src/data/gear-stats.generated.js (tools/gen-gear-catalogue.mjs), as a designer's change would, or the edit would play nothing */
+   copy's src/data/gear-stats.generated.js (tools/gen-gear.mjs), as a designer's change would, or the edit would play nothing */
 export const GEAR_SOURCES = Object.freeze(['src/data/gear-profiles.js', 'src/core/gear-stats.js', 'src/data/gear-tiers.js', 'src/data/items.js',
   'src/data/wave3-uniques.js', 'src/data/slot-ladders.js', 'src/data/champions.js', 'src/data/boss-calls.js', 'src/data/library2-items.js',
   'src/data/shields.js', 'src/data/fists.js', 'src/data/special-attributes.js']);
@@ -239,7 +239,7 @@ export async function plantScratch(patch, o = {}) {
       catch (e) { throw new Error('matrix-scratch: the re-written rows are not the formula\'s: ' + String(e.stderr || e.message).trim().split('\n').pop()); }
       regen = { wrote, check: (check.trim().split('\n').pop() || '').trim() };
     }
-    if (needsGearRegen(edits, overlays)) execFileSync(process.execPath, [join(p.root, 'tools', 'gen-gear-catalogue.mjs')], { cwd: p.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    if (needsGearRegen(edits, overlays)) execFileSync(process.execPath, [join(p.root, 'tools', 'gen-gear.mjs')], { cwd: p.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     return { root: p.root, applied, regen, done: p.done };
   } catch (e) { p.done(); throw e; }
 }

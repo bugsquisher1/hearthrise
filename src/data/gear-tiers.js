@@ -10,7 +10,7 @@
 // THE STATS ARE THE ONE FORMULA'S (lane/gear-catalogue-steps, 2026-11-22): a
 // piece's base stats are derived from its slot, its item Level and its family
 // or weight (src/data/gear-profiles.js, src/core/gear-stats.js), written by
-// tools/gen-gear-catalogue.mjs and read back through withGearStats. No row or
+// tools/gen-gear.mjs and read back through withGearStats. No row or
 // table here types a stat: a new tier is one MATERIAL_TIERS row, a new family
 // one WEAPON_FAMILIES row and its profile.
 //

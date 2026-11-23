@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/gear-stats.mjs — EVERY PIECE OF GEAR IS THE ONE FORMULA'S, AND ON THE DANGER SCALE A PIECE IS ITS ITEM LEVEL AND NOTHING ELSE
-// (Systems, lane/gear-catalogue-steps, 2026-11-22; src/core/gear-stats.js, src/data/gear-profiles.js, tools/gen-gear-catalogue.mjs).
+// (Systems, lane/gear-catalogue-steps, 2026-11-22; src/core/gear-stats.js, src/data/gear-profiles.js, tools/gen-gear.mjs).
 //
 //   GSF-1 DERIVED: every gear row of the catalogue (and the hidden fist wraps and the staged special sample) carries exactly the stats the
-//         formula gives its slot, item Level, profile, rarity and stated offset (gen-gear-catalogue readBack), and the generated table is
+//         formula gives its slot, item Level, profile, rarity and stated offset (gen-gear readBack), and the generated table is
 //         what the generator would write.
 //   GSF-2 NO STAT BY HAND: no item module types a base stat on a gear row as a number; a named piece states `statPlus`, never a raw number.
 //   GSF-3 RARITY NEVER SIZES THE BASE (04-math-strategy section 10 rule 1): the same piece at every rarity has the same stats.
@@ -13,6 +13,7 @@
 //         named piece keeps its offset, and any other ground reads the catalogue itself.
 //   GSF-5 ONE VIEW FOR EVERY READER: the edge settle, the start point's frozen peers and the browser's live view all fight through scaleItems
 //         on the instance's own ground (so the three agree to the bit).
+//   GSF-7 EVERY PIECE HAS AN ITEM LEVEL (the formula master's phase A, 27-formula-overhaul.md 2.3): every gear row carries a whole `iL` over 0.
 //   GSF-6 THE CURVES CLIMB: within every ladder (GEAR_LADDERS) no rung's base stat is smaller in size than the rung below it.
 //
 //   node tests/gear-stats.mjs            the guard
@@ -28,10 +29,10 @@ import * as GS from '../src/core/gear-stats.js';
 import { GEAR_STAT_FIELDS, RARITY_PM, GEAR_SCALE_STAT_PM } from '../src/data/gear-profiles.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
-import { ITEMS } from '../src/data/items.js';
+import { ITEMS, SCALE_ITEM_LEVELS } from '../src/data/items.js';
 import { FIST_ITEMS } from '../src/data/fists.js';
 import { SPECIAL_SAMPLE } from '../src/data/special-attributes.js';
-import { deriveAll, readBack, render, OUT } from '../tools/gen-gear-catalogue.mjs';
+import { deriveAll, readBack, render, OUT } from '../tools/gen-gear.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* the modules that hold gear rows (GSF-2) */
@@ -51,9 +52,9 @@ export function check(o) {
   const out = [];
   /* GSF-1 */
   const sample = Object.fromEntries(Object.entries(o.sample).map(([id, s]) => [id, { ...s, row: Object.fromEntries(Object.entries(s.row).filter(([k]) => !GEAR_STAT_FIELDS.includes(k))) }]));
-  const all = deriveAll(o.GS, o.items, o.fists, sample);
+  const all = deriveAll(o.GS, o.items, o.fists, sample, o.scale);
   for (const b of readBack(all, { GS: o.GS, ITEMS: o.items, SPECIAL_SAMPLE: o.sample, GEAR_STAT_FIELDS })) out.push('GSF-1 ' + b);
-  if (o.table !== render(all)) out.push('GSF-1 src/data/gear-stats.generated.js is not what tools/gen-gear-catalogue.mjs writes');
+  if (o.table !== render(all)) out.push('GSF-1 src/data/gear-stats.generated.js is not what tools/gen-gear.mjs writes');
   /* GSF-2: a gear row's line (it names a slot) carries no `stat: number` outside its statPlus (ammo is a supply, sized by hand) */
   const STAT = new RegExp('\\b(' + GEAR_STAT_FIELDS.join('|') + ')\\s*:\\s*-?[\\d.]+');
   for (const [file, text] of Object.entries(o.sources)) {
@@ -89,6 +90,8 @@ export function check(o) {
   }
   /* GSF-5 */
   for (const [file, needle] of READERS) if (!o.readers[file] || !o.readers[file].includes(needle)) out.push('GSF-5 ' + file + ' builds a hunt\'s heroes without the scale view (' + needle + ')');
+  /* GSF-7 */
+  for (const [id, it] of Object.entries(o.items)) if (o.GS.isGearRow(it) && !(Number.isInteger(it.iL) && it.iL > 0)) out.push('GSF-7 ' + id + ' carries no item Level');
   /* GSF-6 */
   for (const l of GEAR_LADDERS) {
     const rows = l.ids.filter((id) => id && o.items[id]).map((id) => [id, o.items[id]]);
@@ -102,12 +105,12 @@ export function check(o) {
 function live() {
   const sources = Object.fromEntries(MODULES.map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
   const readers = Object.fromEntries([...new Set(READERS.map(([f]) => f))].map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
-  return { GS, items: ITEMS, fists: FIST_ITEMS, sample: SPECIAL_SAMPLE, table: readFileSync(OUT, 'utf8').replace(/\r/g, ''), sources, readers, scaleItems: GS.scaleItems, scalePm: GEAR_SCALE_STAT_PM };
+  return { GS, items: ITEMS, fists: FIST_ITEMS, sample: SPECIAL_SAMPLE, table: readFileSync(OUT, 'utf8').replace(/\r/g, ''), sources, readers, scaleItems: GS.scaleItems, scalePm: GEAR_SCALE_STAT_PM, scale: SCALE_ITEM_LEVELS };
 }
 
 const MUTANTS = [
   ['GSF-1', 'a ladder piece keeps an armor point by hand', (o) => { o.items = { ...o.items, rune_platebody: { ...o.items.rune_platebody, defB: o.items.rune_platebody.defB + 1 } }; }],
-  ['GSF-1', 'the generated table drifts from the formula', (o) => { o.table = o.table.replace('"dawn_sword": f({ atkB: 42,', '"dawn_sword": f({ atkB: 43,'); }],
+  ['GSF-1', 'the generated table drifts from the formula', (o) => { o.table = o.table.replace('"dawn_sword": f({', '"dawn_sword": f({ atkB: 1 }), "dawn_sword~planted": f({'); }],
   ['GSF-2', 'a named row types its damage', (o) => { o.sources['src/data/wave3-uniques.js'] = o.sources['src/data/wave3-uniques.js'].replace("weaponType:'sword',statPlus:", "weaponType:'sword',strB:9,statPlus:"); }],
   ['GSF-3', 'a Rare piece is bigger', (o) => { const g = o.GS; o.GS = { ...g, gearStats: (b) => { const s = g.gearStats(b); return b.rarity === 'rare' ? { ...s, defB: (s.defB || 0) + 1 } : s; } }; }],
   ['GSF-4', 'the scale view is the catalogue', (o) => { o.scaleItems = (items) => items; }],
@@ -128,6 +131,7 @@ const MUTANTS = [
   ['GSF-4', 'the scale view drops the item Level', (o) => { const f = o.scaleItems; o.scaleItems = (items, g) => { const v = f(items, g); if (v === items) return v; const w = {}; for (const [k, it] of Object.entries(v)) { const { iL, ...r } = it; void iL; w[k] = r; } return w; }; }],
   ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: scaleItems(inp.items || {}, inp.ground)', 'items: inp.items || {}'); }],
   ['GSF-5', 'the browser fights the catalogue as written', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('{ items: scaleItems(items, where.ground) }', '{ items }'); }],
+  ['GSF-7', 'a piece with no item Level', (o) => { const { iL, ...r } = o.items.rune_sword; void iL; o.items = { ...o.items, rune_sword: r }; }],
   ['GSF-6', 'a rung steps down', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, atkB: 1 } }; }],
 ];
 

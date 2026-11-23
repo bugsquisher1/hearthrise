@@ -1,7 +1,7 @@
 # Handoffs
 
 ### 2026-11-23 · SYSTEMS (lane/gear-catalogue-steps) → EVERY LANE THAT WRITES GEAR, THE LAB, THE FORMULA-OVERHAUL PROGRAM
-1. **A piece's stats are never typed.** A new tier is a `MATERIAL_TIERS` row, a new family a `WEAPON_FAMILIES` row plus a `GEAR_PROFILES` row; a named piece writes `statPlus: { ... }` (its offset from the formula) or `statsAs: '<id>'` (the same piece by another supply chain). Then `node tools/gen-gear-catalogue.mjs` (`--check` is CI). `tests/gear-stats.mjs` GSF-2 refuses a hand-typed stat on a gear row.
+1. **A piece's stats are never typed.** A new tier is a `MATERIAL_TIERS` row, a new family a `WEAPON_FAMILIES` row plus a `GEAR_PROFILES` row; a named piece writes `statPlus: { ... }` (its offset from the formula) or `statsAs: '<id>'` (the same piece by another supply chain). Then `node tools/gen-gear.mjs` (`--check` is CI). `tests/gear-stats.mjs` GSF-2 refuses a hand-typed stat on a gear row.
 2. **Mutants and Lab patches that move a piece's numbers** edit `src/data/gear-stats.generated.js` (a mutant) or a source in `matrix-scratch.mjs GEAR_SOURCES` (a Lab patch: the scratch copy regenerates the table). Editing `gear-profiles.js` in a plain plant without regenerating plays nothing.
 3. **Every reader that builds a hunt's heroes** goes through `scaleItems(items, ground)` (`src/core/gear-stats.js`): the edge settle, the frozen peers, the live view. A new reader joins `tests/gear-stats.mjs` READERS.
 4. **The character sheet still shows a piece's own stats**, not the scale view: a hero on a scale ground fights half the tier gap of its stats (GEAR_SCALE_STAT_PM). A sheet line for it is the shell's call.

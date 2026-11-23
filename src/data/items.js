@@ -848,7 +848,7 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
 });
 
 /* EVERY PIECE'S STATS ARE DERIVED (lane/gear-catalogue-steps, 2026-11-22; src/data/gear-profiles.js, src/core/gear-stats.js): the rows
-   above and the ground packs' carry no base stat by hand, only a named piece's stated `statPlus`; tools/gen-gear-catalogue.mjs writes
+   above and the ground packs' carry no base stat by hand, only a named piece's stated `statPlus`; tools/gen-gear.mjs writes
    each one's stats and they land here (the item modules spread above already carry theirs). The copies below take them from their base. */
 for (const [id, row] of Object.entries(withGearStats(ITEMS))) ITEMS[id] = row;
 
@@ -871,11 +871,11 @@ for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_
 /* THE ITEM LEVEL OF A SCALE GROUND'S DROP (src/data/danger.js scaleItemLevels; lane/r10-more-grounds, 12-targets.md 3.3 and 8): every piece a
    Danger-scale ground drops carries that ground's base item Level as `iL`, the one number the power step reads there. Off the scale nothing
    reads it. The ladder's rows and the named Catacomb pieces only; a piece no scale ground drops keeps none (its reqLv stands in). */
-{
-  const ladder = Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]]));
-  const named = Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier));
-  for (const [id, iL] of Object.entries(scaleItemLevels(ladder, named))) ITEMS[id] = { ...ITEMS[id], iL };
-}
+/* (exported: tools/gen-gear.mjs reads a piece's item Level from here or its reqLv, never from the iL the table wrote back) */
+export const SCALE_ITEM_LEVELS = Object.freeze(scaleItemLevels(
+  Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]])),
+  Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier))));
+for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — foodClassOf(item): the single answer to "what is this food FOR?"

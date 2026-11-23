@@ -9,7 +9,7 @@
 // Whole numbers, rounded half away from zero; a critical chance (critB) to a thousandth. A stat that rounds to 0 is left off the row.
 //
 // THREE READERS:
-//   tools/gen-gear-catalogue.mjs   every piece's stats, written to src/data/gear-stats.generated.js (the data layer can't import this)
+//   tools/gen-gear.mjs   every piece's stats, written to src/data/gear-stats.generated.js (the data layer can't import this)
 //   scaleItems                     the engine's view of the catalogue on a Danger-scale ground: every worn piece's stats near the ground's
 //                                  base item Level (GEAR_SCALE_STAT_PM of the way to its own; src/data/danger.js DANGER_GROUNDS gearLevel),
 //                                  so the power step carries the tier and the stats never stack a cliff on it

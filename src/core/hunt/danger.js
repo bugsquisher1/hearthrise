@@ -33,6 +33,7 @@ import { WAGE, powSquare } from '../../data/wage.js';
 import { levelHoursOf } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { temperLevelsOn } from '../temper-steps.js';
+import { refHeldOf } from '../bands.js';
 import { makeEvent } from './events.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -128,8 +129,22 @@ export function formulaBasePull(g, heroes) {
 }
 /* the pull's size at step s from an as-built mean n0 (the dial's own rounding and box) */
 const pullAt = (n0, s) => Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
-/* the ground's reference step (0 on a ground with no row, which the server never opens on the scale) */
-const refOf = (ground) => { const row = groundRow(ground); return row ? stepOn(ground, row.refStep) : 0; };
+/* THE PAY'S REFERENCE (lane/scale-early-grounds): the step where the ground's reference company HOLDS (src/core/bands.js refHeldOf), the
+   step its kill rate (refKillsHead) and its coin level were measured at, so a kill there pays the hours table exactly. On a ground on its
+   rows that is its refStep; on a formula ground refStep is the monsters' chosen anchor and the four holds off it by however much the role
+   dials miss the real company at that Level (Muster Barrows 20 steps over, the Thicket 40, the Mill Cellar 10 under): read at the anchor, the
+   Thicket's reference four earned 1.36 of the hours table (tests/level-curve.mjs C7). PAY_ROWS is the row seen with the pay's reference as
+   its refStep, so every pay reader (gapOf, the reference pull of the loot ratio) reads one number. */
+const PAY_ROWS = new Map();
+function payRowOf(ground) {
+  const row = groundRow(ground);
+  if (!row || row.refHeld === undefined) return row;
+  let v = PAY_ROWS.get(row);
+  if (!v) { v = Object.freeze({ ...row, refStep: refHeldOf(ground.id) }); PAY_ROWS.set(row, v); }
+  return v;
+}
+/* the ground's pay reference step (0 on a ground with no row, which the server never opens on the scale) */
+const refOf = (ground) => { const row = payRowOf(ground); return row ? stepOn(ground, row.refStep) : 0; };
 /* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
    carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
    wage's payStepCoin a PULL, coin an HOUR rose only (1 + payStepCoin) / (1 + powerStep), 0.05% a step, and loot (a kill's rows, no depth
@@ -149,7 +164,8 @@ export const powStep = powSquare;
    held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held
    (a shallower hold earns less a kill, so depth always pays). */
 function gapOf(ground, step) {
-  const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
+  /* the reference is where the reference company holds (payRowOf): the anchor on a rows ground, its refHeld on a formula ground */
+  const row = payRowOf(ground);
   return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
 }
 /* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. Under the

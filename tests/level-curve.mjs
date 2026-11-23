@@ -67,6 +67,17 @@ const SNAP = JSON.parse(readFileSync(join(ROOT, 'tools/balance-sim/level-pace.js
    Ford 590 at 45 to 55 in its own tier's kit (held 573 and 594; at 62 the four wears Muster's tier and holds deeper), each wing 480 / 440 at 175) */
 export const REF_LEVEL = { muster_barrows: 60, hasks_ford: 45, catacomb_bone_wing: 175, catacomb_flooded_wing: 175 };
 const C7_BAND = 0.2, C7_OVER = 10, C7_SEEDS = 3, C7_HOURS = 2;
+/* (lane/scale-early-grounds, 27 K-5: "REF_LEVEL ... then reads the row") a ground with no entry above reads its row's refLevel; the Level over
+   it is C7_OVER higher, or the band's last Level where that is lower (the Mill Cellar's hunt ends at 5, the Thicket's band tops at 15), and
+   each cell holds its Level (held-four.mjs holdLevel), so its pay reads that Level's table */
+const { HUNT_INDEX } = await import('../src/data/hunts.js');
+const { HUNT_GROUNDS } = await import('../src/data/hunt-grounds.js');
+const refLevelOf = (g) => (Number.isInteger(REF_LEVEL[g]) ? REF_LEVEL[g] : DANGER_GROUNDS[g] && DANGER_GROUNDS[g].refLevel);
+const overLevelOf = (g, L0) => {
+  const band = HUNT_INDEX[g] && HUNT_INDEX[g].band, ends = HUNT_GROUNDS[g] && HUNT_GROUNDS[g].endsAtLevel;
+  const top = Array.isArray(band) ? (Number.isInteger(ends) ? Math.min(band[1], ends - 1) : band[1]) : Infinity;
+  return Math.max(L0, Math.min(L0 + C7_OVER, top));
+};
 const MIXED = ['hammer', 'bow', 'mage', 'healer'];
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -121,9 +132,9 @@ function judge(w) {
   }
   /* C7: every scale ground, judged from the held start (12-targets 2.6) */
   for (const g of w.scaleGrounds) {
-    const L0 = REF_LEVEL[g];
+    const L0 = refLevelOf(g);
     if (!Number.isInteger(L0)) { out.push(`C7: scale ground ${g} has no reference Level (tests/level-curve.mjs REF_LEVEL): name the Level its refStep was measured at`); continue; }
-    for (const L of [L0, L0 + C7_OVER]) {
+    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) {
       const m = w.held && w.held[g] && w.held[g][L];
       if (!m || !Number.isFinite(m.ratio)) { out.push(`C7: ${g} at Level ${L} was not measured`); continue; }
       if (!(Math.abs(m.ratio - 1) <= C7_BAND)) out.push(`C7: a Steady four at its held depth on ${g}, Level ${L}, earns ${m.ratio.toFixed(2)}x the hours table (${Math.round(m.xpHeadH)} of ${Math.round(m.table)} Level XP a head an hour; band ${1 - C7_BAND}-${1 + C7_BAND})`);
@@ -146,9 +157,9 @@ function judge(w) {
 async function measureHeld({ start } = {}) {
   const cells = [];
   for (const g of Object.keys(DANGER_GROUNDS)) {
-    const L0 = REF_LEVEL[g];
+    const L0 = refLevelOf(g);
     if (!Number.isInteger(L0)) continue;
-    for (const L of [L0, L0 + C7_OVER]) cells.push({ id: `${g}:${L}`, ground: g, L, styles: MIXED, risk: 'steady', hours: C7_HOURS, seeds: C7_SEEDS, ...(Number.isInteger(start) ? { start } : {}) });
+    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) cells.push({ id: `${g}:${L}`, ground: g, L, styles: MIXED, risk: 'steady', hours: C7_HOURS, seeds: C7_SEEDS, holdLevel: true, ...(Number.isInteger(start) ? { start } : {}) });
   }
   const res = await playCells(ROOT, cells);
   const held = {};

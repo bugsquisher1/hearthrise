@@ -348,7 +348,7 @@ begin
     if v_p is distinct from v_r.gold then
       raise exception 'VERIFY(a): % on % at Level % is % in SQL, % in src/core/gold-estimate.js', v_r.hunt, v_r.risk, v_r.l, v_p, v_r.gold; end if;
   end loop;
-  if public.hr_gold_estimate('mill_cellar', 'steady', 60) is not null or public.hr_gold_estimate('catacomb_bone_wing', 'reckless', 60) is not null then
+  if public.hr_gold_estimate('the_burning_tower', 'steady', 60) is not null or public.hr_gold_estimate('catacomb_bone_wing', 'reckless', 60) is not null then
     raise exception 'VERIFY(b): an estimate off the scale or for an unknown Risk'; end if;
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r)
               where has_function_privilege(g.r, 'public.hr_gold_estimate(text,text,integer)', 'execute')

@@ -78,7 +78,7 @@ const ARMS = {
     if (!(e('careful', 63) < e('steady', 63) && e('steady', 63) < e('bold', 63))) out.push('the Risks are out of order: ' + [e('careful', 63), e('steady', 63), e('bold', 63)]);
     if (e('steady', 76) !== e('steady', 75) || e('steady', 4000) !== e('steady', 75) || e('steady', 74) > e('steady', 75)) out.push('past the band top it does not stop: ' + [e('steady', 74), e('steady', 75), e('steady', 76), e('steady', 4000)]);
     if (e('steady', 54) !== null || e('steady', 1) !== null || e('steady', 55) === null) out.push('the band floor is not kept: ' + [e('steady', 1), e('steady', 54), e('steady', 55)]);
-    if (X.GE.goldEstimate('mill_cellar', 'steady', 60) !== null || e('reckless', 60) !== null) out.push('an estimate off the scale or for an unknown Risk');
+    if (X.GE.goldEstimate('the_burning_tower', 'steady', 60) !== null || e('reckless', 60) !== null) out.push('an estimate off the scale or for an unknown Risk');
     if (X.GE.roundAbout(4886) !== 4900 || X.GE.roundAbout(640) !== 640 || X.GE.roundAbout(12345) !== 12000 || X.GE.roundAbout(99) !== 99 || X.GE.roundAbout(4850) !== 4900) {
       out.push('two figures reads ' + [4886, 640, 12345, 99, 4850].map(X.GE.roundAbout));
     }
@@ -91,7 +91,7 @@ const ARMS = {
     if (got.join() !== '3100,4900,6200') out.push('the section reads ' + got);
     const bad = csOf({ gold_estimate: { grounds: { [M]: { careful: -5, steady: 4900.5, bold: '6200' } } } });
     if (['careful', 'steady', 'bold'].some((r) => X.GES.goldEstimateOf(bad, M, r) !== null)) out.push('a bad value reads as gold');
-    if (X.GES.goldEstimateOf(csOf({}), M, 'steady') !== null || X.GES.goldEstimateOf(cs, 'mill_cellar', 'steady') !== null
+    if (X.GES.goldEstimateOf(csOf({}), M, 'steady') !== null || X.GES.goldEstimateOf(cs, 'the_burning_tower', 'steady') !== null
         || X.GES.goldEstimateOf(cs, M, 'toString') !== null) out.push('no section, another ground or a prototype key reads as gold');
     return out;
   },
@@ -118,7 +118,7 @@ const ARMS = {
     if (lines[lines.length - 1] !== EARNED) out.push('the risk block ends on ' + JSON.stringify(lines[lines.length - 1]));
     if (!/^Held Depth/.test(lines[lines.length - 2] || '')) out.push('the earned line does not follow the cause line: ' + JSON.stringify(lines));
     /* off the scale: no cause line, so no earned line beside a number the Hunts window never showed */
-    const tier = X.HR.reportFacts(X.RS.reportFrom(REPORT), { hunt: 'mill_cellar', risk: null, step: null, enteredMs: START });
+    const tier = X.HR.reportFacts(X.RS.reportFrom(REPORT), { hunt: 'the_burning_tower', risk: null, step: null, enteredMs: START });
     if (X.REP.riskLines(tier, null, card).some((l) => l.text === EARNED)) out.push('an earned line off the scale');
     /* the return card: from the stored card, and from the analyzer while it reads the session (no card yet) */
     const back = X.AWAY.awayBlockOf(csOf({}, [card]), { session: 's7', facts: { hunt: M } });

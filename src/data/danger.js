@@ -202,7 +202,7 @@ export const DANGER_GROUNDS = Object.freeze({
      THE FLOOR ON THE ARRIVING COMPANY (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): one tier back (the Ford's mithril kit at
      Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). refHeld 610 (the MID four held 608.9).
      MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold */
-  muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
+  muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, coinPm: 7000, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 565, topStep: 675, refKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'rows' }),
   catacomb_bone_wing: ground({ refStep: 520, floorStep: 475, topStep: 580, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
   meadowbrook_thicket: ground({ refStep: 70, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 110, coinPm: 28600, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),

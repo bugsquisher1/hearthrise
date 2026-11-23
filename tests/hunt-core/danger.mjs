@@ -329,8 +329,9 @@ const CASES = {
     if (w.danger !== row.topStep) return 'twelve clean pulls from one under the top stood at ' + w.danger + ', not the top ' + row.topStep;
     if (M.danger.dangerDial(g, row.topStep + 50).step !== row.topStep) return 'the dial past the top reads step ' + M.danger.dangerDial(g, row.topStep + 50).step;
     if (M.danger.dangerDial(groundRow(), row.topStep + 50).step !== row.topStep + 50) return 'a ground off the scale was held at a band top';
-    const ceiling = Math.min(PAY.gapMax, row.topStep - row.refStep);
-    if (M.danger.levelShareXp(60, row.topStep + 40, g) !== M.danger.levelShareXp(60, row.refStep + ceiling, g)) return 'a kill past the top pays more than at it';
+    /* the pay's reference is where the reference company holds (lane/scale-early-grounds: src/core/hunt/danger.js payRowOf) */
+    const payRef = row.refHeld === undefined ? row.refStep : row.refHeld, ceiling = Math.min(PAY.gapMax, row.topStep - payRef);
+    if (M.danger.levelShareXp(60, row.topStep + 40, g) !== M.danger.levelShareXp(60, payRef + ceiling, g)) return 'a kill past the top pays more than at it';
     /* the engine opens a start held from past the top AT the top (combat-sim.js: the plan's step through the dial) */
     const r = play(M, { risk: 'steady', danger: DANGER.stepMax }, 3 * 60000, [], g);
     if (!r.danger.length) return 'CONTROL: no pull ended on the scale from a start past the top';
@@ -390,7 +391,8 @@ const CASES = {
       const a = M.danger.hoursForLevel(L), b = M.danger.hoursForLevel(L + 1);
       if (!(b >= a) || b - a > 2 || !(b < LEVEL_HOURS.ceiling)) return 'the hours a Level takes jump, fall or pass the ceiling at Level ' + L + ': ' + a + ' -> ' + b;
     }
-    const g = { id: 'muster_barrows' }, ref = DANGER_GROUNDS.muster_barrows.refStep;
+    /* the pay's reference: where the reference company holds (refHeld on a formula ground, lane/scale-early-grounds) */
+    const MR = DANGER_GROUNDS.muster_barrows, g = { id: 'muster_barrows' }, ref = MR.refHeld === undefined ? MR.refStep : MR.refHeld;
     for (const L of [1, 9, 40, 60, 75, 300]) {
       const toNext = M.xp.charXpForLevel(L + 1) - M.xp.charXpForLevel(L);
       const perHour = M.danger.levelShareXp(L, ref, g) * PAY.refKillsHead;
@@ -405,7 +407,7 @@ const CASES = {
       const kills = Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead, L = 50;
       if (kills < PAY.refKillsHead) return id + ' splits the table over ' + kills + ' kills a head, under the scale\'s ' + PAY.refKillsHead;
       const toNext = M.xp.charXpForLevel(L + 1) - M.xp.charXpForLevel(L);
-      const rate = M.danger.levelShareXp(L, row.refStep, { id }) * kills * M.danger.hoursForLevel(L) / toNext;
+      const rate = M.danger.levelShareXp(L, row.refHeld === undefined ? row.refStep : row.refHeld, { id }) * kills * M.danger.hoursForLevel(L) / toNext;
       if (Math.abs(rate - 1) > 1e-9) return id + ' at its reference pays ' + rate + 'x the table at its own kill rate';
     }
     /* lane/econ-levers + lane/ledger-l10 (19 L10, V13): an HOUR a step deeper pays the wage's one coin ratio more coin. A pull's coin over
@@ -437,7 +439,8 @@ const CASES = {
   floor(M) {
     const { PAY, DANGER_GROUNDS } = M.dangerData;
     if (!(PAY.floor > 0 && PAY.floor < 1)) return 'CONTROL: the floor ' + PAY.floor + ' is no share of the table';
-    const g = { id: 'muster_barrows' }, ref = DANGER_GROUNDS.muster_barrows.refStep;
+    /* the pay's reference: where the reference company holds (refHeld on a formula ground, lane/scale-early-grounds) */
+    const MR = DANGER_GROUNDS.muster_barrows, g = { id: 'muster_barrows' }, ref = MR.refHeld === undefined ? MR.refStep : MR.refHeld;
     const deep = Math.ceil(Math.log(1 / PAY.floor) / Math.log(1 + PAY.payStepXp)) + 5;
     for (const L of [1, 40, 60, 300]) {
       const at = M.danger.levelShareXp(L, ref, g);
@@ -449,7 +452,7 @@ const CASES = {
     }
     /* coin: a ground with a reference step (the fixture's pockets under Muster's id), far under it, pays the pull's share x the floor */
     const gm = groundRow({ id: 'hasks_ford' }); /* a ground on its rows (lane/tuning-pass: Muster plays the formula) */
-    const d = M.danger.dangerDial(gm, 0), d1 = M.danger.dangerDial(gm, ref);
+    const d = M.danger.dangerDial(gm, 0), d1 = M.danger.dangerDial(gm, DANGER_GROUNDS.hasks_ford.refStep);
     const share = (x) => x.hpPm / (1000 * Math.pow(1 + M.dangerData.DANGER.powerStep, x.step));
     if (Math.abs(d.coinPm / (PAY.coinPm * share(d)) - PAY.floor) > 1e-9) return 'step 0 on Muster pays coin x' + d.coinPm / (PAY.coinPm * share(d)) + ', not the floor';
     if (Math.abs(d1.coinPm / (PAY.coinPm * share(d1)) - 1) > 1e-9) return 'the reference step pays coin x' + d1.coinPm / (PAY.coinPm * share(d1));
@@ -786,6 +789,8 @@ const MUTANTS = [
   { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
   { name: 'the hours are not the formula', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelHoursOf(level);', '  return levelHoursOf(level) * (level > 60 ? 1.01 : 1);']] },
   { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
+  /* lane/scale-early-grounds: a formula ground pays the hours table where its reference company holds, not at the monsters' anchor */
+  { name: 'the pay reads the monsters\' anchor', case: 'pay', edits: [['src/core/hunt/danger.js', '  const row = payRowOf(ground);\n  return Math.min(', '  const row = groundRow(ground);\n  return Math.min(']] },
   { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelShareAt(level, refKillsOf(ground)) * depthRatio(ground, step, PAY.payStepXp);', '  return levelShareAt(level, refKillsOf(ground));']] },
   { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },
   /* lane/econ-levers: one coin ratio a step, and the floor on coin too */

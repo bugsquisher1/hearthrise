@@ -13,7 +13,8 @@
 //         and any other ground reads the catalogue itself.
 //   GSF-5 ONE VIEW FOR EVERY READER: the edge settle, the start point's frozen peers and the browser's live view all fight through scaleItems
 //         on the instance's own ground (so the three agree to the bit).
-//   GSF-7 EVERY PIECE HAS AN ITEM LEVEL (the formula master's phase A, 27-formula-overhaul.md 2.3): every gear row carries a whole `iL` over 0.
+//   GSF-7 EVERY PIECE HAS AN ITEM LEVEL (the formula master's phase A, 27-formula-overhaul.md 2.3): every gear row carries a whole `iL`, 0 or over
+//         (tier 0, item Level 0, is the starting kit: gear-steps.js; the Mill Cellar's and the Thicket's base, lane/scale-early-grounds).
 //   GSF-6 THE CURVES CLIMB: within every ladder (GEAR_LADDERS) no rung's base stat is smaller in size than the rung below it.
 //   GSF-8 A NAMED PIECE'S TRAIT IS A REAL ONE: a Trait's `fixedOn` (src/data/traits.js, read through gear-steps.js) names items of the
 //         Trait's slot at a rank of 1 to 3, one fixed Trait a piece, and the ruling's table (28-named-pieces.md, outcome b) names those pieces.
@@ -98,7 +99,7 @@ export function check(o) {
   /* GSF-5 */
   for (const [file, needle] of READERS) if (!o.readers[file] || !o.readers[file].includes(needle)) out.push('GSF-5 ' + file + ' builds a hunt\'s heroes without the scale view (' + needle + ')');
   /* GSF-7 */
-  for (const [id, it] of Object.entries(o.items)) if (o.GS.isGearRow(it) && !(Number.isInteger(it.iL) && it.iL > 0)) out.push('GSF-7 ' + id + ' carries no item Level');
+  for (const [id, it] of Object.entries(o.items)) if (o.GS.isGearRow(it) && !(Number.isInteger(it.iL) && it.iL >= 0)) out.push('GSF-7 ' + id + ' carries no item Level');
   /* GSF-8: the table's (b) rows, `| ... | \`<id>\` | ... | (b) | <Trait name> ... |`, and the rows that carry a fixedTrait are the same */
   const ruled = new Map();
   for (const line of o.doc.split('\n')) {
@@ -166,6 +167,7 @@ const MUTANTS = [
   ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: scaleItems(inp.items || {}, inp.ground)', 'items: inp.items || {}'); }],
   ['GSF-5', 'the browser fights the catalogue as written', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('{ items: scaleItems(items, where.ground) }', '{ items }'); }],
   ['GSF-7', 'a piece with no item Level', (o) => { const { iL, ...r } = o.items.rune_sword; void iL; o.items = { ...o.items, rune_sword: r }; }],
+  ['GSF-7', 'a piece under item Level 0', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, iL: -20 } }; }],
   ['GSF-6', 'a rung steps down', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, atkB: 1 } }; }],
 ];
 

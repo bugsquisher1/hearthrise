@@ -82,12 +82,16 @@ export function rowsOf({ data, core, model, grounds, tuning, wage }) {
     if (!g || g.hunt !== id || own(grounds.TOWER_GROUNDS || {}, id) || own(grounds.TRAINING_GROUNDS || {}, id) || own(grounds.HALL_GROUNDS || {}, id) || own(grounds.CALLED_GROUNDS || {}, id)) {
       throw new Error('gen-danger: ' + id + ' is no hunting ground whose hunt is its id');
     }
-    const ref = DANGER_GROUNDS[id].refStep;
+    /* THE PAY'S REFERENCE (lane/scale-early-grounds; src/core/hunt/danger.js payRowOf): where the reference company holds, the row's refHeld
+       on a formula ground (its refStep is the monsters' anchor), else its refStep. The server's one reader of ref_step is the store's depth
+       (1062 hr_store_step: the wage at refLevel there), so a store use is priced at the same reference the engine pays by */
+    const ref = DANGER_GROUNDS[id].refHeld === undefined ? DANGER_GROUNDS[id].refStep : DANGER_GROUNDS[id].refHeld;
     if (!Number.isInteger(ref) || ref < 0 || ref > DANGER.stepMax) throw new Error('gen-danger: ' + id + ' refStep ' + ref);
     /* THE BAND (lane/r10-more-grounds; 12-targets.md 3.1): floor under the reference under the top, inside the scale; the engine climbs no
        step past the top and pays no more there (src/core/hunt/danger.js stepOn, gapOf) */
     const { floorStep: lo, topStep: hi } = DANGER_GROUNDS[id];
-    if (!Number.isInteger(lo) || !Number.isInteger(hi) || !(lo >= 0 && lo < ref && ref < hi && hi <= DANGER.stepMax)) throw new Error('gen-danger: ' + id + ' band ' + lo + ' / ' + ref + ' / ' + hi + ' is not floor < refStep < top inside the scale');
+    const anchor = DANGER_GROUNDS[id].refStep;
+    if (!Number.isInteger(lo) || !Number.isInteger(hi) || !(lo >= 0 && lo < ref && ref < hi && lo < anchor && anchor < hi && hi <= DANGER.stepMax)) throw new Error('gen-danger: ' + id + ' band ' + lo + ' / ' + anchor + ' (held ' + ref + ') / ' + hi + ' is not floor < refStep < top inside the scale');
     /* A GROUND'S OWN KILL RATE is never under the scale's: the server bounds a kill by hr_danger_level_xp_max at PAY.refKillsHead, and a
        ground split over fewer kills would pay a kill over it */
     const rk = DANGER_GROUNDS[id].refKillsHead;

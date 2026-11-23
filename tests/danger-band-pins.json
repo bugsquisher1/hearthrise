@@ -7,6 +7,7 @@
    "floorStep": 575,
    "topStep": 700,
    "refHeld": 610,
+   "coinPm": 7000,
    "print": "6ec9cb22f4adcc29",
    "verdict": "OPEN",
    "levels": {
@@ -16,7 +17,7 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/final/c0-muster-ref.json",
+    "tools/balance-program/redesign/grounds/muster_barrows-ref.json",
     "tools/balance-program/redesign/tuning/final/c0-muster-top.json",
     "tools/balance-program/redesign/depth-budget/muster-a.json"
    ]

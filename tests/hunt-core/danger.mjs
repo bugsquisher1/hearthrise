@@ -228,7 +228,9 @@ const CASES = {
   holder(M) {
     const { RISKS, HOLDER } = M.dangerData;
     const st = RISKS.steady, line = (pm) => Math.ceil((pm * HOLDER.linePm) / 1000);
-    if (HOLDER.linePm !== 600 || line(st.fallPm) !== 150) return 'fixture: written for the tank falling back at 15% on Steady, the data reads ' + HOLDER.linePm;
+    if (!(line(st.fallPm) < st.fallPm)) return 'the holder\'s line (' + HOLDER.linePm + ') is not under everyone else\'s';
+    /* `mid`: between the tank's line and everyone else's */
+    const mid = Math.floor((line(st.fallPm) + st.fallPm) / 2);
     const pullAt = (hurts, cleared = true) => {
       /* (the seat is the settle's, written at every boundary and never persisted: makeUnit drops it, so it is set here) */
       const tank = Object.assign(hero(M, 1, 3, 3, { role: 'tank', hp: 1000, maxHp: 1000 }), { seat: 0 }), dps = Object.assign(hero(M, 2, 4, 3, { role: 'melee_dps', hp: 1000, maxHp: 1000 }), { seat: 1 });
@@ -242,9 +244,9 @@ const CASES = {
       return { breaks, why: ev.why, low: ev.low, hero: ev.hero, to: w.danger };
     };
     const show = (r) => JSON.stringify(r);
-    /* the tank at 20% (under everyone else's 25%) holds; at exactly its 15% holds; under it falls back, naming its own HP */
-    let r = pullAt([['tank', 200]]);
-    if (r.breaks || r.why !== 'hold') return 'the tank at 20% broke the pull off on Steady: ' + show(r);
+    /* the tank under everyone else's line and over its own holds; at exactly its own holds; under it falls back, naming its own HP */
+    let r = pullAt([['tank', mid]]);
+    if (r.breaks || r.why !== 'hold') return 'the tank at ' + mid + ' broke the pull off on Steady: ' + show(r);
     r = pullAt([['tank', line(st.fallPm)]]);
     if (r.breaks || r.why !== 'hold') return 'the tank at its line (' + line(st.fallPm) + ') fell back: ' + show(r);
     r = pullAt([['tank', line(st.fallPm) - 1]]);
@@ -252,11 +254,11 @@ const CASES = {
     /* another hero still falls back on the stance's own line */
     r = pullAt([['dps', st.fallPm - 1]]);
     if (!r.breaks || r.why !== 'fall' || r.hero !== 1) return 'a hero beside the tank under 25% did not fall back: ' + show(r);
-    /* the margin is the hero furthest under its own line, not the lowest HP: the tank at 20% first, then the axes at 24% */
-    r = pullAt([['tank', 200], ['dps', st.fallPm - 10]]);
-    if (!r.breaks || r.why !== 'fall' || r.hero !== 1 || r.low !== st.fallPm - 10) return 'the axes under 25% after the tank at 20% did not break the pull: ' + show(r);
-    r = pullAt([['dps', st.fallPm + 10], ['tank', 200]]);
-    if (r.breaks || r.why !== 'hold' || r.low !== st.fallPm + 10 || r.hero !== 1) return 'the tank at 20% after the axes at 26% read as the margin: ' + show(r);
+    /* the margin is the hero furthest under its own line, not the lowest HP: the tank at `mid` first, then the axes under 25% */
+    r = pullAt([['tank', mid], ['dps', st.fallPm - 10]]);
+    if (!r.breaks || r.why !== 'fall' || r.hero !== 1 || r.low !== st.fallPm - 10) return 'the axes under 25% after the tank at ' + mid + ' did not break the pull: ' + show(r);
+    r = pullAt([['dps', st.fallPm + 10], ['tank', mid]]);
+    if (r.breaks || r.why !== 'hold' || r.low !== st.fallPm + 10) return 'the tank at ' + mid + ' after the axes at 26% read as the margin: ' + show(r);
     /* the climb: the tank clean at its own share of the climb line */
     const twice = (hp) => {
       const tank = Object.assign(hero(M, 1, 3, 3, { role: 'tank', hp: 1000, maxHp: 1000 }), { seat: 0 });

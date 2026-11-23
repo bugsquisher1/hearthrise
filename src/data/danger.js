@@ -201,10 +201,13 @@ export const RISKS = Object.freeze({
 
 /* THE HOLDER'S LINE (docs/design/redesign/23-spell-audit.md section 3; Tyler 2026-11-22: "the tank falls back at 15% on Steady while
    others fall back at 25%"): the hero holding the Challenge (the lap's holding tank, src/core/hunt/targeting.js holderTank) reads every
-   stance's two thresholds times linePm / 1000 (Steady 15% and 27%, Careful 27% and 39%, Bold 7.2% and 18%). A tank is meant to sit low and
-   be healed: read on the stance's own line, the move whose job is to pull every blow onto one hero broke the pull the four was winning
-   (23 section 3, MEASURED: the four held 63 steps deeper with no Challenge at all). A fall back is never a death: Steady still never dies. */
-export const HOLDER = Object.freeze({ linePm: 600 });
+   stance's two thresholds times linePm / 1000. A tank is meant to sit low and be healed: read on the stance's own line, the move whose job
+   is to pull every blow onto one hero broke the pull the four was winning (23 section 3, MEASURED: the four held 63 steps deeper with no
+   Challenge at all). 800 (Steady 20% and 36%), not the ruled 600, because Steady must never die (RD-Q3 a: "a death there is a bug in the
+   triggers"): a line is safe only over the largest blow, and a Muster Knight's lands between 17.5% and 20% of a Level 60 tank's HP.
+   MEASURED (lane/moves-pass-1, spell-run.mjs plan PT, Muster L60 Steady, the tank's four on its new Challenge condition, 18 seeds x 8 h):
+   600 held 632 with 4 tank deaths, 700 held 623 with 5, 800 held 613 with 0 (0 too without the condition). CONFLICTS.md 2026-11-22. */
+export const HOLDER = Object.freeze({ linePm: 800 });
 
 /* THE DEFAULT STANCE (02 package 3 and package 8, "the first party ground runs on Steady"; the Coordinator 2026-11-22, lane R2): a hunt on a
    ground the scale opens on, whose leader's plan names no stance, plays this one. The server freezes it (hr_danger_rules.default_risk,

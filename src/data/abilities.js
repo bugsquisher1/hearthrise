@@ -249,7 +249,10 @@ export const ABILITIES = Object.freeze([
     shieldPm: 2290, base: 40, whenBelowPct: 85, magicXpMult: 1600, versions: [30, 36, 43, 52, 62] }),
   /* staff — Healer (restoration). Its heals are WATER rune spells (spring water closes wounds, the approved map);
      Greater Mend's mana ladder is the designer's own example (25/30/36/43/52, d3-manacost). A heal is a share of the staff's own blow
-     (the spell rule), sized to today's Level 60: Greater Mend 1.42 of a same-Level monster's largest blow on a Graven rune. */
+     (the spell rule), sized to today's Level 60: Greater Mend 1.42 of a same-Level monster's largest blow on a Graven rune.
+     NOT ADOPTED (23-spell-audit.md section 6's Lab variant, lane/moves-pass-1): Greater Mend -20% (2540) with Circle of Renewal +30% (2080)
+     cut the healing, not split it (Circle's own rule, two heroes hurt, held its casts at 172 -> 179 an hour): every four held 12 to 22 steps
+     shallower and earned 5 to 9% less Level XP (spell-run.mjs plan P, Muster L60 Steady, 6 paired seeds x 8 h). */
   ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], lane: 'heal', cdMs: 2000, mana: 25, rune: 'chalked_water_rune', target: 'ally',
     healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600, versions: [25, 30, 36, 43, 52] }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, rune: 'chalked_water_rune', target: 'party',

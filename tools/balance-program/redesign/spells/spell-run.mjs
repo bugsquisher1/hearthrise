@@ -131,7 +131,7 @@ function pool(list, n) {
 
 const H = 3600000;
 function readSeed(res) {
-  const log = (res.party.danger || []).map(([, ms, step, to, low, why]) => ({ ms, step, to, low, why }));
+  const log = (res.party.danger || []).map(([, ms, step, to, low, why, hero, monster]) => ({ ms, step, to, low, why, hero, monster }));
   const huntedMs = Math.round(res.party.hours * H);
   const firstDeath = log.find((e) => e.low <= 0);
   const endMs = firstDeath ? firstDeath.ms : Math.max(huntedMs, log.length ? log[log.length - 1].ms : 0);
@@ -150,6 +150,8 @@ function readSeed(res) {
     xpPerHeroH: res.party.levelXpPerHeroPerH, killsPerH: res.party.killsPerH,
     incomePerHeroH: perHeroH('income'), storePerHeroH: perHeroH('store'),
     drinksPerH: seats.reduce((a, s) => a + s.drinksPerH, 0), takenPerH: seats.reduce((a, s) => a + s.takenPerH, 0), seats,
+    /* every death: the hour, the step, the seat and the monster kind whose blow it was (the danger event's cause) */
+    deathLog: log.filter((e) => e.why === 'death').map((e) => ({ h: r(e.ms / H, 2), step: e.step, seat: e.hero, by: e.monster })),
   };
 }
 
@@ -171,6 +173,7 @@ for (const c of cells) {
   for (let s = 0; s < SEEDS; s++) seeds.push(readSeed(out[c.id + '#' + s]));
   const o = { id: c.id, base: c.base, styles: c.styles, drops: c.drops, adds: c.adds, perSeed: {} };
   for (const k of KEYS) { o[k] = stat(seeds.map((x) => x[k])); o.perSeed[k] = seeds.map((x) => r(x[k])); }
+  o.deathLog = seeds.flatMap((x, s) => x.deathLog.map((d) => ({ seed: s, ...d })));
   o.seats = c.styles.map((st, i) => {
     const ids = [...new Set(seeds.flatMap((x) => Object.keys(x.seats[i].casts)))].sort();
     return { style: st, dps: stat(seeds.map((x) => x.seats[i].dps)), healOutPerH: stat(seeds.map((x) => x.seats[i].healOutPerH)),
@@ -195,6 +198,7 @@ const pm = (s) => (!s || s.mean === null ? 'n/a' : s.mean + ' +- ' + (s.se === n
 console.log('\nSPELLS ' + PLAN + ' on ' + GROUND + ' L' + L + ' ' + RISK + ', held start ' + START + ', ' + SEEDS + ' seeds x ' + HOURS + ' h, held read from hour ' + SETTLE_H + ' (mean +- se over seeds)');
 for (const o of Object.values(report.cells)) {
   console.log(o.id.padEnd(30) + ' held ' + pm(o.held).padEnd(14) + ' deaths ' + o.deaths.mean + '  xp/hd-h ' + pm(o.xpPerHeroH).padEnd(18) + ' kills/h ' + pm(o.killsPerH).padEnd(14) + ' gold/hd-h ' + pm(o.incomePerHeroH).padEnd(14) + ' store/hd-h ' + pm(o.storePerHeroH));
+  if (o.deathLog.length) console.log('   deaths: ' + o.deathLog.map((d) => 'seed ' + d.seed + ' h' + d.h + ' step ' + d.step + ' seat ' + d.seat + ' by ' + d.by).join(' · '));
   if (o.vsBase) console.log('   vs ' + o.base + ' (paired): held ' + pm(o.vsBase.held) + '  xp ' + pm(o.vsBase.xpPct) + '%  kills/h ' + pm(o.vsBase.killsPerH) + '  gold ' + pm(o.vsBase.incomePerHeroH) + '  store ' + pm(o.vsBase.storePerHeroH) + '  drinks ' + pm(o.vsBase.drinksPerH) + '  taken ' + pm(o.vsBase.takenPerH));
   for (const s of o.seats) console.log('     ' + s.style.padEnd(7) + ' dps ' + String(s.dps.mean).padEnd(7) + ' heal/h ' + String(s.healOutPerH.mean).padEnd(8) + ' deaths ' + s.deaths + '  casts/h ' + Object.entries(s.casts).map(([k, n]) => k + ' ' + n).join(', '));
 }

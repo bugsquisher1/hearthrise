@@ -331,9 +331,9 @@ export const WORLD = [
     perturb: NP('player-policy', 'the stance is the player\'s risk choice; the V1 and V2 probes play each'),
     ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
   L('danger.holder-line', 'monster-stats', 'archetype', 'The holding tank\'s line', {
-    at: [at(DZ, 'export const HOLDER = Object.freeze({ linePm: 600 });')],
-    def: 'the lap\'s holding tank (targeting.js holderTank) reads every stance\'s fall back trigger and climb threshold times linePm / 1000 (Steady 15% and 27%); the pull\'s margin is the hero furthest under its own line, and a fall back names the HP it reached',
-    range: 'linePm 1..1000 permille. Tyler 2026-11-22: "the tank falls back at 15% on Steady while others fall back at 25%". A fall back is never a death, so Steady still never dies',
+    at: [at(DZ, 'export const HOLDER = Object.freeze({ linePm: 800 });')],
+    def: 'the lap\'s holding tank (targeting.js holderTank) reads every stance\'s fall back trigger and climb threshold times linePm / 1000 (Steady 20% and 36%); the pull\'s margin is the hero furthest under its own line, and a fall back names the HP it reached',
+    range: 'linePm 1..1000 permille, over the largest blow a tank takes (a line under it is a Steady death, RD-Q3 a). Tyler 2026-11-22 ruled 15% (600); MEASURED on Muster L60 with the Challenge on 60%: 600 and 700 let a Muster Knight kill the tank (4 and 5 in 144 h), 800 none in 288 h',
     touches: 'how deep a four with a tank holds: the Challenge pulls every blow onto one hero, and read on the stance\'s own line the tank\'s dip broke the pull (23-spell-audit.md section 3: no Challenge held 63 steps deeper)', out: SURVIVE, f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'holder: the tank\'s line, the margin, the climb and the named HP']], testReads: ['HOLDER'],
     perturb: NP('not-in-runs', 'played by spell-run.mjs (plan P) on the real engine'),

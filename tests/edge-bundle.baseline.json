@@ -438,6 +438,11 @@
         "bytes": 3776720,
         "on": "2026-11-23",
         "why": "cut locked in (6093 bytes)"
+      },
+      {
+        "bytes": 3776855,
+        "on": "2026-11-23",
+        "why": "prices-wage-hours: Tamsin's scale-ground pay reads the wage (tally-tasks.js), +135 B over this lane's own -6,093 B cut (net -5,958 against the set)"
       }
     ]
   }

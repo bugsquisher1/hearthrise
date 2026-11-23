@@ -100,7 +100,7 @@ One row per formula family. "04" is the intended formula (`04-math-strategy.md` 
 | E-8 | Talent resets | `resetHours x wage(L) x resetGrowth ^ n` (§11) | Not built | NOT BUILT | E-1 | 8 |
 | E-9 | The Hunts window's gold estimate | wage(held step), no stance factor once the step is absolute | `src/data/gold-estimate.js:22` (Careful 630, Steady 1000, Bold 1270 permille, measured once) | HAND | E-3, S-5 | 11 |
 | E-10 | Pay off the scale, and party tables | Retired: one pay rule (§7) | `src/data/balance-sheet.js:165` (XP = 1.436 x L^0.4 x health), `:175` (coin 0.30 a health point), `:309` (`GROUND_XP_FIT`), `:319` (`GROUND_GP_FIT`), `src/data/party-class-xp.js:55`, `:80`, `src/data/hunt-tuning.js:56` (under-floor share) | OLD | S-5 | 6 (retire) |
-| E-11 | Starting gold and the start kit | Hours of wage at Level 1 | BUILT (lane/prices-wage-hours): `src/data/start-kit.js START_GOLD_HOURS_PM` 39 milli-hours of wage(1), 510 g (500 sits between two whole milli-hours at step 1). The kit's goods are items, not gold | NEW | E-1 | 8 |
+| E-11 | Starting gold and the start kit | Hours of wage at Level 1 | BUILT (lane/prices-wage-hours): `src/data/start-kit.js START_GOLD_HOURS_PM` 250 milli-hours of wage(1), 3,200 g: one hunted hour of a hero's store kit at the reference share, sized against the first grounds paying the wage (lane/scale-early-grounds). The kit's goods are items, not gold. Tamsin's tasks on the scale pay 350 permille of their hours of wage at refLevel (`tally-tasks.js`) | NEW | E-1 | 8 |
 
 ### 1.7 Town work and professions
 

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "03b679aabaade089",
+ "authored": "57f62f6fd88aadea",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 760,
-  "typed": 16890,
+  "typed": 16892,
   "files": 260,
   "lever": 333,
   "notLever": 427,
@@ -8188,7 +8188,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11893,7 +11893,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11969,7 +11969,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 18,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14045,11 +14045,11 @@
     {
      "file": "src/data/start-kit.js",
      "line": 52,
-     "text": "export const START_GOLD_HOURS_PM = 39;",
+     "text": "export const START_GOLD_HOURS_PM = 250;",
      "binding": "START_GOLD_HOURS_PM"
     }
    ],
-   "definition": "the purse 39 milli-hours of wage(1) as a list price (510 gold; 27 E-11), 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account",
+   "definition": "the purse 250 milli-hours of wage(1) as a list price (3,200 gold, an hour of store kit at the reference share; 27 E-11), 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account",
    "range": "whole",
    "touches": "the first hour",
    "outcomes": [],
@@ -15473,7 +15473,7 @@
    "sites": [
     {
      "file": "src/data/shops.js",
-     "line": 89,
+     "line": 88,
      "text": "export const HERO_SLOTS = Object.freeze({ count: 4, free: true });",
      "binding": "HERO_SLOTS"
     }
@@ -15567,7 +15567,7 @@
    "sites": [
     {
      "file": "src/data/shops.js",
-     "line": 93,
+     "line": 92,
      "text": "export const SHOP_OFFERS = [",
      "binding": "SHOP_OFFERS"
     }
@@ -16259,12 +16259,12 @@
    "sites": [
     {
      "file": "src/data/tally-tasks.js",
-     "line": 70,
+     "line": 91,
      "text": "export const TALLY_TASKS = Object.freeze([",
      "binding": "TALLY_TASKS"
     }
    ],
-   "definition": "a kill count and gold a task (25 rats for 25 gold ...), three held, three paid a day",
+   "definition": "a kill count and gold a task, three held, three paid a day; on a Danger-scale ground the gold is sharePm 350 of the task's hours (taskHoursPm 1000) of wage at refLevel, a list price; off it the measured gold (25 rats for 25 gold ...)",
    "range": "whole",
    "touches": "early gold and pieces",
    "outcomes": [],
@@ -16278,9 +16278,10 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/tally-tasks.mjs"
+     "tests/tally-tasks.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -18397,9 +18398,10 @@
    "pin": "count",
    "keys": [
     "heldMax",
-    "paidPerDay"
+    "paidPerDay",
+    "sharePm"
    ],
-   "typed": 2,
+   "typed": 3,
    "bindings": 1
   },
   "src/core/companion-perk.js#COMPANION_MAX_LEVEL": {
@@ -20551,9 +20553,10 @@
    "keys": [
     "count",
     "gold",
+    "hoursPm",
     "qty"
    ],
-   "typed": 50,
+   "typed": 51,
    "bindings": 1
   },
   "src/data/companions.js#COMPANIONS": {

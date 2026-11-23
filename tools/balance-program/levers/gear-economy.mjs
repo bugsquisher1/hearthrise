@@ -412,9 +412,9 @@ export const GEAR_ECONOMY = [
       flag('redundant', 'VENDOR_RAW_RATE and SHOP_BUYBACK_RATE are authored in the edge function and restated in src/data/shops.js DERIVED_PRICES', '44 E-X20, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('econ.start-gold', 'economy', 'global', 'Starting gold and kit', {
-    at: [at('src/data/start-kit.js', 'export const START_CURRENCY'), at('src/data/start-kit.js', 'export const START_GOLD_HOURS_PM = 39')],
+    at: [at('src/data/start-kit.js', 'export const START_CURRENCY'), at('src/data/start-kit.js', 'export const START_GOLD_HOURS_PM = 250')],
     rows: rows('the account and hero kits', [home('src/data/start-kit.js#ACCOUNT_KIT', 'open'), home('src/data/start-kit.js#HERO_KIT', 'open'), home('src/data/start-kit.js#START_BAR', 'count')]),
-    def: 'the purse 39 milli-hours of wage(1) as a list price (510 gold; 27 E-11), 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account',
+    def: 'the purse 250 milli-hours of wage(1) as a list price (3,200 gold, an hour of store kit at the reference share; 27 E-11), 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account',
     range: 'whole',
     touches: 'the first hour', out: [], f: [],
     tests: [['tests/start-kit-pace.mjs', 'a new player\'s first Levels']], testReads: ['start-kit', 'START_CURRENCY'],
@@ -723,7 +723,7 @@ export const GEAR_ECONOMY = [
   L('econ.tally', 'economy', 'content', 'Tally task rewards', {
     at: [at('src/data/tally-tasks.js', 'export const TALLY_TASKS')],
     rows: rows('the task limits', [home('src/data/tally-tasks.js#TALLY_RULES', 'count')]),
-    def: 'a kill count and gold a task (25 rats for 25 gold ...), three held, three paid a day',
+    def: 'a kill count and gold a task, three held, three paid a day; on a Danger-scale ground the gold is sharePm 350 of the task\'s hours (taskHoursPm 1000) of wage at refLevel, a list price; off it the measured gold (25 rats for 25 gold ...)',
     range: 'whole',
     touches: 'early gold and pieces', out: [], f: [],
     perturb: NP('outside-hunt', 'the cells hold no task'),

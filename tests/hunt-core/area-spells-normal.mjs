@@ -86,7 +86,7 @@ const MS = 'src/data/monster-spells.js';
 const MON = 'src/data/monsters.js';
 const mutants = [
   /* the spells-on bar: the rows still list the spells, but the engine never starts one, so a zero-death hour is hollow */
-  { name: 'the engine never starts a spell', case: 'wickstead', edits: [['src/core/hunt/monster-spells.js', '      if (begin(inst, sc, u, id, spellRow(id))) break;', '      if (false && begin(inst, sc, u, id, spellRow(id))) break;']] },
+  { name: 'the engine never starts a spell', case: 'wickstead', edits: [['src/core/hunt/monster-spells.js', '      if (begin(inst, sc, u, id, spellOn(mrow, id))) break;', '      if (false && begin(inst, sc, u, id, spellOn(mrow, id))) break;']] },
   /* and the data: a ground whose regulars cast no group spell is refused before a cell is played */
   { name: 'the Turncoat throws no Smoke Pot', case: 'wickstead', edits: [[MON, "    spells: ['smoke_pot'],\n", '']] },
   /* the death bar: a Blasting Charge at four times the Digger's blow every 2.1 s kills on Normal */

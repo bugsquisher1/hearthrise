@@ -131,7 +131,8 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 
 //                       skillGapPm). On the line it is 0, so the reference company and every band measured on it are unchanged. STARTING VALUE:
 //                       a quarter, 04's three-way mean with Level and gear (JUDGMENT); evidence tools/balance-program/redesign/foundations
 export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500, weightSkillPm: 250 });
-export { GEAR_STEPS, CARRY, TRAITS } from './gear-steps.js';
+/* gear-steps.js's door (tests/gear-steps.mjs GS-6): the gear table, carry-over, the Traits and a tier's item Level (chests.js reads it) */
+export { GEAR_STEPS, CARRY, TRAITS, tierLevel } from './gear-steps.js';
 
 /* a scale ground's row, with the highest Trait rank its entry Level lets its pool roll (19-power-ledger.md section 2, lane L3; gear-steps.js
    maxRankAt): entryLevel is its hunt's band floor (tests/gear-steps.mjs GS-5 holds the two equal). Muster Barrows (55) and Hask's Ford (45)
@@ -152,6 +153,10 @@ export const DANGER_GROUNDS = Object.freeze({
      entryLevel, its hunt's top Level and its gearLevel (a fresh company one tier back at the entry, the reference company at refLevel, a
      strong company one tier ahead at the top, each a rating in Levels); floorStep, refStep and topStep are the BRIDGE, the own step each of
      those companies holds on this ground's rows, measured by tools/new-ground.mjs. "Depth N" is cut evenly in absolute steps through them.
+     monsters (lane/monster-formula; 04-math-strategy.md section 6): the ground's ONE DATA SWITCH for its monsters: 'rows' (today's hand-typed stats, grown by the step) or 'formula' (each monster's role and
+     the step: src/core/hunt/monster-formula.js derives its health, blows and wind-ups from src/data/monster-roles.js against the reference
+     company at refLevel on refStep, and the pull is sized to the party). A switch flipped moves the ground's band: re-measure it
+     (tools/new-ground.mjs, tests/content-coherence.mjs CC-2 prints the switch with the rows).
      THE TOP (lane/r10-more-grounds; 12-targets 3.2): the engine climbs no step past topStep and pays no more there (src/core/hunt/danger.js
      stepOn, gapOf), and a company held at it is told the ground is outgrown (src/shell/needs-you/outgrown.js).
      THE BANDS PAST MUSTER, MEASURED (lane/r10-more-grounds, 2026-11-22; tools/balance-program/redesign/r10, v1-climb.mjs: the Steady mixed
@@ -179,10 +184,10 @@ export const DANGER_GROUNDS = Object.freeze({
      NOT ON THE SCALE (measured the same way, 2026-11-22): Krell's Hold died on Steady in every seed-day at Levels 85, 97 and 110 (4 of 4
      each), Pyre Field in 1 to 3 of 4 (and drops two ladder tiers, Muster's and Krell's), against 12-targets C-3's none. They wait for their
      monsters' fit, not for a band. */
-  muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60 }),
-  hasks_ford: ground({ refStep: 590, floorStep: 470, topStep: 700, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52 }),
-  catacomb_bone_wing: ground({ refStep: 540, floorStep: 500, topStep: 605, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175 }),
-  catacomb_flooded_wing: ground({ refStep: 530, floorStep: 480, topStep: 595, refKillsHead: 200, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175 }),
+  muster_barrows: ground({ refStep: 590, floorStep: 320, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'rows' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 470, topStep: 700, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'rows' }),
+  catacomb_bone_wing: ground({ refStep: 540, floorStep: 500, topStep: 605, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
+  catacomb_flooded_wing: ground({ refStep: 530, floorStep: 480, topStep: 595, refKillsHead: 200, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

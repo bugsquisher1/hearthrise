@@ -1,0 +1,17 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "mf-wing",
+ "why": "Monsters from the formula on the Catacombs' Bone Wing (lane/monster-formula; 04 section 6), with its four bodies given roles: the Shrouded Pauper a Swarm, the Vault Leech a Stalker, the Bone Wall a Brute (its own Bone Slide is the wind-up's shape) and the Night Carter a Caster (its own Lime Sack). A third mix, staged. Paired against the tree (C0, today's monsters) on the same dice",
+ "base": "tree",
+ "edits": [
+  { "file": "src/data/danger.js", "from": "refLevel: 175, monsters: 'rows', traits: traitPool('catacomb_bone_wing')", "to": "refLevel: 175, monsters: 'formula', traits: traitPool('catacomb_bone_wing')" },
+  { "file": "src/data/grounds/unmarked_catacombs/pack.js", "from": "      hp: 238, atk: 154,", "to": "      role: 'swarm',\n      hp: 238, atk: 154," },
+  { "file": "src/data/grounds/unmarked_catacombs/pack.js", "from": "      hp: 227, atk: 202,", "to": "      role: 'stalker',\n      hp: 227, atk: 202," },
+  { "file": "src/data/grounds/unmarked_catacombs/pack.js", "from": "      hp: 371, atk: 150,", "to": "      role: 'brute',\n      hp: 371, atk: 150," },
+  { "file": "src/data/grounds/unmarked_catacombs/pack.js", "from": "      hp: 315, atk: 191,", "to": "      role: 'caster',\n      hp: 315, atk: 191," }
+ ],
+ "assumptions": [
+  "The Bone Wing's pockets hold these four bodies (catacomb-wings.js); the Flooded Wing's Keeper Dunn is not on it",
+  "Drops, coin a kill and XP stay the rows' own"
+ ]
+}

@@ -103,12 +103,15 @@ function stable(v) {
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().filter((k) => v[k] !== undefined && typeof v[k] !== 'function').map((k) => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
   return JSON.stringify(v === undefined ? null : v);
 }
-export function packPrint(ground, monsters, monstersOn) {
+export function packPrint(ground, monsters, monstersOn, switchOf = null) {
   if (!ground) throw new Error('packPrint: no ground row');
   const shape = {
     route: ground.route,
     pockets: ground.route.map((i) => { const p = ground.pockets[i]; return { pull: p.pull, pack: p.pack || null, spawns: p.spawns, adds: p.adds || null }; }),
     respawnMs: ground.respawnMs, pullDist: ground.pullDist, groupFit: ground.groupFit, densityMax: ground.densityMax,
+    /* THE MONSTERS' SWITCH (src/data/danger.js DANGER_GROUNDS `monsters`, lane/monster-formula): a ground on the formula plays other numbers
+       than its rows, so the print carries it; on its rows (or with no switch named) the print is what it always was */
+    ...(switchOf === 'formula' ? { monsters: 'formula' } : {}),
   };
   const ids = [...monstersOn(ground)].sort();
   const rows = Object.fromEntries(ids.map((id) => [id, Object.fromEntries(Object.entries(monsters[id] || { missing: true }).filter(([k]) => !MONSTER_WORDS.has(k)))]));

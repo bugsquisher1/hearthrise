@@ -14,6 +14,9 @@
 //   roll         one draw a blow, from (1000 - rollSpreadPm) to (1000 + rollSpreadPm) permille of the mean
 //   switch       27 K-2: with AMOUNT.hitRoll a basic blow on the scale rolls today's to-hit, without it every blow lands; never off it
 //   snapshot     a hero's snapshot carries the pipeline's reads (the weapon's top, the armor and ward gear parts), and the frozen peer too
+//   reference    (refco) the monster formula's one door (src/core/reference-company.js refCompany) answers the pipeline's own output for a
+//                ground on the scale: one share of a reference health a head a second at every Level, the blow reaching at pressurePm,
+//                landing at the to-hit only while hitRoll holds; a Tower room (no refStep) keeps the old chain's measured table
 //
 // mutant-anchors: src/core/hunt/amount.js src/core/hunt/damage.js src/data/amount.js src/core/member.js
 import { join } from 'node:path';
@@ -30,6 +33,8 @@ async function load(root) {
   M.amountData = (await imp('src/data/amount.js')).AMOUNT;
   M.dangerData = await imp('src/data/danger.js');
   M.ITEMS = (await imp('src/data/items.js')).ITEMS;
+  M.refCo = await imp('src/core/reference-company.js');
+  M.mformula = await imp('src/core/hunt/monster-formula.js');
   return M;
 }
 
@@ -206,7 +211,27 @@ const cases = {
 };
 
 const A = 'src/core/hunt/amount.js';
+cases.refco = (M) => {
+  const A = M.amount, D = M.amountData, R = M.refCo.refCompany;
+  const share = (L) => R(L, 'steps').dpsHead / A.refHealth(L);
+  for (const L of [30, 60, 175, 300, 3000]) {
+    const c = R(L, 'steps');
+    if (Math.abs(share(L) - share(60)) > 1e-12) return 'the pipeline reference deals ' + share(L) + ' of a reference health a second at Level ' + L + ', ' + share(60) + ' at 60';
+    if (c.hp !== A.refHealth(L) || c.takePm !== D.pressurePm || c.hit !== (D.hitRoll ? 0.7 : 1)) return 'the pipeline reference at Level ' + L + ' reads ' + JSON.stringify(c);
+  }
+  if (Math.abs(R(D.fitLevel, 'steps').dpsHead - R(D.fitLevel).dpsHead) > 1e-9) return 'at the fit Level the pipeline and the table disagree';
+  if (R(175).dpsHead === R(175, 'steps').dpsHead) return 'CONTROL: the old chain\'s table holds the pipeline\'s share at 175';
+  /* the derivation reads the door by the ground: a ground row on the scale the pipeline's, a Tower room (no refStep) the old chain's */
+  const role = 'brute';
+  const g = { refLevel: 175, refStep: 540 };
+  const onScale = M.mformula.roleStats(role, g).hp, room = M.mformula.roleStats(role, { refLevel: 175 }).hp;
+  if (!(onScale > room * 2)) return 'a scale ground\'s brute at 175 has ' + onScale + ' health, a Tower room\'s ' + room + ': the scale is not read off the pipeline';
+  return null;
+};
 const mutants = [
+  { name: 'the scale reads the old chain\'s table', case: 'refco', edits: [['src/core/hunt/monster-formula.js', "refCompany(g.refLevel, Number.isInteger(g.refStep) ? 'steps' : null)", 'refCompany(g.refLevel, null)']] },
+  { name: 'the pipeline reference grows like the table', case: 'refco', edits: [['src/core/reference-company.js', '    const dpsHead = share * refHealth(L);', '    const dpsHead = tableDps(L);']] },
+  { name: 'the pipeline reference takes the armor chain\'s share', case: 'refco', edits: [['src/core/reference-company.js', '      takePm: AMOUNT.pressurePm,', '      takePm: R.takePm + 1,']] },
   { name: 'the gap never reaches the blow', case: 'slope', edits: [[A, '  const steps = Math.round(gap + cond);\n  const sp = AMOUNT.rollSpreadPm;\n  const roll = c.rng.int(', '  const steps = Math.round(cond);\n  const sp = AMOUNT.rollSpreadPm;\n  const roll = c.rng.int(']] },
   { name: 'armor and ward swapped', case: 'slope', edits: [[A, 'gearPm: int(ward ? u.wardPm : u.armorGearPm)', 'gearPm: int(ward ? u.armorGearPm : u.wardPm)']] },
   { name: 'a heavy piece spends evenly', case: 'slope', edits: [['src/data/amount.js', 'heavy: Object.freeze({ armorSteps: 15, wardSteps: -15 })', 'heavy: Object.freeze({ armorSteps: 0, wardSteps: 0 })']] },

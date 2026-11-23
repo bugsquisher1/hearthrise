@@ -11,10 +11,10 @@
 export const HEROES_TEXT = Object.freeze({
   /* A TITLE EARNED (src/shell/town-news.js; QA audit 2026-11-18 A24: titles unlocked with nobody told). {title} its name, {price} the
      server's, {count} how many more are waiting. */
-  title_ready: '{name} earned the title {title}. Claim it for {price} in Character → Titles.',
-  title_ready_free: '{name} earned the title {title}. Claim it in Character → Titles.',
-  title_ready_more: { one: '{name} earned the title {title} and 1 more. Claim them in Character → Titles.',
-    other: '{name} earned the title {title} and {count} more. Claim them in Character → Titles.' },
+  title_ready: 'New title for {name}: {title} · Claim for {price} in Character → Titles',
+  title_ready_free: 'New title for {name}: {title} · Claim in Character → Titles',
+  title_ready_more: { one: 'New titles for {name}: {title} +1 more · Claim in Character → Titles',
+    other: 'New titles for {name}: {title} +{count} more · Claim in Character → Titles' },
   /* The phone's routes. */
   icons_head: 'What the icons open',
   character_list: 'Character list',
@@ -38,13 +38,13 @@ export const HEROES_TEXT = Object.freeze({
   rename_head: 'Rename {name}',
   rename_unpriced: 'Rename price not set yet',
   rename_quote: 'Rename cost: {price} at Level {level}',
-  rename_hunting: '{name} is hunting. Rename after the hunt',
-  rename_today: '{name} was renamed today (1 per day)',
-  rename_cant: '{name} cannot change name right now.',
+  rename_hunting: '{name}: hunting · Rename after the hunt',
+  rename_today: '{name}: already renamed today (1 per day)',
+  rename_cant: '{name}: can\'t rename now',
   rename_short: 'Gold: {gold}',
   rename_price: 'Rename for {price}',
   confirm_q: 'Change {name} to {typed} for {price}?',
-  confirm_note: 'No refund. The name {name} becomes available to others',
+  confirm_note: 'No refund · {name} becomes free for others',
   pay: 'Pay {price}',
   name_length: 'Names: 3 to 20 letters, numbers and spaces',
   name_same: 'Same name',
@@ -67,8 +67,8 @@ export const HEROES_TEXT = Object.freeze({
   strip_level: 'Level {level}',
   strip_level_doing: 'Level {level}, {doing}',
   strip_play_title: 'Play {name} too',
-  strip_full: { one: 'Heroes at once: 1. Sign out to pick {name}',
-    other: 'Heroes at once: {count}. Sign out to swap in {name}' },
+  strip_full: { one: 'Heroes at once: 1 · Sign out to pick {name}',
+    other: 'Heroes at once: {count} · Sign out to swap in {name}' },
   strip_open_failed: '{name} didn’t load, try again',
 
   /* THE STRIP'S TOOLS (src/app/character-strip.js) */
@@ -104,12 +104,12 @@ export const HEROES_TEXT = Object.freeze({
      Level, each in a job the company lacks (src/shell/windows/recruits-pane.js, in All characters). {name} the first hero, {count} the recruits,
      {level} the Level they arrive at, {at} the Level the press opens at, {names} the recruits made */
   recruits_head: 'Your recruits',
-  recruits_wait: { one: '{count} recruit joins your company when {name} reaches Level {at}.',
-    other: '{count} recruits join your company when {name} reaches Level {at}.' },
-  recruits_lead: { one: '{count} recruit is ready to join {name} at Level {level}. Type a name, or leave it empty for a name from town.',
-    other: '{count} recruits are ready to join {name} at Level {level}. Type their names, or leave one empty for a name from town.' },
+  recruits_wait: { one: '{count} recruit · Joins when {name} reaches Level {at}',
+    other: '{count} recruits · Join when {name} reaches Level {at}' },
+  recruits_lead: { one: '{count} recruit ready (joins {name} at Level {level}) · Type a name or leave empty',
+    other: '{count} recruits ready (join {name} at Level {level}) · Type names or leave empty' },
   recruits_name: 'Name (optional)',
   recruits_go: { one: 'Recruit 1 hero', other: 'Recruit {count} heroes' },
   recruiting: 'Recruiting…',
-  recruits_done: '{names} joined your company. They stand in town, ready to hunt.',
+  recruits_done: 'Joined: {names} · Ready in town',
 });

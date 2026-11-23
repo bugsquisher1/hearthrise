@@ -46,7 +46,7 @@ const MOVES = new Set(['deposit', 'sell']);
 export function planBlock(id, plan, bids, held = true) {
   if (!MOVES.has(plan)) return '';
   if (plan === 'sell' && isStartKit(id)) return 'Shop doesn\'t buy starting kit';
-  if (plan === 'sell' && held && bids && !bids.has(id)) return 'The shop does not buy this.';
+  if (plan === 'sell' && held && bids && !bids.has(id)) return 'Shop won\'t buy this';
   return '';
 }
 
@@ -75,7 +75,7 @@ export function dispatchWords(a) {
   const did = [];
   if (stored) did.push('stored ' + stacks(stored));
   if (sold) did.push('sold ' + stacks(sold) + ' for ' + gold(g));
-  let line = did.length ? did.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : 'Nothing moved.';
+  let line = did.length ? did.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : 'Nothing moved';
   if (typeof a.sell_refused === 'string' && a.sell_refused) line += ' Nothing sold: ' + refusalWords(a.sell_refused, 'loot_dispatch');
   if (unplaced) line += ' ' + whole(unplaced) + ' didn\'t fit: Storage is full.';
   if (num(kept.locked)) line += ' ' + stacks(num(kept.locked)) + ' locked, so kept.';

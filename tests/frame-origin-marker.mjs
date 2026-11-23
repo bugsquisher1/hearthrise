@@ -61,15 +61,28 @@ function stripComments(sql) {
   }).join('\n');
 }
 
-/* Every literal `create or replace function public.<name>(` and the text up to
-   the next one (or the end of the file). */
+/* Every literal `create or replace function public.<name>(` and its text: up to
+   the close of its own dollar-quoted body (the first `$tag$` after the create
+   opens it, the next same `$tag$` closes it, so an inner `$a$ … $a$` does not),
+   else, with no dollar-quoted body, up to the next create (or the end of the
+   file). Ending at the body keeps what FOLLOWS the function out of it: a later
+   `do` block that patches hr_apply by name (1059-company-trades.sql's §6 right
+   after its hr_tick_town_state) is no call the tick function makes. */
+const DOLLAR = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/g;
 function definitions(sql) {
   const re = /create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi;
   const hits = [...sql.matchAll(re)];
-  return hits.map((m, i) => ({
-    name: m[1].toLowerCase(),
-    body: sql.slice(m.index, i + 1 < hits.length ? hits[i + 1].index : sql.length),
-  }));
+  return hits.map((m, i) => {
+    const next = i + 1 < hits.length ? hits[i + 1].index : sql.length;
+    DOLLAR.lastIndex = m.index + m[0].length;
+    const open = DOLLAR.exec(sql);
+    let end = next;
+    if (open && open.index < next) {
+      const close = sql.indexOf(open[0], open.index + open[0].length);
+      if (close >= 0) end = close + open[0].length;
+    }
+    return { name: m[1].toLowerCase(), body: sql.slice(m.index, end) };
+  });
 }
 
 export function check(files) {
@@ -154,6 +167,14 @@ returns void language plpgsql as $$
 begin
   perform public.hr_apply(null, 0, 0, null, p);
 end $$;` }] },
+  /* the body is read to its OWN close: an inner `$q$ … $q$` inside `$fn$` does not end it, so a call after one is still read */
+  { id: 'new_tick_writer_unmarked_past_an_inner_quote', want: 'M2',
+    plant: (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_tick_settle_batch(p jsonb)
+returns void language plpgsql as $fn$
+begin
+  execute $q$ select 1 $q$;
+  perform public.hr_apply(null, 0, 0, null, p);
+end $fn$;` }] },
   { id: 'later_emitter_drops_gate', want: 'M3',
     plant: (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_frame_send(p_user uuid, p_slot int, p_env jsonb)
 returns void language plpgsql as $$
@@ -170,6 +191,18 @@ end $$;` }] },
 
 // The negative control: a later file that does it RIGHT must stay green.
 const CONTROL = (fs) => [...fs, { name: LATER, text: TICK_BODY(`  perform ${MARK};`) }];
+// The second control (1059-company-trades.sql's shape): a tick function that never calls hr_apply, then a `do` block in
+// the same file that patches hr_apply by name. The patch is not the function's call; reading it as one was a false red.
+const CONTROL_PATCH_AFTER = (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_tick_town_read(p uuid)
+returns jsonb language plpgsql stable as $fn$
+begin
+  return jsonb_build_object('ok', true);
+end $fn$;
+do $mig$
+declare v_def text;
+begin
+  v_def := pg_get_functiondef('public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure);
+end $mig$;` }];
 
 async function main() {
   let files;
@@ -189,6 +222,9 @@ async function main() {
   const ctl = check(CONTROL(files));
   if (ctl.length) { console.error(`  ✗ negative control: a correctly-marked later restatement went red (${ctl[0]})`); bad += 1; }
   else console.log('  ✓ negative control: a correctly-marked later restatement stays green');
+  const ctl2 = check(CONTROL_PATCH_AFTER(files));
+  if (ctl2.length) { console.error(`  ✗ negative control: a tick read followed by a do block that patches hr_apply went red (${ctl2[0]})`); bad += 1; }
+  else console.log('  ✓ negative control: a tick read followed by a do block that patches hr_apply by name stays green');
   for (const m of MUTATIONS) {
     const planted = m.plant(files);
     if (m.id.startsWith('own_file_loses') && planted.find((f) => f.name === OWN).text === files.find((f) => f.name === OWN).text) {

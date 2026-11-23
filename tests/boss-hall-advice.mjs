@@ -223,7 +223,9 @@ const MUTANTS = [
   { name: 'the card\'s food is Salted Trout', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_trout',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
   { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
   { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
-  { name: 'Krell at 30,000 HP', edits: [[PACK, 'hp: 18000, atk: 247,', 'hp: 30000, atk: 247,']], want: /HA-WIN/ },
+  /* HIS HEALTH IS THE HALL KIND'S LEVER since the hall's switch (lane/hall-formula: src/core/hunt/hall-formula.js; his row's hand `hp` is read
+     only with the switch off): half as much again */
+  { name: 'Krell at half as much health again', edits: [['src/data/bosses.js', "hall: Object.freeze({ role: 'elite', hpPpm: ", "hall: Object.freeze({ role: 'elite', hpPpm: 1.5 * "]], want: /HA-WIN/ },
   { name: 'a healer line naming no spell', edits: [[PACK, "'Healer: Greater Mend under 85%'", "'Healer: Great Mend under 85%'"]], want: /HA-READ .*no spell named Great Mend/ },
 ];
 

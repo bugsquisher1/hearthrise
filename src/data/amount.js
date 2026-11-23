@@ -32,6 +32,8 @@
 //                  (MID kits at Level 60 on Muster Barrows, the weapon's own seat: sword 43, hammer 55, axe 44, bow 45, wand 63 and staff 58 over
 //                  740 health; .scratch ref-blows, Hask's Ford at 52 reads the same within 0.6 points), so the reference fight starts where
 //                  it was. A move's own share (abilities.js hitRange, healPm) multiplies it. The item Level moves it only through the rating
+//   fitLevel       the Level blowTopBp was fitted at (Muster Barrows' reference company): the pipeline's reference output reads the measured
+//                  table there and holds that share of a reference health at every Level (src/core/reference-company.js 'steps')
 //   pressurePm     D-3, THE MONSTER SIDE'S CALIBRATION: what share of its row's blow a monster lands at a gap of 0. Today's armor chain took
 //                  40 to 50% of a blow at the reference company (mitigation.js: a heavy front's absorb at its 60% cap, a medium back's 50%
 //                  dodge, a light back's ward under the cap); the chain is gone on the scale, and this one number puts the reference
@@ -53,6 +55,7 @@
 export const AMOUNT = Object.freeze({
   hitRoll: true,
   rollSpreadPm: 200,
+  fitLevel: 60,
   blowTopBp: Object.freeze({ sword: 580, hammer: 740, axe: 595, ranged: 600, magic: 820, neutral: 580 }),
   pressurePm: 450,
   defenseSplit: Object.freeze({

@@ -134,6 +134,12 @@ const SEED = '-4611686018427387904';
    (status-effects.js), the one shield rule (shields.js offerShield), auras (auras.js, none slotted) and Silenced, played with that one emit
    switched off, HOLD EVERY PIN (world, timeline and tally at all 48 settles, exit 0); with it on, the diff against the pin before is the
    two glade-4 timeline hashes, every world and tally hash and every kill count (203 / 479 / 134 / 104) held.
+   RE-PINNED 2026-11-23 (lane/gear-catalogue-steps, merged with set/v0.2.144 at 0275dfdc1), DATA ONLY: warrens-4 moved at settle 1 (kills 203 -> 200); glade-4, glade-1-kite and
+   sewer-2 hold. Cause: every piece's stats are now the one gear formula's (src/data/gear-profiles.js, src/core/gear-stats.js), so the four's
+   ladder pieces under Dawnsteel moved a point or two (the per-tier hand tables are gone). Proof: src/data/gear-stats.generated.js written back
+   with the OLD catalogue's stats for every id, over this tree's src/core and hr-accrue (the scale view included): every pin holds (exit 0).
+   RE-PINNED 2026-11-23 again (merged with set/v0.2.144 at 9825bfcb2, which re-pinned glade-4 itself after set-reds-3): warrens-4 alone, as above
+   (kills 203 -> 200). Proof on this merge: the old catalogue's stats written back hold every one of the set's pins (exit 0).
    PINNED 2026-11-23 (lane/stage3-pipeline), ONE NEW SCENARIO, THE FOUR TIER PINS HELD: muster-steps-4 plays the Danger scale (its leader's plan on
    Steady from step 0), so every blow, spell, tick, heal and shell of it goes through the amount pipeline (src/core/hunt/amount.js; 27 D-1 to D-8).
    Cause of the pin: no scenario played the scale, so the pipeline had no byte-identity pin; its mutant (one pipeline blow one point higher) moves it.

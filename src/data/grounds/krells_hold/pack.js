@@ -272,6 +272,16 @@ export default definePack({
        parties wins 40 of 40 on Swordfish and 38 to 40 of 40 on Salted Lobster, and on Salted Trout 23 to 31 of 40 in 19 of them (deaths). So
        the card asks for Lobster, at 180 gold a bite against Swordfish's 432. */
     storeFloor: 'salted_lobster',
+    /* THE HALL'S SWITCH (lane/hall-formula, 2026-11-23): ON. Lord Krell and Captain Hask fight on the stat formula at their boss kinds
+       (src/core/hunt/hall-formula.js; the dials are src/data/bosses.js BOSS_KINDS.hall and .add), not on the hand lines on their rows below,
+       which only a switch turned off reads. FITTED AT THE FLOOR (85: the Level a key holder first walks in, and the Level this card speaks
+       for). Measured (tools/balance-program/redesign/halls/hall-bench.mjs, 40 seeds a cell, the door's bar, gear before his first win;
+       krell-after.txt, krell-before.txt the hand lines): at 85 a tank, healer, hammer and mage win 93% (hand 98), the same four one gear tier
+       under 25% (20), a pair, a hero alone, four damage dealers and an untouched bar 0%; other damage pairs 40 to 63% (43 to 73), so who
+       comes matters. At 98 93 to 100% (93 to 100), one gear tier under 73% (88). The card's "two more" is not true at 85 on either: tests/
+       boss-hall-advice.mjs HA-WIN reads 20 fours under 75% on the hand lines and 20 on these (CONFLICTS.md 2026-11-23). Off: delete this
+       line (the guard's own off-plant, tests/hunt-core/hall-formula.mjs OFF, anchors on it). */
+    formula: true,
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
       bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and two more'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',

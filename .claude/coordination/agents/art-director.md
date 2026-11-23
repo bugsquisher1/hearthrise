@@ -1,5 +1,14 @@
 # Art Director — running log
 
+## 2026-11-22 lane/label-sweep (every non-lore player line to a genre label; hunt-report colon ban narrowed)
+Swept src/data/text (about 325 rows), the party end words (party-words.js, hunt-sessions.js END_REASON_COPY) and ~45 inline strings
+(away card, Tempering, character sheet tips, bag/shop/party answers): sentences, "so X came home too" narration and invented verbs became
+"Label: value" or dot-joined labels. Composers that joined pieces with '. ' now join with ' · ' (away card, away-work, farm, farm-tend,
+hunt-list advice, temper way, party class line, warn line, configure-action req, shop sell note, whereToGet). Lore kept as written
+(Chronicle, criers, Tamsin, factions' said_*, Tower story, combat log); the-path.js lines and ~25 inline '. ' joins still read as sentences.
+Lessons: (1) stripping a period is a composer change: every t() row joined by ' ' needs a separator once it is a label; (2) a row that
+leads with {name} reads "Wren: ... · Wren: ..." inside a per-hero line, so a part of a hero's line never repeats the name.
+
 ## 2026-11-22 - visual pass 2 (lane/visual-pass-2, from set/v0.2.144)
 
 Screens since R7: stamina block panel + Services, the Risk pick, the cause line (end and return cards), the Work day line, Party tabs and

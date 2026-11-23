@@ -30,7 +30,7 @@ export const HUD_TEXT = Object.freeze({
   where_hunt: 'hunt bag',
   where_bag: 'bag',
   food_title: 'Food in {where}: {n} (mostly {item})',
-  food_store_title: 'No food in {where}. Bar buys {item} ({price} each)',
+  food_store_title: 'No food in {where} · Bar buys {item} ({price} each)',
   food_none_title: 'No food in {where}, no store food on the bar',
 
   /* A BOUGHT HUNTING BLOCK (the "+" after the timer, and the Shop's Services tab asks the same). {hours} "2 h", {price} "1,750 gp". */
@@ -87,12 +87,12 @@ export const HUD_TEXT = Object.freeze({
   leaving_slow: 'Waiting for server…',
   leaving_in: 'Leaving in {s}s',
   /* @sentence: the phone's one line under the bar says what the countdown is for */
-  leave_why: 'Finishes the current fight, then heads home',
+  leave_why: 'Leaves after the current fight',
   hunting: 'Hunting',
   last_hunt: 'Last hunt: {ground}',
   /* the Danger scale's live depth beside the ground's name (hunt-topbar.js; danger-sections.js depthOf): {stance} Careful, Steady or Bold */
   depth_now: '{stance}, Depth {depth} of {of}',
-  leave_failed: 'Hunt not ended. {why}',
+  leave_failed: 'Hunt not ended · {why}',
 
   /* THE HUNT ANALYZER (src/shell/widgets/analyzer.js). {min} minutes. */
   an_title: 'Hunt analyzer',
@@ -138,7 +138,7 @@ export const HUD_TEXT = Object.freeze({
   an_party: 'Party',
   an_close: 'Close the hunt analyzer',
   an_close_title: 'Close',
-  an_wait: 'Fills in once the hunt has run a moment',
+  an_wait: 'Collecting data…',
   an_ended: 'Hunt ended: session summary',
   an_session: 'Session',
   an_next: 'Next level in',

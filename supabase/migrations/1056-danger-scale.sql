@@ -6,7 +6,8 @@
 -- STATUS: supabase/migration-notes/1056-danger-scale.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1054 (the world shape with the scale's fields) and 1055 (the scale's
 --   catalogue, hr_danger_*), and after 1053-hunt-report.sql and 1053-lever-gates.sql, whose hr_hunt_apply_member and hr_hunt_instance_read
---   images it splices (§0 pins both). Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §6 self-check.
+--   images it splices (§0 pins both), and it splices hr_hunt_apply_instance as the history left it (§0b pins it). Applied as ONE
+--   transaction by the apply tool; never begin/commit here. Ends with its §6 self-check.
 --
 -- ── WHY ──────────────────────────────────────────────────────────────────────
 -- The engine has played the scale since probe V1 (src/core/hunt/danger.js: one step, the climb and the fall back, pulls on readiness), but
@@ -33,49 +34,59 @@
 --   - hr_danger_rules.start_margin). A stance the catalogue does not hold, or a ground without a row, freezes null: the tier path.
 -- READ (hr_hunt_instance_read, spliced): every member's options carry risk and danger from the instance (null on a tier hunt), overlaid
 --   last, so no stored option can name a stance (hr_action_set_options refuses an unknown key anyway: bad_option).
--- SETTLE (hr_hunt_apply_member, spliced; hr_danger_of, hr_danger_bound):
---   (a) the kill bound: a ground on the scale presents at most pull_max a pocket, and a cleared pack stands again after respawn_ms;
---   (b) the stored world is re-proved: its stance is the frozen one or a safer (rank never rises; a world off the scale on a frozen instance
---       plays the tier and gets the tier's bounds), its step inside 0..step_max and at most the window's climb over the highest step accepted
---       before (a climb is clean_run CLEARED pulls, each followed by a regroup of regroup_ms: climb_max x (window / (clean_run x regroup_ms) + 1));
---       refused danger_risk / danger_step / danger_climb (hr_reject: the whole commit rolls back);
---   (c) the value bound follows the step: XP a kill up to the row bound x (1 + powerStep)^(the highest step the window can have stood at)
---       x the ground's share_pm_max, and a Level XP kill up to hr_danger_level_xp_max at the hero's Level (and the two under it); coin a kill
---       up to the row's x coin_pm_max. Each only ever WIDENS the tier bound (greatest): honest play on the tier path is bounded as before.
--- END (trigger hr_danger_end_stamp, BEFORE UPDATE OF ended_at): a scale session's risk_end / danger_end from the stored world, and the
---   hero's hunt_density.danger_held on that ground (one PK upsert a session end).
+-- SETTLE (hr_hunt_apply_instance and hr_hunt_apply_member, spliced; hr_danger_of, hr_danger_prove, hr_danger_bound):
+--   (a) the kill bound (each member): a ground on the scale presents at most pull_max a pocket, and a cleared pack stands again after respawn_ms;
+--   (b) THE WINDOW'S WORLD is proved ONCE, by hr_hunt_apply_instance before any member lands (hr_danger_prove), against THIS window's
+--       climb: the world the settle carries (the one it stores), never the one stored before it. Its stance is the frozen one or a safer
+--       (rank never rises; a world off the scale on a frozen instance plays the tier and gets the tier's bounds), its step inside 0..step_max
+--       and at most the window's climb over the highest step accepted before (danger_top: every stored world was proved by the settle that
+--       stored it, so the window opened at or under it; a climb is clean_run CLEARED pulls, each followed by a regroup of regroup_ms:
+--       climb_max x (window / (clean_run x regroup_ms) + 1), the window the INSTANCE's, never a member's own span); refused danger_risk /
+--       danger_step / danger_climb (hr_reject: the whole commit rolls back, counted on the instance: the world is every seat's). A settle that
+--       carries no world (every seat's hunt ended in it) proves no step and keeps the ceiling. (lane/danger-bound-fix, 2026-11-22: this file
+--       first proved the stored world, the PREVIOUS window's, against the current window's climb, so a short window after a long honest
+--       climb was refused and the last window's world was stored unproved.)
+--   (c) the value bound follows the step (each member, hr_danger_bound, from what (b) proved: this settle's hr.danger_window, naming the
+--       instance; a member without it is refused danger_unproved): XP a kill up to the row bound x (1 + powerStep)^(the highest step the
+--       window can have stood at: the ceiling before it plus its climb) x the ground's share_pm_max, and a Level XP kill up to
+--       hr_danger_level_xp_max at the hero's Level (and the two under it); coin a kill up to the row's x coin_pm_max. Each only ever WIDENS
+--       the tier bound (greatest): honest play on the tier path is bounded as before.
+-- END (trigger hr_danger_end_stamp, BEFORE UPDATE OF ended_at): a scale session's risk_end / danger_end from the stored world (a world
+--   (b) proved when its settle stored it), and the hero's hunt_density.danger_held on that ground (one PK upsert a session end).
 -- SECTION `danger` (hr_danger_view): { risk: the plan's stance | null, held: { hunt: step }, playing: null | { hunt, from (the frozen
 --   stance), risk (the stance now), start, step, cool } }, every number the server's (the stored world, the frozen columns).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ────────────────────────────────────────────────
 -- The verb takes the party row (FOR UPDATE) and the hero's hunt lock before it writes, as hr_hero_plan_set does, and is keyed: a replay
 -- answers the first result. The freeze writes the instance row inside the session insert's transaction, guarded by density is null (the
--- first session's), so a party's second to fourth seats never re-freeze. The bound runs inside hr_hunt_apply_member, under the instance's
--- lock and the session's swing CAS (a replayed commit lands nothing); danger_top only rises (greatest), so two members of one instance
--- committing in turn read the same ceiling. The end stamp is a BEFORE trigger on the row being ended: no second statement on it.
+-- first session's), so a party's second to fourth seats never re-freeze. The proof runs once a settle inside hr_hunt_apply_instance,
+-- under the instance's lock (FOR UPDATE) and after its world-swing CAS (a replayed commit lands nothing), and raises danger_top only
+-- upward; every member's bound then reads that one proof (hr.danger_window, transaction-local, set before the member loop and cleared
+-- after it; a refusal's rollback restores it), so the members of one instance are bounded by the same window. The end stamp is a BEFORE
+-- trigger on the row being ended: no second statement on it.
 -- A second apply finds both spliced bodies at their post pins (§0) and every object restated as it stands: byte-identical (schema-drift).
 --
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
 -- ONE new client verb, writing one of the catalogue's words on the caller's own plan row; it moves no value. The stance can change a
 -- hunt's pay only through the freeze (server-read, server-catalogue) and only from the next hunt: no mid-hunt lever exists, so no seed
 -- horizon rule is needed (1052/1053's levers are unchanged). What a window on the scale may pay is bounded by the server's own numbers
--- (the frozen stance, the catalogue, the hero's Level from its own row); the step the engine reports is re-proved against the step the
--- server accepted before. Farming by breaking off (kill, fall back, re-kill) pays nothing twice: the engine keeps a broken-off pack's
--- dead down until its normal respawn (src/core/hunt/pull-cycle.js fitPull, danger.js packDown; tests/hunt-core/danger.mjs `down`).
+-- (the frozen stance, the catalogue, the hero's Level from its own row); the step of every world the engine proposes is proved against the
+-- step the server accepted before, before it is stored, so no unproved step reaches a held step or the next hunt's start. Farming by
+-- breaking off (kill, fall back, re-kill) pays nothing twice: the engine keeps a broken-off pack's dead down until its normal respawn (src/core/hunt/pull-cycle.js fitPull, danger.js packDown; tests/hunt-core/danger.mjs `down`).
 -- Nothing crosses to another player: no shared surface, no ranking, no trade.
 --
 -- ── COST (rows and bytes at 100x players) ────────────────────────────────────
 -- No new table (three catalogue tables are 1055's). One plan column, three instance columns, two session columns, one density column.
--- A settle on the scale parses its stored world once a member (~10-40 KB of JSON, ~0.1 ms) and reads three catalogue rows; it writes
--- danger_top only when the step rises past the highest yet (after the opening climb, rarely). A tier settle adds one PK read of its
--- instance's risk. A session end on the scale adds one PK upsert. The section adds one PK read, one PK-prefix scan and, while hunting on
--- the scale, one world parse an envelope. At 100x (~60k sessions a month) ~60k upserts a month, no growth beyond one int per hero-ground.
+-- A settle on the scale parses the world it carries once (~10-40 KB of JSON, ~0.1 ms, hr_danger_prove) and reads two catalogue rows, and
+-- each member reads two more; it writes danger_top only when the step rises past the highest yet. A tier settle adds two PK reads of its
+-- instance's risk (the proof, each member's hr_danger_of). A session end on the scale adds one PK upsert. The section adds one PK read,
+-- one PK-prefix scan and, while hunting on the scale, one world parse an envelope. At 100x (~60k sessions a month) ~60k upserts a month, no growth beyond one int per hero-ground.
 --
 -- EDGE: the engine half (src/core/hunt/danger.js and its readers) rides the hr-accrue deployed after 1054. This file over the old engine is
 --   safe: no world on the scale exists before an engine that opens one, and a frozen stance on the old engine (which reads options.risk
 --   too since probe V1) plays V1's pay, bounded here. REVERSIBLE: drop the two triggers, the verb, the section row and its function, the
---   helpers; restate hr_hunt_instance_read and hr_hunt_apply_member from their pre images (§0 pins them; this file's lines are marked
---   DANGER-SCALE); the columns may stay (null is the tier path).
+--   helpers; restate hr_hunt_instance_read, hr_hunt_apply_member and hr_hunt_apply_instance from their pre images (§0 pins them; this
+--   file's lines are marked DANGER-SCALE); the columns may stay (null is the tier path).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
@@ -102,6 +113,18 @@ begin
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
+end $mig$;
+
+-- ── §0b THE SETTLE'S PIN (lane/danger-bound-fix): hr_hunt_apply_instance as the replayed chain holds it before this file (the applied
+-- history's image: no staged file moves it), or this file's own (a second apply).
+do $mig$
+declare v_md5 text;
+begin
+  select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)');
+  if v_md5 is null then raise exception 'PIN: hr_hunt_apply_instance is missing'; end if;
+  if v_md5 is distinct from '1b940aa14719f1ea5693a870799d93b6' and v_md5 is distinct from '3a6748518733987584b75e42e1d204d5' then
+    raise exception 'PIN: hr_hunt_apply_instance is neither the image this file was written against (1b940aa1...) nor its own (3a6748518733987584b75e42e1d204d5): md5 % - another file moved it; re-pin', v_md5;
+  end if;
 end $mig$;
 
 -- ── §1 THE COLUMNS ───────────────────────────────────────────────────────────
@@ -161,32 +184,37 @@ begin
   return (select jsonb_build_object('pull_max', r.pull_max, 'respawn_ms', r.respawn_ms) from public.hr_danger_rules r where r.id);
 end $fn$;
 
--- THE BOUND OF A WINDOW ON THE SCALE (hr_hunt_apply_member, after hr_apply and the kill bound): the stored world re-proved, the highest step
--- accepted raised, and what one kill there may pay. Raises (hr_reject) on a world the server cannot accept; null when the world plays the tier.
-create or replace function public.hr_danger_bound(p_instance uuid, p_user uuid, p_slot int, p_window_ms bigint)
+-- THE WINDOW'S WORLD ON THE SCALE, PROVED (hr_hunt_apply_instance, ONCE a settle, under the instance's lock, before any member lands):
+-- p_world is the world THIS settle carries (the one it stores; null when it carries none), p_window_ms THIS window (the instance's).
+-- Raises (hr_reject) on a world the server cannot accept and raises danger_top to the step it accepts. Null when the instance froze no
+-- stance (a tier hunt); { instance, tier: true } when the window's world plays the tier; else { instance, step, top, hi }: the step
+-- proved, the ceiling after it, and the highest step any monster of this window can have stood at (what hr_danger_bound prices a kill at).
+create or replace function public.hr_danger_prove(p_instance uuid, p_world text, p_window_ms bigint)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   v_i  public.hunt_instances%rowtype;
   v_r  public.hr_danger_rules%rowtype;
-  v_g  public.hr_danger_grounds%rowtype;
   v_w  jsonb;
-  v_step int; v_top int; v_hi int; v_lv int; v_xp bigint; v_climb int;
+  v_step int; v_top int; v_climb int;
 begin
-  -- DANGER-SCALE (1056-danger-scale.sql)
+  -- DANGER-SCALE (1056-danger-scale.sql; lane/danger-bound-fix: the world this window ends on, against this window's climb)
   select * into v_i from public.hunt_instances i where i.id = p_instance;
   if not found or v_i.risk is null then return null; end if;
   select * into v_r from public.hr_danger_rules r where r.id;
   if not found then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'hr_danger_rules')); end if;
-  select * into v_g from public.hr_danger_grounds g where g.hunt_id = v_i.hunt_id;
-  if not found then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'hr_danger_grounds', 'hunt', v_i.hunt_id)); end if;
+  if not exists (select 1 from public.hr_danger_grounds g where g.hunt_id = v_i.hunt_id) then
+    perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'hr_danger_grounds', 'hunt', v_i.hunt_id)); end if;
+  -- the highest step accepted before this window: every stored world was proved by the settle that stored it (the frozen start before
+  -- the first), so the window opened at or under it
   v_top := coalesce(v_i.danger_top, v_i.danger, 0);
   -- THE MOST A WINDOW CAN CLIMB: a climb is clean_run CLEARED pulls (danger.js pullEnds), each followed by a regroup of at least regroup_ms
   -- (pull-cycle.js), so at most window / (clean_run x regroup_ms) + 1 climbs of at most climb_max steps (the first may use a run carried in)
   v_climb := v_r.climb_max * (greatest(p_window_ms, 0) / (v_r.clean_run * v_r.regroup_ms) + 1)::int;
-  v_w := public.hr_danger_world(v_i.world);
+  v_step := v_top;
+  v_w := public.hr_danger_world(p_world);
   if v_w is not null then
     -- a world off the scale on a frozen instance (a scaled window, a restart) plays the tier: the tier's bounds
-    if coalesce(v_w->>'risk', '') = '' then return null; end if;
+    if coalesce(v_w->>'risk', '') = '' then return jsonb_build_object('instance', p_instance, 'tier', true); end if;
     if not exists (select 1 from public.hr_danger_stances s join public.hr_danger_stances f on f.risk = v_i.risk
                     where s.risk = v_w->>'risk' and s.rank <= f.rank) then
       perform public.hr_reject('danger_risk', jsonb_build_object('frozen', v_i.risk, 'world', v_w->'risk')); end if;
@@ -199,21 +227,43 @@ begin
     if v_step > v_top then
       update public.hunt_instances set danger_top = v_step where id = p_instance and coalesce(danger_top, -1) < v_step;
     end if;
-  else
-    v_step := v_top;
   end if;
-  -- the highest step any monster of this window can have stood at: the ceiling before it, climbed at most the window's climb
-  v_hi := least(v_r.step_max, greatest(v_top, v_step) + v_climb);
+  -- the highest step any monster of this window can have stood at: the ceiling it opened under, climbed at most the window's climb
+  return jsonb_build_object('instance', p_instance, 'step', v_step, 'top', greatest(v_top, v_step), 'hi', least(v_r.step_max, v_top + v_climb));
+end $fn$;
+
+-- THE BOUND OF A WINDOW ON THE SCALE (hr_hunt_apply_member, after hr_apply and the kill bound): what one kill of this window may pay THIS
+-- member, from the window's world as hr_hunt_apply_instance proved it before any member landed (hr_danger_prove, read from this settle's
+-- hr.danger_window, which must name this instance: anything else is refused danger_unproved). Null when the window's world plays the tier.
+-- p_window_ms (the member's own span, shorter for a hero seated mid-window) is not read: the climb is the instance window's, proved once.
+create or replace function public.hr_danger_bound(p_instance uuid, p_user uuid, p_slot int, p_window_ms bigint)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare
+  v_p  jsonb;
+  v_r  public.hr_danger_rules%rowtype;
+  v_g  public.hr_danger_grounds%rowtype;
+  v_lv int; v_xp bigint;
+begin
+  -- DANGER-SCALE (1056-danger-scale.sql)
+  begin v_p := nullif(current_setting('hr.danger_window', true), '')::jsonb; exception when others then v_p := null; end;
+  if v_p is null or v_p->>'instance' is distinct from p_instance::text then
+    perform public.hr_reject('danger_unproved', jsonb_build_object('instance', p_instance)); end if;
+  if v_p ? 'tier' then return null; end if;
+  select * into v_r from public.hr_danger_rules r where r.id;
+  if not found then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'hr_danger_rules')); end if;
+  select g.* into v_g from public.hunt_instances i join public.hr_danger_grounds g on g.hunt_id = i.hunt_id where i.id = p_instance;
+  if not found then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'hr_danger_grounds', 'instance', p_instance)); end if;
   v_lv := public.hr_char_level((select ps.level_xp from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot));
   v_xp := greatest(public.hr_danger_level_xp_max(v_lv), public.hr_danger_level_xp_max(greatest(1, v_lv - 1)),
                    public.hr_danger_level_xp_max(greatest(1, v_lv - 2)));
-  return jsonb_build_object('step', v_step, 'top', greatest(v_top, v_step),
-    'hp_pm', ceil(1000 * power(1 + v_r.power_step_ppm / 1000000.0, v_hi) * v_g.share_pm_max / 1000.0),
+  return jsonb_build_object('step', (v_p->>'step')::int, 'top', (v_p->>'top')::int,
+    'hp_pm', ceil(1000 * power(1 + v_r.power_step_ppm / 1000000.0, (v_p->>'hi')::int) * v_g.share_pm_max / 1000.0),
     'coin_pm', v_g.coin_pm_max, 'level_xp_max', v_xp);
 end $fn$;
 
 revoke execute on function public.hr_danger_world(text) from public, anon, authenticated, service_role;
 revoke execute on function public.hr_danger_of(uuid) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_danger_prove(uuid, text, bigint) from public, anon, authenticated, service_role;
 revoke execute on function public.hr_danger_bound(uuid, uuid, int, bigint) from public, anon, authenticated, service_role;
 
 -- ── §3 THE VERB AND THE SECTION ──────────────────────────────────────────────
@@ -341,14 +391,16 @@ begin
   if exists (select 1 from pg_roles where rolname = 'hr_engine') then
     revoke execute on function public.hr_danger_world(text) from hr_engine; revoke execute on function public.hr_danger_of(uuid) from hr_engine;
     revoke execute on function public.hr_danger_bound(uuid, uuid, int, bigint) from hr_engine; revoke execute on function public.hr_danger_view(uuid, int) from hr_engine;
-    revoke execute on function public.hr_danger_freeze() from hr_engine; revoke execute on function public.hr_danger_end_stamp() from hr_engine; end if;
+    revoke execute on function public.hr_danger_freeze() from hr_engine; revoke execute on function public.hr_danger_end_stamp() from hr_engine;
+    revoke execute on function public.hr_danger_prove(uuid, text, bigint) from hr_engine; end if;
   if exists (select 1 from pg_roles where rolname = 'hr_tick') then
     revoke execute on function public.hr_danger_world(text) from hr_tick; revoke execute on function public.hr_danger_of(uuid) from hr_tick;
     revoke execute on function public.hr_danger_bound(uuid, uuid, int, bigint) from hr_tick; revoke execute on function public.hr_danger_view(uuid, int) from hr_tick;
-    revoke execute on function public.hr_danger_freeze() from hr_tick; revoke execute on function public.hr_danger_end_stamp() from hr_tick; end if;
+    revoke execute on function public.hr_danger_freeze() from hr_tick; revoke execute on function public.hr_danger_end_stamp() from hr_tick;
+    revoke execute on function public.hr_danger_prove(uuid, text, bigint) from hr_tick; end if;
 end $mig$;
 
--- ── §5 THE SPLICES: hr_hunt_instance_read (one anchor) and hr_hunt_apply_member (three anchors) ──────────────────────────────────────
+-- ── §5 THE SPLICES: hr_hunt_instance_read (one anchor), hr_hunt_apply_member (three anchors) and hr_hunt_apply_instance (two) ─────────
 do $mig$
 declare v_def text; v_old text; v_new text; v_n int;
 begin
@@ -403,6 +455,33 @@ $a$;
     if v_n <> 1 then raise exception 'hr_hunt_apply_member: DANGER-SCALE bound anchor matched % times (need 1): the body moved', v_n; end if;
     execute replace(v_def, v_old, v_new);
   end if;
+
+  -- hr_hunt_apply_instance (two anchors, lane/danger-bound-fix): the window's world proved before the member loop, and the proof cleared after it
+  v_def := replace(pg_get_functiondef('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure), chr(13), '');
+  if strpos(v_def, 'DANGER-SCALE') = 0 then
+    v_old := $a$    update public.hunt_instances set scale_level = v_scale where id = p_instance and scale_level is distinct from v_scale;
+$a$;
+    v_new := $a$    update public.hunt_instances set scale_level = v_scale where id = p_instance and scale_level is distinct from v_scale;
+    -- DANGER-SCALE (1056-danger-scale.sql): THE WINDOW'S WORLD ON THE SCALE, proved once before any member lands, against THIS window's
+    --   climb (hr_danger_prove: the world this settle carries and stores, never the one stored before it; a refusal is the instance's);
+    --   each member's value bound reads what it proved (hr_danger_bound). Null off the scale. This settle's only: cleared below, and a
+    --   refusal's rollback restores what stood before.
+    perform set_config('hr.danger_window', coalesce(public.hr_danger_prove(p_instance, v_world, v_win)::text, ''), true);
+$a$;
+    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
+    if v_n <> 1 then raise exception 'hr_hunt_apply_instance: DANGER-SCALE proof anchor matched % times (need 1): the body moved', v_n; end if;
+    v_def := replace(v_def, v_old, v_new);
+    v_old := $a$    perform set_config('hr.boss_plan', '', true);
+    update public.hunt_instances
+$a$;
+    v_new := $a$    perform set_config('hr.boss_plan', '', true);
+    perform set_config('hr.danger_window', '', true);  -- DANGER-SCALE (1056-danger-scale.sql): the proof was this settle's members' only
+    update public.hunt_instances
+$a$;
+    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
+    if v_n <> 1 then raise exception 'hr_hunt_apply_instance: DANGER-SCALE clear anchor matched % times (need 1): the body moved', v_n; end if;
+    execute replace(v_def, v_old, v_new);
+  end if;
 end $mig$;
 
 -- ── §6 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
@@ -415,6 +494,14 @@ declare
   v_sid  uuid;
   v_read jsonb;
   v_def  text;
+  v_p    jsonb;
+  v_wj   jsonb;   -- (g) a world of the catalogue's shape, every field null; the probes set its stance and step
+  v_ri   int := (select (w.fields->'world'->>'risk')::int from public.hr_hunt_world_shape w where w.id);
+  v_di   int := (select (w.fields->'world'->>'danger')::int from public.hr_hunt_world_shape w where w.id);
+  v_c10  int;     -- the most a 10 s window may climb (hr_danger_rules), and a 90 s one
+  v_c90  int;
+  v_s0   int;     -- the step the probe's hunt froze at, and one a long window climbs to
+  v_up   int;
   c_ground constant text := (select g.hunt_id from public.hr_danger_grounds g order by g.hunt_id limit 1);
   c_plain  constant text := 'mosslight_glade';
 begin
@@ -422,8 +509,8 @@ begin
   if not has_function_privilege('authenticated', 'public.hr_hunt_risk_set(integer,text,uuid)', 'execute')
      or has_function_privilege('anon', 'public.hr_hunt_risk_set(integer,text,uuid)', 'execute')
      or exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array['public.hr_danger_world(text)', 'public.hr_danger_of(uuid)',
-                  'public.hr_danger_bound(uuid,uuid,integer,bigint)', 'public.hr_danger_view(uuid,integer)', 'public.hr_danger_freeze()',
-                  'public.hr_danger_end_stamp()']) f(fn) where has_function_privilege(g.r, f.fn, 'execute')) then
+                  'public.hr_danger_prove(uuid,text,bigint)', 'public.hr_danger_bound(uuid,uuid,integer,bigint)', 'public.hr_danger_view(uuid,integer)',
+                  'public.hr_danger_freeze()', 'public.hr_danger_end_stamp()']) f(fn) where has_function_privilege(g.r, f.fn, 'execute')) then
     raise exception 'VERIFY(a): a grant is wrong'; end if;
   if not exists (select 1 from public.hr_client_rpc_baseline where proname = 'hr_hunt_risk_set' and grantee = 'authenticated')
      or not exists (select 1 from public.hr_state_sections where key = 'danger' and fn = 'hr_danger_view') then
@@ -435,6 +522,14 @@ begin
     raise exception 'VERIFY(b): hr_hunt_apply_member does not read the scale''s bound once'; end if;
   if strpos(replace(pg_get_functiondef('public.hr_hunt_instance_read(uuid,integer)'::regprocedure), chr(13), ''), $a$jsonb_build_object('risk', v_i.risk, 'danger', v_i.danger)$a$) = 0 then
     raise exception 'VERIFY(b): hr_hunt_instance_read does not overlay the frozen stance'; end if;
+  -- the settle proves the world it CARRIES (v_world, never v_i.world: the one stored before it) with its own window, once, before the first
+  -- member lands, and clears the proof after the last
+  v_def := replace(pg_get_functiondef('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure), chr(13), '');
+  if (length(v_def) - length(replace(v_def, 'hr_danger_prove(', ''))) / length('hr_danger_prove(') <> 1
+     or strpos(v_def, 'public.hr_danger_prove(p_instance, v_world, v_win)') = 0
+     or strpos(v_def, 'public.hr_danger_prove(p_instance, v_world, v_win)') > strpos(v_def, 'v_h := public.hr_hunt_apply_member(')
+     or strpos(v_def, $a$perform set_config('hr.danger_window', '', true);$a$) < strpos(v_def, 'v_h := public.hr_hunt_apply_member(') then
+    raise exception 'VERIFY(b): hr_hunt_apply_instance does not prove the window''s own world once before its members'; end if;
   if c_ground is null then raise exception 'VERIFY(b): no ground opens the scale'; end if;
   begin
     update public.hr_hunt_config set enabled = true where id;
@@ -475,36 +570,84 @@ begin
     v := public.hr_hunt_risk_set(0, 'bold', (k || 'da000005')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or (select risk from public.hunt_instances where id = v_iid) is distinct from 'steady' then
       raise exception 'VERIFY(f): a pick mid-hunt answered % and the instance plays %', v, (select risk from public.hunt_instances where id = v_iid); end if;
-    -- (g) THE BOUND: a stored world bolder than the frozen stance, or climbed past the kills, is refused; an honest one widens the bound
-    update public.hunt_instances set world = jsonb_build_object('v', (select version from public.hr_hunt_world_shape where id), 's', (select shape from public.hr_hunt_world_shape where id),
-      'w', (select jsonb_agg(case k2 when (select (fields->'world'->>'risk')::int from public.hr_hunt_world_shape where id) then to_jsonb('bold'::text)
-                                      when (select (fields->'world'->>'danger')::int from public.hr_hunt_world_shape where id) then to_jsonb(280)
-                                      else 'null'::jsonb end order by k2)
-              from generate_series(0, (select count(*) from jsonb_object_keys((select fields->'world' from public.hr_hunt_world_shape where id)))::int - 1) k2),
-      'u', '[]'::jsonb, 'p', '[]'::jsonb)::text where id = v_iid;
+    -- (g) THE PROOF (hr_danger_prove): the world a window ENDS on, against THAT window's climb over the highest step accepted before it.
+    --     A world bolder than the frozen stance, or climbed past its window, is refused; an honest one raises the ceiling; the next
+    --     window is held to ITS OWN climb over that ceiling (lane/danger-bound-fix: a short window after a long climb lands).
+    select r.climb_max * (10000 / (r.clean_run * r.regroup_ms) + 1), r.climb_max * (90000 / (r.clean_run * r.regroup_ms) + 1)
+      into v_c10, v_c90 from public.hr_danger_rules r where r.id;
+    v_wj := jsonb_build_object('v', (select version from public.hr_hunt_world_shape where id), 's', (select shape from public.hr_hunt_world_shape where id),
+      'w', (select jsonb_agg('null'::jsonb) from generate_series(0, (select count(*) from jsonb_object_keys((select fields->'world' from public.hr_hunt_world_shape where id)))::int - 1)),
+      'u', '[]'::jsonb, 'p', '[]'::jsonb);
+    -- the frozen start (e), and a step 120 over it: past a 10 s window's climb, inside a 90 s one's
+    v_s0 := (select danger from public.hunt_instances where id = v_iid);
+    v_up := v_s0 + 120;
+    if v_s0 + v_c90 < v_up or v_s0 + v_c10 >= v_up or v_up + v_c10 + 1 > (select step_max from public.hr_danger_rules where id) then
+      raise exception 'VERIFY(g): the catalogue''s climb (% / %) no longer fits these probes', v_c10, v_c90; end if;
     begin
-      perform public.hr_danger_bound(v_iid, v_u, 0, 10000);
+      perform public.hr_danger_prove(v_iid, jsonb_set(jsonb_set(v_wj, array['w', v_ri::text], '"bold"'), array['w', v_di::text], to_jsonb(v_s0))::text, 10000);
       raise exception 'VERIFY(g): a bolder world than the frozen stance was accepted';
     exception when others then
       if sqlerrm not like '%danger_risk%' then raise exception 'VERIFY(g): a bolder world answered %', sqlerrm; end if;
     end;
-    update public.hunt_instances set world = replace(world, '"bold"', '"careful"') where id = v_iid;
-    v := public.hr_danger_bound(v_iid, v_u, 0, 10000);
-    if (v->>'step')::int <> 280 or (v->>'level_xp_max')::bigint < public.hr_danger_level_xp_max(60) then
-      raise exception 'VERIFY(g): a safer honest world bounds %', v; end if;
-    update public.hunt_instances set world = replace(world, '280', '400') where id = v_iid;
+    v_wj := jsonb_set(v_wj, array['w', v_ri::text], '"careful"');
+    v_p := public.hr_danger_prove(v_iid, jsonb_set(v_wj, array['w', v_di::text], to_jsonb(v_s0))::text, 10000);
+    if (v_p->>'step')::int <> v_s0 or (v_p->>'hi')::int <> v_s0 + v_c10 or v_p->>'instance' is distinct from v_iid::text then
+      raise exception 'VERIFY(g): a safer honest world proved %', v_p; end if;
+    -- each member's bound reads THIS instance's proof, and refuses without one
+    perform set_config('hr.danger_window', '', true);
     begin
       perform public.hr_danger_bound(v_iid, v_u, 0, 10000);
+      raise exception 'VERIFY(g): a member was bounded with no proof of the window';
+    exception when others then
+      if sqlerrm not like '%danger_unproved%' then raise exception 'VERIFY(g): a member with no proof answered %', sqlerrm; end if;
+    end;
+    perform set_config('hr.danger_window', (v_p || jsonb_build_object('instance', gen_random_uuid()))::text, true);
+    begin
+      perform public.hr_danger_bound(v_iid, v_u, 0, 10000);
+      raise exception 'VERIFY(g): a member was bounded by another instance''s proof';
+    exception when others then
+      if sqlerrm not like '%danger_unproved%' then raise exception 'VERIFY(g): another instance''s proof answered %', sqlerrm; end if;
+    end;
+    perform set_config('hr.danger_window', v_p::text, true);
+    v := public.hr_danger_bound(v_iid, v_u, 0, 10000);
+    if (v->>'step')::int <> v_s0 or (v->>'level_xp_max')::bigint < public.hr_danger_level_xp_max(60)
+       or (v->>'hp_pm')::numeric <> (select ceil(1000 * power(1 + r.power_step_ppm / 1000000.0, v_s0 + v_c10) * g.share_pm_max / 1000.0)
+                                      from public.hr_danger_rules r, public.hr_danger_grounds g where r.id and g.hunt_id = c_ground) then
+      raise exception 'VERIFY(g): the member''s bound read % from the proof %', v, v_p; end if;
+    perform set_config('hr.danger_window', '', true);
+    begin
+      perform public.hr_danger_prove(v_iid, jsonb_set(v_wj, array['w', v_di::text], to_jsonb(v_up))::text, 10000);
       raise exception 'VERIFY(g): a climb of 120 steps in a 10 s window was accepted';
     exception when others then
       if sqlerrm not like '%danger_climb%' then raise exception 'VERIFY(g): a forged climb answered %', sqlerrm; end if;
     end;
-    v := public.hr_danger_bound(v_iid, v_u, 0, 90000);
-    if (select danger_top from public.hunt_instances where id = v_iid) <> 400 then raise exception 'VERIFY(g): the accepted climb left the ceiling at %', (select danger_top from public.hunt_instances where id = v_iid); end if;
-    -- (h) THE END STAMP: the session ends with the world's stance and step, and the hero's held step there is the hunt's last
+    v_p := public.hr_danger_prove(v_iid, jsonb_set(v_wj, array['w', v_di::text], to_jsonb(v_up))::text, 90000);
+    if (select danger_top from public.hunt_instances where id = v_iid) <> v_up then raise exception 'VERIFY(g): the accepted climb left the ceiling at %', (select danger_top from public.hunt_instances where id = v_iid); end if;
+    -- THE NEXT WINDOW, SHORT: held to its own climb over the ceiling the long one set (one step past it refused, at it accepted)
+    begin
+      perform public.hr_danger_prove(v_iid, jsonb_set(v_wj, array['w', v_di::text], to_jsonb(v_up + v_c10 + 1))::text, 10000);
+      raise exception 'VERIFY(g): a 10 s window after the long one climbed % steps', v_c10 + 1;
+    exception when others then
+      if sqlerrm not like '%danger_climb%' then raise exception 'VERIFY(g): a short window past its climb answered %', sqlerrm; end if;
+    end;
+    v_p := public.hr_danger_prove(v_iid, jsonb_set(v_wj, array['w', v_di::text], to_jsonb(v_up + v_c10))::text, 10000);
+    if (v_p->>'step')::int <> v_up + v_c10 or (select danger_top from public.hunt_instances where id = v_iid) <> v_up + v_c10 then
+      raise exception 'VERIFY(g): a short window after the long one proved % (ceiling %)', v_p, (select danger_top from public.hunt_instances where id = v_iid); end if;
+    -- a settle that carries no world proves no step and keeps the ceiling; a world off the scale plays the tier
+    v_p := public.hr_danger_prove(v_iid, null, 10000);
+    if (v_p->>'step')::int <> v_up + v_c10 or (v_p->>'hi')::int <> v_up + 2 * v_c10 or (select danger_top from public.hunt_instances where id = v_iid) <> v_up + v_c10 then
+      raise exception 'VERIFY(g): a settle with no world proved %', v_p; end if;
+    v_p := public.hr_danger_prove(v_iid, jsonb_set(v_wj, array['w', v_ri::text], 'null')::text, 10000);
+    perform set_config('hr.danger_window', v_p::text, true);
+    if v_p->>'tier' is distinct from 'true' or public.hr_danger_bound(v_iid, v_u, 0, 10000) is not null then
+      raise exception 'VERIFY(g): a world off the scale proved %', v_p; end if;
+    perform set_config('hr.danger_window', '', true);
+    -- (h) THE END STAMP: the session ends with the stored world's stance and step (the world its settle proved), and the hero's held step
+    --     there is the hunt's last
+    update public.hunt_instances set world = jsonb_set(v_wj, array['w', v_di::text], to_jsonb(v_up + v_c10))::text where id = v_iid;
     perform public.hr_hunt_close(v_sid, 'left', now(), true);
-    if (select risk_end from public.hunt_sessions where id = v_sid) is distinct from 'careful' or (select danger_end from public.hunt_sessions where id = v_sid) is distinct from 400
-       or (select danger_held from public.hunt_density where user_id = v_u and slot = 0 and hunt_id = c_ground) is distinct from 400 then
+    if (select risk_end from public.hunt_sessions where id = v_sid) is distinct from 'careful' or (select danger_end from public.hunt_sessions where id = v_sid) is distinct from v_up + v_c10
+       or (select danger_held from public.hunt_density where user_id = v_u and slot = 0 and hunt_id = c_ground) is distinct from v_up + v_c10 then
       raise exception 'VERIFY(h): the end stamped %/% and held %', (select risk_end from public.hunt_sessions where id = v_sid), (select danger_end from public.hunt_sessions where id = v_sid),
         (select danger_held from public.hunt_density where user_id = v_u and slot = 0 and hunt_id = c_ground); end if;
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_u and slot = 0;
@@ -525,5 +668,5 @@ begin
   if exists (select 1 from public.hero_plans where user_id = v_u) or exists (select 1 from public.player_state where user_id = v_u) then
     raise exception 'VERIFY(i): §6 LEAKED a probe row'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'danger-scale: the stance is refused not clamped, frozen with its start a margin under the held step, read by the engine and the section, re-proved and bounded at the settle, stamped at the end; all green';
+  raise notice 'danger-scale: the stance is refused not clamped, frozen with its start a margin under the held step, read by the engine and the section, each window''s own world proved against its own climb at the settle and every member bounded by that proof, stamped at the end; all green';
 end $$;

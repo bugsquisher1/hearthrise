@@ -15,18 +15,18 @@ export const SHOP_TEXT = Object.freeze({
      empty state, which says what the place is for and where it is built (UI audit 2026-11-18: one long sentence, and nothing under it). */
   market_fund: 'Being built: {total} / {goal} gp',
   market_unbuilt_head: 'Not open yet',
-  market_unbuilt_body: 'Once it\'s built, players list items here and buy each other\'s for gold. Everyone in town builds it together at Havora > Works.',
+  market_unbuilt_body: 'Market not built yet · Everyone builds it at Havora > Works',
   market_fund_given: '{total} / {goal} gp given',
   market_to_works: 'Go to Works',
   market_closed_head: 'Closed for now',
-  market_closed_body: 'Trading is paused. Your listings are safe, and you can take them back from My listings.',
+  market_closed_body: 'Trading paused · Listings safe (take them back in My listings)',
   /* Open, with nothing for sale: what goes here and how to put something up. */
   market_empty_head: 'The scales are empty',
-  market_empty_body: 'Nothing is for sale yet. Players list items here and buy each other\'s for gold. List something from your bag or Storage to start.',
+  market_empty_body: 'No listings yet · List items from your bag or Storage',
   /* What a seed still needs before it can be planted: the hero's Farming and the account's plot tier, from the server. */
   seed_needs_farming: 'Needs Farming {level} to plant',
   seed_needs_tier: 'Needs plot tier {tier} to plant',
-  seed_needs_both: 'Needs Farming {level} and plot tier {tier} to plant',
+  seed_needs_both: 'Requires Farming {level} and plot tier {tier}',
   /* The Sell tab's one bulk sale: the Junk only, never a Material (Tyler 2026-11-08). */
   sell_junk: 'Sell all junk',
   sell_junk_for: 'Sell all junk for {total}',
@@ -51,18 +51,22 @@ export const SHOP_TEXT = Object.freeze({
   /* Blessings in the Services tab (src/shell/windows/services.js): all of them in one press, one server purchase each. */
   bless_all: 'Bless all',
   bless_all_busy: 'Blessing…',
-  bless_all_done: 'All {of} Blessings on',
+  /* ...one Blessing (lane/level-costs, 2026-11-22) reads Blessed; several, how many are on. {count} the server's tiers. */
+  bless_all_done: { one: 'Blessed', other: 'All {count} Blessings on' },
   /* Why Bless all is off, said under it. */
-  bless_all_on: 'All Blessings on',
+  bless_all_on: { one: 'Blessed', other: 'All Blessings on' },
+  /* A Blessing's row and its answer: one Blessing is just "Blessing"; several carry their tier ({n} "II"). */
+  bless_name: { one: 'Blessing', other: 'Blessing {n}' },
+  bless_gained: { one: 'Blessed', other: '{name} gained' },
   bless_all_short: 'Not enough gold for the next Blessing',
   /* A bought hunting block in the Services tab (1058-hunting-blocks.sql, the `time_blocks` section): 2 h each, dearer each time, a daily cap. */
   block_quote: '+{hours} for {price} · Blocks today: {n} of {max} · Price rises per block',
   block_quote_short: '+{hours} for {price} · Need {short} more · Blocks today: {n} of {max}',
   block_full: 'Full day of stamina banked',
   block_used: 'All {max} blocks bought today · Resets 00:00 UTC',
-  /* the Sell tab's note, one sentence a part (audit 2026-11-18 A14: two parts ran on with no stop between them) */
-  spare_keeps: 'Sell spare gear keeps worn, higher-tier and Rare pieces.',
-  sale_cap: 'One sale takes up to {n} of a stack.',
-  junk_keeps: { one: 'Keeps {count} Material stack ({worth}), sell it by hand.',
-    other: 'Keeps {count} Material stacks ({worth}), sell them by hand.' },
+  /* the Sell tab's note, one label a part, each naming its sale (audit 2026-11-18 A14: two parts ran on with no stop between them) */
+  spare_keeps: 'Sell spare gear: keeps worn, higher-tier and Rare pieces',
+  sale_cap: 'Max {n} per sale',
+  junk_keeps: { one: 'Sell all junk: keeps {count} Material stack ({worth})',
+    other: 'Sell all junk: keeps {count} Material stacks ({worth})' },
 });

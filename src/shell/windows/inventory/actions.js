@@ -317,10 +317,10 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const lpWhy = patternRowOf(id) ? learnBlock(st.cs, id) : '';
   if (patternRowOf(id)) h += item('m-learn', t('controls.learn'), !lpWhy, '', lpWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
-  const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
+  const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'Shop won\'t buy this';
   /* "Sell now", never a second "Sell": the Loot plan below holds Sell too (UI audit 2026-11-18) */
-  h += item('m-sell', t('controls.sell_now'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
-  h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Unlock it first.' : '');
+  h += item('m-sell', t('controls.sell_now'), !locked && !sellWhy, '', locked ? 'Locked · Unlock first' : sellWhy);
+  h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Locked · Unlock first' : '');
   h += item('m-lock', locked ? t('controls.unlock') : t('controls.lock'), !!st.rules);
   h += item('m-select', sc.sel.has(id) ? t('controls.deselect') : t('controls.select'), true);
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));

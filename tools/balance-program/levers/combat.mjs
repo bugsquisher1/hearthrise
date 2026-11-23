@@ -282,16 +282,15 @@ export const COMBAT = [
     touches: 'casts an hour, so spell damage, heals and mana spent', out: [...KILL, 'healPerH', 'suppliesPerH'], f: ['C-CLOCKS'],
     perturb: P(),
     ev: 'CONFIRMED (read)' }),
-  L('weapon.family-tables', 'weapon-power', 'content', 'Weapon accuracy and damage by family and tier', {
-    at: [at('src/data/gear-tiers.js', 'export const WEAPON_FAMILIES')],
-    rows: rows('atk and str a tier (7 tiers) on every weapon family, and the spellbooks', [home('src/data/gear-tiers.js#WEAPON_FAMILIES', 'count'), home('src/data/gear-tiers.js#SPELLBOOKS', 'count')]),
-    def: 'hand tables: atk [4..42] and str [3..35] a tier for the sword (other families their own); spellbooks magicAtk, magicStr, def. Tiers 1-7 only; past 7 the staged Dawnsteel line lives in tools (X-LINE-IN-TOOLS)',
-    range: 'rising by tier; no tier 8. The planned gear curve (knob gearSlope, R10) replaces the tables',
+  L('weapon.family-tables', 'weapon-power', 'archetype', 'Weapon accuracy and damage by family (the gear formula\'s profiles)', {
+    at: [at('src/data/gear-profiles.js', 'export const GEAR_PROFILES')],
+    rows: rows('one profile a weapon family, off-hand, armor weight, cloak and jewel; the family rows of the ladder carry no stat', [home('src/data/gear-profiles.js#GEAR_PROFILES', 'keys'), home('src/data/gear-tiers.js#WEAPON_FAMILIES', 'count'), home('src/data/gear-tiers.js#SPELLBOOKS', 'count')]),
+    def: 'every piece\'s stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family\'s profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece states its offset (statPlus). Past 88 the staged Dawnsteel line still lives in tools (X-LINE-IN-TOOLS)',
+    range: 'permille of the slot\'s share, whole; rarity never sizes the base (RARITY_PM all 1000)',
     touches: 'kill speed by gear state; what an upgrade is worth', out: KILL, f: ['C-GEAR-WEAPON'],
     tests: [['tests/weapon-line.mjs', 'the weapon line\'s pace and safety read']], testReads: ['WEAPON_FAMILIES', 'MATERIAL_TIERS', 'gear-tiers'],
     perturb: P('the kits read these tables (grid-kit.mjs): a patch on a row is played', 'gearSlope'),
-    flags: [flag('contradictory', 'Single cells were tuned to pass one guard on one ground (the warhammer\'s tiers 2 and 3, Steel Hatchets 14/16, Mithril Hatchets 19/21)', '44 P-X31, CONFIRMED'),
-      flag('ineffective', 'No formula past tier 7 (Level 88): today\'s gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000', '44 summary item 1, MEASURED there (progression-engine-probe.json)')],
+    flags: [flag('ineffective', 'No formula past tier 7 (Level 88): today\'s gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000', '44 summary item 1, MEASURED there (progression-engine-probe.json)')],
     ev: 'CONFIRMED (read)' }),
   L('weapon.ammo', 'weapon-power', 'content', 'Ammunition strength and use', {
     at: [at('src/data/library2-items.js', 'const AMMO_STR = '), at('src/data/stonecraft.js', 'const AMMO_STAT = ')],
@@ -481,9 +480,9 @@ export const COMBAT = [
     flags: [flag('ineffective', 'An armor step is worth nothing once a set is at the cap: -0.8% to +1% damage taken past Level 45 at either step, target 3 to 5%', '12-balance-pass section 3.6 table, MEASURED (R0 and L)')],
     ev: 'CONFIRMED (read), MEASURED (12)' }),
   L('armor.weights', 'armor-mitigation', 'archetype', 'Armor weights: points, HP and mana', {
-    at: [at('src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55"), at('src/data/gear-tiers.js', "{ key: 'cloth', vmul: 0.70, defMul: 0.30"), at('src/data/core-model.js', 'heavyHpPermille: 280'), at('src/data/core-model.js', 'lightManaPermille: 350')],
-    def: 'plate 1.00, leather 0.55, cloth 0.30 of the slot\'s points, each line\'s trades derived from the points; six heavy slots +28% HP, six light +35% mana',
-    range: 'defMul 0..1',
+    at: [at('src/data/gear-profiles.js', "  plate: Object.freeze({ curve: 'defense', defB: 1000"), at('src/data/gear-profiles.js', "  leather: Object.freeze({ curve: 'defense', defB: 550"), at('src/data/gear-profiles.js', "  cloth: Object.freeze({ curve: 'defense', defB: 300"), at('src/data/core-model.js', 'heavyHpPermille: 280'), at('src/data/core-model.js', 'lightManaPermille: 350')],
+    def: 'the weights\' profiles (src/data/gear-profiles.js): plate 1000, leather 550, cloth 300 permille of the slot\'s defense budget, each line\'s trades a share of the same budget; six heavy slots +28% HP, six light +35% mana',
+    range: 'defB permille 0..1000',
     touches: 'survival by weight, the caster\'s mana', out: SURVIVE, f: ['C-GEAR-ARMOR', 'P11'],
     perturb: P(),
     flags: [flag('ineffective', 'Back heroes are almost never hit, so their armor weight does nothing on nine grounds', '12-balance-pass section 4.1, MEASURED (R0)')],
@@ -548,9 +547,9 @@ export const COMBAT = [
     perturb: K('critMult', 'the cap is a patch on its own line'),
     flags: [flag('ineffective', 'Spells never crit, so crit is worth less the more a hero casts', '44 X-SPELLS-SKIP-WEAKNESS, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
-  L('crit.leather', 'crit', 'archetype', 'Leather crit a tier', {
-    at: [at('src/data/gear-tiers.js', 'critB: 0.004 * (i + 1)')],
-    def: 'a leather piece carries 0.004 x tier crit',
+  L('crit.leather', 'crit', 'archetype', 'Leather crit by item Level', {
+    at: [at('src/data/gear-profiles.js', 'even: Object.freeze({ critB: 0.597 })')],
+    def: 'every leather piece carries the same crit, the leather profile\'s even critB over the defense budget at its item Level (0.2% at 1, 2.8% at Dawnsteel)',
     range: '0..0.6 summed',
     touches: 'the leather way\'s damage', out: KILL, f: ['C-CRIT', 'C-GEAR-ARMOR'],
     perturb: P(),

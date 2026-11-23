@@ -30,6 +30,8 @@ import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js
 import { blessAll } from '../bless-all.js';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
+/* A Blessing's name: "Blessing" when the server sells one, "Blessing II" among several (lane/level-costs, 2026-11-22). */
+const blessName = (b, tier) => t('shop.bless_name', { count: b && b.tiers ? b.tiers.length : 0, n: ROMAN[tier] || String(tier) });
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '', msgAt: null }; SCRATCH.set(cs, s); } return s; };
 
@@ -91,7 +93,7 @@ export function patchServicesPane(body, ctx) {
   const next = b ? b.tiers.find((r) => !r.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
     key: (r) => String(r.tier),
-    build: (r) => element(ctx.doc, '<li class="hw-line" data-tier="' + r.tier + '"><span class="hw-line-name"><b>Blessing ' + ROMAN[r.tier] + '</b><small></small></span>'
+    build: (r) => element(ctx.doc, '<li class="hw-line" data-tier="' + r.tier + '"><span class="hw-line-name"><b>' + esc(blessName(b, r.tier)) + '</b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + r.tier + '"></button></li>'),
     patch: (li, r) => {
       const short = !r.held && next && next.tier === r.tier && purse !== null && purse < r.price ? r.price - purse : 0;
@@ -111,7 +113,7 @@ export function patchServicesPane(body, ctx) {
   prop(all.parentNode, 'hidden', missing < 2);
   prop(all, 'disabled', missing < 2 || sc.pending || allShort);
   /* why it is off, in words on screen (phones have no hover): all on, short of gold for the next one, or a purchase under way */
-  const allWhy = !b || !b.tiers.length ? '' : !missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short') : '';
+  const allWhy = !b || !b.tiers.length ? '' : !missing ? t('shop.bless_all_on', { count: b.tiers.length }) : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short') : '';
   text(root.querySelector('.hw-bless-all-why'), allWhy);
   prop(root.querySelector('.hw-bless-all-why'), 'hidden', !allWhy);
   patchTemperPane(root, ctx, sc);
@@ -143,14 +145,14 @@ export function actServicesPane(ctx, body, action, ev, el) {
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
     sc.msgAt = null;
-    runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' gained');
+    runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => t('shop.bless_gained', { count: b.tiers.length, name: blessName(b, tier) }));
     return true;
   }
   if (action === 'bless-all') {
     sc.msgAt = null;
     runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => {
       const b = blessingsOf(cs);
-      return b ? t('shop.bless_all_done', { of: b.tiers.length }) : '';
+      return b ? t('shop.bless_all_done', { count: b.tiers.length }) : '';
     });
     return true;
   }

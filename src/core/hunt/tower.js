@@ -49,6 +49,7 @@ import { hashSeed } from '../rng.js';
 import { makeEvent } from './events.js';
 import { isHero } from './sides.js';
 import { stepRatio, gapPayRatio, levelShareAt } from './danger.js';
+import { formulaAt } from './monster-formula.js';
 
 /* The Tower's run row: the default for a reader that only means the Tower. */
 const TOWER = RUN_GROUNDS[TOWER_RULES.hunt];
@@ -181,8 +182,18 @@ export function towerRoom(floor, run = TOWER) {
 function rowAt(id, statRole, floor, run, share, reach) {
   const row = MONSTERS[id];
   const L = towerLevelOf(floor, run);
-  const s = formulaStats({ level: L, role: statRole, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, { roles: ROLES });
   const k = stepRatio(towerDepthOf(floor, run)) * share;
+  /* ON THE FORMULA (TOWER_RULES.monsters, lane/monster-formula): the band's reach role's derived stats against the reference company of the
+     floor's Level (monster-formula.js formulaAt; a Keeper is its encounter's boss), grown by the depth and the share as before */
+  if (run.monsters === 'formula' && reach && Object.prototype.hasOwnProperty.call(REACH_ROLES, reach)) {
+    const f = formulaAt(reach, L, row.tier, statRole === KEEPER ? 'boss' : 'pull');
+    const fs = formulaStats({ level: L, role: statRole, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, { roles: ROLES });
+    const ids = Object.keys(f.spells);
+    return Object.freeze({ ...row, level: L, hp: Math.max(1, Math.round(f.hp * k)), atk: Math.max(1, Math.round(f.atk * k)), aim: f.aim,
+      evasion: f.evasion, def: f.def, armorPm: f.armorPm, xp: fs.xp, gp: Object.freeze([0, 0]), drops: Object.freeze([]), role: reach,
+      ...(ids.length ? { spells: ids, spellRows: f.spells } : {}), ...(statRole === KEEPER ? { bossKind: KEEPER } : {}) });
+  }
+  const s = formulaStats({ level: L, role: statRole, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, { roles: ROLES });
   return Object.freeze({ ...row, level: L, hp: Math.max(1, Math.round(s.hp * k)), atk: Math.max(1, Math.round(s.atk * k)), aim: s.aim,
     evasion: s.evasion, def: s.def, xp: s.xp, gp: Object.freeze([0, 0]), drops: Object.freeze([]),
     ...(reach ? { role: reach } : {}), ...(statRole === KEEPER ? { bossKind: KEEPER } : {}) });

@@ -13,7 +13,7 @@ export const HUNTS_TEXT = Object.freeze({
   /* the Tally widget's folded title when every held task is done (src/shell/widgets/tally-hud.js) */
   tally_done: 'Done',
   /* Who lives here: one note under the line names each area caster's spells (src/shell/windows/hunt-detail.js), so no card grows a line. */
-  casts: '{name} casts {spells}.',
+  casts: '{name} casts: {spells}',
   /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is the pocket's forParty, a digit (Tyler 2026-11-14). */
   party_size: 'Recommended: {n}+ players',
   /* "Bring your heroes" empty because this account's other heroes sit in a party this one is not in (audit 2026-11-15 F23):
@@ -36,10 +36,10 @@ export const HUNTS_TEXT = Object.freeze({
   packs_boss: { one: '{count} pack of {size} + boss, respawn {secs}s', other: '{count} packs of {size} + boss, respawn {secs}s' },
 
   /* What a tier does. */
-  tier_choice: '{tier}: {head}.',
+  tier_choice: '{tier}: {head}',
   /* A tier where a party with no Healer was measured to die on this ground, under a Level (a pack's healerTiers, hunt-tiers.js HEALER_TIERS):
      one line of the tier note, said to a hero alone and to a party alike. A warning, never a gate. The wants_healer shape. */
-  tier_healer: 'Recommended: Healer (parties without one die here)',
+  tier_healer: 'Recommended: Healer (high death risk without)',
 
   /* The band, and a ground above the hero. */
   band: 'Levels {lo}–{hi}',
@@ -67,7 +67,7 @@ export const HUNTS_TEXT = Object.freeze({
   right_but_tough: '{ground}: right for {levels}, tough monsters',
   right_easier: '{ground}: right for {levels}',
   /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
-  right_but_lost: '{ground}: right for {levels}, but lost {gold}/h solo',
+  right_but_lost: '{ground}: right for {levels}, lost {gold}/h solo',
   easier: 'Easier: {easier} (Levels {lo}–{hi})',
   tag_right_level: 'Recommended',
   tag_next_step: 'Next step up',
@@ -92,8 +92,8 @@ export const HUNTS_TEXT = Object.freeze({
 
   /* THE WINDOW (src/shell/windows/hunts.js, hunt-detail.js): heads, the lead line, presses and answers. {ground} a hunt's name. */
   win_list: 'Hunts',
-  win_page: 'The picked hunt',
-  head_packs: 'The packs',
+  win_page: 'Selected hunt',
+  head_packs: 'Packs',
   head_tiers: 'Tiers',
   head_lives: 'Enemies',
   head_drops: 'Drops',
@@ -105,18 +105,18 @@ export const HUNTS_TEXT = Object.freeze({
   head_go_as: 'Go as',
   /* THE COMPANY'S PLAN ON A GROUND (src/shell/windows/company-pane.js, 1051-company-start.sql) */
   plan_here: 'Go here at the next Start',
-  plan_set: 'Next Start goes here. Press to undo',
-  plan_saved: 'The next Start goes to {ground}',
-  plan_undone: 'The next Start goes where this hero hunted last',
-  setup_saved: 'This Setup goes to {ground} from now on',
+  plan_set: 'Next Start goes here · Press to undo',
+  plan_saved: 'Next Start: {ground}',
+  plan_undone: 'Next Start: last hunt',
+  setup_saved: 'Setup set to {ground}',
   head_before: 'Before entering',
   head_party: 'With a party',
   rares_per: 'chance per kill of its creature',
   per_kill_alone: 'chance per kill, hunting alone',
-  per_kill_party: 'chance per kill in a party of {n} (one hero gets each drop)',
+  per_kill_party: 'chance per kill, party of {n} (one hero gets each drop)',
   level_band: 'Levels {lo}–{hi}',
   /* the lead line over the list */
-  lead_hunting: 'Hunting in {ground}. Leave to switch hunts',
+  lead_hunting: 'Hunting: {ground} · Leave to switch',
   lead_follower: 'Party leader picks the hunt',
   lead_party: 'Pick a hunt, then Enter with party',
   /* @sentence: the first line a new player reads in the window; it teaches the loop */
@@ -124,7 +124,7 @@ export const HUNTS_TEXT = Object.freeze({
   off_follower: 'Party: {leader} picks the hunt',
   /* A ground whose hunt ends at a Level (hunt-grounds.js endsAtLevel), reached by this hero or a seat (hunt-list.js seatsOutgrown): Enter is off,
      the door would refuse it. {level} the exit Level, {who} "Wren, Level 5" per seat. */
-  off_outgrown: 'Ground outgrown at Level {level}, pick a harder one',
+  off_outgrown: 'Outgrown at Level {level} · Pick a harder ground',
   off_outgrown_party: 'Ground outgrown at Level {level}: {who}',
   /* ...and the server's own seat refusal of it (hr_hunt_party_start not_ready, a seat's `outgrown`), after the hero's name: "Wren has outgrown Mill Cellar" */
   seat_outgrown: 'has outgrown {ground}',
@@ -158,13 +158,13 @@ export const HUNTS_TEXT = Object.freeze({
   /* the server's estimate at the plan's Risk (1060-gold-estimate-catalogue.generated.sql), shown under the depth line */
   gold_about: 'Est. {gold} gold/hr (before supplies)',
   tier_set_by: 'Set by {leader}: {tier}',
-  tier_leader_picks: 'Tier: set by the party leader',
-  tier_kept_party: 'Tier applies to the whole party, saved for this ground',
-  tier_kept: 'Kept for this ground',
+  tier_leader_picks: 'Tier: set by party leader',
+  tier_kept_party: 'Tier: whole party · Saved for this ground',
+  tier_kept: 'Saved for this ground',
   bringing: 'Bringing {name}…',
   joined: '{name} joined the party',
-  telling: 'Telling the party…',
-  party_warned: 'Party warned. Press Enter anyway to go',
+  telling: 'Notifying party…',
+  party_warned: 'Party warned · Press Enter anyway to go',
   enter_anyway_hint: 'Press Enter anyway to go',
   gathering: 'Gathering the party for {ground}…',
   party_on_way: 'Party heading to {ground}',

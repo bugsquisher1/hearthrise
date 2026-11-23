@@ -148,7 +148,6 @@ export const LEVER_MOVES = Object.freeze({
   /* THE DANGER SCALE (src/data/danger.js, lane/v1-climb): on a stance the step writes the dial the tier row writes off it (danger.js dangerDial
      in inst.tier), so its levers move C-TIER's quantities; the pay is the scale's own and is named with its reason */
   'danger.power-step': ['+tier.hp', '+tier.dmg'],
-  'danger.loot-step': [['+pull.rows', 'on the scale the table of a kill rolls at dropPm: an hour a step deeper drops payStepLoot more of it (danger.js dangerDial dropPm)']],
   'danger.pull': ['+pull.size'],
   'danger.start': ['-tier.hp', '-tier.dmg'],
   'danger.climb': ['~tier.hp', '~tier.dmg'],
@@ -166,6 +165,7 @@ export const LEVER_MOVES = Object.freeze({
   /* the amount pipeline (lane/stage3-pipeline, src/core/hunt/amount.js): on the scale a monster's blow lands its row's x pressurePm, and armor and ward are steps on the hero's two defense ratings */
   'amount.pressure': [['+tier.dmg', 'on the scale every monster blow is its row blow x pressurePm / 1000 before the step contest (amount.js blowAmount)']],
   'amount.defense-split': [['-tier.dmg', 'a heavy piece adds armorSteps to the armor rating: a smaller blow at its wearer from a plain blow (amount.js defenseGearPm)']],
+  'danger.loot-step': [['+pull.rows', 'deeper than the reference a kill rolls its own table at dropPm over 1000 (danger.js dangerDial dropPm, drops.js effectiveDropChance): more rows of the pull drop']],
   'danger.power-skill': [['-tier.dmg', 'on the scale a skill over its career line divides a blow at the hero by (1 + powerStep)^steps of the skill part (danger.js skillSteps)'],
     ['-tier.hp', 'and multiplies the hero\'s blow at a monster by the same ratio, the same as less health to take']],
   'bands.skill-line': [['+tier.dmg', 'a higher line puts the same skill further under it, a negative skill part: a bigger blow at the hero (danger.js skillSteps)'],
@@ -179,6 +179,14 @@ export const LEVER_MOVES = Object.freeze({
   'econ.ammo-floor': [['+shop.price', 'a store shot or cast costs at least this x its crafted partner\'s book (store-kit.js storePrice\'s charge floor)']],
   /* MONSTER ROLES (src/data/monster-roles.js, lane/w2-roles-rows): who takes the blows, not how many */
   'roles.table': [['~tier.dmg', 'a role moves which hero a monster\'s blow lands on (reach) and adds a share of it on heroes beside the target (splash): the damage a seat takes, so the held step']],
+  /* MONSTERS FROM THE FORMULA (src/core/hunt/monster-formula.js, lane/monster-formula): on a formula ground only */
+  'mf.role-dials': ['+mon.hp', '+mon.atk'],
+  'mf.mend': [['+mon.fightHp', 'a Warder\'s mend puts health back on its packmates while the pull lasts']],
+  'mf.encounter-per-hero': [['+pull.size', 'a formula ground\'s pull is heroes x encounterPerHero at the reference step (danger.js formulaPull)']],
+  'mf.encounter-size': ['+mon.hp'],
+  'mf.windup-scale': ['+mon.atk'],
+  'mf.blow-cap': ['+mon.atk'],
+  'mf.ref': [['~mon.hp', 'the measured reference scales every formula number: its damage a second scales health, its armor share the blows'], ['~mon.atk', 'the same'], ['~mon.aim', 'aim lands hit on the reference hero of refLevel'], ['~mon.evasion', 'evasion the same']],
   'econ.start-gold': [['+gold.day', 'a new hero\'s first purse is gold in, and no formula in the register writes it']],
   'econ.tally': [['+gold.day', 'a tally\'s reward is gold in, and no formula in the register writes it']],
   'econ.clans': [['~gold.day', 'clan fees and gifts move gold between accounts, and no formula in the register writes it']],
@@ -216,6 +224,17 @@ export const LEVER_MOVES = Object.freeze({
     ['+kill.coin', 'the one coin ratio (lane/econ-levers): an hour a step deeper on the scale pays (1 + payStepCoin) more coin, a pull (1 + payStepCoin)(1 + powerStep) (dangerDial coinPm, COIN_STEP)']],
   'econ.work-day': [['+town.skill', 'more minutes of town work a UTC day are more gathering and bench runs (work-day.js freeMin, hr_work_day)']],
   'econ.work-premium': [['+town.skill', 'Premium\'s extra minutes are more town work a day (work-day.js premiumExtraMin)']],
+  /* THE TRADES ON ONE CURVE (src/data/trades.js, src/core/trades.js, lane/trade-formulas): town work and its prices, read by the job slice
+     (09 section 6) through 1063-trade-formulas-catalogue.generated.sql; no hunt cell reads them */
+  'econ.trade-work': [['+sink.other', 'more work-hours behind a kit-hour raise every crafted good\'s V (trades.js tradeCatalogue, value), so its job fee and the store\'s ask'],
+    ['-town.skill', 'more work a good is fewer goods a day for the same XP: XP is time, so the Level a day reaches is unchanged and the goods it makes fall']],
+  'econ.trade-curve': [['+gold.day', 'a higher yield, speed or quality makes a work-hour\'s goods worth more (trades.js yieldPm, speedPm, finePm): 0.18 hours of wage at Level 1 to 0.46 at 99 with a Mastery and a bench']],
+  'econ.trade-table': [['-town.skill', 'more hours to 99 lower the trade Level a day of work reaches (trades.js tradeXpTable, hr_trade_xp)']],
+  'econ.job-fee': [['+sink.other', 'a share of every finished good\'s V burned at its job\'s start (trades.js jobFee, hr_trade_job_fee)']],
+  'econ.store-lag': [['~sink.other', 'a store further behind asks V at a lower step (a smaller sink, a weaker good); a higher floor share bids more for surplus (a larger faucet, inside the day budget)']],
+  'econ.tool-wear': [['-sink.other', 'a longer tool life buys fewer tools and rents fewer hours (trades.js toolLifeMs, toolRentPerHour)']],
+  'econ.stream-cover': [['+sink.other', 'a higher cover burns more hunted parts and remains a kit-hour (trades.js tradeCatalogue hunted)']],
+  'econ.trade-kinds': [['~sink.other', 'which goods exist and what each is made from decide which streams a hunted hour feeds']],
   /* THE GOLD ESTIMATE (src/data/gold-estimate.js, lane/gold-per-hour): a printed number only; no fight, purse or clock reads it */
   'econ.gold-estimate-risk': [],
 });

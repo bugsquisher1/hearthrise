@@ -1,11 +1,17 @@
 {
  "schema": "hearthrise.balance-candidate/1",
  "id": "power-tier-ahead",
- "why": "The power step's OWN move for one gear tier (lane/r9-power-step): the same kits on the same dice, with Muster Barrows' base item Level one tier (GEAR_STEPS.tierSteps) lower, so every hero's offense and defense are one tier of power steps higher and nothing else moves. The paired held step against the tree (C0) is what one tier of the step moves (target about 20, 15 to 26 in band)",
+ "why": "The power step's OWN move for one gear tier (lane/r9-power-step; re-cut lane/gear-catalogue-steps): the same kits on the same dice, every worn piece read one tier (GEAR_STEPS.tierSteps item Levels) higher by the power step (src/core/hunt/danger.js itemLevelOf), so every hero's offense and defense are one tier of power steps higher and nothing else moves. On the scale a piece fights at the ground's base item Level (src/core/gear-stats.js scaleItems), so moving the ground's gearLevel would move the stats too; this moves only the pieces. The paired held step against the tree (C0) is what one tier of the step moves (target about 20, 15 to 26 in band)",
  "base": "tree",
- "edits": [{ "file": "src/data/danger.js", "from": "gearLevel: tierLevel(3),", "to": "gearLevel: tierLevel(2)," }],
+ "edits": [
+  {
+   "file": "src/core/hunt/danger.js",
+   "from": "return Number.isFinite(n) && n > 0 ? n : 0;",
+   "to": "return Number.isFinite(n) && n > 0 ? n + GEAR_STEPS.tierSteps : 0;"
+  }
+ ],
  "assumptions": [
-  "One tier is GEAR_STEPS.tierSteps item Levels on a whole kit (src/data/gear-steps.js), that many steps of power at weightGear 1000",
-  "Shipped gear stats do not move here: the shipped tier move is the weapon and armor cells, measured beside it"
+  "One tier is GEAR_STEPS.tierSteps item Levels on a whole kit (src/data/gear-steps.js), that many steps of power at weightGear 1000 (500 under the base)",
+  "Shipped gear stats do not move here: on the scale every piece fights at the ground's base item Level (lane/gear-catalogue-steps)"
  ]
 }

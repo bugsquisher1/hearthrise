@@ -19,7 +19,7 @@ export const JEWEL_TEXT = Object.freeze({
   limit_hallmark: 'Daily limit: {limit} Hallmarks, resets at midnight UTC',
   limit_reforge: 'Daily limit: {limit} reforges, resets at midnight UTC',
   bars_short: 'Needs {bar} x{need}, have {have}',
-  gem_short: 'Needs a {gem}. {where}Or buy one at the Weighhouse.',
+  gem_short: 'Requires a {gem} · {where}Also at the Weighhouse',
   gold_short: 'Need {gold} more',
   /* What the hero holds of an input, bag and Storage together. */
   held: 'held {n}',
@@ -27,12 +27,12 @@ export const JEWEL_TEXT = Object.freeze({
   /* The section's lines. */
   day: 'Today: Hallmarks {hallmarks}/{limit}, reforges {reforges}/{limit}',
   reforge_head: 'Reforge',
-  reforge_how: 'Hallmarked piece + next tier\'s bars and gem: both perks kept, no roll, no fail. Worn pieces: unequip first',
+  reforge_how: 'Hallmarked piece + next tier\'s bars and gem: both perks kept, no roll, no fail · Unequip worn pieces first',
   /* One reforge row: what it becomes, the perks it keeps at the new size, what it takes. */
   reforge_name: '{from} → {to}',
   reforge_kept: 'Perks kept: {perks}',
-  reforge_kept_worn: 'Perks kept: {perks}. Worn from Level {level}',
-  reforge_uses: 'Uses it, {bar} x{bars} ({barHeld}), 1 {gem} ({gemHeld}).',
+  reforge_kept_worn: 'Perks kept: {perks} · Worn from Level {level}',
+  reforge_uses: 'Uses: the piece, {bar} x{bars} ({barHeld}), 1 {gem} ({gemHeld})',
   reforge_go: 'Reforge for {gold}',
   /* The confirmation. */
   reforge_ask: 'Reforge {from}?\nCost: {gold}, {bar} x{bars}, 1 {gem}\nResult: {to}, permanent',

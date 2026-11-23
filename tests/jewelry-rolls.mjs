@@ -475,9 +475,8 @@ const MUTANTS = [
   { claim: 'J10', name: 'a guarantee job takes longer than the gem job it replaces', edits: [['src/data/jewelry.js', 'icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms,', 'icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms + 1000,']] },
   { claim: 'J17', name: 'the card names a dark guarantee', edits: [['src/shell/item-lore.js', 'if (g && Array.isArray(features) && features.includes(JEWEL_SWITCH)) {', 'if (g) {']] },
   { claim: 'J17', name: 'the card names no guarantee', edits: [['src/shell/item-lore.js', "    out.push(t('jewel.guarantees', {", "    if (false) out.push(t('jewel.guarantees', {"]] },
-  { claim: 'J18', name: 'Fang Studs crit again', edits: [['src/data/slot-ladders.js', "slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },",
-    "slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, critB: 0.01 },"]] },
-  { claim: 'J18', name: 'the Hunter Necklace helps Melee only', edits: [['src/data/items.js', "slot:'necklace',atkB:2,rangeAtkB:2,magicAtkB:2,", "slot:'necklace',atkB:2,"]] },
+  { claim: 'J18', name: 'Fang Studs crit again', edits: [['src/data/gear-stats.generated.js', '"fang_studs": f({', '"fang_studs": f({ critB: 0.01 }), "fang_studs~shipped": f({']] },
+  { claim: 'J18', name: 'the Hunter Necklace helps Melee only', edits: [['src/data/gear-stats.generated.js', '"hunter_necklace": f({', '"hunter_necklace": f({ atkB: 2 }), "hunter_necklace~shipped": f({']] },
 ];
 
 async function run(M) {

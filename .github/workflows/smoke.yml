@@ -535,6 +535,16 @@ jobs:
           node tests/gear-steps.mjs
           node tests/drop-formula.mjs
           node tools/mutant-gate.mjs node tests/gear-steps.mjs --mutate
+      # EVERY PIECE OF GEAR IS THE ONE FORMULA'S (lane/gear-catalogue-steps, src/core/gear-stats.js, src/data/gear-profiles.js): the
+      # generated stat table is what the generator writes, no item module types a stat by hand, rarity never sizes the base, and on a
+      # Danger-scale ground every reader fights each piece halfway from the ground's base item Level to its own (the power step carries the tier).
+      - name: Gear stats - derived by one formula, the scale view (12 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-gear.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-gear.mjs --selftest
+          node tests/gear-stats.mjs
+          node tools/mutant-gate.mjs node tests/gear-stats.mjs --mutate
       # THE CONTENT PIPELINE (lane/content-pipeline, docs/design/redesign/24-content-pipeline.md): every scale ground has its band,
       # gear base, drop home and Trait pool, its band is the one tools/new-ground.mjs measured on its current rows, every Trait and
       # Signature has a home that exists, every live move its icon (and its road and Signature once the Roads are live). The
@@ -1764,6 +1774,11 @@ jobs:
         run: |
           node tests/balance-guard.mjs
           node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tests/drop-formula.mjs
+      - name: Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/drop-formula.mjs
       # tests/econ-levers.mjs
       - name: Economy levers set together - a typed store price, a second coin ratio, the kit out of 0.2-0.3 of pay, the wage off the pay, Careful off C-5
         if: ${{ !cancelled() }}
@@ -5365,6 +5380,14 @@ jobs:
         run: |
           node tests/recruits.mjs
           node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
+      # tests/trade-formulas.mjs
+      - name: Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-trades.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
+          node tests/trade-formulas.mjs
+          node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}

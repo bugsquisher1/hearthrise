@@ -191,7 +191,9 @@ const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:
 cases['cape-cut'] = (R) => {
   const play = (o) => R.runCell({ id: 'cape:' + JSON.stringify(o), ground: 'coppercap_warrens', party: ['tank'], level: 40, hours: 1, seeds: 8, windowMs: 120000, ...o }).heroes[0];
   const CAPED = { gear: { also: { cape: 'houndskin_cloak' } } };
-  const bare = play({}), caped = play(CAPED);
+  /* 32 seeds for the cut itself (lane/gear-catalogue-steps, 2026-11-23): at 8 an hour's dice moved it 2.5% to 6.5% for a point or two of sword (the gear formula's
+     Steel Sword over the old 12/10), and at 32 the same two trees read 5.1% and 6.7%, both inside the band: more seeds, the same bar */
+  const bare = play({ seeds: 32 }), caped = play({ ...CAPED, seeds: 32 });
   const cut = 1 - caped.takenPerH / bare.takenPerH;
   if (!(cut > 0.04 && cut < 0.1)) return 'a Houndskin Cloak moved damage taken by ' + (cut * 100).toFixed(1) + '% at the Warrens, not its 7%';
   const viewed = play({ ...CAPED, seeds: 1, windowMs: 10000 }), closed = play({ ...CAPED, seeds: 1, windowMs: 600000 });
@@ -323,9 +325,12 @@ const mutants = [
     edits: GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2').replace(/aim: \d+/, 'aim: 20')]) },
   { name: 'armor reads the hero\'s Level again: a swing ten Levels under lands no harder than at the floor', case: 'risk-ladder',
     edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, isMonster(source) ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
-  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/items.js', "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:1},", "leather_boots:{n:'Leather Boots',icon:'🥾',v:35,type:'armor',slot:'boots',defB:2},"]] },
-  { name: 'leather is thin as cloth: its rungs stop being worth finding', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "{ key: 'leather', vmul: 0.70, defMul: 0.55,", "{ key: 'leather', vmul: 0.70, defMul: 0.25,"]] },
-  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-tiers.js', "def: [6, 12, 22, 34, 50, 68, 90], bars: 5,", "def: [6, 6, 22, 34, 50, 68, 90], bars: 5,"]] },
+  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"leather_boots": f({', '"leather_boots": f({ defB: 2, rangeAtkB: 1, critB: 0.002 }), "leather_boots~shipped": f({']] },
+  { name: 'Studded leather is thin as cloth: its rung stops being worth finding', case: 'armor-rungs', edits: [
+    ['src/data/gear-stats.generated.js', '"studded_body": f({', '"studded_body": f({ defB: 3, rangeAtkB: 6, magicAtkB: -2, critB: 0.004 }), "studded_body~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_pants": f({', '"studded_pants": f({ defB: 2, rangeAtkB: 4, magicAtkB: -1, critB: 0.004 }), "studded_pants~shipped": f({'],
+    ['src/data/gear-stats.generated.js', '"studded_helmet": f({', '"studded_helmet": f({ defB: 2, rangeAtkB: 3, magicAtkB: -1, critB: 0.004 }), "studded_helmet~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_belt": f({', '"studded_belt": f({ defB: 1, rangeAtkB: 2, magicAtkB: -1, critB: 0.004 }), "studded_belt~shipped": f({'],
+    ['src/data/gear-stats.generated.js', '"studded_boots": f({', '"studded_boots": f({ defB: 1, rangeAtkB: 2, magicAtkB: -1, critB: 0.004 }), "studded_boots~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_gloves": f({', '"studded_gloves": f({ defB: 1, rangeAtkB: 1, critB: 0.004 }), "studded_gloves~shipped": f({']] },
+  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"iron_platebody": f({', '"iron_platebody": f({ defB: 6, rangeAtkB: -3, magicAtkB: -6 }), "iron_platebody~shipped": f({']] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
@@ -335,15 +340,16 @@ const mutants = [
   /* RE-AIMED (lane/c-brook-bear): with the Brook Bear in Vine Hollow as built a Glade kill takes longer, so the rung pays more (the shipped 7/16 +10.2%, was
      +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
   /* (at 7/10 the Iron rung paid over +5% once every cast became a share of the blow, lane/c-spell-rule: the weaker rung the guard must catch is 7/8, a point of
-     strength over the Bronze 3/7, which pays under +5% on any rule) */
-  { name: 'the Iron Warhammer at 7/8: its upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:8},"]] },
-  { name: 'the Steel Warhammer is cut to 9/18: over the Iron it pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 18, 28, 39, 52, 68],']] },
+     strength over the Bronze 3/7, which pays under +5% on any rule. lane/gear-catalogue-steps: the gear formula made the Stone Maul 3/6, so the plant is 3/7,
+     the same point over the Bronze) */
+  { name: 'the Iron Warhammer at 3/7: a point over the Stone Maul pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-stats.generated.js', '"iron_warhammer": f({', '"iron_warhammer": f({ atkB: 3, strB: 7 }), "iron_warhammer~shipped": f({']] },
+  { name: 'the Steel Warhammer is cut to 10/14: over the Iron it pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/gear-stats.generated.js', '"steel_warhammer": f({', '"steel_warhammer": f({ atkB: 10, strB: 14 }), "steel_warhammer~shipped": f({']] },
   /* (was the 7/7 hatchets: on the to-hit ratio, 2026-11-20, a weapon's accuracy no longer sits on a ceiling, so 7/7 over 4/4 pays its +5%; a rung
      that is the tier below's numbers is the defect the case exists for) */
   { name: 'the Iron Hatchets are the Bronze ones again (4/4): their upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 4, 14, 19, 25, 33, 42], str: [4, 4, 16, 21, 22, 29, 38],']] },
+    edits: [['src/data/gear-stats.generated.js', '"iron_hatchets": f({', '"iron_hatchets": f({ atkB: 4, strB: 4 }), "iron_hatchets~shipped": f({']] },
   /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
   { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },

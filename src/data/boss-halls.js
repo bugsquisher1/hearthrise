@@ -12,6 +12,7 @@
 // THE ROW: `id` the ground whose page carries the press and whose key opens it (the key item's `opens`), and where the party stands after;
 // `hunt` the hall's hunt and ground, `<id>_hall` (hunts.js HALL_HUNTS, hunt-grounds.js HALL_GROUNDS, whose ONE spawn is the boss); `key` the
 // item spent; `boss` / `Boss` how a sentence names him. Postgres reads it as hr_boss_halls (tools/gen-hunt-sessions.mjs hallRows).
+// `formula` (true, or absent): THE HALL'S SWITCH, its bosses on the stat formula at their kind (src/core/hunt/hall-formula.js; lane/hall-formula).
 // A NAMED ADD (piece 6): an `adds` row whose monster row is `boss` and `add` both (Captain Hask standing up for Lord Krell): a boss with his
 // own kit, his spells and his own enrage line, who never brings a wave of his own or hides behind one (no addsPm, no guardPm), and who
 // shields the hall's boss while he stands like any add (core/hunt/boss-phases.js guardPmOf).
@@ -40,7 +41,8 @@ export const BOSS_HALL_RULES = Object.freeze({
 /* Every pack's hall (see the header), staged or open. A row: Object.freeze({ id, hunt: id + '_hall', key, boss, Boss }). */
 export const BOSS_HALLS = Object.freeze(Object.fromEntries(GROUND_PACKS.filter((p) => p.hall).map((p) => [p.id,
   Object.freeze({ id: p.id, hunt: p.id + '_hall', key: p.hall.key, boss: p.hall.words.boss, Boss: p.hall.words.Boss,
-    ...(p.hall.storeFloor ? { storeFloor: p.hall.storeFloor } : {}), ...(p.hall.words.bars ? { bars: p.hall.words.bars } : {}) })])));
+    ...(p.hall.storeFloor ? { storeFloor: p.hall.storeFloor } : {}), ...(p.hall.words.bars ? { bars: p.hall.words.bars } : {}),
+    ...(p.hall.formula === true ? { formula: true } : {}) })])));
 /** The halls a player can open: every row whose room is not `staged` (its pack is open). The server catalogue reads these. */
 export const OPEN_BOSS_HALLS = Object.freeze(Object.fromEntries(Object.entries(BOSS_HALLS).filter(([, h]) => !(HUNT_INDEX[h.hunt] && HUNT_INDEX[h.hunt].staged === true))));
 

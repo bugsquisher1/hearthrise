@@ -16,10 +16,10 @@ export const WINDOWS_TEXT = Object.freeze({
 
   /* Each window's one help line: what it is for, in a sentence or two. @sentence: the ? button teaches the window, a label can't. */
   help_hunts: 'Pick a hunt, then press Enter',
-  help_inventory: 'Press a stack, then Equip, Use or Sell',
-  help_storage: 'Press a stack to move it to the bag or back',
-  help_wiki: 'Read your Chronicle, or search a skill, a ground or a formula',
-  help_shop: 'Buy tools and gear, sell loot, buy Blessings under Services',
-  help_skills: 'Press a skill to gather or make something',
-  help_prep: 'Pick a setup and press Use before a hunt',
+  help_inventory: 'Press a stack: Equip, Use or Sell',
+  help_storage: 'Press a stack: move to bag or back',
+  help_wiki: 'Chronicle · Search skills, grounds and formulas',
+  help_shop: 'Tools, gear and loot · Blessings under Services',
+  help_skills: 'Select a skill: gather or craft',
+  help_prep: 'Pick a setup · Press Use before a hunt',
 });

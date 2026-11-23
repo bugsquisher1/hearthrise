@@ -22,8 +22,10 @@
 //
 // Every number here is PROPOSED (designer's to retune), the heal measured against the plan's table (fist-table.mjs).
 //
-// PURE ESM. Data only. Imports nothing.
+// PURE ESM. Data only. Imports only src/data/gear-profiles.js (the wraps' derived stats).
 // ════════════════════════════════════════════════════════════════════════
+
+import { withGearStats } from './gear-profiles.js';
 
 export const FIST_LINE = Object.freeze({
   /* THE SWITCH: false = the sample is in no shipped table (see the header). */
@@ -42,13 +44,14 @@ export const FIST_LINE = Object.freeze({
 /* THE WRAPS, tiers 1 and 2. Two-handed (no shield beside them: the fist line is no tank), Melee's numbers, the own heal.
    Stats PROPOSED from the prototype's proxy (lane/d-itemization-audit fist-proto.mjs: the tier's sword with its strength
    x1.45): between the Practice Sword's 4/3 and the Practice Club's 3/7 at tier 1, under the Iron Hatchets' 9/11 at tier 2,
-   because the fist's strikes add Magic's damage on top. Names: the designer's (itemization-system.md §7). */
-export const FIST_ITEMS = Object.freeze({
+   because the fist's strikes add Magic's damage on top. Names: the designer's (itemization-system.md §7). The numbers are now the
+   `fists` profile's (src/data/gear-profiles.js, lane/gear-catalogue-steps: 4/5 and 8/9 at item Levels 1 and 15, the shape above). */
+export const FIST_ITEMS = Object.freeze(withGearStats({
   practice_wraps: Object.freeze({ n: 'Practice Wraps', icon: '✊', v: 0, type: 'weapon', slot: 'weapon', weaponType: FIST_LINE.family,
-    twoHanded: true, atkB: 4, strB: 4, selfHealPm: FIST_LINE.selfHealPm, tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 1 }),
+    twoHanded: true, selfHealPm: FIST_LINE.selfHealPm, tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 1 }),
   sluicers_knuckles: Object.freeze({ n: "Sluicer's Knuckles", icon: '✊', v: 130, type: 'weapon', slot: 'weapon', weaponType: FIST_LINE.family,
-    twoHanded: true, atkB: 7, strB: 9, selfHealPm: FIST_LINE.selfHealPm, tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15 }),
-});
+    twoHanded: true, selfHealPm: FIST_LINE.selfHealPm, tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15 }),
+}));
 
 /* THE STRIKES' ELEMENTS, by choice (plan §7 "Element"): one row of each strike per element, so the choice is which one a bar
    slots (configuration, as every bar choice is). [rune family, element id, the word a name starts with] */

@@ -372,6 +372,24 @@ function withRows(M, rows, fn) {
   try { return fn(); } finally { for (const [T, k, o] of kept) Object.assign(T[k], o); }
 }
 
+/* THE BUG #61 PARTY'S GEAR AS IT STOOD ON 2026-10-22 (LV-PULL's balance-blind arm, like WARRENS_BEFORE_STEP): the gear formula (lane/gear-catalogue-steps,
+   src/core/gear-stats.js) re-cut these pieces by a point or two (Steel Sword atk 12 -> 14, str 10 -> 11). MEASURED on those numbers (lane/live-refresh-bug):
+   under "Take turns" Eddie dies at 1,044 s, and server() never ends a dead member's hunt (it seats him again as a new unit), so every closed commit from there
+   reads "off the holder"; viewed, Eddie's Melee 42 lands inside its own window (624-640 s), the server counts it from the next swing (combat-sim.js
+   syncUnit) and one blow lands a point harder than the browser's frozen Eddie, so that commit is diverged before any commit can name his key. The
+   page restarts on it (live-link.js: a diverged commit asks for a start point); run() restarts only on a matched one, so the rest read off and
+   "refreshed at none". Not a page bug. Who pulls and holds is balance-blind: the party fights on its own day's numbers. */
+const PARTY_61_GEAR = Object.freeze({
+  steel_sword: { atkB: 12, strB: 10 }, iron_sword: { atkB: 7, strB: 6 }, iron_helm: { defB: 5 }, steel_helm: { defB: 10 },
+  bronze_platebody: { defB: 6, rangeAtkB: -2, magicAtkB: -3 }, steel_platelegs: { defB: 15, rangeAtkB: -4, magicAtkB: -8 }, bronze_boots: { defB: 2, rangeAtkB: -1, magicAtkB: -1 },
+  leather_helmet: { defB: 2, rangeAtkB: 2, magicAtkB: 0, critB: 0.004 }, leather_body: { defB: 3, rangeAtkB: 3, magicAtkB: -1, critB: 0.004 }, leather_boots: { defB: 1, rangeAtkB: 1, critB: 0.004 },
+});
+function withGear(M, rows, fn) {
+  const kept = Object.entries(rows).map(([k, o]) => [k, Object.fromEntries(Object.keys(o).map((f) => [f, M.ITEMS[k][f]]))]);
+  for (const [k, o] of Object.entries(rows)) M.ITEMS[k] = { ...M.ITEMS[k], ...o };
+  try { return fn(); } finally { for (const [k, o] of kept) M.ITEMS[k] = { ...M.ITEMS[k], ...o }; }
+}
+
 function withoutSpells(M, fn) {
   const kept = Object.entries(M.ENGINE_MONSTERS).filter(([, m]) => Object.prototype.hasOwnProperty.call(m, 'spells')).map(([k, m]) => [k, m.spells]);
   for (const [k] of kept) delete M.ENGINE_MONSTERS[k].spells;
@@ -1219,7 +1237,7 @@ function rules(M) {
     /* ...AND THE WARRENS' FIVE ON THEIR ROWS BEFORE 2026-11-19 (monsters a little harder, balance-sheet.js STAT_FORMULA x1.1): on the new rows the bug #61 party
        in its 10-22 gear loses Fremulon mid-lap (Eddie holds his laps under "One tank holds", 85 packs held by another), and a fallen holder ends the laps
        this arm reads. Who pulls and holds is balance-blind; LV-4P plays the Warrens as they ship. */
-    withRows(M, WARRENS_BEFORE_STEP, () => withoutSpells(M, () => {
+    withGear(M, PARTY_61_GEAR, () => withRows(M, WARRENS_BEFORE_STEP, () => withoutSpells(M, () => {
     for (const [mode, hold] of [['Take turns', null], ['One tank holds: Fremulon', 1]]) {
       /* the holder of lap i (by `runs`): the lap's turn, or Fremulon every lap */
       const holderOf = (ids, i) => (hold === null ? ids[i % 2] : ids[1]);
@@ -1251,7 +1269,9 @@ function rules(M) {
          the browser on his Melee 41 rolls, and a swing he hit on the server missed in the browser 150 s on (752 s under "One tank holds" on
          the one party table; 1,024 s before it, on the board since 11-08; the rule read 736 s for a day). Each commit names the peers' keys at
          its window's start (hunt-settle.js huntPeerKeys); a key the prediction does not run restarts it from the start point (run's refresh,
-         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop). */
+         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop).
+         0 off holds only while the level's OWN window agrees: the server counts a level from the next swing, and the first commit that names it is
+         the one after (keys at the window's start). One that moves a blow first is diverged, and the page restarts on that (PARTY_61_GEAR). */
       const vm = andy(hold);
       const peerLv = () => JSON.stringify([vm[0], vm[1]].map((m) => [M.XP.charLevelFromXp(m.levelXp), M.XP.levelsOf(m.skills)]));
       let lvWas = null, moves = 0;
@@ -1269,7 +1289,7 @@ function rules(M) {
       ok('LV-PULL', moves >= 1 && v.refreshes.length >= 1 && v.refreshes.length <= moves, `${mode}, viewed: the peers' levels moved at ${moves} commit(s) and the prediction restarted for them ${v.refreshes.length} time(s) (want 1+ moves; 1+ restarts, never more than the moves)`);
       ok('LV-PULL', wire, `${mode}, viewed: a peer's frozen row keys otherwise in the browser (through JSON) than on the server`);
     }
-    }));
+    })));
   }
 
   { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow
@@ -2218,14 +2238,14 @@ const MUTANTS = [
   ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 'xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,', 'xpMultOf: null,', /^LV-EVENT: \d+ of the server's/],
   ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
   ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],
-  ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'monsters, items, ...(s.scale ? { scale: s.scale } : {}),', 'monsters, items,', /^LV-SCALE: (solo|party): \d+ of/],
+  ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'items: scaleItems(items, s.where.ground), ...(s.scale ? { scale: s.scale } : {}),', 'items: scaleItems(items, s.where.ground),', /^LV-SCALE: (solo|party): \d+ of/],
   ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level },', '      scale: null,', /^LV-SCALE: (solo|party): \d+ of/],
   ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'kindsOf(inst, world, tower)), atMs, rows) };', 'kindsOf(inst, world, tower)), atMs) };', /^LV-SCALE: party: \d+ of/],
   ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
   ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round(atTier(row, inst.tier).xp', 'xp: Math.round(atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
   ["a kill's coin is the catalogue's (LV-SCALE)", 'src/core/combat-sim.js', 'monsters: play.monsters || ctx.monsters, tier,', 'monsters: ctx.monsters, tier,', /^LV-SCALE: a scaled kill paid .* coin/],
   ['a monster swings its catalogue row (LV-SCALE)', 'src/core/hunt/damage.js', 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = atTier(MONSTERS[u.kind], inst.tier);', /^LV-SCALE: a scaled monster's hardest blow/],
-  ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, items, st.next) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
+  ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, scaleItems(items, st.where.ground), st.next) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
   ['asking why a slot waits moves the prediction (LV-WAITS)', 'src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot, atMs);\n', '    const t = testSlot(inst, u, h, slot, atMs);\n    u.mana -= 1;\n', /^LV-WAITS: \d+ commit/],
   ['the engine shoots ammo under its skill (LV-SHOT-SKILL)', 'src/core/hunt/abilities.js', "function shotLocked(h, id) {\n", "function shotLocked(h, id) {\n  if (h) return false;\n", /^LV-SHOT-SKILL: browser closed/],
   ["the peer's Level stays out of its frozen row, so the browser predicts the low seat a full share (LV-U)", 'src/core/member.js', 'armour: snap.armour || null, level: snap.level }', 'armour: snap.armour || null }', /^LV-U: the prediction/],
@@ -2269,7 +2289,7 @@ const MUTANTS = [
     '    const where = huntGroundOf(String(live.instance.hunt));\n',
     '    const real = huntGroundOf(String(live.instance.hunt));\n    const where = real && { grid: real.grid, ground: Object.assign({}, real.ground, { leashMargin: 0 }) };\n', /^LV-OPEN: viewed/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
-  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
+  ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list, mrow);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
   ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
   ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
   ["Turning Cut a sword alone's again (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a club at Melee \d+: browser closed/],

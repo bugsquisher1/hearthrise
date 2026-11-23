@@ -233,7 +233,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const say = sentenceOf(d.action);
   const lead = root.querySelector('.ca-lead');
   cls(lead, 'is-blank', !d.action.id);
-  text(root.querySelector('.ca-verb'), d.action.id ? say.verb : 'Choose what this slot does.');
+  text(root.querySelector('.ca-verb'), d.action.id ? say.verb : 'Choose an action');
   text(root.querySelector('.ca-item'), say.item);
   text(root.querySelector('.ca-note'), say.note ? ' ' + say.note : '');
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
@@ -298,7 +298,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join('\n') : effectLine(shown));
   /* The spell card's requirement, the level it unlocks at (an area ability's `unlock`), and an alone spell's callout beside it
      (Tyler 2026-11-09: "Make that callout clear to the player"). */
-  text(root.querySelector('.ca-req'), f && f.requires ? [f.requires, f.unlock, f.alone].filter(Boolean).join(' ') : '');
+  text(root.querySelector('.ca-req'), f && f.requires ? [f.requires, f.unlock, f.alone].filter(Boolean).join(' · ') : '');
   /* A rune spell's supply (configure-runes.js): the carried runes it may spend, then the rune shop or leaving the hunt. */
   patchRunes(root, d, { doc: ctx.doc, bag, store: set.store, skills: facts.skills, off });
   /* THE FOOT */

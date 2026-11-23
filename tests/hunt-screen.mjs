@@ -187,6 +187,19 @@ async function until(fn, ms = LOAD_MS) {
 const SEEN_SCRIPT = `(() => { const j = Response.prototype.json;
   Response.prototype.json = async function () { const v = await j.call(this);
     if (v && Number.isInteger(v.version)) window.__hsSeen = Math.max(window.__hsSeen || 0, v.version); return v; }; })();`;
+/* THE STUB SERVER'S CLOCK IS THE PAGE'S (nightly 45179414574: HS-15's clean control read "Leaving in 7s" where 6 was due).
+   The stub stamps an answer with its own clock when it builds it, and the page measures the server's clock when it
+   parses it (server.js res.json()). Before pauseClock the page's clock runs, so a loaded runner's transit during boot
+   (about a second) went into the page's server-clock offset, and the timeline moves that offset only a tenth of the way
+   per later answer (timeline.js T3): the paused part of the rule inherited the boot's lag. This page script restates
+   an answer's server clock as the page's own clock + `skew` at the moment it is parsed: a server with no transit,
+   which is what the paused part already is (virtual time never moves while a request is out). A paused page's
+   clock is clockOf.now, so a stamp made after the pause passes unchanged. */
+const serverClockAtReceipt = (skew) => `(() => { const j = Response.prototype.json;
+  Response.prototype.json = async function () { const v = await j.call(this);
+    if (v && typeof v === 'object' && Number.isSafeInteger(v.hunt_server_now_ms)) {
+      const t = Date.now() + ${Number(skew)}; v.hunt_server_now_ms = t; if (typeof v.now === 'string') v.now = new Date(t).toISOString(); }
+    return v; }; })();`;
 
 /* ── the pinned clock ── */
 const CLOCKS = new WeakMap();   // page -> { paused, now }
@@ -376,6 +389,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     await page.addInitScript(SEEN_SCRIPT);
+    if (o.init) await page.addInitScript(o.init);
     if (o.clock) {
       /* the page's clock, installed running (boot as usual); a timing rule pauses it and drives it */
       await page.clock.install();
@@ -1031,7 +1045,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const SKEW = 3 * 3600000;
       const LEAVE_IN = 5500;
       let leaveAt = null, clockOf = null;
-      const { ctx, page, s, errors, up } = await open({ clock: true, prep: (sc, pg) => {
+      const { ctx, page, s, errors, up } = await open({ clock: true, init: serverClockAtReceipt(SKEW), prep: (sc, pg) => {
         clockOf = CLOCKS.get(pg);
         sc.clock = () => (clockOf.paused ? clockOf.now : Date.now()) + SKEW;
         /* the live view's start-point asks wait for a first boundary an hour off, so only the ordinary

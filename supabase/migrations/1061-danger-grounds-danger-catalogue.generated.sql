@@ -55,10 +55,15 @@ create table if not exists public.hr_danger_rules (
   default_risk      text not null check (default_risk ~ '^[a-z0-9_]{1,64}$')
 );
 alter table public.hr_danger_rules add column if not exists default_risk text;
--- THE HOURS FORMULA (lane/formula-overhaul, 2026-11-22): the hand table's spans (1055's hours_at / hours_per) give way to three levers. The row
--- is rewritten whole below, so the old columns go first and the new ones are made if missing; a second apply is byte-identical.
-alter table public.hr_danger_rules drop column if exists hours_at;
-alter table public.hr_danger_rules drop column if exists hours_per;
+-- THE HOURS FORMULA (lane/formula-overhaul, 2026-11-22): the hand table's spans (1055's hours_at / hours_per) give way to three levers, made
+-- if missing. 1055's two columns stay, emptied and no longer required, so a second apply of 1055 (which writes them) still runs; they leave
+-- with 1055 when the chain retires it (tools/chain-retire.mjs). Nothing reads them: hr_danger_hours_for below reads the levers.
+do $mig$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_danger_rules' and column_name = 'hours_at') then
+    alter table public.hr_danger_rules alter column hours_at drop not null;
+    alter table public.hr_danger_rules alter column hours_per drop not null; end if;
+end $mig$;
 alter table public.hr_danger_rules add column if not exists hours_ceiling int check (hours_ceiling >= 1);
 alter table public.hr_danger_rules add column if not exists hours_half int check (hours_half >= 1);
 alter table public.hr_danger_rules add column if not exists hours_early int check (hours_early >= 0);
@@ -149,6 +154,8 @@ begin
     raise exception 'VERIFY(a): a death settles a stance to a bolder one or none'; end if;
   if not exists (select 1 from public.hr_danger_rules r join public.hr_danger_stances s on s.risk = r.default_risk where r.id) then
     raise exception 'VERIFY(a): the default stance is no stance'; end if;
+  if exists (select 1 from public.hr_danger_rules where id and (hours_ceiling is null or hours_half is null or hours_early is null)) then
+    raise exception 'VERIFY(a): the hours formula has a missing lever'; end if;
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r)
               where has_table_privilege(g.r, 'public.hr_danger_rules', 'select') or has_table_privilege(g.r, 'public.hr_danger_stances', 'select')
                  or has_table_privilege(g.r, 'public.hr_danger_grounds', 'select')

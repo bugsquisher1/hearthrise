@@ -383,6 +383,11 @@
         "bytes": 3740177,
         "on": "2026-11-23",
         "why": "cut locked in (13339 bytes)"
+      },
+      {
+        "bytes": 3750027,
+        "on": "2026-11-23",
+        "why": "lane/moves-wave-3 (23-spell-audit wave 3): Stagger, Parry and Gash rows with their reasons (data/abilities.js), the Parried status and its parry effect (data/statuses.js, core/hunt/status.js spendFlag), the wind-up answers in core/hunt/abilities.js (answer, the one-target status move), monster-spells.js interrupt and its parried landing, damage.js's parried swing, the target_winding_up test (data/condition-metrics.js, core/hunt/conditions.js)"
       }
     ]
   }

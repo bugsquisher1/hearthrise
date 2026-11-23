@@ -19,12 +19,14 @@
 //                             1000..1400, Cleave gone, Power Strike off the axes, Quarry Blow the club's Earth rune strike, Mend 110 of max HP
 //   power-strike-beats-a-swing  the plan's test: on the career kit at Levels 10, 60 and 110 (tools/balance-sim gear and skill lines, the
 //                             unit's own max hit and its real to-hit on a same-Level regular), Power Strike lands more than a plain swing
+//   borrowed-reads-the-native-blow  18-roads-review-design R4 (lane/bar-metrics): a borrowed move reads its native weapon's reference
+//                             blow at the hero's Level (typed here), never the holder's; the bar keeps it only when the server lists it
 //   bar-budget                G23: every family's offense rows fill at most its cap (0.85, the tank 0.6, the Healer 0.3) of the 2 s lane
 //   both-paths                BOTH PATHS (CLAUDE.md §4): a lone axes hero on its default bar (Turning Cut, Rend and its bleed, whose stacks
 //                             ride the world between settles) for an hour of the world tick, watched (10 s settles) and with the browser
 //                             closed (10 min settles): the same kills, Level XP, damage taken, deaths, Rend casts and store bill, to the unit
 //
-// mutant-anchors: src/core/hunt/abilities.js src/core/hunt/status.js src/data/abilities.js src/data/statuses.js src/data/runes.js src/core/hunt/world-state.js
+// mutant-anchors: src/core/borrow-blow.js src/core/hunt/abilities.js src/core/hunt/status.js src/data/abilities.js src/data/statuses.js src/data/runes.js src/core/hunt/world-state.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT, hero, mon, world, instOf, subStep } from './fixtures/h1.js';
@@ -51,6 +53,8 @@ function play(M, id, maxHit, o) {
   const h = hero(M, 1, 12, 3, { hp: x.hp ?? 50, maxHp: x.maxHp ?? 1000, mana: 5000, maxMana: 5000, maxHit, role: ROLE[row.disciplines[0]] || 'melee_dps' });
   const units = [h, mon(M, 10, 0, 13, 3, { kind: 'yard_dummy', hp: 100000, maxHp: 100000, target: 1 }), mon(M, 11, 0, 13, 4, { kind: 'yard_dummy', hp: 100000, maxHp: 100000, target: 1 })];
   if (x.ally) units.push(hero(M, 2, 11, 3, { hp: 50, maxHp: 1000, role: 'tank' }));
+  /* a move this hero borrows: its blow as the settle writes it (combat-sim.js syncUnit, src/core/borrow-blow.js) */
+  if (x.borrow) h.borrowBlows = x.borrow;
   const inst = instOf(M, world(M, units));
   const slot = { action: { type: 'ability', id }, conditions: [], join: 'and' };
   inst.heroes = { 1: { hs, actionSet: 'hunt', range: row.disciplines.includes('destruction') || row.disciplines.includes('restoration') ? 6 : 1,
@@ -90,6 +94,38 @@ const cases = {
       if (!(k > 3.3 && k < 4.7)) return row.id + ': four times the blow landed ' + k.toFixed(2) + ' times the cast (' + avg.map((n) => n.toFixed(1)) + ')';
     }
     return null;
+  },
+  /* A BORROWED CAST READS ITS NATIVE WEAPON'S BLOW (18-roads-review-design R4, lane/bar-metrics; src/core/borrow-blow.js): the reference
+     blow, typed here, is the native family's rung worn at the Level and the reference hero's main skill at it, floor(skill x 0.35 +
+     strength x 0.6 + 2); a hammer holding Greater Mend heals on that, never on its own blow; a native cast and Mend read their own. */
+  'borrowed-reads-the-native-blow': async (M) => {
+    const v = sourceQuery(M.root);
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
+    const [BB, GT, TH] = await Promise.all([imp('src/core/borrow-blow.js'), imp('src/data/gear-tiers.js'), imp('src/data/to-hit.js')]);
+    const typed = (fam, L) => {
+      const f = GT.WEAPON_FAMILIES.find((x) => x.key === fam);
+      let str = 0;
+      GT.MATERIAL_TIERS.forEach((t, i) => { if (t.level <= L && f.ids[i]) str = f.str[i]; });
+      return Math.floor(Math.round(TH.refHeroAt(L).main) * 0.35 + str * 0.6 + 2);
+    };
+    for (const L of [10, 60, 110]) {
+      const got = BB.borrowBlowsOf(['greater_mend', 'quarry_blow', 'mend', 'no_such_move'], L);
+      const want = { greater_mend: typed('staff', L), quarry_blow: typed('warhammer', L) };
+      if (JSON.stringify(got) !== JSON.stringify(want)) return 'Level ' + L + ': borrowed blows ' + JSON.stringify(got) + ', the rule ' + JSON.stringify(want);
+    }
+    if (BB.borrowBlowsOf([], 60) !== null || BB.borrowBlowsOf(['mend'], 60) !== null) return 'nothing borrowed (or only Mend, every weapon\'s) still wrote blows';
+    /* the bar: a hammer keeps a borrowed Greater Mend only when the server lists it as borrowed */
+    const bar = [{ action: { type: 'ability', id: 'greater_mend' }, conditions: [], join: 'and' }];
+    const has = (o) => M.spawn.heroSetup(Object.assign({ weaponType: 'hammer', options: {}, bar }, o)).slots.some((r) => r.slot.action.id === 'greater_mend');
+    if (has({}) || !has({ borrowed: ['greater_mend'] })) return 'a hammer\'s bar kept Greater Mend unborrowed, or dropped it borrowed';
+    if (M.spawn.heroSetup({ weaponType: 'hammer', options: {}, bar, borrowed: ['power_strike', 'mend', 'greater_mend', 'greater_mend'] }).borrowed.join() !== 'greater_mend') return 'a native move, Mend or a repeat counted as borrowed';
+    /* the engine: the same hammer of max hit 80 casts Greater Mend on the staff's Level 60 blow when it borrows it */
+    const ref = typed('staff', 60);
+    const heal = (borrow) => play(M, 'greater_mend', 80, { ally: true, borrow }).heal;
+    const want = (blow) => Math.floor((Math.max(topOf(blow, M.AD.ABILITIES.greater_mend.healPm), M.AD.ABILITIES.greater_mend.base) * STEP[4]) / 1000);
+    const lent = heal({ greater_mend: ref }), own = heal(null);
+    if (!lent.includes(want(ref)) || lent.some((n) => n > want(ref))) return 'a borrowed Greater Mend healed ' + JSON.stringify(lent.slice(0, 4)) + ', the staff\'s blow ' + ref + ' heals ' + want(ref);
+    return own.includes(want(80)) ? null : 'a native Greater Mend healed ' + JSON.stringify(own.slice(0, 4)) + ', its own blow heals ' + want(80);
   },
   'heals-and-shells': (M) => {
     for (const [id, field, maxHit] of [['greater_mend', 'healPm', 20], ['greater_mend', 'healPm', 80], ['circle_of_renewal', 'healPm', 80], ['protective_ward', 'shieldPm', 20], ['protective_ward', 'shieldPm', 80], ['arcane_barrier', 'shieldPm', 80]]) {
@@ -195,7 +231,11 @@ const mutants = [
   { name: 'the version step is never read (every rune casts its share at 1000)', case: 'hits-share-the-blow',
     edits: [[AB, '    const pm = Math.floor((v.outPm * s.pm) / 1000);', '    const pm = s.pm;']] },
   { name: 'a hit reads a fixed blow of 20, not the caster\'s', case: 'hits-share-the-blow',
-    edits: [[AB, '  const dmg = () => roll(sc, hitRange(u.maxHit, row));', '  const dmg = () => roll(sc, hitRange(20, row));']] },
+    edits: [[AB, '  const dmg = () => roll(sc, hitRange(blowOf(u, row), row));', '  const dmg = () => roll(sc, hitRange(20, row));']] },
+  { name: 'a borrowed cast reads the holder\'s own blow (the reference ignored)', case: 'borrowed-reads-the-native-blow',
+    edits: [['src/core/hunt/abilities.js', 'Number.isInteger(u.borrowBlows[row.id]) ? u.borrowBlows[row.id] : u && u.maxHit', 'false ? 0 : u && u.maxHit']] },
+  { name: 'the reference blow reads the hero\'s skill-less weapon (no rung)', case: 'borrowed-reads-the-native-blow',
+    edits: [['src/core/borrow-blow.js', "  const equipment = weapon ? { weapon } : {};", "  const equipment = {};"]] },
   { name: 'a heal reads the caster\'s max HP in place of its blow', case: 'heals-and-shells',
     edits: [[AD, '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHit, row.healPm))) };', '  if (Number.isInteger(row.healPm)) return { heal: at(floored(of(maxHp, row.healPm))) };']] },
   { name: 'Mend is a share of the blow (the 32-4 exception lost)', case: 'heals-and-shells',

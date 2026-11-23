@@ -38,7 +38,10 @@
 //            noun as [one, other] ("monster", "monsters")
 //   subjectAfter  true = the subject reads after the number, as part of its unit
 //            ("the party has at least 2 heroes under half health")
-//   value    'pct' | 'count' | 'bool' | 'effect' — which value picker
+//   value    'pct' | 'count' | 'bool' | 'effect' | 'move' — which value picker ('move': an ability id, MOVE_IDS)
+//   tip      optional: the test's short label in tooltip form, read before the comparison ("Target health below 30%",
+//            "Target is Marked", "Target Bleed stacks 3+", "Last move: Rend"); {who} is the subject's label. The
+//            slot's title reads it (bar-draft.js conditionTip); a row without one reads its sentence
 //   ops      the operators it takes (keys of OPERATORS)
 //   range    [min, max] for a number value (inclusive, whole)
 //   subject  optional: the subject choices and their labels; the first is the default
@@ -52,6 +55,7 @@
 
 import { HUNT_ROLES } from './hunt-roles.js';
 import { STATUSES } from './statuses.js';
+import { ABILITIES } from './abilities.js';
 
 /* Three, all of which must match (Tyler's ruling, 2026-10-19 audit C2; a stop rule may still join
    "any"). The `pass` bitmask is one bit a condition. Server: 2026-10-26-bar-three-conditions.sql. */
@@ -85,6 +89,11 @@ const ALLY = Object.freeze(Object.assign({ lowest: 'the lowest ally', self: 'you
 
 const PCT = '%';
 const noun = (one, other) => Object.freeze([one, other]);
+/* THE STATUSES THAT STACK (statuses.js maxStacks over 1: Bleed today): the subjects of "my target has at least 3 Bleed stacks", and the
+   most any of them carries, its range's top. A new stacking status is a row there and is a subject here by itself. */
+const STACKING = Object.freeze(Object.values(STATUSES).filter((s) => s.maxStacks > 1));
+const STACKS = Object.freeze(Object.fromEntries(STACKING.map((s) => [s.id, s.name + ' stacks'])));
+const STACK_MAX = STACKING.reduce((n, s) => Math.max(n, s.maxStacks), 1);
 /** @typedef {{ id: string, say: string, unit?: string | readonly string[], subjectAfter?: boolean, value: string, ops: readonly string[],
     range?: readonly number[], subject?: Readonly<Record<string, string>>, slotOnly?: boolean }} Metric */
 /** @type {readonly Metric[]} */
@@ -115,6 +124,18 @@ export const METRICS = Object.freeze([
     /* Whose effect: my target, me, or the ally this slot's conditions picked (its heal target; else the lowest ally).
        The effect ids are the status registry's (statuses.js), never invented here. */
     subject: Object.freeze({ target: 'on my target', self: 'on me', ally: 'on the ally I would heal' }) }),
+  /* THE ROADS' FOUR (18-roads-review §3 item 4, §9 step 1; lane/bar-metrics, Systems 2026-11-22): the tests a finishing strike, a strike
+     on a Marked target, a Bleed builder and a rotation need. Each reads the world the one engine settles, viewed or closed alike. */
+  /* the hero's own target's HP, a share of its max (no target: nobody, the test fails) */
+  Object.freeze({ id: 'target_hp_pct', say: 'my target’s HP', tip: 'Target health', unit: PCT, value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  /* the hero's own target carries a Hunter's Mark still running (abilities.js `mark`: markUntil, read at the sub-step's instant) */
+  Object.freeze({ id: 'target_marked', say: 'my target is Marked', tip: 'Target is Marked', value: 'bool', ops: Object.freeze(['eq']) }),
+  /* the stacks of one stacking status on the hero's own target: "my target has at least 3 Bleed stacks" */
+  Object.freeze({ id: 'target_stacks', say: 'my target has', tip: 'Target {who}', subjectAfter: true, value: 'count', ops: NUM,
+    range: Object.freeze([0, STACK_MAX]), subject: STACKS }),
+  /* the last ability this hero cast in this hunt ON THE SLOT'S OWN LANE (a supply slot or a stop rule: on any lane), so a Mark between two
+     strikes never breaks a rotation (abilities.js fire writes it; persisted with the world): "my last move is Rend" */
+  Object.freeze({ id: 'last_move', say: 'my last move', tip: 'Last move', value: 'move', ops: Object.freeze(['eq', 'ne']) }),
 ]);
 
 /* What a slot can do: the action types and where each type's ids come from. */
@@ -130,12 +151,17 @@ export const ATTACK_KINDS = Object.freeze({ loaded: 'the loaded ammo' });
 
 /* The effect ids an `effect` value may name. */
 export const EFFECT_IDS = Object.freeze(Object.keys(STATUSES));
+/* The ability ids a `move` value may name (last_move): every ability row, whoever's it is (a move a hero cannot cast is a test that
+   never holds, never a refusal). */
+export const MOVE_IDS = Object.freeze(Object.keys(ABILITIES));
+/* The named values a value kind takes, by kind: what the server's `vals` column holds for a row of that kind (hr_hunt_cond_check). */
+export const VALUE_IDS = Object.freeze({ effect: EFFECT_IDS, move: MOVE_IDS });
 
 /** Every problem with the registry, as strings. Empty = valid. */
 export function validate() {
   const out = [];
   const seen = new Set();
-  const KINDS = ['pct', 'count', 'bool', 'effect'];
+  const KINDS = ['pct', 'count', 'bool', 'effect', 'move'];
   for (const m of METRICS) {
     const at = 'metric ' + m.id + ': ';
     if (!/^[a-z_]{1,32}$/.test(m.id) || seen.has(m.id)) out.push(at + 'bad or duplicate id');
@@ -147,6 +173,9 @@ export function validate() {
     if (m.range && !(m.range.length === 2 && m.range.every(Number.isInteger) && m.range[0] <= m.range[1])) out.push(at + 'range is [min, max]');
     if (m.value === 'bool' && m.ops.join() !== 'eq') out.push(at + 'a bool takes eq only');
     if (m.value === 'effect' && m.ops.some((o) => !o.endsWith('_effect'))) out.push(at + 'an effect takes has_effect / lacks_effect only');
+    if (m.value === 'move' && m.ops.some((o) => o !== 'eq' && o !== 'ne')) out.push(at + 'a move takes eq / ne only');
+    if (m.tip !== undefined && !(typeof m.tip === 'string' && m.tip)) out.push(at + 'tip: a short label, or none');
+    if (typeof m.tip === 'string' && m.tip.includes('{who}') && !m.subject) out.push(at + 'tip: {who} names a subject the row lacks');
     if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z0-9_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
     if (typeof m.say !== 'string' || !m.say) out.push(at + 'say: no words for the slot sentence');
     /* A number has its unit, read after it ("50%", "2 monsters"): a percent's %, a count's noun, or a subject read as its unit. */
@@ -157,5 +186,6 @@ export function validate() {
     for (const o of m.ops) if (OPERATORS[o] && typeof OPERATORS[o][numeric ? m.value : 'say'] !== 'string') out.push(at + 'operator ' + o + ' has no words for a ' + m.value);
   }
   if (!EFFECT_IDS.length) out.push('no effect ids');
+  if (!MOVE_IDS.length) out.push('no move ids');
   return out;
 }

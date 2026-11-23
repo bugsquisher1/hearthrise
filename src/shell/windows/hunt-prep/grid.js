@@ -15,7 +15,7 @@
 import { text, cls, attr, keyedChild, element } from '../../../render/paint.js';
 import { actionIconHtml } from '../../widgets/bits.js';
 import { actionName } from '../../action-facts.js';
-import { conditionWords, openSlotIn } from '../../bar-draft.js';
+import { conditionWords, conditionTip, openSlotIn } from '../../bar-draft.js';
 import { resetConfigureView } from '../configure-action.js';
 import { dropPlan, SLOTS } from '../../prep-draft.js';
 import { whole } from '../../../render/format.js';
@@ -40,11 +40,12 @@ export function gridHtml() {
 
 const keyOf = (w) => (w && w.action ? w.action.type + ':' + w.action.id : '');
 
-/* The slot's one line for its title: switched off, its rule in words (the same words Configure action reads), or that it fires when ready. */
-function whenWords(w) {
+/* The slot's one line for its label: switched off, its rule in words (the same words Configure action reads), or that it fires when ready.
+   `words` reads each condition: its sentence for the label read aloud, its short label (conditionTip) for the hover title. */
+function whenWords(w, words = conditionWords) {
   if (w.enabled === false) return t('prep.slot_off');
   const c = Array.isArray(w.conditions) ? w.conditions : [];
-  return c.length ? t('bar.setup_when', { conditions: c.map(conditionWords).join(' and ') }) : t('prep.slot_always');
+  return c.length ? t('bar.setup_when', { conditions: c.map(words).join(' and ') }) : t('prep.slot_always');
 }
 
 /** Patch the tiles from the copy; the counts are the server's (the view's slots, by action). */
@@ -71,7 +72,7 @@ export function patchGrid(root, ctx, sc, view, off) {
     const n = w && counts.has(key) ? counts.get(key) : null;
     text(li.querySelector('.hb-count'), n ? whole(n) : '');
     attr(li, 'aria-label', w ? t('prep.slot_filled', { n: i + 1, name: actionName(w.action) }) + ' ' + whenWords(w) : t('prep.slot_empty', { n: i + 1 }));
-    attr(li, 'title', w ? actionName(w.action) + '. ' + whenWords(w) : null);
+    attr(li, 'title', w ? actionName(w.action) + '. ' + whenWords(w, conditionTip) : null);
   }
   text(root.querySelector('.hpb-barcount'), bar ? t('prep.bar_count', { n: filled, max: SLOTS }) : '');
 }

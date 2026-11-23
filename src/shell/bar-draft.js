@@ -11,7 +11,7 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js';
+import { METRICS, OPERATORS, VALUE_IDS } from '../data/condition-metrics.js';
 import { STATUSES } from '../data/statuses.js';
 import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js';
 import { BASIC_INDEX } from '../data/supply-basics.js';
@@ -134,7 +134,7 @@ export function conditionFor(metric) {
   const m = METRIC.get(metric);
   if (!m) return null;
   const any = m.value === 'count' && m.ops.includes('gte');
-  const c = { metric: m.id, op: any ? 'gte' : m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : any ? Math.max(1, m.range[0]) : startValue(m) };
+  const c = { metric: m.id, op: any ? 'gte' : m.ops[0], value: VALUE_IDS[m.value] ? VALUE_IDS[m.value][0] : any ? Math.max(1, m.range[0]) : startValue(m) };
   if (m.subject) c.subject = Object.keys(m.subject)[0];
   return c;
 }
@@ -221,6 +221,12 @@ export function unitWords(m, value) {
   return Array.isArray(m.unit) ? ' ' + m.unit[value === 1 ? 0 : 1] : m.unit;
 }
 
+/** A NAMED VALUE's name (condition-metrics.js VALUE_IDS): an effect's status name, a move's ability name; the id itself for an unknown one. */
+export function valueName(m, id) {
+  const row = m && m.value === 'move' ? ABILITIES[id] : m && m.value === 'effect' ? STATUSES[id] : null;
+  return (row && (row.n || row.name)) || String(id);
+}
+
 /* Whose effect, as the subject of a sentence (an effect test reads "my target lacks Burn", "I have Shielded"). */
 const EFFECT_WHO = Object.freeze({ target: 'my target', self: 'I', ally: 'the ally I would heal' });
 
@@ -231,15 +237,32 @@ export function conditionWords(c) {
   const m = METRIC.get(c.metric);
   if (!m) return c.metric;
   if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? m.say : m.say.replace(' is ', ' is not ');
+  /* "my last move is Rend" */
+  if (m.value === 'move') return m.say + ' ' + opWords(c.op, m) + ' ' + valueName(m, c.value);
   if (m.value === 'effect') {
     const who = EFFECT_WHO[c.subject] || EFFECT_WHO.target;
     const verb = who === 'I' ? (c.op === 'has_effect' ? 'have' : 'lack') : opWords(c.op, m);
-    return who + ' ' + verb + ' ' + ((STATUSES[c.value] && STATUSES[c.value].name) || String(c.value));
+    return who + ' ' + verb + ' ' + valueName(m, c.value);
   }
   /* the subject the picker shows: the condition's, else the first (conditionFor's default) */
   const key = m.subject ? (c.subject && Object.prototype.hasOwnProperty.call(m.subject, c.subject) ? c.subject : Object.keys(m.subject)[0]) : null;
   const subject = key ? ' ' + m.subject[key] : '';
   return m.say + (m.subjectAfter ? '' : subject) + ' ' + opWords(c.op, m) + ' ' + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');
+}
+
+/* A comparison in a tooltip's few words: "below 30%", "3+", "at most 5". */
+const TIP_OP = Object.freeze({ lt: 'below', lte: 'at most', gt: 'above', gte: 'at least', eq: 'exactly', ne: 'not' });
+/** One condition as its short label (condition-metrics.js `tip`), the slot's tooltip: "Target health below 30%", "Target is Marked",
+    "Target Bleed stacks 3+", "Last move: Rend". A test with no `tip` reads its sentence (conditionWords). */
+export function conditionTip(c) {
+  const m = METRIC.get(c.metric);
+  if (!m || !m.tip) return conditionWords(c);
+  const key = m.subject ? (c.subject && Object.prototype.hasOwnProperty.call(m.subject, c.subject) ? c.subject : Object.keys(m.subject)[0]) : null;
+  const tip = key ? m.tip.replace('{who}', m.subject[key]) : m.tip;
+  if (m.value === 'bool') return (c.op === 'eq') === (c.value === true) ? tip : tip.replace(' is ', ' is not ');
+  if (m.value === 'move' || m.value === 'effect') return tip + ': ' + (c.op === 'ne' || c.op === 'lacks_effect' ? 'not ' : '') + valueName(m, c.value);
+  if (m.value === 'count' && c.op === 'gte') return tip + ' ' + c.value + '+';
+  return tip + ' ' + (TIP_OP[c.op] || c.op) + ' ' + c.value + (m.value === 'pct' ? '%' : '');
 }
 
 

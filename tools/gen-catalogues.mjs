@@ -1576,8 +1576,12 @@ const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
    both the shield's (their versions read Melee), land in it, the same create or replace.
    THE HAMMER'S RUNE STRIKE (lane/c-spell-rule, Tyler 2026-11-21, call 32-5): 2027-05-25-tank-runes-rune-spells (STAGED on set/v0.2.142, applied first) is the file
    before this one and this one carries it (every spell before, unchanged); Quarry Blow on the Earth family, the club's (its versions read Melee), lands in
-   it, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1029-spell-rule-rune-spells.generated.sql');
+   it, the same create or replace.
+   WAVE 3'S ANSWERS (lane/moves-wave-3, 2026-11-23; docs/design/redesign/23-spell-audit.md section 4): 1029-spell-rule-rune-spells (STAGED) stays as written,
+   applied before 1058-hunting-blocks-hunt-sessions-catalogue (whose hr_hunt_abilities moves: its self-check compares the two at its own place), so the
+   forward file is a NEW one after 1058: Quarry Blow leaves, Stagger joins on the Earth family (the club's, its rework) and Gash on the Rupture family
+   (the axes'), both reading Melee; every other spell unchanged, the same create or replace. */
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '1069-wave3-moves-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1613,14 +1617,15 @@ const sqlRuneSpells = `-- ══════════════════
 -- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql) and hr_hunt_rune_store_state + hr_hunt_slot_check
 -- (2027-03-08-rune-ladder-slots.sql), which hr_hunt_settings_view's \`usable\` reads: { ability: { skill,
 -- runes: { item: the level in that skill its version needs }, store: { store row: the level its version needs } } }.
--- Server-only. New in this file (lane/c-spell-rule, the hammer's rune strike, Tyler 2026-11-21, call 32-5): Quarry Blow on
--- the Earth family, the club's (its versions read MELEE: skill 'melee'), so a hammer's slot naming it with a rune of its family
--- (carried, or the store's) is accepted and read usable. Carried from 2027-05-25-tank-runes-rune-spells.generated.sql (STAGED on
--- set/v0.2.142, applied first): Frost Slam, Shelter and every spell before them; no other spell's runes or store rows move.
+-- Server-only. New in this file (lane/moves-wave-3, systems-engineer, 2026-11-23; docs/design/redesign/23-spell-audit.md wave 3):
+-- Quarry Blow leaves (reworked into Stagger), Stagger joins on the Earth family (the club's) and Gash on the Rupture family (the
+-- axes'), both reading MELEE (skill 'melee'), so a hammer's or an axes' slot naming one with a rune of its family (carried, or the
+-- store's) is accepted and read usable. Carried from 1029-spell-rule-rune-spells.generated.sql (STAGED, applied first): every
+-- other spell's runes and store rows, unchanged.
 --
--- APPLY ORDER: right after 1028-spell-rule-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries Quarry Blow,
---              and this file's self-check compares the two), before the hr-accrue deploy and the client that offers
---              the spell. SAFE TO RE-RUN (create or replace).
+-- APPLY ORDER: after 1058-hunting-blocks-hunt-sessions-catalogue.generated.sql (its hr_hunt_abilities carries Stagger and Gash
+--              and no Quarry Blow, and this file's self-check compares the two), before the hr-accrue deploy and the client
+--              that offers the spells. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════
 
 create or replace function public.hr_hunt_rune_spells()
@@ -1687,7 +1692,7 @@ for (const [kit, rows] of [['account', ACCOUNT_KIT], ['hero', HERO_KIT]]) {
   for (const id of Object.keys(rows).sort()) {
     if (!ITEMS[id]) die(`${kit.toUpperCase()}_KIT names "${id}", which is not in src/data/items.js`);
     if (!Number.isInteger(rows[id]) || rows[id] <= 0) die(`${kit.toUpperCase()}_KIT.${id} must be a positive integer`);
-    kitLines.push({ item_id: id, kit, qty: rows[id], set_id: null, equip_slot: null, worn: false, default_set: false });
+    kitLines.push({ item_id: id, kit, qty: rows[id], set_id: null, equip_slot: null, worn: false, default_set: false, loads: null });
   }
 }
 if (!STARTER_SETS[DEFAULT_SET]) die(`DEFAULT_SET "${DEFAULT_SET}" is no STARTER_SETS row`);
@@ -1701,9 +1706,34 @@ for (const set of Object.keys(STARTER_SETS).sort()) {
     if (slots.length !== 1) die(`STARTER_SETS.${set} names "${id}", which fits ${slots.length} equip slots: a practice item fits one`);
     const worn = !taken.has(slots[0]);
     taken.add(slots[0]);
-    kitLines.push({ item_id: id, kit: 'practice', qty: 1, set_id: set, equip_slot: slots[0], worn, default_set: set === DEFAULT_SET });
+    kitLines.push({ item_id: id, kit: 'practice', qty: 1, set_id: set, equip_slot: slots[0], worn, default_set: set === DEFAULT_SET, loads: null });
   }
   if (!taken.has('weapon')) die(`STARTER_SETS.${set} puts nothing in hand: every way to fight has a weapon`);
+}
+{
+  /* THE SHOT A SET LOADS (lane/recruits-ammo-talents, 2026-11-23; the first-hour walk: a bow recruit fought its whole first party hunt
+     with "none loaded (no attacks)", its 50 Bronze Arrows in the bag). A bow never goes on empty (src/shell/bag-model.js equipOps, the
+     Equip press): a set whose worn weapon shoots (src/data/hunt-roles.js shootsItem, for the role its worn weapon and shield play)
+     loads one of the kits' shots, the highest requirement a new hero meets (every skill at level 1: START_SKILL_XP holds none), as
+     bag-model.js shotToLoad picks one. Written on the set's worn weapon line as `loads`; hr_create_character__as (1038-start-kits.sql)
+     moves one unit of it from the bag to the ammo slot when the bag holds it. */
+  if (Object.keys(START_SKILL_XP).length) die('START_SKILL_XP is no longer empty: the shot a set loads must read the new hero\'s skill levels');
+  const { wornRoleKey, roleForWeapon, shootsItem } = await imp('src/data/hunt-roles.js');
+  const shots = [...new Set([...Object.keys(ACCOUNT_KIT), ...Object.keys(HERO_KIT)])].sort();
+  for (const set of Object.keys(STARTER_SETS).sort()) {
+    const lines = kitLines.filter((l) => l.set_id === set && l.worn);
+    const gear = Object.fromEntries(lines.map((l) => [l.equip_slot, l.item_id]));
+    const role = roleForWeapon(wornRoleKey(gear, ITEMS));
+    let best = null;
+    for (const id of shots) {
+      const need = Number(ITEMS[id].reqLv) || 1;
+      if (shootsItem(role, ITEMS[id]) && need <= 1 && (!best || need > best.need)) best = { id, need };
+    }
+    if (best) {
+      if (!(legalSlots.get(best.id) || new Set()).has('ammo')) die(`STARTER_SETS.${set} would load "${best.id}", which is not worn in the ammo slot`);
+      lines.find((l) => l.equip_slot === 'weapon').loads = best.id;
+    }
+  }
 }
 {
   /* THE TWO VIEWS AGREE: a no-pick first hero (both kits, DEFAULT_SET worn, the other sets in the bag) is exactly START_INVENTORY and
@@ -1729,13 +1759,16 @@ const sqlKitLines = `-- ══════════════════�
 --   \`node tools/gen-catalogues.mjs --check\`, a preflight in tests/run-sql-tests.mjs and tests/run-smoke.mjs.
 --
 --   catalogue digest: ${KIT_LINES_DIGEST}
---   ${kitLines.length} lines · sets: ${SET_IDS.join(', ')} · default set: ${DEFAULT_SET}
+--   ${kitLines.length} lines · sets: ${SET_IDS.join(', ')} · default set: ${DEFAULT_SET} · loads: ${kitLines.filter((l) => l.loads).map((l) => l.set_id + ' ' + l.loads).join(', ') || 'none'}
 --
 -- WHAT THIS IS FOR (lane/c-first-hour FB-5, CE-10). hr_create_character__as (1038-start-kits.sql) reads it:
 --   kit 'account'   once an account (account_kits 'account'), into its first hero's bag
 --   kit 'hero'      once a slot (account_kits 'hero:<slot>'), into that slot's first hero's bag
 --   kit 'practice'  to every hero: the picked set's worn rows in their equip slot, every other practice row in the bag
 -- A pick is a set_id of these rows; default_set marks the set a hero made with no pick wears. Server-only: no client grant.
+-- \`loads\` (lane/recruits-ammo-talents, 2026-11-23), on a set's worn weapon line: the kit shot that weapon looses (hunt-roles.js
+--   shootsItem, the highest requirement a new hero meets). hr_create_character__as moves ONE of it from the bag to the ammo slot, as an
+--   Equip of the weapon does (src/shell/bag-model.js equipOps), so no server-made bow goes on empty.
 -- ORDER: after 1036-four-starter-slots.sql; BEFORE 1038-start-kits.sql, whose §0 refuses without it. SAFE TO RE-RUN (a full replace).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -1749,12 +1782,16 @@ create table if not exists public.hr_start_kit_lines (
   default_set boolean not null default false check (kit = 'practice' or not default_set),
   primary key (kit, item_id)
 );
+alter table public.hr_start_kit_lines add column if not exists loads text;
+alter table public.hr_start_kit_lines drop constraint if exists hr_start_kit_lines_loads_ck;
+alter table public.hr_start_kit_lines add constraint hr_start_kit_lines_loads_ck
+  check (loads is null or (kit = 'practice' and worn and equip_slot = 'weapon'));
 alter table public.hr_start_kit_lines enable row level security;
-comment on table public.hr_start_kit_lines is '1037-first-hour-kit-lines.generated.sql: the starting kit by part (account once, hero once a slot, practice weapons to every hero with the picked set worn), generated from src/data/start-kit.js. Read by hr_create_character__as. Server-only.';
+comment on table public.hr_start_kit_lines is '1037-first-hour-kit-lines.generated.sql: the starting kit by part (account once, hero once a slot, practice weapons to every hero with the picked set worn, and the kit shot a set''s worn weapon loads), generated from src/data/start-kit.js. Read by hr_create_character__as. Server-only.';
 
 delete from public.hr_start_kit_lines;
-insert into public.hr_start_kit_lines (item_id, kit, qty, set_id, equip_slot, worn, default_set) values
-${valuesBlock(kitLines, (r) => `  (${q(r.item_id)},${q(r.kit)},${n(r.qty)},${q(r.set_id)},${q(r.equip_slot)},${b(r.worn)},${b(r.default_set)})`)};
+insert into public.hr_start_kit_lines (item_id, kit, qty, set_id, equip_slot, worn, default_set, loads) values
+${valuesBlock(kitLines, (r) => `  (${q(r.item_id)},${q(r.kit)},${n(r.qty)},${q(r.set_id)},${q(r.equip_slot)},${b(r.worn)},${b(r.default_set)},${q(r.loads)})`)};
 
 -- ── Grants: the server's alone (revoke before nothing is granted) ─────────
 revoke all on public.hr_start_kit_lines from public, anon, authenticated;
@@ -1778,6 +1815,15 @@ begin
   if v_bad is not null then raise exception 'hr_start_kit_lines: a set wears no weapon or two items in one slot: %', v_bad; end if;
   if (select count(distinct set_id) from public.hr_start_kit_lines where default_set) <> 1 then
     raise exception 'hr_start_kit_lines: not exactly one default set';
+  end if;
+  -- a shot a set loads is worn in the ammo slot and is a kit line the hero's bag is paid (one unit moves from it)
+  select string_agg(l.set_id || ':' || l.loads, ', ') into v_bad from public.hr_start_kit_lines l
+   where l.loads is not null
+     and (not exists (select 1 from public.hr_item_slots s where s.item_id = l.loads and s.equip_slot = 'ammo')
+          or not exists (select 1 from public.hr_start_kit_lines k where k.item_id = l.loads and k.kit in ('account', 'hero')));
+  if v_bad is not null then raise exception 'hr_start_kit_lines: a set loads a shot that is no kit ammo: %', v_bad; end if;
+  if (select count(*) from public.hr_start_kit_lines where loads is not null) <> ${kitLines.filter((l) => l.loads).length} then
+    raise exception 'hr_start_kit_lines: % sets load a shot, the generator emitted ${kitLines.filter((l) => l.loads).length}', (select count(*) from public.hr_start_kit_lines where loads is not null);
   end if;
   if has_table_privilege('anon', 'public.hr_start_kit_lines', 'select') or has_table_privilege('authenticated', 'public.hr_start_kit_lines', 'select,insert,update,delete') then
     raise exception 'hr_start_kit_lines is readable or writable by a client role';

@@ -71,7 +71,7 @@ export const LOOT_FX = row({ fx: 'fx_loot_sparkle', at: 't', lift: 0.15 });
 
 export const HIT_FX = Object.freeze({
   ability: Object.freeze({
-    power_strike: 'fx_power_strike', quarry_blow: 'fx_power_strike', flame_strike: 'fx_flame_volley_puff', rend: 'fx_x_slash',
+    power_strike: 'fx_power_strike', stagger: 'fx_power_strike', flame_strike: 'fx_flame_volley_puff', rend: 'fx_x_slash', gash: 'fx_x_slash',
     precision_shot: 'fx_crossbow_bolt_impact', flame_volley: 'fx_flame_volley_puff',
     fireball: 'fx_fire_rune_burst', frost_lance: 'fx_frost_lance_shatter', green_sickness: 'fx_natures_wrath',
   }),

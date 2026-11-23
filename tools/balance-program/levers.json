@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "7e1f4e300b8250c4",
+ "authored": "ce46f4c927d1b7c4",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,13 +63,13 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 238,
+  "levers": 239,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 10,
    "level-scaling": 9,
    "weapon-power": 6,
-   "spells": 14,
+   "spells": 15,
    "healing-shielding": 2,
    "armor-mitigation": 6,
    "resistances": 5,
@@ -89,7 +89,7 @@
   "byClass": {
    "global": 128,
    "archetype": 32,
-   "content": 50,
+   "content": 51,
    "exception-intentional": 17,
    "exception-accidental": 11
   },
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 40,
    "variant": 5,
-   "not-playable:not-built": 26,
+   "not-playable:not-built": 27,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 129,
+   "asserted": 130,
    "mentioned only": 89,
    "none": 20
   },
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 762,
-  "typed": 16950,
+  "typed": 16965,
   "files": 260,
   "lever": 334,
   "notLever": 428,
@@ -1180,8 +1180,8 @@
     ],
     "today": {
      "table": "src/data/abilities.js ABILITIES",
-     "rows": 23,
-     "carrying": 23,
+     "rows": 25,
+     "carrying": 25,
      "distinct": 3,
      "low": 0,
      "high": 1600
@@ -2195,7 +2195,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 115,
+     "line": 123,
      "text": "export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal: 1000 });",
      "binding": "ABILITY_LANES"
     }
@@ -2584,9 +2584,9 @@
     ],
     "today": {
      "table": "src/data/abilities.js ABILITIES",
-     "rows": 23,
-     "carrying": 13,
-     "distinct": 12,
+     "rows": 25,
+     "carrying": 14,
+     "distinct": 13,
      "low": 390,
      "high": 1400
     }
@@ -2646,8 +2646,8 @@
     ],
     "today": {
      "table": "src/data/abilities.js ABILITIES",
-     "rows": 23,
-     "carrying": 22,
+     "rows": 25,
+     "carrying": 24,
      "distinct": 12,
      "low": 2,
      "high": 18
@@ -2708,8 +2708,8 @@
     ],
     "today": {
      "table": "src/data/abilities.js ABILITIES",
-     "rows": 23,
-     "carrying": 23,
+     "rows": 25,
+     "carrying": 25,
      "distinct": 8,
      "low": 2000,
      "high": 60000
@@ -2771,16 +2771,16 @@
     "today": [
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
-      "carrying": 23,
+      "rows": 25,
+      "carrying": 25,
       "distinct": 11,
       "low": 0,
       "high": 120
      },
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
-      "carrying": 80,
+      "rows": 25,
+      "carrying": 85,
       "distinct": 37,
       "low": 6,
       "high": 249
@@ -2840,7 +2840,7 @@
     ],
     "today": {
      "table": "src/data/abilities.js ABILITIES",
-     "rows": 23,
+     "rows": 25,
      "carrying": 6,
      "distinct": 4,
      "low": 10,
@@ -2863,7 +2863,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 144,
+     "line": 152,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2915,15 +2915,15 @@
     "today": [
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
-      "carrying": 2,
+      "rows": 25,
+      "carrying": 3,
       "distinct": 1,
       "low": 8,
       "high": 8
      },
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 1,
       "distinct": 1,
       "low": 4,
@@ -2931,7 +2931,7 @@
      },
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 3,
       "distinct": 1,
       "low": 8,
@@ -2949,7 +2949,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 146,
+     "line": 154,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -3087,13 +3087,13 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 222,
+     "line": 248,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 106,
+     "line": 110,
      "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
@@ -3160,13 +3160,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 100,
+     "line": 104,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 87,
+     "line": 91,
      "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
      "binding": "TIERS"
     }
@@ -3226,73 +3226,73 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 123,
+     "line": 130,
      "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 126,
+     "line": 133,
      "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 128,
+     "line": 135,
      "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 130,
+     "line": 137,
      "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 133,
+     "line": 140,
      "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 138,
+     "line": 145,
      "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 139,
+     "line": 146,
      "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 140,
+     "line": 147,
      "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 146,
+     "line": 153,
      "text": "mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 149,
+     "line": 156,
      "text": "echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 152,
+     "line": 159,
      "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 155,
+     "line": 162,
      "text": "frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     }
@@ -3384,13 +3384,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 77,
+     "line": 81,
      "text": "hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),",
      "binding": "STATUS_KEYS"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 78,
+     "line": 82,
      "text": "hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),",
      "binding": "STATUS_KEYS"
     }
@@ -3460,13 +3460,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 110,
+     "line": 117,
      "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 111,
+     "line": 118,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3518,6 +3518,75 @@
     }
    ],
    "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "spell.answers",
+   "category": "spells",
+   "name": "The answers to a wind-up: Parried's window and the push bound",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 113,
+     "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2000, maxStacks: 1, parry: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/abilities.js",
+     "line": 156,
+     "text": "pushMaxMs: 4000,",
+     "binding": "ABILITY_RULES"
+    }
+   ],
+   "definition": "Parry (the sword's) lays Parried on its target: that monster's next blow inside durationMs, a swing or a wind-up's landing, lands nothing and spends the stack; Stagger (the hammer's) ends its target's wind-up and holds its next swing back the row's pushMs, never past ABILITY_RULES.pushMaxMs (docs/design/redesign/23-spell-audit.md section 4, wave 3)",
+   "range": "durationMs whole sub-steps (validate); pushMaxMs whole sub-steps, a bound (two swings), not a balance value",
+   "touches": "blows taken from the monsters a sword or a hammer answers, so damage taken, supplies and deaths of a party that slots them",
+   "outcomes": [
+    "takenPerH",
+    "deathsPer1000h",
+    "suppliesPerH"
+   ],
+   "formulas": [
+    "C-STATUS",
+    "C-AREA"
+   ],
+   "reach": {
+    "feeds": 5,
+    "closure": 78
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/abilities.mjs",
+      "what": "parry-spends-the-next-blow, stagger-ends-a-wind-up, wave3-both-paths",
+      "reads": [
+       "STATUSES",
+       "ABILITY_RULES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bug-triage.mjs",
+     "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/effect-readers.mjs",
+     "tests/hunt-core/elements.mjs",
+     "tests/hunt-core/monster-formula.mjs",
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-core/necrotic-storm.mjs",
+     "tests/hunt-core/silent-triggers.mjs"
+    ],
+    "mentionCount": 12,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no played bar slots Parry or Stagger yet: both are the player's picks, off every default bar (23 section 9 step 8 re-runs the move table)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read; tests/hunt-core/abilities.mjs)"
   },
   {
    "id": "spell.default-bar",
@@ -3637,7 +3706,7 @@
     "today": [
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 3,
       "distinct": 3,
       "low": 1600,
@@ -3645,7 +3714,7 @@
      },
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 3,
       "distinct": 3,
       "low": 1910,
@@ -3669,7 +3738,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 354,
+     "line": 380,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -4341,7 +4410,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 118,
+     "line": 125,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -4625,7 +4694,7 @@
     "today": [
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -4633,7 +4702,7 @@
      },
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -4641,7 +4710,7 @@
      },
      {
       "table": "src/data/abilities.js ABILITIES",
-      "rows": 23,
+      "rows": 25,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -5024,7 +5093,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 139,
+     "line": 147,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -6287,14 +6356,14 @@
     "mentions": [
      "tests/area-spells-server.mjs",
      "tests/armor-line.mjs",
+     "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/monster-kinds.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/side-seam.mjs",
-     "tests/hunt-core/spell-rows.mjs",
-     "tests/hunt-live.mjs"
+     "tests/hunt-core/spell-rows.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10477,7 +10546,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 59,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11069,7 +11138,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11167,7 +11236,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13361,7 +13430,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 119,
+    "mentionCount": 120,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13911,7 +13980,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 59,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -16871,6 +16940,10 @@
    "why": "the burn's show (art timing)"
   },
   {
+   "at": "src/data/how-to-play.js#HELP_NOTES",
+   "why": "unit conversions for the help text (ms an hour, minutes an hour): the numbers shown are STAMINA_MAX_MS and RULED, read, not set here"
+  },
+  {
    "at": "src/data/factions.js#*",
    "why": "faction swap timing, the day fuse, the week cap and the sides: no power, gold or XP in these rows (the gold of the stock is econ.faction-stock)"
   },
@@ -18741,9 +18814,10 @@
    "keys": [
     "areaSide",
     "hitLowPm",
-    "manaRegenPctPerMin"
+    "manaRegenPctPerMin",
+    "pushMaxMs"
    ],
-   "typed": 3,
+   "typed": 4,
    "bindings": 1
   },
   "src/data/runes.js#RUNE_TIERS": {
@@ -18771,7 +18845,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 36,
+   "typed": 37,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {

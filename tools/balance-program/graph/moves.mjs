@@ -155,6 +155,8 @@ export const LEVER_MOVES = Object.freeze({
   'danger.stances': ['~tier.hp', '~tier.dmg'],
   /* a higher holder line breaks a tank's four off sooner: it holds shallower (23-spell-audit.md section 3) */
   'danger.holder-line': ['-tier.hp', '-tier.dmg'],
+  /* wave 3's answers (23-spell-audit.md section 4): a longer Parried window or a longer push means fewer monster blows land on the party */
+  'spell.answers': [['-tier.dmg', 'a Parried monster\'s next blow lands nothing, and a Staggered one loses its wind-up and swings pushMs later (abilities.js answer, damage.js resolveAttacks, monster-spells.js land)']],
   'danger.pay': [['+kill.xp', 'on a stance a kill pays a share of the killer\'s own Level from the hours table (danger.js levelShareXp, read by xp-share.js), x the depth ratio'],
     ['+kill.coin', 'on a stance a kill\'s coin is the roll x the pull\'s share x the depth ratio at the wage\'s coin ratio (dangerDial coinPm, read by hunt-rewards.js payKill)']],
   /* THE POWER STEP ON GEAR (lane/r9; declared by lane/econ-levers on the merge, the base's graph --check named it) */

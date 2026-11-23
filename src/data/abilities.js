@@ -211,7 +211,10 @@ export const ABILITIES = Object.freeze([
      "guard against one heavy blow"). A support cast on the sword's target that lands only its status, Parried (statuses.js): that
      monster's next blow within 2 s, a swing or a wind-up's landing, lands nothing. Every 10 s, 10 mana, no rune. A new slot starts on "my
      target is winding up" (`trigger`): the parry kept for the heavy blow. The sword alone: with a shield the tank holds with the Challenge. */
-  ab({ id: 'parry', n: 'Parry', disciplines: ['sword'], lane: 'support', cdMs: 10000, mana: 10, target: 'enemy', status: 'parried',
+  /* UNLOCKS (the designer, lane/roads-wave3): Parry and Stagger at Melee 10, Gash at 12, so the new-spell prompt says each once (a move
+     with no unlock is never announced, and its road would be nine points on a move the player never heard of). Before the Sewer (band
+     5-25, the first ground whose monsters wind up) neither answer has a wind-up to answer, so the wait costs nothing */
+  ab({ id: 'parry', n: 'Parry', disciplines: ['sword'], lane: 'support', cdMs: 10000, mana: 10, unlock: 10, target: 'enemy', status: 'parried',
     trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),
   /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): every melee
      weapon WITHOUT a shield (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on": a sword alone, two
@@ -230,7 +233,7 @@ export const ABILITIES = Object.freeze([
      stack (statuses.js bleed, the RUPTURE family's, at the rune's tier). 8 s, 10 mana, its versions on the strikes' x1.2 ladder; its
      beginner's floor is the family's first-hour hit, Rend's [2, 4] (at 390 to Gash's 400). Rend 6 s, Turning Cut 8 s and this 8 s fill 0.83
      of the axes' offense lane (0.58 before, the emptiest bar). A new slot starts on the area rule, "when it would hit at least 2". */
-  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_rupture_rune',
+  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 12, rune: 'chalked_rupture_rune',
     target: 'ring', maxHits: 8, hitPm: 400, base: [2, 4], status: 'bleed', magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
   /* STAGGER, THE HAMMER'S ANSWER TO A WIND-UP (23-spell-audit.md sections 4 and 7, wave 3: Quarry Blow, a copy of Flame Strike with its
      element taken off, reworked; 02 gives the hammer "break a wind-up"). One target, still the hammer's Earth rune strike (Tyler 2026-11-21,
@@ -239,7 +242,7 @@ export const ABILITIES = Object.freeze([
      (`interrupts`), and holds its next swing back 1 s (`pushMs`). Every 10 s. A new slot starts on "my target is winding up" (`trigger`).
      Power Strike 6 s, Turning Cut 8 s and this 10 s fill 0.78 of the hammer's offense lane. Off the default bar, as every weapon's rune
      strike is: the player's pick. */
-  ab({ id: 'stagger', n: 'Stagger', disciplines: ['club'], lane: 'offense', cdMs: 10000, mana: 10, rune: 'chalked_earth_rune',
+  ab({ id: 'stagger', n: 'Stagger', disciplines: ['club'], lane: 'offense', cdMs: 10000, mana: 10, unlock: 10, rune: 'chalked_earth_rune',
     target: 'enemy', hitPm: 840, base: [5, 8], interrupts: true, pushMs: 1000, magicXpMult: 250, versions: [10, 12, 14, 17, 21],
     trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),
   /* bow / crossbow — Ranger. HUNTER'S MARK lands on the bow's own target while it is unmarked, so the party's blows land on it (23-spell-

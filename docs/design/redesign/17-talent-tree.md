@@ -123,7 +123,7 @@ Per move: 5 rank stones, 2 crossroads, 2 waystones. Dual Axe has 2 extra wayston
 | 9 borders | 9 towns | 0 | 9 hybrid | 0 | 9 hybrid | 27 |
 | **Total** | **24** | **120** | **57** | **50** | **37** | **274** |
 
-Plus 24 open roads, 24 final forms (a hero takes one) and the Mileposts. Parry's and Gash's roads (9 + 9 points) count once their rows exist. Until then the total is 256.
+Plus 24 open roads, 24 final forms (a hero takes one) and the Mileposts. Parry's, Stagger's and Gash's roads are rows now (wave 3, 2026-11-23), so the total is 274.
 
 - 120 rank stones against 480 milestones in v2 (25%). 154 of 274 nodes are choices (56%, up from 24%).
 - A pure healer owns Restoration and Mend by about Level 60, then spends into neighbors and open roads.
@@ -185,9 +185,9 @@ Wide Circle and Fast Circle are cut: Circle's 8-tile radius already covers the p
 
 | Road | Node | Tooltip |
 |---|---|---|
-| **Stagger** (wave 3, replaces Quarry Blow. Ends the target's wind-up) | Crossroads I | **Long Stagger** (Suggested): Next swing pushed back 2 s (from 1 s) · **Shaken**: A wind-up it ends: target −10% damage for 4 s · **Wide Stagger**: Also ends wind-ups next to the target · −30% damage |
-| | Crossroads II | **Heavy Stagger** (Suggested): +30% damage · +3 s cooldown · **Laid Open**: A wind-up it ends: next ally hit on the target +20% · **Sure Blow**: A wind-up it ends: 50% of its mana back |
-| | Waystones | **Stagger −2 mana** / **Stagger: −5% enemy armor for 4 s** (Armor Break key) |
+| **Stagger** (wave 3, replaces Quarry Blow. Ends the target's wind-up. Melee 10. The club's second road, after Turning Cut's crossroads I) | Crossroads I | **Long Stagger** (Suggested): Stagger: Chill 4 s · **Shaken** (Suggested, solo): Stagger: Weakened 8 s · **Hushing Blow**: Stagger: Silenced 3 s · −20% damage |
+| | Crossroads II | **Heavy Stagger**: +30% damage · +3 s cooldown · **Laid Open** (Suggested): Stagger: Sick 6 s · −15% damage · **Sure Blow**: Stagger hits: +2% mana |
+| | Waystones | **Stagger −2 mana** / **Stagger: Armor Break 4 s** |
 | **Turning Cut** (Melee 10) | Crossroads I | **Wide Turn** (Suggested): Hits up to 2 tiles away · −25% damage · **Close Turn**: +40% damage · 3 targets max · **Heavy Turn**: +30% damage · +2 s cooldown |
 | | Crossroads II | **Mending Turn** (Suggested): +1% health per enemy hit · max 5% · **Guarded Turn**: −2% damage taken per enemy hit for 3 s · max 6% · **Reaping Turn**: +20% damage vs targets below 30% health |
 | | Waystones | **Turning Cut +1 max target** / **Turning Cut −2 mana** |
@@ -201,7 +201,9 @@ The club's offense lane runs 78% full with Stagger, so it has no cooldown cuts. 
 | **Rend** | Crossroads I | **Deep Cuts** (Suggested): Bleed lasts 50% longer · **Spread**: Bleed jumps to 1 nearby enemy when the target dies · **Quick Rend**: −30% cooldown · −20% Bleed damage |
 | | Crossroads II | **Deep Wounds** (Suggested): +20% damage vs 5+ Bleed stacks · **Fast Bleed**: Bleed ticks 20% faster · **Fresh Cuts**: Rend hits refresh all Bleed stacks |
 | | Waystones (4) | **Bleed stack cap +1** / **Bleed ticks 10% faster** / **First hit on a new target: +1 Bleed stack** / **Kills on bleeding enemies: +2% health** |
-| **Gash** (wave 3. Every monster beside you: a light hit and 1 Bleed stack) | Crossroads I, II, waystones | Written in R-X1 with its row |
+| **Gash** (wave 3. Every monster beside you: a light hit and 1 Bleed stack. Melee 12. After Rend's crossroads I) | Crossroads I | **Deep Gash** (Suggested): Bleed +3 s · **Wide Gash**: +1 tile reach · −25% damage · **Crippling Gash** (Suggested, solo): Weakened 8 s · −20% damage |
+| | Crossroads II | **Red Gash** (Suggested): Bleed +20% damage · **Feeding Gash** (Suggested, solo): Hits: heal yourself 1% max health · **Carrying Gash**: Kills carry 50% of the overkill to the nearest enemy |
+| | Waystones | **Gash −2 mana** / **Gash +5% damage** |
 
 The axe's offense lane runs about 58% full, so Quick Rend stays. It is the axe's one "faster" option. With Gash the lane runs 83%.
 
@@ -211,8 +213,11 @@ Parry: support lane, 10 s, your target's next blow within 2 s lands 0. Suggested
 
 | Road | Node | Tooltip |
 |---|---|---|
-| **Parry** | Crossroads I | **Riposte** (Suggested): A blow you Parry: your next hit on that monster +30% · **Answering**: A blow you Parry: Power Strike ready again · **Long Parry**: Catches a blow within 3 s (from 2 s) |
-| | Crossroads II, waystones | Written in R-X1 |
+| **Parry** (Melee 10. The sword's third road, after Flame Strike's crossroads I) | Crossroads I | **Riposte** (Suggested): After Parry: +4% damage for 4 s · **Long Parry**: Parried +1 s · **Disarming Parry** (Suggested, solo): Parry: Weakened 8 s |
+| | Crossroads II | **Quick Parry** (Suggested): −2 s cooldown · **Answering** (Suggested, solo): After Parry: −4% damage taken for 4 s · **Calm Parry**: Parry: +3% mana |
+| | Waystones | **Parry −2 mana** / **Parry −1 s cooldown** |
+
+Parried lasts 2.1 s, not 2 s: a status ticks in the step it lands, so 2 s missed every 2 s group spell the "my target is winding up" rule fires on.
 
 **Sword, Ranged and Destruction** take their crossroads from `16-talent-branches.md`, with these v3 changes: Quick Strike becomes **Cheap Strike** (−40% mana · −20% damage), since sword and club lanes are full. Finishing Strike, Opening Strike, Aimed Shot, Clean Sweep, Reaping Turn, Deep Wounds, Spell Mark and Tempered Strikes work as passives now and become bar conditions when the four bar metrics land (section 11).
 

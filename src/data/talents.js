@@ -115,6 +115,10 @@ export const BORROW_VALUES = Object.freeze({
   rend: 7.1,
   raking_shot: 0,
   circle_of_renewal: 7.1,
+  /* wave 3 (lane/roads-wave3, roads-run.mjs --plan v0w3: same method, 8 seeds x 8 h): Stagger on the sword in S +5.8 held (+2.9% XP, 4.2
+     pace steps, 98.6 casts an hour on Muster's Brutes); Gash on the hammer in M +6.2 held, +11.4% XP = 16.2 pace steps */
+  stagger: 5.8,
+  gash: 16.2,
 });
 
 /* THE COUNTRIES: a weapon's DISCIPLINES id (src/data/abilities.js), or 'hearth' (the Great Hearth: every hero's) */
@@ -133,11 +137,11 @@ export const COUNTRY_ROADS = Object.freeze({
   hearth: Object.freeze(['mend']),
   shield: Object.freeze(['challenge', 'frost_slam', 'shelter']),
   restoration: Object.freeze(['greater_mend', 'circle_of_renewal', 'spring_tide', 'green_sickness', 'protective_ward']),
-  /* the full map (lane/roads-countries). Parry (Sword) and Gash (Dual Axe) join in wave 3 with their rows. Stagger replaces Quarry Blow
-     then, so until it does the club's one road of its own is Turning Cut (17 section 5) */
-  sword: Object.freeze(['power_strike', 'flame_strike']),
-  club: Object.freeze(['turning_cut']),
-  dual_axe: Object.freeze(['rend']),
+  /* the full map (lane/roads-countries); wave 3's three roads (lane/roads-wave3): Parry the sword's third, Stagger the club's second (it
+     replaced Quarry Blow), Gash the axes' second, each leaving the road before it at crossroads I (17 sections 4 and 5) */
+  sword: Object.freeze(['power_strike', 'flame_strike', 'parry']),
+  club: Object.freeze(['turning_cut', 'stagger']),
+  dual_axe: Object.freeze(['rend', 'gash']),
   ranged: Object.freeze(['precision_shot', 'hunters_mark', 'raking_shot', 'flame_volley']),
   destruction: Object.freeze(['frost_lance', 'fireball', 'hoarfrost', 'arcane_barrier']),
 });
@@ -177,7 +181,7 @@ const MOVE_NAMES = fz({
   circle_of_renewal: 'Circle of Renewal', spring_tide: 'Spring Tide', green_sickness: 'Green Sickness', protective_ward: 'Protective Ward',
   power_strike: 'Power Strike', flame_strike: 'Flame Strike', turning_cut: 'Turning Cut', rend: 'Rend', precision_shot: 'Precision Shot',
   hunters_mark: 'Hunter\'s Mark', raking_shot: 'Raking Shot', flame_volley: 'Flame Volley', frost_lance: 'Frost Lance', fireball: 'Fireball',
-  hoarfrost: 'Hoarfrost', arcane_barrier: 'Arcane Barrier',
+  hoarfrost: 'Hoarfrost', arcane_barrier: 'Arcane Barrier', parry: 'Parry', stagger: 'Stagger', gash: 'Gash',
 });
 
 const H = HEARTH;
@@ -347,6 +351,18 @@ const SWORD_NODES = [
       opt('cheap_flame', 'Cheap Flame', '−40% mana · −20% damage', [mod('flame_strike', { manaPm: -400, outPm: -200 })]),
       opt('mana_flame', 'Mana Flame', 'Hits: +2% mana', [react('flame_mana', 'hit', 'mana', { of: 'flame_strike', pm: 20 })])],
     way('Kindling', 'Flame Strike −2 mana', [mod('flame_strike', { mana: -2 })])),
+  /* PARRY (wave 3, lane/roads-wave3; 17 section 5, 23 section 8). Parry lands no blow, so nothing reacts to its hit, and "a blow you Parry"
+     has no seam: Riposte is the damage after the cast, Answering the guard after it. Long Parry stretches Parried, so the window takes the
+     slowest wind-ups too. It sits on the support lane, so its cooldown may be cut */
+  ...road(SW, 'parry', 'flame_strike.x1',
+    [opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),
+      opt('long_parry', 'Long Parry', 'Parried +1 s', [mod('parry', { statusMs: 1000 })]),
+      opt('disarming_parry', 'Disarming Parry', 'Parry: Weakened 8 s', [mod('parry', { also: 'weakened' })], 'solo')],
+    way('Light Guard', 'Parry −2 mana', [mod('parry', { mana: -2 })]),
+    [opt('quick_parry', 'Quick Parry', '−2 s cooldown', [mod('parry', { cdMs: -2000 })], true),
+      opt('answering', 'Answering', 'After Parry: −4% damage taken for 4 s', [step('defense', 11, 'answering', 'cast:parry:4000')], 'solo'),
+      opt('calm_parry', 'Calm Parry', 'Parry: +3% mana', [mod('parry', { manaOnCastPm: 30 })])],
+    way('Ready Blade', 'Parry −1 s cooldown', [mod('parry', { cdMs: -1000 })])),
   /* THE VOWS (17 section 7): Single Combat's "Brutes and bosses" and Flowing Cuts' last move have no seam. Single Combat is the lone
      duelist now, and Parrying Stance takes Flowing Cuts' place */
   node({ id: 'vow.single_combat', kind: 'vow', country: SW, after: ['power_strike.x1'], n: 'Single Combat', tip: 'Alone: +6.5% damage · −3% damage dealt',
@@ -374,6 +390,20 @@ const CLUB_NODES = [
         [react('turning_cut_reap', 'kill', 'carry', { of: 'turning_cut', pm: 500, r: 2, capPm: 200 })], 'party'),
       opt('guarded_turn', 'Guarded Turn', 'After Turning Cut: −3% damage taken for 4 s', [step('defense', 8, 'guarded_turn', 'cast:turning_cut:4000')])],
     way('Loose Grip', 'Turning Cut −2 mana', [mod('turning_cut', { mana: -2 })])),
+  /* STAGGER (wave 3, lane/roads-wave3; 17 section 5, 23 section 8: Quarry Blow's road reworked). "A wind-up it ends" and its push have no
+     seam: each pick is what the blow that ends it leaves behind. Long Stagger's Chill holds the next swing back, Shaken's Weakened takes
+     the sting out of it, Hushing Blow's Silenced stops the next spell starting. The club lane runs full: no cooldown cuts */
+  ...road(CL, 'stagger', 'turning_cut.x1',
+    [opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),
+      opt('shaken', 'Shaken', 'Stagger: Weakened 8 s', [react('stagger_weaken', 'hit', 'status', { of: 'stagger', status: 'weakened' })], 'solo'),
+      opt('hushing_blow', 'Hushing Blow', 'Stagger: Silenced 3 s · −20% damage',
+        [react('stagger_silence', 'hit', 'status', { of: 'stagger', status: 'silenced' }), mod('stagger', { outPm: -200 })])],
+    way('Light Maul', 'Stagger −2 mana', [mod('stagger', { mana: -2 })]),
+    [opt('heavy_stagger', 'Heavy Stagger', '+30% damage · +3 s cooldown', [mod('stagger', { outPm: 300, cdMs: 3000 })]),
+      opt('laid_open', 'Laid Open', 'Stagger: Sick 6 s · −15% damage',
+        [react('stagger_sicken', 'hit', 'status', { of: 'stagger', status: 'sickness' }), mod('stagger', { outPm: -150 })], true),
+      opt('sure_blow', 'Sure Blow', 'Stagger hits: +2% mana', [react('stagger_mana', 'hit', 'mana', { of: 'stagger', pm: 20 })])],
+    way('Split Plate', 'Stagger: Armor Break 4 s', [react('stagger_break', 'hit', 'status', { of: 'stagger', status: 'armor_break', ms: 4000 })])),
   /* THE VOWS (17 section 7): Crushing Blows' "Brutes", Aftershock's Stagger and Braced's "all on cooldown" have no seam. Crushing Blows breaks
      armor on any hit now, Quake takes Aftershock's place on Turning Cut, Braced is the lone club, Heavy Hand takes Lingering Blows' place */
   node({ id: 'vow.crushing_blows', kind: 'vow', country: CL, after: ['turning_cut.x1'], n: 'Crushing Blows', tip: 'Hits: Armor Break 6 s · once per 6 s a target · −3% damage dealt',
@@ -405,6 +435,18 @@ const AXE_NODES = [
   node({ id: 'rend.w3', kind: 'waystone', country: DA, move: 'rend', after: ['rend.x1'], n: 'Whetstone', tip: 'Bleed +10% damage', effects: [mod('rend', { statusPm: 100 })] }),
   node({ id: 'rend.w4', kind: 'waystone', country: DA, move: 'rend', after: ['rend.x2'], n: 'Red Hands', tip: 'Kills: heal yourself 2% max health',
     effects: [react('axe_kill_mend', 'kill', 'heal', { pm: 20, to: 'self' })] }),
+  /* GASH (wave 3, lane/roads-wave3; 17 section 5, 23 section 8: every monster beside you, a light hit and 1 Bleed stack). Bleed's cap and
+     tick speed have no seam, so its picks move the ring, Bleed's length and strength, and what each cut leaves behind */
+  ...road(DA, 'gash', 'rend.x1',
+    [opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),
+      opt('wide_gash', 'Wide Gash', '+1 tile reach · −25% damage', [mod('gash', { r: 1, outPm: -250 })]),
+      opt('crippling_gash', 'Crippling Gash', 'Weakened 8 s · −20% damage', [mod('gash', { also: 'weakened', outPm: -200 })], 'solo')],
+    way('Light Swing', 'Gash −2 mana', [mod('gash', { mana: -2 })]),
+    [opt('red_gash', 'Red Gash', 'Bleed +20% damage', [mod('gash', { statusPm: 200 })], true),
+      opt('feeding_gash', 'Feeding Gash', 'Hits: heal yourself 1% max health', [react('gash_mend', 'hit', 'heal', { of: 'gash', pm: 10, to: 'self' })], 'solo'),
+      opt('carrying_gash', 'Carrying Gash', 'Kills carry 50% of the overkill to the nearest enemy',
+        [react('gash_carry', 'kill', 'carry', { of: 'gash', pm: 500, r: 2, capPm: 200 })])],
+    way('Keen Bits', 'Gash +5% damage', [mod('gash', { outPm: 50 })])),
   /* THE VOWS (17 section 7): Bleed's cap (Open Wounds), its cooldowns per bleeding enemy (Frenzy), an execute line (Bleed Out) and Bleed
      landing at once (Clean Cuts) have no seam. Each keeps its job and its best and worst cell through a piece the engine has */
   node({ id: 'vow.open_wounds', kind: 'vow', country: DA, after: ['rend.x1'], n: 'Open Wounds', tip: 'Crits: 2 Bleed stacks · −3% damage dealt',
@@ -572,12 +614,15 @@ function border(a, b, moves, hybrid, vow) {
   ];
 }
 const MORE_BORDERS = [
-  ...border('club', 'dual_axe', ['rend', 'turning_cut'],
+  /* (lane/roads-wave3) the town lends each side the other's wave-3 move: the club Gash, the axes Stagger (it lent Rend and Turning Cut,
+     both the axes' own, so an axe paid a point for nothing). Its picks key on the moves both sides now cast (23 section 8: Crushing Cuts
+     and Heavy Bleed to Stagger and Gash), and Butcher's cost is a step, so it bites a club that never borrowed Gash too */
+  ...border('club', 'dual_axe', ['gash', 'stagger'],
     [opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),
-      opt('crushing_cuts', 'Crushing Cuts', 'Rend: Armor Break 6 s', [react('rend_break', 'hit', 'status', { of: 'rend', status: 'armor_break' })]),
-      opt('heavy_bleed', 'Heavy Bleed', 'Bleed +15% damage', [mod('rend', { statusPm: 150 })])],
-    { n: 'Butcher', tip: 'Crits: Armor Break 6 s · +10% Rend mana cost',
-      effects: [react('butcher_break', 'crit', 'status', { status: 'armor_break' }), mod('rend', { manaPm: 100 })] }),
+      opt('crushing_cuts', 'Crushing Cuts', 'Stagger: 1 Bleed stack', [react('stagger_bleed', 'hit', 'status', { of: 'stagger', status: 'bleed' })]),
+      opt('heavy_bleed', 'Heavy Bleed', 'Gash: Bleed +15% damage', [mod('gash', { statusPm: 150 })])],
+    { n: 'Butcher', tip: 'Crits: Armor Break 6 s · −3% damage dealt',
+      effects: [react('butcher_break', 'crit', 'status', { status: 'armor_break' }), step('offense', -8, 'border.club_dual_axe.vow')] }),
   ...border('dual_axe', 'ranged', ['rend', 'raking_shot'],
     [opt('barbed_arrows', 'Barbed Arrows', 'Hits: 1 Bleed stack · once per 4 s a target',
       [react('barbed_bleed', 'hit', 'status', { status: 'bleed', clockMs: 4000, per: 'target' })], true),
@@ -607,7 +652,8 @@ const MORE_BORDERS = [
       opt('second_strike', 'Second Strike', 'After Mend: +4% damage for 4 s', [step('offense', 11, 'second_strike', 'cast:mend:4000')], 'solo')],
     { n: 'Mending Blade', tip: 'Hits: 8% of damage heals the lowest-health ally · −3% healing',
       effects: [react('blade_mend', 'hit', 'heal', { pm: 80, to: 'lowest' }), mod('*heal', { outPm: -30 })] }),
-  ...border('sword', 'club', ['flame_strike', 'power_strike'],
+  /* (lane/roads-wave3) Stagger for Power Strike: the sword cast both moves this town lent, so it paid a point for nothing */
+  ...border('sword', 'club', ['flame_strike', 'stagger'],
     [opt('tempered_strikes', 'Tempered Strikes', 'After Turning Cut: +3% damage for 3 s', [step('offense', 8, 'tempered_strikes', 'cast:turning_cut:3000')], true),
       opt('cutting_weight', 'Cutting Weight', 'Turning Cut +15% damage · +2 mana', [mod('turning_cut', { outPm: 150, mana: 2 })]),
       opt('iron_rhythm', 'Iron Rhythm', 'Turning Cut hits: +0.5% mana', [react('turn_mana', 'hit', 'mana', { of: 'turning_cut', pm: 5 })])],

@@ -565,6 +565,14 @@ const cases = {
     run(b, 100, 2600, [M.damage.resolveAttacks, ST.tickStatuses]);
     const bs = swings(b);
     if (!bs.length || bs[0].parried === true) return 'a swing after the 2 s window was parried: ' + JSON.stringify(bs[0]);
+    /* a blow 2 s after the Parry, a group spell's 2 s wind-up landing (the designer, lane/roads-wave3: Parried 2.1 s): nulled */
+    /* (the world step's order: a status ticks in the sub-step it lands, so the cast's own sub-step ticks it too) */
+    const g = fight(2000);
+    M.abilities.castAbilities(g.inst, g.sc);
+    ST.tickStatuses(g.inst, g.sc);
+    run(g, 100, 2100, [M.damage.resolveAttacks, ST.tickStatuses]);
+    const gs = swings(g);
+    if (!gs.length || gs[0].parried !== true || gs[0].atMs !== 2000) return 'a blow 2 s after the Parry was not nulled: ' + JSON.stringify(gs[0]);
     /* a wind-up's landing: Parry on its own rule answers it, and the wind-up lands on nobody */
     const T = MS.MONSTER_SPELLS, was = MS.SPELL_SWITCH.live, span = MS.SPELL_STAGGER.spanPm, had = Object.prototype.hasOwnProperty.call(M.MONSTERS.rat, 'spells'), list = M.MONSTERS.rat.spells;
     T.zz_heavy = { n: 'Heavy Blow', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 2000, element: null };
@@ -1271,13 +1279,14 @@ const mutants = [
   { name: 'a parry is never spent', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/status.js', '  unit.statuses = list.filter((s) => s !== st);\n', '']] },
   { name: 'a parried wind-up lands', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/monster-spells.js', "  const parried = struck.length > 0 && spendFlag(u, 'parry', sc);", '  const parried = false;']] },
   { name: 'Parry lands on a target still Parried', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/abilities.js', '      const fresh = landsBlow(row) || !row.status ? near : near.filter((m) => !holds(m, row.status));', '      const fresh = near;']] },
-  { name: 'Parried outlives its 2 s', case: 'parry-spends-the-next-blow', edits: [['src/data/statuses.js', "key: 'parried', durationMs: 2000,", "key: 'parried', durationMs: 4000,"]] },
+  { name: 'Parried outlives its 2 s', case: 'parry-spends-the-next-blow', edits: [['src/data/statuses.js', "key: 'parried', durationMs: 2100,", "key: 'parried', durationMs: 4000,"]] },
+  { name: 'Parried misses a 2 s wind-up again', case: 'parry-spends-the-next-blow', edits: [['src/data/statuses.js', "key: 'parried', durationMs: 2100,", "key: 'parried', durationMs: 2000,"]] },
   { name: 'Gash bleeds nothing', case: 'gash-cuts-the-ring', edits: [['src/data/abilities.js', "target: 'ring', maxHits: 8, hitPm: 400, base: [2, 4], status: 'bleed',", "target: 'ring', maxHits: 8, hitPm: 400, base: [2, 4],"]] },
   { name: 'the real settle ends no wind-up', case: 'wave3-both-paths', also: ['supabase/functions/hr-accrue', 'tests/hunt-core/fixtures'],
     edits: [['src/core/hunt/abilities.js', '    if (row.interrupts === true) interrupt(m, sc);\n', '']] },
   { name: 'a Parried stack is lost at a settle cut (the viewed hunt and the closed one part)', case: 'wave3-both-paths', also: ['supabase/functions/hr-accrue', 'tests/hunt-core/fixtures'],
     edits: [['src/core/hunt/status.js', "export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]),", "export const PERSISTED = Object.freeze({ unit: Object.freeze([]),"]] },
-  { name: 'Gash cuts one monster', case: 'gash-cuts-the-ring', edits: [['src/data/abilities.js', "  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_rupture_rune',\n    target: 'ring',", "  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_rupture_rune',\n    target: 'enemy',"]] },
+  { name: 'Gash cuts one monster', case: 'gash-cuts-the-ring', edits: [['src/data/abilities.js', "  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 12, rune: 'chalked_rupture_rune',\n    target: 'ring',", "  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 12, rune: 'chalked_rupture_rune',\n    target: 'enemy',"]] },
   { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
     edits: [['src/data/abilities.js', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600,', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1200,']] },
   { name: "a healer's basic trains Magic at another rate", case: 'a-mage-and-a-healer-train-alike',

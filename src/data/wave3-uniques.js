@@ -16,5 +16,5 @@ export const WAVE3_ITEMS = withGearStats({
 
 export const WAVE3_DESC = {
   'demoncaller_staff': 'A runewood staff with an underworld coal on top that never goes out. Every spell you cast throws demon fire.',
-  'chitinweave_cloak': 'Plates of chitin shell sewn onto spider silk. It weighs almost nothing and softens every hit you take.',
+  'chitinweave_cloak': 'Plates of chitin shell sewn onto spider silk. It weighs almost nothing and softens every hit you take',
 };

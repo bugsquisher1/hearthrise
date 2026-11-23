@@ -66,6 +66,7 @@ import { huntPlayOf, swingRows } from './hunt/play-rows.js';
 import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 import { syncTalents } from './hunt/talent-rows.js';
+import { syncTraits } from './hunt/trait-rules.js';
 import { traitSwing } from './trait-roll.js';
 
 /* The engine's front door: `combatSim`. */
@@ -162,6 +163,7 @@ function syncUnit(u, m, roles) {
   const bb = borrowBlowsOf(m.hero.borrowed, snap.level);
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
+  syncTraits(u, m.hero);                // THE TRAITS it wears, the same (trait-rules.js syncTraits): none while Traits are dark
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);

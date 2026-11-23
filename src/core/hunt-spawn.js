@@ -15,6 +15,7 @@ import { pickLeader, settingsOf } from './hunt/roles.js';
 import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js';
 import { isHero } from './hunt/sides.js';
 import { normalize, grantsOf } from './talents.js';
+import { wornTraitsOf } from './hunt/trait-rules.js';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -55,6 +56,9 @@ export function heroSetup(o) {
   const borrowed = [...new Set([...(Array.isArray(o.borrowed) ? o.borrowed : []), ...lent])].filter((id) => typeof id === 'string'
     && Object.prototype.hasOwnProperty.call(ABILITIES, id) && !ABILITIES[id].universal && !native.includes(id));
   const allowed = native.concat(borrowed);
+  /* THE TRAITS IT WEARS (src/core/hunt/trait-rules.js): the server's projection of its worn pieces' Traits, [{ id, rank }]. DARK: nothing
+     hands one while GEAR_STEPS.traitsLive is false (tests/hunt-core/trait-rules.mjs dark); the Lab and the tests do */
+  const worn = wornTraitsOf(o.wornTraits);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
   /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */
   const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });
@@ -68,6 +72,8 @@ export function heroSetup(o) {
     borrowed,
     /* the build and the weapon's discipline the settle grants it on at every boundary (combat-sim.js syncUnit); absent with no build */
     ...(talents ? { talents: Object.freeze(talents), discipline } : {}),
+    /* the Traits as the engine plays them (unknown ids and ranks dropped, the key rule applied); absent with none */
+    ...(worn ? { wornTraits: worn } : {}),
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */

@@ -12,14 +12,14 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone". What
 // an event's source is called (a move, a status, an engine piece, a Roads
-// reaction) is src/render/source-names.js's, never its id.
+// reaction, the worn Traits a blow's or a heal's `tr` lists) is src/render/source-names.js's, never its id.
 // A status is said once until it ends (logFor): a refresh lands `status_on`
 // again on a unit that still carries it, and the end of a status the log
 // never said, or of a unit it saw die, is no news.
 // ════════════════════════════════════════════════════════════════════════
 import { LOG_MAX_LINES } from '../data/combat-text.js';
 import { STATUSES, harmful } from '../data/statuses.js';
-import { sourceName } from '../render/source-names.js';
+import { sourceName, traitNames } from '../render/source-names.js';
 import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js';
 import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js';
 import { MONSTERS, monsterRangeOf } from '../data/monsters.js';
@@ -88,13 +88,21 @@ function statusWords(ev, who) {
   return t('log.status_' + on + kind, { who, status: sourceName(ev.status) });
 }
 
+/* THE WORN TRAITS THAT HELD on a blow or a heal (its `tr`, src/core/hunt/trait-rules.js), named after its sentence: "... for 40 (Last File)." */
+function traitsSaid(ev, text) {
+  const names = traitNames(ev);
+  if (!names.length) return text;
+  const said = ' (' + names.join(', ') + ')';
+  return text.endsWith('.') ? text.slice(0, -1) + said + '.' : text + said;
+}
+
 /**
  * One event as a line, or null when it is not a log line.
  * @returns {{key: string, type: string, units: number[], text: string, quiet?: boolean}|null}  `quiet`: nothing happened to anyone (a miss), so it wears no cost color
  */
 export function lineOf(ev, n) {
   const a = n.name(ev.u), b = n.name(ev.t);
-  const line = (type, text) => ({ key: ev.key, type, units: [ev.u, ev.t].filter(Number.isInteger), text });
+  const line = (type, text) => ({ key: ev.key, type, units: [ev.u, ev.t].filter(Number.isInteger), text: ev.tr ? traitsSaid(ev, text) : text });
   switch (ev.type) {
     case 'dmg': {
       /* a Bodyguard's share (damage.js landOn): the guard takes part of a blow at a back-row ally */

@@ -38,6 +38,7 @@ import { heroElementPermille } from '../elements.js';
 import { makeEvent } from './events.js';
 import { landHit } from './damage.js';
 import { stepsOn, healAmount } from './amount.js';
+import { traitsField } from './trait-rules.js';
 import { healIn } from './heal-cut.js';
 import { isHero, isEnemy } from './sides.js';
 import { cheb } from './grid.js';
@@ -143,12 +144,12 @@ function inPatch(unit, m, st, r) {
 
 /* A HEAL TICK of `n` on `unit` from stack `st`: through the one heal door (heal-rules.js healIn: its cut, and the healing it receives),
    never past its max; a `status_tick` always, a `heal` naming the status when any landed */
-function healTick(inst, sc, unit, st, n) {
+function healTick(inst, sc, unit, st, n, traits) {
   const got = Math.max(0, Math.min(healIn(inst, unit, n), Math.floor(Number(unit.maxHp) || 0) - Math.floor(Number(unit.hp) || 0)));
   sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount: got, heals: true }));
   if (got > 0) {
     unit.hp = Math.floor(Number(unit.hp) || 0) + got;
-    sc.emit(makeEvent('heal', sc.atMs, { u: st.src === null ? unit.id : st.src, t: unit.id, amount: got, ability: st.s }));
+    sc.emit(makeEvent('heal', sc.atMs, { u: st.src === null ? unit.id : st.src, t: unit.id, amount: got, ability: st.s, ...traitsField(traits) }));
   }
 }
 
@@ -211,7 +212,10 @@ function tickOne(inst, sc, unit, row, st, units) {
   const amount = piped ? ((row.tick[0] + row.tick[1]) / 2) * (st.scale / 1000) : tickAmount(roll, st.scale);
   if (row.heals) {
     const healer = piped ? (st.src === null ? null : units.find((u) => u.id === st.src) || null) || unit : null;
-    healTick(inst, sc, unit, st, piped ? healAmount(inst, healer, amount, { rng: sc.rng }) : amount);
+    /* (`to`: the hero it heals, a worn Trait's per-target condition; the Traits that held ride its heal event, src/core/hunt/trait-rules.js) */
+    /** @type {{ rng: any, to: any, traits?: string[] }} */
+    const hc = { rng: sc.rng, to: unit };
+    healTick(inst, sc, unit, st, piped ? healAmount(inst, healer, amount, hc) : amount, hc.traits);
     return;
   }
   if (row.ground && row.lays) {

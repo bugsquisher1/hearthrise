@@ -503,9 +503,10 @@ begin
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(a): hr_create_character refused: %', v; end if;
     -- this probe spends by hand: on a chain that already holds 1069-talent-standing-rule.sql (an operator's second apply) its standing
-    -- rule would spend each Level's points by itself, so the probe hero's setting is off (the column is absent on the first apply)
+    -- rule would spend each Level's points by itself, so the probe hero's setting is off (the column is absent on the first apply; plpgsql
+    -- resolves a statement's columns when it first runs, so the branch not taken there never reads it)
     if exists (select 1 from pg_attribute where attrelid = 'public.player_state'::regclass and attname = 'talent_auto' and not attisdropped) then
-      execute 'update public.player_state set talent_auto = null where user_id = $1' using v_u;
+      update public.player_state set talent_auto = null where user_id = v_u and slot = 0;
     end if;
     update public.hr_talent_rules set live = false where id;
     if public.hr_state_of(v_u, 0) ? 'talents' and public.hr_state_of(v_u, 0)->'talents' <> 'null'::jsonb then

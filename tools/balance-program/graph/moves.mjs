@@ -69,6 +69,9 @@ export const LEVER_MOVES = Object.freeze({
   'skill.reference-career': ['+ref.hero'],
   'level.mode-share': ['+xp.share', '~death.mode'],
   'level.blessing-cut': ['+blessing.cut'],
+  /* lane/formula-overhaul: more hours a Level = slower Levels. On the scale a kill pays XP to the next Level over those hours, so XP a kill
+     falls by the same ratio and the Level's cost in XP is untouched */
+  'level.hours': [['-kill.xp', 'a scale kill pays (XP to the next Level / hours(L)) / the reference kills (danger.js levelShareXp)'], ['-hero.level', 'fewer Levels an hour at the same depth']],
   // ── clocks and casts ──
   'attack.cast-lanes': ['+clock.cast'],
   'spell.cooldowns': ['+clock.cast'],

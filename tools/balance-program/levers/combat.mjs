@@ -199,6 +199,14 @@ export const COMBAT = [
     perturb: K('levelCurve', 'the knob scales first and every rise together'),
     flags: [flag('redundant', 'Brackets at 10, 15 and 16 exist only to give back XP taken from Levels 7 to 9 with the total at Level 21 held (a one-Level bracket at 15 with a rise of 74,323 beside 4,630 and 300)', '44 P-X02, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
+  L('level.hours', 'level-scaling', 'global', 'Hours a Level takes', {
+    at: [at('src/data/core-model.js', 'export const LEVEL_HOURS = Object.freeze({ ceiling: 20, half: 100, early: 6 });')],
+    def: 'hunted hours of the reference company (a Steady four at its ground\'s reference step) for Level L = ceiling x L^2 / ((L + half) x (L + early)); the pay a scale kill makes is derived from it (danger.js levelShareXp), and LEVEL_PACE.targets is derived from it',
+    range: 'ceiling 16 to 24, half 60 to 140, early 2 to 10, whole numbers (server twin hr_danger_hours_for, tools/gen-danger.mjs). Design promises held by tests/level-curve.mjs C8: Level 10 in the first 10 h day, Level 200 in 120 to 240 days, levels off',
+    touches: 'hours to every Level on the scale (so days to every gear tier and band), Level XP a kill (the server bound hr_danger_level_xp_max), the skill clock once skills run on time parity (04 section 4)', out: ['hoursPerLevel', 'netLevelXpPerH'], f: ['P01'],
+    tests: [['tests/level-curve.mjs', 'C7 a Steady four at its held depth earns it, C8 its design promises'], ['tests/hunt-core/danger.mjs', 'pay: the engine reads the formula']], testReads: ['LEVEL_HOURS', 'levelHoursOf'],
+    perturb: NP('not-in-runs', 'a design target the pay is derived from: a move changes Levels an hour by construction, never what a company holds (tools/balance-program/redesign/hours/fit.mjs reads it back)'),
+    ev: 'DESIGN (27-formula-overhaul.md P-1, game designer 2026-11-22), MEASURED read-back (hours/fit.mjs)' }),
   L('level.hero-hp', 'level-scaling', 'global', 'Hero HP a Level', {
     at: [at('src/data/core-model.js', 'hpBase: 150'), at('src/data/core-model.js', 'hpPerLevel: 10')],
     def: 'max HP = floor((150 + 10 x (L - 1)) x (1000 + 280 x heavy slots / 6) / 1000)',

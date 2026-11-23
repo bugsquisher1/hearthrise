@@ -29,7 +29,7 @@
 import { DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS, POWER, GEAR_STEPS, HOLDER } from '../../data/danger.js';
 import { holderTank } from './targeting.js';
 import { WAGE, powSquare } from '../../data/wage.js';
-import { LEVEL_PACE } from '../../data/core-model.js';
+import { levelHoursOf } from '../../data/core-model.js';
 import { charXpForLevel } from '../xp.js';
 import { ledgerSteps } from '../power-ledger.js';
 import { auraRowsOn } from './auras.js';
@@ -199,23 +199,11 @@ export function powerPm(inst, source, target, pm) {
   return Math.round((1000 + base) * stepRatio(steps)) - 1000;
 }
 
-/* THE HOURS A LEVEL TAKES (LEVEL_PACE.targets, Tyler's ruling 2026-10-25 section 2: [Level, cumulative hunting hours]). Each span of the
-   table is its hours over its Levels; the hours for Level L are read straight between the spans' middles (flat before the first and
-   after the last), so the pay a kill makes never jumps at a target Level. Rationals only: the browser and the edge agree to the bit. */
-const SPANS = (() => {
-  const t = [[0, 0], ...LEVEL_PACE.targets];
-  const out = [];
-  for (let i = 1; i < t.length; i++) out.push([(t[i - 1][0] + t[i][0]) / 2, (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0])]);
-  return Object.freeze(out.map((p) => Object.freeze(p)));
-})();
+/* THE HOURS A LEVEL TAKES (lane/formula-overhaul, 2026-11-22): the formula of src/data/core-model.js LEVEL_HOURS, ceiling x L^2 /
+   ((L + half) x (L + early)), whole levers, multiplications and one division: the browser and the edge agree to the bit, and the server's
+   twin (tools/gen-danger.mjs hr_danger_hours_for) computes the same rational. The 2026-10-25 hand table it replaced is retired. */
 export function hoursForLevel(level) {
-  const L = Number.isInteger(level) && level >= 1 ? level : 1;
-  if (L <= SPANS[0][0]) return SPANS[0][1];
-  for (let i = 1; i < SPANS.length; i++) {
-    const [a, ha] = SPANS[i - 1], [b, hb] = SPANS[i];
-    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);
-  }
-  return SPANS[SPANS.length - 1][1];
+  return levelHoursOf(level);
 }
 
 /* THE KILLS A HEAD AN HOUR THE HOURS TABLE IS SPLIT OVER: the ground's own, measured at its reference step (DANGER_GROUNDS refKillsHead,

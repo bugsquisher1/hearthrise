@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "3e5c601b2cb576a8",
+ "authored": "4b8205095c61bd9a",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,34 +63,34 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 198,
+  "levers": 208,
   "byCategory": {
    "base-damage": 12,
    "skill-scaling": 9,
-   "level-scaling": 8,
+   "level-scaling": 9,
    "weapon-power": 6,
-   "spells": 12,
+   "spells": 14,
    "healing-shielding": 2,
    "armor-mitigation": 5,
    "resistances": 5,
    "crit": 3,
    "leech": 2,
    "regen": 4,
-   "monster-stats": 27,
+   "monster-stats": 28,
    "spawn": 11,
    "monster-rewards": 16,
-   "rare-drops": 6,
-   "equipment": 17,
-   "imbuements": 1,
+   "rare-drops": 8,
+   "equipment": 20,
+   "imbuements": 2,
+   "economy": 37,
    "consumables": 9,
-   "party": 7,
-   "economy": 36
+   "party": 6
   },
   "byClass": {
-   "global": 96,
-   "archetype": 27,
-   "content": 47,
-   "exception-intentional": 17,
+   "global": 104,
+   "archetype": 28,
+   "content": 49,
+   "exception-intentional": 16,
    "exception-accidental": 11
   },
   "byPerturb": {
@@ -100,28 +100,28 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 26,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 23,
+   "not-playable:not-in-runs": 24,
    "variant": 5,
-   "not-playable:not-built": 13,
+   "not-playable:not-built": 22,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 88,
-   "mentioned only": 90,
+   "asserted": 99,
+   "mentioned only": 89,
    "none": 20
   },
   "flags": {
-   "redundant": 40,
+   "redundant": 41,
    "ineffective": 34,
-   "contradictory": 40
+   "contradictory": 38
   }
  },
  "census": {
-  "bindings": 681,
-  "typed": 15810,
-  "files": 234,
-  "lever": 292,
-  "notLever": 389,
+  "bindings": 708,
+  "typed": 15970,
+  "files": 244,
+  "lever": 305,
+  "notLever": 403,
   "unclaimed": 0
  },
  "problems": [],
@@ -157,7 +157,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -241,7 +241,7 @@
    ],
    "reach": {
     "feeds": 14,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -301,7 +301,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -358,7 +358,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -427,7 +427,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -497,7 +497,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -541,7 +541,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -587,7 +587,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -622,7 +622,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 256,
+     "line": 284,
      "text": "export const MAX_BANE_MULT = 1.40;",
      "binding": "MAX_BANE_MULT"
     }
@@ -636,7 +636,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -682,7 +682,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -744,7 +744,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -807,7 +807,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 79
+    "closure": 80
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -841,7 +841,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 130,
+     "line": 158,
      "text": "export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });",
      "binding": "SKILL_CURVE"
     }
@@ -855,7 +855,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -898,7 +898,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 187,
+     "line": 215,
      "text": "hitXpPerDamage: 1.5,",
      "binding": "COMBAT_XP"
     }
@@ -912,7 +912,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -960,7 +960,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 188,
+     "line": 216,
      "text": "defenseXpPerLevelPermille: 200,",
      "binding": "COMBAT_XP"
     }
@@ -974,7 +974,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1028,7 +1028,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1091,7 +1091,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1157,7 +1157,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -1211,7 +1211,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -1264,7 +1264,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1342,7 +1342,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1494,8 +1494,8 @@
     "P01"
    ],
    "reach": {
-    "feeds": 5,
-    "closure": 78
+    "feeds": 6,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1545,19 +1545,82 @@
    "evidence": "CONFIRMED (read)"
   },
   {
+   "id": "level.hours",
+   "category": "level-scaling",
+   "name": "Hours a Level takes",
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": 106,
+     "text": "export const LEVEL_HOURS = Object.freeze({ ceiling: 20, half: 100, early: 6 });",
+     "binding": "LEVEL_HOURS"
+    }
+   ],
+   "definition": "hunted hours of the reference company (a Steady four at its ground's reference step) for Level L = ceiling x L^2 / ((L + half) x (L + early)); the pay a scale kill makes is derived from it (danger.js levelShareXp), and LEVEL_PACE.targets is derived from it",
+   "range": "ceiling 16 to 24, half 60 to 140, early 2 to 10, whole numbers (server twin hr_danger_hours_for, tools/gen-danger.mjs). Design promises held by tests/level-curve.mjs C8: Level 10 in the first 10 h day, Level 200 in 120 to 240 days, levels off",
+   "touches": "hours to every Level on the scale (so days to every gear tier and band), Level XP a kill (the server bound hr_danger_level_xp_max), the skill clock once skills run on time parity (04 section 4)",
+   "outcomes": [
+    "hoursPerLevel",
+    "netLevelXpPerH"
+   ],
+   "formulas": [
+    "P01"
+   ],
+   "reach": {
+    "feeds": 6,
+    "closure": 79
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/level-curve.mjs",
+      "what": "C7 a Steady four at its held depth earns it, C8 its design promises",
+      "reads": [
+       "LEVEL_HOURS",
+       "levelHoursOf"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "pay: the engine reads the formula",
+      "reads": [
+       "LEVEL_HOURS",
+       "levelHoursOf"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/danger.mjs",
+     "tests/level-curve.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "a design target the pay is derived from: a move changes Levels an hour by construction, never what a company holds (tools/balance-program/redesign/hours/fit.mjs reads it back)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "DESIGN (27-formula-overhaul.md P-1, game designer 2026-11-22), MEASURED read-back (hours/fit.mjs)"
+  },
+  {
    "id": "level.hero-hp",
    "category": "level-scaling",
    "name": "Hero HP a Level",
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 136,
+     "line": 164,
      "text": "hpBase: 150,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 137,
+     "line": 165,
      "text": "hpPerLevel: 10,",
      "binding": "VITALS"
     }
@@ -1584,7 +1647,7 @@
    ],
    "reach": {
     "feeds": 17,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1632,13 +1695,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 138,
+     "line": 166,
      "text": "manaBase: 100,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 139,
+     "line": 167,
      "text": "manaPerLevel: 10,   // Tyler 2026-10-19: \"10 and 10\"",
      "binding": "VITALS"
     }
@@ -1657,7 +1720,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1898,7 +1961,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 80
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1960,7 +2023,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2030,7 +2093,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -2074,7 +2137,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 114,
+     "line": 115,
      "text": "export const ABILITY_LANES = Object.freeze({ offense: 2000, support: 2000, heal: 1000 });",
      "binding": "ABILITY_LANES"
     }
@@ -2099,7 +2162,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2155,7 +2218,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2245,7 +2308,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2307,7 +2370,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -2375,7 +2438,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2432,7 +2495,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2511,7 +2574,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "mixed: ",
@@ -2574,7 +2637,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2636,7 +2699,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2706,7 +2769,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2750,7 +2813,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 143,
+     "line": 144,
      "text": "areaSide: 3,",
      "binding": "ABILITY_RULES"
     }
@@ -2773,7 +2836,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2836,7 +2899,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 145,
+     "line": 146,
      "text": "hitLowPm: 500,",
      "binding": "ABILITY_RULES"
     }
@@ -2859,7 +2922,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2922,7 +2985,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2974,14 +3037,14 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 221,
+     "line": 222,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 84,
-     "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
+     "line": 101,
+     "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
    ],
@@ -3003,7 +3066,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3019,7 +3082,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3027,7 +3090,7 @@
     "planned": "takesMoreCap",
     "from": [
      "src/data/abilities.js: bonusPct: 20, durMs: 8000 }),",
-     "src/data/statuses.js: sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),"
+     "src/data/statuses.js: sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),"
     ],
     "existingPatches": []
    },
@@ -3047,15 +3110,15 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 78,
+     "line": 95,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 79,
-     "text": "tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),",
-     "binding": "STATUSES"
+     "line": 82,
+     "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
+     "binding": "TIERS"
     }
    ],
    "definition": "scale = max(tier share, floor(maxHit x 33 x tier share / 1000)); a tick of 1..3 x scale a stack a second, 5 stacks, 6 s",
@@ -3076,7 +3139,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3089,17 +3152,221 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
      "src/data/statuses.js: blowPm: 33,",
-     "src/data/statuses.js: tierPermille: Object.freeze([1000, 1100, 1200, 1300, 1400]),"
+     "src/data/statuses.js: const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);"
     ],
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read)"
+  },
+  {
+   "id": "spell.statuses-hidden",
+   "category": "spells",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 118,
+     "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 121,
+     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 123,
+     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 125,
+     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 128,
+     "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 133,
+     "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 134,
+     "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 135,
+     "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
+     "binding": "STATUSES"
+    }
+   ],
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed), takenPm / dealtPm (Weakened -80, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), each for durationMs",
+   "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
+   "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-STATUS"
+   ],
+   "reach": {
+    "feeds": 4,
+    "closure": 79
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "each status ticks or applies, keys and caps",
+      "reads": [
+       "STATUSES",
+       "STATUS_KEYS"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/monster-spells.mjs",
+      "what": "silenced-starts-nothing",
+      "reads": [
+       "STATUSES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bug-triage.mjs",
+     "tests/hunt-core/abilities.mjs",
+     "tests/hunt-core/effect-readers.mjs",
+     "tests/hunt-core/elements.mjs",
+     "tests/hunt-core/monster-spells.mjs",
+     "tests/hunt-core/necrotic-storm.mjs",
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 8,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "CONFIRMED (read; tests/hunt-core/status-effects.mjs)"
+  },
+  {
+   "id": "spell.status-keys",
+   "category": "spells",
+   "name": "Stacking keys: how one effect's sources count",
+   "sites": [
+    {
+     "file": "src/data/statuses.js",
+     "line": 77,
+     "text": "hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),",
+     "binding": "STATUS_KEYS"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 78,
+     "text": "hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),",
+     "binding": "STATUS_KEYS"
+    }
+   ],
+   "definition": "a unit's value of an effect is its keys summed; a strongest key counts its largest stack alone, an add key its rows added and held to capPm (src/core/hunt/status-effects.js effectPm, 15 \"Stacking keys\")",
+   "range": "capPm 1..1000 on an add key (validate); 300 PROVISIONAL, \"the Lab sets one cap for the total\"",
+   "touches": "how far stacked damage-taken or damage-dealt sources reach on one hero",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-STATUS"
+   ],
+   "reach": {
+    "feeds": 4,
+    "closure": 79
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "keys-combine",
+      "reads": [
+       "STATUS_KEYS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no hero carries an add-key status yet",
     "existingPatches": []
    },
    "flags": [],
@@ -3112,13 +3379,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 88,
-     "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
+     "line": 105,
+     "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 89,
+     "line": 106,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3135,7 +3402,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3148,15 +3415,16 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "from": [
-     "src/data/statuses.js: chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
+     "src/data/statuses.js: chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "src/data/statuses.js: tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),"
     ],
     "existingPatches": []
@@ -3207,7 +3475,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3266,7 +3534,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -3320,7 +3588,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 353,
+     "line": 354,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3362,7 +3630,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 25,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3382,19 +3650,19 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 197,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 170,
+     "line": 198,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 171,
+     "line": 199,
      "text": "ward: Object.freeze({ perPointPm: 1500 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3420,7 +3688,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3458,13 +3726,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 169,
+     "line": 197,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 170,
+     "line": 198,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3490,7 +3758,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3528,7 +3796,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 172,
+     "line": 200,
      "text": "capPm: 600,",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3554,7 +3822,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3602,13 +3870,13 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 140,
+     "line": 168,
      "text": "heavyHpPermille: 280,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 141,
+     "line": 169,
      "text": "lightManaPermille: 350,",
      "binding": "VITALS"
     }
@@ -3635,7 +3903,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3705,7 +3973,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3760,7 +4028,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3821,7 +4089,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3881,7 +4149,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3933,7 +4201,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -3984,7 +4252,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 96,
+     "line": 113,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -3999,7 +4267,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4012,9 +4280,10 @@
      "tests/hunt-core/elements.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/spell-rule.mjs",
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4072,7 +4341,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -4137,7 +4406,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4187,7 +4456,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "code: a typed number in engine code",
@@ -4334,7 +4603,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4365,7 +4634,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 144,
+     "line": 172,
      "text": "inFightRegenPermillePerS: 3,",
      "binding": "VITALS"
     },
@@ -4398,7 +4667,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4432,7 +4701,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 196,
+     "line": 224,
      "text": "export const FLAME_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });",
      "binding": "FLAME_REGEN"
     }
@@ -4459,7 +4728,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4499,7 +4768,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4528,7 +4797,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 138,
+     "line": 139,
      "text": "manaRegenPctPerMin: 25,",
      "binding": "ABILITY_RULES"
     }
@@ -4553,7 +4822,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4582,7 +4851,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 145,
+     "line": 146,
      "text": "hp: Object.freeze({ base: 4.95, perLevel: 1.76 }),",
      "binding": "STAT_FORMULA"
     }
@@ -4608,7 +4877,7 @@
    ],
    "reach": {
     "feeds": 14,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4638,9 +4907,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -4665,7 +4934,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 140,
+     "line": 141,
      "text": "blow: Object.freeze({ lo: 0.132, hi: 0.22, gentleCap: 0.11 }),",
      "binding": "STAT_FORMULA"
     }
@@ -4691,7 +4960,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4714,9 +4983,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -4741,13 +5010,13 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 130,
+     "line": 131,
      "text": "hit: Object.freeze({ lo: 0.40, hi: 0.70 }),",
      "binding": "STAT_FORMULA"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 134,
+     "line": 135,
      "text": "heroHit: 0.85,",
      "binding": "STAT_FORMULA"
     }
@@ -4772,7 +5041,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4786,9 +5055,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4810,7 +5079,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 149,
+     "line": 150,
      "text": "def: Object.freeze({ perLevel: 0.08 }),",
      "binding": "STAT_FORMULA"
     },
@@ -4839,7 +5108,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "mixed: data and code",
@@ -4855,7 +5124,7 @@
      "tests/ground-boss.mjs",
      "tests/hearthfind-boss-rate.mjs"
     ],
-    "mentionCount": 19,
+    "mentionCount": 18,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4883,7 +5152,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 125,
+     "line": 126,
      "text": "ramp: Object.freeze({ from: 8, to: 16 }),",
      "binding": "STAT_FORMULA"
     }
@@ -4909,7 +5178,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4923,9 +5192,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4952,36 +5221,30 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 208,
+     "line": 209,
      "text": "swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, evasion: 0.9, xp: 1.0, gp: 1.0 }),",
-     "binding": "MONSTER_ROLES"
+     "binding": "BASE_ROLES"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 211,
+     "line": 212,
      "text": "glass: Object.freeze({ hp: 0.75, hit: 0.05, blow: 1.1, def: 0.5, evasion: 0.9, xp: 1.2, gp: 1.0 }),",
-     "binding": "MONSTER_ROLES"
+     "binding": "BASE_ROLES"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 213,
+     "line": 214,
      "text": "heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, evasion: 1.35, xp: 1.1, gp: 1.0 }),",
-     "binding": "MONSTER_ROLES"
+     "binding": "BASE_ROLES"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 215,
+     "line": 216,
      "text": "elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, evasion: 1.5, xp: 1.15, gp: 1.0 }),",
-     "binding": "MONSTER_ROLES"
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 218,
-     "text": "boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, evasion: 1.5, xp: 1.2, gp: 1.0, floorCap: 0.33 }),",
-     "binding": "MONSTER_ROLES"
+     "binding": "BASE_ROLES"
     }
    ],
-   "definition": "swarm, regular, glass, heavy, elite, boss: multipliers on hp, hit, blow, def, evasion, xp, gp (boss hp x5, blow x1.1 held to 33% of the floor hero)",
+   "definition": "swarm, regular, glass, heavy, elite: multipliers on hp, hit, blow, def, evasion, xp, gp; the boss role is the elite x the ground kind's row (mon.boss-kinds)",
    "range": "positive multipliers",
    "touches": "every formula monster's shape and pay",
    "outcomes": [
@@ -5010,7 +5273,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5024,12 +5287,8 @@
       ]
      }
     ],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/monster-roles.mjs"
-    ],
-    "mentionCount": 3,
+    "mentions": [],
+    "mentionCount": 0,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5039,8 +5298,7 @@
      "src/data/balance-sheet.js: swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, evasion: 0.9, xp: 1.0, gp: 1.0 }),",
      "src/data/balance-sheet.js: glass: Object.freeze({ hp: 0.75, hit: 0.05, blow: 1.1, def: 0.5, evasion: 0.9, xp: 1.2, gp: 1.0 }),",
      "src/data/balance-sheet.js: heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, evasion: 1.35, xp: 1.1, gp: 1.0 }),",
-     "src/data/balance-sheet.js: elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, evasion: 1.5, xp: 1.15, gp: 1.0 }),",
-     "src/data/balance-sheet.js: boss: Object.freeze({ hp: 5, hit: 0, blow: 1.1, def: 4.0, evasion: 1.5, xp: 1.2, gp: 1.0, floorCap: 0.33 }),"
+     "src/data/balance-sheet.js: elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, evasion: 1.5, xp: 1.15, gp: 1.0 }),"
     ],
     "existingPatches": []
    },
@@ -5065,7 +5323,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 194,
+     "line": 195,
      "text": "party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),",
      "binding": "STAT_FORMULA"
     }
@@ -5099,7 +5357,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5113,9 +5371,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5162,7 +5420,7 @@
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 340,
+     "line": 342,
      "text": "export const DAMAGE_SCALE_BY_TIER = Object.freeze({ 1: 5.4, 2: 5.4, 3: 4.0, 4: 4.0, 5: 3.0, 6: 2.2 });",
      "binding": "DAMAGE_SCALE_BY_TIER"
     }
@@ -5188,7 +5446,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "mixed: code and data",
@@ -5238,7 +5496,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 322,
+     "line": 324,
      "text": "export const FORMULA_EXCEPTIONS = Object.freeze({",
      "binding": "GROUND_GP_FIT"
     }
@@ -5273,7 +5531,7 @@
    ],
    "reach": {
     "feeds": 14,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5297,7 +5555,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 113,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5343,7 +5601,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 200,
+     "line": 228,
      "text": "export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });",
      "binding": "MONSTER_LEVEL_BY_TIER"
     }
@@ -5358,7 +5616,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5424,7 +5682,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5506,7 +5764,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5612,7 +5870,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5667,7 +5925,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 80
    },
    "class": "content",
    "change": "mixed: ",
@@ -5683,7 +5941,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5748,7 +6006,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5784,13 +6042,13 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 444,
+     "line": 446,
      "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
      "binding": "TIER_DIALS"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 451,
+     "line": 453,
      "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
      "binding": "TIER_DIALS"
     }
@@ -5816,7 +6074,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5877,13 +6135,13 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 444,
+     "line": 446,
      "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
      "binding": "TIER_DIALS"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 451,
+     "line": 453,
      "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
      "binding": "TIER_DIALS"
     }
@@ -5906,7 +6164,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5938,7 +6196,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 458,
+     "line": 460,
      "text": "const BASE_TIER_OVERRIDES = Object.freeze({",
      "binding": "BASE_TIER_OVERRIDES"
     }
@@ -5972,7 +6230,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6038,8 +6296,8 @@
     "C-SCALED"
    ],
    "reach": {
-    "feeds": 2,
-    "closure": 78
+    "feeds": 3,
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6072,19 +6330,25 @@
    "sites": [
     {
      "file": "src/data/tower.js",
-     "line": 47,
+     "line": 62,
      "text": "export const TOWER_RULES = Object.freeze({",
      "binding": "TOWER_RULES"
     },
     {
      "file": "src/data/tower.js",
-     "line": 115,
+     "line": 177,
      "text": "export const CATACOMB_RULES = Object.freeze({",
      "binding": "CATACOMB_RULES"
+    },
+    {
+     "file": "src/data/tower.js",
+     "line": 80,
+     "text": "export const TOWER_MIXES = Object.freeze([",
+     "binding": "TOWER_MIXES"
     }
    ],
-   "definition": "5 monsters a floor at the formula's Level F, a Keeper every 10th; floor 3 min, landing 10 min; minLevel 10; the Tower's last row is floor 300",
-   "range": "roomSize 2..8, heat 0..50 permille (validateTower)",
+   "definition": "the Danger scale with no top (lane/tower-boss-formula): floor F at Level F (levelPm 1000) and depth 2.3 F steps (depthPm 2300, x(1 + powerStep) a step on HP and blow); a band of 10 plays one of six role mixes in turn (4 to 8 monsters, each roomSize / size of a reference monster); a Keeper every 10th on the keeper boss kind; floor 3 min, landing 10 min; minLevel 10; the top is the scale's own (floor 1730); a kill pays the Level share at the floor's gap x payPm 500 over refKillsHead 300",
+   "range": "roomSize 2..8, levelPm 100..10000, depthPm 0..10000, payPm 1..1000, refKillsHead >= PAY.refKillsHead, a mix 2..8 (validateTower); the pay under the mode's cut (tower.js at load)",
    "touches": "the run grounds",
    "outcomes": [],
    "formulas": [
@@ -6112,15 +6376,16 @@
      "tests/catacombs.mjs",
      "tests/entry-gates.mjs",
      "tests/mode-death.mjs",
+     "tests/tower-chest.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
     "kind": "not-playable",
     "gap": "not-in-runs",
-    "note": "tools/balance-sim/tower-climb.mjs plays climbs apart from the matrix",
+    "note": "tools/balance-sim/tower-curve.mjs plays climbs apart from the matrix",
     "existingPatches": []
    },
    "rows": {
@@ -6130,16 +6395,86 @@
      "src/data/hunts.js#TOWER_HUNTS"
     ]
    },
+   "flags": [],
+   "evidence": "MEASURED (tools/balance-sim/tower-curve.mjs, played fours at 30 / 74 / 110 top out at 59-68 / 101-104 / 126-129, lane/tower-boss-formula)"
+  },
+  {
+   "id": "mon.boss-kinds",
+   "category": "monster-stats",
+   "name": "Boss kinds and the ramp",
+   "sites": [
+    {
+     "file": "src/data/bosses.js",
+     "line": 35,
+     "text": "export const BOSS_KINDS = Object.freeze({",
+     "binding": "BOSS_KINDS"
+    }
+   ],
+   "definition": "a boss is its base stat role (the elite) x its encounter's row (ground, hall, keeper, add: HP x3.125, blow x1.1, XP x1.043 of the elite, a blow held to 33% of the floor hero) and its blow ramps rampPm a minute of fight to rampCapPm (ground 40 to x1.4, hall 60 to x1.6, keeper 100 to x1.8, add none)",
+   "range": "ppm 100000..20000000 on HP, blow and XP; rampPm 0..500, rampCapPm 1000..3000 (validateBosses)",
+   "touches": "every boss fight and the Tower's landings",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-MON-STATS"
+   ],
+   "reach": {
+    "feeds": 12,
+    "closure": 79
+   },
+   "class": "archetype",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/tower-climb.mjs",
+      "what": "TC-BOSS",
+      "reads": [
+       "BOSS_KINDS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/tower-climb.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "the matrix plays no boss room; tools/balance-sim/boss-call-table.mjs fits halls apart",
+    "existingPatches": []
+   },
    "flags": [
     {
      "kind": "contradictory",
-     "why": "The Tower heat (x1.012 a floor past 100, compounding to x10.9 by floor 300) is live; Tyler dropped it on 2026-11-20",
-     "ev": "44 X-TOWER-HEAT, CONFIRMED"
+     "why": "The boss blow is held to a third of the FLOOR hero's HP however deep he lives: a designer rule, never ruled by Tyler",
+     "ev": "44 X-BOSS-FLOOR-CAP, CONFIRMED"
     },
     {
-     "kind": "contradictory",
-     "why": "A floor above 300 plays floor 300: a limit of the build, not a design choice, on an endless mode",
-     "ev": "44 X-TOWER-TOP, CONFIRMED"
+     "kind": "redundant",
+     "why": "Lord Krell and the hall's Captain Hask still carry hand-fitted rows (Krell 18,000 HP / atk 247 / aim 290 against the formula boss's 2,482 / 103 / 70); their re-fit on the hall kind waits on the ship bar",
+     "ev": "lane/tower-boss-formula, CONFIRMED"
     }
    ],
    "evidence": "CONFIRMED (read)"
@@ -6230,7 +6565,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "content",
    "change": "mixed: ",
@@ -6246,7 +6581,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 44,
+    "mentionCount": 45,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6318,7 +6653,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -6334,7 +6669,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 45,
+    "mentionCount": 46,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6416,7 +6751,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6450,13 +6785,13 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 444,
+     "line": 446,
      "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
      "binding": "TIER_DIALS"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 451,
+     "line": 453,
      "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
      "binding": "TIER_DIALS"
     }
@@ -6491,7 +6826,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6523,7 +6858,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 422,
+     "line": 424,
      "text": "export const TIER_PULL_FROM_FLOOR = 16;",
      "binding": "TIER_PULL_FROM_FLOOR"
     }
@@ -6547,7 +6882,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6614,7 +6949,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6740,7 +7075,7 @@
    ],
    "reach": {
     "feeds": 16,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6762,9 +7097,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6819,7 +7154,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6841,9 +7176,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6895,7 +7230,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6917,9 +7252,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6964,7 +7299,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6986,9 +7321,9 @@
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/tally.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7033,7 +7368,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7114,7 +7449,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7178,7 +7513,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7240,10 +7575,11 @@
    "formulas": [
     "P01",
     "P02",
-    "C-TIER"
+    "C-TIER",
+    "P22"
    ],
    "reach": {
-    "feeds": 15,
+    "feeds": 16,
     "closure": 76
    },
    "class": "global",
@@ -7268,7 +7604,7 @@
      "tests/boss-hall.mjs",
      "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7300,10 +7636,11 @@
     "storePerH"
    ],
    "formulas": [
-    "C-TIER"
+    "C-TIER",
+    "P22"
    ],
    "reach": {
-    "feeds": 8,
+    "feeds": 9,
     "closure": 78
    },
    "class": "global",
@@ -7335,7 +7672,7 @@
      "tests/boss-hall.mjs",
      "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7373,7 +7710,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7392,12 +7729,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7447,7 +7784,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7462,9 +7799,10 @@
      }
     ],
     "mentions": [
+     "tests/dead-exports.mjs",
      "tests/new-ground.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7501,10 +7839,11 @@
    ],
    "formulas": [
     "P01",
-    "P02"
+    "P02",
+    "P22"
    ],
    "reach": {
-    "feeds": 7,
+    "feeds": 9,
     "closure": 77
    },
    "class": "global",
@@ -7536,7 +7875,7 @@
      "tests/boss-hall.mjs",
      "tests/cadence-recovery-floor.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7590,7 +7929,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7680,7 +8019,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7697,9 +8036,10 @@
     "mentions": [
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/monster-roles.mjs"
+     "tests/hunt-core/monster-roles.mjs",
+     "tests/tower-climb.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7752,7 +8092,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7794,7 +8134,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 165,
+     "line": 166,
      "text": "xp: Object.freeze({ a: 1.436, b: 0.4, min: 2.534, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),",
      "binding": "STAT_FORMULA"
     }
@@ -7813,7 +8153,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7835,9 +8175,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7865,13 +8205,13 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 444,
+     "line": 446,
      "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
      "binding": "TIER_DIALS"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 451,
+     "line": 453,
      "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
      "binding": "TIER_DIALS"
     }
@@ -7891,7 +8231,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7932,7 +8272,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 165,
+     "line": 166,
      "text": "xp: Object.freeze({ a: 1.436, b: 0.4, min: 2.534, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),",
      "binding": "STAT_FORMULA"
     }
@@ -7951,7 +8291,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7965,9 +8305,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7993,7 +8333,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 309,
+     "line": 311,
      "text": "export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.22, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));",
      "binding": "GROUND_XP_FIT"
     }
@@ -8012,7 +8352,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8080,7 +8420,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 175,
+     "line": 176,
      "text": "gp: Object.freeze({ perHp: 0.30, lo: 0.5, keepMean: true, line: Object.freeze({ from: 1, to: 16, lo: 0.5, hi: 1.4 }) }),",
      "binding": "STAT_FORMULA"
     }
@@ -8111,9 +8451,9 @@
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
      "tests/scaled-hunts.mjs",
-     "tests/tower-climb.mjs"
+     "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8140,7 +8480,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 319,
+     "line": 321,
      "text": "export const GROUND_GP_FIT = Object.freeze(foldRows('gp fit', { mosslight_glade: 0.7, coppercap_warrens: 0.7 }, GROUND_PACKS, (p) => (p.gpFit ? { [p.id]: p.gpFit.k } : {})));",
      "binding": "GROUND_GP_FIT"
     }
@@ -8158,7 +8498,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8233,7 +8573,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -8249,7 +8589,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8319,7 +8659,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8440,7 +8780,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 113,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8534,7 +8874,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -8559,7 +8899,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 113,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8573,7 +8913,7 @@
      "src/data/monsters.js#MONSTERS",
      "src/data/grounds/*/pack.js#default",
      "src/data/patterns.js#PATTERNS",
-     "src/data/catacomb-wings.js#ARMOR_PM_KILL"
+     "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -8681,13 +9021,13 @@
    "sites": [
     {
      "file": "src/data/chests.js",
-     "line": 144,
+     "line": 163,
      "text": "warmthStepPm: 40,",
      "binding": "CHEST_LUCK"
     },
     {
      "file": "src/data/chests.js",
-     "line": 145,
+     "line": 164,
      "text": "warmthCapPm: 3000,",
      "binding": "CHEST_LUCK"
     }
@@ -8744,18 +9084,24 @@
    "sites": [
     {
      "file": "src/data/chests.js",
-     "line": 108,
+     "line": 127,
      "text": "export const CHEST_KEYS = Object.freeze([",
      "binding": "CHEST_KEYS"
     },
     {
      "file": "src/data/chests.js",
-     "line": 82,
+     "line": 83,
      "text": "export const KEY_FAMILIES = Object.freeze({",
      "binding": "KEY_FAMILIES"
+    },
+    {
+     "file": "src/data/chests.js",
+     "line": 116,
+     "text": "export const KEY_ODDS = Object.freeze({ firstPm: 160, fallPm: 500 });",
+     "binding": "KEY_ODDS"
     }
    ],
-   "definition": "each key's weapon odds, tier, gold and food; 6 opens a week a family, 30 held at most; outfit odds a key",
+   "definition": "each key's tier, Cinders, salts and food; its first landing GENERATED (the landing whose floor Level reaches its weapons' item Level: 40 / 80 / 120 / 140) and its weapon odds (KEY_ODDS: 160 permille, halved a metal); 6 opens a week a family, 30 held at most; outfit odds a key",
    "range": "weaponTier 1..10 (validateChests)",
    "touches": "Tower and Catacomb rewards",
    "outcomes": [],
@@ -8771,10 +9117,11 @@
    "tests": {
     "asserts": [],
     "mentions": [
+     "tests/catacombs.mjs",
      "tests/hunt-core/tower-weapons-play.mjs",
      "tests/tower-chest.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8967,7 +9314,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 76
+    "closure": 77
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9032,7 +9379,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9095,7 +9442,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9181,7 +9528,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9268,7 +9615,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9367,7 +9714,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9424,7 +9771,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -9440,7 +9787,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9522,7 +9869,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9538,7 +9885,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9640,7 +9987,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9706,13 +10053,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 53,
+     "line": 54,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 54,
+     "line": 55,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -9761,10 +10108,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9783,7 +10132,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 57,
+     "line": 58,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -9831,10 +10180,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9853,31 +10204,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 63,
+     "line": 64,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 86,
+     "line": 87,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 87,
+     "line": 88,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 89,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 90,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -9925,10 +10276,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10006,19 +10359,104 @@
    "evidence": "STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)"
   },
   {
+   "id": "gear.rarity-hours",
+   "category": "equipment",
+   "name": "The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll",
+   "sites": [
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 52,
+     "text": "chDigits: 3,",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 55,
+     "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 56,
+     "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 57,
+     "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 62,
+     "text": "depthPm: Object.freeze([1000, 3000]),",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 63,
+     "text": "topRankPm: 500,",
+     "binding": "DROP_HOURS"
+    },
+    {
+     "file": "src/data/drop-hours.js",
+     "line": 64,
+     "text": "topRankMaxPm: 800,",
+     "binding": "DROP_HOURS"
+    }
+   ],
+   "definition": "a Rare (one Trait) about every 40 hunted hours a hero at the ground's reference step, a Very Rare (two) every 400, a given Signature every 45 on its home; each chance is 1 / (hours x the ground's reference kills a head an hour), / heroes at the kill; depth multiplies the Rare and Very Rare odds x1 at depth 1 to x3 at depth 20, read against the reference's depth; the top open rank lands topRankPm x (1 + luck), at most topRankMaxPm; a made cape or jewel rolls at its part's hours over the rung's",
+   "range": "each rung inside its band (rare 30 to 60, very rare 300 to 600, signature 30 to 60: DF-3); depth x1 to x3; top rank 400 to 600 of 1000 capped 650 to 900 (21 section 1.2)",
+   "touches": "hours to a first Trait piece (p10 / p50 / p90), the Trait pieces in the market, the flame's worth",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/drop-formula.mjs",
+      "what": "DF-3 the ladder, DF-4 the roller, DF-5 the settle",
+      "reads": [
+       "DROP_HOURS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs"
+    ],
+    "mentionCount": 2,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "dark: GEAR_STEPS.traitsLive false, nothing hands the settle a roll (tools/balance-program/redesign/drops/first-trait.mjs reads the roller alone)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (09-crafting 5.6 and 13-market 3.2: 40 and 400; 15: 30 to 60; 12-targets 3.3: x1 to x3; 21 D-4: the top rank)"
+  },
+  {
    "id": "gear.trait-trade",
    "category": "equipment",
    "name": "A trade Trait's gain, and the percents a Trait card shows",
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 66,
+     "line": 67,
      "text": "tradeSteps: Object.freeze([7, 13, 18]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 69,
+     "line": 70,
      "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
      "binding": "GEAR_STEPS"
     }
@@ -10066,10 +10504,12 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/temper-steps.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10139,12 +10579,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10215,12 +10655,12 @@
      "tests/content-coherence.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/level-curve.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/status-effects.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10311,9 +10751,10 @@
     ],
     "mentions": [
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/imbue.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10324,6 +10765,455 @@
    },
    "flags": [],
    "evidence": "STATED (19-power-ledger.md sections 1 and 2; Tyler 2026-11-22 ramp ruling)"
+  },
+  {
+   "id": "ledger.aura",
+   "category": "equipment",
+   "name": "Party auras: steps on every ally in reach while the move is slotted",
+   "sites": [
+    {
+     "file": "src/data/auras.js",
+     "line": 28,
+     "text": "open_fire: Object.freeze({ id: 'open_fire', name: 'Open Fire', key: 'party_damage', radius: 8, slice: 'build', raises: 'offense', steps: 11 }),",
+     "binding": "AURAS"
+    }
+   ],
+   "definition": "an aura move slotted on a bar (target aura) puts its row's steps, in its slice and channel, on every living hero of its side within radius tiles as a ledger row scope party: on an ally whole and outside its own cap, on the wearer inside its slice, one per key a party (src/core/hunt/auras.js, src/core/power-ledger.js)",
+   "range": "radius 1 to 12 tiles, steps 1 to 40 at full size (validate); Open Fire 11 steps (+4% damage, 22 section 2.2) in the build slice, so 3.3 at Level 60",
+   "touches": "the party's damage (offense) or blows taken (defense) on the Danger scale while a support wears a fire",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/status-effects.mjs",
+      "what": "aura-party-rule: reach, one per key, the ally's cap, the power step, never cast",
+      "reads": [
+       "AURAS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/status-effects.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no move names an aura yet (the Wraps stay hidden); the Lab slots a scratch move (tools/balance-program/redesign/e3/e3-lab.json)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (roads-run.mjs --plan e3, lane/e2-e3-statuses)"
+  },
+  {
+   "id": "flame.levers",
+   "category": "rare-drops",
+   "name": "The Inner Flame: burn, room, luck, top rank, curve, fuel worth",
+   "sites": [
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 42,
+     "text": "decayPpm1: 80000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 44,
+     "text": "coverPm: 1500,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 45,
+     "text": "luckMaxPm: 600,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 46,
+     "text": "luckHalfMpts: 25000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 47,
+     "text": "topRankPm: 500,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 50,
+     "text": "pointsTo99: 6000,",
+     "binding": "FLAME"
+    },
+    {
+     "file": "src/data/inner-flame.js",
+     "line": 53,
+     "text": "fuelRef: 100,",
+     "binding": "FLAME"
+    }
+   ],
+   "definition": "decay(FL) = decayPpm1 - (decayPpm1 - decayPpm99) x (FL - 1) / 98 a hunted hero-hour; room = cover / decay; luck = luckMax x H / (H + luckHalf) on the Rare and Very Rare chance; top rank = topRankPm x (1 + luck) under topRankMaxPm; Flame Level on a 1.045 curve to 6,000 points; a unit of band b is 1 / fuelRef points x (1 + powerStep)^(b - top)",
+   "range": "decayPm1 50 to 120, decayPm99 30 to 60, cover 1.25 to 2.0, luckMax 0.4 to 0.8, luckHalf 15 to 40 points, topRank 400 to 600 / 650 to 900, pointsTo99 4,000 to 10,000, burst 150 to 400 (21 section 1.2); fuelRef MEASURED owed (F1)",
+   "touches": "how often a fed company finds a Rare, and what Remains are worth on the fire against the market",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/flame-rules.mjs",
+      "what": "FR-1 to FR-6: the table, both paths, the curve, the burn, the stoke rule, the top rank",
+      "reads": [
+       "FLAME",
+       "FLAME_LEVELS",
+       "FLAME_FUEL"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/activity-intent.mjs",
+     "tests/flame-rules.mjs",
+     "tests/hearth-fuel-rate.mjs",
+     "tests/hearth-moods.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/inner-flame.mjs",
+     "tests/town-shows.mjs"
+    ],
+    "mentionCount": 7,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "no roller reads luck until lane/drop-formula (wave 4); the switch inner_flame is off",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 1.2; fuelRef ASSUMED until F1)"
+  },
+  {
+   "id": "temper.steps",
+   "category": "equipment",
+   "name": "Temper on steps: ranks by Level, price in hours of wage, the re-seat",
+   "sites": [
+    {
+     "file": "src/data/temper.js",
+     "line": 177,
+     "text": "rankEvery: 40,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 178,
+     "text": "hoursPm: 3000,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 179,
+     "text": "kitSharePm: 500,",
+     "binding": "TEMPER_STEPS"
+    },
+    {
+     "file": "src/data/temper.js",
+     "line": 180,
+     "text": "carryPm: 350,",
+     "binding": "TEMPER_STEPS"
+    }
+   ],
+   "definition": "five ranks a gear slot, rank r open at Level rankEvery x r, each +1 item Level on the slot inside the gear part (slot-weighted, a whole kit at 5 = 5 steps); a full slot costs hoursPm x 13 x slotPm / 1000 hours of wage at the worn item Level, rank r r/15 of it, kitSharePm in Temper Kits and the rest a fee; a new tier re-seats for carryPm of the ranks",
+   "range": "rankEvery 30 to 50, hoursPm 2,000 to 4,000, kitSharePm 300 to 700, carryPm 250 to 500 (21 section 2.2)",
+   "touches": "Temper as a lifelong sink and its +5 steps at Level 200",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/temper-steps.mjs",
+      "what": "TS-1 to TS-4: ranks, prices, the seat, the gear part",
+      "reads": [
+       "TEMPER_STEPS"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/temper-steps.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the switch temper_steps is off and the Temper Kit is not an item; T1 measured with tools/balance-program/candidates/temper-5.json",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)"
+  },
+  {
+   "id": "imbue.rules",
+   "category": "imbuements",
+   "name": "Imbuements: 2 steps each, 20 hunted hours, the fee",
+   "sites": [
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 28,
+     "text": "hours: 20,",
+     "binding": "IMBUE"
+    },
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 33,
+     "text": "feeHoursPm: 400,",
+     "binding": "IMBUE"
+    },
+    {
+     "file": "src/data/imbue-rules.js",
+     "line": 46,
+     "text": "fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'fire', sharePm: 50 },",
+     "binding": "IMBUE_RULES"
+    }
+   ],
+   "definition": "three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp",
+   "range": "hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)",
+   "touches": "a consumable choice in place of a draught; Remains to the bench as well as the fire",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare",
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/imbue.mjs",
+      "what": "IM-1 to IM-4: the rows, life, the fee, the band",
+      "reads": [
+       "IMBUE",
+       "IMBUE_RULES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/imbue.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the switch imbuements is off; the bench, the items and the fight conditions are owed (21 section 3.9)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 3.2; the shares behind each size ASSUMED until I1)"
+  },
+  {
+   "id": "carry.price",
+   "category": "economy",
+   "name": "Carry-over: parts and a fee a Trait step",
+   "sites": [
+    {
+     "file": "src/data/gear-steps.js",
+     "line": 112,
+     "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
+     "binding": "CARRY"
+    }
+   ],
+   "definition": "every Trait of a piece onto a plain base of the same slot, same or higher tier: 2 + rank parts of the Trait home ground a Trait, hoursPerStepPm / 1000 hours of wage a Trait step at the new base item Level, workPm / 1000 work-hours",
+   "range": "hoursPerStep 0.3 to 1.0, parts 1 + rank to 4 + rank, work 0.5 to 2 (21 section 2.3)",
+   "touches": "how long a good Rare lives against buying new at the next tier",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/temper-steps.mjs",
+      "what": "TS-5 carry-over",
+      "reads": [
+       "CARRY"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/account-wallet.mjs",
+     "tests/accrual-engine.mjs",
+     "tests/activity-intent.mjs",
+     "tests/alpha-windows-hunts.mjs",
+     "tests/alpha-windows-pure.mjs",
+     "tests/artisan-accrual.mjs",
+     "tests/carry-on.mjs",
+     "tests/client-intent-surface.mjs"
+    ],
+    "mentionCount": 22,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the verb waits for trait_pieces (wave 4)",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (21 section 2.3)"
+  },
+  {
+   "id": "loot.pity",
+   "category": "rare-drops",
+   "name": "Personal loot pity: growth and the base share",
+   "sites": [
+    {
+     "file": "src/data/party.js",
+     "line": 37,
+     "text": "pityGrowPm: 4000,",
+     "binding": "PERSONAL_LOOT"
+    },
+    {
+     "file": "src/data/party.js",
+     "line": 38,
+     "text": "pityBasePm: 438,",
+     "binding": "PERSONAL_LOOT"
+    }
+   ],
+   "definition": "a hero rolls at p0 x (1 + grow x x), x the sum of p0 over its misses since its last find, p0 = p x base; base is the mean of exp(-x - grow x^2 / 2), so the long-run rate is the stated one",
+   "range": "grow so the 90th percentile of rolls to a find is under 2x the mean (L2); base follows grow",
+   "touches": "how even the Rares a hero finds are",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/personal-loot.mjs",
+      "what": "PL-1 to PL-5: no flood, the stated rate, p90 under 2x, the integral, both paths",
+      "reads": [
+       "PERSONAL_LOOT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/personal-loot.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "the roller is lane/drop-formula's; the switch personal_loot is off",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "COMPUTED (the integral; L2 owed)"
   },
   {
    "id": "imbue.parts",
@@ -10355,7 +11245,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 79
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10429,7 +11319,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10477,7 +11367,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 240,
+     "line": 268,
      "text": "export const FOOD_HEAL_SCALE = 12;",
      "binding": "FOOD_HEAL_SCALE"
     }
@@ -10554,7 +11444,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10812,7 +11702,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -10828,7 +11718,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11012,7 +11902,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11072,7 +11962,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11123,53 +12013,6 @@
    "evidence": "CONFIRMED (read)"
   },
   {
-   "id": "party.run-xp",
-   "category": "party",
-   "name": "Run ground party table",
-   "sites": [
-    {
-     "file": "src/data/tower.js",
-     "line": 60,
-     "text": "export const TOWER_PARTY_XP = Object.freeze({ 1: 1000, 2: 1100, 3: 1200, 4: 1300 });",
-     "binding": "TOWER_PARTY_XP"
-    }
-   ],
-   "definition": "the Tower and the Catacombs share a kill by size only: 1000 / 1100 / 1200 / 1300, no solo boost",
-   "range": "permille; a head never earns more than a hero alone (validateTower)",
-   "touches": "run ground pace",
-   "outcomes": [],
-   "formulas": [
-    "P22"
-   ],
-   "reach": {
-    "feeds": 2,
-    "closure": 79
-   },
-   "class": "exception-intentional",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [],
-    "mentions": [
-     "tests/tower-climb.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "mentioned only"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "existingPatches": []
-   },
-   "flags": [
-    {
-     "kind": "contradictory",
-     "why": "Its pair and three rows are ASSUMED",
-     "ev": "44 P-X09, CONFIRMED"
-    }
-   ],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
    "id": "party.under-floor",
    "category": "party",
    "name": "Under-floor Level share",
@@ -11190,7 +12033,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11263,7 +12106,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11347,7 +12190,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11409,7 +12252,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11480,7 +12323,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "mixed: data and code",
@@ -12360,7 +13203,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12580,7 +13423,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12658,7 +13501,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 79
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12809,7 +13652,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12882,7 +13725,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12951,8 +13794,8 @@
     "E07"
    ],
    "reach": {
-    "feeds": 2,
-    "closure": 78
+    "feeds": 3,
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13129,7 +13972,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "code: a typed number in engine code",
@@ -13220,7 +14063,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13316,7 +14159,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 79
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13366,7 +14209,7 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 230,
+     "line": 258,
      "text": "export const FLAME_FUEL = Object.freeze({",
      "binding": "FLAME_FUEL"
     }
@@ -13388,10 +14231,11 @@
     "asserts": [],
     "mentions": [
      "tests/activity-intent.mjs",
+     "tests/flame-rules.mjs",
      "tests/hearth-fuel-rate.mjs",
      "tests/inner-flame.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13684,6 +14528,34 @@
    "why": "the PARTY_CLASS_XP row builder: its numbers are the party sizes 3 and 4 as keys"
   },
   {
+   "at": "src/core/inner-flame.js#MINUTE_MS",
+   "why": "a unit: the milliseconds in a minute (the flame decays a hunted hero-minute at a time)"
+  },
+  {
+   "at": "src/core/inner-flame.js#roomMpts",
+   "why": "units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)"
+  },
+  {
+   "at": "src/core/inner-flame.js#decay",
+   "why": "units: 60 minutes x a million parts (decayPpm is the lever)"
+  },
+  {
+   "at": "src/core/imbue.js#HOUR_MS",
+   "why": "a unit: the milliseconds in an hour (IMBUE.hours is the lever)"
+  },
+  {
+   "at": "src/core/personal-loot.js#UNIT",
+   "why": "a unit: hero_pity holds millionths of x"
+  },
+  {
+   "at": "src/core/temper-steps.js#rankQuote",
+   "why": "units: milli-hours x permille (TEMPER_STEPS is the lever)"
+  },
+  {
+   "at": "src/core/temper-steps.js#seatPrice",
+   "why": "units: milli-hours x permille (TEMPER_STEPS.carryPm is the lever)"
+  },
+  {
    "at": "src/**#validate*",
    "why": "a validator: its bounds are the valid range (field 3) of the lever it checks"
   },
@@ -13956,6 +14828,10 @@
    "why": "rounding (+500 / 1000)"
   },
   {
+   "at": "src/core/hunt/heal-cut.js#healCutPmOf",
+   "why": "a bound: a heal cut never takes a heal whole (999 of 1000)"
+  },
+  {
    "at": "src/data/gear-tiers.js#round5",
    "why": "rounding to fives"
   },
@@ -14020,8 +14896,20 @@
    "why": "how many floor records a climb keeps"
   },
   {
+   "at": "src/core/hunt/tower.js#<statements>",
+   "why": "a permille to share conversion (/ 1000) in the load check of the run pay against its mode"
+  },
+  {
+   "at": "src/data/bosses.js#bossRole",
+   "why": "a ppm to share conversion (/ 1e6)"
+  },
+  {
+   "at": "src/data/bosses.js#rampPmAt",
+   "why": "a unit conversion (ms a minute)"
+  },
+  {
    "at": "src/core/hunt/xp-share.js#*",
-   "why": "the seat cap 4 and float epsilons of the split; the split's numbers are its tables' (party.class-xp, party.run-xp)"
+   "why": "the seat cap 4 and float epsilons of the split; the split's numbers are its tables' (party.class-xp, the Tower's pay row mon.run-rooms)"
   },
   {
    "at": "src/core/hunt/abilities.js#effect",
@@ -14352,6 +15240,7 @@
     "enrageAtkPm",
     "enragePm",
     "evasion",
+    "everyHours",
     "forParty",
     "frost",
     "gather",
@@ -14481,7 +15370,7 @@
    "pin": "open",
    "bindings": 1
   },
-  "src/data/catacomb-wings.js#ARMOR_PM_KILL": {
+  "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS": {
    "pin": "count",
    "keys": [
     "·"
@@ -15487,6 +16376,15 @@
    "typed": 33,
    "bindings": 1
   },
+  "src/data/core-model.js#LEVEL_HOURS": {
+   "pin": "count",
+   "keys": [
+    "ceiling",
+    "early"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
   "src/data/core-model.js#VITALS": {
    "pin": "count",
    "keys": [
@@ -15621,7 +16519,9 @@
   "src/data/statuses.js#STATUSES": {
    "pin": "count",
    "keys": [
+    "armorPm",
     "blowPm",
+    "dealtPm",
     "durationMs",
     "hero",
     "maxStacks",
@@ -15630,7 +16530,23 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 18,
+   "typed": 28,
+   "bindings": 1
+  },
+  "src/data/statuses.js#TIERS": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 4,
+   "bindings": 1
+  },
+  "src/data/statuses.js#STATUS_KEYS": {
+   "pin": "count",
+   "keys": [
+    "capPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/rule-subjects.js#SPARE_MANA": {
@@ -15799,19 +16715,18 @@
    "typed": 29,
    "bindings": 1
   },
-  "src/data/balance-sheet.js#MONSTER_ROLES": {
+  "src/data/balance-sheet.js#BASE_ROLES": {
    "pin": "count",
    "keys": [
     "blow",
     "def",
     "evasion",
-    "floorCap",
     "gentleHp",
     "hit",
     "hp",
     "xp"
    ],
-   "typed": 28,
+   "typed": 22,
    "bindings": 1
   },
   "src/data/balance-sheet.js#DAMAGE_SCALE_BY_TIER": {
@@ -15917,30 +16832,51 @@
   "src/data/tower.js#TOWER_RULES": {
    "pin": "count",
    "keys": [
+    "depthPm",
     "floorLimitMs",
-    "floorTop",
     "landingEvery",
     "landingLimitMs",
     "minLevel",
-    "perFloorPm",
+    "payPm",
+    "refKillsHead",
     "roomSize",
     "stairMs"
    ],
-   "typed": 8,
+   "typed": 9,
    "bindings": 1
   },
   "src/data/tower.js#CATACOMB_RULES": {
    "pin": "count",
    "keys": [
     "floorLimitMs",
-    "floorTop",
     "landingEvery",
     "landingLimitMs",
     "minLevel",
     "roomSize",
     "stairMs"
    ],
-   "typed": 7,
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/tower.js#TOWER_MIXES": {
+   "pin": "count",
+   "keys": [
+    "size"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/bosses.js#BOSS_KINDS": {
+   "pin": "count",
+   "keys": [
+    "blowPpm",
+    "floorCapPm",
+    "hpPpm",
+    "rampCapPm",
+    "rampPm",
+    "xpPpm"
+   ],
+   "typed": 21,
    "bindings": 1
   },
   "src/data/boss-halls.js#BOSS_HALL_RULES": {
@@ -16140,7 +17076,7 @@
    "keys": [
     "·"
    ],
-   "typed": 24,
+   "typed": 18,
    "bindings": 1
   },
   "src/data/chests.js#KEY_FAMILIES": {
@@ -16150,6 +17086,15 @@
     "opensPerWeek"
    ],
    "typed": 4,
+   "bindings": 1
+  },
+  "src/data/chests.js#KEY_ODDS": {
+   "pin": "count",
+   "keys": [
+    "fallPm",
+    "firstPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/bestiary.js#MAX_TROPHY_DROP_MULT": {
@@ -16349,6 +17294,19 @@
    "typed": 32,
    "bindings": 1
   },
+  "src/data/drop-hours.js#DROP_HOURS": {
+   "pin": "count",
+   "keys": [
+    "band",
+    "chDigits",
+    "depthPm",
+    "everyHours",
+    "topRankMaxPm",
+    "topRankPm"
+   ],
+   "typed": 13,
+   "bindings": 1
+  },
   "src/data/power-ledger.js#POWER_LEDGER": {
    "pin": "count",
    "keys": [
@@ -16359,6 +17317,86 @@
     "temperStepsMax"
    ],
    "typed": 5,
+   "bindings": 1
+  },
+  "src/data/auras.js#AURAS": {
+   "pin": "count",
+   "keys": [
+    "radius",
+    "steps"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
+  "src/data/inner-flame.js#FLAME": {
+   "pin": "count",
+   "keys": [
+    "burstPm",
+    "coverPm",
+    "curvePm",
+    "decayPpm1",
+    "decayPpm99",
+    "levelMax",
+    "luckHalfMpts",
+    "luckMaxPm",
+    "pointsTo99",
+    "stokeBuyMax",
+    "topRankMaxPm",
+    "topRankPm",
+    "two_thirds"
+   ],
+   "typed": 13,
+   "bindings": 1
+  },
+  "src/data/temper.js#TEMPER_STEPS": {
+   "pin": "count",
+   "keys": [
+    "carryPm",
+    "hoursPm",
+    "kitSharePm",
+    "rankEvery",
+    "ranks"
+   ],
+   "typed": 5,
+   "bindings": 1
+  },
+  "src/data/imbue-rules.js#IMBUE": {
+   "pin": "count",
+   "keys": [
+    "feeHoursPm",
+    "hours",
+    "lifeRungPm",
+    "parts",
+    "remains",
+    "workPm"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
+  "src/data/imbue-rules.js#IMBUE_RULES": {
+   "pin": "count",
+   "keys": [
+    "pm",
+    "sharePm"
+   ],
+   "typed": 3,
+   "bindings": 1
+  },
+  "src/data/gear-steps.js#CARRY": {
+   "pin": "count",
+   "keys": [
+    "hoursPerStepPm"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/party.js#PERSONAL_LOOT": {
+   "pin": "count",
+   "keys": [
+    "pityBasePm",
+    "pityGrowPm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/imbuements.js#IMBUE_TIER_FLOORS": {
@@ -16472,17 +17510,6 @@
     "·"
    ],
    "typed": 9,
-   "bindings": 1
-  },
-  "src/data/tower.js#TOWER_PARTY_XP": {
-   "pin": "count",
-   "keys": [
-    "#key",
-    "2",
-    "3",
-    "4"
-   ],
-   "typed": 5,
    "bindings": 1
   },
   "src/data/hunt-roles.js#CHALLENGE": {

@@ -25,7 +25,8 @@
 //   healAmount(inst, u, mean, c)     one heal or shell on the scale (abilities.js)
 //   manaOn(inst, u, n), supplyOn(inst, u, stat, n)  a typed mana cost, a food's or a drink's restore, as shares of the reference
 //   defenseGearPm(equipment, items)  { armorPm, wardPm }: the gear part split by armor weight (data/amount.js defenseSplit)
-//   blowAt(level, weaponType)        THE REFERENCE OUTPUT monster-formula reads: a basic blow's mean HP at a gap of 0 against a Level
+//   THE REFERENCE OUTPUT stage 4 (monster-formula) reads: a basic blow of weapon type w at a gap of 0 against a monster of Level L lands
+//   AMOUNT.blowTopBp[w] / 10000 x refHealth(L) / 2 HP on its mean (its top over the old 1-to-max roll), every move a share of that
 //
 // Off the scale nothing here is read: damage.js, abilities.js, status.js and monster-spells.js play the old chain.
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random, no Math.log or Math.pow: multiplications, one division and Math.round.
@@ -127,10 +128,6 @@ export function defenseGearPm(equipment, items) {
 
 /** A hero's TOP SHARE of a basic blow, hundredths of a percent of a reference health (data/amount.js blowTopBp by its weapon type). */
 export const topBpOf = (u) => (u && Number.isInteger(u.blowBp) && u.blowBp > 0 ? u.blowBp : AMOUNT.blowTopBp.neutral);
-
-/** THE REFERENCE OUTPUT (stage 4 reads it: a monster's health is the reference company's damage a second x its role's seconds to kill): the
-    mean HP of a basic blow of weapon type `weaponType` at a gap of 0 against a monster of Level `level`, before the roll and any move. */
-export const blowAt = (level, weaponType) => ((own(AMOUNT.blowTopBp, weaponType) ? AMOUNT.blowTopBp[weaponType] : AMOUNT.blowTopBp.neutral) / 10000) * refHealth(level) * 0.5;
 
 /* the D-8 multipliers a hero carries, as ledger rows of the gear slice (crit, the answer to this monster), the consumable slice (a damage
    food) and the temper slice (Tempering), so each is held to its slice's cap and none stacks past it */

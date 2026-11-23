@@ -47,7 +47,12 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/factions.js#*', why: 'faction swap timing and outfit hours: no power, gold or XP in these rows' },
   { at: 'src/data/boss-halls.js#namedWaveOf', why: 'a words builder' }, { at: 'src/data/clans.js#*', why: 'clan names, tags and invite days (the founding gold is econ.clans)' },
   { at: 'src/data/danger.js#DEPTHS', why: 'how many depths a ground\'s band is cut into for the player\'s "Depth N of 20" words (12-targets 3.1): display, the server and the engine read steps' },
-  { at: 'src/core/hunt/danger.js#stepRatio', why: 'a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it' },
+  { at: 'src/core/hunt/amount.js#ratioOf', why: 'a memo bound (8192 power-step ratios kept): a cache size, no outcome reads it' },
+  { at: 'src/core/hunt/amount.js#stepsOf', why: 'a memo bound (4096 multipliers kept): a cache size, no outcome reads it' },
+  { at: 'src/core/hunt/amount.js#heroRows', why: 'a clamp: a cut of 999 permille at most, so its steps are finite' },
+  { at: 'src/core/hunt/amount.js#blowAmount', why: 'units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top' },
+  { at: 'src/core/hunt/amount.js#healAmount', why: 'units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top' },
+  { at: 'src/core/hunt/damage.js#pipedAmount', why: 'units: two permille factors multiplied (1000000)' },
   { at: 'src/core/borrow-blow.js#referenceBlow', why: 'a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows' },
   /* rulings (Tyler's numbers, not dials: validate refuses a move) */
   { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)' },

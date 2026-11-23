@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c1642d75a60eac43",
+ "authored": "ec07fb30c97bc49e",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,20 +63,20 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 207,
+  "levers": 211,
   "byCategory": {
-   "base-damage": 12,
+   "base-damage": 14,
    "skill-scaling": 9,
    "level-scaling": 8,
    "weapon-power": 6,
    "spells": 14,
    "healing-shielding": 2,
-   "armor-mitigation": 5,
+   "armor-mitigation": 6,
    "resistances": 5,
    "crit": 3,
    "leech": 2,
    "regen": 6,
-   "monster-stats": 29,
+   "monster-stats": 30,
    "spawn": 11,
    "monster-rewards": 18,
    "rare-drops": 6,
@@ -87,7 +87,7 @@
    "economy": 35
   },
   "byClass": {
-   "global": 100,
+   "global": 104,
    "archetype": 29,
    "content": 50,
    "exception-intentional": 17,
@@ -100,13 +100,13 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 25,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 30,
+   "not-playable:not-in-runs": 34,
    "variant": 5,
    "not-playable:not-built": 17,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 96,
+   "asserted": 100,
    "mentioned only": 91,
    "none": 20
   },
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 689,
-  "typed": 16024,
-  "files": 238,
-  "lever": 299,
-  "notLever": 390,
+  "bindings": 696,
+  "typed": 16043,
+  "files": 240,
+  "lever": 300,
+  "notLever": 396,
   "unclaimed": 0
  },
  "problems": [],
@@ -4909,6 +4909,281 @@
    "evidence": "CONFIRMED (read)"
   },
   {
+   "id": "amount.roll-spread",
+   "category": "base-damage",
+   "name": "The one roll of every amount",
+   "sites": [
+    {
+     "file": "src/data/amount.js",
+     "line": 55,
+     "text": "rollSpreadPm: 200,",
+     "binding": "AMOUNT"
+    }
+   ],
+   "definition": "on the scale every amount (a blow, a spell, a tick, a heal, a shell, a monster blow) is its mean x one draw of (1000 - rollSpreadPm) to (1000 + rollSpreadPm) permille, rounded once (src/core/hunt/amount.js blowAmount, healAmount)",
+   "range": "0 to 500 permille. 04 section 2 JUDGMENT: narrow (200), so danger is the monster's wind-up, not a dice roll",
+   "touches": "the low-health tail a pull reads (the stance's margin), so fall backs and deaths at a held depth; the mean is unmoved",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-HERO-POWER"
+   ],
+   "reach": {
+    "feeds": 6,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/amount.mjs",
+      "what": "roll: one draw a blow, +-rollSpreadPm",
+      "reads": [
+       "AMOUNT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/goal-counters.mjs",
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-live.mjs",
+     "tests/kill-daily-credit.mjs"
+    ],
+    "mentionCount": 5,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe; no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (04 section 2: plus or minus 20%)"
+  },
+  {
+   "id": "amount.blow-top",
+   "category": "base-damage",
+   "name": "A hero's blow at a gap of 0, by weapon type",
+   "sites": [
+    {
+     "file": "src/data/amount.js",
+     "line": 56,
+     "text": "blowTopBp: Object.freeze({ sword: 580, hammer: 740, axe: 595, ranged: 600, magic: 820, neutral: 580 }),",
+     "binding": "AMOUNT"
+    }
+   ],
+   "definition": "on the scale a hero's basic blow tops at blowTopBp / 10000 of the reference health of the monster's ground Level x (1 + powerStep) ^ (its offense rating - the ground's reference rating); a move's share (hitRange, healPm, shieldPm, a tick's blowPm) multiplies it; a heal reads the healer's own Level's reference health",
+   "range": "hundredths of a percent, above 0. FITTED to today's reference company (MID kits at Level 60 on Muster Barrows: sword 43, hammer 55, axe 44, bow 45, wand 63, staff 58 over 740), so the reference fight starts where it was. The base share of the move row family (04 section 13: a style that trails everywhere is read here first)",
+   "touches": "every hero amount on the scale, so kill speed, heals and shells, and what each style holds",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "healPerH"
+   ],
+   "formulas": [
+    "C-HERO-POWER"
+   ],
+   "reach": {
+    "feeds": 6,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/amount.mjs",
+      "what": "reference: the reference company at a gap of 0",
+      "reads": [
+       "AMOUNT"
+      ]
+     },
+     {
+      "file": "tests/hunt-core/amount.mjs",
+      "what": "snapshot: a hero carries its weapon's top",
+      "reads": [
+       "AMOUNT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/goal-counters.mjs",
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-live.mjs",
+     "tests/kill-daily-credit.mjs"
+    ],
+    "mentionCount": 5,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe; no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (the fit: .scratch ref-blows on set/v0.2.144 + foundations; the reference Muster four held 608 +- 17 on it, 2 seeds x 4 h)"
+  },
+  {
+   "id": "amount.pressure",
+   "category": "monster-stats",
+   "name": "What a monster's row blow lands at a gap of 0",
+   "sites": [
+    {
+     "file": "src/data/amount.js",
+     "line": 57,
+     "text": "pressurePm: 450,",
+     "binding": "AMOUNT"
+    }
+   ],
+   "definition": "on the scale a monster's blow is its row's blow at the step x pressurePm / 1000 x refHealth(hero Level) / refHealth(ground refLevel) x (1 + powerStep) ^ (the ground's reference rating - the hero's armor or ward rating): the armor chain (dodge, absorb, ward, the 60% cap) is gone on the scale, and this one number stands where it took 40 to 50% of a blow at the reference company",
+   "range": "1 to 1000 permille. Stage 1 normalization (04 section 14) solves it by bisection: the reference four holds its ground's reference step. With the roll to hit off (27 K-2) every monster blow lands, so it must fall by the monsters' old hit rate",
+   "touches": "every blow at a hero on the scale, so the supply bill, fall backs and deaths at a depth, and the held depth",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/amount.mjs",
+      "what": "reference: a monster's blow at the reference hero",
+      "reads": [
+       "AMOUNT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/goal-counters.mjs",
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-live.mjs",
+     "tests/kill-daily-credit.mjs"
+    ],
+    "mentionCount": 5,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe (stage3 cells); no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/stage3-pipeline: the Muster four at Level 60 on Steady holds about its reference step at 450 with today's roll to hit)"
+  },
+  {
+   "id": "amount.defense-split",
+   "category": "armor-mitigation",
+   "name": "Armor and ward by armor weight",
+   "sites": [
+    {
+     "file": "src/data/amount.js",
+     "line": 59,
+     "text": "heavy: Object.freeze({ armorSteps: 15, wardSteps: -15 }),",
+     "binding": "AMOUNT"
+    },
+    {
+     "file": "src/data/amount.js",
+     "line": 61,
+     "text": "light: Object.freeze({ armorSteps: -15, wardSteps: 15 }),",
+     "binding": "AMOUNT"
+    }
+   ],
+   "definition": "a worn armor piece adds armorSteps to its item Level on the armor rating and wardSteps on the ward rating (x its slot weight): heavy more armor, light more ward, medium even; a plain blow reads armor, an elemental one ward. In steps, never a share of the item Level (a share grew with it: the scale test failed on it)",
+   "range": "steps, 0 to tierSteps (20) either way. 15 is the share 1.25 / 0.75 read at the reference (item Level 60)",
+   "touches": "which seat a monster's blow costs most, so the front hero's share of the bill and heavy against light on a ground of casters",
+   "outcomes": [
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-TIER"
+   ],
+   "reach": {
+    "feeds": 8,
+    "closure": 78
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/amount.mjs",
+      "what": "slope: armor reads a plain blow, ward an elemental one, the split in steps",
+      "reads": [
+       "AMOUNT"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/goal-counters.mjs",
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs",
+     "tests/hunt-live.mjs",
+     "tests/kill-daily-credit.mjs"
+    ],
+    "mentionCount": 5,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe; no matrix run plans a stance",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "STATED (04 section 2: three rows; the size the old share at the reference)"
+  },
+  {
    "id": "mon.hp-line",
    "category": "monster-stats",
    "name": "Monster HP line",
@@ -5630,7 +5905,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6016,7 +6291,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7094,10 +7369,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7173,10 +7448,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7249,10 +7524,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7318,10 +7593,10 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/status-effects.mjs"
+     "tests/hunt-core/amount.mjs",
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7728,9 +8003,9 @@
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7894,7 +8169,7 @@
      "binding": "POWER"
     }
    ],
-   "definition": "on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over the ground gearLevel: a blow at a monster x (1 + powerStep)^steps, a blow at the hero / (1 + powerStep)^steps, after the armor cap; heals are not stepped",
+   "definition": "on the scale a hero gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X) counts weightGearPm / 1000 steps a gear step over its Level in its ratings (src/core/bands.js ratingPm), and every amount is the step contest of the two ratings (src/core/hunt/amount.js, lane/stage3-pipeline): a blow at a monster x (1 + powerStep)^gap, a blow at the hero the other way on its armor or ward rating, a heal by its caster's rating over its Level; no cap",
    "range": "0 to 1000 permille (04 section 1: a weighted mean with weightSkill). 1000 makes a tier of base on a whole kit tierSteps steps of power by construction",
    "touches": "how far one gear tier moves the held step on the scale (C-2), on top of the own move of the shipped stats",
    "outcomes": [
@@ -7943,14 +8218,14 @@
     "mentions": [
      "tests/bands.mjs",
      "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs",
-     "tests/town-works.mjs"
+     "tests/recipe-yield-guard.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8058,7 +8333,7 @@
      "binding": "POWER"
     }
    ],
-   "definition": "one-sided: a gear part UNDER the ground's base item Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/hunt/danger.js gearSteps",
+   "definition": "one-sided: a gear part UNDER the hero's Level counts weightGearBelowPm / 1000 steps a gear step (over it, weightGearPm); src/core/bands.js ratingPm, read by the amount pipeline (src/core/hunt/amount.js)",
    "range": "0 to weightGearPm. 12-targets C-2: one gear tier moves the hold 1 to 3 depths (about 11 to 33 steps) either way. Depth answers convexly to the gap under the base, and every company arrives a tier under the ground it moves to",
    "touches": "how far a company under the ground's gear holds (the arrival on a new ground), and the reference MID four (10 item Levels under Muster's base)",
    "outcomes": [
@@ -8104,14 +8379,14 @@
     "mentions": [
      "tests/bands.mjs",
      "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs",
-     "tests/town-works.mjs"
+     "tests/recipe-yield-guard.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8135,7 +8410,7 @@
      "binding": "POWER"
     }
    ],
-   "definition": "on the scale a hero's skill for its style, read as the Level the reference career reaches it (src/data/bands.js SKILL_LINE backwards), over its own Level counts weightSkillPm / 1000 steps a Level, both ratings (member.js heroSnapshot skillGapPm; src/core/hunt/danger.js skillSteps); 0 on the career line",
+   "definition": "on the scale a hero's skill for its style, read as the Level the reference career reaches it (src/data/bands.js SKILL_LINE backwards), over its own Level counts weightSkillPm / 1000 steps a Level, every rating (member.js heroSnapshot skillGapPm; src/core/hunt/amount.js offensePm and defensePm); 0 on the career line",
    "range": "0 to 1000 permille (04 section 1: Level, skill and gear weights sum to one once the blow is the step contest). STATED 250, a quarter",
    "touches": "how far a style switcher or a trained hero holds from its Level's reference; nothing for a hero on its line, so no band measured on the Lab's career lines moves",
    "outcomes": [
@@ -8181,14 +8456,14 @@
     "mentions": [
      "tests/bands.mjs",
      "tests/bestiary-trophy.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs",
-     "tests/town-works.mjs"
+     "tests/recipe-yield-guard.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8846,7 +9121,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8916,7 +9191,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9037,7 +9312,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9156,7 +9431,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 113,
+    "mentionCount": 114,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9413,7 +9688,7 @@
     },
     {
      "file": "src/core/member.js",
-     "line": 60,
+     "line": 62,
      "text": "const RELIC_MULT_MAX = 1.25;",
      "binding": "RELIC_MULT_MAX"
     }
@@ -10038,7 +10313,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10136,7 +10411,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10362,9 +10637,10 @@
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10434,9 +10710,10 @@
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10530,9 +10807,10 @@
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10758,9 +11036,10 @@
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
+     "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10833,9 +11112,9 @@
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10909,9 +11188,9 @@
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
      "tests/gear-steps.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/amount.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11587,7 +11866,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14568,8 +14847,32 @@
    "why": "how many depths a ground's band is cut into for the player's \"Depth N of 20\" words (12-targets 3.1): display, the server and the engine read steps"
   },
   {
-   "at": "src/core/hunt/danger.js#stepRatio",
-   "why": "a memo bound (4096 power-step ratios kept): a cache size, no outcome reads it"
+   "at": "src/core/hunt/amount.js#ratioOf",
+   "why": "a memo bound (8192 power-step ratios kept): a cache size, no outcome reads it"
+  },
+  {
+   "at": "src/core/hunt/amount.js#stepsOf",
+   "why": "a memo bound (4096 multipliers kept): a cache size, no outcome reads it"
+  },
+  {
+   "at": "src/core/hunt/amount.js#blowAt",
+   "why": "units: blowTopBp is hundredths of a percent (10000), a 1-to-max blow's mean is half its top (0.5); the lever is amount.blow-top"
+  },
+  {
+   "at": "src/core/hunt/amount.js#heroRows",
+   "why": "a clamp: a cut of 999 permille at most, so its steps are finite"
+  },
+  {
+   "at": "src/core/hunt/amount.js#blowAmount",
+   "why": "units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top"
+  },
+  {
+   "at": "src/core/hunt/amount.js#healAmount",
+   "why": "units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top"
+  },
+  {
+   "at": "src/core/hunt/damage.js#pipedAmount",
+   "why": "units: two permille factors multiplied (1000000)"
   },
   {
    "at": "src/core/borrow-blow.js#referenceBlow",
@@ -16504,6 +16807,23 @@
     "supplyPm"
    ],
    "typed": 9,
+   "bindings": 1
+  },
+  "src/data/amount.js#AMOUNT": {
+   "pin": "count",
+   "keys": [
+    "armorSteps",
+    "axe",
+    "hammer",
+    "magic",
+    "neutral",
+    "pressurePm",
+    "ranged",
+    "rollSpreadPm",
+    "sword",
+    "wardSteps"
+   ],
+   "typed": 12,
    "bindings": 1
   },
   "src/data/balance-sheet.js#STAT_FORMULA": {

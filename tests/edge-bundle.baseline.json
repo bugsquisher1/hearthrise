@@ -328,6 +328,11 @@
         "bytes": 3484519,
         "on": "2026-11-23",
         "why": "merge: foundations-block (bands, drop-rate, trait-roll) + e2-e3 statuses (auras, effect rows), both lanes' own raises combined"
+      },
+      {
+        "bytes": 3510628,
+        "on": "2026-11-23",
+        "why": "lane/stage3-pipeline: the amount pipeline (src/core/hunt/amount.js, src/data/amount.js) on the scale, read by the settle"
       }
     ]
   }

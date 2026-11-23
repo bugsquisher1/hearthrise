@@ -45,7 +45,7 @@ export const FORMULA_IO = Object.freeze({
   'C-BASIC-BLOW': f(['src/core/combat.js#rollAttack'], ['+hero.maxHit', '+hero.hitChance', ['+hero.crit', 'a crit is rolled on the same blow by rollCrit, called beside rollAttack in src/core/hunt/damage.js']], ['hero.blow']),
   'C-WEAKNESS': f(['src/core/combat.js#weaknessInfo'], [['+gear.weapon', 'the weapon\'s type and its element arrive on the equipment stats'], ['+gear.special', 'bane is a special attribute on worn gear']], ['hero.weakFactor', 'drop.chance'],
     { as: { accuracy: 'hero.weakFactor' }, note: 'weaknessInfo also carries the monster\'s dropBonus out as dropMult, so a drop\'s chance passes through the weakness reader' }),
-  'C-HURT': f(['src/core/hunt/damage.js#hurt,defenceKept'],
+  'C-HURT': f(['src/core/hunt/damage.js#hurt,defenceKept,landOn'],
     [['+hero.blow>dmg.toMon', ARG], ['+hero.castAmount>dmg.toMon', ARG], ['+status.tick>dmg.toMon', ARG], '+mon.element>dmg.toMon', '-mon.defCut>dmg.toMon', ['+hero.castPower>dmg.toMon', 'the cast\'s power is the ability row\'s mult'],
       ['+mon.vuln>dmg.toMon', 'a mark is folded into the cast\'s power by the caller'], '+mon.guard>dmg.toMon', '+temper.blows>dmg.toMon', '+stance', ['+mon.maxHit>dmg.toHero', ARG], ['+mon.hitChance>dmg.toHero', 'a blow that misses never reaches hurt'], ['+mon.spell>dmg.toHero', ARG],
       '-hero.mitigation>dmg.toHero', '-hero.shell>dmg.toHero', '-temper.armor>dmg.toHero', '~training.dummy>dmg.toHero', ['~aggro>dmg.toHero', 'which hero a monster turns on decides whose armor meets the blow']],

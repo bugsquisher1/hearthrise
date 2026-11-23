@@ -64,8 +64,6 @@ const cases = {
     if (t2.steps !== 0 || m !== Math.round(100 * (D.pressurePm / 1000) * (roll / 1000))) return 'a monster\'s blow at the reference hero lands ' + m + ' on ' + t2.steps + ' steps';
     const h = A.healAmount(inst, ref, 1000, { rng: LOW });
     if (h !== Math.round((740 / 10000) * A.refHealth(L0) * (roll / 1000))) return 'a heal of one top lands ' + h;
-    /* the reference output stage 4 reads: a basic blow's mean HP at a gap of 0 */
-    if (Math.abs(A.blowAt(L0, 'hammer') - (D.blowTopBp.hammer / 10000) * A.refHealth(L0) * 0.5) > 1e-9) return 'blowAt reads ' + A.blowAt(L0, 'hammer');
     return null;
   },
   slope(M) {

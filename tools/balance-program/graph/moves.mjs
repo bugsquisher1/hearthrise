@@ -161,6 +161,9 @@ export const LEVER_MOVES = Object.freeze({
   'danger.power-gear-below': [['-tier.dmg', 'under the ground\'s base a gear step counts weightGearBelowPm: a smaller cut on a blow at the hero (danger.js gearSteps)'],
     ['-tier.hp', 'and a smaller cut on the hero\'s own blow']],
   /* THE FOUNDATIONS (lane/foundations-block): the skill part of the power step, the reference skill line and the healer's mana seconds */
+  /* the amount pipeline (lane/stage3-pipeline, src/core/hunt/amount.js): on the scale a monster's blow lands its row's x pressurePm, and armor and ward are steps on the hero's two defense ratings */
+  'amount.pressure': [['+tier.dmg', 'on the scale every monster blow is its row blow x pressurePm / 1000 before the step contest (amount.js blowAmount)']],
+  'amount.defense-split': [['-tier.dmg', 'a heavy piece adds armorSteps to the armor rating: a smaller blow at its wearer from a plain blow (amount.js defenseGearPm)']],
   'danger.power-skill': [['-tier.dmg', 'on the scale a skill over its career line divides a blow at the hero by (1 + powerStep)^steps of the skill part (danger.js skillSteps)'],
     ['-tier.hp', 'and multiplies the hero\'s blow at a monster by the same ratio, the same as less health to take']],
   'bands.skill-line': [['+tier.dmg', 'a higher line puts the same skill further under it, a negative skill part: a bigger blow at the hero (danger.js skillSteps)'],

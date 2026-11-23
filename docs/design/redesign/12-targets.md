@@ -162,6 +162,22 @@ Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/re
 - **The next ground's floor sits just under this ground's top,** so a company that tops one ground starts the next one at depth 1 to 3. That overlap is the hand-off.
 - **A first-ever hunt starts at the band's floor,** not step 0, which removes most of the 2 h opening climb (C-8).
 
+#### 3.1a Can a company climb a ground with what that ground gives it? (designer, 2026-11-23, lane/depth-budget-audit)
+
+**How it plays:** a company arrives wearing the last ground's gear, finishes its kit from this ground's drops, Levels to the ground's top Level, and then holds near depth 20. Luck (a good Rare, a strong build) gets there sooner, and that is intended (Tyler, 2026-11-23: "if someone gets lucky and their gear + build allows them to push deeper, we shouldn't be limiting them").
+
+MEASURED on the set (`v1-climb.mjs`, the Steady mixed four, 6 seeds x 10 h, held from hour 4; evidence `tools/balance-program/redesign/depth-budget/`, the rest `tuning/final/`). "Depth" is what the player sees (`src/core/bands.js depthAt`); the own-step cut is in brackets.
+
+| Ground (band) | Fresh four, one tier back, entry Level | Reference four | Grown four, plain (top Level, the ground's kit) | Strong four (top Level, the ground's kit, best jewelry, Temper, skills over the line) |
+|---|---|---|---|---|
+| Muster Barrows (525 / 590 / 700) | 587, depth 9 (8): the Ford's mithril kit at Level 55 | 609, depth 11 | 616, depth 12 | Steady 683.5, depth 18. Bold 699, depth 20 (the top) |
+| Hask's Ford (565 / 590 / 675) | 576.5, depth 6 (3): steel at Level 45 | 592, depth 11 | 596.5, depth 11 | 654, depth 18 |
+| Catacomb wings (staged) | depth 3 | depth 11 | Not measurable: no Lab kit wears the wings' base (item Level 160) | |
+
+- **The top is reachable on the ground's own drops.** A strong four in Muster's own tier holds depth 18 on Steady and pins depth 20 on Bold, and the Ford's holds 18. Most of that climb is not the gear tier (one tier moved the hold about 16 steps, fifteen Levels at the same kit 7): it is the rest of the kit, best jewelry and trained skills, worth 67 steps between the plain and the strong four. Traits, still hidden, add up to about 28 more (COMPUTED: the gear slice's 20 power steps at the measured 1.42 own steps a power step), so a lucky company reaches the top early. Nothing in this pass caps that.
+- **The floor is cut on the wrong company on Muster.** Its floor cell (the Lab's LOW kit at Level 55) wears steel (item Level 30) and no jewelry, because the ladder has no tier between mithril (40) and rune (60): two tiers back, not one. A company that finished the Ford arrives at depth 9, where section 3.1 wants depth 1 to 3. The Ford's LOW kit is one tier back, so its floor stands.
+- **The fix is two halves that ship together.** (1) Muster's floor from the one-tier-back four: its lowest seed 582, so `floorStep` 575 by the band rule. (2) The depth reading's middle point. The player's depth runs through the bridge (`src/core/bands.js`), whose middle point is `refStep`, and Muster's `refStep` (590) is held by hand as the monster formula's anchor while the reference four holds 609. With the floor alone at 575, steps 575 to 590 carry 8.5 depths (under 2 steps a depth): the arriving company would still read depth 8 and jump several depths with every pull. With the bridge's middle at the reference four's hold (610), the same company reads 4, the reference 9, the plain grown four 10, the strong four 18 and Bold 20: a climb of 14 to 16 depths. Half (2) is a `src/core` change, handed to Systems (`.claude/coordination/HANDOFFS.md` 2026-11-23); the band does not move until both land. The Ford and the wings are re-cut by `lane/monster-roles-ford-wings`, with the same rule for the floor company.
+
 ### 3.2 At the top
 
 - **No deeper.** The climb stops at depth 20. Bold can't push past it either.

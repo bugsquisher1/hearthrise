@@ -62,6 +62,8 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/hunt-after.js#*', why: 'what a hero does after a hunt: the player\'s job counts and a grace' },
   { at: 'src/data/rule-subjects.js#ACTION_SET_LIMITS', why: 'how many presets and slots the bar editor holds' },
   { at: 'src/data/hunt-grounds.js#MAX_SEATS', why: 'seats on an instance (4): a shape' }, { at: 'src/data/hunt-grounds.js#inRect', why: 'geometry' },
+  { at: 'src/data/catacomb-wings.js#WINGS', why: 'each wing\'s rooms (pocket indexes into the Unmarked Catacombs\' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms\' monsters are the pack\'s rows' },
+  { at: 'src/data/catacomb-wings.js#weightsOf', why: 'the pack convention\'s spawn weight: the head-count of a box at a pull of 4 (a hunts.js display weight)' },
   { at: 'src/data/statuses.js#slowAt', why: 'rounding (+500 / 1000)' }, { at: 'src/data/gear-tiers.js#round5', why: 'rounding to fives' },
   /* engine plumbing: units, rounding, randomness, hashing, geometry, budgets */
   { at: 'src/core/rng.js#*', why: 'the seeded random stream' }, { at: 'src/core/combat-sim.js#seedOf', why: 'a seed' }, { at: 'src/core/member.js#frozenKey', why: 'a hash' },

@@ -28,6 +28,9 @@
 //   power   (lane/r9) THE POWER STEP: the snapshot's gear part (the gear table: item Level x slot weight) rides the unit and the frozen
 //           peer; on the scale a tier of gear moves a blow at a monster by (1 + powerStep)^steps and a blow at the hero the other way,
 //           after the armor cap, to within half a permille; never off the scale, at the ground's gear Level, or between two heroes.
+//   top     (lane/r10) THE TOP OF THE GROUND: no climb, dial or start past a scale ground's band top, no pay past it; off the scale, no top.
+//   ilevel  (lane/r10) ONE BASE A GROUND: every gear drop of every scale ground carries its ground's gearLevel as `iL`, which the gear part reads.
+//   drops   (lane/r10) A GROUND'S OWN ROWS: a wing's monsters carry its rows after their own; a ground with none reads the catalogue.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -46,6 +49,9 @@ const load = async (root) => {
   M.wageData = await imp('src/data/wage.js');
   M.xp = await imp('src/core/xp.js');
   M.huntReport = await imp('src/data/hunt-report.js');
+  M.grounds = await imp('src/data/hunt-grounds.js');
+  M.items = await imp('src/data/items.js');
+  M.GEAR_W = M.dangerData.GEAR_STEPS.slotPm.weapon;
   return M;
 };
 
@@ -56,8 +62,8 @@ function party(M, plan) {
   return ms;
 }
 /* Play [T0, T0 + spanMs) cut at `cuts`, the world through JSON at every cut; answers the run's danger events and its last world. */
-function play(M, plan, spanMs, cuts) {
-  const ground = groundRow(), grid = gridOf(M);
+function play(M, plan, spanMs, cuts, groundOver) {
+  const ground = groundOver || groundRow(), grid = gridOf(M);
   const members = party(M, plan);
   const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('danger', 7, d, i), monsters: M.MONSTERS, ground, grid };
   const edges = [T0, ...cuts.filter((c) => c > T0 && c < T0 + spanMs).sort((a, b) => a - b), T0 + spanMs];
@@ -239,6 +245,66 @@ const CASES = {
     if (M.tiers.levelAtTier(40, d) !== 40) return 'levelAtTier moved the Level to ' + M.tiers.levelAtTier(40, d);
     return null;
   },
+  /* (lane/r10) THE TOP OF THE GROUND (12-targets.md 3.2): on a scale ground the climb stops at the band's top on every stance, a start held
+     from past it opens there, the dial is never deeper, and a kill pays no more past it; a ground with no row is held only by the scale. */
+  top(M) {
+    const { DANGER_GROUNDS, PAY, DANGER } = M.dangerData;
+    const id = 'muster_barrows', row = DANGER_GROUNDS[id], g = { ...groundRow(), id };
+    const w = world(M, []);
+    M.danger.openDanger(w, 'bold', row.topStep - 1);
+    const inst = instOf(M, w, g), sc = subStep(0);
+    for (let i = 0; i < 12; i++) { w.low = 1000; M.danger.pullEnds(inst, sc, true); }
+    if (w.danger !== row.topStep) return 'twelve clean pulls from one under the top stood at ' + w.danger + ', not the top ' + row.topStep;
+    if (M.danger.dangerDial(g, row.topStep + 50).step !== row.topStep) return 'the dial past the top reads step ' + M.danger.dangerDial(g, row.topStep + 50).step;
+    if (M.danger.dangerDial(groundRow(), row.topStep + 50).step !== row.topStep + 50) return 'a ground off the scale was held at a band top';
+    const ceiling = Math.min(PAY.gapMax, row.topStep - row.refStep);
+    if (M.danger.levelShareXp(60, row.topStep + 40, g) !== M.danger.levelShareXp(60, row.refStep + ceiling, g)) return 'a kill past the top pays more than at it';
+    /* the engine opens a start held from past the top AT the top (combat-sim.js: the plan's step through the dial) */
+    const r = play(M, { risk: 'steady', danger: DANGER.stepMax }, 3 * 60000, [], g);
+    if (!r.danger.length) return 'CONTROL: no pull ended on the scale from a start past the top';
+    if (r.danger[0].step !== row.topStep) return 'a start held past the top made its first pull at step ' + r.danger[0].step + ', not the top ' + row.topStep;
+    return null;
+  },
+  /* (lane/r10) ONE BASE A GROUND (12-targets.md 3.3 and 8): every gear piece a scale ground can drop (each monster's rows on its route and the
+     ground's own rows) carries the ground's gearLevel as its item Level `iL`, and the power step reads that, not its reqLv. */
+  ilevel(M) {
+    const { DANGER_GROUNDS } = M.dangerData;
+    let n = 0;
+    for (const [id, row] of Object.entries(DANGER_GROUNDS)) {
+      const g = M.grounds.HUNT_GROUNDS[id];
+      if (!g) return id + ' is on the scale and no hunting ground';
+      const rows = [...M.grounds.monstersOn(g)].flatMap((m) => (M.MONSTERS[m] && M.MONSTERS[m].drops) || []).concat(g.drops || []);
+      let gear = 0;
+      for (const d of rows) {
+        const it = M.items.ITEMS[d.id];
+        if (!it || !it.slot || it.type === 'ammo') continue;
+        gear++; n++;
+        if (it.iL !== row.gearLevel) return id + ' drops ' + d.id + ' at item Level ' + it.iL + ', its ground\'s base is ' + row.gearLevel;
+      }
+      if (!gear) return 'CONTROL: ' + id + ' drops no gear';
+    }
+    /* a one-handed weapon whose item Level is not its reqLv: the gear part is its slot's weight x its item Level */
+    const piece = Object.entries(M.items.ITEMS).find(([, it]) => Number.isInteger(it.iL) && it.slot === 'weapon' && !it.twoHanded && it.reqLv !== it.iL);
+    if (!piece) return 'CONTROL: no weapon whose item Level is not its reqLv';
+    const items = { [piece[0]]: piece[1] };
+    if (M.danger.gearPartPm({ weapon: piece[0] }, items) !== M.GEAR_W * piece[1].iL) return 'the gear part reads ' + M.danger.gearPartPm({ weapon: piece[0] }, items) + ' for ' + piece[0] + ', not its item Level ' + piece[1].iL;
+    return n ? null : 'CONTROL: no gear drop read';
+  },
+  /* (lane/r10) A GROUND'S OWN DROP ROWS (the Catacombs' wings, catacomb-wings.js): the instance's monster rows on a wing carry every one of the
+     ground's rows after their own (no earlier draw moves), and a ground with none reads the catalogue untouched. */
+  drops(M) {
+    const wing = M.grounds.HUNT_GROUNDS.catacomb_bone_wing;
+    if (!wing || !(wing.drops || []).length) return 'CONTROL: the Bone Wing has no rows of its own';
+    const play = M.cs.huntPlayOf('catacomb_bone_wing', null);
+    if (!play.monsters) return 'a ground with its own rows plays the bare catalogue';
+    for (const m of M.grounds.monstersOn(wing)) {
+      const own = M.MONSTERS[m].drops || [], got = play.monsters[m].drops || [];
+      if (JSON.stringify(got.slice(0, own.length)) !== JSON.stringify(own)) return m + '\'s own rows moved on the wing';
+      if (JSON.stringify(got.slice(own.length)) !== JSON.stringify(wing.drops)) return m + ' on the wing carries ' + (got.length - own.length) + ' of the ground\'s ' + wing.drops.length + ' rows';
+    }
+    if (M.cs.huntPlayOf('muster_barrows', null).monsters !== null) return 'a ground with no rows of its own reads a changed table';
+    return null;
+  },
   pay(M) {
     const { PAY, DANGER_GROUNDS } = M.dangerData;
     const { LEVEL_PACE } = M.coreModel;
@@ -260,6 +326,14 @@ const CASES = {
       if (Math.abs(deeper - (1 + PAY.payStepXp)) > 1e-9) return 'a step deeper pays x' + deeper;
       if (M.danger.levelShareXp(L, ref + PAY.gapMax + 9, g) !== M.danger.levelShareXp(L, ref + PAY.gapMax, g)) return 'depth pays past the gap ceiling';
       if (!(M.danger.levelShareXp(L, ref - 40, g) < M.danger.levelShareXp(L, ref, g))) return 'a shallower hold pays as much a kill';
+    }
+    /* (lane/r10) a ground's own kill rate: at its reference a Steady four killing its refKillsHead a head earns the table, never under the scale's */
+    for (const [id, row] of Object.entries(DANGER_GROUNDS)) {
+      const kills = Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead, L = 50;
+      if (kills < PAY.refKillsHead) return id + ' splits the table over ' + kills + ' kills a head, under the scale\'s ' + PAY.refKillsHead;
+      const toNext = M.xp.charXpForLevel(L + 1) - M.xp.charXpForLevel(L);
+      const rate = M.danger.levelShareXp(L, row.refStep, { id }) * kills * M.danger.hoursForLevel(L) / toNext;
+      if (Math.abs(rate - 1) > 1e-9) return id + ' at its reference pays ' + rate + 'x the table at its own kill rate';
     }
     /* lane/econ-levers: a pull a step deeper pays the wage's one coin ratio more coin (the floor is the floor case's) */
     const g2 = groundRow({ id: 'muster_barrows' });
@@ -467,7 +541,7 @@ const MUTANTS = [
   { name: 'the clean run does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['climb', 'int'], ['clean', 'int'], ['low', 'int'],", "['climb', 'int'], ['low', 'int'],"]] },
   { name: 'the climb does not survive a settle cut', case: 'trace', edits: [['src/core/hunt/danger.js', "['danger', 'int'], ['climb', 'int'], ['clean', 'int'],", "['danger', 'int'], ['clean', 'int'],"]] },
   { name: 'the margin is never read where HP falls', case: 'trace', edits: [['src/core/hunt/damage.js', '  if (!isMonster(target) && r.dmg > 0) noteHurt(inst, target, source);\n', '']] },
-  { name: 'the engine never opens the plan', case: 'trace', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, plan.step);\n', '']] },
+  { name: 'the engine never opens the plan', case: 'trace', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, tier.step);\n', '']] },
   { name: 'a hunt with no stance opens on one', case: 'off', edits: [['src/core/combat-sim.js', 'const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return riskOf(lead && lead.hero); };',
     "const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return riskOf(lead && lead.hero) || { risk: 'steady', step: 0 }; };"]] },
   { name: 'the regroup never waits for readiness', case: 'ready', edits: [['src/core/hunt/danger.js', 'return heroes.every((h) => !h.alive || h.hp * 1000 >= DANGER.readyPm * h.maxHp);', 'return heroes.length >= 0;']] },
@@ -482,8 +556,8 @@ const MUTANTS = [
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },
   { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
   { name: 'the hours jump at a target Level', case: 'pay', edits: [['src/core/hunt/danger.js', '    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);', '    if (L <= b) return ha;']] },
-  { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
-  { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * PAY.refKillsHead)) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * PAY.refKillsHead);']] },
+  { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
+  { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * refKillsOf(ground));']] },
   { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },
   /* lane/econ-levers: one coin ratio a step, and the floor on coin too */
   { name: 'coin climbs at the XP ratio again', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, WAGE.payStepCoin) * PAY.coinPm };', 'coinPm: share * depthRatio(ground, s, PAY.payStepXp) * PAY.coinPm };']] },
@@ -500,6 +574,20 @@ const MUTANTS = [
   { name: 'the fall\'s monster does not survive a settle cut', case: 'falls', edits: [['src/core/hunt/danger.js', "    ['lowHero', 'int?'], ['lowBy', 'str']]),", "    ['lowHero', 'int?']]),"]] },
   { name: 'a hero carries no seat', case: 'falls', edits: [['src/core/combat-sim.js', '  if (Number.isSafeInteger(m.seat) && m.seat >= 0) u.seat = m.seat; else if (u.seat !== undefined) delete u.seat;\n', '']] },
   { name: 'the margin names the first blow, not the lowest', case: 'falls', edits: [['src/core/hunt/danger.js', '  if (pm >= w.low) return;\n  w.low = pm;\n  w.lowHero', '  if (pm >= w.low) return;\n  w.low = pm;\n  if (w.lowHero !== null) return;\n  w.lowHero']] },
+  /* lane/r10: the top of the ground, one base a ground, a ground's own rows */
+  { name: 'the climb goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  w.danger = stepOn(inst.ground, to);', '  w.danger = clampStep(to);']] },
+  { name: 'the dial goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  const s = stepOn(ground, step);', '  const s = clampStep(step);']] },
+  { name: 'the top holds a ground off the scale', case: 'top', edits: [['src/core/hunt/danger.js', 'row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax', 'row && Number.isInteger(row.topStep) ? row.topStep : 710']] },
+  { name: 'a start past the top opens past it', case: 'top', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, tier.step);', '          if (plan) openDanger(world, plan.risk, plan.step);']] },
+  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710,", "muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 650,"],
+    ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
+  { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
+  { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', '  for (const [id, iL] of Object.entries(scaleItemLevels(ladder, named))) ITEMS[id] = { ...ITEMS[id], iL };', '  void scaleItemLevels; void ladder; void named;']] },
+  { name: 'the wings drop the ladder tier', case: 'ilevel', edits: [['src/data/danger.js', "    if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);", '']] },
+  { name: 'the power step reads reqLv over iL', case: 'ilevel', edits: [['src/core/hunt/danger.js', 'Number.isInteger(it.iL) ? it.iL : it.reqLv', 'it.reqLv']] },
+  { name: 'a ground\'s rows never ride its kills', case: 'drops', edits: [['src/core/combat-sim.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", '  return null;']] },
+  { name: 'a ground\'s rows go first', case: 'drops', edits: [['src/core/combat-sim.js', "drops: (out[id].drops || []).concat(g.drops)", "drops: g.drops.concat(out[id].drops || [])"]] },
+  { name: 'every ground reads a copied table', case: 'drops', edits: [['src/core/combat-sim.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", "  if (!g) return null;"]] },
   /* lane/r9: the pay floor and the power step */
   { name: 'no pay floor under the reference', case: 'floor', edits: [['src/core/hunt/danger.js', 'Math.max(PAY.floor, 1 / powStep(1 + rate, -g))', '1 / powStep(1 + rate, -g)']] },
   { name: 'the floor lifts the pay over the reference too', case: 'floor', edits: [['src/core/hunt/danger.js', 'return g >= 0 ? powStep(1 + rate, g) : Math.max', 'return g >= 0 ? Math.max(PAY.floor * 2.5, powStep(1 + rate, g)) : Math.max']] },

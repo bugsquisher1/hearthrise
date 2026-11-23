@@ -20,7 +20,8 @@
 //        verb, plays the catalogue's default (src/data/danger.js DEFAULT_RISK, Steady) on Muster, browser closed and hunt viewed: the
 //        instance froze it, every window landed, and the two doors store the same world on the scale. (A ground off the scale freezes nothing:
 //        1057's §7 f, and 1056's §6 i.)
-//   DZ-6 THE FALLS, BOTH PATHS (R2, 1057-danger-falls.sql): a four with no stance that last held step 840 (far past its edge) opens at 820 and
+//   DZ-6 THE FALLS, BOTH PATHS (R2, 1057-danger-falls.sql): a four with no stance that last held step 760 (far past its edge) opens at 740, played
+//        at Muster's band top 710 (lane/r10: no step past the top), and
 //        falls back. Browser closed in 90 s windows and hunt viewed in 45 s windows, to the same instant: every seat's session stores the SAME
 //        report `falls` and `deep` on both doors (the engine names each fall's hero by seat and its monster; the server folds them), byte for
 //        byte; there are falls (control), more than report_falls_max of them made and the last report_falls_max kept (control: the first,
@@ -30,7 +31,7 @@ import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
-import { DANGER, CLIMB, DEFAULT_RISK } from '../src/data/danger.js';
+import { DANGER, CLIMB, DEFAULT_RISK, DANGER_GROUNDS } from '../src/data/danger.js';
 import { HUNT_REPORT } from '../src/data/hunt-report.js';
 import { levelShareXp } from '../src/core/hunt/danger.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -41,12 +42,11 @@ const MUSTER = 'muster_barrows';
 /* the step the hero last held there: shallow enough that a Level 60 climbs inside the guard's windows (the section and the climb bound read a moved step) */
 const HELD = 20;
 /* Item Level 30 steel under Muster's gearLevel 60 (src/data/danger.js): the power step (lane/r9, the gear table's gear part) is live, well
-   under the ground (half its slots empty), so DZ-1 to DZ-5's both-path checks hold with it in play. */
+   under the ground (half its slots empty), so DZ-1 to DZ-6's both-path checks hold with it in play. DZ-6 wears it too (lane/dz1-fix): at the
+   band top (710, lane/r10) under the one-sided gear weight (lane/econ-levers) it falls back 19 times in its windows and never dies, where
+   lane/r9's rune kit held after 9 and left report_falls_max's cap unexercised. (lane/r9 moved DZ-6 to rune because steel died in its first
+   pull at 740 under the two-sided weight; DZ-6's controls name either drift.) */
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
-/* (lane/r9) A STRONGER KIT for DZ-6: every weapon and armor piece item Level 60 (no jewelry, so a gear part near 40). In steel,
-   far past its edge (740) it died in its first pull before it could fall back, and the falls are what DZ-6 reads. */
-const REF_KIT = Object.freeze({ helmet: 'rune_helm', body: 'rune_platebody', pants: 'rune_platelegs', boots: 'rune_boots', gloves: 'rune_gauntlets', belt: 'rune_belt',
-  weapon: 'rune_sword', shield: 'coppercap_shield' });
 const idem = () => crypto.randomUUID();
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
 
@@ -172,11 +172,11 @@ async function fallsOf(db) {
 }
 async function fallsBothPaths(boot) {
   const problems = [];
-  /* deep enough that the four falls MORE than report_falls_max times before it holds, so the fold's cap is exercised (lane/dz1-fix: from
-     760 the one-sided gear weight of lane/econ-levers held after exactly 12 falls and the cap's mutant escaped; 840 falls 18 times) */
-  const DEEP = 840, START = DEEP - DANGER.startMargin;
-  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 3, windowMs: 90000 });
-  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], gear: REF_KIT, windows: 7, windowMs: 45000 });
+  const DEEP = 760, START = DEEP - DANGER.startMargin;
+  /* (lane/r10) a start held past the band's top plays AT the top (src/core/hunt/danger.js stepOn): the deepest step the four stood at */
+  const PLAYED = Math.min(START, DANGER_GROUNDS[MUSTER].topStep);
+  const closed = await door((await boot()).db, 'fire', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 3, windowMs: 90000 });
+  const viewed = await door((await boot()).db, 'viewed', { heroes: 4, risk: null, held: [DEEP, DEEP, DEEP, DEEP], windows: 7, windowMs: 45000 });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) if (Number(r.refusals) !== 0) problems.push('DZ-6 ' + name + ': ' + r.refusals + ' window(s) refused');
   const a = await fallsOf(closed.db), b = await fallsOf(viewed.db);
   const canon = (rows) => JSON.stringify(rows.map((x) => [x.seat, x.falls, x.deep]));
@@ -187,10 +187,11 @@ async function fallsBothPaths(boot) {
     const falls = Array.isArray(x.falls) ? x.falls : [];
     if (!falls.length) { problems.push('DZ-6 CONTROL: seat ' + x.seat + ' stored no fall back from step ' + START); continue; }
     if (falls.length > HUNT_REPORT.fallsMax) problems.push('DZ-6 seat ' + x.seat + ' stored ' + falls.length + ' falls, past ' + HUNT_REPORT.fallsMax);
-    /* the first fall is from the start (the deepest step is the start); the report keeps the LAST falls, so a stored fall from the start means
-       the four fell at most report_falls_max times and the cap was never exercised */
-    if (falls.some((f) => f.from === START)) problems.push('DZ-6 CONTROL: seat ' + x.seat + ' still stores its first fall from ' + START + ' (' + falls.length + ' stored): the four fell at most ' + HUNT_REPORT.fallsMax + ' times, so report_falls_max\'s cap is not exercised');
-    if (x.deep !== START) problems.push('DZ-6 seat ' + x.seat + '\'s deepest step reads ' + x.deep + ', the start was ' + START);
+    /* the first fall is from the step the start played at (the deepest step); the report keeps the LAST falls, so a stored fall from there
+       means the four fell at most report_falls_max times and the cap was never exercised (lane/dz1-fix: lane/econ-levers' one-sided gear
+       weight left the four holding after exactly 12 falls, and the cap's mutant escaped) */
+    if (falls.some((f) => f.from === PLAYED)) problems.push('DZ-6 CONTROL: seat ' + x.seat + ' still stores its first fall from ' + PLAYED + ' (' + falls.length + ' stored): the four fell at most ' + HUNT_REPORT.fallsMax + ' times, so report_falls_max\'s cap is not exercised');
+    if (x.deep !== PLAYED) problems.push('DZ-6 seat ' + x.seat + '\'s deepest step reads ' + x.deep + ', the start played at ' + PLAYED + ' (held ' + START + ')');
     for (const f of falls) {
       if (!(Number.isInteger(f.hero) && f.hero >= 0 && f.hero < 4) || !monsters.has(f.monster) || !(f.to < f.from) || !(f.pm < 1000)) problems.push('DZ-6 seat ' + x.seat + ' stored a fall ' + JSON.stringify(f));
     }

@@ -46,9 +46,9 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 671 (in 231 files, 15756 typed numbers) |
-| Claimed by a lever | 288 |
-| Claimed by a not-a-lever reason | 383 |
+| Top-level bindings in the rule code that hold a typed number | 674 (in 232 files, 15790 typed numbers) |
+| Claimed by a lever | 289 |
+| Claimed by a not-a-lever reason | 385 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -113,7 +113,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `mon.tier-overrides` Per-ground tier dials | The exact case Tyler's formula brief names: each compensates kill reward on one ground. A formula fix at the kill reward lets every ground take TIER_DIALS whole | 44 X-TIER-PER-GROUND, CONFIRMED. Knobs.json notKnobs |
 | redundant | `mon.scaled-danger` Scaled-hunt exceptions | A per-ground combat number. The cause is the bow against a melee pack | 44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS |
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
-| redundant | `danger.ref-step` A ground's reference step | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
+| redundant | `danger.ref-step` A ground's reference step, band and kill rate | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
 | redundant | `reward.xp-floor-fit` Early-ground XP fit | Falls away with the ground-fit fix (a kill reward that follows kills an hour) | 44 E-X04, CONFIRMED |
 | redundant | `reward.ground-xp-fit` Per-ground XP fit | Outputs of the missing kill-rate term, hand-fitted (re-fitted 11-08, 11-11, 11-19). Knobs.json lists it under notKnobs | 44 E-X01, CONFIRMED |
 | redundant | `reward.ground-gp-fit` Per-ground gold fit | One x0.7 typed 11 times and patched 3 more times in the shop's prices (the sale dial) | 44 E-X02 and E-X19, CONFIRMED |
@@ -249,7 +249,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | harness-fixed | `party.size` Party size | Party bonuses and interactions | the matrix plays parties 1 to 4 by design |
 | harness-fixed | `regen.inner-flame` Inner Flame regeneration rate | Regeneration | a cell's Inner Flame level is the harness's, not trained in the cell |
 | harness-fixed | `skill.curve` Combat skill curve | Skill scaling | cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1) |
-| not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | no drop table reads it yet (R10) |
+| not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step. No matrix RUN names a scale ground |
 | not-built | `gear.slot-weights` Gear slot weights | Equipment stats and progression | the power step (R9) reads it |
 | not-built | `gear.step-tier` A gear tier in steps, and how far ahead gear is worn | Equipment stats and progression | the power step (R9) reads it. No engine path does yet |
 | not-built | `gear.trait-budget` Trait steps by rank and the Trait guards | Equipment stats and progression | no roller or fight reads Traits until wave 4 (V7 sizes them on the engine) |
@@ -269,7 +269,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `danger.power-step` Danger power step | Monster HP, damage, armor, resistances and behavior | the V1 probe plays it (a patch of this line moves its held step). No matrix run plans a stance |
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
-| not-in-runs | `danger.ref-step` A ground's reference step | Monster XP and loot values | played by the V1 probe only |
+| not-in-runs | `danger.ref-step` A ground's reference step, band and kill rate | Monster XP and loot values | played by the V1 probe only |
 | not-in-runs | `econ.scaled-hunts` Scaled hunts: pay and price | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `econ.training` Training yard pay and fee | Economy sources and sinks | the matrix plays hunts, not the yard |
 | not-in-runs | `econ.training-items` Training items | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |

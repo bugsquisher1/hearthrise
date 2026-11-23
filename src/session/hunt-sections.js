@@ -492,6 +492,24 @@ function sessionFacts(s) {
 export const serverNowOf = (cs) => (cs && typeof cs.serverNow === 'function' ? cs.serverNow() : null);
 
 /**
+ * THE SERVER'S WATCHED MARK (the `watched` section, 1060-watched-stamp.sql): the numbers the server marked at the last viewed ask
+ * before this return, in the shape of the page's own last-seen stamp (src/shell/away-recap.js awayStampOf): { s, at, xp, lv?, h?,
+ * gold?, sp?, kills?, k?, sx?, sl? }, every one the server's. Null when the hero is being watched or never was, or the section is
+ * malformed. Display only: the away card's baseline, never spent.
+ */
+export function watchedOf(cs) {
+  const w = section(cs, 'watched');
+  if (!w || !str(w.s) || int(w.at) === null || int(w.xp) === null || w.xp < 0) return null;
+  /** @type {{s: string, at: number, xp: number, lv?: number, h?: string, k?: string, sx?: number, sl?: number} & Record<string, number|string>} */
+  const out = { s: w.s, at: w.at, xp: w.xp };
+  if (int(w.lv) !== null && w.lv >= 1) out.lv = w.lv;
+  if (word(w.h)) out.h = w.h;
+  for (const k of ['gold', 'sp', 'kills']) if (int(w[k]) !== null && w[k] >= 0) out[k] = w[k];
+  if (word(w.k) && int(w.sx) !== null && int(w.sl) !== null) Object.assign(out, { k: w.k, sx: w.sx, sl: w.sl });
+  return out;
+}
+
+/**
  * THE HUNT'S SESSION CLOCK (ms) at the server instant `serverNowMs` (CharacterSession.serverNow): the
  * server's `hunt_ms` is the time hunted up to its last settle (`settled_to`), so the clock runs on from
  * THAT instant on the server's clock. Every answer restates the same instant, so the clock never steps

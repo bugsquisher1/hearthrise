@@ -190,7 +190,9 @@ begin
   if v_rate is null or v_rate < 0 or v_rate > 1000 or p_skill is null or p_mode_pm is null or p_mode_pm < 0 or p_mode_pm > 1000 then return null; end if;
   if p_skill = 'level' then
     v_h := public.hr_death_hours_xp(public.hr_char_level(v_x), p_mode_pm);
-    if v_h is null then return null; end if;
+    -- FAIL CLOSED: hours the server cannot price (no hr_level_costs row, no hours table) bound the Level at 0, so the settle refuses
+    -- any death XP (death_xp_over) rather than taking an unbounded one (a null bound never refuses: v_n > null is not true).
+    if v_h is null then return 0; end if;
     return least(floor(v_x::numeric * v_rate * p_mode_pm / 1000000)::bigint, v_h);
   end if;
   return floor((v_x - public.hr_skill_xp_for_level(p_skill, public.hr_skill_level(p_skill, v_x)))::numeric * v_rate * p_mode_pm / 1000000)::bigint;
@@ -264,6 +266,14 @@ ${deathValues}) p(l, pm, x, hours, engine, bound) loop
   end loop;
   if public.hr_death_xp_mode_max('level', ${r.deathPins.length ? r.deathPins[r.deathPins.length - 1].x : 1}, 0) <> 0 then
     raise exception 'VERIFY(c): a mode that prices nothing bounds a death above 0'; end if;
+  -- FAIL CLOSED: with no row the hours cannot be priced, and the bound is 0 (every death XP refused), never null (never refused).
+  begin
+    delete from public.hr_level_costs;
+    if public.hr_death_xp_mode_max('level', ${r.deathPins.length ? r.deathPins[r.deathPins.length - 1].x : 1}, 1000) is distinct from 0 then
+      raise exception 'VERIFY(c): with no hr_level_costs row the bound on a death is %, not 0', public.hr_death_xp_mode_max('level', ${r.deathPins.length ? r.deathPins[r.deathPins.length - 1].x : 1}, 1000); end if;
+    raise exception using errcode = 'HR864', message = 'gen-level-costs: the fail-closed probe rolls back';
+  exception when sqlstate 'HR864' then null;
+  end;
   for v_r in select * from (values
 ${blessValues}) p(l, price) loop
     v_p := public.hr_blessing_price(1, v_r.l);

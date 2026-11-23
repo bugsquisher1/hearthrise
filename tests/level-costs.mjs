@@ -184,6 +184,12 @@ const ARMS = {
       const js = AR.levelDeathLoss(C(r.l) + 3);
       if ((Number(r.v) < js || Number(r.v) > js + 1) && bad++ < 9) p.push(`the settle's bound on a Level ${r.l} death is ${r.v}, the engine prices ${js}`);
     }
+    /* FAIL CLOSED: with no catalogue row the hours cannot be priced; the bound is 0 (the settle refuses every death XP), never null */
+    await db.query('savepoint lc_closed');
+    await db.query('delete from public.hr_level_costs');
+    const closed = await one(db, "select public.hr_death_xp_mode_max('level', public.hr_char_xp_for_level(200), 1000)::text");
+    await db.query('rollback to savepoint lc_closed');
+    if (closed !== '0') p.push(`with no hr_level_costs row the bound on a Level 200 death is ${closed}, not 0 (it must fail closed)`);
     return p;
   },
   'LC-DEATH': async (db, M) => {
@@ -293,6 +299,8 @@ const MUTANTS = [
     find: 'return least(floor(v_x::numeric * v_rate * p_mode_pm / 1000000)::bigint, v_h);', repl: 'return floor(v_x::numeric * v_rate * p_mode_pm / 1000000)::bigint;' },
   { arm: 'LC-TWINS', name: 'the hours read at Level 1, not the hero\'s', fn: 'public.hr_death_xp_mode_max(text,bigint,integer)',
     find: 'v_h := public.hr_death_hours_xp(public.hr_char_level(v_x), p_mode_pm);', repl: 'v_h := public.hr_death_hours_xp(1, p_mode_pm);' },
+  { arm: 'LC-TWINS', name: 'the bound fails open with no catalogue row (null never refuses)', fn: 'public.hr_death_xp_mode_max(text,bigint,integer)',
+    find: 'if v_h is null then return 0; end if;', repl: 'if v_h is null then return null; end if;' },
   { arm: 'LC-TWINS', name: 'the Blessing priced at the Level 1 wage', fn: 'public.hr_blessing_price(integer,integer)',
     find: 'public.hr_wage(v_l)', repl: 'public.hr_wage(1)' },
   { arm: 'LC-TWINS', name: 'every paid reset of the day at the first one\'s price', fn: 'public.hr_talent_reset_price(integer,integer)',
@@ -309,7 +317,7 @@ const MUTANTS = [
     find: "v_free := case when v_ever = 0 then 'first'", repl: "v_free := case when false then 'first'" },
   { arm: 'LC-RESET', name: 'Premium\'s free reset every time (not once a day)', fn: 'public.hr_talent_reset_quote(uuid,integer)',
     find: 'and not v_prem_used then', repl: 'then' },
-  { arm: 'LC-RESET', name: 'the reset charges a price the server did not quote', fn: 'public.hr_talent_reset(integer,bigint,uuid)',
+  { arm: 'LC-RESET', name: 'a press at a stale price is charged the server\'s new one (no quote_changed)', fn: 'public.hr_talent_reset(integer,bigint,uuid)',
     find: 'if v_price <> p_price then', repl: 'if false then' },
 ];
 

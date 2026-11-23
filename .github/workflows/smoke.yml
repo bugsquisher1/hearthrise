@@ -7847,10 +7847,10 @@ jobs:
       # (browser closed) and the player door (hunt viewed) at Level 200, blessed and not; the ONE Blessing is an hour of the wage at the
       # hero's Level (free under 30) and halves one death; the Talent reset is priced 0.5 h of the wage x2 a paid reset, first free,
       # Premium's first of the day free, and DARK (no client role). The catalogue is GENERATED (tools/gen-level-costs.mjs --check holds it
-      # to src/data, --selftest proves each refusal). --mutate (11): the bound without the hours or at Level 1, the Blessing at the Level 1
+      # to src/data, --selftest proves each refusal). --mutate (12): the bound without the hours, at Level 1 or open with no row, the Blessing at the Level 1
       # wage, no reset growth, a quarter cut, a Blessing never used up, no price check, a second Blessing, no free first, Premium every
       # time, a reset at an unquoted price.
-      - name: Per-hero costs by Level - the death in hours, one Blessing at the wage, the reset dark, both paths (11 mutants)
+      - name: Per-hero costs by Level - the death in hours, one Blessing at the wage, the reset dark, both paths (12 mutants)
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-level-costs.mjs --check

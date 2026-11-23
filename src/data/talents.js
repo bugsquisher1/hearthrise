@@ -130,7 +130,7 @@ export const COUNTRY_ROADS = Object.freeze({
   club: Object.freeze(['turning_cut']),
   dual_axe: Object.freeze(['rend']),
   ranged: Object.freeze(['precision_shot', 'hunters_mark', 'raking_shot', 'flame_volley']),
-  destruction: Object.freeze(['frost_lance', 'fireball', 'hoarfrost']),
+  destruction: Object.freeze(['frost_lance', 'fireball', 'hoarfrost', 'arcane_barrier']),
 });
 
 /* ── builders ── */
@@ -334,6 +334,17 @@ const SWORD_NODES = [
       opt('cheap_flame', 'Cheap Flame', '−40% mana · −20% damage', [mod('flame_strike', { manaPm: -400, outPm: -200 })]),
       opt('mana_flame', 'Mana Flame', 'Hits: +2% mana', [react('flame_mana', 'hit', 'mana', { of: 'flame_strike', pm: 20 })])],
     way('Kindling', 'Flame Strike −2 mana', [mod('flame_strike', { mana: -2 })])),
+  /* THE VOWS (17 section 7): Single Combat's "Brutes and bosses" and Flowing Cuts' last move have no seam. Single Combat is the lone
+     duelist now, and Parrying Stance takes Flowing Cuts' place */
+  node({ id: 'vow.single_combat', kind: 'vow', country: SW, after: ['power_strike.x1'], n: 'Single Combat', tip: 'Alone: +6.5% damage · −3% damage dealt',
+    effects: [step('offense', 18, 'single_combat', 'solo'), step('offense', -8, 'vow.single_combat')] }),
+  node({ id: 'vow.duelists_guard', kind: 'vow', country: SW, after: ['power_strike.x1'], n: 'Duelist\'s Guard', tip: 'After Power Strike: −6% damage taken for 4 s · +3% damage taken',
+    effects: [step('defense', 18, 'duelists_guard', 'cast:power_strike:4000'), step('defense', -8, 'vow.duelists_guard')] }),
+  node({ id: 'vow.pressing_attack', kind: 'vow', country: SW, after: ['power_strike.x1'], n: 'Pressing Attack', tip: 'Power Strike and Flame Strike hit again for 15% 2 s later · +3% damage taken',
+    effects: [react('press_power', 'hit', 'echo', { of: 'power_strike', pm: 150, ms: 2000 }), react('press_flame', 'hit', 'echo', { of: 'flame_strike', pm: 150, ms: 2000 }),
+      step('defense', -8, 'vow.pressing_attack')] }),
+  node({ id: 'vow.parrying_stance', kind: 'vow', country: SW, after: ['power_strike.x1'], n: 'Parrying Stance', tip: 'Hit in melee: attacker Weakened 4 s · −3% damage dealt',
+    effects: [react('parry_weaken', 'hit_taken', 'status', { status: 'weakened', ms: 4000, melee: true }), step('offense', -8, 'vow.parrying_stance')] }),
 ];
 
 /* ── CLUB (17 section 5: Turning Cut lives here; Stagger joins in wave 3). The club lane runs full: no cooldown cuts ── */
@@ -350,6 +361,16 @@ const CLUB_NODES = [
         [react('turning_cut_reap', 'kill', 'carry', { of: 'turning_cut', pm: 500, r: 2, capPm: 200 })], 'party'),
       opt('guarded_turn', 'Guarded Turn', 'After Turning Cut: −3% damage taken for 4 s', [step('defense', 8, 'guarded_turn', 'cast:turning_cut:4000')])],
     way('Loose Grip', 'Turning Cut −2 mana', [mod('turning_cut', { mana: -2 })])),
+  /* THE VOWS (17 section 7): Crushing Blows' "Brutes", Aftershock's Stagger and Braced's "all on cooldown" have no seam. Crushing Blows breaks
+     armor on any hit now, Quake takes Aftershock's place on Turning Cut, Braced is the lone club, Heavy Hand takes Lingering Blows' place */
+  node({ id: 'vow.crushing_blows', kind: 'vow', country: CL, after: ['turning_cut.x1'], n: 'Crushing Blows', tip: 'Hits: Armor Break 6 s · once per 6 s a target · −3% damage dealt',
+    effects: [react('crush_break', 'hit', 'status', { status: 'armor_break', clockMs: 6000, per: 'target' }), step('offense', -8, 'vow.crushing_blows')] }),
+  node({ id: 'vow.quake', kind: 'vow', country: CL, after: ['turning_cut.x1'], n: 'Quake', tip: 'Turning Cut: Chill 2 s · −3% damage dealt',
+    effects: [react('quake_chill', 'hit', 'status', { of: 'turning_cut', status: 'chill', ms: 2000 }), step('offense', -8, 'vow.quake')] }),
+  node({ id: 'vow.braced', kind: 'vow', country: CL, after: ['turning_cut.x1'], n: 'Braced', tip: 'Alone: −6% damage taken · −3% damage dealt',
+    effects: [step('defense', 17, 'braced', 'solo'), step('offense', -8, 'vow.braced')] }),
+  node({ id: 'vow.heavy_hand', kind: 'vow', country: CL, after: ['turning_cut.x1'], n: 'Heavy Hand', tip: 'Turning Cut +20% damage · +3% damage taken',
+    effects: [mod('turning_cut', { outPm: 200 }), step('defense', -8, 'vow.heavy_hand')] }),
 ];
 
 /* ── DUAL AXE (17 section 5: Rend, 4 waystones; Gash joins in wave 3). Bleed's cap and tick speed have no seam: its waystones and picks
@@ -367,6 +388,10 @@ const AXE_NODES = [
         [react('rend_weaken', 'hit', 'status', { of: 'rend', status: 'weakened' }), mod('rend', { outPm: -100 })], 'party'),
       opt('bloodletting', 'Bloodletting', 'Rend hits: heal yourself 1% max health', [react('rend_mend', 'hit', 'heal', { of: 'rend', pm: 10, to: 'self' })], 'solo')],
     way('Light Hatchet', 'Rend −2 mana', [mod('rend', { mana: -2 })])),
+  /* the axe's two extra waystones (17 section 4), off its crossroads like the road's own */
+  node({ id: 'rend.w3', kind: 'waystone', country: DA, move: 'rend', after: ['rend.x1'], n: 'Whetstone', tip: 'Bleed +10% damage', effects: [mod('rend', { statusPm: 100 })] }),
+  node({ id: 'rend.w4', kind: 'waystone', country: DA, move: 'rend', after: ['rend.x2'], n: 'Red Hands', tip: 'Kills: heal yourself 2% max health',
+    effects: [react('axe_kill_mend', 'kill', 'heal', { pm: 20, to: 'self' })] }),
 ];
 
 /* ── RANGED (17 section 5: four moves; Precision Shot is the bow's first road). The bow's offense lane runs 78% full: no cooldown cuts
@@ -461,6 +486,17 @@ const DESTRUCTION_NODES = [
       opt('brittle_frost', 'Brittle Frost', 'Armor Break 6 s · −15% damage',
         [react('hoarfrost_break', 'hit', 'status', { of: 'hoarfrost', status: 'armor_break' }), mod('hoarfrost', { outPm: -150 })], 'party')],
     way('Long Rime', 'Hoarfrost Chill +1 s', [mod('hoarfrost', { statusMs: 1000 })])),
+  /* Shared Barrier shields another, which a self shell has no seam for: the barrier's picks are what holding it does for the mage */
+  ...road(DE, 'arcane_barrier', 'hoarfrost.x1',
+    [opt('thick_barrier', 'Thick Barrier', '+50% shield · +10 s cooldown', [mod('arcane_barrier', { outPm: 500, cdMs: 10000 })], true),
+      opt('charged_barrier', 'Charged Barrier', '+3% damage while shielded', [step('offense', 8, 'charged_barrier', 'shielded')], 'party'),
+      opt('quick_barrier', 'Quick Barrier', '−6 s cooldown · −30% shield', [mod('arcane_barrier', { cdMs: -6000, outPm: -300 })], 'solo')],
+    way('Thin Ward', 'Arcane Barrier −5 mana', [mod('arcane_barrier', { mana: -5 })]),
+    [opt('warding_barrier', 'Warding Barrier', '−3% damage taken while shielded', [step('defense', 8, 'warding_barrier', 'shielded')], true),
+      opt('mana_barrier', 'Mana Barrier', 'Breaks: +4% mana', [react('barrier_mana', 'shield_break', 'mana', { pm: 40 })]),
+      opt('reforming_barrier', 'Reforming Barrier', 'Breaks: ready 5 s sooner',
+        [react('barrier_reform', 'shield_break', 'reset', { move: 'arcane_barrier', ms: 5000, capMs: 5000 })], 'solo')],
+    way('Deep Ward', 'Arcane Barrier +10% shield', [mod('arcane_barrier', { outPm: 100 })])),
 ];
 
 /* ── THE SHIELD · RESTORATION BORDER (17 section 6): its road leaves either country's first move road at crossroads I ── */

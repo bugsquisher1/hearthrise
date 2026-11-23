@@ -77,6 +77,13 @@ export const GEAR_STEPS = Object.freeze({
   /* THE VERY RARE PAIR RULE (12-targets 8.1): the first Trait from the ground's pool for the slot, the second any other Trait of the
      slot, never two of one key, never a pair listed here (ids sorted, joined by '+'). Empty until the dominance check (V7) plays the 40 */
   veryRareBanned: Object.freeze([]),
+  /* THE ROLL (the designer, lane/band-floor 2026-11-22; 24-content-pipeline.md G8; the wave-4 roller follows it). A Rare is the piece
+     that dropped, so its SLOT comes first (slotFirst: the drop table's own roll), then ONE Trait, uniformly, from the (ground, slot)
+     CELL: the Traits whose home is the ground and whose slot is the piece's. A new Trait then dilutes only its own cell, never the
+     ground's other chases, and at most cellMax Traits a cell means no chase slows past half (a third would cut each to a third). A
+     cell whose ground never drops its slot rolls nothing (its Traits wait for a home that does: tests/content-coherence.mjs CC-8), and
+     a scale ground's rollable Traits serve at least seatsMin seats (CC-1). tests/gear-steps.mjs GS-5 holds every cell to cellMax */
+  traitRoll: Object.freeze({ slotFirst: true, cellMax: 2, seatsMin: 2 }),
   conditionalStepsMax: 20,
   traitAverageSharePm: 500,
   dominanceMaxPm: 400,

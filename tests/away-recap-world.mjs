@@ -327,8 +327,21 @@ try {
     const p = await open('outgrow');
     await p.createHero('Sprout');
     await p.enterHunt('mill_cellar');
+    const skipAt = Date.now();
     await world.skip(3);
+    /* THE LEVEL THE PLAYER LAST SAW (1060-watched-stamp.sql): the viewed asks after the skip mark the hero as the page showed it, so
+       the card counts from the last of them (the page's own stamp is the entry's, under a minute old at the close, and no goodbye is
+       written over it: before the server's mark the card called the three watched minutes away, "Level 1 → 5") */
+    for (let i = 0; i < 60; i++) {
+      const m = (await world.db.query(`select 1 from public.hunt_watch w join auth.users u on u.id = w.user_id
+        where u.email = $1 and w.at > to_timestamp($2::float8 / 1000)`, [p.email, skipAt])).rows[0];
+      if (m) break;
+      await p.page.waitForTimeout(500);
+    }
     await leave(p, '%-%-%-%-%');
+    const seenLv = ((await world.db.query(`select (w.mark->>'lv')::int as lv from public.hunt_watch w join auth.users u on u.id = w.user_id
+      where u.email = $1 and w.at > to_timestamp($2::float8 / 1000)`, [p.email, skipAt])).rows[0] || {}).lv;
+    step('CONTROL AR-11 a viewed ask after the skip marked the hero', Number.isInteger(seenLv), String(seenLv));
     await world.wait(180, { away: true });
     const uid = (await world.db.query('select id from auth.users where email = $1', [p.email])).rows[0].id;
     const ran = (await world.db.query('select end_reason from public.hunt_sessions where user_id = $1 order by entered_at', [uid])).rows;
@@ -339,7 +352,7 @@ try {
     await q.shot('ar11-outgrown');
     /* audit 2026-11-19 L2: the press is the next ground itself, the Hunt summary one press beside it */
     step('AR-11 the card says the ground was outgrown, and its press is Go to the next ground',
-      !!line && /Sprout Mill Cellar Level 1 → 5\b/.test(line) && /Ground outgrown\./.test(line) && JSON.stringify(gold) === '["Go to Meadowbrook Thicket"]',
+      !!line && new RegExp('Sprout Mill Cellar Level ' + seenLv + ' → 5\\b').test(line) && /Ground outgrown\./.test(line) && JSON.stringify(gold) === '["Go to Meadowbrook Thicket"]',
       JSON.stringify({ line, gold }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-summary"]');
     const summary = await q.page.waitForFunction(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w ? w.innerText.replace(/\s+/g, ' ') : null; }, null, { timeout: 30000 })

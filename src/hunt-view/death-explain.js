@@ -27,6 +27,7 @@
 
 import { listWords } from '../render/format.js';
 import { spellRow } from '../data/monster-spells.js';
+import { roleSpellRow } from '../data/monster-roles.js';
 import { HUNT_TUNING } from '../data/hunt-tuning.js';
 
 /* the window's one home is src/data/hunt-tuning.js (the Balance Lab reads the same window) */
@@ -119,9 +120,10 @@ function explainFall(events, fall, who, words) {
   /* the bar's rules, a sentence of their own on the same line (copy 11-06: no "; " joins) */
   const ruled = rules.length ? listWords(rules, Infinity) : '';
   lines.push(words.fell(who.name) + ': ' + parts.join(', ') + '.' + (ruled ? ' ' + ruled.charAt(0).toUpperCase() + ruled.slice(1) + '.' : ''));
-  /* a monster's spell names itself: "from Barn Spider’s Venom Spray" (src/data/monster-spells.js) */
+  /* a monster's spell names itself: "from Barn Spider’s Venom Spray" (src/data/monster-spells.js), a formula monster's its role's (Heavy Blow) */
   const cast = killingBlow && spellRow(killingBlow.ability);
-  if (killingBlow) lines.push(words.blow + ' was ' + killingBlow.amount + ' from ' + killingBlow.by + (cast ? '’s ' + cast.n : '') + '.');
+  const said = cast || (killingBlow && roleSpellRow(killingBlow.ability));
+  if (killingBlow) lines.push(words.blow + ' was ' + killingBlow.amount + ' from ' + killingBlow.by + (said ? '’s ' + said.n : '') + '.');
   else if (killer) lines.push(words.blow + ' came from a ' + killer + '.');
 
   const byType = new Map();

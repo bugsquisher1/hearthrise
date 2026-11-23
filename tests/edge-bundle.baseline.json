@@ -385,9 +385,14 @@
         "why": "cut locked in (13339 bytes)"
       },
       {
-        "bytes": 3750027,
+        "bytes": 3744324,
         "on": "2026-11-23",
-        "why": "lane/moves-wave-3 (23-spell-audit wave 3): Stagger, Parry and Gash rows with their reasons (data/abilities.js), the Parried status and its parry effect (data/statuses.js, core/hunt/status.js spendFlag), the wind-up answers in core/hunt/abilities.js (answer, the one-target status move), monster-spells.js interrupt and its parried landing, damage.js's parried swing, the target_winding_up test (data/condition-metrics.js, core/hunt/conditions.js)"
+        "why": "+4,147 B: tuning pass (Muster monster formula switch on, power weights, pay floor/coin, store kit refs, Bold fall, band margin rule) merged onto the named-pieces cut"
+      },
+      {
+        "bytes": 3754174,
+        "on": "2026-11-23",
+        "why": "lane/moves-wave-3 (23-spell-audit wave 3): Stagger, Parry and Gash rows with their reasons (data/abilities.js), the Parried status and its parry effect (data/statuses.js, core/hunt/status.js spendFlag), the wind-up answers in core/hunt/abilities.js (answer, the one-target status move), monster-spells.js interrupt and its parried landing, damage.js's parried swing, the target_winding_up test (data/condition-metrics.js, core/hunt/conditions.js); re-raised on the merge of set 5d55d0af8 (tuning-pass), the same +9,850 B"
       }
     ]
   }

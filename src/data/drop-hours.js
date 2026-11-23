@@ -28,8 +28,15 @@
 // Rare every 40 h; at depth 1 about half as often, at depth 20 about 1.5x as often (Muster: 78 h / 40 h / 26 h).
 // THE TOP RANK (21 D-4): depth opens ranks (gear-steps.js rankDepths), the flame's luck lifts how often the top open rank lands:
 //   topRankPm x (1 + luck), at most topRankMaxPm, else one rank below
-// THE TRAIT CELL (24 G8): the roller rolls the SLOT first, then a Trait of that ground and slot, so a new Trait dilutes only its own cell;
-// `cellMax` Traits a (ground, slot) cell at most, so no chase slows by more than half. Warned while Traits are dark, red once they roll.
+// THE TRAIT CELL (24 G8; the designer's GEAR_STEPS.traitRoll, lane/band-floor): the roller rolls the SLOT first, among the Trait slots the
+// ground DROPS a piece of and holds a Trait for (its rollable cells), then a Trait of that ground and slot, so a new Trait dilutes only its
+// own cell. A Rare's hours are the ground's whatever its cells: every Rare is a Trait piece, none is lost to an empty cell.
+// A MADE PIECE (capes and jewelry are bench-made, never dropped: the 14 Traits on those slots roll here; the designer's call, made in this
+// lane at the band-floor lane's ask). A cape or a jewel made with a ground's PART (`made.part`: the imbuement item one of its bodies drops,
+// imbuements.js's one-a-body rule) rolls a Trait from that ground's (ground, slot) cell with the same roller and the same hours: each make is
+// worth the hunted hours its part took to find, so a make rolls Rare at partHours / 40 and Very Rare at partHours / 400 (never pity: a bench
+// press is not a kill; never depth: a part carries none, so its odds and its rank roll as at the ground's reference step, the flame's luck
+// read as on a drop). One Trait piece per 40 hunted hours of parts, made or found: the market sees the same Trait supply either way.
 //
 // PITY (04 guard 5, 21 section 4.2, gear-steps.js GEAR_STEPS.pity): a hero's chance rises with every kill it rolled and missed, reset on a
 // hit, so the long-run rate is the stated one and the unlucky tail is short. Linear, solved for the mean (src/core/trait-roll.js pityChance):
@@ -55,7 +62,8 @@ export const DROP_HOURS = Object.freeze({
   depthPm: Object.freeze([1000, 3000]),
   topRankPm: 500,
   topRankMaxPm: 800,
-  cellMax: 2,
+  /* A MADE PIECE'S ROLL (the header): the Trait slots the bench makes, and what names a made piece's ground (its imbuement part's home) */
+  made: Object.freeze({ slots: Object.freeze(['cape', 'necklace', 'ring', 'earrings']), part: 'imbue' }),
 });
 
 /** THE FORMULA: the per-kill chance of a row authored `everyHours`, for a hero who sees `killsHeadHour` of its kills an hour (the ground's

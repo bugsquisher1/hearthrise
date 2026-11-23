@@ -127,6 +127,16 @@ export const GEAR_ECONOMY = [
     tests: [['tests/gear-steps.mjs', 'GS-4 and GS-5 the rows']], testReads: ['TRAITS'],
     perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
     ev: 'STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)' }),
+  L('gear.rarity-hours', 'equipment', 'global', 'The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece\'s roll', {
+    at: [at('src/data/drop-hours.js', 'chDigits: 3,'), at('src/data/drop-hours.js', 'rare: Object.freeze({ everyHours: 40'), at('src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400'),
+      at('src/data/drop-hours.js', 'signature: Object.freeze({ everyHours: 45'), at('src/data/drop-hours.js', 'depthPm: Object.freeze([1000, 3000]),'),
+      at('src/data/drop-hours.js', 'topRankPm: 500,'), at('src/data/drop-hours.js', 'topRankMaxPm: 800,')],
+    def: 'a Rare (one Trait) about every 40 hunted hours a hero at the ground\'s reference step, a Very Rare (two) every 400, a given Signature every 45 on its home; each chance is 1 / (hours x the ground\'s reference kills a head an hour), / heroes at the kill; depth multiplies the Rare and Very Rare odds x1 at depth 1 to x3 at depth 20, read against the reference\'s depth; the top open rank lands topRankPm x (1 + luck), at most topRankMaxPm; a made cape or jewel rolls at its part\'s hours over the rung\'s',
+    range: 'each rung inside its band (rare 30 to 60, very rare 300 to 600, signature 30 to 60: DF-3); depth x1 to x3; top rank 400 to 600 of 1000 capped 650 to 900 (21 section 1.2)',
+    touches: 'hours to a first Trait piece (p10 / p50 / p90), the Trait pieces in the market, the flame\'s worth', out: [], f: [],
+    tests: [['tests/drop-formula.mjs', 'DF-3 the ladder, DF-4 the roller, DF-5 the settle']], testReads: ['DROP_HOURS'],
+    perturb: NP('not-built', 'dark: GEAR_STEPS.traitsLive false, nothing hands the settle a roll (tools/balance-program/redesign/drops/first-trait.mjs reads the roller alone)'),
+    ev: 'STATED (09-crafting 5.6 and 13-market 3.2: 40 and 400; 15: 30 to 60; 12-targets 3.3: x1 to x3; 21 D-4: the top rank)' }),
   L('gear.trait-trade', 'equipment', 'global', 'A trade Trait\'s gain, and the percents a Trait card shows', {
     at: [at(GS, 'tradeSteps: Object.freeze([7, 13, 18]),'), at(GS, 'shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),')],
     def: 'a trade Trait (Hask\'s Bargain) raises offense by tradeSteps and lowers defense by traitSteps of the same rank while its when holds; a card shows shownPct, rounded from the steps',

@@ -63,10 +63,12 @@ export function riskOf(hero) {
   return { risk: hero.risk, step: clampStep(hero.danger) };
 }
 
-/* THE GROUND AS BUILT: the mean size of its route's pockets (each pocket's `spawns`, the pull a density of 0 makes). Once a ground. */
-const BASE = new Map();
+/* THE GROUND AS BUILT: the mean size of its route's pockets (each pocket's `spawns`, the pull a density of 0 makes). Once a ground ROW:
+   keyed by the row itself, not its id, so a what-if copy of a ground (play-ground.mjs opts.ground, a test's stage) never reads the
+   original's size, nor the original the copy's (lane/drop-formula 2026-11-22: the cache was keyed by id). */
+const BASE = new WeakMap();
 function basePull(ground) {
-  const k = ground && ground.id;
+  const k = ground;
   if (BASE.has(k)) return BASE.get(k);
   const route = Array.isArray(ground.route) && ground.route.length ? ground.route : ground.pockets.map((_, i) => i);
   const n = route.reduce((a, p) => a + ground.pockets[p].spawns.length, 0) / route.length;
@@ -211,7 +213,7 @@ export function hoursForLevel(level) {
 /* THE KILLS A HEAD AN HOUR THE HOURS TABLE IS SPLIT OVER: the ground's own, measured at its reference step (DANGER_GROUNDS refKillsHead,
    lane/r10-more-grounds: a Steady four on Hask's Ford kills 220 a head an hour where Muster's kills 120), else PAY.refKillsHead. Never under
    it (tools/gen-danger.mjs refuses one), so the server's one ceiling a kill (hr_danger_level_xp_max) bounds every ground. */
-const refKillsOf = (ground) => {
+export const refKillsOf = (ground) => {
   const row = groundRow(ground);
   return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;
 };

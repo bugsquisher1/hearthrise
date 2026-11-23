@@ -393,6 +393,11 @@
         "bytes": 3777766,
         "on": "2026-11-23",
         "why": "+33,442 B: the Roads' whole map, src/data/talents.js from the sample (103 nodes) to every country and border (269 nodes, 171 options), read by the engine through core/talents.js grantsOf"
+      },
+      {
+        "bytes": 3779716,
+        "on": "2026-11-23",
+        "why": "lane/roads-borrow-values +1,950 B: src/data/talents.js (six measured BORROW_VALUES rows with their provenance comment, validate refusing an unmeasured V0) and src/core/talents.js (offered: a town pick that lends nothing is refused not_offered in spendProblem and buildProblems)"
       }
     ]
   }

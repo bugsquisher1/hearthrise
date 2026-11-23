@@ -149,6 +149,9 @@ import { GROUND_PACKS } from './grounds/index.js';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js';
 import { sessionModeOf } from './session-modes.js';
 import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js';
+import { CATACOMB_WING_GROUNDS } from './catacomb-wings.js';
+import { ITEMS } from './items.js';
+import { LOOT_BANDS } from './loot-bands.js';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -360,8 +363,10 @@ const BASE_GROUNDS = Object.freeze({
   }),
 });
 
-/* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. */
-export const HUNT_GROUNDS = Object.freeze(foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })));
+/* THE BASE ROWS, then every ground pack's (src/data/grounds): its id is the pack's, and so is its hunt. Then the Catacombs' two wings
+   (src/data/catacomb-wings.js: grounds on the Danger scale cut from the Unmarked Catacombs' rooms), as one more fold. */
+export const HUNT_GROUNDS = Object.freeze(foldRows('ground', foldRows('ground', BASE_GROUNDS, GROUND_PACKS, (p) => ({ [p.id]: Object.freeze({ id: p.id, hunt: p.id, ...p.ground }) })),
+  [{ id: 'catacomb-wings' }], () => CATACOMB_WING_GROUNDS));
 
 /* THE CALLED ROOMS (Call out, Tyler 2026-11-04; src/data/boss-calls.js): one pocket, the boss's own hall on his own map, no pull dial: a pocket of nothing but a boss keeps its
    as-built pack at any size (pullRows). Not in HUNT_GROUNDS, so nothing that lists grounds sees them; the engine and the scene reach them by hunt (groundOfHunt). `call` marks
@@ -666,6 +671,10 @@ export function validateGround(row, refs) {
       else if (Math.max(Math.abs(e.x - pk.pull[0]), Math.abs(e.y - pk.pull[1])) !== 1) bad('pocket ' + i + ' pack ' + e.monster + ' is not on the ring round the pull tile');
     }
   });
+  /* THE GROUND'S OWN DROP ROWS (src/data/catacomb-wings.js; the engine appends them to every kill's table here, combat-sim.js huntPlayOf):
+     known items, each a chance in (0, 1) and a loot band. A ground with none rolls only its monsters' rows. */
+  if (row.drops !== undefined && !(Array.isArray(row.drops) && row.drops.length && row.drops.every((d) => !!d && !!ITEMS[d.id]
+    && typeof d.ch === 'number' && d.ch > 0 && d.ch < 1 && LOOT_BANDS.includes(d.band)))) bad('drops must list known items, each a chance in (0, 1) and a loot band');
   const g = row.gather;
   if (g !== undefined) {
     if (!(Number.isInteger(g.refKillMs) && g.refKillMs > 0)) bad('gather.refKillMs must be a positive integer');

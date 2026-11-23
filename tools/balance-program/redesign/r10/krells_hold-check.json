@@ -1,0 +1,160 @@
+{
+ "ground": "krells_hold",
+ "levels": [
+  97,
+  100,
+  70
+ ],
+ "seeds": 4,
+ "hours": 12,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 120,
+    "cleanPm": 300,
+    "afterDeath": "steady"
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 97,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 1.17,
+    "sd": 0,
+    "n": 1,
+    "perSeed": [
+     1.17
+    ],
+    "fromH": 4,
+    "windowH": 0
+   },
+   "held": {
+    "mean": 531.4,
+    "sd": 0,
+    "se": 0,
+    "perSeed": [
+     null,
+     531,
+     null,
+     null
+    ]
+   },
+   "drift": 0,
+   "within10": 23.5,
+   "within20": 25,
+   "changesPerH": 10.9,
+   "fallsPerH": 1.4,
+   "reachH": 0.2,
+   "pullsPerH": 191.5,
+   "killsPerH": 733,
+   "xpPerHeroH": 571040,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 2974,
+     "sd": 372,
+     "n": 4
+    },
+    "incomePerHeroH": {
+     "mean": 8383,
+     "sd": 759,
+     "n": 4
+    },
+    "storePerHeroH": {
+     "mean": 11279,
+     "sd": 337,
+     "n": 4
+    },
+    "commonPerHeroH": {
+     "mean": 1103,
+     "sd": 19,
+     "n": 4
+    },
+    "uncommonPerHeroH": {
+     "mean": 458,
+     "sd": 14,
+     "n": 4
+    },
+    "scarcePerHeroH": {
+     "mean": 3521,
+     "sd": 287,
+     "n": 4
+    },
+    "otherPerHeroH": {
+     "mean": 327,
+     "sd": 85,
+     "n": 4
+    }
+   },
+   "deaths": 4,
+   "wipes": 0,
+   "seedsWithADeath": 4,
+   "huntedH": 12,
+   "fourH": 0,
+   "firstDeathH": [
+    3,
+    4.2,
+    1.6,
+    3.2
+   ],
+   "nearWipes": 10,
+   "nearWithDeath": 4,
+   "nearWarned": 1,
+   "nearFellAfter": 10,
+   "whys": {
+    "hold": 6676,
+    "climb": 2238,
+    "fall": 272,
+    "death": 4
+   }
+  }
+ },
+ "wallS": 30,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "high:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "high:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "high:bold": null
+ }
+}

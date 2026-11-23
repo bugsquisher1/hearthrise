@@ -44,6 +44,12 @@ export const PERSISTED = Object.freeze({
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const clampStep = (s) => Math.max(0, Math.min(DANGER.stepMax, Number.isInteger(s) ? s : 0));
+/* THE TOP OF THE GROUND (lane/r10-more-grounds; 12-targets.md 3.2): no step past its band's topStep (DANGER_GROUNDS), so the climb stops at
+   depth 20 on every stance and a start held from before plays there; a ground with no row is held only by the scale's stepMax. */
+const stepOn = (ground, s) => {
+  const row = ground && own(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
+  return Math.min(row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax, clampStep(s));
+};
 
 /** True when this world plays the Danger scale (its plan named a stance). The server freezes a stance only on a ground of
     DANGER_GROUNDS (hr_danger_grounds); the engine plays what it was handed. */
@@ -77,7 +83,7 @@ function basePull(ground) {
  *          any size pays the as-built pull's coin times the scale's gold level (lane/econ-levers: one coin ratio a step, src/data/wage.js)
  */
 export function dangerDial(ground, step) {
-  const s = clampStep(step);
+  const s = stepOn(ground, step);
   const n0 = basePull(ground);
   const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
   const share = n0 / pull;
@@ -95,10 +101,11 @@ function powStep(r, n) {
 }
 
 /* THE GAP THAT PAYS: the step over the ground's reference step (DANGER_GROUNDS; 0 on a ground with none, which the server never opens),
-   held to PAY.gapMax above; under the reference it is never held (a shallower hold earns less a kill, so depth always pays). */
+   held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held
+   (a shallower hold earns less a kill, so depth always pays). */
 function gapOf(ground, step) {
   const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
-  return Math.min(PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
+  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
 }
 /* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. Under the
    reference it never falls past PAY.floor (12-targets 2.1): a shallower hold costs its kills an hour, not twice. */
@@ -108,7 +115,8 @@ function depthRatio(ground, step, rate) {
 }
 
 /* ── THE POWER STEP (lane/r9-power-step; src/data/danger.js POWER, the gear table src/data/gear-steps.js through it) ── */
-/* A piece's item Level: its row's `iL`; until R10 writes one on scale drops, its `reqLv` STANDS IN (src/data/danger.js POWER note). */
+/* A piece's item Level: its row's `iL` (every scale ground's drop carries its ground's: src/data/danger.js scaleItemLevels); a piece no
+   scale ground drops has none, and its `reqLv` stands in. */
 const itemLevelOf = (it) => {
   const n = Math.floor(Number(it && (Number.isInteger(it.iL) ? it.iL : it.reqLv)));
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -188,6 +196,14 @@ export function hoursForLevel(level) {
   return SPANS[SPANS.length - 1][1];
 }
 
+/* THE KILLS A HEAD AN HOUR THE HOURS TABLE IS SPLIT OVER: the ground's own, measured at its reference step (DANGER_GROUNDS refKillsHead,
+   lane/r10-more-grounds: a Steady four on Hask's Ford kills 220 a head an hour where Muster's kills 120), else PAY.refKillsHead. Never under
+   it (tools/gen-danger.mjs refuses one), so the server's one ceiling a kill (hr_danger_level_xp_max) bounds every ground. */
+const refKillsOf = (ground) => {
+  const row = groundRow(ground);
+  return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;
+};
+
 /**
  * ONE HERO'S LEVEL XP FOR ONE KILL, ALONE (xp-share.js divides it by the heroes at the kill): the share of its own Level the hours
  * table gives one kill at the reference rate, times the depth ratio. 04 section 5: "a kill pays a share of the killer's own Level".
@@ -195,7 +211,7 @@ export function hoursForLevel(level) {
 export function levelShareXp(level, step, ground) {
   const L = Number.isInteger(level) && level >= 1 ? level : 1;
   const toNext = charXpForLevel(L + 1) - charXpForLevel(L);
-  return (toNext / (hoursForLevel(L) * PAY.refKillsHead)) * depthRatio(ground, step, PAY.payStepXp);
+  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);
 }
 
 /** A world opening on the scale: its stance and the step its plan starts at, nothing climbed yet. */
@@ -282,7 +298,7 @@ export function pullEnds(inst, sc, cleared = false) {
       if (w.clean >= CLIMB.cleanRun) { why = 'climb'; to = from + w.climb; w.climb = Math.min(CLIMB.climbMax, w.climb * 2); w.clean = 0; }
     }
   } else { w.clean = 0; w.climb = 1; }
-  w.danger = clampStep(to);
+  w.danger = stepOn(inst.ground, to);
   /* A FALL BACK NAMES ITS CAUSE (R2): the hero that broke the pull off (its seat, when it has one) and the monster whose blow did it */
   const cause = why === 'fall' || why === 'death'
     ? { ...(Number.isSafeInteger(w.lowHero) ? { hero: w.lowHero } : {}), monster: w.lowBy || 'unknown' } : null;

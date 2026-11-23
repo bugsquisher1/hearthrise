@@ -7,7 +7,8 @@
 // DROP_HOURS.chDigits (src/core/drop-rate.js rowChance). This tool writes that derived `ch` beside the hours on each pack row, so every
 // reader of a row (the settle, the catalogues, the browser's preview) keeps reading `ch` and nothing types one. A re-measured kill rate
 // (danger.js DANGER_GROUNDS refKillsHead, a band re-cut, a pocket redrawn) is one `--write`, and the drops keep their hours.
-// The rows it owns: every monster row of a pack whose ground is on the Danger scale (DANGER_GROUNDS), except a certainty (`ch: 1`, a body's
+// The rows it owns: every monster row of a pack whose ground is on the Danger scale (DANGER_GROUNDS), and of src/data/monsters.js for a scale
+// ground with no pack (baseViews, lane/scale-early-grounds: the Mill Cellar's and the other first grounds'), except a certainty (`ch: 1`, a body's
 // own bones: a certainty is not a rate). A Catacomb wing's ground rows derive at load (src/data/catacomb-wings.js ARMOR_EVERY_HOURS), not here.
 //
 //   node tools/gen-drop-hours.mjs                 check: exit 1 on a scale row with a typed chance, or a `ch` its hours no longer give
@@ -23,7 +24,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUND_PACKS } from '../src/data/grounds/index.js';
-import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { HUNT_GROUNDS, monstersOn } from '../src/data/hunt-grounds.js';
+import { MONSTERS } from '../src/data/monsters.js';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
 import { BAND_TARGETS } from '../src/data/loot-bands.js';
 import { roundChance } from '../src/data/drop-hours.js';
@@ -32,12 +34,24 @@ import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const packFile = (id) => join(ROOT, 'src', 'data', 'grounds', id, 'pack.js');
+/* THE BASE GROUNDS (lane/scale-early-grounds): a scale ground with no pack (the Mill Cellar, the Thicket and the other grounds of
+   src/data/hunt-grounds.js BASE_GROUNDS) keeps its monsters in src/data/monsters.js; its rows are owned the same way, one block a monster */
+const MONSTERS_FILE = join(ROOT, 'src', 'data', 'monsters.js');
 
-/** Every row this tool owns: { ground, monster, row, index } for each scale ground with a pack, its own monsters' rows under certainty. */
-export function ownedRows(packs = GROUND_PACKS, grounds = HUNT_GROUNDS, scale = DANGER_GROUNDS) {
+/** The scale grounds with no pack, each as a pack-shaped view: { id, monsters: { id: row } } over src/data/monsters.js's own rows (a
+    monster a pack defines is that pack's: the Catacomb wings' bodies are the Unmarked Catacombs', and the wings derive their own rows). */
+export function baseViews(packs = GROUND_PACKS, grounds = HUNT_GROUNDS, scale = DANGER_GROUNDS, monsters = MONSTERS) {
+  const packed = new Set(packs.map((p) => p.id)), inPack = new Set(packs.flatMap((p) => Object.keys(p.monsters || {})));
+  return Object.keys(scale).filter((g) => !packed.has(g) && grounds[g])
+    .map((g) => ({ id: g, file: MONSTERS_FILE, monsters: Object.fromEntries([...monstersOn(grounds[g])].filter((m) => monsters[m] && !inPack.has(m)).map((m) => [m, monsters[m]])) }))
+    .filter((v) => Object.keys(v.monsters).length);
+}
+
+/** Every row this tool owns: { ground, monster, row, index } for each scale ground with a pack or a base ground's monsters (baseViews),
+    its own monsters' rows under certainty. */
+export function ownedRows(packs = GROUND_PACKS, grounds = HUNT_GROUNDS, scale = DANGER_GROUNDS, monsters = MONSTERS) {
   const out = [];
-  for (const p of packs) {
-    if (!Object.prototype.hasOwnProperty.call(scale, p.id) || !grounds[p.id]) continue;
+  for (const p of [...packs.filter((x) => Object.prototype.hasOwnProperty.call(scale, x.id) && grounds[x.id]), ...baseViews(packs, grounds, scale, monsters)]) {
     for (const [m, row] of Object.entries(p.monsters || {})) {
       (row.drops || []).forEach((r, index) => { if (!(r.ch >= 1)) out.push({ ground: p.id, monster: m, row: r, index }); });
     }
@@ -66,8 +80,15 @@ function niceHours(h, ch, monster, g) {
   return Number(h.toPrecision(3));
 }
 
-/* the text of monster `m`'s block in a pack's source: from its key line to the next monster's (or the monsters' end) */
-function blockOf(text, monsters, m) {
+/* the text of monster `m`'s block in a pack's source: from its key line to the next monster's (or the monsters' end). In src/data/monsters.js
+   (a base view, `pack.file`) a row is a two-space key, and its block ends at the next row of ANY monster (the view holds one ground's) */
+function blockOf(text, monsters, m, base = false) {
+  if (base) {
+    const head = new RegExp('\\n {2}' + m + ': \\{').exec(text);
+    if (!head) throw new Error('gen-drop-hours: no row for ' + m + ' in src/data/monsters.js');
+    const rest = /\n {2}[a-z0-9_]+: \{|\n\};/.exec(text.slice(head.index + 1));
+    return [head.index, rest ? head.index + 1 + rest.index : text.length];
+  }
   const keys = Object.keys(monsters);
   const at = (k) => text.search(new RegExp('\\n {4}' + k + ': \\{'));
   const start = at(m);
@@ -88,7 +109,7 @@ function rewriteRow(block, id, hours, ch) {
 function rewritePack(text, pack, ground, hoursFor) {
   let out = text;
   for (const [m, row] of Object.entries(pack.monsters || {})) {
-    const [s, e] = blockOf(out, pack.monsters, m);
+    const [s, e] = blockOf(out, pack.monsters, m, pack.file === MONSTERS_FILE);
     let block = out.slice(s, e);
     let cursor = 0;
     for (const r of row.drops || []) {
@@ -129,12 +150,12 @@ export function report(rows = ownedRows(), grounds = HUNT_GROUNDS) {
 const runAsMain = isMain(import.meta.url);
 if (runAsMain) {
   const args = process.argv.slice(2);
-  const scalePacks = GROUND_PACKS.filter((p) => Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id) && HUNT_GROUNDS[p.id]);
+  const scalePacks = GROUND_PACKS.filter((p) => Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id) && HUNT_GROUNDS[p.id]).concat(baseViews());
   if (args[0] === '--convert' || args[0] === '--write') {
     const only = args[1] || null;
     for (const p of scalePacks) {
       if (only && p.id !== only) continue;
-      const f = packFile(p.id);
+      const f = p.file || packFile(p.id);
       const text = readFileSync(f, 'utf8');
       const next = args[0] === '--convert' ? convertText(text, p, HUNT_GROUNDS[p.id]) : writeText(text, p, HUNT_GROUNDS[p.id]);
       if (next !== text) { writeFileSync(f, next); console.log('gen-drop-hours ' + args[0] + ': wrote ' + f.slice(ROOT.length + 1)); }

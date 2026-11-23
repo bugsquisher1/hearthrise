@@ -7,7 +7,7 @@
 // rule, not a price: every row's step-free terms and the step evaluation. This writes them whole, from the data, with a self-check:
 //   hr_store_terms       one row a store row (src/data/supply-basics.js STORE_TERMS -> store-kit.js storeTerms): line, coef (one double,
 //                        its shortest round-trip text), amount, per, floor
-//   hr_store_grounds     one row a Danger scale ground (src/data/danger.js DANGER_GROUNDS): ref_wage_step, its gearLevel, the absolute
+//   hr_store_grounds     one row a Danger scale ground (src/data/danger.js DANGER_GROUNDS): ref_wage_step, its refLevel (27 K-5), the absolute
 //                        step of its reference depth (src/core/wage.js depthStep says why); ref_step and gap_max stay 1055's
 //                        (hr_danger_grounds, hr_danger_rules), read at run time, never copied
 //   hr_store_price(basic, step)  store-kit.js storePriceOf: greatest(floor, the formula's whole gold at hr_wage(step)), float8 in the JS's
@@ -23,7 +23,7 @@
 //
 // REFUSES (throws, nothing written): a row id that is no store id, a row with no terms or terms for no row, a line that is neither meal
 // nor charge, a coef that is not a positive finite double or whose text does not parse back to the same bits, a meal with no amount or a
-// charge with one, a non-positive `per`, a floor under 1, a scale ground with no whole gearLevel of at least 1, and a price at the last
+// charge with one, a non-positive `per`, a floor under 1, a scale ground with no whole refLevel of at least 1, and a price at the last
 // step past a safe integer.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
@@ -72,8 +72,8 @@ export function rowsOf(data) {
   }
   const grounds = Object.entries(data.DANGER_GROUNDS).map(([hunt, g]) => {
     if (!ID.test(hunt)) problems.push('scale ground ' + hunt + ' is no id');
-    if (!(Number.isInteger(g.gearLevel) && g.gearLevel >= 1)) problems.push('scale ground ' + hunt + ' has no whole gearLevel of at least 1 (its reference wage step), got ' + g.gearLevel);
-    return { hunt, refWageStep: g.gearLevel };
+    if (!(Number.isInteger(g.refLevel) && g.refLevel >= 1)) problems.push('scale ground ' + hunt + ' has no whole refLevel of at least 1 (its reference wage step), got ' + g.refLevel);
+    return { hunt, refWageStep: g.refLevel };
   }).sort((a, b) => (a.hunt < b.hunt ? -1 : 1));
   if (!rows.length) problems.push('the store holds no row');
   if (problems.length) throw new Error('gen-store-prices: ' + problems.join('; '));
@@ -142,7 +142,7 @@ create table if not exists public.hr_store_grounds (
 );
 alter table public.hr_store_grounds enable row level security;
 revoke all on public.hr_store_grounds from public, anon, authenticated, service_role;
-comment on table public.hr_store_grounds is '${OUT_NAME}: each Danger scale ground''s reference depth in the wage''s unit (its gearLevel, src/core/wage.js depthStep), the wave-1 bridge from a ground''s own step.';
+comment on table public.hr_store_grounds is '${OUT_NAME}: each Danger scale ground''s reference depth in the wage''s unit (its refLevel, src/core/wage.js depthStep), the wave-1 bridge from a ground''s own step.';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_store_terms;
@@ -226,7 +226,7 @@ async function selftest() {
   plant('a charge that carries an amount', ({ terms }) => { terms.plain_iron_arrows.terms.amount = 5; });
   plant('a reference rate of zero', ({ terms }) => { terms.salted_shrimp.terms.per = 0; });
   plant('a floor under a whole gold', ({ terms }) => { terms.salted_shrimp.terms.floor = 0; });
-  plant('a scale ground with no gearLevel', ({ grounds }) => { const g = Object.keys(grounds)[0]; delete grounds[g].gearLevel; });
+  plant('a scale ground with no refLevel', ({ grounds }) => { const g = Object.keys(grounds)[0]; delete grounds[g].refLevel; });
   plant('a price past a safe integer at the last step', ({ terms }) => { terms.salted_shark.terms.coef = 1e9; });
   plant('a store row that is no id', ({ rows }) => { rows[0].id = 'Salted Shrimp'; });
   const sql = buildSql(rowsOf(base));

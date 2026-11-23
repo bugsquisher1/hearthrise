@@ -5,7 +5,7 @@
 --   LEVEL_HOURS. Any hand edit FAILS `node tools/gen-danger.mjs --check`.
 --
 -- WHAT (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 04 sections 5 and 7): the scale's numbers the server reads, so
--- no number is typed twice. hr_danger_rules (one row), hr_danger_stances (3 rows), hr_danger_grounds (2 rows), rewritten whole;
+-- no number is typed twice. hr_danger_rules (one row), hr_danger_stances (3 rows), hr_danger_grounds (4 rows), rewritten whole;
 -- hr_danger_hours_for(level) and hr_danger_level_xp_max(level), internal (no client grant), the twins of danger.js hoursForLevel and
 -- levelShareXp at the gap ceiling, pinned to the JS values at Levels 1, 9, 40, 60, 75, 300, 1000 (§3).
 -- READERS: 1056-danger-scale.sql's freeze (the stance and the start step a hunt opens at), its bound (a window on the scale) and the
@@ -103,6 +103,8 @@ insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death
 delete from public.hr_danger_grounds;
 insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_max) values
   ('hasks_ford', 590, 1001, 3814),
+  ('meadowbrook_thicket', 70, 1062, 50719),
+  ('mill_cellar', 70, 1062, 138845),
   ('muster_barrows', 590, 1426, 5212);
 
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
@@ -145,7 +147,7 @@ do $mig$
 declare v_r record;
 begin
   if (select count(*) from public.hr_danger_rules) <> 1 or (select count(*) from public.hr_danger_stances) <> 3
-     or (select count(*) from public.hr_danger_grounds) <> 2 then
+     or (select count(*) from public.hr_danger_grounds) <> 4 then
     raise exception 'VERIFY(a): the catalogue holds % rules, % stances, % grounds', (select count(*) from public.hr_danger_rules),
       (select count(*) from public.hr_danger_stances), (select count(*) from public.hr_danger_grounds); end if;
   if exists (select 1 from public.hr_danger_grounds d where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = d.hunt_id)) then
@@ -175,5 +177,5 @@ begin
     if abs(public.hr_danger_level_xp_max(v_r.l) - v_r.xp_max) > 1 then
       raise exception 'VERIFY(c): the most a kill pays Level % is % in SQL, % in the engine', v_r.l, public.hr_danger_level_xp_max(v_r.l), v_r.xp_max; end if;
   end loop;
-  raise notice 'gen-danger: % stances, % ground(s), the twins pinned at % Levels; all green', 3, 2, 7;
+  raise notice 'gen-danger: % stances, % ground(s), the twins pinned at % Levels; all green', 3, 4, 7;
 end $mig$;

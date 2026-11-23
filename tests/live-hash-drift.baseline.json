@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3778,
+  "replay_ms": 19156,
   "counts": {
     "tracked_names": 1071,
     "entries": 896
@@ -4950,16 +4950,17 @@
         "restate"
       ],
       "touched_by": [
-        "1055-danger-scale-danger-catalogue.generated.sql"
+        "1055-danger-scale-danger-catalogue.generated.sql",
+        "1061-danger-grounds-danger-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "66013cbe25fb217e8be6b922c23299d6",
-        "norm_len": 882,
+        "md5": "199a40644437fe572ca4f4509142c5c6",
+        "norm_len": 884,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1055-danger-scale-danger-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql, 1061-danger-grounds-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1061-danger-grounds-danger-catalogue.generated.sql."
     },
     {
       "sig": "hr_danger_level_xp_max(p_level integer)",
@@ -4969,16 +4970,17 @@
         "restate"
       ],
       "touched_by": [
-        "1055-danger-scale-danger-catalogue.generated.sql"
+        "1055-danger-scale-danger-catalogue.generated.sql",
+        "1061-danger-grounds-danger-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "a09a6196e3ea257c03ae132f1f9e7322",
-        "norm_len": 756,
+        "md5": "8019684ea5bfe00ce679717480d034d1",
+        "norm_len": 758,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1055-danger-scale-danger-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1055-danger-scale-danger-catalogue.generated.sql, 1061-danger-grounds-danger-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1061-danger-grounds-danger-catalogue.generated.sql."
     },
     {
       "sig": "hr_danger_of(p_instance uuid)",
@@ -7000,8 +7002,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "a3b6e780196f9ce123c34857a04cb446",
-        "norm_len": 1145,
+        "md5": "678416e381644a4f14c97a0815b2a043",
+        "norm_len": 1343,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -7018,8 +7020,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "a28da8bb2e693209259d75963d4545bb",
-        "norm_len": 1126,
+        "md5": "193e91e6bd7c366f770d7866def8858b",
+        "norm_len": 1187,
         "source": "computed-from-replay"
       },
       "agree": false,

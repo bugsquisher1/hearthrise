@@ -467,7 +467,8 @@ export function dropNeeds(grounds, monsters) {
     for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) mons.add(s.monster);
     for (const m of mons) {
       const per = {};
-      for (const d of ((monsters[m] || {}).drops || [])) if (d && d.id && ID.test(d.id)) per[d.id] = (per[d.id] || 0) + 1;
+      /* the ground's own rows ride every kill's table on it (hunt-grounds.js `drops`, combat-sim.js huntPlayOf: the Catacombs' wings) */
+      for (const d of ((monsters[m] || {}).drops || []).concat(g.drops || [])) if (d && d.id && ID.test(d.id)) per[d.id] = (per[d.id] || 0) + 1;
       for (const [item, k] of Object.entries(per)) {
         const key = g.hunt + '\u0000' + item;
         need.set(key, Math.max(need.get(key) || 0, k));

@@ -166,6 +166,12 @@
         "gzipBytes": 917009,
         "on": "2026-11-23",
         "why": "bar metrics: the 4 new bar tests (health %, Marked, stacks, last move) and the Configure picker for last_move at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 918537,
+        "on": "2026-11-23",
+        "why": "R10: new scale grounds' bands, the outgrown Ready for / Max depth reached rows, and the wings' named pieces read at town"
       }
     ]
   }

@@ -28,7 +28,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 
 **The window is called Talents.** It shows **the Roads**: a map of the country around Havora, with the Great Hearth in the middle of town and roads leading out of it.
 
-- **The Great Hearth is the start.** Every hero owns it for free. It holds Mend's road and the Havora crossing, and becomes the fist line's country when that line goes live.
+- **The Great Hearth is the start.** Every hero owns it for free. It holds Mend's road and the Havora crossing. The Hearth, the support's country, sits beside it (`22-fists-support.md`, 2026-11-22).
 - **Seven countries, one per weapon** (the seven `DISCIPLINES` in `src/data/abilities.js`). Where they sit is art. Which countries touch is a data list (section 6), so a new country adds borders and never cuts one.
 - **Shared moves sit where their weapons meet.** Turning Cut lives in Club. Flame Strike and Power Strike live in Sword. A Shield hero reaches them through Havora.
 
@@ -59,7 +59,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 
 ## 3. Breaking the weapon lock
 
-**Border towns** let a hero use one move from the other country with any weapon. **The Havora crossing** offers any move from any country, one price band harsher. **Max 2 borrowed moves**, counting the crossing. Fist heroes: 3.
+**Border towns** let a hero use one move from the other country with any weapon. **The Havora crossing** offers any move from any country, one price band harsher. **Max 2 borrowed moves**, counting the crossing.
 
 **Priced by value** (measured in `18-roads-review-measured.md` section 3). V0 is what the move adds at full power, in held steps (an offense move: its pace gain ÷ 0.7%):
 
@@ -96,7 +96,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Greater Mend | about 50 before the heal rule | Re-measure under the heal rule. Target: 10 or less | 150 at V 10, 80 at V 5 |
 | Every other borrowable move | Not measured | Lab | Lab |
 
-**The Hearth, home of the generalist** (when `FIST_LINE` goes live). Fist heroes borrow one band softer (a move worth 4 to 10 has no penalty, 10 to 20 is −30%) and may hold 3 borrowed moves. Their own strikes land 10% under the other weapons' shares. Target: a fist seat is top 3 in no cell and bottom 3 in no cell.
+**The Hearth, the support's country** (2026-11-22, replaces the generalist). The wraps are the party's support, not an all-rounder. They borrow like every weapon: 2 slots, the standard bands. Country, kit, borders and balance rule: `22-fists-support.md`.
 
 ## 4. Node counts
 

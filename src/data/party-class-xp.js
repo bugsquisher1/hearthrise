@@ -30,6 +30,7 @@
 import { HUNT_ROLES } from './hunt-roles.js';
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
+import { CATACOMB_WING_GROUNDS } from './catacomb-wings.js';
 import { TIER_IDS, DEFAULT_TIER, tiersOf } from './hunt-tiers.js';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
@@ -118,7 +119,10 @@ const BASE_VS_ALONE = Object.freeze({
   coppercap_warrens: lines({ normal: said([-30, 20], [-25, 25, 30], [-30, 20, 25, 30]), dangerous: said([-25, 25], [-20, 30, 35], [-25, 25, 35, 35]), deadly: said([-25, 30], [-15, 35, 45], [-20, 30, 40, 40]) }),
 });
 /* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */
-export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: lines(p.partyVsAlone) } : {})));
+/* Then the Catacombs' wings (src/data/catacomb-wings.js `partyVsAlone`): rooms of the Unmarked Catacombs, carrying its lines until each wing is
+   measured on its own (staged, so no window shows them yet). */
+export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: lines(p.partyVsAlone) } : {})),
+  [{ id: 'catacomb-wings' }], () => Object.fromEntries(Object.entries(CATACOMB_WING_GROUNDS).filter(([, g]) => g.partyVsAlone).map(([id, g]) => [id, lines(g.partyVsAlone)]))));
 
 /* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than
    alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it.

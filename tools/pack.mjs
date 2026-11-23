@@ -60,21 +60,34 @@ export function monstersOfGround(ground) {
  *   the ground exists and its row validates (hunt-grounds.js validateGround), its hunt exists,
  *   every monster it places has a role on GROUND_ROSTER and a Level (the formula reads both), and no roster row names a monster the
  *   ground never places (a stale roster would be graded on nothing).
+ * A ground CUT FROM ANOTHER's rooms (`rosterGround`: the Catacombs' wings, src/data/catacomb-wings.js) reads its roles from that ground's
+ * roster and has none of its own (one role a monster: the sheet's rule). The roster ground must be a ground with its own roster, and
+ * every monster the cut places needs a role there; the cut places only part of it, so "never places" is the roster ground's own lint.
  */
 export function lintGround(gid, D) {
   const out = [];
   const g = own(D.G.HUNT_GROUNDS, gid) ? D.G.HUNT_GROUNDS[gid] : null;
   if (!g) return ['no ground ' + gid + ' (src/data/hunt-grounds.js or a pack)'];
   if (!own(D.HUNT_INDEX, g.hunt)) out.push(gid + ': its hunt ' + g.hunt + ' is not in src/data/hunts.js');
-  const roster = own(D.BS.GROUND_ROSTER, gid) ? D.BS.GROUND_ROSTER[gid] : null;
-  if (!roster) out.push(gid + ': no GROUND_ROSTER row (src/data/balance-sheet.js or the pack\'s roster): the formula has no roles for it');
+  const cut = g.rosterGround !== undefined && g.rosterGround !== null;
+  let roster = null;
+  if (cut) {
+    const rg = g.rosterGround, home = own(D.G.HUNT_GROUNDS, rg) ? D.G.HUNT_GROUNDS[rg] : null;
+    if (own(D.BS.GROUND_ROSTER, gid)) out.push(gid + ': reads its roles from ' + rg + ' (rosterGround) and has a GROUND_ROSTER row of its own: one role a monster');
+    if (!home || rg === gid || (home.rosterGround !== undefined && home.rosterGround !== null)) out.push(gid + ': its rosterGround ' + rg + ' is not another ground with a roster of its own');
+    else if (!own(D.BS.GROUND_ROSTER, rg)) out.push(gid + ': its rosterGround ' + rg + ' has no GROUND_ROSTER row: the formula has no roles for it');
+    else roster = D.BS.GROUND_ROSTER[rg];
+  } else {
+    roster = own(D.BS.GROUND_ROSTER, gid) ? D.BS.GROUND_ROSTER[gid] : null;
+    if (!roster) out.push(gid + ': no GROUND_ROSTER row (src/data/balance-sheet.js or the pack\'s roster): the formula has no roles for it');
+  }
   const placed = monstersOfGround(g);
   for (const id of placed) {
     if (!own(D.MONSTERS, id)) { out.push(gid + ': places ' + id + ', which is not a monster'); continue; }
-    if (roster && !own(roster, id)) out.push(gid + ': ' + id + ' has no role on the roster');
+    if (roster && !own(roster, id)) out.push(gid + ': ' + id + ' has no role on the roster' + (cut ? ' of ' + g.rosterGround : ''));
     if (!Number.isInteger(D.MONSTERS[id].level)) out.push(gid + ': ' + id + ' has no Level');
   }
-  for (const id of Object.keys(roster || {})) if (!placed.includes(id)) out.push(gid + ': the roster names ' + id + ', which the ground never places');
+  if (!cut) for (const id of Object.keys(roster || {})) if (!placed.includes(id)) out.push(gid + ': the roster names ' + id + ', which the ground never places');
   return out;
 }
 
@@ -200,6 +213,25 @@ async function selftest() {
     ['a placed monster that does not exist', () => lintGround(gid, { ...D, MONSTERS: Object.fromEntries(Object.entries(D.MONSTERS).filter(([k]) => k !== first)) })],
     ['a placed monster with no Level', () => lintGround(gid, { ...D, MONSTERS: { ...D.MONSTERS, [first]: { ...D.MONSTERS[first], level: undefined } } })],
   ];
+  /* A CUT GROUND (`rosterGround`, the Catacombs' wings): planted on a shipped cut, each way its borrowed roster goes wrong bites */
+  const cutId = Object.keys(D.G.HUNT_GROUNDS).find((x) => D.G.HUNT_GROUNDS[x].rosterGround);
+  if (!cutId) bad.push('no shipped ground reads its roles from another (rosterGround): the cut-ground refusals below plant on nothing');
+  else {
+    const cutG = D.G.HUNT_GROUNDS[cutId], rg = cutG.rosterGround, cutFirst = monstersOfGround(cutG)[0];
+    const withCut = (patch, roster) => ({ ...D, G: { ...D.G, HUNT_GROUNDS: { ...D.G.HUNT_GROUNDS, [cutId]: { ...cutG, ...patch } } },
+      BS: roster ? { ...D.BS, GROUND_ROSTER: roster({ ...D.BS.GROUND_ROSTER }) } : D.BS });
+    const { [cutFirst]: _gone, ...homeShort } = D.BS.GROUND_ROSTER[rg];
+    cases.push(
+      ['a cut ground with no rosterGround and no roster of its own', () => lintGround(cutId, withCut({ rosterGround: undefined }))],
+      ['a cut ground whose rosterGround is no ground', () => lintGround(cutId, withCut({ rosterGround: 'no_such_ground' }))],
+      ['a cut ground whose rosterGround is itself', () => lintGround(cutId, withCut({ rosterGround: cutId }))],
+      ['a cut ground whose rosterGround is a cut ground too', () => lintGround(cutId, { ...withCut({}), G: { ...D.G, HUNT_GROUNDS: { ...D.G.HUNT_GROUNDS,
+        [cutId]: { ...cutG, rosterGround: 'cut_of_a_cut' }, cut_of_a_cut: { ...D.G.HUNT_GROUNDS[rg], rosterGround: rg } } } })],
+      ['a cut ground whose rosterGround has no roster', () => lintGround(cutId, withCut({}, (r) => { delete r[rg]; return r; }))],
+      ['a cut ground placing a monster its rosterGround gives no role', () => lintGround(cutId, withCut({}, (r) => ({ ...r, [rg]: homeShort })))],
+      ['a cut ground with a roster row of its own too', () => lintGround(cutId, withCut({}, (r) => ({ ...r, [cutId]: { [cutFirst]: 'regular' } })))],
+    );
+  }
   /* THE PACK FIELDS (engine piece 10): every pack's fields lint clean; each shape refusal (definePack) and data refusal (lintFields) bites */
   const { GROUND_PACKS } = await import(u('src/data/grounds/index.js'));
   const { definePack } = await import(u('src/data/grounds/shape.js'));

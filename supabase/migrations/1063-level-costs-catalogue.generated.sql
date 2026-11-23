@@ -169,8 +169,6 @@ begin
     (62, 500, 35923850::bigint, 1129617::bigint, 1077715::bigint, 1077715::bigint),
     (63, 1000, 38026124::bigint, 2321886::bigint, 2281567::bigint, 2281567::bigint),
     (63, 500, 38026124::bigint, 1160943::bigint, 1140783::bigint, 1140783::bigint),
-    (64, 1000, 40211137::bigint, 2383806::bigint, 2383805::bigint, 2383806::bigint),
-    (64, 500, 40211137::bigint, 1191903::bigint, 1191902::bigint, 1191903::bigint),
     (70, 1000, 55076878::bigint, 2742130::bigint, 2742129::bigint, 2742130::bigint),
     (70, 500, 55076878::bigint, 1371065::bigint, 1371064::bigint, 1371065::bigint),
     (100, 1000, 176709043::bigint, 4351932::bigint, 4351931::bigint, 4351932::bigint),
@@ -215,7 +213,6 @@ begin
     (61, 16431::bigint),
     (62, 16497::bigint),
     (63, 16563::bigint),
-    (64, 16629::bigint),
     (70, 17032::bigint),
     (100, 19199::bigint),
     (200, 28619::bigint),
@@ -302,12 +299,6 @@ begin
     (63, 3, 66252::bigint),
     (63, 15, 271368192::bigint),
     (63, 16, null::bigint),
-    (64, 0, 8315::bigint),
-    (64, 1, 16629::bigint),
-    (64, 2, 33258::bigint),
-    (64, 3, 66516::bigint),
-    (64, 15, 272449536::bigint),
-    (64, 16, null::bigint),
     (70, 0, 8516::bigint),
     (70, 1, 17032::bigint),
     (70, 2, 34064::bigint),
@@ -354,5 +345,5 @@ begin
     if v_p is distinct from v_r.price then
       raise exception 'VERIFY(e): paid reset % of a day at Level % costs % in SQL, % in src/core/wage.js', v_r.n + 1, v_r.l, v_p, v_r.price; end if;
   end loop;
-  raise notice 'gen-level-costs: the row, the death pinned at % points, the Blessing at %, the reset at %; all green', 40, 20, 120;
+  raise notice 'gen-level-costs: the row, the death pinned at % points, the Blessing at %, the reset at %; all green', 38, 19, 114;
 end $mig$;

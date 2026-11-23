@@ -1541,8 +1541,10 @@ export const MUTATIONS = [
     [WINDOW, "  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;",
       '  return ACCRUE_MIN_MS;'],
   ], 'a watched bench pays once a minute: the bag does not update as it goes', /T10/],
+  /* M12, M10, M3, M7 RE-ANCHORED (lane/r12-company-trades, 1059): a run now ends when it stops OR the work day runs out (`runOver`),
+     and a window the day cut skips the floor (`!workCapped`); each defect is the one it was. */
   ['M12 the accrue verb loses its floor', [
-    [ENGINE, "  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue') {",
+    [ENGINE, "  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue' && !workCapped) {",
       '  if (false) {'],
   ], 'a client polling every second writes a ledger row every second', /T10a|sub-threshold/],
   /* M1 RE-ANCHORED (v0.2.48): since SKILLS FROM STORAGE the artisan sink reads the
@@ -1558,14 +1560,14 @@ export const MUTATIONS = [
   /* job-counts (29e4e5122) folded the countdown into the line that also states a job's end (stopped && jobEnds): the mutant takes
      only the countdown arm, so a running job's count never moves while a finished one still says so */
   ['M10 "make N" never counts down (lane c-work-fixes)', [
-    [BENCH, '  if (left1 !== null && ((stopped && inp.jobEnds === true) || (!stopped && left1 < left0))) delta.active_left = left1;',
-      '  if (left1 !== null && ((stopped && inp.jobEnds === true) || false)) delta.active_left = left1;'],
+    [BENCH, '  if (left1 !== null && ((runOver && inp.jobEnds === true) || (!runOver && left1 < left0))) delta.active_left = left1;',
+      '  if (left1 !== null && ((runOver && inp.jobEnds === true) || false)) delta.active_left = left1;'],
   ], 'a run cut across settles makes N in every window'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
     [BENCH, "      kind: 'craft',", "      kind: 'artisan',"],
   ], 'player_ledger_kind_check refuses it; hr_apply answers bad_delta and the night is lost'],
   ['M3  a stopped run does not clear the pointer', [
-    [BENCH, "  if (stopped) delta.activity = { kind: 'idle', id: null };", '  /* MUTATED */'],
+    [BENCH, "  if (runOver) delta.activity = { kind: 'idle', id: null };", '  /* MUTATED */'],
   ], 'the player is stuck on a bench with an empty bag forever'],
   ['M4  an absent unlockedRecipes map fails OPEN', [
     [BENCH, "    unlockedRecipes: (inp.unlockedRecipes && typeof inp.unlockedRecipes === 'object')",
@@ -1593,7 +1595,7 @@ export const MUTATIONS = [
       '  /* MUTATED */'],
   ], 'an unsimulated kind answers no refusal at all (no reason, no delta contract)'],
   ['M7  nothing-happened swallows a first-tick stop', [
-    [BENCH, '  if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };',
+    [BENCH, '  if (nothingHappened && !runOver) return { accrued: false, reason: SKIP.NOTHING, summary };',
       '  if (nothingHappened) return { accrued: false, reason: SKIP.NOTHING, summary };'],
   ], 'the second collect of an exhausted bench leaves the pointer stuck'],
   ['M8  set_activity accepts an unpayable bench', [

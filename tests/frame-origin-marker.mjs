@@ -61,24 +61,25 @@ function stripComments(sql) {
   }).join('\n');
 }
 
-/* Every literal `create or replace function public.<name>(` and its text, to the
-   close of its dollar-quoted body (`$tag$ ... $tag$`): the next definition or the
-   end of the file when no body closes before it. Bounded so a `do` block or a
-   self-check AFTER the last function of a file is not read as that function's
-   body (1059-company-trades.sql: hr_tick_town_state, then a do block that edits
-   hr_apply and a self-check that calls it, read as one body, 2026-11-23). */
+/* Every literal `create or replace function public.<name>(` and its text: up to
+   the close of its own dollar-quoted body (the first `$tag$` after the create
+   opens it, the next same `$tag$` closes it, so an inner `$a$ … $a$` does not),
+   else, with no dollar-quoted body, up to the next create (or the end of the
+   file). Ending at the body keeps what FOLLOWS the function out of it: a later
+   `do` block that patches hr_apply by name (1059-company-trades.sql's §6 right
+   after its hr_tick_town_state) is no call the tick function makes. */
+const DOLLAR = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/g;
 function definitions(sql) {
   const re = /create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi;
   const hits = [...sql.matchAll(re)];
   return hits.map((m, i) => {
     const next = i + 1 < hits.length ? hits[i + 1].index : sql.length;
+    DOLLAR.lastIndex = m.index + m[0].length;
+    const open = DOLLAR.exec(sql);
     let end = next;
-    const open = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/g;
-    open.lastIndex = m.index;
-    const o = open.exec(sql);
-    if (o && o.index < next) {
-      const close = sql.indexOf(o[0], o.index + o[0].length);
-      if (close >= 0 && close < next) end = close + o[0].length;
+    if (open && open.index < next) {
+      const close = sql.indexOf(open[0], open.index + open[0].length);
+      if (close >= 0) end = close + open[0].length;
     }
     return { name: m[1].toLowerCase(), body: sql.slice(m.index, end) };
   });
@@ -166,13 +167,14 @@ returns void language plpgsql as $$
 begin
   perform public.hr_apply(null, 0, 0, null, p);
 end $$;` }] },
-  { id: 'named_tag_tick_writer_unmarked_before_a_do_block', want: 'M2',
-    plant: (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_tick_town_settle(p jsonb)
+  /* the body is read to its OWN close: an inner `$q$ … $q$` inside `$fn$` does not end it, so a call after one is still read */
+  { id: 'new_tick_writer_unmarked_past_an_inner_quote', want: 'M2',
+    plant: (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_tick_settle_batch(p jsonb)
 returns void language plpgsql as $fn$
 begin
+  execute $q$ select 1 $q$;
   perform public.hr_apply(null, 0, 0, null, p);
-end $fn$;
-do $chk$ begin perform ${MARK}; end $chk$;` }] },
+end $fn$;` }] },
   { id: 'later_emitter_drops_gate', want: 'M3',
     plant: (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_frame_send(p_user uuid, p_slot int, p_env jsonb)
 returns void language plpgsql as $$
@@ -189,13 +191,18 @@ end $$;` }] },
 
 // The negative control: a later file that does it RIGHT must stay green.
 const CONTROL = (fs) => [...fs, { name: LATER, text: TICK_BODY(`  perform ${MARK};`) }];
-// The second control: a tick READ that never calls hr_apply, then a do block and a self-check that do, is not a tick writer.
-const CONTROL_AFTER = (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_tick_town_read(p_user uuid)
+// The second control (1059-company-trades.sql's shape): a tick function that never calls hr_apply, then a `do` block in
+// the same file that patches hr_apply by name. The patch is not the function's call; reading it as one was a false red.
+const CONTROL_PATCH_AFTER = (fs) => [...fs, { name: LATER, text: `create or replace function public.hr_tick_town_read(p uuid)
 returns jsonb language plpgsql stable as $fn$
 begin
-  return '{}'::jsonb;
+  return jsonb_build_object('ok', true);
 end $fn$;
-do $mig$ declare v jsonb; begin v := public.hr_apply(null, 0, 0, null, '{}'::jsonb); end $mig$;` }];
+do $mig$
+declare v_def text;
+begin
+  v_def := pg_get_functiondef('public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure);
+end $mig$;` }];
 
 async function main() {
   let files;
@@ -215,9 +222,9 @@ async function main() {
   const ctl = check(CONTROL(files));
   if (ctl.length) { console.error(`  ✗ negative control: a correctly-marked later restatement went red (${ctl[0]})`); bad += 1; }
   else console.log('  ✓ negative control: a correctly-marked later restatement stays green');
-  const ctl2 = check(CONTROL_AFTER(files));
-  if (ctl2.length) { console.error(`  ✗ negative control: a tick read followed by a do block that calls hr_apply went red (${ctl2[0]})`); bad += 1; }
-  else console.log('  ✓ negative control: a tick read followed by a do block that calls hr_apply stays green');
+  const ctl2 = check(CONTROL_PATCH_AFTER(files));
+  if (ctl2.length) { console.error(`  ✗ negative control: a tick read followed by a do block that patches hr_apply went red (${ctl2[0]})`); bad += 1; }
+  else console.log('  ✓ negative control: a tick read followed by a do block that patches hr_apply by name stays green');
   for (const m of MUTATIONS) {
     const planted = m.plant(files);
     if (m.id.startsWith('own_file_loses') && planted.find((f) => f.name === OWN).text === files.find((f) => f.name === OWN).text) {

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b137ae9a21bb853f",
+ "authored": "eae1cb8dbdfbbab1",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 237,
+  "levers": 239,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 9,
@@ -76,9 +76,9 @@
    "crit": 3,
    "leech": 2,
    "regen": 6,
-   "monster-stats": 37,
+   "monster-stats": 38,
    "spawn": 12,
-   "monster-rewards": 18,
+   "monster-rewards": 19,
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
@@ -90,7 +90,7 @@
    "global": 127,
    "archetype": 32,
    "content": 50,
-   "exception-intentional": 17,
+   "exception-intentional": 19,
    "exception-accidental": 11
   },
   "byPerturb": {
@@ -100,25 +100,25 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 34,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 41,
+   "not-playable:not-in-runs": 43,
    "variant": 5,
    "not-playable:not-built": 26,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 128,
+   "asserted": 130,
    "mentioned only": 89,
    "none": 20
   },
   "flags": {
-   "redundant": 41,
+   "redundant": 43,
    "ineffective": 34,
    "contradictory": 38
   }
  },
  "census": {
   "bindings": 753,
-  "typed": 16820,
+  "typed": 16822,
   "files": 260,
   "lever": 327,
   "notLever": 426,
@@ -7796,7 +7796,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 244,
+     "line": 254,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7865,19 +7865,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 251,
+     "line": 261,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 252,
+     "line": 262,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 253,
+     "line": 263,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -7941,8 +7941,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 271,
-     "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
+     "line": 284,
+     "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
    ],
@@ -8001,7 +8001,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md)"
+   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md); 700 since lane/monster-roles-ford-wings 2026-11-23, every scale ground on the formula: the tank four never died at 700 in 12 seed-days on each of the four (48, beside the tuning pass's 32 on Muster; tools/balance-program/redesign/tuning/roles/line)"
   },
   {
    "id": "danger.pay",
@@ -8145,7 +8145,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 199,
+     "line": 209,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8213,13 +8213,177 @@
    "evidence": "MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)"
   },
   {
+   "id": "danger.formula-step",
+   "category": "monster-stats",
+   "name": "Where a formula ground's reference monsters stand",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 211,
+     "text": "catacomb_bone_wing: ground({ refStep: 440, floorStep: 380, topStep: 530, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 212,
+     "text": "catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 470, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "a formula ground's monsters are written at a gap of 0 for the formula's reference company here, and its pull is sized from here (src/core/hunt/danger.js formulaStepOf, read by monster-formula.js and formulaBasePull); absent, the row's refStep. refStep stays the pay's reference, cut by the band rule where the MEASURED reference company holds: held at one step, a ground whose company holds far off the anchor paid every stance under the pay floor",
+   "range": "a whole step inside the scale (tools/gen-danger.mjs refuses one off it). A bridge like refStep: it goes when bands, monsters and pay are all in absolute steps (27 stage 6)",
+   "touches": "where the band rule's reference sits against the monsters, so C7 and C-5 on that ground",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-MON-STATS"
+   ],
+   "reach": {
+    "feeds": 12,
+    "closure": 79
+   },
+   "class": "exception-intentional",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/monster-formula.mjs",
+      "what": "grounds: each monster at its derived health on the anchor, a ground paid off its anchor",
+      "reads": [
+       "formulaStepOf"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/bands.mjs",
+     "tests/content-coherence.mjs",
+     "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 17,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only (tools/balance-program/redesign/tuning/roles)",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the scale grounds whose measured reference company holds off the formula's anchor (the Catacomb wings)",
+    "homes": [
+     "src/data/danger.js#DANGER_GROUNDS"
+    ]
+   },
+   "flags": [
+    {
+     "kind": "redundant",
+     "why": "A second per-ground step beside refStep (LR-1: no per-ground dial); it retires with absolute steps",
+     "ev": "27 stage 6; JUDGMENT"
+    }
+   ],
+   "evidence": "MEASURED (lane/monster-roles-ford-wings: the Bone Wing's Steady mixed four at Level 175 held 440 against the anchor 520, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles/after)"
+  },
+  {
+   "id": "danger.coin-kept",
+   "category": "monster-rewards",
+   "name": "The kill rate a ground's coin rows were written at",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 210,
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "a scale kill pays its row's coin x coinKillsHead / the ground's reference kills (src/core/hunt/danger.js coinKeptOf), so a ground whose rows were written at another kill rate keeps its hour's coin, as a drop keeps its hours through a re-measured kill rate (tools/gen-drop-hours.mjs); absent, x1. The server's ceiling a kill reads the dial (tools/gen-danger.mjs coin_pm_max)",
+   "range": "a whole kill rate a head an hour (tools/gen-danger.mjs refuses any other). A bridge: it goes when coin is written in hours (27 stage 9)",
+   "touches": "coin an hour on that ground (EL-PAY), and the kit share through it",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "C-TIER",
+    "P22"
+   ],
+   "reach": {
+    "feeds": 9,
+    "closure": 78
+   },
+   "class": "exception-intentional",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "coinkept: a ground keeps its coin at the kill rate it was written for, at every step and party size",
+      "reads": [
+       "coinKillsHead"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/bands.mjs",
+     "tests/content-coherence.mjs",
+     "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 17,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only (tools/balance-program/redesign/tuning/roles)",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the scale grounds whose coin rows were written for another kill rate (Hask's Ford, on its hand rows)",
+    "homes": [
+     "src/data/danger.js#DANGER_GROUNDS"
+    ]
+   },
+   "flags": [
+    {
+     "kind": "redundant",
+     "why": "A per-ground number for coin until coin is written in hours (LR-1)",
+     "ev": "27 stage 9; JUDGMENT"
+    }
+   ],
+   "evidence": "MEASURED (lane/monster-roles-ford-wings: on its hand rows the Ford's Steady four killed 232 a head an hour and earned 12,243 coin a hero-hour; on the formula 134 and 6,783, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles)"
+  },
+  {
    "id": "danger.band-rule",
    "category": "monster-rewards",
    "name": "How every ground's band is cut from its three Lab cells",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 220,
+     "line": 230,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8428,19 +8592,19 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 82,
+     "line": 85,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 84,
+     "line": 87,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 90,
+     "line": 93,
      "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
      "binding": "MONSTER_ROLES"
     }
@@ -8515,37 +8679,37 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 80,
+     "line": 83,
      "text": "armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 83,
+     "line": 86,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 86,
+     "line": 89,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 89,
+     "line": 92,
      "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 91,
+     "line": 94,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 95,
+     "line": 98,
      "text": "armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
      "binding": "MONSTER_ROLES"
     }
@@ -8622,7 +8786,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 96,
+     "line": 99,
      "text": "mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
      "binding": "MONSTER_ROLES"
     }
@@ -8686,7 +8850,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 120,
+     "line": 123,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8750,13 +8914,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 122,
+     "line": 125,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 123,
+     "line": 126,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8815,7 +8979,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 125,
+     "line": 128,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8877,7 +9041,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 126,
+     "line": 129,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8939,13 +9103,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 128,
+     "line": 131,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 129,
+     "line": 132,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9913,7 +10077,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 34,
+     "distinct": 45,
      "low": 0.06,
      "high": 1
     }
@@ -10157,9 +10321,9 @@
       "trophy"
      ],
      "rows": 320,
-     "distinct": 76,
+     "distinct": 79,
      "low": 0.0005,
-     "high": 0.05
+     "high": 0.0815
     }
    },
    "flags": [
@@ -11834,7 +11998,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 199,
+     "line": 209,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -11909,7 +12073,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 199,
+     "line": 209,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -17511,8 +17675,10 @@
   "src/data/danger.js#DANGER_GROUNDS": {
    "pin": "keys",
    "keys": [
+    "coinKillsHead",
     "entryLevel",
     "floorStep",
+    "formulaStep",
     "gearLevel",
     "ladderTier",
     "refKillsHead",

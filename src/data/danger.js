@@ -193,13 +193,23 @@ export const DANGER_GROUNDS = Object.freeze({
      each), Pyre Field in 1 to 3 of 4 (and drops two ladder tiers, Muster's and Krell's), against 12-targets C-3's none. They wait for their
      monsters' fit, not for a band. */
   /* muster_barrows ON THE FORMULA (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md): its four rows carry roles, and on the formula the
-     Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way. The Ford
-     and the wings stay on their rows: none of their monsters carries a role yet, so the switch sized their pulls and kept their hand rows
-     (the Ford's Steady four held 92 steps under its reference, the wings' Careful out-earned Steady) */
+     Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way.
+     EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23; 29-tuning-pass.md section 6): the Ford's four rows and the
+     Catacombs' five carry roles (src/data/monster-roles.js), so every switch is on, and each band is the band rule's, cut on the formula
+     (tools/new-ground.mjs, 8 seeds x 10 h). Two bridges a row may name beside its band:
+       formulaStep    WHERE THE FORMULA'S REFERENCE MONSTERS STAND (src/core/hunt/danger.js formulaStepOf; absent: refStep). refStep is the
+                      pay's reference, where the MEASURED reference company holds; the two part where that company is not the formula's.
+                      The wings' Level 175 company holds 60 to 80 steps under the anchor its monsters were measured at (520, 500), so held at
+                      one step every stance paid under PAY.floor there and Careful out-earned Steady. Muster's refStep is its anchor by hand
+                      (tests/danger-band-pins.json says why), the Ford's measured company holds on its anchor
+       coinKillsHead  THE KILL RATE A GROUND'S COIN ROWS WERE WRITTEN AT (danger.js coinKeptOf): the Ford's, on its hand rows, 235 a head an
+                      hour; on the formula it kills 135, and its hour's coin fell to 0.43 of the wage (EL-PAY). Each kill pays that ratio
+                      more, so the hour stands where its rows put it, as every drop keeps its hours (tools/gen-drop-hours.mjs). Coin
+                      written in hours (27 stage 9) retires it */
   muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
-  hasks_ford: ground({ refStep: 590, floorStep: 565, topStep: 675, refKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'rows' }),
-  catacomb_bone_wing: ground({ refStep: 520, floorStep: 475, topStep: 580, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
-  catacomb_flooded_wing: ground({ refStep: 500, floorStep: 430, topStep: 565, refKillsHead: 205, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
+  catacomb_bone_wing: ground({ refStep: 440, floorStep: 380, topStep: 530, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 470, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */
@@ -267,8 +277,11 @@ export const RISKS = Object.freeze({
    800 KEPT BY THE TUNING PASS (lane/tuning-pass, the designer, 2026-11-23; 29-tuning-pass.md 3.4): the tank four (tank, bow, mage, healer),
    Steady, 10 h seed-days: on Muster Barrows' formula monsters (their blow cap) 600 and 700 never died (12 and 32 seed-days); on Hask's Ford's
    hand rows 600 died 3 times in 12, 700 once in 32, 800 never in 18. The lowest line with no Steady death is 800 while the Ford plays rows;
-   re-read 700 when its monsters carry roles. */
-export const HOLDER = Object.freeze({ linePm: 800 });
+   re-read 700 when its monsters carry roles.
+   700 SINCE EVERY GROUND PLAYS THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23; 29-tuning-pass.md section 6): the tank four on Steady
+   at each ground's reference Level never died at 700, 12 seed-days a ground on all four (48; beside the tuning pass's 32 on Muster), so the
+   line moves toward Tyler's 15% by the one step the evidence allows (tools/balance-program/redesign/tuning/roles/line). */
+export const HOLDER = Object.freeze({ linePm: 700 });
 
 /* THE DEFAULT STANCE (02 package 3 and package 8, "the first party ground runs on Steady"; the Coordinator 2026-11-22, lane R2): a hunt on a
    ground the scale opens on, whose leader's plan names no stance, plays this one. The server freezes it (hr_danger_rules.default_risk,

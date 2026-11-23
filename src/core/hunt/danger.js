@@ -99,19 +99,24 @@ export function dangerDial(ground, step, heroes = REF_HEROES) {
   /** @type {Record<string, any>} */
   const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
-  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
+  dial.dropPm = dropPmAt(ground, s, n0, pull);
+  dial.coinPm *= coinKeptOf(ground);
   return formulaPull(ground, s, heroes, dial);
 }
 /* A FORMULA GROUND'S PULL (DANGER_GROUNDS `monsters: 'formula'`, src/core/hunt/monster-formula.js): sized to the party, heroes x
    MONSTER_FORMULA.encounterPerHero at the ground's reference step, growing by pullStep from there, each monster the step's ratio over it.
    Its coin keeps the as-built pull's share (`dial.coinPm`), so a kill pays the same coin on either switch and the server's ceiling a kill
-   (hr_danger_grounds.coin_pm_max) holds. Any other ground: the dial as it is. */
+   (hr_danger_grounds.coin_pm_max) holds. Its LOOT follows the pull it fights (lane/monster-roles-ford-wings, 2026-11-23): the drop table's
+   share is this pull's over its own reference pull's, so an hour's loot is the depth ratio exactly at every pull size, as on a hand ground
+   (it read the as-built pull, so an hour's loot jumped wherever the two pulls round apart: Muster Barrows under step 547, Hask's Ford under
+   579). Any other ground: the dial as it is. */
 function formulaPull(ground, s, heroes, dial) {
   const fg = groundRow(ground);
   if (!fg || fg.monsters !== 'formula' || !Number.isInteger(fg.refLevel)) return dial;
   const nf = formulaBasePull(fg, heroes);
   const pull = pullAt(nf, s);
   const each = 1000 * powStep(1 + DANGER.powerStep, s) * (nf / pull);
+  dial.dropPm = dropPmAt(ground, s, nf, pull);
   return { ...dial, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each };
 }
 /* THE REFERENCE COMPANY'S SIZE (04 section 1: four heroes) */
@@ -121,8 +126,14 @@ export const REF_HEROES = 4;
     with the party", so a lone hero and a four have the same time budget). */
 export function formulaBasePull(g, heroes) {
   const n = Math.max(1, Math.min(REF_HEROES, Number.isInteger(heroes) && heroes > 0 ? heroes : REF_HEROES));
-  return (n * MONSTER_FORMULA.encounterPerHero) / powStep(1 + DANGER.pullStep, g.refStep);
+  return (n * MONSTER_FORMULA.encounterPerHero) / powStep(1 + DANGER.pullStep, formulaStepOf(g));
 }
+/** THE STEP A FORMULA GROUND'S REFERENCE MONSTERS STAND AT (lane/monster-roles-ford-wings, 2026-11-23): DANGER_GROUNDS `formulaStep`, else
+    its refStep. src/core/hunt/monster-formula.js writes every role at a gap of 0 for the formula's reference company here, and the pull is
+    sized from here. refStep is the PAY's reference: where the band rule (tools/new-ground.mjs) finds the MEASURED reference company
+    holding. The two are one step until the measured company is not the formula's: on the Catacomb wings the Level 175 company holds 60 to
+    80 steps under the formula's anchor, so held at one step every stance there paid under the pay floor (Careful over Steady) */
+export const formulaStepOf = (g) => (g && Number.isInteger(g.formulaStep) ? g.formulaStep : g.refStep);
 /* the pull's size at step s from an as-built mean n0 (the dial's own rounding and box) */
 const pullAt = (n0, s) => Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
 /* the ground's reference step (0 on a ground with no row, which the server never opens on the scale) */
@@ -137,6 +148,16 @@ const COIN_STEP = (1 + WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
 /* THE LOOT RATIO A PULL (lane/foundations-block, 04 section 7 payStepLoot, 26 rank 6 "loot follows depth"): the same hour-neutral shape as
    COIN_STEP, so an hour a step deeper drops PAY.payStepLoot more of the kill's own table. */
 const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;
+/* A KILL'S DROP TABLE, permille: the pull's share over the reference pull's (`n` the pull's size at step 0, as built or a formula ground's
+   sized to its party; `pull` the pull at this step) x the depth ratio at LOOT_STEP, so an hour's loot is the depth ratio at any pull size */
+const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);
+/* COIN KEPT IN ITS HOURS (lane/monster-roles-ford-wings, 2026-11-23): a kill's coin is its row's roll, so a ground's coin an hour is its kills
+   an hour times its rows. A ground whose rows were written for another kill rate (DANGER_GROUNDS coinKillsHead: Hask's Ford's on its hand
+   rows, before its monsters played the formula) pays each kill that rate over its reference kills, so its hour's coin stands where its
+   rows put it, as tools/gen-drop-hours.mjs keeps a drop's hours through a re-measured kill rate. Absent: x1. The server's ceiling a kill
+   (hr_danger_grounds.coin_pm_max, tools/gen-danger.mjs) reads this dial, so it follows. Retires with coin written in hours
+   (27-formula-overhaul.md stage 9). */
+const coinKeptOf = (ground) => { const row = groundRow(ground); return row && Number.isInteger(row.coinKillsHead) ? row.coinKillsHead / refKillsOf(ground) : 1; };
 
 /* A RATIO TO A WHOLE STEP by squaring: multiplications only, each exactly rounded on every JS engine, so a browser's live view and the
    edge's settle reach the same last bit (tests/hunt-scene-live.mjs LV-33). One home: src/data/wage.js powSquare. */

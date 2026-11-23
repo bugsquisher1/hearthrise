@@ -147,7 +147,13 @@ const SEED = '-4611686018427387904';
    diffed against the pin before this lane; muster-steps-4 172 kills.
    RE-PINNED 2026-11-23 (lane/stage3-pipeline merged with set/v0.2.144 at 319590c72), muster-steps-4 ONLY: the four tier scenarios hold the
    set's own pin to the byte (world, timeline, tally, kills 200 / 492 / 140 / 99), diffed against it; the scale scenario moves at every settle
-   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172). */
+   from the set's merged engine (Temper on steps, the halls formula, gear phase A's generated stats on its kits); kills held (172).
+   RE-PINNED 2026-11-23 (lane/monster-roles-ford-wings, on set/v0.2.144 5d55d0af8), muster-steps-4 ONLY: the four tier scenarios hold world,
+   timeline, tally and kills (200 / 492 / 140 / 99) to the byte; muster-steps-4 keeps its 170 kills. Two causes, each proved alone: (1) the
+   TALLY from settle 7: a formula ground's loot now follows the pull it fights (src/core/hunt/danger.js dropPmAt in formulaPull), and from
+   step 0 Muster's party-sized pull rounds apart from its as-built one, so a kill's drop chances move there (proof: HOLDER.linePm planted back
+   at 800, the world and timeline hold at every settle and only the tally moves, from settle 7); (2) the WORLD from settle 8: the holding
+   tank's line 800 -> 700 (src/data/danger.js HOLDER), the first window in which the four's tank dips between 17.5% and 20%. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

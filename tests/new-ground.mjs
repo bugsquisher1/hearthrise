@@ -17,7 +17,8 @@
 //         its LOW cell
 //   NG-4  --write's row edit sets the band on an existing row, adds or drops refKillsHead, leaves every other row alone, and refuses
 //         a ground with no row (a new ground's gear base, drop home and Trait pool are the designer's)
-//   NG-5  the print moves when a ground's monster numbers or pockets move, and not for a name, an icon or a drop
+//   NG-5  the print moves when a ground's monster numbers or pockets move, and not for a name, an icon or a drop; on the formula, when its
+//         anchor (DANGER_GROUNDS formulaStep, lane/monster-roles-ford-wings) moves
 //   NG-6  THE MEASURING CHECK OF THE ABSOLUTE BAND (lane/foundations-block; src/core/bands.js bandAbs, src/data/sustain.js): every pinned
 //         ground's evidence read with its formula band keeps its pin's verdict (today's rows pass), and each failure the check exists for is
 //         a REVIEW note: a ground a tier under that tops out under this floor (27 K-6), a MID cell measured off the row's refLevel (27 K-5),
@@ -88,7 +89,8 @@ const a = rewriteRow(src, 'muster_barrows', { refStep: 600, floorStep: 490, topS
 ok(a && /refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130, gearLevel: tierLevel\(3\)/.test(lineOf(a, 'muster_barrows')), 'NG-4 muster row not rewritten: ' + (a && lineOf(a, 'muster_barrows')));
 ok(a && lineOf(a, 'hasks_ford') === lineOf(src, 'hasks_ford'), 'NG-4 another row moved');
 const b = rewriteRow(src, 'hasks_ford', { refStep: 590, floorStep: 470, topStep: 710 });
-ok(b && /topStep: 710, gearLevel/.test(lineOf(b, 'hasks_ford')), 'NG-4 refKillsHead not dropped: ' + (b && lineOf(b, 'hasks_ford')));
+/* (the row's other fields stay where they stood: the Ford's coinKillsHead, lane/monster-roles-ford-wings, follows the band) */
+ok(b && /topStep: 710, /.test(lineOf(b, 'hasks_ford')) && !/refKillsHead/.test(lineOf(b, 'hasks_ford')) && /gearLevel: tierLevel\(2\)/.test(lineOf(b, 'hasks_ford')), 'NG-4 refKillsHead not dropped: ' + (b && lineOf(b, 'hasks_ford')));
 ok(rewriteRow(src, 'hasks_ford', DANGER_GROUNDS.hasks_ford) === src, 'NG-4 the same band is not a no-op');
 ok(rewriteRow(src, 'nowhere_field', { refStep: 1, floorStep: 0, topStep: 2 }) === null, 'NG-4 a ground with no row was written');
 /* NG-5 */
@@ -102,6 +104,9 @@ ok(packPrint(moved, MONSTERS, monstersOn) !== base, 'NG-5 a pocket losing a mons
 /* (lane/monster-formula) the ground's monsters switch: on the formula its rows play other numbers, so the print moves; on its rows it stays */
 ok(packPrint(g, MONSTERS, monstersOn, 'formula') !== base, 'NG-5 the monsters switch to the formula kept the print');
 ok(packPrint(g, MONSTERS, monstersOn, 'rows') === base, 'NG-5 a ground on its rows moved the print');
+/* (lane/monster-roles-ford-wings) the formula's anchor: moved, every hold moves with it; on its rows it plays no part */
+ok(packPrint(g, MONSTERS, monstersOn, 'formula', 520) !== packPrint(g, MONSTERS, monstersOn, 'formula'), 'NG-5 the formula\'s anchor moved and kept the print');
+ok(packPrint(g, MONSTERS, monstersOn, 'rows', 520) === base, 'NG-5 an anchor on a ground on its rows moved the print');
 
 /* NG-6 */
 const absOf = (g, o = {}) => ({ band: bandAbs(g), prevTopPm: null, refLevel: DANGER_GROUNDS[g].refLevel, sustain: SUSTAIN, ...o });

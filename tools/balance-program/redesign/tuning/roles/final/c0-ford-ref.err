@@ -1,0 +1,25 @@
+V1: 24 seed jobs (3 cells x 8 seeds x 10 h) on 10 workers; hasks_ford, Levels 52 / 55 / 62
+[1/24] base:careful#5 86 s, 87 s elapsed
+[2/24] base:careful#0 88 s, 89 s elapsed
+[3/24] base:careful#4 88 s, 89 s elapsed
+[4/24] base:careful#7 88 s, 89 s elapsed
+[5/24] base:careful#2 88 s, 89 s elapsed
+[6/24] base:careful#1 88 s, 89 s elapsed
+[7/24] base:careful#6 88 s, 89 s elapsed
+[8/24] base:careful#3 89 s, 90 s elapsed
+[9/24] base:steady#0 101 s, 103 s elapsed
+[10/24] base:steady#1 103 s, 105 s elapsed
+[11/24] base:steady#2 93 s, 180 s elapsed
+[12/24] base:steady#3 92 s, 181 s elapsed
+[13/24] base:steady#4 92 s, 181 s elapsed
+[14/24] base:steady#7 92 s, 182 s elapsed
+[15/24] base:steady#6 93 s, 182 s elapsed
+[16/24] base:steady#5 94 s, 183 s elapsed
+[17/24] base:bold#0 94 s, 184 s elapsed
+[18/24] base:bold#1 97 s, 187 s elapsed
+[19/24] base:bold#2 94 s, 197 s elapsed
+[20/24] base:bold#3 94 s, 199 s elapsed
+[21/24] base:bold#4 68 s, 247 s elapsed
+[22/24] base:bold#5 67 s, 247 s elapsed
+[23/24] base:bold#6 67 s, 248 s elapsed
+[24/24] base:bold#7 66 s, 248 s elapsed

@@ -128,9 +128,57 @@ No money call came out of this pass.
 
 ## 5. Not done, owed
 
-- **The Ford and both wings stay off the formula** until each of their monsters carries a role (a content lane: 4 Ford rows, 5 wing rows), then one `new-ground.mjs` run each.
-- **The Ford's damage all lands on its front** (1.00 in every lineup) and the tank four is deepest on both grounds: STYLE-3 waits for the Ford's roles.
+- ~~**The Ford and both wings stay off the formula**~~ Done, section 6.
+- ~~**The Ford's damage all lands on its front**~~ Its front now takes 0.68; STYLE-3 still fails (section 6).
 - **C-11 (moving on pays more) and F-1 (an outgrown ground pays more)** wait for stage 6.
 - **The wings' gold**: their coin rows are hand-typed and pay 1.4 to 1.7 of wage(175) (staged; coin in hours is stage 9).
 - **Bold's watched 2 h session** was read from hourly rates, not replayed (V2).
 - **C-6, C-7 (party against alone), C-9, C-10, C-12** were not in this matrix.
+
+## 6. Every scale ground on the formula (lane/monster-roles-ford-wings, systems, 2026-11-23)
+
+Section 5's first two rows, done. Measured the way section 2 was: `tuning/matrix.sh` (now with the two other lineups on every ground) and `tuning/line.sh` (the tank four's line), 8 seeds x 10 h a cell, held from hour 4. BEFORE is the set as merged (`tuning/roles/before`); the switch was measured as a Lab candidate (`roles/after`; the Flooded Wing again on the fixed engine, `roles/after-fix`); the pay cells are re-played on the final tree (`roles/final`).
+
+**The roles** (content, one word a row; `src/data/monster-roles.js`'s second batch). Read from each row's own words and the monster-formula lane's candidates (`candidates/mf-hasks.json`, `mf-wing.json`), so 20-v030 C2's Caster and Warder bodies stand on an open ground: Banded Pikeman swarm, Fordsunk brute, Ledger Wight caster (Hex on the whole party), Bannerman warder (Rally); Shrouded Pauper swarm, Vault Leech stalker, Bone Wall brute (its own Bone Slide), Night Carter and Keeper Dunn casters (their own Lime Sack and Snuff the Candles). With the Wight a stalker the Ford held 629 against its anchor 590; as a caster 590.
+
+**What the switch exposed, fixed in the engine.**
+- *A formula ground's loot read the as-built pull* (`dangerDial` dropPm), so an hour's loot jumped where the party-sized pull and the as-built one round apart (Muster under step 547, the Ford under 579). It reads the pull it fights now.
+- *Coin was a row's roll a kill.* The Ford's kills fell from 232 to 134 a head, and its Steady hour from 0.99 to 0.55 of the wage. `DANGER_GROUNDS coinKillsHead` (235, the rate its rows were written at) pays each kill that over its reference kills, as a drop keeps its hours. The server's coin ceiling follows (1061 regenerated, STAGED, a money surface).
+- *A full box can close a corridor.* The Flooded Vault's box of 8 fills a three-wide corridor at the plank bridge; the walled leader walked round the whole map for a roomier edge and every Steady hunt there ended `no_fight` within two hours (`roles/after` shows it: 8-second seeds). A roomier edge must be reached inside the pack area (`pull-cycle.js roomierEdge`).
+- *An anchor is not a measurement.* `formulaStep` is where a formula ground's reference monsters stand; refStep stays the pay's reference, where the band rule finds the measured company. They are one step on Muster (by hand) and the Ford (590 measured on 590), 60 to 80 apart on the wings: their Level 175 company deals half the formula's reference damage (Muster's company 0.64), so held at one step every stance there paid under the floor and Careful out-earned Steady (C-5 1.02).
+
+**The dials and bands**
+
+| Lever | Before | After | Why |
+|---|---|---|---|
+| `monsters` (Ford, Bone Wing, Flooded Wing) | rows | formula | every monster carries a role |
+| Hask's Ford band | 590 / 565 / 675, 235 kills | 590 / 550 / 660, 135 | band rule on the formula (8 seeds) |
+| Bone Wing band | 520 / 475 / 580, 185 | 440 / 380 / 530, 130; anchor 520 | the same |
+| Flooded Wing band | 500 / 430 / 565, 205 (STAGED: a Steady death) | 450 / 410 / 470, none (120); anchor 500 (OPEN) | the same |
+| `coinKillsHead` (Ford) | none | 235 | the hour's coin kept through the kill rate |
+| `HOLDER.linePm` | 800 | **700** | the tank four never died at 700: 0 in 12 seed-days on each ground (48; beside 3.4's 32 on Muster) |
+| The Ford's drop chances | derived at 220 (stale at 235) | at 135 (`gen-drop-hours --write`) | drops keep their hours |
+
+**The C-targets, before -> after** (Muster is unchanged by this lane but for the tank's line).
+
+| Target | Muster | Hask's Ford | Bone Wing (staged) | Flooded Wing (staged) |
+|---|---|---|---|---|
+| C-1 hold settles | se 2.3, drift 0.9 | 0.4 -> 1.0, drift 1.8: PASS | 0.6 -> 0.9: PASS | 0.5 -> 0.7: PASS |
+| C-2 gear tier 1 to 3 depths | back -1.5, up +1.5: PASS | -2.4 / +1.4 -> -2.1 / +1.6: PASS | -5.1 -> -4.1: FAIL (no tier up) | -4.6 -> -6.0: FAIL |
+| C-3 no Careful or Steady death | 0 | 0 -> 0 | 0 -> 0 | Steady died 3 times (LOW, tank, L185) -> 0 (tank at 700: 0 in 12) |
+| C-4 Bold dies 0.3 to 1.5 a day | 0.5: PASS | 1.0 -> 0: FAIL | 1.0 -> 0: FAIL | 0.9 -> 0.13: FAIL (held at the band's top) |
+| C-5 Careful over Steady 0.55 to 0.70 | 0.62 | 0.65 -> 0.66 | 0.54 FAIL -> 0.64 | 0.58 -> 0.71 (edge, unresolved) |
+| C7 Level XP over the hours, 0.8 to 1.2 | 1.06 | 1.01 -> 0.93 | 1.03 -> 0.98 | 1.00 -> 0.87 |
+| EL-PAY Steady 0.95 to 1.05 | 1.02 | 0.99 -> 0.93: FAIL by 0.02 | 1.50 -> 1.27: FAIL (stage 9) | 1.74 -> 1.06 (edge) |
+| EL-PAY Careful / Bold 0.75 to 1.33 | 0.80 / 1.24 | 0.73 / 1.14 -> 0.74 / 1.15 | 1.05 / 1.74 -> 0.83 / 1.32 | 1.27 / 2.02 -> 0.83 / 1.18 |
+| Kit share 0.2 to 0.3 | 0.29 | 0.19 -> 0.35: FAIL | 0.11 -> 0.19 | 0.11 -> 0.20 |
+| Front hero's share of damage | 0.77 | 1.00 -> 0.68 | 0.97 -> 0.67 | 0.84 -> 0.54 |
+| STYLE-3 (tank four / mixed / no healer) | 655 -> 663 / 608 / 480 | 612 / 594 / 521 -> 651 / 588 / 426 | 536 / 522 / 429 -> 458 / 440 / 345 | 513 / 502 / 397 -> 451 / 453 / 299 |
+
+STYLE-3 still fails: the tank four is deepest on three grounds and ties the mixed four on the Flooded Wing; the no-healer four is deepest nowhere. The Ford's fresh four reads depth 3.4 on screen where the own-step cut reads 2.7 (was 3.4 against 2): stage 6.
+
+**Read as data, not set here** (CONFLICTS 2026-11-23, to the designer):
+1. **STYLE-3.** Roles moved the front's share everywhere, and no mix yet asks a question the tank four loses.
+2. **The Ford's economy.** Its Caster's Hex lands on all four (23 permille of max HP a second taken against Muster's 18), so its kit is 0.35 of the hour; its loot comes in 13% under its drops' hours, because fall-backs leave the back-row Caster and Warder alive more often than a full clear (`drop-rate.js killShares` assumes one), and the hour reads 0.93. The dials are the Caster's area pressure, the store, or `killShares`, none a ground's.
+3. **C-4 on the formula.** Bold barely dies on the Ford and the wings (`RISKS.bold`).
+4. **The wings' kit state.** A tier back moves 4 to 6 depths, the Flooded band is 60 steps wide (its BIS four holds 19 over its MID four), and their coin rows pay over the wage (stage 9). `formulaStep` bridges the pay until bands, monsters and pay share one absolute step (27 stage 6).

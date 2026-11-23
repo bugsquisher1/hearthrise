@@ -388,6 +388,11 @@
         "bytes": 3744324,
         "on": "2026-11-23",
         "why": "+4,147 B: tuning pass (Muster monster formula switch on, power weights, pay floor/coin, store kit refs, Bold fall, band margin rule) merged onto the named-pieces cut"
+      },
+      {
+        "bytes": 3752291,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings: +7,967 B, every scale ground on the monster formula: roles on the Ford's and the Catacombs' rows, the Ford's drop chances re-derived, src/core/hunt/danger.js dropPmAt/coinKeptOf/formulaStepOf, monster-formula's anchor, pull-cycle's in-area roomier edge, and their comments"
       }
     ]
   }

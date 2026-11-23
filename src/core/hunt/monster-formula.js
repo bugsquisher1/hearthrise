@@ -38,7 +38,7 @@ import { aimFor, evasionFor } from '../../data/to-hit.js';
 import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { spellsOf, spellRow, mends, SPELL_ROLL, SPELL_BOUNDS } from '../../data/monster-spells.js';
 import { COMBAT_BALANCE } from '../combat.js';
-import { powStep, formulaBasePull, REF_HEROES } from './danger.js';
+import { powStep, formulaBasePull, formulaStepOf, REF_HEROES } from './danger.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const F = MONSTER_FORMULA;
@@ -58,11 +58,13 @@ export const formulaOn = (groundId) => formulaGround(groundId) !== null;
 
 
 /* THE ONE MONSTER'S SHARE OF THE STEP AT THE REFERENCE, for the reference company: the dial's ratio x the as-built mean over the pull
-   (danger.js dangerDial), so the row written here x it is the monster at a gap of 0. */
+   (danger.js dangerDial), so the row written here x it is the monster at a gap of 0. The reference is the formula's anchor (danger.js
+   formulaStepOf: the row's formulaStep, else its refStep). */
 function refMultiple(g) {
   const n0 = formulaBasePull(g, REF_HEROES);
-  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, g.refStep))));
-  return (powStep(1 + DANGER.powerStep, g.refStep) * n0) / pull;
+  const at = formulaStepOf(g);
+  const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, at))));
+  return (powStep(1 + DANGER.powerStep, at) * n0) / pull;
 }
 
 /* a monster's biggest normal blow from its atk (combat.js monsterMaxHit's scale), and back */

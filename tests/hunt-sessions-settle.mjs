@@ -2713,7 +2713,8 @@ const DB_ARMS = {
     /* (1) EVERY TIER, AT ITS OWN LEVEL: read usable, buy only that row, charge the catalogue's price per cast; closed and viewed agree. */
     for (const t of M.RUNES.RUNE_TIERS) {
       const id = storeId(t.tier);
-      const price = M.SB.BASIC_INDEX[id] && M.SB.BASIC_INDEX[id].price;
+      /* STORE-STEP (1062-store-step.sql): off the Danger scale a cast costs its row at the hero's Level (mage() sets it to t.level) */
+      const price = M.SB.storeUsePrice(id, t.level);
       const seen = {};
       await inTx(db, async () => {
         await pinNow(FROM);
@@ -2791,7 +2792,8 @@ const DB_ARMS = {
     const CHALKED = M.RUNES.runeId('fire', 1);
     const SCORED = M.RUNES.runeId('fire', 2);
     const SHOP = 'plain_fire_rune';
-    const price = M.SB.BASIC_INDEX[SHOP] && M.SB.BASIC_INDEX[SHOP].price;
+    /* STORE-STEP (1062-store-step.sql): off the Danger scale a cast costs its row at the hero's Level (mage() below: Level 20) */
+    const price = M.SB.BASIC_INDEX[SHOP] ? M.SB.storeUsePrice(SHOP, 20) : null;
     if (!(price > 0) || M.SB.BASIC_INDEX[SHOP].partner !== CHALKED) return [`CONTROL: the shop's tier-1 Fire rune is ${JSON.stringify(M.SB.BASIC_INDEX[SHOP])}`];
     const FIRE = M.RUNES.RUNE_TIERS.map((t) => M.RUNES.runeId('fire', t.tier));
     const CUTS = { closed: Array.from({ length: 12 }, (_, i) => (i + 1) * 30000), viewed: [17345, 41111, 77777, 120000, 151515, 199999, 243210, 300000, 333333, 360000] };
@@ -2992,15 +2994,20 @@ const DB_ARMS = {
   STORE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', gold_floor: 0 }, gold: 5000 });
+    const lv0 = await one(db, 'select public.hr_level_of($1::uuid, 0)', [UID]);
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
+    const lv1 = await one(db, 'select public.hr_level_of($1::uuid, 0)', [UID]);
     const rows = await q(db, `select meta from public.player_ledger where session_id = $1 and kind = 'hunt' and intent = 'supply_buy' order by id`, [sid]);
     if (!rows.length) return ['CONTROL: an empty bag under switch bought nothing'];
     let cost = 0;
     for (const r of rows) {
       for (const [id, x] of Object.entries(r.meta.items)) {
-        const b = M.SB.BASIC_INDEX[id];
-        if (!b || x.price !== b.price) problems.push(`${id} was sold at ${x.price}, the catalogue says ${b && b.price}`);
+        /* STORE-STEP (1062-store-step.sql): off the Danger scale a use is priced at the buyer's Level (src/core/wage.js levelStep), the
+           Level its window opened at: some Level from the hunt's first to its last */
+        const at = [];
+        for (let L = lv0; L <= lv1; L++) at.push(M.SB.storeUsePrice(id, L));
+        if (!M.SB.BASIC_INDEX[id] || !at.includes(x.price)) problems.push(`${id} was sold at ${x.price}, its price at the hero's Levels ${lv0}-${lv1} is ${[...new Set(at)].join(' / ')}`);
         cost += x.qty * x.price;
       }
     }
@@ -5667,7 +5674,7 @@ const DB_MUTANTS = [
   { arm: 'RUNE-LADDER', name: '[rune ladder] a slot may name a row of no price', fn: 'public.hr_hunt_slot_check(jsonb)',
     find: "if v_store is null or v_type <> 'ability' or not coalesce(public.hr_hunt_rune_spells()->v_id->'store' ? v_store, false)", replace: "if false" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the settle charges a store rune at another row\'s price', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
-    find: "select q.price, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;", replace: "select q.price + 1, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;" },
+    find: "select public.hr_store_price(q.basic_id, v_sstep), q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;", replace: "select public.hr_store_price(q.basic_id, v_sstep) + 1, q.kind into v_price, v_kind from public.hr_hunt_basic_supplies q where q.basic_id = v_k;" },
   /* RUNE SUPPLY PER SLOT (2027-03-24-rune-supply.sql): each server rule goes red on its own defect; the engine's are tests/hunt-core/abilities.mjs's. */
   { arm: 'RUNE-SUPPLY', name: '[rune supply] a slot naming no shop rune buys nothing when its runes run out (the old stop)', fn: 'public.hr_hunt_rune_supply(jsonb)',
     find: "if v_on = 'store' and v_store is null then", replace: "if false then" },

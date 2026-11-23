@@ -373,6 +373,11 @@ export function memberSide(mi, ctx) {
         ...(typeof h.risk === 'string' && h.risk ? { risk: h.risk, danger: Number.isInteger(h.danger) ? h.danger : 0 } : {}),
         hold: Number.isInteger(h.hold) ? h.hold : null,
         leaveTogether: h.leaveTogether === true,
+        /* THE ROADS (src/core/talents.js; hunt-spawn.js heroSetup): the moves of another weapon the bar may hold and the build the settle
+           grants at every boundary (combat-sim.js syncUnit). Without them here a borrowed move never read its native blow and no build
+           reached the engine: both only on a hero that has them */
+        ...(Array.isArray(h.borrowed) && h.borrowed.length ? { borrowed: h.borrowed } : {}),
+        ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null },
     },
   };

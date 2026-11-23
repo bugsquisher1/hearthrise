@@ -9,9 +9,10 @@
 //   idle-points      19 row 2: an unspent point, or a rank on a move never cast, costs a third of a step, never ramped
 //   borrow-opens     17 section 3: priced by value, opens at max(20, 200 V / 14) rounded up to 10, never a native move, none unmeasured
 //   engine-rows      the cast path reads the hero's modified rows (cooldown, hold, reach); a build's conditional row holds only on its condition
+//   real-settle-both-paths  the real settle grants a build (heroSetup -> member -> syncUnit), and 10-minute and 100-second windows agree
 //   no-build-no-change a hero with no build writes no field and reads the shared rows (the switch off plays as before)
 //
-// mutant-anchors: src/core/talents.js src/core/hunt/talent-rows.js src/core/hunt/abilities.js src/core/hunt/targeting.js src/core/hunt/auras.js
+// mutant-anchors: src/core/talents.js src/core/hunt/talent-rows.js src/core/hunt/abilities.js src/core/hunt/targeting.js src/core/hunt/auras.js src/core/member.js
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
@@ -185,6 +186,22 @@ const cases = {
     if (M.AU.auraRowsOn(inst, k).some((x) => x.key === 'taunt_brace')) return 'the brace held past 4 s';
     return null;
   },
+  /* THE REAL SETTLE, BOTH PATHS (CLAUDE.md §4: a hunt viewed settles in short windows, a closed one in long ones): a tank's build reaches
+     the engine through heroSetup, the member and syncUnit (the idle cost moves the hunt), and the same build cut two ways plays the same */
+  'real-settle-both-paths': async (M) => {
+    const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+    const P = await loadPlay(M.root);
+    const four = ['tank', 'ranger', 'mage', 'healer'];
+    const go = (build, windowMs) => P.run('muster_barrows', 60, four, { spanMs: 900000, windowMs, secret: '-4611686018427387904',
+      options: () => ({ risk: 'steady', danger: 570 }), ...(build ? { roads: (r, i) => (i === 0 ? build : null) } : {}) });
+    const sig = (r) => JSON.stringify({ t: r.totals, x: r.heroXp });
+    const none = sig(go(null, 600000)), banked = sig(go({}, 600000));
+    if (none === banked) return 'a tank with sixty idle points played exactly as one with no build: the build never reached the engine';
+    const b = M.T.spendSuggested({}, 'shield', 'party', 60);
+    const closed = sig(go(b, 600000)), viewed = sig(go(b, 100000));
+    if (closed !== viewed) return 'the same build settled in 10-minute and 100-second windows played two hunts';
+    return null;
+  },
   'no-build-no-change': (M) => {
     const k = H(M, 1, 11, 3, 'tank');
     M.TR.syncTalents(k, { talents: { 'challenge.r1': true }, discipline: 'shield' }, 60);
@@ -214,6 +231,7 @@ const mutants = [
   { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'm.queued = false; m.holdMs = tauntHold(k); }', 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }']] },
   { name: 'a conditional row always holds', case: 'engine-rows', edits: [[TR, '  for (const r of when) if (holds(inst, u, r.when)) (out || (out = rows.slice())).push(r);', '  for (const r of when) (out || (out = rows.slice())).push(r);']] },
   { name: 'the auras forget the hero\'s rows', case: 'engine-rows', edits: [['src/core/hunt/auras.js', ' ? withTalentRows(inst, unit, auras) : auras;', ' ? auras : auras;']] },
+  { name: 'the member drops the build (the settle never grants it)', case: 'real-settle-both-paths', edits: [['src/core/member.js', "        ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),\n", '']] },
   { name: 'a hero whose build went keeps its rows', case: 'no-build-no-change', edits: [[TR, '  if (!hero || !hero.talents) { for (const k of TALENT_KEYS) if (u[k] !== undefined) delete u[k]; return; }', '  if (!hero || !hero.talents) return;']] },
 ];
 
@@ -222,15 +240,15 @@ const R = makeReport('talents');
 const M0 = await load(ROOT);
 for (const [cn, fn] of Object.entries(cases)) {
   let why = null;
-  try { why = fn(M0); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await fn(M0); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
 if (!process.argv.includes('--no-mutants')) for (const mu of mutants) {
   if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-  const p = plant(mu.edits, ['src/render']);
+  const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures']);
   try {
     let why = null;
-    try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
+    try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
     R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }

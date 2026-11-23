@@ -424,6 +424,9 @@ function sheetContract(R, cs, body) {
   const tt = R.CS.titlesOf(cs);
   need('titles', !!tt && tt.rows.length > 0 && tt.rows.every((r) => isNum(r.price) && isNum(r.kills) && isNum(r.have)),
     'titlesOf yields ' + JSON.stringify(tt) + ' from ' + JSON.stringify(body.titles));
+  /* talents (1064-roads-sample.sql): the Roads switch is off, so the server projects null and the reader yields null (the tab stays hidden) */
+  need('talents', body.talents === null && R.TL.talentsOf(cs, 'shield', 'party') === null,
+    'talentsOf yields ' + JSON.stringify(R.TL.talentsOf(cs, 'shield', 'party')) + ' from ' + JSON.stringify(body.talents));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
     'deathLogOf yields ' + JSON.stringify(dl) + ' from ' + JSON.stringify(body.death_log));
@@ -436,7 +439,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
-  'work_day', 'gold_estimate', 'watched']);
+  'work_day', 'gold_estimate', 'watched', 'talents']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -500,6 +503,7 @@ async function readers(root) {
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
     GE: await import(u('src/session/gold-estimate-sections.js')),
     RC: await import(u('src/session/recruit-sections.js')),
+    TL: await import(u('src/session/talent-intents.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),

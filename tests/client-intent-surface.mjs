@@ -180,6 +180,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
   hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it in gold (farm-intents.js upgradePlot)',
   /* Tend the field (1017-tend-the-field.sql): a slot, a crop id or null, the bill's gold AS THE SERVER SENT IT (compared, never charged as given) and a key; never a plot. */
+  /* THE ROADS (1064-roads-sample.sql; src/session/talent-intents.js): a node id and a pick, or a plan word; never a point count or a Level */
+  hr_talent_spend: 'one Talent point on one Roads node, a node id and an option id or none; the server checks path, pick, points and slots against its catalogue (talent-intents.js spendTalent)',
+  hr_talent_spend_suggested: 'every Talent point left on the server\'s suggested road for the worn weapon, a plan word; never a vow (talent-intents.js spendSuggested)',
   hr_farm_tend: 'harvest every ready plot, plant it again and water the field in one press at the farm_tend bill’s gold; the server plans, compares and refuses quote_changed (farm-tend.js tendField)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */

@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/roads-sample, systems, 2026-11-23). hero_talents, hero_talent_builds, hero_talent_log; verbs hr_talent_spend, hr_talent_spend_suggested, hr_talent_build_save; hr_talent_reset restated to move the points; the talents envelope section. ON THE EA SECURITY LIST (13-security-list.md S-10): new client verbs and the reset granted to authenticated. All refuse talents_closed while hr_talent_rules.live is false. ORDER: 1064 in its name, after 1064-roads-sample-catalogue.generated.sql and 1063-level-costs.sql. EDGE: the hr-accrue that reads the talents section (hunt-settle.js memberInput) deploys with or after it; an old engine ignores the section."
+}

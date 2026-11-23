@@ -46,7 +46,7 @@
 // PURE ESM. Data only (the gear a ground drops is src/data/gear-steps.js).
 // ════════════════════════════════════════════════════════════════════════
 
-import { tierLevel, traitPool } from './gear-steps.js';
+import { tierLevel, traitPool, maxRankAt } from './gear-steps.js';
 
 // WAVE 1 (lane/v1-climb, backend, 2026-11-22): THE PAY, THE START AND THE GROUNDS.
 // PAY BY DEPTH FROM THE HOURS TABLE (04 sections 5 and 7). V1 paid a kill its row's Level XP x (1 + 0.7%)^step, so a four holding step
@@ -119,6 +119,10 @@ export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 
 export const POWER = Object.freeze({ weightGearPm: 1000, weightGearBelowPm: 500 });
 export { GEAR_STEPS } from './gear-steps.js';
 
+/* a scale ground's row, with the highest Trait rank its entry Level lets its pool roll (19-power-ledger.md section 2, lane L3; gear-steps.js
+   maxRankAt): entryLevel is its hunt's band floor (tests/gear-steps.mjs GS-5 holds the two equal). Muster Barrows (55) and Hask's Ford (45)
+   roll rank 1 only, the Catacomb wings (165) all three. */
+const ground = (row) => Object.freeze({ ...row, maxRank: maxRankAt(row.entryLevel) });
 export const DANGER_GROUNDS = Object.freeze({
   /* floorStep / topStep: the ground's band of DEPTHS depths (docs/design/redesign/12-targets.md section 3.1, starting values the Lab
      tunes): depth 1 at the floor, depth 20 at the top. The player sees only "Depth N of 20", never a step (12-targets section 2.6).
@@ -148,10 +152,10 @@ export const DANGER_GROUNDS = Object.freeze({
      NOT ON THE SCALE (measured the same way, 2026-11-22): Krell's Hold died on Steady in every seed-day at Levels 85, 97 and 110 (4 of 4
      each), Pyre Field in 1 to 3 of 4 (and drops two ladder tiers, Muster's and Krell's), against 12-targets C-3's none. They wait for their
      monsters' fit, not for a band. */
-  muster_barrows: Object.freeze({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows') }),
-  hasks_ford: Object.freeze({ refStep: 590, floorStep: 470, topStep: 710, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford') }),
-  catacomb_bone_wing: Object.freeze({ refStep: 480, floorStep: 415, topStep: 545, refKillsHead: 155, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing') }),
-  catacomb_flooded_wing: Object.freeze({ refStep: 440, floorStep: 370, topStep: 510, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing') }),
+  muster_barrows: ground({ refStep: 590, floorStep: 480, topStep: 710, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55 }),
+  hasks_ford: ground({ refStep: 590, floorStep: 470, topStep: 710, refKillsHead: 220, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45 }),
+  catacomb_bone_wing: ground({ refStep: 480, floorStep: 415, topStep: 545, refKillsHead: 155, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165 }),
+  catacomb_flooded_wing: ground({ refStep: 440, floorStep: 370, topStep: 510, refKillsHead: 150, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165 }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

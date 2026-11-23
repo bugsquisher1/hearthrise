@@ -14,7 +14,13 @@
 // A TIER is exactly `tierSteps` item Levels (tierLevel). Tier 0 is the starting kit. A ground drops ONE base tier at every depth
 // (12-targets 3.3); depth raises only the Rare odds and the Trait's rank (rankDepths).
 // WEAR AHEAD: a piece of item Level iL is worn from hero Level iL - wearAhead (never under 1), so a company at a ground's entry Level
-// wears that ground's base, and a kit can never run more than wearAhead steps past its hero (04 section 10).
+// wears that ground's base, and a kit can never run more than wearAhead steps past its hero (04 section 10). FIXED at every Level (Tyler
+// 2026-11-22, dropping lane L2's min(10, floor(L / 6)): "I don't want to punish people who are theory crafting or getting lucky with drops").
+// THE RANK A GROUND ROLLS (19 section 2, lane L3): rank r rolls on a ground only if traitSteps[r - 1] <= conditionalStepsMax x ramp(the
+// ground's entry Level) (src/data/power-ledger.js rampLevel; the gate is on what DROPS, never on what a hero wears): rank 1 from entry 40, rank 2 from 70, rank 3 from 100, so Muster Barrows (entry
+// 55) rolls rank 1 only (maxRankAt; src/data/danger.js DANGER_GROUNDS maxRank).
+// CARRY-OVER (02 package 2, 19 section 5 L3): a crafter moves one Trait from an old piece onto a new base of the SAME slot whose tier is
+// the old one's or higher (carryOver below), so a Trait never travels down to an easier base. The bench is wave 4's; this is its rule.
 //
 // STARTING VALUES, NOT RULINGS (the Lab tunes them; in band is enough):
 //   tierSteps 20        04 section 1's worked value: at powerStep 0.35% a tier is +7.2% of power; R9 is done when a tier moves the
@@ -38,8 +44,10 @@
 // TRAITS ARE HIDDEN. The 40 rows are src/data/traits.js (lane/traits-20). Nothing rolls them, no drop table names them, no fight reads them
 // and no screen shows them: half-built features stay hidden. tests/gear-steps.mjs holds the rows' shape and who may import either file.
 //
-// PURE ESM. Data only. Imports only src/data/traits.js (re-exported below).
+// PURE ESM. Data only. Imports only src/data/traits.js (re-exported below) and src/data/power-ledger.js (the ramp's Level).
 // ════════════════════════════════════════════════════════════════════════
+
+import { POWER_LEDGER } from './power-ledger.js';
 
 export const GEAR_STEPS = Object.freeze({
   tierSteps: 20,
@@ -72,6 +80,8 @@ export const GEAR_STEPS = Object.freeze({
   traitAverageSharePm: 500,
   dominanceMaxPm: 400,
   rankDepths: Object.freeze([1, 8, 15]),
+  /* CARRY-OVER (the header): only onto a base of the same slot ('same') whose tier less the old base's tier is at least tierMin */
+  carryOver: Object.freeze({ slot: 'same', tierMin: 0 }),
   /* how many Traits a piece of each rarity carries (02 package 2: a Very Rare's second Trait waits until one Trait a piece has been
      played). Two Traits on one piece never share a stacking key */
   traitsByRarity: Object.freeze({ rare: 1, very_rare: 2 }),
@@ -81,6 +91,16 @@ export const GEAR_STEPS = Object.freeze({
 
 /** The item Level of base tier `tier` (tier 0 is the starting kit). */
 export const tierLevel = (tier) => tier * GEAR_STEPS.tierSteps;
+
+/** The highest Trait rank (1-based; 0 = none rolls) on a ground whose entry Level is `entryLevel` (the header's THE RANK A GROUND ROLLS).
+    Whole numbers only: traitSteps x rampLevel <= conditionalStepsMax x min(entry, rampLevel), so the ramp's division is never taken. */
+export const maxRankAt = (entryLevel) => {
+  const R = POWER_LEDGER.rampLevel;
+  const L = Number.isInteger(entryLevel) && entryLevel > 0 ? Math.min(entryLevel, R) : 0;
+  let rank = 0;
+  GEAR_STEPS.traitSteps.forEach((s, i) => { if (s * R <= GEAR_STEPS.conditionalStepsMax * L) rank = i + 1; });
+  return rank;
+};
 
 /* THE TRAITS live in src/data/traits.js (lane/traits-20: the 40 Tyler picked). Re-exported here so a scale ground row reads its pool
    from the gear table it already imports (danger.js DANGER_GROUNDS traits). */

@@ -348,7 +348,7 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only'),
     ev: 'MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): coin 13,324 a hero-hour at Level 60 on Steady (1,845 at 1000)' }),
   L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step, band and kill rate', {
-    at: [at(DZ, 'muster_barrows: Object.freeze({ refStep: 590')],
+    at: [at(DZ, 'muster_barrows: ground({ refStep: 590')],
     rows: rows('the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
     def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1060). The same row\'s floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground\'s band into DEPTHS for the player\'s "Depth N of 20"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground\'s own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)',
     range: 'whole steps. A bridge, not a per-ground dial: a step is of the ground\'s own rows until the bands are re-cut in one unit (wave 2), then it goes',

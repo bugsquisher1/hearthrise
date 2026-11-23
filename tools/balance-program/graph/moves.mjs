@@ -172,6 +172,9 @@ export const LEVER_MOVES = Object.freeze({
   'gear.trait-budget': [['+gear.special', 'a Trait of rank r adds traitSteps[r] to the gear part while its condition holds (gear-steps.js)']],
   'gear.trait-trade': [['+gear.special', 'a trade Trait adds tradeSteps to offense and takes traitSteps from defense while its condition holds (traits.js trade)']],
   'gear.traits': [['~gear.special','each Trait\'s condition and source decide when its steps count and on which ground it rolls']],
+  /* THE POWER LEDGER (src/data/power-ledger.js, src/core/power-ledger.js, lane/ledger-l1-l3) */
+  'gear.trait-rank-gate': [['+gear.special', 'a later entry Level opens a higher Trait rank on the ground (gear-steps.js maxRankAt), so more steps a found Trait can carry']],
+  'ledger.ramp-slices': [['+gear.special', 'a higher slice cap or an earlier ramp lets more conditional steps count on a hero at once (power-ledger.js clampLedger)']],
   'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
   'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],

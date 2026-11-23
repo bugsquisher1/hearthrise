@@ -288,6 +288,11 @@
         "bytes": 3372297,
         "on": "2026-11-23",
         "why": "R10: three grounds on the Danger scale (Hask's Ford, the two Catacomb wings), refKillsHead per ground, iL on scale drops"
+      },
+      {
+        "bytes": 3385050,
+        "on": "2026-11-23",
+        "why": "lane/ledger-l1-l3: the power ledger's clamp and slices (src/core/power-ledger.js, src/data/power-ledger.js) read by the power step, gear-steps.js maxRankAt and carry-over, re-raised on the merged set"
       }
     ]
   }

@@ -358,13 +358,21 @@ export const WORLD = [
   L('danger.ref-step', 'monster-rewards', 'exception-intentional', 'A ground\'s reference step, band and kill rate', {
     at: [at(DZ, 'muster_barrows: ground({ refStep: 590')],
     rows: rows('the scale grounds: refStep, floorStep / topStep, refKillsHead, gearLevel, ladderTier (one row a ground, lane/r10-more-grounds)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
-    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1060). The same row\'s floorStep / topStep (480 / 710 on Muster, 12-targets 3.1) cut the ground\'s band into DEPTHS for the player\'s "Depth N of 20"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground\'s own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)',
+    def: 'the step the reference company holds on a ground, where its pay is the hours table; a ground with no row does not open the scale (the server\'s hr_danger_grounds, 1060). The same row\'s floorStep / topStep (320 / 710 on Muster, 12-targets 3.1 and danger.js BAND_RULE) cut the ground\'s band into DEPTHS for the player\'s "Depth N of 20"; the engine climbs no step past topStep and pays no more there (lane/r10). refKillsHead: the ground\'s own kills a head an hour at its reference, the hours table split over it (never under PAY.refKillsHead)',
     range: 'whole steps. A bridge, not a per-ground dial: a step is of the ground\'s own rows until the bands are re-cut in one unit (wave 2), then it goes',
     touches: 'the absolute pay on that ground (each step off it is payStepXp)', out: PACE, f: ['P02'],
     tests: [['tests/hunt-core/danger.mjs', 'pay: Muster\'s reference step pays the table']], testReads: ['DANGER_GROUNDS'],
     perturb: NP('not-in-runs', 'played by the V1 probe only'),
     flags: [flag('redundant', 'A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial); it retires when grounds carry absolute bands', '02 package 3 cost; JUDGMENT')],
     ev: 'MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)' }),
+  L('danger.band-rule', 'monster-rewards', 'global', 'How every ground\'s band is cut from its three Lab cells', {
+    at: [at(DZ, 'export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });')],
+    def: 'tools/new-ground.mjs cuts a ground\'s band by it (tools/lib/danger-band.mjs bandFromReports): the floor (depth 1) is the fresh LOW four\'s lowest seed less floorUnder, down to floorTo; refStep the MID four to refTo; topStep the BIS four to topTo, held to refStep + PAY.gapMax',
+    range: 'whole steps. floorUnder 0 to one fall back (CLIMB.fallSteps): 0 opens a first hunt on its edge, a fall back under it the climb takes a pull or two to find',
+    touches: 'where depth 1 and depth 20 sit on every ground, so the depth a player reads, the Trait rank and Rare odds by depth, and the top where pay stops climbing', out: PACE, f: ['P02'],
+    tests: [['tests/new-ground.mjs', 'NG-1 and NG-3: every pinned band cuts back from its evidence, the floor under every fresh four']], testReads: ['BAND_RULE'],
+    perturb: NP('not-in-runs', 'a cut, not a play: tools/new-ground.mjs re-measures every ground with it'),
+    ev: 'MEASURED (lane/band-floor 2026-11-22, tools/new-ground.mjs --write, 8 seeds x 12 h, tools/balance-program/redesign/grounds): Muster Barrows\' fresh four held 333 to 424 against R10\'s floor 480; the rule cuts 320' }),
   L('danger.pay-floor', 'monster-rewards', 'global', 'Pay floor under the reference step', {
     at: [at(DZ, 'refKillsHead: 120, payStepXp: 0.007, gapMax: 120, floor: 0.5,')],
     def: 'under a ground\'s reference step the depth ratio a kill pays (XP and coin) falls to floor and no further, so a shallower stance pays in kills an hour, not twice (12-targets 2.1)',

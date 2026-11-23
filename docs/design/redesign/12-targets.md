@@ -158,6 +158,7 @@ Totals: 33 keep (3 with an edge re-cut in their notes), 0 retire. `node tools/re
   - **Top (depth 20)** is where a strong four at the ground's top Level, in the ground's best base tier, holds on Steady.
   - **Middle** is `refStep`, where the ground pays its standard rate.
 - **Muster Barrows, as a start:** floor 480, middle 590, top 710 (about 12 steps a depth). These are taken from V1's held steps and the existing 120-step pay cap, and the Lab tunes them.
+- **The floor is measured, not mirrored (designer, 2026-11-22, lane/band-floor; `src/data/danger.js BAND_RULE`):** a fresh four at the entry Level held 320.9 on Muster, 160 steps under the 480 floor, so it could not hold depth 1. Every band's floor is now the fresh four's lowest seed less 10. Muster reads floor 320, middle 590, top 710 (about 20 steps a depth, the middle near depth 14). The depths are even from floor to top, so a company entering at Level 55 climbs most of the band as it Levels.
 - **The next ground's floor sits just under this ground's top,** so a company that tops one ground starts the next one at depth 1 to 3. That overlap is the hand-off.
 - **A first-ever hunt starts at the band's floor,** not step 0, which removes most of the 2 h opening climb (C-8).
 

@@ -199,9 +199,21 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 920683,
+        "gzipBytes": 920727,
         "on": "2026-11-23",
-        "why": "catacomb-wings.js reads the Unmarked Catacombs through grounds/index.js and its wing rows name their roster ground (lane/ci-reds-db: gen-hunts --selftest, pack --selftest)"
+        "why": "band floor: re-cut bands and Trait re-homes read at town"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920927,
+        "on": "2026-11-23",
+        "why": "econ follow-ups: store prices at the buyer's step shown in the shop"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920957,
+        "on": "2026-11-23",
+        "why": "catacomb-wings.js reads the Unmarked Catacombs through grounds/index.js and its wing rows name their roster ground (lane/ci-reds-db: gen-hunts --selftest, pack --selftest), re-raised on the merged set"
       }
     ]
   }

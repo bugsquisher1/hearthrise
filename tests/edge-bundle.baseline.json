@@ -310,14 +310,19 @@
         "why": "lane/moves-pass-1: the holder's line (danger.js marginPm, holderTank), Precision Shot's preferred roles and the Mark's own target (abilities.js targetFor), their data rows and measured notes"
       },
       {
-        "bytes": 3400543,
+        "bytes": 3404831,
         "on": "2026-11-23",
-        "why": "+144 B: the Catacombs' two wing ground rows name their roster ground (rosterGround), so tools/pack.mjs lints them on the whole ground's roles (pack --selftest red since lane/r10-more-grounds)"
+        "why": "band floor: BAND_RULE and the re-cut bands in danger.js, traitRoll in gear-steps.js"
       },
       {
-        "bytes": 3400814,
+        "bytes": 3409599,
         "on": "2026-11-23",
-        "why": "+271 B: catacomb-wings.js reads the Unmarked Catacombs through grounds/index.js (no pack in a generator's whole view, no wings), so gen-hunts --selftest no longer meets wing spawns of a left-out pack"
+        "why": "econ follow-ups: store use priced at the buyer's depth step (store-kit/supply-basics), gen-store-prices"
+      },
+      {
+        "bytes": 3410014,
+        "on": "2026-11-23",
+        "why": "+415 B (lane/ci-reds-db, re-raised on the merged set): the Catacombs' wing rows name their roster ground (pack --selftest) and catacomb-wings.js reads the pack through grounds/index.js (gen-hunts --selftest)"
       }
     ]
   }

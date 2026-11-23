@@ -3,11 +3,11 @@
 // tools/gen-danger.mjs — GENERATE THE SERVER'S DANGER-SCALE CATALOGUE (lane/v1-climb wave 1; 02 package 3, 04 sections 5 and 7).
 //
 // src/data/danger.js is the one source of the scale's numbers (DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS) and core-model.js
-// LEVEL_PACE.targets the one source of the hours a Level takes. The engine reads the data (src/core/hunt/danger.js); the server reads
+// LEVEL_HOURS the one source of the hours a Level takes (a formula with three whole levers, lane/formula-overhaul 2026-11-22). The engine reads the data (src/core/hunt/danger.js); the server reads
 // these tables when it freezes a hunt's stance and start step (1056-danger-scale.sql hr_danger_freeze) and when it bounds a window
 // played on the scale (hr_danger_bound). This writes them whole, with the SQL twins of the two pay functions and a self-check.
 //   hr_danger_rules     one row: step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms (hunt-tuning.js: every
-//                       cleared pull rests at least this long, so a window's climb is bounded by its time), the pay levers (ppm), the hours spans,
+//                       cleared pull rests at least this long, so a window's climb is bounded by its time), the pay levers (ppm), the hours levers,
 //                       default_risk (DEFAULT_RISK: the stance a hunt on the scale plays when its plan names none; 1057-danger-falls.sql)
 //   hr_danger_stances   per stance: rank (0 the safest), fall_pm, clean_pm, after_death (the stance a death settles to, never bolder)
 //   hr_danger_grounds   per ground the scale opens on: ref_step, share_pm_max (the most of a row's health one monster carries at any step),
@@ -23,7 +23,7 @@
 //
 // REFUSES (throws, nothing written): a stance list not ordered safest first with each death settling to the same or a safer stance and
 // fall_pm < clean_pm; a default stance that is no stance; a ground row that is no open hunting ground (its hunt id = its ground id; not the Tower, a yard, a hall or a call);
-// a reference step outside 0..stepMax; a non-whole pay step in ppm; an hours table whose spans fall.
+// a reference step outside 0..stepMax; a non-whole pay step in ppm; an hours lever that is not a positive whole number.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -63,17 +63,17 @@ export function rowsOf({ data, core, model, grounds, tuning, wage }) {
   });
   const stances = ids.map((id, rank) => ({ id, rank, fall: RISKS[id].fallPm, clean: RISKS[id].cleanPm, after: RISKS[id].afterDeath }));
   if (typeof data.DEFAULT_RISK !== 'string' || !own(RISKS, data.DEFAULT_RISK)) throw new Error('gen-danger: the default stance ' + data.DEFAULT_RISK + ' is no stance');
-  const t = [[0, 0], ...model.LEVEL_PACE.targets];
-  const spans = [];
-  for (let i = 1; i < t.length; i++) spans.push([(t[i - 1][0] + t[i][0]) / 2, (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0])]);
-  for (let i = 1; i < spans.length; i++) if (!(spans[i][1] >= spans[i - 1][1]) || !(spans[i][0] > spans[i - 1][0])) throw new Error('gen-danger: the hours table\'s spans fall at ' + spans[i][0]);
+  /* THE HOURS A LEVEL TAKES (core-model.js LEVEL_HOURS): ceiling x L^2 / ((L + half) x (L + early)), three whole levers (half at least 1, or
+     the curve never levels off; early may be 0) */
+  const LH = model.LEVEL_HOURS || {};
+  for (const k of ['ceiling', 'half', 'early']) if (!Number.isSafeInteger(LH[k]) || LH[k] < (k === 'early' ? 0 : 1)) throw new Error('gen-danger: LEVEL_HOURS.' + k + ' ' + LH[k] + ' is not a positive whole number');
   const rules = {
     step_max: DANGER.stepMax, pull_max: DANGER.pullMax, respawn_ms: DANGER.respawnMs, start_margin: DANGER.startMargin,
     climb_max: CLIMB.climbMax, clean_run: CLIMB.cleanRun, regroup_ms: tuning.HUNT_TUNING.regroupMs, power_step_ppm: ppm(DANGER.powerStep, 'powerStep'),
     pay_step_xp_ppm: ppm(PAY.payStepXp, 'payStepXp'), pay_step_coin_ppm: ppm(wage.WAGE.payStepCoin, 'payStepCoin'), gap_max: PAY.gapMax,
-    ref_kills_head: PAY.refKillsHead, hours_at: spans.map((s) => s[0]), hours_per: spans.map((s) => s[1]), default_risk: data.DEFAULT_RISK,
+    ref_kills_head: PAY.refKillsHead, hours_ceiling: LH.ceiling, hours_half: LH.half, hours_early: LH.early, default_risk: data.DEFAULT_RISK,
   };
-  for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'regroup_ms', 'gap_max', 'ref_kills_head']) {
+  for (const k of ['step_max', 'pull_max', 'respawn_ms', 'start_margin', 'climb_max', 'clean_run', 'regroup_ms', 'gap_max', 'ref_kills_head', 'hours_ceiling', 'hours_half', 'hours_early']) {
     if (!Number.isInteger(rules[k]) || rules[k] < 0) throw new Error('gen-danger: ' + k + ' ' + rules[k] + ' is not a whole number');
   }
   const ground = [];
@@ -122,7 +122,7 @@ export function buildSql(r) {
 -- Hearthrise — THE DANGER SCALE'S CATALOGUE  (GENERATED — DO NOT EDIT)
 --
 --   Generated by tools/gen-danger.mjs from src/data/danger.js (DANGER, CLIMB, RISKS, PAY, DANGER_GROUNDS) and src/data/core-model.js
---   LEVEL_PACE.targets. Any hand edit FAILS \`node tools/gen-danger.mjs --check\`.
+--   LEVEL_HOURS. Any hand edit FAILS \`node tools/gen-danger.mjs --check\`.
 --
 -- WHAT (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 04 sections 5 and 7): the scale's numbers the server reads, so
 -- no number is typed twice. hr_danger_rules (one row), hr_danger_stances (${r.stances.length} rows), hr_danger_grounds (${r.ground.length} row${r.ground.length === 1 ? '' : 's'}), rewritten whole;
@@ -169,11 +169,19 @@ create table if not exists public.hr_danger_rules (
   pay_step_coin_ppm int not null check (pay_step_coin_ppm between 0 and 100000),
   gap_max           int not null check (gap_max >= 0),
   ref_kills_head    int not null check (ref_kills_head >= 1),
-  hours_at          numeric[] not null check (cardinality(hours_at) >= 1),
-  hours_per         numeric[] not null check (cardinality(hours_per) >= 1 and 0 < all (hours_per)),
+  hours_ceiling     int not null check (hours_ceiling >= 1),
+  hours_half        int not null check (hours_half >= 1),
+  hours_early       int not null check (hours_early >= 0),
   default_risk      text not null check (default_risk ~ '^[a-z0-9_]{1,64}$')
 );
 alter table public.hr_danger_rules add column if not exists default_risk text;
+-- THE HOURS FORMULA (lane/formula-overhaul, 2026-11-22): the hand table's spans (1055's hours_at / hours_per) give way to three levers. The row
+-- is rewritten whole below, so the old columns go first and the new ones are made if missing; a second apply is byte-identical.
+alter table public.hr_danger_rules drop column if exists hours_at;
+alter table public.hr_danger_rules drop column if exists hours_per;
+alter table public.hr_danger_rules add column if not exists hours_ceiling int check (hours_ceiling >= 1);
+alter table public.hr_danger_rules add column if not exists hours_half int check (hours_half >= 1);
+alter table public.hr_danger_rules add column if not exists hours_early int check (hours_early >= 0);
 create table if not exists public.hr_danger_stances (
   risk        text primary key check (risk ~ '^[a-z0-9_]{1,64}$'),
   rank        int  not null unique check (rank >= 0),
@@ -199,9 +207,9 @@ comment on table public.hr_danger_grounds is '${OUT_NAME}: the grounds the Dange
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_danger_rules;
 insert into public.hr_danger_rules (id, step_max, pull_max, respawn_ms, start_margin, climb_max, clean_run, regroup_ms, power_step_ppm, pay_step_xp_ppm,
-  pay_step_coin_ppm, gap_max, ref_kills_head, hours_at, hours_per, default_risk) values
+  pay_step_coin_ppm, gap_max, ref_kills_head, hours_ceiling, hours_half, hours_early, default_risk) values
   (true, ${R.step_max}, ${R.pull_max}, ${R.respawn_ms}, ${R.start_margin}, ${R.climb_max}, ${R.clean_run}, ${R.regroup_ms}, ${R.power_step_ppm}, ${R.pay_step_xp_ppm},
-   ${R.pay_step_coin_ppm}, ${R.gap_max}, ${R.ref_kills_head}, '{${R.hours_at.map(lit).join(',')}}'::numeric[], '{${R.hours_per.map(lit).join(',')}}'::numeric[], '${R.default_risk}');
+   ${R.pay_step_coin_ppm}, ${R.gap_max}, ${R.ref_kills_head}, ${R.hours_ceiling}, ${R.hours_half}, ${R.hours_early}, '${R.default_risk}');
 delete from public.hr_danger_stances;
 insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death) values
 ${stanceValues};
@@ -212,19 +220,12 @@ ${groundValues};
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
 create or replace function public.hr_danger_hours_for(p_level int)
 returns numeric language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare r public.hr_danger_rules%rowtype; v_l int := greatest(1, coalesce(p_level, 1)); n int; i int;
+declare r public.hr_danger_rules%rowtype; v_l numeric := greatest(1, coalesce(p_level, 1));
 begin
-  -- DANGER-SCALE (${OUT_NAME}): danger.js hoursForLevel, the hours Level p_level takes in the hours table (each span at its middle, straight between).
+  -- DANGER-SCALE (${OUT_NAME}): danger.js hoursForLevel, core-model.js LEVEL_HOURS: ceiling x L^2 / ((L + half) x (L + early)).
   select * into r from public.hr_danger_rules where id;
   if not found then return null; end if;
-  n := cardinality(r.hours_at);
-  if v_l <= r.hours_at[1] then return r.hours_per[1]; end if;
-  for i in 2..n loop
-    if v_l <= r.hours_at[i] then
-      return r.hours_per[i - 1] + (v_l - r.hours_at[i - 1]) * (r.hours_per[i] - r.hours_per[i - 1]) / (r.hours_at[i] - r.hours_at[i - 1]);
-    end if;
-  end loop;
-  return r.hours_per[n];
+  return r.hours_ceiling * v_l * v_l / ((v_l + r.hours_half) * (v_l + r.hours_early));
 end $fn$;
 create or replace function public.hr_danger_level_xp_max(p_level int)
 returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
@@ -306,11 +307,15 @@ async function selftest() {
   { const r = rowsOf(base); if (r.ground.some((g) => g.id.startsWith('catacomb_'))) bites.push('a staged ground was written to the catalogue'); }
   tryRows('a pay step no whole ppm', (d) => ({ PAY: { ...d.PAY, payStepXp: 0.0070001 } }));
   tryRows('a default stance that is no stance', () => ({ DEFAULT_RISK: 'reckless' }));
+  /* the hours formula's levers (core-model.js LEVEL_HOURS): a half of 0 never levels off, a fraction has no whole twin */
+  for (const [k, v] of [['half', 0], ['ceiling', 19.5], ['early', -1]]) {
+    try { rowsOf({ ...base, model: { ...base.model, LEVEL_HOURS: { ...base.model.LEVEL_HOURS, [k]: v } } }); bites.push('an hours lever ' + k + ' ' + v + ': NOT refused'); } catch { /* refused */ }
+  }
   /* the twin's pin is the engine's: a hand edit of the file's pins or the data is caught by --check, and the SQL twin by its self-check */
   const sql = buildSql(rowsOf(base));
   if (!/VERIFY\(c\)/.test(sql) || !/hr_danger_level_xp_max/.test(sql)) bites.push('the twins are not pinned');
   if (bites.length) { console.error('gen-danger --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-danger --selftest: 13 refusals bite, a staged ground stays out');
+  console.log('gen-danger --selftest: 16 refusals bite, a staged ground stays out');
 }
 
 if (isMain(import.meta.url)) {

@@ -370,15 +370,16 @@ const CASES = {
   },
   pay(M) {
     const { PAY, DANGER_GROUNDS } = M.dangerData;
-    const { LEVEL_PACE } = M.coreModel;
-    const t = [[0, 0], ...LEVEL_PACE.targets];
-    for (let i = 1; i < t.length; i++) {
-      const mid = (t[i - 1][0] + t[i][0]) / 2, per = (t[i][1] - t[i - 1][1]) / (t[i][0] - t[i - 1][0]);
-      if (Number.isInteger(mid) && Math.abs(M.danger.hoursForLevel(mid) - per) > 1e-9) return 'Level ' + mid + ' takes ' + M.danger.hoursForLevel(mid) + ' h, its span ' + per;
+    /* lane/formula-overhaul: the hours a Level takes is core-model.js LEVEL_HOURS's formula, ceiling x L^2 / ((L + half) x (L + early)),
+       rising without a jump and levelling off under its ceiling */
+    const { LEVEL_HOURS } = M.coreModel;
+    for (const L of [1, 2, 9, 40, 60, 75, 300, 1000, 5000]) {
+      const want = (LEVEL_HOURS.ceiling * L * L) / ((L + LEVEL_HOURS.half) * (L + LEVEL_HOURS.early));
+      if (M.danger.hoursForLevel(L) !== want) return 'Level ' + L + ' takes ' + M.danger.hoursForLevel(L) + ' h, the formula ' + want;
     }
     for (let L = 1; L < 1200; L++) {
       const a = M.danger.hoursForLevel(L), b = M.danger.hoursForLevel(L + 1);
-      if (!(b >= a) || b - a > 2) return 'the hours a Level takes jump or fall at Level ' + L + ': ' + a + ' -> ' + b;
+      if (!(b >= a) || b - a > 2 || !(b < LEVEL_HOURS.ceiling)) return 'the hours a Level takes jump, fall or pass the ceiling at Level ' + L + ': ' + a + ' -> ' + b;
     }
     const g = { id: 'muster_barrows' }, ref = DANGER_GROUNDS.muster_barrows.refStep;
     for (const L of [1, 9, 40, 60, 75, 300]) {
@@ -688,7 +689,7 @@ const MUTANTS = [
   { name: 'a size change puts a jump in the curve', case: 'scale', edits: [['src/core/hunt/danger.js', 'const share = n0 / pull;', 'const share = 1;']] },
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },
   { name: 'the scale pays the row XP again', case: 'pay', edits: [['src/core/hunt/xp-share.js', '  if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);\n', '']] },
-  { name: 'the hours jump at a target Level', case: 'pay', edits: [['src/core/hunt/danger.js', '    if (L <= b) return ha + ((L - a) * (hb - ha)) / (b - a);', '    if (L <= b) return ha;']] },
+  { name: 'the hours are not the formula', case: 'pay', edits: [['src/core/hunt/danger.js', '  return levelHoursOf(level);', '  return levelHoursOf(level) * (level > 60 ? 1.01 : 1);']] },
   { name: 'depth pays past the gap ceiling', case: 'pay', edits: [['src/core/hunt/danger.js', '  return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));', '  return clampStep(step) - (row ? row.refStep : 0);']] },
   { name: 'depth does not pay', case: 'pay', edits: [['src/core/hunt/danger.js', '  return (toNext / (hoursForLevel(L) * refKillsOf(ground))) * depthRatio(ground, step, PAY.payStepXp);', '  return toNext / (hoursForLevel(L) * refKillsOf(ground));']] },
   { name: 'coin does not follow the step', case: 'scale', edits: [['src/core/hunt/danger.js', 'coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };', 'coinPm: share * PAY.coinPm };']] },

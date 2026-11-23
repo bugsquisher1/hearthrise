@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-23 · lane/ci-reds-client-1123 (next run 45189052837, balance and screen side)
+1. *A data generator moved, the screen tests did not.* The gear formula (c0c39be28) changed leather and bronze numbers; hunt-summary T1/T5, AW-98 and AW-21 still quoted the hand tables. Same class across three files: sweep every literal that quotes a derived stat when a formula lands.
+2. *G14 reads model.mjs, not levers.mjs.* Two lever registries exist: the BL-2 registry (levers.mjs, numeric classes) already claimed the four strangers; the balance guard's scan needs a carrier + LEVER_KEYS + a stack class in model.mjs. A field the sweep catches by accident ("MaxPm" reads as xp) is still worth a carrier when it is a real drop lever.
+3. *A selftest that reads the wrong seat goes red when balance moves.* The Blessing check read the pair's Level 60 bow, which only died by accident; R10 put the pair on Muster and the bow holds. Read the hero that is built to die, and price it at a Level that has a price.
+4. *A re-measured kill rate is a `gen-drop-hours --write`.* The tuning pass moved the Ford's refKillsHead to 235 and left 32 drop chances stale (DF-1).
+5. *Kill the transitive guards-for monsters.* A tools/ edit pulls mutant-control (every registered guard's control) and run-smoke through import chains; stop them and run the tests the change can reach, then `--remote`.
+
 ## 2026-11-22 · lane/e2-e3-statuses (E2 statuses as rows, E3 auras and shields)
 1. *Prove a migration by switching the one new reading off.* The general status system moved glade-4's timeline only; with the new `shield_break` emit disabled every pin held at all 48 settles, which separates "the engine is the same" from "the engine now says one more thing".
 2. *A hidden row must stay out of the server's catalogue.* `EFFECT_IDS` feeds the bar's SQL vals (1061); a new status id would turn conditions.mjs red without a migration. Rows carry `hidden: true`; the engine reads them, the picker and the server do not, until the move ships.

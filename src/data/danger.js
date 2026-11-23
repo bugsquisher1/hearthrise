@@ -161,6 +161,9 @@ export const DANGER_GROUNDS = Object.freeze({
      entryLevel, its hunt's top Level and its gearLevel (a fresh company one tier back at the entry, the reference company at refLevel, a
      strong company one tier ahead at the top, each a rating in Levels); floorStep, refStep and topStep are the BRIDGE, the own step each of
      those companies holds on this ground's rows, measured by tools/new-ground.mjs. "Depth N" is cut evenly in absolute steps through them.
+     refHeld (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): the own step the reference company HOLDS, the bridge's middle point
+     (src/core/bands.js refHeldOf). Only a formula ground carries it (tools/new-ground.mjs --write): its refStep anchors the monsters and
+     the pay, so it is chosen, and the four holds over it. Pay, the top and the monsters read refStep; a rows ground's refStep is its hold.
      monsters (lane/monster-formula; 04-math-strategy.md section 6): the ground's ONE DATA SWITCH for its monsters: 'rows' (today's hand-typed stats, grown by the step) or 'formula' (each monster's role and
      the step: src/core/hunt/monster-formula.js derives its health, blows and wind-ups from src/data/monster-roles.js against the reference
      company at refLevel on refStep, and the pull is sized to the party). A switch flipped moves the ground's band: re-measure it
@@ -195,8 +198,11 @@ export const DANGER_GROUNDS = Object.freeze({
   /* muster_barrows ON THE FORMULA (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md): its four rows carry roles, and on the formula the
      Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way. The Ford
      and the wings stay on their rows: none of their monsters carries a role yet, so the switch sized their pulls and kept their hand rows
-     (the Ford's Steady four held 92 steps under its reference, the wings' Careful out-earned Steady) */
-  muster_barrows: ground({ refStep: 590, floorStep: 525, topStep: 700, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
+     (the Ford's Steady four held 92 steps under its reference, the wings' Careful out-earned Steady).
+     THE FLOOR ON THE ARRIVING COMPANY (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): one tier back (the Ford's mithril kit at
+     Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). refHeld 610 (the MID four held 608.9).
+     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold */
+  muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 565, topStep: 675, refKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'rows' }),
   catacomb_bone_wing: ground({ refStep: 520, floorStep: 475, topStep: 580, refKillsHead: 185, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),
   catacomb_flooded_wing: ground({ refStep: 500, floorStep: 430, topStep: 565, refKillsHead: 205, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'rows' }),

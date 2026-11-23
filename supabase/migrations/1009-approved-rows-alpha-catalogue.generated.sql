@@ -4,7 +4,7 @@
 --
 --   hr_shop_supply_offers   src/data/supply-basics.js SUPPLY_SHOP_OFFERS
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
---   digest d1d069e5b3a04e41fbf0bedd28756e0a43035493e31458d3dde7e3a3bb367f02
+--   digest ec0966ff8accae979365e5ca961cc7310178f5151c401ad5ef1be0c11b040d5a
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
@@ -67,10 +67,10 @@ revoke all on public.hr_shop_supply_offers, public.hr_stamina_refill_rule
 
 delete from public.hr_shop_supply_offers;
 insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
-  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 11),
-  ('supply.cooked_trout', 'cooked_trout', 'food', 20),
-  ('supply.cooked_lobster', 'cooked_lobster', 'food', 37),
-  ('supply.cooked_swordfish', 'cooked_swordfish', 'food', 50),
+  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 8),
+  ('supply.cooked_trout', 'cooked_trout', 'food', 17),
+  ('supply.cooked_lobster', 'cooked_lobster', 'food', 34),
+  ('supply.cooked_swordfish', 'cooked_swordfish', 'food', 44),
   ('supply.cooked_shark', 'cooked_shark', 'food', 96),
   ('supply.turnip_juice', 'turnip_juice', 'drink', 12),
   ('supply.carrot_juice', 'carrot_juice', 'drink', 23),
@@ -151,7 +151,7 @@ begin
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
-        from public.hr_shop_supply_offers) is distinct from '8588f495b84364fb813510409cafe9c4' then
+        from public.hr_shop_supply_offers) is distinct from '91c7a506a58b12710a8e9ac84fb647e1' then
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)

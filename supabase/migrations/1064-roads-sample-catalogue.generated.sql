@@ -9,7 +9,7 @@
 --   hr_talent_rules        1 row: live false (THE SWITCH: false projects nothing and every verb refuses talents_closed), a point a Level
 --                          from 2, vow slots at 30 / 50 / 200, 2 borrowed moves, 32 saved builds
 --   hr_talent_nodes        269 nodes (the whole map: the Great Hearth, seven countries, nine borders)
---   hr_talent_options      181 options, each lent move with the Level it opens at
+--   hr_talent_options      182 options, each lent move with the Level it opens at
 --   hr_talent_suggest      576 steps of "Spend as suggested" (7 disciplines x party, solo), never a vow
 --   hr_talent_open         7 open roads, hr_talent_disciplines 12 role keys
 -- HELD: 0 rules the engine plays as nothing yet (src/core/talents.js heldRules; 0 steps, listed so a live switch is a decision):
@@ -360,9 +360,10 @@ insert into public.hr_talent_options (node_id, option_id, borrow, opens_at) valu
   ('mend.x2', 'bright_mend', null, null),
   ('havora', 'use_challenge', 'challenge', 20),
   ('havora', 'use_hunters_mark', 'hunters_mark', 20),
-  ('havora', 'use_frost_lance', 'frost_lance', 40),
-  ('havora', 'use_fireball', 'fireball', 60),
-  ('havora', 'use_shelter', 'shelter', 70),
+  ('havora', 'use_frost_lance', 'frost_lance', 20),
+  ('havora', 'use_fireball', 'fireball', 40),
+  ('havora', 'use_shelter', 'shelter', 20),
+  ('havora', 'use_hoarfrost', 'hoarfrost', 30),
   ('havora', 'use_power_strike', 'power_strike', 30),
   ('havora', 'use_flame_strike', 'flame_strike', 50),
   ('havora', 'use_rend', 'rend', 60),
@@ -489,7 +490,7 @@ insert into public.hr_talent_options (node_id, option_id, borrow, opens_at) valu
   ('arcane_barrier.x2', 'mana_barrier', null, null),
   ('arcane_barrier.x2', 'reforming_barrier', null, null),
   ('border.shield_restoration.town', 'use_greater_mend', 'greater_mend', null),
-  ('border.shield_restoration.town', 'use_shelter', 'shelter', 90),
+  ('border.shield_restoration.town', 'use_shelter', 'shelter', 20),
   ('border.shield_restoration.x', 'healing_shelter', null, null),
   ('border.shield_restoration.x', 'guarded_mend', null, null),
   ('border.shield_restoration.x', 'taunting_guard', null, null),
@@ -503,12 +504,12 @@ insert into public.hr_talent_options (node_id, option_id, borrow, opens_at) valu
   ('border.dual_axe_ranged.x', 'barbed_arrows', null, null),
   ('border.dual_axe_ranged.x', 'hamstring', null, null),
   ('border.dual_axe_ranged.x', 'skinners_draw', null, null),
-  ('border.ranged_destruction.town', 'use_hunters_mark', 'hunters_mark', 30),
-  ('border.ranged_destruction.town', 'use_frost_lance', 'frost_lance', 60),
+  ('border.ranged_destruction.town', 'use_hunters_mark', 'hunters_mark', 20),
+  ('border.ranged_destruction.town', 'use_frost_lance', 'frost_lance', 20),
   ('border.ranged_destruction.x', 'mana_arrows', null, null),
   ('border.ranged_destruction.x', 'frost_arrows', null, null),
   ('border.ranged_destruction.x', 'hexed_arrows', null, null),
-  ('border.destruction_shield.town', 'use_hoarfrost', 'hoarfrost', 120),
+  ('border.destruction_shield.town', 'use_hoarfrost', 'hoarfrost', 40),
   ('border.destruction_shield.town', 'use_challenge', 'challenge', 20),
   ('border.destruction_shield.x', 'cold_shoulder', null, null),
   ('border.destruction_shield.x', 'rime_plate', null, null),
@@ -523,7 +524,7 @@ insert into public.hr_talent_options (node_id, option_id, borrow, opens_at) valu
   ('border.sword_club.x', 'tempered_strikes', null, null),
   ('border.sword_club.x', 'cutting_weight', null, null),
   ('border.sword_club.x', 'iron_rhythm', null, null),
-  ('border.destruction_restoration.town', 'use_frost_lance', 'frost_lance', 60),
+  ('border.destruction_restoration.town', 'use_frost_lance', 'frost_lance', 20),
   ('border.destruction_restoration.town', 'use_greater_mend', 'greater_mend', null),
   ('border.destruction_restoration.x', 'cold_mercy', null, null),
   ('border.destruction_restoration.x', 'sick_fire', null, null),
@@ -1136,7 +1137,7 @@ insert into public.hr_talent_disciplines (role_key, discipline) values
 do $mig$
 declare v_n int;
 begin
-  if (select count(*) from public.hr_talent_nodes) <> 269 or (select count(*) from public.hr_talent_options) <> 181
+  if (select count(*) from public.hr_talent_nodes) <> 269 or (select count(*) from public.hr_talent_options) <> 182
      or (select count(*) from public.hr_talent_suggest) <> 576 or (select count(*) from public.hr_talent_rules) <> 1 then
     raise exception 'VERIFY(a): the catalogue''s counts are not the generator''s'; end if;
   -- every link names a node of an earlier seq (the map is a tree out of the one start)
@@ -1155,5 +1156,5 @@ begin
   if exists (select 1 from public.hr_talent_nodes n where n.kind = 'border'
               and not exists (select 1 from public.hr_talent_options o where o.node_id = n.id and o.borrow is not null and o.opens_at is not null)) then
     raise exception 'VERIFY(d): a border town lends nothing'; end if;
-  raise notice 'gen-talents: % nodes, % options, % suggested steps; all green', 269, 181, 576;
+  raise notice 'gen-talents: % nodes, % options, % suggested steps; all green', 269, 182, 576;
 end $mig$;

@@ -63,6 +63,21 @@
    "file": "src/data/abilities.js",
    "from": "ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], ",
    "to": "ab({ id: 'greater_mend', n: 'Greater Mend', reach: 7, disciplines: ['restoration'], "
+  },
+  {
+   "file": "src/data/abilities.js",
+   "from": "ab({ id: 'protective_ward', n: 'Protective Ward', disciplines: ['restoration'], ",
+   "to": "ab({ id: 'protective_ward', n: 'Protective Ward', reach: 7, disciplines: ['restoration'], "
+  },
+  {
+   "file": "src/core/hunt/abilities.js",
+   "from": "case 'taunt': return challengeable(inst, hero, row.lent).length ? hero : null;",
+   "to": "case 'taunt': return challengeable(inst, hero, row.lent || !!(hero.borrowBlows && Number.isInteger(hero.borrowBlows[row.id]))).length ? hero : null;"
+  },
+  {
+   "file": "src/core/hunt/abilities.js",
+   "from": "case 'taunt': challengeFrom(inst, sc, u, row); break;",
+   "to": "case 'taunt': challengeFrom(inst, sc, u, u.borrowBlows && Number.isInteger(u.borrowBlows[row.id]) ? { ...row, lent: true } : row); break;"
   }
  ],
  "assumptions": [
@@ -70,6 +85,8 @@
   "The penalty is a flat multiplier on every number the row lands; mana, cooldown, rune and area are unchanged",
   "An ally heal keeps the native caster's 7-tile reach where the cell names it (the engine otherwise gives a melee borrower 1 tile)",
   "A borrowed shot move carries its own arrows (the free rung: the borrowed cast reads its native weapon's blow, never the arrow)",
-  "A borrowed Greater Mend reaches 7 tiles, its native healer's range (17 section 3 \"Reach\")"
+  "A borrowed Greater Mend reaches 7 tiles, its native healer's range (17 section 3 \"Reach\")",
+  "A borrowed Protective Ward reaches 7 tiles too",
+  "A borrowed Challenge taunts from any seat at its full hold (17 section 3 \"Taunts\")"
  ]
 }

@@ -45,6 +45,9 @@ export function clientCodes(root) {
     /* (not `x->>'error', 'hunt'`: a key read, then the next key of an object) */
     for (const m of b.matchAll(/(?<!>)'error',\s*'([a-z0-9_]+)'/g)) add(m[1], from + ' (' + n + ')');
     for (const m of b.matchAll(/hr_reject\('([a-z0-9_]+)'/g)) add(m[1], from + ' (' + n + ')');
+    /* A refusal reason worked out by a helper and answered through a variable (`'error', v_why`): a `returns text` function
+       named *_problem (hr_talent_spend_problem, hr_base_colors_problem) answers its codes as `return '<code>'`. */
+    if (/_problem$/.test(n) && /\)\s*returns\s+text\b/i.test(b)) for (const m of b.matchAll(/\breturn\s+'([a-z0-9_]+)'/g)) add(m[1], from + ' (' + n + ')');
     for (const m of b.matchAll(/\b(hr_[a-z0-9_]+)\s*\(/g)) walk(m[1], from);
   };
   for (const n of rpcs) { walk(n, n); walk(n + '__ungated', n); }
@@ -144,7 +147,8 @@ async function run(root) {
 const MUTANTS = [
   ['RW1', 'the Iron Platelegs code loses its line and its family', 'src/data/refusal-words.js', "  requirement_not_met: 'Requirement not met',\n", ''],
   ['RW1', 'the bad_* family is gone', 'src/data/refusal-words.js', "  [/^(bad|missing)_[a-z0-9_]+$|_shape$|^unknown_(verb|op|delta_key|rpc)$/, 'Invalid request, nothing changed'],\n", ''],
-  ['RW1', 'the old one-word fallback for every unlisted code', 'src/shell/intent-words.js', '  return (typeof code === \'string\' && familyWords(code)) || REFUSAL_FALLBACK;', '  return REFUSAL_FALLBACK;'],
+  ['RW1', 'a Talents spend problem loses its line (a code only hr_talent_spend_problem returns)', 'src/data/refusal-words.js', "  vow_slots: 'No free vow slot',\n", ''],
+  ['RW1', 'the old one-word fallback for every unlisted code','src/shell/intent-words.js', '  return (typeof code === \'string\' && familyWords(code)) || REFUSAL_FALLBACK;', '  return REFUSAL_FALLBACK;'],
   ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'Didn\\'t go through, nothing changed';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],
   ['RW3', 'the requirement is not said with its numbers', 'src/shell/intent-words.js', '    const w = requirementWords(r.item, cs, r.counts);', '    const w = null;'],
   ['RW3', 'the refusal\'s own number is not read', 'src/shell/intent-words.js', '  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) return said(', '  if (false) return said('],

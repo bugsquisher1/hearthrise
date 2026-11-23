@@ -42,6 +42,7 @@ async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
   M.DH = await imp('src/data/drop-hours.js');
   M.DR = await imp('src/core/drop-rate.js');
+  M.B = await imp('src/core/bands.js');
   M.TR = await imp('src/core/trait-roll.js');
   M.GS = await imp('src/data/gear-steps.js');
   M.D = await imp('src/data/danger.js');
@@ -110,11 +111,13 @@ const CASES = {
     if (!(R.rare.everyHours < R.very_rare.everyHours)) return 'a Very Rare is not rarer than a Rare';
     if (JSON.stringify(R.plain.band) !== JSON.stringify(M.LB.BAND_TARGETS.scarce.hours)) return 'Plain is not the Scarce band';
     for (const [gid, row] of Object.entries(M.D.DANGER_GROUNDS)) {
-      const d1 = M.DR.depthRarePm(gid, row.floorStep), dTop = M.DR.depthRarePm(gid, row.topStep), dRef = M.DR.depthRarePm(gid, row.refStep);
+      /* the reference company's hold (src/core/bands.js refHeldOf: a formula ground's refStep is the pay's anchor, its four holds over it) */
+      const held = M.B.refHeldOf(gid);
+      const d1 = M.DR.depthRarePm(gid, row.floorStep), dTop = M.DR.depthRarePm(gid, row.topStep), dRef = M.DR.depthRarePm(gid, held);
       if (M.DR.depthOf(gid, row.floorStep) !== 1 || M.DR.depthOf(gid, row.topStep) !== M.D.DEPTHS) return gid + ': the band does not read depth 1 to ' + M.D.DEPTHS;
       if (!near(dTop / d1, 3, 1e-9)) return gid + ': depth 20 over depth 1 is x' + (dTop / d1) + ', not x3';
-      if (dRef !== 1000) return gid + ': the reference reads ' + dRef + ' permille, not 1000';
-      const [lo, hi] = M.DH.DROP_HOURS.depthPm, rd = M.DR.depthOf(gid, row.refStep);
+      if (dRef !== 1000) return gid + ': the reference company\'s hold (' + held + ') reads ' + dRef + ' permille, not 1000';
+      const [lo, hi] = M.DH.DROP_HOURS.depthPm, rd = M.DR.depthOf(gid, held);
       if (!near(d1, (1000 * lo) / (lo + ((hi - lo) * (rd - 1)) / (M.D.DEPTHS - 1)), 1e-9)) return gid + ': depth 1 reads ' + d1.toFixed(1) + ' permille, not its share of the reference depth ' + rd;
       if (M.SESSION_DEPTH) for (let s = row.floorStep - 5; s <= row.topStep + 5; s++) {
         const b = M.SESSION_DEPTH(gid, s);
@@ -170,8 +173,8 @@ const CASES = {
     for (let i = 0; i < 3000; i++) lucky.kill(1);
     const lt = lucky.tr.found.flatMap((p) => p.traits), lshare = (1000 * lt.filter((t) => t.rank === 3).length) / lt.length;
     if (!(lt.length > 200) || !near(lshare, M.DH.DROP_HOURS.topRankMaxPm, 0.1)) return 'with a huge flame the top rank landed ' + lshare.toFixed(0) + ' permille, not its cap ' + M.DH.DROP_HOURS.topRankMaxPm;
-    /* personal loot, luck and pity: kills to a hit, on hours that give p = 1 / 600 a kill alone */
-    const ref = M.D.DANGER_GROUNDS.muster_barrows.refStep;
+    /* personal loot, luck and pity: kills to a hit, on hours that give p = 1 / 600 a kill alone, where the reference company holds (x1) */
+    const ref = M.B.refHeldOf('muster_barrows');
     const kph = M.DR.killsHeadHour(M.grounds.HUNT_GROUNDS.muster_barrows), hrs = { rare: 600 / kph, very_rare: 1e9 };
     const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
     const q = (a, p) => [...a].sort((x, y) => x - y)[Math.floor(p * a.length)];
@@ -270,6 +273,8 @@ const MUTANTS = [
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', ch: 0.016,"]] },
   { name: 'kills shares off the reference pull', case: 'DF-1', edits: [['src/core/drop-rate.js', 'const size = dangerDial(ground, row.refStep).pull[0];', 'const size = 3;']] },
   { name: 'depth read raw, not against the reference', case: 'DF-3', edits: [['src/core/drop-rate.js', 'return (1000 * depthPmAt(d)) / depthPmAt(ref);', 'return depthPmAt(d);']] },
+  /* (lane/depth-reading-fix) the authored hours are the reference COMPANY's: x1 where it holds, not at the pay's anchor */
+  { name: 'the Rare odds read against the pay anchor, not the reference hold', case: 'DF-3', edits: [['src/core/drop-rate.js', 'ref = depthOf(groundId, refHeldOf(groundId));', 'ref = depthOf(groundId, row.refStep); void refHeldOf;']] },
   { name: 'no divisor for the heroes at the kill', case: 'DF-4', edits: [['src/core/trait-roll.js', '((chanceOf(hours, tr.kills) || 0) / n)', '((chanceOf(hours, tr.kills) || 0) / 1)']] },
   { name: 'pity off', case: 'DF-4', edits: [['src/core/trait-roll.js', 'if (!on) return Math.min(1, p);', 'return Math.min(1, p);']] },
   { name: 'the flame left out', case: 'DF-4', edits: [['src/core/trait-roll.js', '(tr.rarePm / 1000) * ((1000 + luck) / 1000);', '(tr.rarePm / 1000);']] },

@@ -86,6 +86,8 @@ const candidate = {
    - THE LENT SHOT. A cast looses what the worn weapon can shoot (abilities.js castShotOf: shootsItem by role), so a sword has no arrow
      for a borrowed Raking Shot. 17 rules a borrowed move "uses its own rune or arrows": a hero with a borrow list looses the free Bronze
      Arrow it carries (bag bronze_arrows, ammoPerShot 0) when its own bar names no shot.
+   - THE TAUNT FROM ANY SEAT (lane/roads-v0-remeasure). targeting.js challengeable takes only a tank; 17 rules "a borrowed Challenge
+     taunts from any seat". A seat whose borrow list names Challenge (borrowBlows) taunts at the full hold.
    - THE NATIVE REACH. 17 rules a borrowed ally heal reaches as its native move ("Greater Mend: 7 tiles"); the engine gives it the
      holder's range (cast-targets.js reachOf: a melee hero's 1 tile). Greater Mend's row carries reach 7, the healer's own range, so a
      native healer is unchanged and a borrower reaches 7 (the reach seam above reads row.reach) */
@@ -95,9 +97,18 @@ const rules = {
   edits: [...candidate.edits,
     { file: 'src/core/hunt/abilities.js', from: '  return got ? got.pick.id : null;',
       to: '  return got ? got.pick.id : (hero.borrowBlows && h.hs && h.hs.bag && h.hs.bag.bronze_arrows ? \'bronze_arrows\' : null);' },
-    { file: 'src/data/abilities.js', from: "ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], ", to: "ab({ id: 'greater_mend', n: 'Greater Mend', reach: 7, disciplines: ['restoration'], " }],
+    { file: 'src/data/abilities.js', from: "ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], ", to: "ab({ id: 'greater_mend', n: 'Greater Mend', reach: 7, disciplines: ['restoration'], " },
+    /* lane/roads-v0-remeasure: Protective Ward's native reach (the healer's 7 tiles, as Greater Mend), and a borrowed Challenge taunts
+       from any seat at its full hold (17 section 3 "Taunts"; the engine's challengeable takes only a tank). "Borrowed" here is the
+       ENGINE's borrow (the seat's borrowBlows names the row), not a clone's `lent` */
+    { file: 'src/data/abilities.js', from: "ab({ id: 'protective_ward', n: 'Protective Ward', disciplines: ['restoration'], ", to: "ab({ id: 'protective_ward', n: 'Protective Ward', reach: 7, disciplines: ['restoration'], " },
+    { file: 'src/core/hunt/abilities.js', from: "case 'taunt': return challengeable(inst, hero, row.lent).length ? hero : null;",
+      to: "case 'taunt': return challengeable(inst, hero, row.lent || !!(hero.borrowBlows && Number.isInteger(hero.borrowBlows[row.id]))).length ? hero : null;" },
+    { file: 'src/core/hunt/abilities.js', from: "case 'taunt': challengeFrom(inst, sc, u, row); break;",
+      to: "case 'taunt': challengeFrom(inst, sc, u, u.borrowBlows && Number.isInteger(u.borrowBlows[row.id]) ? { ...row, lent: true } : row); break;" }],
   assumptions: [...candidate.assumptions, 'A borrowed shot move carries its own arrows (the free rung: the borrowed cast reads its native weapon\'s blow, never the arrow)',
-    'A borrowed Greater Mend reaches 7 tiles, its native healer\'s range (17 section 3 "Reach")'],
+    'A borrowed Greater Mend reaches 7 tiles, its native healer\'s range (17 section 3 "Reach")', 'A borrowed Protective Ward reaches 7 tiles too',
+    'A borrowed Challenge taunts from any seat at its full hold (17 section 3 "Taunts")'],
 };
 if (isMain(import.meta.url)) writeFileSync(join(HERE, 'roads-lend.json'), JSON.stringify(candidate, null, 1) + '\n');
 if (isMain(import.meta.url)) writeFileSync(join(HERE, 'roads-lend-rules.json'), JSON.stringify(rules, null, 1) + '\n');

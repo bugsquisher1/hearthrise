@@ -379,6 +379,16 @@ async function netOf(d, m) {
 const SHRIMP = BASIC_SUPPLIES.find((b) => b.id === 'salted_shrimp');
 const DEAR = BASIC_SUPPLIES.filter((b) => b.kind === 'heal').sort((a, b) => b.price - a.price)[0];
 const addBuys = (m, n, row = SHRIMP) => { m.hunt.buys = Object.assign({}, m.hunt.buys || {}, { [row.id]: ((m.hunt.buys || {})[row.id] || 0) + n }); };
+/* G5's bill: whole uses of ONE food-lane row (heal or mana: the lane hr_hunt_apply_member bounds together), cheapest first, landing
+   strictly above slot 0's coins and within both heroes'. A Salted Shrimp count alone cannot always do it: prices move with the wage
+   (lane/econ-levers), and at the tuning pass's (Shrimp 6 g, a window of 12 + 5 coins) no count of Shrimp falls between 12 and 17.
+   Null when no row's whole uses can, and the claim's precondition says so. */
+function billBetween(lo, hi) {
+  const rows = BASIC_SUPPLIES.filter((b) => (b.kind === 'heal' || b.kind === 'mana') && b.price > 0)
+    .sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1));
+  for (const row of rows) { const n = Math.floor(hi / row.price); if (n >= 1 && n * row.price > lo) return { row, n, gold: n * row.price }; }
+  return null;
+}
 
 /* THE LEDGER CHAIN of one account: every gold row states purse = previous + gold, carries a gold_kind;
    the chain from the account's first gold row (a fresh account: from 0) ends at the purse. */
@@ -684,14 +694,14 @@ async function huntArms(mutate, M) {
     const p = await propose(M, d, u, 0, from + 6 * 60000);
     const m0 = memberOf(p, u, 0), m1 = memberOf(p, u, 1);
     const c0 = await netOf(d, m0), c1 = await netOf(d, m1);
-    const n = Math.floor((c0 + c1) / SHRIMP.price);
-    if (ok(m0 && m1 && n * SHRIMP.price > c0, `G5: the window's coins (${c0} + ${c1}) cannot make a bill slot 0 pays only with slot 1's coins`)) {
-      addBuys(m0, n);                                             // slot 0 (applied first) spends both heroes' coins
+    const bill = billBetween(c0, c0 + c1);
+    if (ok(m0 && m1 && bill, `G5: the window's coins (${c0} + ${c1}) cannot make a bill slot 0 pays only with slot 1's coins`)) {
+      addBuys(m0, bill.n, bill.row);                              // slot 0 (applied first) spends both heroes' coins
       const res = await commit(M, d, p);
-      say(`G5: coins ${c0} + ${c1}; slot 0's bill ${n * SHRIMP.price} -> ${res && (res.ok ? 'landed' : res.error)}; purse ${await d.purse(u)}`);
+      say(`G5: coins ${c0} + ${c1}; slot 0's bill ${bill.n} x ${bill.row.id} = ${bill.gold} -> ${res && (res.ok ? 'landed' : res.error)}; purse ${await d.purse(u)}`);
       ok(res && res.ok === true, `G5: a bill one account's two heroes earned together answered ${JSON.stringify(res).slice(0, 300)}`);
       const c = await chain(d, u);
-      ok(!c.bad.length && c.purse === 300 + c0 + c1 - n * SHRIMP.price && c.purse >= 300, `G5: the chain ${JSON.stringify(c.bad)}; purse ${c.purse}, expected ${300 + c0 + c1 - n * SHRIMP.price}`);
+      ok(!c.bad.length && c.purse === 300 + c0 + c1 - bill.gold && c.purse >= 300, `G5: the chain ${JSON.stringify(c.bad)}; purse ${c.purse}, expected ${300 + c0 + c1 - bill.gold}`);
     }
     for (const door of ['tick', 'settle']) {
       /* the rest of the hunt: the browser closed (the tick, to 10 min), then watched (the player's settle, to now) */

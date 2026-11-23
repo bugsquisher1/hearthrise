@@ -30,7 +30,7 @@
 // live view and the edge's settle derive the same last bit.
 // ============================================================
 
-import { MONSTER_ROLES, MONSTER_FORMULA } from '../../data/monster-roles.js';
+import { MONSTER_ROLES, MONSTER_FORMULA, roleSpellId } from '../../data/monster-roles.js';
 import { DANGER, DANGER_GROUNDS } from '../../data/danger.js';
 import { refCompany } from '../reference-company.js';
 import { HUNT_GROUNDS, monstersOn } from '../../data/hunt-grounds.js';
@@ -111,9 +111,9 @@ export function roleStats(roleId, g, kind = 'pull', own = {}) {
   };
   if (w > 0) {
     const size = R.windupSize * F.windupScale.size;
-    derive(own.windup, 'mf_' + roleId, R.windup, (size * ref.hp) / (SPELL_MEAN * take), (R.windupSize / (w * R.pressure)) * F.windupScale.every);
+    derive(own.windup, roleSpellId(roleId), R.windup, (size * ref.hp) / (SPELL_MEAN * take), (R.windupSize / (w * R.pressure)) * F.windupScale.every);
   }
-  if (R.mend && R.mend.seconds > 0) derive(own.mend, 'mf_' + roleId + '_mend', R.mend.spell, (R.mend.seconds * ref.dpsFight) / SPELL_MEAN, R.mend.everyS);
+  if (R.mend && R.mend.seconds > 0) derive(own.mend, roleSpellId(roleId, true), R.mend.spell, (R.mend.seconds * ref.dpsFight) / SPELL_MEAN, R.mend.everyS);
   return { hp, maxHit, top, steadyShare: wantTop > 0 ? Math.min(1, (top + 1) / (wantTop + 1)) : 1, spells: Object.freeze(spells),
     armorPm };
 }

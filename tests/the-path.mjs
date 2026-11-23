@@ -10,8 +10,9 @@
 //   P-5  rule 2: an event row carries expectLevel, a whole Level; only a row waiting on a later lane's flag, or the weapon-tags stub, may
 //        leave it null
 //   P-6  rule 3, the coverage: with every row counted whose Level reads today (way rows never count), each Level L from 1 to 30 has a
-//        next thing at L+1 to L+3. Rule 4: a hole on PATH_HOLES_FOR_HARDER_TIERS prints and passes until FB-7 lands; so does a hole on
-//        HOLES_FOR_TALENTS below until FB-11's src/data/talents.js lands (the designer's own table counts its points). Any other hole fails
+//        next thing at L+1 to L+3. Rule 4: a hole on PATH_HOLES_FOR_HARDER_TIERS prints and passes until FB-7 lands. Any other hole
+//        fails. FB-11 landed (src/data/talents.js, a Talent point every Level, RD-Q4 a), so its holes list is gone and the talent_points
+//        row alone fills every Level: the coverage mutants plant on the Path without that row and name their own hole exactly
 //
 //   node tests/the-path.mjs            the guard
 //   node tests/the-path.mjs --mutate   each planted defect must turn its own line red
@@ -45,10 +46,6 @@ function pathFiles(rows) {
   return [...out].sort();
 }
 
-/* FB-11's Talent points carry Levels 20 and 25 (D-1 section 1.1: "Talents carry four Levels"); until its file lands these are its
-   holes. FB-11 deletes this list in the commit that adds src/data/talents.js, with a mutant proving the guard bites. */
-export const HOLES_FOR_TALENTS = Object.freeze([17, 18, 22, 23, 24]);
-const TALENTS_FILE = 'src/data/talents.js';
 const STUBS = new Set(['weapon_tags']);   // D-1 section 1.5: the tags are filled last from check C1
 const SCOPES = new Set(['account', 'hero', 'way']);
 const ID = /^[a-z0-9_]{1,48}$/;
@@ -59,11 +56,10 @@ async function loadMods(rows) {
   return mods;
 }
 
-/** Every problem with `rows`, as strings. `o`: { harder, talents, present(file) } for the mutants. */
+/** Every problem with `rows`, as strings. `o`: { harder, present(file) } for the mutants. */
 export function checkPath(rows, mods, o = {}) {
   const out = [];
   const harder = o.harder || PATH_HOLES_FOR_HARDER_TIERS;
-  const talents = o.talents || HOLES_FOR_TALENTS;
   const present = o.present || ((f) => !!mods[f]);
   const windows = new Set(SHELL_WINDOWS.map((w) => w.id));
   const seen = new Set();
@@ -95,23 +91,28 @@ export function checkPath(rows, mods, o = {}) {
   for (let L = 1; L <= 30; L++) if (![L + 1, L + 2, L + 3].some((x) => levels.has(x))) holes.push(L);
   for (const L of holes) {
     if (harder.includes(L)) continue;
-    if (talents.includes(L) && !present(TALENTS_FILE)) continue;
     out.push('P-6 Level ' + L + ' names no next thing within 3 Levels');
   }
   return { out, holes };
 }
 
+/* THE PATH WITHOUT ITS EVERY-LEVEL ROW: a Talent point every Level (talent_points, src/data/talents.js pointLevels) names a next thing at
+   each Level by itself, so no other row's loss can open a hole while it stands. The coverage mutants plant on the Path without it, where
+   each Level's next thing is the rows the designer placed, and each expects its OWN hole by its exact Level (a trailing space: Level 1 is
+   not Level 12). Holes this Path already has (17, 18, 22 to 24; 16, 25, 26 excused for FB-7) never match another mutant's Level. */
+const noPoints = (rows) => rows.filter((r) => r.id !== 'talent_points');
 const MUTANTS = [
   ['P-3 a typed Level', (rows) => rows.map((r) => (r.id === 'wickstead' ? Object.assign({}, r, { opener: { kind: 'level', from: null } }) : r)), 'P-3 wickstead'],
   ['P-3 an export typo', (rows) => rows.map((r) => (r.id === 'tower' ? Object.assign({}, r, { opener: { kind: 'level', from: Object.assign({}, r.opener.from, { export: 'TOWER_RULE' }) } }) : r)), 'P-3 tower'],
   ['P-2 a window that is not there', (rows) => rows.map((r) => (r.id === 'start' ? Object.assign({}, r, { opens: r.opens.concat('tamsin') }) : r)), 'P-2 start'],
   ['P-5 an event with no Level', (rows) => rows.map((r) => (r.id === 'first_leave' ? Object.assign({}, r, { opener: Object.assign({}, r.opener, { expectLevel: null }) }) : r)), 'P-5 first_leave'],
   ['P-1 a semicolon in the words', (rows) => rows.map((r) => (r.id === 'thicket' ? Object.assign({}, r, { line: 'Level 5; Meadowbrook Thicket' }) : r)), 'P-1 thicket'],
-  ['P-6 a hole at Level 13 (no iron gear row)', (rows) => rows.filter((r) => r.id !== 'iron_gear'), 'P-6 Level 1'],
-  ['P-6 the harder-tier list gone', (rows) => rows, 'P-6 Level 16', { harder: [] }],
-  ['P-6 FB-11 landed and still a hole at 17', (rows) => rows, 'P-6 Level 17', { present: (f) => f === TALENTS_FILE || existsSync(join(ROOT, f)) }],
-  /* Frost Slam (12) and Hoarfrost (14) are WAY rows: a guard that counted them would hide this hole */
-  ['P-6 a hole a way row would hide (no Iron gear, no Mosslight)', (rows) => rows.filter((r) => r.id !== 'iron_gear' && r.id !== 'mosslight'), 'P-6 Level 12'],
+  /* the one row that fills every Level: without it Levels 17 and 18 name nothing (no list excuses them since FB-11 landed) */
+  ['P-6 the Talent points gone', noPoints, 'P-6 Level 17 '],
+  ['P-6 a hole at Level 12 (no Iron gear row)', (rows) => noPoints(rows).filter((r) => r.id !== 'iron_gear'), 'P-6 Level 12 '],
+  ['P-6 the harder-tier list gone', noPoints, 'P-6 Level 16 ', { harder: [] }],
+  /* Hoarfrost (14) is a WAY row: a guard that counted it would hide this hole */
+  ['P-6 a hole a way row would hide (no Iron gear, no Mosslight)', (rows) => noPoints(rows).filter((r) => r.id !== 'iron_gear' && r.id !== 'mosslight'), 'P-6 Level 13 '],
 ];
 
 async function main() {
@@ -130,7 +131,6 @@ async function main() {
   }
   const { out, holes } = checkPath(THE_PATH, mods);
   for (const L of holes.filter((x) => PATH_HOLES_FOR_HARDER_TIERS.includes(x))) console.log('  hole at Level ' + L + ': waits on FB-7\'s harder-tier rows (D-1 rule 4)');
-  for (const L of holes.filter((x) => HOLES_FOR_TALENTS.includes(x))) if (!mods[TALENTS_FILE]) console.log('  hole at Level ' + L + ': waits on FB-11\'s Talent points (' + TALENTS_FILE + ')');
   for (const l of out) console.log('  ✗ ' + l);
   console.log(out.length ? 'the-path: RED, ' + out.length + ' finding(s)' : 'the-path: ' + THE_PATH.length + ' rows, every Level 1 to 30 names a next thing within 3 Levels but the named holes');
   process.exit(out.length ? 1 : 0);

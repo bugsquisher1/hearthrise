@@ -638,7 +638,8 @@ const DB_MUTANTS = [
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
   ['party_notices', 'public.hr_party_notices_view(uuid,integer)', "'who', left(public.hr_character_name(", "'actor', left(public.hr_character_name("],
   ['time_blocks', 'public.hr_time_quote(uuid,integer,text)', "'ceiling_ms', v_ceil, 'block_ms', v_block,", "'ceiling_ms', v_ceil, 'block', v_block,"],
-  ['blessings', 'public.hr_blessings_view(uuid,integer)', "'tiers', coalesce(", "'tier_list', coalesce("],
+  /* the ONE-Blessing view (1063-level-costs.sql) builds its one-row `tiers` with jsonb_build_array */
+  ['blessings', 'public.hr_blessings_view(uuid,integer)', "'tiers', jsonb_build_array(", "'tier_list', jsonb_build_array("],
   ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'slain', (select", "'killed', (select"],
   ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'combat', case when v_fresh", "'sheet', case when v_fresh"],
   ['character_sheet', 'public.hr_character_sheet_inputs(uuid,integer)', "'buffs', coalesce((select", "'buffs', clock_timestamp()::text, 'b', coalesce((select"],

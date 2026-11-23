@@ -21,6 +21,7 @@ import { DEATH_TEXT } from './death.js';
 import { EVENTS_TEXT } from './events.js';
 import { FACTIONS_TEXT } from './factions.js';
 import { FARM_TEXT } from './farm.js';
+import { FIGHT_TEXT } from './fight.js';
 import { HEROES_TEXT } from './heroes.js';
 import { HOUSE_TEXT } from './house.js';
 import { HUD_TEXT } from './hud.js';
@@ -59,6 +60,7 @@ export const TEXT = Object.freeze({
   events: EVENTS_TEXT,
   factions: FACTIONS_TEXT,
   farm: FARM_TEXT,
+  fight: FIGHT_TEXT,
   heroes: HEROES_TEXT,
   house: HOUSE_TEXT,
   hud: HUD_TEXT,

@@ -102,6 +102,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/hunt/pull-cycle.js#tickHeroes', why: 'a unit conversion (milli-HP a microsecond)' }, { at: 'src/core/hunt/leash.js#inArea', why: 'geometry' },
   { at: 'src/core/hunt/status.js#tickAmount', why: 'rounding (+500 / 1000)' }, { at: 'src/core/hunt/tower.js#KEEP', why: 'how many floor records a climb keeps' },
   { at: 'src/core/hunt/tower.js#<statements>', why: 'a permille to share conversion (/ 1000) in the load check of the run pay against its mode' },
+  { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'unit conversions for the help text (ms an hour, minutes an hour): the numbers it shows are STAMINA_MAX_MS and RULED.hunt.blockMin' },
   { at: 'src/data/bosses.js#bossRole', why: 'a ppm to share conversion (/ 1e6)' }, { at: 'src/data/bosses.js#rampPmAt', why: 'a unit conversion (ms a minute)' },
   { at: 'src/core/hunt/xp-share.js#*', why: 'the seat cap 4 and float epsilons of the split; the split\'s numbers are its tables\' (party.class-xp, the Tower\'s pay row mon.run-rooms)' },
   { at: 'src/core/hunt/abilities.js#effect', why: 'a percent to permille conversion (x10) for the mark' }, { at: 'src/core/hunt/abilities.js#regenMana', why: 'unit conversions of the mana regen (its number is regen.mana)' },

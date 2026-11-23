@@ -23,7 +23,9 @@
 //
 // REFUSES (throws, nothing written): a stance list not ordered safest first with each death settling to the same or a safer stance and
 // fall_pm < clean_pm; a default stance that is no stance; a ground row that is no open hunting ground (its hunt id = its ground id; not the Tower, a yard, a hall or a call);
-// a reference step outside 0..stepMax; a non-whole pay step in ppm; an hours lever that is not a positive whole number.
+// a reference step outside 0..stepMax; a non-whole pay step in ppm; an hours lever that is not a positive whole number; a rowsKillsHead
+// (the kill rate a ground's coin and drop rows were written at, src/core/hunt/danger.js rowsKeptOf) that is no whole kill rate; a formulaStep (where a
+// formula ground's reference monsters stand, danger.js formulaStepOf) off the scale.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -82,20 +84,27 @@ export function rowsOf({ data, core, model, grounds, tuning, wage }) {
     if (!g || g.hunt !== id || own(grounds.TOWER_GROUNDS || {}, id) || own(grounds.TRAINING_GROUNDS || {}, id) || own(grounds.HALL_GROUNDS || {}, id) || own(grounds.CALLED_GROUNDS || {}, id)) {
       throw new Error('gen-danger: ' + id + ' is no hunting ground whose hunt is its id');
     }
-    /* THE PAY'S REFERENCE (lane/scale-early-grounds; src/core/hunt/danger.js payRowOf): where the reference company holds, the row's refHeld
-       on a formula ground (its refStep is the monsters' anchor), else its refStep. The server's one reader of ref_step is the store's depth
-       (1062 hr_store_step: the wage at refLevel there), so a store use is priced at the same reference the engine pays by */
-    const ref = DANGER_GROUNDS[id].refHeld === undefined ? DANGER_GROUNDS[id].refStep : DANGER_GROUNDS[id].refHeld;
+    /* THE PAY'S REFERENCE (src/core/hunt/danger.js refOf): refStep, where the reference company holds (a formula ground's monsters may
+       stand elsewhere, formulaStep). The server's one reader of ref_step is the store's depth (1062 hr_store_step: the wage at refLevel
+       there), so a store use is priced at the same reference the engine pays by */
+    const ref = DANGER_GROUNDS[id].refStep;
     if (!Number.isInteger(ref) || ref < 0 || ref > DANGER.stepMax) throw new Error('gen-danger: ' + id + ' refStep ' + ref);
     /* THE BAND (lane/r10-more-grounds; 12-targets.md 3.1): floor under the reference under the top, inside the scale; the engine climbs no
        step past the top and pays no more there (src/core/hunt/danger.js stepOn, gapOf) */
     const { floorStep: lo, topStep: hi } = DANGER_GROUNDS[id];
-    const anchor = DANGER_GROUNDS[id].refStep;
-    if (!Number.isInteger(lo) || !Number.isInteger(hi) || !(lo >= 0 && lo < ref && ref < hi && lo < anchor && anchor < hi && hi <= DANGER.stepMax)) throw new Error('gen-danger: ' + id + ' band ' + lo + ' / ' + anchor + ' (held ' + ref + ') / ' + hi + ' is not floor < refStep < top inside the scale');
+    if (!Number.isInteger(lo) || !Number.isInteger(hi) || !(lo >= 0 && lo < ref && ref < hi && hi <= DANGER.stepMax)) throw new Error('gen-danger: ' + id + ' band ' + lo + ' / ' + ref + ' / ' + hi + ' is not floor < refStep < top inside the scale');
     /* A GROUND'S OWN KILL RATE is never under the scale's: the server bounds a kill by hr_danger_level_xp_max at PAY.refKillsHead, and a
        ground split over fewer kills would pay a kill over it */
     const rk = DANGER_GROUNDS[id].refKillsHead;
     if (rk !== undefined && !(Number.isInteger(rk) && rk >= PAY.refKillsHead)) throw new Error('gen-danger: ' + id + ' refKillsHead ' + rk + ' is under the scale\'s ' + PAY.refKillsHead + ' (the server\'s ceiling a kill)');
+    /* ROWS KEPT IN THEIR HOURS (lane/monster-roles-ford-wings; src/core/hunt/danger.js rowsKeptOf): the kill rate a ground's coin and drop
+       rows were written at is a whole number of kills a head an hour; the coin ceiling below reads the dial it scales, so it follows */
+    const ck = DANGER_GROUNDS[id].rowsKillsHead;
+    if (ck !== undefined && !(Number.isInteger(ck) && ck >= 1)) throw new Error('gen-danger: ' + id + ' rowsKillsHead ' + ck + ' is no whole kill rate a head an hour');
+    /* THE FORMULA'S ANCHOR (lane/monster-roles-ford-wings; src/core/hunt/danger.js formulaStepOf): where a formula ground's reference
+       monsters stand, a step inside the scale; the share and coin ceilings below read the dial that sizes the pull from it */
+    const fs = DANGER_GROUNDS[id].formulaStep;
+    if (fs !== undefined && !(Number.isInteger(fs) && fs >= 0 && fs <= DANGER.stepMax)) throw new Error('gen-danger: ' + id + ' formulaStep ' + fs + ' is no step on the scale');
     /* A STAGED GROUND (its hunt `staged`: the Catacombs' wings) is carried in the data and judged here, and served only once it opens: the
        server's freeze opens the scale on these rows alone, and a staged ground is no hr_hunt_grounds row */
     const open = grounds.OPEN_GROUNDS ? (Array.isArray(grounds.OPEN_GROUNDS) ? grounds.OPEN_GROUNDS.includes(id) : own(grounds.OPEN_GROUNDS, id)) : true;
@@ -315,6 +324,8 @@ async function selftest() {
   tryRows('a band whose floor is over its reference', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, muster_barrows: { ...d.DANGER_GROUNDS.muster_barrows, floorStep: d.DANGER_GROUNDS.muster_barrows.refStep + 1 } } }));
   tryRows('a band past the scale', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, muster_barrows: { ...d.DANGER_GROUNDS.muster_barrows, topStep: d.DANGER.stepMax + 1 } } }));
   tryRows('a ground split over fewer kills than the ceiling', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, hasks_ford: { ...d.DANGER_GROUNDS.hasks_ford, refKillsHead: d.PAY.refKillsHead - 1 } } }));
+  tryRows('a ground whose rows are written at no whole kill rate', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, hasks_ford: { ...d.DANGER_GROUNDS.hasks_ford, rowsKillsHead: 0.5 } } }));
+  tryRows('a formula anchor past the scale', (d) => ({ DANGER_GROUNDS: { ...d.DANGER_GROUNDS, hasks_ford: { ...d.DANGER_GROUNDS.hasks_ford, formulaStep: d.DANGER.stepMax + 1 } } }));
   /* a staged ground is judged, never served: the wings are in the data and out of the rows */
   { const r = rowsOf(base); if (r.ground.some((g) => g.id.startsWith('catacomb_'))) bites.push('a staged ground was written to the catalogue'); }
   tryRows('a pay step no whole ppm', (d) => ({ PAY: { ...d.PAY, payStepXp: 0.0070001 } }));
@@ -327,7 +338,7 @@ async function selftest() {
   const sql = buildSql(rowsOf(base));
   if (!/VERIFY\(c\)/.test(sql) || !/hr_danger_level_xp_max/.test(sql)) bites.push('the twins are not pinned');
   if (bites.length) { console.error('gen-danger --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-danger --selftest: 16 refusals bite, a staged ground stays out');
+  console.log('gen-danger --selftest: 18 refusals bite, a staged ground stays out');
 }
 
 if (isMain(import.meta.url)) {

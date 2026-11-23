@@ -46,7 +46,9 @@
 // ground before sells the lining for the ground after, and the Slake's Bargemen will throw cold river water.
 // NOT IN THIS PACK YET: the Company Colors (the Bannerman's flag, a named Hearth fuel on the old lane). A named fuel needs a
 // row in src/data/hearth.js, which a pack can't add. It comes back when a pack can carry a fuel row.
-// NO SPELL ROW WAITS HERE: no Ford body has a monster area spell designed.
+// NO SPELL ROW OF ITS OWN: on the Danger scale the Ford plays the monster formula (src/data/danger.js DANGER_GROUNDS, lane/monster-roles-
+// ford-wings 2026-11-23), so each body casts its role's: the Fordsunk's Heavy Blow (Brute), the Ledger Wight's Hex (Caster) and the
+// Bannerman's Rally (Warder), their numbers the formula's (src/data/monster-roles.js).
 //
 // WHAT OPENING IT MOVES (not this pack's file): a lone hero at 45-49 is sent here from the Glade, and earns about 250k Level XP
 // an hour where the pace of record reads 105-107k (tools/balance-sim/level-pace.json). Computed from the curve's XP, Levels 45 to
@@ -119,19 +121,23 @@ export default definePack({
       /* the swarm, the common majority: the company's foot, still in its files. A blade skates off the ribs (the bestiary's
          words). Their boots and helmets, their bones for the Hearth. */
       weaponResist: ['sword'],
-      drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.468, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.374, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.0749, band: 'uncommon' },
-        { id: 'mithril_boots', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.077, ch: 0.00749, band: 'scarce' },
-        { id: 'mithril_helm', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.077, ch: 0.00749, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.077, ch: 0.00749, band: 'scarce' },
-        { id: 'maple_crossbow', everyHours: 1.435, ch: 0.00562, band: 'scarce' }],
+      /* THE SWARM (src/data/monster-roles.js; the Danger scale only): each goes for the hero the fewest are on, the front first */
+      role: 'swarm',
+      drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.456, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.365, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.0729, band: 'uncommon' },
+        { id: 'mithril_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
+        { id: 'mithril_helm', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
+        { id: 'maple_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }],
       hp: 67, atk: 28, aim: 79, evasion: 23, def: 2, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
          legs, and the weed that grew through them. */
       weaponResist: ['ranged'],
-      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.468, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.151, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.0749, band: 'uncommon' },
-        { id: 'mithril_platelegs', everyHours: 0.56, ch: 0.0304, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.56, ch: 0.0304, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.56, ch: 0.0304, band: 'scarce' },
-        { id: 'mithril_hatchets', everyHours: 0.7, ch: 0.0243, band: 'scarce' }],
+      /* THE BRUTE (monster-roles.js; the scale only): slow and heavy, it goes for the nearest hero in the front row */
+      role: 'brute',
+      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.51, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.164, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.0817, band: 'uncommon' },
+        { id: 'mithril_platelegs', everyHours: 0.56, ch: 0.0332, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.56, ch: 0.0332, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.56, ch: 0.0332, band: 'scarce' },
+        { id: 'mithril_hatchets', everyHours: 0.7, ch: 0.0265, band: 'scarce' }],
       hp: 112, atk: 29, aim: 73, evasion: 36, def: 12, xp: 863, gp: [16, 50], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
@@ -139,6 +145,9 @@ export default definePack({
          spell sinks into the cold (the bestiary's words). The bodies. A lone hero meets about 20 an hour, so its Scarce rows sit
          at the 5% ceiling. Its id is its own: monsters.js holds an old `wight` row with no ground, which a pack can't replace. */
       weaponResist: ['magic'],
+      /* THE CASTER (monster-roles.js; the scale only): it reads out of its ledger from the back of the file, and the Hex lands on the whole
+         party (the role's wind-up). The first Caster on an open ground (20-v030 C2) */
+      role: 'caster',
       drops: [{ id: 'bones', everyHours: 0.0545, ch: 0.468, band: 'common' }, { id: 'grave_dust', everyHours: 0.091, ch: 0.281, band: 'common' }, { id: 'ledger_leaf', everyHours: 0.341, ch: 0.0749, band: 'uncommon' },
         { id: 'mithril_platebody', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'warlock_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }],
       hp: 71, atk: 40, aim: 117, evasion: 24, def: 2, xp: 601, gp: [10, 32], formula: true },
@@ -147,10 +156,13 @@ export default definePack({
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. His shield,
          about hourly (a lone hero meets about 20 an hour, so its row sits at the 5% ceiling), and the gloves and belts. */
       weaponResist: ['ranged'],
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.273, ch: 0.281, band: 'common' }, { id: 'toll_token', everyHours: 0.818, ch: 0.0936, band: 'uncommon' },
-        { id: 'mithril_faced_shield', everyHours: 1.636, ch: 0.0468, band: 'scarce' },
-        { id: 'mithril_gauntlets', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'warlock_gloves', everyHours: 19.5, ch: 0.00393, band: 'rare' },
-        { id: 'mithril_belt', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 19.5, ch: 0.00393, band: 'rare' }, { id: 'warlock_belt', everyHours: 19.5, ch: 0.00393, band: 'rare' }],
+      /* THE WARDER (monster-roles.js; the scale only): the colors are still up, and the dead around him rally to them (the role's mend on
+         his own pack). Kill him first. The first Warder with a body (20-v030 C2) */
+      role: 'warder',
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.273, ch: 0.249, band: 'common' }, { id: 'toll_token', everyHours: 0.818, ch: 0.0832, band: 'uncommon' },
+        { id: 'mithril_faced_shield', everyHours: 1.636, ch: 0.0416, band: 'scarce' },
+        { id: 'mithril_gauntlets', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'warlock_gloves', everyHours: 19.5, ch: 0.00349, band: 'rare' },
+        { id: 'mithril_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'warlock_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }],
       hp: 166, atk: 39, aim: 103, evasion: 42, def: 18, xp: 1399, gp: [24, 74], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the

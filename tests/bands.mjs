@@ -25,7 +25,8 @@
 //         cut in absolute steps (the reference hold sits at its absolute share of the band); the browser's danger-sections.js depthOf and
 //         the edge's drop-rate.js depthOf read it for every step of every band
 //   BD-7  27 K-6, THE HANDOVER: a scale ground one tier over another starts at or under where the lower one tops out
-//   BD-8  THE READING'S MIDDLE IS A HOLD (lane/depth-reading-fix, 12-targets 3.1a): a ground on the monster formula carries refHeld (its
+//   BD-8  THE READING'S MIDDLE IS A HOLD (lane/depth-reading-fix, 12-targets 3.1a; at the band's grain, lane/monster-roles-ford-wings): a
+//         formula ground's middle (refHeld, else refStep) is its pin's MID four's hold to BAND_RULE.topTo; a ground carrying refHeld (its
 //         refStep is the chosen anchor, not where the reference four holds), a whole step inside its band; refHeldOf reads it, else refStep
 //   BD-9  AN ORDINARY CLIMB READS RIGHT, ON THE MEASURED COMPANIES (12-targets 3.1 and 3.1a): on every pinned ground the arriving company
 //         (its pin's floor evidence, one tier back at the entry Level) reads at most ARRIVE_MAX and the reference company (its MID evidence)
@@ -42,7 +43,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { SKILL_LINE, BAND_ABS } = await imp('src/data/bands.js');
-const { DANGER_GROUNDS, DEPTHS, POWER } = await imp('src/data/danger.js');
+const { DANGER_GROUNDS, DEPTHS, POWER, BAND_RULE } = await imp('src/data/danger.js');
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { HUNT_INDEX } = await imp('src/data/hunts.js');
 const B = await imp('src/core/bands.js');
@@ -66,6 +67,8 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
   ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 525, topStep: 700, refHeld: 610,']]],
   ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 575, topStep: 700,']]],
+  /* (lane/monster-roles-ford-wings) the Flooded Wing's middle at the pay's grain (450 for a hold of 453.5): its reference four reads 2 depths deep */
+  ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 465, refHeld: 455, formulaStep: 500,', 'topStep: 465, formulaStep: 500,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
   ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel']]],
   /* lane/scale-early-grounds: the strong four wears what its top Level can wear, at the Level its hunt still plays */
@@ -183,8 +186,17 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
 }
 
 /* BD-8 */
+const BD8_PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
-  if (g.monsters === 'formula') ok(g.refHeld !== undefined, 'BD-8 ' + id + ' plays the monster formula, whose refStep is the chosen anchor, and carries no measured refHeld (node tools/new-ground.mjs ' + id + ' ... --write)');
+  /* a formula ground's reading reads its reference four's MEASURED hold (its pin's MID evidence) at the band's grain: refHeld where that is
+     not refStep (Muster: refStep is the chosen anchor; the Flooded Wing: 453.5 is 450 to the pay's grain), refStep where it is
+     (lane/monster-roles-ford-wings: the Ford holds on its anchor, the Bone Wing's refStep is cut from its hold) */
+  if (g.monsters === 'formula') {
+    const ev = BD8_PINS[id] && Array.isArray(BD8_PINS[id].evidence) ? BD8_PINS[id].evidence[0] : null;
+    const c = ev ? JSON.parse(readFileSync(join(ROOT, ev), 'utf8')).cells['base:steady'] : null;
+    const held = c && c.held ? Math.round(c.held.mean / BAND_RULE.topTo) * BAND_RULE.topTo : NaN;
+    ok(B.refHeldOf(id) === held, 'BD-8 ' + id + ' plays the monster formula and the middle of its reading ' + B.refHeldOf(id) + ' is not the hold of its reference four ' + held + ' (' + ev + '; node tools/new-ground.mjs ' + id + ' ... --write)');
+  }
   if (g.refHeld !== undefined) {
     ok(Number.isInteger(g.refHeld) && g.floorStep < g.refHeld && g.refHeld < g.topStep, 'BD-8 ' + id + ' refHeld ' + g.refHeld + ' is not a whole step inside ' + g.floorStep + '..' + g.topStep);
     ok(B.refHeldOf(id) === g.refHeld, 'BD-8 ' + id + ' refHeldOf reads ' + B.refHeldOf(id) + ', the row says ' + g.refHeld);

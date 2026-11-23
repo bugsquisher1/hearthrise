@@ -440,14 +440,14 @@
         "why": "lane/moves-wave-3 (23-spell-audit wave 3): Stagger, Parry and Gash rows with their reasons (data/abilities.js), the Parried status and its parry effect (data/statuses.js, core/hunt/status.js spendFlag), the wind-up answers in core/hunt/abilities.js (answer, the one-target status move), monster-spells.js interrupt and its parried landing, damage.js's parried swing, the target_winding_up test (data/condition-metrics.js, core/hunt/conditions.js); re-raised on the merge of set 050a9b999, the same +9,850 B"
       },
       {
-        "bytes": 3799664,
+        "bytes": 3802631,
         "on": "2026-11-23",
-        "why": "lane/scale-early-grounds merged with set/v0.2.144: the Mill Cellar and the Thicket on the Danger scale (danger.js rows, monsters.js roles and drop hours, core/hunt/danger.js the coin level and the pay at the hold, bands.js the wearable strong kit, hunt-tutorial.js the tier offer skips scale grounds); no new file reached"
+        "why": "lane/monster-roles-ford-wings merged over the set (3329b4bb0): the Ford and both Catacomb wings on the formula with roles and spells, formulaStep and refHeld readers, rowsKillsHead kept on coin and loot, drop-rate.js rowsKillsHour, REF_HERO regenerated with its rows, the corridor pull's area veto (+9,968 B over the set)"
       },
       {
-        "bytes": 3801321,
+        "bytes": 3810952,
         "on": "2026-11-23",
-        "why": "lane/scale-early-grounds step 1: combat-sim.js fightItems + planOf (the scale view only for a fight on the scale, one rule with the world open), read by accrue-hunt.js and hunt-settle.js frozenAt; +1,657 B, no new module reached (gear-stats.js was already in the bundle)"
+        "why": "lane/scale-early-grounds merged onto set/v0.2.144 41fa973cf: the lane's own growth over the roles lane's ceiling, +8,321 B, no new module: the Mill Cellar and the Thicket on the scale (two DANGER_GROUNDS rows, roles and drops in hours on their monster rows, scaleItemLevels pieces), the coin level a ground (danger.js coinLevelOf), the store step on refLevel (wage.js), combat-sim.js fightItems (the scale view only for a fight on the scale)"
       }
     ]
   }

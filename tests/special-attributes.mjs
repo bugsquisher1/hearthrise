@@ -131,6 +131,9 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
         /* `iL` is the Danger scale's mark on a scale ground's drop (src/data/danger.js scaleItemLevels), not a number of the piece: hunt-core/danger
            ilevel holds every scale drop to its ground's */
         if (k === 'iL') continue;
+        /* `statPlus` is a row's stated offset from the stat formula (src/data/gear-profiles.js, lane/gear-catalogue-steps): on a sample it
+           can only carry the attribute (a crit), and the stats it lands on are compared field by field here, so a stat stick still shows */
+        if (k === 'statPlus') continue;
         if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('SA2 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', the standard ' + s.base + ' has ' + JSON.stringify(base[k]));
       }
     } else if (row.slot === 'shield') {

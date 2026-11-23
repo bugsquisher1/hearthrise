@@ -35,8 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate } from '../data/trades.js';
 import { STORE_KIT } from '../data/store-kit.js';
-import { GEAR_STEPS } from '../data/gear-steps.js';
-import { DANGER } from '../data/danger.js';
+import { GEAR_STEPS, DANGER } from '../data/danger.js';
 import { wage, powSquare } from '../data/wage.js';
 import { createRng } from './rng.js';
 

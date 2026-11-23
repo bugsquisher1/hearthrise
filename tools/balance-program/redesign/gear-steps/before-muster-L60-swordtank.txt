@@ -1,0 +1,26 @@
+V1: 6 seed jobs (1 cells x 6 seeds x 12 h) on 9 workers; muster_barrows, Levels 60 / 63 / 70
+[1/6] base:steady#0 95 s, 97 s elapsed
+[2/6] base:steady#1 95 s, 97 s elapsed
+[3/6] base:steady#3 95 s, 98 s elapsed
+[4/6] base:steady#4 94 s, 98 s elapsed
+[5/6] base:steady#2 98 s, 100 s elapsed
+[6/6] base:steady#5 97 s, 101 s elapsed
+
+V1 on muster_barrows (6 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       661.2 +- 4.6      3.6  47.8  80.7   10.1    1.2     2.4     46.5      0     0  11 (0/1/11)                     8  {"hold":2217,"climb":1059,"fall":70}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        1.04x  sd 0.02  n 6  window 8 h  seeds 1.04 1.03 1.04 1.07 1.01 1.06
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 14417 +- 341  income 16686 +- 275  store 2780  kit share 0.17 (meal 115, drink 1580, charge 1085, shot 0)  loot by band: common 226, uncommon 114, scarce 1929, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles tank, crossbow, mage, healer
+  base:steady       tank 0.922  crossbow 0.076  mage 0.001  healer 0.001
+
+wall 101 s

@@ -130,9 +130,10 @@ export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', foldRows('par
    RE-MEASURED 2026-11-08, same monsters re-tuned (the vs-alone cell itself: Level 10, 1 h x 2 seeds): shields -38.7, axes -42.0, bows -36.5, wands -28.6, staves -32.2.
    At the one-class cell 1190 (the lane's fifth commit): shields -22.9, axes -27.1, bows -20.1, wands -10.1, staves -14.7.
    RE-MEASURED 2026-11-16 on the one table (one-class four 970; lane/d-flat-party-xp, tests/party-class-xp-line.mjs --table --mixed, the floor): shields -60.7,
-   axes -70.5, bows -67.0, wands -69.3, staves -62.8. */
+   axes -70.5, bows -67.0, wands -69.3, staves -62.8. RE-MEASURED 2026-11-23, wands only (lane/gear-catalogue-steps: the gear formula re-cut the Practice
+   Wand's and the cloth's early numbers; first-week-bands vs-alone, the Thicket at 10, 2 seeds): wands -64, so -65. */
 const ONE_ROLE_VS_ALONE = Object.freeze({
-  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -60, melee_dps: -70, ranger: -65, mage: -70, healer: -65 }) }),
+  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -60, melee_dps: -70, ranger: -65, mage: -65, healer: -65 }) }),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));

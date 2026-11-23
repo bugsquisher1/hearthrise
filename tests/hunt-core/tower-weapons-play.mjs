@@ -59,8 +59,8 @@ const cases = {
       const profile = MB.deriveProfile(it.weaponType);
       const skill = profile.accuracySkill;
       /* the same row in every number but its name, its +skill and its lock */
-      const { n: _a, towerKey, [C.SKILL_PLUS_FIELDS[skill]]: plus, ...rest } = it;
-      /* (the twin's `iL` is the Danger scale's mark on a scale ground's drop, src/data/danger.js scaleItemLevels: a Tower weapon drops on none) */
+      const { n: _a, iL: _d, towerKey, [C.SKILL_PLUS_FIELDS[skill]]: plus, ...rest } = it;
+      /* (`iL` is the piece's item Level: the twin's can be a scale ground's mark, src/data/danger.js scaleItemLevels, and a Tower weapon drops on none) */
       const { n: _b, iL: _c, ...twinRest } = twin;
       if (JSON.stringify(sorted(rest)) !== JSON.stringify(sorted(twinRest))) return id + ' is not ' + twinId + ' in its other numbers';
       if (plus !== k.skillPlus || towerKey !== k.id) return id + ' gives +' + plus + ' ' + skill + ' from ' + towerKey + ', the key says +' + k.skillPlus;

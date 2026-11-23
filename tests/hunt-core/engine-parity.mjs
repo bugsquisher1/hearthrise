@@ -133,7 +133,13 @@ const SEED = '-4611686018427387904';
    once in that window. PROOF THE GENERAL STATUS SYSTEM IS THE OLD ENGINE: Bleed, Chill and Sickness on statuses.js keys and the one reader
    (status-effects.js), the one shield rule (shields.js offerShield), auras (auras.js, none slotted) and Silenced, played with that one emit
    switched off, HOLD EVERY PIN (world, timeline and tally at all 48 settles, exit 0); with it on, the diff against the pin before is the
-   two glade-4 timeline hashes, every world and tally hash and every kill count (203 / 479 / 134 / 104) held. */
+   two glade-4 timeline hashes, every world and tally hash and every kill count (203 / 479 / 134 / 104) held.
+   RE-PINNED 2026-11-23 (lane/gear-catalogue-steps, merged with set/v0.2.144 at 0275dfdc1), DATA ONLY: warrens-4 moved at settle 1 (kills 203 -> 200); glade-4, glade-1-kite and
+   sewer-2 hold. Cause: every piece's stats are now the one gear formula's (src/data/gear-profiles.js, src/core/gear-stats.js), so the four's
+   ladder pieces under Dawnsteel moved a point or two (the per-tier hand tables are gone). Proof: src/data/gear-stats.generated.js written back
+   with the OLD catalogue's stats for every id, over this tree's src/core and hr-accrue (the scale view included): every pin holds (exit 0).
+   RE-PINNED 2026-11-23 again (merged with set/v0.2.144 at 9825bfcb2, which re-pinned glade-4 itself after set-reds-3): warrens-4 alone, as above
+   (kills 203 -> 200). Proof on this merge: the old catalogue's stats written back hold every one of the set's pins (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

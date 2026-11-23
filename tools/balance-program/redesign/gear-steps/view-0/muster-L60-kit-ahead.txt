@@ -1,0 +1,26 @@
+V1: 6 seed jobs (1 cells x 6 seeds x 12 h) on 18 workers; muster_barrows, Levels 60 / 63 / 70
+[1/6] base:steady#5 114 s, 116 s elapsed
+[2/6] base:steady#3 117 s, 118 s elapsed
+[3/6] base:steady#1 120 s, 122 s elapsed
+[4/6] base:steady#0 121 s, 123 s elapsed
+[5/6] base:steady#4 122 s, 123 s elapsed
+[6/6] base:steady#2 128 s, 129 s elapsed
+
+V1 on muster_barrows (6 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       641.1 +- 6.9      8.1  49.9  86.4   12.4    1.1     2.4     59.8      0     0  0 (0/0/0)                       8  {"hold":3010,"climb":1222,"fall":70}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        1.24x  sd 0.1  n 6  window 8 h  seeds 1.19 1.17 1.16 1.37 1.2 1.37
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 16171 +- 332  income 19057 +- 414  store 4737  kit share 0.25 (meal 95, drink 1913, charge 1047, shot 1683)  loot by band: common 295, uncommon 147, scarce 2444, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.711  bow 0.256  mage 0.033  healer 0
+
+wall 130 s

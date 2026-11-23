@@ -58,7 +58,10 @@ out.careerSkill = LEVELS.map((L) => ({ L, bestCaseMelee: skillAt[L], refHeroMain
 
 /* 3. HP AND MANA, AND WHAT STANDS AGAINST THEM (a full-ground regular of the same Level, the formula's row) */
 const hammer = GT.WEAPON_FAMILIES.find((f) => f.key === 'warhammer');
-const strTop = hammer.str[6];
+/* a rung's numbers are the gear formula's (src/data/gear-profiles.js), read off the generated rows */
+const hammerStr = (i) => (GT.GEAR_ITEMS[hammer.ids[i]] || {}).strB || 0;
+const plateBodyDef = (i) => (GT.GEAR_ITEMS[GT.MATERIAL_TIERS[i].id + '_platebody'] || {}).defB || 0;
+const strTop = hammerStr(6);
 out.vitals = LEVELS.map((L) => {
   const hp = V.maxHpFor(L, 0), hpPlate = V.maxHpFor(L, 6), mana = V.maxManaFor(L, 0);
   const m = BS.formulaStats({ level: L, role: 'regular', floor: Math.max(16, L), tier: 6, fit: 'both' });
@@ -96,7 +99,7 @@ out.death = LEVELS.filter((L) => L >= 10).map((L) => {
 
 /* 5. TEMPERING and the gear ladder */
 out.temper = Object.entries(TP.TEMPER_TIERS).map(([t, g]) => ({ tier: Number(t), wornAt: GT.MATERIAL_TIERS[Number(t) - 1].level, oneTrack: g.reduce((a, b) => a + b, 0), bothTracks: 2 * g.reduce((a, b) => a + b, 0), trackPm: TP.temperLadder('blows', Number(t)).pm * TP.TEMPER_RUNGS }));
-out.gearLadder = GT.MATERIAL_TIERS.map((t, i) => ({ tier: t.tier, level: t.level, hammerStr: hammer.str[i], hammerStepPct: i ? r1((hammer.str[i] / hammer.str[i - 1] - 1) * 100) : null, plateBodyDef: GT.ARMOUR_SLOTS[1].def[i], bodyStepPct: i ? r1((GT.ARMOUR_SLOTS[1].def[i] / GT.ARMOUR_SLOTS[1].def[i - 1] - 1) * 100) : null }));
+out.gearLadder = GT.MATERIAL_TIERS.map((t, i) => ({ tier: t.tier, level: t.level, hammerStr: hammerStr(i), hammerStepPct: i ? r1((hammerStr(i) / hammerStr(i - 1) - 1) * 100) : null, plateBodyDef: plateBodyDef(i), bodyStepPct: i ? r1((plateBodyDef(i) / plateBodyDef(i - 1) - 1) * 100) : null }));
 
 /* 6. PARTY: the Level XP a head, permille of a monster's kill, by size and classes (a hero alone 1150) */
 out.party = { solo: PX.SOLO_XP_PM, perHead: Object.fromEntries([2, 3, 4].map((n) => [n, PX.PARTY_CLASS_XP[n].map((c) => Math.round(c / n))])) };

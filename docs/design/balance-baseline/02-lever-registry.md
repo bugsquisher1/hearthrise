@@ -23,7 +23,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Base damage coefficients | 12 | 11 | 1 | 0 | 0 | 4 | 7 | 3 |
 | Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
 | Level scaling | 9 | 7 | 0 | 0 | 2 | 4 | 3 | 6 |
-| Weapon power and attack frequency | 6 | 2 | 2 | 2 | 0 | 1 | 0 | 2 |
+| Weapon power and attack frequency | 6 | 2 | 3 | 1 | 0 | 1 | 0 | 2 |
 | Spell coefficients, costs, cooldowns and areas | 14 | 6 | 1 | 6 | 1 | 1 | 2 | 4 |
 | Healing and shielding | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | Armor and mitigation | 5 | 2 | 2 | 0 | 1 | 3 | 0 | 1 |
@@ -34,21 +34,21 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 36 | 12 | 10 | 5 | 9 | 7 | 18 | 22 |
 | Spawn pacing and encounter composition | 12 | 7 | 1 | 3 | 1 | 1 | 6 | 5 |
 | Monster XP and loot values | 18 | 9 | 1 | 2 | 6 | 3 | 7 | 10 |
-| Equipment stats and progression | 20 | 7 | 4 | 9 | 0 | 0 | 11 | 14 |
+| Equipment stats and progression | 20 | 8 | 4 | 8 | 0 | 0 | 11 | 14 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 45 | 31 | 2 | 11 | 1 | 0 | 40 | 33 |
-| **All** | **229** | 119 | 31 | 51 | 28 | 31 | 115 | 120 |
+| **All** | **229** | 120 | 32 | 49 | 28 | 31 | 115 | 120 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 723 (in 251 files, 16189 typed numbers) |
-| Claimed by a lever | 311 |
-| Claimed by a not-a-lever reason | 412 |
+| Top-level bindings in the rule code that hold a typed number | 731 (in 254 files, 16914 typed numbers) |
+| Claimed by a lever | 317 |
+| Claimed by a not-a-lever reason | 414 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -138,7 +138,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | ineffective | `damage.element-cap` Weapon element damage cap | Sits in the damage expression with nothing feeding it | 44 X-DORMANT-FACTORS, CONFIRMED |
 | ineffective | `damage.total-cap` Damage product cap | Binds only with bane and a weapon element, both dormant | 44 X-DORMANT-FACTORS, COMPUTED |
 | ineffective | `damage.bane-cap` Bane damage cap | A factor with nothing feeding it | 44 X-DORMANT-FACTORS, CONFIRMED |
-| ineffective | `weapon.family-tables` Weapon accuracy and damage by family and tier | No formula past tier 7 (Level 88): today's gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000 | 44 summary item 1, MEASURED there (progression-engine-probe.json) |
+| ineffective | `weapon.family-tables` Weapon accuracy and damage by family (the gear formula's profiles) | No formula past tier 7 (Level 88): today's gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000 | 44 summary item 1, MEASURED there (progression-engine-probe.json) |
 | ineffective | `spell.shares` A spell's share of the blow | A spell never misses and never crits and takes no weakness, so accuracy, crit and the weapon weakness are worth less the more a hero casts | 44 X-SPELLS-SKIP-WEAKNESS, CONFIRMED |
 | ineffective | `spell.rune-step` Rune tier step | Ends at skill 60: past it a skill level adds nothing to a cast but the blow's own 0.35 | 44 X-VERSION-LADDER, CONFIRMED |
 | ineffective | `armor.curve` Armor against the attacker's Level | At x1, armor past Level 30 is worth nothing at any band size: a full MID set holds more than 2.4 times the armor the 60% cap can use | 12-balance-pass section 3.6, MEASURED (L, bp-armor-curve-240.json: x2.4 takes 18 to 32% more damage and pace does not move) |
@@ -156,7 +156,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | ineffective | `reward.drop-cap` Drop chance cap | The featured multiplier is an argument nobody passes (the boss-of-the-day file 44 cites is gone from the tree) | 44 E-X27, CONFIRMED. Src/core/botd.js absent on set |
 | ineffective | `rare.bestiary-mults` Bestiary drop and damage multipliers | Dead on the hunt path | 44 E51 and E-X26, CONFIRMED. Trophies.js TROPHY_DAMAGE_ARM_ENABLED false |
 | ineffective | `gear.material-tiers` Gear tiers: their Levels and value | The ladder ends at tier 7 (Level 88). Past Level 110 kill speed falls on today's gear | 44 Levels table (88, 111, 300), MEASURED there |
-| ineffective | `gear.armor-table` Armor points by slot and tier | A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap | 12-balance-pass item 6, MEASURED |
+| ineffective | `gear.armor-table` Gear stat budget: the curves and the slot split | A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap | 12-balance-pass item 6, MEASURED |
 | ineffective | `gear.worn-skill` +skill on worn gear | A flat number of skill levels: one level is 0.35 of a point of the largest blow at every Level, so its worth falls as the blow grows | 44 P-X38, CONFIRMED |
 | ineffective | `gear.temper-effect` Tempering a rung | The Armor track works inside the 60% cap, so a capped front hero gains nothing from it | COMPUTED from the cap rule and 12-balance-pass 3.6 (MEASURED for armor points) |
 | ineffective | `imbue.parts` Imbuement parts | The parts only sell. BUILD-LATER as linings, do not cut | 44 E-X32, CONFIRMED |
@@ -174,7 +174,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `level.hero-hp` Hero HP a Level | The monster formula sizes blows on 150 + 10 x L, a hero has 150 + 10 x (L - 1): every blow share is 10 HP a hero does not have | 44 X-REFHP-OFF-BY-ONE, CONFIRMED |
 | contradictory | `level.death-loss` Death XP loss | Written twice with different arithmetic: a float multiply in JS, exact numeric in SQL. They differ by one from Level 50,637 | 44 P-X19, CONFIRMED |
 | contradictory | `level.mode-share` Session mode XP share (the Tower, the Catacombs) | The Catacombs' mode row is a copy of the Tower's, marked ASSUMED | 44 P-X15, CONFIRMED |
-| contradictory | `weapon.family-tables` Weapon accuracy and damage by family and tier | Single cells were tuned to pass one guard on one ground (the warhammer's tiers 2 and 3, Steel Hatchets 14/16, Mithril Hatchets 19/21) | 44 P-X31, CONFIRMED |
 | contradictory | `spell.cooldowns` Spell cooldowns | Rend stays 6 s and the axes lose Power Strike (Tyler 32-3, ALTERNATIVE, ruled 2026-11-21) is not yet in the rows | rulings-of-record 32-3. The rows on set still give the axes Power Strike, HYPOTHESIS until a builder reads the bar |
 | contradictory | `spell.unlocks` Spell unlock levels | Turning Cut unlocks at Melee 10 for every weapon, so the lone hammer reads -24% at the Thicket in Levels 1 to 9 | 44 X-TURNING-CUT-10, CONFIRMED |
 | contradictory | `spell.roll-low` Spell roll floor | Three shapes for an amount: a swing rolls 1..max (mean 50%), a spell 50%..100% (mean 75%), a heal or shell does not roll | 44 X-THREE-ROLLS, CONFIRMED |
@@ -385,7 +384,7 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `mf.mend` A Warder's mend | 12 | 8 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
 | `danger.power-gear` The power step on gear | 11 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 78 | patch | archetype |
-| `weapon.family-tables` Weapon accuracy and damage by family and tier | 9 | 8 | 79 | patch | content |
+| `weapon.family-tables` Weapon accuracy and damage by family (the gear formula's profiles) | 9 | 8 | 79 | patch | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

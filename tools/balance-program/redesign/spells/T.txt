@@ -1,0 +1,63 @@
+
+SPELLS T on muster_barrows L60 steady, held start 570, 6 seeds x 8 h, held read from hour 1 (mean +- se over seeds)
+T                              held 553.8 +- 3.7   deaths 0  xp/hd-h 157469.7 +- 2751.9 kills/h 360.8 +- 2.5   gold/hd-h 12138.6 +- 55.3 store/hd-h 3463 +- 27.2
+     tank    dps 15.4    heal/h 0        deaths 0  casts/h challenge 324.6, flame_strike 423.3, mend 17.7, power_strike 416.1
+     axes    dps 19.8    heal/h 0        deaths 0  casts/h rend 472.2, turning_cut 323.3
+     bow     dps 27.7    heal/h 0        deaths 0  casts/h flame_volley 255.6, hunters_mark 285.7, precision_shot 443.1, raking_shot 249.2
+     healer  dps 17.5    heal/h 102817.3 deaths 0  casts/h circle_of_renewal 84.3, greater_mend 625.7, green_sickness 246.6, mend 0.1, protective_ward 276.5, spring_tide 12.9
+T-challenge@0                  held 616.4 +- 1.7   deaths 0  xp/hd-h 197232.3 +- 1129   kills/h 303.5 +- 1.5   gold/hd-h 12156.7 +- 35  store/hd-h 4466.3 +- 13.6
+   vs T (paired): held 62.7 +- 3.6  xp 25.3 +- 1.6%  kills/h -57.3 +- 2.7  gold 18.1 +- 62.7  store 1003.2 +- 27.9  drinks 186.9 +- 2.8  taken 83053.7 +- 1831.4
+     tank    dps 15.5    heal/h 0        deaths 0  casts/h flame_strike 428.7, mend 15.3, power_strike 422.2
+     axes    dps 19.7    heal/h 0        deaths 0  casts/h mend 15.4, rend 475.7, turning_cut 324.3
+     bow     dps 28.3    heal/h 0        deaths 0  casts/h flame_volley 307.6, hunters_mark 289, precision_shot 435.6, raking_shot 303
+     healer  dps 18.1    heal/h 178925.7 deaths 0  casts/h circle_of_renewal 225.2, greater_mend 830.7, green_sickness 304.2, protective_ward 283, spring_tide 41.8
+T-flame_strike@0               held 548.3 +- 3.1   deaths 0  xp/hd-h 147498 +- 2022.6   kills/h 351.3 +- 2.2   gold/hd-h 11619.6 +- 72.6 store/hd-h 3377.5 +- 24.6
+   vs T (paired): held -5.5 +- 5  xp -6.3 +- 2.2%  kills/h -9.5 +- 3.5  gold -518.9 +- 96.3  store -85.5 +- 36.4  drinks -1.6 +- 5  taken -937.2 +- 2492.2
+     tank    dps 11.8    heal/h 0        deaths 0  casts/h challenge 321.3, mend 16.3, power_strike 558.8
+     axes    dps 19.8    heal/h 0        deaths 0  casts/h rend 473.5, turning_cut 322.3
+     bow     dps 27.7    heal/h 0        deaths 0  casts/h flame_volley 257.1, hunters_mark 286.3, precision_shot 445.6, raking_shot 248.2
+     healer  dps 17.6    heal/h 101607.5 deaths 0  casts/h circle_of_renewal 82.3, greater_mend 622.1, green_sickness 245.8, mend 0.1, protective_ward 276.3, spring_tide 12.8
+T-power_strike@0               held 556.5 +- 1.3   deaths 0  xp/hd-h 154002.7 +- 1069.2 kills/h 350.2 +- 1.5   gold/hd-h 11907.5 +- 81.3 store/hd-h 3520.2 +- 20.5
+   vs T (paired): held 2.7 +- 3  xp -2.2 +- 1.6%  kills/h -10.7 +- 2.9  gold -231 +- 96  store 57.1 +- 32.2  drinks 4.3 +- 4  taken 1966.7 +- 2216.1
+     tank    dps 13      heal/h 0        deaths 0  casts/h challenge 325.5, flame_strike 424.5, mend 18.1
+     axes    dps 19.9    heal/h 0        deaths 0  casts/h rend 473.8, turning_cut 324.3
+     bow     dps 27.8    heal/h 0        deaths 0  casts/h flame_volley 258.8, hunters_mark 286.5, precision_shot 445.5, raking_shot 249.9
+     healer  dps 17.6    heal/h 104070.5 deaths 0  casts/h circle_of_renewal 85.6, greater_mend 634, green_sickness 248, mend 0.1, protective_ward 276.1, spring_tide 13.4
+T+frost_slam@0                 held 558.1 +- 2.9   deaths 0  xp/hd-h 159100.3 +- 1632   kills/h 360.2 +- 2.6   gold/hd-h 12224.6 +- 57.1 store/hd-h 3440.3 +- 25.6
+   vs T (paired): held 4.3 +- 4.7  xp 1 +- 2.1%  kills/h -0.7 +- 4.3  gold 86.1 +- 58.6  store -22.7 +- 38.5  drinks -26.3 +- 4.8  taken -14431.2 +- 2525.6
+     tank    dps 15.4    heal/h 0        deaths 0  casts/h challenge 323.4, flame_strike 424.1, frost_slam 400.9, mend 10.6, power_strike 416.7
+     axes    dps 19.8    heal/h 0        deaths 0  casts/h rend 473.5, turning_cut 322.3
+     bow     dps 27.7    heal/h 0        deaths 0  casts/h flame_volley 256.1, hunters_mark 286.4, precision_shot 444.6, raking_shot 248.3
+     healer  dps 17.5    heal/h 89459.8  deaths 0  casts/h circle_of_renewal 76, greater_mend 547.3, green_sickness 246.2, protective_ward 273.3, spring_tide 10.3
+T+shelter@0                    held 560.1 +- 2     deaths 0  xp/hd-h 160898.8 +- 1145.8 kills/h 358 +- 1.4     gold/hd-h 12228.7 +- 37.6 store/hd-h 3369.4 +- 9.7
+   vs T (paired): held 6.3 +- 3.9  xp 2.2 +- 1.8%  kills/h -2.8 +- 2.5  gold 90.1 +- 78.9  store -93.6 +- 29.6  drinks -30.1 +- 3.2  taken -10869.5 +- 1886.3
+     tank    dps 15.4    heal/h 0        deaths 0  casts/h challenge 321.9, flame_strike 424.8, mend 18.3, power_strike 417.2, shelter 110.5
+     axes    dps 19.8    heal/h 0        deaths 0  casts/h rend 473.6, turning_cut 322.1
+     bow     dps 27.7    heal/h 0        deaths 0  casts/h flame_volley 256.5, hunters_mark 286.1, precision_shot 443.8, raking_shot 249.6
+     healer  dps 17.6    heal/h 93424    deaths 0  casts/h circle_of_renewal 48.2, greater_mend 599.8, green_sickness 245.5, mend 0, protective_ward 260.8, spring_tide 10.9
+T+shelter_trig@0               held 553.8 +- 3.7   deaths 0  xp/hd-h 157469.7 +- 2751.9 kills/h 360.8 +- 2.5   gold/hd-h 12138.6 +- 55.3 store/hd-h 3463 +- 27.2
+   vs T (paired): held 0 +- 0  xp 0 +- 0%  kills/h 0 +- 0  gold 0 +- 0  store 0 +- 0  drinks 0 +- 0  taken 0 +- 0
+     tank    dps 15.4    heal/h 0        deaths 0  casts/h challenge 324.6, flame_strike 423.3, mend 17.7, power_strike 416.1
+     axes    dps 19.8    heal/h 0        deaths 0  casts/h rend 472.2, turning_cut 323.3
+     bow     dps 27.7    heal/h 0        deaths 0  casts/h flame_volley 255.6, hunters_mark 285.7, precision_shot 443.1, raking_shot 249.2
+     healer  dps 17.5    heal/h 102817.3 deaths 0  casts/h circle_of_renewal 84.3, greater_mend 625.7, green_sickness 246.6, mend 0.1, protective_ward 276.5, spring_tide 12.9
+T-rend@1                       held 546.9 +- 3.7   deaths 0  xp/hd-h 142218 +- 2223.8   kills/h 342.5 +- 2.5   gold/hd-h 11264 +- 49.7  store/hd-h 3347.4 +- 22
+   vs T (paired): held -6.9 +- 4.9  xp -9.7 +- 2.3%  kills/h -18.3 +- 4  gold -874.6 +- 73.1  store -115.6 +- 33.9  drinks -5 +- 5.3  taken -2627 +- 2699.3
+     tank    dps 15.5    heal/h 0        deaths 0  casts/h challenge 324.3, flame_strike 425.1, mend 15.8, power_strike 417.6
+     axes    dps 14      heal/h 0        deaths 0  casts/h turning_cut 331.5
+     bow     dps 27.7    heal/h 0        deaths 0  casts/h flame_volley 256.9, hunters_mark 286.6, precision_shot 445.7, raking_shot 246.4
+     healer  dps 17.6    heal/h 100038.2 deaths 0  casts/h circle_of_renewal 83.8, greater_mend 610.6, green_sickness 247.2, mend 0.1, protective_ward 275.3, spring_tide 12
+T-turning_cut@1                held 552.5 +- 3.2   deaths 0  xp/hd-h 147414.7 +- 2357.3 kills/h 340.2 +- 1.5   gold/hd-h 11555.6 +- 38.8 store/hd-h 3490 +- 18.7
+   vs T (paired): held -1.3 +- 4.8  xp -6.4 +- 2.3%  kills/h -20.7 +- 3.1  gold -583 +- 77.5  store 27 +- 32.4  drinks -0.4 +- 3.5  taken -295.8 +- 2308
+     tank    dps 15.5    heal/h 0        deaths 0  casts/h challenge 324.9, flame_strike 425.3, mend 17.9, power_strike 418.1
+     axes    dps 15.2    heal/h 0        deaths 0  casts/h rend 560.3
+     bow     dps 27.6    heal/h 0        deaths 0  casts/h flame_volley 255, hunters_mark 286.8, precision_shot 444.1, raking_shot 250.1
+     healer  dps 17.6    heal/h 102465.3 deaths 0  casts/h circle_of_renewal 86, greater_mend 622.5, green_sickness 244.9, mend 0.1, protective_ward 277, spring_tide 12.4
+T-mend@all                     held 549.9 +- 2.2   deaths 0  xp/hd-h 153638.3 +- 1728.1 kills/h 362.2 +- 1.4   gold/hd-h 12096.2 +- 79.7 store/hd-h 3496.1 +- 13.3
+   vs T (paired): held -3.9 +- 3  xp -2.4 +- 1.4%  kills/h 1.3 +- 2.1  gold -42.4 +- 77.9  store 33.1 +- 21.7  drinks -0.3 +- 2.9  taken -1303 +- 1277.3
+     tank    dps 15.3    heal/h 0        deaths 0  casts/h challenge 324.7, flame_strike 423.5, power_strike 415.3
+     axes    dps 19.8    heal/h 0        deaths 0  casts/h rend 471.3, turning_cut 324.7
+     bow     dps 27.6    heal/h 0        deaths 0  casts/h flame_volley 255.3, hunters_mark 286.2, precision_shot 442.3, raking_shot 250.2
+     healer  dps 17.5    heal/h 102255.3 deaths 0  casts/h circle_of_renewal 83.5, greater_mend 618.2, green_sickness 246.3, protective_ward 276.2, spring_tide 14
+
+wall 354 s on 8 workers

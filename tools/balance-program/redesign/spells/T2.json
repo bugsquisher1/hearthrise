@@ -1,0 +1,1317 @@
+{
+ "plan": "T2",
+ "ground": "muster_barrows",
+ "level": 60,
+ "risk": "steady",
+ "start": 570,
+ "seeds": 6,
+ "hours": 8,
+ "settleFromH": 1,
+ "cells": {
+  "T": {
+   "id": "T",
+   "base": "T",
+   "styles": [
+    "tank",
+    "axes",
+    "bow",
+    "healer"
+   ],
+   "drops": [],
+   "adds": [],
+   "perSeed": {
+    "held": [
+     560.9,
+     541.5,
+     551.5,
+     567.4,
+     551.7,
+     549.7
+    ],
+    "deaths": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "xpPerHeroH": [
+     162371,
+     148375,
+     154270,
+     167685,
+     157029,
+     155088
+    ],
+    "killsPerH": [
+     355,
+     366,
+     365,
+     351,
+     364,
+     364
+    ],
+    "incomePerHeroH": [
+     12265,
+     12182.6,
+     12083,
+     12231.5,
+     12176.8,
+     11892.6
+    ],
+    "storePerHeroH": [
+     3549.1,
+     3406.1,
+     3418.7,
+     3546.1,
+     3443.3,
+     3414.8
+    ],
+    "drinksPerH": [
+     240.7,
+     226.3,
+     228.2,
+     247,
+     232.4,
+     230.1
+    ],
+    "takenPerH": [
+     132890,
+     123269,
+     125037,
+     134445,
+     127955,
+     124963
+    ]
+   },
+   "held": {
+    "mean": 553.8,
+    "se": 3.7,
+    "n": 6
+   },
+   "deaths": {
+    "mean": 0,
+    "se": 0,
+    "n": 6
+   },
+   "xpPerHeroH": {
+    "mean": 157469.7,
+    "se": 2751.9,
+    "n": 6
+   },
+   "killsPerH": {
+    "mean": 360.8,
+    "se": 2.5,
+    "n": 6
+   },
+   "incomePerHeroH": {
+    "mean": 12138.6,
+    "se": 55.3,
+    "n": 6
+   },
+   "storePerHeroH": {
+    "mean": 3463,
+    "se": 27.2,
+    "n": 6
+   },
+   "drinksPerH": {
+    "mean": 234.1,
+    "se": 3.3,
+    "n": 6
+   },
+   "takenPerH": {
+    "mean": 128093.2,
+    "se": 1877.8,
+    "n": 6
+   },
+   "seats": [
+    {
+     "style": "tank",
+     "dps": {
+      "mean": 15.4,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 25218,
+      "se": 107.5,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 110684.7,
+      "se": 1629.2,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "challenge": 324.6,
+      "flame_strike": 423.3,
+      "mend": 17.7,
+      "power_strike": 416.1
+     },
+     "mana": {
+      "challenge": 0,
+      "flame_strike": 4232.7,
+      "mend": 265.7,
+      "power_strike": 2496.3
+     }
+    },
+    {
+     "style": "axes",
+     "dps": {
+      "mean": 19.8,
+      "se": 0.1,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 367.2,
+      "se": 18,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 863.3,
+      "se": 43.9,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "rend": 472.2,
+      "turning_cut": 323.3
+     },
+     "mana": {
+      "rend": 3778,
+      "turning_cut": 2587
+     }
+    },
+    {
+     "style": "bow",
+     "dps": {
+      "mean": 27.7,
+      "se": 0.1,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 1559,
+      "se": 46.7,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 14479.3,
+      "se": 250.9,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 5.9,
+      "se": 0.1,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "flame_volley": 255.6,
+      "hunters_mark": 285.7,
+      "precision_shot": 443.1,
+      "raking_shot": 249.2
+     },
+     "mana": {
+      "flame_volley": 3834.2,
+      "hunters_mark": 2285.8,
+      "precision_shot": 2658.3,
+      "raking_shot": 2492.2
+     }
+    },
+    {
+     "style": "healer",
+     "dps": {
+      "mean": 17.5,
+      "se": 0.1,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 102817.3,
+      "se": 1564.1,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 229,
+      "se": 22.1,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 2065.8,
+      "se": 94.9,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 228.3,
+      "se": 3.2,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "circle_of_renewal": 84.3,
+      "greater_mend": 625.7,
+      "green_sickness": 246.6,
+      "mend": 0.1,
+      "protective_ward": 276.5,
+      "spring_tide": 12.9
+     },
+     "mana": {
+      "circle_of_renewal": 4215.5,
+      "greater_mend": 15641.2,
+      "green_sickness": 7152,
+      "mend": 1.7,
+      "protective_ward": 9953.7,
+      "spring_tide": 1545
+     }
+    }
+   ]
+  },
+  "T-challenge@0": {
+   "id": "T-challenge@0",
+   "base": "T",
+   "styles": [
+    "tank",
+    "axes",
+    "bow",
+    "healer"
+   ],
+   "drops": [
+    [
+     0,
+     [
+      "challenge"
+     ]
+    ]
+   ],
+   "adds": [],
+   "perSeed": {
+    "held": [
+     618.3,
+     616.8,
+     615.2,
+     617.9,
+     621.2,
+     609.2
+    ],
+    "deaths": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "xpPerHeroH": [
+     199213,
+     197487,
+     194656,
+     198685,
+     200204,
+     193149
+    ],
+    "killsPerH": [
+     302,
+     303,
+     304,
+     303,
+     299,
+     310
+    ],
+    "incomePerHeroH": [
+     12108.7,
+     12052.1,
+     12201.2,
+     12300.7,
+     12143.2,
+     12134.2
+    ],
+    "storePerHeroH": [
+     4477.2,
+     4501,
+     4461.6,
+     4470.9,
+     4482.9,
+     4403.9
+    ],
+    "drinksPerH": [
+     423,
+     423.2,
+     418,
+     426.1,
+     424.1,
+     411.9
+    ],
+    "takenPerH": [
+     211242,
+     213159,
+     209995,
+     213448,
+     213438,
+     205599
+    ]
+   },
+   "held": {
+    "mean": 616.4,
+    "se": 1.7,
+    "n": 6
+   },
+   "deaths": {
+    "mean": 0,
+    "se": 0,
+    "n": 6
+   },
+   "xpPerHeroH": {
+    "mean": 197232.3,
+    "se": 1129,
+    "n": 6
+   },
+   "killsPerH": {
+    "mean": 303.5,
+    "se": 1.5,
+    "n": 6
+   },
+   "incomePerHeroH": {
+    "mean": 12156.7,
+    "se": 35,
+    "n": 6
+   },
+   "storePerHeroH": {
+    "mean": 4466.3,
+    "se": 13.6,
+    "n": 6
+   },
+   "drinksPerH": {
+    "mean": 421.1,
+    "se": 2.1,
+    "n": 6
+   },
+   "takenPerH": {
+    "mean": 211146.8,
+    "se": 1247.8,
+    "n": 6
+   },
+   "seats": [
+    {
+     "style": "tank",
+     "dps": {
+      "mean": 15.5,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 11285.8,
+      "se": 81.7,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 80709.5,
+      "se": 578.7,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "flame_strike": 428.7,
+      "mend": 15.3,
+      "power_strike": 422.2
+     },
+     "mana": {
+      "flame_strike": 4286.8,
+      "mend": 230,
+      "power_strike": 2533.3
+     }
+    },
+    {
+     "style": "axes",
+     "dps": {
+      "mean": 19.7,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 11498.3,
+      "se": 63.4,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 86526.2,
+      "se": 528.3,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "mend": 15.4,
+      "rend": 475.7,
+      "turning_cut": 324.3
+     },
+     "mana": {
+      "mend": 231,
+      "rend": 3805.5,
+      "turning_cut": 2595
+     }
+    },
+    {
+     "style": "bow",
+     "dps": {
+      "mean": 28.3,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 5230.5,
+      "se": 62.9,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 43891.3,
+      "se": 432.4,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 16.7,
+      "se": 0.1,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "flame_volley": 307.6,
+      "hunters_mark": 289,
+      "precision_shot": 435.6,
+      "raking_shot": 303
+     },
+     "mana": {
+      "flame_volley": 4613.5,
+      "hunters_mark": 2312.3,
+      "precision_shot": 2613.8,
+      "raking_shot": 3030.3
+     }
+    },
+    {
+     "style": "healer",
+     "dps": {
+      "mean": 18.1,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 178925.7,
+      "se": 1117.9,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 4.2,
+      "se": 4.2,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 19.8,
+      "se": 19.8,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 404.3,
+      "se": 2.1,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "circle_of_renewal": 225.2,
+      "greater_mend": 830.7,
+      "green_sickness": 304.2,
+      "protective_ward": 283,
+      "spring_tide": 41.8
+     },
+     "mana": {
+      "circle_of_renewal": 11257.3,
+      "greater_mend": 20768.8,
+      "green_sickness": 8823.3,
+      "protective_ward": 10188.5,
+      "spring_tide": 5015
+     }
+    }
+   ],
+   "vsBase": {
+    "held": {
+     "mean": 62.7,
+     "se": 3.6,
+     "n": 6
+    },
+    "xpPerHeroH": {
+     "mean": 39762.7,
+     "se": 2501,
+     "n": 6
+    },
+    "killsPerH": {
+     "mean": -57.3,
+     "se": 2.7,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 18.1,
+     "se": 62.7,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 1003.2,
+     "se": 27.9,
+     "n": 6
+    },
+    "drinksPerH": {
+     "mean": 186.9,
+     "se": 2.8,
+     "n": 6
+    },
+    "takenPerH": {
+     "mean": 83053.7,
+     "se": 1831.4,
+     "n": 6
+    },
+    "deaths": {
+     "mean": 0,
+     "se": 0,
+     "n": 6
+    },
+    "xpPct": {
+     "mean": 25.3,
+     "se": 1.6
+    }
+   }
+  },
+  "T~challenge_selfok@0": {
+   "id": "T~challenge_selfok@0",
+   "base": "T",
+   "styles": [
+    "tank",
+    "axes",
+    "bow",
+    "healer"
+   ],
+   "drops": [
+    [
+     0,
+     [
+      "challenge"
+     ]
+    ]
+   ],
+   "adds": [
+    [
+     0,
+     "challenge_selfok"
+    ]
+   ],
+   "perSeed": {
+    "held": [
+     582.5,
+     588.3,
+     592.7,
+     599.1,
+     596.2,
+     598.7
+    ],
+    "deaths": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "xpPerHeroH": [
+     176403,
+     179542,
+     180331,
+     186358,
+     183906,
+     186232
+    ],
+    "killsPerH": [
+     335,
+     331,
+     325,
+     321,
+     322,
+     321
+    ],
+    "incomePerHeroH": [
+     12077.8,
+     12318,
+     12104.7,
+     12260,
+     12368.9,
+     12331
+    ],
+    "storePerHeroH": [
+     3593.4,
+     3588.4,
+     3611.1,
+     3680.3,
+     3663.1,
+     3647.8
+    ],
+    "drinksPerH": [
+     268.2,
+     267.9,
+     273.1,
+     281.5,
+     280.9,
+     276
+    ],
+    "takenPerH": [
+     146429,
+     146912,
+     148951,
+     153794,
+     151944,
+     150593
+    ]
+   },
+   "held": {
+    "mean": 592.9,
+    "se": 2.7,
+    "n": 6
+   },
+   "deaths": {
+    "mean": 0,
+    "se": 0,
+    "n": 6
+   },
+   "xpPerHeroH": {
+    "mean": 182128.7,
+    "se": 1639,
+    "n": 6
+   },
+   "killsPerH": {
+    "mean": 325.8,
+    "se": 2.4,
+    "n": 6
+   },
+   "incomePerHeroH": {
+    "mean": 12243.4,
+    "se": 50.3,
+    "n": 6
+   },
+   "storePerHeroH": {
+    "mean": 3630.7,
+    "se": 15.7,
+    "n": 6
+   },
+   "drinksPerH": {
+    "mean": 274.6,
+    "se": 2.4,
+    "n": 6
+   },
+   "takenPerH": {
+    "mean": 149770.5,
+    "se": 1177.5,
+    "n": 6
+   },
+   "seats": [
+    {
+     "style": "tank",
+     "dps": {
+      "mean": 15.7,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 25626.5,
+      "se": 73.2,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 133332,
+      "se": 1040.4,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "challenge": 322.4,
+      "flame_strike": 428.7,
+      "mend": 34.5,
+      "power_strike": 422.3
+     },
+     "mana": {
+      "challenge": 0,
+      "flame_strike": 4286.8,
+      "mend": 518.3,
+      "power_strike": 2533.5
+     }
+    },
+    {
+     "style": "axes",
+     "dps": {
+      "mean": 20.2,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 278.3,
+      "se": 13.9,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 655.7,
+      "se": 20.9,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "rend": 474.8,
+      "turning_cut": 325.1
+     },
+     "mana": {
+      "rend": 3798.8,
+      "turning_cut": 2600.8
+     }
+    },
+    {
+     "style": "bow",
+     "dps": {
+      "mean": 28.2,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 1451.8,
+      "se": 46.2,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 12960.7,
+      "se": 162.2,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 6.1,
+      "se": 0.1,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "flame_volley": 251.9,
+      "hunters_mark": 287.5,
+      "precision_shot": 449.5,
+      "raking_shot": 252
+     },
+     "mana": {
+      "flame_volley": 3777.8,
+      "hunters_mark": 2299.8,
+      "precision_shot": 2697.3,
+      "raking_shot": 2520.2
+     }
+    },
+    {
+     "style": "healer",
+     "dps": {
+      "mean": 17.9,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 123405.2,
+      "se": 981.2,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 276.3,
+      "se": 14.2,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 2822.2,
+      "se": 111.2,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 268.5,
+      "se": 2.3,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "circle_of_renewal": 90.3,
+      "greater_mend": 748.2,
+      "green_sickness": 250.7,
+      "mend": 0.2,
+      "protective_ward": 279.1,
+      "spring_tide": 16.8
+     },
+     "mana": {
+      "circle_of_renewal": 4513.3,
+      "greater_mend": 18705.8,
+      "green_sickness": 7271.8,
+      "mend": 3.7,
+      "protective_ward": 10048.5,
+      "spring_tide": 2010
+     }
+    }
+   ],
+   "vsBase": {
+    "held": {
+     "mean": 39.1,
+     "se": 4.3,
+     "n": 6
+    },
+    "xpPerHeroH": {
+     "mean": 24659,
+     "se": 2828.8,
+     "n": 6
+    },
+    "killsPerH": {
+     "mean": -35,
+     "se": 3.6,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 104.8,
+     "se": 85.2,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 167.7,
+     "se": 28.4,
+     "n": 6
+    },
+    "drinksPerH": {
+     "mean": 40.5,
+     "se": 3.3,
+     "n": 6
+    },
+    "takenPerH": {
+     "mean": 21677.3,
+     "se": 1839.3,
+     "n": 6
+    },
+    "deaths": {
+     "mean": 0,
+     "se": 0,
+     "n": 6
+    },
+    "xpPct": {
+     "mean": 15.7,
+     "se": 1.8
+    }
+   }
+  },
+  "T~challenge_backhit@0": {
+   "id": "T~challenge_backhit@0",
+   "base": "T",
+   "styles": [
+    "tank",
+    "axes",
+    "bow",
+    "healer"
+   ],
+   "drops": [
+    [
+     0,
+     [
+      "challenge"
+     ]
+    ]
+   ],
+   "adds": [
+    [
+     0,
+     "challenge_backhit"
+    ]
+   ],
+   "perSeed": {
+    "held": [
+     618.3,
+     616.8,
+     615.2,
+     613.5,
+     621.2,
+     609.2
+    ],
+    "deaths": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "xpPerHeroH": [
+     199213,
+     197487,
+     194656,
+     194617,
+     200204,
+     193149
+    ],
+    "killsPerH": [
+     302,
+     303,
+     304,
+     305,
+     299,
+     310
+    ],
+    "incomePerHeroH": [
+     12108.7,
+     12052.1,
+     12201.2,
+     12046,
+     12143.2,
+     12134.2
+    ],
+    "storePerHeroH": [
+     4477.2,
+     4501,
+     4461.6,
+     4460.1,
+     4482.9,
+     4403.9
+    ],
+    "drinksPerH": [
+     423,
+     423.2,
+     418,
+     420.2,
+     424.1,
+     411.9
+    ],
+    "takenPerH": [
+     211242,
+     213159,
+     209995,
+     211388,
+     213438,
+     205599
+    ]
+   },
+   "held": {
+    "mean": 615.7,
+    "se": 1.7,
+    "n": 6
+   },
+   "deaths": {
+    "mean": 0,
+    "se": 0,
+    "n": 6
+   },
+   "xpPerHeroH": {
+    "mean": 196554.3,
+    "se": 1157.8,
+    "n": 6
+   },
+   "killsPerH": {
+    "mean": 303.8,
+    "se": 1.5,
+    "n": 6
+   },
+   "incomePerHeroH": {
+    "mean": 12114.2,
+    "se": 24.1,
+    "n": 6
+   },
+   "storePerHeroH": {
+    "mean": 4464.5,
+    "se": 13.6,
+    "n": 6
+   },
+   "drinksPerH": {
+    "mean": 420.1,
+    "se": 1.9,
+    "n": 6
+   },
+   "takenPerH": {
+    "mean": 210803.5,
+    "se": 1165.7,
+    "n": 6
+   },
+   "seats": [
+    {
+     "style": "tank",
+     "dps": {
+      "mean": 15.5,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 11314.7,
+      "se": 84.1,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 80543.3,
+      "se": 516.9,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "challenge": 0.2,
+      "flame_strike": 428.4,
+      "mend": 15.6,
+      "power_strike": 422
+     },
+     "mana": {
+      "challenge": 0,
+      "flame_strike": 4283.8,
+      "mend": 234,
+      "power_strike": 2532.2
+     }
+    },
+    {
+     "style": "axes",
+     "dps": {
+      "mean": 19.7,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 11455,
+      "se": 63.2,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 86237.2,
+      "se": 483.5,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "mend": 15.8,
+      "rend": 475.6,
+      "turning_cut": 324.3
+     },
+     "mana": {
+      "mend": 236.3,
+      "rend": 3805.2,
+      "turning_cut": 2594.7
+     }
+    },
+    {
+     "style": "bow",
+     "dps": {
+      "mean": 28.2,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 0,
+      "se": 0,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 5212,
+      "se": 62.4,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 44014.2,
+      "se": 430.1,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 16.7,
+      "se": 0.1,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "flame_volley": 307.9,
+      "hunters_mark": 288.9,
+      "precision_shot": 435.5,
+      "raking_shot": 302.7
+     },
+     "mana": {
+      "flame_volley": 4618.2,
+      "hunters_mark": 2311,
+      "precision_shot": 2612.8,
+      "raking_shot": 3027.3
+     }
+    },
+    {
+     "style": "healer",
+     "dps": {
+      "mean": 18.1,
+      "se": 0,
+      "n": 6
+     },
+     "healOutPerH": {
+      "mean": 178424.8,
+      "se": 963.7,
+      "n": 6
+     },
+     "shieldInPerH": {
+      "mean": 2,
+      "se": 2,
+      "n": 6
+     },
+     "takenPerH": {
+      "mean": 8.8,
+      "se": 8.8,
+      "n": 6
+     },
+     "drinksPerH": {
+      "mean": 403.3,
+      "se": 1.8,
+      "n": 6
+     },
+     "deaths": 0,
+     "casts": {
+      "circle_of_renewal": 224.7,
+      "greater_mend": 828.2,
+      "green_sickness": 304.3,
+      "protective_ward": 282.7,
+      "spring_tide": 41.8
+     },
+     "mana": {
+      "circle_of_renewal": 11232.3,
+      "greater_mend": 20704.7,
+      "green_sickness": 8825.7,
+      "protective_ward": 10175.7,
+      "spring_tide": 5012.5
+     }
+    }
+   ],
+   "vsBase": {
+    "held": {
+     "mean": 61.9,
+     "se": 4.1,
+     "n": 6
+    },
+    "xpPerHeroH": {
+     "mean": 39084.7,
+     "se": 3015.2,
+     "n": 6
+    },
+    "killsPerH": {
+     "mean": -57,
+     "se": 3,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": -24.3,
+     "se": 69.7,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 1001.4,
+     "se": 28.9,
+     "n": 6
+    },
+    "drinksPerH": {
+     "mean": 186,
+     "se": 3.5,
+     "n": 6
+    },
+    "takenPerH": {
+     "mean": 82710.3,
+     "se": 2007,
+     "n": 6
+    },
+    "deaths": {
+     "mean": 0,
+     "se": 0,
+     "n": 6
+    },
+    "xpPct": {
+     "mean": 24.8,
+     "se": 1.9
+    }
+   }
+  }
+ },
+ "wallS": 105,
+ "workers": 8
+}

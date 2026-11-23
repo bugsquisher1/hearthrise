@@ -34,11 +34,11 @@ Note: The opposite of #2.
 **4. Worrier** · Pyre Field
 +1.5 / 2.5 / 3.5% damage vs bleeding targets
 Best for: Melee (axes)
-Note: Axe users keep bleed up, so it's nearly always on for them.
+Note: Axe users keep bleed up, so it's nearly always on for them. Gash (wave 3) bleeds every monster beside the axes, so it fires on more of the pull.
 
 **5. Snuffed** · Muster Barrows
 Party: +1.5 / 2.5 / 3.5% damage vs chilled targets
-Best for: Any. Needs a frost user in the party.
+Best for: Any. Needs a frost user in the party (Frost Slam, Hoarfrost, Chilling Lance or the support's Cold Palm).
 Note: Doesn't stack with another copy in the party.
 
 ## Shield
@@ -46,7 +46,7 @@ Note: Doesn't stack with another copy in the party.
 **6. Last File ✓** · Muster Barrows
 −1.5 / 2.5 / 3.5% damage taken below 40% health
 Best for: Tank
-Note: Rarely triggers on Steady. Good on Bold.
+Note: The tank holding the Challenge falls back at 15% on Steady, so it sits under 40% often. Re-measure once the holder line lands. Rarely triggers for other seats on Steady.
 
 **7. Bailey Stand** · Krell's Hold
 −1.5 / 2.5 / 3.5% damage taken vs bosses
@@ -60,9 +60,9 @@ Best for: Tank
 ## Body
 
 **9. Tarred Through** · Krell's Hold
-−1.5 / 2.5 / 3.5% damage taken while 2+ enemies are casting
+−1.5 / 2.5 / 3.5% damage taken while an enemy is casting at anyone in the party
 Best for: Any
-Note: Similar to #18.
+Note: Was "2+ enemies casting", which almost never happens. Works on Krell's Hold (Hot Pitch, Shield Slam, Mend the Dead). Does nothing on Muster Barrows or Hask's Ford until a Caster body exists there. Similar to #18.
 
 **10. First Rank** · Muster Barrows
 −1.5 / 2.5 / 3.5% damage taken above 90% health
@@ -112,7 +112,7 @@ Note: Does nothing without a healer.
 **18. Floodmark ✓** · Flooded Wing
 −1.5 / 2.5 / 3.5% damage taken while an enemy is casting on you
 Best for: Ranger, Mage
-Note: Does nothing where enemies don't cast.
+Note: Works on its home (Keeper Dunn's Snuff the Candles, the Bone Wall's Bone Slide). Does nothing where enemies don't cast, so it's dead on Muster Barrows and Hask's Ford until a Caster body exists there.
 
 **19. Ledge Footing** · Wyvern Roost
 +1.5 / 2.5 / 3.5% damage while no party member is below 70% health
@@ -134,7 +134,7 @@ Note: Works better on Bold.
 **22. Slate Hand** · Carter's Rest
 +1.5 / 2.5 / 3.5% damage while an enemy is casting
 Best for: Ranger
-Note: Good for killing casters first.
+Note: Good for killing casters first. Works on its home (the Troll Brewer's Boiling Mash, the Stable Troll's Trough Swing). Dead on Muster Barrows and Hask's Ford until a Caster body exists there.
 
 **23. Behind the Bar** · Carter's Rest
 +1.5 / 2.5 / 3.5% healing while you're below 50% health
@@ -150,7 +150,7 @@ Note: The opposite of #16. Doesn't stack with it.
 **25. Numbed** · Hask's Ford
 −1.5 / 2.5 / 3.5% damage taken from chilled enemies
 Best for: Tank
-Note: Needs a frost user in the party.
+Note: Needs a frost user in the party (Frost Slam, Hoarfrost, Chilling Lance or the support's Cold Palm).
 
 **26. Long Rite** · Muster Barrows
 +1.5 / 2.5 / 3.5% healing while the party is below 50% health
@@ -183,7 +183,7 @@ Note: Sickness counts as poisoned, so a Healer keeps it nearly always on.
 **31. Dunn's Warning** · Bone Wing
 +1.5 / 2.5 / 3.5% healing while an enemy is casting
 Best for: Healer
-Note: Does nothing where enemies don't cast.
+Note: Works on its home (the Bone Wall's Bone Slide, the Night Carter's Lime Sack). Does nothing where enemies don't cast, so it's dead on Muster Barrows and Hask's Ford until a Caster body exists there.
 
 **32. Early Start** · Ox Road
 +1.5 / 2.5 / 3.5% damage above 90% health
@@ -200,6 +200,7 @@ Note: Doesn't stack with #8 or another copy in the party.
 **34. Lookout's Promise** · Krell's Hold
 +1.5 / 2.5 / 3.5% damage while your tank is below 50% health
 Best for: Ranger
+Note: Fires more once the tank's fall-back line drops to 15% on Steady.
 
 **35. Full Cellar** · Carter's Rest
 +1.5 / 2.5 / 3.5% healing above 80% mana
@@ -231,7 +232,7 @@ Note: Similar to #14.
 **40. Sour Vault** · Flooded Wing
 −1.5 / 2.5 / 3.5% damage taken from poisoned enemies
 Best for: Tank
-Note: Needs Green Sickness or a Poison user in the party.
+Note: Needs Green Sickness in the party. It's the only Sickness left after the spell audit.
 
 ---
 
@@ -262,3 +263,15 @@ Re-homed 2026-11-22 (the designer, lane/band-floor; 24-content-pipeline.md G4 an
 - **Wyvern Roost:** 2, 19, 29, 36
 - **Bone Wing:** 16, 17, 31, 38
 - **Flooded Wing:** 15, 18, 30, 40
+
+## Changes from the spell audit
+
+2026-11-22, from `23-spell-audit.md` section 8. All 40 kept. No Trait moved home for the audit: every "casting" Trait already lives on a ground where monsters cast (checked in each ground's `pack.js` `spells`). The re-homing above (lane/band-floor) moved no casting Trait, and none moved onto Hask's Ford needs a caster.
+
+- #5 Snuffed, #25 Numbed: frost users listed. Cold Hands is cut, so Cold Palm is the support's one Chill.
+- #6 Last File: note now says the tank falls back at 15% on Steady, so it fires for the tank. Re-measure after the holder line.
+- #9 Tarred Through: re-keyed from "2+ enemies casting" to "an enemy casting at anyone in the party". Home noted.
+- #18 Floodmark, #22 Slate Hand, #31 Dunn's Warning: each names the spells on its home, and says it's dead on Muster Barrows and Hask's Ford until a Caster body exists there.
+- #4 Worrier: Gash (wave 3) bleeds more of the pull.
+- #34 Lookout's Promise: fires more with the tank's lower line.
+- #40 Sour Vault: Green Sickness is the only Sickness left (Breaking Blow and Lye Hands are cut).

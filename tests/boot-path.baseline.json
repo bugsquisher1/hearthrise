@@ -208,6 +208,12 @@
         "gzipBytes": 920927,
         "on": "2026-11-23",
         "why": "econ follow-ups: store prices at the buyer's step shown in the shop"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 920990,
+        "on": "2026-11-23",
+        "why": "arch pass HUD gold fix (hud-ledger reads the scale coin multiple) at town"
       }
     ]
   }

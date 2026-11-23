@@ -460,7 +460,13 @@ function revealPath(M, P, monsters, R, gid, first) {
 }
 
 /* A GROUND PACK'S OWN FACTS (lane/b-ground-pack phase 2): `key` of its checks, or the pack itself (key null) when it is one; undefined for a base ground. */
-const packCheck = (M, gid, key) => { const p = (M.packs || []).find((x) => x.id === gid); return p ? (key ? (p.checks || {})[key] : p) : undefined; };
+const packCheck = (M, gid, key) => {
+  const p = (M.packs || []).find((x) => x.id === gid);
+  if (p) return key ? (p.checks || {})[key] : p;
+  /* a ground cut from a pack's rooms (the Catacombs' wings, src/data/catacomb-wings.js) states the same facts on its own row */
+  const g = M.G.HUNT_GROUNDS[gid];
+  return g && g.checks ? (key ? g.checks[key] : g) : undefined;
+};
 
 /* `only` (a mutant's ground list) plays just those grounds' floor hours; `fresh` adds their fresh-hero and party
    hunts (the realized gear-pace and the reveal-path). */

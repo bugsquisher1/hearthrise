@@ -39,11 +39,11 @@ export const ARMOR_PM_KILL = 12;
 
 /* `pockets` are indexes into the Unmarked Catacombs' own route, walked in this order; `lean` the catacomb-armor.js WING_LEAN row */
 const WINGS = Object.freeze([
-  Object.freeze({ id: 'catacomb_bone_wing', name: 'Bone Wing', lean: 'bone', pockets: Object.freeze([0, 1, 2]),
+  Object.freeze({ id: 'catacomb_bone_wing', name: 'Bone Wing', lean: 'bone', pockets: Object.freeze([0, 1, 2]), valueToday: 12989,
     theme: 'The Keepers stacked the old bones down here to make room. Now the walls get up.',
     /* in down the Night Carters' tunnel, as the whole ground starts */
     start: Object.freeze([[3, 1], [2, 1], [4, 1], [3, 2]]) }),
-  Object.freeze({ id: 'catacomb_flooded_wing', name: 'Flooded Wing', lean: 'waterlogged', pockets: Object.freeze([5, 4, 3]),
+  Object.freeze({ id: 'catacomb_flooded_wing', name: 'Flooded Wing', lean: 'waterlogged', pockets: Object.freeze([5, 4, 3]), valueToday: 14496,
     theme: 'The river seeps into the lowest vaults. Keeper Dunn still reads the names out down there.',
     /* down the hoist shaft into the Carters' yard */
     start: Object.freeze([[4, 17], [3, 17], [5, 17], [4, 18]]) }),
@@ -81,4 +81,10 @@ export const CATACOMB_WING_GROUNDS = Object.freeze(Object.fromEntries(WINGS.map(
   route: Object.freeze(w.pockets.map((_, i) => i)),
   respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,
   drops: wingDrops(w.lean),
+  /* the guards' facts, as a pack states them (shape.js `checks`): the drop pace's reference group is the pack's, the value pin each wing's
+     own floor hour, MEASURED (tests/hunt-core/drop-tables.mjs floor-hour) */
+  checks: Object.freeze({ dropRef: catacombs.checks.dropRef, valueToday: w.valueToday }),
+  /* the Party window's lines (party-class-xp.js PARTY_VS_ALONE): the whole ground's, CARRIED (the same monster rows), owed a measure on
+     the wing before it opens */
+  partyVsAlone: catacombs.partyVsAlone,
 })])));

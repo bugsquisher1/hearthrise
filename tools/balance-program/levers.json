@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "adc14b2c4ebe3602",
+ "authored": "0b4d07e6374b00cf",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 668,
-  "typed": 15738,
+  "typed": 15740,
   "files": 226,
   "lever": 285,
   "notLever": 383,
@@ -7174,13 +7174,14 @@
     ],
     "mentions": [
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
      "tests/lineup-v4.mjs",
      "tests/needs-you.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9618,13 +9619,14 @@
     ],
     "mentions": [
      "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/level-curve.mjs",
      "tests/lineup-v4.mjs",
      "tests/needs-you.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12940,7 +12942,7 @@
   },
   {
    "at": "src/data/catacomb-wings.js#WINGS",
-   "why": "each wing's rooms (pocket indexes into the Unmarked Catacombs' route) and its start tiles: geometry; the rooms' monsters are the pack's rows"
+   "why": "each wing's rooms (pocket indexes into the Unmarked Catacombs' route) its start tiles (geometry) and its floor-hour value pin (a TARGET the drop-tables guard reads, measured); the rooms' monsters are the pack's rows"
   },
   {
    "at": "src/data/catacomb-wings.js#weightsOf",

@@ -3,6 +3,11 @@
 // tests/bands.mjs — A GROUND'S BAND IN ABSOLUTE STEPS, THE RATING AND "DEPTH N OF 20" (lane/foundations-block, 2026-11-23).
 //
 //   node tests/bands.mjs
+//   node tests/bands.mjs --mutate    each rule planted back in a temp copy (tests/hunt-core/fixtures/h1.js plant), each caught by this file
+//                                    or by tests/sustain.mjs (the sustain levers ride here: one proof for the foundations' two tests)
+//
+// mutant-anchors: src/core/bands.js src/data/bands.js src/data/sustain.js src/session/danger-sections.js
+// mutant-writes-tree: no — every mutant is planted into a temp copy (plant), never the tree
 //
 // src/data/bands.js and src/core/bands.js (26-architecture-pass.md rank 2, 04 sections 1 and 4, 27 S-5, K-5, K-6):
 //   BD-1  THE REFERENCE SKILL LINE is the career it was read from: every SKILL_LINE point within 1 of tools/balance-sim/skill-lines.json's
@@ -21,6 +26,7 @@
 //   BD-7  27 K-6, THE HANDOVER: a scale ground one tier over another starts at or under where the lower one tops out
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -34,6 +40,37 @@ const B = await imp('src/core/bands.js');
 const { depthOf: clientDepth } = await imp('src/session/danger-sections.js');
 const { depthOf: edgeDepth } = await imp('src/core/drop-rate.js');
 const SL = await imp('tools/balance-sim/skill-lines.mjs');
+
+/* --mutate: each rule planted back, each caught (exit 1) by the test that owns it */
+if (process.argv.includes('--mutate')) {
+  const { plant } = await imp('tests/hunt-core/fixtures/h1.js');
+  const ALSO = ['src/session', 'tools/balance-sim', 'tests/bands.mjs', 'tests/sustain.mjs', 'tools/balance-program/redesign/foundations'];
+  const MUT = [
+  ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
+  ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'topPm: at(top, g.gearLevel + T * BAND_ABS.topTiersAhead),', 'topPm: at(top, g.gearLevel),']]],
+  ['tests/bands.mjs', 'one gear weight both sides', [['src/core/bands.js', 'const wG = gGap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;', 'const wG = POWER.weightGearPm;']]],
+  ['tests/bands.mjs', 'the skill weight dropped from the rating', [['src/core/bands.js', 'gGap * wG + sGap * POWER.weightSkillPm', 'gGap * wG']]],
+  ['tests/bands.mjs', 'the browser cuts its own depth', [['src/session/danger-sections.js', '  const depth = depthAt(hunt, s);', '  const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);\n  const depth = Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1))));']]],
+  ['tests/bands.mjs', 'a skill line point drifts from its career', [['src/data/bands.js', '[60, 52], [75, 61]', '[60, 55], [75, 61]']]],
+  ['tests/bands.mjs', 'the line stops at its last point', [['src/core/bands.js', 'while (k < L.length - 1 && v > L[k][1]) k++;', 'while (k < L.length - 1 && v > L[k][1]) k++;\n  if (v >= L[L.length - 1][1]) return 1000 * L[L.length - 1][0];']]],
+  ['tests/bands.mjs', 'the bridge misses its reference point', [['src/core/bands.js', 'const [[a, A], [b, B]] = s <= p[1][0] ? [p[0], p[1]] : [p[1], p[2]];', 'const [[a, A], [b, B]] = [p[0], p[2]];']]],
+  ['tests/sustain.mjs', 'a share starts outside its band', [['src/data/sustain.js', 'freePm: lever(150, [100, 250]),', 'freePm: lever(300, [100, 250]),']]],
+  ['tests/sustain.mjs', 'a band too tight for the measured reference', [['src/data/sustain.js', 'healerPm: lever(830, [700, 900]),', 'healerPm: lever(830, [800, 900]),']]],
+  ['tests/sustain.mjs', 'the healer holds twice the mana seconds', [['src/data/sustain.js', 'manaSeconds: lever(75, [60, 90]),', 'manaSeconds: lever(150, [140, 160]),']]],
+];
+
+  let caught = 0;
+  for (const [test, name, edits] of MUT) {
+    const p = plant(edits, ALSO);
+    let code = 0;
+    try { execFileSync(process.execPath, [join(p.root, test)], { stdio: 'ignore', cwd: p.root }); } catch (e) { code = e.status; }
+    p.done();
+    console.log((code === 1 ? '  caught  ' : '  MISSED  ') + test + ': ' + name);
+    if (code === 1) caught++;
+  }
+  console.log((caught === MUT.length ? '✓' : '✗') + ' bands --mutate: ' + caught + ' of ' + MUT.length + ' caught');
+  process.exit(caught === MUT.length ? 0 : 1);
+}
 
 const fails = [];
 const ok = (cond, msg) => { if (!cond) fails.push(msg); };

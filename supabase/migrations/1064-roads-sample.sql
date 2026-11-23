@@ -560,7 +560,7 @@ begin
                                      '000000c0-0000-4000-a000-0000001c6430');
     if coalesce(v->>'ok', '') <> 'true' or jsonb_typeof(v->'talents'->'builds') <> 'object'
        or (select count(*) from public.hero_talent_builds where user_id = v_u) <> 1 then raise exception 'VERIFY(e): a whole build answered %', v; end if;
-    v := public.hr_talent_build_save(0, (select hunt_id from public.hr_hunt_grounds order by hunt_id limit 1), '{"shelter.x2": "long_shelter"}'::jsonb,
+    v := public.hr_talent_build_save(0, (select hunt_id from public.hr_hunt_grounds order by hunt_id limit 1), '{"shelter.x2": "firm_shelter"}'::jsonb,
                                      '000000c0-0000-4000-a000-0000001c6431');
     if v->>'error' is distinct from 'not_reachable' then raise exception 'VERIFY(e): a floating node answered %', v; end if;
     v := public.hr_talent_build_save(0, 'no_such_hunt', '{}'::jsonb, '000000c0-0000-4000-a000-0000001c6432');

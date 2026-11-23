@@ -45,7 +45,7 @@
 
 - **Every open ground moves to the Danger scale, and the tier path is removed.** A first hour on tiers followed by a scale at Level 55 would teach two systems, and one would then be thrown away. Bramble Edge, Goblin Warren and Ridge Camp get kept or cut in R10. A ground that's kept goes on the scale.
 - **Risk is taught at the first party ground, not before.** The Mill Cellar shows depth only, and plays Steady (`DEFAULT_RISK`, built).
-- **The Roads ship whole for every live weapon.** A hero with no country would have no talents, which isn't a patch called The Roads. The Hearth is the center only. The fist generalist waits for `FIST_LINE.live`.
+- **The Roads ship whole for every live weapon.** A hero with no country would have no talents, which isn't a patch called The Roads. The Hearth is the center only. The support (the wraps, `22-fists-support.md`) waits for `FIST_LINE.live`, then ships as R-X3.
 - **Traits roll only on grounds that are open.** The four staged grounds (Carter's Rest, Ox Road, Wyvern Roost, Unmarked Catacombs) bring their Traits and Signatures when their art lands. Their bands are designed now in R10, so they arrive with no rebalance.
 - **No market in v0.3.0.** Trait pieces are kept, carried over or sold to the store. Remains burn or sell to the store. The book ships on its own (section 2).
 
@@ -100,7 +100,7 @@
 | **Ratio defenses, the wider move list, jobs** | v0.3.0 keeps today's hit math. A later ratio change must hold every ground's held depth (C-2) on a parity run before it ships | V1 parity cell |
 | **The four staged grounds** | Bands, gear Levels and Trait pools are written in R10 now. Their Traits and Signatures are already sized inside the slices | Band reader (C-10, C-11) |
 | **World boss, halls as bar checks, ladders, events** | Rewards are gear inside the gear slice and buffs inside the clan slice. Ledger row 16: a new source takes a slice or is refused | Ledger |
-| **The fist generalist (the Hearth's borrows)** | Borrowing is sized in value bands, so fists' third slot is one row (L13) | V12 |
+| **The support (the wraps, the Hearth)** | Its auras and debuffs sit on stacking keys and count at their party sum inside the slices (`22-fists-support.md` 4.2), so it arrives with no rebalance. Recommended for v0.3.0 after E3 as R-X3. It slips to v0.3.1 without holding the release | V12 (22 run F7) |
 | **Build preview and theorycrafting tools** | Display only. They don't move numbers | None |
 | **Premium, Crowns, the $15 box** | Tyler's. The 12 h day is BUILT behind the Premium flag. The Roads' reset price and saved build slots have a Premium hook set to zero. No step comes from Premium | 04 section 12, read in days |
 

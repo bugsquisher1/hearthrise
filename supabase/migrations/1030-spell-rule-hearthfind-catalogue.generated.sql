@@ -11,7 +11,7 @@
 --   from. Any hand edit is reverted by the next generation and FAILS
 --   `node tools/gen-hearthfind.mjs --check`.
 --
---   hearthfind digest: f2cc01461f123d2c283c2e9952632cbc15cfc44fe002007e9b6d01116b3f2b57
+--   hearthfind digest: 7f792caddc42e6a16527c2f037e32b0f28b495144b4d1ff956b55f97ab7346d0
 --   4 trophies · 12 sources · odds 1 in 21060 … 1 in 420000
 --   band: EXPECTED HOURS 100–400 at the source
 --
@@ -98,8 +98,8 @@ insert into public.hr_hearthfind_meta (key, value) values
   ('plinth_code', 'hearth_plinth');
 insert into public.hr_hearthfind_sources (source_kind, source_id, item_id, one_in, expected_hours) values
   ('monster', 'dragon', 'emberheart', 21060, 180),
-  ('monster', 'elk_king', 'emberheart', 35250, 250),
-  ('monster', 'grim_reaper', 'emberheart', 36960, 220),
+  ('monster', 'elk_king', 'emberheart', 35500, 250),
+  ('monster', 'grim_reaper', 'emberheart', 37400, 220),
   ('node', 'copper_rock', 'deepvein_lodestar', 420000, 350),
   ('node', 'dawnstone_rock', 'deepvein_lodestar', 54000, 180),
   ('node', 'duskwood_tree', 'worldroot_seed', 49846, 179.9994),

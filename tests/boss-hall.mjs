@@ -97,7 +97,7 @@ function fight(X, roles, o = {}) {
     /* ...and whether that roll is the hero's first on the boss, ever (the server's `prize_first`); absent, it is not */
     ...(o.prizeFirst === undefined ? {} : { prizeFirst: o.prizeFirst }),
     equipment: o.equipment || ((role) => (role === 'tank' ? SHIELDED : role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : (o.kit || STRONG.kit))),
-    ...(o.bar ? { bar: o.bar } : {}), onWindow: (w) => windows.push(w) });
+    ...(o.bar ? { bar: o.bar } : {}), ...(o.options ? { options: o.options } : {}), onWindow: (w) => windows.push(w) });
   const members = windows.flatMap((w) => w.members);
   const ended = {};
   for (const m of members) if (m.hunt.ended) ended[m.key] = m.hunt.ended;
@@ -385,7 +385,9 @@ const ARMS = {
       for (const d of krell.drops) if (!X.I.ITEMS[d.id]) bad.push('HL-DAILY Krell\'s prize row ' + d.id + ' is not an item');
       for (const id of UNIQUE) {
         const it = X.I.ITEMS[id];
-        if (it && (it.tier !== 7 || it.reqLv !== 88 || it.bop || !it.resistPm)) bad.push('HL-DAILY ' + id + ' is not a tradeable tier 7 piece worn from 88 with its attribute: ' + JSON.stringify(it));
+        /* (worn as its tier's piece is: Dawnsteel's grid Level, 12-targets 8.3, was the old ladder's 88) */
+        const tier7 = X.I.ITEMS.dawn_platelegs.reqLv;
+        if (it && (it.tier !== 7 || it.reqLv !== tier7 || it.bop || !it.resistPm)) bad.push('HL-DAILY ' + id + ' is not a tradeable tier 7 piece worn from ' + tier7 + ' with its attribute: ' + JSON.stringify(it));
       }
     }
     return bad;
@@ -438,10 +440,12 @@ const ARMS = {
     };
     const up = blow(true), down = blow(false);
     if (!(up < down && Math.abs(up * 1000 - down * ROWS[BOSS].phases.guardPm) <= 1000)) bad.push('HL-NAMED the named add shields him to ' + up + ' of ' + down);
-    /* a fight long enough to see his kit: the boss soft on the hit and slow to fall */
+    /* a fight long enough to see his kit: the boss soft on the hit and slow to fall, and the party set to take the named add first (the
+       Krell's Hold design's piece 4, the hero's Target kind: hunt-spawn.js kindPick). Left to its own Target the party's pick is the fight's
+       dynamics, not this rule: on 12-targets 8.3's kits the four never turned to him */
     X.setRow(BOSS, { hp: 9000, atk: 1, aim: 1 });
     try {
-      const f = fight(X, ['tank', 'healer', 'melee_dps', 'mage']);
+      const f = fight(X, ['tank', 'healer', 'melee_dps', 'mage'], { options: () => ({ target_kind: NAMED }) });
       const k = kindsOf(f), ev = eventsOf(f);
       const waves = ev.filter((e) => e.type === 'boss_phase' && e.phase === 'adds');
       if (waves.length !== 1 || k[waves[0].u] !== BOSS) bad.push('HL-NAMED ' + waves.length + ' waves came, from ' + waves.map((e) => k[e.u]).join());

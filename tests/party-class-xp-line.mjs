@@ -434,7 +434,9 @@ function writeLines(lines, packIds) {
       written.push('src/data/grounds/' + g + '/pack.js');
     } else {
       const re = new RegExp('^ {2}' + g + ': lines\\(\\{ normal: .*\\}\\),$', 'm');
-      if (!re.test(src)) throw new Error(g + ': party-class-xp.js has no BASE_VS_ALONE row to write');
+      /* a ground the window prints no line for (a staged ground with neither a pack line nor a BASE_VS_ALONE row: the Catacomb wings) is
+         measured and named, never written (lane/skills-time-parity: the re-measure on the Level clock died on the first one) */
+      if (!re.test(src)) { console.log('  (no line to write for ' + g + ': the window prints none)'); continue; }
       src = src.replace(re, '  ' + g + ': lines({ ' + each(byTier, said) + ' }),');
     }
   }

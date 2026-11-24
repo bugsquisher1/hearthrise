@@ -24,6 +24,7 @@ const BS = await import(u('src/data/balance-sheet.js') + v);
 const C = await import(u('src/core/combat.js') + v);
 const XP = await import(u('src/core/xp.js') + v);
 const A = await import(u('src/data/abilities.js') + v);
+const RN = await import(u('src/data/runes.js') + v);
 const { LEVEL_PACE } = await import(u('src/data/core-model.js') + v);
 const MEM = await import(u('src/core/member.js') + v);
 const gear = await loadGear(ROOT);
@@ -42,7 +43,8 @@ const project = (way, k, L) => {
 /* the way that casts a discipline's rows, and the skill its versions read */
 const WAY = { shield: 'tank', sword: 'sword', dual_axe: 'axes', club: 'hammer', ranged: 'bow', destruction: 'mage', restoration: 'healer' };
 const MAIN = { tank: 'melee', sword: 'melee', axes: 'melee', hammer: 'melee', bow: 'ranged', mage: 'magic', healer: 'magic' };
-const verAt = (lv) => (lv >= 60 ? 5 : lv >= 45 ? 4 : lv >= 30 ? 3 : lv >= 15 ? 2 : 1);
+/* the version a skill level casts: the deepest tier whose gate in that skill it has reached (runes.js versionLevel, the game's rune gates) */
+const verAt = (lv, skill) => { for (let t = RN.RUNE_TIERS.length; t > 1; t--) if (lv >= RN.versionLevel(t, skill)) return t; return 1; };
 const mid = (r) => (r[0] + r[1]) / 2;
 const pct = (x) => (x * 100).toFixed(0) + '%';
 
@@ -82,7 +84,7 @@ for (const row of Object.values(A.ABILITIES)) {
   const isDmg = A.landsBlow(row);
   if (!isDmg && !A.heals(row) && !A.shells(row)) continue;
   const cells = LEVELS.map((L) => {
-    const lv = project(way, skill, L), n = row.versions ? verAt(lv) : 1;
+    const lv = project(way, skill, L), n = row.versions ? verAt(lv, skill) : 1;
     const ver = A.versionOf(row, n), pm = ver.outPm;
     const M = MON[L], b = BASIC[way] && BASIC[way][L];
     if (!b) return 'n/a';

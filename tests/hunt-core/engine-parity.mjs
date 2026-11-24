@@ -168,7 +168,12 @@ const SEED = '-4611686018427387904';
    src/data/core-model.js, src/core/hunt/amount.js, src/core/bands.js and src/data/bands.js laid back over a copy of this tree: every pin holds
    (exit 0). Re-pinned again on the merge with set/v0.2.144 at 050a9b999 (first-hour-rewrite's tutorial rows): the same five, the same cause and
    proof on the merged tree. RE-PINNED on the merge with set/v0.2.144 at b05780245 (monster roles, REF_HERO, roads wave 3, designer reads)
-   with the designer's dials of 29-tuning-pass section 7 item 10: see the note after this one. */
+   with the designer's dials of 29-tuning-pass section 7 item 10 (the move gates 10 -> 5 and 12/14 -> 8, the supply and rune gates at the
+   Level the old careers reached them, Rat King's Crown 1,410 -> 1,700 ppm, Power Strike hitPm 700 -> 720): the same shape, every per-settle
+   world, timeline and tally of the four tier scenarios held and only their run totals moved (kills 200 / 489 / 140 / 99 held); muster-steps-4
+   moved from settle 1, kills held (170). Proof: the set's 13 src files this lane changes (src/core xp, bands, hunt/amount, hunt/abilities;
+   src/data core-model, bands, abilities, items, monsters, runes, slot-ladders, stonecraft, supply-basics) laid back over a copy of the merged
+   tree: every one of the set's pins holds (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

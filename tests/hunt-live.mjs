@@ -70,7 +70,7 @@
 //         never the hunt): a tank with no food of its own and an "Any food" slot naming
 //         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
 //         browser closed) and in the browser's prediction (viewed), every commit matching.
-//   LV-SHOT-SKILL a slot's ammo the hero's skill can't use yet (Mithril Arrows, Ranged 45, at Ranged 42): viewed and closed, neither
+//   LV-SHOT-SKILL a slot's ammo the hero's skill can't use yet (Mithril Arrows, three Ranged under its gate): viewed and closed, neither
 //             shot nor spent, the next slot flies, every commit matches (the settle half: tests/hunt-core/ranger-bar.mjs under-skill)
 //   LV-WAITS  a slot's words read the engine's own test of the prediction's world (src/shell/slot-waits.js): held on a lone monster, free on two,
 //             nothing to judge between pulls, and asked on every tick no commit moves
@@ -1208,8 +1208,13 @@ function rules(M) {
       const row = (user, seat, levelXp, skills, equipment, weaponType, lead) => {
         const mi = memberOf(M, user, seat, 'tank', 6);
         /* the recorded XP was earned on the old skill curve: each hero plays the levels it held (skill-lines.mjs restateSkills; 27 P-3 moved the
-           combat skills onto the Level clock, where a level near 40 costs about four times the XP, so the run moves no peer's level by itself) */
+           combat skills onto the Level clock, where a level near 40 costs about four times the XP), and Eddie's Melee keeps the XP still to its
+           next level, so the viewed control's peer level move (his Melee 42) still comes near 600 s. FOOD FOR THE WHOLE RUN (balance-blind,
+           like the rows and gear below): on 30 shrimp Eddie ate his last at about 1,000 s, and with his Melee 42 at 634 s the fight ran so that
+           he died at 1,044 s under Take turns (no level move: no death). Who pulls and holds is food-blind. */
         const held = restateSkills(skills, 'geometric', M.XP);
+        if (user === 'eddie') held.melee = restateSkills({ melee: skills.melee }, 'geometric', M.XP, 'toGo').melee;
+        mi.huntSession = Object.assign({}, mi.huntSession, { bag: { cooked_shrimp: { loaded: 120, left: 120, essential: true } } });
         mi.huntId = 'coppercap_warrens'; mi.levelXp = levelXp; mi.skills = held; mi.equipment = equipment;
         mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType, options: { stance: 'offensive' }, bar: [], partyRoles: ['tank', 'tank', 'mage'], lead, hold }), { density: 5 });
         return mi;
@@ -1805,7 +1810,9 @@ function rules(M) {
     ok('LV-RANGER', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
   { /* LV-SHOT-SKILL a slot's ammo under its skill, viewed and with the browser closed: the server and the browser pass over it alike */
-    const mi = memberOf(M, 'a', 0, 'ranger', 42);
+    /* (three Ranged under Mithril's gate, read off the row: core-model.js SUPPLY_GATES, Ranged 39 since the designer's ruling 29 section 7 item 10) */
+    const gate = M.ITEMS.mithril_arrows.reqLv, under = gate - 3;
+    const mi = memberOf(M, 'a', 0, 'ranger', under);
     mi.huntSession = Object.assign({}, mi.huntSession, { bag: { mithril_arrows: { loaded: 400, left: 400 }, iron_arrows: { loaded: 400, left: 400 }, cooked_shrimp: { loaded: 30, left: 30, essential: true } } });
     const slot = (id) => ({ action: { type: 'attack_with_item', id }, conditions: [], join: 'and' });
     mi.hero = M.SPAWN.heroSetup({ weaponType: 'ranged', options: {}, partyRoles: ['ranger'], bar: [slot('mithril_arrows'), slot('iron_arrows')] });
@@ -1815,9 +1822,9 @@ function rules(M) {
     const viewedEvs = r.fed.events.filter((e) => e.atMs < r.srv.inst.settled_to_ms);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     const bag = mi.huntSession.bag;
-    console.log('  LV-SHOT-SKILL: Ranged 42, the server shot ' + shots(closedEvs).length + ' [' + [...new Set(shots(closedEvs))].join(', ') + '], Mithril ' + bag.mithril_arrows.left + '/400; the browser shot ' + shots(viewedEvs).length);
+    console.log('  LV-SHOT-SKILL: Ranged ' + under + ', the server shot ' + shots(closedEvs).length + ' [' + [...new Set(shots(closedEvs))].join(', ') + '], Mithril ' + bag.mithril_arrows.left + '/400; the browser shot ' + shots(viewedEvs).length);
     ok('LV-SHOT-SKILL', shots(closedEvs).length >= 10, 'CONTROL: the Ranger shot ' + shots(closedEvs).length + ' time(s) in 96 s');
-    ok('LV-SHOT-SKILL', shots(closedEvs).every((id) => id === 'iron_arrows') && bag.mithril_arrows.left === 400, 'browser closed: a Ranged 42 hero shot Mithril Arrows (Ranged 45): ' + JSON.stringify([...new Set(shots(closedEvs))]) + ', ' + bag.mithril_arrows.left + ' of 400 left');
+    ok('LV-SHOT-SKILL', shots(closedEvs).every((id) => id === 'iron_arrows') && bag.mithril_arrows.left === 400, 'browser closed: a Ranged ' + under + ' hero shot Mithril Arrows (Ranged ' + gate + '): ' + JSON.stringify([...new Set(shots(closedEvs))]) + ', ' + bag.mithril_arrows.left + ' of 400 left');
     ok('LV-SHOT-SKILL', JSON.stringify(shots(viewedEvs)) === JSON.stringify(shots(closedEvs)), 'viewed: the browser predicted ' + shots(viewedEvs).length + ' shots of ' + JSON.stringify([...new Set(shots(viewedEvs))]));
     ok('LV-SHOT-SKILL', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
   }
@@ -2296,8 +2303,8 @@ const MUTANTS = [
   ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list, mrow);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
   ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
   ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
-  ["Turning Cut a sword alone's again (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a club at Melee \d+: browser closed/],
-  ["Turning Cut the tank's too (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a sword and shield: browser closed/],
+  ["Turning Cut a sword alone's again (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 5,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a club at Melee \d+: browser closed/],
+  ["Turning Cut the tank's too (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 5,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a sword and shield: browser closed/],
   ['an ability casts under its unlock (LV-AREA)', 'src/core/hunt/abilities.js', "    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };\n", '', /^LV-AREA: under its unlock: browser closed/],
   ['a frozen peer row drops its kind first (LV-KINDS)', 'src/core/member.js', '    shield: m.shield === true, hero: m.hero, session, lv, shots };',
     '    shield: m.shield === true, hero: Object.assign({}, m.hero, { settings: m.hero.settings && Object.assign({}, m.hero.settings, { tkind: undefined }) }), session, lv, shots };', /^LV-KINDS: viewed/],

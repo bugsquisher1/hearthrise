@@ -49,15 +49,16 @@ const MAIN_OF = Object.freeze({ tank: 'melee', sword: 'melee', hammer: 'melee', 
 
 /** A recorded hero's combat skill XP (`skills` { skill: xp }, recorded on `curve`) restated on this tree's curve at the level it read when it
     was recorded, its share into that level kept: a replay plays the hero as it was. Skills off the clock (Inner Flame, the capped ones) and a
-    recording made on this tree's curve pass as they are. */
-export function restateSkills(skills, curve = 'geometric', XP = CTX.XP) {
+    recording made on this tree's curve pass as they are. `keep` 'toGo' keeps the XP still to the next level instead of the share (a short
+    replay whose control is a level gained at a known time: the same XP an hour reaches it at the same time, never under the level's start). */
+export function restateSkills(skills, curve = 'geometric', XP = CTX.XP, keep = 'share') {
   if (!skills || curve === 'time') return skills;
   const out = { ...skills };
   for (const k of ['melee', 'ranged', 'magic', 'defense']) {
     if (!(k in skills)) continue;
     const x = Math.max(0, Math.floor(Number(skills[k]) || 0)), lv = XP.skillLevelFromXp(FLAME, x);
     const a = XP.skillXpForLevel(FLAME, lv), b = XP.skillXpForLevel(FLAME, lv + 1), A = XP.skillXpForLevel(k, lv), B = XP.skillXpForLevel(k, lv + 1);
-    out[k] = A + (b > a ? Math.floor(((x - a) * (B - A)) / (b - a)) : 0);
+    out[k] = keep === 'toGo' ? Math.max(A, B - (b - x)) : A + (b > a ? Math.floor(((x - a) * (B - A)) / (b - a)) : 0);
   }
   return out;
 }

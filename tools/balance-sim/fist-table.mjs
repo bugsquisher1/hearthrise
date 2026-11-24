@@ -21,6 +21,7 @@
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
+import { RUNE_TIERS } from './played.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -92,8 +93,8 @@ function bestElement(M, ground) {
 
 const slot = (M, id, store) => ({ id: 'd_' + id, action: Object.assign({ type: 'ability', id }, store ? { store } : {}),
   conditions: M.AD.suggestedTrigger(M.AD.ABILITIES[id]).map((c) => ({ ...c })), join: 'and' });
-/* the store rune of the tier a Magic level casts (versions at 1 / 15 / 30 / 45 / 60) */
-const runeTier = (lv) => (lv >= 60 ? 5 : lv >= 45 ? 4 : lv >= 30 ? 3 : lv >= 15 ? 2 : 1);
+/* the store rune of the tier a Magic level casts (played.mjs RUNE_TIERS: the game's rune gates, Graven first) */
+const runeTier = (lv) => { const i = RUNE_TIERS.findIndex(([l]) => lv >= l); return i < 0 ? 1 : RUNE_TIERS.length - i; };
 const storeRuneOf = (M, family, magic) => { const t = runeTier(magic); return t === 1 ? 'plain_' + family + '_rune' : 'plain_' + M.RUNES.runeId(family, t); };
 function fistBar(M, el, magic, dear) {
   const out = [];

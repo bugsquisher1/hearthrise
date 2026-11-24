@@ -395,8 +395,8 @@ export const COMBAT = [
   L('spell.rune-step', 'spells', 'global', 'Rune tier step', {
     at: [at('src/data/runes.js', "Object.freeze({ tier: 2, name: 'Scored', level: 15, stepPm: 1100 })")],
     names: ['RUNE_TIERS'],
-    def: 'a cast\'s power: 1000 / 1100 / 1200 / 1300 / 1400 permille at skill 1 / 15 / 30 / 45 / 60',
-    range: 'permille rising; nothing past skill 60 on a game with endless Levels',
+    def: 'a cast\'s power: 1000 / 1100 / 1200 / 1300 / 1400 permille at each tier\'s skill gate (runes.js versionLevel: Magic 1 / 8 / 15 / 39 / 71, Melee 1 / 9 / 23 / 45 / 73)',
+    range: 'permille rising; nothing past the Graven gate on a game with endless Levels',
     touches: 'every cast\'s power as skills grow', out: KILL, f: ['C-CAST-POWER'],
     tests: [['tests/hunt-core/spell-rule.mjs', 'the rune step']], testReads: ['RUNE_TIERS'],
     perturb: P('', 'runeStep'),

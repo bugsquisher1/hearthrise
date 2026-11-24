@@ -188,7 +188,7 @@ export default definePack({
      way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
      trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
      under solo (worst 0.75, two bows). */
-  partyVsAlone: { normal: { 2: [-35, 0], 3: [-45, -10, 0], 4: [-55, -20, -20, -15] }, dangerous: { 2: [-10, 50], 3: [0, 60, 70], 4: [-20, 35, 40, 45] }, deadly: { 2: [-30, 20], 3: [-10, 50, 55], 4: [-20, 35, 40, 45] } },
+  partyVsAlone: { normal: { 2: [-40, -5], 3: [-50, -15, -10], 4: [-60, -35, -30, -30] }, dangerous: { 2: [-25, 25], 3: [-30, 15, 20], 4: [-40, 0, 5, 5] }, deadly: { 2: [-10, 55], 3: [-15, 35, 45], 4: [-35, 10, 15, 20] } },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value

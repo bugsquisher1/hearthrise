@@ -453,6 +453,11 @@
         "bytes": 3817150,
         "on": "2026-11-24",
         "why": "lane/skills-time-parity on set b05780245 with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel). +8,534 bytes"
+      },
+      {
+        "bytes": 3817152,
+        "on": "2026-11-24",
+        "why": "lane/skills-time-parity: the party lines re-measured on the skill clock (party-class-xp-line --table --mixed --write: nine packs' partyVsAlone and the base rows), 2 B"
       }
     ]
   }

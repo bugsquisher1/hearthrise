@@ -530,7 +530,7 @@ async function restoring(root, fn) {
 }
 
 const ROW_KING = "hp: 2000, atk: 42, aim: 41, evasion: 8, def: 4, xp: 0, gp: [0, 0], speed: 2800,\n    /* A WIN PAYS HIS OWN TABLE";
-const KING_TAIL = "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' },\n      { id: 'kingstooth', ch: .01, band: 'rare' }],";
+const KING_TAIL = "{ id: 'rat_kings_crown', ch: .0017, band: 'trophy' },\n      { id: 'kingstooth', ch: .01, band: 'rare' }],";
 /* the drop door's own lines (src/core/hunt-rewards.js calledSwing) */
 const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (isMonster(t) && t.kind === boss) {\n";
 const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: isMonster(k) ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
@@ -550,7 +550,7 @@ const MUTANTS = [
   { name: 'the Cauldron Lid loses its fire: the Coppercap Shield again', edits: [['src/data/boss-calls.js', '    resistPm: Object.freeze({ ember: 100 }), tier: 3,', '    tier: 3,']], want: /BC-ROW/ },
   { name: 'the Cauldron Lid cuts every hit at tier 3', edits: [['src/data/boss-calls.js', "cauldron_lid: Object.freeze({ n: 'Cauldron Lid',", "cauldron_lid: Object.freeze({ steadyPm: 50, n: 'Cauldron Lid',"]], want: /BC-ROW/ },
   { name: 'Kingstooth\'s bane past its tier\'s size', edits: [['src/data/boss-calls.js', "class: 'vermin', mult: 1.1 }", "class: 'vermin', mult: 1.2 }"]], want: /BC-ROW/ },
-  { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' }],"]], want: /BC-ROW/ },
+  { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .0017, band: 'trophy' }],"]], want: /BC-ROW/ },
   { name: 'a loss that pays: his table rolled on a hero\'s death', edits: [['src/core/hunt-rewards.js', DOOR_DEATH, DOOR_DEATH.replace('      const k = unitOf(ev.u);\n', '      ' + PAY_HERE + '\n      const k = unitOf(ev.u);\n')]], want: /BC-DEATH|BC-WAVE|BC-RECORD/ },
   { name: 'a timeout that pays: his table rolled on his blows taken, not his kill', edits: [['src/core/hunt-rewards.js', DOOR_KILL, "    if (ev.type === 'dmg' && unitOf(ev.t) && unitOf(ev.t).kind === boss) " + PAY_HERE + "\n" + DOOR_KILL]], want: /BC-TIME|BC-PAY|BC-DEATH/ },
   { name: 'the win rolls the ground boss\'s row, not his own', edits: [['src/core/hunt-rewards.js', 'const row = (ctx.monsters || MONSTERS)[boss];', 'const row = (ctx.monsters || MONSTERS)[ctx.call.of];']], want: /BC-PAY/ },

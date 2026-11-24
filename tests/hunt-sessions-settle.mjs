@@ -5618,7 +5618,7 @@ const MUTANTS = [
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: '    return l;' },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the engine casts a store rune with no level gate', file: 'src/core/hunt/abilities.js',
-    from: "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", to: "" },
+    from: "  if (version && lv < versionLevel(version, abilitySkill(row))) return { why: 'level', short: false };\n", to: "" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the engine charges every store rune Plain (the row named is not the row bought)', file: 'src/core/hunt/abilities.js',
     from: "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", to: "  const s = version ? storeLine(h.hs, row.rune, 'plain_fire_rune') : { why: 'none' };" },
   { arm: 'RUNE-SUPPLY', name: '[rune supply] the proposal\'s runes_out end names no spell (the server cannot re-prove it)', file: join(FN, 'accrue-hunt.js'),

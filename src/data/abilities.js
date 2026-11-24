@@ -184,7 +184,7 @@ export const ABILITIES = Object.freeze([
   /* THE TANK'S RUNE SPELLS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be party only
      I think"; the designer's board section "2026-11-19 Tank rune spells"). They hold and protect, never kill: a tank alone levels
      slowly on purpose (Tyler 2026-11-19), so both are PARTY ONLY (`party`) and neither is on a default bar (the new-spell prompt
-     offers each at its `unlock`). Their versions read Melee, the shield's skill (I-V at Melee 1 / 15 / 30 / 45 / 60).
+     offers each at its `unlock`). Their versions read Melee, the shield's skill (I-V at the Melee rune gates).
      FROST SLAM: an ICE rune spell, every monster beside the tank (up to 8) Chilled for 4 s, no damage (a ring that lands only its
      status); its version is the rune tier, so its chill is 30 / 35 / 40 / 45 / 50% (statuses.js chill tierPermille) at the
      version's full strength (a status is never cut by the store's share). Every 6 s: chilled two thirds of the time. */

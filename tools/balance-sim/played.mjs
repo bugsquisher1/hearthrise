@@ -14,10 +14,14 @@
 // Defense 32) and 15 levels HIGH for a hero levelled in a Deadly party (Level 72: main skill 56-59, a caster's Defense 14-24).
 //
 // A cell asks for it with `profile: 'played'` (cell.mjs). Nothing here is a combat number: slots name abilities and items by id.
-// PURE ESM. Data only. Imports nothing.
+// PURE ESM. Data only. Imports only the rune gates (src/data/runes.js).
+import { versionLevel } from '../../src/data/runes.js';
 
-/* The store rune a slot names at a Magic level (a spell's version N casts at Magic 1 / 15 / 30 / 45 / 60 on that tier's rune). */
-export const RUNE_TIERS = Object.freeze([[60, 'graven'], [45, 'carved'], [30, 'etched'], [15, 'scored'], [1, 'chalked']]);
+/* The store rune a slot names at a Magic level: a spell's version N casts at the tier's Magic gate (runes.js versionLevel over core-model.js
+   SUPPLY_GATES.magic, 1 / 8 / 15 / 39 / 71: each tier at the Level the old careers reached it, the designer's ruling 29 section 7 item 10).
+   Read, never typed: a typed copy of the old gates (1 / 15 / 30 / 45 / 60) put the harness's Level 60 mage a rune tier deeper than the
+   game's gates do once skills ran on the Level clock (lane/skills-time-parity, EL-KIT 0.29 -> 0.35). */
+export const RUNE_TIERS = Object.freeze(['graven', 'carved', 'etched', 'scored', 'chalked'].map((t, i) => [versionLevel(5 - i), t]));
 export const runeTierAt = (magic) => (RUNE_TIERS.find(([lv]) => magic >= lv) || RUNE_TIERS[RUNE_TIERS.length - 1])[1];
 /* HOW REAL PLAYERS BUY RUNES (docs/design/balance-program/11-krell-hunt-2026-11-20.md section 4, 51-baseline.md F5): "the mage and the healer
    buy Carved and Etched runes and not Graven, and the healer heals on the cheapest water rune". `rule` 'real': every rune spell one tier under

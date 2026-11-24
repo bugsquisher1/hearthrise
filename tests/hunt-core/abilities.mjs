@@ -37,7 +37,7 @@ const cases = {
     for (const f of M.SC.CRAFTED_RUNE_FAMILIES) {
       for (const t of M.runes.RUNE_TIERS) {
         const it = M.ITEMS[M.runes.runeId(f, t.tier)];
-        if (!it || it.family !== f || it.runeTier !== t.tier || it.n !== M.runes.runeName(f, t.tier) || it.reqLv !== t.level) return 'the ' + f + ' family has no proper ' + t.name + ' rune: ' + JSON.stringify(it);
+        if (!it || it.family !== f || it.runeTier !== t.tier || it.n !== M.runes.runeName(f, t.tier) || it.reqLv !== M.runes.versionLevel(t.tier) || it.madeLv !== t.level) return 'the ' + f + ' family has no proper ' + t.name + ' rune: ' + JSON.stringify(it);
       }
     }
     const loose = runes.filter((id) => !M.SC.CRAFTED_RUNE_FAMILIES.includes(M.ITEMS[id].family));
@@ -231,8 +231,9 @@ const cases = {
      not spent and the slot waits `level`; the store's rune (only when the slot names it) is the BASIC version:
      version I at the store's share, so the same roll lands BASIC_EFFECT_SHARE as hard. */
   'spell-casts-the-spent-runes-version': (M) => {
-    const skill = M.AD.abilitySkill(M.AD.ABILITIES.flame_strike), need = M.runes.versionLevel(3);
-    if (skill !== 'melee' || need !== 30) return 'Flame Strike levels on ' + skill + ' and version III needs ' + need + ', want melee 30';
+    /* (the gates keep their Level, the designer's ruling 29 section 7 item 10: Melee's tier III gate is 23, core-model.js SUPPLY_GATES) */
+    const skill = M.AD.abilitySkill(M.AD.ABILITIES.flame_strike), need = M.runes.versionLevel(3, skill);
+    if (skill !== 'melee' || need !== 23) return 'Flame Strike levels on ' + skill + ' and version III needs ' + need + ', want melee 23';
     const at = (lv, store) => {
       const hs = supplySession(M, { bag: { etched_fire_rune: { loaded: 2 } }, shot: 'plain_fire_rune', ammo: 'chalked_fire_rune', purse: 50 });
       /* (no store: a slot set to leave, since a slot that says nothing buys from the shop, Tyler 2026-11-08) */
@@ -242,10 +243,10 @@ const cases = {
     };
     const open = at(need);
     if (!open.cast || open.cast.version !== 3 || open.cast.supply !== 'etched_fire_rune' || open.cast.source !== 'own' || open.hs.bag.etched_fire_rune.left !== 1) {
-      return 'a Melee-30 tank spending an Etched (tier-3) Fire Rune did not cast version III from its own rune: ' + JSON.stringify(open.cast);
+      return 'a Melee-' + need + ' tank spending an Etched (tier-3) Fire Rune did not cast version III from its own rune: ' + JSON.stringify(open.cast);
     }
     const shut = at(need - 1);
-    if (shut.cast || shut.hs.bag.etched_fire_rune.left !== 2) return 'a Melee-29 tank cast version III or spent the rune it cannot use: ' + JSON.stringify(shut.cast);
+    if (shut.cast || shut.hs.bag.etched_fire_rune.left !== 2) return 'a Melee-' + (need - 1) + ' tank cast version III or spent the rune it cannot use: ' + JSON.stringify(shut.cast);
     if (!shut.x.sc.events.some((e) => e.type === 'rule_wait' && e.why === 'level')) return 'the locked version was not said (rule_wait level)';
     const basic = at(need - 1, true);
     if (!basic.cast || basic.cast.version !== 1 || basic.cast.source !== 'store' || basic.cast.supply !== 'plain_fire_rune'
@@ -280,22 +281,22 @@ const cases = {
       return { x, hs, cast: x.sc.events.find((e) => e.type === 'cast') || null };
     };
     for (const t of M.runes.RUNE_TIERS) {
-      const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier);
+      const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier), gate = M.runes.versionLevel(t.tier, 'melee');
       const row = M.SB.BASIC_INDEX[id];
       if (!row || row.price !== M.SB.STORE_RUNE_PRICE[t.tier - 1]) return id + ' is not on the shelf at the ladder\'s price: ' + JSON.stringify(row);
-      const open = at(t.level, id);
+      const open = at(gate, id);
       const power = Math.floor((M.AD.versionOf(fs, t.tier).outPm * share) / 1000);
-      if (!open.cast || open.cast.version !== t.tier || open.cast.source !== 'store' || open.cast.supply !== id || open.cast.power !== power) return 'Melee ' + t.level + ' naming ' + id + ' did not cast version ' + t.tier + ' at the store\'s share: ' + JSON.stringify(open.cast);
+      if (!open.cast || open.cast.version !== t.tier || open.cast.source !== 'store' || open.cast.supply !== id || open.cast.power !== power) return 'Melee ' + gate + ' naming ' + id + ' did not cast version ' + t.tier + ' at the store\'s share: ' + JSON.stringify(open.cast);
       if (open.hs.purse !== 1000 - row.price || JSON.stringify(open.hs.tally.bought) !== JSON.stringify({ [id]: 1 })) return id + ' charged ' + (1000 - open.hs.purse) + ' g and bought ' + JSON.stringify(open.hs.tally.bought) + ', its price is ' + row.price;
       if (open.x.w.units.find((u) => u.side === 'hero').mana !== 500 - M.AD.versionOf(fs, t.tier).mana) return id + ' did not cost its version\'s mana';
-      const said = SHELL.draft.storeChoices({ type: 'ability', id: 'flame_strike' }, M.SB.BASIC_SUPPLIES, { melee: { level: t.level } }).find((c) => c.id === id);
+      const said = SHELL.draft.storeChoices({ type: 'ability', id: 'flame_strike' }, M.SB.BASIC_SUPPLIES, { melee: { level: gate } }).find((c) => c.id === id);
       if (!said || said.price !== row.price || said.short) return 'Configure action prices ' + id + ' at ' + JSON.stringify(said) + ', the engine charged ' + row.price;
       if (t.tier === 1) continue;
-      const shut = at(t.level - 1, id);
-      if (shut.cast || shut.hs.purse !== 1000 || Object.keys(shut.hs.tally.bought).length) return 'Melee ' + (t.level - 1) + ' naming ' + id + ' cast or bought: ' + JSON.stringify([shut.cast, shut.hs.tally.bought]);
+      const shut = at(gate - 1, id);
+      if (shut.cast || shut.hs.purse !== 1000 || Object.keys(shut.hs.tally.bought).length) return 'Melee ' + (gate - 1) + ' naming ' + id + ' cast or bought: ' + JSON.stringify([shut.cast, shut.hs.tally.bought]);
       if (!shut.x.sc.events.some((e) => e.type === 'rule_wait' && e.why === 'level')) return 'the locked store rune was not said (rule_wait level)';
-      const short = SHELL.draft.storeChoices({ type: 'ability', id: 'flame_strike' }, M.SB.BASIC_SUPPLIES, { melee: { level: t.level - 1 } }).find((c) => c.id === id);
-      if (!short || !short.short || !/needs Melee /.test(SHELL.draft.storeChoiceWords(short))) return 'Configure action does not say ' + id + ' waits at Melee ' + (t.level - 1) + ': ' + JSON.stringify(short);
+      const short = SHELL.draft.storeChoices({ type: 'ability', id: 'flame_strike' }, M.SB.BASIC_SUPPLIES, { melee: { level: gate - 1 } }).find((c) => c.id === id);
+      if (!short || !short.short || !/needs Melee /.test(SHELL.draft.storeChoiceWords(short))) return 'Configure action does not say ' + id + ' waits at Melee ' + (gate - 1) + ': ' + JSON.stringify(short);
     }
     /* (past the bar's door, which refuses the slot below: the engine's own family rule holds a stored row a later catalogue no longer fits) */
     const foreignHs = supplySession(M, { purse: 1000 });
@@ -305,15 +306,15 @@ const cases = {
     /* the cost line states what the slot would pay, every tier (the Runes tab is merged into Spells, Tyler 2026-11-08: the price is the cost line's) */
     for (const t of M.runes.RUNE_TIERS) {
       const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier);
-      const cost = SHELL.facts.factsOf({ type: 'ability', id: 'flame_strike', store: id }, { store: M.SB.BASIC_SUPPLIES, bag: [], skills: { melee: { level: t.level } } }).cost;
+      const cost = SHELL.facts.factsOf({ type: 'ability', id: 'flame_strike', store: id }, { store: M.SB.BASIC_SUPPLIES, bag: [], skills: { melee: { level: M.runes.versionLevel(t.tier, 'melee') } } }).cost;
       if (cost !== 'Cost: ' + M.AD.versionOf(fs, t.tier).mana + ' mana, 1 ' + M.SB.BASIC_INDEX[id].n + ' (' + M.SB.BASIC_INDEX[id].price + ' g)') return 'the cost line does not name ' + id + ' at its price and its version\'s mana: ' + cost;
     }
-    const foreign = melee(M, [], { mana: 500, maxMana: 500 }, { hs: foreignHs, skills: skills(60), slots: past });
+    const foreign = melee(M, [], { mana: 500, maxMana: 500 }, { hs: foreignHs, skills: skills(M.runes.versionLevel(5, 'melee')), slots: past });
     M.abilities.castAbilities(foreign.inst, foreign.sc);
     if (casts(foreign.sc).length || foreignHs.purse !== 1000) return 'a Fire spell cast on an Ice store rune: ' + JSON.stringify([casts(foreign.sc), foreignHs.purse]);
-    const unnamed = at(60, null);
+    const unnamed = at(M.runes.versionLevel(5, 'melee'), null);
     if (!unnamed.cast || unnamed.cast.supply !== 'plain_fire_rune' || unnamed.hs.purse !== 1000 - M.SB.BASIC_INDEX.plain_fire_rune.price) return 'a slot naming no shop rune did not buy the tier-1 one: ' + JSON.stringify(unnamed.cast);
-    const own = at(60, 'plain_graven_fire_rune', { chalked_fire_rune: { loaded: 1 } });
+    const own = at(M.runes.versionLevel(5, 'melee'), 'plain_graven_fire_rune', { chalked_fire_rune: { loaded: 1 } });
     if (!own.cast || own.cast.source !== 'own' || own.cast.version !== 1 || own.hs.purse !== 1000) return 'a carried rune was not spent first: ' + JSON.stringify(own.cast);
     for (const t of M.runes.RUNE_TIERS) {
       const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier);
@@ -391,15 +392,15 @@ const cases = {
       M.abilities.castAbilities(x.inst, x.sc);
       return { hs, cast: x.sc.events.find((e) => e.type === 'cast') || null };
     };
-    const both = () => ({ chalked_fire_rune: { loaded: 3 }, graven_fire_rune: { loaded: 3 } });
-    const top = run(60, both());
+    const both = () => ({ chalked_fire_rune: { loaded: 3 }, graven_fire_rune: { loaded: 3 } }), gate = M.runes.versionLevel(5, 'melee');
+    const top = run(gate, both());
     if (!top.cast || top.cast.supply !== 'graven_fire_rune' || top.cast.version !== 5 || top.cast.mana !== fs.versions[4]
-      || top.cast.power !== M.AD.versionOf(fs, 5).outPm || top.hs.bag.graven_fire_rune.left !== 2) return 'a Melee-60 tank with Chalked and Graven did not cast version V on a Graven rune: ' + JSON.stringify(top.cast);
-    const low = run(59, both());
+      || top.cast.power !== M.AD.versionOf(fs, 5).outPm || top.hs.bag.graven_fire_rune.left !== 2) return 'a Melee-' + gate + ' tank with Chalked and Graven did not cast version V on a Graven rune: ' + JSON.stringify(top.cast);
+    const low = run(gate - 1, both());
     if (!low.cast || low.cast.supply !== 'chalked_fire_rune' || low.cast.version !== 1 || low.cast.mana !== fs.mana
-      || low.cast.power !== M.AD.versionOf(fs, 1).outPm || low.hs.bag.graven_fire_rune.left !== 3) return 'a Melee-59 tank did not fall to its Chalked rune (version I): ' + JSON.stringify(low.cast);
+      || low.cast.power !== M.AD.versionOf(fs, 1).outPm || low.hs.bag.graven_fire_rune.left !== 3) return 'a Melee-' + (gate - 1) + ' tank did not fall to its Chalked rune (version I): ' + JSON.stringify(low.cast);
     const other = Object.keys(M.ITEMS).find((id) => M.runes.isRune(M.ITEMS[id]) && M.ITEMS[id].family !== 'fire');
-    const wrong = run(60, { [other]: { loaded: 3 } });
+    const wrong = run(gate, { [other]: { loaded: 3 } });
     return wrong.cast ? 'Flame Strike spent ' + other + ', a rune of another family' : null;
   },
   /* OUTPUT GROWS WITH THE CASTER'S BLOW, MANA NEVER DOES (THE SPELL RULE, Tyler 2026-11-21, 21-5: every cast is a share of its caster's
@@ -1019,10 +1020,10 @@ const cases = {
     const { factsOf, aloneReason, aloneNote } = M.shell.facts;
     const slam = factsOf({ type: 'ability', id: 'frost_slam' }), shell = factsOf({ type: 'ability', id: 'shelter' });
     const say = (f) => [f.type, f.alone, ...f.effect, f.unlock].join(' | ');
-    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12') return 'Frost Slam reads ' + say(slam);
+    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 8') return 'Frost Slam reads ' + say(slam);
     /* (THE SPELL RULE: its shell is a share of the tank's blow, version I with no rune read, never under its beginner's floor) */
     if (say(shell) !== 'Shields every hero near you | Party only | Blocks damage up to 289% of Max Hit | Never less than 30 | Unlocks at Melee 20') return 'Shelter reads ' + say(shell);
-    const deep = factsOf({ type: 'ability', id: 'frost_slam', store: 'plain_graven_ice_rune' }, { bag: [], skills: { melee: { level: 60 } }, store: M.SB.BASIC_SUPPLIES.filter((b) => b.id === 'plain_graven_ice_rune') });
+    const deep = factsOf({ type: 'ability', id: 'frost_slam', store: 'plain_graven_ice_rune' }, { bag: [], skills: { melee: { level: M.runes.versionLevel(5, 'melee') } }, store: M.SB.BASIC_SUPPLIES.filter((b) => b.id === 'plain_graven_ice_rune') });
     if (!deep.effect.includes('Causes chill for 4 s, 50% slower attacks and casts')) return 'a Graven slam reads ' + JSON.stringify(deep.effect);
     const sl = { action: { type: 'ability', id: 'frost_slam' }, conditions: [], join: 'and' };
     const greyed = aloneReason(sl, true);
@@ -1082,10 +1083,10 @@ const cases = {
     const has = (x, type, effect, unlock) => x.type === type && effect.every((e) => x.effect.includes(e)) && x.unlock === unlock;
     /* (the words are the text home's, src/data/text/bar.js: the shipped target lines, a line's and a ring's own beside them) */
     const rows = [
-      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10'],
-      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10'],
+      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 5'],
+      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 5'],
       /* THE SPELL RULE: a share of the hero's blow, in % of Max Hit, and the row's beginner's floor (abilities.js base) */
-      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14'],
+      ['hoarfrost', 'Hits monsters around the target', ['Each monster hit: 27% to 53% of Max Hit as frost', 'Never less than 5–9 a hit', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 8'],
       ['spring_tide', 'Hero and nearby allies', ['Heals 951% of Max Hit', 'Never less than 150'], 'Unlocks at Magic 20'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
@@ -1101,9 +1102,9 @@ const cases = {
     const set = { discipline: 'ranged', role: 'ranger', slots: [], store: [], supplySource: 'store', onEmpty: 'switch' };
     const sl = { action: { type: 'ability', id: 'raking_shot' }, conditions: [], join: 'and', usable: true };
     const bag = [{ id: 'bronze_arrows', qty: 50 }];
-    const under = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 7, xp: 0 } }, null);
-    if (!under || under.code !== 'unlock' || under.text !== 'Requires Ranged 10, now 7') return 'a slot under its unlock reads ' + JSON.stringify(under);
-    const at = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 10, xp: 0 } }, null);
+    const under = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 3, xp: 0 } }, null);
+    if (!under || under.code !== 'unlock' || under.text !== 'Requires Ranged 5, now 3') return 'a slot under its unlock reads ' + JSON.stringify(under);
+    const at = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 5, xp: 0 } }, null);
     if (at && at.code === 'unlock') return 'a slot at its unlock still waits: ' + JSON.stringify(at);
     if (reasonOf(sl, set, bag, null, 'bronze_arrows', null, null)) return 'with no skills read the slot claims a wait: ' + JSON.stringify(reasonOf(sl, set, bag, null, 'bronze_arrows', null, null));
     /* a new pick takes its own starting rule when the slot still holds the last pick's untouched (Turning Cut, then a food), never
@@ -1332,7 +1333,7 @@ const mutants = [
   { name: 'a spell casts version I whatever rune it spends', case: 'spell-casts-the-spent-runes-version',
     edits: [['src/core/hunt/abilities.js', '    if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };', '    if (!best || tier > best.version) best = { line: l, version: 1, pm: 1000 };']] },
   { name: 'a carried rune casts a version its hero has not unlocked', case: 'spell-casts-the-spent-runes-version',
-    edits: [['src/core/hunt/abilities.js', '    if (lv < versionLevel(tier)) { locked = true; continue; }\n', '']] },
+    edits: [['src/core/hunt/abilities.js', '    if (lv < versionLevel(tier, abilitySkill(row))) { locked = true; continue; }\n', '']] },
   { name: '[spell-content] a cast spends the lowest tier its hero carries', case: 'family-spends-the-best-unlocked-tier',
     edits: [['src/core/hunt/abilities.js', '    if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };', '    if (!best || tier < best.version) best = { line: l, version: tier, pm: 1000 };']] },
   { name: '[spell-content] a spell spends a rune of another family', case: 'family-spends-the-best-unlocked-tier',
@@ -1348,9 +1349,9 @@ const mutants = [
   { name: '[rune ladder] a deeper store rune casts version I', case: 'store-rune-is-the-one-the-slot-names',
     edits: [['src/core/hunt/abilities.js', '  return { line: s, version, pm: BASIC_PM };', '  return { line: s, version: 1, pm: BASIC_PM };']] },
   { name: '[rune ladder] a store rune above the level casts anyway', case: 'store-rune-is-the-one-the-slot-names',
-    edits: [['src/core/hunt/abilities.js', "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", '']] },
+    edits: [['src/core/hunt/abilities.js', "  if (version && lv < versionLevel(version, abilitySkill(row))) return { why: 'level', short: false };\n", '']] },
   { name: '[rune ladder] a store rune above the level falls back to Plain (the game picks a tier)', case: 'store-rune-is-the-one-the-slot-names',
-    edits: [['src/core/hunt/abilities.js', "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", "  if (version && lv < versionLevel(version)) { const p = storeLine(h.hs, row.rune); return p.id && !p.why ? { line: p, version: 1, pm: BASIC_PM } : { why: 'level', short: false }; }\n"]] },
+    edits: [['src/core/hunt/abilities.js', "  if (version && lv < versionLevel(version, abilitySkill(row))) return { why: 'level', short: false };\n", "  if (version && lv < versionLevel(version, abilitySkill(row))) { const p = storeLine(h.hs, row.rune); return p.id && !p.why ? { line: p, version: 1, pm: BASIC_PM } : { why: 'level', short: false }; }\n"]] },
   { name: '[rune ladder] a Fire spell casts on any family\'s store rune', case: 'store-rune-is-the-one-the-slot-names',
     edits: [['src/core/hunt/abilities.js', '  const version = named && named.family === fam ? runeTierOf(named) : 0;', '  const version = named ? runeTierOf(named) : 0;']] },
   { name: '[rune ladder] a named deeper rune is charged at Plain\'s price', case: 'store-rune-is-the-one-the-slot-names',
@@ -1482,9 +1483,9 @@ const mutants = [
   { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
     edits: [['src/shell/bar-draft.js', "  const any = m.value === 'count' && m.ops.includes('gte');", '  const any = false;']] },
   { name: '[turning cut] a sword alone\'s again (Tyler 2026-11-16: every melee weapon without a shield)', case: 'turning-cut-every-shieldless-melee',
-    edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
+    edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 5,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
   { name: '[turning cut] the tank\'s too', case: 'turning-cut-every-shieldless-melee',
-    edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
+    edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 5,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
   { name: '[turning cut] a move names its first discipline\'s weapons alone', case: 'turning-cut-every-shieldless-melee', also: ['src'],
     edits: [['src/shell/action-facts.js', '  const ds = r.disciplines;\n', '  const ds = r.disciplines.slice(0, 1);\n']] },
   /* THE TANK RUNE SPELLS (board 2026-11-19 section 6) */

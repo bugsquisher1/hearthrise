@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "8ec53b56aeb2c5ad",
+ "authored": "75da097295c09192",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -942,9 +942,10 @@
      }
     ],
     "mentions": [
-     "tests/bands.mjs"
+     "tests/bands.mjs",
+     "tests/hunt-core/abilities.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3113,8 +3114,8 @@
      "binding": "RUNE_TIERS"
     }
    ],
-   "definition": "a cast's power: 1000 / 1100 / 1200 / 1300 / 1400 permille at skill 1 / 15 / 30 / 45 / 60",
-   "range": "permille rising; nothing past skill 60 on a game with endless Levels",
+   "definition": "a cast's power: 1000 / 1100 / 1200 / 1300 / 1400 permille at each tier's skill gate (runes.js versionLevel: Magic 1 / 8 / 15 / 39 / 71, Melee 1 / 9 / 23 / 45 / 73)",
+   "range": "permille rising; nothing past the Graven gate on a game with endless Levels",
    "touches": "every cast's power as skills grow",
    "outcomes": [
     "dps",

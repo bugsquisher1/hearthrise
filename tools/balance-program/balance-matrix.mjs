@@ -931,9 +931,11 @@ async function selftest() {
     check('a stamina bar that binds ends the hunt at 0.1 h (' + h('stamina').hours + ' h, ' + Object.keys(h('stamina').ended || {}).join(',') + ')', Math.abs(h('stamina').hours - 0.1) < 0.01 && (h('stamina').ended || {}).stamina === 1);
     check('a purse that binds: under its floor the mage buys nothing and fights slower (store ' + h('purseDry').storePerH + ', DPS ' + h('purseDry').dps + ' against ' + h('purseFull').dps + ')', h('purseDry').storePerH === 0 && h('purseDry').dps < h('purseFull').dps);
     /* 9g. the store bill: casters shop as the real four did (11-krell section 4): one tier under what Magic allows, the healer's heals on Chalked */
-    check('the shopping rule: a mage at Magic 64 casts on Carved, a healer heals on Chalked water and its sickness on Carved; a BiS hero casts on Graven; MID cells shop real',
-      SH.shoppingTier('mage', 'fire', 64, 'real') === 'carved' && SH.shoppingTier('healer', 'water', 64, 'real') === 'chalked' && SH.shoppingTier('healer', 'poison', 64, 'real') === 'carved'
-      && SH.shoppingTier('mage', 'fire', 64, 'allowed') === 'graven' && ham.shopping === 'real' && buildCell(D, K, { L: 60, gear: 'bis', styles: ['mage'], tier: 'normal', ground: g60 }).cell.shopping === 'allowed');
+    /* (at the Graven gate, read off the rune gates: runes.js versionLevel, 71 since the designer's ruling 29 section 7 item 10) */
+    const gr = SH.RUNE_TIERS[0][0];
+    check('the shopping rule: a mage at the Graven gate (Magic ' + gr + ') casts on Carved, a healer heals on Chalked water and its sickness on Carved; a BiS hero casts on Graven; MID cells shop real',
+      SH.RUNE_TIERS[0][1] === 'graven' && SH.shoppingTier('mage', 'fire', gr, 'real') === 'carved' && SH.shoppingTier('healer', 'water', gr, 'real') === 'chalked' && SH.shoppingTier('healer', 'poison', gr, 'real') === 'carved'
+      && SH.shoppingTier('mage', 'fire', gr, 'allowed') === 'graven' && SH.shoppingTier('mage', 'fire', gr - 1, 'allowed') === 'carved' && ham.shopping === 'real' && buildCell(D, K, { L: 60, gear: 'bis', styles: ['mage'], tier: 'normal', ground: g60 }).cell.shopping === 'allowed');
     /* 9h. the seats: the matrix's four sits as the real Krell four sat, and the simulator check plays it */
     const cal = await calibrationJobs(D, K, ROOT, { seeds: 1, hours: 0.25 });
     check('the four sits as the real four (' + PG.compsOf(4)[0][0].join(', ') + '), and the simulator check\'s four is it', PG.compsOf(4)[0][0].join() === 'hammer,bow,mage,healer' && cal.cols.find((x) => x.col === 'harness').styles.join() === 'hammer,bow,mage,healer');

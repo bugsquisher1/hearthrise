@@ -34,6 +34,7 @@
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
+import { RUNE_TIERS } from './played.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -54,8 +55,8 @@ async function withSample(fn) {
   try { return await fn(await loadCellRunner(p.root)); } finally { p.done(); }
 }
 
-/* The store rune of the tier a skill level casts (versions at 1 / 15 / 30 / 45 / 60), the played bar's own rule. */
-const TIERS = [[60, 'graven'], [45, 'carved'], [30, 'etched'], [15, 'scored'], [1, 'chalked']];
+/* The store rune of the tier a skill level casts, the played bar's own rule (played.mjs RUNE_TIERS: the game's rune gates). */
+const TIERS = RUNE_TIERS;
 const tierAt = (lv) => TIERS.find(([l]) => lv >= l)[1];
 const storeRune = (family, lv) => (tierAt(lv) === 'chalked' ? 'plain_' + family + '_rune' : 'plain_' + tierAt(lv) + '_' + family + '_rune');
 const ownRunes = (family) => TIERS.map(([, t]) => t + '_' + family + '_rune').reverse();

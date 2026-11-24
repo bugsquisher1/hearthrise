@@ -66,7 +66,9 @@ import { huntPlayOf, swingRows } from './hunt/play-rows.js';
 import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 import { syncTalents } from './hunt/talent-rows.js';
+import { syncTraits } from './hunt/trait-rules.js';
 import { traitSwing } from './trait-roll.js';
+import { scaleItems } from './gear-stats.js';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js';
@@ -95,8 +97,28 @@ const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead:
 /* THE HUNT'S TIER: the party leader's hero's, else the first standing hero's. The server freezes one on the instance and overlays it on every member (hr_hunt_instance_read `options.tier`). The SAME call on
    the server's settle and the browser's live view (a peer's `hero` carries `tier`). */
 const tierPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return (lead && lead.hero.tier) || DEFAULT_TIER; };
-/* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js): the same leader's stance and the step it starts at, or null (a tier hunt). Read once, when the world opens. */
-const riskPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return riskOf(lead && lead.hero); };
+/* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js): the same leader's stance and the step it starts at, or null (a tier hunt), and always
+   null on a yard, a room, the Tower or a scaled hunt's window (`play`, huntPlayOf's). Read once, when the world opens, and by fightItems. */
+function planOf(ground, play, heroes) {
+  if (trainOf(ground) || towerOf(ground) || roomOf(ground) || play.level !== null) return null;
+  const lead = heroes.find((h) => !!h && h.lead === true) || heroes[0];
+  return riskOf(lead);
+}
+
+/**
+ * THE ITEMS A FIGHT ON `ground` READS (lane/scale-early-grounds, 2026-11-23): the scale view (src/core/gear-stats.js scaleItems) only
+ * when its world opens on a plan (planOf, the one rule the world itself opens by), the catalogue as written for every other fight, a tier
+ * hunt on a scale ground included. `members`: input rows ({ key, hero }) or a start point's frozen peers ({ key, frozen: { hero } }),
+ * read in key order as the engine reads them; `scale` { level } as the server handed the window, or none. The server freezes one stance
+ * an instance and overlays it on every member, and a scaled window restarts the world, so a standing world carries the same answer.
+ * One door for every reader of a member's gear: the edge settle (accrue-hunt.js), the start point's frozen peers (hunt-settle.js) and
+ * the browser's live view (live-engine.js).
+ */
+export function fightItems(items, ground, members, scale) {
+  if (!items || !ground) return items;
+  const heroes = (members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((m) => (m.frozen ? m.frozen.hero : m.hero) || {});
+  return planOf(ground, huntPlayOf(ground.id, scale || null), heroes) ? scaleItems(items, ground) : items;
+}
 
 /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
    the server's hunt_parties.hold_seat) as that member's unit, or null (the tanks take turns; that seat is not in
@@ -162,6 +184,7 @@ function syncUnit(u, m, roles) {
   const bb = borrowBlowsOf(m.hero.borrowed, snap.level);
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
+  syncTraits(u, m.hero);                // THE TRAITS it wears, the same (trait-rules.js syncTraits): none while Traits are dark
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
@@ -403,7 +426,7 @@ export function simulateHuntInstance(inst, ctx) {
           const standing = members.filter((x) => !x.left);
           /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first), or on the
              Danger scale at the step its plan starts at (src/core/hunt/danger.js; never on a yard, a room, the Tower or a scaled hunt). */
-          const plan = train || tw || room || play.level !== null ? null : riskPick(standing);
+          const plan = planOf(ctx.ground, play, standing.map((x) => x.hero));
           const tier = plan ? dangerDial(ctx.ground, plan.step, standing.length) : play.tierOf(tierPick(standing));
           if (tw) play.monsters = towerMonsters(ctx.towerFloor, tw);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],

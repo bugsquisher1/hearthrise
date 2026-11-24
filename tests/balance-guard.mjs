@@ -120,10 +120,10 @@ function scaledWhatIf(ground, level) {
    (tests/level-curve.mjs REF_LEVEL, as C7 and V4 read it), the held start (refStep - startMargin) and the band's floor; a cell on it is
    held-four.mjs's (progression-grid.mjs buildCell, the matrix's MID kits and played bars) with a Steady stance from `start`. */
 const DZ = await import(u('src/data/danger.js'));
-const { REF_LEVEL } = await import(u('tests/level-curve.mjs'));
+const { refLevelOf } = await import(u('tests/level-curve.mjs'));
 const GRID = await import(u('tools/balance-program/progression-grid.mjs'));
 const [GRID_D, GRID_K] = await Promise.all([GRID.loadGridData(ROOT), (await import(u('tools/balance-program/grid-kit.mjs'))).loadKits(ROOT)]);
-const SCALE_GROUNDS = Object.entries(DZ.DANGER_GROUNDS).map(([id, g]) => ({ id, level: REF_LEVEL[id], heldStart: Math.max(0, g.refStep - DZ.DANGER.startMargin), floorStep: g.floorStep }));
+const SCALE_GROUNDS = Object.entries(DZ.DANGER_GROUNDS).map(([id, g]) => ({ id, level: refLevelOf(id), heldStart: Math.max(0, g.refStep - DZ.DANGER.startMargin), floorStep: g.floorStep }));
 const scaleCell = (ground, level, styles, start) => ({ ...GRID.buildCell(GRID_D, GRID_K, { L: level, gear: 'mid', styles: [...styles], tier: 'normal', ground }).cell,
   options: { risk: 'steady', danger: start } });
 const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf, scalableGrounds: Object.keys(SCALED.SCALABLE_GROUNDS),

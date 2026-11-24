@@ -10,15 +10,19 @@
 //   a status            src/data/statuses.js `name` (a status is a row, and its name is the row's)
 //   an engine piece     src/data/text/fight.js piece_<id> (a blow the engine names itself: damage.js `bodyguard`, reactions.js `carry`)
 //   a reaction          the Roads node or option that grants it (src/data/talents.js `n`: Draining Sickness's heal, Shield Priest's)
+//   a worn Trait        its row's `name` (src/data/traits.js through gear-steps.js): a `dmg` or `heal` event's `tr` names the Traits that
+//                       held on it (src/core/hunt/trait-rules.js). DARK: no event carries one while GEAR_STEPS.traitsLive is false
 //
 //   nameOf(id)       the name, or null when nothing names `id` (tests/hunt-event-names.mjs holds every id the engine emits named)
 //   sourceName(id)   the name, else the id spelled out: a source this build does not know still reads as words, never as a code
+//   traitNames(ev)   the names of the Traits an event's `tr` lists, in its order ([] for none)
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js';
 import { spellRow } from '../data/monster-spells.js';
 import { roleSpellRow } from '../data/monster-roles.js';
 import { STATUSES } from '../data/statuses.js';
 import { TALENT_NODES } from '../data/talents.js';
+import { TRAITS } from '../data/gear-steps.js';
 import { t, hasText } from './player-text.js';
 
 /* reaction id -> the name of the node or option that grants it, read once (the first one that names it) */
@@ -45,7 +49,14 @@ export function nameOf(id) {
   if (derived) return derived.n;
   if (Object.hasOwn(STATUSES, id)) return STATUSES[id].name;
   if (hasText('fight.piece_' + id)) return t('fight.piece_' + id);
+  if (Object.hasOwn(TRAITS, id)) return TRAITS[id].name;
   return reactName(id);
+}
+
+/** The names of the worn Traits event `ev` says held on it (its `tr`, comma-joined ids), in its order; [] for none. */
+export function traitNames(ev) {
+  const tr = ev && typeof ev.tr === 'string' && ev.tr ? ev.tr.split(',') : [];
+  return tr.map((id) => sourceName(id));
 }
 
 const spelled = (id) => { const s = String(id).replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); };

@@ -158,7 +158,12 @@ const SEED = '-4611686018427387904';
    propose --write), glade-4 and glade-1-kite ONLY: Mosslight's carrion_crow, glade_poacher and walking_vine lose a point of evasion (the
    reference hero's worn accuracy at Level 15 to 40 is re-read off the kits), so glade-4 moves from settle 5 (kills 492 -> 489) and glade-1-kite
    from settle 6 (kills held, 140). warrens-4, sewer-2 and muster-steps-4 hold to the byte (200 / 99 / 170). Proof: on the tree before the
-   regeneration with only the regenerated src/data/monsters.js laid in (to-hit.js and the packs as they were), all five hold this pin. */
+   regeneration with only the regenerated src/data/monsters.js laid in (to-hit.js and the packs as they were), all five hold this pin.
+   RE-PINNED 2026-11-23 (lane/scale-early-grounds, merged onto set/v0.2.144 41fa973cf), muster-steps-4's TALLY ONLY: its world and timeline
+   hold at every settle on the set's pin, and so do its kills (170) and the four tier scenarios, to the byte. Cause: what a kill PAYS. The pay's
+   reference is where the reference company holds (DANGER_GROUNDS refStep): Muster's is 610 now, its monsters' anchor 590 named apart
+   (formulaStep), so a kill's Level XP and coin read 20 steps less of depth, and Muster carries its own coin level (coinPm 7000, measured: the
+   reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

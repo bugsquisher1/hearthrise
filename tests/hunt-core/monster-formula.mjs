@@ -126,14 +126,15 @@ const CASES = {
     if (!d) return 'CONTROL: no derived row for the Barrow Knight';
     const s = M.mf.roleStats(row.role, g, 'pull');
     const at = (step, heroes) => M.tiers.atTier(d, M.danger.dangerDial(ground, step, heroes));
-    const r0 = at(g.refStep, 4);
+    /* the monsters' reference step is the formula's anchor (formulaStepOf: Muster's 590, apart from the pay's refStep, its four's hold) */
+    const anchor = M.danger.formulaStepOf(g), r0 = at(anchor, 4);
     if (!close(r0.hp, s.hp, 0.002)) return 'the Knight stands at ' + r0.hp + ' health on the reference step, its derivation says ' + Math.round(s.hp);
     const top0 = M.combat.monsterMaxHit(r0);
     if (!close(top0, s.maxHit, 0.01)) return 'the Knight\'s biggest blow on the reference step is ' + top0 + ', its derivation says ' + s.maxHit.toFixed(1);
-    const r20 = at(g.refStep + 20, 4);
+    const r20 = at(anchor + 20, 4);
     if (!close(r20.hp / r0.hp, Math.pow(1 + DANGER.powerStep, 20), 0.003)) return 'twenty steps deeper the Knight has x' + (r20.hp / r0.hp).toFixed(4) + ' health, not the step\'s ratio';
     for (const h of [1, 2, 3, 4]) {
-      const dz = M.danger.dangerDial(ground, g.refStep, h);
+      const dz = M.danger.dangerDial(ground, anchor, h);
       const want = Math.max(1, Math.min(DANGER.pullMax, Math.round(h * F.encounterPerHero)));
       if (dz.pull[0] !== want) return h + ' heroes meet a pull of ' + dz.pull[0] + ' on the reference step, not heroes x encounterPerHero (' + want + ')';
       const each = M.tiers.atTier(d, dz).hp;
@@ -145,8 +146,10 @@ const CASES = {
     /* coin a kill on the switch is the as-built pull's: the same number the switch off pays */
     const asBuilt = (step) => { const n0 = ground.route.reduce((a, p) => a + ground.pockets[p].spawns.length, 0) / ground.route.length;
       const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, step)))); return n0 / pull; };
-    const dz = M.danger.dangerDial(ground, g.refStep, 4);
-    if (!close(dz.coinPm, asBuilt(g.refStep) * PAY.coinPm, 1e-6)) return 'on the switch a kill pays ' + dz.coinPm + ' coin permille, the as-built pull ' + asBuilt(g.refStep) * PAY.coinPm;
+    /* (lane/scale-early-grounds) read at the pay's reference (refStep, where the reference four holds) and the ground's own coin level */
+    const payRef = g.refStep, level = Number.isInteger(g.coinPm) ? g.coinPm : PAY.coinPm;
+    const dz = M.danger.dangerDial(ground, payRef, 4);
+    if (!close(dz.coinPm, asBuilt(payRef) * level, 1e-6)) return 'on the switch a kill pays ' + dz.coinPm + ' coin permille, the as-built pull ' + asBuilt(payRef) * level;
     return null;
   },
   'dial-off'(M) {

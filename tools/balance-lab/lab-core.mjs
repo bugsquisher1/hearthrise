@@ -186,7 +186,9 @@ function heroOf(huntId, role, i, L, roles, o) {
     skills, levelXp: Number.isInteger(st.levelXp) ? st.levelXp : charXpForLevel(L), xpFrac: null, hp: 1e9, gold: Number.isInteger(o.gold) ? o.gold : 50000, equipment,
     inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
     hero: heroSetup({ weaponType: wornRoleKey(equipment, ITEMS), options: { ...(role === 'healer' ? { role: 'healer' } : {}), ...(o.options ? o.options(role, i, L) : {}) },
-      bar: o.bar ? o.bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: o.leaveTogether === true }),
+      bar: o.bar ? o.bar(role, i, L) : refBar(huntId), partyRoles: roles, leaveTogether: o.leaveTogether === true,
+      /* o.traits ((role, seat) -> [{ id, rank }] | null): the Traits its pieces carry (cell.traitsBySeat; play-ground.mjs opts.traits, the same) */
+      ...(o.traits && o.traits(role, i) ? { wornTraits: o.traits(role, i) } : {}) }),
   };
 }
 function playHunt(huntId, levels, roles, o) {
@@ -477,6 +479,8 @@ export function playCell(cell, seeds, hooks = {}) {
         shouldStop: hooks.shouldStop,
         onProgress: hooks.onProgress ? (ms) => hooks.onProgress(Math.min(1, (doneMs + ms) / totalMs)) : null,
         temper: cell.temper || null, talents: Array.isArray(cell.talentsBySeat) ? cell.talentsBySeat : null,
+        /* the Traits each seat's pieces carry (cell.traitsBySeat, Rare and Very Rare kits: tools/balance-program/trait-kits.mjs) */
+        traits: Array.isArray(cell.traitsBySeat) ? (role, i) => cell.traitsBySeat[i] || null : null,
       };
       if (R) Object.assign(o, { bar: R.bar ? (role, i) => clone(R.bar[i]) : null, bag: (role, i) => clone(R.bag[i]), start: R.start ? (role, i) => (R.start[i] ? clone(R.start[i]) : null) : null,
         options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null, dropEnded: real, talents: R.talents || null });

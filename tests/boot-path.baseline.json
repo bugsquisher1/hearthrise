@@ -319,15 +319,15 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 963826,
+        "gzipBytes": 959538,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b on set/v0.2.144 1f3fa9fe6: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B), +4.7 KB gzip to town: 124 new gear rows the bag, the market and the item card read (their generated stats, the four step-tier rows and their builders in gear-tiers.js, shields.js and slot-ladders.js, their lines in item-descriptions.js), base-drops.js (the homes' drop rows hunt-grounds.js folds in) and the cloak and Temper step rules. Catalogue data the town reads at once, not an import() on need"
+        "why": "Mill Cellar and Meadowbrook on the scale, coin levels and the inside-one-tier band rule (lane/scale-early-grounds)"
       },
       {
         "modules": 21,
-        "gzipBytes": 963830,
+        "gzipBytes": 962053,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b: the Catacomb wings' re-cut rows and the scale view held at the curve's top (danger.js, gear-stats.js), a few hundred bytes gzip to town"
+        "why": "lane/traits-in-engine: the worn-Trait rules join the game half"
       }
     ]
   }

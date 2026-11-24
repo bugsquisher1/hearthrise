@@ -1,0 +1,34 @@
+
+V1 on hasks_ford (2 seeds x 6 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+back:steady       651.4 +- 0.8     -4.2   100   100    7.3    0.5     0.7     61.5      0     0  0 (0/0/0)                       2  {"hold":624,"climb":108,"fall":3}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  back:steady        1.36x  sd 0.01  n 2  window 2 h  seeds 1.36 1.35
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  back:steady       L60  coin 15926 +- 306  income 20288 +- 135  store 11638  kit share 0.57 (meal 252, drink 5623, charge 3454, shot 2309)  loot by band: common 828, uncommon 311, scarce 3223, other 0  n 2
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  back:steady       hammer 0.668  bow 0.105  mage 0.109  healer 0.117
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  back:steady       hammer dps 19.65 land 62.1% hit 36.83 (5898/h) | bow dps 18.93 land 93.5% hit 69.29 (493/h) | mage dps 26.92 land 82.4% hit 33.24 (1066.5/h) | healer dps 10.69 land 87.15% hit 49.22 (774.5/h)
+                    banded_pikeman(swarm) 264.7/h 25.6 s 415 | fordsunk(brute) 112/h 33.1 s 612 | ledger_wight(caster) 81.4/h 39.2 s 1706 | bannerman(warder) 30.5/h 38.1 s 260
+                    broke off by: fall:ledger_wight@2 3
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  back:steady       abs 57.8 (depth 19)  free 94  spell 876  food 29  taken 28.5 pm/s
+
+the worn Traits (--traits census:0, lane/traits-in-engine): by seat, each Trait's hold share of its own channel's events (rank 3; party-wide ones on every hero they reach)
+  back:steady       hammer  blows 40687, struck 43928, heals 340 | keepers_carry 1, slack_water 0.578, file_breaker 0.412, first_rank 0.382, hasks_bargain 0.345, slate_hand 0.302, lime_pit 0.239, dunns_warning 0.215, numbed 0.16, tarred_through 0.039, scorched_grip 0.007, long_rite 0.006, soft_scale 0, empty_wagon 0, full_wick 0, carters_flight 0, captains_due 0, crag_shelter 0, banded_oath 0, lookouts_promise 0, bottom_of_the_quiver 0, bolting_team 0
+  back:steady       bow     blows 39657, struck 5531, heals 0 | first_rank 0.797, hasks_bargain 0.75, slack_water 0.611, file_breaker 0.334, soft_scale 0.299, slate_hand 0.292, lime_pit 0.25, numbed 0.181, tarred_through 0.017, full_wick 0.007, empty_wagon 0, keepers_carry 0, carters_flight 0, scorched_grip 0, long_rite 0, captains_due 0, crag_shelter 0, dunns_warning 0, banded_oath 0, lookouts_promise 0, bottom_of_the_quiver 0, bolting_team 0
+  back:steady       mage    blows 43489, struck 10547, heals 0 | hasks_bargain 0.626, slack_water 0.612, first_rank 0.449, file_breaker 0.374, slate_hand 0.306, lime_pit 0.294, soft_scale 0.284, numbed 0.183, tarred_through 0.024, scorched_grip 0.02, crag_shelter 0.015, full_wick 0.001, empty_wagon 0, keepers_carry 0, carters_flight 0, long_rite 0, captains_due 0, dunns_warning 0, banded_oath 0, lookouts_promise 0, bottom_of_the_quiver 0, bolting_team 0
+  back:steady       healer  blows 27791, struck 8098, heals 22392 | empty_wagon 0.917, first_rank 0.758, hasks_bargain 0.737, slack_water 0.609, crag_shelter 0.462, file_breaker 0.345, dunns_warning 0.295, slate_hand 0.283, numbed 0.168, lime_pit 0.161, tarred_through 0.013, keepers_carry 0.01, full_wick 0.001, banded_oath 0.001, soft_scale 0, carters_flight 0, scorched_grip 0, long_rite 0, captains_due 0, lookouts_promise 0, bottom_of_the_quiver 0, bolting_team 0
+
+wall 49 s

@@ -455,14 +455,19 @@
         "why": "+1,487 B: Bold fights every pull (breakOff, breaksOff) and the bottom-depth hold (lane/designer-reads-1123)"
       },
       {
-        "bytes": 3841479,
+        "bytes": 3819585,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b on set/v0.2.144 1f3fa9fe6: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B). The settle reads 124 new gear rows: their generated stats (gear-stats.generated.js), the four step-tier rows and their builders (gear-tiers.js, shields.js, slot-ladders.js with the cloak's stepping Steady armor), base-drops.js (the homes' base rows the settle rolls on a kill) and temper.js's step rule"
+        "why": "lane/scale-early-grounds merged onto set/v0.2.144 1f3fa9fe6 (designer-reads): the lane's own growth over the set's ceiling, no new module: the Cellar and the Thicket on the scale, coin levels a ground (danger.js coinLevelOf, the Ford's 7.1), insideOneTier (bands.js, 29 7.5), wage.js store step on refLevel, combat-sim.js fightItems"
       },
       {
-        "bytes": 3843196,
+        "bytes": 3819945,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b: the Catacomb wings re-cut on their own base (danger.js rows and their measured note) and the scale view's stats held at the curve's top (gear-stats.js scaleStatLevel and its reason, gear-profiles.js): +1,717 bytes"
+        "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
+      },
+      {
+        "bytes": 3836439,
+        "on": "2026-11-24",
+        "why": "lane/traits-in-engine on the set at 77572308a: src/core/hunt/trait-rules.js (the 40 Traits as conditional gear-slice steps, dark behind traitsLive), its typed tag and tr plumbing"
       }
     ]
   }

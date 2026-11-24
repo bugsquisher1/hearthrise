@@ -84,6 +84,9 @@ export function rowsOf({ data, core, model, grounds, tuning, wage }) {
     if (!g || g.hunt !== id || own(grounds.TOWER_GROUNDS || {}, id) || own(grounds.TRAINING_GROUNDS || {}, id) || own(grounds.HALL_GROUNDS || {}, id) || own(grounds.CALLED_GROUNDS || {}, id)) {
       throw new Error('gen-danger: ' + id + ' is no hunting ground whose hunt is its id');
     }
+    /* THE PAY'S REFERENCE (src/core/hunt/danger.js refOf): refStep, where the reference company holds (a formula ground's monsters may
+       stand elsewhere, formulaStep). The server's one reader of ref_step is the store's depth (1062 hr_store_step: the wage at refLevel
+       there), so a store use is priced at the same reference the engine pays by */
     const ref = DANGER_GROUNDS[id].refStep;
     if (!Number.isInteger(ref) || ref < 0 || ref > DANGER.stepMax) throw new Error('gen-danger: ' + id + ' refStep ' + ref);
     /* THE BAND (lane/r10-more-grounds; 12-targets.md 3.1): floor under the reference under the top, inside the scale; the engine climbs no

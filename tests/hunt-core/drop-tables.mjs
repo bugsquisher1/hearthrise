@@ -720,7 +720,8 @@ const dataMutants = [
   { name: 'a revealed unique', case: 'loot-structure', edit: (ms, M2) => { M2.ITEMS.grayjaws_ruff = { ...M2.ITEMS.grayjaws_ruff, rarity: 'unique' }; } },
   { name: 'a revealed item with no icon', case: 'loot-structure', edit: (ms, M2) => { M2.ITEMS.no_icon_relic = { n: 'No Icon Relic', v: 100 }; rowOf(ms, 'grayjaw', 'alpha_fang').id = 'no_icon_relic'; } },
   { name: 'a revealed item the Shop sells', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').id = 'traveler_cape'; } },
-  { name: 'a revealed item two tiers up', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'iron_helm').id = 'mithril_helm'; } },
+  /* (lane/scale-early-grounds: the Thicket drops one base, so Grayjaw's tier-2 helms left her rows; her fang stands in for the reveal) */
+  { name: 'a revealed item two tiers up', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').id = 'mithril_helm'; } },
   { name: 'a Hearthfind source that reveals', case: 'loot-structure', edit: (ms, M2) => { M2.hfSources.add('grayjaw'); } },
   /* slot homes */
   { name: 'a slot with two homes and no group', case: 'slot-homes', edit: (ms) => { ms.carrion_crow.drops.push(...['iron_helm', 'studded_helmet', 'adept_helmet'].map((id) => ({ id, ch: 0.01, band: 'scarce' }))); } },
@@ -762,7 +763,8 @@ const playMutants = [
   } },
   { name: 'the Warrens boots too slow (the one sample point)', rule: 'gear-pace: coppercap_warrens', edit: (ms) => { for (const d of scarceOf(ms, 'goblin_scavenger')) d.ch = 0.01; } },
   { name: 'the den mother\'s fang back to 1%', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').ch = 0.01; } },
-  { name: 'the Studded Leather Body ten times rarer', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'dire_gray', 'studded_body').ch /= 10; } },
+  /* (lane/scale-early-grounds: the Dire Gray's Studded Leather Body left with the one-base rule; its Den Knot is the Thicket's other Rare) */
+  { name: 'the Den Knot ten times rarer', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'dire_gray', 'den_knot').ch /= 10; } },
   { name: 'the Sewer\'s bows too common for a solo hero', rule: 'rare-pace: millrace_sewer rare longbow', edit: (ms) => { for (const d of ms.cistern_spider.drops) if (d.band === 'rare') d.ch = 0.02; } },
   { name: 'Rook\'s Whistle at 1%', rule: 'rare-pace: mosslight_glade rare rooks_whistle', edit: (ms) => { rowOf(ms, 'rook_poacher', 'rooks_whistle').ch = 0.01; } },
   { name: 'the War Crown at 4%', rule: 'rare-pace: coppercap_warrens rare war_crown', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'war_crown').ch = 0.04; } },

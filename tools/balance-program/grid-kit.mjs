@@ -6,6 +6,8 @@
 //                                                            Tempering rungs, the skill offset, a what-if (projected rows), the sources
 //                                                            that are ruled but not built
 //   K.kitCost(plan)                                       -> the gold of a plan's pieces and rungs (Shop price, else book value)
+//   await K.traitPlans(kind, plans, { rates, taken })     -> the Traits each plan's pieces carry, for a party (Rare and Very Rare kits:
+//                                                            tools/balance-program/trait-kits.mjs lucky | theory | census:<k>), on plan.traits
 //
 // EVERY KIT IS A RULE ON THE GAME'S DATA. Nobody types a kit: the three states of standards.mjs GEAR_STATES are applied to src/data through
 // tools/balance-sim/gear.mjs kitOf (the ladder, the reachable sources, the staged uniques, the Hearth Chest's pieces), the accessory rule
@@ -32,6 +34,7 @@ import { pathToFileURL } from 'node:url';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 import { GEAR_STATES, POWER_SOURCES, stretchOf } from './standards.mjs';
 import { PROJECTED, projectedBand, lineKit } from './grid-project.mjs';
+import { loadTraitKits } from './trait-kits.mjs';
 
 export const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 export const JEWEL_SLOTS = Object.freeze({ ring1: 'ring', ring2: 'ring', earrings: 'earrings', necklace: 'necklace', cape: 'cape' });
@@ -96,11 +99,11 @@ export async function loadKits(root, opts = {}) {
     return (it) => main.reduce((s, k) => s + (it[k] || 0), 0) * 1000 + (it.steadyPm || 0);
   };
   const perkSum = (it) => Object.values(it.jewelPerks || {}).reduce((a, b) => a + b, 0);
-  function accessory(slot, L, style, state, reach) {
+  function accessory(slot, L, style, state, reach, exclude = null) {
     const score = scoreFor(style);
     const ok = (id) => {
       const it = ITEMS[id];
-      if (!it || it.slot !== slot || lvOf(id) > L) return false;
+      if (!it || it.slot !== slot || lvOf(id) > L || (exclude && exclude.includes(id))) return false;
       if (it.jewelGrade) return state === 'bis' && !!it.jewelBase && reach.has(it.jewelBase);
       return reach.has(id);
     };
@@ -128,7 +131,8 @@ export async function loadKits(root, opts = {}) {
 
   /**
    * THE PLAN for one hero: `state` 'low' | 'mid' | 'bis', `style` a tools/balance-sim/styles.mjs id, ctx { ground (the cell's: uniques
-   * rank on it), mainSkill (the seat's main skill level: the ammo it may spend) }.
+   * rank on it), mainSkill (the seat's main skill level: the ammo it may spend), exclude (item ids no slot may wear: tools/new-ground.mjs
+   * caps a ground inside one gear tier at its own tier's kit, src/core/bands.js insideOneTier) }.
    */
   function kitFor(level, state, style, ctx = {}) {
     const L = Math.max(1, Math.round(level));
@@ -138,6 +142,7 @@ export async function loadKits(root, opts = {}) {
     const stretch = stretchOf(L);
     if (stretch.state === 'PROJECTED') return projectedPlan(L, state, style, ctx);
     const ground = ctx.ground || null, mainSkill = Number.isInteger(ctx.mainSkill) ? ctx.mainSkill : L;
+    const exclude = Array.isArray(ctx.exclude) && ctx.exclude.length ? ctx.exclude : null, ex = exclude ? { exclude } : {};
     const reasons = {};
     let opts, base;
     const staged = stretch.state === 'STAGED' ? stagedUpTo(L) : [];
@@ -149,19 +154,19 @@ export async function loadKits(root, opts = {}) {
       /* past 110 the ladder runs on steps (src/data/gear-tiers.js STEP_TIERS) and its homes are staged grounds: one tier under the Level's own,
          read with the staged grounds the Level has been sent to open, as MID reads them (lane/gear-phase-b) */
       opts = { tierOffset: STATES.low.ladder.tierOffset, only: STATES.low.ladder.only || 'all', ...(staged.length ? { openAlso: staged } : {}) };
-      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...opts });
+      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...ex, ...opts });
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) reasons[k] = 'the ladder, one tier under the Level\'s (tier ' + tierOf(base[k]) + ')';
     } else if (state === 'low') {
       /* past the ladder: the previous band's MID set, worn at this Level */
       const back = bandBefore(L);
-      const prev = kitFor(back, 'mid', style, { ground, mainSkill });
+      const prev = kitFor(back, 'mid', style, { ground, mainSkill, ...ex });
       opts = { ...prev.gear };
       base = { ...prev.kit };
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) reasons[k] = 'the previous band\'s MID piece (Level ' + back + ')';
     } else {
       const uniques = state === 'bis' || L >= UNIQUE_FROM;
       opts = { ...(uniques ? { uniques: true } : {}), ...(state === 'bis' ? { chest: true } : {}), ...(staged.length ? { openAlso: staged } : {}) };
-      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...opts });
+      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...ex, ...opts });
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) {
         const id = base[k], src = gear.reach.get(id) || (gear.staged.has(id) ? 'staged: drops on ' + gear.staged.get(id).ground : gear.CHEST_IDS.has(id) ? 'a Hearth Chest piece' : 'reachable with the staged grounds opened');
         reasons[k] = (state === 'bis' ? 'the best wearable piece' : uniques ? 'the best ground or boss drop' : 'the ladder piece of the Level\'s tier') + ' (tier ' + tierOf(id) + ', ' + src + ')';
@@ -172,7 +177,7 @@ export async function loadKits(root, opts = {}) {
     const reach = staged.length ? gear.reachWith(staged) : gear.reach;
     for (const [slot, kind] of Object.entries(JEWEL_SLOTS)) {
       if (state === 'low') { set[slot] = null; reasons[slot] = 'none (LOW wears no jewelry or cloak)'; continue; }
-      const id = accessory(kind, L, style, state, reach);
+      const id = accessory(kind, L, style, state, reach, exclude);
       set[slot] = id;
       reasons[slot] = id ? (state === 'bis' ? 'highest tier, then grade, then the perk pair' : 'the plain piece of the highest tier') + ' (tier ' + tierOf(id) + (ITEMS[id].jewelGrade ? ', ' + ITEMS[id].jewelGrade + ' ' + Object.keys(ITEMS[id].jewelPerks || {}).join('+') : '') + ')' : 'none gettable at this Level';
     }
@@ -255,5 +260,24 @@ export async function loadKits(root, opts = {}) {
       set, reasons, whatIfItems: Object.keys(items).length ? items : null, projectedBand: base.projectedBand });
   }
 
-  return { kitFor, mixPlan, shopSells: (id) => SHOP_PRICE.has(id), temperTiers: T.TEMPER_TIERS, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
+  /**
+   * THE RARE AND VERY RARE KITS (tools/balance-program/trait-kits.mjs; the engine plays them, src/core/hunt/trait-rules.js): the Traits each
+   * plan's pieces carry, for a party at once (a party-wide Trait is worn once). `kind` 'lucky' | 'theory' | 'census:<k>' | null (plain);
+   * o.rates / o.taken: a theory's census (trait-kits.mjs theoryKits). Each plan gains `traits` [{ id, rank }]; answers the kits by seat.
+   */
+  async function traitPlans(kind, plans, o = {}) {
+    if (!kind) return plans.map(() => null);
+    const TK = await loadTraitKits(root);
+    const rooms = plans.map((p) => TK.traitRoomOf(p.kit, ITEMS));
+    const seats = plans.map((p) => STYLES[p.style].role);
+    let kits;
+    if (kind === 'lucky') kits = seats.map((s, i) => TK.luckyKit(s, rooms[i]));
+    else if (kind === 'theory') kits = TK.theoryKits(seats, rooms, o.rates || {}, o.taken || []);
+    else if (/^census:\d+$/.test(kind)) kits = rooms.map((r) => TK.censusKit(Number(kind.slice(7)), r));
+    else throw new Error('grid-kit: no Trait kit ' + kind + ' (lucky, theory, census:<k>)');
+    plans.forEach((p, i) => { p.traits = kits[i]; });
+    return kits;
+  }
+
+  return { kitFor, mixPlan, traitPlans, shopSells: (id) => SHOP_PRICE.has(id), temperTiers: T.TEMPER_TIERS, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
 }

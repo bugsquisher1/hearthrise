@@ -3,11 +3,11 @@
  "_generated_by": "node tools/new-ground.mjs <ground> --write",
  "grounds": {
   "muster_barrows": {
-   "refStep": 590,
+   "refStep": 610,
    "floorStep": 575,
    "topStep": 700,
-   "refHeld": 610,
-   "print": "dde2884dd7a40e2e",
+   "coinPm": 7000,
+   "print": "e0cc693e5eb7f472",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
@@ -16,7 +16,7 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/final/c0-muster-ref.json",
+    "tools/balance-program/redesign/grounds/muster_barrows-ref.json",
     "tools/balance-program/redesign/tuning/final/c0-muster-top.json",
     "tools/balance-program/redesign/depth-budget/muster-a.json"
    ]
@@ -26,6 +26,7 @@
    "floorStep": 550,
    "topStep": 660,
    "refKillsHead": 135,
+   "coinPm": 6600,
    "print": "72695466be94246b",
    "verdict": "OPEN",
    "levels": {
@@ -33,9 +34,9 @@
     "top": 60,
     "mid": 52
    },
-   "measured": "2026-11-23",
+   "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-ref.json",
+    "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
     "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-top.json",
     "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-floor.json"
    ]
@@ -77,6 +78,48 @@
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-top.json",
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-floor.json"
+   ]
+  },
+  "mill_cellar": {
+   "refStep": 60,
+   "floorStep": 0,
+   "topStep": 110,
+   "refKillsHead": 135,
+   "refHeld": 55,
+   "coinPm": 114400,
+   "print": "08fe459d7851b08c",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 1,
+    "top": 4,
+    "mid": 3
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/c-targets/mill_cellar.json",
+    "tools/balance-program/redesign/grounds/mill_cellar-top.json",
+    "tools/balance-program/redesign/grounds/mill_cellar-floor.json"
+   ]
+  },
+  "meadowbrook_thicket": {
+   "refStep": 110,
+   "floorStep": 0,
+   "topStep": 190,
+   "refKillsHead": 125,
+   "refHeld": 115,
+   "coinPm": 38400,
+   "print": "8b9dbeecdc7bb74f",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 5,
+    "top": 15,
+    "mid": 10
+   },
+   "measured": "2026-11-23",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/c-targets/meadowbrook_thicket.json",
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-floor.json"
    ]
   }
  }

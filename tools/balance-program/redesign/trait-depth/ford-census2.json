@@ -1,0 +1,380 @@
+{
+ "ground": "hasks_ford",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 2,
+ "hours": 6,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "back:steady": {
+   "id": "back:steady",
+   "variant": "back",
+   "risk": "steady",
+   "L": 60,
+   "start": 622,
+   "traitsBySeat": [
+    [
+     {
+      "id": "snuffed",
+      "rank": 3
+     },
+     {
+      "id": "full_cellar",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "snuffed",
+      "rank": 3
+     },
+     {
+      "id": "full_cellar",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "snuffed",
+      "rank": 3
+     },
+     {
+      "id": "full_cellar",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "snuffed",
+      "rank": 3
+     },
+     {
+      "id": "full_cellar",
+      "rank": 3
+     }
+    ]
+   ],
+   "seedsRead": 2,
+   "payX": {
+    "mean": 1.35,
+    "sd": 0.02,
+    "n": 2,
+    "perSeed": [
+     1.36,
+     1.34
+    ],
+    "fromH": 4,
+    "windowH": 2
+   },
+   "held": {
+    "mean": 653.3,
+    "sd": 3.9,
+    "se": 2.8,
+    "perSeed": [
+     656,
+     651
+    ]
+   },
+   "drift": 5,
+   "within10": 100,
+   "within20": 100,
+   "changesPerH": 5,
+   "fallsPerH": 0,
+   "reachH": 1.2,
+   "pullsPerH": 60,
+   "killsPerH": 479,
+   "xpPerHeroH": 371341,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 15683,
+     "sd": 149,
+     "n": 2
+    },
+    "incomePerHeroH": {
+     "mean": 19989,
+     "sd": 247,
+     "n": 2
+    },
+    "storePerHeroH": {
+     "mean": 11978,
+     "sd": 110,
+     "n": 2
+    },
+    "commonPerHeroH": {
+     "mean": 838,
+     "sd": 31,
+     "n": 2
+    },
+    "uncommonPerHeroH": {
+     "mean": 304,
+     "sd": 12,
+     "n": 2
+    },
+    "scarcePerHeroH": {
+     "mean": 3164,
+     "sd": 141,
+     "n": 2
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 2
+    }
+   },
+   "kit": {
+    "meal": 310,
+    "drink": 5824,
+    "charge": 3530,
+    "shot": 2314
+   },
+   "kitIds": {
+    "salted_lobster": 12.9,
+    "plain_rune_arrows": 771.5,
+    "plain_scored_fire_rune": 61.2,
+    "thin_carrot_juice": 364,
+    "plain_graven_fire_rune": 74,
+    "plain_graven_ice_rune": 161.4,
+    "plain_earth_rune": 27.2,
+    "plain_graven_poison_rune": 60,
+    "plain_graven_earth_rune": 67.9,
+    "plain_graven_water_rune": 312.9
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 6,
+   "fourH": 2,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 634,
+    "climb": 83,
+    "fall": 1
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.666
+    },
+    {
+     "style": "bow",
+     "mean": 0.105
+    },
+    {
+     "style": "mage",
+     "mean": 0.109
+    },
+    {
+     "style": "healer",
+     "mean": 0.12
+    }
+   ],
+   "causes": {
+    "fall:ledger_wight@2": 1
+   },
+   "seats": [
+    {
+     "style": "hammer",
+     "dps": 19.55,
+     "landedPct": 62.1,
+     "dmgPerSwing": 37.7,
+     "swingsPerH": 5909.5,
+     "takenPerH": 222824.5
+    },
+    {
+     "style": "bow",
+     "dps": 19.05,
+     "landedPct": 92.6,
+     "dmgPerSwing": 70.77,
+     "swingsPerH": 496,
+     "takenPerH": 35108.5
+    },
+    {
+     "style": "mage",
+     "dps": 26.52,
+     "landedPct": 82.65,
+     "dmgPerSwing": 33.94,
+     "swingsPerH": 1077,
+     "takenPerH": 36555.5
+    },
+    {
+     "style": "healer",
+     "dps": 10.59,
+     "landedPct": 87.45,
+     "dmgPerSwing": 51.44,
+     "swingsPerH": 777.5,
+     "takenPerH": 39972
+    }
+   ],
+   "kinds": {
+    "banded_pikeman": {
+     "role": "swarm",
+     "killsPerH": 259.5,
+     "ttkS": 26.2,
+     "takenPerKill": 433
+    },
+    "fordsunk": {
+     "role": "brute",
+     "killsPerH": 109.7,
+     "ttkS": 33.8,
+     "takenPerKill": 638
+    },
+    "ledger_wight": {
+     "role": "caster",
+     "killsPerH": 79.6,
+     "ttkS": 40.4,
+     "takenPerKill": 1811
+    },
+    "bannerman": {
+     "role": "warder",
+     "killsPerH": 29.9,
+     "ttkS": 39,
+     "takenPerKill": 267
+    }
+   },
+   "traits": [
+    {
+     "style": "hammer",
+     "worn": [
+      "snuffed 3",
+      "full_cellar 3"
+     ],
+     "events": {
+      "offense": 40876,
+      "defense": 44050,
+      "heal": 472
+     },
+     "share": {
+      "snuffed": 0.067,
+      "full_cellar": 1
+     }
+    },
+    {
+     "style": "bow",
+     "worn": [
+      "snuffed 3",
+      "full_cellar 3"
+     ],
+     "events": {
+      "offense": 39814,
+      "defense": 5513,
+      "heal": 0
+     },
+     "share": {
+      "snuffed": 0.074,
+      "full_cellar": 0
+     }
+    },
+    {
+     "style": "mage",
+     "worn": [
+      "snuffed 3",
+      "full_cellar 3"
+     ],
+     "events": {
+      "offense": 43569,
+      "defense": 10688,
+      "heal": 0
+     },
+     "share": {
+      "snuffed": 0.101,
+      "full_cellar": 0
+     }
+    },
+    {
+     "style": "healer",
+     "worn": [
+      "snuffed 3",
+      "full_cellar 3"
+     ],
+     "events": {
+      "offense": 27891,
+      "defense": 8158,
+      "heal": 23075
+     },
+     "share": {
+      "snuffed": 0.086,
+      "full_cellar": 0
+     }
+    }
+   ],
+   "abs": {
+    "level": 58.3,
+    "depth": 19
+   },
+   "sustain": {
+    "freePm": 94,
+    "spellPm": 870,
+    "foodPm": 35,
+    "takenPmS": 29.34
+   }
+  }
+ },
+ "wallS": 49,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

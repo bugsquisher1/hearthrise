@@ -8,7 +8,8 @@
 //                   a monster: its row's blow x pressurePm) x the caller's multipliers (`mult`: a version's step, a store shot's share, the
 //                   hero's stance, a called boss's guard)
 //   2. x s ^ gap    s = 1 + DANGER.powerStep; gap = the attacker's rating - the defender's (src/core/bands.js ratingPm), in whole steps,
-//                   with every active conditional step added (the power ledger, the party's auras, and each D-8 multiplier as steps)
+//                   with every active conditional step added (the power ledger, the party's auras, the worn Traits that hold on this blow
+//                   or heal, src/core/hunt/trait-rules.js, and each D-8 multiplier as steps)
 //   3. x the roll   one draw, (1000 - rollSpreadPm) .. (1000 + rollSpreadPm) permille, on the hunt's own `s` stream
 //   4. x reference  the display curve of the Level the amount is read against (refHealth): the ground's refLevel for a monster, the hero's
 //                   own Level for a blow at a hero or a heal it casts
@@ -40,6 +41,7 @@ import { ratingPm, bandAbs } from '../bands.js';
 import { ledgerSteps } from '../power-ledger.js';
 import { temperLevelsOn } from '../temper-steps.js';
 import { auraRowsOn } from './auras.js';
+import { withTraits } from './trait-rules.js';
 import { dangerOn, itemLevelOf } from './danger.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -154,7 +156,8 @@ function heroRows(u, channel, c) {
  * ONE BLOW ON THE SCALE (damage.js hurt): c = { source, target, mean (the move's mean, in the source's units: a hero's thousandths of its top,
  * a monster's row blow), mult (permille: a version's step, a store shot's share, stances, a guard), el (the target's element permille for
  * this blow), ward (the blow has an element: it reads ward), answerPm (a hero's weapon weakness x bane x enchant, permille), markPm (the
- * target's mark and marking statuses), slowPm (the source's slow), critMult, rng, trace? }. Answers the whole HP it lands (at least 1).
+ * target's mark and marking statuses), slowPm (the source's slow), critMult, rng, trace?, tag? (the hit's tag: the move a worn Trait's `move`
+ * reads) }. Answers the whole HP it lands (at least 1); the worn Traits that held on it are left on c.traits (trait-rules.js withTraits).
  */
 export function blowAmount(inst, c) {
   const { source, target } = c;
@@ -166,7 +169,7 @@ export function blowAmount(inst, c) {
     base = (c.mean / 1000) * (topBpOf(source) / 10000) * refHealth(L0);
     if (isHero(source)) {
       gap = (offensePm(source) - R) / 1000;
-      cond += ledgerSteps(source, 'offense', heroRows(source, 'offense', c).concat(auraRowsOn(inst, source)));
+      cond += ledgerSteps(source, 'offense', withTraits(heroRows(source, 'offense', c).concat(auraRowsOn(inst, source)), inst, source, 'offense', c));
     }
     /* the monster's element answer: a weakness is a held gain, a resistance a whole cost */
     const e = stepsOf(c.el / 1000);
@@ -176,7 +179,7 @@ export function blowAmount(inst, c) {
     const L = lvOf(target);
     base = c.mean * (AMOUNT.pressurePm / 1000) * (refHealth(L) / refHealth(L0));
     gap = (R - defensePm(target, c.ward)) / 1000;
-    cond -= ledgerSteps(target, 'defense', heroRows(target, 'defense', c).concat(auraRowsOn(inst, target)));
+    cond -= ledgerSteps(target, 'defense', withTraits(heroRows(target, 'defense', c).concat(auraRowsOn(inst, target)), inst, target, 'defense', c));
     /* the hero's resistance to this blow's element: a held gain for the hero, a weakness a whole cost */
     const e = stepsOf(1000 / Math.max(1, c.el));
     cond -= e > 0 ? held(e) : e;
@@ -197,12 +200,13 @@ export function blowAmount(inst, c) {
 /**
  * ONE HEAL OR SHELL ON THE SCALE (abilities.js): `mean` a share of the caster's top (thousandths: healPm, shieldPm, a version's step folded
  * in) or, with c.hp, whole HP (Mend's share of its own max HP). The caster's offense over its own Level, its heal ledger and Tempering.
+ * c.to: the hero it lands on (a worn Trait's per-target condition reads it; none for an estimate), its Traits that held left on c.traits.
  */
 export function healAmount(inst, u, mean, c) {
   const L = lvOf(u);
   const base = c.hp ? mean : (mean / 1000) * (topBpOf(u) / 10000) * refHealth(L);
   const gap = (offensePm(u) - 1000 * L) / 1000;
-  const cond = ledgerSteps(u, 'heal', heroRows(u, 'heal', c).concat(auraRowsOn(inst, u)));
+  const cond = ledgerSteps(u, 'heal', withTraits(heroRows(u, 'heal', c).concat(auraRowsOn(inst, u)), inst, u, 'heal', c));
   const steps = Math.round(gap + cond);
   const sp = AMOUNT.rollSpreadPm;
   /* (no stream: the mean, for an estimate that draws nothing, abilities.js landsShield) */

@@ -100,6 +100,9 @@ export function dangerDial(ground, step, heroes = REF_HEROES) {
   /** @type {Record<string, any>} */
   const dial = { id: 'danger', step: s, pull: [pull, pull, pull, pull], hpPm: each, dmgPm: each, aimPm: 1000, lvPm: 1000,
     xpPm: 1000, coinPm: share * depthRatio(ground, s, COIN_STEP) * PAY.coinPm };
+  /* a ground with its own coin level (coinLevelOf) pays that over PAY.coinPm; every other ground's dial is untouched to the bit */
+  const lvl = coinLevelOf(ground);
+  if (lvl !== PAY.coinPm) dial.coinPm = (dial.coinPm * lvl) / PAY.coinPm;
   dial.dropPm = dropPmAt(ground, s, n0, pull);
   dial.coinPm *= rowsKeptOf(ground);
   return formulaPull(ground, s, heroes, dial);
@@ -137,7 +140,12 @@ export function formulaBasePull(g, heroes) {
 export const formulaStepOf = (g) => (g && Number.isInteger(g.formulaStep) ? g.formulaStep : g.refStep);
 /* the pull's size at step s from an as-built mean n0 (the dial's own rounding and box) */
 const pullAt = (n0, s) => Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * powStep(1 + DANGER.pullStep, s))));
-/* the ground's reference step (0 on a ground with no row, which the server never opens on the scale) */
+/* THE PAY'S REFERENCE: the row's refStep, where the ground's reference company HOLDS (the band rule, tools/new-ground.mjs), the step its
+   kill rate (refKillsHead) and its coin level were measured at, so a kill there pays the hours table exactly. A formula ground whose
+   monsters stand elsewhere names that anchor apart (formulaStep, formulaStepOf); the depth reading's middle is refHeld ?? refStep
+   (src/core/bands.js refHeldOf). Three readers, two overrides (lane/monster-roles-ford-wings; lane/scale-early-grounds moved Muster, the
+   Thicket and the Mill Cellar onto it: read at the anchor, the Thicket's reference four earned 1.36 of the hours table, tests/level-curve.mjs C7). */
+/* the ground's pay reference step (0 on a ground with no row, which the server never opens on the scale) */
 const refOf = (ground) => { const row = groundRow(ground); return row ? stepOn(ground, row.refStep) : 0; };
 /* THE COIN RATIO A PULL, SO THE HOUR PAYS THE WAGE'S (lane/ledger-l10, 19-power-ledger L10, V13 "gold follows depth"): a pull a step deeper
    carries (1 + powerStep) more health, so it takes about that much longer to clear and an hour holds that many fewer pulls. Paid at the
@@ -171,7 +179,7 @@ export const powStep = powSquare;
    held to PAY.gapMax above and to the ground's top (12-targets.md 3.2: no more pay past depth 20); under the reference it is never held
    (a shallower hold earns less a kill, so depth always pays). */
 function gapOf(ground, step) {
-  const row = ground && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, ground.id) ? DANGER_GROUNDS[ground.id] : null;
+  const row = groundRow(ground);
   return Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, clampStep(step) - (row ? row.refStep : 0));
 }
 /* (1 + rate) ^ gap, by squaring both ways (a negative gap divides): multiplications and one division, exact on every engine. Under the
@@ -242,6 +250,16 @@ export function hoursForLevel(level) {
 export const refKillsOf = (ground) => {
   const row = groundRow(ground);
   return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;
+};
+/* THE GROUND'S COIN LEVEL (lane/scale-early-grounds; a bridge like refKillsHead, until 27 stage 9 writes coin in hours): a scale kill's coin
+   is its row's roll x this / 1000 (dangerDial coinPm). The row's own `coinPm` (DANGER_GROUNDS, measured by tools/new-ground.mjs: the one
+   multiple that puts the reference company's hour, coin and loot at the store's price, on the wage at its refLevel, src/data/wage.js), else
+   PAY.coinPm. The old grounds' rows were typed for the old economy (a Level 3 hero's coin row is 1 gold, the wage's hour 13,035), so on the
+   scale their kit, sized in wage hours, would cost four times what the hunt paid. The server's coin ceiling a kill reads the same dial
+   (tools/gen-danger.mjs coin_pm_max). */
+const coinLevelOf = (ground) => {
+  const row = groundRow(ground);
+  return row && Number.isInteger(row.coinPm) ? row.coinPm : PAY.coinPm;
 };
 
 /**

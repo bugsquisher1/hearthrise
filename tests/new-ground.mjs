@@ -31,7 +31,7 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bandFromReports, rewriteRow, packPrint, lowestSeed, BAND_KEYS, anchorOf } from '../tools/lib/danger-band.mjs';
+import { bandFromReports, rewriteRow, packPrint, lowestSeed, BAND_KEYS, coinLevelFrom, COIN_BAND, anchorOf } from '../tools/lib/danger-band.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
@@ -40,6 +40,9 @@ const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
 const { MONSTERS } = await imp('src/data/monsters.js');
 const { bandAbs } = await imp('src/core/bands.js');
 const { SUSTAIN } = await imp('src/data/sustain.js');
+const { wage, levelStep } = await imp('src/core/wage.js');
+/* the coin level a pin was cut with (lane/scale-early-grounds): the row's refLevel wage, the cells played at the row's level */
+const coinOf = (row) => ({ wage: wage(levelStep(row.refLevel)), played: Number.isInteger(row.coinPm) ? row.coinPm : PAY.coinPm, payCoinPm: PAY.coinPm });
 const PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
 const json = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
 const R10 = 'tools/balance-program/redesign/r10/';
@@ -61,7 +64,9 @@ for (const [g, pin] of Object.entries(PINS)) {
   ok(row, 'NG-1 a pin for ' + g + ' with no DANGER_GROUNDS row');
   if (!row) continue;
   /* a formula ground's refStep is its chosen anchor: the tool keeps it and pins the MID four's hold as refHeld (lane/depth-reading-fix) */
-  const c = bandFromReports(evidenceOf(g, pin), PAY, DEPTHS, BAND_RULE, null, { anchorStep: anchorOf(row) });
+  /* a pin cut with the ground's coin level (it carries coinPm) is read back with it, as tools/new-ground.mjs read it */
+  const c = bandFromReports(evidenceOf(g, pin), PAY, DEPTHS, BAND_RULE, null, { anchorStep: anchorOf(row),
+    coin: pin.coinPm !== undefined ? coinOf(row) : null });
   const keys = pin.hand ? ['floorStep'] : BAND_KEYS;
   for (const k of keys) ok(c.band[k] === row[k], 'NG-1 ' + g + ' ' + k + ' cuts ' + c.band[k] + ' from its evidence, the row says ' + row[k]);
   ok(c.verdict === pin.verdict, 'NG-1 ' + g + ' verdict ' + c.verdict + ', its pin says ' + pin.verdict);
@@ -78,7 +83,9 @@ for (const [name, set] of sets) {
   const c = cut(set), low = lowestSeed(set.floor.cells['base:steady']);
   /* the margin: floorUnder, never more than one depth of the band (the lowest fresh seed at depth 2; lane/tuning-pass, 29-tuning-pass.md) */
   const under = low - c.band.floorStep, margin = Math.min(BAND_RULE.floorUnder, (c.band.topStep - low) / (DEPTHS - 2));
-  ok(under >= margin && under < margin + BAND_RULE.floorTo, 'NG-3 ' + name + ' floor ' + c.band.floorStep + ' is ' + under + ' under the fresh four\'s lowest seed ' + low + ', the rule says ' + margin.toFixed(1) + ' to under ' + (margin + BAND_RULE.floorTo).toFixed(1));
+  /* a fresh four held at the scale's bottom: the floor is step 0 itself, never under it (lane/scale-early-grounds) */
+  if (low - margin < 0) ok(c.band.floorStep === 0, 'NG-3 ' + name + ' floor ' + c.band.floorStep + ' with the fresh four\'s lowest seed ' + low + ' at the bottom of the scale (want 0)');
+  else ok(under >= margin && under < margin + BAND_RULE.floorTo, 'NG-3 ' + name + ' floor ' + c.band.floorStep + ' is ' + under + ' under the fresh four\'s lowest seed ' + low + ', the rule says ' + margin.toFixed(1) + ' to under ' + (margin + BAND_RULE.floorTo).toFixed(1));
   ok(c.band._lowDepth <= 3, 'NG-3 ' + name + ' fresh four reads depth ' + c.band._lowDepth);
 }
 const m10 = r10('muster_barrows', 'check');
@@ -91,7 +98,7 @@ const src = readFileSync(join(ROOT, 'src', 'data', 'danger.js'), 'utf8');
 const lineOf = (text, g) => text.split('\n').find((l) => new RegExp('^  ' + g + ': [\\w.]+\\(\\{ refStep').test(l));
 ok(lineOf(src, 'muster_barrows') && lineOf(src, 'hasks_ford'), 'NG-4 the DANGER_GROUNDS rows are not one line each in the refStep, floorStep, topStep order (tools/lib/danger-band.mjs rewriteRow)');
 const a = rewriteRow(src, 'muster_barrows', { refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130 });
-ok(a && /refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130, gearLevel: tierLevel\(3\)/.test(lineOf(a, 'muster_barrows')), 'NG-4 muster row not rewritten: ' + (a && lineOf(a, 'muster_barrows')));
+ok(a && /refStep: 600, floorStep: 490, topStep: 720, refKillsHead: 130, (?:formulaStep: \d+, )?gearLevel: tierLevel\(3\)/.test(lineOf(a, 'muster_barrows')), 'NG-4 muster row not rewritten: ' + (a && lineOf(a, 'muster_barrows')));
 ok(a && lineOf(a, 'hasks_ford') === lineOf(src, 'hasks_ford'), 'NG-4 another row moved');
 const b = rewriteRow(src, 'hasks_ford', { refStep: 590, floorStep: 470, topStep: 710 });
 /* (the row's other fields stay where they stood: the Ford's rowsKillsHead, lane/monster-roles-ford-wings, follows the band) */
@@ -124,6 +131,21 @@ ok(h2 && /topStep: 710, refKillsHead: 235, (?:rowsKillsHead: \d+, )?gearLevel/.t
   const c0 = ev.ref.cells['base:steady'], over = { ...ev, ref: { ...ev.ref, cells: { ...ev.ref.cells, 'base:steady': { ...c0, held: { ...c0.held, mean: 720 } } } } };
   const out = bandFromReports(over, PAY, DEPTHS, BAND_RULE, null, { anchorStep: 590 });
   ok(out.verdict === 'REVIEW' && out.notes.some((x) => /depth reading has no middle point/.test(x)), 'NG-7 a hold outside the band was not a note: ' + out.verdict + ' ' + out.notes.join(' | '));
+}
+/* NG-8 (lane/scale-early-grounds) THE GROUND'S COIN LEVEL: the reference hour (coin and loot at the store's price) inside EL-PAY's band
+   leaves the row on PAY.coinPm; outside it the one coin multiple that puts it on the wage, linear in coin and not in loot; a cut played at
+   a ground's own level reads it back. And the floor never goes under step 0 */
+{
+  const ev = evidenceOf('muster_barrows', PINS.muster_barrows), c0 = ev.ref.cells['base:steady'];
+  const withGold = (coin, income) => ({ ...c0, gold: { ...c0.gold, coinPerHeroH: { mean: coin }, incomePerHeroH: { mean: income } } });
+  const W = 10000, P = PAY.coinPm;
+  ok(coinLevelFrom(withGold(9000, W), { wage: W, played: P, payCoinPm: P }).coinPm === null, 'NG-8 an hour on the wage moved the coin level');
+  const low = coinLevelFrom(withGold(500, 1000), { wage: W, played: P, payCoinPm: P });
+  ok(low.coinPm === Math.round((P * (W - 500)) / 500 / 100) * 100, 'NG-8 an hour at 0.1 of the wage cuts ' + low.coinPm + ', want the multiple that pays the wage');
+  ok(coinLevelFrom(withGold(9500, W * COIN_BAND[1]), { wage: W, played: 120000, payCoinPm: P }).coinPm === 120000, 'NG-8 a ground played at its own level and on the wage lost it');
+  ok(coinLevelFrom(withGold(500, 1000), null) === null, 'NG-8 a cut with no wage read a coin level');
+  const atZero = { ...ev, floor: { ...ev.floor, cells: { ...ev.floor.cells, 'base:steady': { ...ev.floor.cells['base:steady'], held: { mean: 1, perSeed: [0, 1, 2] } } } } };
+  ok(cut(atZero).band.floorStep === 0, 'NG-8 a fresh four at the scale\'s bottom cut a floor under step 0: ' + cut(atZero).band.floorStep);
 }
 /* NG-5 */
 const g = HUNT_GROUNDS.muster_barrows, base = packPrint(g, MONSTERS, monstersOn);

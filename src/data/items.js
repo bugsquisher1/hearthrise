@@ -831,20 +831,21 @@ for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS
 
 /* THE ITEM LEVEL OF A LADDER PIECE (src/data/gear-tiers.js MATERIAL_TIERS, one material a tier: the designer's 12-targets 8.3, lane/gear-phase-b):
    every piece of a tier carries its `step` and its item Level is tierLevel(step) wherever it drops, worn from it less wearAhead. A scale
-   ground that drops one stamps its own base (above) and the two agree; two numbers for one piece throw (one base, one number), with two
-   exceptions that keep the stamp, worn from it less wearAhead: a named Catacomb piece (its wing's base, never its twin's), and a ground whose
-   rows still drop another tier's pieces until they are re-pointed (12-targets 8.3 c, the grounds' lane; tests/gear-stats.mjs GSF-9 names
-   each one and reds it the day it agrees). ITEM_LEVELS is every item Level a row is given here: tools/gen-gear.mjs sizes each piece at it,
-   never at the iL its own table wrote back. */
+   ground that drops one stamps its own base (above) and the two agree; two numbers for one piece throw (one base, one number), with one
+   exception that keeps the stamp, worn from it less wearAhead: a ground whose rows still drop another tier's pieces until they are
+   re-pointed (12-targets 8.3 c, the grounds' lane; tests/gear-stats.mjs GSF-9 names each one and reds it the day it agrees). A named
+   Catacomb piece carries no step (its twin's stays with the twin): it is its wing's stamp, worn from it less wearAhead too. ITEM_LEVELS is
+   every item Level a row is given here: tools/gen-gear.mjs sizes each piece at it, never at the iL its own table wrote back. */
 const STAMPED_ELSEWHERE = new Set(Object.values(DANGER_GROUNDS).filter((g) => Number.isInteger(g.ladderTier) && MATERIAL_TIERS[g.ladderTier - 1]
   && MATERIAL_TIERS[g.ladderTier - 1].iL !== g.gearLevel).map((g) => g.ladderTier));
 export const ITEM_LEVELS = (() => {
   const out = { ...SCALE_ITEM_LEVELS };
   for (const [id, it] of Object.entries(ITEMS)) {
+    if (it && it.catacombTier && out[id] !== undefined) { ITEMS[id] = { ...it, reqLv: Math.max(1, out[id] - GEAR_STEPS.wearAhead) }; continue; }
     if (!it || !Number.isInteger(it.step)) continue;
     const iL = tierLevel(it.step), stamp = out[id];
     if (stamp !== undefined && stamp !== iL) {
-      if (!it.catacombTier && !STAMPED_ELSEWHERE.has(it.tier)) throw new Error('items.js: ' + id + ' is step ' + it.step + ' (item Level ' + iL + ') and a scale ground drops it at ' + stamp);
+      if (!STAMPED_ELSEWHERE.has(it.tier)) throw new Error('items.js: ' + id + ' is step ' + it.step + ' (item Level ' + iL + ') and a scale ground drops it at ' + stamp);
       ITEMS[id] = { ...it, iL: stamp, reqLv: Math.max(1, stamp - GEAR_STEPS.wearAhead) };
       continue;
     }

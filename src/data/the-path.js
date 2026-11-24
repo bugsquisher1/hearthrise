@@ -81,7 +81,7 @@ export const THE_PATH = Object.freeze([
   row('grayjaws_ruff', level(ref('src/data/items.js', 'ITEMS', 'grayjaws_ruff', ['reqLv'])), ['hunts'], null, 'hero',
     'Level 12. Grayjaw\'s Ruff. Old Grayjaw drops it in the Thicket.'),
   row('world_boss', level(ref('src/data/world-boss.js', 'WORLD_BOSS', undefined, ['minLevel'])), ['world_boss'], FB13_BOSS, 'hero', 'Level 13. {Boss name}'),
-  row('iron_gear', level(ref('src/data/gear-tiers.js', 'MATERIAL_TIERS', 'iron', ['level'])), ['iron_gear'], null, 'hero', 'Level 15. Iron gear'),
+  row('iron_gear', level(ref('src/data/gear-tiers.js', 'MATERIAL_TIERS', 'iron', ['level'])), ['iron_gear'], null, 'hero', 'Level 10. Iron gear'),
   row('mosslight', level(HUNTS('mosslight_glade')), ['hunts', 'honor'], null, 'hero', 'Level 16. Mosslight Glade'),
   row('talent_points', level(ref('src/data/talents.js', 'TALENT_RULES', undefined, ['pointLevels'])), ['talent_point'], FB11_TALENTS, 'hero',
     'Level {N}. A Talent point'),

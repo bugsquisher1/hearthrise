@@ -20,11 +20,13 @@
 //   GSF-6 THE CURVES CLIMB: within every ladder (GEAR_LADDERS) no rung's base stat is smaller in size than the rung below it.
 //   GSF-8 A NAMED PIECE'S TRAIT IS A REAL ONE: a Trait's `fixedOn` (src/data/traits.js, read through gear-steps.js) names items of the
 //         Trait's slot at a rank of 1 to 3, one fixed Trait a piece, and the ruling's table (28-named-pieces.md, outcome b) names those pieces.
-//   GSF-9 THE LADDER ON STEPS (lane/gear-phase-b; 27-formula-overhaul.md G-2 phase B, src/data/gear-tiers.js STEP_TIERS): past the shipped
-//         seven every tier sits on the grid (item Level tierLevel(step), worn from it less wearAhead), from the first grid tier past the shipped
-//         top with no hole, up through every scale ground's base; every slot ladder (the armor lines, the weapon families, the codex, the
-//         shield, the ring, earrings, necklace and cloak) has its base at each; each dropped piece drops on every home of its tier (a Scarce
-//         row of base-drops.js), and each made piece has its bench recipe at the tier's level, taking a part a body on a home drops, served.
+//   GSF-9 ONE MATERIAL A TIER (lane/gear-phase-b; 12-targets.md 8.3, 27-formula-overhaul.md G-2 phase B, src/data/gear-tiers.js): every
+//         material is its rung's grid tier (step = tier - 1, item Level tierLevel(step), worn from it less wearAhead) and every rung of every
+//         ladder and every plain shield of it carries exactly that, but on a ground this test names whose rows still drop another tier (a
+//         ground the derived list adds, or a named one that agrees again, is red); every scale ground's base is a material's item Level;
+//         a tier with homes has every slot ladder's base (the armor lines, the weapon families, the codex, one shield, the ring, earrings,
+//         necklace and cloak), each dropped piece drops on every home (a Scarce row of base-drops.js or a home body's own row), and each
+//         made piece has its bench recipe at the tier's level, taking a part a body on a home drops, served.
 //   GSF-10 PRICED PAST THE TOP: every stat curve's budget grows past GEAR_CURVE_TOP (src/core/gear-stats.js budgetOf), so no item Level is
 //         capped (found items are never held to the ladder's top).
 //
@@ -172,41 +174,64 @@ export function check(o) {
   return out;
 }
 
-/* GSF-9: THE LADDER ON STEPS (src/data/gear-tiers.js STEP_TIERS). `o.step` = { materials, ladders, shields, slotItems, baseDrops, made, recipes,
-   scale, grounds, monstersOn, monsters }. */
+/* GSF-9's one named exception: a scale ground whose rows still drop another tier's pieces, stamped at its own base until the grounds' lane
+   re-points them (12-targets 8.3; src/data/items.js STAMPED_ELSEWHERE). A ground the data adds to that list, or one named here that agrees
+   again, is red: the name leaves this list the day its rows move. */
+const RE_POINT_PENDING = Object.freeze(['hasks_ford', 'muster_barrows']);
+
+/* GSF-9: ONE MATERIAL A TIER (src/data/gear-tiers.js MATERIAL_TIERS). `o.step` = { materials, ladders, shields, slotItems, baseDrops, made,
+   recipes, scale, grounds, monstersOn, monsters, stagedItems, pending }. */
 function stepLadder(o) {
   const out = [], S = o.step, own = (x, k) => !!x && Object.prototype.hasOwnProperty.call(x, k);
-  const shipped = S.materials.filter((m) => !Number.isInteger(m.step)), steps = S.materials.filter((m) => Number.isInteger(m.step));
-  const top = shipped[shipped.length - 1], first = Math.floor(top.iL / GEAR_STEPS.tierSteps) + 1;
-  /* on the grid, no hole, the shipped seven first */
-  if (S.materials.indexOf(steps[0]) !== shipped.length) out.push('GSF-9 the step tiers do not follow the shipped seven in MATERIAL_TIERS');
-  steps.forEach((m, i) => {
-    if (m.step !== first + i) out.push('GSF-9 step tier ' + m.id + ' is step ' + m.step + ', the ladder on steps runs ' + first + ' up with no hole (want ' + (first + i) + ')');
+  /* every material on the grid: its rung, its step, its item Level, worn from it less wearAhead */
+  S.materials.forEach((m, i) => {
+    if (m.tier !== i + 1) out.push('GSF-9 ' + m.id + ' is tier ' + m.tier + ', not its rung (' + (i + 1) + ')');
+    if (m.step !== m.tier - 1) out.push('GSF-9 ' + m.id + ' is step ' + m.step + ', not one tier a step from bronze\'s 0 (want ' + (m.tier - 1) + ')');
     if (m.iL !== tierLevel(m.step)) out.push('GSF-9 ' + m.id + ' is item Level ' + m.iL + ', off the grid (step ' + m.step + ' is ' + tierLevel(m.step) + ')');
     if (m.level !== Math.max(1, m.iL - GEAR_STEPS.wearAhead)) out.push('GSF-9 ' + m.id + ' is worn from ' + m.level + ', not its item Level less wearAhead');
-    if (m.tier !== S.materials.indexOf(m) + 1) out.push('GSF-9 ' + m.id + ' is tier ' + m.tier + ', not its rung');
   });
-  /* through every scale ground's base past the shipped top */
-  for (const [g, row] of Object.entries(S.scale)) if (Number.isInteger(row.gearLevel) && row.gearLevel > top.iL && !steps.some((m) => m.iL === row.gearLevel)) out.push('GSF-9 ' + g + ' drops item Level ' + row.gearLevel + ' and no step tier is there');
-  for (const m of steps) {
+  /* the grounds that still drop another tier (their pieces keep the ground's stamp): exactly the names the test carries */
+  const stamped = {};
+  for (const [g, row] of Object.entries(S.scale)) {
+    const m = Number.isInteger(row.ladderTier) ? S.materials[row.ladderTier - 1] : null;
+    if (m && m.iL !== row.gearLevel) stamped[m.tier] = row.gearLevel;
+    if (m && m.iL !== row.gearLevel && !S.pending.includes(g)) out.push('GSF-9 ' + g + ' drops ' + m.id + ' (item Level ' + m.iL + ') at its base ' + row.gearLevel + ': one tier, one item Level');
+    if (S.pending.includes(g) && !(m && m.iL !== row.gearLevel)) out.push('GSF-9 ' + g + ' drops its own tier again: drop it from RE_POINT_PENDING');
+    /* every scale ground's base is a material's item Level */
+    if (Number.isInteger(row.gearLevel) && !S.materials.some((x) => x.iL === row.gearLevel)) out.push('GSF-9 ' + g + ' drops item Level ' + row.gearLevel + ' and no tier is there');
+  }
+  /* every rung and plain shield of a tier carries its step, item Level and wear (or its pending ground's stamp) */
+  S.materials.forEach((m, at) => {
+    const iL = own(stamped, m.tier) ? stamped[m.tier] : m.iL, wear = Math.max(1, iL - GEAR_STEPS.wearAhead);
+    const ids = [...S.ladders.map((l) => l.ids[at]), ...Object.keys(S.shields).filter((id) => S.shields[id].tier === m.tier)].filter((id) => id && o.items[id]);
+    for (const id of ids) {
+      const it = o.items[id];
+      if (it.step !== m.step || it.iL !== iL || it.reqLv !== wear) out.push('GSF-9 ' + id + ' is step ' + it.step + ', item Level ' + it.iL + ', worn from ' + it.reqLv + ': ' + m.id + ' is step ' + m.step + ', ' + iL + ', from ' + wear);
+    }
+  });
+  for (const m of S.materials.filter((x) => (x.homes || []).length)) {
     const at = S.materials.indexOf(m), pieces = [];
-    /* every slot ladder has its base at the tier, worn from the tier's Level */
+    /* every slot ladder has its base at the tier */
     for (const l of S.ladders) {
-      const id = l.ids[at], it = id ? o.items[id] : null;
-      if (!it || it.step !== m.step || it.reqLv !== m.level || it.iL !== m.iL) out.push('GSF-9 ' + l.key + ' has no base at step tier ' + m.id + ' (' + (id || 'no rung') + ')');
+      const id = l.ids[at];
+      if (!id || !o.items[id]) out.push('GSF-9 ' + l.key + ' has no base at ' + m.id + ' (' + (id || 'no rung') + ')');
       else pieces.push(id);
     }
     const shields = Object.keys(S.shields).filter((id) => S.shields[id].step === m.step && o.items[id]);
-    if (shields.length !== 1) out.push('GSF-9 step tier ' + m.id + ' has ' + shields.length + ' shields, the ladder one');
+    if (shields.length !== 1) out.push('GSF-9 ' + m.id + ' has ' + shields.length + ' shields, the ladder one');
     const made = ['ring', 'earrings', 'necklace', 'cape'].map((slot) => [slot, Object.keys(S.slotItems).filter((id) => S.slotItems[id].slot === slot && S.slotItems[id].step === m.step && o.items[id])]);
-    for (const [slot, ids] of made) if (ids.length !== 1) out.push('GSF-9 step tier ' + m.id + ' has ' + ids.length + ' ' + slot + ' pieces, the ladder one');
-    /* a source for each: the dropped base on every home, the made pieces at their bench from a home's part */
+    for (const [slot, ids] of made) if (ids.length !== 1) out.push('GSF-9 ' + m.id + ' has ' + ids.length + ' ' + slot + ' pieces, the ladder one');
+    /* a source for each: the dropped base on every home (its base row, or a home body's own row), the made pieces at their bench from a part */
+    const bodyDrops = (h) => new Set([...S.monstersOn(S.grounds[h])].flatMap((mid) => ((S.monsters[mid] || {}).drops || []).map((d) => d.id)));
     for (const h of m.homes) {
       if (!own(S.grounds, h)) { out.push('GSF-9 ' + m.id + ' names a home ' + h + ' that is no ground'); continue; }
-      const rows = new Set(((S.grounds[h].drops) || []).map((d) => d.id));
-      for (const id of [...pieces, ...shields]) if (!rows.has(id) || !(S.baseDrops[h] || []).some((d) => d.id === id && d.band === 'scarce')) out.push('GSF-9 ' + id + ' does not drop on its home ' + h);
+      const rows = new Set(((S.grounds[h].drops) || []).map((d) => d.id)), bodies = bodyDrops(h);
+      for (const id of [...pieces, ...shields]) {
+        const based = rows.has(id) && (S.baseDrops[h] || []).some((d) => d.id === id && d.band === 'scarce');
+        if (!based && !bodies.has(id)) out.push('GSF-9 ' + id + ' does not drop on its home ' + h);
+      }
     }
-    const parts = new Set(m.homes.filter((h) => own(S.grounds, h)).flatMap((h) => [...S.monstersOn(S.grounds[h])]).flatMap((mid) => ((S.monsters[mid] || {}).drops || []).map((d) => d.id)));
+    const parts = new Set(m.homes.filter((h) => own(S.grounds, h)).flatMap((h) => [...bodyDrops(h)]));
     for (const [slot, ids] of made) for (const id of ids) {
       const r = [...S.made.smithing, ...S.made.crafting].find((x) => x.output === id);
       if (!r) { out.push('GSF-9 ' + id + ' (' + slot + ') has no bench recipe'); continue; }
@@ -230,7 +255,7 @@ function live() {
     traits: TRAITS, doc: readFileSync(join(ROOT, 'docs/design/redesign/28-named-pieces.md'), 'utf8').replace(/\r/g, ''),
     step: { materials: MATERIAL_TIERS, ladders: GEAR_LADDERS, shields: SHIELD_ITEMS, slotItems: SLOT_ITEMS, baseDrops: BASE_DROPS, made: STEP_MADE,
       recipes: ARTISAN_RECIPES, scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS,
-      stagedItems: new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {}))) } };
+      stagedItems: new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {}))), pending: RE_POINT_PENDING } };
 }
 /* a copy of the step ladder's tables a mutant may edit */
 const stepCopy = (o) => { o.step = { ...o.step, materials: o.step.materials.map((m) => ({ ...m })), baseDrops: { ...o.step.baseDrops }, made: { ...o.step.made },
@@ -284,11 +309,16 @@ const MUTANTS = [
   ['GSF-7', 'a piece under item Level 0', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, iL: -20 } }; }],
   ['GSF-6', 'a rung steps down', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, atkB: 1 } }; }],
   /* the ladder on steps (lane/gear-phase-b) */
-  ['GSF-9', 'a step tier off the grid', (o) => { const S = stepCopy(o); const m = S.materials[S.materials.length - 1]; m.iL -= 10; }],
-  ['GSF-9', 'a hole in the steps', (o) => { const S = stepCopy(o); const m = S.materials[S.materials.length - 1]; m.step += 1; }],
-  ['GSF-9', 'a step tier worn at its item Level', (o) => { const S = stepCopy(o); S.materials[S.materials.length - 1].level += GEAR_STEPS.wearAhead; }],
-  ['GSF-9', 'a scale ground past the last step tier', (o) => { const S = stepCopy(o); S.scale.catacomb_bone_wing = { ...S.scale.catacomb_bone_wing, gearLevel: tierLevel(40) }; }],
-  ['GSF-9', 'a slot ladder with no rung at a step tier', (o) => { const { wolfram_helm, ...r } = o.items; void wolfram_helm; o.items = r; }],
+  ['GSF-9', 'a tier off the grid', (o) => { const S = stepCopy(o); const m = S.materials[S.materials.length - 1]; m.iL -= 10; }],
+  ['GSF-9', 'a tier a step off its rung', (o) => { const S = stepCopy(o); const m = S.materials[S.materials.length - 1]; m.step += 1; }],
+  ['GSF-9', 'a tier worn at its item Level', (o) => { const S = stepCopy(o); S.materials[S.materials.length - 1].level += GEAR_STEPS.wearAhead; }],
+  ['GSF-9', 'a scale ground past the last tier', (o) => { const S = stepCopy(o); S.scale.catacomb_bone_wing = { ...S.scale.catacomb_bone_wing, gearLevel: tierLevel(40) }; }],
+  ['GSF-9', 'a rung keeps its old item Level', (o) => { o.items = { ...o.items, iron_sword: { ...o.items.iron_sword, iL: 15 } }; }],
+  ['GSF-9', 'a rung keeps its old wear Level', (o) => { o.items = { ...o.items, steel_helm: { ...o.items.steel_helm, reqLv: 30 + 5 } }; }],
+  ['GSF-9', 'a plain shield off its tier', (o) => { o.items = { ...o.items, ember_tower_shield: { ...o.items.ember_tower_shield, iL: 75 } }; }],
+  ['GSF-9', 'a new ground drops another tier unnamed', (o) => { const S = stepCopy(o); S.scale.mill_cellar = { ...S.scale.mill_cellar, ladderTier: 3 }; }],
+  ['GSF-9', 'a re-pointed ground still named', (o) => { const S = stepCopy(o); S.scale.hasks_ford = { ...S.scale.hasks_ford, ladderTier: 3 }; }],
+  ['GSF-9', 'a slot ladder with no rung at a tier with homes', (o) => { const { wolfram_helm, ...r } = o.items; void wolfram_helm; o.items = r; }],
   ['GSF-9', 'a home that does not drop its base', (o) => { const S = stepCopy(o); S.grounds = { ...S.grounds, catacomb_flooded_wing: { ...S.grounds.catacomb_flooded_wing, drops: S.grounds.catacomb_flooded_wing.drops.filter((d) => d.id !== 'rowan_bow') } }; }],
   ['GSF-9', 'a made piece with no recipe', (o) => { const S = stepCopy(o); S.made.smithing = S.made.smithing.filter((r) => r.output !== 'wolfram_ring'); }],
   ['GSF-9', 'a made job on its bench while its part waits with a staged pack', (o) => { const S = stepCopy(o); S.recipes = { ...S.recipes, crafting: [...S.recipes.crafting, ...S.made.crafting] }; }],

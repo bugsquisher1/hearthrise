@@ -114,7 +114,10 @@ export function catacombArmorItems(items, rows = CATACOMB_ARMOR, attrs = CATACOM
     const base = items && Object.prototype.hasOwnProperty.call(items, r.twin) ? items[r.twin] : null;
     if (!base) throw new Error('src/data/catacomb-armor.js: ' + r.id + ' has no twin ' + r.twin);
     const at = attributeOf(r, attrs, tiers);
-    out[r.id] = { ...base, n: r.name, [at.field]: at.value, catacombTier: r.key };
+    /* the twin's grid tier stays with the twin (gear-tiers.js stepOf): a keyed piece is the wings' item Level, stamped where it drops */
+    const { step, ...twin } = base;
+    void step;
+    out[r.id] = { ...twin, n: r.name, [at.field]: at.value, catacombTier: r.key };
   }
   return out;
 }

@@ -55,9 +55,11 @@ export function levelStep(level) {
  * THE WAGE STEP A DANGER HOLD PAYS AT (lane/econ-followups, 2026-11-22): a good priced by DEPTH (Tyler 2026-11-22) reads the wage at the
  * depth a hunt stands at. Wave 1's Danger step counts from each ground's own rows (src/data/wage.js: Muster's reference step 590 is not
  * Level 590; wage(590) is 8x a Level 60 hour), so this is the bridge to the wage's one unit until wave 2 cuts the bands in it:
- *   depthStep = gearLevel + min(step - refStep, PAY.gapMax), held to 1..stepMax (wageStep)
- * gearLevel is the absolute step of the ground's reference depth: refStep was measured on the company whose kit is the ground's base item
- * Level (src/data/danger.js DANGER_GROUNDS: "the power step is 0 at it"), and a company of kit Level X holds step X (04 section 1). Inside
+ *   depthStep = refLevel + min(step - refStep, PAY.gapMax), held to 1..stepMax (wageStep)
+ * refLevel is the absolute step of the ground's reference depth (27-formula-overhaul.md K-5, ruled: "prices, the wage at a ground and the
+ * gold estimate read refLevel", the Level the reference company stands at; lane/scale-early-grounds built it, since the base item Level it
+ * read before is 0 on a starting-kit ground, the Mill Cellar's, and read 2 to 6% low on Hask's Ford), and refStep is where that company
+ * holds, the pay's reference (src/data/danger.js DANGER_GROUNDS; a formula ground's monsters may stand elsewhere, formulaStep). Inside
  * a ground one Danger step pays the wage's coin ratio (danger.js PAY: one coin ratio a step), so each step over or under the reference is
  * one wage step; past gapMax a kill pays no more, and the price stops with it. (Under the reference the pay floor PAY.floor holds a kill's
  * coin from about 173 steps down; on today's ground that is under wage step 1, where wageStep already holds it.) Null off the scale.
@@ -68,7 +70,7 @@ export function levelStep(level) {
 export function depthStep(groundId, step) {
   const g = Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null;
   if (!g || !Number.isFinite(step)) return null;
-  return wageStep(g.gearLevel + Math.min(Math.floor(step) - g.refStep, PAY.gapMax));
+  return wageStep(g.refLevel + Math.min(Math.floor(step) - g.refStep, PAY.gapMax));
 }
 
 /** The gold block `n` (1 for the day's first) of a bought-time `row` costs a hero of Level `level`, or null past the row's day cap. */

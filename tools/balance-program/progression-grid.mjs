@@ -170,7 +170,7 @@ export function trackBuffs(track, L) {
  * what its Magic allows, a Healer heals on the cheapest water rune; BiS casts what its Magic allows). Options: `buffs` (timed buff rows kept
  * up all hunt), `track` (a build-tracks.json track), `staminaH`, `purse` and `goldFloor` (a bar and a purse that bind).
  */
-export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S', unlocks = null, skillDelta = 0 }) {
+export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, buffs = null, track = null, endTogether = false, staminaH = null, purse = null, goldFloor = null, blessings = 3, build = 'S', unlocks = null, skillDelta = 0, exclude = null }) {
   const size = styles.length, line = size > 1 ? 'party' : 'alone';
   const skills = styles.map((style, i) => {
     /* skillDelta (lane/foundations-block): every seat's main skill and Defense that many levels off its career line, on top of the gear state's */
@@ -182,7 +182,8 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
     for (const k of [m, 'defense']) lv[k] = Math.max(1, (lv[k] || 1) + d);
     return lv;
   });
-  let plans = styles.map((style, i) => K.kitFor(L, gear, style, { ground, mainSkill: skills[i][MAIN[style] || 'melee'] }));
+  /* exclude (tools/new-ground.mjs, a ground inside one gear tier): item ids no seat may wear, so its cells dress in the ground's own tier */
+  let plans = styles.map((style, i) => K.kitFor(L, gear, style, { ground, mainSkill: skills[i][MAIN[style] || 'melee'], ...(exclude ? { exclude } : {}) }));
   /* E1's step cells: the MID set with ONE group from the LOW plan (the weapon, or the six armor slots), everything else MID's */
   /* 'step:back' both groups from LOW (one gear tier back), 'step:up' both groups from the MID set of the next gear band (one tier ahead,
      lane/gear-catalogue-steps: C-2 read on the shipped kits) */
@@ -191,7 +192,7 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   if (step && !groupOf[step]) throw new Error('buildCell: unknown step ' + step);
   const fromL = step === 'step:up' ? K.bandAfter(L) : L, fromState = step === 'step:up' ? 'mid' : 'low';
   if (step === 'step:up' && !fromL) throw new Error('buildCell: no gear band after Level ' + L);
-  if (step) plans = plans.map((p, i) => K.mixPlan(p, K.kitFor(fromL, fromState, styles[i], { ground, mainSkill: skills[i][MAIN[styles[i]] || 'melee'] }), groupOf[step]));
+  if (step) plans = plans.map((p, i) => K.mixPlan(p, K.kitFor(fromL, fromState, styles[i], { ground, mainSkill: skills[i][MAIN[styles[i]] || 'melee'], ...(exclude ? { exclude } : {}) }), groupOf[step]));
   const temper = {};
   for (const p of plans) for (const [k, n] of Object.entries(p.temper || {})) temper[k] = Math.max(temper[k] || 0, n);
   const projected = STD.stretchOf(L).state === 'PROJECTED';

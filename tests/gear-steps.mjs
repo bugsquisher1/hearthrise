@@ -68,7 +68,7 @@ const HOMES = new Set(['src/data/gear-steps.js', 'src/data/traits.js']);
 /* the doc's words for a ground and a slot heading */
 const DOC_GROUNDS = Object.freeze({
   'Muster Barrows': 'muster_barrows', 'Pyre Field': 'pyre_field', 'Krell\'s Hold': 'krells_hold', 'Carter\'s Rest': 'carters_rest',
-  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Hask\'s Ford': 'hasks_ford', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
+  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Hask\'s Ford': 'hasks_ford', 'The Slake': 'the_slake', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
 });
 const DOC_SLOTS = Object.freeze({ Weapon: 'weapon', Shield: 'shield', Body: 'body', Legs: 'pants', Helmet: 'helmet', Boots: 'boots',
   Gloves: 'gloves', Belt: 'belt', Cape: 'cape', Necklace: 'necklace', Ring: 'ring', Earrings: 'earrings' });
@@ -254,7 +254,7 @@ export function problems(d) {
     }
   }
   for (const [gid, g] of Object.entries(d.DANGER_GROUNDS)) {
-    if (!Number.isInteger(g.gearLevel) || g.gearLevel <= 0 || g.gearLevel % G.tierSteps) out.push('GS-5 ' + gid + ' gearLevel is not a whole tier');
+    if (!Number.isInteger(g.gearLevel) || g.gearLevel < 0 || g.gearLevel % G.tierSteps) out.push('GS-5 ' + gid + ' gearLevel is not a whole tier');
     const pool = Object.keys(d.TRAITS).filter((id) => d.TRAITS[id].source === gid);
     if (JSON.stringify([...(g.traits || [])].sort()) !== JSON.stringify(pool.sort())) out.push('GS-5 ' + gid + ' traits are not its pool');
     /* its entry Level is its hunt's band floor (one source), and its max rank the ramp's at it (L3) */
@@ -352,6 +352,7 @@ const MUTANTS = [
   ['GS-5 a cell of three', (d) => { d.TRAITS.keepers_carry.source = 'catacomb_bone_wing'; d.TRAITS.keepers_carry.best.ground = 'catacomb_bone_wing'; }],
   ['GS-5 a roll that is not slot first', (d) => { d.GEAR_STEPS.traitRoll = { ...d.GEAR_STEPS.traitRoll, slotFirst: false }; }],
   ['GS-5 a ground off the tier', (d) => { d.DANGER_GROUNDS.muster_barrows.gearLevel += 5; }],
+  ['GS-5 a ground under tier 0', (d) => { d.DANGER_GROUNDS.muster_barrows.gearLevel = -20; }],
   ['GS-5 a pool that drops a Trait', (d) => { d.DANGER_GROUNDS.muster_barrows.traits = ['file_breaker']; }],
   ['GS-6 a screen imports the gear table', (d) => { d.files.set('src/shell/x.js', "import { GEAR_STEPS } from '../data/gear-steps.js';"); }],
   ['GS-6 a screen imports the Traits', (d) => { d.files.set('src/shell/y.js', "import { TRAITS } from '../data/traits.js';"); }],

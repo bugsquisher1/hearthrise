@@ -450,14 +450,24 @@
         "why": "lane/roads-wave3 on the merged set: src/data/talents.js gains Parry, Stagger and Gash roads (30 nodes) and two town rows; abilities and statuses comments"
       },
       {
-        "bytes": 3817150,
+        "bytes": 3810103,
         "on": "2026-11-24",
-        "why": "lane/skills-time-parity on set b05780245 with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel). +8,534 bytes"
+        "why": "+1,487 B: Bold fights every pull (breakOff, breaksOff) and the bottom-depth hold (lane/designer-reads-1123)"
       },
       {
-        "bytes": 3817152,
+        "bytes": 3819585,
         "on": "2026-11-24",
-        "why": "lane/skills-time-parity: the party lines re-measured on the skill clock (party-class-xp-line --table --mixed --write: nine packs' partyVsAlone and the base rows), 2 B"
+        "why": "lane/scale-early-grounds merged onto set/v0.2.144 1f3fa9fe6 (designer-reads): the lane's own growth over the set's ceiling, no new module: the Cellar and the Thicket on the scale, coin levels a ground (danger.js coinLevelOf, the Ford's 7.1), insideOneTier (bands.js, 29 7.5), wage.js store step on refLevel, combat-sim.js fightItems"
+      },
+      {
+        "bytes": 3819945,
+        "on": "2026-11-24",
+        "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
+      },
+      {
+        "bytes": 3828481,
+        "on": "2026-11-24",
+        "why": "lane/skills-time-parity on set 1f3fa9fe6 with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel) and the party lines re-measured on it. +8,536 bytes"
       }
     ]
   }

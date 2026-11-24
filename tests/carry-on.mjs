@@ -466,7 +466,8 @@ async function wordsArm() {
   const lines = S.carryLinesOf(p);
   const txt = lines.map((l) => l.text);
   if (lines.length !== 4 || p.heroes.length !== 5) bad.push('CO-WORDS a busy or out-of-range hero got a line: ' + JSON.stringify(txt));
-  if (!/^Wren: Meadowbrook Thicket \(Normal\) · From Storage: 40 Cooked Shrimp · Short: 5 Cooked Shrimp \(store refills in the hunt\) · Bless again: 450 gp · Loot plan first · Stops gathering$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
+  /* (lane/scale-early-grounds) the Thicket is on the Danger scale: its line says the Risk the hero goes back on (Steady, the default) */
+  if (!/^Wren: Meadowbrook Thicket \(Steady\) · From Storage: 40 Cooked Shrimp · Short: 5 Cooked Shrimp \(store refills in the hunt\) · Bless again: 450 gp · Loot plan first · Stops gathering$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
   if (txt[1] !== 'Bryn: stays in town (no stamina left)' || txt[2] !== 'Tess: waiting for Marlow (party leader)' || txt[3] !== 'Dorn: unchanged') bad.push('CO-WORDS the other lines read ' + JSON.stringify(txt.slice(1)));
   if (txt.some((s) => /[;—–]/.test(s))) bad.push('CO-WORDS a line has a semicolon or a dash: ' + JSON.stringify(txt));
   /* a Danger scale ground has no tier (visual pass 2: "The Muster Barrows, Normal."): the line names the hero's Risk, Steady where none is read */

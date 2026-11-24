@@ -34,9 +34,8 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js';
+import { simulateHuntInstance, fightItems } from '../core/combat-sim.js';
 import { memberSide, frozenSide, frozenKey } from '../core/member.js';
-import { scaleItems } from '../core/gear-stats.js';
 import { huntGroundOf } from '../core/hunt-ground.js';
 import { huntTimeline, worldHash } from '../core/hunt-track.js';
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js';
@@ -210,7 +209,7 @@ export function createLiveEngine(o) {
     const where = huntGroundOf(String(live.instance.hunt));
     if (!where) return fail('no ground for the hunt ' + String(live.instance.hunt).slice(0, 60));
     const text = typeof live.instance.world === 'string' ? live.instance.world : null;
-    let world, sides;
+    let world, sides, fight;
     /* THE BURNING TOWER (src/core/hunt/tower.js): the floor the server read for this start point (hunt_live.instance.tower_floor, the
        edge's ctx.towerFloor), and the ground's own session mode (hunt-grounds.js `mode`, the same row the server froze the instance's
        from), so the prediction plays the climb the settle will. A climb with no floor is a start point this build can't read. */
@@ -219,9 +218,11 @@ export function createLiveEngine(o) {
     try {
       if (towerOf(where.ground) && towerFloor === null) throw new Error('tower_floor');
       world = text ? decodeWorldRow(JSON.parse(text)) : null;
+      /* the catalogue as this fight reads it (combat-sim.js fightItems: on the Danger scale every piece at the ground's base), the server's own */
+      fight = fightItems(items, where.ground, live.members, scaleOf(live));
       sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
         .map((mi) => (mi.frozen ? frozenSide(mi)
-          : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items: scaleItems(items, where.ground) })));
+          : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items: fight })));
     } catch (e) { return fail('a start point this build cannot read: ' + reasonOf(e)); }
     const unknown = unknownKinds(world, monsters);
     if (unknown.length) return fail('unknown monster ' + unknown.join(', ').slice(0, 120));
@@ -230,7 +231,7 @@ export function createLiveEngine(o) {
     const s = {
       towerFloor, sessionMode: typeof where.ground.mode === 'string' ? where.ground.mode : undefined,
       instance: String(live.instance.id),
-      world, next: Number(live.instance.next_swing_at_ms), where, sides,
+      world, next: Number(live.instance.next_swing_at_ms), where, sides, items: fight,
       /* A restarted instance's fresh world counts on from its stored swing (combat-sim.js worldSwing):
          the server passes it, so must the browser, or its first swing asks for a seed index never sent. */
       worldSwing: Math.max(0, Math.floor(Number(live.instance.world_swing) || 0)),
@@ -270,7 +271,7 @@ export function createLiveEngine(o) {
     for (const u of (s.world ? s.world.units : [])) speeds.set(u.id, u.speed);
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
-    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items: scaleItems(items, s.where.ground), ...(s.scale ? { scale: s.scale } : {}),
+    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items: s.items, ...(s.scale ? { scale: s.scale } : {}),
       ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}), ...(s.sessionMode ? { sessionMode: s.sessionMode } : {}),
       ...(s.towerFloor !== null ? { towerFloor: s.towerFloor } : {}) });
     /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):
@@ -434,7 +435,7 @@ export function createLiveEngine(o) {
     /** The engine's test of a bar slot for hero `unit`, in the world this prediction runs (slotTesterOf). Null when none runs. */
     slotTester(unit) {
       const side = st && st.world && !st.ended ? st.sides.find((x) => x.member.unitId === unit) : null;
-      return side ? slotTesterOf(st.world, st.where.grid, side.member, scaleItems(items, st.where.ground), st.next) : null;
+      return side ? slotTesterOf(st.world, st.where.grid, side.member, st.items, st.next) : null;
     },
     /**
      * THE CLIMB in the world this prediction runs (the Burning Tower): { floor (the room standing, or about to), endsAtMs (the instant its

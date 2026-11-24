@@ -7,7 +7,8 @@
 // retired with that reason and V4 takes its place, on the real engine, on every scale ground (src/data/danger.js DANGER_GROUNDS):
 //   V4-1  a four of ONE style (hammer x4, bow x4, mage x4, healer x4) earns less Level XP a head an hour than the mixed four (hammer, bow,
 //         mage, healer), each a Steady four from its held start (refStep - startMargin) at the ground's reference Level
-//         (tests/level-curve.mjs REF_LEVEL), MID kits, 3 seeds x 2 h (tools/balance-program/redesign/held-four.mjs)
+//         (tests/level-curve.mjs REF_LEVEL), MID kits, 3 seeds x 2 h (tools/balance-program/redesign/held-four.mjs), on every scale
+//         ground but at most one, and there by at most V4_ANSWER_MAX (restated 2026-11-23, below)
 //   V4-2  no lineup of LINEUPS is the best on every scale ground. Judged since R10 opened more scale grounds (lane/r10-more-grounds);
 //         with one ground it is printed as not judged, and the rule itself is proven on planted grounds in --mutate.
 // Measured 2026-11-22 on muster_barrows, Level 60, 3 seeds x 2 h: mixed 0.88x the hours table; healer x4 0.58x, mage x4 0.43x,
@@ -24,8 +25,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { playCells } from '../tools/balance-program/redesign/held-four.mjs';
-import { REF_LEVEL } from './level-curve.mjs';
+import { refLevelOf } from './level-curve.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const MIXED = ['hammer', 'bow', 'mage', 'healer'];
@@ -38,18 +40,29 @@ export const LINEUPS = {
   two_mages: ['hammer', 'mage', 'mage', 'healer'],
 };
 const SEEDS = 3, HOURS = 2;
+/* V4-1's one ground (the designer, lane/designer-reads-1123 2026-11-23, 29-tuning-pass.md 7.3): a four of one style that wins ONE scale
+   ground is that ground's answer, a theorycrafted build Tyler's rulings never squeeze (the healer four on the Bone Wing, 1.105: it holds
+   the band's top with no death). It may win there by at most this much. Winning a second ground, or one by more, is a monoculture */
+export const V4_ANSWER_MAX = 1.15;
 
 /** Every failed claim. w = { grounds: [id], mixed: {g: xp}, mono: {g: {style: xp}}, lineups: {g: {id: xp}} | null }. Pure. */
 export function judge(w) {
   const out = [];
+  const wins = [];
   for (const g of w.grounds) {
     const mx = w.mixed[g];
     if (!Number.isFinite(mx)) { out.push(`V4-1: ${g}: the mixed four was not measured`); continue; }
     for (const s of STYLES) {
       const x = w.mono[g] && w.mono[g][s];
       if (!Number.isFinite(x)) { out.push(`V4-1: ${g}: the four of ${s} was not measured`); continue; }
-      if (!(x < mx)) out.push(`V4-1: ${g}: four of ${s} earns ${Math.round(x)} Level XP a head an hour, the mixed four ${Math.round(mx)}: one style must lose`);
+      if (!(x < mx)) wins.push({ g, s, x, mx });
     }
+  }
+  /* one ground may have its one-style answer, inside V4_ANSWER_MAX; a second ground, or a wider win, is red (every win is named) */
+  const winGrounds = new Set(wins.map((v) => v.g));
+  for (const v of wins) {
+    const why = winGrounds.size > 1 ? `one-style fours win ${winGrounds.size} grounds (at most one)` : `over ${V4_ANSWER_MAX}x on its one ground`;
+    if (winGrounds.size > 1 || !(v.x <= v.mx * V4_ANSWER_MAX)) out.push(`V4-1: ${v.g}: four of ${v.s} earns ${Math.round(v.x)} Level XP a head an hour, the mixed four ${Math.round(v.mx)}: ${why}`);
   }
   if (w.grounds.length >= 2) {
     const tops = w.grounds.map((g) => {
@@ -67,11 +80,15 @@ async function measure({ monoLevelUp = 0 } = {}) {
   const grounds = Object.keys(DANGER_GROUNDS);
   const cells = [];
   for (const g of grounds) {
-    const L = REF_LEVEL[g];
+    const L = refLevelOf(g);
     if (!Number.isInteger(L)) throw new Error(`lineup-v4: scale ground ${g} has no reference Level (tests/level-curve.mjs REF_LEVEL)`);
-    cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS });
-    for (const s of STYLES) cells.push({ id: `${g}:mono:${s}`, ground: g, L: L + monoLevelUp, styles: [s, s, s, s], risk: 'steady', hours: HOURS, seeds: SEEDS });
-    if (grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS });
+    /* A GROUND WHOSE HUNT ENDS AT A LEVEL (hunt-grounds.js endsAtLevel: the Mill Cellar's at 5) holds every four at its Level (held-four.mjs
+       holdLevel, as tests/level-curve.mjs C7 does): a Level 3 four is outgrown inside the window, so every four would read the same XP, the
+       XP to the exit over two hours (4,574 a head an hour, mixed and mage alike), and V4 would judge the exit, not the lineup */
+    const hold = Number.isInteger(HUNT_GROUNDS[g] && HUNT_GROUNDS[g].endsAtLevel) ? { holdLevel: true } : {};
+    cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
+    for (const s of STYLES) cells.push({ id: `${g}:mono:${s}`, ground: g, L: L + monoLevelUp, styles: [s, s, s, s], risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
+    if (grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
   }
   const r = await playCells(ROOT, cells);
   const w = { grounds, mixed: {}, mono: {}, lineups: grounds.length >= 2 ? {} : null };
@@ -87,11 +104,18 @@ async function mutate() {
   const w = await measure();
   if (judge(w).length) { console.error('lineup-v4 --mutate: the shipped game already fails (run the guard)'); process.exit(1); }
   const g = w.grounds[0];
-  const two = (topA, topB) => ({ grounds: ['g1', 'g2'], mixed: { g1: 10, g2: 10 }, mono: { g1: { hammer: 1, bow: 1, mage: 1, healer: 1 }, g2: { hammer: 1, bow: 1, mage: 1, healer: 1 } },
+  /* the grounds where a one-style four already wins (at most one on the shipped game) are left as measured; plants go on the others */
+  const clean = w.grounds.filter((x) => STYLES.every((s) => w.mono[x][s] < w.mixed[x]));
+  const [c1, c2] = clean;
+  const monoAt = (gg, s, k) => ({ ...w, mono: { ...w.mono, [gg]: { ...w.mono[gg], [s]: w.mixed[gg] * k } } });
+  const both = (s, k) => { const a = monoAt(c1, s, k); return { ...a, mono: { ...a.mono, [c2]: { ...a.mono[c2], [s]: w.mixed[c2] * k } } }; };
+  const two =(topA, topB) => ({ grounds: ['g1', 'g2'], mixed: { g1: 10, g2: 10 }, mono: { g1: { hammer: 1, bow: 1, mage: 1, healer: 1 }, g2: { hammer: 1, bow: 1, mage: 1, healer: 1 } },
     lineups: { g1: { one_each: 5, two_hammers: 5, two_bows: 5, two_mages: 5, [topA]: 9 }, g2: { one_each: 5, two_hammers: 5, two_bows: 5, two_mages: 5, [topB]: 9 } } });
   const cases = [
-    ['V4-1 a four of healers ties the mixed four', { ...w, mono: { ...w.mono, [g]: { ...w.mono[g], healer: w.mixed[g] } } }, true],
-    ['V4-1 a four of mages beats the mixed four', { ...w, mono: { ...w.mono, [g]: { ...w.mono[g], mage: w.mixed[g] * 1.1 } } }, true],
+    ['V4-1 a four of healers ties the mixed four on two grounds', both('healer', 1), true],
+    ['V4-1 a four of mages beats the mixed four by 20% on one ground', monoAt(c1, 'mage', 1.2), true],
+    ['V4-1 a one-style answer on a second ground beside the shipped one', clean.length < w.grounds.length ? monoAt(c1, 'bow', 1.05) : both('bow', 1.05), true],
+    ['control: a four of mages beats the mixed four by 10% on one ground', clean.length === w.grounds.length ? monoAt(c1, 'mage', 1.1) : w, false],
     ['V4-1 one style never measured', { ...w, mono: { ...w.mono, [g]: { ...w.mono[g], bow: undefined } } }, true],
     ['V4-1 the mixed four never measured', { ...w, mixed: { ...w.mixed, [g]: undefined } }, true],
     ['V4-2 one lineup tops both of two grounds', two('two_mages', 'two_mages'), true],

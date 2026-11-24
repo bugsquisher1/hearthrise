@@ -159,6 +159,11 @@ const SEED = '-4611686018427387904';
    reference hero's worn accuracy at Level 15 to 40 is re-read off the kits), so glade-4 moves from settle 5 (kills 492 -> 489) and glade-1-kite
    from settle 6 (kills held, 140). warrens-4, sewer-2 and muster-steps-4 hold to the byte (200 / 99 / 170). Proof: on the tree before the
    regeneration with only the regenerated src/data/monsters.js laid in (to-hit.js and the packs as they were), all five hold this pin.
+   RE-PINNED 2026-11-23 (lane/scale-early-grounds, merged onto set/v0.2.144 41fa973cf), muster-steps-4's TALLY ONLY: its world and timeline
+   hold at every settle on the set's pin, and so do its kills (170) and the four tier scenarios, to the byte. Cause: what a kill PAYS. The pay's
+   reference is where the reference company holds (DANGER_GROUNDS refStep): Muster's is 610 now, its monsters' anchor 590 named apart
+   (formulaStep), so a kill's Level XP and coin read 20 steps less of depth, and Muster carries its own coin level (coinPm 7000, measured: the
+   reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json).
    RE-PINNED 2026-11-23 (lane/skills-time-parity, 27 P-3 stage 7), THE SKILL CURVE AND ITS LINE: the four tier scenarios' run totals (tally) moved,
    world and timeline held at every settle, kills as pinned (200 / 492 / 140 / 99): the combat skills now cost a set ratio of the Level clock
    (src/core/xp.js over src/data/core-model.js SKILL_CURVE), so a member's skill XP crosses other levels than on the old geometric curve, and the
@@ -173,7 +178,8 @@ const SEED = '-4611686018427387904';
    world, timeline and tally of the four tier scenarios held and only their run totals moved (kills 200 / 489 / 140 / 99 held); muster-steps-4
    moved from settle 1, kills held (170). Proof: the set's 13 src files this lane changes (src/core xp, bands, hunt/amount, hunt/abilities;
    src/data core-model, bands, abilities, items, monsters, runes, slot-ladders, stonecraft, supply-basics) laid back over a copy of the merged
-   tree: every one of the set's pins holds (exit 0). */
+   tree: every one of the set's pins holds (exit 0). Re-pinned again on the merge with set/v0.2.144 at 1f3fa9fe6 (scale-early-grounds' pay reference above,
+   designer reads' Bold): the same shape and cause, the same 13 files laid back over a copy of that merged tree hold every one of its pins. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

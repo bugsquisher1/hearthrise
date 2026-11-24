@@ -232,9 +232,14 @@ export async function loadPlay(root) {
           /* a training item's hours, spent as the server spends them (the window's claim, journal meta.boost_ms) */
           ...(m.huntSession.trainBoostMs ? { trainBoostMs: Math.max(0, m.huntSession.trainBoostMs - (p.delta.journal.meta.boost_ms || 0)) } : {}) });
         m.unitId = h.unit_id; m.hp = p.delta.hp; m.gold += p.delta.gold || 0;
-        for (const [k, v] of Object.entries(p.delta.xp || {})) m.skills = { ...m.skills, [k]: (m.skills[k] || 0) + v };
-        if (m.xpFrac && p.delta.xp_frac) m.xpFrac = { ...m.xpFrac, ...p.delta.xp_frac };
-        m.levelXp += p.delta.level_xp || 0;
+        /* opts.holdLevel (lane/scale-early-grounds): the company stays at the Level and skills it started at, every window paid as the
+           settle pays it but never carried (a Danger band's three companies are each AT a Level; a Level 1 to 15 company grows several
+           Levels in a measuring day, and a Mill Cellar hero is outgrown at 5 within the hour). Off by default */
+        if (opts.holdLevel !== true) {
+          for (const [k, v] of Object.entries(p.delta.xp || {})) m.skills = { ...m.skills, [k]: (m.skills[k] || 0) + v };
+          if (m.xpFrac && p.delta.xp_frac) m.xpFrac = { ...m.xpFrac, ...p.delta.xp_frac };
+          m.levelXp += p.delta.level_xp || 0;
+        }
         if (h.ended) m.ended = h.ended;
       }
       if (members.every((m) => m.ended)) break;

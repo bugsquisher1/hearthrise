@@ -67,7 +67,9 @@ export async function playCells(root, cells, { workers = Math.max(1, Math.min(8,
   for (const c of cells) {
     const start = Number.isInteger(c.start) ? c.start : await heldStart(root, c.ground);
     const b = buildCell(D, K, { L: c.L, gear: c.gear || 'mid', styles: c.styles, tier: 'normal', ground: c.ground });
-    const cell = { ...b.cell, options: { risk: c.risk, danger: start }, hours: c.hours, seeds: 1 };
+    /* c.holdLevel (lane/scale-early-grounds): the four stays at Level L all the cell (tools/balance-sim/cell.mjs holdLevel), so its pay is read
+       against Level L's table exactly; a Level 3 four on the Mill Cellar would otherwise be outgrown within the hour */
+    const cell = { ...b.cell, options: { risk: c.risk, danger: start }, hours: c.hours, seeds: 1, ...(c.holdLevel ? { holdLevel: true } : {}) };
     for (let s = 0; s < c.seeds; s++) jobs.push({ key: `${c.id}#${s}`, job: { ...cell, id: `HELD:${c.id}#${s}`, seedBase: 1000 + s } });
   }
   const { out, errors } = await pool(root, jobs, workers);

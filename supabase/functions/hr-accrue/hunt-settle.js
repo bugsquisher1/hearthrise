@@ -59,10 +59,9 @@ import { MONSTERS } from '../../../src/data/monsters.js';
 import { wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 import { charLevelFromXp } from '../../../src/core/xp.js';
-import { huntPlayOf } from '../../../src/core/combat-sim.js';
+import { huntPlayOf, fightItems } from '../../../src/core/combat-sim.js';
 import { COMBAT_BALANCE } from '../../../src/core/combat.js';
 import { memberSide, frozenOf, frozenKey } from '../../../src/core/member.js';
-import { scaleItems } from '../../../src/core/gear-stats.js';
 import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
 import { seederFor } from './hunt-seed.js';
 import { trainingStopMs } from '../../../src/core/hunt/training.js';
@@ -121,8 +120,9 @@ export function liveSeeds(inst, from) {
   return { domain: 's', from, list };
 }
 /* WHAT A START POINT READ NOW FREEZES of `inst`: its world (null when the next settle restarts it), its scale and the frozen row
-   of any member (member.js frozenOf) at the instance's next boundary. ONE home for huntLive's peers and huntPeerKeys. */
-function frozenAt(inst) {
+   of any member (member.js frozenOf) at the instance's next boundary. ONE home for huntLive's peers and huntPeerKeys. `members`: the
+   instance's, whose plan says whether the fight plays the Danger scale (combat-sim.js fightItems). */
+function frozenAt(inst, members) {
   /* A SCALED HUNT (scalePlanOf): the Level the next settle plays, and a world it restarts is no start point (the browser starts fresh, as the server will). */
   const play = inst.play || { level: null, restart: false };
   const world = typeof inst.world === 'string' && !play.restart ? inst.world : null;
@@ -135,13 +135,13 @@ function frozenAt(inst) {
   const atMs = Number(inst.next_swing_at_ms);
   /* the kinds, read once and only for a frozen row (a lone viewer's start point parses no world for them) */
   let kinds = null;
-  /* the catalogue as the instance's ground fights it (src/core/gear-stats.js scaleItems: a Danger-scale ground sizes every piece at its base) */
-  const items = scaleItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground);
+  /* the catalogue as the instance's fight reads it (combat-sim.js fightItems: on the Danger scale every piece sized at the ground's base) */
+  const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members, play.level === null ? null : { level: play.level });
   return { play, world, tower, row: (m) => frozenOf(memberSide(m, { items }), kinds || (kinds = kindsOf(inst, world, tower)), atMs, rows) };
 }
 export function huntLive(inst, members, user, slot) {
   const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
-  const { play, world, tower, row } = frozenAt(inst);
+  const { play, world, tower, row } = frozenAt(inst, members);
   return {
     v: 1,
     instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
@@ -171,7 +171,7 @@ export function huntLive(inst, members, user, slot) {
    names the keys at its window's start; a prediction running another row restarts (live-engine.js peersStale). Read BEFORE the
    window runs: exactly the start point that instant hands out, never the engine's copy of a member after it ran. */
 export function huntPeerKeys(inst, members) {
-  const { row } = frozenAt(inst);
+  const { row } = frozenAt(inst, members);
   return Object.fromEntries(members.map((m) => [String(m.key), frozenKey(row(m))]));
 }
 

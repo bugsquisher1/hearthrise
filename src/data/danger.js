@@ -161,9 +161,13 @@ export const DANGER_GROUNDS = Object.freeze({
      entryLevel, its hunt's top Level and its gearLevel (a fresh company one tier back at the entry, the reference company at refLevel, a
      strong company one tier ahead at the top, each a rating in Levels); floorStep, refStep and topStep are the BRIDGE, the own step each of
      those companies holds on this ground's rows, measured by tools/new-ground.mjs. "Depth N" is cut evenly in absolute steps through them.
-     refHeld (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): the own step the reference company HOLDS, the bridge's middle point
-     (src/core/bands.js refHeldOf). Only a formula ground carries it (tools/new-ground.mjs --write): its refStep anchors the monsters and
-     the pay, so it is chosen, and the four holds over it. Pay, the top and the monsters read refStep; a rows ground's refStep is its hold.
+     refHeld (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): the own step the reference company HOLDS at the band's grain
+     (BAND_RULE.topTo), the bridge's middle point (src/core/bands.js refHeldOf), pinned by tools/new-ground.mjs --write only where it is not
+     refStep. refStep is THE PAY'S REFERENCE, where the reference company holds (the pay's grain, refTo): its kills a head and its coin level
+     were measured there, so a kill there pays the hours table and the wage (src/core/hunt/danger.js refOf and gapOf, the store's depth
+     src/core/wage.js depthStep and the server's hr_danger_grounds.ref_step). A formula ground's monsters may stand elsewhere (formulaStep).
+     coinPm (lane/scale-early-grounds; src/core/hunt/danger.js coinLevelOf): the ground's own coin level, measured by tools/new-ground.mjs when
+     the reference hour (coin and loot at the store's price) sits outside EL-PAY's 0.95 to 1.05 of the wage at refLevel; absent, PAY.coinPm.
      monsters (lane/monster-formula; 04-math-strategy.md section 6): the ground's ONE DATA SWITCH for its monsters: 'rows' (today's hand-typed stats, grown by the step) or 'formula' (each monster's role and
      the step: src/core/hunt/monster-formula.js derives its health, blows and wind-ups from src/data/monster-roles.js against the reference
      company at refLevel on refStep, and the pull is sized to the party). A switch flipped moves the ground's band: re-measure it
@@ -203,11 +207,12 @@ export const DANGER_GROUNDS = Object.freeze({
        formulaStep    WHERE THE FORMULA'S REFERENCE MONSTERS STAND (src/core/hunt/danger.js formulaStepOf; absent: refStep). refStep is the
                       pay's reference, where the MEASURED reference company holds; the two part where that company is not the formula's.
                       The wings' Level 175 company holds 60 to 80 steps under the anchor its monsters were measured at (520, 500), so held at
-                      one step every stance paid under PAY.floor there and Careful out-earned Steady. Muster's refStep is its anchor by hand
-                      (tests/danger-band-pins.json says why), the Ford's measured company holds on its anchor. Three readers, two
-                      overrides (tools/lib/danger-band.mjs): the pay reads refStep, the monsters formulaStep ?? refStep, the depth reading
-                      refHeld ?? refStep. Muster's pay stays on its anchor and its four holds 20 over (refHeld); the wings' pay cannot sit
-                      on theirs (formulaStep), and the Flooded Wing's reading needs the hold at the band's grain too (refHeld 455)
+                      one step every stance paid under PAY.floor there and Careful out-earned Steady. Muster's anchor is chosen by hand
+                      (590, the tuning pass's, 29-tuning-pass.md) and its four holds 20 over it, the Thicket's and the Mill Cellar's are
+                      chosen too (70: a first hunt opens at step 0, the floor) and their fours hold 40 over and 10 under (lane/scale-early-
+                      grounds: the pay reads the hold, as on the wings). The Ford's measured company holds on its anchor. Three readers,
+                      two overrides (tools/lib/danger-band.mjs): the pay reads refStep, the monsters formulaStep ?? refStep, the depth
+                      reading refHeld ?? refStep. The Flooded Wing's reading needs the hold at the band's grain too (refHeld 455)
        rowsKillsHead  THE KILL RATE A GROUND'S ROWS WERE WRITTEN AT, their coin and their drop chances (danger.js rowsKeptOf): the Ford's,
                       on its hand rows, 235 a head an hour; on the formula it kills 135, and its hour's coin fell to 0.43 of the wage
                       (EL-PAY). On the scale each kill pays that ratio more of both, so the hour stands where its rows put it. The rows
@@ -215,11 +220,19 @@ export const DANGER_GROUNDS = Object.freeze({
                       lone tier hero at the floor a Scarce piece every 0.53 h, and a Bannerman's shield past the band's odds
                       (hunt-core/drop-tables). Coin written in hours (27 stage 9) retires it
      THE FLOOR ON THE ARRIVING COMPANY (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): one tier back (the Ford's mithril kit at
-     Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). refHeld 610 (the MID four held 608.9).
-     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold */
-  muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
-  hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
+     Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). The hold 610 (the MID four held 608.9), refStep since lane/scale-early-grounds.
+     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold
+     coinPm 7000 (lane/scale-early-grounds): the pay reads the hold (refStep 610; the anchor is formulaStep 590), 20 steps over the anchor it read, so the reference hour's coin fell
+     14%; its own coin level puts it back on the wage, 1.01 of wage(60) (8 seeds x 10 h, grounds/muster_barrows-ref.json). Level XP at the
+     hold: 0.88 of the hours table (tests/level-curve.mjs C7, Level held; was 1.06 read at the anchor) */
+  muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
   catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
+     in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
+     coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. */
+  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 
@@ -246,10 +259,12 @@ export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, 
  * (src/core/hunt/danger.js itemLevelOf; a piece with none still reads its reqLv). Two kinds of ground:
  *   ladderTier   the gear-tiers.js ladder tier its monsters drop (`ladder` is that ladder's rows: GEAR_ITEMS, SLOT_ITEMS, SHIELD_ITEMS)
  *   named        'catacomb': the 24 named pieces of catacomb-armor.js (`named`: the item rows carrying `catacombTier`), its own drop rows
+ * and beside either, `pieces` (lane/scale-early-grounds): the ground's own one-off pieces off the ladder (a den mother's trophy cape), which
+ * drop at its base like everything else it drops (`items` resolves them; a piece that is no gear item throws).
  * Two grounds that would give one piece two item Levels throw: one base, one number. tests/hunt-core/danger.mjs holds every gear drop of
  * every scale ground to its ground's gearLevel.
  */
-export function scaleItemLevels(ladder, named) {
+export function scaleItemLevels(ladder, named, items) {
   const out = {};
   const put = (id, iL, g) => {
     if (out[id] !== undefined && out[id] !== iL) throw new Error('src/data/danger.js: ' + id + ' drops at item Level ' + out[id] + ' and ' + iL + ' (' + g + ')');
@@ -258,6 +273,10 @@ export function scaleItemLevels(ladder, named) {
   for (const [g, row] of Object.entries(DANGER_GROUNDS)) {
     if (Number.isInteger(row.ladderTier)) for (const [id, it] of Object.entries(ladder || {})) if (it && it.slot && it.tier === row.ladderTier && it.type !== 'ammo') put(id, row.gearLevel, g);
     if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);
+    for (const id of row.pieces || []) {
+      if (!items || !items[id] || !items[id].slot) throw new Error('src/data/danger.js: ' + g + ' names the piece ' + id + ', which is no gear item');
+      put(id, row.gearLevel, g);
+    }
   }
   return out;
 }
@@ -271,8 +290,14 @@ export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, de
 export const RISKS = Object.freeze({
   careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),
   steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),
-  bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),
+  bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),
 });
+/* BOLD FIGHTS EVERY PULL TO THE END (`breakOff: false`; the designer, lane/designer-reads-1123, 2026-11-23, 29-tuning-pass.md section 7.2).
+   Careful and Steady break a pull off the moment a hero is under their line (src/core/hunt/danger.js breaksOff), so they fall back before
+   a death (RD-Q3 a). Bold does not: it finishes the pull it started, and reads its line only when the pull ends (pullEnds). So Bold's risk
+   is the party's, not the size of one monster's blow, and it is real on every ground. MEASURED (v1-climb, the Steady mixed four's company
+   on Bold, 8 seeds x 10 h, tools/balance-program/redesign/reads): deaths a party-day Hask's Ford 0 -> 0.38, Muster Barrows 0.25 -> 1.0,
+   the Bone Wing 0 -> 1.0, all inside C-4's 0.3 to 1.5. A missing field breaks off (the safe default). */
 /* Bold's fall line 120 -> 80 (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md, C-4: Bold dies 0.3 to 1.5 times a party-day and loses the day to
    Steady). On Muster Barrows' formula monsters Bold at 120 died 0 to 0.17 times a day, so it won every day; at 80 0.25 (Muster) and 1.0 (Hask's
    Ford), at 60 0.88 on Muster (8 seeds x 10 h each, tools/balance-program/redesign/tuning/r2). The thresholds move, not a pay factor (27 section 4) */

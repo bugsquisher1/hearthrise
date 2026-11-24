@@ -1,0 +1,28 @@
+
+V1 on mill_cellar (4 seeds x 4 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       108.4 +- 4.8     -0.7  91.3   100    5.6    0.3     0.6     75.6      0     0  0 (0/0/0)                       3  {"hold":1041,"climb":162,"fall":3}
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        1.53x  sd 0.04  n 4  window 3 h  seeds 1.49 1.52 1.53 1.57
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L4  coin 19242 +- 375  income 19796 +- 386  store 5026  kit share 0.25 (meal 60, drink 3095, charge 1010, shot 861)  loot by band: common 517, uncommon 16, scarce 21, other 0  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.93  bow 0.065  mage 0  healer 0.005
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 5.67 land 58.15% hit 7.63 (6294.75/h) | bow dps 4.71 land 60.03% hit 3.82 (872.75/h) | mage dps 6.21 land 100% hit 31 (0/h) | healer dps 2.66 land 100% hit 25.69 (10.75/h)
+                    rat(swarm) 412/h 22.8 s 82 | slime(brute) 110.6/h 30.8 s 134 | hive_wasp(stalker) 75/h 40.4 s 40
+                    broke off by: fall:slime@0 2, fall:rat@0 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 0.9 (depth 17)  free 105  spell 838  food 57  taken 18.62 pm/s
+
+wall 20 s

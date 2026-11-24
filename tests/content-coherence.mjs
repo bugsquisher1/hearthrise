@@ -16,7 +16,8 @@
 //         named), a Trait pool that holds only Traits whose home is that ground, and a refKillsHead, when it has one, over
 //         PAY.refKillsHead. A FAIR POOL (24-content-pipeline.md G4, lane/band-floor): the Traits that can roll there (their slot is one
 //         the ground drops, CC-8) serve at least GEAR_STEPS.traitRoll.seatsMin seats. Red whether live or not: a scale ground is put on
-//         the scale with its pool, never before
+//         the scale with its pool, never before. A ground whose entry Level rolls no rank (gear-steps.js maxRankAt, under 40: the Mill
+//         Cellar to the Warrens) holds an empty pool instead (lane/scale-early-grounds)
 //   CC-2  every scale ground's band is the one tools/new-ground.mjs measured and pinned (tests/danger-band-pins.json): the same
 //         numbers (or the pin says why it was set by hand), measured on the same rows (the print of its pockets and monster rows). A
 //         band is a measurement of the ground's own rows: a re-fit monster silently moves the band. A pin with no row is stale
@@ -114,6 +115,9 @@ export function problems(d) {
     const homes = (Number.isInteger(row.ladderTier) ? 1 : 0) + (row.named ? 1 : 0);
     if (homes !== 1) reds.push(at + (homes ? 'two drop homes (ladderTier and named)' : 'no drop home (ladderTier or named)'));
     if (!Array.isArray(row.traits)) reds.push(at + 'no Trait pool');
+    /* A GROUND THAT ROLLS NO RANK (lane/scale-early-grounds; gear-steps.js maxRankAt: rank 1 rolls from entry Level 40, 19-power-ledger
+       section 2): no Trait can roll there, so its pool is empty, and the fair pool asks nothing of it (the Mill Cellar to the Warrens) */
+    else if (row.maxRank === 0) { if (row.traits.length) reds.push(at + 'a Trait pool (' + row.traits.join(', ') + ') on a ground whose entry Level ' + row.entryLevel + ' rolls no rank'); }
     else {
       const rollable = row.traits.filter((id) => d.traits[id] && ((d.dropSlots[g] || []).includes(d.traits[id].slot) || (d.made.slots.includes(d.traits[id].slot) && d.made.parts[g] === true)));
       const seats = new Set(rollable.map((id) => d.traits[id].best && d.traits[id].best.seat));
@@ -205,6 +209,8 @@ export const MUTANTS = [
   ['CC-1 an empty pool', (d) => { d.danger[first(d)].traits = []; }],
   ['CC-1 a pool only on slots the ground never drops', (d) => { d.dropSlots.hasks_ford = ['cape']; }],
   ['CC-1 a pool of one seat', (d) => { for (const id of d.danger.hasks_ford.traits) d.traits[id].best.seat = 'tank'; }],
+  /* lane/scale-early-grounds: a ground under rank 1's entry Level holds no pool */
+  ['CC-1 a pool on a ground that rolls no rank', (d) => { const g = Object.keys(d.danger).find((k) => d.danger[k].maxRank === 0); d.danger[g].traits = [...d.danger.hasks_ford.traits]; for (const id of d.danger[g].traits) d.traits[id].source = g; }],
   ['CC-1 a pool Trait from another ground', (d) => { const g = first(d), other = Object.keys(d.traits).find((id) => d.traits[id].source !== g); d.danger[g].traits.push(other); }],
   ['CC-1 no entry Level', (d) => { delete d.danger[first(d)].entryLevel; }],
   ['CC-1 refKillsHead under the ceiling', (d) => { d.danger[first(d)].refKillsHead = d.pay.refKillsHead - 1; }],

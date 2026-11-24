@@ -8,6 +8,9 @@
 //                                04 section 1's rating: L + wGear x (gear - L) + wSkill x (skillLevel - L), thousandths, rounded once
 //   bandAbs(groundId)            { floorPm, refPm, topPm }: the band's three companies as ratings (null off the scale, or a ground whose
 //                                hunt has no Level band)
+//   companyKits(row, top)        the item Level each company wears (fresh, strong; own: a band inside its own gear tier, 29 section 7.5)
+//   insideOneTier(groundId)      a ground whose Levels all sit inside its own gear tier: its companies wear its own kit
+//   (the band's top Level is its hunt's top, or the last Level its hunt still plays on an endsAtLevel ground: topLevelOf)
 //   refHeldOf(groundId)          the own step the reference company HOLDS on the ground: the bridge's middle point (null off the scale)
 //   absPmOf(groundId, step)      the absolute step (thousandths) of a ground's OWN step: straight between the bridge's three measured
 //                                points (floorStep, refHeldOf, topStep at the band's three ratings), the end segments' slopes past them
@@ -21,6 +24,7 @@ import { DANGER_GROUNDS, DEPTHS, POWER, GEAR_STEPS } from '../data/danger.js';
 import { BAND_ABS } from '../data/bands.js';
 import { SKILL_CURVE, COMBAT_XP_SKILLS, levelHoursOf } from '../data/core-model.js';
 import { HUNT_INDEX } from '../data/hunts.js';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js';
 
 const own = (o, k) => typeof k === 'string' && !!o && Object.prototype.hasOwnProperty.call(o, k);
 const rowOf = (groundId) => (own(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[groundId] : null);
@@ -58,18 +62,50 @@ export function ratingPm({ levelPm, gearPm = levelPm, skillLevelPm: sk = levelPm
   return levelPm + div(gGap * wG + sGap * POWER.weightSkillPm, 1000);
 }
 
-/** The band's three companies as absolute steps (thousandths): { floorPm, refPm, topPm }. Null off the scale or with no Level band. */
-export function bandAbs(groundId) {
-  const g = rowOf(groundId), h = HUNT_INDEX && HUNT_INDEX[groundId];
+/** THE BAND'S TOP LEVEL (lane/scale-early-grounds): its hunt's top, or, on a ground whose hunt ends at a Level (hunt-grounds.js endsAtLevel:
+    the Mill Cellar's ends at 5), the last Level that hunt still plays, the band the Hunts window reads too (src/shell/hunt-list.js). Null with
+    no Level band. */
+function topLevelOf(groundId) {
+  const h = HUNT_INDEX && HUNT_INDEX[groundId], gr = own(HUNT_GROUNDS, groundId) ? HUNT_GROUNDS[groundId] : null;
   const top = h && Array.isArray(h.band) ? h.band[1] : null;
-  if (!g || !Number.isInteger(g.entryLevel) || !Number.isInteger(g.refLevel) || !Number.isInteger(top) || !Number.isInteger(g.gearLevel)) return null;
+  if (!Number.isInteger(top)) return null;
+  return gr && Number.isInteger(gr.endsAtLevel) ? Math.min(top, gr.endsAtLevel - 1) : top;
+}
+
+/** The highest base item Level a hero of Level `L` can wear (src/data/gear-steps.js: a piece is worn from its item Level less wearAhead),
+    on the tier grid. */
+const wearableTierLevel = (L) => Math.floor((L + GEAR_STEPS.wearAhead) / GEAR_STEPS.tierSteps) * GEAR_STEPS.tierSteps;
+
+/** THE KIT EACH COMPANY OF A BAND WEARS, as item Levels, from a DANGER_GROUNDS-shaped row `g` ({ entryLevel, gearLevel }) and the band's
+    top Level: { own, fresh, strong }. The fresh company wears BAND_ABS.freshTiersBack tiers under the base, the strong one the tier ahead
+    only when its top Level can wear it (src/data/bands.js: "worn from its item Level less wearAhead"), else the highest tier it can.
+    A GROUND INSIDE ONE GEAR TIER (`own`; designer, 29-tuning-pass.md section 7.5, 2026-11-23): every Level of its band, entry to top, sits
+    inside its own base tier's Levels (gearLevel to gearLevel + tierSteps), so "one tier back" or "ahead" means nothing there (tier 0 is the
+    starting kit): both companies wear the ground's own tier (tools/new-ground.mjs caps its cells' kits the same way). The Mill Cellar
+    (1 to 4) and the Thicket (5 to 15) on tier 0. Pure: the rule on any row, so a guard can read it on rows no ground carries yet. */
+export function companyKits(g, top) {
   const T = GEAR_STEPS.tierSteps;
+  const own = g.entryLevel >= g.gearLevel && top < g.gearLevel + T;
+  return { own,
+    fresh: own ? g.gearLevel : Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack),
+    strong: own ? g.gearLevel : Math.max(g.gearLevel, Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))) };
+}
+
+/** True for a scale ground inside one gear tier (companyKits `own`); false off the scale or with no Level band. */
+export function insideOneTier(groundId) {
+  const g = rowOf(groundId), top = topLevelOf(groundId);
+  if (!g || !Number.isInteger(g.entryLevel) || !Number.isInteger(top) || !Number.isInteger(g.gearLevel)) return false;
+  return companyKits(g, top).own;
+}
+
+/** The band's three companies as absolute steps (thousandths): { floorPm, refPm, topPm }, each at its kit (companyKits). Null off the scale
+    or with no Level band. */
+export function bandAbs(groundId) {
+  const g = rowOf(groundId), top = topLevelOf(groundId);
+  if (!g || !Number.isInteger(g.entryLevel) || !Number.isInteger(g.refLevel) || !Number.isInteger(top) || !Number.isInteger(g.gearLevel)) return null;
+  const kits = companyKits(g, top);
   const at = (L, gear) => ratingPm({ levelPm: 1000 * L, gearPm: 1000 * gear });
-  return {
-    floorPm: at(g.entryLevel, Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack)),
-    refPm: at(g.refLevel, g.gearLevel),
-    topPm: at(top, g.gearLevel + T * BAND_ABS.topTiersAhead),
-  };
+  return { floorPm: at(g.entryLevel, kits.fresh), refPm: at(g.refLevel, g.gearLevel), topPm: at(top, kits.strong) };
 }
 
 /** The own step the reference company HOLDS on `groundId`, the bridge's middle point: the row's `refHeld` (a formula ground, whose

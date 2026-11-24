@@ -391,7 +391,7 @@ const mutants = [
       ['src/data/monsters.js', 'hp: 8, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
       ['src/data/monsters.js', 'hp: 9, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, aim: 21, evasion: 12, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (floor-hour, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at

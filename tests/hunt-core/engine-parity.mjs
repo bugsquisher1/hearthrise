@@ -189,7 +189,10 @@ const SEED = '-4611686018427387904';
    200 -> 228, glade-4 489 -> 508, glade-1-kite 140 -> 148, sewer-2 99 -> 105, muster-steps-4 170 held. Proof: every src file this lane changes
    (the diff from the set, src only) laid back at the set's version over a copy of the merged tree holds every one of the set's pins.
    Re-pinned on the merge of lane/scale-grounds-2 (warrens-4): the Warrens' drop rows authored in hours and derived at its measured 125 kills a head
-   (tools/gen-drop-hours.mjs) move its TALLY from settle 2; world and timeline hold. */
+   (tools/gen-drop-hours.mjs) move its TALLY from settle 2; world and timeline hold.
+   Re-pinned again on lane/scale-grounds-sweep (all five: kills warrens-4 228 -> 234, glade-4 508 -> 512, glade-1-kite 148 -> 147, muster-steps-4 170 -> 171, sewer-2 105 held): the worlds moved on DATA alone, the REF_HERO evasion
+   regeneration (tools/gen-ref-hero.mjs, then pack.mjs propose --write on every formula ground) and the Warrens' re-measured band (new-ground.mjs). The
+   engine is the pin's: the diff of src/core and supabase/functions against the set is empty. Not laid back on a copy (usage). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

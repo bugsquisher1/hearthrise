@@ -116,11 +116,11 @@ const mutants = [
   { name: 'the biggest blow leaves the spells out again (the audit\'s Wickstead 21 against a Smoke Pot of 52)', case: 'blow-counts-spells',
     edits: [['src/core/hunt/pull-cycle.js', '    const hit = Math.max(swing, spell);', '    const hit = swing;']] },
   { name: 'the Rat King hits for 108 again (Andy\'s death)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 612, atk: 6, aim: 34, evasion: 28, def: 8,', 'hp: 612, atk: 20, aim: 34, evasion: 28, def: 8,']] },
+    edits: [['src/data/monsters.js', 'hp: 612, atk: 6, aim: 34, evasion: 29, def: 8,', 'hp: 612, atk: 20, aim: 34, evasion: 28, def: 8,']] },
   { name: 'a walked ground\'s pockets are not read (the boss who holds a room is missed)', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '(pk.pack || pk.spawns).concat(pk.spawns)', '[]']] },
   { name: 'Chief Coppercap swings 54 again (63% of the Warrens floor)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 1206, atk: 30, aim: 47, evasion: 40, def: 17,', 'hp: 1206, atk: 69, aim: 47, evasion: 40, def: 17,']] },
+    edits: [['src/data/monsters.js', 'hp: 1206, atk: 30, aim: 47, evasion: 43, def: 17,', 'hp: 1206, atk: 69, aim: 47, evasion: 40, def: 17,']] },
   { name: 'the King\'s hall is left off the monsters a hunt meets', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '  for (const i of ground.route) {\n    const pk', '  for (const i of ground.route.filter((j) => !ground.pockets[j].forParty)) {\n    const pk']] },
   /* the hall's written cap (designer 2026-11-14): held to it, never skipped, never past 60 */

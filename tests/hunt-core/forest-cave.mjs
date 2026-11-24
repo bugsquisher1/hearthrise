@@ -549,7 +549,7 @@ const mutants = [
      so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at
      72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
   { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 21-22 -> 84-88)', case: 'glade-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 81, atk: 23, aim: 73, evasion: 29, def: 8, xp: 346,', 'hp: 81, atk: 84, aim: 73, evasion: 29, def: 8, xp: 346,'], ['src/data/monsters.js', 'hp: 90, atk: 24, aim: 76, evasion: 31, def: 9,', 'hp: 90, atk: 88, aim: 76, evasion: 31, def: 9,']] },
+    edits: [['src/data/monsters.js', 'hp: 81, atk: 23, aim: 73, evasion: 30, def: 8, xp: 346,', 'hp: 81, atk: 84, aim: 73, evasion: 29, def: 8, xp: 346,'], ['src/data/monsters.js', 'hp: 90, atk: 24, aim: 76, evasion: 32, def: 9,', 'hp: 90, atk: 88, aim: 76, evasion: 31, def: 9,']] },
   { name: 'the fixture back on the client\'s compiled collision mask', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "const { gridOfMap } = await import(u('src/core/hunt-ground.js'));",
       "const [MAPS, TER, MC, SETS, GRID, FS] = await Promise.all(['src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/world/core/map-compile.js', 'src/data/world/atlas-sets.js', 'src/core/hunt/grid.js'].map((p) => import(u(p))).concat(import('node:fs'))); const sprites = {}; for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(FS.readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites); const gridOfMap = (mapId) => { const map = MC.compileMap(MAPS.mapRowOf(mapId), { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} }); return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); }); };"]] },
@@ -566,7 +566,7 @@ const mutants = [
       ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [5, 12]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [7, 19]'],
       ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 152, gp: [7, 20]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 86, gp: [5, 14]']] },
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 25, atk: 5, aim: 33, evasion: 15, def: 1, xp: 96,', 'hp: 25, atk: 48, aim: 33, evasion: 15, def: 1, xp: 96,'], ['src/data/monsters.js', 'hp: 28, atk: 5, aim: 20, evasion: 20, def: 3, xp: 91,', 'hp: 28, atk: 30, aim: 20, evasion: 20, def: 3, xp: 91,']] },
+    edits: [['src/data/monsters.js', 'hp: 25, atk: 5, aim: 33, evasion: 15, def: 1, xp: 96,', 'hp: 25, atk: 48, aim: 33, evasion: 15, def: 1, xp: 96,'], ['src/data/monsters.js', 'hp: 28, atk: 5, aim: 20, evasion: 22, def: 3, xp: 91,', 'hp: 28, atk: 30, aim: 20, evasion: 20, def: 3, xp: 91,']] },
   { name: 'the Warrens\' coin halved and its XP a fifth (the Glade out-earns the harder ground in both)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'xp: 580, gp: [13, 37]', 'xp: 132, gp: [7, 19]'], ['src/data/monsters.js', 'xp: 606, gp: [11, 31]', 'xp: 138, gp: [6, 16]'],
       ['src/data/monsters.js', 'xp: 949, gp: [18, 52]', 'xp: 216, gp: [9, 26]'], ['src/data/monsters.js', 'xp: 1597, gp: [27, 80]', 'xp: 363, gp: [14, 41]'],
@@ -576,9 +576,9 @@ const mutants = [
   /* the party-built pack's climb is the four's (lane/d-open-march-balance). RE-AIMED (lane/d-flat-party-xp, one party table, Tyler 2026-11-16): the Slake's
      own four cell is gone, so its four at 55 earns about half the Muster's (368k against 689k Level XP an hour on set v0.2.135, cloth's smaller damage and Turning Cut in; it read 380k against 767k) and the old 0.76-fit slip (x0.94) no longer
      crosses it. The Muster's XP rows at x0.4 (about 275k) put the Slake back over it. */
-  { name: 'the Muster Barrows pay x0.4 XP (a four levels faster on the Slake under them)', case: 'harder-pays-more',
-    edits: [['src/data/grounds/muster_barrows/pack.js', 'def: 2, xp: 989,', 'def: 2, xp: 450,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 2, xp: 1189,', 'def: 2, xp: 540,'],
-      ['src/data/grounds/muster_barrows/pack.js', 'def: 21, xp: 2768,', 'def: 21, xp: 1258,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 24, xp: 10751,', 'def: 24, xp: 4887,']] },
+  { name: 'the Muster Barrows pay x0.25 XP (a four levels faster on the Slake under them)', case: 'harder-pays-more',
+    edits: [['src/data/grounds/muster_barrows/pack.js', 'def: 2, xp: 989,', 'def: 2, xp: 250,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 2, xp: 1189,', 'def: 2, xp: 300,'],
+      ['src/data/grounds/muster_barrows/pack.js', 'def: 21, xp: 2768,', 'def: 21, xp: 700,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 24, xp: 10751,', 'def: 24, xp: 2700,']] },
   /* and a solo-built pack's is a lone tank's: Krell's Hold's commons a fifth leaner, under the Pyre Field at 85 */
   /* (two fifths, not the tenth the old line's margin needed: on the to-hit ratio, 2026-11-20, a lone tank at 85 out-levels the Pyre on the Hold by
      about a fifth, 597k against 501k an hour, so a tenth off two rows no longer brings it under) */

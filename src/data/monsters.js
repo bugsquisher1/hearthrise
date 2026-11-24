@@ -905,7 +905,7 @@ export const MONSTERS = {
     role: 'brute',
     hp: 57, atk: 17, aim: 53, evasion: 26, def: 6, xp: 225, gp: [8, 26], formula: true, speed: 3000,
     /* the Pelt .18 to .21 (lane/d-harder-monsters, 2026-11-19): the bear's tenth more HP slowed the pull, and the Keep's five took 2.2 h at the Glade's Dangerous 6 (the bar is 2 h) */
-    drops: [{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.514, band: 'common' }, { id: 'bear_pelt', everyHours: 0.952, ch: 0.18, band: 'common' }, { id: 'brook_bear_tooth', everyHours: 2.5, ch: 0.0686, band: 'uncommon' }, { id: 'bear_claw', everyHours: 60.6, ch: 0.00283, band: 'rare' }] },
+    drops: [{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.514, band: 'common' }, { id: 'bear_pelt', everyHours: 0.85, ch: 0.202, band: 'common' }, { id: 'brook_bear_tooth', everyHours: 2.5, ch: 0.0686, band: 'uncommon' }, { id: 'bear_claw', everyHours: 60.6, ch: 0.00283, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and

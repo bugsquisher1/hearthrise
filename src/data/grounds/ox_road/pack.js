@@ -77,7 +77,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wagon_pin', ch: 0.08, band: 'uncommon' },
         /* 0.02 to 0.0163 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the ground's reference group kills Teamsters faster, a Hatchets every 0.65 h a hero, under the Scarce band's 0.75;
            0.0163 to 0.0128 (lane/c-spell-rule, 2026-11-21): every cast a share of the blow, its lone tank kills faster again (0.67 h a hero) */
-        { id: 'dawn_hatchets', ch: 0.0128, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00104, band: 'rare' }],
+        { id: 'dawn_hatchets', ch: 0.0128, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00098, band: 'rare' }],
       hp: 163, atk: 109, aim: 131, evasion: 40, def: 5, xp: 1411, gp: [24, 72], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,

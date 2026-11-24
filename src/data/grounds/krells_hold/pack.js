@@ -101,7 +101,7 @@ export default definePack({
         { id: 'rune_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' }, { id: 'wyvernhide_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' }, { id: 'sorcerer_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' },
         { id: 'rune_sword', everyHours: 1.28, ch: 0.02, band: 'scarce' },
         /* the Emberforged Hatchets left the Pyre Field's Provosts with its one base (lane/scale-grounds-2): the ember ground's farmhands carry them */
-        { id: 'rune_hatchets', everyHours: 12.8, ch: 0.002, band: 'rare' }],
+        { id: 'rune_hatchets', everyHours: 17, ch: 0.00151, band: 'rare' }],
       hp: 125, atk: 86, aim: 115, evasion: 33, def: 3, xp: 1045, gp: [18, 56], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,

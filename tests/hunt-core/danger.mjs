@@ -883,7 +883,7 @@ const MUTANTS = [
   { name: 'the dial goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  const s = stepOn(ground, step);', '  const s = clampStep(step);']] },
   { name: 'the top holds a ground off the scale', case: 'top', edits: [['src/core/hunt/danger.js', 'row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax', 'row && Number.isInteger(row.topStep) ? row.topStep : 710']] },
   { name: 'a start past the top opens past it', case: 'top', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, tier.step);', '          if (plan) openDanger(world, plan.risk, plan.step);']] },
-  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700,", "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 650,"],
+  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700,", "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 650,"],
     ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
   { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
   { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };', 'void SCALE_ITEM_LEVELS;'],

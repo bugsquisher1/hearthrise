@@ -776,7 +776,7 @@ const playMutants = [
   { name: 'Rook\'s Whistle at 1%', rule: 'rare-pace: mosslight_glade rare rooks_whistle', edit: (ms) => { rowOf(ms, 'rook_poacher', 'rooks_whistle').ch = 0.01; } },
   { name: 'the War Crown at 4%', rule: 'rare-pace: coppercap_warrens rare war_crown', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'war_crown').ch = 0.04; } },
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
-  { name: 'the Rat King\'s Crown at 0.2% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.002; } },
+  { name: 'the Rat King\'s Crown at 0.3% (a full Bestiary under 100 h)', rule: 'trophy-pace: millrace_sewer', edit: (ms) => { rowOf(ms, 'rat_king', 'rat_kings_crown').ch = 0.003; } },
   /* the Trophy pace on the Chief's meaned kills (TROPHY_SEEDS) still bites both ways */
   /* (0.19%, was 0.17%: on the to-hit ratio, 2026-11-20, the Chief dies a little slower, so 0.17% read 130.7 h, inside the band's 125 h floor with its boost) */
   { name: 'the Chief\'s Cauldron at 0.19% (a full Bestiary under 125 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0019; } },
@@ -800,7 +800,7 @@ const plantMutants = [
   /* the floor hour (NO PROFIT MOLDS, Tyler 2026-11-13: the old coin-cut mutants of the +25% floor are retired with it). Planted, since the
      clone's monsters feed only the loot stream: the Drain Rat at ten times its bite ends the Sewer's floor hour in a death. */
   { name: 'the Drain Rat hits ten times as hard (the Sewer floor hour ends in a death)', rule: 'floor-hour: millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 45, atk: 6, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]']] },
+    edits: [['src/data/monsters.js', 'hp: 45, atk: 6, aim: 14, evasion: 13, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]']] },
   { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1, 1]);']] },
   { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015, 0.007]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
@@ -829,7 +829,7 @@ const warrensMutants = [
 /* NO PROFIT MOLDS (Tyler 2026-11-13): the shot-price and Drain Rat coin mutants (gold only) are retired with the +25% bar; the floor still
    bites on a party that does not live the hour. */
 const rangerMutants = [
-  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 6, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]']] },
+  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 6, aim: 14, evasion: 13, def: 0, xp: 78, gp: [6, 17]', 'hp: 45, atk: 60, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

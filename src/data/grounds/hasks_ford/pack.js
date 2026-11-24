@@ -136,7 +136,7 @@ export default definePack({
       /* THE BRUTE (monster-roles.js; the scale only): slow and heavy, it goes for the nearest hero in the front row */
       role: 'brute',
       drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.51, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.164, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.0817, band: 'uncommon' },
-        { id: 'steel_platelegs', everyHours: 0.56, ch: 0.0332, band: 'scarce' }, { id: 'boarhide_pants', everyHours: 0.56, ch: 0.0332, band: 'scarce' }, { id: 'scholar_pants', everyHours: 0.56, ch: 0.0332, band: 'scarce' },
+        { id: 'steel_platelegs', everyHours: 0.58, ch: 0.032, band: 'scarce' }, { id: 'boarhide_pants', everyHours: 0.58, ch: 0.032, band: 'scarce' }, { id: 'scholar_pants', everyHours: 0.58, ch: 0.032, band: 'scarce' },
         { id: 'steel_hatchets', everyHours: 0.7, ch: 0.0265, band: 'scarce' }],
       hp: 112, atk: 29, aim: 73, evasion: 38, def: 12, xp: 863, gp: [16, 50], formula: true },
     ledger_wight: {

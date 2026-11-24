@@ -216,11 +216,17 @@ export const DANGER_GROUNDS = Object.freeze({
                       (hunt-core/drop-tables). Coin written in hours (27 stage 9) retires it
      THE FLOOR ON THE ARRIVING COMPANY (lane/depth-reading-fix, 2026-11-23; 12-targets 3.1a): one tier back (the Ford's mithril kit at
      Level 55) held 587.4, lowest seed 582: floor 575 (was 525, cut on steel, two tiers back). refHeld 610 (the MID four held 608.9).
-     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold */
+     MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold
+     THE WINGS RE-CUT ON THEIR OWN BASE (lane/gear-phase-b, 2026-11-23; 29-tuning-pass 7.3, the re-read handed here): their bands were cut on kits
+     that could not wear item Level 160. With the step tiers (gear-tiers.js STEP_TIERS) the Lab's companies wear their Level's tier (fresh at 165
+     in Cobalt, one back; reference at 175 and strong at 185 in Wolfram), so on the old bands the reference four held at depth 19 and earned
+     1.3x to 1.9x the hours table. new-ground.mjs on those cells (top lifted first: a capped climb measures the cap), 6 seeds x 10 h, no Steady
+     death: Bone 425 / 520 / 585 (LOW 439.9, MID 521.7, BIS 585.7), Flooded 440 / 480 / 525, refHeld 485 (452.1, 484.6, 523.9). A whole kit
+     one tier back at 175 moves 18.4 and 11.5 steps (C-2) */
   muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
-  catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
-  catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_bone_wing: ground({ refStep: 520, floorStep: 425, topStep: 585, refKillsHead: 145, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 525, refKillsHead: 145, refHeld: 485, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

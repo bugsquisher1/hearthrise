@@ -117,7 +117,10 @@ export const ROLE_RULES = Object.freeze({
      and a club or hammer cast Power Strike and Turning Cut (roadmap p15; Turning Cut on every melee weapon without a shield, Tyler
      2026-11-16), two axes Turning Cut and REND (THE SPELL RULE, lane/c-spell-rule: Tyler 2026-11-21, call 32-3, the axes lose Power
      Strike and Cleave merges into Turning Cut, call 32-2, so Rend is the axes' one strike at one target and an unedited axes bar holds
-     it, on its Plain Rupture Rune, own runes first; the hammer's Quarry Blow stays the player's pick, as the sword's Flame Strike). */
+     it, on its Plain Rupture Rune, own runes first; the hammer's Quarry Blow stays the player's pick, as the sword's Flame Strike).
+     WAVE 3'S ANSWERS (23-spell-audit.md section 4: Stagger, Quarry Blow reworked; the sword's Parry; the axes' Gash) are the player's picks
+     too, each starting on its own condition (abilities.js `trigger`, or the area rule): no default bar moves, so no bar a player never
+     edited changes under them. */
   melee_dps: Object.freeze([slot('power_strike'), slot('turning_cut'), slot('rend')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier'), slot('hoarfrost', HOARFROST_WHEN)]),

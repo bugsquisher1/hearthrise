@@ -1,0 +1,9 @@
+V1: 8 seed jobs (1 cells x 8 seeds x 10 h) on 8 workers; catacomb_flooded_wing, Levels 185 / 188 / 70
+[1/8] base:steady#0 9 s, 15 s elapsed
+[2/8] base:steady#1 10 s, 16 s elapsed
+[3/8] base:steady#3 10 s, 17 s elapsed
+[4/8] base:steady#2 10 s, 18 s elapsed
+[5/8] base:steady#4 11 s, 19 s elapsed
+[6/8] base:steady#7 10 s, 19 s elapsed
+[7/8] base:steady#6 10 s, 19 s elapsed
+[8/8] base:steady#5 11 s, 19 s elapsed

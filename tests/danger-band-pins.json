@@ -7,7 +7,7 @@
    "floorStep": 575,
    "topStep": 700,
    "refHeld": 610,
-   "print": "6ec9cb22f4adcc29",
+   "print": "dde2884dd7a40e2e",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
@@ -23,10 +23,10 @@
   },
   "hasks_ford": {
    "refStep": 590,
-   "floorStep": 565,
-   "topStep": 675,
-   "refKillsHead": 235,
-   "print": "b832fc681050d1d8",
+   "floorStep": 550,
+   "topStep": 660,
+   "refKillsHead": 135,
+   "print": "72695466be94246b",
    "verdict": "OPEN",
    "levels": {
     "entry": 45,
@@ -35,17 +35,17 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/final/c0-ford-ref.json",
-    "tools/balance-program/redesign/tuning/final/c0-ford-top.json",
-    "tools/balance-program/redesign/tuning/final/c0-ford-floor.json"
+    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-ref.json",
+    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-top.json",
+    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-floor.json"
    ]
   },
   "catacomb_bone_wing": {
-   "refStep": 520,
-   "floorStep": 475,
-   "topStep": 580,
-   "refKillsHead": 185,
-   "print": "c78b59371fab46b6",
+   "refStep": 440,
+   "floorStep": 385,
+   "topStep": 525,
+   "refKillsHead": 130,
+   "print": "b6c7e3781a0acd3b",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
@@ -54,18 +54,18 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/final/c0-bone-ref.json",
-    "tools/balance-program/redesign/tuning/final/c0-bone-top.json",
-    "tools/balance-program/redesign/tuning/final/c0-bone-floor.json"
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-ref.json",
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-top.json",
+    "tools/balance-program/redesign/grounds/catacomb_bone_wing-floor.json"
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 500,
-   "floorStep": 430,
-   "topStep": 565,
-   "refKillsHead": 205,
-   "print": "e9b8d7f0d61e2c41",
-   "verdict": "STAGED",
+   "refStep": 450,
+   "floorStep": 410,
+   "topStep": 465,
+   "refHeld": 455,
+   "print": "db1bf83de76b3192",
+   "verdict": "OPEN",
    "levels": {
     "entry": 165,
     "top": 185,
@@ -73,9 +73,9 @@
    },
    "measured": "2026-11-23",
    "evidence": [
-    "tools/balance-program/redesign/tuning/final/c0-flooded-ref.json",
-    "tools/balance-program/redesign/tuning/final/c0-flooded-top.json",
-    "tools/balance-program/redesign/tuning/final/c0-flooded-floor.json"
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-ref.json",
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-top.json",
+    "tools/balance-program/redesign/grounds/catacomb_flooded_wing-floor.json"
    ]
   }
  }

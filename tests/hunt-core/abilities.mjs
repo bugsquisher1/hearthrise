@@ -54,7 +54,11 @@ const cases = {
       [{ id: 'zz_blind_party', target: 'party', shieldPm: 1000 }, 'radius'],
       [{ id: 'zz_empty_ring', target: 'ring', maxHits: 8 }, 'no hitPm and no status'],
       [{ id: 'zz_frost_ring', target: 'ring', maxHits: 8, status: 'chill', element: 'frost' }, 'lands no blow'],
-      [{ id: 'zz_status_hit', target: 'enemy', status: 'chill' }, 'a damaging target with no hitPm'],
+      [{ id: 'zz_empty_hit', target: 'enemy' }, 'a damaging target with no hitPm and no status'],
+      /* THE ANSWERS TO A WIND-UP (wave 3): only on a row that reaches monsters, a push in whole sub-steps under the bound */
+      [{ id: 'zz_self_interrupt', target: 'self', healHpPm: 100, interrupts: true }, 'interrupts is true on a row that reaches monsters'],
+      [{ id: 'zz_odd_push', target: 'enemy', hitPm: 500, pushMs: 150 }, 'pushMs is whole sub-steps'],
+      [{ id: 'zz_long_push', target: 'enemy', hitPm: 500, pushMs: 60000 }, 'pushMs is whole sub-steps'],
       [{ id: 'zz_both_rules', target: 'enemy', hitPm: 500, alone: true, party: true }, 'alone or party only'],
       /* THE SPELL RULE: a fixed number is refused, and a floor sits only beside a share */
       [{ id: 'zz_fixed_hit', target: 'enemy', dmg: [7, 13] }, 'retired by the spell rule'],
@@ -63,7 +67,9 @@ const cases = {
       const got = plant(r);
       if (!got.some((m) => m.includes(want))) return r.id + ' was not refused for "' + want + '": ' + JSON.stringify(got);
     }
-    for (const r of [{ id: 'zz_slam', target: 'ring', maxHits: 8, status: 'chill', party: true }, { id: 'zz_shell', target: 'party', radius: 8, shieldPm: 1000, base: 30, party: true }]) {
+    for (const r of [{ id: 'zz_slam', target: 'ring', maxHits: 8, status: 'chill', party: true }, { id: 'zz_shell', target: 'party', radius: 8, shieldPm: 1000, base: 30, party: true },
+      /* (one target that lands only its status, Parry; a strike that answers a wind-up, Stagger) */
+      { id: 'zz_parry', target: 'enemy', status: 'parried' }, { id: 'zz_stagger', target: 'enemy', hitPm: 500, interrupts: true, pushMs: 1000 }]) {
       if (plant(r).length) return 'a sound ' + r.id + ' was refused: ' + plant(r);
     }
     /* a row's own starting rule (`trigger`) is a slot the server's check (mirrored) takes, in the registry's words */
@@ -483,6 +489,163 @@ const cases = {
     if (mark(1000, true) !== 11) return 'with its own target marked the Mark took monster ' + mark(1000, true) + ', not the healthiest unmarked (11)';
     return null;
   },
+  /* WAVE 3, STAGGER (lane/moves-wave-3, 23-spell-audit.md sections 4 and 7: Quarry Blow reworked, the hammer's answer to a wind-up). A
+     hammer with Stagger on its own starting rule waits while its target is not winding up; once it is, Stagger lands its share of the
+     hammer's blow, ENDS the wind-up (spell_end 'interrupted', after the hit) and holds the monster's next swing back its pushMs. On a plain
+     slot it still hits and pushes a monster that winds up nothing. */
+  'stagger-ends-a-wind-up': (M) => {
+    const row = M.AD.ABILITIES.stagger;
+    if (!row || row.interrupts !== true || !(row.pushMs > 0) || row.rune !== 'chalked_earth_rune') return 'no Stagger row: ' + JSON.stringify(row);
+    const fight = (conditions) => {
+      const hs = supplySession(M, { bag: { chalked_earth_rune: { loaded: 5 } } });
+      const x = oneHero(M, { role: 'melee_dps', acc: 1000, maxHit: 40, target: 10 }, { hs, bar: [{ action: { type: 'ability', id: 'stagger' }, conditions, join: 'and' }] },
+        [{ x: 13, y: 3, hp: 5000, maxHp: 5000, swingLeftMs: 300 }]);
+      x.sc.rng = rngOf(M, 21);
+      return { ...x, m: x.inst.world.units.find((u) => u.id === 10) };
+    };
+    const windup = () => ({ s: 'heavy_blow', ms: 1600, left: 900, kind: 'cone', x: 13, y: 3, dx: -1, dy: 0, r: 0, len: 2 });
+    const a = fight(M.AD.suggestedTrigger(row));
+    M.abilities.castAbilities(a.inst, a.sc);
+    if (casts(a.sc).length) return 'Stagger on its own rule fired at a target winding up nothing: ' + JSON.stringify(casts(a.sc));
+    a.m.cast = windup();
+    a.sc.atMs = 100;
+    M.abilities.castAbilities(a.inst, a.sc);
+    if (JSON.stringify(casts(a.sc)) !== '["stagger"]') return 'Stagger did not fire at a target winding up: ' + JSON.stringify(casts(a.sc));
+    const hit = a.sc.events.findIndex((e) => e.type === 'dmg' && e.ability === 'stagger' && e.t === 10);
+    const end = a.sc.events.findIndex((e) => e.type === 'spell_end' && e.u === 10 && e.why === 'interrupted' && e.spell === 'heavy_blow');
+    const [, top] = M.AD.hitRange(40, row);
+    if (hit < 0 || !(a.sc.events[hit].amount >= 1 && a.sc.events[hit].amount <= top)) return 'Stagger landed no hit of its share (top ' + top + '): ' + JSON.stringify(a.sc.events[hit]);
+    if (a.m.cast !== null || end < 0 || end < hit) return 'the wind-up was not ended after the hit: cast ' + JSON.stringify(a.m.cast) + ', events ' + JSON.stringify(a.sc.events.map((e) => e.type));
+    if (a.m.swingLeftMs !== 300 + row.pushMs) return 'the interrupted monster swings in ' + a.m.swingLeftMs + ' ms, want ' + (300 + row.pushMs);
+    /* a plain slot: no wind-up to end, the hit and the push still land, and nothing says interrupted */
+    const b = fight([]);
+    M.abilities.castAbilities(b.inst, b.sc);
+    if (JSON.stringify(casts(b.sc)) !== '["stagger"]' || b.sc.events.some((e) => e.type === 'spell_end')) return 'a plain Stagger: ' + JSON.stringify(b.sc.events.map((e) => e.type));
+    return b.m.swingLeftMs === 300 + row.pushMs ? null : 'a plain Stagger pushed the swing to ' + b.m.swingLeftMs;
+  },
+  /* WAVE 3, PARRY (23-spell-audit.md sections 4 and 7: the sword's own move). A sword casts Parry on its own target: Parried lands, no blow
+     and no kill. That monster's NEXT blow inside the 2 s lands nothing (a `miss` marked parried, the hero untouched) and spends the stack;
+     the blow after it lands as any. A blow that comes after the 2 s is a plain blow (the window ran out). A wind-up's landing is its
+     caster's blow: a Parry cast on its own rule ("my target is winding up") makes it land on nobody (spell_end 'parried'). */
+  'parry-spends-the-next-blow': async (M) => {
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + sourceQuery(M.root));
+    const [MS, SP, ST] = await Promise.all([imp('src/data/monster-spells.js'), imp('src/core/hunt/monster-spells.js'), imp('src/core/hunt/status.js')]);
+    const row = M.AD.ABILITIES.parry, st = M.ST.STATUSES.parried;
+    if (!row || row.status !== 'parried' || M.AD.landsBlow(row) || !st || st.parry !== true) return 'no Parry row landing Parried: ' + JSON.stringify(row);
+    const fight = (swingLeftMs, conditions) => {
+      const x = oneHero(M, { role: 'melee_dps', acc: 1000, maxHit: 40, target: 10, hp: 900, maxHp: 900, def: 0 },
+        { bar: [{ action: { type: 'ability', id: 'parry' }, conditions: conditions || [], join: 'and' }] },
+        [{ x: 13, y: 3, hp: 5000, maxHp: 5000, swingLeftMs }]);
+      x.sc.rng = rngOf(M, 22);
+      return { ...x, m: x.inst.world.units.find((u) => u.id === 10) };
+    };
+    const run = (x, from, to, hooks) => { for (let ms = from; ms <= to; ms += 100) { x.sc.atMs = ms; for (const f of hooks) f(x.inst, x.sc); } };
+    const swings = (x) => x.sc.events.filter((e) => (e.type === 'dmg' || e.type === 'miss') && e.u === 10);
+    /* the swing 1 s after the Parry: nulled, the stack spent; the next one, a full swing later, lands as any */
+    const a = fight(1000);
+    M.abilities.castAbilities(a.inst, a.sc);
+    if (JSON.stringify(casts(a.sc)) !== '["parry"]' || a.sc.events.some((e) => e.type === 'dmg')) return 'Parry did not cast as a status alone: ' + JSON.stringify(a.sc.events.map((e) => e.type));
+    if (!(a.m.statuses || []).some((s) => s.s === 'parried')) return 'Parry laid no Parried on its target';
+    /* (its target already Parried, the next Parry waits: it never lands for nothing) */
+    a.h.cds = {}; a.h.lanes = {};
+    M.abilities.castAbilities(a.inst, a.sc);
+    if (casts(a.sc).length !== 1) return 'a second Parry landed on a target still Parried';
+    run(a, 100, 1000, [M.damage.resolveAttacks, ST.tickStatuses]);
+    const sw = swings(a);
+    if (sw.length !== 1 || sw[0].type !== 'miss' || sw[0].parried !== true || sw[0].atMs !== 1000) return 'the first swing after the Parry was not nulled: ' + JSON.stringify(sw);
+    if (a.h.hp !== 900) return 'the parried swing hurt the hero: hp ' + a.h.hp;
+    /* (spent on that blow, inside its 2 s: the next one finds nothing to spend) */
+    if ((a.m.statuses || []).some((s) => s.s === 'parried') || !a.sc.events.some((e) => e.type === 'status_off' && e.status === 'parried' && e.atMs === 1000)) return 'the parried swing kept its stack';
+    run(a, 1100, 4000, [M.damage.resolveAttacks, ST.tickStatuses]);
+    const after = swings(a);
+    if (after.length < 2 || after[1].parried === true) return 'the swing after the parried one was nulled too: ' + JSON.stringify(after.slice(0, 2));
+    /* a swing past the 2 s window: plain */
+    const b = fight(2500);
+    M.abilities.castAbilities(b.inst, b.sc);
+    run(b, 100, 2600, [M.damage.resolveAttacks, ST.tickStatuses]);
+    const bs = swings(b);
+    if (!bs.length || bs[0].parried === true) return 'a swing after the 2 s window was parried: ' + JSON.stringify(bs[0]);
+    /* a blow 2 s after the Parry, a group spell's 2 s wind-up landing (the designer, lane/roads-wave3: Parried 2.1 s): nulled */
+    /* (the world step's order: a status ticks in the sub-step it lands, so the cast's own sub-step ticks it too) */
+    const g = fight(2000);
+    M.abilities.castAbilities(g.inst, g.sc);
+    ST.tickStatuses(g.inst, g.sc);
+    run(g, 100, 2100, [M.damage.resolveAttacks, ST.tickStatuses]);
+    const gs = swings(g);
+    if (!gs.length || gs[0].parried !== true || gs[0].atMs !== 2000) return 'a blow 2 s after the Parry was not nulled: ' + JSON.stringify(gs[0]);
+    /* a wind-up's landing: Parry on its own rule answers it, and the wind-up lands on nobody */
+    const T = MS.MONSTER_SPELLS, was = MS.SPELL_SWITCH.live, span = MS.SPELL_STAGGER.spanPm, had = Object.prototype.hasOwnProperty.call(M.MONSTERS.rat, 'spells'), list = M.MONSTERS.rat.spells;
+    T.zz_heavy = { n: 'Heavy Blow', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 2000, element: null };
+    MS.SPELL_SWITCH.live = true; MS.SPELL_STAGGER.spanPm = 0; M.MONSTERS.rat.spells = ['zz_heavy'];
+    try {
+      const c = fight(50000, M.AD.suggestedTrigger(row));
+      M.movement.occupancy(c.inst);
+      run(c, 0, 2500, [SP.castSpells, M.abilities.castAbilities, M.damage.resolveAttacks, ST.tickStatuses]);
+      const parried = c.sc.events.find((e) => e.type === 'cast' && e.ability === 'parry');
+      const end = c.sc.events.find((e) => e.type === 'spell_end' && e.spell === 'zz_heavy');
+      if (!parried) return 'Parry on its own rule never answered the wind-up: ' + JSON.stringify(c.sc.events.map((e) => e.type));
+      if (!end || end.why !== 'parried' || end.hits !== 0) return 'the parried wind-up ended ' + JSON.stringify(end);
+      if (!c.sc.events.some((e) => e.type === 'miss' && e.parried === true && e.t === 1) || c.h.hp !== 900) return 'the parried wind-up struck the hero: hp ' + c.h.hp;
+    } finally {
+      delete T.zz_heavy; MS.SPELL_SWITCH.live = was; MS.SPELL_STAGGER.spanPm = span;
+      if (had) M.MONSTERS.rat.spells = list; else delete M.MONSTERS.rat.spells;
+    }
+    return null;
+  },
+  /* WAVE 3, GASH (23-spell-audit.md sections 4 and 7: the axes' crowd move). Two axes with three rats beside them and one two tiles off:
+     a Gash slot on its starting rule (2 or more in its ring) strikes the three, each for its share of the axes' blow and one Bleed stack,
+     and never the fourth; with one rat beside them it waits. */
+  'gash-cuts-the-ring': (M) => {
+    const row = M.AD.ABILITIES.gash;
+    if (!row || row.target !== 'ring' || row.status !== 'bleed' || row.rune !== 'chalked_rupture_rune' || !row.disciplines.includes('dual_axe')) return 'no Gash row: ' + JSON.stringify(row);
+    const fight = (mons) => {
+      const hs = supplySession(M, { bag: { chalked_rupture_rune: { loaded: 5 } } });
+      const x = oneHero(M, { role: 'melee_dps', acc: 1000, maxHit: 50, target: 10 }, { hs, bar: [{ action: { type: 'ability', id: 'gash' }, conditions: M.AD.suggestedTrigger(row), join: 'and' }] }, mons);
+      x.sc.rng = rngOf(M, 23);
+      M.abilities.castAbilities(x.inst, x.sc);
+      return x;
+    };
+    const big = { hp: 5000, maxHp: 5000 };
+    const lone = fight([{ x: 13, y: 3, ...big }, { x: 15, y: 3, ...big }]);
+    if (casts(lone.sc).length) return 'Gash fired with one monster in its ring';
+    const x = fight([{ x: 13, y: 3, ...big }, { x: 11, y: 3, ...big }, { x: 12, y: 4, ...big }, { x: 14, y: 3, ...big }]);
+    if (JSON.stringify(casts(x.sc)) !== '["gash"]') return 'Gash did not fire on three beside the axes: ' + JSON.stringify(casts(x.sc));
+    const hits = x.sc.events.filter((e) => e.type === 'dmg' && e.ability === 'gash');
+    const bled = x.sc.events.filter((e) => e.type === 'status_on' && e.status === 'bleed');
+    const [, top] = M.AD.hitRange(50, row);
+    if (JSON.stringify(hits.map((e) => e.t)) !== '[10,11,12]' || hits.some((e) => !(e.amount >= 1 && e.amount <= top))) return 'Gash hit ' + JSON.stringify(hits.map((e) => [e.t, e.amount])) + ', want 10, 11, 12 within its share (top ' + top + ')';
+    if (JSON.stringify(bled.map((e) => [e.t, e.stacks])) !== '[[10,1],[11,1],[12,1]]') return 'Gash bled ' + JSON.stringify(bled.map((e) => [e.t, e.stacks])) + ', want one stack on each of the three';
+    return null;
+  },
+  /* WAVE 3, BOTH PATHS (CLAUDE.md §4): a sword with Parry, a hammer with Stagger and two axes with Gash beside a healer in the Millrace
+     Sewer at Level 12 (its Kobold Toshers and the Rat King wind up), on the real settle: 10-minute windows (the hunt with the browser
+     closed) and 100-second windows (the viewed hunt's cut) play one hunt, and each move plays its part in it: Parry nulls a blow, Stagger
+     ends a wind-up, Gash cuts. */
+  'wave3-both-paths': async (M) => {
+    const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+    const P = await loadPlay(M.root);
+    const four = ['melee_dps', 'melee_dps', 'melee_dps', 'healer'];
+    const weapon = ['bronze_sword', 'stone_maul', 'practice_hatchets'];
+    const slot = (id, conditions) => ({ action: { type: 'ability', id }, conditions: conditions || M.AD.suggestedTrigger(M.AD.ABILITIES[id]), join: 'and' });
+    const moves = [[slot('parry'), slot('power_strike', [])], [slot('stagger'), slot('power_strike', []), slot('turning_cut')], [slot('gash'), slot('rend', [])], [slot('greater_mend')]];
+    const go = (windowMs, seen) => P.run('millrace_sewer', 12, four, { spanMs: 900000, windowMs, secret: '-4611686018427387904',
+      equipment: (role, i, L) => (i < 3 ? { ...P.kitFor(L, role), weapon: weapon[i] } : P.kitFor(L, role)),
+      bag: (role, i) => (i === 1 ? { chalked_earth_rune: { loaded: 400 } } : i === 2 ? { chalked_rupture_rune: { loaded: 400 } } : {}),
+      bar: (role, i) => [...P.refBar('millrace_sewer'), ...moves[i]],
+      onWindow: (out) => { for (const e of out.events || []) seen.push(e); } });
+    /* (keys sorted: a window's store buys are written in the order each window met them, a harness map, never the engine's) */
+    const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x));
+    const sig = (r) => canon({ t: r.totals, x: r.heroXp, m: r.members });
+    const seenClosed = [], seenViewed = [];
+    const closed = go(600000, seenClosed), viewed = go(100000, seenViewed);
+    if (sig(closed) !== sig(viewed)) return 'the same four settled in 10-minute and 100-second windows played two hunts';
+    if (canon(seenClosed) !== canon(seenViewed)) return 'the closed and the viewed windows told two stories (' + seenClosed.length + ' and ' + seenViewed.length + ' events)';
+    const n = (pred) => seenClosed.filter(pred).length;
+    const counts = { parry: n((e) => e.type === 'cast' && e.ability === 'parry'), parried: n((e) => e.type === 'miss' && e.parried === true),
+      stagger: n((e) => e.type === 'cast' && e.ability === 'stagger'), interrupted: n((e) => e.type === 'spell_end' && e.why === 'interrupted'), gash: n((e) => e.type === 'cast' && e.ability === 'gash'),
+      gashBled: n((e) => e.type === 'status_on' && e.status === 'bleed') };
+    return Object.values(counts).some((v) => !(v > 0)) ? 'a move played no part in the real settle: ' + JSON.stringify(counts) : null;
+  },
   /* MEND, THE UNIVERSAL SELF-HEAL (roadmap p21; Bible §17): every discipline's bar keeps it (it counts against none of
      the three), it heals its own caster on the heal lane with mana and no rune, it needs missing HP (at full health it
      never casts, so it never pays Magic XP for nothing), and it pays Magic at the physical builds' quarter. */
@@ -679,13 +842,14 @@ const cases = {
     return casts(sc).length === 1 ? null : 'Challenge fired with every monster already on the tank';
   },
   /* THE LANES (roadmap p12; Tyler 2026-10-23: offense 2 s, support 2 s, healing 1 s): every row that strikes nothing
-     and heals nothing (the Challenge, the Hunter's Mark) and every SHIELD rides the support lane; a heal the heal lane;
-     the rest offense. A support cast leaves the offense lane free: Hunter's Mark, then Precision Shot the next sub-step. */
+     and heals nothing (the Challenge, the Hunter's Mark, a status landed alone: Frost Slam's ring, the sword's Parry) and every
+     SHIELD rides the support lane; a heal the heal lane; the rest offense. A support cast leaves the offense lane free: Hunter's
+     Mark, then Precision Shot the next sub-step. */
   'support-lane': (M) => {
     const L = M.AD.ABILITY_LANES;
     if (L.offense !== 2000 || L.support !== 2000 || L.heal !== 1000 || Object.keys(L).length !== 3) return 'the lanes are ' + JSON.stringify(L);
     for (const r of Object.values(M.AD.ABILITIES)) {
-      const want = r.target === 'taunt' || r.target === 'mark' || M.AD.shells(r) || (M.AD.AREA_TARGETS.includes(r.target) && !M.AD.landsBlow(r)) ? 'support' : M.AD.heals(r) ? 'heal' : 'offense';
+      const want = M.AD.heals(r) ? 'heal' : M.AD.landsBlow(r) ? 'offense' : 'support';
       if (r.lane !== want) return r.id + ' rides ' + r.lane + ', want ' + want;
     }
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
@@ -956,10 +1120,13 @@ const cases = {
     /* THE ROADS' FOUR (lane/bar-metrics): the sentence the picker reads and the short label the slot's title reads (conditionTip) */
     const { conditionTip } = M.shell.draft;
     const roads = [{ metric: 'target_hp_pct', op: 'lt', value: 30 }, { metric: 'target_marked', op: 'eq', value: true }, { metric: 'target_stacks', op: 'gte', value: 3, subject: 'bleed' },
-      { metric: 'last_move', op: 'eq', value: 'rend' }, { metric: 'last_move', op: 'ne', value: 'quarry_blow' }];
+      { metric: 'last_move', op: 'eq', value: 'rend' }, { metric: 'last_move', op: 'ne', value: 'stagger' },
+      /* (wave 3's test: the moment Stagger and Parry answer) */
+      { metric: 'target_winding_up', op: 'eq', value: true }];
     const words = roads.map((c) => [conditionWords(c), conditionTip(c)]);
     const wantWords = [['my target’s HP is below 30%', 'Target health below 30%'], ['my target is Marked', 'Target is Marked'],
-      ['my target has at least 3 Bleed stacks', 'Target Bleed stacks 3+'], ['my last move is Rend', 'Last move: Rend'], ['my last move is not Quarry Blow', 'Last move: not Quarry Blow']];
+      ['my target has at least 3 Bleed stacks', 'Target Bleed stacks 3+'], ['my last move is Rend', 'Last move: Rend'], ['my last move is not Stagger', 'Last move: not Stagger'],
+      ['my target is winding up', 'Target winding up']];
     return JSON.stringify(words) === JSON.stringify(wantWords) ? null : 'the Roads\' tests read ' + JSON.stringify(words);
   },
   /* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"):
@@ -1102,6 +1269,24 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', 'const r = monsterRoleOf(inst, m);', 'const r = MONSTER_ROLES[((inst.monsters || {})[m.kind] || {}).role];']] },
   { name: 'the Mark takes the healthiest again', case: 'bow-picks-its-marks',
     edits: [['src/core/hunt/abilities.js', '      if (own && !(own.markUntil > sc.atMs)) return own;\n', '']] },
+  /* lane/moves-wave-3: Stagger, Parry, Gash */
+  { name: 'Stagger ends no wind-up', case: 'stagger-ends-a-wind-up', edits: [['src/core/hunt/abilities.js', '    if (row.interrupts === true) interrupt(m, sc);\n', '']] },
+  { name: 'Stagger holds back no swing', case: 'stagger-ends-a-wind-up', edits: [['src/core/hunt/abilities.js', '    if (row.pushMs > 0) m.swingLeftMs = Math.max(0, int(m.swingLeftMs)) + Math.min(row.pushMs, ABILITY_RULES.pushMaxMs);\n', '']] },
+  { name: 'an interrupted wind-up says it was reset', case: 'stagger-ends-a-wind-up', edits: [['src/core/hunt/monster-spells.js', "  drop(u, sc, 'interrupted');", "  drop(u, sc, 'reset');"]] },
+  { name: 'Stagger loses its answer (data)', case: 'stagger-ends-a-wind-up', edits: [['src/data/abilities.js', "base: [5, 8], interrupts: true, pushMs: 1000,", "base: [5, 8], pushMs: 1000,"]] },
+  { name: 'Stagger fires whatever its target does', case: 'stagger-ends-a-wind-up', edits: [['src/data/abilities.js', "magicXpMult: 250, versions: [10, 12, 14, 17, 21],\n    trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),", "magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),"]] },
+  { name: 'a parried swing lands', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/damage.js', "      if (spendFlag(u, 'parry', sc)) {", '      if (false) {']] },
+  { name: 'a parry is never spent', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/status.js', '  unit.statuses = list.filter((s) => s !== st);\n', '']] },
+  { name: 'a parried wind-up lands', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/monster-spells.js', "  const parried = struck.length > 0 && spendFlag(u, 'parry', sc);", '  const parried = false;']] },
+  { name: 'Parry lands on a target still Parried', case: 'parry-spends-the-next-blow', edits: [['src/core/hunt/abilities.js', '      const fresh = landsBlow(row) || !row.status ? near : near.filter((m) => !holds(m, row.status));', '      const fresh = near;']] },
+  { name: 'Parried outlives its 2 s', case: 'parry-spends-the-next-blow', edits: [['src/data/statuses.js', "key: 'parried', durationMs: 2100,", "key: 'parried', durationMs: 4000,"]] },
+  { name: 'Parried misses a 2 s wind-up again', case: 'parry-spends-the-next-blow', edits: [['src/data/statuses.js', "key: 'parried', durationMs: 2100,", "key: 'parried', durationMs: 2000,"]] },
+  { name: 'Gash bleeds nothing', case: 'gash-cuts-the-ring', edits: [['src/data/abilities.js', "target: 'ring', maxHits: 8, hitPm: 400, base: [2, 4], status: 'bleed',", "target: 'ring', maxHits: 8, hitPm: 400, base: [2, 4],"]] },
+  { name: 'the real settle ends no wind-up', case: 'wave3-both-paths', also: ['supabase/functions/hr-accrue', 'tests/hunt-core/fixtures'],
+    edits: [['src/core/hunt/abilities.js', '    if (row.interrupts === true) interrupt(m, sc);\n', '']] },
+  { name: 'a Parried stack is lost at a settle cut (the viewed hunt and the closed one part)', case: 'wave3-both-paths', also: ['supabase/functions/hr-accrue', 'tests/hunt-core/fixtures'],
+    edits: [['src/core/hunt/status.js', "export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]),", "export const PERSISTED = Object.freeze({ unit: Object.freeze([]),"]] },
+  { name: 'Gash cuts one monster', case: 'gash-cuts-the-ring', edits: [['src/data/abilities.js', "  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 12, rune: 'chalked_rupture_rune',\n    target: 'ring',", "  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 12, rune: 'chalked_rupture_rune',\n    target: 'enemy',"]] },
   { name: 'a healer spell trains Magic at another rate', case: 'a-mage-and-a-healer-train-alike',
     edits: [['src/data/abilities.js', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1600,', 'healPm: 3170, base: 50, whenBelowPct: 70, magicXpMult: 1200,']] },
   { name: "a healer's basic trains Magic at another rate", case: 'a-mage-and-a-healer-train-alike',
@@ -1265,7 +1450,7 @@ const mutants = [
   { name: '[area-engine] a line strikes only its aim', case: 'hero-area-shapes',
     edits: [['src/core/hunt/abilities.js', "      const s = place(areaSpec(row), u, t);\n      const hit = engaged(inst, u).filter((o) => covers(s, o.x, o.y))", "      const s = place(areaSpec(row), u, t);\n      const hit = engaged(inst, u).filter((o) => o === t)"]] },
   { name: '[area-engine] a ring past its maxHits', case: 'hero-area-shapes',
-    edits: [['src/core/hunt/abilities.js', '      for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {', '      for (const m of hit) {']] },
+    edits: [['src/core/hunt/abilities.js', '      const reached = Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit;', '      const reached = hit;']] },
   { name: '[area-engine] a hitPm row rolls nothing of the blow', case: 'hero-area-shapes',
     edits: [['src/data/abilities.js', '  return [Math.max(1, Math.ceil((top * ABILITY_RULES.hitLowPm) / 1000)), top];', '  return [1, 1];']] },
   { name: '[area-engine] an ability casts before its unlock', case: 'hero-area-shapes',
@@ -1306,7 +1491,7 @@ const mutants = [
   { name: '[tank runes] a party row with no heal passes validate', case: 'rows-validate',
     edits: [['src/data/abilities.js', "if (r.target === 'party' && !heals(r) && !shells(r)) bad(", "if (false) bad("]] },
   { name: '[tank runes] a shape with nothing to land passes validate', case: 'rows-validate',
-    edits: [['src/data/abilities.js', "&& !(AREA_TARGETS.includes(r.target) && r.status)) {", "&& false) {"]] },
+    edits: [['src/data/abilities.js', "&& r.hitPm === undefined && !r.status) {", "&& false) {"]] },
   { name: '[tank runes] alone and party only together pass validate', case: 'rows-validate',
     edits: [['src/data/abilities.js', "if (r.party !== undefined && r.alone === true) bad(", "if (false) bad("]] },
   { name: '[tank runes] a party shield heals instead', case: 'party-shield-shells-the-party',

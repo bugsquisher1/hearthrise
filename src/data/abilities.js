@@ -43,7 +43,9 @@
 //     durMs (mark), shieldPm, healPm or healHpPm (above), whenBelowPct, minHurt,
 //   radius (party heal or party shield, tiles)
 //     A SHAPE (area, line, ring) with a `status` and no hitPm lands only its status: no blow,
-//     no kill, no weapon XP (Frost Slam). A `party` row heals or shields every living hero in its
+//     no kill, no weapon XP (Frost Slam). So does ONE TARGET (`enemy`) with a `status` and no hitPm (Parry): it
+//     takes the hero's own target first, never a monster still holding that status (src/core/hunt/abilities.js
+//     targetFor). A `party` row heals or shields every living hero in its
 //     radius, never both; a party shield never lowers a bigger shell already standing.
 //   alone: true = cast only while no other living hero shares the caster's world (Tyler 2026-11-09:
 //     "a new spell that can only be used when not in a party"), read at each cast as the kill XP
@@ -75,6 +77,12 @@
 //     on the mana the cast kept (src/core/hunt/abilities.js fire: the cast event's `mana` is net of it, as a shell's refund is)
 //   prefers: monster roles (monster-roles.js MONSTER_ROLES ids) a one-target strike takes first among the monsters in its reach,
 //     before the hero's own target (src/core/hunt/abilities.js targetFor; the Danger scale only, where monsters play roles)
+//   THE ANSWERS TO A WIND-UP (23-spell-audit.md section 4, wave 3; src/core/hunt/abilities.js answer), on a row that strikes monsters
+//   (one target or a shape), applied to every monster it reaches that still stands, after its hit:
+//     interrupts: true = ENDS its wind-up (a monster's spell, or the heavy blow a role winds up: one engine state, monster-spells.js
+//       `cast`): it lands nothing, `spell_end` says why ('interrupted'), and its cooldown runs on as if it had landed (Stagger)
+//     pushMs: its next swing waits this much longer (whole sub-steps, at most ABILITY_RULES.pushMaxMs): an interrupted monster does
+//       not swing at once instead (Stagger: 1 s)
 //   unlock: a level in the row's own skill (abilitySkill) the ability waits for: a slot set up
 //     early is kept and waits (`level`, the wait a locked rune version gives), never refused
 //   trigger: the conditions a NEW slot of the row starts with, when suggestedTrigger's generic one
@@ -144,6 +152,8 @@ export const ABILITY_RULES = Object.freeze({
   areaSide: 3,
   /* A hitPm row's roll (blowShare): from hitLowPm permille of its top to the top, the rule a monster's spell hits by. */
   hitLowPm: 500,
+  /* The longest a row's `pushMs` may hold back a monster's next swing (a bound, not a balance value: two swings' worth). */
+  pushMaxMs: 4000,
 });
 
 /* Which abilities an action set skips (AB-11; presets ASSUMED, spec §3.7). */
@@ -197,6 +207,16 @@ export const ABILITIES = Object.freeze([
      axes' (Tyler 2026-11-21, call 32-3: Rend stays at 6 s and the axes lose Power Strike, so their offense fits the bar budget). */
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'club', ...(FIST_LINE.live ? [FIST_LINE.family] : [])], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', hitPm: 700, base: [7, 13] }),
+  /* PARRY, THE SWORD'S OWN MOVE (docs/design/redesign/23-spell-audit.md sections 4 and 7, wave 3: the sword shared every move it had; 02's
+     "guard against one heavy blow"). A support cast on the sword's target that lands only its status, Parried (statuses.js): that
+     monster's next blow within 2 s, a swing or a wind-up's landing, lands nothing. Every 10 s, 10 mana, no rune. A new slot starts on "my
+     target is winding up" (`trigger`): the parry kept for the heavy blow. The sword alone: with a shield the tank holds with the Challenge. */
+  /* UNLOCKS (the designer, lane/roads-wave3): Parry at Melee 10, Gash at 12, so the new-spell prompt says each once (a move with no
+     unlock is never announced, and its road would be nine points on a move the player never heard of). Before the Sewer (band 5-25, the
+     first ground whose monsters wind up) Parry has no wind-up to answer, so the wait costs nothing. Stagger keeps none: it is the
+     hammer's rune choice from Level 1 (call 32-5), which the first-hour card already offers (tests/hunt-core/sewer.mjs starter-bars) */
+  ab({ id: 'parry', n: 'Parry', disciplines: ['sword'], lane: 'support', cdMs: 10000, mana: 10, unlock: 10, target: 'enemy', status: 'parried',
+    trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),
   /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): every melee
      weapon WITHOUT a shield (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on": a sword alone, two
      axes, a club or hammer, bare hands), every monster beside the hero, each for 60% of the hero's own largest blow (hitPm), so it
@@ -209,13 +229,23 @@ export const ABILITIES = Object.freeze([
      (Tyler 2026-10-23); its bleed ticks a share of the axes' own blow at the rune's tier (statuses.js bleed blowPm, tierPermille). */
   ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe'], lane: 'offense', cdMs: 6000, mana: 8, rune: 'chalked_rupture_rune', target: 'enemy',
     hitPm: 390, base: [2, 4], hits: 2, status: 'bleed', versions: [8, 10, 12, 14, 17] }),
-  /* QUARRY BLOW, the hammer's rune strike (Tyler 2026-11-21, call 32-5: "a hammer-only strike that spends an Earth rune, so it has a rune
-     choice from Level 1", as the sword has Flame Strike and the axes Rend). One target, the hammer's own blow at the blade's rune strike's
-     share, no element (Earth is the stone the hammer drives, never an element a monster resists). Inside the hammer's bar budget: Power
-     Strike 6 s, Turning Cut 8 s and this 8 s fill 0.83 of the offense lane, the sword's own fill. Off the default bar, as every weapon's
-     rune strike is: the player's pick, offered by the new-spell prompt. */
-  ab({ id: 'quarry_blow', n: 'Quarry Blow', disciplines: ['club'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_earth_rune',
-    target: 'enemy', hitPm: 1400, base: [8, 14], magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
+  /* GASH, THE TWO AXES' CROWD MOVE (23-spell-audit.md sections 4 and 7, wave 3: 02 gives the axe "cut a crowd", which it did only through
+     the Turning Cut two other weapons share). Every monster beside the hero takes a light hit, 40% of the axes' own blow, and one Bleed
+     stack (statuses.js bleed, the RUPTURE family's, at the rune's tier). 8 s, 10 mana, its versions on the strikes' x1.2 ladder; its
+     beginner's floor is the family's first-hour hit, Rend's [2, 4] (at 390 to Gash's 400). Rend 6 s, Turning Cut 8 s and this 8 s fill 0.83
+     of the axes' offense lane (0.58 before, the emptiest bar). A new slot starts on the area rule, "when it would hit at least 2". */
+  ab({ id: 'gash', n: 'Gash', disciplines: ['dual_axe'], lane: 'offense', cdMs: 8000, mana: 10, unlock: 12, rune: 'chalked_rupture_rune',
+    target: 'ring', maxHits: 8, hitPm: 400, base: [2, 4], status: 'bleed', magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
+  /* STAGGER, THE HAMMER'S ANSWER TO A WIND-UP (23-spell-audit.md sections 4 and 7, wave 3: Quarry Blow, a copy of Flame Strike with its
+     element taken off, reworked; 02 gives the hammer "break a wind-up"). One target, still the hammer's Earth rune strike (Tyler 2026-11-21,
+     call 32-5: a rune choice from Level 1; Earth is the stone the hammer drives, never an element a monster resists), at 60% of the rune
+     strike's share (840 of 1400, its beginner's floor 60% of [8, 14]), that ENDS its target's wind-up, a spell or a heavy blow
+     (`interrupts`), and holds its next swing back 1 s (`pushMs`). Every 10 s. A new slot starts on "my target is winding up" (`trigger`).
+     Power Strike 6 s, Turning Cut 8 s and this 10 s fill 0.78 of the hammer's offense lane. Off the default bar, as every weapon's rune
+     strike is: the player's pick. */
+  ab({ id: 'stagger', n: 'Stagger', disciplines: ['club'], lane: 'offense', cdMs: 10000, mana: 10, rune: 'chalked_earth_rune',
+    target: 'enemy', hitPm: 840, base: [5, 8], interrupts: true, pushMs: 1000, magicXpMult: 250, versions: [10, 12, 14, 17, 21],
+    trigger: [{ metric: 'target_winding_up', op: 'eq', value: true }] }),
   /* bow / crossbow — Ranger. HUNTER'S MARK lands on the bow's own target while it is unmarked, so the party's blows land on it (23-spell-
      audit.md section 4: on the healthiest in reach it often marked a monster nobody was hitting yet), else the healthiest in reach. */
   ab({ id: 'hunters_mark', n: "Hunter's Mark", disciplines: ['ranged'], lane: 'support', cdMs: 12000, mana: 8, target: 'mark',
@@ -481,10 +511,15 @@ export function validate(rows = ABILITIES) {
     for (const k of ['dmg', 'heal', 'shield', 'lvPm']) if (r[k] !== undefined) bad(k + ' is retired by the spell rule: a cast is a share of its caster\'s blow (' + NUMBER_FIELDS.join(', ') + ')');
     const nums = NUMBER_FIELDS.filter((k) => r[k] !== undefined);
     if (nums.length > 1) bad('a cast lands one number: ' + nums.join(' and '));
-    /* A damaging target lands a share of the hero's own largest blow (hitPm). A SHAPE may land only its status instead (Frost Slam:
-       no blow, no kill); a shape with neither numbers nor a status does nothing. */
-    if (DAMAGING.includes(r.target) && r.hitPm === undefined && !(AREA_TARGETS.includes(r.target) && r.status)) {
-      bad(AREA_TARGETS.includes(r.target) ? 'a shape with no hitPm and no status' : 'a damaging target with no hitPm');
+    /* A damaging target lands a share of the hero's own largest blow (hitPm). A SHAPE or ONE TARGET may land only its status instead
+       (Frost Slam, Parry: no blow, no kill); a row with neither numbers nor a status does nothing. */
+    if (DAMAGING.includes(r.target) && r.hitPm === undefined && !r.status) {
+      bad(AREA_TARGETS.includes(r.target) ? 'a shape with no hitPm and no status' : 'a damaging target with no hitPm and no status');
+    }
+    /* THE ANSWERS TO A WIND-UP (the header): on a row that reaches monsters; a push is whole sub-steps, at most pushMaxMs */
+    if (r.interrupts !== undefined && !(r.interrupts === true && DAMAGING.includes(r.target))) bad('interrupts is true on a row that reaches monsters, or absent');
+    if (r.pushMs !== undefined && !(Number.isInteger(r.pushMs) && r.pushMs > 0 && r.pushMs % step === 0 && r.pushMs <= ABILITY_RULES.pushMaxMs && DAMAGING.includes(r.target))) {
+      bad('pushMs is whole sub-steps 1..' + ABILITY_RULES.pushMaxMs + ' ms on a row that reaches monsters');
     }
     /* A row that lands no blow has no element to land it as (its words would name one that never strikes). */
     if (DAMAGING.includes(r.target) && !landsBlow(r) && 'element' in r) bad('an element on a row that lands no blow');

@@ -295,15 +295,33 @@
       },
       {
         "modules": 21,
-        "gzipBytes": 962174,
+        "gzipBytes": 958090,
         "on": "2026-11-23",
-        "why": "lane/gear-phase-b on set/v0.2.144 050a9b999: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B), +4.5 KB gzip to town: 124 new gear rows the bag, the market and the item card read (their generated stats, the four step-tier rows and their builders in gear-tiers.js, shields.js and slot-ladders.js, their lines in item-descriptions.js) and base-drops.js, the homes' drop rows hunt-grounds.js folds in. Catalogue data the town reads at once, not an import() on need"
+        "why": "Parry, Gash, Stagger rows, the target_winding_up bar condition and its text (lane/moves-wave-3)"
       },
       {
         "modules": 21,
-        "gzipBytes": 962234,
+        "gzipBytes": 958238,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings merged over the set (3329b4bb0): the Ford and Catacomb wing rows carry roles and spells, the Ford's drop chances at its rows' kill rate, REF_HERO's regenerated rows, formulaStep, refHeld and rowsKillsHead on the danger rows"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958924,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b: a step cloak's Steady armor steps by the cape ladder's rule (slot-ladders.js stepCapeSteadyPm) and a step piece reads no unique Temper band (temper.js): +0.1 KB gzip to town"
+        "why": "three wave-3 roads (299 nodes) and four statuses shown to the bar picker (lane/roads-wave3)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958946,
+        "on": "2026-11-24",
+        "why": "Bold breakOff rule in danger.js (lane/designer-reads-1123)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 963826,
+        "on": "2026-11-24",
+        "why": "lane/gear-phase-b on set/v0.2.144 1f3fa9fe6: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B), +4.7 KB gzip to town: 124 new gear rows the bag, the market and the item card read (their generated stats, the four step-tier rows and their builders in gear-tiers.js, shields.js and slot-ladders.js, their lines in item-descriptions.js), base-drops.js (the homes' drop rows hunt-grounds.js folds in) and the cloak and Temper step rules. Catalogue data the town reads at once, not an import() on need"
       }
     ]
   }

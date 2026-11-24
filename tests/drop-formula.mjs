@@ -77,7 +77,7 @@ const CASES = {
     for (const p of M.PACKS) {
       if (!Object.prototype.hasOwnProperty.call(M.D.DANGER_GROUNDS, p.id)) continue;
       const g = M.grounds.HUNT_GROUNDS[p.id];
-      const kph = M.DR.killsHeadHour(g), shares = M.DR.killShares(g);
+      const kph = M.DR.rowsKillsHour(g), shares = M.DR.killShares(g);
       for (const [mid, mon] of Object.entries(p.monsters || {})) {
         for (const r of mon.drops || []) {
           if (r.ch >= 1) continue;
@@ -272,6 +272,9 @@ const MUTANTS = [
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', ch: 0.016,"]] },
   { name: 'kills shares off the reference pull', case: 'DF-1', edits: [['src/core/drop-rate.js', 'const size = dangerDial(ground, row.refStep).pull[0];', 'const size = 3;']] },
+  /* (lane/monster-roles-ford-wings) a row's chance read at the scale's kill rate, not the one its rows are written at (the Ford's 235: the
+     tier path plays them as written) */
+  { name: 'chances derived at the scale\'s kills, not the rows\'', case: 'DF-1', edits: [['src/core/drop-rate.js', '  return Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead : refKillsOf(ground);', '  return refKillsOf(ground);']] },
   { name: 'depth read raw, not against the reference', case: 'DF-3', edits: [['src/core/drop-rate.js', 'return (1000 * depthPmAt(d)) / depthPmAt(ref);', 'return depthPmAt(d);']] },
   /* (lane/depth-reading-fix) the authored hours are the reference COMPANY's: x1 where it holds, not at the pay's anchor */
   { name: 'the Rare odds read against the pay anchor, not the reference hold', case: 'DF-3', edits: [['src/core/drop-rate.js', 'ref = depthOf(groundId, refHeldOf(groundId));', 'ref = depthOf(groundId, row.refStep); void refHeldOf;']] },

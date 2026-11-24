@@ -1,0 +1,28 @@
+
+V1 on catacomb_flooded_wing (8 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       420.4 +- 3.3      0.4  75.7  98.1   11.2    0.7     1.7     64.8      0     0  0 (0/0/0)                       6  {"hold":3865,"climb":1265,"fall":50}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.29x  sd 0  n 8  window 6 h  seeds 0.29 0.29 0.29 0.29 0.29 0.29 0.29 0.29
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L165  coin 15957 +- 109  income 17285 +- 100  store 1769  kit share 0.1 (meal 270, drink 339, charge 1160, shot 0)  loot by band: common 826, uncommon 435, scarce 0, other 67  n 8
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.556  bow 0.217  mage 0.074  healer 0.154
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 30.74 land 71.68% hit 96.92 (2275.75/h) | bow dps 33.6 land 87.89% hit 70.43 (1221.38/h) | mage dps 43.88 land 97.11% hit 143.95 (203.63/h) | healer dps 20.44 land 90.19% hit 75.79 (804.88/h)
+                    night_carter(null) 82.4/h 19.3 s 1784 | shrouded_pauper(null) 161.2/h 18.1 s 827 | keeper_dunn(null) 21.4/h 11 s 932 | bone_wall(null) 40.2/h 27.3 s 1295 | vault_leech(null) 115.2/h 30 s 386
+                    broke off by: fall:shrouded_pauper@0 38, fall:night_carter@0 8, fall:bone_wall@0 2, fall:night_carter@1 1, fall:keeper_dunn@0 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 143.8 (depth 1)  free 176  spell 804  food 20  taken 14.39 pm/s
+
+wall 81 s

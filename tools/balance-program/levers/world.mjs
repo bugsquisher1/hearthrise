@@ -330,7 +330,7 @@ export const WORLD = [
     ev: 'MEASURED (V1, V1.1: 12 seeds x 12 h x 4 cells)' }),
   L('danger.stances', 'monster-stats', 'archetype', 'Risk stance thresholds', {
     at: [at(DZ, "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),"), at(DZ, "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),"),
-      at(DZ, "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),")],
+      at(DZ, "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),")],
     def: 'a stance is its fall back trigger and its climb threshold, permille of max HP read on the lowest HP any hero reached in a pull; a death settles it one notch safer',
     range: 'fallPm < cleanPm <= 1000. RD-Q3 a: Careful and Steady never die, Bold is the only stance that can',
     touches: 'where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day; Bold 80/300 since lane/tuning-pass (2026-11-23: on Muster Barrows formula monsters Bold at 120 died 0 to 0.17 a day and won every day; at 80 0.25 on Muster and 1.0 on Hask Ford, 8 seeds x 10 h; tools/balance-program/redesign/tuning/r2)', out: SURVIVE, f: ['C-TIER'],
@@ -338,13 +338,13 @@ export const WORLD = [
     perturb: NP('player-policy', 'the stance is the player\'s risk choice; the V1 and V2 probes play each'),
     ev: 'MEASURED (V1.1, v2-stance.mjs)' }),
   L('danger.holder-line', 'monster-stats', 'archetype', 'The holding tank\'s line', {
-    at: [at(DZ, 'export const HOLDER = Object.freeze({ linePm: 800 });')],
+    at: [at(DZ, 'export const HOLDER = Object.freeze({ linePm: 700 });')],
     def: 'the lap\'s holding tank (targeting.js holderTank) reads every stance\'s fall back trigger and climb threshold times linePm / 1000 (Steady 20% and 36%); the pull\'s margin is the hero furthest under its own line, and a fall back names the HP it reached',
     range: 'linePm 1..1000 permille, over the largest blow a tank takes (a line under it is a Steady death, RD-Q3 a). Tyler 2026-11-22 ruled 15% (600); MEASURED on Muster L60 with the Challenge on 60%: 600 and 700 let a Muster Knight kill the tank (4 and 5 in 144 h), 800 none in 288 h',
     touches: 'how deep a four with a tank holds: the Challenge pulls every blow onto one hero, and read on the stance\'s own line the tank\'s dip broke the pull (23-spell-audit.md section 3: no Challenge held 63 steps deeper)', out: SURVIVE, f: ['C-TIER'],
     tests: [['tests/hunt-core/danger.mjs', 'holder: the tank\'s line, the margin, the climb and the named HP']], testReads: ['HOLDER'],
     perturb: NP('not-in-runs', 'played by spell-run.mjs (plan P) on the real engine'),
-    ev: 'MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md)' }),
+    ev: 'MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md); 700 since lane/monster-roles-ford-wings 2026-11-23, every scale ground on the formula: the tank four never died at 700 in 12 seed-days on each of the four (48, beside the tuning pass\'s 32 on Muster; tools/balance-program/redesign/tuning/roles/line)' }),
   L('danger.pay', 'monster-rewards', 'global', 'Pay by depth', {
     at: [at(DZ, 'export const PAY = Object.freeze({ refKillsHead: 120, payStepXp: 0.007, gapMax: 120,')],
     def: 'a kill on the scale pays each hero (XP to its next Level / the hours that Level takes in the hours table) / (refKillsHead x heroes at the kill) x (1 + payStepXp)^gap, the gap the step over the ground\'s reference step held to gapMax; coin is the roll x the pull\'s share x PAY.coinPm / 1000 x ((1 + WAGE.payStepCoin) x (1 + powerStep))^gap (danger.js COIN_STEP: a pull pays its own length back, so an HOUR a step deeper pays the one coin ratio, econ.wage-step); under the reference both read the pay floor',
@@ -372,6 +372,27 @@ export const WORLD = [
     perturb: NP('not-in-runs', 'played by the V1 probe only'),
     flags: [flag('redundant', 'A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial); it retires when grounds carry absolute bands', '02 package 3 cost; JUDGMENT')],
     ev: 'MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)' }),
+  /* (lane/monster-roles-ford-wings, 2026-11-23) two bridges a formula ground can need beside its band */
+  L('danger.formula-step', 'monster-stats', 'exception-intentional', 'Where a formula ground\'s reference monsters stand', {
+    at: [at(DZ, 'formulaStep: 520', { count: 2 })],
+    rows: rows('the scale grounds whose measured reference company holds off the formula\'s anchor (the Catacomb wings)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
+    def: 'a formula ground\'s monsters are written at a gap of 0 for the formula\'s reference company here, and its pull is sized from here (src/core/hunt/danger.js formulaStepOf, read by monster-formula.js and formulaBasePull); absent, the row\'s refStep. refStep stays the pay\'s reference, cut by the band rule where the MEASURED reference company holds: held at one step, a ground whose company holds far off the anchor paid every stance under the pay floor',
+    range: 'a whole step inside the scale (tools/gen-danger.mjs refuses one off it). A bridge like refStep: it goes when bands, monsters and pay are all in absolute steps (27 stage 6)',
+    touches: 'where the band rule\'s reference sits against the monsters, so C7 and C-5 on that ground', out: [...PACE, ...SURVIVE], f: ['C-MON-STATS'],
+    tests: [['tests/hunt-core/monster-formula.mjs', 'grounds: each monster at its derived health on the anchor, a ground paid off its anchor']], testReads: ['formulaStepOf'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only (tools/balance-program/redesign/tuning/roles)'),
+    flags: [flag('redundant', 'A second per-ground step beside refStep (LR-1: no per-ground dial); it retires with absolute steps', '27 stage 6; JUDGMENT')],
+    ev: 'MEASURED (lane/monster-roles-ford-wings: the Bone Wing\'s Steady mixed four at Level 175 held 440 against the anchor 520, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles/after)' }),
+  L('danger.rows-kept', 'monster-rewards', 'exception-intentional', 'The kill rate a ground\'s coin and drop rows were written at', {
+    at: [at(DZ, 'rowsKillsHead: 235')],
+    rows: rows('the scale grounds whose rows were written for another kill rate (Hask\'s Ford, on its hand rows, which the tier path still plays)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
+    def: 'a scale kill pays its row\'s coin and its drop table x rowsKillsHead / the ground\'s reference kills (src/core/hunt/danger.js rowsKeptOf), so a ground whose rows were written at another kill rate keeps its hour\'s coin and loot on the scale while the tier path plays the rows as written (drop chances derived at this rate, src/core/drop-rate.js rowsKillsHour); absent, x1. The server\'s ceiling a kill reads the dial (tools/gen-danger.mjs coin_pm_max)',
+    range: 'a whole kill rate a head an hour (tools/gen-danger.mjs refuses any other). A bridge: it goes when coin is written in hours (27 stage 9)',
+    touches: 'coin and loot an hour on that ground (EL-PAY, the drop hours), and the kit share through it', out: GOLD, f: ['C-TIER', 'P22'],
+    tests: [['tests/hunt-core/danger.mjs', 'rowskept: a ground keeps its coin and its drop table at the kill rate they were written for, at every step and party size'], ['tests/drop-formula.mjs', 'DF-1: every scale row chance is its hours over the kills its rows are written at']], testReads: ['rowsKillsHead', 'rowsKillsHour'],
+    perturb: NP('not-in-runs', 'played by the V1 probe only (tools/balance-program/redesign/tuning/roles)'),
+    flags: [flag('redundant', 'A per-ground number for coin until coin is written in hours (LR-1)', '27 stage 9; JUDGMENT')],
+    ev: 'MEASURED (lane/monster-roles-ford-wings: on its hand rows the Ford\'s Steady four killed 232 a head an hour and earned 12,243 coin a hero-hour; on the formula 134 and 6,783, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles)' }),
   L('danger.band-rule', 'monster-rewards', 'global', 'How every ground\'s band is cut from its three Lab cells', {
     at: [at(DZ, 'export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });')],
     def: 'tools/new-ground.mjs cuts a ground\'s band by it (tools/lib/danger-band.mjs bandFromReports): the floor (depth 1) is the fresh LOW four\'s lowest seed less floorUnder, down to floorTo; refStep the MID four to refTo; topStep the BIS four to topTo, held to refStep + PAY.gapMax',

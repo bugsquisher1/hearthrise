@@ -96,11 +96,11 @@ export async function loadKits(root, opts = {}) {
     return (it) => main.reduce((s, k) => s + (it[k] || 0), 0) * 1000 + (it.steadyPm || 0);
   };
   const perkSum = (it) => Object.values(it.jewelPerks || {}).reduce((a, b) => a + b, 0);
-  function accessory(slot, L, style, state, reach) {
+  function accessory(slot, L, style, state, reach, exclude = null) {
     const score = scoreFor(style);
     const ok = (id) => {
       const it = ITEMS[id];
-      if (!it || it.slot !== slot || lvOf(id) > L) return false;
+      if (!it || it.slot !== slot || lvOf(id) > L || (exclude && exclude.includes(id))) return false;
       if (it.jewelGrade) return state === 'bis' && !!it.jewelBase && reach.has(it.jewelBase);
       return reach.has(id);
     };
@@ -128,7 +128,8 @@ export async function loadKits(root, opts = {}) {
 
   /**
    * THE PLAN for one hero: `state` 'low' | 'mid' | 'bis', `style` a tools/balance-sim/styles.mjs id, ctx { ground (the cell's: uniques
-   * rank on it), mainSkill (the seat's main skill level: the ammo it may spend) }.
+   * rank on it), mainSkill (the seat's main skill level: the ammo it may spend), exclude (item ids no slot may wear: tools/new-ground.mjs
+   * caps a ground inside one gear tier at its own tier's kit, src/core/bands.js insideOneTier) }.
    */
   function kitFor(level, state, style, ctx = {}) {
     const L = Math.max(1, Math.round(level));
@@ -138,6 +139,7 @@ export async function loadKits(root, opts = {}) {
     const stretch = stretchOf(L);
     if (stretch.state === 'PROJECTED') return projectedPlan(L, state, style, ctx);
     const ground = ctx.ground || null, mainSkill = Number.isInteger(ctx.mainSkill) ? ctx.mainSkill : L;
+    const exclude = Array.isArray(ctx.exclude) && ctx.exclude.length ? ctx.exclude : null, ex = exclude ? { exclude } : {};
     const reasons = {};
     let opts, base;
     const staged = stretch.state === 'STAGED' ? stagedUpTo(L) : [];
@@ -147,19 +149,19 @@ export async function loadKits(root, opts = {}) {
       for (const k of Object.keys(base)) reasons[k] = 'the start kit (under Level 15)';
     } else if (state === 'low' && bandOf(L) <= LADDER_TOP) {
       opts = { tierOffset: STATES.low.ladder.tierOffset, only: STATES.low.ladder.only || 'all' };
-      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...opts });
+      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...ex, ...opts });
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) reasons[k] = 'the ladder, one tier under the Level\'s (tier ' + tierOf(base[k]) + ')';
     } else if (state === 'low') {
       /* past the ladder: the previous band's MID set, worn at this Level */
       const back = bandBefore(L);
-      const prev = kitFor(back, 'mid', style, { ground, mainSkill });
+      const prev = kitFor(back, 'mid', style, { ground, mainSkill, ...ex });
       opts = { ...prev.gear };
       base = { ...prev.kit };
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) reasons[k] = 'the previous band\'s MID piece (Level ' + back + ')';
     } else {
       const uniques = state === 'bis' || L >= UNIQUE_FROM;
       opts = { ...(uniques ? { uniques: true } : {}), ...(state === 'bis' ? { chest: true } : {}), ...(staged.length ? { openAlso: staged } : {}) };
-      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...opts });
+      base = gear.kitOf(style, L, { ground, accessories: true, ammoSkill: mainSkill, ...ex, ...opts });
       for (const k of ['weapon', 'shield', ...ARMOR_SLOTS]) if (base[k]) {
         const id = base[k], src = gear.reach.get(id) || (gear.staged.has(id) ? 'staged: drops on ' + gear.staged.get(id).ground : gear.CHEST_IDS.has(id) ? 'a Hearth Chest piece' : 'reachable with the staged grounds opened');
         reasons[k] = (state === 'bis' ? 'the best wearable piece' : uniques ? 'the best ground or boss drop' : 'the ladder piece of the Level\'s tier') + ' (tier ' + tierOf(id) + ', ' + src + ')';
@@ -170,7 +172,7 @@ export async function loadKits(root, opts = {}) {
     const reach = staged.length ? gear.reachWith(staged) : gear.reach;
     for (const [slot, kind] of Object.entries(JEWEL_SLOTS)) {
       if (state === 'low') { set[slot] = null; reasons[slot] = 'none (LOW wears no jewelry or cloak)'; continue; }
-      const id = accessory(kind, L, style, state, reach);
+      const id = accessory(kind, L, style, state, reach, exclude);
       set[slot] = id;
       reasons[slot] = id ? (state === 'bis' ? 'highest tier, then grade, then the perk pair' : 'the plain piece of the highest tier') + ' (tier ' + tierOf(id) + (ITEMS[id].jewelGrade ? ', ' + ITEMS[id].jewelGrade + ' ' + Object.keys(ITEMS[id].jewelPerks || {}).join('+') : '') + ')' : 'none gettable at this Level';
     }

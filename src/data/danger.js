@@ -226,7 +226,7 @@ export const DANGER_GROUNDS = Object.freeze({
      14%; its own coin level puts it back on the wage, 1.01 of wage(60) (8 seeds x 10 h, grounds/muster_barrows-ref.json). Level XP at the
      hold: 0.88 of the hours table (tests/level-curve.mjs C7, Level held; was 1.06 read at the anchor) */
   muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
-  hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
   catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'

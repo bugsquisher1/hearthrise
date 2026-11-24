@@ -42,7 +42,7 @@ if (!G) die('usage: node tools/new-ground.mjs <ground> --entry L --top L [--mid 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { DANGER_GROUNDS, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
 /* THE ABSOLUTE BAND (lane/foundations-block): the band is a formula of the row (src/core/bands.js bandAbs); the cells measure its bridge */
-const { bandAbs, absPmOf, depthAt } = await imp('src/core/bands.js');
+const { bandAbs, absPmOf, depthAt, insideOneTier } = await imp('src/core/bands.js');
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { SUSTAIN } = await imp('src/data/sustain.js');
 const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
@@ -65,13 +65,17 @@ if (arg('ref')) {
   levels = { entry, top, mid };
   mkdirSync(OUT, { recursive: true });
   const V1 = join(ROOT, 'tools', 'balance-program', 'redesign', 'v1-climb.mjs');
+  const OWN_TIER = insideOneTier(G);
+  if (OWN_TIER) process.stderr.write('new-ground: ' + G + ' sits inside one gear tier: every cell wears its own tier (item Level ' + DANGER_GROUNDS[G].gearLevel + ' to ' + (DANGER_GROUNDS[G].gearLevel + GEAR_STEPS.tierSteps - 1) + ')\n');
   const run = (cell, L, gear) => {
     const json = join(OUT, G + '-' + cell + '.json');
     process.stderr.write('new-ground: ' + G + ' ' + cell + ' (' + gear + ' kits, Level ' + L + ')\n');
     /* --hold-level (lane/scale-early-grounds): each company stays at its Level all day (v1-climb.mjs --hold-level), for a ground whose
        Levels come faster than a measuring day (under about Level 20) or whose hunt ends at a Level (the Mill Cellar's at 5) */
     const txt = execFileSync(process.execPath, [V1, '--ground', G, '--level', String(L), '--gear', gear, '--seeds', arg('seeds', '4'), '--hours', arg('hours', '12'),
-      '--settle', arg('settle', '4'), '--workers', arg('workers', '6'), '--only', 'base:steady', '--json', json, ...(argv.includes('--hold-level') ? ['--hold-level'] : [])],
+      '--settle', arg('settle', '4'), '--workers', arg('workers', '6'), '--only', 'base:steady', '--json', json, ...(argv.includes('--hold-level') ? ['--hold-level'] : []),
+      /* A GROUND INSIDE ONE GEAR TIER (src/core/bands.js insideOneTier; 29-tuning-pass.md 7.5): every cell in the ground's own tier's kit */
+      ...(OWN_TIER ? ['--max-il', String(DANGER_GROUNDS[G].gearLevel + GEAR_STEPS.tierSteps - 1)] : [])],
       { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 << 20 });
     writeFileSync(join(OUT, G + '-' + cell + '.txt'), txt);
     return readJson(json);

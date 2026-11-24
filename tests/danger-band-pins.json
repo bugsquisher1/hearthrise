@@ -26,6 +26,7 @@
    "floorStep": 550,
    "topStep": 660,
    "refKillsHead": 135,
+   "coinPm": 6600,
    "print": "72695466be94246b",
    "verdict": "OPEN",
    "levels": {
@@ -33,9 +34,9 @@
     "top": 60,
     "mid": 52
    },
-   "measured": "2026-11-23",
+   "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-ref.json",
+    "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
     "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-top.json",
     "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-floor.json"
    ]

@@ -17,8 +17,9 @@
 //   BD-3  THE RATING (04 section 1): a hero with every part at its Level rates its Level; a gear part under it counts at weightGearBelowPm,
 //         over it at weightGearPm, a skill Level at weightSkillPm, the weights the engine's own (src/data/danger.js POWER)
 //   BD-4  THE BAND IS A FORMULA of the row: every scale ground's bandAbs is the rating of its three companies (a fresh four one tier back at
-//         the entry Level, the reference at refLevel, a strong four one tier ahead at its hunt's top Level), recomputed here by hand, and
-//         ordered floor < reference < top; refLevel sits inside the hunt's Level band (27 K-5)
+//         the entry Level, the reference at refLevel, a strong four one tier ahead at its hunt's top Level; a ground whose band sits inside
+//         its own base tier, both in its own kit: 29-tuning-pass.md 7.5, insideOneTier), recomputed here by hand, and ordered floor <
+//         reference < top; refLevel sits inside the hunt's Level band (27 K-5)
 //   BD-5  THE BRIDGE: absPmOf maps the row's floorStep, reference hold (refHeldOf) and topStep to the formula's three points exactly and
 //         never falls with the step
 //   BD-6  ONE DEPTH: depthAt reads Depth 1 at the floor and DEPTHS at the top, never falls with the step, stays in 1..DEPTHS, and is an even
@@ -59,6 +60,8 @@ if (process.argv.includes('--mutate')) {
   const ALSO = [...new Set(['src/session', 'tools/balance-sim', 'tests/bands.mjs', 'tests/sustain.mjs', 'tests/_is-main.mjs', 'tools/balance-program/redesign/foundations',
     'tests/danger-band-pins.json', 'tools/balance-program/redesign/depth-budget', ...evidence])];
   const MUT = [
+    ['tests/bands.mjs', 'a ground inside one tier reads the next tier\'s strong four (29 7.5)', [['src/core/bands.js', 'topPm: at(top, own ? g.gearLevel : Math.max(', 'topPm: at(top, false ? g.gearLevel : Math.max(']]],
+    ['tests/bands.mjs', 'no ground is ever inside one tier', [['src/core/bands.js', '  return g.entryLevel >= g.gearLevel && top < g.gearLevel + GEAR_STEPS.tierSteps;', '  return false;']]],
   /* the controls: each test passes on the clean plant, so a mutant's red is its own and not a file the plant left out (until 2026-11-23
      every planted run died on a missing tests/_is-main.mjs, which tools/balance-sim/skill-lines.mjs imports, so every mutant read caught) */
   ['tests/bands.mjs', 'CONTROL: the clean plant', []],
@@ -138,7 +141,10 @@ const byHand = (L, gear) => {
    strong four wears the tier ahead only if that Level can wear it (a piece is worn from its item Level less wearAhead), else its own tier */
 const { HUNT_GROUNDS } = await imp('src/data/hunt-grounds.js');
 const topOf = (id, band) => (Number.isInteger(HUNT_GROUNDS[id] && HUNT_GROUNDS[id].endsAtLevel) ? Math.min(band[1], HUNT_GROUNDS[id].endsAtLevel - 1) : band[1]);
+/* (29-tuning-pass.md 7.5) a ground whose band, entry to top, sits inside its own base tier's Levels: both companies in its own kit */
+const insideOf = (g, top) => g.entryLevel >= g.gearLevel && top < g.gearLevel + T;
 const strongKit = (g, L) => {
+  if (insideOf(g, L)) return g.gearLevel;
   let kit = g.gearLevel + T * BAND_ABS.topTiersAhead;
   while (kit > g.gearLevel && kit - GEAR_STEPS.wearAhead > L) kit -= T;
   return kit;
@@ -148,7 +154,9 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   ok(b, 'BD-4 ' + id + ' has no absolute band');
   if (!b) continue;
   const top = topOf(id, band);
-  ok(b.floorPm === byHand(g.entryLevel, Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack)), 'BD-4 ' + id + ' floor ' + b.floorPm + ' is not the fresh four\'s rating');
+  const freshKit = insideOf(g, top) ? g.gearLevel : Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack);
+  ok(b.floorPm === byHand(g.entryLevel, freshKit), 'BD-4 ' + id + ' floor ' + b.floorPm + ' is not the fresh four\'s rating (kit ' + freshKit + ')');
+  ok(B.insideOneTier(id) === insideOf(g, top), 'BD-4 ' + id + ' insideOneTier reads ' + B.insideOneTier(id) + ', its band ' + g.entryLevel + ' to ' + top + ' on base ' + g.gearLevel + ' says ' + insideOf(g, top));
   ok(b.refPm === byHand(g.refLevel, g.gearLevel), 'BD-4 ' + id + ' reference ' + b.refPm + ' is not the reference company\'s rating');
   ok(b.topPm === byHand(top, strongKit(g, top)), 'BD-4 ' + id + ' top ' + b.topPm + ' is not the strong four\'s rating (Level ' + top + ', kit ' + strongKit(g, top) + ')');
   ok(b.floorPm < b.refPm && b.refPm < b.topPm, 'BD-4 ' + id + ' band is not ordered: ' + JSON.stringify(b));

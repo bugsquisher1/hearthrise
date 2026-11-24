@@ -8,6 +8,7 @@
 //                                04 section 1's rating: L + wGear x (gear - L) + wSkill x (skillLevel - L), thousandths, rounded once
 //   bandAbs(groundId)            { floorPm, refPm, topPm }: the band's three companies as ratings (null off the scale, or a ground whose
 //                                hunt has no Level band)
+//   insideOneTier(groundId)      a ground whose Levels all sit inside its own gear tier: its companies wear its own kit (29 section 7.5)
 //   (the band's top Level is its hunt's top, or the last Level its hunt still plays on an endsAtLevel ground: topLevelOf)
 //   refHeldOf(groundId)          the own step the reference company HOLDS on the ground: the bridge's middle point (null off the scale)
 //   absPmOf(groundId, step)      the absolute step (thousandths) of a ground's OWN step: straight between the bridge's three measured
@@ -63,19 +64,30 @@ function topLevelOf(groundId) {
     on the tier grid. */
 const wearableTierLevel = (L) => Math.floor((L + GEAR_STEPS.wearAhead) / GEAR_STEPS.tierSteps) * GEAR_STEPS.tierSteps;
 
+/** A GROUND INSIDE ONE GEAR TIER (designer, 29-tuning-pass.md section 7.5, 2026-11-23): every Level of its band, entry to top, sits inside
+    its own base tier's Levels (gearLevel to gearLevel + tierSteps), so "one tier back" or "ahead" means nothing there (tier 0 is the
+    starting kit). Its band is cut from its Levels in its OWN tier's kit: the fresh company at the entry, the reference at refLevel and the
+    strong company at the top Level, all in the ground's own drops (bandAbs here; tools/new-ground.mjs caps the cells' kits the same way).
+    The Mill Cellar (1 to 4) and the Thicket (5 to 15) on tier 0. False off the scale or with no Level band. */
+export function insideOneTier(groundId) {
+  const g = rowOf(groundId), top = topLevelOf(groundId);
+  if (!g || !Number.isInteger(g.entryLevel) || !Number.isInteger(top) || !Number.isInteger(g.gearLevel)) return false;
+  return g.entryLevel >= g.gearLevel && top < g.gearLevel + GEAR_STEPS.tierSteps;
+}
+
 /** The band's three companies as absolute steps (thousandths): { floorPm, refPm, topPm }. Null off the scale or with no Level band. The strong
     company wears the tier ahead only when its top Level can wear it (src/data/bands.js: "worn from its item Level less wearAhead, so it is
-    wearable by the top Level"), else the highest tier it can: a ground whose Levels sit under the next tier's wear Level (the Mill Cellar's
-    1 to 4 under item Level 20's 10) tops out in its own tier. */
+    wearable by the top Level"), else the highest tier it can. A ground inside one gear tier (insideOneTier) reads both its fresh and its
+    strong company in its own tier. */
 export function bandAbs(groundId) {
   const g = rowOf(groundId), top = topLevelOf(groundId);
   if (!g || !Number.isInteger(g.entryLevel) || !Number.isInteger(g.refLevel) || !Number.isInteger(top) || !Number.isInteger(g.gearLevel)) return null;
-  const T = GEAR_STEPS.tierSteps;
+  const T = GEAR_STEPS.tierSteps, own = insideOneTier(groundId);
   const at = (L, gear) => ratingPm({ levelPm: 1000 * L, gearPm: 1000 * gear });
   return {
-    floorPm: at(g.entryLevel, Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack)),
+    floorPm: at(g.entryLevel, own ? g.gearLevel : Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack)),
     refPm: at(g.refLevel, g.gearLevel),
-    topPm: at(top, Math.max(g.gearLevel, Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top)))),
+    topPm: at(top, own ? g.gearLevel : Math.max(g.gearLevel, Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top)))),
   };
 }
 

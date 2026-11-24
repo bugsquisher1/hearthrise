@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/redesign/v1-climb.mjs — THE ROADMAP'S PROBE V1, ON THE REAL ENGINE (lane/v1-climb, 2026-11-21).
 //
-//   node tools/balance-program/redesign/v1-climb.mjs [--seeds 8] [--hours 12] [--workers 8] [--json <file>] [--only id,id] [--gear low|mid|bis]
+//   node tools/balance-program/redesign/v1-climb.mjs [--seeds 8] [--hours 12] [--workers 8] [--json <file>] [--only id,id] [--gear low|mid|bis] [--max-il N]
 //
 // docs/design/redesign/05-roadmap.md stage 4, V1 "the climb": a four settles at a step, a small change in power moves that step, and a fall
 // back comes before a wipe on Careful and Steady. Every number is read off the engine's own `danger` events (src/core/hunt/danger.js: one
@@ -36,6 +36,12 @@ const ONLY = arg('only') ? arg('only').split(',') : null;
 /* --gear low|mid|bis (lane/r10): every cell's kit state (grid-kit.mjs), MID by default. A ground's band reads LOW at its entry Level (a fresh
    company) and BIS at its top Level (a strong four): tools/balance-program/redesign/r10 */
 const KIT = arg('gear', 'mid');
+/* --max-il N (lane/scale-early-grounds; 29-tuning-pass.md 7.5): no seat wears a piece over item Level N, so a ground inside one gear tier
+   (src/core/bands.js insideOneTier) measures its companies in its own tier's kit; tools/new-ground.mjs passes the ground's gearLevel */
+const MAX_IL = arg('max-il') === null ? null : Number(arg('max-il'));
+if (MAX_IL !== null && !(Number.isInteger(MAX_IL) && MAX_IL >= 0)) { console.error('v1-climb: --max-il wants a whole item Level'); process.exit(2); }
+const { ITEMS: ALL_ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
+const EXCLUDE = MAX_IL === null ? null : Object.keys(ALL_ITEMS).filter((id) => { const it = ALL_ITEMS[id]; return it && typeof it.slot === 'string' && it.slot !== 'ammo' && Number.isInteger(it.iL) && it.iL > MAX_IL; });
 /* --styles a,b,c,d (lane/w2-roles-rows): the four's styles, seat by seat (progression-grid.mjs MAIN), in place of the matrix's mixed four */
 const STYLES = arg('styles') ? arg('styles').split(',') : ['hammer', 'bow', 'mage', 'healer'];
 const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bold'];
@@ -103,13 +109,13 @@ const MAINSK = (await imp('tools/balance-program/progression-grid.mjs')).MAIN;
 const pinnedKits = (cell, L) => cell.party.map((style, i) => {
   const o = (cell.gearBySeat && cell.gearBySeat[i]) || {};
   const sk = cell.skillsBySeat[i], main = MAINSK[style] || 'melee';
-  return { ...o, also: GEAR.kitOf(style, L, { ground: cell.ground, accessories: true, ammoSkill: sk[main === 'ranged' ? 'ranged' : 'melee'], ...o }) };
+  return { ...o, also: GEAR.kitOf(style, L, { ground: cell.ground, accessories: true, ammoSkill: sk[main === 'ranged' ? 'ranged' : 'melee'], ...(EXCLUDE ? { exclude: EXCLUDE } : {}), ...o }) };
 });
 const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
-  const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}), ...(v.skillDelta ? { skillDelta: v.skillDelta } : {}) });
+  const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}), ...(v.skillDelta ? { skillDelta: v.skillDelta } : {}), ...(EXCLUDE ? { exclude: EXCLUDE } : {}) });
   const start = startOf(id, v);
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true, ...(HOLD_LEVEL ? { holdLevel: true } : {}),
     ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}) };

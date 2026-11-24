@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2785,
+  "replay_ms": 2134,
   "counts": {
     "tracked_names": 1140,
     "entries": 965
@@ -2961,7 +2961,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6289,7 +6290,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6307,7 +6309,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6325,7 +6328,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6343,7 +6347,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6361,7 +6366,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6379,7 +6385,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6397,7 +6404,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6415,7 +6423,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6469,7 +6478,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -6505,7 +6515,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -8000,7 +8011,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -11580,7 +11592,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -11598,7 +11611,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -14935,7 +14949,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -14953,7 +14968,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -18400,7 +18416,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -18418,7 +18435,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -18436,7 +18454,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
@@ -18472,7 +18491,8 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper-catalogue.generated.sql"
+        "1063-flame-temper-catalogue.generated.sql",
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {

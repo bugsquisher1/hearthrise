@@ -151,38 +151,38 @@ begin
     (5, 500, 2978::bigint, 55796::bigint, 89::bigint, 89::bigint),
     (10, 1000, 105734::bigint, 422414::bigint, 6344::bigint, 6344::bigint),
     (10, 500, 105734::bigint, 211207::bigint, 3172::bigint, 3172::bigint),
-    (20, 1000, 1206896::bigint, 475825::bigint, 72413::bigint, 72413::bigint),
-    (20, 500, 1206896::bigint, 237913::bigint, 36206::bigint, 36206::bigint),
-    (29, 1000, 3170063::bigint, 645552::bigint, 190203::bigint, 190203::bigint),
-    (29, 500, 3170063::bigint, 322776::bigint, 95101::bigint, 95101::bigint),
-    (30, 1000, 3490718::bigint, 675243::bigint, 209443::bigint, 209443::bigint),
-    (30, 500, 3490718::bigint, 337622::bigint, 104721::bigint, 104721::bigint),
-    (31, 1000, 3836996::bigint, 705895::bigint, 230219::bigint, 230219::bigint),
-    (31, 500, 3836996::bigint, 352948::bigint, 115109::bigint, 115109::bigint),
-    (50, 1000, 17032268::bigint, 1429695::bigint, 1021936::bigint, 1021936::bigint),
-    (50, 500, 17032268::bigint, 714848::bigint, 510968::bigint, 510968::bigint),
-    (60, 1000, 31966223::bigint, 2131545::bigint, 1917973::bigint, 1917973::bigint),
-    (60, 500, 31966223::bigint, 1065773::bigint, 958986::bigint, 958986::bigint),
-    (61, 1000, 33903991::bigint, 2195803::bigint, 2034239::bigint, 2034239::bigint),
-    (61, 500, 33903991::bigint, 1097902::bigint, 1017119::bigint, 1017119::bigint),
-    (62, 1000, 35923850::bigint, 2259234::bigint, 2155431::bigint, 2155431::bigint),
-    (62, 500, 35923850::bigint, 1129617::bigint, 1077715::bigint, 1077715::bigint),
-    (63, 1000, 38026124::bigint, 2321886::bigint, 2281567::bigint, 2281567::bigint),
-    (63, 500, 38026124::bigint, 1160943::bigint, 1140783::bigint, 1140783::bigint),
-    (70, 1000, 55076878::bigint, 2742130::bigint, 2742129::bigint, 2742130::bigint),
-    (70, 500, 55076878::bigint, 1371065::bigint, 1371064::bigint, 1371065::bigint),
-    (100, 1000, 176709043::bigint, 4351932::bigint, 4351931::bigint, 4351932::bigint),
-    (100, 500, 176709043::bigint, 2175966::bigint, 2175965::bigint, 2175966::bigint),
-    (200, 1000, 1119542618::bigint, 7850079::bigint, 7850078::bigint, 7850079::bigint),
-    (200, 500, 1119542618::bigint, 3925040::bigint, 3925039::bigint, 3925040::bigint),
-    (400, 1000, 7043156218::bigint, 28237246::bigint, 28237245::bigint, 28237246::bigint),
-    (400, 500, 7043156218::bigint, 14118623::bigint, 14118622::bigint, 14118623::bigint),
-    (1000, 1000, 116323697018::bigint, 131691992::bigint, 131691991::bigint, 131691992::bigint),
-    (1000, 500, 116323697018::bigint, 65845996::bigint, 65845995::bigint, 65845996::bigint),
-    (2000, 1000, 711711265018::bigint, 358340561::bigint, 358340560::bigint, 358340561::bigint),
-    (2000, 500, 711711265018::bigint, 179170281::bigint, 179170280::bigint, 179170281::bigint),
-    (4000, 1000, 4172186401018::bigint, 1034499281::bigint, 1034499280::bigint, 1034499281::bigint),
-    (4000, 500, 4172186401018::bigint, 517249641::bigint, 517249640::bigint, 517249641::bigint)) p(l, pm, x, hours, engine, bound) loop
+    (20, 1000, 1193816::bigint, 475825::bigint, 71628::bigint, 71628::bigint),
+    (20, 500, 1193816::bigint, 237913::bigint, 35814::bigint, 35814::bigint),
+    (29, 1000, 3156983::bigint, 645552::bigint, 189418::bigint, 189418::bigint),
+    (29, 500, 3156983::bigint, 322776::bigint, 94709::bigint, 94709::bigint),
+    (30, 1000, 3477638::bigint, 675243::bigint, 208658::bigint, 208658::bigint),
+    (30, 500, 3477638::bigint, 337622::bigint, 104329::bigint, 104329::bigint),
+    (31, 1000, 3823916::bigint, 705895::bigint, 229434::bigint, 229434::bigint),
+    (31, 500, 3823916::bigint, 352948::bigint, 114717::bigint, 114717::bigint),
+    (50, 1000, 17019188::bigint, 1429695::bigint, 1021151::bigint, 1021151::bigint),
+    (50, 500, 17019188::bigint, 714848::bigint, 510575::bigint, 510575::bigint),
+    (60, 1000, 31953143::bigint, 2131545::bigint, 1917188::bigint, 1917188::bigint),
+    (60, 500, 31953143::bigint, 1065773::bigint, 958594::bigint, 958594::bigint),
+    (61, 1000, 33890911::bigint, 2195803::bigint, 2033454::bigint, 2033454::bigint),
+    (61, 500, 33890911::bigint, 1097902::bigint, 1016727::bigint, 1016727::bigint),
+    (62, 1000, 35910770::bigint, 2259234::bigint, 2154646::bigint, 2154646::bigint),
+    (62, 500, 35910770::bigint, 1129617::bigint, 1077323::bigint, 1077323::bigint),
+    (63, 1000, 38013044::bigint, 2321886::bigint, 2280782::bigint, 2280782::bigint),
+    (63, 500, 38013044::bigint, 1160943::bigint, 1140391::bigint, 1140391::bigint),
+    (70, 1000, 55063798::bigint, 2742130::bigint, 2742129::bigint, 2742130::bigint),
+    (70, 500, 55063798::bigint, 1371065::bigint, 1371064::bigint, 1371065::bigint),
+    (100, 1000, 176695963::bigint, 4351932::bigint, 4351931::bigint, 4351932::bigint),
+    (100, 500, 176695963::bigint, 2175966::bigint, 2175965::bigint, 2175966::bigint),
+    (200, 1000, 1119529538::bigint, 7850079::bigint, 7850078::bigint, 7850079::bigint),
+    (200, 500, 1119529538::bigint, 3925040::bigint, 3925039::bigint, 3925040::bigint),
+    (400, 1000, 7043143138::bigint, 28237246::bigint, 28237245::bigint, 28237246::bigint),
+    (400, 500, 7043143138::bigint, 14118623::bigint, 14118622::bigint, 14118623::bigint),
+    (1000, 1000, 116323683938::bigint, 131691992::bigint, 131691991::bigint, 131691992::bigint),
+    (1000, 500, 116323683938::bigint, 65845996::bigint, 65845995::bigint, 65845996::bigint),
+    (2000, 1000, 711711251938::bigint, 358340561::bigint, 358340560::bigint, 358340561::bigint),
+    (2000, 500, 711711251938::bigint, 179170281::bigint, 179170280::bigint, 179170281::bigint),
+    (4000, 1000, 4172186387938::bigint, 1034499281::bigint, 1034499280::bigint, 1034499281::bigint),
+    (4000, 500, 4172186387938::bigint, 517249641::bigint, 517249640::bigint, 517249641::bigint)) p(l, pm, x, hours, engine, bound) loop
     v_p := public.hr_death_hours_xp(v_r.l, v_r.pm);
     if v_p is null or abs(v_p - v_r.hours) > 1 then
       raise exception 'VERIFY(c): a death''s hours at Level % (strength %) are % in SQL, % in src/core/action-rules.js', v_r.l, v_r.pm, v_p, v_r.hours; end if;
@@ -190,13 +190,13 @@ begin
     if v_p is null or v_p < v_r.engine or v_p > v_r.engine + 1 or abs(v_p - v_r.bound) > 1 then
       raise exception 'VERIFY(c): the bound on a Level % death (strength %) is % in SQL; the engine prices %, its bound %', v_r.l, v_r.pm, v_p, v_r.engine, v_r.bound; end if;
   end loop;
-  if public.hr_death_xp_mode_max('level', 4172186401018, 0) <> 0 then
+  if public.hr_death_xp_mode_max('level', 4172186387938, 0) <> 0 then
     raise exception 'VERIFY(c): a mode that prices nothing bounds a death above 0'; end if;
   -- FAIL CLOSED: with no row the hours cannot be priced, and the bound is 0 (every death XP refused), never null (never refused).
   begin
     delete from public.hr_level_costs;
-    if public.hr_death_xp_mode_max('level', 4172186401018, 1000) is distinct from 0 then
-      raise exception 'VERIFY(c): with no hr_level_costs row the bound on a death is %, not 0', public.hr_death_xp_mode_max('level', 4172186401018, 1000); end if;
+    if public.hr_death_xp_mode_max('level', 4172186387938, 1000) is distinct from 0 then
+      raise exception 'VERIFY(c): with no hr_level_costs row the bound on a death is %, not 0', public.hr_death_xp_mode_max('level', 4172186387938, 1000); end if;
     raise exception using errcode = 'HR864', message = 'gen-level-costs: the fail-closed probe rolls back';
   exception when sqlstate 'HR864' then null;
   end;

@@ -42,6 +42,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const ids = (bar) => bar.map((s) => (s ? s.action.id : '-')).join(' ');
 const tick = () => new Promise((ok) => setTimeout(ok, 5));
+/* a sword under both of its Melee moves (Turning Cut at 5 since the designer's ruling 29 section 7 item 10, Parry at 10): crossing to
+   Melee 10 opens both, the one prompt PD-4 and PD-5 read */
+const UNDER_BOTH = () => ({ melee: { xp: 0, level: 4 }, ranged: { xp: 0, level: 1 }, magic: { xp: 0, level: 1 }, defense: { xp: 0, level: 5 } });
 
 /** A hero as the server projects it: skills, bag, the setup in use. `setHuntOptions` plays the server: the sent bar is stored and
     projected back whole (empty slots as null), and every intent is recorded. */
@@ -187,7 +190,7 @@ export async function rules(base) {
 
   const spellLines = (centre) => centre.list().filter((a) => a.kind === 'spell');
   await t('PD-4', () => {
-    const h = hero();
+    const h = hero({ skills: UNDER_BOTH() });
     const centre = AL.createAlertCenter(accountOf(h), { track: () => {}, clock: () => 0 });
     h.tell(); h.tell();
     if (spellLines(centre).length) return 'a load raised ' + JSON.stringify(spellLines(centre).map((a) => a.text));
@@ -204,7 +207,7 @@ export async function rules(base) {
     w.env.skills = Object.assign({}, w.env.skills, { melee: { xp: 0, level: 10 } }); w.tell();
     if (spellLines(cw).length) return 'a wand was told of a sword\'s move';
     /* the bar holds it already (set up early, it waits): nothing */
-    const held = hero({ slots: [{ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and' }, { action: { type: 'ability', id: 'parry' }, conditions: [], join: 'and' }] });
+    const held = hero({ skills: UNDER_BOTH(), slots: [{ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and' }, { action: { type: 'ability', id: 'parry' }, conditions: [], join: 'and' }] });
     const ch = AL.createAlertCenter(accountOf(held), { track: () => {}, clock: () => 0 });
     held.env.skills = Object.assign({}, held.env.skills, { melee: { xp: 0, level: 10 } }); held.tell();
     /* never raised at all: not on screen, and not kept as shown (a line raised and retired in the same read still went out) */
@@ -217,7 +220,7 @@ export async function rules(base) {
   });
 
   await t('PD-5', async () => {
-    const h = hero();
+    const h = hero({ skills: UNDER_BOTH() });
     const centre = AL.createAlertCenter(accountOf(h), { track: () => {}, clock: () => 0 });
     const before = serverBar(h);
     h.env.skills = Object.assign({}, h.env.skills, { melee: { xp: 0, level: 10 } }); h.tell();

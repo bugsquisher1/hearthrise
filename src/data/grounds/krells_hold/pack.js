@@ -93,12 +93,15 @@ export default definePack({
   monsters: {
     farmhand: {
       name: 'Farmhand', icon: '🗡️', tier: 6, level: 86, cls: 'human', family: 'Human', speed: 3400,
+      role: 'swarm',
       /* the swarm, the common majority: farmhands Krell pressed off the March's fields to hold his walls, in quilted jacks with a bill hook. Young
          and scared. Living, so the Human class with no override: weak to arrows, poison does 15% more. Their tithe grain, the press token they
          showed at the gate, the tier-6 boots and the Emberforged sword off the gate rack. */
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
-        { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
-        { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0513, ch: 0.5, band: 'common' }, { id: 'wheat', everyHours: 0.0855, ch: 0.3, band: 'common' }, { id: 'farmhands_tag', everyHours: 0.3205, ch: 0.08, band: 'uncommon' },
+        { id: 'ember_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' },
+        { id: 'ember_sword', everyHours: 1.28, ch: 0.02, band: 'scarce' },
+        /* the Emberforged Hatchets left the Pyre Field's Provosts with its one base (lane/scale-grounds-2): the ember ground's farmhands carry them */
+        { id: 'ember_hatchets', everyHours: 12.8, ch: 0.002, band: 'rare' }],
       hp: 125, atk: 86, aim: 115, evasion: 32, def: 3, xp: 1045, gp: [18, 56], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
@@ -110,13 +113,16 @@ export default definePack({
       range: 5,
       /* THE SHOOTER (src/data/monster-roles.js, wave 2; the Danger scale only): on the scale he keeps to the back row, the farthest of it */
       role: 'shooter',
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'iron_bar', ch: 0.3, band: 'common' }, { id: 'lookouts_whistle', ch: 0.08, band: 'uncommon' },
-        { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
-        { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
-        { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
+      drops: [{ id: 'bones', everyHours: 0.0833, ch: 0.5, band: 'common' }, { id: 'iron_bar', everyHours: 0.139, ch: 0.3, band: 'common' }, { id: 'lookouts_whistle', everyHours: 0.521, ch: 0.08, band: 'uncommon' },
+        { id: 'ember_helm', everyHours: 1.6, ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', everyHours: 1.6, ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', everyHours: 1.6, ch: 0.026, band: 'scarce' },
+        { id: 'runewood_bow', everyHours: 1.6, ch: 0.026, band: 'scarce' },
+        { id: 'ember_gauntlets', everyHours: 23.1, ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', everyHours: 23.1, ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', everyHours: 23.1, ch: 0.0018, band: 'rare' },
+        /* the Runewood Crossbow from the Provosts too (lane/scale-grounds-2): a sentry's crossbow */
+        { id: 'runewood_crossbow', everyHours: 20.8, ch: 0.002, band: 'rare' }],
       hp: 120, atk: 88, aim: 158, evasion: 33, def: 4, xp: 1215, gp: [18, 53], formula: true }, // atk: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
+      role: 'brute',
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
          set at Krell's doors behind a door-sized shield. Undead, no override: a hammer breaks him, fire does 15% more, poison half. His grave dust
          for the Hearth, the barrow nail they pulled to get him out, the tier-6 legs and that door-sized shield, and now and then a belt. His
@@ -124,33 +130,35 @@ export default definePack({
          HIS SHIELD ABOUT HOURLY (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: shields drop at every tier): it was a Rare here
          (0.12%); the Emberforged Warhammer he carried beside it went to the Gatekeeper's mace, so each body keeps one weapon. */
       spells: ['shield_slam'],
-      drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'barrow_nail', ch: 0.08, band: 'uncommon' },
-        { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
-        { id: 'ember_tower_shield', ch: 0.017, band: 'scarce' },
-        { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
+      drops: [{ id: 'big_bones', everyHours: 0.0556, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.0556, ch: 0.5, band: 'common' }, { id: 'barrow_nail', everyHours: 0.3472, ch: 0.08, band: 'uncommon' },
+        { id: 'ember_platelegs', everyHours: 1.63, ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', everyHours: 1.63, ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', everyHours: 1.63, ch: 0.017, band: 'scarce' },
+        { id: 'ember_tower_shield', everyHours: 1.63, ch: 0.017, band: 'scarce' },
+        { id: 'ember_belt', everyHours: 23.1, ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', everyHours: 23.1, ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', everyHours: 23.1, ch: 0.0012, band: 'rare' }],
       hp: 200, atk: 86, aim: 101, evasion: 51, def: 22, xp: 1889, gp: [29, 89], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
+      role: 'warder',
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
          a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Pyre Priests' own
          wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (Mend the Dead, `spells` below). Kill him first. */
       spells: ['pyre_rite'],
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
-        { id: 'runewood_staff', ch: 0.049, band: 'scarce' }, // 0.045 -> 0.049 and the two Rares 0.0035 -> 0.0037 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Priests met an hour: 1.59 h and 20.4 h)
-        { id: 'runewood_wand', ch: 0.0037, band: 'rare' }, { id: 'runewood_codex', ch: 0.0037, band: 'rare' }],
+      drops: [{ id: 'bones', everyHours: 0.1333, ch: 0.5, band: 'common' }, { id: 'coal', everyHours: 0.1333, ch: 0.5, band: 'common' }, { id: 'priests_cord', everyHours: 0.833, ch: 0.08, band: 'uncommon' },
+        { id: 'runewood_staff', everyHours: 1.36, ch: 0.049, band: 'scarce' }, // 0.045 -> 0.049 and the two Rares 0.0035 -> 0.0037 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Priests met an hour: 1.59 h and 20.4 h)
+        { id: 'runewood_wand', everyHours: 18, ch: 0.0037, band: 'rare' }, { id: 'runewood_codex', everyHours: 18, ch: 0.0037, band: 'rare' }],
       hp: 172, atk: 110, aim: 137, evasion: 38, def: 8, xp: 1496, gp: [25, 76], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
+      role: 'brute',
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
          A man in plate, so a blade skids off him and a hammer gets through (one override, the weapon axis). The toll gold he keeps, a link of
          his key chain, the tier-6 bodies and his mace, the Emberforged Warhammer (lane/d-drop-homes, 2026-11-18, off the Grave Guard: about
          15 met an hour, so the 5% ceiling). He is the first monster whose drop opens a fight: the Hall Key off his ring (the Key band,
          loot-bands.js, about one every two hours). */
       spells: ['hot_pitch'], weaponWeak: 'hammer', weaponResist: [], // designer round 3, 2026-11-12: no sword resist, the hammer edge stays
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
-        { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
-        { id: 'ember_warhammer', ch: 0.05, band: 'scarce' },
-        { id: 'hall_key', ch: 0.026, band: 'key' }],
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', everyHours: 0.556, ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', everyHours: 1.667, ch: 0.1, band: 'uncommon' },
+        { id: 'ember_platebody', everyHours: 3.333, ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', everyHours: 3.333, ch: 0.05, band: 'scarce' }, { id: 'archmage_body', everyHours: 3.333, ch: 0.05, band: 'scarce' },
+        { id: 'ember_warhammer', everyHours: 3.333, ch: 0.05, band: 'scarce' },
+        { id: 'hall_key', everyHours: 6.4, ch: 0.026, band: 'key' }],
       hp: 290, atk: 115, aim: 140, evasion: 59, def: 32, xp: 2961, gp: [43, 128], formula: true },
   },
   roster: {

@@ -104,45 +104,49 @@ export default definePack({
   monsters: {
     greened_pikeman: {
       name: 'Greened Pikeman', icon: '💀', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 3400,
+      role: 'swarm',
       /* the swarm, the common majority: the company's foot after years in the copper silt. A blade finds the joints (one override,
          weapon: weak to the sword, where every Ford body breaks to a hammer). Its boots and its sidearm. */
       weaponWeak: 'sword', weaponResist: ['hammer'],
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_boots', ch: 0.0043, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0043, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0043, band: 'scarce' },
-        { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.48, band: 'common' }, { id: 'copper_ore', everyHours: 0.0455, ch: 0.384, band: 'common' }, { id: 'green_rivet', everyHours: 0.2273, ch: 0.0768, band: 'uncommon' },
+        { id: 'mithril_boots', everyHours: 4.23, ch: 0.00413, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 4.23, ch: 0.00413, band: 'scarce' }, { id: 'warlock_boots', everyHours: 4.23, ch: 0.00413, band: 'scarce' },
+        { id: 'mithril_sword', everyHours: 3.19, ch: 0.00547, band: 'scarce' }],
       hp: 74, atk: 30, aim: 85, evasion: 24, def: 2, xp: 473, gp: [11, 33], formula: true },
     bargeman: {
       name: 'Bargeman', icon: '🧟', tier: 4, level: 54, cls: 'undead', family: 'Undead', speed: 2400,
+      role: 'brute',
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
          hides take them (one override, weapon). The barge's forge cargo, its smith's hammer, the crew's belts. A lone hero meets
          about 21 an hour, so its Scarce rows sit near the 5% ceiling. */
       weaponWeak: 'ranged', weaponResist: [], spells: ['cold_bilge'],
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.4, band: 'common' }, { id: 'barge_nail', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', ch: 0.0356, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0356, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0356, band: 'scarce' },
-        { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
-        { id: 'mithril_belt', ch: 0.0027, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0027, band: 'rare' }, { id: 'warlock_belt', ch: 0.0027, band: 'rare' }],
+      drops: [{ id: 'bones', everyHours: 0.0667, ch: 0.48, band: 'common' }, { id: 'coal', everyHours: 0.0833, ch: 0.384, band: 'common' }, { id: 'barge_nail', everyHours: 0.4167, ch: 0.0768, band: 'uncommon' },
+        { id: 'mithril_platelegs', everyHours: 0.936, ch: 0.0342, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.936, ch: 0.0342, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.936, ch: 0.0342, band: 'scarce' },
+        { id: 'mithril_warhammer', everyHours: 0.702, ch: 0.0456, band: 'scarce' },
+        { id: 'mithril_belt', everyHours: 12.35, ch: 0.00259, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 12.35, ch: 0.00259, band: 'rare' }, { id: 'warlock_belt', everyHours: 12.35, ch: 0.00259, band: 'rare' }],
       hp: 120, atk: 30, aim: 76, evasion: 37, def: 13, xp: 869, gp: [18, 53], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
+      role: 'stalker',
       /* the skirmisher: the river scavengers who picked the dead and drowned among them. Small, crouched and quick enough to catch
          a kiter. Arrows go over a body that low, a spell does not (one override, weapon). It picks the helmets and gloves off the
          dead, and a bow, and the Grave Dust goes in the sack with them. */
       weaponWeak: 'magic', weaponResist: ['ranged'],
-      drops: [{ id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'mudlark_hook', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_helm', ch: 0.0167, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0167, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0167, band: 'scarce' }, // 0.0158 -> 0.0167 (lane/d-harder-monsters 2026-11-19: 1.51 h)
-        { id: 'maple_bow', ch: 0.021, band: 'scarce' },
-        { id: 'mithril_gauntlets', ch: 0.0012, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0012, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0012, band: 'rare' }],
+      drops: [{ id: 'bone_chips', everyHours: 0.091, ch: 0.384, band: 'common' }, { id: 'grave_dust', everyHours: 0.227, ch: 0.154, band: 'common' }, { id: 'mudlark_hook', everyHours: 0.4545, ch: 0.0768, band: 'uncommon' },
+        { id: 'mithril_helm', everyHours: 2.18, ch: 0.016, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 2.18, ch: 0.016, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 2.18, ch: 0.016, band: 'scarce' }, // 0.0158 -> 0.0167 (lane/d-harder-monsters 2026-11-19: 1.51 h)
+        { id: 'maple_bow', everyHours: 1.73, ch: 0.0202, band: 'scarce' },
+        { id: 'mithril_gauntlets', everyHours: 30.3, ch: 0.00115, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 30.3, ch: 0.00115, band: 'rare' }, { id: 'warlock_gloves', everyHours: 30.3, ch: 0.00115, band: 'rare' }],
       hp: 72, atk: 41, aim: 118, evasion: 24, def: 2, xp: 560, gp: [11, 31], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
+      role: 'brute',
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
          flat a hammer breaks. The bodies, the staff, and the caster's prizes. */
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'color_cord', ch: 0.1, band: 'uncommon' },
-        { id: 'mithril_platebody', ch: 0.0375, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.0375, band: 'scarce' }, { id: 'warlock_body', ch: 0.0375, band: 'scarce' },
-        { id: 'maple_staff', ch: 0.05, band: 'scarce' },
-        { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' },
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.444, ch: 0.288, band: 'common' }, { id: 'color_cord', everyHours: 1.33, ch: 0.0962, band: 'uncommon' },
+        { id: 'mithril_platebody', everyHours: 3.56, ch: 0.036, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 3.56, ch: 0.036, band: 'scarce' }, { id: 'warlock_body', everyHours: 3.56, ch: 0.036, band: 'scarce' },
+        { id: 'maple_staff', everyHours: 2.667, ch: 0.048, band: 'scarce' },
+        { id: 'maple_wand', everyHours: 40.4, ch: 0.00317, band: 'rare' }, { id: 'maple_spellbook', everyHours: 40.4, ch: 0.00317, band: 'rare' },
         /* the tank's off-hand beside the Mage's (shields.js, the audit's F8): the sergeant's own shield */
-        { id: 'mithril_faced_shield', ch: 0.0033, band: 'rare' }],
+        { id: 'mithril_faced_shield', everyHours: 40.4, ch: 0.00317, band: 'rare' }],
       hp: 171, atk: 40, aim: 106, evasion: 43, def: 19, xp: 1333, gp: [25, 76], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the

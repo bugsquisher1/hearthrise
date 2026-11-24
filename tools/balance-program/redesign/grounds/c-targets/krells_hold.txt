@@ -1,0 +1,71 @@
+
+V1 on krells_hold (4 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful          0 +- 0          0   100   100    0.5   59.9       0    100.4      0     0  0 (0/0/0)                       6  {"hold":1597,"fall":2407,"climb":9}
+base:steady        39.2 +- 4.5      4.1  71.1    99   10.9    0.4     0.6     53.9      0     0  0 (0/0/0)                       6  {"hold":1688,"climb":444,"fall":19}
+base:bold          79.2 +- 6.2     -0.5  52.4    75    6.1    0.6     0.3     26.7      3     0  23 (3/0/19)                   1.9  {"hold":737,"climb":307,"fall":16,"death":3} first deaths at h 5.4,4,1.6
+levels:steady      36.8 +- 3.6     -1.6  77.4  95.6   11.2    0.7     0.6       55      0     0  0 (0/0/0)                       6  {"hold":1716,"climb":457,"fall":22}
+back:steady        26.1 +- 4.2      4.4  64.6  96.3   11.2    0.7     0.3       54      0     0  0 (0/0/0)                       6  {"hold":1686,"climb":447,"fall":24}
+up:steady          43.9 +- 5.7      1.8  75.1  98.5   10.3    0.5     0.7     53.3      0     0  0 (0/0/0)                       6  {"hold":1676,"climb":432,"fall":19}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       0.44x  sd 0.01  n 4  window 6 h  seeds 0.43 0.45 0.44 0.45
+  base:steady        0.84x  sd 0.04  n 4  window 6 h  seeds 0.87 0.85 0.86 0.79
+  base:bold          0.84x  sd 0.13  n 3  window 1.9 h  seeds 0.95 0.87 0.69
+  levels:steady      0.84x  sd 0.03  n 4  window 6 h  seeds 0.87 0.84 0.79 0.86
+  back:steady        0.73x  sd 0.03  n 4  window 6 h  seeds 0.74 0.71 0.77 0.69
+  up:steady          0.88x  sd 0.03  n 4  window 6 h  seeds 0.9 0.84 0.89 0.88
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L97  coin 15125 +- 333  income 16367 +- 314  store 6355  kit share 0.39 (meal 160, drink 2072, charge 1588, shot 2535)  loot by band: common 302, uncommon 115, scarce 785, other 39  n 4
+  base:steady       L97  coin 28086 +- 1066  income 30275 +- 1061  store 6445  kit share 0.21 (meal 531, drink 1964, charge 1513, shot 2437)  loot by band: common 524, uncommon 200, scarce 1368, other 98  n 4
+  base:bold         L97  coin 19640 +- 9104  income 21067 +- 9728  store 8585  kit share 0.41 (meal 1022, drink 2586, charge 1913, shot 3064)  loot by band: common 347, uncommon 128, scarce 890, other 63  n 4
+  levels:steady     L100  coin 28680 +- 1322  income 30932 +- 1458  store 6456  kit share 0.21 (meal 500, drink 1962, charge 1568, shot 2426)  loot by band: common 532, uncommon 204, scarce 1442, other 74  n 4
+  back:steady       L97  coin 24531 +- 736  income 26572 +- 715  store 6312  kit share 0.24 (meal 456, drink 1929, charge 1493, shot 2433)  loot by band: common 472, uncommon 181, scarce 1314, other 74  n 4
+  up:steady         L97  coin 29733 +- 1075  income 31947 +- 1051  store 6454  kit share 0.2 (meal 528, drink 1967, charge 1522, shot 2436)  loot by band: common 544, uncommon 204, scarce 1396, other 70  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+  levels:steady       -2.5 steps (sd 6.2, se 3.1, n 4)
+  back:steady        -13.2 steps (sd 2.2, se 1.1, n 4)
+  up:steady            4.8 steps (sd 5.7, se 2.9, n 4)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:careful      hammer 0.942  bow 0.006  mage 0.005  healer 0.047
+  base:steady       hammer 0.895  bow 0.01  mage 0.043  healer 0.052
+  base:bold         hammer 0.552  bow 0.269  mage 0.035  healer 0.144
+  levels:steady     hammer 0.893  bow 0.01  mage 0.043  healer 0.054
+  back:steady       hammer 0.901  bow 0.01  mage 0.019  healer 0.071
+  up:steady         hammer 0.89  bow 0.01  mage 0.057  healer 0.043
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:careful      hammer dps 30.43 land 69.78% hit 43.41 (7585.75/h) | bow dps 26.34 land 100% hit 138.82 (14/h) | mage dps 38.35 land 100% hit 128.16 (14/h) | healer dps 17.41 land 87.55% hit 30.66 (535.75/h)
+                    farmhand(swarm) 96.9/h 20.4 s 455 | hasks_lookout(shooter) 48.3/h 16.3 s 303 | pyre_priest(warder) 40.1/h 113.7 s 1054 | grave_guard(brute) 80/h 127.4 s 2964 | gatekeeper(brute) 16/h 15.9 s 717
+                    broke off by: fall:grave_guard@0 2104, fall:pyre_priest@0 224, fall:farmhand@0 79
+  base:steady       hammer dps 29.69 land 69.43% hit 45.2 (6646.75/h) | bow dps 26.04 land 100% hit 143.48 (22.75/h) | mage dps 37.68 land 82.82% hit 28.49 (512.25/h) | healer dps 17.47 land 87.88% hit 34.34 (511/h)
+                    farmhand(swarm) 134.1/h 24.1 s 570 | hasks_lookout(shooter) 75.8/h 19.6 s 344 | pyre_priest(warder) 53.3/h 66.1 s 645 | grave_guard(brute) 118.2/h 62.5 s 1526 | gatekeeper(brute) 21.3/h 18.6 s 870
+                    broke off by: fall:grave_guard@0 17, fall:pyre_priest@0 1, fall:farmhand@0 1
+  base:bold         hammer dps 31.47 land 69.33% hit 49.59 (7490/h) | bow dps 27.58 land 91.28% hit 77.3 (1651.75/h) | mage dps 41.82 land 82.28% hit 30.22 (410.75/h) | healer dps 19.1 land 88.05% hit 45.89 (858.25/h)
+                    farmhand(swarm) 65.5/h 33 s 826 | hasks_lookout(shooter) 39.8/h 24.4 s 410 | pyre_priest(warder) 25.5/h 117.8 s 2702 | grave_guard(brute) 58.8/h 88.5 s 3191 | gatekeeper(brute) 10.5/h 23.7 s 1051
+                    broke off by: fall:grave_guard@0 14, death:grave_guard@0 3, fall:pyre_priest@0 1, fall:farmhand@0 1
+  levels:steady     hammer dps 29.6 land 69.08% hit 46.1 (6573.25/h) | bow dps 26.82 land 100% hit 147.27 (23.25/h) | mage dps 37.61 land 81.95% hit 29.17 (514/h) | healer dps 17.46 land 87.98% hit 35.02 (522.25/h)
+                    farmhand(swarm) 136.5/h 23.3 s 561 | hasks_lookout(shooter) 77.1/h 19.3 s 349 | pyre_priest(warder) 54.3/h 63.3 s 629 | grave_guard(brute) 120.4/h 60.9 s 1516 | gatekeeper(brute) 21.7/h 18.4 s 888
+                    broke off by: fall:grave_guard@0 19, fall:pyre_priest@0 2, fall:hasks_lookout@2 1
+  back:steady       hammer dps 29.04 land 69.22% hit 46.79 (6455/h) | bow dps 25.54 land 100% hit 150.3 (21.5/h) | mage dps 36.33 land 85.33% hit 40.14 (169.5/h) | healer dps 17.2 land 87.6% hit 34.01 (700.75/h)
+                    farmhand(swarm) 130/h 23.1 s 573 | hasks_lookout(shooter) 67.6/h 18.7 s 362 | pyre_priest(warder) 53.3/h 66.4 s 669 | grave_guard(brute) 110.2/h 64.9 s 1655 | gatekeeper(brute) 21.3/h 17.6 s 868
+                    broke off by: fall:grave_guard@0 22, fall:pyre_priest@0 2
+  up:steady         hammer dps 29.97 land 69.55% hit 43.31 (6778.5/h) | bow dps 26.02 land 100% hit 142.32 (23/h) | mage dps 38.14 land 82% hit 27 (696/h) | healer dps 17.41 land 87.63% hit 34.94 (404.75/h)
+                    farmhand(swarm) 134.7/h 24.9 s 559 | hasks_lookout(shooter) 79.2/h 20.2 s 339 | pyre_priest(warder) 52.8/h 67.4 s 623 | grave_guard(brute) 121.4/h 62.7 s 1453 | gatekeeper(brute) 21.1/h 19.1 s 870
+                    broke off by: fall:grave_guard@0 15, fall:pyre_priest@0 4
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:careful      abs 66.3 (depth 1)  free 101  spell 883  food 16  taken 20.44 pm/s
+  base:steady       abs 83.8 (depth 10)  free 88  spell 862  food 50  taken 19.64 pm/s
+  base:bold         abs 92.6 (depth 15)  free 72  spell 849  food 78  taken 22.36 pm/s
+  levels:steady     abs 82.9 (depth 10)  free 90  spell 862  food 48  taken 19.33 pm/s
+  back:steady       abs 78 (depth 7)  free 87  spell 870  food 43  taken 19.62 pm/s
+  up:steady         abs 85.1 (depth 11)  free 90  spell 859  food 51  taken 19.28 pm/s
+
+wall 199 s

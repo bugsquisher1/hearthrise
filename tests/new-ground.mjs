@@ -58,6 +58,8 @@ const evidenceOf = (g, pin) => {
 const fails = [];
 const ok = (cond, msg) => { if (!cond) fails.push(msg); };
 
+const absOf = (g, o = {}) => ({ band: bandAbs(g), prevTopPm: null, refLevel: DANGER_GROUNDS[g].refLevel, sustain: SUSTAIN, ...o });
+
 /* NG-1 */
 for (const [g, pin] of Object.entries(PINS)) {
   const row = DANGER_GROUNDS[g];
@@ -65,7 +67,9 @@ for (const [g, pin] of Object.entries(PINS)) {
   if (!row) continue;
   /* a formula ground's refStep is its chosen anchor: the tool keeps it and pins the MID four's hold as refHeld (lane/depth-reading-fix) */
   /* a pin cut with the ground's coin level (it carries coinPm) is read back with it, as tools/new-ground.mjs read it */
-  const c = bandFromReports(evidenceOf(g, pin), PAY, DEPTHS, BAND_RULE, null, { anchorStep: anchorOf(row),
+  /* read with its absolute band as the tool cut it, so a verdict the absolute checks set (a sustain share out of its band) reads back too */
+  const ev = evidenceOf(g, pin);
+  const c = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, pin.hand ? null : absOf(g, { refLevel: ev.ref.levels[0] }), { anchorStep: anchorOf(row),
     coin: pin.coinPm !== undefined ? coinOf(row) : null });
   const keys = pin.hand ? ['floorStep'] : BAND_KEYS;
   for (const k of keys) ok(c.band[k] === row[k], 'NG-1 ' + g + ' ' + k + ' cuts ' + c.band[k] + ' from its evidence, the row says ' + row[k]);
@@ -163,7 +167,6 @@ ok(packPrint(g, MONSTERS, monstersOn, 'formula', 520) !== packPrint(g, MONSTERS,
 ok(packPrint(g, MONSTERS, monstersOn, 'rows', 520) === base, 'NG-5 an anchor on a ground on its rows moved the print');
 
 /* NG-6 */
-const absOf = (g, o = {}) => ({ band: bandAbs(g), prevTopPm: null, refLevel: DANGER_GROUNDS[g].refLevel, sustain: SUSTAIN, ...o });
 for (const [g, pin] of Object.entries(PINS)) {
   if (!DANGER_GROUNDS[g] || pin.hand) continue;
   const ev = evidenceOf(g, pin), c = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, absOf(g, { refLevel: ev.ref.levels[0] }));

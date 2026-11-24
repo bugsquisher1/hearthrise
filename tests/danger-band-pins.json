@@ -162,6 +162,65 @@
     "tools/balance-program/redesign/grounds/coppercap_warrens-top.json",
     "tools/balance-program/redesign/grounds/coppercap_warrens-floor.json"
    ]
+  },
+  "the_slake": {
+   "refStep": 90,
+   "floorStep": 60,
+   "topStep": 160,
+   "refKillsHead": 125,
+   "coinPm": 4600,
+   "print": "9816fbcbcf202e24",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 50,
+    "top": 65,
+    "mid": 57
+   },
+   "measured": "2026-11-24",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/the_slake-played.json",
+    "tools/balance-program/redesign/grounds/the_slake-top.json",
+    "tools/balance-program/redesign/grounds/the_slake-floor.json"
+   ]
+  },
+  "pyre_field": {
+   "refStep": 70,
+   "floorStep": 0,
+   "topStep": 150,
+   "refKillsHead": 150,
+   "coinPm": 2700,
+   "print": "6bf7906cf23f03a0",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 70,
+    "top": 90,
+    "mid": 80
+   },
+   "measured": "2026-11-24",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/pyre_field-played.json",
+    "tools/balance-program/redesign/grounds/pyre_field-top.json",
+    "tools/balance-program/redesign/grounds/pyre_field-floor.json"
+   ]
+  },
+  "krells_hold": {
+   "refStep": 40,
+   "floorStep": 0,
+   "topStep": 125,
+   "coinPm": 3600,
+   "print": "6ec90bebbe95f5f2",
+   "verdict": "REVIEW",
+   "levels": {
+    "entry": 85,
+    "top": 110,
+    "mid": 97
+   },
+   "measured": "2026-11-24",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/krells_hold-played.json",
+    "tools/balance-program/redesign/grounds/krells_hold-top.json",
+    "tools/balance-program/redesign/grounds/krells_hold-floor.json"
+   ]
   }
  }
 }

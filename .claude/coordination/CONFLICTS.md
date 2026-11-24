@@ -27,6 +27,16 @@
   | C-3 Steady deaths | 0 | 0 |
 - **DESIGNER, four reads:** (1) **K-6 out of tier 0 (BUILT, confirm or overrule):** `tests/bands.mjs` BD-7 and `new-ground.mjs` now judge the handover only from a lower ground of base tier 1 or more, 7.5 read for K-6 as for C-2 and V4: the Thicket's strong four (Level 15, tier 0) rates 3.75 and the Glade's fresh four (Level 16, tier 0) 4.0, the one Level between the bands, and the Cellar's top (Level 4) could never reach any tier-1 floor. Overrule: open the Glade at Level 15. (2) **The role picks** (`src/data/monster-roles.js`, the header's words): Rook a Warder, the Glade Poacher and the Goblin Skulker Shooters, Chief Coppercap a Caster. (3) **C-2 a tier back on the Glade** reads 4 depths (bronze at Level 23 against iron 20: -31 own steps). (4) **Kit share** 0.34 and 0.39 at the wage (stage 8's prices).
 - **V4-1 RED ON FIVE GROUNDS (MEASURED, `node tests/lineup-v4.mjs`, after this pair; green on four at step 0):** the stamp is by LADDER tier, so the iron and steel rings, earrings, necklaces and capes took item Levels 20 and 40 too, and the Lab's MID kits wear them from Level 30 to 185 (`seam_jasper_band`, `fang_studs`, `wolfbone_torc`, `warband_bulwark`): every company from Muster to the wings is a few points stronger. One-style fours over the mixed four: Muster mage 1.006, Flooded Wing healer 1.003, the Glade mage 1.013, the Warrens mage 1.073, the Bone Wing healer 1.072 (its ruled answer). Three are inside 1.3%, a 3-seed reading's own spread. **Designer:** the mage four's margin (STYLE-3's open question), or V4's measure at these margins. Not refit here.
+- **STEP 3 MEASURED (branch `lane/scale-grounds-2-step3`, not merged; the same method, 10 h from hour 4, as-played coin read back 0.99 to 1.00):**
+
+  | Target | the Slake (mithril 40; 60 / 90 / 160) | Pyre Field (rune 60; 0 / 70 / 150) | Krell's Hold (ember 80; 0 / 40 / 125) |
+  |---|---|---|---|
+  | C7 / C-5 | 0.99 / 0.62 | 1.00 / 0.60 | 0.84 / 0.52 (FAIL: Careful on the floor) |
+  | C-4 Bold | died in 4 of 4 | died in 4 of 4 | died in 3 of 4 |
+  | C-2 back / up | 0 (steel and mithril are both 40) / +2 | -2 / 0 | -3 / +1 |
+  | C-3 Steady deaths, every cell | 0 | 0 (died on its old rows) | 0 (died on its old rows) |
+  | coinPm, EL-KIT | 4600, 0.36 | 2700, 0.40 | 3600, 0.34; REVIEW: free regeneration 88 permille (band 100 to 250) |
+  The Pyre Field's ember Rares left (one base); `ember_hatchets` and `runewood_crossbow` had no other source, so they moved to Krell's Hold as Rares (Farmhand, Lookout). **Designer:** that home, and Krell's C-5.
 - **Set in the same pass (CLAUDE.md 3.5, a band my change pushed out):** the Warrens' tier-path trophy pace read 123.7 h (band 125 to 150) with steel's stats at 40; Coppercap's Cauldron `everyHours` 261 -> 274 (the called Chief follows, CALLED TABLES). `drop-tables` loot-structure now reads a scale ground's Rare as its base (one base a ground), with a mutant (Rook's tier-3 helmet back).
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._

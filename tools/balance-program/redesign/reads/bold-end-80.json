@@ -1,0 +1,19 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "base": "tree",
+ "assumptions": [],
+ "id": "bold-end-80",
+ "why": "Bold fights every pull to the end (no break-off inside a pull), end-of-pull fall line 80",
+ "edits": [
+  {
+   "file": "src/data/danger.js",
+   "from": "  bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
+   "to": "  bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),"
+  },
+  {
+   "file": "src/core/hunt/danger.js",
+   "from": "export const breaksOff = (inst) => dangerOn(inst.world) && inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;",
+   "to": "export const breaksOff = (inst) => dangerOn(inst.world) && RISKS[inst.world.risk].breakOff !== false && inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;"
+  }
+ ]
+}

@@ -315,8 +315,9 @@ export function noteHurt(inst, u, source) {
 
 /** THE FALL BACK INSIDE A PULL (pull-cycle.js runPhase, breakOff): on the scale, a hero under the stance's trigger (the holder under its
     own line), or dead, breaks the pull off at once, so the fall back comes before the blow that would kill (RD-Q3 a). Never off the
-    scale. Read on every swing: an HP at or over the line is never under it, whoever holds (a margin is never under its HP). */
-export const breaksOff = (inst) => dangerOn(inst.world) && inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;
+    scale, and never on a stance whose row says `breakOff: false` (Bold: it fights the pull to the end and reads its line at pullEnds). Read on every swing: an HP at or over the line is never under it, whoever holds (a margin is never under its HP). */
+export const breaksOff = (inst) => dangerOn(inst.world) && RISKS[inst.world.risk].breakOff !== false
+  && inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;
 
 /** A pack monster falls on the scale (pull-cycle.js fallen): its pack counts it down until it stands up whole again (spawnPack). */
 export function packDown(world, pocket) {

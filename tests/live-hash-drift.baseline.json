@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3570,
+  "replay_ms": 2785,
   "counts": {
     "tracked_names": 1140,
     "entries": 965
@@ -10616,8 +10616,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "041e7e3ff626003545c862f506fcd346",
-        "norm_len": 5309,
+        "md5": "b9e9b656c32fc6c90ce636a9e81a50d1",
+        "norm_len": 5275,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -17075,11 +17075,13 @@
       "sig": "hr_skill_level(p_skill text, p_xp bigint)",
       "name": "hr_skill_level",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
         "1046-settle-plans.sql",
+        "1069-skill-time-parity.generated.sql",
         "2026-10-27-core-bodies.sql",
         "2027-02-10-settle-plan-cache.generated.sql"
       ],
@@ -17090,12 +17092,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "51587c7c6e20dabc2d1e0f8f069aad7a",
-        "norm_len": 687,
+        "md5": "ea96022cbb7b71f92a131c200b8b600c",
+        "norm_len": 870,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1046-settle-plans.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body from 1046-settle-plans.sql."
+      "why": "STAGED for the v0.2.144 release by 1046-settle-plans.sql, 1069-skill-time-parity.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1069-skill-time-parity.generated.sql."
     },
     {
       "sig": "hr_skill_levels_view(p_user uuid, p_slot integer)",
@@ -17123,10 +17125,12 @@
       "sig": "hr_skill_xp_for_level(p_skill text, p_level integer)",
       "name": "hr_skill_xp_for_level",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1069-skill-time-parity.generated.sql",
         "2026-10-27-core-bodies.sql",
         "2027-04-04-skills-from-server.sql"
       ],
@@ -17137,11 +17141,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "295484900c7deff983c9639a94f15388",
-        "norm_len": 697,
+        "md5": "91be733344a8efb9c1bcb357a9fac5d8",
+        "norm_len": 902,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1069-skill-time-parity.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1069-skill-time-parity.generated.sql."
     },
     {
       "sig": "hr_slot_health()",
@@ -22201,6 +22206,7 @@
       "sig": "hr_xp_for_level(p_level integer)",
       "name": "hr_xp_for_level",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [

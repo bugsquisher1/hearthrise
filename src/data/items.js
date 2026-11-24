@@ -1,6 +1,6 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js';
+import { GEAR_ITEMS, MATERIAL_TIERS } from './gear-tiers.js';
 import { WAVE3_ITEMS } from './wave3-uniques.js';
 import { SLOT_ITEMS } from './slot-ladders.js';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
@@ -19,7 +19,7 @@ import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js';
 import { FIST_LINE, FIST_ITEMS } from './fists.js';
 import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js';
 import { PATTERN_ITEMS } from './patterns.js';
-import { scaleItemLevels, tierLevel } from './danger.js';
+import { scaleItemLevels, tierLevel, DANGER_GROUNDS, GEAR_STEPS } from './danger.js';
 import { withGearStats } from './gear-profiles.js';
 
 export const ITEMS={
@@ -829,16 +829,25 @@ export const SCALE_ITEM_LEVELS = Object.freeze(scaleItemLevels(
   Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier)), ITEMS));
 for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };
 
-/* THE ITEM LEVEL OF A STEP-TIER PIECE (src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b, 27-formula-overhaul.md G-2 phase B): every piece
-   of a tier on the grid carries its `step`, and its item Level is tierLevel(step) wherever it drops. A scale ground that drops one stamps its
-   own base (above); two numbers for one piece throw (one base, one number). ITEM_LEVELS is every item Level a row is given here, the scale
-   ground's and the step tier's: tools/gen-gear.mjs sizes each piece at it, never at the iL its own table wrote back. */
+/* THE ITEM LEVEL OF A LADDER PIECE (src/data/gear-tiers.js MATERIAL_TIERS, one material a tier: the designer's 12-targets 8.3, lane/gear-phase-b):
+   every piece of a tier carries its `step` and its item Level is tierLevel(step) wherever it drops, worn from it less wearAhead. A scale
+   ground that drops one stamps its own base (above) and the two agree; two numbers for one piece throw (one base, one number), with two
+   exceptions that keep the stamp, worn from it less wearAhead: a named Catacomb piece (its wing's base, never its twin's), and a ground whose
+   rows still drop another tier's pieces until they are re-pointed (12-targets 8.3 c, the grounds' lane; tests/gear-stats.mjs GSF-9 names
+   each one and reds it the day it agrees). ITEM_LEVELS is every item Level a row is given here: tools/gen-gear.mjs sizes each piece at it,
+   never at the iL its own table wrote back. */
+const STAMPED_ELSEWHERE = new Set(Object.values(DANGER_GROUNDS).filter((g) => Number.isInteger(g.ladderTier) && MATERIAL_TIERS[g.ladderTier - 1]
+  && MATERIAL_TIERS[g.ladderTier - 1].iL !== g.gearLevel).map((g) => g.ladderTier));
 export const ITEM_LEVELS = (() => {
   const out = { ...SCALE_ITEM_LEVELS };
   for (const [id, it] of Object.entries(ITEMS)) {
     if (!it || !Number.isInteger(it.step)) continue;
-    const iL = tierLevel(it.step);
-    if (out[id] !== undefined && out[id] !== iL) throw new Error('items.js: ' + id + ' is step ' + it.step + ' (item Level ' + iL + ') and a scale ground drops it at ' + out[id]);
+    const iL = tierLevel(it.step), stamp = out[id];
+    if (stamp !== undefined && stamp !== iL) {
+      if (!it.catacombTier && !STAMPED_ELSEWHERE.has(it.tier)) throw new Error('items.js: ' + id + ' is step ' + it.step + ' (item Level ' + iL + ') and a scale ground drops it at ' + stamp);
+      ITEMS[id] = { ...it, iL: stamp, reqLv: Math.max(1, stamp - GEAR_STEPS.wearAhead) };
+      continue;
+    }
     out[id] = iL;
     ITEMS[id] = { ...it, iL };
   }

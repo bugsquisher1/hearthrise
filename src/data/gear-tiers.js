@@ -47,12 +47,14 @@ import { wage } from './wage.js';
 /* ── The material ladder ───────────────────────────────────────────────
    tier   = the rung, 1 up (every ladder's ids are indexed by it, GEAR_LADDERS)
    iL     = the ITEM LEVEL a piece of the tier is (the one number the power step and the stat formula read: src/data/gear-steps.js)
-   level  = the hero LEVEL the tier's gear is worn at (Tyler 2026-10-24; the designer's ladder 1/15/30/45/60/75/88)
+   level  = the hero LEVEL the tier's gear is worn at: its item Level less GEAR_STEPS.wearAhead (12-targets 8.3: the old 1/15/30/45/60/75/88
+            stopped being a wear gate)
    smith  = smithing level the tier's *base* piece unlocks at
    craft  = crafting level for the wood-based families at this tier
    value  = economic multiplier; item value = slot.vmul * tier.value
-   THE SHIPPED SEVEN (1 to 88) are the old ladder: a piece's item Level is its Level (27-formula-overhaul.md 2.3 phase A), and a scale
-   ground that drops one stamps its own base on it (src/data/danger.js scaleItemLevels). They move onto the grid with their grounds (stage 6). */
+   ONE MATERIAL A TIER (the designer, lane/base-tier-ruling 2026-11-23, 12-targets.md 8.3): every tier is GEAR_STEPS.tierSteps item Levels,
+   item Level = tierLevel(tier - 1): bronze 0, iron 20, steel 40, mithril 60, rune 80, Emberforged 100, Dawnsteel 120, then the tiers below.
+   Smithing and Crafting levels gate making, not wearing, and stay. */
 const SHIPPED_TIERS = [
   { id: 'bronze',  name: 'Bronze',      tier: 1, level: 1,  smith: 1,  craft: 1,  value: 0.6,
     bar: 'bronze_bar',  plank: 'normal_plank',   wood: 'normal',   rarity: 'common' },
@@ -64,16 +66,28 @@ const SHIPPED_TIERS = [
     bar: 'mithril_bar', plank: 'maple_plank',    wood: 'maple',    rarity: 'epic' },
   { id: 'rune',    name: 'Rune',        tier: 5, level: 60, smith: 60, craft: 60, value: 45,
     bar: 'rune_bar',    plank: 'yew_plank',      wood: 'yew',      rarity: 'legendary' },
+  /* item Level 100: Carter's Rest's base (12-targets 8.3); Carter's parts make its jewels and cloak */
   { id: 'ember',   name: 'Emberforged', tier: 6, level: 75, smith: 75, craft: 75, value: 130,
-    bar: 'ember_bar',   plank: 'runewood_plank', wood: 'runewood', rarity: 'legendary' },
+    bar: 'ember_bar',   plank: 'runewood_plank', wood: 'runewood', rarity: 'legendary',
+    words: { wood: ['runewood', 'Runewood'], leather: ['dragonhide', 'Dragonhide'], cloth: ['archmage', 'Archmage'] },
+    homes: ['carters_rest'], parts: { ring: 'pewter_spoon', earrings: 'stable_bit', necklace: 'coal_tongs', cape: 'cellar_tally' } },
+  /* item Level 120: the Ox Road's base */
   { id: 'dawn',    name: 'Dawnsteel',   tier: 7, level: 88, smith: 88, craft: 88, value: 360,
-    bar: 'dawn_bar',    plank: 'duskwood_plank', wood: 'duskwood', rarity: 'mythic' },
-].map((t) => ({ ...t, iL: t.level }));
+    bar: 'dawn_bar',    plank: 'duskwood_plank', wood: 'duskwood', rarity: 'mythic',
+    words: { wood: ['duskwood', 'Duskwood'], leather: ['dawnhide', 'Dawnhide'], cloth: ['duskweave', 'Duskweave'] },
+    homes: ['ox_road'], parts: { ring: 'runners_tin', earrings: 'wagon_pin', necklace: 'ox_shoe', cape: 'waybill' } },
+].map((t) => {
+  const iL = tierLevel(t.tier - 1);
+  return { ...t, step: t.tier - 1, iL, level: Math.max(1, iL - GEAR_STEPS.wearAhead),
+    ...(t.words ? { words: Object.freeze({ wood: Object.freeze(t.words.wood), leather: Object.freeze(t.words.leather), cloth: Object.freeze(t.words.cloth) }),
+      homes: Object.freeze(t.homes.slice()), parts: Object.freeze({ ...t.parts }) } : {}) };
+});
 
 /* ── THE LADDER ON STEPS (lane/gear-phase-b, systems, 2026-11-23; docs/design/redesign/27-formula-overhaul.md G-2 phase B and 2.3,
    12-targets.md 3.3 and 8, 19-power-ledger.md). Past the shipped seven the ladder runs on gear-steps.js's grid: a tier is
    GEAR_STEPS.tierSteps item Levels over the one under it (tierLevel(step)), worn from its item Level less GEAR_STEPS.wearAhead (the rule
-   every scale ground's drop is worn by), so every Level band past 88 has its base tier and a new tier is ONE row below. Every slot ladder
+   every piece is worn by), so every Level band has its base tier and a new tier is ONE row below (the designer's 8.3 puts the shipped seven
+   on the same grid: Emberforged and Dawnsteel are the 100 and 120 tiers, their homes Carter's Rest and the Ox Road above). Every slot ladder
    follows the row with nothing typed: the three armor weights and every weapon family here, the spellbook, the shield (shields.js) and
    the jewels and the cloak (slot-ladders.js), each piece's stats the one formula's at its item Level (tools/gen-gear.mjs, src/core/gear-
    stats.js: past Dawnsteel the budget grows in proportion to item Level, never held).
@@ -91,17 +105,6 @@ const SHIPPED_TIERS = [
    (loot-bands.js gearSaleRate). STARTING VALUES, NOT RULINGS: the words are this lane's (short real words with a root, never a mood word,
    no other game's names) and the naming pass may move any of them in one place; the pace and the book are levers the designer owns. */
 const STEP_TIERS = [
-  /* item Level 100, worn from 90. Carter's Rest, the carters' inn in the Morrow Hills: damask is the patterned steel of a good carter's knife,
-     hornbeam the hard pale wood their axles and mallets are cut from, horsehide off the stable's old nags, fustian the tough cloth carters and
-     coachmen wear */
-  { step: 5, id: 'damask', name: 'Damask', wood: ['hornbeam', 'Hornbeam'], leather: ['horsehide', 'Horsehide'], cloth: ['fustian', 'Fustian'],
-    homes: ['carters_rest'],
-    parts: { ring: 'pewter_spoon', earrings: 'stable_bit', necklace: 'coal_tongs', cape: 'cellar_tally' } },
-  /* item Level 120, worn from 110. The Ox Road: electrum the pale gold-and-silver of the road's trade coin, blackthorn the drovers' sticks,
-     oxhide off the yoke teams, worsted the drovers' wool */
-  { step: 6, id: 'electrum', name: 'Electrum', wood: ['blackthorn', 'Blackthorn'], leather: ['oxhide', 'Oxhide'], cloth: ['worsted', 'Worsted'],
-    homes: ['ox_road'],
-    parts: { ring: 'runners_tin', earrings: 'wagon_pin', necklace: 'ox_shoe', cape: 'waybill' } },
   /* item Level 140, worn from 130. Wyvern Roost: cobalt the blue ore of the crags (the miners named it for the kobolds they blamed for it),
      juniper the twisted wood that grows on the ledges, drakehide off the wyverns, samite the silk the wyverns carry up to their nests */
   { step: 7, id: 'cobalt', name: 'Cobalt', wood: ['juniper', 'Juniper'], leather: ['drakehide', 'Drakehide'], cloth: ['samite', 'Samite'],
@@ -119,6 +122,7 @@ export const MATERIAL_TIERS = [
   ...SHIPPED_TIERS,
   ...STEP_TIERS.slice().sort((a, b) => a.step - b.step).map((s, i) => {
     const iL = tierLevel(s.step), level = Math.max(1, iL - GEAR_STEPS.wearAhead);
+    if (s.step !== SHIPPED_TIERS.length + i) throw new Error('gear-tiers.js: step tier ' + s.id + ' is not the next tier on the grid');
     return {
       id: s.id, name: s.name, tier: SHIPPED_TIERS.length + 1 + i, step: s.step, iL, level, smith: level, craft: level,
       value: Math.round((SHIPPED_TOP.value * wage(iL)) / wage(SHIPPED_TOP.iL)), rarity: SHIPPED_TOP.rarity,
@@ -127,13 +131,16 @@ export const MATERIAL_TIERS = [
     };
   }),
 ];
-/** The tiers on the grid (MATERIAL_TIERS rows past the shipped seven): base-drops.js, shields.js and slot-ladders.js build theirs from them. */
-export const STEP_MATERIALS = Object.freeze(MATERIAL_TIERS.filter((t) => Number.isInteger(t.step)));
+/** The tiers with HOMES (a ground that drops their base and the parts its bench takes): base-drops.js, shields.js and slot-ladders.js build
+    their dropped and made pieces from them. Every material is on the grid; the shipped seven keep their own ladder rows. */
+export const STEP_MATERIALS = Object.freeze(MATERIAL_TIERS.filter((t) => Array.isArray(t.homes)));
+/* the tiers past the shipped seven: every slot ladder's next rungs (stepRungs, stepWords) */
+const NEW_MATERIALS = MATERIAL_TIERS.slice(SHIPPED_TIERS.length);
 /** A material word for a step tier's `line` (wood, leather or cloth) or its metal ('metal'): [id, word]. */
 export const materialWord = (mat, line) => (line === 'metal' ? [mat.id, mat.name] : mat.words[line]);
 /** THE FIELD A STEP-TIER PIECE CARRIES: `step`, its grid tier (12-targets 8: the piece's tier is its item Level over tierSteps). src/data/items.js
     stamps the item Level tierLevel(step) from it (ITEM_LEVELS) and tools/gen-gear.mjs sizes the piece there, never at the iL the generated table
-    wrote back. A shipped-tier piece carries none. */
+    wrote back. Every material's piece carries it (12-targets 8.3). */
 export const stepOf = (mat) => (mat && Number.isInteger(mat.step) ? { step: mat.step } : {});
 
 /* ── Armour slots ─────────────────────────────────────────────────────
@@ -226,8 +233,8 @@ const SHIPPED_FAMILIES = [
 ];
 /* A ladder's ids and names carried up every step tier: `line` names the tier's word (the metal, or the wood) and `label` the piece. */
 const stepRungs = (names, ids, line, label) => ({
-  names: Object.freeze([...names, ...STEP_MATERIALS.map((m) => materialWord(m, line)[1] + ' ' + label)]),
-  ids: Object.freeze([...ids, ...STEP_MATERIALS.map((m) => materialWord(m, line)[0] + '_' + label.toLowerCase())]),
+  names: Object.freeze([...names, ...NEW_MATERIALS.map((m) => materialWord(m, line)[1] + ' ' + label)]),
+  ids: Object.freeze([...ids, ...NEW_MATERIALS.map((m) => materialWord(m, line)[0] + '_' + label.toLowerCase())]),
 });
 export const WEAPON_FAMILIES = SHIPPED_FAMILIES.map((f) => Object.freeze({ ...f, ...stepRungs(f.names, f.ids, f.mat === 'bar' ? 'metal' : 'wood', f.label) }));
 
@@ -278,8 +285,8 @@ const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
    the penalty fields are added to it. */
 /* a line's tier words carried up every step tier (its own word for the line: materialWord) */
 const stepWords = (line, names, ids) => ({
-  tierNames: Object.freeze([...names, ...STEP_MATERIALS.map((m) => materialWord(m, line)[1])]),
-  tierIds: Object.freeze([...ids, ...STEP_MATERIALS.map((m) => materialWord(m, line)[0])]),
+  tierNames: Object.freeze([...names, ...NEW_MATERIALS.map((m) => materialWord(m, line)[1])]),
+  tierIds: Object.freeze([...ids, ...NEW_MATERIALS.map((m) => materialWord(m, line)[0])]),
 });
 const ARMOUR_LINES = [
   { key: 'plate', vmul: 1.00, icon: '🛡️',

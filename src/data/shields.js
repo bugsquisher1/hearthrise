@@ -48,7 +48,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { withGearStats } from './gear-profiles.js';
-import { STEP_MATERIALS, stepOf } from './gear-tiers.js';
+import { MATERIAL_TIERS, STEP_MATERIALS, stepOf } from './gear-tiers.js';
 
 /** Is `item` a shield (an off-hand that guards, never a spellbook)? */
 export const isShield = (item) => !!item && item.slot === 'shield' && item.offhand === 'shield';
@@ -56,23 +56,29 @@ export const isShield = (item) => !!item && item.slot === 'shield' && item.offha
 /* wear = the hero's Level (gear-tiers.js LEVEL_REQ). The guard (defB) and a grate's attack penalty (atkB, rangeAtkB, magicAtkB: every
    style's roll) are DERIVED (src/data/gear-profiles.js: the shield profile, or the grate's, on the guard curve at the piece's item Level,
    which lands the guards this table held, 3 to 13 at +2 a tier). No piece carries an offset (docs/design/redesign/28-named-pieces.md). */
-const shield = (n, v, tier, wear, rarity, gearProfile) => Object.freeze({ n, icon: '🛡️', v, type: 'offhand', slot: 'shield', offhand: 'shield',
-  ...(gearProfile ? { gearProfile } : {}), tier, rarity, reqSkill: 'level', reqLv: wear });
+/* ONE MATERIAL A TIER (12-targets 8.3): a shield of tier t is its material's item Level and worn from it less wearAhead, named or plain
+   (gear-tiers.js MATERIAL_TIERS, stepOf); the hand Level each row once typed is gone */
+const shield = (n, v, tier, rarity, gearProfile) => {
+  const m = MATERIAL_TIERS[tier - 1];
+  return Object.freeze({ n, icon: '🛡️', v, type: 'offhand', slot: 'shield', offhand: 'shield', ...(gearProfile ? { gearProfile } : {}), tier, rarity,
+    reqSkill: 'level', reqLv: m.level, ...stepOf(m) });
+};
 
 export const SHIELD_ITEMS = Object.freeze(withGearStats({
-  bronze_rimmed_shield: shield('Bronze-Rimmed Shield', 70, 1, 1, 'common'),
-  ironbound_shield: shield('Ironbound Shield', 200, 2, 15, 'common'),
-  kingsgrate: shield('Kingsgrate', 300, 2, 15, 'rare', 'grate'),
-  coppercap_shield: shield('Coppercap Shield', 600, 3, 30, 'common'),
-  steelgrate: shield('Steelgrate', 750, 3, 30, 'rare', 'grate'),
+  bronze_rimmed_shield: shield('Bronze-Rimmed Shield', 70, 1, 'common'),
+  ironbound_shield: shield('Ironbound Shield', 200, 2, 'common'),
+  kingsgrate: shield('Kingsgrate', 300, 2, 'rare', 'grate'),
+  coppercap_shield: shield('Coppercap Shield', 600, 3, 'common'),
+  steelgrate: shield('Steelgrate', 750, 3, 'rare', 'grate'),
   /* book: about 0.75 of the tier's sword, as the Coppercap is of the Steel Sword (600 / 800) */
-  mithril_faced_shield: shield('Mithril-Faced Shield', 1100, 4, 45, 'epic'),
-  runebound_shield: shield('Runebound Shield', 3750, 5, 60, 'legendary'),
-  ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 75, 'legendary'),
-  /* THE LADDER ON STEPS (gear-tiers.js STEP_TIERS, lane/gear-phase-b): one plain shield a step tier, "<metal> Shield", no attack penalty,
-     dropped on the tier's homes (base-drops.js); book about 0.75 of the tier's sword, as the Coppercap is of the Steel Sword */
-  ...Object.fromEntries(STEP_MATERIALS.map((m) => [m.id + '_shield',
-    Object.freeze({ ...shield(m.name + ' Shield', Math.max(1, Math.round((75 * m.value) / 5) * 5), m.tier, m.level, m.rarity), ...stepOf(m) })])),
+  mithril_faced_shield: shield('Mithril-Faced Shield', 1100, 4, 'epic'),
+  runebound_shield: shield('Runebound Shield', 3750, 5, 'legendary'),
+  ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 'legendary'),
+  /* THE TIERS WITH HOMES (gear-tiers.js STEP_MATERIALS, lane/gear-phase-b): a plain shield for each that has none above ("<metal> Shield", no
+     attack penalty: Dawnsteel, Cobalt, Wolfram), dropped on the tier's homes (base-drops.js); book about 0.75 of the tier's sword, as the
+     Coppercap is of the Steel Sword */
+  ...Object.fromEntries(STEP_MATERIALS.filter((m) => m.tier > 6).map((m) => [m.id + '_shield',
+    shield(m.name + ' Shield', Math.max(1, Math.round((75 * m.value) / 5) * 5), m.tier, m.rarity)])),
 }));
 
 /* THE REFORGE (Smithing; Tyler 2026-11-18: a smith only reforges a named shield). The plain shields drop (SOURCES above). */

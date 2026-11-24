@@ -66,21 +66,21 @@ export default definePack({
       name: 'Troll Picker', icon: '🧌', tier: 6, level: 111, cls: 'humanoid', family: 'Troll', speed: 3400,
       /* the swarm: the young ones, going through the inn's rooms and the last wagon for anything that shines. Humanoid, no override. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'pewter_spoon', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_boots', ch: 0.013, band: 'scarce' }, { id: 'dawnhide_boots', ch: 0.013, band: 'scarce' }, { id: 'duskweave_boots', ch: 0.013, band: 'scarce' }],
+        { id: 'ember_boots', ch: 0.013, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.013, band: 'scarce' }, { id: 'archmage_boots', ch: 0.013, band: 'scarce' }],
       hp: 160, atk: 107, aim: 130, evasion: 36, def: 4, xp: 1451, gp: [24, 70], formula: true },
     slate_thrower: {
       name: 'Slate Thrower', icon: '🧌', tier: 6, level: 114, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the glass: a lanky troll on the roof, throwing slates from 5 tiles at whoever stands farthest back (`range`) */
       range: 5,
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'roof_slate', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'dawnhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'duskweave_gloves', ch: 0.0022, band: 'rare' }],
+        { id: 'ember_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0022, band: 'rare' }],
       hp: 154, atk: 142, aim: 179, evasion: 37, def: 5, xp: 1694, gp: [23, 68], formula: true },
     stable_troll: {
       name: 'Stable Troll', icon: '🧌', tier: 6, level: 117, cls: 'humanoid', family: 'Troll', speed: 2400,
       /* the heavy: the big one that sleeps in the stable and swings the water trough */
       spells: ['trough_swing'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.5, band: 'common' }, { id: 'stable_bit', ch: 0.08, band: 'uncommon' },
-        { id: 'dawn_platelegs', ch: 0.033, band: 'scarce' }, { id: 'dawnhide_pants', ch: 0.033, band: 'scarce' }, { id: 'duskweave_pants', ch: 0.033, band: 'scarce' }],
+        { id: 'ember_platelegs', ch: 0.033, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.033, band: 'scarce' }, { id: 'archmage_pants', ch: 0.033, band: 'scarce' }],
       hp: 253, atk: 106, aim: 113, evasion: 55, def: 28, xp: 2578, gp: [37, 112], formula: true },
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,
@@ -92,7 +92,7 @@ export default definePack({
       name: 'The Landlord', icon: '🧌', tier: 6, level: 123, cls: 'humanoid', family: 'Troll', speed: 2800,
       /* the elite and the rare carrier: the biggest troll, in the innkeeper's apron, sitting on the cellar. He has the last ore wagon's Dawnstone. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally', ch: 0.1, band: 'uncommon' },
-        { id: 'dawn_belt', ch: 0.0048, band: 'rare' }, { id: 'dawnhide_belt', ch: 0.0048, band: 'rare' }, { id: 'duskweave_belt', ch: 0.0048, band: 'rare' }],
+        { id: 'ember_belt', ch: 0.0048, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0048, band: 'rare' }, { id: 'archmage_belt', ch: 0.0048, band: 'rare' }],
       hp: 354, atk: 138, aim: 154, evasion: 63, def: 39, xp: 3847, gp: [52, 156], formula: true },
   },
   roster: { troll_picker: 'swarm', slate_thrower: 'glass', stable_troll: 'heavy', troll_brewer: 'regular', the_landlord: 'elite' },

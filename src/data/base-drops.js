@@ -20,6 +20,8 @@ import { MATERIAL_TIERS, STEP_MATERIALS, GEAR_LADDERS } from './gear-tiers.js';
 import { SHIELD_ITEMS } from './shields.js';
 import { DANGER_GROUNDS, PAY } from './danger.js';
 import { DROP_HOURS, chanceOf, roundChance } from './drop-hours.js';
+import { GROUND_PACKS } from './grounds/index.js';
+import { MONSTERS } from './monsters.js';
 
 /* STATED: hunted hours a hero to one plain base piece, per piece (the header) */
 export const EVERY_HOURS = 1.5;
@@ -34,6 +36,17 @@ export function basePiecesOf(mat) {
   return ids;
 }
 
+/** The pieces the bodies of a home ground's pack drop on their own rows (empty for a ground cut from another pack's rooms, the wings). */
+function ownDrops(ground) {
+  const pack = GROUND_PACKS.find((x) => x.id === ground);
+  const out = new Set();
+  if (!pack || !pack.ground) return out;
+  for (const pk of pack.ground.pockets || []) for (const sp of (pk.pack || []).concat(pk.spawns || [], pk.adds || [])) {
+    for (const d of ((pack.monsters || {})[sp.monster] || MONSTERS[sp.monster] || {}).drops || []) out.add(d.id);
+  }
+  return out;
+}
+
 /** The kills a head an hour a home's rows are converted at: its scale row's reference, else the server's one ceiling. */
 const killsOf = (ground) => (own(DANGER_GROUNDS, ground) && Number(DANGER_GROUNDS[ground].refKillsHead) > 0 ? DANGER_GROUNDS[ground].refKillsHead : PAY.refKillsHead);
 
@@ -41,7 +54,10 @@ const killsOf = (ground) => (own(DANGER_GROUNDS, ground) && Number(DANGER_GROUND
 export const BASE_DROPS = Object.freeze((() => {
   const out = {};
   for (const mat of STEP_MATERIALS) for (const g of mat.homes) {
-    const rows = basePiecesOf(mat).map((id) => {
+    /* a piece one of the home's own bodies already drops keeps that row alone (the Ox Road's Dawnsteel weapons, Carter's Rest's Emberforged
+       boots, gloves, legs and belts): one source a ground, never two rates for one piece */
+    const own = ownDrops(g);
+    const rows = basePiecesOf(mat).filter((id) => !own.has(id)).map((id) => {
       const everyHours = Number(EVERY_HOURS.toPrecision(DROP_HOURS.chDigits));
       return Object.freeze({ id, everyHours, ch: roundChance(chanceOf(everyHours, killsOf(g))), band: 'scarce' });
     });

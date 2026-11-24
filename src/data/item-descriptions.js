@@ -27,17 +27,19 @@ import { SHIELD_ITEMS } from './shields.js';
 import { SLOT_ITEMS } from './slot-ladders.js';
 
 /* THE STEP TIERS' LINES (lane/gear-phase-b; src/data/gear-tiers.js STEP_TIERS). A tier brings four words (its metal, wood, leather and cloth)
-   and each word one line here, its root; every piece of the tier reads "A <its name>." and its word's line, so a new tier is four lines and
-   never thirty-one. The naming pass and the writer may give any piece its own line in the literal below, which wins. */
+   and each word one line here, its root; every piece the lane adds reads "A <its name>." and its word's line, so a new tier is four lines
+   and never thirty-one. The naming pass and the writer may give any piece its own line in the literal below, which wins. */
 const STEP_LORE = Object.freeze({
-  damask: 'Damask is patterned steel, folded the way the carters like their knives',
-  hornbeam: 'Hornbeam is the hard pale wood the carters cut their axles from',
-  horsehide: 'Horsehide comes off the old nags in the stables at Carter\'s Rest',
-  fustian: 'Fustian is the tough cloth every carter and coachman on the road wears',
-  electrum: 'Electrum is pale gold and silver run together, the metal of the road\'s coin',
-  blackthorn: 'Blackthorn is the wood every drover on the Ox Road cuts his stick from',
-  oxhide: 'Oxhide comes off the yoke teams that pull the wagons up the Ox Road',
-  worsted: 'Worsted is spun from the drovers\' own wool and woven tight',
+  /* the shipped words a tier with homes carries (12-targets 8.3: Emberforged and Dawnsteel are the 100 and 120 tiers); their shipped pieces keep
+     their own lines below, the jewels, cloaks and shield this lane adds read these */
+  ember: 'Emberforged metal is worked hot in the forges of Krell, and it never quite cools',
+  runewood: 'Runewood is cut from the old trees the Barrow March still grows',
+  dragonhide: 'Dragonhide is tanned from the beasts that nest past the Hold',
+  archmage: 'An archmage cuts this cloth for the long work at the far end of the road',
+  dawn: 'Dawnsteel is the bright metal the smiths of Havora save for their best work',
+  duskwood: 'Duskwood is the dark hard timber the Ox Road carts haul to town',
+  dawnhide: 'Dawnhide is cured in the sun until it is light and hard',
+  duskweave: 'Duskweave is the dark cloth the road weavers spin for the long nights',
   cobalt: 'Cobalt is the blue ore of the Roost\'s crags, and the miners blame the kobolds for it',
   juniper: 'Juniper grows twisted on the ledges where the wyverns nest',
   drakehide: 'Drakehide is cut from the wyverns of the Roost and dries hard as a board',
@@ -49,7 +51,7 @@ const STEP_LORE = Object.freeze({
 });
 const stepWordOf = (it, mat) => (it.armourClass === 'leather' ? mat.words.leather[0] : it.armourClass === 'cloth' || it.slot === 'cape' ? mat.words.cloth[0]
   : it.weaponType === 'ranged' || it.weaponType === 'magic' || it.offhand === 'spellbook' ? mat.words.wood[0] : mat.id);
-const STEP_DESC = Object.fromEntries(Object.entries({ ...GEAR_ITEMS, ...SHIELD_ITEMS, ...SLOT_ITEMS }).filter(([, it]) => it && Number.isInteger(it.step)).map(([id, it]) => {
+const STEP_DESC = Object.fromEntries(Object.entries({ ...GEAR_ITEMS, ...SHIELD_ITEMS, ...SLOT_ITEMS }).filter(([, it]) => it && Number.isInteger(it.step) && STEP_MATERIALS.some((m) => m.step === it.step)).map(([id, it]) => {
   const mat = STEP_MATERIALS.find((m) => m.step === it.step), word = mat ? stepWordOf(it, mat) : null;
   if (!word || !STEP_LORE[word]) throw new Error('item-descriptions.js: ' + id + ' is a step-tier piece whose word (' + word + ') has no STEP_LORE line');
   const n = it.n.toLowerCase();

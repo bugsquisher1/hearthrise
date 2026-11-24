@@ -30,7 +30,7 @@ export default definePack({
   /* Weights are the pockets' head-count at a pull of 4 (the first four of each box): 10 Fledglings, 5 Bull, 4 Ledge, 4 Crag, 1 Brood. */
   hunt: {
     name: 'Wyvern Roost', theme: 'Wyverns nest on the crags over the road to Morrow. Bring a bow, because a sword barely scratches them.',
-    band: [125, 142],
+    band: [128, 150],
     spawns: [{ monster: FL, w: 10, rarity: 'common' }, { monster: BW, w: 5, rarity: 'uncommon' }, { monster: LW, w: 4, rarity: 'uncommon' },
       { monster: CW, w: 4, rarity: 'uncommon' }, { monster: BR, w: 1, rarity: 'rare' }],
     family: 'Dragon', art: FL, travelS: 0, pull: 4, respawnMs: 60000,

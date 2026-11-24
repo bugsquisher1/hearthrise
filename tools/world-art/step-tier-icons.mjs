@@ -22,6 +22,7 @@ import { isMain } from '../../tests/_is-main.mjs';
 import { decodePNG, encodePNG } from './png.mjs';
 import { ITEMS } from '../../src/data/items.js';
 import { GEAR_LADDERS, STEP_MATERIALS } from '../../src/data/gear-tiers.js';
+import { STEP_MADE } from '../../src/data/slot-ladders.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DIR = join(ROOT, 'assets', 'icons-bundle', 'pixel', 'items');
@@ -32,22 +33,14 @@ const hex = (h) => parseInt(h.slice(1), 16);
 
 /* THE RAMPS, dark to light, each colour a palette colour (tests/pixel-icons.mjs palette rule). Keyed by a tier's word id. */
 export const RAMPS = Object.freeze({
-  /* damask: patterned steel, iron into steel */
-  damask: Object.freeze(['#2c2e33', '#3a4652', '#4a4d54', '#5c6c7a', '#8a9aa8', '#c4ccd2']),
-  /* hornbeam: a hard pale wood, earth's light end */
-  hornbeam: Object.freeze(['#3d2a1d', '#553a26', '#8a6440', '#a88457', '#c49a5c', '#c9bfa0']),
-  /* horsehide: a warm brown hide */
-  horsehide: Object.freeze(['#2a1c14', '#4a2e18', '#6e4c30', '#7a4f26', '#a8743a', '#cfa25c']),
-  /* fustian: a dull work cloth, stone into earth */
-  fustian: Object.freeze(['#3a3a3e', '#553a26', '#6a6865', '#8a6440', '#8a867d', '#a88457']),
-  /* electrum: pale gold and silver, bronze into gold and bone */
-  electrum: Object.freeze(['#4a2e18', '#7a4f26', '#a8743a', '#cfa25c', '#e8c547', '#e6dcbc']),
-  /* blackthorn: a near-black wood, shadow into earth */
-  blackthorn: Object.freeze(['#0b0a0c', '#17141a', '#231d1f', '#2f2723', '#3d2a1d', '#553a26']),
-  /* oxhide: a dark red-brown hide */
-  oxhide: Object.freeze(['#2a1c14', '#3e1216', '#553a26', '#5e1a1f', '#6e4c30', '#8a6440']),
-  /* worsted: a gray wool, stone */
-  worsted: Object.freeze(['#2f2723', '#3a3a3e', '#4f4e52', '#6a6865', '#8a867d', '#aaa49a']),
+  /* ember (Emberforged, item Level 100): a hot red metal, blood into torch */
+  ember: Object.freeze(['#2f2723', '#3e1216', '#8e1f1f', '#c23a2a', '#f2a03a', '#ffd36a']),
+  /* archmage (its cloth): a deep red weave */
+  archmage: Object.freeze(['#17141a', '#3e1216', '#5e1a1f', '#8e1f1f', '#a88457', '#c49a5c']),
+  /* dawn (Dawnsteel, 120): a bright pale metal, steel into bone and gold */
+  dawn: Object.freeze(['#3a4652', '#5c6c7a', '#8a9aa8', '#c4ccd2', '#e6dcbc', '#e8c547']),
+  /* duskweave (its cloth): a dark blue-gray weave */
+  duskweave: Object.freeze(['#0b0a0c', '#17141a', '#1a2c44', '#2b4a6a', '#4f4e52', '#6a6865']),
   /* cobalt: a blue ore, water into frost */
   cobalt: Object.freeze(['#17141a', '#1a2c44', '#2b4a6a', '#3a4652', '#4fa8e8', '#a8e4ff']),
   /* juniper: a twisted green-brown wood, leaf into moss */
@@ -90,16 +83,19 @@ const JEWEL_SOURCE = Object.freeze({ ring: 'dawnforged_signet', earrings: 'drago
 function sourceOf(id, it) {
   const mat = STEP_MATERIALS.find((m) => m.step === it.step);
   if (!mat) return null;
-  const i = STEP_MATERIALS.indexOf(mat) + 7;
-  const ladder = GEAR_LADDERS.find((l) => l.ids[i] === id);
+  const ladder = GEAR_LADDERS.find((l) => l.ids[mat.tier - 1] === id);
   const word = it.armourClass === 'leather' ? mat.words.leather[0] : it.armourClass === 'cloth' || it.slot === 'cape' ? mat.words.cloth[0]
     : it.weaponType === 'ranged' || it.weaponType === 'magic' || it.offhand === 'spellbook' ? mat.words.wood[0] : mat.id;
   const src = ladder ? ladder.ids[7 - 1] : it.offhand === 'shield' ? 'ember_tower_shield' : JEWEL_SOURCE[it.slot] || null;
   return src ? { src, word } : null;
 }
 
-/** id -> () => the icon, for every step piece in the catalogue. Throws on a piece with no source or a word with no ramp. */
-export const DRAW = Object.freeze(Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && Number.isInteger(it.step)).map(([id, it]) => {
+/* THE PIECES THIS LANE ADDS (every other ladder piece keeps its shipped art): the ladder's rungs past Dawnsteel, the plain shield of a tier
+   with homes that had none (shields.js) and the made jewels and cloaks (slot-ladders.js STEP_MADE) */
+const ADDED = new Set([...GEAR_LADDERS.flatMap((l) => l.ids.slice(7)), ...Object.values(STEP_MADE).flat().map((r) => r.output),
+  ...STEP_MATERIALS.map((m) => m.id + '_shield')].filter((id) => id && ITEMS[id]));
+/** id -> () => the icon, for every piece the lane adds. Throws on a piece with no source or a word with no ramp. */
+export const DRAW = Object.freeze(Object.fromEntries(Object.entries(ITEMS).filter(([id]) => ADDED.has(id)).map(([id, it]) => {
   const s = sourceOf(id, it);
   if (!s) throw new Error('step-tier-icons: ' + id + ' has no shipped piece to take its shape from');
   if (!RAMPS[s.word]) throw new Error('step-tier-icons: the word ' + s.word + ' has no ramp');

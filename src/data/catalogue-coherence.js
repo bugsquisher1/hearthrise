@@ -189,6 +189,9 @@ export const UNREACHABLE_FATES = Object.freeze({
 /* SHRINK-ONLY. An id leaves its row the build it becomes reachable (C11 fails a stale row).
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
+/* what the bodies on the open grounds and open halls drop on their own rows (the step tiers' staged list reads it) */
+const OPEN_BODY_DROPS = new Set(Object.values({ ...OPEN_GROUNDS, ...OPEN_HALL_GROUNDS }).flatMap((g) => (g.pockets || [])
+  .flatMap((pk) => (pk.pack || []).concat(pk.spawns || [], pk.adds || [])).flatMap((sp) => ((MONSTERS[sp.monster] || {}).drops || []).map((d) => d.id))));
 export const UNREACHABLE = Object.freeze({
   /* THE BARROW MARCH OPENED (lane/b-open-march, 2026-11-14): the five packs shipped (tools/pack.mjs ship), so every row the five staged packs
      held (lane/d-packs-retune 2026-11-12, lane/b-barrow-integrate 2026-11-14: the tier 4-7 sets, weapons, imbuement items, Grave Dust, Razor Claw,
@@ -197,16 +200,18 @@ export const UNREACHABLE = Object.freeze({
     /* THE MORROW HILLS' FIRST THREE STAGED PACKS (lane/d-morrow-grounds, 2026-11-14). Carter's Rest: tier 7's boots, gloves, legs and belts in
        three weights (they were AWAITING_ROSTER rows), Troll Hide and five imbuement items. The Ox Road: the eight tier-7 weapons again (Krell's
        prize above) and five imbuement items. Wyvern Roost: Dragon Bones and Dragon Scale (they were `later`) and five imbuement items. */
-    'dawn_boots', 'dawn_gauntlets', 'dawn_platelegs', 'dawn_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants', 'dawnhide_belt',
-    'duskweave_boots', 'duskweave_gloves', 'duskweave_pants', 'duskweave_belt', 'troll_hide', 'dragon_bones', 'dragon_scale',
+    /* (tier 7's boots, gloves, legs and belts left this list with lane/gear-phase-b: Dawnsteel is the Ox Road's base, derived below) */
+    'troll_hide', 'dragon_bones', 'dragon_scale',
     'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
     'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
     'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
     /* UNMARKED CATACOMBS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
     'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
-    /* A STEP TIER WHOSE HOMES ARE ALL STAGED (lane/gear-phase-b; gear-tiers.js STEP_TIERS): every piece of it, dropped on a home or made from a
-       home's part, waits for a home to open (the Catacomb wings: item Level 160). DERIVED, so the tier leaves the list the build a home opens */
-    ...Object.keys(ITEMS).filter((id) => ITEMS[id] && STEP_MATERIALS.some((m) => m.step === ITEMS[id].step && !m.homes.some((g) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)))),
+    /* A TIER WHOSE HOMES ARE ALL STAGED (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): every piece of it no open ground's body drops (a
+       home's base row or a made piece from a home's part) waits for a home to open. DERIVED, so a piece leaves the list the build its home
+       opens or an open ground starts dropping it; a named copy (a chest's twin) has its own door */
+    ...Object.keys(ITEMS).filter((id) => ITEMS[id] && !ITEMS[id].towerKey && !ITEMS[id].catacombTier && !OPEN_BODY_DROPS.has(id)
+      && STEP_MATERIALS.some((m) => m.step === ITEMS[id].step && !m.homes.some((g) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)))),
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next

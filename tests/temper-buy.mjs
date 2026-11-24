@@ -206,8 +206,9 @@ function materialProblems({ materials, recipes, rocks, items, bid }) {
     const r = recipes.smithing.find((x) => x.output === m.item);
     if (!r) { out.push(`TB-MATERIAL: no Smithing recipe makes ${m.item}`); continue; }
     if (m.qty.length !== 5 || m.qty.some((n, i) => i > 0 && !(n > m.qty[i - 1]))) out.push(`TB-MATERIAL: ${m.item}'s rungs ${m.qty} do not climb`);
-    const level = MATERIAL_TIERS[tier - 1].level;
-    if (r.req > level) out.push(`TB-MATERIAL: ${r.id} asks Smithing ${r.req} of gear worn at Level ${level}`);
+    /* the tier's BENCH level (12-targets 8.3: Smithing and crafting levels gate making, not wearing, and stay as they were; the wear moved) */
+    const level = MATERIAL_TIERS[tier - 1].smith;
+    if (r.req > level) out.push(`TB-MATERIAL: ${r.id} asks Smithing ${r.req} of a tier its bench makes at Smithing ${level}`);
     const inputs = recipeInputs(r);
     const inBid = Object.entries(inputs).reduce((s, [k, n]) => s + bid(k) * n, 0);
     if (!(bid(m.item) * (r.outputQty || 1) < inBid)) out.push(`TB-MATERIAL: ${m.item} sells to the shop for ${bid(m.item)}, what goes in for ${inBid}: a craft that profits at the shop`);

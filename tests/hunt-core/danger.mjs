@@ -218,6 +218,14 @@ const CASES = {
     if (under.w.packs[0].aggro || under.m.target !== null || under.m.hp !== under.m.maxHp) return 'the broken-off pack still fights: aggro ' + under.w.packs[0].aggro + ', target ' + under.m.target + ', HP ' + under.m.hp + '/' + under.m.maxHp;
     if (under.w.danger !== 200 - CLIMB.fallSteps) return 'the break-off left the step at ' + under.w.danger + ', not ' + (200 - CLIMB.fallSteps);
     if (!under.sc.events.some((e) => e.type === 'danger' && e.why === 'fall') || !under.sc.events.some((e) => e.type === 'pack_reset')) return 'the break-off told nobody: ' + JSON.stringify(under.sc.events.map((e) => e.type));
+    /* BOLD FIGHTS THE PULL TO THE END (RISKS.bold.breakOff false): under its line the pull goes on; the line is read when it ends */
+    const bd = RISKS.bold;
+    if (bd.breakOff !== false) return 'fixture: Bold breaks off (breakOff ' + bd.breakOff + ')';
+    const bold = run('bold', bd.fallPm - 1);
+    if (bold.w.phase !== 'fight' || !bold.w.packs[0].aggro) return 'Bold under its line (' + (bd.fallPm - 1) + ') broke the pull off (' + bold.w.phase + ')';
+    const bi = instOf(M, bold.w), bsc = subStep(0);
+    M.danger.pullEnds(bi, bsc, true);
+    if (bold.w.danger !== 200 - CLIMB.fallSteps) return 'Bold ending a pull under its line left the step at ' + bold.w.danger + ', not a fall back to ' + (200 - CLIMB.fallSteps);
     const dead = run('steady', 0);
     if (dead.w.phase !== 'regroup' || dead.w.danger !== Math.max(0, 200 - CLIMB.deathSteps)) return 'a death in the pull left phase ' + dead.w.phase + ' and step ' + dead.w.danger;
     /* no monster swings once a hero is under the line, even in the sub-step before the break-off */
@@ -838,6 +846,7 @@ const MUTANTS = [
   { name: 'a pull is never broken off', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '    } else if (breaksOff(inst)) breakOff(inst, sc);\n', '    }\n']] },
   { name: 'the broken-off pack stays on the party', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '  for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);\n  for (const h of heroes(inst)) h.target = null;\n', '  for (const h of heroes(inst)) h.target = null;\n']] },
   { name: 'a break-off moves on to the next pocket', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;\n}', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;\n}']] },
+  { name: 'Bold breaks off like Steady', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'dangerOn(inst.world) && RISKS[inst.world.risk].breakOff !== false\n', 'dangerOn(inst.world)\n']] },
   { name: 'the break-off waits for the climb threshold', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;', 'inst.world.low < RISKS[inst.world.risk].cleanPm && marginPm(inst) < RISKS[inst.world.risk].cleanPm;']] },
   { name: 'a size change puts a jump in the curve', case: 'scale', edits: [['src/core/hunt/danger.js', 'const share = n0 / pull;', 'const share = 1;']] },
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },

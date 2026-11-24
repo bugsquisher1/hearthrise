@@ -68,7 +68,7 @@ const HOMES = new Set(['src/data/gear-steps.js', 'src/data/traits.js']);
 /* the doc's words for a ground and a slot heading */
 const DOC_GROUNDS = Object.freeze({
   'Muster Barrows': 'muster_barrows', 'Pyre Field': 'pyre_field', 'Krell\'s Hold': 'krells_hold', 'Carter\'s Rest': 'carters_rest',
-  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Hask\'s Ford': 'hasks_ford', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
+  'Ox Road': 'ox_road', 'Wyvern Roost': 'wyvern_roost', 'Hask\'s Ford': 'hasks_ford', 'The Slake': 'the_slake', 'Bone Wing': 'catacomb_bone_wing', 'Flooded Wing': 'catacomb_flooded_wing',
 });
 const DOC_SLOTS = Object.freeze({ Weapon: 'weapon', Shield: 'shield', Body: 'body', Legs: 'pants', Helmet: 'helmet', Boots: 'boots',
   Gloves: 'gloves', Belt: 'belt', Cape: 'cape', Necklace: 'necklace', Ring: 'ring', Earrings: 'earrings' });

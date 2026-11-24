@@ -445,9 +445,19 @@
         "why": "lane/monster-roles-ford-wings merged over the set (3329b4bb0): the Ford and both Catacomb wings on the formula with roles and spells, formulaStep and refHeld readers, rowsKillsHead kept on coin and loot, drop-rate.js rowsKillsHour, REF_HERO regenerated with its rows, the corridor pull's area veto (+9,968 B over the set)"
       },
       {
-        "bytes": 3810952,
+        "bytes": 3808616,
         "on": "2026-11-23",
-        "why": "lane/scale-early-grounds merged onto set/v0.2.144 41fa973cf: the lane's own growth over the roles lane's ceiling, +8,321 B, no new module: the Mill Cellar and the Thicket on the scale (two DANGER_GROUNDS rows, roles and drops in hours on their monster rows, scaleItemLevels pieces), the coin level a ground (danger.js coinLevelOf), the store step on refLevel (wage.js), combat-sim.js fightItems (the scale view only for a fight on the scale)"
+        "why": "lane/roads-wave3 on the merged set: src/data/talents.js gains Parry, Stagger and Gash roads (30 nodes) and two town rows; abilities and statuses comments"
+      },
+      {
+        "bytes": 3810103,
+        "on": "2026-11-24",
+        "why": "+1,487 B: Bold fights every pull (breakOff, breaksOff) and the bottom-depth hold (lane/designer-reads-1123)"
+      },
+      {
+        "bytes": 3819585,
+        "on": "2026-11-24",
+        "why": "lane/scale-early-grounds merged onto set/v0.2.144 1f3fa9fe6 (designer-reads): the lane's own growth over the set's ceiling, no new module: the Cellar and the Thicket on the scale, coin levels a ground (danger.js coinLevelOf, the Ford's 7.1), insideOneTier (bands.js, 29 7.5), wage.js store step on refLevel, combat-sim.js fightItems"
       }
     ]
   }

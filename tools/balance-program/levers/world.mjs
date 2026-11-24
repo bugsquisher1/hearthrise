@@ -330,7 +330,7 @@ export const WORLD = [
     ev: 'MEASURED (V1, V1.1: 12 seeds x 12 h x 4 cells)' }),
   L('danger.stances', 'monster-stats', 'archetype', 'Risk stance thresholds', {
     at: [at(DZ, "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),"), at(DZ, "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),"),
-      at(DZ, "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),")],
+      at(DZ, "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),")],
     def: 'a stance is its fall back trigger and its climb threshold, permille of max HP read on the lowest HP any hero reached in a pull; a death settles it one notch safer',
     range: 'fallPm < cleanPm <= 1000. RD-Q3 a: Careful and Steady never die, Bold is the only stance that can',
     touches: 'where a company holds and how often it dies: Steady 250/450 and Careful 0 deaths in 48 seed-days, Bold 120/300 0.4 to 1.1 deaths a day; Bold 80/300 since lane/tuning-pass (2026-11-23: on Muster Barrows formula monsters Bold at 120 died 0 to 0.17 a day and won every day; at 80 0.25 on Muster and 1.0 on Hask Ford, 8 seeds x 10 h; tools/balance-program/redesign/tuning/r2)', out: SURVIVE, f: ['C-TIER'],

@@ -29,6 +29,7 @@ const argv = process.argv.slice(2);
 const arg = (k, d = null) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const SEEDS = Number(arg('seeds', 6)), HOURS = Number(arg('hours', 6)), WORKERS = Number(arg('workers', 6)), SETTLE_H = Number(arg('settle', 1));
 const RISK = arg('risk', 'steady');
+const GAP_ONLY = argv.includes('--gap-only');
 const LEVELS = String(arg('levels', '30,60,120')).split(',').map(Number);
 /* the scale ground a hero of that Level hunts (src/data/danger.js DANGER_GROUNDS entryLevel): the Ford (45) under Muster, Muster (55-75),
    the Bone Wing (165) past it. None is cut for Level 30 or 120 yet (V8 is owed a scale ground under 55, R10): read those two as nearest. */
@@ -47,6 +48,21 @@ const { heldStart } = await imp('tools/balance-program/redesign/held-four.mjs');
 const T = await imp('src/core/talents.js');
 const TD = await imp('src/data/talents.js');
 const D = await loadGridData(ROOT), K = await loadKits(ROOT);
+
+/* THE WAVE-3 MOVES ON THE BAR (lane/roads-wave3; --no-wave3-bar leaves the played bar as it is): each country's move after Turning Cut,
+   on its row's starting rule, its rune the family's own first, then the store's at the seat's Melee */
+const { shoppingTier, RUNE_TIERS } = await imp('tools/balance-sim/played.mjs');
+const { ABILITIES } = await imp('src/data/abilities.js');
+const wave3 = (id, family, cond) => (skills) => {
+  const action = family ? { id, type: 'ability', own: RUNE_TIERS.map(([, t]) => `${t}_${family}_rune`).reverse(),
+    store: ((t) => (t === 'chalked' ? `plain_${family}_rune` : `plain_${t}_${family}_rune`))(shoppingTier('melee_dps', family, skills.melee || 1, 'real')), onEmpty: 'store' } : { id, type: 'ability' };
+  return { after: 'turning_cut', slots: [{ id: 'w3_' + id, join: 'and', conditions: cond, action }] };
+};
+const WAVE3_BAR = {
+  sword: wave3('parry', null, ABILITIES.parry.trigger),
+  club: wave3('stagger', 'earth', ABILITIES.stagger.trigger),
+  dual_axe: wave3('gash', 'rupture', [{ op: 'gte', value: 2, metric: 'enemies_in_aoe' }]),
+};
 
 /* ── the allocations ── */
 const ROADS = ['r1', 'r2', 'r3', 'x1', 'w1', 'r4', 'r5', 'x2', 'w2'];
@@ -95,12 +111,15 @@ for (const hero of HEROES) for (const L of LEVELS) {
   const [four, seat] = SEATS[hero];
   const b = buildCell(D, K, { L, gear: 'mid', styles: four, tier: 'normal', ground });
   const allocs = allocations(hero, L);
-  for (const [name, build] of Object.entries(allocs)) {
+  /* --gap-only (lane/roads-wave3): only the four the gap reads, suggested and the three candidates */
+  for (const [name, build] of Object.entries(allocs).filter(([n]) => !GAP_ONLY || n === 'suggested' || n.startsWith('cand:'))) {
     const probs = T.buildProblems(build, L);
     if (probs.length) { console.error('alloc-run: ' + hero + ' L' + L + ' ' + name + ' is not a legal build: ' + JSON.stringify(probs)); process.exit(2); }
     const id = hero + ':L' + L + ':' + name;
     const roadsBySeat = four.map((_, i) => (i === seat ? build : null));
-    const cell = { ...b.cell, options: { risk: RISK, danger: start }, hours: HOURS, seeds: 1, roadsBySeat };
+    /* (lane/roads-wave3) a hero walking a wave-3 road casts its move: on the seat's bar, on its own starting rule (no default bar holds it) */
+    const add = WAVE3_BAR[hero] && !argv.includes('--no-wave3-bar') ? four.map((_, i) => (i === seat ? WAVE3_BAR[hero](b.cell.skillsBySeat[seat] || {}) : null)) : null;
+    const cell = { ...b.cell, options: { risk: RISK, danger: start }, hours: HOURS, seeds: 1, roadsBySeat, ...(add ? { addSlotsBySeat: add } : {}) };
     cells.push({ id, hero, L, ground, name, spent: T.pointsSpent(build), points: T.pointsAt(L), grants: T.grantsOf(build, hero, L) });
     for (let s = 0; s < SEEDS; s++) jobs.push({ key: id + '#' + s, job: { ...cell, id: 'ALLOC:' + id + '#' + s, seedBase: 1000 + s } });
   }
@@ -167,6 +186,7 @@ for (const hero of HEROES) for (const L of LEVELS) {
   const best = cands.reduce((a, n) => (report.cells[id(n)].heldMean > report.cells[id(a)].heldMean ? n : a), 'suggested');
   console.log('\n' + hero + ' L' + L + ' on ' + S.ground + ' (points ' + S.points + ', held start ' + (await heldStart(ROOT, S.ground)) + ')');
   for (const n of ['banked', 'suggested', 'one_move', 'spread', ...cands.slice(1)]) {
+    if (!report.cells[id(n)]) continue;
     const o = report.cells[id(n)], d = n === 'suggested' ? null : delta(n);
     console.log('  ' + n.padEnd(15) + ' held ' + String(o.heldMean).padEnd(7) + (d ? ' vs suggested ' + (d.mean >= 0 ? '+' : '') + d.mean + ' +- ' + d.se : '').padEnd(28)
       + ' deaths ' + o.deaths + '  xp/hd-h ' + o.xpMean + '  spent ' + o.spent + '/' + o.points + '  held rules ' + o.grants.held);

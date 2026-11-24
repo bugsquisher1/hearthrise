@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "e4978198031ceb0b",
+ "authored": "f935363adc80f55b",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 761,
-  "typed": 17117,
+  "typed": 17141,
   "files": 261,
   "lever": 334,
   "notLever": 427,
@@ -2786,7 +2786,7 @@
     "today": {
      "table": "src/data/abilities.js ABILITIES",
      "rows": 25,
-     "carrying": 6,
+     "carrying": 8,
      "distinct": 4,
      "low": 10,
      "high": 20
@@ -3032,7 +3032,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 248,
+     "line": 252,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -3171,73 +3171,73 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 130,
+     "line": 134,
      "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 133,
-     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
-     "binding": "STATUSES"
-    },
-    {
-     "file": "src/data/statuses.js",
-     "line": 135,
-     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
-     "binding": "STATUSES"
-    },
-    {
-     "file": "src/data/statuses.js",
      "line": 137,
-     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
+     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 140,
+     "line": 139,
+     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 141,
+     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', durationMs: 3000, maxStacks: 1, silence: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 144,
      "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 145,
+     "line": 149,
      "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 146,
+     "line": 150,
      "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 147,
+     "line": 151,
      "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 153,
+     "line": 157,
      "text": "mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 156,
+     "line": 160,
      "text": "echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 159,
-     "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
+     "line": 163,
+     "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 162,
+     "line": 166,
      "text": "frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     }
@@ -3405,13 +3405,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 117,
+     "line": 119,
      "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 118,
+     "line": 120,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3471,8 +3471,8 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 113,
-     "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2000, maxStacks: 1, parry: true }),",
+     "line": 115,
+     "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2100, maxStacks: 1, parry: true }),",
      "binding": "STATUSES"
     },
     {
@@ -3683,7 +3683,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 380,
+     "line": 384,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -4355,7 +4355,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 125,
+     "line": 127,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -7948,7 +7948,7 @@
     {
      "file": "src/data/danger.js",
      "line": 293,
-     "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
+     "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
    ],
@@ -8011,7 +8011,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 314,
+     "line": 320,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -8399,7 +8399,7 @@
     {
      "file": "src/data/danger.js",
      "line": 229,
-     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12567,69 +12567,87 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 192,
+     "line": 196,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 254,
+     "line": 258,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 313,
+     "line": 317,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 558,
+     "line": 600,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 553,
+     "line": 595,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 327,
+     "line": 331,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 367,
+     "line": 383,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 394,
+     "line": 424,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 425,
+     "line": 467,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 490,
+     "line": 532,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 576,
+     "line": 621,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 358,
+     "text": "[opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),",
+     "binding": "SWORD_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 397,
+     "text": "[opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),",
+     "binding": "CLUB_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 441,
+     "text": "[opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),",
+     "binding": "AXE_NODES"
     }
    ],
    "definition": "each node's effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status's strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)",
@@ -19975,15 +19993,17 @@
     "circle_of_renewal",
     "fireball",
     "flame_strike",
+    "gash",
     "greater_mend",
     "hoarfrost",
     "power_strike",
     "protective_ward",
     "rend",
     "shelter",
+    "stagger",
     "turning_cut"
    ],
-   "typed": 10,
+   "typed": 12,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {
@@ -20068,13 +20088,14 @@
     "cdMs",
     "effects",
     "mana",
+    "manaOnCastPm",
     "manaPm",
     "ms",
     "outPm",
     "pm",
     "·"
    ],
-   "typed": 31,
+   "typed": 35,
    "bindings": 1
   },
   "src/data/talents.js#CLUB_NODES": {
@@ -20090,7 +20111,7 @@
     "pm",
     "·"
    ],
-   "typed": 17,
+   "typed": 23,
    "bindings": 1
   },
   "src/data/talents.js#AXE_NODES": {
@@ -20101,11 +20122,12 @@
     "cdPm",
     "effects",
     "ms",
+    "outPm",
     "pm",
     "statusMs",
     "statusPm"
    ],
-   "typed": 16,
+   "typed": 24,
    "bindings": 1
   },
   "src/data/talents.js#RANGED_NODES": {
@@ -20163,7 +20185,7 @@
     "statusPm",
     "·"
    ],
-   "typed": 40,
+   "typed": 41,
    "bindings": 1
   },
   "src/core/hunt/talent-rows.js#NEAR_FALL_PM": {

@@ -189,6 +189,20 @@ export function refHealthOf(level) {
    The server's rows: hr_skill_curve (tools/gen-catalogues.mjs). */
 export const FLAME_SKILL_CURVE = Object.freeze({ skill: 'inner_flame', base: 15, growthPermille: 40 });
 
+/* THE SKILL-GATED SUPPLIES ON THE CLOCK (the designer's ruling, docs/design/redesign/29-tuning-pass.md section 7 item 10, built by
+   lane/skills-time-parity 2026-11-23). Every skill-gated arrow, bolt, whetstone and rune tier keeps the LEVEL it arrived at on the measured
+   old careers: the old gate was skill n, which the reference four's career first reached at Level L (tools/balance-sim/skill-lines.json
+   'party' lines read as measured: the hammer's Melee, the bow's Ranged, the mage's Magic), and on the clock a skill is its Level, so the
+   gate is now L. By tier (1..7 on the ammo ladders, 1..5 on the runes); the old gates were 1 / 15 / 30 / 45 / 60 / 75 / 88 for all three.
+   tests/bands.mjs BD-10 re-derives every number from the snapshot. A rune spell's version reads its own skill's row (runes.js versionLevel).
+   The Level a store basic is priced at is the ladder's MADE-AT Level, unchanged (stonecraft.js AMMO_MADE_LV, an item's `madeLv`, runes.js
+   RUNE_TIERS level, which Runecrafting crafts at), so no price moves. */
+export const SUPPLY_GATES = Object.freeze({
+  melee: Object.freeze([1, 9, 23, 45, 73, 115, 168]),
+  ranged: Object.freeze([1, 9, 19, 39, 66, 105, 142]),
+  magic: Object.freeze([1, 8, 15, 39, 71]),
+});
+
 /* VITALS FROM LEVEL AND ARMOUR WEIGHT (Q3; the armour shares are Tyler's:
    heavy up to +28% HP, light up to +35% mana, blended by the share of armour
    slots worn of that weight). */

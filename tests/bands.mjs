@@ -6,7 +6,7 @@
 //   node tests/bands.mjs --mutate    each rule planted back in a temp copy (tests/hunt-core/fixtures/h1.js plant), each caught by this file
 //                                    or by tests/sustain.mjs (the sustain levers ride here: one proof for the foundations' two tests)
 //
-// mutant-anchors: src/core/bands.js src/core/xp.js src/data/sustain.js src/session/danger-sections.js src/data/danger.js
+// mutant-anchors: src/core/bands.js src/core/xp.js src/data/sustain.js src/session/danger-sections.js src/data/danger.js src/data/core-model.js src/data/runes.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy (plant), never the tree
 //
 // src/data/bands.js and src/core/bands.js (26-architecture-pass.md rank 2, 04 sections 1 and 4, 27 S-5, K-5, K-6):
@@ -36,6 +36,10 @@
 //         four, the plain grown four, the strong four on Steady and on Bold read a climb (arriving <= 6, strong >= 16, Bold >= 19). Red on
 //         the floor cut two tiers back (arriving depth 9) and on a reading whose middle is the anchor refStep (8). Nothing here caps a
 //         company: these read measured holds, they never hold a step back (Tyler 2026-11-23)
+//   BD-10 THE SUPPLY GATES KEEP THEIR LEVEL (the designer's ruling 29 section 7 item 10): every tier of core-model.js SUPPLY_GATES is the
+//         Level the reference four's measured old career (tools/balance-sim/skill-lines.json 'party', as measured) first reached the old gate
+//         (1 / 15 / 30 / 45 / 60 / 75 / 88): Melee on the hammer, Ranged on the bow, Magic on the mage; a rune's item gate and its spell
+//         version read that row, and the store prices it at the made-at Level, never the gate
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -51,6 +55,9 @@ const { DANGER_GROUNDS, DEPTHS, POWER, BAND_RULE } = await imp('src/data/danger.
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { HUNT_INDEX } = await imp('src/data/hunts.js');
 const B = await imp('src/core/bands.js');
+const SL = await imp('tools/balance-sim/skill-lines.mjs');
+const RN = await imp('src/data/runes.js');
+const { ITEMS } = await imp('src/data/items.js');
 const { depthOf: clientDepth } = await imp('src/session/danger-sections.js');
 const { depthOf: edgeDepth } = await imp('src/core/drop-rate.js');
 
@@ -80,6 +87,8 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'a skill reads half a Level over the clock', [['src/core/bands.js', '  if (pacePm === 1000) return 1000 * s;', '  if (pacePm === 1000) return 1000 * s + 500;']]],
   ['tests/bands.mjs', 'the pace read upside down', [['src/core/bands.js', '  const want = (pacePm * hoursTo(s)) / 1000;', '  const want = (1000 * hoursTo(s)) / pacePm;']]],
   ['tests/bands.mjs', 'the curve counts the next Level\'s health', [['src/core/xp.js', 'BigInt(refHealthOf(n))', 'BigInt(refHealthOf(n + 1))']]],
+  ['tests/bands.mjs', 'a supply gate drifts from the Level the career reached it', [['src/data/core-model.js', 'ranged: Object.freeze([1, 9, 19, 39, 66, 105, 142]),', 'ranged: Object.freeze([1, 9, 19, 39, 60, 105, 142]),']]],
+  ['tests/bands.mjs', 'a rune\'s spell version reads its old skill gate', [['src/data/runes.js', '  return RUNE_TIERS[tier - 1] && Number.isInteger(gates[tier - 1]) ? gates[tier - 1] : Infinity;', '  return RUNE_TIERS[tier - 1] ? RUNE_TIERS[tier - 1].level : Infinity;']]],
   ['tests/bands.mjs', 'the bridge misses its reference point', [['src/core/bands.js', 'const [[a, A], [b, B]] = s <= p[1][0] ? [p[0], p[1]] : [p[1], p[2]];', 'const [[a, A], [b, B]] = [p[0], p[2]];']]],
   ['tests/sustain.mjs', 'a share starts outside its band', [['src/data/sustain.js', 'freePm: lever(150, [100, 250]),', 'freePm: lever(300, [100, 250]),']]],
   ['tests/sustain.mjs', 'a band too tight for the measured reference', [['src/data/sustain.js', 'healerPm: lever(830, [700, 900]),', 'healerPm: lever(830, [800, 900]),']]],
@@ -228,5 +237,19 @@ for (const [id, pin] of Object.entries(PINS)) {
   ok(arrive < grown && grown < strong && strong <= bold, 'BD-9 Muster Barrows: the measured companies do not read a climb (' + climb + ')');
 }
 
+/* BD-10 */
+{
+  const OLD = [1, 15, 30, 45, 60, 75, 88], snap = SL.loadLines();
+  const firstAt = (style, k, n) => { for (let L = 1; L <= 1000; L++) if (SL.skillsAt(snap, 'party', style, L, SL.AS_MEASURED)[k] >= n) return L; return null; };
+  for (const [k, style] of [['melee', 'hammer'], ['ranged', 'bow'], ['magic', 'mage']]) {
+    CM.SUPPLY_GATES[k].forEach((g, i) => ok(g === firstAt(style, k, OLD[i]), 'BD-10 ' + k + ' tier ' + (i + 1) + ' gates at ' + g + ', the ' + style + ' career reached ' + OLD[i] + ' at Level ' + firstAt(style, k, OLD[i])));
+  }
+  for (let t = 1; t <= RN.RUNE_TIERS.length; t++) {
+    ok(RN.versionLevel(t) === CM.SUPPLY_GATES.magic[t - 1] && RN.versionLevel(t, 'melee') === CM.SUPPLY_GATES.melee[t - 1], 'BD-10 a tier ' + t + ' spell version does not read its skill gate');
+    ok(ITEMS[RN.runeId('fire', t)].reqLv === CM.SUPPLY_GATES.magic[t - 1] && ITEMS[RN.runeId('fire', t)].madeLv === RN.RUNE_TIERS[t - 1].level, 'BD-10 the tier ' + t + ' Fire Rune gate or made-at Level is off');
+  }
+  ok(ITEMS.rune_arrows.reqLv === CM.SUPPLY_GATES.ranged[4] && ITEMS.rune_arrows.madeLv === 60 && ITEMS.mithril_whetstone.reqLv === CM.SUPPLY_GATES.melee[4], 'BD-10 an ammo row does not read the clock gate');
+}
+
 if (fails.length) { console.error('✗ bands: ' + fails.length + ' failing\n  ' + fails.slice(0, 30).join('\n  ')); process.exit(1); }
-console.log('✓ bands: BD-1..9 (' + Object.keys(DANGER_GROUNDS).length + ' scale grounds, the skill line on the Level clock, one depth for the browser and the edge, the reading\'s middle a measured hold, an ordinary climb reads right)');
+console.log('✓ bands: BD-1..10 (' + Object.keys(DANGER_GROUNDS).length + ' scale grounds, the skill line on the Level clock, one depth for the browser and the edge, the reading\'s middle a measured hold, an ordinary climb reads right)');

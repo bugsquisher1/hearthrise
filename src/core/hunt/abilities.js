@@ -217,7 +217,7 @@ function runeFor(h, row, action) {
     if (!tier) continue;
     const l = resolveLine(h.hs, id, null);
     if (!l.id || l.why) continue;
-    if (lv < versionLevel(tier)) { locked = true; continue; }
+    if (lv < versionLevel(tier, abilitySkill(row))) { locked = true; continue; }
     if (!best || tier > best.version) best = { line: l, version: tier, pm: 1000 };
   }
   if (best) return best;
@@ -226,7 +226,7 @@ function runeFor(h, row, action) {
   const b = typeof store === 'string' ? basicOf(h.hs, store) : null;
   const named = b ? itemRow(h, b.partner) : null;
   const version = named && named.family === fam ? runeTierOf(named) : 0;
-  if (version && lv < versionLevel(version)) return { why: 'level', short: false };
+  if (version && lv < versionLevel(version, abilitySkill(row))) return { why: 'level', short: false };
   const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };
   if (!s.id || s.why) return { why: locked ? 'level' : 'no_rune', short: s.why === 'gold_short' };
   return { line: s, version, pm: BASIC_PM };

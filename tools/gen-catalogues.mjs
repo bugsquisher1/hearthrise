@@ -1590,7 +1590,8 @@ for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const fam = ITEMS[row.rune].family;
   const runes = {};
   for (const item of Object.keys(ITEMS).sort()) {
-    if (isRune(ITEMS[item]) && ITEMS[item].family === fam && runeTierOf(ITEMS[item])) runes[item] = versionLevel(runeTierOf(ITEMS[item]));
+    /* the version's gate in the spell's own skill (runes.js versionLevel: core-model.js SUPPLY_GATES, the engine's rule) */
+    if (isRune(ITEMS[item]) && ITEMS[item].family === fam && runeTierOf(ITEMS[item])) runes[item] = versionLevel(runeTierOf(ITEMS[item]), abilitySkill(row));
   }
   if (!Object.keys(runes).length) die(`rune spells: ${id}'s family ${fam} has no rune of a tier`);
   /* What the slot may name, by the same rule as conditions.js storeFits: a store row whose partner is a rune of this family. */

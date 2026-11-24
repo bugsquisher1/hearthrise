@@ -19,6 +19,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { NECROTIC_STORM } from './necrotic-storm.js';
+import { SUPPLY_GATES } from './core-model.js';
 
 /* The families (Tyler 2026-10-23, final, seven with Air hidden; 2026-11-18 "Yes storm and bone": the hidden Air family is shown as
    STORM, and an eighth, BONE, for Necrotic). `hidden`: no spell spends it yet, so no screen offers it, and it has no rune row
@@ -84,8 +85,16 @@ export function runeTierOf(item) {
   return isRune(item) && Number.isInteger(item.runeTier) && item.runeTier >= 1 && item.runeTier <= RUNE_TIERS.length ? item.runeTier : 0;
 }
 
-/** The skill level version `tier` of a spell needs (and Runecrafting crafts that tier at). */
-export function versionLevel(tier) {
+/** The level version `tier` of a spell needs in `skill`, the spell's own (Magic by default, a weapon ability's weapon skill): the tier's
+    gate on the Level clock (core-model.js SUPPLY_GATES, the Level the old careers reached the tier at; the Magic row for a skill with
+    none). Runecrafting crafts the tier at its own `level` (craftLevel), which is not this. */
+export function versionLevel(tier, skill = 'magic') {
+  const gates = SUPPLY_GATES[skill] || SUPPLY_GATES.magic;
+  return RUNE_TIERS[tier - 1] && Number.isInteger(gates[tier - 1]) ? gates[tier - 1] : Infinity;
+}
+
+/** The Runecrafting level tier `tier` is crafted at, and the made-at Level its store basic is priced at (RUNE_TIERS level). */
+export function craftLevel(tier) {
   const row = RUNE_TIERS[tier - 1];
   return row ? row.level : Infinity;
 }

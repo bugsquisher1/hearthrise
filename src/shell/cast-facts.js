@@ -59,7 +59,7 @@ export function castOf(a, ctx) {
     let best = null;
     for (const id of sup.own) {
       const tier = qtyOf(c.bag, id) > 0 ? runeTierOf(ITEMS[id]) : 0;
-      if (!tier || (level !== null && level < versionLevel(tier))) continue;
+      if (!tier || (level !== null && level < versionLevel(tier, skill))) continue;
       if (!best || tier > best.tier) best = { id, tier };
     }
     /* then, when the slot buys on empty, exactly the store rune it names, of the family, while the store is on (never a cheaper one) */

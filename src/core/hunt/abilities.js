@@ -473,13 +473,21 @@ function effect(inst, u, row, t, sc, v) {
   /* ON THE SCALE every number of the cast goes through the pipeline (src/core/hunt/amount.js): a hit's mean to landHit, a heal or a shell
      through healAmount (the caster's rating over its own Level, one roll), each at its share of the caster's top */
   const piped = stepsOn(inst), blow = unitOf(inst, u, row);
-  const amount = () => {
+  /* `to`: the hero the next amount lands on (a worn Trait's per-target condition reads it, src/core/hunt/trait-rules.js); the cast's context
+     carries the Traits that held on that amount (`tr`) to the heal event heal-rules.js landHeal writes next */
+  let to = null;
+  const amount = (o) => {
     const a = /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blow, u.maxHp, pm) || {});
-    if (piped && a.heal) a.heal = healAmount(inst, u, a.heal, { hp: !Number.isInteger(row.healPm) && Number.isInteger(row.healHpPm), rng: sc.rng });
-    if (piped && a.shield) a.shield = healAmount(inst, u, a.shield, { rng: sc.rng });
+    /** @type {{ hp?: boolean, rng: any, to: any, traits?: string[] }} */
+    const hc = { hp: !Number.isInteger(row.healPm) && Number.isInteger(row.healHpPm), rng: sc.rng, to: o || to };
+    if (piped && a.heal) a.heal = healAmount(inst, u, a.heal, hc);
+    /** @type {{ rng: any, to: any, traits?: string[] }} */
+    const sh = { rng: sc.rng, to: hc.to };
+    if (piped && a.shield) a.shield = healAmount(inst, u, a.shield, sh);
+    if (hc.traits || cast.tr) cast.tr = hc.traits;
     return a;
   };
-  /** @type {{ id: string, mult?: number, weakPm?: number }} */
+  /** @type {{ id: string, mult?: number, weakPm?: number, area?: number }} */
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */
   if (Number.isInteger(row.weakPm)) hitTag.weakPm = row.weakPm;
@@ -543,6 +551,8 @@ function effect(inst, u, row, t, sc, v) {
       /* A shape that lands only its status (Frost Slam: landsBlow false) strikes no blow: no dmg event, no kill, no weapon XP. */
       const blows = landsBlow(row);
       const reached = Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit;
+      /* how many it covers, on each of its blows (a worn Trait's enemies_in_aoe, src/core/hunt/trait-rules.js) */
+      hitTag.area = reached.length;
       for (const m of reached) {
         if (!blows) { afflict(m); continue; }
         strike(m);
@@ -556,14 +566,16 @@ function effect(inst, u, row, t, sc, v) {
     /* A SHIELD lands through the one shield rule (shields.js offerShield: one a hero, a bigger one replaces it); the bar's gates
        (firstUsable: a self shell recasts only to land more, an ally shield takes a hero holding none) mean every cast here is bigger. */
     case 'self':
+      to = u;
       if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row, piped, cast); break; }
       offerShield(sc, u, u, amount().shield);
       break;
     /* AN ALLY row lands on its target, and with more targets (fx.extra, Twin Ward) on the next the row's own rule takes; a shell with pieces
        through heal-rules.js landShell (its per-target output, a heal of it) */
     case 'ally':
-      if (heals(row)) { for (const o of allyTargets(inst, u, row, t)) healOne(u, o, amount().heal, sc, sg, row, piped, cast); break; }
-      if (fx) { for (const o of allyTargets(inst, u, row, t)) landShell(u, o, amount().shield, sc, row, cast); break; }
+      if (heals(row)) { for (const o of allyTargets(inst, u, row, t)) healOne(u, o, amount(o).heal, sc, sg, row, piped, cast); break; }
+      if (fx) { for (const o of allyTargets(inst, u, row, t)) landShell(u, o, amount(o).shield, sc, row, cast); break; }
+      to = t;
       offerShield(sc, u, t, amount().shield);
       break;
     /* A PARTY row: every living hero within its radius, the caster too, in id order (with fx.limit only that many, by its pick: Deep
@@ -572,6 +584,7 @@ function effect(inst, u, row, t, sc, v) {
     case 'party':
       for (const a of partyOf(inst, u, row)) {
         if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
+        to = a;
         if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row, piped, cast); continue; }
         if (fx) { landShell(u, a, amount().shield, sc, row, cast); continue; }
         offerShield(sc, u, a, amount().shield);

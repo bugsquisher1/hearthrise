@@ -1,0 +1,551 @@
+{
+ "ground": "hasks_ford",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 6,
+ "hours": 10,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "back:steady": {
+   "id": "back:steady",
+   "variant": "back",
+   "risk": "steady",
+   "L": 60,
+   "start": 0,
+   "traitsBySeat": [
+    [
+     {
+      "id": "file_breaker",
+      "rank": 3
+     },
+     {
+      "id": "snuffed",
+      "rank": 3
+     },
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "goaded",
+      "rank": 3
+     },
+     {
+      "id": "paupers_share",
+      "rank": 3
+     },
+     {
+      "id": "floodmark",
+      "rank": 3
+     },
+     {
+      "id": "ledge_footing",
+      "rank": 3
+     },
+     {
+      "id": "scorched_grip",
+      "rank": 3
+     },
+     {
+      "id": "slate_hand",
+      "rank": 3
+     },
+     {
+      "id": "lime_pit",
+      "rank": 3
+     },
+     {
+      "id": "sour_vault",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "paupers_share",
+      "rank": 3
+     },
+     {
+      "id": "floodmark",
+      "rank": 3
+     },
+     {
+      "id": "ledge_footing",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "sour_vault",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "file_breaker",
+      "rank": 3
+     },
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "paupers_share",
+      "rank": 3
+     },
+     {
+      "id": "floodmark",
+      "rank": 3
+     },
+     {
+      "id": "ledge_footing",
+      "rank": 3
+     },
+     {
+      "id": "crag_shelter",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "sour_vault",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "empty_wagon",
+      "rank": 3
+     },
+     {
+      "id": "keepers_carry",
+      "rank": 3
+     },
+     {
+      "id": "paupers_share",
+      "rank": 3
+     },
+     {
+      "id": "floodmark",
+      "rank": 3
+     },
+     {
+      "id": "ledge_footing",
+      "rank": 3
+     },
+     {
+      "id": "crag_shelter",
+      "rank": 3
+     },
+     {
+      "id": "dunns_warning",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "sour_vault",
+      "rank": 3
+     }
+    ]
+   ],
+   "seedsRead": 6,
+   "payX": {
+    "mean": 1.35,
+    "sd": 0.02,
+    "n": 6,
+    "perSeed": [
+     1.35,
+     1.35,
+     1.35,
+     1.3,
+     1.36,
+     1.37
+    ],
+    "fromH": 4,
+    "windowH": 6
+   },
+   "held": {
+    "mean": 654,
+    "sd": 5.3,
+    "se": 2.2,
+    "perSeed": [
+     655,
+     656,
+     656,
+     643,
+     657,
+     658
+    ]
+   },
+   "drift": 3,
+   "within10": 83.9,
+   "within20": 97.9,
+   "changesPerH": 4.9,
+   "fallsPerH": 0.1,
+   "reachH": 3.1,
+   "pullsPerH": 69.9,
+   "killsPerH": 510,
+   "xpPerHeroH": 361205,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 15976,
+     "sd": 263,
+     "n": 6
+    },
+    "incomePerHeroH": {
+     "mean": 20245,
+     "sd": 368,
+     "n": 6
+    },
+    "storePerHeroH": {
+     "mean": 10783,
+     "sd": 168,
+     "n": 6
+    },
+    "commonPerHeroH": {
+     "mean": 843,
+     "sd": 13,
+     "n": 6
+    },
+    "uncommonPerHeroH": {
+     "mean": 309,
+     "sd": 12,
+     "n": 6
+    },
+    "scarcePerHeroH": {
+     "mean": 3116,
+     "sd": 127,
+     "n": 6
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 6
+    }
+   },
+   "kit": {
+    "meal": 210,
+    "drink": 5094,
+    "charge": 3234,
+    "shot": 2245
+   },
+   "kitIds": {
+    "salted_lobster": 8.8,
+    "plain_rune_arrows": 748.2,
+    "plain_scored_fire_rune": 59.8,
+    "thin_carrot_juice": 318.4,
+    "plain_graven_fire_rune": 71.1,
+    "plain_graven_ice_rune": 156.6,
+    "plain_earth_rune": 23.7,
+    "plain_graven_poison_rune": 58.8,
+    "plain_graven_earth_rune": 65.8,
+    "plain_graven_water_rune": 265.9
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 10,
+   "fourH": 6,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 3195,
+    "climb": 983,
+    "fall": 7
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.66
+    },
+    {
+     "style": "bow",
+     "mean": 0.107
+    },
+    {
+     "style": "mage",
+     "mean": 0.111
+    },
+    {
+     "style": "healer",
+     "mean": 0.121
+    }
+   ],
+   "causes": {
+    "fall:ledger_wight@0": 1,
+    "fall:ledger_wight@2": 6
+   },
+   "seats": [
+    {
+     "style": "hammer",
+     "dps": 19.02,
+     "landedPct": 62.12,
+     "dmgPerSwing": 34.55,
+     "swingsPerH": 5563.83,
+     "takenPerH": 192275.67
+    },
+    {
+     "style": "bow",
+     "dps": 18.47,
+     "landedPct": 92.55,
+     "dmgPerSwing": 64.69,
+     "swingsPerH": 483.17,
+     "takenPerH": 31263.33
+    },
+    {
+     "style": "mage",
+     "dps": 26.19,
+     "landedPct": 82.27,
+     "dmgPerSwing": 32.65,
+     "swingsPerH": 987.17,
+     "takenPerH": 32234.5
+    },
+    {
+     "style": "healer",
+     "dps": 10.42,
+     "landedPct": 87.03,
+     "dmgPerSwing": 46.91,
+     "swingsPerH": 753.67,
+     "takenPerH": 35368.33
+    }
+   ],
+   "kinds": {
+    "banded_pikeman": {
+     "role": "swarm",
+     "killsPerH": 277,
+     "ttkS": 22.9,
+     "takenPerKill": 349
+    },
+    "fordsunk": {
+     "role": "brute",
+     "killsPerH": 115.9,
+     "ttkS": 30.4,
+     "takenPerKill": 526
+    },
+    "bannerman": {
+     "role": "warder",
+     "killsPerH": 32.4,
+     "ttkS": 33.2,
+     "takenPerKill": 216
+    },
+    "ledger_wight": {
+     "role": "caster",
+     "killsPerH": 84.8,
+     "ttkS": 35.4,
+     "takenPerKill": 1491
+    }
+   },
+   "traits": [
+    {
+     "style": "hammer",
+     "worn": [
+      "file_breaker 3",
+      "snuffed 3",
+      "first_rank 3",
+      "goaded 3",
+      "paupers_share 3",
+      "floodmark 3",
+      "ledge_footing 3",
+      "scorched_grip 3",
+      "slate_hand 3",
+      "lime_pit 3",
+      "sour_vault 3"
+     ],
+     "events": {
+      "offense": 196786,
+      "defense": 207396,
+      "heal": 1217
+     },
+     "share": {
+      "file_breaker": 0.41,
+      "snuffed": 0.069,
+      "first_rank": 0.419,
+      "goaded": 0.02,
+      "paupers_share": 0.415,
+      "floodmark": 0.3,
+      "ledge_footing": 0.799,
+      "scorched_grip": 0.006,
+      "slate_hand": 0.297,
+      "lime_pit": 0.242,
+      "sour_vault": 0.318
+     }
+    },
+    {
+     "style": "bow",
+     "worn": [
+      "first_rank 3",
+      "paupers_share 3",
+      "floodmark 3",
+      "ledge_footing 3",
+      "hasks_bargain 3",
+      "sour_vault 3"
+     ],
+     "events": {
+      "offense": 192410,
+      "defense": 26841,
+      "heal": 0
+     },
+     "share": {
+      "first_rank": 0.821,
+      "paupers_share": 0.372,
+      "floodmark": 0.083,
+      "ledge_footing": 0.807,
+      "hasks_bargain": 0.773,
+      "sour_vault": 0.258
+     }
+    },
+    {
+     "style": "mage",
+     "worn": [
+      "file_breaker 3",
+      "first_rank 3",
+      "paupers_share 3",
+      "floodmark 3",
+      "ledge_footing 3",
+      "crag_shelter 3",
+      "hasks_bargain 3",
+      "sour_vault 3"
+     ],
+     "events": {
+      "offense": 210665,
+      "defense": 48723,
+      "heal": 0
+     },
+     "share": {
+      "file_breaker": 0.377,
+      "first_rank": 0.468,
+      "paupers_share": 0.483,
+      "floodmark": 0.137,
+      "ledge_footing": 0.8,
+      "crag_shelter": 0.012,
+      "hasks_bargain": 0.656,
+      "sour_vault": 0.265
+     }
+    },
+    {
+     "style": "healer",
+     "worn": [
+      "first_rank 3",
+      "empty_wagon 3",
+      "keepers_carry 3",
+      "paupers_share 3",
+      "floodmark 3",
+      "ledge_footing 3",
+      "crag_shelter 3",
+      "dunns_warning 3",
+      "hasks_bargain 3",
+      "sour_vault 3"
+     ],
+     "events": {
+      "offense": 134642,
+      "defense": 39363,
+      "heal": 100729
+     },
+     "share": {
+      "first_rank": 0.778,
+      "empty_wagon": 0.907,
+      "keepers_carry": 0.008,
+      "paupers_share": 0.418,
+      "floodmark": 0.061,
+      "ledge_footing": 0.803,
+      "crag_shelter": 0.418,
+      "dunns_warning": 0.284,
+      "hasks_bargain": 0.766,
+      "sour_vault": 0.252
+     }
+    }
+   ],
+   "abs": {
+    "level": 58.5,
+    "depth": 19
+   },
+   "sustain": {
+    "freePm": 103,
+    "spellPm": 869,
+    "foodPm": 28,
+    "takenPmS": 25.54
+   }
+  }
+ },
+ "wallS": 93,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

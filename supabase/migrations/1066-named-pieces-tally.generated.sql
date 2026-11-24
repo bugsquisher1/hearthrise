@@ -71,15 +71,15 @@ insert into public.hr_tally_config (only_row, held_max, paid_per_day, weights, s
 -- ord is unique: park the old order out of the way before the upsert re-numbers it.
 update public.hr_tally_tasks set ord = ord + 1000000;
 insert into public.hr_tally_tasks (task_id, ord, hunt_id, monster_id, target, gold, party) values
-  ('cellar_giant_rats', 1, 'mill_cellar', 'rat', 25, 25, false),
-  ('thicket_gray_wolves', 2, 'meadowbrook_thicket', 'gray_wolf', 200, 480, false),
+  ('cellar_giant_rats', 1, 'mill_cellar', 'rat', 25, 420, false),
+  ('thicket_gray_wolves', 2, 'meadowbrook_thicket', 'gray_wolf', 200, 4700, false),
   ('wickstead_turncoats', 3, 'wickstead', 'turncoat', 50, 780, false),
   ('sewer_rat_king', 4, 'millrace_sewer', 'rat_king', 5, 1020, true),
   ('glade_poachers', 5, 'mosslight_glade', 'glade_poacher', 60, 920, false),
   ('warrens_goblin_diggers', 6, 'coppercap_warrens', 'goblin_digger', 30, 1090, true),
-  ('ford_fordsunk', 7, 'hasks_ford', 'fordsunk', 40, 2560, false),
+  ('ford_fordsunk', 7, 'hasks_ford', 'fordsunk', 40, 5500, false),
   ('slake_mudlarks', 8, 'the_slake', 'mudlark', 45, 3040, false),
-  ('barrows_barrow_knights', 9, 'muster_barrows', 'muster_knight', 30, 3400, true),
+  ('barrows_barrow_knights', 9, 'muster_barrows', 'muster_knight', 30, 5700, true),
   ('pyre_stokers', 10, 'pyre_field', 'stoker', 35, 3880, false),
   ('hold_gatekeepers', 11, 'krells_hold', 'gatekeeper', 20, 4290, false)
   on conflict (task_id) do update set ord = excluded.ord, hunt_id = excluded.hunt_id, monster_id = excluded.monster_id,
@@ -429,7 +429,7 @@ do $$
 declare v_role text; v_bad text;
 begin
   if (select count(*) from public.hr_tally_tasks) <> 11
-     or (select sum(gold) from public.hr_tally_tasks) <> 21485
+     or (select sum(gold) from public.hr_tally_tasks) <> 31340
      or (select count(*) from public.hr_tally_pieces) <> 123
      or (select count(*) from public.hr_tally_materials) <> 30
      or (select held_max from public.hr_tally_config) <> 3
@@ -471,5 +471,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 11 tasks (21485 g in all), 123 pieces on 11 grounds, 30 materials, 166 worn tiers; all green';
+  raise notice 'tally-catalogue: 11 tasks (31340 g in all), 123 pieces on 11 grounds, 30 materials, 166 worn tiers; all green';
 end $$;

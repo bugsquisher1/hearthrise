@@ -22,7 +22,7 @@
 // Exit 0 ran (a verdict is printed, never an exit code) · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { fork } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -48,6 +48,12 @@ const RISKS = arg('risks') ? arg('risks').split(',') : ['careful', 'steady', 'bo
 /* --skill-delta N (lane/foundations-block): the `skill` cell plays every seat's main skill N levels off its career line (the skill part of the
    power step, src/data/danger.js POWER.weightSkillPm), paired against base */
 const SKILL_DELTA = Number(arg('skill-delta', -10));
+/* --traits lucky|theory|census:<k> (lane/traits-in-engine): every seat's pieces carry Rare and Very Rare Traits (grid-kit.mjs traitPlans,
+   tools/balance-program/trait-kits.mjs), played by the engine (src/core/hunt/trait-rules.js). `theory` reads its census: --trait-census
+   a.json,b.json,... (this tool's reports of the census:<k> passes on the same ground, Level and styles), each seat's hold share of every
+   Trait it wore and its share of the damage taken */
+const TRAITS_KIND = arg('traits');
+const CENSUS = arg('trait-census') ? arg('trait-census').split(',') : [];
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
@@ -62,6 +68,7 @@ const { hoursForLevel } = await imp('src/core/hunt/danger.js');
 /* THE HELD STEP IN ABSOLUTE STEPS (lane/foundations-block; src/core/bands.js): a Level of the reference company's strength, and its depth */
 const { absPmOf, depthAt } = await imp('src/core/bands.js');
 const { BASIC_INDEX: BASICS } = await imp('src/data/supply-basics.js');
+const { TRAITS: TRAIT_ROWS } = await imp('src/data/gear-steps.js');
 const { charXpForLevel, charLevelFromXp } = await imp('src/core/xp.js');
 const PAY_FROM_H = Number(arg('pay-from', SETTLE_H));
 /* --candidate <id> (lane/r4): play a Lab candidate (tools/balance-program/candidates/<id>.json) on its scratch copy in place of the tree;
@@ -111,15 +118,31 @@ const pinnedKits = (cell, L) => cell.party.map((style, i) => {
   const sk = cell.skillsBySeat[i], main = MAINSK[style] || 'melee';
   return { ...o, also: GEAR.kitOf(style, L, { ground: cell.ground, accessories: true, ammoSkill: sk[main === 'ranged' ? 'ranged' : 'melee'], ...(EXCLUDE ? { exclude: EXCLUDE } : {}), ...o }) };
 });
+/* THE CENSUS a theory reads: by seat, each Trait's hold share in its own channel over every pass, and the share of the damage taken */
+const census = (() => {
+  if (!CENSUS.length) return null;
+  const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const rates = STYLES.map(() => ({})), taken = STYLES.map(() => []);
+  for (const f of CENSUS) {
+    const r = JSON.parse(readFileSync(f, 'utf8'));
+    for (const c of Object.values(r.cells)) {
+      (c.traits || []).forEach((t, i) => { for (const [id, sh] of Object.entries(t.share || {})) rates[i][id] = sh; });
+      (c.takenShare || []).forEach((t, i) => { if (Number.isFinite(t.mean)) taken[i].push(t.mean); });
+    }
+  }
+  return { rates, taken: taken.map((v) => (v.length ? avg(v) : 0)) };
+})();
 const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
   if (ONLY && !ONLY.includes(v.id) && !ONLY.includes(id)) continue;
   const b = buildCell(D, K, { L: v.L, gear: KIT, styles: STYLES, tier: 'normal', ground: GROUND, ...(v.step ? { step: v.step } : {}), ...(v.skillDelta ? { skillDelta: v.skillDelta } : {}), ...(EXCLUDE ? { exclude: EXCLUDE } : {}) });
   const start = startOf(id, v);
+  if (TRAITS_KIND === 'theory' && !census) throw new Error('v1-climb: --traits theory reads its census (--trait-census a.json,...)');
+  const traitsBySeat = TRAITS_KIND ? await K.traitPlans(TRAITS_KIND, b.plans, census || {}) : null;
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true, ...(HOLD_LEVEL ? { holdLevel: true } : {}),
-    ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}) };
-  cells.push({ id, variant: v.id, risk, L: v.L, start });
+    ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}), ...(traitsBySeat ? { traitsBySeat } : {}) };
+  cells.push({ id, variant: v.id, risk, L: v.L, start, ...(traitsBySeat ? { traitsBySeat } : {}) });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
 }
 
@@ -220,6 +243,8 @@ function readSeed(res, start) {
     reach: firstNear, xpPerH: res.party.levelXpPerHeroPerH, killsPerH: res.party.killsPerH, pullsPerH: res.party.pullsPerH,
     payX: pays.length ? pays.reduce((s, x) => s + x, 0) / pays.length : null, payH: Math.max(0, payEnd - payFrom) / H,
     heroesLost: res.heroes.filter((h) => h.deaths > 0).length, fourH: wt / H, firstDeathH: firstDeath ? firstDeath.ms / H : null,
+    /* lane/traits-in-engine: each seat's worn Traits, its events by channel and the count each Trait held on (cell.mjs `traits`) */
+    traits: res.heroes.map((h) => h.traits || null),
     /* lane/monster-formula: the readers the formula's dials are checked by. Per seat: damage dealt a hunted second, the share of the
        monsters' swings at it that landed and the damage a swing did (after its armor). Per monster kind: kills, the mean time from its
        first wound to its death, and the damage it did (all seats) */
@@ -303,6 +328,15 @@ for (const c of cells) {
       return Object.fromEntries(Object.entries(o).map(([k, t]) => [k, { role: (MONSTERS[k] && MONSTERS[k].role) || null, killsPerH: hours ? r1(t.kills / hours) : null,
         ttkS: t.ttkN ? Math.round(t.ttkMs / t.ttkN / 100) / 10 : null, takenPerKill: t.kills ? r0(t.taken / t.kills) : null }]));
     })(),
+    /* THE WORN TRAITS (lane/traits-in-engine): by seat, what it wore and each Trait's hold share of its own channel's events (a blow it
+       dealt, a blow at it, a heal it cast; a trade's on its gain), summed over seeds: what a theory's census reads */
+    ...(TRAITS_KIND ? { traits: STYLES.map((s, i) => {
+      const ev = { offense: 0, defense: 0, heal: 0 }, held = {};
+      for (const x of seeds) { const t = x.traits && x.traits[i]; if (!t) continue; for (const k of Object.keys(ev)) ev[k] += t.events[k] || 0; for (const [k, n] of Object.entries(t.held)) held[k] = (held[k] || 0) + n; }
+      const worn = (c.traitsBySeat && c.traitsBySeat[i]) || [];
+      const share = Object.fromEntries(worn.map((w) => { const ch = TRAIT_ROWS[w.id].trade ? 'offense' : TRAIT_ROWS[w.id].raises; return [w.id, ev[ch] ? Math.round((1000 * (held[ch + ':' + w.id] || 0)) / ev[ch]) / 1000 : 0]; }));
+      return { style: s, worn: worn.map((w) => w.id + ' ' + w.rank), events: ev, share };
+    }) } : {}),
     /* the held step as absolute steps (src/core/bands.js absPmOf: a Level of reference strength) and its depth (depthAt) */
     abs: (() => { const m = mean(held); if (m === null) return null; const s = Math.round(m); return { level: absPmOf(GROUND, s) === null ? null : Math.round(absPmOf(GROUND, s) / 100) / 10, depth: depthAt(GROUND, s) }; })(),
     /* sustain shares of the damage the company took (04 section 3): regeneration, heal spells, food; taken a hero-second as permille of max HP */
@@ -365,6 +399,13 @@ console.log('\nheld as absolute steps (src/core/bands.js: a Level of reference s
 console.log('that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)');
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' abs ' + (c.abs ? c.abs.level + ' (depth ' + c.abs.depth + ')' : 'n/a')
   + (c.sustain ? '  free ' + c.sustain.freePm + '  spell ' + c.sustain.spellPm + '  food ' + c.sustain.foodPm + '  taken ' + c.sustain.takenPmS + ' pm/s' : ''));
+if (TRAITS_KIND) {
+  console.log('\nthe worn Traits (--traits ' + TRAITS_KIND + ', lane/traits-in-engine): by seat, each Trait\'s hold share of its own channel\'s events (rank 3; party-wide ones on every hero they reach)');
+  for (const [id, c] of Object.entries(report.cells)) for (const t of c.traits || []) {
+    console.log('  ' + id.padEnd(17) + ' ' + t.style.padEnd(7) + ' blows ' + t.events.offense + ', struck ' + t.events.defense + ', heals ' + t.events.heal + ' | '
+      + Object.entries(t.share).sort((a, b) => b[1] - a[1]).map(([k, s]) => k + ' ' + s).join(', '));
+  }
+}
 console.log('\nwall ' + report.wallS + ' s');
 const jf = arg('json');
 if (jf) writeFileSync(jf, JSON.stringify(report, null, 1) + '\n');

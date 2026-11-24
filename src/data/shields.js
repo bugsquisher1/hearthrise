@@ -40,7 +40,7 @@
 // (both in the special-attribute plan, src/data/special-attributes.js): neither is a row here.
 // Book value (`v`): a reforged shield is worth no more than the book of what goes
 // in (the bench is never a gold faucet: tests/style-gear.mjs SG-4's rule), the
-// Shop's at SHOP_PREMIUM x its book. Icons are placeholders until the Asset
+// Shop's at the store's ask (store-kit.js storeAsk: storeCeiling x its book). Icons are placeholders until the Asset
 // Director's style-1 art lands (item-art.js).
 //
 // PURE ESM, data only. Spread into ITEMS (items.js) and ARTISAN_RECIPES.smithing

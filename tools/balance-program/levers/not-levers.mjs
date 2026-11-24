@@ -62,7 +62,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/hunt/amount.js#heroRows', why: 'a clamp: a cut of 999 permille at most, so its steps are finite' },
   { at: 'src/core/hunt/amount.js#blowAmount', why: 'units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top' },
   { at: 'src/core/hunt/amount.js#healAmount', why: 'units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top' },
-  { at: 'src/core/hunt/damage.js#pipedAmount', why: 'units: two permille factors multiplied (1000000)' },
+  { at: 'src/core/hunt/damage.js#pipedBlow', why: 'units: two permille factors multiplied (1000000)' },
   { at: 'src/core/hunt/danger.js#REF_HEROES', why: 'the reference company is four heroes by definition (04 section 1), and a party has at most four: a shape, as TIER_SIZES' },
   { at: 'src/core/hunt/monster-formula.js#formulaTable', why: 'a memo bound (64 derived tables kept): a cache size, no outcome reads it' },
   { at: 'src/core/hunt/hall-formula.js#hallTable', why: 'a memo bound (64 derived hall tables kept): a cache size, no outcome reads it' },
@@ -114,7 +114,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/live-events.js#pmAt', why: 'a window\'s tuple length' }, { at: 'src/core/goals.js#*', why: 'the goal tracker\'s cap' }, { at: 'src/core/away.js#*', why: 'a day in ms' },
   { at: 'src/core/xp.js#sumK2', why: 'a closed form (/ 6)' }, { at: 'src/core/xp.js#charLevelFromXp', why: 'a search bound (1e7)' }, { at: 'src/core/xp.js#skillLevelFromXp', why: 'a search span (64 levels, doubled until it passes the XP): no game number' }, { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'units in the help text (the milliseconds and the minutes in an hour) turning the stamina maxima and the hunting block into hours: the levers are STAMINA_MAX_MS and RULED.hunt' }, { at: 'src/core/xp.js#MAX_LEVEL', why: 'the capped table\'s top (99): its shape' },
   { at: 'src/core/hearthfind.js#actionsPerHour', why: 'an hour in ms' }, { at: 'src/core/farm.js#growthHours', why: 'an hour in ms' }, { at: 'src/core/farm.js#readyInMs', why: 'an hour in ms' },
-  { at: 'src/core/farm.js#MAX_WATERINGS', why: 'a defensive array cap' }, { at: 'src/core/skill-sim.js#MAX_SLICES', why: 'a simulation budget' }, { at: 'src/core/skill-sim.js#emptySummary', why: 'a summary shape' },
+  { at: 'src/core/farm.js#MAX_WATERINGS', why: 'a defensive array cap' }, { at: 'src/data/wage.js#twoFigures', why: 'base ten: a list price is the wage price to two significant figures' }, { at: 'src/core/skill-sim.js#MAX_SLICES', why: 'a simulation budget' }, { at: 'src/core/skill-sim.js#emptySummary', why: 'a summary shape' },
   { at: 'src/core/artisan-sim.js#emptySummary', why: 'a summary shape' }, { at: 'src/core/artisan-sim.js#simulateArtisanSpan', why: 'a simulation budget' },
   { at: 'supabase/functions/hr-accrue/**', why: 'server plumbing: HTTP status codes, request and body bounds, settle cadences and engine budgets, accrual fuses, hashing. The edge\'s two economy numbers are levers (econ.sale-rates)' },
 ]);

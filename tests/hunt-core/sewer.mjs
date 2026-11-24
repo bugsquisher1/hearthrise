@@ -601,8 +601,8 @@ const cases = {
     const { MONSTERS } = await imp('src/data/monsters.js');
     const RATS = 'cellar_giant_rats', WOLVES = 'thicket_gray_wolves';
     const rats = M.tally.tallyTask(RATS);
-    /* the count the designer measured inside the first hunt (24 to 29 rats at hunt minute 5 to 6), at the old gold per rat */
-    if (rats.count !== 25 || rats.gold !== 25) return 'her Cellar task asks ' + rats.count + ' rats for ' + rats.gold + ' gp, the first ten minutes need 25 for 25';
+    /* the count the designer measured inside the first hunt (24 to 29 rats at hunt minute 5 to 6); the gold is the scale-ground rule (lane/prices-wage-hours: 350 per mille of the task's wage hours), so it is read from the data, only required to be paid */
+    if (rats.count !== 25 || !(rats.gold > 0)) return 'her Cellar task asks ' + rats.count + ' rats for ' + rats.gold + ' gp, the first ten minutes need 25 rats paid';
     /* "she pays you gold and a helmet": her Cellar pieces are a helmet in every weight, each worn at Level 1 */
     const cellar = Object.values(M.grounds.HUNT_GROUNDS).find((g) => g.hunt === rats.hunt);
     const kinds = new Set(cellar.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster)));
@@ -1059,13 +1059,14 @@ const cases = {
     /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" beside a tally reading 200/200): her row done, the card says what is left (her gold), in the hunt and in town */
     const WOLVES = 'thicket_gray_wolves', RATS = 'cellar_giant_rats';
     const down = { ...held, tally: tallyFact([[WOLVES, 200, true]], [RATS]) };
-    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt · Collect 480 gp from Tamsin'], ['in town', { ...down, huntId: null }, "Town → Tamsin's tally → collect 480 gp"]]) {
+    const wolfGold = M.tally.tallyTask(WOLVES).gold; /* the scale-ground rule sets it (lane/prices-wage-hours), never a typed figure */
+    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt · Collect ' + wolfGold + ' gp from Tamsin'], ['in town', { ...down, huntId: null }, "Town → Tamsin's tally → collect " + wolfGold + ' gp']]) {
       /* in the Thicket it is the card up; in town another card may lead, so her card's words are read from its own row */
       const step = facts.huntId ? M.tut.currentCard(facts) : M.tut.HUNT_TUTORIAL.find((s) => s.id === 'tamsin_pays'), c = step && Object.assign({ id: step.id }, M.tut.cardFor(step, facts));
       if (!c || c.id !== 'tamsin_pays' || c.text !== next) return 'her wolves counted, ' + where + ' the paid card reads ' + JSON.stringify(c && { id: c.id, text: c.text });
     }
     const left = { ...held, huntId: 'meadowbrook_thicket', tally: tallyFact([[WOLVES, 12]], [RATS]) };
-    if (!/^Kill 200 Gray Wolves, then collect 480 gp/.test((M.tut.currentCard(left) && M.tut.cardFor(M.tut.currentCard(left), left).text) || '')) return 'CONTROL: with wolves left the paid card does not say to hunt on';
+    if (!new RegExp('^Kill 200 Gray Wolves, then collect ' + wolfGold + ' gp').test((M.tut.currentCard(left) && M.tut.cardFor(M.tut.currentCard(left), left).text) || '')) return 'CONTROL: with wolves left the paid card does not say to hunt on';
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || cash.text !== 'Leave the hunt · Back to town') return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);

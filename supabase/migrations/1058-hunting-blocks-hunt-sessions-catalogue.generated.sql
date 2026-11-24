@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 07ae5ae5bc524a5016e7b120a08d1b1a8a056f8847b92cea8016b2d10ee97b49
+--   digest: 385985a02e61e0a18efa0c8751cc222dd7cb7eb50877b51d015e7b180c201f65
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   636 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
@@ -1685,7 +1685,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('captain_medal', 700),
   ('carrot', 7),
   ('carrot_juice', 11),
-  ('carrot_seed', 5),
+  ('carrot_seed', 7),
   ('carrot_stew', 200),
   ('carved_earth_rune', 1),
   ('carved_fire_rune', 1),
@@ -1820,7 +1820,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ember_warhammer', 149),
   ('emberfruit', 96),
   ('emberfruit_cordial', 160),
-  ('emberfruit_seed', 150),
+  ('emberfruit_seed', 120),
   ('emberhead_arrows', 2),
   ('emberstone_ore', 11),
   ('etched_earth_rune', 1),
@@ -1858,7 +1858,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('gold_ore', 5),
   ('goldenroot', 52),
   ('goldenroot_roast', 700),
-  ('goldenroot_seed', 75),
+  ('goldenroot_seed', 67),
   ('goldenroot_tea', 86),
   ('goldgill', 4),
   ('granary_whisker', 3),
@@ -1963,7 +1963,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('mithril_whetstone', 12),
   ('moonbloom', 170),
   ('moonbloom_elixir', 2600),
-  ('moonbloom_seed', 280),
+  ('moonbloom_seed', 210),
   ('moonfish', 22),
   ('mosslight_clump', 126),
   ('mosslight_tendril', 5),
@@ -1992,13 +1992,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('plague_ichor', 36),
   ('porters_boots', 156),
   ('potato', 13),
-  ('potato_seed', 10),
+  ('potato_seed', 15),
   ('pothunters_hood', 211),
   ('priests_cord', 26),
   ('pumpkin', 30),
   ('pumpkin_cider', 50),
   ('pumpkin_pie', 420),
-  ('pumpkin_seed', 25),
+  ('pumpkin_seed', 37),
   ('quarry_maul', 123),
   ('queens_comb', 60),
   ('raftwright_hatchets', 112),
@@ -2148,7 +2148,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('tollkeepers_sword', 112),
   ('tomato', 18),
   ('tomato_juice', 30),
-  ('tomato_seed', 15),
+  ('tomato_seed', 22),
   ('tomato_soup', 260),
   ('torn_company_badge', 6),
   ('training_bow_12h', 2500),
@@ -2165,7 +2165,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('turnip', 4),
   ('turnip_juice', 6),
   ('turnip_mash', 14),
-  ('turnip_seed', 2),
+  ('turnip_seed', 4),
   ('tusker_charm', 70),
   ('urn_shard', 16),
   ('vamp_dust', 24),
@@ -2209,7 +2209,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('westwood_hatchets', 65),
   ('wheat', 10),
   ('wheat_bread', 120),
-  ('wheat_seed', 7),
+  ('wheat_seed', 11),
   ('whelp_milk_tooth', 2),
   ('willow_crossbow', 65),
   ('willow_log', 3),
@@ -2439,7 +2439,7 @@ begin
                  or g.hours_ms % 3600000 <> 0
                  or (g.bound and (exists (select 1 from public.hr_items i where i.item_id = g.item_id and (i.tradeable or i.value <> 0))
                                   or exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id)))
-                 or (not g.bound and (not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.tradeable and i.value * 100 = g.price)
+                 or (not g.bound and (not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.tradeable and i.value = g.price / 100)
                                       or not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id and v.unit * 2 <= g.price))))
      or exists (select 1 from public.hr_items i where i.kind = 'training' and not exists (select 1 from public.hr_training_gear g where g.item_id = i.item_id)) then
     raise exception 'a training item is not its catalogue row, a bound one trades or is worth something, or a gold one sells back for more than half'; end if;

@@ -24,25 +24,37 @@
 //   gifts      the amounts the window offers as buttons; the player may type any other
 //   plaqueTop  how many accounts the plaque names
 //
-// PURE ESM DATA. No imports, no DOM. It reaches no edge import.
+// GOLD IN HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md T-5): the smallest gift, an account's day, the goal a
+// weekly active account and every stage's mark are milli-hours of wage at step 1, as list prices (src/data/wage.js wageListPrice, two
+// significant figures: a server-wide project has no step of its own, so it reads the base wage), never typed. The hours give back the
+// 2026-11-22 tags (100 / 25,000 / 20,000 / 25,000 / 75,000 / 150,000 / 250,000). `gifts` are the window's buttons, presets the player
+// may type past (not a price, a clamp or a goal), so they stay plain numbers under perDay.
+//
+// PURE ESM DATA. Data and the wage's list price, no DOM. It reaches no edge import.
 // ════════════════════════════════════════════════════════════════════════
 
-const stage = (at, art, label, line) => Object.freeze({ at, art, label, line });
+import { wageListPrice } from './wage.js';
+
+/* A server-wide project reads the base wage (the header). */
+const WORKS_STEP = 1;
+const gold = (hoursPm) => wageListPrice(hoursPm, WORKS_STEP);
+const stage = (atHoursPm, art, label, line) => Object.freeze({ atHoursPm, at: gold(atHoursPm), art, label, line });
 
 export const TOWN_WORKS = Object.freeze({
   weighhouse: Object.freeze({
     name: 'The Weighhouse', about: 'Havora is raising the Weighhouse on the east bank. Every gift goes toward the building, and the biggest givers go on its plaque.',
     aboutDone: 'Havora raised the Weighhouse on the east bank, and the biggest givers stand on its plaque.',
-    map: 'town_common', minGift: 100, perDay: 25000, perMinute: 20,
+    map: 'town_common', hoursPm: Object.freeze({ minGift: 8, perDay: 1933, perActive: 1547 }), minGift: gold(8), perDay: gold(1933), perMinute: 20,
     gifts: Object.freeze([1000, 5000]), plaqueTop: 10,
-    /* 20,000 a weekly active account, 250,000 at least (was a fixed 1,000,000, which only a server of hundreds ever finished). */
-    perActive: 20000,
+    /* 1.547 hours of wage a weekly active account (20,000), 19.333 at least (250,000; was a fixed 1,000,000, which only a server of
+       hundreds ever finished). */
+    perActive: gold(1547),
     stages: Object.freeze([
       stage(0, 'havora_weighhouse_staked', 'Staked out', null),
-      stage(25000, 'havora_weighhouse_footings', 'Footings', 'has its footings.'),
-      stage(75000, 'havora_weighhouse_framed', 'Framed', 'has its frame.'),
-      stage(150000, 'havora_weighhouse_walled', 'Walled', 'has its walls.'),
-      stage(250000, 'havora_weighhouse_finished', 'Finished', 'is finished.'),
+      stage(1933, 'havora_weighhouse_footings', 'Footings', 'has its footings.'),
+      stage(5800, 'havora_weighhouse_framed', 'Framed', 'has its frame.'),
+      stage(11600, 'havora_weighhouse_walled', 'Walled', 'has its walls.'),
+      stage(19333, 'havora_weighhouse_finished', 'Finished', 'is finished.'),
     ]),
   }),
 });

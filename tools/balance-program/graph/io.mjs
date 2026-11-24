@@ -156,7 +156,7 @@ export const FORMULA_IO = Object.freeze({
   'E27': f(['src/data/loot-bands.js#VENDOR_GEAR_RATES,gearSaleRate'], [], ['sale.rate']),
   'E28': f(['src/data/loot-sale.js#saleFitPm'], [], ['sale.rate']),
   'E29': f(['src/core/shop-buyback.js#cheapestShopUnitPrice'], [['+shop.price', 'the offers arrive as the argument']], ['shop.cheapest']),
-  'E30': f(['src/data/shops.js#supplyOffer,SHOP_OFFERS,SUPPLY_PRICE_LIST,DERIVED_PRICES'], [['+item.book', 'listed gear, tools and seeds sell at 2 x book']], ['shop.price'], { skip: { VENDOR_GEAR_RATES: 'DERIVED_PRICES names the sale rates beside the shop\'s: E27 owns them', reqLv: 'an offer names the Level that may buy it', HERO_SLOTS: 'the slot prices are E39\'s' } }),
+  'E30': f(['src/data/shops.js#supplyOffer,SHOP_OFFERS,SUPPLY_PRICE_LIST,DERIVED_PRICES'], [['+item.book', 'listed gear, tools, jewels and seeds sell at storeCeiling x book (store-kit.js storeAsk, K-3)']], ['shop.price'], { skip: { VENDOR_GEAR_RATES: 'DERIVED_PRICES names the sale rates beside the shop\'s: E27 owns them', reqLv: 'an offer names the Level that may buy it', HERO_SLOTS: 'the slot prices are E39\'s' } }),
   'E31': f(['src/data/imbuements.js#IMBUE_TIER_FLOORS,imbueTierFor,IMBUE_DROP,imbueValueFor'], [['+mon.level', 'the monster\'s Level arrives as the argument']], ['item.book']),
   'E32': f(NO_HOME, [['+sale.price', 'the floor is the shop\'s bid'], ['+item.book', 'the ceiling is book x 100']], [['sink.other', 'the listing fee and the house cut']], { note: 'SQL only: supabase/migrations/2027-01-12-market-account.sql' }),
   'E33': f(['src/core/bench-tax.js#feeMgOf,taxFor,dueNext,canPayNext,payCraft,craftsCovered'], [['+sale.price', 'the cut is a share of what the output sells for']], ['sink.bench']),

@@ -76,7 +76,7 @@ const SIZING = [COUNT, 'public.hr_town_works_stages(bigint[],bigint)', 'public.h
 export const MUTANTS = {
   rules_drift: { arm: 'TW-RULES', why: 'the table no longer says what the data file says', ddl: `update public.hr_town_works set per_day = 50000 where project_id = 'weighhouse'` },
   stage_art_frame: { arm: 'TW-RULES', why: 'a stage drawn on another frame jumps when it swaps',
-    js: ['src/data/town-works.js', [["stage(150000, 'havora_weighhouse_walled',", "stage(150000, 'havora_tavern',"]]] },
+    js: ['src/data/town-works.js', [["stage(11600, 'havora_weighhouse_walled',", "stage(11600, 'havora_tavern',"]]] },
   /* A GIFT */
   charge_twice: { arm: 'TW-GIVE', why: 'a gift charges double', db: [GIVE, "             'gold', -p_amount,\n", "             'gold', -2 * p_amount,\n"] },
   gift_pays_xp: { arm: 'TW-GIVE', why: 'a gift pays XP: the buff on the avoid list', db: [GIVE, "             'gold', -p_amount,\n", "             'gold', -p_amount, 'xp', jsonb_build_object('inner_flame', 500),\n"] },

@@ -1,9 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// Hearthrise — THE PRICE CATALOGUE (HAND-AUTHORED since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from)
-//
-//   catalogue digest: 3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07
-//   89 offers · 187 cost lines · 4 prices that are formulas, not data
-//
+// Hearthrise — THE PRICE CATALOGUE (data since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from).
+// EVERY GOLD AMOUNT IS A FORMULA since lane/prices-wage-hours (2026-11-23): hours of wage or the store's ask, see NO GOLD IS TYPED below;
+// the companions are the one typed holdout (tests/wage-prices.mjs UNCONVERTED).
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   seed               3  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22; the Air Rune row left
@@ -19,9 +17,7 @@
 //   { kind, id, amount }
 //     kind    'currency' | 'item' | 'money'   (cost side)
 //             'currency' | 'item' | 'unlock' | 'capacity'  (grant side)
-//             — kind names WHICH SERVER TABLE a payment debits: an id may be
-//               both an hr_items row and a currency column, so the kind is
-//               never inferred from the id.
+//             — kind names WHICH SERVER TABLE a payment debits (an id may be both an item and a currency): never inferred from the id.
 //     amount  a non-negative safe integer in the smallest unit.
 //             money is in CENTS ('$6.99' → 699).
 //
@@ -42,16 +38,45 @@
 
 import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js';
 import { ITEMS } from './items.js';
+import { PROPERTY_TIERS, ROOM_RUNGS } from './homestead-tiers.js';
+import { storeAsk } from './store-kit.js';
+import { wageListPrice } from './wage.js';
 
 function supplyOffer(s) {
   return { id: s.offer, table: "supply", name: ITEMS[s.item].n, cost: [{ kind: "currency", id: "gold", amount: s.price }],
     grant: [{ kind: "item", id: s.item, amount: 1 }], repeatable: true };
 }
 
-/* THE HERO SLOTS (Tyler 2026-11-21, executive decision: "just allow all 4 characters from the start"): every account owns four
-   from its first second, and nothing is for sale. The server's catalogue is public.hr_hero_slots (1036-four-starter-slots.sql:
-   slots 1-3 starter rows at no cost, slot 0 never in it), bound to this row by tests/hero-slot-buy.mjs. The Path reads it as the
-   flag of the party's first beat (src/data/the-path.js). */
+/* NO GOLD IS TYPED BELOW (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md E-6 and K-3). An offer's gold is a formula:
+     a property deed   wageListPrice(hoursPm, its tier's step)  milli-hours of wage as a list price (homestead-tiers.js PROPERTY_TIERS `step`)
+     a room rung       its ROOM_RUNGS row's derived gold        the rung's one home, the same rule at its gate's step
+     a good            store-kit.js storeAsk(book x count)      the store ceiling over what its crafted partner is worth
+   The material lines follow the gold, in id order, exactly as the server's catalogue lists them. tests/wage-prices.mjs holds it. */
+const gold = (amount) => ({ kind: "currency", id: "gold", amount });
+const itemLines = (items) => Object.keys(items).sort().map((id) => ({ kind: "item", id, amount: items[id] }));
+const equipOffer = (item) => ({ id: "equip." + item, table: "equip", name: ITEMS[item].n, cost: [gold(storeAsk(ITEMS[item].v))],
+  grant: [{ kind: "item", id: item, amount: 1 }], repeatable: true });
+const bundleOffer = (item, count) => ({ id: "seed." + item, table: "seed", name: ITEMS[item].n, cost: [gold(storeAsk(ITEMS[item].v, count))],
+  grant: [{ kind: "item", id: item, amount: count }], repeatable: true });
+/** Every deed's price in milli-hours of wage at its tier's step (the property ladder's one price home; tests/wage-prices.mjs reads it). */
+export const PROPERTY_HOURS_PM = Object.freeze({ homestead: 31, farmstead: 1865, manor: 10332, keep: 37402, castle: 135516 });
+/** A property deed: its PROPERTY_HOURS_PM at its tier's step, its materials, the tier it grants. */
+function propertyOffer(id, items) {
+  const hoursPm = PROPERTY_HOURS_PM[id];
+  const tier = PROPERTY_TIERS.findIndex((t) => t.id === id);
+  if (tier < 1) throw new Error('shops: no bought property tier ' + id);
+  return { id: "property." + id, table: "property", name: PROPERTY_TIERS[tier].name,
+    cost: [gold(wageListPrice(hoursPm, PROPERTY_TIERS[tier].step)), ...itemLines(items)],
+    grant: [{ kind: "unlock", id: "property:" + id, amount: tier }] };
+}
+/** Every room rung as an offer, `room.<room>.<n>`, in id order: its gold and materials are its ROOM_RUNGS row's. */
+const ROOM_OFFERS = Object.keys(ROOM_RUNGS).sort().flatMap((room) => ROOM_RUNGS[room].map((r, i) => {
+  const { gold: g, ...items } = r.cost;
+  return { id: "room." + room + "." + (i + 1), table: "room", name: r.name, cost: [gold(g), ...itemLines(items)],
+    grant: [{ kind: "unlock", id: "room:" + room, amount: i + 1 }] };
+}));
+
+/* THE HERO SLOTS (Tyler 2026-11-21): every account owns four from its first second, nothing is for sale (public.hr_hero_slots, 1036; tests/hero-slot-buy.mjs; the Path's first beat reads it). */
 export const HERO_SLOTS = Object.freeze({ count: 4, free: true });
 
 /** Every offer whose price is data. shop_buy sells only what a Shop tab lists (supply-basics.js SHOP_SOLD_KINDS; the rest
@@ -83,55 +108,14 @@ export const SHOP_OFFERS = [
     cost: [{ kind: "currency", id: "gold", amount: 5000 }],
     grant: [{ kind: "unlock", id: "companion:sparrow", amount: 1 }],
   },
-  {
-    id: "equip.apprentice_staff", table: "equip",
-    name: "Apprentice Staff",
-    cost: [{ kind: "currency", id: "gold", amount: 120 }],
-    grant: [{ kind: "item", id: "apprentice_staff", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.apprentice_wand", table: "equip",
-    name: "Apprentice Wand",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }],
-    grant: [{ kind: "item", id: "apprentice_wand", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.apprentice_primer", table: "equip",
-    name: "Apprentice Primer",
-    cost: [{ kind: "currency", id: "gold", amount: 90 }],
-    grant: [{ kind: "item", id: "apprentice_primer", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.bronze_sword", table: "equip",
-    name: "Bronze Sword",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }],
-    grant: [{ kind: "item", id: "bronze_sword", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.leather_boots", table: "equip",
-    name: "Leather Boots",
-    cost: [{ kind: "currency", id: "gold", amount: 250 }],
-    grant: [{ kind: "item", id: "leather_boots", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.shortbow", table: "equip",
-    name: "Shortbow",
-    cost: [{ kind: "currency", id: "gold", amount: 120 }],
-    grant: [{ kind: "item", id: "shortbow", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.stone_maul", table: "equip",
-    name: "Stone Maul",
-    cost: [{ kind: "currency", id: "gold", amount: 140 }],
-    grant: [{ kind: "item", id: "stone_maul", amount: 1 }],
-    repeatable: true,
-  },
+  /* THE LEGACY EQUIP AND SEED ROWS: a vendor price list only (shop_buy refuses each not_listed): the store's ask (storeAsk, K-3), never typed. */
+  equipOffer('apprentice_staff'),
+  equipOffer('apprentice_wand'),
+  equipOffer('apprentice_primer'),
+  equipOffer('bronze_sword'),
+  equipOffer('leather_boots'),
+  equipOffer('shortbow'),
+  equipOffer('stone_maul'),
   /* THE HOUSE'S TOP, OUT OF HIDING (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F12 and F20). Held since 2026-10-31 for
      dragon scales and keystones nothing drops, so the House stopped at the Keep and a Level-80 account had millions and nowhere to put them.
      Now the Castle and the eight fifth rungs ask for Barrow March drops (Krell's gate chains, rake tines, priests' cords, Hask's coins, seals,
@@ -140,297 +124,17 @@ export const SHOP_OFFERS = [
      Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
      rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power.
      THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
-  {
-    id: "property.castle", table: "property",
-    name: "Hearthrise Castle",
-    cost: [{ kind: "currency", id: "gold", amount: 2500000 }, { kind: "item", id: "ember_bar", amount: 20 }, { kind: "item", id: "gatekeepers_chain", amount: 10 }, { kind: "item", id: "iron_fitting", amount: 30 }, { kind: "item", id: "runewood_plank", amount: 60 }, { kind: "item", id: "timber_beam", amount: 30 }],
-    grant: [{ kind: "unlock", id: "property:castle", amount: 5 }],
-  },
-  {
-    id: "property.farmstead", table: "property",
-    name: "Fieldworth Farmstead",
-    cost: [{ kind: "currency", id: "gold", amount: 25000 }, { kind: "item", id: "cooked_shrimp", amount: 10 }, { kind: "item", id: "copper_ore", amount: 25 }, { kind: "item", id: "oak_log", amount: 40 }, { kind: "item", id: "wolf_pelt", amount: 4 }],
-    grant: [{ kind: "unlock", id: "property:farmstead", amount: 2 }],
-  },
-  {
-    id: "property.homestead", table: "property",
-    name: "Hearthside Homestead",
-    cost: [{ kind: "currency", id: "gold", amount: 400 }, { kind: "item", id: "copper_ore", amount: 20 }, { kind: "item", id: "normal_log", amount: 30 }],
-    grant: [{ kind: "unlock", id: "property:homestead", amount: 1 }],
-  },
-  {
-    id: "property.keep", table: "property",
-    name: "Ironvale Keep",
-    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "bear_pelt", amount: 5 }, { kind: "item", id: "big_bones", amount: 20 }, { kind: "item", id: "iron_fitting", amount: 12 }, { kind: "item", id: "maple_plank", amount: 50 }, { kind: "item", id: "steel_bar", amount: 35 }, { kind: "item", id: "timber_beam", amount: 12 }],
-    grant: [{ kind: "unlock", id: "property:keep", amount: 4 }],
-  },
-  {
-    id: "property.manor", table: "property",
-    name: "Stonecross Manor",
-    cost: [{ kind: "currency", id: "gold", amount: 150000 }, { kind: "item", id: "iron_fitting", amount: 6 }, { kind: "item", id: "iron_ore", amount: 40 }, { kind: "item", id: "silk_thread", amount: 8 }, { kind: "item", id: "timber_beam", amount: 6 }, { kind: "item", id: "willow_plank", amount: 35 }],
-    grant: [{ kind: "unlock", id: "property:manor", amount: 3 }],
-  },
-  {
-    id: "room.cellar.1", table: "room",
-    name: "Cellar — Root Cellar",
-    cost: [{ kind: "currency", id: "gold", amount: 1200 }, { kind: "item", id: "normal_log", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:cellar", amount: 1 }],
-  },
-  {
-    id: "room.cellar.2", table: "room",
-    name: "Cellar — Stone Cellar",
-    cost: [{ kind: "currency", id: "gold", amount: 4000 }, { kind: "item", id: "oak_log", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:cellar", amount: 2 }],
-  },
-  {
-    id: "room.cellar.3", table: "room",
-    name: "Cellar — The Vault",
-    cost: [{ kind: "currency", id: "gold", amount: 12000 }, { kind: "item", id: "willow_log", amount: 50 }],
-    grant: [{ kind: "unlock", id: "room:cellar", amount: 3 }],
-  },
-  {
-    id: "room.cellar.4", table: "room",
-    name: "Cellar — The Cask Room",
-    cost: [{ kind: "currency", id: "gold", amount: 70000 }, { kind: "item", id: "field_ration", amount: 20 }, { kind: "item", id: "goldenroot_roast", amount: 6 }, { kind: "item", id: "timber_beam", amount: 12 }],
-    grant: [{ kind: "unlock", id: "room:cellar", amount: 4 }],
-  },
-  {
-    id: "room.cellar.5", table: "room",
-    name: "Cellar — The Deep Cellar",
-    cost: [{ kind: "currency", id: "gold", amount: 700000 }, { kind: "item", id: "barrow_nail", amount: 20 }, { kind: "item", id: "moonbloom_elixir", amount: 4 }, { kind: "item", id: "runewood_plank", amount: 30 }],
-    grant: [{ kind: "unlock", id: "room:cellar", amount: 5 }],
-  },
-  {
-    id: "room.forge.1", table: "room",
-    name: "Forge — Field Forge",
-    cost: [{ kind: "currency", id: "gold", amount: 75000 }, { kind: "item", id: "iron_bar", amount: 200 }, { kind: "item", id: "iron_fitting", amount: 10 }, { kind: "item", id: "oak_plank", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:forge", amount: 1 }],
-  },
-  {
-    id: "room.forge.2", table: "room",
-    name: "Forge — Stone Forge",
-    cost: [{ kind: "currency", id: "gold", amount: 110000 }, { kind: "item", id: "iron_bar", amount: 300 }, { kind: "item", id: "iron_fitting", amount: 12 }, { kind: "item", id: "steel_bar", amount: 40 }],
-    grant: [{ kind: "unlock", id: "room:forge", amount: 2 }],
-  },
-  {
-    id: "room.forge.3", table: "room",
-    name: "Forge — Double Bellows",
-    cost: [{ kind: "currency", id: "gold", amount: 160000 }, { kind: "item", id: "iron_fitting", amount: 15 }, { kind: "item", id: "steel_bar", amount: 100 }, { kind: "item", id: "timber_beam", amount: 10 }],
-    grant: [{ kind: "unlock", id: "room:forge", amount: 3 }],
-  },
-  {
-    id: "room.forge.4", table: "room",
-    name: "Forge — The Great Bellows",
-    cost: [{ kind: "currency", id: "gold", amount: 240000 }, { kind: "item", id: "coal", amount: 200 }, { kind: "item", id: "iron_fitting", amount: 25 }, { kind: "item", id: "steel_bar", amount: 150 }],
-    grant: [{ kind: "unlock", id: "room:forge", amount: 4 }],
-  },
-  {
-    id: "room.forge.5", table: "room",
-    name: "Forge — The Deep Forge",
-    cost: [{ kind: "currency", id: "gold", amount: 900000 }, { kind: "item", id: "ember_bar", amount: 30 }, { kind: "item", id: "iron_fitting", amount: 40 }, { kind: "item", id: "rake_tine", amount: 20 }],
-    grant: [{ kind: "unlock", id: "room:forge", amount: 5 }],
-  },
-  {
-    id: "room.garden.1", table: "room",
-    name: "Garden — Kitchen Garden",
-    cost: [{ kind: "currency", id: "gold", amount: 600 }, { kind: "item", id: "wheat", amount: 20 }],
-    grant: [{ kind: "unlock", id: "room:garden", amount: 1 }],
-  },
-  {
-    id: "room.garden.2", table: "room",
-    name: "Garden — Walled Garden",
-    cost: [{ kind: "currency", id: "gold", amount: 2500 }, { kind: "item", id: "wheat", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:garden", amount: 2 }],
-  },
-  {
-    id: "room.garden.3", table: "room",
-    name: "Garden — The Beds",
-    cost: [{ kind: "currency", id: "gold", amount: 9000 }, { kind: "item", id: "pumpkin", amount: 5 }],
-    grant: [{ kind: "unlock", id: "room:garden", amount: 3 }],
-  },
-  {
-    id: "room.garden.4", table: "room",
-    name: "Garden — The Glasshouse",
-    cost: [{ kind: "currency", id: "gold", amount: 60000 }, { kind: "item", id: "goldenroot", amount: 15 }, { kind: "item", id: "silk_thread", amount: 20 }, { kind: "item", id: "timber_beam", amount: 10 }],
-    grant: [{ kind: "unlock", id: "room:garden", amount: 4 }],
-  },
-  {
-    id: "room.garden.5", table: "room",
-    name: "Garden — The Orchard",
-    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "ford_weed", amount: 30 }, { kind: "item", id: "moonbloom", amount: 12 }, { kind: "item", id: "runewood_plank", amount: 40 }],
-    grant: [{ kind: "unlock", id: "room:garden", amount: 5 }],
-  },
-  {
-    id: "room.kitchen.1", table: "room",
-    name: "Kitchen — Hearthstone",
-    cost: [{ kind: "currency", id: "gold", amount: 40000 }, { kind: "item", id: "cooked_trout", amount: 50 }, { kind: "item", id: "iron_bar", amount: 60 }, { kind: "item", id: "oak_plank", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:kitchen", amount: 1 }],
-  },
-  {
-    id: "room.kitchen.2", table: "room",
-    name: "Kitchen — Iron Stove",
-    cost: [{ kind: "currency", id: "gold", amount: 70000 }, { kind: "item", id: "cooked_lobster", amount: 50 }, { kind: "item", id: "iron_bar", amount: 100 }, { kind: "item", id: "willow_plank", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:kitchen", amount: 2 }],
-  },
-  {
-    id: "room.kitchen.3", table: "room",
-    name: "Kitchen — Cast-Iron Range",
-    cost: [{ kind: "currency", id: "gold", amount: 110000 }, { kind: "item", id: "steel_bar", amount: 30 }, { kind: "item", id: "wheat_bread", amount: 40 }, { kind: "item", id: "willow_plank", amount: 100 }],
-    grant: [{ kind: "unlock", id: "room:kitchen", amount: 3 }],
-  },
-  {
-    id: "room.kitchen.4", table: "room",
-    name: "Kitchen — Twin Range",
-    cost: [{ kind: "currency", id: "gold", amount: 180000 }, { kind: "item", id: "field_ration", amount: 25 }, { kind: "item", id: "timber_beam", amount: 20 }, { kind: "item", id: "willow_plank", amount: 100 }],
-    grant: [{ kind: "unlock", id: "room:kitchen", amount: 4 }],
-  },
-  {
-    id: "room.kitchen.5", table: "room",
-    name: "Kitchen — The Great Hearth",
-    cost: [{ kind: "currency", id: "gold", amount: 800000 }, { kind: "item", id: "cooked_shark", amount: 100 }, { kind: "item", id: "ember_bar", amount: 8 }, { kind: "item", id: "runewood_plank", amount: 40 }],
-    grant: [{ kind: "unlock", id: "room:kitchen", amount: 5 }],
-  },
-  {
-    id: "room.library.1", table: "room",
-    name: "Library — Shelf",
-    cost: [{ kind: "currency", id: "gold", amount: 60000 }, { kind: "item", id: "oak_plank", amount: 80 }, { kind: "item", id: "silk_thread", amount: 15 }, { kind: "item", id: "timber_beam", amount: 8 }],
-    grant: [{ kind: "unlock", id: "room:library", amount: 1 }],
-  },
-  {
-    id: "room.library.2", table: "room",
-    name: "Library — Reading Room",
-    cost: [{ kind: "currency", id: "gold", amount: 90000 }, { kind: "item", id: "silk_thread", amount: 25 }, { kind: "item", id: "timber_beam", amount: 12 }, { kind: "item", id: "willow_plank", amount: 60 }],
-    grant: [{ kind: "unlock", id: "room:library", amount: 2 }],
-  },
-  {
-    id: "room.library.3", table: "room",
-    name: "Library — The Library",
-    cost: [{ kind: "currency", id: "gold", amount: 130000 }, { kind: "item", id: "maple_plank", amount: 60 }, { kind: "item", id: "silk_thread", amount: 30 }, { kind: "item", id: "timber_beam", amount: 15 }],
-    grant: [{ kind: "unlock", id: "room:library", amount: 3 }],
-  },
-  {
-    id: "room.library.4", table: "room",
-    name: "Library — The Scriptorium",
-    cost: [{ kind: "currency", id: "gold", amount: 200000 }, { kind: "item", id: "magic_essence", amount: 10 }, { kind: "item", id: "silk_thread", amount: 40 }, { kind: "item", id: "timber_beam", amount: 20 }],
-    grant: [{ kind: "unlock", id: "room:library", amount: 4 }],
-  },
-  {
-    id: "room.library.5", table: "room",
-    name: "Library — The Great Library",
-    cost: [{ kind: "currency", id: "gold", amount: 850000 }, { kind: "item", id: "magic_essence", amount: 60 }, { kind: "item", id: "priests_cord", amount: 20 }, { kind: "item", id: "runewood_plank", amount: 40 }],
-    grant: [{ kind: "unlock", id: "room:library", amount: 5 }],
-  },
-  {
-    id: "room.shrine.1", table: "room",
-    name: "Shrine — Wayside Shrine",
-    cost: [{ kind: "currency", id: "gold", amount: 900 }, { kind: "item", id: "bones", amount: 40 }],
-    grant: [{ kind: "unlock", id: "room:shrine", amount: 1 }],
-  },
-  {
-    id: "room.shrine.2", table: "room",
-    name: "Shrine — Stone Altar",
-    cost: [{ kind: "currency", id: "gold", amount: 3500 }, { kind: "item", id: "big_bones", amount: 25 }],
-    grant: [{ kind: "unlock", id: "room:shrine", amount: 2 }],
-  },
-  {
-    id: "room.shrine.3", table: "room",
-    name: "Shrine — The Chapel",
-    cost: [{ kind: "currency", id: "gold", amount: 13000 }, { kind: "item", id: "big_bones", amount: 40 }],
-    grant: [{ kind: "unlock", id: "room:shrine", amount: 3 }],
-  },
-  {
-    id: "room.shrine.4", table: "room",
-    name: "Shrine — The Reliquary",
-    cost: [{ kind: "currency", id: "gold", amount: 55000 }, { kind: "item", id: "big_bones", amount: 60 }, { kind: "item", id: "iron_fitting", amount: 10 }, { kind: "item", id: "magic_essence", amount: 30 }],
-    grant: [{ kind: "unlock", id: "room:shrine", amount: 4 }],
-  },
-  {
-    id: "room.shrine.5", table: "room",
-    name: "Shrine — The Ossuary",
-    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "big_bones", amount: 100 }, { kind: "item", id: "grave_dust", amount: 100 }, { kind: "item", id: "shroud_pin", amount: 20 }],
-    grant: [{ kind: "unlock", id: "room:shrine", amount: 5 }],
-  },
-  {
-    id: "room.trophy.1", table: "room",
-    name: "Trophy Room — Trophy Wall",
-    cost: [{ kind: "currency", id: "gold", amount: 2000 }, { kind: "item", id: "wolf_pelt", amount: 5 }],
-    grant: [{ kind: "unlock", id: "room:trophy", amount: 1 }],
-  },
-  {
-    id: "room.trophy.2", table: "room",
-    name: "Trophy Room — The Hall",
-    cost: [{ kind: "currency", id: "gold", amount: 8000 }, { kind: "item", id: "bear_pelt", amount: 2 }],
-    grant: [{ kind: "unlock", id: "room:trophy", amount: 2 }],
-  },
-  {
-    id: "room.trophy.3", table: "room",
-    name: "Trophy Room — Hall of Heads",
-    cost: [{ kind: "currency", id: "gold", amount: 25000 }, { kind: "item", id: "bear_pelt", amount: 4 }],
-    grant: [{ kind: "unlock", id: "room:trophy", amount: 3 }],
-  },
-  {
-    id: "room.trophy.4", table: "room",
-    name: "Trophy Room — Hall of Banners",
-    cost: [{ kind: "currency", id: "gold", amount: 60000 }, { kind: "item", id: "bear_pelt", amount: 6 }, { kind: "item", id: "iron_fitting", amount: 12 }, { kind: "item", id: "war_crown", amount: 1 }],
-    grant: [{ kind: "unlock", id: "room:trophy", amount: 4 }],
-  },
-  {
-    id: "room.trophy.5", table: "room",
-    name: "Trophy Room — The Long Gallery",
-    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "hasks_coin", amount: 5 }, { kind: "item", id: "runewood_plank", amount: 30 }, { kind: "item", id: "war_crown", amount: 1 }, { kind: "item", id: "warrant_seal", amount: 10 }],
-    grant: [{ kind: "unlock", id: "room:trophy", amount: 5 }],
-  },
-  {
-    id: "room.workshop.1", table: "room",
-    name: "Workshop — Work Bench",
-    cost: [{ kind: "currency", id: "gold", amount: 75000 }, { kind: "item", id: "iron_fitting", amount: 5 }, { kind: "item", id: "oak_plank", amount: 200 }, { kind: "item", id: "timber_beam", amount: 10 }],
-    grant: [{ kind: "unlock", id: "room:workshop", amount: 1 }],
-  },
-  {
-    id: "room.workshop.2", table: "room",
-    name: "Workshop — Joiner's Bench",
-    cost: [{ kind: "currency", id: "gold", amount: 110000 }, { kind: "item", id: "timber_beam", amount: 12 }, { kind: "item", id: "willow_plank", amount: 100 }],
-    grant: [{ kind: "unlock", id: "room:workshop", amount: 2 }],
-  },
-  {
-    id: "room.workshop.3", table: "room",
-    name: "Workshop — The Sawpit",
-    cost: [{ kind: "currency", id: "gold", amount: 160000 }, { kind: "item", id: "iron_fitting", amount: 10 }, { kind: "item", id: "timber_beam", amount: 20 }, { kind: "item", id: "willow_plank", amount: 200 }],
-    grant: [{ kind: "unlock", id: "room:workshop", amount: 3 }],
-  },
-  {
-    id: "room.workshop.4", table: "room",
-    name: "Workshop — The Lathe",
-    cost: [{ kind: "currency", id: "gold", amount: 240000 }, { kind: "item", id: "iron_fitting", amount: 25 }, { kind: "item", id: "maple_plank", amount: 100 }, { kind: "item", id: "silk_thread", amount: 30 }],
-    grant: [{ kind: "unlock", id: "room:workshop", amount: 4 }],
-  },
-  {
-    id: "room.workshop.5", table: "room",
-    name: "Workshop — The Master's Shop",
-    cost: [{ kind: "currency", id: "gold", amount: 900000 }, { kind: "item", id: "duskwood_plank", amount: 25 }, { kind: "item", id: "rune_bar", amount: 6 }, { kind: "item", id: "timber_beam", amount: 30 }],
-    grant: [{ kind: "unlock", id: "room:workshop", amount: 5 }],
-  },
-  {
-    id: "seed.bronze_arrows", table: "seed",
-    name: "Bronze Arrows",
-    cost: [{ kind: "currency", id: "gold", amount: 60 }],
-    grant: [{ kind: "item", id: "bronze_arrows", amount: 50 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.coarse_whetstone", table: "seed",
-    name: "Coarse Whetstone",
-    cost: [{ kind: "currency", id: "gold", amount: 60 }],
-    grant: [{ kind: "item", id: "coarse_whetstone", amount: 10 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.rune_blank", table: "seed",
-    name: "Blank Rune",
-    cost: [{ kind: "currency", id: "gold", amount: 300 }],
-    grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
-    repeatable: true,
-  },
+  /* PRICED IN HOURS OF WAGE (homestead-tiers.js): list prices 2,500,000 / 600,000 / 150,000 / 25,000 / 400. */
+  propertyOffer('castle', { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
+  propertyOffer('farmstead', { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
+  propertyOffer('homestead', { copper_ore: 20, normal_log: 30 }),
+  propertyOffer('keep', { bear_pelt: 5, big_bones: 20, iron_fitting: 12, maple_plank: 50, steel_bar: 35, timber_beam: 12 }),
+  propertyOffer('manor', { iron_fitting: 6, iron_ore: 40, silk_thread: 8, timber_beam: 6, willow_plank: 35 }),
+  /* Every room rung, from its one home (homestead-tiers.js ROOM_RUNGS), in id order. */
+  ...ROOM_OFFERS,
+  bundleOffer('bronze_arrows', 50),
+  bundleOffer('coarse_whetstone', 10),
+  bundleOffer('rune_blank', 18),
   /* Tools, gear and seeds, never supplies (Tyler 2026-10-20; designer 2026-10-22); SUPPLY_PRICE_LIST is never sold. */
   ...SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).map(supplyOffer),
 ];
@@ -448,9 +152,9 @@ export const DERIVED_PRICES = [
     "name": "Bank space, gold rung",
     "where": "src/legacy.js bankGoldCost() → buyBankSpaceGold()",
     "currency": "gold",
-    "formula": "round(BANK_SPACE.gold.base * BANK_SPACE.gold.growth ^ G.bank.goldBuys)",
+    "formula": "wageListPrice(round(BANK_BASE_HOURS_PM * BANK_GROWTH ^ rungs owned), 1) (src/data/gold-ladders.js bankRungPrice)",
     "params": {
-      "base": 3000,
+      "baseHoursPm": 232,
       "growth": 1.32,
       "slots": 20
     },

@@ -45,6 +45,11 @@ const windowOf = (cell) => cell.windowMs || (cell.party.length > 1 ? 30000 : 100
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
 const BURST_MS = 4000;
 const CLOSE_PCT = 25;
+/* a hero's event in `channel` (its blow, a blow at it, its heal) and the worn Traits that held on it (the event's `tr`, src/core/hunt/trait-rules.js) */
+function traitHeld(h, channel, e) {
+  h.tr[channel]++;
+  if (typeof e.tr === 'string' && e.tr) for (const id of e.tr.split(',')) { const k = channel + ':' + id; h.tr.held[k] = (h.tr.held[k] || 0) + 1; }
+}
 const DIP_PCT = 40;
 
 /* One deterministic hunt secret per (seed, segment): the same dice for the same seed in every cell (paired A/B). */
@@ -249,6 +254,8 @@ export async function loadCellRunner(root) {
       manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {},
       /* the HP regained with no event (regeneration: the window's gap, below), the hunted ms under 30% / 10% of max HP, damage dealt by target kind */
       regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {},
+      /* THE WORN TRAITS (cell.traitsBySeat): the hero's blows, the blows at it and its heals, and on how many each Trait held (an event's `tr`) */
+      tr: { offense: 0, defense: 0, heal: 0, held: {} },
       /* the engine's sustain block summed over the cell (TALLY), the hunted ms whose regeneration the answer cannot close (a hunt that ended
          another way than a death in that window), and the party deaths this hero was short of mana at: { the waiting rule's action: n } */
       ...sustainTotals(TALLY) }));
@@ -338,9 +345,11 @@ export async function loadCellRunner(root) {
                   /* a monster's spell (monster-spells.js): its hit names the spell, where a swing names 'basic' */
                   if (!e.dot && !uk && e.ability && e.ability !== 'basic') { const s = h.spellsIn[e.ability] || (h.spellsIn[e.ability] = { hits: 0, dmg: 0 }); s.hits++; s.dmg += n; }
                   if (!e.dot && !uk) h.blowsLanded++;
+                  if (!uk) traitHeld(h, 'defense', e);
                   hp.push([e.atMs, tk, -n]);
                 } else if (uk) {
                   const h = byKey[uk];
+                  traitHeld(h, 'offense', e);
                   h.dealt += n; const a = e.ability || 'basic'; h.dealtBy[a] = (h.dealtBy[a] || 0) + n;
                   const to = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; h.dealtTo[to] = (h.dealtTo[to] || 0) + n;
                   if (firstHit[e.t] === undefined) firstHit[e.t] = e.atMs;
@@ -357,6 +366,7 @@ export async function loadCellRunner(root) {
                   hp.push([e.atMs, tk, n]);
                 }
                 if (uk && e.u !== e.t && !e.item) byKey[uk].healOut += e.amount || 0;
+                if (uk && !e.item) traitHeld(byKey[uk], 'heal', e);
                 break;
               case 'shield':
                 if (tk) byKey[tk].shieldIn += e.amount || 0;
@@ -509,6 +519,9 @@ export async function loadCellRunner(root) {
         /* cell.borrowedBySeat [[ability id] | null]: each seat's own borrow list (heroSetup `borrowed`: the native row on the native weapon's
            blow, no penalty; lane/roads-borrow-values measures a town move's V0 on it), handed as play-ground.mjs opts.borrowed */
         if (Array.isArray(cell.borrowedBySeat)) opts.borrowed = (role, i) => cell.borrowedBySeat[i] || null;
+        /* cell.traitsBySeat [[{ id, rank }] | null]: the Traits each seat's pieces carry (tools/balance-program/trait-kits.mjs; the engine plays them,
+           src/core/hunt/trait-rules.js, dark in the game), handed as play-ground.mjs opts.traits */
+        if (Array.isArray(cell.traitsBySeat)) opts.traits = (role, i) => cell.traitsBySeat[i] || null;
         /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         if (run) Object.assign(opts, { ground: opts.ground || ground, sessionMode: ground.mode, tower: { floor: run.floor }, dropEnded: true });
@@ -605,6 +618,9 @@ export async function loadCellRunner(root) {
            cell (so seeds add), the hunted hours whose regeneration could not be closed, the party deaths this hero was short of mana at
            (by the waiting rule's action), and the close calls (encounters under 25% HP) as a count */
         sustain: sustainSummary(h, h.close, h.enc.length),
+        /* THE WORN TRAITS' HOLDS (cell.traitsBySeat): the events of each channel (its blows, the blows at it, its heals) and, by
+           'channel:traitId', how many of them each Trait held on, as totals over the cell (so seeds add): the census trait-kits.mjs reads */
+        ...(Array.isArray(cell.traitsBySeat) ? { traits: { worn: cell.traitsBySeat[H.indexOf(h)] || [], events: { offense: h.tr.offense, defense: h.tr.defense, heal: h.tr.heal }, held: h.tr.held } } : {}),
       };
     });
     const hours = P.hours || 1e-9;

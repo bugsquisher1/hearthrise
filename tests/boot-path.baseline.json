@@ -322,6 +322,12 @@
         "gzipBytes": 959538,
         "on": "2026-11-24",
         "why": "Mill Cellar and Meadowbrook on the scale, coin levels and the inside-one-tier band rule (lane/scale-early-grounds)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 962053,
+        "on": "2026-11-24",
+        "why": "lane/traits-in-engine: the worn-Trait rules join the game half"
       }
     ]
   }

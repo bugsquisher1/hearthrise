@@ -465,14 +465,19 @@
         "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
       },
       {
-        "bytes": 3828481,
+        "bytes": 3836439,
         "on": "2026-11-24",
-        "why": "lane/skills-time-parity on set 1f3fa9fe6 with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel) and the party lines re-measured on it. +8,536 bytes"
+        "why": "lane/traits-in-engine on the set at 77572308a: src/core/hunt/trait-rules.js (the 40 Traits as conditional gear-slice steps, dark behind traitsLive), its typed tag and tr plumbing"
       },
       {
-        "bytes": 3828586,
+        "bytes": 3830481,
         "on": "2026-11-24",
-        "why": "lane/skills-time-parity: src/data/hearthfind.js's boss kill rates re-measured after Power Strike 700 -> 720 (elk_king 142, grim_reaper 170; tests/hearthfind-boss-rate.mjs) and their one-line measurement note, 105 B"
+        "why": "cut locked in (5958 bytes)"
+      },
+      {
+        "bytes": 3838317,
+        "on": "2026-11-24",
+        "why": "lane/skills-time-parity on set f1b2f6c1e with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel), the party lines re-measured on it and the boss kill-rate pins' note. +7,836 bytes"
       }
     ]
   }

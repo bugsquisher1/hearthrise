@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: f7a49dfa0c4fb76f7fcd0e1cc57a82cbc482dbd2c460dbcbe6348df9e3ce2dd5
+--   catalogue digest: 610b805260ef6777fa4169a53fa1604e1fee2092a1eed169c8949d0f4634a3fd
 --   rows: 679 items (27 untradeable) ·
 --         389 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -1687,7 +1687,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
 -- momentary gap where the row does not exist would be a window in which a new
 -- character could be created with no kit at all.
 insert into public.hr_start_kit (only_row, gold, gems, hp, bank_cap, farm_plots)
-  values (true, 500, 0,
+  values (true, 3200, 0,
           150, 100, 2)
   on conflict (only_row) do update set
     gold = excluded.gold, gems = excluded.gems,
@@ -1751,7 +1751,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'f7a49dfa0c4fb76f7fcd0e1cc57a82cbc482dbd2c460dbcbe6348df9e3ce2dd5', now())
+  values (true, '610b805260ef6777fa4169a53fa1604e1fee2092a1eed169c8949d0f4634a3fd', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1981,7 +1981,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest f7a49dfa0c4fb76f7fcd0e1cc57a82cbc482dbd2c460dbcbe6348df9e3ce2dd5',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 610b805260ef6777fa4169a53fa1604e1fee2092a1eed169c8949d0f4634a3fd',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

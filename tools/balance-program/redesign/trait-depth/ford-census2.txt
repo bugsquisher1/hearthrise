@@ -1,0 +1,34 @@
+
+V1 on hasks_ford (2 seeds x 6 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+back:steady       653.3 +- 3.9        5   100   100      5      0     1.2       60      0     0  0 (0/0/0)                       2  {"hold":634,"climb":83,"fall":1}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  back:steady        1.35x  sd 0.02  n 2  window 2 h  seeds 1.36 1.34
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  back:steady       L60  coin 15683 +- 149  income 19989 +- 247  store 11978  kit share 0.6 (meal 310, drink 5824, charge 3530, shot 2314)  loot by band: common 838, uncommon 304, scarce 3164, other 0  n 2
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  back:steady       hammer 0.666  bow 0.105  mage 0.109  healer 0.12
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  back:steady       hammer dps 19.55 land 62.1% hit 37.7 (5909.5/h) | bow dps 19.05 land 92.6% hit 70.77 (496/h) | mage dps 26.52 land 82.65% hit 33.94 (1077/h) | healer dps 10.59 land 87.45% hit 51.44 (777.5/h)
+                    banded_pikeman(swarm) 259.5/h 26.2 s 433 | fordsunk(brute) 109.7/h 33.8 s 638 | ledger_wight(caster) 79.6/h 40.4 s 1811 | bannerman(warder) 29.9/h 39 s 267
+                    broke off by: fall:ledger_wight@2 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  back:steady       abs 58.3 (depth 19)  free 94  spell 870  food 35  taken 29.34 pm/s
+
+the worn Traits (--traits census:2, lane/traits-in-engine): by seat, each Trait's hold share of its own channel's events (rank 3; party-wide ones on every hero they reach)
+  back:steady       hammer  blows 40876, struck 44050, heals 472 | full_cellar 1, snuffed 0.067
+  back:steady       bow     blows 39814, struck 5513, heals 0 | snuffed 0.074, full_cellar 0
+  back:steady       mage    blows 43569, struck 10688, heals 0 | snuffed 0.101, full_cellar 0
+  back:steady       healer  blows 27891, struck 8158, heals 23075 | snuffed 0.086, full_cellar 0
+
+wall 49 s

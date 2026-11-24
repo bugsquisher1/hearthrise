@@ -1,6 +1,6 @@
 
 V1 on muster_barrows (2 seeds x 6 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
 back:steady       683.7 +- 4.1     10.6  76.1   100   11.5    0.5     0.1       48      0     0  0 (0/0/0)                       2  {"hold":435,"climb":132,"fall":7}
@@ -31,4 +31,4 @@ the worn Traits (--traits census:2, lane/traits-in-engine): by seat, each Trait'
   back:steady       mage    blows 43756, struck 2395, heals 0 | snuffed 0.087, full_cellar 0
   back:steady       healer  blows 27902, struck 92, heals 21020 | snuffed 0.104, full_cellar 0
 
-wall 65 s
+wall 75 s

@@ -1,28 +1,28 @@
 
 V1 on hasks_ford (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-back:steady         654 +- 5.1     -1.9    44  80.1   34.3    3.9     0.7      162      0     0  3 (0/0/3)                       6  {"hold":6980,"climb":2526,"fall":210}
+back:steady       642.4 +- 4.8      2.7  78.4  99.4    7.2    0.3       3     71.1      0     0  0 (0/0/0)                       6  {"hold":3318,"climb":931,"fall":12}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  back:steady        1.56x  sd 0.08  n 6  window 6 h  seeds 1.51 1.71 1.46 1.57 1.58 1.55
+  back:steady        1.28x  sd 0.02  n 6  window 6 h  seeds 1.26 1.29 1.28 1.3 1.29 1.25
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  back:steady       L60  coin 18172 +- 426  income 23167 +- 649  store 5840  kit share 0.25 (meal 99, drink 2088, charge 2107, shot 1546)  loot by band: common 1017, uncommon 353, scarce 3625, other 0  n 6
+  back:steady       L60  coin 15213 +- 151  income 19274 +- 185  store 10859  kit share 0.56 (meal 222, drink 5137, charge 3259, shot 2242)  loot by band: common 807, uncommon 292, scarce 2961, other 0  n 6
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  back:steady       hammer 1  bow 0  mage 0  healer 0
+  back:steady       hammer 0.667  bow 0.105  mage 0.109  healer 0.119
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  back:steady       hammer dps 19.22 land 50% hit 46.1 (3605.33/h) | bow dps 16.9 land null% hit null (0/h) | mage dps 23.25 land null% hit null (0/h) | healer dps 9.5 land null% hit null (0/h)
-                    banded_pikeman(null) 495.5/h 5.5 s 126 | fordsunk(null) 228.2/h 8.7 s 189 | bannerman(null) 52.2/h 6.7 s 242 | ledger_wight(null) 158.6/h 6.7 s 302
-                    broke off by: fall:ledger_wight@0 130, fall:fordsunk@0 53, fall:banded_pikeman@0 27
+  back:steady       hammer dps 18.75 land 62.13% hit 34.96 (5550/h) | bow dps 18.43 land 92.1% hit 63.23 (484/h) | mage dps 25.66 land 82.52% hit 32.33 (979.67/h) | healer dps 10.16 land 87.1% hit 46.77 (742.83/h)
+                    banded_pikeman(swarm) 282.1/h 22.5 s 348 | fordsunk(brute) 118.1/h 29.7 s 518 | bannerman(warder) 33/h 32.4 s 215 | ledger_wight(caster) 86.4/h 34.4 s 1443
+                    broke off by: fall:ledger_wight@2 8, fall:banded_pikeman@0 2, fall:fordsunk@0 1, fall:ledger_wight@0 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  back:steady       abs 55.8 (depth 18)  free 108  spell 870  food 22  taken 14.58 pm/s
+  back:steady       abs 55.6 (depth 18)  free 105  spell 866  food 29  taken 25.53 pm/s
 
-wall 98 s
+wall 66 s

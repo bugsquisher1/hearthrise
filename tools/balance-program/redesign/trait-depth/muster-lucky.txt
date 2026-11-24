@@ -1,6 +1,6 @@
 
 V1 on muster_barrows (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
 back:steady       688.8 +- 2.7      2.1  61.1  94.2    8.1    0.7     1.8     57.3      0     0  0 (0/0/0)                       6  {"hold":2325,"climb":1074,"fall":36}
@@ -9,7 +9,7 @@ pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as
   back:steady         1.6x  sd 0.02  n 6  window 6 h  seeds 1.58 1.59 1.6 1.59 1.63 1.6
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  back:steady       L75  coin 20979 +- 286  income 25996 +- 401  store 10113  kit share 0.39 (meal 99, drink 4425, charge 3137, shot 2452)  loot by band: common 476, uncommon 252, scarce 4288, other 0  n 6
+  back:steady       L75  coin 20979 +- 287  income 26019 +- 412  store 10113  kit share 0.39 (meal 99, drink 4425, charge 3137, shot 2452)  loot by band: common 478, uncommon 253, scarce 4309, other 0  n 6
 
 power moves (paired seeds): the held step at the changed power minus at base
 
@@ -31,4 +31,4 @@ the worn Traits (--traits lucky, lane/traits-in-engine): by seat, each Trait's h
   back:steady       mage    blows 214231, struck 11717, heals 0 | file_breaker 0.373, lime_pit 0.301, full_wick 0.001
   back:steady       healer  blows 136816, struck 461, heals 95042 | empty_wagon 0.852, crag_shelter 0.156, dunns_warning 0.149, keepers_carry 0.016, pyre_tender 0, carters_flight 0, behind_the_bar 0, full_cellar 0
 
-wall 218 s
+wall 105 s

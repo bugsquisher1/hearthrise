@@ -39,7 +39,8 @@
    "bold": {
     "fallPm": 80,
     "cleanPm": 300,
-    "afterDeath": "steady"
+    "afterDeath": "steady",
+    "breakOff": false
    }
   }
  },
@@ -197,12 +198,12 @@
    "gold": {
     "coinPerHeroH": {
      "mean": 20979,
-     "sd": 286,
+     "sd": 287,
      "n": 6
     },
     "incomePerHeroH": {
-     "mean": 25996,
-     "sd": 401,
+     "mean": 26019,
+     "sd": 412,
      "n": 6
     },
     "storePerHeroH": {
@@ -211,18 +212,18 @@
      "n": 6
     },
     "commonPerHeroH": {
-     "mean": 476,
+     "mean": 478,
      "sd": 10,
      "n": 6
     },
     "uncommonPerHeroH": {
-     "mean": 252,
-     "sd": 7,
+     "mean": 253,
+     "sd": 6,
      "n": 6
     },
     "scarcePerHeroH": {
-     "mean": 4288,
-     "sd": 175,
+     "mean": 4309,
+     "sd": 184,
      "n": 6
     },
     "otherPerHeroH": {
@@ -458,7 +459,7 @@
    }
   }
  },
- "wallS": 218,
+ "wallS": 105,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

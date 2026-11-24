@@ -39,7 +39,8 @@
    "bold": {
     "fallPm": 80,
     "cleanPm": 300,
-    "afterDeath": "steady"
+    "afterDeath": "steady",
+    "breakOff": false
    }
   }
  },
@@ -95,8 +96,8 @@
      "n": 6
     },
     "incomePerHeroH": {
-     "mean": 25184,
-     "sd": 533,
+     "mean": 25200,
+     "sd": 531,
      "n": 6
     },
     "storePerHeroH": {
@@ -105,18 +106,18 @@
      "n": 6
     },
     "commonPerHeroH": {
-     "mean": 468,
+     "mean": 469,
      "sd": 8,
      "n": 6
     },
     "uncommonPerHeroH": {
-     "mean": 248,
-     "sd": 14,
+     "mean": 249,
+     "sd": 15,
      "n": 6
     },
     "scarcePerHeroH": {
-     "mean": 4178,
-     "sd": 112,
+     "mean": 4192,
+     "sd": 109,
      "n": 6
     },
     "otherPerHeroH": {
@@ -254,7 +255,7 @@
    }
   }
  },
- "wallS": 210,
+ "wallS": 104,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

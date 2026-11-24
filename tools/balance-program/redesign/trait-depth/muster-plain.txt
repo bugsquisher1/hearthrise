@@ -1,6 +1,6 @@
 
 V1 on muster_barrows (6 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
 back:steady       683.5 +- 5.5      5.3  61.4  95.2     10    0.8     1.8     57.4      0     0  0 (0/0/0)                       6  {"hold":2333,"climb":1068,"fall":36}
@@ -9,7 +9,7 @@ pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as
   back:steady        1.55x  sd 0.03  n 6  window 6 h  seeds 1.59 1.56 1.57 1.54 1.51 1.51
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  back:steady       L75  coin 20290 +- 422  income 25184 +- 533  store 10082  kit share 0.4 (meal 110, drink 4393, charge 3124, shot 2455)  loot by band: common 468, uncommon 248, scarce 4178, other 0  n 6
+  back:steady       L75  coin 20290 +- 422  income 25200 +- 531  store 10082  kit share 0.4 (meal 110, drink 4393, charge 3124, shot 2455)  loot by band: common 469, uncommon 249, scarce 4192, other 0  n 6
 
 power moves (paired seeds): the held step at the changed power minus at base
 
@@ -25,4 +25,4 @@ held as absolute steps (src/core/bands.js: a Level of reference strength) and su
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
   back:steady       abs 76.4 (depth 18)  free 85  spell 900  food 15  taken 21.03 pm/s
 
-wall 210 s
+wall 104 s

@@ -1,6 +1,6 @@
 
 V1 on muster_barrows (2 seeds x 6 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
 back:steady       689.6 +- 6.1    -12.3  67.8   100      7    0.8     0.6     47.8      0     0  0 (0/0/0)                       2  {"hold":421,"climb":142,"fall":8}
@@ -31,4 +31,4 @@ the worn Traits (--traits census:0, lane/traits-in-engine): by seat, each Trait'
   back:steady       mage    blows 43688, struck 2324, heals 0 | hasks_bargain 0.956, slack_water 0.812, first_rank 0.685, file_breaker 0.369, lime_pit 0.303, soft_scale 0.261, captains_due 0.158, slate_hand 0.142, tarred_through 0.009, full_wick 0.001, numbed 0.001, empty_wagon 0, keepers_carry 0, carters_flight 0, scorched_grip 0, long_rite 0, crag_shelter 0, dunns_warning 0, banded_oath 0, lookouts_promise 0, bottom_of_the_quiver 0, bolting_team 0
   back:steady       healer  blows 27909, struck 92, heals 20831 | hasks_bargain 0.995, first_rank 0.967, empty_wagon 0.856, slack_water 0.848, numbed 0.587, file_breaker 0.267, captains_due 0.184, dunns_warning 0.149, slate_hand 0.145, lime_pit 0.131, crag_shelter 0.13, keepers_carry 0.015, tarred_through 0.011, full_wick 0.001, soft_scale 0, carters_flight 0, scorched_grip 0, long_rite 0, banded_oath 0, lookouts_promise 0, bottom_of_the_quiver 0, bolting_team 0
 
-wall 73 s
+wall 79 s

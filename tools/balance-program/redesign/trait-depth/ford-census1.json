@@ -39,7 +39,8 @@
    "bold": {
     "fallPm": 80,
     "cleanPm": 300,
-    "afterDeath": "steady"
+    "afterDeath": "steady",
+    "breakOff": false
    }
   }
  },
@@ -49,7 +50,7 @@
    "variant": "back",
    "risk": "steady",
    "L": 60,
-   "start": 634,
+   "start": 622,
    "traitsBySeat": [
     [
      {
@@ -270,63 +271,63 @@
    ],
    "seedsRead": 2,
    "payX": {
-    "mean": 1.53,
-    "sd": 0.06,
+    "mean": 1.39,
+    "sd": 0,
     "n": 2,
     "perSeed": [
-     1.48,
-     1.57
+     1.39,
+     1.39
     ],
     "fromH": 4,
     "windowH": 2
    },
    "held": {
-    "mean": 653.2,
-    "sd": 6.2,
-    "se": 4.4,
+    "mean": 659.5,
+    "sd": 0.8,
+    "se": 0.5,
     "perSeed": [
-     649,
-     658
+     660,
+     659
     ]
    },
-   "drift": -7.2,
-   "within10": 54.7,
-   "within20": 82.2,
-   "changesPerH": 36.8,
-   "fallsPerH": 4.3,
-   "reachH": 0,
-   "pullsPerH": 156.1,
-   "killsPerH": 936,
-   "xpPerHeroH": 450585,
+   "drift": 1.1,
+   "within10": 100,
+   "within20": 100,
+   "changesPerH": 1.5,
+   "fallsPerH": 0,
+   "reachH": 1.8,
+   "pullsPerH": 60.2,
+   "killsPerH": 481,
+   "xpPerHeroH": 378806,
    "gold": {
     "coinPerHeroH": {
-     "mean": 18851,
-     "sd": 232,
+     "mean": 16132,
+     "sd": 209,
      "n": 2
     },
     "incomePerHeroH": {
-     "mean": 24077,
-     "sd": 226,
+     "mean": 20453,
+     "sd": 86,
      "n": 2
     },
     "storePerHeroH": {
-     "mean": 6022,
-     "sd": 40,
+     "mean": 11864,
+     "sd": 55,
      "n": 2
     },
     "commonPerHeroH": {
-     "mean": 1047,
-     "sd": 22,
+     "mean": 857,
+     "sd": 4,
      "n": 2
     },
     "uncommonPerHeroH": {
-     "mean": 371,
-     "sd": 15,
+     "mean": 327,
+     "sd": 25,
      "n": 2
     },
     "scarcePerHeroH": {
-     "mean": 3808,
-     "sd": 13,
+     "mean": 3136,
+     "sd": 152,
      "n": 2
     },
     "otherPerHeroH": {
@@ -336,21 +337,22 @@
     }
    },
    "kit": {
-    "meal": 113,
-    "drink": 2184,
-    "charge": 2160,
-    "shot": 1566
+    "meal": 258,
+    "drink": 5771,
+    "charge": 3509,
+    "shot": 2326
    },
    "kitIds": {
-    "salted_lobster": 4.7,
-    "plain_rune_arrows": 522.1,
-    "plain_scored_fire_rune": 40.2,
-    "plain_graven_fire_rune": 50.4,
-    "plain_graven_ice_rune": 107.9,
-    "thin_carrot_juice": 136.5,
-    "plain_graven_poison_rune": 39.1,
-    "plain_graven_water_rune": 166.9,
-    "plain_graven_earth_rune": 51.6
+    "salted_lobster": 10.8,
+    "plain_rune_arrows": 775.4,
+    "plain_scored_fire_rune": 62.3,
+    "thin_carrot_juice": 360.7,
+    "plain_graven_fire_rune": 75,
+    "plain_graven_ice_rune": 162.1,
+    "plain_earth_rune": 27.2,
+    "plain_graven_poison_rune": 61,
+    "plain_graven_earth_rune": 67.7,
+    "plain_graven_water_rune": 305.6
    },
    "deaths": 0,
    "wipes": 0,
@@ -363,91 +365,86 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 1386,
-    "climb": 441,
-    "fall": 44
+    "hold": 626,
+    "climb": 95
    },
    "takenShare": [
     {
      "style": "hammer",
-     "mean": 1
+     "mean": 0.663
     },
     {
      "style": "bow",
-     "mean": 0
+     "mean": 0.106
     },
     {
      "style": "mage",
-     "mean": 0
+     "mean": 0.109
     },
     {
      "style": "healer",
-     "mean": 0
+     "mean": 0.122
     }
    ],
-   "causes": {
-    "fall:ledger_wight@0": 27,
-    "fall:fordsunk@0": 14,
-    "fall:banded_pikeman@0": 3
-   },
+   "causes": {},
    "seats": [
     {
      "style": "hammer",
-     "dps": 19.86,
-     "landedPct": 50.25,
-     "dmgPerSwing": 46.44,
-     "swingsPerH": 3725,
-     "takenPerH": 173015.5
+     "dps": 19.64,
+     "landedPct": 62.2,
+     "dmgPerSwing": 36.56,
+     "swingsPerH": 5916,
+     "takenPerH": 216278.5
     },
     {
      "style": "bow",
-     "dps": 17.19,
-     "landedPct": null,
-     "dmgPerSwing": null,
-     "swingsPerH": 0,
-     "takenPerH": 0
+     "dps": 19.14,
+     "landedPct": 93.4,
+     "dmgPerSwing": 68.84,
+     "swingsPerH": 502.5,
+     "takenPerH": 34604.5
     },
     {
      "style": "mage",
-     "dps": 24.16,
-     "landedPct": null,
-     "dmgPerSwing": null,
-     "swingsPerH": 0,
-     "takenPerH": 0
+     "dps": 27.06,
+     "landedPct": 82.6,
+     "dmgPerSwing": 33.21,
+     "swingsPerH": 1075.5,
+     "takenPerH": 35708.5
     },
     {
      "style": "healer",
-     "dps": 9.87,
-     "landedPct": null,
-     "dmgPerSwing": null,
-     "swingsPerH": 0,
-     "takenPerH": 0
+     "dps": 10.74,
+     "landedPct": 87.7,
+     "dmgPerSwing": 49.54,
+     "swingsPerH": 802,
+     "takenPerH": 39736
     }
    ],
    "kinds": {
     "banded_pikeman": {
-     "role": null,
-     "killsPerH": 493.2,
-     "ttkS": 5.7,
-     "takenPerKill": 132
+     "role": "swarm",
+     "killsPerH": 260.5,
+     "ttkS": 26,
+     "takenPerKill": 417
     },
     "fordsunk": {
-     "role": null,
-     "killsPerH": 232.1,
-     "ttkS": 9,
-     "takenPerKill": 193
+     "role": "brute",
+     "killsPerH": 110.3,
+     "ttkS": 33.9,
+     "takenPerKill": 618
     },
     "ledger_wight": {
-     "role": null,
-     "killsPerH": 159.3,
-     "ttkS": 6.9,
-     "takenPerKill": 314
+     "role": "caster",
+     "killsPerH": 80,
+     "ttkS": 40.7,
+     "takenPerKill": 1771
     },
     "bannerman": {
-     "role": null,
-     "killsPerH": 50.8,
-     "ttkS": 7,
-     "takenPerKill": 255
+     "role": "warder",
+     "killsPerH": 30.1,
+     "ttkS": 39.1,
+     "takenPerKill": 262
     }
    },
    "traits": [
@@ -469,24 +466,24 @@
       "sour_vault 3"
      ],
      "events": {
-      "offense": 30700,
-      "defense": 22476,
-      "heal": 539
+      "offense": 40825,
+      "defense": 44178,
+      "heal": 382
      },
      "share": {
       "rams_head": 0,
       "worrier": 0,
-      "pyre_tender": 0,
-      "goaded": 0,
-      "paupers_share": 0.103,
-      "floodmark": 0,
-      "ledge_footing": 0.679,
+      "pyre_tender": 0.026,
+      "goaded": 0.031,
+      "paupers_share": 0.482,
+      "floodmark": 0.311,
+      "ledge_footing": 0.74,
       "behind_the_bar": 1,
       "banked_coals": 0,
       "raised_colors": 0,
-      "early_start": 0.215,
+      "early_start": 0.33,
       "stair_bearer": 0,
-      "sour_vault": 0.314
+      "sour_vault": 0.318
      }
     },
     {
@@ -507,24 +504,24 @@
       "sour_vault 3"
      ],
      "events": {
-      "offense": 28099,
-      "defense": 0,
+      "offense": 39876,
+      "defense": 5635,
       "heal": 0
      },
      "share": {
       "rams_head": 0,
       "worrier": 0,
       "pyre_tender": 0,
-      "goaded": 0,
-      "paupers_share": 0,
-      "floodmark": 0,
-      "ledge_footing": 0.702,
+      "goaded": 0.027,
+      "paupers_share": 0.44,
+      "floodmark": 0.085,
+      "ledge_footing": 0.753,
       "behind_the_bar": 0,
-      "banked_coals": 0,
+      "banked_coals": 0.002,
       "raised_colors": 0,
-      "early_start": 1,
+      "early_start": 0.737,
       "stair_bearer": 0,
-      "sour_vault": 0
+      "sour_vault": 0.263
      }
     },
     {
@@ -545,24 +542,24 @@
       "sour_vault 3"
      ],
      "events": {
-      "offense": 31570,
-      "defense": 0,
+      "offense": 43653,
+      "defense": 10659,
       "heal": 0
      },
      "share": {
-      "rams_head": 0.343,
+      "rams_head": 0.326,
       "worrier": 0,
       "pyre_tender": 0,
-      "goaded": 0,
-      "paupers_share": 0,
-      "floodmark": 0,
-      "ledge_footing": 0.635,
+      "goaded": 0.03,
+      "paupers_share": 0.54,
+      "floodmark": 0.14,
+      "ledge_footing": 0.743,
       "behind_the_bar": 0,
-      "banked_coals": 0.099,
+      "banked_coals": 0.189,
       "raised_colors": 0,
-      "early_start": 1,
+      "early_start": 0.605,
       "stair_bearer": 0,
-      "sour_vault": 0
+      "sour_vault": 0.257
      }
     },
     {
@@ -583,40 +580,40 @@
       "sour_vault 3"
      ],
      "events": {
-      "offense": 19627,
-      "defense": 0,
-      "heal": 9128
+      "offense": 27891,
+      "defense": 8444,
+      "heal": 22830
      },
      "share": {
-      "rams_head": 0.455,
+      "rams_head": 0.397,
       "worrier": 0,
       "pyre_tender": 0,
-      "goaded": 0,
-      "paupers_share": 0,
-      "floodmark": 0,
-      "ledge_footing": 0.705,
+      "goaded": 0.026,
+      "paupers_share": 0.485,
+      "floodmark": 0.059,
+      "ledge_footing": 0.752,
       "behind_the_bar": 0,
-      "banked_coals": 0.08,
+      "banked_coals": 0.524,
       "raised_colors": 0,
-      "early_start": 1,
+      "early_start": 0.722,
       "stair_bearer": 0,
-      "sour_vault": 0
+      "sour_vault": 0.251
      }
     }
    ],
    "abs": {
-    "level": 55.6,
-    "depth": 18
+    "level": 59.8,
+    "depth": 20
    },
    "sustain": {
-    "freePm": 104,
+    "freePm": 98,
     "spellPm": 872,
-    "foodPm": 24,
-    "takenPmS": 15.18
+    "foodPm": 30,
+    "takenPmS": 28.62
    }
   }
  },
- "wallS": 28,
+ "wallS": 55,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

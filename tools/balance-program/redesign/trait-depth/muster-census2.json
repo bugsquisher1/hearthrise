@@ -39,7 +39,8 @@
    "bold": {
     "fallPm": 80,
     "cleanPm": 300,
-    "afterDeath": "steady"
+    "afterDeath": "steady",
+    "breakOff": false
    }
   }
  },
@@ -352,7 +353,7 @@
    }
   }
  },
- "wallS": 65,
+ "wallS": 75,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

@@ -58,8 +58,8 @@
  "edits": [
   {
    "file": "src/core/xp.js",
-   "from": "import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js';",
-   "to": "import { LEVEL_CURVE, SKILL_CURVE, LEVEL_PACE } from '../data/core-model.js';"
+   "from": "import { LEVEL_CURVE, LEVEL_HOURS, SKILL_CURVE, FLAME_SKILL_CURVE, refHealthOf } from '../data/core-model.js';",
+   "to": "import { LEVEL_CURVE, LEVEL_HOURS, SKILL_CURVE, FLAME_SKILL_CURVE, refHealthOf, LEVEL_PACE } from '../data/core-model.js';"
   },
   {
    "file": "src/core/xp.js",

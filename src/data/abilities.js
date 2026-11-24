@@ -184,11 +184,11 @@ export const ABILITIES = Object.freeze([
   /* THE TANK'S RUNE SPELLS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be party only
      I think"; the designer's board section "2026-11-19 Tank rune spells"). They hold and protect, never kill: a tank alone levels
      slowly on purpose (Tyler 2026-11-19), so both are PARTY ONLY (`party`) and neither is on a default bar (the new-spell prompt
-     offers each at its `unlock`). Their versions read Melee, the shield's skill (I-V at Melee 1 / 15 / 30 / 45 / 60).
+     offers each at its `unlock`). Their versions read Melee, the shield's skill (I-V at the Melee rune gates).
      FROST SLAM: an ICE rune spell, every monster beside the tank (up to 8) Chilled for 4 s, no damage (a ring that lands only its
      status); its version is the rune tier, so its chill is 30 / 35 / 40 / 45 / 50% (statuses.js chill tierPermille) at the
      version's full strength (a status is never cut by the store's share). Every 6 s: chilled two thirds of the time. */
-  ab({ id: 'frost_slam', n: 'Frost Slam', disciplines: ['shield'], party: true, lane: 'support', cdMs: 6000, mana: 6, rune: 'chalked_ice_rune', unlock: 12,
+  ab({ id: 'frost_slam', n: 'Frost Slam', disciplines: ['shield'], party: true, lane: 'support', cdMs: 6000, mana: 6, rune: 'chalked_ice_rune', unlock: 8,
     target: 'ring', maxHits: 8, status: 'chill', magicXpMult: 250, versions: [6, 7, 8, 10, 12] }),
   /* SHELTER: an EARTH rune spell, the stone shields' family. Every living hero within 8 tiles, the tank too, gets a shell of 289% of
      the tank's own largest blow (version I; the step a deeper rune buys on top, runes.js; the store's rune lands 75%), never lowering a
@@ -204,9 +204,12 @@ export const ABILITIES = Object.freeze([
     target: 'enemy', hitPm: 1400, base: [8, 14], element: 'ember', magicXpMult: 250, versions: [10, 12, 14, 17, 21] }),
   /* POWER STRIKE, the free strike every melee hero starts with (the fist line plays it too while its sample is live: src/data/fists.js),
      1.2 of the hero's own average landed swings at every Level (21-combat B5's opening: it was half a swing by Level 60). NOT the two
-     axes' (Tyler 2026-11-21, call 32-3: Rend stays at 6 s and the axes lose Power Strike, so their offense fits the bar budget). */
+     axes' (Tyler 2026-11-21, call 32-3: Rend stays at 6 s and the axes lose Power Strike, so their offense fits the bar budget).
+     hitPm 700 -> 720 (the designer's ruling 29 section 7 item 10, lane/skills-time-parity): on the Level clock a Level 10 sword's Melee is
+     about 12, its max hit 7, and 700 floored the strike's top 4.9 to 4 (3.0 landed against a swing's 3.2); 720 is the smallest share that
+     beats a swing at Levels 10, 60 and 110 (tests/hunt-core/spell-rule.mjs power-strike-beats-a-swing), +2.9%. */
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'club', ...(FIST_LINE.live ? [FIST_LINE.family] : [])], lane: 'offense', cdMs: 6000, mana: 6,
-    target: 'enemy', hitPm: 700, base: [7, 13] }),
+    target: 'enemy', hitPm: 720, base: [7, 13] }),
   /* PARRY, THE SWORD'S OWN MOVE (docs/design/redesign/23-spell-audit.md sections 4 and 7, wave 3: the sword shared every move it had; 02's
      "guard against one heavy blow"). A support cast on the sword's target that lands only its status, Parried (statuses.js): that
      monster's next blow within 2 s, a swing or a wind-up's landing, lands nothing. Every 10 s, 10 mana, no rune. A new slot starts on "my
@@ -224,7 +227,7 @@ export const ABILITIES = Object.freeze([
      axes and the hammer over the bar budget), so a new slot starts at the generic area trigger, "when it would hit at least 2"
      (ABILITY_RULES.areaMin). The tank gets nothing new (its job is holding). MEASURED before the merge (lane/d-turning-cut-melee, 2
      seeds): Normal moved at most +1.4% Level XP an hour; ALONE on Dangerous the sword gained +31% to +62%, a hammer +18% to +33%. */
-  ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10, target: 'ring', maxHits: 8, hitPm: 600 }),
+  ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 5, target: 'ring', maxHits: 8, hitPm: 600 }),
   /* REND, the two axes' strike (Tyler 2026-11-21, call 32-3: it stays at 6 s): two hits and a bleed a hit, on the RUPTURE family
      (Tyler 2026-10-23); its bleed ticks a share of the axes' own blow at the rune's tier (statuses.js bleed blowPm, tierPermille). */
   ab({ id: 'rend', n: 'Rend', disciplines: ['dual_axe'], lane: 'offense', cdMs: 6000, mana: 8, rune: 'chalked_rupture_rune', target: 'enemy',
@@ -260,7 +263,7 @@ export const ABILITIES = Object.freeze([
   /* RAKING SHOT (the area-spells design): an arrow line with no element, 4 tiles from the hero through its aim, each monster on
      it hit for 80% of the hero's own largest blow (hitPm). Two shots of the bar's ammo a cast. The Ranger's area that a slime's
      element resistance never touches (Andy 11-06: every Ranger area was fire). PROVISIONAL, unmeasured. */
-  ab({ id: 'raking_shot', n: 'Raking Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, ammo: 2, unlock: 10, target: 'line', len: 4, hitPm: 800 }),
+  ab({ id: 'raking_shot', n: 'Raking Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 8000, mana: 10, ammo: 2, unlock: 5, target: 'line', len: 4, hitPm: 800 }),
   /* staff — Mage (destruction) */
   /* Fireball is a FIRE rune spell (Tyler 2026-10-23, the approved spell map: "gold per cast covers heroes without
      runes"): a hero with no Fire Rune casts it on the store's, which the Mage's default slot names (rule-subjects.js). */
@@ -272,7 +275,7 @@ export const ABILITIES = Object.freeze([
   /* HOARFROST (the area-spells design): an ICE rune spell on Fireball's 3x3, and every monster it hits is Chilled (statuses.js:
      its swings and spell windups run 30% slower for 4 s), so frost slows a pack and its casts where fire burns hardest.
      PROVISIONAL, unmeasured. */
-  ab({ id: 'hoarfrost', n: 'Hoarfrost', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_ice_rune', unlock: 14,
+  ab({ id: 'hoarfrost', n: 'Hoarfrost', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_ice_rune', unlock: 8,
     target: 'area', hitPm: 530, base: [5, 9], element: 'frost', status: 'chill', magicXpMult: 1600, versions: [22, 26, 32, 38, 46] }),
   /* An EARTH rune spell (a shell of stone, the approved spell map). Self-only (Tyler 2026-10-23, Andy's report);
      recast while its shell still stands, the unused part comes back as mana (abilities.js barrierRefund). */

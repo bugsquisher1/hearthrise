@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/bands.js — A GROUND'S BAND IN ABSOLUTE STEPS, AND THE REFERENCE SKILL LINE (lane/foundations-block, 2026-11-23).
+// src/data/bands.js — A GROUND'S BAND IN ABSOLUTE STEPS (lane/foundations-block, 2026-11-23; its skill line is the skill clock since stage 7).
 //
 // docs/design/redesign/26-architecture-pass.md section 3 rank 2, 04-math-strategy.md sections 1 and 4, 27-formula-overhaul.md S-5, K-5, K-6.
 // The math is src/core/bands.js; this file is its numbers, one home each.
@@ -8,9 +8,9 @@
 // step is its RATING, 04 section 1's weighted mean of its Level, its skill and its gear, every part counted in Levels:
 //   rating = L + wGear x (gear - L) + wSkill x (skillLevel - L)
 //     gear        the kit's gear part (src/data/gear-steps.js: item Level x slot weight, a whole kit at X is X)
-//     skillLevel  the Level at which the reference career reaches the hero's skill for its style (SKILL_LINE below, read backwards): a hero
-//                 on its career line has skillLevel = L, a style switcher is behind it, a trained one ahead (04 section 4: "skill is counted
-//                 in the same steps as Level". Stage 7, time parity, makes skillLevel the skill itself and this line the identity)
+//     skillLevel  the Level at which the reference career reaches the hero's skill for its style (src/core/bands.js skillLevelPm, the skill
+//                 clock read backwards): a hero on its career line has skillLevel = L, a style switcher is behind it, a trained one ahead (04
+//                 section 4: "skill is counted in the same steps as Level"). Stage 7, time parity, made it the skill itself at pace 1000
 //     wGear       POWER.weightGearPm / 1000 at or over L, POWER.weightGearBelowPm / 1000 under it (src/data/danger.js, the engine's own)
 //     wSkill      POWER.weightSkillPm / 1000 (src/data/danger.js, the engine's own)
 // The weights are the ENGINE'S power-step weights, never a second copy: the step contest reads the same gap (src/core/hunt/danger.js powerPm).
@@ -41,14 +41,8 @@
      topTiersAhead 1    the next ground's base: the kit a company leaves a ground in (12-targets 3.2 "outgrown") */
 export const BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });
 
-/* THE REFERENCE SKILL LINE: [Level, skill] of the reference company's main skill for each style, a specialist hunting in a party at that
-   Level (MEASURED career, tools/balance-sim/skill-lines.json 'party' lines: hammer for melee, mage for magic, bow for ranged; tests/bands.mjs
-   BD-1 holds every point within 1 of the career it was read from, so a re-measured career turns red until this line is read again).
-   Straight between points; past the last, the last segment's slope; under Level 1 nothing. Today's skill curve is geometric (SKILL_CURVE),
-   so one skill point is worth many Levels high up (melee 146 at Level 1,000: 0.04 a Level); stage 7 (time parity) makes the line y = x. */
-const line = (pts) => Object.freeze(pts.map((p) => Object.freeze(p)));
-export const SKILL_LINE = Object.freeze({
-  melee: line([[1, 2], [10, 18], [20, 28], [30, 34], [40, 41], [50, 46], [60, 52], [75, 61], [100, 70], [125, 78], [150, 84], [175, 89], [200, 93], [250, 101], [300, 107], [400, 117], [500, 124], [1000, 146]]),
-  magic: line([[1, 4], [10, 22], [20, 34], [30, 40], [40, 45], [50, 50], [60, 54], [75, 62], [100, 71], [125, 79], [150, 85], [175, 90], [200, 94], [250, 102], [300, 108], [400, 118], [500, 125], [1000, 147]]),
-  ranged: line([[1, 4], [10, 19], [20, 31], [30, 39], [40, 45], [50, 51], [60, 56], [75, 64], [100, 73], [125, 83], [150, 90], [175, 95], [200, 100], [250, 108], [300, 114], [400, 124], [500, 131], [1000, 154]]),
-});
+/* THE REFERENCE SKILL LINE IS NO LONGER A TABLE (stage 7, lane/skills-time-parity 2026-11-23). It was the measured party career's main skill
+   by Level (melee 52 at Level 60, 146 at Level 1,000), read backwards, because the old geometric curve put a skill point worth many Levels
+   high up. The combat skills now cost a set ratio of the Level clock (src/data/core-model.js SKILL_CURVE), so the reference career reaches
+   skill n with the Level whose hours are pacePm / 1000 x the hours of n: at pace 1000 the line is y = x, a skill IS its Level in the
+   rating. src/core/bands.js skillLevelPm reads it; there is nothing here to re-measure. */

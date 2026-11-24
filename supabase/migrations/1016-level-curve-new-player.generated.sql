@@ -18,8 +18,10 @@
 -- played (start kit, Hunt again in the Thicket) took 1.4 / 3.5 / 4.2 hours for Levels 7, 8 and 9 and
 -- reached Level 10 at 10.6 h, where both light players quit. Steps 7-9 re-cut to 21,000 / 29,000 /
 -- 34,002 XP (Level 10 at 6.0 h, none of Levels 1-15 over 4 h, tests/start-kit-pace.mjs); steps 10-20
--- take the XP back (the Glade's 16-20 most), so the total to Level 21 and every step from 21 on cost
--- what they did. Level 10 at 105733 XP, Level 50 at 17032267. LIVE CHARACTERS: nothing is
+-- take the XP back (the Glade's 16-20 most), and every step from 21 on costs what it did. EASED 2026-11-23
+-- (lane/skills-time-parity): the combat skills on the Level clock leave a new player's skills near its Level,
+-- so steps 11-15 cost 872 to 4,360 XP less (Level 15 -> 16 in 4.40 h, the red line 4.5) and every threshold
+-- from Level 12 falls by up to 13,080 XP. Level 10 at 105733 XP, Level 50 at 17019187. LIVE CHARACTERS: nothing is
 -- stored per Level, so a hero's Level is read from its Level XP. Only thresholds 8-20 move and all
 -- fall: §2 holds every hero's Level as the rows this file replaces made it and refuses the whole file
 -- if one would read LOWER (no Level is lost); a hero in a lowered gap reads its higher Level at once,
@@ -68,13 +70,13 @@ insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) va
   (7, 21731, 21000, 8000, 0),
   (8, 42731, 29000, 5002, 0),
   (9, 71731, 34002, 30000, 0),
-  (10, 105733, 64002, 4630, 0),
-  (15, 472043, 87152, 74323, 0),
-  (16, 559195, 161475, 300, 0),
-  (21, 1369570, 162975, 14454, 657),
-  (50, 17032267, 1134678, 78689, 162),
-  (110, 235766497, 6439218, 70000, 100),
-  (300, 2942899417, 23349218, 350000, 100);
+  (10, 105733, 64002, 3758, 0),
+  (15, 463323, 82792, 78683, 0),
+  (16, 546115, 161475, 300, 0),
+  (21, 1356490, 162975, 14454, 657),
+  (50, 17019187, 1134678, 78689, 162),
+  (110, 235753417, 6439218, 70000, 100),
+  (300, 2942886337, 23349218, 350000, 100);
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
@@ -95,22 +97,22 @@ begin
   (7, 21731, 21000, 8000, 0),
   (8, 42731, 29000, 5002, 0),
   (9, 71731, 34002, 30000, 0),
-  (10, 105733, 64002, 4630, 0),
-  (15, 472043, 87152, 74323, 0),
-  (16, 559195, 161475, 300, 0),
-  (21, 1369570, 162975, 14454, 657),
-  (50, 17032267, 1134678, 78689, 162),
-  (110, 235766497, 6439218, 70000, 100),
-  (300, 2942899417, 23349218, 350000, 100)) d(from_level, base_xp, first_xp, rise, bend)
+  (10, 105733, 64002, 3758, 0),
+  (15, 463323, 82792, 78683, 0),
+  (16, 546115, 161475, 300, 0),
+  (21, 1356490, 162975, 14454, 657),
+  (50, 17019187, 1134678, 78689, 162),
+  (110, 235753417, 6439218, 70000, 100),
+  (300, 2942886337, 23349218, 350000, 100)) d(from_level, base_xp, first_xp, rise, bend)
                  where not exists (select 1 from public.hr_level_curve k where k.from_level = d.from_level and k.base_xp = d.base_xp
                                      and k.first_xp = d.first_xp and k.rise = d.rise and k.bend = d.bend)) then
     raise exception 'level-curve: hr_level_curve is not the generated 16-row set'; end if;
   select string_agg(p.l || ': ' || public.hr_char_xp_for_level(p.l) || ' <> ' || p.x, ', ') into v_bad
-    from (values (1, 0), (2, 210), (3, 619), (4, 1417), (5, 2977), (6, 9418), (7, 21731), (8, 42731), (9, 71731), (10, 105733), (11, 169735), (14, 389521), (15, 472043), (16, 559195), (17, 720670), (20, 1206895), (21, 1369570), (22, 1532545), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (109, 229425246), (110, 235766497), (111, 242205715), (200, 1119542617), (299, 2919658099), (300, 2942899417), (301, 2966248635), (500, 14842413017), (750, 51836180017), (1000, 116323697017), (5000, 7437273969017)) p(l, x)
+    from (values (1, 0), (2, 210), (3, 619), (4, 1417), (5, 2977), (6, 9418), (7, 21731), (8, 42731), (9, 71731), (10, 105733), (11, 169735), (14, 384289), (15, 463323), (16, 546115), (17, 707590), (20, 1193815), (21, 1356490), (22, 1519465), (25, 2104312), (49, 15936412), (50, 17019187), (51, 18153865), (100, 176695962), (109, 229412166), (110, 235753417), (111, 242192635), (200, 1119529537), (299, 2919645019), (300, 2942886337), (301, 2966235555), (500, 14842399937), (750, 51836166937), (1000, 116323683937), (5000, 7437273955937)) p(l, x)
    where public.hr_char_xp_for_level(p.l) <> p.x;
   if v_bad is not null then raise exception 'level-curve: hr_char_xp_for_level disagrees with src/core/xp.js at %', v_bad; end if;
   select string_agg(p.l::text, ', ') into v_bad
-    from (values (1, 0), (2, 210), (3, 619), (4, 1417), (5, 2977), (6, 9418), (7, 21731), (8, 42731), (9, 71731), (10, 105733), (11, 169735), (14, 389521), (15, 472043), (16, 559195), (17, 720670), (20, 1206895), (21, 1369570), (22, 1532545), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (109, 229425246), (110, 235766497), (111, 242205715), (200, 1119542617), (299, 2919658099), (300, 2942899417), (301, 2966248635), (500, 14842413017), (750, 51836180017), (1000, 116323697017), (5000, 7437273969017)) p(l, x)
+    from (values (1, 0), (2, 210), (3, 619), (4, 1417), (5, 2977), (6, 9418), (7, 21731), (8, 42731), (9, 71731), (10, 105733), (11, 169735), (14, 384289), (15, 463323), (16, 546115), (17, 707590), (20, 1193815), (21, 1356490), (22, 1519465), (25, 2104312), (49, 15936412), (50, 17019187), (51, 18153865), (100, 176695962), (109, 229412166), (110, 235753417), (111, 242192635), (200, 1119529537), (299, 2919645019), (300, 2942886337), (301, 2966235555), (500, 14842399937), (750, 51836166937), (1000, 116323683937), (5000, 7437273955937)) p(l, x)
    where public.hr_char_level(p.x) <> p.l
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;

@@ -61,7 +61,7 @@ export const FORMULA_IO = Object.freeze({
     { as: { hp: 'hero.healCast' } }),
   'C-SPELL-SHELL': f(['src/data/abilities.js#castAmount', 'src/core/hunt/abilities.js#landsShield,shieldRefund', EFFECT], ['+hero.maxHit', ['+hero.castPower', 'the cast\'s power is the argument pm']], ['hero.shell', ['hero.manaCost', 'a recast of a self shell refunds the unused part as mana']],
     { as: { mana: 'hero.manaCost' }, skip: { maxHp: 'landsShield passes the caster\'s max HP on to castAmount, where only Mend reads it' } }),
-  'C-CAST-POWER': f(['src/data/runes.js#versionStep,versionLevel', 'src/core/hunt/abilities.js#surged', EFFECT], ['+hero.skill', ['+gear.perk', 'Surge is a jewel perk, read off the unit as surgePm']], ['hero.castPower'],
+  'C-CAST-POWER': f(['src/data/runes.js#versionStep,versionLevel', 'src/core/hunt/abilities.js#surged,runeFor', EFFECT], ['+hero.skill', ['+gear.perk', 'Surge is a jewel perk, read off the unit as surgePm']], ['hero.castPower'],
     { as: { level: 'hero.skill' }, skip: { heals: 'Surge asks only whether the row lands a number', shells: 'the same question' } }),
   'C-STATUS': f(['src/core/hunt/status.js#stackScale,tickAmount,stacksOf,countOf,applyStatus,tickStatuses'], ['+hero.maxHit>status.tick', '+hero.castPower', '-hero.resist'],
     ['status.tick', ['status.mark', 'a marking status is a row with takenPm, landed by applyStatus'], ['status.wither', 'a heal-cutting status is a row with healCutPm, landed by applyStatus'], ['unit.slow', 'a slowing status is a row with slowPm, landed by applyStatus']],
@@ -112,7 +112,7 @@ export const FORMULA_IO = Object.freeze({
   // ── progression ──
   'P01': f(['src/core/xp.js#levelCurveRowsOf,LEVEL_ROWS,levelCurveRows,totalIn,xpForLevelOn,charXpForLevel,charLevelFromXp'], [['@+hero.levelXp>hero.level', 'the total arrives as the argument'], ['!pace.contract', 'the curve was fit to the pace contract by hand']], ['level.cost', ['hero.level', 'charLevelFromXp returns the Level a total makes']]),
   'P02': f(['src/data/balance-sheet.js#contractXpPerH'], [['!levelXpPerH', 'the contract was written from measured Level XP an hour']], ['pace.contract']),
-  'P03': f(['src/core/xp.js#SKILL_TOTAL,powNum,powDen,growSkillTo,isCapped,skillCapOf,skillXpForLevel,skillLevelFromXp'], ['@+hero.skillXp>hero.skill'], ['skill.cost', 'hero.skill'],
+  'P03': f(['src/core/xp.js#walkOf,TIME_NUM,growTime,powNum,powDen,growFlame,totalsOf,isCapped,skillCapOf,skillXpForLevel,skillLevelFromXp'], ['@+hero.skillXp>hero.skill'], ['skill.cost', 'hero.skill'],
     { as: { xp: 'hero.skillXp' }, skip: { MAX_LEVEL: 'a capped skill is handed to P04\'s table', xpForLevel: 'the same', levelFromXp: 'the same' } }),
   'P04': f(['src/core/xp.js#XP_TABLE,MAX_LEVEL,levelFromXp,xpForLevel,xpToNext,xpPct'], [], ['town.skill'], { as: { xp: 'town.skill' } }),
   'P05': f(['src/core/progression.js#grantXp'], [['+skill.xpRaw', 'the amount arrives as the argument'], '+perk.xp'], ['hero.skillXp'], { as: { skillLevelFromXp: 'hero.skillXp' } }),

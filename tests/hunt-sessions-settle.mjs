@@ -1627,6 +1627,8 @@ async function installGround(db, row = groundRow) {
   await withdrawScale(db, rows.map((g) => g.hunt));
 }
 
+/* the most XP one hr_apply call may credit a skill, under its c_max_xp_delta (12,000,000: 2026-10-27-core-bodies.sql) */
+const XP_CALL_MAX = 10000000;
 async function admin(db, uid, delta) {
   const v = await one(db, 'select version from public.player_state where user_id = $1 and slot = 0', [uid]);
   const [r] = await makeExec(db)('select public.hr_apply($1::uuid, 0, $2::bigint, $3::uuid, $4::text::jsonb) as r',
@@ -1647,7 +1649,14 @@ async function character(db, M, uid, o) {
     await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3) on conflict (user_id, slot, item_id) do update set qty = excluded.qty', [uid, item, qty]);
   }
   if (o.level) {
-    await admin(db, uid, { xp: Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, o.level)])) });
+    /* skills at the Level, in calls of at most XP_CALL_MAX a skill: hr_apply refuses more in one call (c_max_xp_delta 12,000,000 a skill, xp_clamp),
+       and on the Level clock (27 P-3) a skill past about 57 holds more than that */
+    const want = Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, o.level)]));
+    while (Object.values(want).some((x) => x > 0)) {
+      const part = Object.fromEntries(Object.entries(want).filter(([, x]) => x > 0).map(([k, x]) => [k, Math.min(x, XP_CALL_MAX)]));
+      await admin(db, uid, { xp: part });
+      for (const [k, x] of Object.entries(part)) want[k] -= x;
+    }
     /* Level XP is credited only by the hunt settle (kills only): a fixture sets it directly. */
     await db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [uid, M.XP.charXpForLevel(o.level) + (o.levelXpOver || 0)]);
   }
@@ -2625,6 +2634,12 @@ const DB_ARMS = {
     }
     await db.exec('revoke execute on function public.hr_hunt_rune_state(uuid, int, uuid, text) from public, anon, authenticated, service_role');
     await db.exec('revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role');
+    /* The rune gates moved on too (the designer's ruling 29 section 7 item 10: each tier at the Level the old careers reached it, Graven Fire at
+       Magic 71 in hr_hunt_rune_spells, 1069-wave3-moves-rune-spells): this file's §3(h) sets Magic 60 and reads its Graven rune as unlocked, the
+       gate it was written on, so Fireball's Graven gate goes back to 60 the same way, inside this rolled-back transaction. */
+    await db.exec(`do $$ declare v jsonb := jsonb_set(public.hr_hunt_rune_spells(), '{fireball,runes,graven_fire_rune}', '60'); begin
+      execute format('create or replace function public.hr_hunt_rune_spells() returns jsonb language sql immutable parallel safe set search_path = public, pg_catalog as %L', 'select ' || quote_literal(v::text) || '::jsonb');
+    end $$;`);
     const before = await image();
     try { await db.exec(carryIn); }
     catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
@@ -2802,22 +2817,23 @@ const DB_ARMS = {
       beforeEnter: () => admin(db, UID, { equip: { weapon: 'practice_wand', shield: null, ammo: null } }) });
     const storeId = (tier) => (tier === 1 ? 'plain_fire_rune' : 'plain_' + M.RUNES.runeId('fire', tier));
 
-    /* (1) EVERY TIER, AT ITS OWN LEVEL: read usable, buy only that row, charge the catalogue's price per cast; closed and viewed agree. */
+    /* (1) EVERY TIER, AT ITS OWN LEVEL: read usable, buy only that row, charge the catalogue's price per cast; closed and viewed agree.
+       (a tier's level is its Magic gate, runes.js versionLevel: 1 / 8 / 15 / 39 / 71 since the designer's ruling 29 section 7 item 10) */
     for (const t of M.RUNES.RUNE_TIERS) {
-      const id = storeId(t.tier);
-      /* STORE-STEP (1062-store-step.sql): off the Danger scale a cast costs its row at the hero's Level (mage() sets it to t.level) */
-      const price = M.SB.storeUsePrice(id, t.level);
+      const id = storeId(t.tier), lv = M.RUNES.versionLevel(t.tier);
+      /* STORE-STEP (1062-store-step.sql): off the Danger scale a cast costs its row at the hero's Level (mage() sets it to the gate) */
+      const price = M.SB.storeUsePrice(id, lv);
       const seen = {};
       await inTx(db, async () => {
         await pinNow(FROM);
-        const h = await hunter(db, M, mage(t.level, id));
+        const h = await hunter(db, M, mage(lv, id));
         await db.query('savepoint ladder');
         for (const path of Object.keys(doors)) {
           const v = await view();
           const row = (v.store || []).find((r) => r.id === id);
           if (!row || row.price !== price) problems.push(`${id}: the view states ${JSON.stringify(row)}, the catalogue ${price}`);
-          if (v.slots[0].action.store !== id || v.slots[0].usable !== true || v.slots[0].why) problems.push(`${id} at level ${t.level}: ${path}: the slot reads ${said(v.slots[0])} naming ${v.slots[0].action.store}`);
-          const shown = storeChoices({ type: 'ability', id: 'fireball' }, v.store, { magic: { level: t.level } }).find((c) => c.id === id);
+          if (v.slots[0].action.store !== id || v.slots[0].usable !== true || v.slots[0].why) problems.push(`${id} at level ${lv}: ${path}: the slot reads ${said(v.slots[0])} naming ${v.slots[0].action.store}`);
+          const shown = storeChoices({ type: 'ability', id: 'fireball' }, v.store, { magic: { level: lv } }).find((c) => c.id === id);
           if (!shown || shown.price !== price || shown.short) problems.push(`${id}: Configure action shows ${JSON.stringify(shown)}, the server charges ${price}`);
           if (await settle(path, h)) {
             const rows = await buys(h.sid);
@@ -2839,17 +2855,18 @@ const DB_ARMS = {
       if (seen.closed && seen.viewed && canon(seen.closed) !== canon(seen.viewed)) problems.push(`${id}: browser closed vs viewed wrote different rows ${firstDiff(canon(seen.closed), canon(seen.viewed))}`);
     }
 
-    /* (2) ONE LEVEL SHORT: struck in words, nothing cast, nothing bought, never a cheaper rune; closed and viewed. */
+    /* (2) ONE LEVEL SHORT: struck in words, nothing cast, nothing bought, never a cheaper rune; closed and viewed (one under the Scored gate). */
+    const short = M.RUNES.versionLevel(2) - 1;
     await inTx(db, async () => {
       await pinNow(FROM);
-      const h = await hunter(db, M, mage(14, 'plain_scored_fire_rune'));
+      const h = await hunter(db, M, mage(short, 'plain_scored_fire_rune'));
       await db.query('savepoint short');
       for (const path of Object.keys(doors)) {
         const v = await view();
-        if (v.slots[0].usable !== false || v.slots[0].why !== 'store_level') problems.push(`Magic 14 naming Scored: ${path}: reads ${said(v.slots[0])}`);
+        if (v.slots[0].usable !== false || v.slots[0].why !== 'store_level') problems.push(`Magic ${short} naming Scored: ${path}: reads ${said(v.slots[0])}`);
         if (await settle(path, h)) {
           const rows = await buys(h.sid);
-          if (rows.length) problems.push(`Magic 14 naming Scored: ${path}: bought ${JSON.stringify(rows.map((r) => r.items))}`);
+          if (rows.length) problems.push(`Magic ${short} naming Scored: ${path}: bought ${JSON.stringify(rows.map((r) => r.items))}`);
         }
         await db.query('rollback to savepoint short');
       }
@@ -5617,7 +5634,7 @@ const MUTANTS = [
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n    return l;', to: '    return l;' },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the engine casts a store rune with no level gate', file: 'src/core/hunt/abilities.js',
-    from: "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", to: "" },
+    from: "  if (version && lv < versionLevel(version, abilitySkill(row))) return { why: 'level', short: false };\n", to: "" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the engine charges every store rune Plain (the row named is not the row bought)', file: 'src/core/hunt/abilities.js',
     from: "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", to: "  const s = version ? storeLine(h.hs, row.rune, 'plain_fire_rune') : { why: 'none' };" },
   { arm: 'RUNE-SUPPLY', name: '[rune supply] the proposal\'s runes_out end names no spell (the server cannot re-prove it)', file: join(FN, 'accrue-hunt.js'),

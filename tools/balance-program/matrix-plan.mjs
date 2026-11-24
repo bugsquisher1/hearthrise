@@ -23,6 +23,7 @@ import { STYLES } from '../balance-sim/styles.mjs';
 import { compsOf, cellKey, buildCell, MAIN, readTracks } from './progression-grid.mjs';
 import { huntGrounds, bandEnds, partyComps } from './atlas/rates.mjs';
 import { lineKit } from './grid-project.mjs';
+import { RUNE_TIERS as PLAYED_RUNE_TIERS } from '../balance-sim/played.mjs';
 
 export const WAYS = Object.freeze(Object.keys(STYLES));
 export const HIGH_LEVELS = Object.freeze([1000, 2000, 5000]);
@@ -112,8 +113,8 @@ const DEATHS = Object.freeze({ id: 'deaths', levels: Object.freeze([10, 30, 60, 
    its own rows. No seat wears fists yet: the matrix has no fist way (FR-5 adds it), so the fist switch moves the tables and no cell */
 export const CH14_CAPS = Object.freeze({ id: 'caps', levels: Object.freeze([60, 185]), comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'],
   variants: Object.freeze([Object.freeze({ tag: 'buff:caps-no-protection', buffs: Object.freeze([Object.freeze({ type: 'damage', magnitude: 15 }), Object.freeze({ type: 'level_xp', magnitude: 30 })]) })]) });
-/* the store rune of the tier a skill level casts and the runes a hero owns of a family (the played bar's rule, elements-6b-table.mjs) */
-const RUNE_TIER_AT = Object.freeze([[60, 'graven'], [45, 'carved'], [30, 'etched'], [15, 'scored'], [1, 'chalked']]);
+/* the store rune of the tier a skill level casts and the runes a hero owns of a family (the played bar's rule: played.mjs RUNE_TIERS, the game's rune gates) */
+const RUNE_TIER_AT = PLAYED_RUNE_TIERS;
 const ch14Spell = (id, family, lv, conditions = []) => {
   const t = RUNE_TIER_AT.find(([l]) => lv >= l)[1];
   return { id: 'p_' + id, join: 'and', conditions, action: { id, type: 'ability', own: RUNE_TIER_AT.map(([, x]) => x + '_' + family + '_rune').reverse(), store: t === 'chalked' ? 'plain_' + family + '_rune' : 'plain_' + t + '_' + family + '_rune', onEmpty: 'store' } };

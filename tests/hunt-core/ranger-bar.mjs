@@ -13,7 +13,7 @@
 //   shot-spell-words a shot spell the engine never casts is struck on the bar with its reason (Andy #62, v0.2.34:
 //                   Precision Shot and Flame Volley read ready and never fired): eleven Ranger setups on the real settle,
 //                   the bar's reason (action-facts.js reasonOf) strikes Precision Shot exactly when the engine casts it 0 times.
-//   under-skill     a slot's ammo the hero's skill can't use yet (Mithril Arrows, Ranged 45; a Ranged 42 hero was on them):
+//   under-skill     a slot's ammo the hero's skill can't use yet (Mithril Arrows at its Ranged gate; a hero three under it was on them):
 //                   carried, it is not shot; from the store, it is not bought; a shot spell passes it over; the next
 //                   slot flies, the wait is said (rule_wait level), and at the level the same bar fires it, nothing pressed.
 //
@@ -117,34 +117,37 @@ const countOf = (list, id) => list.filter((x) => x === id).length;
 async function underSkill(root) {
   const P = await loadPlay(root);
   const XP = await import(pathToFileURL(join(root, 'src/core/xp.js')).href + V);
+  /* Mithril's gate read off the row (core-model.js SUPPLY_GATES, Ranged 39 since the designer's ruling 29 section 7 item 10), and a hero three under it */
+  const { ITEMS } = await import(pathToFileURL(join(root, 'src/data/items.js')).href + V);
+  const G = ITEMS.mithril_arrows.reqLv, U = G - 3;
   const BAR = [ab('precision_shot'), atk('mithril_arrows'), atk('bronze_arrows')];
   const BAG = { mithril_arrows: { loaded: 2000 }, bronze_arrows: { loaded: 1 } };
   /* carried, under the skill: not one spent, the next slot flies, the shot spell looses it */
-  const low = underSkillRun(P, 42, BAR, BAG);
-  if (!(low.shots.length >= 20)) return 'CONTROL: a Ranged 42 hero shot ' + low.shots.length + ' time(s) in 12 min';
-  if (countOf(low.shots, 'mithril_arrows') || low.uses.mithril_arrows) return 'Ranged 42 shot Mithril Arrows (Ranged 45): shots ' + countOf(low.shots, 'mithril_arrows') + ', spent ' + low.uses.mithril_arrows;
-  if (!countOf(low.shots, 'bronze_arrows')) return 'Ranged 42 did not fall through to the next slot: ' + JSON.stringify([...new Set(low.shots)]);
+  const low = underSkillRun(P, U, BAR, BAG);
+  if (!(low.shots.length >= 20)) return 'CONTROL: a Ranged ' + U + ' hero shot ' + low.shots.length + ' time(s) in 12 min';
+  if (countOf(low.shots, 'mithril_arrows') || low.uses.mithril_arrows) return 'Ranged ' + U + ' shot Mithril Arrows (Ranged ' + G + '): shots ' + countOf(low.shots, 'mithril_arrows') + ', spent ' + low.uses.mithril_arrows;
+  if (!countOf(low.shots, 'bronze_arrows')) return 'Ranged ' + U + ' did not fall through to the next slot: ' + JSON.stringify([...new Set(low.shots)]);
   if (!(low.casts.precision_shot > 0)) return 'Precision Shot never cast on the slot behind Mithril: ' + JSON.stringify(low.casts);
   /* the control: at the level the same bar and bag fire it */
-  const at = underSkillRun(P, 45, BAR, BAG);
-  if (!(at.uses.mithril_arrows > 0) || !countOf(at.shots, 'mithril_arrows')) return 'CONTROL: Ranged 45 shot no Mithril Arrows: ' + JSON.stringify(at.uses);
+  const at = underSkillRun(P, G, BAR, BAG);
+  if (!(at.uses.mithril_arrows > 0) || !countOf(at.shots, 'mithril_arrows')) return 'CONTROL: Ranged ' + G + ' shot no Mithril Arrows: ' + JSON.stringify(at.uses);
   /* the store: nothing bought under the skill, the wait is said, and with nothing else to shoot the hunt ends no_fight (a slot with a test stands ahead of the worn row, conditions.js attackOrder) */
   /* (the hero stands twelve minutes under the Glade's blows and must outlast the no-fight clock: since the to-hit ratio, 2026-11-20, a Level
      alone no longer turns those blows aside, so this one carries a Defense the Glade's aims mostly miss) */
-  const sturdy = () => ({ skills: Object.fromEntries(['melee', 'ranged', 'magic', 'defense', 'inner_flame'].map((k) => [k, XP.skillXpForLevel(k, k === 'defense' ? 150 : 42)])) });
-  const store = underSkillRun(P, 42, [{ ...atk('mithril_arrows'), conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 100 }] }], {}, sturdy);
-  if (store.buys.plain_mithril_arrows) return 'Ranged 42 bought ' + store.buys.plain_mithril_arrows + ' store Mithril Arrows';
-  if (store.shots.length) return 'Ranged 42 with only Mithril on its bar shot ' + store.shots.length + ' time(s)';
+  const sturdy = () => ({ skills: Object.fromEntries(['melee', 'ranged', 'magic', 'defense', 'inner_flame'].map((k) => [k, XP.skillXpForLevel(k, k === 'defense' ? 150 : U)])) });
+  const store = underSkillRun(P, U, [{ ...atk('mithril_arrows'), conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 100 }] }], {}, sturdy);
+  if (store.buys.plain_mithril_arrows) return 'Ranged ' + U + ' bought ' + store.buys.plain_mithril_arrows + ' store Mithril Arrows';
+  if (store.shots.length) return 'Ranged ' + U + ' with only Mithril on its bar shot ' + store.shots.length + ' time(s)';
   if (!store.waits.includes('mithril_arrows')) return 'the wait was not said (rule_wait level): ' + JSON.stringify(store.waits);
   if (!store.x.ended.some((e) => /no_fight/.test(e))) return 'a hero with nothing it can shoot ended ' + JSON.stringify(store.x.ended) + ', want no_fight';
-  const bought = underSkillRun(P, 45, [atk('mithril_arrows')], {});
-  if (!bought.buys.plain_mithril_arrows) return 'CONTROL: Ranged 45 bought no store Mithril Arrows: ' + JSON.stringify(bought.buys);
+  const bought = underSkillRun(P, G, [atk('mithril_arrows')], {});
+  if (!bought.buys.plain_mithril_arrows) return 'CONTROL: Ranged ' + G + ' bought no store Mithril Arrows: ' + JSON.stringify(bought.buys);
   /* the slot wakes at the level mid-hunt: the same bar, nothing pressed */
-  const near = underSkillRun(P, 42, BAR, BAG, () => ({ skills: Object.fromEntries(['melee', 'ranged', 'magic', 'defense', 'inner_flame'].map((k) => [k, k === 'ranged' ? XP.skillXpForLevel('ranged', 45) - 200 : XP.skillXpForLevel(k, 42)])) }));
+  const near = underSkillRun(P, U, BAR, BAG, () => ({ skills: Object.fromEntries(['melee', 'ranged', 'magic', 'defense', 'inner_flame'].map((k) => [k, k === 'ranged' ? XP.skillXpForLevel('ranged', G) - 200 : XP.skillXpForLevel(k, U)])) }));
   const first = near.shots.indexOf('mithril_arrows');
-  if (!(first > 0) || near.shots[0] !== 'bronze_arrows') return 'the slot did not wake at Ranged 45 mid-hunt: first Mithril shot at ' + first + ', shots ' + JSON.stringify([...new Set(near.shots)]);
-  console.log('  under-skill: 12 min alone in the Glade: Ranged 42 shots ' + low.shots.length + ' [' + [...new Set(low.shots)].join(', ') + '], Precision Shot ' + low.casts.precision_shot + ', Mithril spent 0; Ranged 45 Mithril spent ' + at.uses.mithril_arrows
-    + '; store at 42 bought 0, ended ' + store.x.ended.join(', ') + '; store at 45 bought ' + bought.buys.plain_mithril_arrows + '; wakes at Ranged 45 after ' + first + ' shots');
+  if (!(first > 0) || near.shots[0] !== 'bronze_arrows') return 'the slot did not wake at Ranged ' + G + ' mid-hunt: first Mithril shot at ' + first + ', shots ' + JSON.stringify([...new Set(near.shots)]);
+  console.log('  under-skill: 12 min alone in the Glade: Ranged ' + U + ' shots ' + low.shots.length + ' [' + [...new Set(low.shots)].join(', ') + '], Precision Shot ' + low.casts.precision_shot + ', Mithril spent 0; Ranged ' + G + ' Mithril spent ' + at.uses.mithril_arrows
+    + '; store at ' + U + ' bought 0, ended ' + store.x.ended.join(', ') + '; store at ' + G + ' bought ' + bought.buys.plain_mithril_arrows + '; wakes at Ranged ' + G + ' after ' + first + ' shots');
   return null;
 }
 
@@ -173,16 +176,18 @@ async function clientWords(root) {
   /* A SHOT UNDER ITS SKILL (the bag reads the server's skills section): struck with both numbers, a word in Configure action, kept on a
      bar, quiet at the level, and never a guess before the server has said (SAY WHY, Tyler 2026-10-25). */
   const at = (n) => ({ ranged: { xp: 1, level: n } });
+  /* Mithril's gate read off the row (core-model.js SUPPLY_GATES), and a hero three under it */
+  const G = (await imp('src/data/items.js')).ITEMS.mithril_arrows.reqLv, U = G - 3;
   const held = [{ id: 'mithril_arrows', qty: 5 }];
-  const under = F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(42));
-  if (!under || !under.strike || under.code !== 'skill' || under.text !== 'Requires Ranged 45, now 42, next ammo fires meanwhile') return 'Mithril Arrows at Ranged 42 read ' + JSON.stringify(under);
-  if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(45))) return 'Mithril Arrows at Ranged 45 read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(45)));
+  const under = F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(U));
+  if (!under || !under.strike || under.code !== 'skill' || under.text !== 'Requires Ranged ' + G + ', now ' + U + ', next ammo fires meanwhile') return 'Mithril Arrows at Ranged ' + U + ' read ' + JSON.stringify(under);
+  if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(G))) return 'Mithril Arrows at Ranged ' + G + ' read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(G)));
   if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, null)) return 'with no skills from the server yet, Mithril Arrows read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, null));
-  if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(42)) !== under.text) return 'Configure action on Mithril Arrows at Ranged 42 reads ' + JSON.stringify(F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(42)));
-  if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(45))) return 'Configure action warns at Ranged 45';
+  if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(U)) !== under.text) return 'Configure action on Mithril Arrows at Ranged ' + U + ' reads ' + JSON.stringify(F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(U)));
+  if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(G))) return 'Configure action warns at Ranged ' + G;
   const ammoRun = (skills) => T.tableOf('ammo', { role: 'ranger', bag: [], store: [], skills }).runs.find((r) => r.kind === 'ammo').rows.find((r) => r.action.id === 'mithril_arrows');
-  if (!ammoRun(at(42)).locked || ammoRun(at(42)).lockWhy !== 'Requires Ranged 45, now 42') return 'the Ammo run at Ranged 42 reads ' + JSON.stringify(ammoRun(at(42)));
-  if (ammoRun(at(45)).locked || ammoRun(null).locked) return 'the Ammo run locks Mithril Arrows at Ranged 45 or before the server has said: ' + JSON.stringify([ammoRun(at(45)).locked, ammoRun(null).locked]);
+  if (!ammoRun(at(U)).locked || ammoRun(at(U)).lockWhy !== 'Requires Ranged ' + G + ', now ' + U) return 'the Ammo run at Ranged ' + U + ' reads ' + JSON.stringify(ammoRun(at(U)));
+  if (ammoRun(at(G)).locked || ammoRun(null).locked) return 'the Ammo run locks Mithril Arrows at Ranged ' + G + ' or before the server has said: ' + JSON.stringify([ammoRun(at(G)).locked, ammoRun(null).locked]);
   const run = T.tableOf('ammo', { role: 'ranger', bag: [], store: [] }).runs.find((r) => r.kind === 'ammo');
   const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;
   const stones = (run ? run.rows : []).filter((r) => /whetstone|_rune$/.test(r.action.id)).map((r) => r.action.id);

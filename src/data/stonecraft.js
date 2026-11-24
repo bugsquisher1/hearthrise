@@ -60,7 +60,8 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js';
+import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName, versionLevel } from './runes.js';
+import { SUPPLY_GATES } from './core-model.js';
 
 /* ── R7: ONE STAT CURVE ACROSS THE AMMO LADDERS ───────────────────────
    `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows and whetstones
@@ -79,7 +80,9 @@ import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js';
        every future speed item into a null item.
    Whetstones carry `strB` only: they pay the one style that would ever equip them. */
 const AMMO_STAT = [2, 3, 5, 8, 11, 14, 18];
-const AMMO_REQ_LV = [1, 15, 30, 45, 60, 75, 88];
+/* the ladder's MADE-AT Level a tier: what a store basic is priced at (supply-basics.js chargeInput). The Melee a whetstone needs is the clock's
+   gate, core-model.js SUPPLY_GATES (lane/skills-time-parity: the old gates were these same Levels, in skill) */
+const AMMO_MADE_LV = [1, 15, 30, 45, 60, 75, 88];
 const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legendary', 'mythic'];
 
 /* ── THE RUNES: FAMILY x TIER (Tyler 2026-10-23, rulings of record RUNE FAMILIES and COMBAT AUDIT ANSWERS;
@@ -102,7 +105,7 @@ const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', i
    Fire family; the others followed in batches of 20 rows or fewer (DESIGN_STANDARDS §9). */
 export const CRAFTED_RUNE_FAMILIES = Object.freeze(Object.keys(RUNE_FAMILIES).filter((f) => !RUNE_FAMILIES[f].hidden));
 const runeRow = (family, t) => ({ n: runeName(family, t.tier), icon: RUNE_GLYPH[family], v: RUNE_VALUE[t.tier - 1], type: 'ammo', slot: 'ammo',
-  tier: t.tier, rarity: AMMO_RARITY[t.tier - 1], reqSkill: 'magic', reqLv: t.level, ammoPerShot: 1, family, runeTier: t.tier });
+  tier: t.tier, rarity: AMMO_RARITY[t.tier - 1], reqSkill: 'magic', reqLv: versionLevel(t.tier), madeLv: t.level, ammoPerShot: 1, family, runeTier: t.tier });
 const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => [runeId(f, t.tier), runeRow(f, t)])));
 
 /* ONE BIND RECIPE A RUNE: the Blank Rune in, at the tier's Runecrafting level. A deeper mark takes more stone: a
@@ -172,13 +175,13 @@ export const STONECRAFT_ITEMS = {
      is a CEILING, not a floor (R5): melee loses nothing when it is gone, so there is no new player to
      protect and a free stone was a free +2 strB forever. 0.02 like its ladder: one stone per fifty
      swings. The arrow's first rung stays FREE: an empty quiver IS a penalty. It books at 0 (W0). */
-  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: 0.02 },
-  copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
-  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
-  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
-  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: AMMO_REQ_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
-  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 20, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
-  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 100, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
+  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[0], madeLv: AMMO_MADE_LV[0], strB: AMMO_STAT[0], ammoPerShot: 0.02 },
+  copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[1], madeLv: AMMO_MADE_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
+  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[2], madeLv: AMMO_MADE_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
+  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[3], madeLv: AMMO_MADE_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
+  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[4], madeLv: AMMO_MADE_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
+  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 20, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[5], madeLv: AMMO_MADE_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
+  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 100, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[6], madeLv: AMMO_MADE_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
 };
 

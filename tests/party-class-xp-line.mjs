@@ -54,7 +54,6 @@ import { PLAY_TREES } from './hunt-core/fixtures/play-ground.mjs';
 import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
 import { runPool } from '../tools/balance-sim/pool.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
-import { CATACOMB_WING_GROUNDS } from '../src/data/catacomb-wings.js';
 
 const BAR = 1.0;
 const WIDE = process.argv.includes('--wide');
@@ -435,9 +434,9 @@ function writeLines(lines, packIds) {
       written.push('src/data/grounds/' + g + '/pack.js');
     } else {
       const re = new RegExp('^ {2}' + g + ': lines\\(\\{ normal: .*\\}\\),$', 'm');
-      /* a Catacomb wing carries the Catacombs' line (src/data/catacomb-wings.js) until the designer writes its own: printed above, not written */
-      if (!re.test(src) && Object.prototype.hasOwnProperty.call(CATACOMB_WING_GROUNDS, g)) { console.log('  (' + g + ' carries the Catacombs line: measured, not written)'); continue; }
-      if (!re.test(src)) throw new Error(g + ': party-class-xp.js has no BASE_VS_ALONE row to write');
+      /* a ground the window prints no line for (a staged ground with neither a pack line nor a BASE_VS_ALONE row: the Catacomb wings) is
+         measured and named, never written (lane/skills-time-parity: the re-measure on the Level clock died on the first one) */
+      if (!re.test(src)) { console.log('  (no line to write for ' + g + ': the window prints none)'); continue; }
       src = src.replace(re, '  ' + g + ': lines({ ' + each(byTier, said) + ' }),');
     }
   }

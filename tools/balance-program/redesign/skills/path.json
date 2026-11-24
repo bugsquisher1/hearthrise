@@ -1,0 +1,993 @@
+{
+ "when": "2026-11-23",
+ "seeds": 2,
+ "hours": 2,
+ "skills": "line",
+ "curve": {
+  "pacePm": 1000,
+  "xpPerHealthHour": 120,
+  "top": 10000
+ },
+ "rows": [
+  {
+   "L": 5,
+   "ground": "millrace_sewer",
+   "scale": false,
+   "refHealth": 190,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 3,
+     "rate": 16780,
+     "k": 88.3
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 6,
+     "rate": 17415,
+     "k": 91.7
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 6,
+     "rate": 32189,
+     "k": 169.4
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 5,
+     "rate": 21210,
+     "k": 111.6
+    }
+   ],
+   "defense": {
+    "at": 4,
+    "rate": 5381,
+    "k": 28.3
+   },
+   "levelXpPerHeroH": 45042
+  },
+  {
+   "L": 10,
+   "ground": "millrace_sewer",
+   "scale": false,
+   "refHealth": 240,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 18,
+     "rate": 19528,
+     "k": 81.4
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 19,
+     "rate": 19305,
+     "k": 80.4
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 22,
+     "rate": 32732,
+     "k": 136.4
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 20,
+     "rate": 17405,
+     "k": 72.5
+    }
+   ],
+   "defense": {
+    "at": 15,
+    "rate": 4688,
+    "k": 19.5
+   },
+   "levelXpPerHeroH": 49731
+  },
+  {
+   "L": 15,
+   "ground": "millrace_sewer",
+   "scale": false,
+   "refHealth": 290,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 24,
+     "rate": 23915,
+     "k": 82.5
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 26,
+     "rate": 24611,
+     "k": 84.9
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 30,
+     "rate": 29461,
+     "k": 101.6
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 25,
+     "rate": 11741,
+     "k": 40.5
+    }
+   ],
+   "defense": {
+    "at": 21,
+    "rate": 3219,
+    "k": 11.1
+   },
+   "levelXpPerHeroH": 61266
+  },
+  {
+   "L": 25,
+   "ground": "mosslight_glade",
+   "scale": false,
+   "refHealth": 390,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 31,
+     "rate": 13814,
+     "k": 35.4
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 35,
+     "rate": 18733,
+     "k": 48
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 37,
+     "rate": 19420,
+     "k": 49.8
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 34,
+     "rate": 5653,
+     "k": 14.5
+    }
+   ],
+   "defense": {
+    "at": 27,
+    "rate": 2304,
+    "k": 5.9
+   },
+   "levelXpPerHeroH": 55425
+  },
+  {
+   "L": 40,
+   "ground": "coppercap_warrens",
+   "scale": false,
+   "refHealth": 540,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 41,
+     "rate": 49104,
+     "k": 90.9
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 45,
+     "rate": 56964,
+     "k": 105.5
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 45,
+     "rate": 47871,
+     "k": 88.7
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 43,
+     "rate": 20585,
+     "k": 38.1
+    }
+   ],
+   "defense": {
+    "at": 40,
+    "rate": 11836,
+    "k": 21.9
+   },
+   "levelXpPerHeroH": 248784
+  },
+  {
+   "L": 52,
+   "ground": "hasks_ford",
+   "scale": true,
+   "refHealth": 660,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 47,
+     "rate": 93702,
+     "k": 142
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 52,
+     "rate": 81593,
+     "k": 123.6
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 51,
+     "rate": 49137,
+     "k": 74.5
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 49,
+     "rate": 90773,
+     "k": 137.5
+    }
+   ],
+   "defense": {
+    "at": 47,
+    "rate": 33349,
+    "k": 50.5
+   },
+   "levelXpPerHeroH": 215238
+  },
+  {
+   "L": 60,
+   "ground": "muster_barrows",
+   "scale": true,
+   "refHealth": 740,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 52,
+     "rate": 97136,
+     "k": 131.3
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 56,
+     "rate": 108167,
+     "k": 146.2
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 54,
+     "rate": 73520,
+     "k": 99.4
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 54,
+     "rate": 134695,
+     "k": 182
+    }
+   ],
+   "defense": {
+    "at": 53,
+    "rate": 57890,
+    "k": 78.2
+   },
+   "levelXpPerHeroH": 285216
+  },
+  {
+   "L": 70,
+   "ground": "muster_barrows",
+   "scale": true,
+   "refHealth": 840,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 59,
+     "rate": 98265,
+     "k": 117
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 62,
+     "rate": 108886,
+     "k": 129.6
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 59,
+     "rate": 83800,
+     "k": 99.8
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 58,
+     "rate": 153129,
+     "k": 182.3
+    }
+   ],
+   "defense": {
+    "at": 61,
+    "rate": 58090,
+    "k": 69.2
+   },
+   "levelXpPerHeroH": 374176
+  },
+  {
+   "L": 80,
+   "ground": "pyre_field",
+   "scale": false,
+   "refHealth": 940,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 63,
+     "rate": 38347,
+     "k": 40.8
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 66,
+     "rate": 39984,
+     "k": 42.5
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 64,
+     "rate": 33459,
+     "k": 35.6
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 64,
+     "rate": 8896,
+     "k": 9.5
+    }
+   ],
+   "defense": {
+    "at": 65,
+    "rate": 9540,
+    "k": 10.1
+   },
+   "levelXpPerHeroH": 317137
+  },
+  {
+   "L": 100,
+   "ground": "krells_hold",
+   "scale": false,
+   "refHealth": 1140,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 70,
+     "rate": 38502,
+     "k": 33.8
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 73,
+     "rate": 42063,
+     "k": 36.9
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 71,
+     "rate": 25608,
+     "k": 22.5
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 72,
+     "rate": 6952,
+     "k": 6.1
+    }
+   ],
+   "defense": {
+    "at": 72,
+    "rate": 8051,
+    "k": 7.1
+   },
+   "levelXpPerHeroH": 380475
+  },
+  {
+   "L": 120,
+   "ground": "ox_road",
+   "scale": false,
+   "refHealth": 1340,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 76,
+     "rate": 51697,
+     "k": 38.6
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 81,
+     "rate": 59776,
+     "k": 44.6
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 77,
+     "rate": 33926,
+     "k": 25.3
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 78,
+     "rate": 14085,
+     "k": 10.5
+    }
+   ],
+   "defense": {
+    "at": 78,
+    "rate": 16359,
+    "k": 12.2
+   },
+   "levelXpPerHeroH": 553236
+  },
+  {
+   "L": 135,
+   "ground": "wyvern_roost",
+   "scale": false,
+   "refHealth": 1490,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 80,
+     "rate": 55692,
+     "k": 37.4
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 86,
+     "rate": 64596,
+     "k": 43.4
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 81,
+     "rate": 35971,
+     "k": 24.1
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 82,
+     "rate": 22455,
+     "k": 15.1
+    }
+   ],
+   "defense": {
+    "at": 82,
+    "rate": 17166,
+    "k": 11.5
+   },
+   "levelXpPerHeroH": 665261
+  },
+  {
+   "L": 175,
+   "ground": "catacomb_bone_wing",
+   "scale": true,
+   "refHealth": 1890,
+   "main": [
+    {
+     "style": "hammer",
+     "skill": "melee",
+     "at": 89,
+     "rate": 206636,
+     "k": 109.3
+    },
+    {
+     "style": "bow",
+     "skill": "ranged",
+     "at": 95,
+     "rate": 186654,
+     "k": 98.8
+    },
+    {
+     "style": "mage",
+     "skill": "magic",
+     "at": 90,
+     "rate": 56221,
+     "k": 29.7
+    },
+    {
+     "style": "healer",
+     "skill": "magic",
+     "at": 91,
+     "rate": 100726,
+     "k": 53.3
+    }
+   ],
+   "defense": {
+    "at": 91,
+    "rate": 95570,
+    "k": 50.6
+   },
+   "levelXpPerHeroH": 957949
+  }
+ ],
+ "walks": {
+  "reference (the curve K)": {
+   "retired": {
+    "hoursTo": {
+     "10": {
+      "h": 0.3,
+      "L": 3
+     },
+     "30": {
+      "h": 10.6,
+      "L": 14
+     },
+     "60": {
+      "h": 121.5,
+      "L": 44
+     },
+     "100": {
+      "h": 921,
+      "L": 136
+     },
+     "150": {
+      "h": 5863.8,
+      "L": 478
+     },
+     "200": {
+      "h": 26340.3,
+      "L": 1617
+     }
+    },
+    "skillAt": {
+     "10": 22,
+     "30": 47,
+     "60": 69,
+     "100": 88,
+     "150": 103,
+     "200": 114
+    }
+   },
+   "this tree": {
+    "hoursTo": {
+     "10": {
+      "h": 4.2,
+      "L": 10
+     },
+     "30": {
+      "h": 53.7,
+      "L": 30
+     },
+     "60": {
+      "h": 215.1,
+      "L": 60
+     },
+     "100": {
+      "h": 542.6,
+      "L": 100
+     },
+     "150": {
+      "h": 1069.7,
+      "L": 150
+     },
+     "200": {
+      "h": 1683.2,
+      "L": 200
+     }
+    },
+    "skillAt": {
+     "10": 9,
+     "30": 29,
+     "60": 59,
+     "100": 99,
+     "150": 149,
+     "200": 199
+    }
+   }
+  },
+  "hammer Melee": {
+   "retired": {
+    "hoursTo": {
+     "10": {
+      "h": 0.4,
+      "L": 4
+     },
+     "30": {
+      "h": 14.5,
+      "L": 16
+     },
+     "60": {
+      "h": 154.8,
+      "L": 50
+     },
+     "100": {
+      "h": 1383.4,
+      "L": 176
+     },
+     "150": {
+      "h": 6335.4,
+      "L": 507
+     },
+     "200": {
+      "h": 27771.9,
+      "L": 1694
+     }
+    },
+    "skillAt": {
+     "10": 20,
+     "30": 40,
+     "60": 67,
+     "100": 81,
+     "150": 91,
+     "200": 107
+    }
+   },
+   "this tree": {
+    "hoursTo": {
+     "10": {
+      "h": 5.8,
+      "L": 11
+     },
+     "30": {
+      "h": 89.4,
+      "L": 38
+     },
+     "60": {
+      "h": 232.9,
+      "L": 62
+     },
+     "100": {
+      "h": 933,
+      "L": 137
+     },
+     "150": {
+      "h": 1514.8,
+      "L": 186
+     },
+     "200": {
+      "h": 2087.2,
+      "L": 230
+     }
+    },
+    "skillAt": {
+     "10": 8,
+     "30": 22,
+     "60": 56,
+     "100": 82,
+     "150": 108,
+     "200": 165
+    }
+   }
+  },
+  "bow Ranged": {
+   "retired": {
+    "hoursTo": {
+     "10": {
+      "h": 0.4,
+      "L": 4
+     },
+     "30": {
+      "h": 14.3,
+      "L": 16
+     },
+     "60": {
+      "h": 148.5,
+      "L": 49
+     },
+     "100": {
+      "h": 1371.7,
+      "L": 175
+     },
+     "150": {
+      "h": 6690.2,
+      "L": 528
+     },
+     "200": {
+      "h": 29345.5,
+      "L": 1777
+     }
+    },
+    "skillAt": {
+     "10": 20,
+     "30": 41,
+     "60": 68,
+     "100": 82,
+     "150": 92,
+     "200": 107
+    }
+   },
+   "this tree": {
+    "hoursTo": {
+     "10": {
+      "h": 5.7,
+      "L": 11
+     },
+     "30": {
+      "h": 81.2,
+      "L": 36
+     },
+     "60": {
+      "h": 228.5,
+      "L": 61
+     },
+     "100": {
+      "h": 860.2,
+      "L": 131
+     },
+     "150": {
+      "h": 1517.4,
+      "L": 187
+     },
+     "200": {
+      "h": 2144.2,
+      "L": 234
+     }
+    },
+    "skillAt": {
+     "10": 8,
+     "30": 23,
+     "60": 57,
+     "100": 84,
+     "150": 111,
+     "200": 164
+    }
+   }
+  },
+  "mage Magic": {
+   "retired": {
+    "hoursTo": {
+     "10": {
+      "h": 0.3,
+      "L": 3
+     },
+     "30": {
+      "h": 9.4,
+      "L": 13
+     },
+     "60": {
+      "h": 166.6,
+      "L": 52
+     },
+     "100": {
+      "h": 2181.6,
+      "L": 237
+     },
+     "150": {
+      "h": 13237.4,
+      "L": 905
+     }
+    },
+    "skillAt": {
+     "10": 24,
+     "30": 43,
+     "60": 64,
+     "100": 77,
+     "150": 85,
+     "200": 94
+    }
+   },
+   "this tree": {
+    "hoursTo": {
+     "10": {
+      "h": 3.3,
+      "L": 9
+     },
+     "30": {
+      "h": 78.7,
+      "L": 36
+     },
+     "60": {
+      "h": 273.2,
+      "L": 68
+     },
+     "100": {
+      "h": 1237.8,
+      "L": 164
+     },
+     "150": {
+      "h": 2539.3,
+      "L": 263
+     },
+     "200": {
+      "h": 3977.6,
+      "L": 360
+     }
+    },
+    "skillAt": {
+     "10": 10,
+     "30": 25,
+     "60": 51,
+     "100": 75,
+     "150": 93,
+     "200": 117
+    }
+   }
+  },
+  "healer Magic": {
+   "retired": {
+    "hoursTo": {
+     "10": {
+      "h": 0.4,
+      "L": 4
+     },
+     "30": {
+      "h": 21.5,
+      "L": 19
+     },
+     "60": {
+      "h": 181.8,
+      "L": 54
+     },
+     "100": {
+      "h": 1818.8,
+      "L": 210
+     },
+     "150": {
+      "h": 9543.1,
+      "L": 696
+     }
+    },
+    "skillAt": {
+     "10": 21,
+     "30": 34,
+     "60": 65,
+     "100": 79,
+     "150": 84,
+     "200": 97
+    }
+   },
+   "this tree": {
+    "hoursTo": {
+     "10": {
+      "h": 5.5,
+      "L": 11
+     },
+     "30": {
+      "h": 127.7,
+      "L": 45
+     },
+     "60": {
+      "h": 240.7,
+      "L": 63
+     },
+     "100": {
+      "h": 1249.3,
+      "L": 165
+     },
+     "150": {
+      "h": 2045,
+      "L": 227
+     },
+     "200": {
+      "h": 2994.5,
+      "L": 294
+     }
+    },
+    "skillAt": {
+     "10": 9,
+     "30": 18,
+     "60": 53,
+     "100": 80,
+     "150": 90,
+     "200": 128
+    }
+   }
+  },
+  "hammer Defense": {
+   "retired": {
+    "hoursTo": {
+     "10": {
+      "h": 1.1,
+      "L": 6
+     },
+     "30": {
+      "h": 73.3,
+      "L": 34
+     },
+     "60": {
+      "h": 252.2,
+      "L": 65
+     },
+     "100": {
+      "h": 1999.3,
+      "L": 223
+     },
+     "150": {
+      "h": 9874,
+      "L": 715
+     }
+    },
+    "skillAt": {
+     "10": 14,
+     "30": 26,
+     "60": 55,
+     "100": 68,
+     "150": 76,
+     "200": 93
+    }
+   },
+   "this tree": {
+    "hoursTo": {
+     "10": {
+      "h": 29.3,
+      "L": 22
+     },
+     "30": {
+      "h": 170.9,
+      "L": 53
+     },
+     "60": {
+      "h": 637,
+      "L": 109
+     },
+     "100": {
+      "h": 1450.8,
+      "L": 181
+     },
+     "150": {
+      "h": 2224.6,
+      "L": 240
+     },
+     "200": {
+      "h": 3180.1,
+      "L": 307
+     }
+    },
+    "skillAt": {
+     "10": 5,
+     "30": 12,
+     "60": 38,
+     "100": 58,
+     "150": 72,
+     "200": 116
+    }
+   }
+  }
+ }
+}

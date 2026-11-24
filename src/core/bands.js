@@ -3,7 +3,7 @@
 //
 // src/data/bands.js says what an absolute step is and why the band is a formula; this is the arithmetic, in whole thousandths of a Level
 // (permille, "Pm") so the browser, the edge and the Lab read the same number to the last digit:
-//   skillLevelPm(skill, value)   the Level the reference career reaches skill `value` at (SKILL_LINE read backwards), thousandths
+//   skillLevelPm(skill, value)   the Level the reference career reaches skill `value` at (the skill clock read backwards), thousandths
 //   ratingPm({ levelPm, gearPm, skillLevelPm })
 //                                04 section 1's rating: L + wGear x (gear - L) + wSkill x (skillLevel - L), thousandths, rounded once
 //   bandAbs(groundId)            { floorPm, refPm, topPm }: the band's three companies as ratings (null off the scale, or a ground whose
@@ -21,7 +21,8 @@
 // ============================================================
 
 import { DANGER_GROUNDS, DEPTHS, POWER, GEAR_STEPS } from '../data/danger.js';
-import { BAND_ABS, SKILL_LINE } from '../data/bands.js';
+import { BAND_ABS } from '../data/bands.js';
+import { SKILL_CURVE, COMBAT_XP_SKILLS, levelHoursOf } from '../data/core-model.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js';
 
@@ -30,17 +31,27 @@ const rowOf = (groundId) => (own(DANGER_GROUNDS, groundId) ? DANGER_GROUNDS[grou
 /* a / b to the nearest whole, halves up (b > 0) */
 const div = (a, b) => Math.floor((2 * a + b) / (2 * b));
 
-/** The Level (thousandths) at which the reference career reaches `value` of `skill` ('melee', 'magic' or 'ranged'); null for another skill
-    or a value that is not a number. Under the line's first point: its first Level; past the last: the last segment's slope. */
-export function skillLevelPm(skill, value) {
-  const L = own(SKILL_LINE, skill) ? SKILL_LINE[skill] : null;
+/* the hunted hours from Level 1 to Level L (core-model.js hoursToLevel), one running sum grown on demand: H[L - 1] reaches Level L */
+const HOURS_TO = [0];
+function hoursTo(L) {
+  while (HOURS_TO.length < L) HOURS_TO.push(HOURS_TO[HOURS_TO.length - 1] + levelHoursOf(HOURS_TO.length));
+  return HOURS_TO[L - 1];
+}
+
+/** The Level (thousandths) at which the reference career reaches `value` of `skill`, a combat skill on the Level clock (Melee, Ranged, Magic,
+    Defense; src/data/core-model.js SKILL_CURVE, stage 7): the career spends pacePm / 1000 x the hours of Level n on skill level n, so skill
+    `value` arrives with the Level whose hours from Level 1 are pace x the hours from Level 1 to `value`, straight inside that Level. At pace
+    1000 the skill is its own Level, exactly. Null for another skill or a value that is not a number; a value under 1 reads Level 1.
+    `pacePm` is the data's (tests/bands.mjs reads the clock at other paces). */
+export function skillLevelPm(skill, value, pacePm = SKILL_CURVE.pacePm) {
   const v = Math.floor(Number(value));
-  if (!L || !Number.isFinite(v)) return null;
-  if (v <= L[0][1]) return 1000 * L[0][0];
-  let k = 1;
-  while (k < L.length - 1 && v > L[k][1]) k++;
-  const [a, sa] = L[k - 1], [b, sb] = L[k];
-  return 1000 * a + div(1000 * (v - sa) * (b - a), sb - sa);
+  if (!COMBAT_XP_SKILLS.includes(skill) || !Number.isFinite(v)) return null;
+  const s = Math.max(1, v);
+  if (pacePm === 1000) return 1000 * s;
+  const want = (pacePm * hoursTo(s)) / 1000;
+  let L = 1;
+  while (hoursTo(L + 1) <= want) L++;
+  return 1000 * L + Math.round((1000 * (want - hoursTo(L))) / levelHoursOf(L));
 }
 
 /** 04 section 1's rating in thousandths of a Level: the Level, plus the gear part's gap to it at the one-sided gear weight, plus the skill

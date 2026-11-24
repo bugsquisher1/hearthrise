@@ -1710,7 +1710,9 @@ const cases = {
     /* the third name moved with Wickstead (v0.2.63): its tier-2 gloves are reachable, and the Studded Vambraces carry no magic
        penalty (leather's is round(def x 0.15) = 0 at def 2), so a classless Mage may wear them; the wand and its book lead */
     if (!new RegExp('Next gear at Level ' + IRON + ': Oak Wand(?: and \\d+ more|, made at Crafting \\d+)').test(mage)) return 'a Level-' + under + ' Mage is not told the Oak Wand at Level ' + IRON + ': ' + mage;
-    if (!/Next at Magic 15: Scored /.test(mage)) return 'the Mage\'s skill line lost its runes (supplies keep their skill): ' + mage;
+    /* (the next rune tier past the Mage's Magic, read off the gates: runes.js versionLevel, the designer's ruling 29 section 7 item 10 put Scored at 8) */
+    const RN = await imp('src/data/runes.js'), up = RN.RUNE_TIERS.find((t) => RN.versionLevel(t.tier) > under);
+    if (!up || !new RegExp('Next at Magic ' + RN.versionLevel(up.tier) + ': ' + up.name + ' ').test(mage)) return 'the Mage\'s skill line lost its runes (supplies keep their skill): ' + mage;
     let named = 0;
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       for (let L = 1; L <= 120; L++) {

@@ -93,6 +93,7 @@
 //   hero of its Level, so this hero (not that one) lands and is landed on differently: 116 / 139 / 93. Hours stay as ruled.
 //   RE-MEASURED 2026-11-21 (lane/c-spell-rule, balance program L17; was 116 / 139 / 93): every cast is a share of its caster's blow, so this
 //   tier-8 hero's Power Strike lands its share of a big blow (it was a fixed 7-13): 141 / 168 / 117. Hours stay as ruled.
+//   RE-MEASURED 2026-11-23 (lane/skills-time-parity; Power Strike's share 700 -> 720): 142 / 170 / 117.
 //
 //   pinned and re-measured on every run by tests/hearthfind-boss-rate.mjs, so a
 //   combat-balance change that moves the kill rate turns the guard red instead
@@ -188,8 +189,8 @@ export const HEARTHFIND_PLINTH = 'hearth_plinth';
  */
 export const HEARTHFIND_TABLE = Object.freeze([
   // ── Combat: BOSSES ONLY (ruling §2 — the `goblin` row is cut).
-  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 141 }),
-  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 168 }),
+  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 142 }),
+  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 170 }),
   Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 117 }),
 
   // ── Woodcutting. Door / gate / cap.

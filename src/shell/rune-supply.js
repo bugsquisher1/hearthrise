@@ -34,7 +34,7 @@ export function carriedRunes(a, bag, skills) {
   const skill = abilitySkill(ABILITIES[a.id]);
   const lv = skills && skills[skill] && Number.isInteger(skills[skill].level) ? skills[skill].level : null;
   return sup.runes.filter((id) => qtyOf(bag, id) > 0).map((id) => {
-    const need = versionLevel(runeTierOf(ITEMS[id]));
+    const need = versionLevel(runeTierOf(ITEMS[id]), skill);
     return { id, name: itemName(id), have: qtyOf(bag, id), ticked: sup.own.includes(id), locked: lv !== null && lv < need, needs: skillName(skill) + ' ' + need };
   });
 }

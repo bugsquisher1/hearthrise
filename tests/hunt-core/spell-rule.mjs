@@ -43,7 +43,7 @@ const topOf = (maxHit, share) => Math.max(1, Math.floor((maxHit * share) / 1000)
 const ROLE = { shield: 'tank', sword: 'melee_dps', dual_axe: 'melee_dps', club: 'melee_dps', destruction: 'mage', restoration: 'healer' };
 
 /* `id` cast once a sub-step for 40 sub-steps (its cooldown and lane allowing) by a hero of max hit `maxHit` holding 50 of its family's
-   tier-5 rune and level 60 in the row's skill, beside a neutral defence-0 dummy (and a second one for a shape). Answers the cast events and
+   tier-5 rune and level 60 in the row's skill (or its tier's gate on the Level clock, runes.js versionLevel, if that is higher), beside a neutral defence-0 dummy (and a second one for a shape). Answers the cast events and
    the amounts each landed (dmg / heal / shield), and the version the engine cast. */
 function play(M, id, maxHit, o) {
   const row = M.AD.ABILITIES[id], x = o || {};
@@ -59,7 +59,7 @@ function play(M, id, maxHit, o) {
   const inst = instOf(M, world(M, units));
   const slot = { action: { type: 'ability', id }, conditions: [], join: 'and' };
   inst.heroes = { 1: { hs, actionSet: 'hunt', range: row.disciplines.includes('destruction') || row.disciplines.includes('restoration') ? 6 : 1,
-    skills: { [skill]: M.XP.skillXpForLevel(skill, 60) }, slots: M.conditions.heroSlots([slot], null) } };
+    skills: { [skill]: M.XP.skillXpForLevel(skill, Math.max(60, M.runes.versionLevel(x.tier || 5, skill))) }, slots: M.conditions.heroSlots([slot], null) } };
   const sc = subStep(0);
   sc.rng = rngOf(M, 17);
   for (let i = 0; i < (x.steps || 40); i++) {
@@ -247,7 +247,7 @@ const mutants = [
   { name: 'the bleed ignores its rune tier', case: 'bleed-shares-the-blow',
     edits: [['src/core/hunt/status.js', '  return Math.max(row.tierPermille[tier - 1], Math.floor((hit * row.blowPm * row.tierPermille[tier - 1]) / 1000));', '  return Math.max(1000, hit * row.blowPm);']] },
   { name: 'Power Strike at half its share (half a swing again, as before the rule)', case: 'power-strike-beats-a-swing',
-    edits: [[AD, "    target: 'enemy', hitPm: 700, base: [7, 13] }),", "    target: 'enemy', hitPm: 350, base: [7, 13] }),"]] },
+    edits: [[AD, "    target: 'enemy', hitPm: 720, base: [7, 13] }),", "    target: 'enemy', hitPm: 350, base: [7, 13] }),"]] },
   { name: 'the axes keep Power Strike (32-3 undone: the axes over the bar budget)', case: 'bar-budget',
     edits: [[AD, "disciplines: ['shield', 'sword', 'club', ...(FIST_LINE.live", "disciplines: ['shield', 'sword', 'dual_axe', 'club', ...(FIST_LINE.live"]] },
   { name: 'the beginner\'s floor is dropped (a Level 1 strike a share of a blow of 4)', case: 'the-first-hours-hold',

@@ -46,7 +46,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName, isRune, runeTierOf, versionLevel } from './runes.js';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName, isRune, runeTierOf, craftLevel } from './runes.js';
 import { ITEMS } from './items.js';
 import { ARTISAN_RECIPES } from './recipes.js';
 import { DRINK_ITEMS, DRINK_RECIPES } from './drinks.js';
@@ -80,7 +80,8 @@ const chargeInput = (partner) => {
   const p = ITEMS[partner];
   if (!p) throw new Error('supply-basics: ' + partner + ' is no item to price its store row');
   const rune = isRune(p);
-  const step = rune ? versionLevel(runeTierOf(p)) : Number(p.reqLv) || 1;
+  /* the MADE-AT Level (a rune's Runecrafting tier, an ammo row's `madeLv`), never the skill gate the clock moved (core-model.js SUPPLY_GATES) */
+  const step = rune ? craftLevel(runeTierOf(p)) : Number(p.madeLv || p.reqLv) || 1;
   return { line: 'charge', step, book: Number(p.v) || 0, rune, ammoPremium: BASIC_AMMO_PREMIUM };
 };
 const restorePrice = (partner, amount, key) => storePrice(restoreInput(partner, amount, key));

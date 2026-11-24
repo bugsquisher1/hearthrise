@@ -156,7 +156,7 @@ import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
 import { WORLD_VERSION, SHAPE, FIELDS as WORLD_FIELDS } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
-import { SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, FLAME_REGEN } from '../src/data/core-model.js';
+import { FLAME_SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, FLAME_REGEN } from '../src/data/core-model.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -640,7 +640,7 @@ export function catalogueRows(src = {}) {
        One source; tests/core-curves.mjs pins the SQL twins to src/core/xp.js and
        src/core/vitals.js. The Level curve has its own rows (hr_level_curve,
        tools/gen-level-curve.mjs) since lane/b-level-curve. */
-    skill_base: SKILL_CURVE.base, skill_growth_permille: SKILL_CURVE.growthPermille,
+    skill_base: FLAME_SKILL_CURVE.base, skill_growth_permille: FLAME_SKILL_CURVE.growthPermille,
     hp_base: VITALS.hpBase, hp_per_level: VITALS.hpPerLevel, mana_base: VITALS.manaBase, mana_per_level: VITALS.manaPerLevel,
     heavy_hp_permille: VITALS.heavyHpPermille, light_mana_permille: VITALS.lightManaPermille, armour_slots: ARMOUR_SLOTS.length,
     in_fight_regen_permille_s: VITALS.inFightRegenPermillePerS,

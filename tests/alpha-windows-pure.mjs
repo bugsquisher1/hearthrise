@@ -475,6 +475,9 @@ async function planRules(base) {
      names its weapons by the items' own names, and the bag's styles tip (the coach's styles card, one line since the label form 2026-11-16)
      says any style it names the same way: a weapon word of a style in the tip brings the style's whole name. */
   const { ITEMS: KIT } = await imp('src/data/items.js');
+  /* the gates read off the rows (core-model.js SUPPLY_GATES, the designer's ruling 29 section 7 item 10): Mithril's Ranged and a hero three under it,
+     the Scored rune's Magic (runes.js versionLevel) */
+  const MITH = KIT.mithril_arrows.reqLv, UNDER = MITH - 3, SCORED_MAGIC = (await imp('src/data/runes.js')).versionLevel(2);
   const { COACH_TEXT } = await imp('src/data/text/coach.js');
   const stylesTip = [COACH_TEXT.styles, COACH_TEXT.styles_in].join(' ');
   if (!stylesTip.trim()) fails.push('AW-27 the bag\'s styles tip is empty');
@@ -560,10 +563,10 @@ async function planRules(base) {
   const atRanged = (level) => (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed, skills: { ranged: { xp: 1, level } } });
   const BOW = { weapon: 'willow_longbow' };
   for (const [what, level, args, text] of [
-    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows, never runs out, Mithril Arrows: Requires Ranged 45, now 42'],
-    ['the same bar at the level', 45, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows, then Bronze Arrows, never runs out'],
-    ['a stack under its Ranged no slot names', 42, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows (1 gp)'],
-    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: none loaded (no attacks). Empty slot → Ammo → pick a store shot, Mithril Arrows: Requires Ranged 45, now 42'],
+    ['a Mithril slot under its Ranged, Bronze behind it', UNDER, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows, never runs out, Mithril Arrows: Requires Ranged ' + MITH + ', now ' + UNDER],
+    ['the same bar at the level', MITH, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows, then Bronze Arrows, never runs out'],
+    ['a stack under its Ranged no slot names', UNDER, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows (1 gp)'],
+    ['nothing else to shoot', UNDER, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: none loaded (no attacks). Empty slot → Ammo → pick a store shot, Mithril Arrows: Requires Ranged ' + MITH + ', now ' + UNDER],
   ]) {
     const cs = atRanged(level)('A', 'ranger', ...args);
     if (beforeOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Before you go reads ' + JSON.stringify(beforeOf(cs, 'ammo')));
@@ -925,8 +928,8 @@ async function planRules(base) {
     if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Can't cast Fire runes yet/.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
     /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): a store rune above the hero's level says which rune and what it needs, not "the server says". */
     const SCORED = STORE.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 }]);
-    const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: 14 } }, null);
-    if (!over || over.code !== 'store_level' || !over.strike || !/^Scored Fire Rune requires Magic 15, pick a lower rune/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
+    const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: SCORED_MAGIC - 1 } }, null);
+    if (!over || over.code !== 'store_level' || !over.strike || !new RegExp('^Scored Fire Rune requires Magic ' + SCORED_MAGIC + ', pick a lower rune').test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
     /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
     const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, null, []);
     if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
@@ -936,13 +939,13 @@ async function planRules(base) {
     const archer = (lv) => sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [waitSlot], store: STORE }, skills: { ranged: { xp: 1, level: lv } },
       equipment: { weapon: 'willow_longbow' }, inventory: { mithril_arrows: 40 }, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: { bag: [] } } });
     const shotSet = { slots: [waitSlot], store: STORE, role: 'ranger', supplySource: 'mine', onEmpty: 'end' };
-    const [under] = carryFor(archer(42), waitSlot.action) || [];
-    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Requires Ranged 45, now 42') fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
-    const waits = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 42 } }, carryRows(archer(42)));
-    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Requires Ranged 45, now 42, next ammo fires meanwhile') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
-    const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
+    const [under] = carryFor(archer(UNDER), waitSlot.action) || [];
+    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Requires Ranged ' + MITH + ', now ' + UNDER) fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
+    const waits = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: UNDER } }, carryRows(archer(UNDER)));
+    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Requires Ranged ' + MITH + ', now ' + UNDER + ', next ammo fires meanwhile') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
+    const [atLevel] = carryFor(archer(MITH), waitSlot.action) || [];
     if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
-    const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
+    const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: MITH } }, carryRows(archer(MITH)));
     if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt, 40 Mithril Arrows in backpack (press to carry in)') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
     const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, null);
     if (!none || none.text !== 'Out of Cooked Shrimp: next food or drink slot takes over') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));

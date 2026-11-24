@@ -64,7 +64,12 @@
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
    318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
    LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): Levels 8 and 9 took a new player 3.5 and 4.2 h
-   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1016-level-curve-new-player. */
+   (Level 10 at 10.6 h). Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-20 take the XP back, so Level 21 on costs what it did. Forward file 1016-level-curve-new-player.
+   STEPS 11-15 EASED 2026-11-23 (lane/skills-time-parity, the dial of tests/start-kit-pace.mjs SK-2): on the Level clock a new player's skills sit
+   near its Level (melee 8 and Defense 7 at Level 10, where the old skill curve gave 20 and 16), so it kills slower and Level 15 -> 16 took 4.64 h
+   (the band's red line 4.5). The rise across 10-15 is 3,758 a Level (was 4,630), steps 11-15 cost 872 to 4,360 XP less and step 16 on what it
+   did (bracket 15's rise takes the difference), so every threshold from Level 12 only falls (13,080 XP from Level 16 on): no live hero loses a
+   Level. Level 15 -> 16 in 4.40 h, Level 10 at 6.63 h (5 to 7). Forward file 1016-level-curve-new-player, regenerated (STAGED). */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([
@@ -77,8 +82,8 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 7, rise: 8000, bend: 0 }),
     Object.freeze({ from: 8, rise: 5002, bend: 0 }),
     Object.freeze({ from: 9, rise: 30000, bend: 0 }),
-    Object.freeze({ from: 10, rise: 4630, bend: 0 }),
-    Object.freeze({ from: 15, rise: 74323, bend: 0 }),
+    Object.freeze({ from: 10, rise: 3758, bend: 0 }),
+    Object.freeze({ from: 15, rise: 78683, bend: 0 }),
     Object.freeze({ from: 16, rise: 300, bend: 0 }),
     Object.freeze({ from: 21, rise: 14454, bend: 657 }),
     Object.freeze({ from: 50, rise: 78689, bend: 162 }),
@@ -151,11 +156,52 @@ export const LEVEL_PACE = Object.freeze({
     steps: Object.freeze([Object.freeze({ from: 1, to: 9, aim: 2, h: 2.5 }), Object.freeze({ from: 10, to: 15, aim: 4, h: 4.5 })]) }),
 });
 
-/* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.
-   XP from level s to s+1 = floor(base x s^2 x (1 + growthPermille/1000)^(s-1)),
-   the power walked in exact integers (src/core/xp.js), so the browser, the edge
-   and Postgres agree to the unit. No cap. */
-export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });
+/* THE COMBAT SKILLS ON THE LEVEL CLOCK (stage 7, lane/skills-time-parity 2026-11-23; docs/design/redesign/04-math-strategy.md section 4,
+   27-formula-overhaul.md row P-3): Melee, Ranged, Magic and Defense. A skill level costs a set ratio of the hunted hours the same Level
+   takes, so a hero who always uses one style has that skill near its Level, a hero who splits is behind in both, and the hours a skill
+   costs never part from the hours a Level costs (the retired 15 x s^2 x 1.04^(s-1) cost 59 h a skill level at 100 where Level 100 takes 9).
+     XP from skill level n to n + 1 = floor(pacePm / 1000 x levelHoursOf(n) x xpPerHealthHour x refHealthOf(n))
+   counted in the reference skill XP an hour (the main skill of a seat of the reference company, a Steady four at its ground's reference,
+   earns xpPerHealthHour XP an hour a point of the reference health of its Level: every skill route pays a share of a blow, a mana pool or
+   a monster's Level, all of them straight lines in Level, src/core/hunt-rewards.js). Exact in whole numbers (src/core/xp.js walks it in
+   BigInt; the server's twin is tools/gen-skill-curve.mjs). Levers:
+     pacePm           1000  skillPace (band 800 to 1250): the hours a skill level takes over the hours that Level takes. At 1000 a
+                            specialist's skill tracks its Level; over 1000 a skill trails its Level, under it runs ahead
+     xpPerHealthHour  120   MEASURED (band 100 to 140; tools/balance-program/redesign/skills/parity.mjs): the main skill XP a hunted hour
+                            over the reference health of the Level, on every scale ground at its reference Level (2026-11-23, 4 seeds x
+                            4 h, the Steady mixed four's damage dealers: Hask's Ford 142 / 124, Muster Barrows 132 / 146, the Catacomb wings
+                            108 / 99 and 107 / 111). Not a balance dial: it says what the pay side pays, so the curve counts in hours
+     top              10000 the last skill level the curve is written to (the server's rows): 190,000 hunted hours, 52 years of 10 h days.
+                            Past it a skill keeps its XP and reads `top`, as the old curve stopped at 476 (2^53)
+   No cap a hero can meet. Inner Flame is not on this clock: FLAME_SKILL_CURVE below. */
+export const SKILL_CURVE = Object.freeze({ pacePm: 1000, xpPerHealthHour: 120, top: 10000 });
+
+/* THE REFERENCE HEALTH OF A LEVEL: the display curve of max HP with no armor bonus (VITALS below), 150 + 10 (L - 1). The amount pipeline
+   sizes every blow on it (src/core/hunt/amount.js refHealth reads this) and the skill clock counts in it (SKILL_CURVE above). */
+export function refHealthOf(level) {
+  return VITALS.hpBase + VITALS.hpPerLevel * (Math.max(1, Math.floor(Number(level) || 1)) - 1);
+}
+
+/* INNER FLAME'S CURVE (Q2, the core rebuild's uncapped curve, the four combat skills' too until stage 7): XP from level s to s + 1 =
+   floor(base x s^2 x (1 + growthPermille / 1000)^(s - 1)), walked in exact integers (src/core/xp.js) to 2^53 (level 476). Inner Flame
+   trains at the Hearth, never in a fight, and its fuel's XP is sized on this curve (FLAME_FUEL below; tests/hearth-fuel-rate.mjs B1):
+   it keeps this curve until the flame of docs/design/redesign/21-flame-temper-imbue-loot.md retires the skill's XP (its build step 5).
+   The server's rows: hr_skill_curve (tools/gen-catalogues.mjs). */
+export const FLAME_SKILL_CURVE = Object.freeze({ skill: 'inner_flame', base: 15, growthPermille: 40 });
+
+/* THE SKILL-GATED SUPPLIES ON THE CLOCK (the designer's ruling, docs/design/redesign/29-tuning-pass.md section 7 item 10, built by
+   lane/skills-time-parity 2026-11-23). Every skill-gated arrow, bolt, whetstone and rune tier keeps the LEVEL it arrived at on the measured
+   old careers: the old gate was skill n, which the reference four's career first reached at Level L (tools/balance-sim/skill-lines.json
+   'party' lines read as measured: the hammer's Melee, the bow's Ranged, the mage's Magic), and on the clock a skill is its Level, so the
+   gate is now L. By tier (1..7 on the ammo ladders, 1..5 on the runes); the old gates were 1 / 15 / 30 / 45 / 60 / 75 / 88 for all three.
+   tests/bands.mjs BD-10 re-derives every number from the snapshot. A rune spell's version reads its own skill's row (runes.js versionLevel).
+   The Level a store basic is priced at is the ladder's MADE-AT Level, unchanged (stonecraft.js AMMO_MADE_LV, an item's `madeLv`, runes.js
+   RUNE_TIERS level, which Runecrafting crafts at), so no price moves. */
+export const SUPPLY_GATES = Object.freeze({
+  melee: Object.freeze([1, 9, 23, 45, 73, 115, 168]),
+  ranged: Object.freeze([1, 9, 19, 39, 66, 105, 142]),
+  magic: Object.freeze([1, 8, 15, 39, 71]),
+});
 
 /* VITALS FROM LEVEL AND ARMOUR WEIGHT (Q3; the armour shares are Tyler's:
    heavy up to +28% HP, light up to +35% mana, blended by the share of armour

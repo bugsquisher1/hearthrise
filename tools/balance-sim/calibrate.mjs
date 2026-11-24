@@ -135,7 +135,8 @@ export function cellOfSample(fx, s, o, tierRowOf) {
     seats: s.seats.map((x) => {
       const use = o.use || USE_ALL, kit = fx.kits[x.kit];
       return { role: x.role, style: styleOf(x.role, kit, o.items), levelXp: x.levelXp,
-        ...(use.skills ? { skills: x.skills } : {}), ...(use.kit ? { equipment: kit } : {}), ...(use.bar ? { bar: fx.bars[x.bar] } : {}),
+        /* the recording's skill XP and the curve it was earned on (no `skillCurve` on the fixture: recorded before stage 7, the old curve) */
+        ...(use.skills ? { skills: x.skills, skillCurve: fx.skillCurve === 'time' ? 'time' : 'geometric' } : {}), ...(use.kit ? { equipment: kit } : {}), ...(use.bar ? { bar: fx.bars[x.bar] } : {}),
         ...(use.options ? { options: x.options } : {}),
         /* own stock: what the hero spent an hour, for every hour of a segment (a new segment is a new hunt with a fresh bag) */
         ...(use.bag ? { bag: Object.fromEntries(Object.entries(x.ownPerH || {}).map(([id, n]) => [id, { loaded: Math.max(1, Math.round(n * Math.min(hours, 2))) }])) } : {}) };

@@ -274,7 +274,7 @@ async function derive(o) {
       + seat + ': the MID four on the hardest tier it holds with no death, FITTED at the ruled points ' + deadly.ruled.join(', ') + ' (12-balance-pass.md 3.5 and 9), MEASURED on the proposed game without R13 (2 seeds of 1 hour). Levels 1 to 10 keep today\'s steps (27-2). Not the withdrawn power law',
     measuredOn: { proposals: base13, seat: 'mid four, hardest tier, no death', points: deadly.points },
     edits: [
-      { file: 'src/core/xp.js', from: "import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js';", to: "import { LEVEL_CURVE, SKILL_CURVE, LEVEL_PACE } from '../data/core-model.js';" },
+      { file: 'src/core/xp.js', from: "import { LEVEL_CURVE, LEVEL_HOURS, SKILL_CURVE, FLAME_SKILL_CURVE, refHealthOf } from '../data/core-model.js';", to: "import { LEVEL_CURVE, LEVEL_HOURS, SKILL_CURVE, FLAME_SKILL_CURVE, refHealthOf, LEVEL_PACE } from '../data/core-model.js';" },
       { file: 'src/core/xp.js', from: 'export function charXpForLevel(lv) { return xpForLevelOn(LEVEL_ROWS, lv); }',
         to: law + 'export function charXpForLevel(lv) { const L = Math.max(1, Math.floor(Number(lv) || 1)); return L <= LAW.from ? xpForLevelOn(LEVEL_ROWS, L) : lawXp(L); }' },
       { file: 'src/core/xp.js', from: 'export function charLevelFromXp(xp) {',

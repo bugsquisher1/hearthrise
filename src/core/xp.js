@@ -15,7 +15,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js';
+import { LEVEL_CURVE, LEVEL_HOURS, SKILL_CURVE, FLAME_SKILL_CURVE, refHealthOf } from '../data/core-model.js';
 import { SKILLS_DEF } from '../data/skills.js';
 
 /* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
@@ -60,28 +60,39 @@ export function xpPct(xp) {
   return (xp - a) / (b - a);
 }
 
-// ── The uncapped skill curve (Melee, Ranged, Magic, Defense, Inner Flame) ──────
-/* The XP from level s to s+1 is floor(base x s^2 x r^(s-1)), r = (1000 + g)/1000,
-   the power held as an exact fraction of integers (BigInt), so every runtime
-   floors the same value. TOTAL[s-1] = XP to reach level s. Grown on demand;
-   past 2^53 a level is unreachable, so the walk stops there. */
-const SKILL_TOTAL = [0];
+// ── The uncapped skill curves ───────────────────────────────────────────
+/* TOTAL[s-1] = XP to reach level s, grown on demand (already grown, as for every call but the first few, no BigInt is made: the engine
+   reads every hero's skill levels each sub-step; lane/r-engine-profile: 3% of a party's engine time). Each step is an exact fraction of
+   whole numbers held in BigInt and floored once, so every runtime and Postgres floor the same value.
+   THE LEVEL CLOCK (Melee, Ranged, Magic, Defense; src/data/core-model.js SKILL_CURVE): the step from n to n + 1 is
+     floor(pacePm x xpPerHealthHour x ceiling x n^2 x refHealth(n) / (1000 x (n + half) x (n + early)))
+   (LEVEL_HOURS' levers: levelHoursOf(n) = ceiling x n^2 / ((n + half) x (n + early))), to SKILL_CURVE.top.
+   INNER FLAME (FLAME_SKILL_CURVE): floor(base x s^2 x r^(s-1)), r = (1000 + g) / 1000, the power held as a fraction, to 2^53. */
+function walkOf(next, top) {
+  const total = [0];
+  return function growTo(lv) {
+    while (total.length < lv && total.length < top && total[total.length - 1] < Number.MAX_SAFE_INTEGER) {
+      total.push(total[total.length - 1] + next(total.length));
+    }
+    return total;
+  };
+}
+const H = LEVEL_HOURS, S = SKILL_CURVE;
+const TIME_NUM = BigInt(S.pacePm) * BigInt(S.xpPerHealthHour) * BigInt(H.ceiling);
+const growTime = walkOf((n) => {
+  const N = BigInt(n);
+  return Number((TIME_NUM * N * N * BigInt(refHealthOf(n))) / (1000n * (N + BigInt(H.half)) * (N + BigInt(H.early))));
+}, S.top);
 let powNum = 1n;
 let powDen = 1n;
-function growSkillTo(lv) {
-  /* Already grown (every call but the first few): no BigInt is made. skillLevelFromXp asks once per Level it walks, and the
-     engine asks it for every hero's skill levels each sub-step (lane/r-engine-profile: 3% of a party's engine time). */
-  if (SKILL_TOTAL.length >= lv) return;
-  const base = BigInt(SKILL_CURVE.base);
-  const g = BigInt(1000 + SKILL_CURVE.growthPermille);
-  while (SKILL_TOTAL.length < lv && SKILL_TOTAL[SKILL_TOTAL.length - 1] < Number.MAX_SAFE_INTEGER) {
-    const sl = BigInt(SKILL_TOTAL.length);
-    const step = Number((base * sl * sl * powNum) / powDen);
-    SKILL_TOTAL.push(SKILL_TOTAL[SKILL_TOTAL.length - 1] + step);
-    powNum *= g;
-    powDen *= 1000n;
-  }
-}
+const growFlame = walkOf((s) => {
+  const sl = BigInt(s);
+  const step = Number((BigInt(FLAME_SKILL_CURVE.base) * sl * sl * powNum) / powDen);
+  powNum *= BigInt(1000 + FLAME_SKILL_CURVE.growthPermille);
+  powDen *= 1000n;
+  return step;
+}, Infinity);
+const totalsOf = (skillId, lv) => (skillId === FLAME_SKILL_CURVE.skill ? growFlame(lv) : growTime(lv));
 
 /** Is `skillId` capped at MAX_LEVEL (gathering / crafting)? An unknown id is capped. */
 export function isCapped(skillId) {
@@ -95,20 +106,21 @@ export function skillCapOf(skillId) { return isCapped(skillId) ? MAX_LEVEL : nul
 export function skillXpForLevel(skillId, lv) {
   if (isCapped(skillId)) return xpForLevel(lv);
   const n = Math.max(1, Math.floor(Number(lv) || 1));
-  growSkillTo(n);
-  return SKILL_TOTAL[Math.min(n, SKILL_TOTAL.length) - 1];
+  const t = totalsOf(skillId, n);
+  return t[Math.min(n, t.length) - 1];
 }
 
 /** The level `xp` makes in `skillId`. */
 export function skillLevelFromXp(skillId, xp) {
   if (isCapped(skillId)) return levelFromXp(xp);
   const x = Math.max(0, Math.floor(Number(xp) || 0));
-  let lv = 1;
-  for (;;) {
-    growSkillTo(lv + 1);
-    if (SKILL_TOTAL.length <= lv || SKILL_TOTAL[lv] > x) return lv;
-    lv += 1;
-  }
+  /* grow the walk in doubling spans until it passes x (or stops), then the highest level whose total x reaches, by halving: a skill on the
+     Level clock is as high as its Level, so a far hero's read stays a few dozen comparisons, never a walk from level 1 */
+  let n = 64, t = totalsOf(skillId, n);
+  while (t.length >= n && t[n - 1] <= x) { n *= 2; t = totalsOf(skillId, n); }
+  let lo = 0, hi = t.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (t[mid] <= x) lo = mid; else hi = mid - 1; }
+  return lo + 1;
 }
 
 // ── The Level curve (the character, from kills only) ────────────────────

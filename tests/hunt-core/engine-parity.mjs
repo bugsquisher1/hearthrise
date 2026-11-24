@@ -164,6 +164,22 @@ const SEED = '-4611686018427387904';
    reference is where the reference company holds (DANGER_GROUNDS refStep): Muster's is 610 now, its monsters' anchor 590 named apart
    (formulaStep), so a kill's Level XP and coin read 20 steps less of depth, and Muster carries its own coin level (coinPm 7000, measured: the
    reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json).
+   RE-PINNED 2026-11-23 (lane/skills-time-parity, 27 P-3 stage 7), THE SKILL CURVE AND ITS LINE: the four tier scenarios' run totals (tally) moved,
+   world and timeline held at every settle, kills as pinned (200 / 492 / 140 / 99): the combat skills now cost a set ratio of the Level clock
+   (src/core/xp.js over src/data/core-model.js SKILL_CURVE), so a member's skill XP crosses other levels than on the old geometric curve, and the
+   run totals carry the levels it reached. muster-steps-4 (the scale) moved at every settle, kills held (170): its heroes hold every skill at
+   their Level, which the old measured line read as 7 to 13 Levels over it (2 to 3 power steps on every rating); on the clock a skill reads as
+   its own Level (src/core/bands.js skillLevelPm), so their skill part is 0, as the reference company's is. Proof: the base's src/core/xp.js,
+   src/data/core-model.js, src/core/hunt/amount.js, src/core/bands.js and src/data/bands.js laid back over a copy of this tree: every pin holds
+   (exit 0). Re-pinned again on the merge with set/v0.2.144 at 050a9b999 (first-hour-rewrite's tutorial rows): the same five, the same cause and
+   proof on the merged tree. RE-PINNED on the merge with set/v0.2.144 at b05780245 (monster roles, REF_HERO, roads wave 3, designer reads)
+   with the designer's dials of 29-tuning-pass section 7 item 10 (the move gates 10 -> 5 and 12/14 -> 8, the supply and rune gates at the
+   Level the old careers reached them, Rat King's Crown 1,410 -> 1,700 ppm, Power Strike hitPm 700 -> 720): the same shape, every per-settle
+   world, timeline and tally of the four tier scenarios held and only their run totals moved (kills 200 / 489 / 140 / 99 held); muster-steps-4
+   moved from settle 1, kills held (170). Proof: the set's 13 src files this lane changes (src/core xp, bands, hunt/amount, hunt/abilities;
+   src/data core-model, bands, abilities, items, monsters, runes, slot-ladders, stonecraft, supply-basics) laid back over a copy of the merged
+   tree: every one of the set's pins holds (exit 0). Re-pinned again on the merge with set/v0.2.144 at 1f3fa9fe6 (scale-early-grounds' pay reference above,
+   designer reads' Bold): the same shape and cause, the same 13 files laid back over a copy of that merged tree hold every one of its pins.
    RE-PINNED 2026-11-23 (lane/gear-phase-b, 12-targets 8.3: one material a tier, item Level 20 x (tier - 1), worn from it less 10), ALL FIVE:
    every scenario's full-set kit is the ladder by Level, and the ladder's item Levels moved (iron 15 -> 20 and worn from 10, steel 30 -> 40,
    mithril 45 -> 60, ...), so each hero's stats and power step grew: kills warrens-4 200 -> 229, glade-4 489 -> 508, glade-1-kite 140 -> 148,

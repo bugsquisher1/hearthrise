@@ -1,5 +1,6 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
+import { SUPPLY_GATES } from './core-model.js';
 import { GEAR_ITEMS, MATERIAL_TIERS } from './gear-tiers.js';
 import { WAVE3_ITEMS } from './wave3-uniques.js';
 import { SLOT_ITEMS } from './slot-ladders.js';
@@ -216,7 +217,7 @@ export const ITEMS={
      — it is the data form of "belongs to Ranged", which is what keeps the column
      non-NULL across the whole slot and lets the ammo guard read one shape. */
   /* Iron Bolts: against Barbed Arrows (3/3) a bolt misses more and hits harder (1/4). */
-  iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:15},
+  iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:SUPPLY_GATES.ranged[1],madeLv:15},
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',rangeAtkB:2,rangeStrB:3,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},

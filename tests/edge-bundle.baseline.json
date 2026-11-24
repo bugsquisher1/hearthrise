@@ -475,14 +475,14 @@
         "why": "cut locked in (5958 bytes)"
       },
       {
-        "bytes": 3863682,
+        "bytes": 3838317,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b on set/v0.2.144 557c7987b: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B). The settle reads 124 new gear rows (their generated stats, the four step-tier rows and their builders in gear-tiers.js, shields.js and slot-ladders.js), base-drops.js (the homes' base rows the settle rolls on a kill), temper.js's step rule, the scale view held at the curve's top (gear-stats.js), and the Catacomb wings re-cut on their own base (danger.js rows, coin levels and their measured note)"
+        "why": "lane/skills-time-parity on set f1b2f6c1e with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel), the party lines re-measured on it and the boss kill-rate pins' note. +7,836 bytes"
       },
       {
-        "bytes": 3864168,
+        "bytes": 3872896,
         "on": "2026-11-24",
-        "why": "lane/gear-phase-b, 12-targets 8.3: named twins stamped to a tier (gear-tiers.js onTier, items.js twin rule) and gear-stats.js sourceLevelOf reach the settle's catalogue"
+        "why": "lane/gear-phase-b merged over the skills clock: the ladder past Dawnsteel (Cobalt, Wolfram, base drops on every home, the made jewels and cloaks) and 12-targets 8.3's grid (named twins, sourceLevelOf) reach the settle's catalogue"
       }
     ]
   }

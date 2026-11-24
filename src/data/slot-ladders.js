@@ -44,6 +44,7 @@
 
 import { withGearStats } from './gear-profiles.js';
 import { STEP_MATERIALS, materialWord, stepOf, onTier } from './gear-tiers.js';
+import { SUPPLY_GATES } from './core-model.js';
 
 /* THE MADE PIECES OF A TIER WITH HOMES (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): the line its word comes from, its label and book multiplier
    (the shipped rungs' vmul), the bench that makes it and the top input that bench works (the shipped ladder's top bar or plank: the
@@ -104,13 +105,13 @@ export const SLOT_ITEMS = withGearStats({
      THESE ARE SPENT: the one hunt engine pays `ammoPerShot` per shot from the
      hunt's bag (src/core/hunt/abilities.js) and wears a hone per swing
      (src/core/member.js), watched or not.  */
-  bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
-  barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
-  steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },
-  mithril_arrows:   { n: 'Mithril Arrows',     icon: '🏹', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'ranged', reqLv: 45,               rangeStrB: 8,  critB: 0.01,  ammoPerShot: 1 },
-  rune_arrows:      { n: 'Rune Arrows',        icon: '🏹', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'ranged', reqLv: 60,               rangeStrB: 11, critB: 0.015, ammoPerShot: 1 },
-  emberhead_arrows: { n: 'Emberhead Arrows',   icon: '🏹', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75,               rangeStrB: 14, critB: 0.02,  ammoPerShot: 1 },
-  dawnpoint_arrows: { n: 'Dawnpoint Arrows',   icon: '🏹', v: 12, type: 'ammo', slot: 'ammo', tier: 7, rarity: 'mythic',    reqSkill: 'ranged', reqLv: 88,               rangeStrB: 18, critB: 0.03,  ammoPerShot: 1 },
+  bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[0], madeLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
+  barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[1], madeLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
+  steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[2], madeLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },
+  mithril_arrows:   { n: 'Mithril Arrows',     icon: '🏹', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[3], madeLv: 45,               rangeStrB: 8,  critB: 0.01,  ammoPerShot: 1 },
+  rune_arrows:      { n: 'Rune Arrows',        icon: '🏹', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[4], madeLv: 60,               rangeStrB: 11, critB: 0.015, ammoPerShot: 1 },
+  emberhead_arrows: { n: 'Emberhead Arrows',   icon: '🏹', v: 9,  type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[5], madeLv: 75,               rangeStrB: 14, critB: 0.02,  ammoPerShot: 1 },
+  dawnpoint_arrows: { n: 'Dawnpoint Arrows',   icon: '🏹', v: 12, type: 'ammo', slot: 'ammo', tier: 7, rarity: 'mythic',    reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[6], madeLv: 88,               rangeStrB: 18, critB: 0.03,  ammoPerShot: 1 },
 
   /* ══ EARRINGS — the precision slot ══════════════════════════════════════
      A brand-new lane needs an identity that is not "more of what the necklace

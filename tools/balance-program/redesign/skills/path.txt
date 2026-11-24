@@ -1,0 +1,32 @@
+SKILL XP AN HOUR, the Steady mixed four (MID kits), 2 seeds x 2 h a cell, skills line; K = rate / refHealth(L)
+   L ground                  hammer melee (K)      bow ranged (K)       mage magic (K)       healer magic (K)     hammer defense (K)
+   5 millrace_sewer             3:   16780 ( 88.3)     6:   17415 ( 91.7)     6:   32189 (169.4)     5:   21210 (111.6)     4:    5381 ( 28.3)
+  10 millrace_sewer            18:   19528 ( 81.4)    19:   19305 ( 80.4)    22:   32732 (136.4)    20:   17405 ( 72.5)    15:    4688 ( 19.5)
+  15 millrace_sewer            24:   23915 ( 82.5)    26:   24611 ( 84.9)    30:   29461 (101.6)    25:   11741 ( 40.5)    21:    3219 ( 11.1)
+  25 mosslight_glade           31:   13814 ( 35.4)    35:   18733 ( 48.0)    37:   19420 ( 49.8)    34:    5653 ( 14.5)    27:    2304 (  5.9)
+  40 coppercap_warrens         41:   49104 ( 90.9)    45:   56964 (105.5)    45:   47871 ( 88.7)    43:   20585 ( 38.1)    40:   11836 ( 21.9)
+  52 hasks_ford*               47:   93702 (142.0)    52:   81593 (123.6)    51:   49137 ( 74.5)    49:   90773 (137.5)    47:   33349 ( 50.5)
+  60 muster_barrows*           52:   97136 (131.3)    56:  108167 (146.2)    54:   73520 ( 99.4)    54:  134695 (182.0)    53:   57890 ( 78.2)
+  70 muster_barrows*           59:   98265 (117.0)    62:  108886 (129.6)    59:   83800 ( 99.8)    58:  153129 (182.3)    61:   58090 ( 69.2)
+  80 pyre_field                63:   38347 ( 40.8)    66:   39984 ( 42.5)    64:   33459 ( 35.6)    64:    8896 (  9.5)    65:    9540 ( 10.1)
+ 100 krells_hold               70:   38502 ( 33.8)    73:   42063 ( 36.9)    71:   25608 ( 22.5)    72:    6952 (  6.1)    72:    8051 (  7.1)
+ 120 ox_road                   76:   51697 ( 38.6)    81:   59776 ( 44.6)    77:   33926 ( 25.3)    78:   14085 ( 10.5)    78:   16359 ( 12.2)
+ 135 wyvern_roost              80:   55692 ( 37.4)    86:   64596 ( 43.4)    81:   35971 ( 24.1)    82:   22455 ( 15.1)    82:   17166 ( 11.5)
+ 175 catacomb_bone_wing*       89:  206636 (109.3)    95:  186654 ( 98.8)    90:   56221 ( 29.7)    91:  100726 ( 53.3)    91:   95570 ( 50.6)
+(* a scale ground from its held start. Its damage dealers' K: mean 124.7, min 98.8, max 146.2; the curve counts in 120)
+
+HOURS TO A SKILL MILESTONE on the Level clock (hunted hours from Level 1, the Level then), at the reference rate and at each seat's measured rates
+seat                    curve               skill 10         skill 30         skill 60        skill 100        skill 150        skill 200   | the skill at Level 10 / 30 / 60 / 100 / 150 / 200
+reference (the curve K) retired           0.3 h (L3)     10.6 h (L14)    121.5 h (L44)     921 h (L136)  5863.8 h (L478)26340.3 h (L1617)   | 22 / 47 / 69 / 88 / 103 / 114
+reference (the curve K) this tree        4.2 h (L10)     53.7 h (L30)    215.1 h (L60)   542.6 h (L100)  1069.7 h (L150)  1683.2 h (L200)   | 9 / 29 / 59 / 99 / 149 / 199
+hammer Melee            retired           0.4 h (L4)     14.5 h (L16)    154.8 h (L50)  1383.4 h (L176)  6335.4 h (L507)27771.9 h (L1694)   | 20 / 40 / 67 / 81 / 91 / 107
+hammer Melee            this tree        5.8 h (L11)     89.4 h (L38)    232.9 h (L62)     933 h (L137)  1514.8 h (L186)  2087.2 h (L230)   | 8 / 22 / 56 / 82 / 108 / 165
+bow Ranged              retired           0.4 h (L4)     14.3 h (L16)    148.5 h (L49)  1371.7 h (L175)  6690.2 h (L528)29345.5 h (L1777)   | 20 / 41 / 68 / 82 / 92 / 107
+bow Ranged              this tree        5.7 h (L11)     81.2 h (L36)    228.5 h (L61)   860.2 h (L131)  1517.4 h (L187)  2144.2 h (L234)   | 8 / 23 / 57 / 84 / 111 / 164
+mage Magic              retired           0.3 h (L3)      9.4 h (L13)    166.6 h (L52)  2181.6 h (L237) 13237.4 h (L905)                -   | 24 / 43 / 64 / 77 / 85 / 94
+mage Magic              this tree         3.3 h (L9)     78.7 h (L36)    273.2 h (L68)  1237.8 h (L164)  2539.3 h (L263)  3977.6 h (L360)   | 10 / 25 / 51 / 75 / 93 / 117
+healer Magic            retired           0.4 h (L4)     21.5 h (L19)    181.8 h (L54)  1818.8 h (L210)  9543.1 h (L696)                -   | 21 / 34 / 65 / 79 / 84 / 97
+healer Magic            this tree        5.5 h (L11)    127.7 h (L45)    240.7 h (L63)  1249.3 h (L165)    2045 h (L227)  2994.5 h (L294)   | 9 / 18 / 53 / 80 / 90 / 128
+hammer Defense          retired           1.1 h (L6)     73.3 h (L34)    252.2 h (L65)  1999.3 h (L223)    9874 h (L715)                -   | 14 / 26 / 55 / 68 / 76 / 93
+hammer Defense          this tree       29.3 h (L22)    170.9 h (L53)     637 h (L109)  1450.8 h (L181)  2224.6 h (L240)  3180.1 h (L307)   | 5 / 12 / 38 / 58 / 72 / 116
+the Level clock: Level 10 4.2 h, Level 30 53.6 h, Level 60 215 h, Level 100 542.5 h, Level 150 1069.6 h, Level 200 1683.1 h

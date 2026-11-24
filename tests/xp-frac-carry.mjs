@@ -125,6 +125,11 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    and the hero's max (damage.js landHit `hp`, `max`: the report's lowest health, a reading, never a played number), so the event
    stream the digest folds moved, 73864b88 -> 1f6b022c, while n 4478, the 687 kills and the items are the same; the levelling run the
    same way (fa2c33c2 -> 49dbd79c, n 2518, 184 kills, the items unchanged). */
+/* RE-MEASURED lane/skills-time-parity (2026-11-23, 27 P-3 stage 7): the combat skills cost a set ratio of the Level clock, so the levelling
+   hero (every combat skill at 5) climbs its skills far slower (skill 5 -> 6 costs 9,870 XP where the old curve asked 438) and lands fewer of
+   its blows: n 2518 -> 2410, 49dbd79c -> 189fbb92, kills 184 -> 156. The slime hunt at the start-kit hero holds (n 4478, 1f6b022c, 687 kills).
+   Proof it is ONLY the curve: --measure-draws on a copy of this tree with the base's src/core/xp.js, src/data/core-model.js,
+   src/core/hunt/amount.js, src/core/bands.js and src/data/bands.js laid back reads 2518 / 49dbd79c again. */
 const PRE_CHANGE_DRAWS = { n: 4478, hash: '1f6b022c', kills: 687,
   items: '{"lamp_jelly":180,"slime_gel":385,"sticky_core":75}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
@@ -133,7 +138,7 @@ const PRE_CHANGE_DRAWS = { n: 4478, hash: '1f6b022c', kills: 687,
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2518, hash: '49dbd79c' };   // re-measured the hunt report's blow readings 2026-11-22 (was fa2c33c2; above)   // re-measured the to-hit ratio 2026-11-20 (was 2374, a848df5e; above)   // re-measured XP a kill x0.88 2026-11-19 (was e8f2bfca; above)   // re-measured monsters a little harder 2026-11-19 (was 2108297a; above)   // re-measured solo +15% 2026-11-12 (was 935dd946; above)   // re-measured one difficulty 2026-11-10 (was a20e1e5f; above)   // re-measured the formula's Slime row 2026-11-07 (was 9aabde49; above)   // re-measured loot bands phase C (no rare_drop events from the Slime)   // re-measured v0.2.29 loot loop (+4 rare_drop events; minus them the old 2374 / 9aabde49)   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
+const PRE_CHANGE_DRAWS_L5 = { n: 2410, hash: '189fbb92' };   // re-measured the skill clock 2026-11-23 (was 2518, 49dbd79c; above)   // re-measured the hunt report's blow readings 2026-11-22 (was fa2c33c2; above)   // re-measured the to-hit ratio 2026-11-20 (was 2374, a848df5e; above)   // re-measured XP a kill x0.88 2026-11-19 (was e8f2bfca; above)   // re-measured monsters a little harder 2026-11-19 (was 2108297a; above)   // re-measured solo +15% 2026-11-12 (was 935dd946; above)   // re-measured one difficulty 2026-11-10 (was a20e1e5f; above)   // re-measured the formula's Slime row 2026-11-07 (was 9aabde49; above)   // re-measured loot bands phase C (no rare_drop events from the Slime)   // re-measured v0.2.29 loot loop (+4 rare_drop events; minus them the old 2374 / 9aabde49)   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',

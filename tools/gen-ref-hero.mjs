@@ -49,7 +49,8 @@ export async function refRows(root = ROOT) {
   void top;
   /* the lone hammer's line, and past its top the ONE projection every simulated hero uses (skill-lines.mjs skillsAt -> projectSkill): the
      reference hero and the harness's heroes cannot drift apart (51-baseline.md fault F15) */
-  const ctx = { XP, targets: LEVEL_PACE.targets };
+  /* the snapshot as measured, on the curve it was measured on (skill-lines.mjs AS_MEASURED): the monsters' aim and evasion were authored on these levels */
+  const ctx = { XP, targets: LEVEL_PACE.targets, asMeasured: true };
   const project = (k, L) => skillsAt(lines, 'alone', 'hammer', L, ctx)[k];
   const accOf = (L) => {
     const kit = gear.kitOf('hammer', Math.min(L, KIT_TOP), { uniques: true });

@@ -190,7 +190,7 @@ export function storeChoices(a, rows, skills) {
     .map((r) => {
       const tier = runeTierOf(ITEMS[r.partner]);
       return { id: r.id, name: storeName(r.id), price: r.price, tier,
-        needs: skillName(skill) + ' ' + versionLevel(tier), short: have !== null && have < versionLevel(tier) };
+        needs: skillName(skill) + ' ' + versionLevel(tier, skill), short: have !== null && have < versionLevel(tier, skill) };
     }).sort((x, y) => x.tier - y.tier);
   return list;
 }

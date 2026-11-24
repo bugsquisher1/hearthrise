@@ -63,9 +63,11 @@ export const LEVER_MOVES = Object.freeze({
   'resist.weapon-resist-unread': ['+hero.weakFactor'],
   'damage.permanent-cap': ['+hero.buff', '+perk.permanent'],
   'weapon.ammo': ['+hero.maxHit'],
+  'skill.supply-gates': [['-hero.maxHit', 'a later gate keeps a tier of ammo from a hero longer: a smaller blow'], ['-hero.castPower', 'and a rune spell on a lower version longer']],
   'crit.leather': ['+hero.crit'],
   // ── skills and Levels ──
   'skill.curve': ['+skill.cost', '-hero.skill'],
+  'skill.flame-curve': ['+skill.cost'],
   'skill.reference-career': ['+ref.hero'],
   'level.mode-share': ['+xp.share', '~death.mode'],
   'level.blessing-cut': ['+blessing.cut'],
@@ -170,8 +172,6 @@ export const LEVER_MOVES = Object.freeze({
   'danger.loot-step': [['+pull.rows', 'deeper than the reference a kill rolls its own table at dropPm over 1000 (danger.js dangerDial dropPm, drops.js effectiveDropChance): more rows of the pull drop']],
   'danger.power-skill': [['-tier.dmg', 'on the scale a skill over its career line divides a blow at the hero by (1 + powerStep)^steps of the skill part (danger.js skillSteps)'],
     ['-tier.hp', 'and multiplies the hero\'s blow at a monster by the same ratio, the same as less health to take']],
-  'bands.skill-line': [['+tier.dmg', 'a higher line puts the same skill further under it, a negative skill part: a bigger blow at the hero (danger.js skillSteps)'],
-    ['+tier.hp', 'and a smaller blow at a monster']],
   'sustain.mana-seconds': [['-hero.manaCost', 'a longer pool in seconds is the same pool at a smaller cost a cast once a move\'s mana is a share of it (stage 3); today a definition the heal row is checked against']],
   /* THE ECONOMY LEVERS (lane/econ-levers): the pay floor, the scale's coin level and the store's basics, set together with the wage */
   'danger.pay-floor': [['+kill.xp', 'under the reference a kill pays at least PAY.floor of the table (danger.js depthRatio, read by levelShareXp)'],

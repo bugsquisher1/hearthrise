@@ -119,6 +119,11 @@ export const DECLARED_SHIFTS = Object.freeze([
     mult: Object.freeze({ storePerH: 0.294 }) }),
   Object.freeze({ after: '2026-11-22', grounds: Object.freeze(['krells_hold']), why: 'the store priced in hours of wage (lane/econ-levers)',
     mult: Object.freeze({ storePerH: 0.517 }) }),
+  /* (4) ONE MATERIAL A TIER (12-targets 8.3, lane/gear-phase-b, 2026-11-23): every ladder piece is its material's item Level, 20 x (tier - 1)
+     (iron 15 -> 20, steel 30 -> 40), so the lone Warrens hero's recorded kit hits harder and is hit less. MEASURED by calibration-shift.mjs
+     (2 h x 2 seeds, origin/set/v0.2.144 f1b2f6c1e against the lane, sim over sim); Krell's two fours read x1.000 on every metric. */
+  Object.freeze({ after: '2026-11-23', grounds: Object.freeze(['coppercap_warrens']), why: 'one material a tier: the ladder on item Levels 20 x (tier - 1) (12-targets 8.3)',
+    mult: Object.freeze({ killsPerH: 1.043, levelXpPerH: 1.037, coinPerH: 1.037, dealtPerH: 1.034, takenPerH: 0.904, healedPerH: 0.866, storePerH: 0.943 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

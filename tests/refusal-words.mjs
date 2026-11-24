@@ -64,7 +64,7 @@ export function clientCodes(root) {
 async function load(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   return { IW: await import(u('src/shell/intent-words.js')), RW: await import(u('src/data/refusal-words.js')), IL: await import(u('src/shell/item-lore.js')),
-    CS: await import(u('src/session/character-session.js')), XP: await import(u('src/core/xp.js')), root };
+    CS: await import(u('src/session/character-session.js')), XP: await import(u('src/core/xp.js')), I: await import(u('src/data/items.js')), root };
 }
 
 /* A character as the session reads it: skills, and when `level` is given the Level the SERVER states (hr_state_of's `level`
@@ -87,10 +87,12 @@ const CLAIMS = {
   },
   RW3: (M) => {
     const out = [];
-    /* Gear names the hero's LEVEL (Tyler 2026-10-24): a Level-14 hero with Defense 99 is still short of the Iron Platelegs. */
+    /* Gear names the hero's LEVEL (Tyler 2026-10-24): a hero one Level under the Iron Platelegs (worn from 10 since 12-targets 8.3) with Defense 99
+       is still short of them. */
+    const IRON = M.I.ITEMS.iron_platelegs.reqLv;
     const with1 = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' },
-      csWith({ defense: { xp: 0, level: 99 } }, 14, M.XP.charXpForLevel(15)));   // the XP this build's curve calls Level 15: the server says 14
-    if (with1 !== 'Iron Platelegs requires Level 15, now 14.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
+      csWith({ defense: { xp: 0, level: 99 } }, IRON - 1, M.XP.charXpForLevel(IRON)));   // the XP this build's curve calls the piece's Level: the server says one under
+    if (with1 !== 'Iron Platelegs requires Level ' + IRON + ', now ' + (IRON - 1) + '.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
     /* The refusal's own numbers (hr_apply's need / have, through the session reader) win over the sections. */
     const served = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'scholar_helmet', counts: { have: 28, need: 30 } },
       csWith({}, 5, M.XP.charXpForLevel(5)));
@@ -102,7 +104,8 @@ const CLAIMS = {
     const words = [M.IL.needWords('level', 30, 28), M.IL.needWords('magic', 20, 14), M.IL.needWords('level', 30, null)].join('|');
     if (words !== 'Requires Level 30, now 28|Requires Magic 20, now 14|Requires Level 30') out.push('RW3 the requirement words read ' + JSON.stringify(words));
     const bare = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' });
-    if (bare !== 'Iron Platelegs requires Level 15.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
+    /* (the piece's own wear: 10 since 12-targets 8.3, the old 15) */
+    if (bare !== 'Iron Platelegs requires Level ' + M.I.ITEMS.iron_platelegs.reqLv + '.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
     const noItem = M.IW.refusalText({ ok: false, error: 'requirement_not_met' });
     if (noItem === M.RW.REFUSAL_FALLBACK || !/Requirement/.test(noItem)) out.push('RW3 with no item named it reads ' + JSON.stringify(noItem));
     /* "You no longer have that many." of WHAT (blind playtest 2026-10-31): the item the server named. */

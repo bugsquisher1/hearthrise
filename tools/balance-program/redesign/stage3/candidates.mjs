@@ -40,8 +40,8 @@ for (const L of [30, 60, 300, 3000]) {
   const d = L - 60, k = refHealth(L) / refHealth(60);
   write({ id: 'stage3-scale-' + L, why: 'the scale test at Level ' + L + ': Muster moved to Level ' + L + ' as shares, the roll to hit off', base: 'tree',
     edits: [hitOff, onLine,
-      { file: 'src/data/danger.js', from: "gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60 })",
-        to: 'gearLevel: ' + L + ", ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: " + Math.max(1, 55 + d) + ', refLevel: ' + L + ' })' },
+      { file: 'src/data/danger.js', from: "gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60 })",
+        to: 'gearLevel: ' + L + ", ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: " + Math.max(1, 55 + d) + ', refLevel: ' + L + ' })' },
       /* the supplies' and the moves' typed numbers (a food's HP, a drink's and a move's mana) are shares of Level 60's reference, as the rows were
          written: moved with the content (amount.js reads them against the ground's refLevel, which this candidate moved) */
       ...(d ? [{ file: 'src/core/hunt/amount.js', from: '  const L0 = refLevelOf(inst.ground);\n  return Math.max(1, Math.round((n * refMana(lvOf(u))) / refMana(L0)));', to: '  const L0 = 60;\n  return Math.max(1, Math.round((n * refMana(lvOf(u))) / refMana(L0)));' },

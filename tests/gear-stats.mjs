@@ -177,7 +177,7 @@ export function check(o) {
 /* GSF-9's one named exception: a scale ground whose rows still drop another tier's pieces, stamped at its own base until the grounds' lane
    re-points them (12-targets 8.3; src/data/items.js STAMPED_ELSEWHERE). A ground the data adds to that list, or one named here that agrees
    again, is red: the name leaves this list the day its rows move. */
-const RE_POINT_PENDING = Object.freeze(['hasks_ford', 'muster_barrows']);
+const RE_POINT_PENDING = Object.freeze([]);
 
 /* GSF-9: ONE MATERIAL A TIER (src/data/gear-tiers.js MATERIAL_TIERS). `o.step` = { materials, ladders, shields, slotItems, baseDrops, made,
    recipes, scale, grounds, monstersOn, monsters, stagedItems, pending }. */
@@ -319,7 +319,7 @@ const MUTANTS = [
   ['GSF-9', 'a rung keeps its old wear Level', (o) => { o.items = { ...o.items, steel_helm: { ...o.items.steel_helm, reqLv: 30 + 5 } }; }],
   ['GSF-9', 'a plain shield off its tier', (o) => { o.items = { ...o.items, ember_tower_shield: { ...o.items.ember_tower_shield, iL: 75 } }; }],
   ['GSF-9', 'a new ground drops another tier unnamed', (o) => { const S = stepCopy(o); S.scale.mill_cellar = { ...S.scale.mill_cellar, ladderTier: 3 }; }],
-  ['GSF-9', 'a re-pointed ground still named', (o) => { const S = stepCopy(o); S.scale.hasks_ford = { ...S.scale.hasks_ford, ladderTier: 3 }; }],
+  ['GSF-9', 'a re-pointed ground still named', (o) => { const S = stepCopy(o); S.pending = ['hasks_ford']; }],
   ['GSF-9', 'a slot ladder with no rung at a tier with homes', (o) => { const { wolfram_helm, ...r } = o.items; void wolfram_helm; o.items = r; }],
   ['GSF-9', 'a home that does not drop its base', (o) => { const S = stepCopy(o); S.grounds = { ...S.grounds, catacomb_flooded_wing: { ...S.grounds.catacomb_flooded_wing, drops: S.grounds.catacomb_flooded_wing.drops.filter((d) => d.id !== 'rowan_bow') } }; }],
   ['GSF-9', 'a made piece with no recipe', (o) => { const S = stepCopy(o); S.made.smithing = S.made.smithing.filter((r) => r.output !== 'wolfram_ring'); }],

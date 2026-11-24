@@ -1,30 +1,28 @@
-== --ground coppercap_warrens --level 50 --gear bis --only base:steady --seeds 4 --hours 10 --settle 4 --hold-level --workers 4 --json tools/balance-program/redesign/grounds/coppercap_warrens-top.json
 
 V1 on coppercap_warrens (4 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       141.8 +- 4.7      3.8  81.4  98.8    7.7    0.4       2       61      0     0  0 (0/0/0)                       6  {"hold":1985,"climb":436,"fall":13}
+base:steady       137.4 +- 3.2       -1  92.4   100      3    0.2     1.8     61.2      0     0  0 (0/0/0)                       6  {"hold":1927,"climb":510,"fall":6}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        1.21x  sd 0.02  n 4  window 6 h  seeds 1.22 1.18 1.21 1.23
+  base:steady         1.4x  sd 0.02  n 4  window 6 h  seeds 1.4 1.42 1.38 1.42
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L50  coin 20200 +- 67  income 22156 +- 95  store 9960  kit share 0.45 (meal 297, drink 4753, charge 2598, shot 2313)  loot by band: common 337, uncommon 116, scarce 1503, other 0  n 4
+  base:steady       L50  coin 15919 +- 190  income 18220 +- 254  store 8312  kit share 0.46 (meal 272, drink 4403, charge 2095, shot 1542)  loot by band: common 400, uncommon 139, scarce 1761, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.548  bow 0.107  mage 0.133  healer 0.211
+  base:steady       hammer 0.527  bow 0.108  mage 0.142  healer 0.223
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 17.48 land 59.25% hit 30.92 (4625/h) | bow dps 16.63 land 86.57% hit 48.75 (574.25/h) | mage dps 25.7 land 77.58% hit 26.29 (1322.75/h) | healer dps 12.37 land 78.02% hit 25.93 (2122.75/h)
-                    goblin_scavenger(swarm) 201.6/h 21 s 292 | goblin_skulker(shooter) 130.7/h 38 s 338 | goblin_digger(brute) 120.6/h 37 s 1138 | hobgoblin_foreman(brute) 20.1/h 46.6 s 735 | chief_coppercap(caster) 10.1/h 63.5 s 571
-                    broke off by: fall:goblin_skulker@2 4, fall:goblin_digger@3 3, fall:goblin_digger@2 3, fall:goblin_scavenger@0 2, fall:goblin_skulker@3 1
+  base:steady       hammer dps 17.81 land 56.6% hit 28.89 (4632.5/h) | bow dps 16.78 land 89% hit 47.98 (571.5/h) | mage dps 24.75 land 79.72% hit 27.15 (1324.5/h) | healer dps 12.54 land 80.93% hit 26.68 (2120.5/h)
+                    goblin_scavenger(swarm) 202.8/h 21 s 268 | goblin_skulker(shooter) 131.6/h 37.7 s 340 | goblin_digger(brute) 121.4/h 36.8 s 1112 | hobgoblin_foreman(brute) 20.3/h 45.9 s 686 | chief_coppercap(caster) 10.1/h 62.6 s 574
+                    broke off by: fall:goblin_skulker@2 3, fall:goblin_digger@2 2, fall:goblin_scavenger@0 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 48.2 (depth 14)  free 96  spell 860  food 45  taken 26.45 pm/s
+  base:steady       abs 58.9 (depth 19)  free 98  spell 860  food 42  taken 25.74 pm/s
 
-wall 76 s
-   exit 0
+wall 33 s

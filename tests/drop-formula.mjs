@@ -278,8 +278,8 @@ const CASES = {
 };
 
 const MUTANTS = [
-  { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', everyHours: 1.08, ch: 0.018,"]] },
-  { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', ch: 0.016,"]] },
+  { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.018,"]] },
+  { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', ch: 0.016,"]] },
   /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */
   { name: 'a typed chance on a base scale ground', case: 'DF-1', edits: [['src/data/monsters.js', "{ id: 'rat_tail', everyHours: 0.02565, ch: 0.42,", "{ id: 'rat_tail', ch: 0.42,"]] },
   { name: 'kills shares off the reference pull', case: 'DF-1', edits: [['src/core/drop-rate.js', 'const size = dangerDial(ground, row.refStep).pull[0];', 'const size = 3;']] },

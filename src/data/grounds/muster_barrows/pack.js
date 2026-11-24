@@ -135,12 +135,12 @@ export default definePack({
       /* THE SWARM (src/data/monster-roles.js, wave 2; the Danger scale only): each goes for the hero the fewest are on, the front first */
       role: 'swarm',
       drops: [{ id: 'bones', everyHours: 0.0346, ch: 0.5, band: 'common' }, { id: 'bone_chips', everyHours: 0.0432, ch: 0.4, band: 'common' }, { id: 'coffin_nail', everyHours: 0.216, ch: 0.08, band: 'uncommon' },
-        { id: 'rune_boots', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', everyHours: 1.08, ch: 0.016, band: 'scarce' },
-        { id: 'rune_helm', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', everyHours: 1.08, ch: 0.016, band: 'scarce' },
-        { id: 'rune_sword', everyHours: 1.08, ch: 0.016, band: 'scarce' },
+        { id: 'mithril_boots', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'snakeskin_boots', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'warlock_boots', everyHours: 1.08, ch: 0.016, band: 'scarce' },
+        { id: 'mithril_helm', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'snakeskin_helmet', everyHours: 1.08, ch: 0.016, band: 'scarce' }, { id: 'warlock_helmet', everyHours: 1.08, ch: 0.016, band: 'scarce' },
+        { id: 'mithril_sword', everyHours: 1.08, ch: 0.016, band: 'scarce' },
         /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
-        { id: 'runebound_shield', everyHours: 15.7, ch: 0.0011, band: 'rare' }],
-      hp: 211, atk: 25, aim: 45, evasion: 26, def: 2, xp: 989, gp: [16, 50], formula: true },
+        { id: 'mithril_faced_shield', everyHours: 15.7, ch: 0.0011, band: 'rare' }],
+      hp: 211, atk: 25, aim: 45, evasion: 27, def: 2, xp: 989, gp: [16, 50], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -150,9 +150,9 @@ export default definePack({
       /* THE STALKER (monster-roles.js; the scale only): it goes past the front for the hero with the least health */
       role: 'stalker',
       drops: [{ id: 'grave_dust', everyHours: 0.111, ch: 0.3, band: 'common' }, { id: 'urn_shard', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
-        { id: 'rune_platelegs', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', everyHours: 0.694, ch: 0.048, band: 'scarce' },
-        { id: 'yew_staff', everyHours: 0.694, ch: 0.048, band: 'scarce' },
-        { id: 'yew_wand', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
+        { id: 'mithril_platelegs', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.694, ch: 0.048, band: 'scarce' },
+        { id: 'maple_staff', everyHours: 0.694, ch: 0.048, band: 'scarce' },
+        { id: 'maple_wand', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
       hp: 207, atk: 34, aim: 59, evasion: 27, def: 2, xp: 1189, gp: [16, 49], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
@@ -163,10 +163,10 @@ export default definePack({
       /* THE BRUTE (monster-roles.js; the scale only): it goes for the nearest hero in the front row */
       role: 'brute',
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'bone_chips', everyHours: 0.0833, ch: 0.4, band: 'common' }, { id: 'sergeant_spur', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
-        { id: 'rune_platebody', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_body', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'sorcerer_body', everyHours: 0.694, ch: 0.048, band: 'scarce' },
-        { id: 'rune_warhammer', everyHours: 0.694, ch: 0.048, band: 'scarce' },
-        { id: 'rune_gauntlets', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' },
-        { id: 'rune_hatchets', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
+        { id: 'mithril_platebody', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'snakeskin_body', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'warlock_body', everyHours: 0.694, ch: 0.048, band: 'scarce' },
+        { id: 'mithril_warhammer', everyHours: 0.694, ch: 0.048, band: 'scarce' },
+        { id: 'mithril_gauntlets', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'warlock_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' },
+        { id: 'mithril_hatchets', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
       hp: 484, atk: 45, aim: 55, evasion: 47, def: 21, xp: 2768, gp: [38, 113], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
@@ -176,13 +176,13 @@ export default definePack({
          HIS TWO LINES (boss-phases.js, the header): at half his health he calls up his file (the pocket's `adds`), and under a
          quarter he hits 15% harder (measured, the header). No guard: his men fight beside him, they don't shield him. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.933, ch: 0.5, band: 'common' }, { id: 'hasks_coin', everyHours: 3.11, ch: 0.15, band: 'uncommon' },
-        { id: 'rune_belt', everyHours: 35, ch: 0.0133, band: 'rare' }, { id: 'wyvernhide_belt', everyHours: 35, ch: 0.0133, band: 'rare' }, { id: 'sorcerer_belt', everyHours: 35, ch: 0.0133, band: 'rare' },
-        { id: 'yew_bow', everyHours: 35, ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', everyHours: 35, ch: 0.0133, band: 'rare' }],
+        { id: 'mithril_belt', everyHours: 35, ch: 0.0133, band: 'rare' }, { id: 'snakeskin_belt', everyHours: 35, ch: 0.0133, band: 'rare' }, { id: 'warlock_belt', everyHours: 35, ch: 0.0133, band: 'rare' },
+        { id: 'maple_bow', everyHours: 35, ch: 0.0133, band: 'rare' }, { id: 'maple_crossbow', everyHours: 35, ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
       /* A BRUTE (monster-roles.js; the scale only): his file, his adds, are the swarm that reaches the back */
       role: 'brute',
-      hp: 1712, atk: 54, aim: 58, evasion: 51, def: 24, xp: 10751, gp: [133, 401], formula: true,
+      hp: 1712, atk: 54, aim: 58, evasion: 53, def: 24, xp: 10751, gp: [133, 401], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {

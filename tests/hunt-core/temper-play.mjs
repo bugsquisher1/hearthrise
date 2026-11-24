@@ -142,11 +142,11 @@ const cases = {
     let thinnest = 1e9;
     for (const [weight, line] of Object.entries(LINES)) {
       /* a tier's rows are the grounds that tier is worn on: Iron and Studded at the Sewer and the Glade, Steel and Boarhide at the Warrens; the
-         March's three (lane/d-audit-balance-2, temper.js tiers 4 to 6): Mithril at the Ford and the Slake, Rune at the Barrows, Emberforged at the
-         Hold, each against the next tier's bare set. Tier 6's bar is bare Dawnsteel (tier 7), worn from 88, so it is read at the Hold (85 to
+         March's four on 12-targets 8.3 (one material a tier, a ground's base at or under its reference): Steel at the Ford and the Slake beside the Warrens, Mithril at the
+         Barrows, Rune at the Hold, each against the next tier's bare set. Tier 6's bar is bare Dawnsteel (tier 7), worn from 88, so it is read at the Hold (85 to
          110), where it is worn. Not at the Pyre Field (70 to 90): there a plate hero in Emberforged already sits at the armor cap (a full ladder takes
          3.4%, not 5%) and Dawnsteel only 2.3%, so a maxed Emberforged set lets 1.2% less through than bare Dawnsteel; neither moves much there */
-      for (const [tier, grounds] of [[2, [GLADE, 'millrace_sewer']], [3, [WARRENS]], [4, ['hasks_ford', 'the_slake']], [5, ['muster_barrows']], [6, ['krells_hold']]]) {
+      for (const [tier, grounds] of [[2, [GLADE, 'millrace_sewer']], [3, [WARRENS, 'hasks_ford', 'the_slake']], [4, ['muster_barrows']], [5, ['krells_hold']]]) {
         for (const g of grounds) {
           const mons = monstersOf(g);
           const set = setOf(line, tier), next = setOf(line, tier + 1);

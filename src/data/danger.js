@@ -231,26 +231,26 @@ export const DANGER_GROUNDS = Object.freeze({
      as played), 6 seeds x 10 h, no Steady death: Bone 420 / 520 / 580, coinPm 4000 (LOW 437.6, MID 519.1, BIS 582.1); Flooded 440 / 480 / 515,
      coinPm 3300 (451.1, 481.5, 517.4). The reference hour pays 1.00 and 1.01 of wage(175) and 0.97x and 1.04x the hours. A whole kit one
      tier back at 175 moves 16.2 and 9.3 steps, 2 depths each (C-2) */
-  muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
-  hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
+  muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 545, topStep: 655, refKillsHead: 135, refHeld: 605, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
   catacomb_bone_wing: ground({ refStep: 520, floorStep: 420, topStep: 580, refKillsHead: 145, coinPm: 4000, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
      coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. The Thicket re-cut on 29 7.5's own kit once iron took
      item Level 20 (lane/scale-grounds-2): its strong four in tier 0 holds 170, where it held the old top 190 in iron. */
-  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 170, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  meadowbrook_thicket: ground({ refStep: 100, floorStep: 0, topStep: 150, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
   mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   /* THE SECOND PAIR (lane/scale-grounds-2; 27 stage 6): the Glade on iron (item Level 20, ladder tier 2), the Warrens on steel (40, ladder
      tier 3, beside the Ford's mithril), each the highest tier at or under its refLevel, so the reference reads the band's middle (CONFLICTS
      2026-11-23). formulaStep 70 as on the first grounds; the band, coin level and kill rate are measured (tools/new-ground.mjs --hold-level,
      the C-target cells in grounds/c-targets). The Glade's fresh four holds step 8, so its floor is the scale's first step */
-  mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 135, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
-  coppercap_warrens: ground({ refStep: 80, floorStep: 20, topStep: 140, refKillsHead: 125, refHeld: 85, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
+  mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 125, refKillsHead: 140, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
+  coppercap_warrens: ground({ refStep: 80, floorStep: 25, topStep: 135, refKillsHead: 125, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
   /* THE THIRD BATCH (lane/scale-grounds-2): the Slake on mithril (40, beside the Ford), the Pyre Field on rune (60, beside Muster), Krell's
      Hold on ember (80). The same anchor and the same measuring as the second pair */
-  the_slake: ground({ refStep: 90, floorStep: 60, topStep: 160, refKillsHead: 125, coinPm: 4600, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
-  pyre_field: ground({ refStep: 70, floorStep: 0, topStep: 150, refKillsHead: 150, coinPm: 2700, formulaStep: 70, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
-  krells_hold: ground({ refStep: 40, floorStep: 0, topStep: 125, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 6, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),
+  the_slake: ground({ refStep: 120, floorStep: 65, topStep: 140, refHeld: 115, coinPm: 5300, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
+  pyre_field: ground({ refStep: 80, floorStep: 10, topStep: 120, refKillsHead: 140, refHeld: 75, coinPm: 3000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
+  krells_hold: ground({ refStep: 60, floorStep: 15, topStep: 125, refHeld: 65, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 515, refKillsHead: 145, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 

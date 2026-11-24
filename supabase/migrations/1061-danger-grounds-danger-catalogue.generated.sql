@@ -102,15 +102,15 @@ insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death
   ('bold', 2, 80, 300, 'steady');
 delete from public.hr_danger_grounds;
 insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_max) values
-  ('coppercap_warrens', 80, 1062, 4584),
+  ('coppercap_warrens', 80, 1062, 4416),
   ('hasks_ford', 590, 1426, 6607),
-  ('krells_hold', 40, 1062, 6803),
-  ('meadowbrook_thicket', 110, 1062, 43458),
+  ('krells_hold', 60, 1062, 5857),
+  ('meadowbrook_thicket', 100, 1062, 40324),
   ('mill_cellar', 60, 1062, 138612),
-  ('mosslight_glade', 60, 1062, 9889),
-  ('muster_barrows', 610, 1426, 5150),
-  ('pyre_field', 70, 1062, 4137),
-  ('the_slake', 90, 1062, 6069);
+  ('mosslight_glade', 50, 1062, 10658),
+  ('muster_barrows', 630, 1426, 4814),
+  ('pyre_field', 80, 1062, 4048),
+  ('the_slake', 120, 1062, 5586);
 
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
 create or replace function public.hr_danger_hours_for(p_level int)

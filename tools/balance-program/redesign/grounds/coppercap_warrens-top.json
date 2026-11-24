@@ -53,67 +53,67 @@
    "start": 0,
    "seedsRead": 4,
    "payX": {
-    "mean": 1.21,
+    "mean": 1.4,
     "sd": 0.02,
     "n": 4,
     "perSeed": [
-     1.22,
-     1.18,
-     1.21,
-     1.23
+     1.4,
+     1.42,
+     1.38,
+     1.42
     ],
     "fromH": 4,
     "windowH": 6
    },
    "held": {
-    "mean": 141.8,
-    "sd": 4.7,
-    "se": 2.4,
+    "mean": 137.4,
+    "sd": 3.2,
+    "se": 1.6,
     "perSeed": [
-     143,
      136,
-     142,
-     147
+     140,
+     133,
+     140
     ]
    },
-   "drift": 3.8,
-   "within10": 81.4,
-   "within20": 98.8,
-   "changesPerH": 7.7,
-   "fallsPerH": 0.4,
-   "reachH": 2,
-   "pullsPerH": 61,
-   "killsPerH": 483,
-   "xpPerHeroH": 219707,
+   "drift": -1,
+   "within10": 92.4,
+   "within20": 100,
+   "changesPerH": 3,
+   "fallsPerH": 0.2,
+   "reachH": 1.8,
+   "pullsPerH": 61.2,
+   "killsPerH": 486,
+   "xpPerHeroH": 256274,
    "gold": {
     "coinPerHeroH": {
-     "mean": 20200,
-     "sd": 67,
+     "mean": 15919,
+     "sd": 190,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 22156,
-     "sd": 95,
+     "mean": 18220,
+     "sd": 254,
      "n": 4
     },
     "storePerHeroH": {
-     "mean": 9960,
-     "sd": 59,
+     "mean": 8312,
+     "sd": 110,
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 337,
-     "sd": 11,
+     "mean": 400,
+     "sd": 14,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 116,
-     "sd": 3,
+     "mean": 139,
+     "sd": 4,
      "n": 4
     },
     "scarcePerHeroH": {
-     "mean": 1503,
-     "sd": 45,
+     "mean": 1761,
+     "sd": 91,
      "n": 4
     },
     "otherPerHeroH": {
@@ -123,22 +123,22 @@
     }
    },
    "kit": {
-    "meal": 297,
-    "drink": 4753,
-    "charge": 2598,
-    "shot": 2313
+    "meal": 272,
+    "drink": 4403,
+    "charge": 2095,
+    "shot": 1542
    },
    "kitIds": {
-    "salted_lobster": 12.4,
-    "plain_rune_arrows": 771,
+    "salted_lobster": 11.3,
+    "plain_mithril_arrows": 771.2,
     "plain_scored_fire_rune": 67.5,
-    "thin_carrot_juice": 297.1,
-    "plain_graven_fire_rune": 73.1,
-    "plain_graven_ice_rune": 164.8,
-    "plain_earth_rune": 27.1,
-    "plain_carved_poison_rune": 66.6,
-    "plain_carved_earth_rune": 69.3,
-    "plain_carved_water_rune": 279.6
+    "thin_carrot_juice": 275.2,
+    "plain_carved_fire_rune": 72.9,
+    "plain_carved_ice_rune": 164.5,
+    "plain_earth_rune": 28.2,
+    "plain_carved_poison_rune": 66.4,
+    "plain_carved_earth_rune": 69.1,
+    "plain_carved_water_rune": 271.1
    },
    "deaths": 0,
    "wipes": 0,
@@ -151,114 +151,112 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 1985,
-    "climb": 436,
-    "fall": 13
+    "hold": 1927,
+    "climb": 510,
+    "fall": 6
    },
    "takenShare": [
     {
      "style": "hammer",
-     "mean": 0.548
+     "mean": 0.527
     },
     {
      "style": "bow",
-     "mean": 0.107
+     "mean": 0.108
     },
     {
      "style": "mage",
-     "mean": 0.133
+     "mean": 0.142
     },
     {
      "style": "healer",
-     "mean": 0.211
+     "mean": 0.223
     }
    ],
    "causes": {
-    "fall:goblin_scavenger@0": 2,
-    "fall:goblin_digger@3": 3,
-    "fall:goblin_skulker@3": 1,
-    "fall:goblin_digger@2": 3,
-    "fall:goblin_skulker@2": 4
+    "fall:goblin_skulker@2": 3,
+    "fall:goblin_digger@2": 2,
+    "fall:goblin_scavenger@0": 1
    },
    "seats": [
     {
      "style": "hammer",
-     "dps": 17.48,
-     "landedPct": 59.25,
-     "dmgPerSwing": 30.92,
-     "swingsPerH": 4625,
-     "takenPerH": 143000.5
+     "dps": 17.81,
+     "landedPct": 56.6,
+     "dmgPerSwing": 28.89,
+     "swingsPerH": 4632.5,
+     "takenPerH": 133844
     },
     {
      "style": "bow",
-     "dps": 16.63,
-     "landedPct": 86.57,
-     "dmgPerSwing": 48.75,
-     "swingsPerH": 574.25,
-     "takenPerH": 27986.25
+     "dps": 16.78,
+     "landedPct": 89,
+     "dmgPerSwing": 47.98,
+     "swingsPerH": 571.5,
+     "takenPerH": 27425.25
     },
     {
      "style": "mage",
-     "dps": 25.7,
-     "landedPct": 77.58,
-     "dmgPerSwing": 26.29,
-     "swingsPerH": 1322.75,
-     "takenPerH": 34787.25
+     "dps": 24.75,
+     "landedPct": 79.72,
+     "dmgPerSwing": 27.15,
+     "swingsPerH": 1324.5,
+     "takenPerH": 35958.5
     },
     {
      "style": "healer",
-     "dps": 12.37,
-     "landedPct": 78.02,
-     "dmgPerSwing": 25.93,
-     "swingsPerH": 2122.75,
-     "takenPerH": 55039.5
+     "dps": 12.54,
+     "landedPct": 80.93,
+     "dmgPerSwing": 26.68,
+     "swingsPerH": 2120.5,
+     "takenPerH": 56582.25
     }
    ],
    "kinds": {
     "goblin_scavenger": {
      "role": "swarm",
-     "killsPerH": 201.6,
+     "killsPerH": 202.8,
      "ttkS": 21,
-     "takenPerKill": 292
+     "takenPerKill": 268
     },
     "goblin_skulker": {
      "role": "shooter",
-     "killsPerH": 130.7,
-     "ttkS": 38,
-     "takenPerKill": 338
+     "killsPerH": 131.6,
+     "ttkS": 37.7,
+     "takenPerKill": 340
     },
     "goblin_digger": {
      "role": "brute",
-     "killsPerH": 120.6,
-     "ttkS": 37,
-     "takenPerKill": 1138
+     "killsPerH": 121.4,
+     "ttkS": 36.8,
+     "takenPerKill": 1112
     },
     "hobgoblin_foreman": {
      "role": "brute",
-     "killsPerH": 20.1,
-     "ttkS": 46.6,
-     "takenPerKill": 735
+     "killsPerH": 20.3,
+     "ttkS": 45.9,
+     "takenPerKill": 686
     },
     "chief_coppercap": {
      "role": "caster",
      "killsPerH": 10.1,
-     "ttkS": 63.5,
-     "takenPerKill": 571
+     "ttkS": 62.6,
+     "takenPerKill": 574
     }
    },
    "abs": {
-    "level": 48.2,
-    "depth": 14
+    "level": 58.9,
+    "depth": 19
    },
    "sustain": {
-    "freePm": 96,
+    "freePm": 98,
     "spellPm": 860,
-    "foodPm": 45,
-    "takenPmS": 26.45
+    "foodPm": 42,
+    "takenPmS": 25.74
    }
   }
  },
- "wallS": 76,
+ "wallS": 33,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

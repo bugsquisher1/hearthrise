@@ -3,31 +3,30 @@
  "_generated_by": "node tools/new-ground.mjs <ground> --write",
  "grounds": {
   "muster_barrows": {
-   "refStep": 610,
-   "floorStep": 575,
+   "refStep": 630,
+   "floorStep": 565,
    "topStep": 700,
-   "coinPm": 7000,
-   "print": "e0cc693e5eb7f472",
+   "coinPm": 7600,
+   "print": "f8355e114ecabfd7",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
     "top": 75,
     "mid": 60
    },
-   "measured": "2026-11-23",
+   "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/muster_barrows-ref.json",
-    "tools/balance-program/redesign/tuning/final/c0-muster-top.json",
-    "tools/balance-program/redesign/depth-budget/muster-a.json"
+    "tools/balance-program/redesign/grounds/muster_barrows-{floor,top,ref}.json"
    ]
   },
   "hasks_ford": {
    "refStep": 590,
-   "floorStep": 550,
-   "topStep": 660,
+   "floorStep": 545,
+   "topStep": 655,
    "refKillsHead": 135,
+   "refHeld": 605,
    "coinPm": 6600,
-   "print": "72695466be94246b",
+   "print": "975134b951eccea8",
    "verdict": "OPEN",
    "levels": {
     "entry": 45,
@@ -36,9 +35,7 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-top.json",
-    "tools/balance-program/redesign/tuning/roles/after/roles-after-ford-floor.json"
+    "tools/balance-program/redesign/grounds/hasks_ford-{floor,top,ref}.json"
    ]
   },
   "catacomb_bone_wing": {
@@ -103,12 +100,12 @@
    ]
   },
   "meadowbrook_thicket": {
-   "refStep": 110,
+   "refStep": 100,
    "floorStep": 0,
-   "topStep": 170,
+   "topStep": 150,
    "refKillsHead": 125,
    "coinPm": 38400,
-   "print": "8b9dbeecdc7bb74f",
+   "print": "e76b954dcab4871f",
    "verdict": "OPEN",
    "levels": {
     "entry": 5,
@@ -117,18 +114,17 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/c-targets/meadowbrook_thicket.json",
-    "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
-    "tools/balance-program/redesign/grounds/meadowbrook_thicket-floor.json"
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-{floor,top,ref}.json"
    ]
   },
   "mosslight_glade": {
-   "refStep": 60,
+   "refStep": 50,
    "floorStep": 0,
-   "topStep": 130,
-   "refKillsHead": 135,
+   "topStep": 125,
+   "refKillsHead": 140,
+   "refHeld": 55,
    "coinPm": 7800,
-   "print": "ad56fafa26ed1603",
+   "print": "3fa511657a51b655",
    "verdict": "OPEN",
    "levels": {
     "entry": 16,
@@ -137,19 +133,16 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/mosslight_glade-played.json",
-    "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
-    "tools/balance-program/redesign/grounds/mosslight_glade-floor.json"
+    "tools/balance-program/redesign/grounds/mosslight_glade-{floor,top,ref}.json"
    ]
   },
   "coppercap_warrens": {
    "refStep": 80,
-   "floorStep": 20,
-   "topStep": 140,
+   "floorStep": 25,
+   "topStep": 135,
    "refKillsHead": 125,
-   "refHeld": 85,
    "coinPm": 3900,
-   "print": "fcd61bd30599d9a7",
+   "print": "b54333e1d6fb3ff1",
    "verdict": "OPEN",
    "levels": {
     "entry": 32,
@@ -158,18 +151,16 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/coppercap_warrens-played.json",
-    "tools/balance-program/redesign/grounds/coppercap_warrens-top.json",
-    "tools/balance-program/redesign/grounds/coppercap_warrens-floor.json"
+    "tools/balance-program/redesign/grounds/coppercap_warrens-{floor,top,ref}.json"
    ]
   },
   "the_slake": {
-   "refStep": 90,
-   "floorStep": 60,
-   "topStep": 160,
-   "refKillsHead": 125,
-   "coinPm": 4600,
-   "print": "9816fbcbcf202e24",
+   "refStep": 120,
+   "floorStep": 65,
+   "topStep": 140,
+   "refHeld": 115,
+   "coinPm": 5300,
+   "print": "500ea8d1c38b2c11",
    "verdict": "OPEN",
    "levels": {
     "entry": 50,
@@ -178,18 +169,17 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/the_slake-played.json",
-    "tools/balance-program/redesign/grounds/the_slake-top.json",
-    "tools/balance-program/redesign/grounds/the_slake-floor.json"
+    "tools/balance-program/redesign/grounds/the_slake-{floor,top,ref}.json"
    ]
   },
   "pyre_field": {
-   "refStep": 70,
-   "floorStep": 0,
-   "topStep": 150,
-   "refKillsHead": 150,
-   "coinPm": 2700,
-   "print": "6bf7906cf23f03a0",
+   "refStep": 80,
+   "floorStep": 10,
+   "topStep": 120,
+   "refKillsHead": 140,
+   "refHeld": 75,
+   "coinPm": 3000,
+   "print": "68c067fb73f1b94b",
    "verdict": "OPEN",
    "levels": {
     "entry": 70,
@@ -198,17 +188,16 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/pyre_field-played.json",
-    "tools/balance-program/redesign/grounds/pyre_field-top.json",
-    "tools/balance-program/redesign/grounds/pyre_field-floor.json"
+    "tools/balance-program/redesign/grounds/pyre_field-{floor,top,ref}.json"
    ]
   },
   "krells_hold": {
-   "refStep": 40,
-   "floorStep": 0,
+   "refStep": 60,
+   "floorStep": 15,
    "topStep": 125,
+   "refHeld": 65,
    "coinPm": 3600,
-   "print": "6ec90bebbe95f5f2",
+   "print": "27c2e33c1d38652c",
    "verdict": "REVIEW",
    "levels": {
     "entry": 85,
@@ -217,9 +206,7 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/krells_hold-played.json",
-    "tools/balance-program/redesign/grounds/krells_hold-top.json",
-    "tools/balance-program/redesign/grounds/krells_hold-floor.json"
+    "tools/balance-program/redesign/grounds/krells_hold-{floor,top,ref}.json"
    ]
   }
  }

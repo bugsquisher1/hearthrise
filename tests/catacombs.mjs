@@ -179,8 +179,10 @@ async function doorsArm(db, M) {
          generated 40 (src/data/chests.js landingForLevel). The bare Level 12 this arm sent tops out at room 13 since the keys moved to
          their generated landings (lane/tower-boss-formula), so both doors minted nothing and "a wing mints the Tower's keys" had nothing
          to read (ESCAPED on run 45221888675). Measured on set f385c30e1: this hero clears door 40 and falls in room 46, 15.6 of SPAN's
-         20 minutes (Levels 48 to 55 in their kits clear 40 too, 46 does not). The CONTROL below turns red the day it stops reaching a key. */
-      const h = await descender(db, M, { wing: 'bone', level: 50, style: 'hammer' });
+         20 minutes (Levels 48 to 55 in their kits clear 40 too, 46 does not). The CONTROL below turns red the day it stops reaching a key.
+         RE-MEASURED on lane/gear-phase-b merged with the skills clock (set 31077c8bf; 12-targets 8.3's ladder): Levels 50 and 52 in their kits
+         stop at room 39, 55 clears door 40, so the arm's hero is a Level 55 hammer. */
+      const h = await descender(db, M, { wing: 'bone', level: 55, style: 'hammer' });
       const s0 = await state(db, h);
       const seen = new Set();
       try {

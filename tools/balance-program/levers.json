@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c076f65cfb729bb6",
+ "authored": "9f3ed3d514cb7932",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 769,
-  "typed": 17234,
+  "typed": 17486,
   "files": 261,
   "lever": 340,
   "notLever": 429,
@@ -6327,13 +6327,13 @@
    "sites": [
     {
      "file": "src/data/monsters.js",
-     "line": 77,
+     "line": 78,
      "text": "const MONSTER_SPEED_DEFAULT = 3000;",
      "binding": "MONSTER_SPEED_DEFAULT"
     },
     {
      "file": "src/data/monsters.js",
-     "line": 95,
+     "line": 96,
      "text": "export const MONSTER_RANGE = Object.freeze({ min: 2, max: 6 });",
      "binding": "MONSTER_RANGE"
     }
@@ -7773,15 +7773,15 @@
     ],
     "mentions": [
      "tests/_tier-path.mjs",
+     "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/gear-stats.mjs",
-     "tests/gear-steps.mjs"
+     "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7852,15 +7852,15 @@
     ],
     "mentions": [
      "tests/_tier-path.mjs",
+     "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/gear-stats.mjs",
-     "tests/gear-steps.mjs"
+     "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7928,15 +7928,15 @@
     ],
     "mentions": [
      "tests/_tier-path.mjs",
+     "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/gear-stats.mjs",
-     "tests/gear-steps.mjs"
+     "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7997,15 +7997,15 @@
     ],
     "mentions": [
      "tests/_tier-path.mjs",
+     "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
-     "tests/gear-stats.mjs",
-     "tests/gear-steps.mjs"
+     "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8024,7 +8024,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 291,
+     "line": 302,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -8093,19 +8093,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 298,
+     "line": 309,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 299,
+     "line": 310,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 300,
+     "line": 311,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
@@ -8169,7 +8169,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 327,
+     "line": 338,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -8373,8 +8373,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 234,
+     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8416,7 +8416,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8447,20 +8447,20 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 234,
+     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 237,
+     "line": 236,
      "text": "catacomb_bone_wing: ground({ refStep: 520, floorStep: 420, topStep: 580, refKillsHead: 145, coinPm: 4000, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 241,
-     "text": "meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
+     "text": "meadowbrook_thicket: ground({ refStep: 100, floorStep: 0, topStep: 150, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
@@ -8471,7 +8471,37 @@
     },
     {
      "file": "src/data/danger.js",
-     "line": 243,
+     "line": 247,
+     "text": "mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 125, refKillsHead: 140, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 248,
+     "text": "coppercap_warrens: ground({ refStep: 80, floorStep: 25, topStep: 135, refKillsHead: 125, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 251,
+     "text": "the_slake: ground({ refStep: 120, floorStep: 65, topStep: 140, refHeld: 115, coinPm: 5300, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 252,
+     "text": "pyre_field: ground({ refStep: 80, floorStep: 10, topStep: 120, refKillsHead: 140, refHeld: 75, coinPm: 3000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 253,
+     "text": "krells_hold: ground({ refStep: 60, floorStep: 15, topStep: 125, refHeld: 65, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 254,
      "text": "catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 515, refKillsHead: 145, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8525,7 +8555,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8535,7 +8565,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the scale grounds whose measured reference company holds off the formula's anchor (the Catacomb wings; Muster Barrows, the Thicket and the Mill Cellar, whose anchors are chosen: lane/scale-early-grounds)",
+    "what": "the scale grounds whose measured reference company holds off the formula's anchor (the Catacomb wings; Muster Barrows, the Thicket, the Mill Cellar, the Glade, the Warrens, the Slake, the Pyre Field and Krell's Hold, whose anchors are chosen: lane/scale-early-grounds, lane/scale-grounds-2)",
     "homes": [
      "src/data/danger.js#DANGER_GROUNDS"
     ]
@@ -8556,8 +8586,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 236,
-     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "line": 235,
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 545, topStep: 655, refKillsHead: 135, refHeld: 605, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8606,7 +8636,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8637,7 +8667,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 261,
+     "line": 272,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8847,19 +8877,19 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 85,
+     "line": 89,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 87,
+     "line": 91,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 93,
+     "line": 97,
      "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
      "binding": "MONSTER_ROLES"
     }
@@ -8935,37 +8965,37 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 83,
+     "line": 87,
      "text": "armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 86,
+     "line": 90,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 89,
+     "line": 93,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 92,
+     "line": 96,
      "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 94,
+     "line": 98,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 98,
+     "line": 102,
      "text": "armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
      "binding": "MONSTER_ROLES"
     }
@@ -9043,7 +9073,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 99,
+     "line": 103,
      "text": "mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
      "binding": "MONSTER_ROLES"
     }
@@ -9108,7 +9138,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 136,
+     "line": 140,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -9172,13 +9202,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 138,
+     "line": 142,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 139,
+     "line": 143,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9237,7 +9267,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 141,
+     "line": 145,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9299,7 +9329,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 142,
+     "line": 146,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -9361,13 +9391,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 144,
+     "line": 148,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 145,
+     "line": 149,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -10264,7 +10294,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 45,
+     "distinct": 63,
      "low": 0.06,
      "high": 1
     }
@@ -10507,8 +10537,8 @@
       "key",
       "trophy"
      ],
-     "rows": 316,
-     "distinct": 80,
+     "rows": 309,
+     "distinct": 85,
      "low": 0.0005,
      "high": 0.05
     }
@@ -11601,7 +11631,7 @@
       "table": "src/data/items.js ITEMS",
       "rows": 771,
       "carrying": 225,
-      "distinct": 61,
+      "distinct": 63,
       "low": 1,
       "high": 164
      }
@@ -11804,7 +11834,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11879,7 +11909,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11978,7 +12008,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12215,7 +12245,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12234,8 +12264,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 234,
+     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12290,7 +12320,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12309,8 +12339,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 234,
+     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12366,7 +12396,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 21,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {

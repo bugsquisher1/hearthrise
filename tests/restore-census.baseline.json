@@ -1356,7 +1356,7 @@
   },
   "hr_danger_grounds": {
    "class": "seeded",
-   "replay": 6,
+   "replay": 9,
    "note": "Generated catalogue (1055-danger-scale-danger-catalogue.generated.sql, tools/gen-danger.mjs --check holds it to src/data/danger.js DANGER_GROUNDS): the grounds the Danger scale opens on, each with its reference step. Empty, no hunt freezes a stance (every stance plays the tier) and a window on the scale refuses catalogue_missing; rebuilt from repo, never restored."
   },
   "hr_danger_rules": {
@@ -1517,7 +1517,7 @@
   },
   "hr_flame_fuel": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 6,
    "note": "Generated catalogue (1063-flame-temper-catalogue.generated.sql, tools/gen-flame-temper.mjs): the Remains goods that burn and the band each is worth at. Empty, hr_flame_burn refuses every item (bad_item); rebuilt from repo, never restored."
   },
   "hr_flame_levels": {
@@ -2109,7 +2109,7 @@
   },
   "hr_store_grounds": {
    "class": "seeded",
-   "replay": 8,
+   "replay": 11,
    "note": "Generated catalogue (1061-store-step-catalogue.generated.sql, tools/gen-store-prices.mjs from src/data/danger.js DANGER_GROUNDS): each Danger scale ground's reference depth in the wage's unit (its gearLevel). Empty, hr_store_step prices a scale hunt's store at the hero's Level instead of its depth (never a refusal, no gold minted). Rebuilt from repo, never restored."
   },
   "hr_store_terms": {

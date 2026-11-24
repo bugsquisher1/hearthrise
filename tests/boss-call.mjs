@@ -544,7 +544,7 @@ const MUTANTS = [
   { name: 'the drop door ignores its switch', edits: [['src/core/hunt-rewards.js', 'if (BOSS_CALL_RULES.dropsLive === true && ids.length && row)', 'if (ids.length && row)']], want: /SHUT/ },
   /* HIS OWN TABLE, ONLY ON A WIN (Tyler 2026-11-14) */
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
-  { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace('ch: .00141', 'ch: .5')]], want: /BC-ROW/ },
+  { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace(/ch: \.\d+/, 'ch: .5')]], want: /BC-ROW/ },
   /* A CALL-ONLY PIECE IS NEVER A COPY, AND IS ITS TIER'S SIZE (coherence pass 2026-11-15 C1, C2; lane/d-coherence-fixes, re-landed by lane/a-honesty-rescue) */
   { name: 'Kingstooth loses its bane: the Iron Sword again', edits: [['src/data/boss-calls.js', "bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),", '']], want: /BC-ROW/ },
   { name: 'the Cauldron Lid loses its fire: the Coppercap Shield again', edits: [['src/data/boss-calls.js', '    resistPm: Object.freeze({ ember: 100 }), tier: 3,', '    tier: 3,']], want: /BC-ROW/ },

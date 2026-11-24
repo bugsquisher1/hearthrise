@@ -26,7 +26,7 @@ import { GEAR_ITEMS, STEP_MATERIALS } from './gear-tiers.js';
 import { SHIELD_ITEMS } from './shields.js';
 import { SLOT_ITEMS } from './slot-ladders.js';
 
-/* THE STEP TIERS' LINES (lane/gear-phase-b; src/data/gear-tiers.js STEP_TIERS). A tier brings four words (its metal, wood, leather and cloth)
+/* THE LINES OF A TIER WITH HOMES (lane/gear-phase-b; src/data/gear-tiers.js STEP_MATERIALS). A tier brings four words (its metal, wood, leather and cloth)
    and each word one line here, its root; every piece the lane adds reads "A <its name>." and its word's line, so a new tier is four lines
    and never thirty-one. The naming pass and the writer may give any piece its own line in the literal below, which wins. */
 const STEP_LORE = Object.freeze({

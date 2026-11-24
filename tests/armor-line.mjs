@@ -200,11 +200,11 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
   /* a Hearth Chest piece is no rival: the chest's pieces are the all-rounders and a unique is best in its own case (plan §3, the sidegrade rule),
      and the grade wears ground and boss drops only (the designer 2026-11-18 row 1f). WL4 never read the Tower's weapons either. Without this the
      Catacombs' Platinum Vault-Cutter's Helm (Dawnsteel's helm + 3 Melee, a chest piece) out-won the Watchman's Helm (set/v0.2.141) */
-  /* nor is a step tier's base (src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b): the sample is cut against the seven-tier ladder and its line,
+  /* nor is a base past Dawnsteel (src/data/gear-tiers.js MATERIAL_TIERS past tier 7, lane/gear-phase-b): the sample is cut against the seven-tier ladder and its line,
      and the ladder on steps replaces that line (27-formula-overhaul G-2 phase B). The sample's re-sort onto steps is the designer's (CONFLICTS
      2026-11-23 "the staged lines past Dawnsteel and the ladder on steps"); until it lands AL4 measures each piece against the model it was cut on */
   const shipped = Object.entries(ITEMS).filter(([iid, it]) => it && it.type === 'armor' && B[it.armourClass] && Number(it.tier) >= 7 && !awaiting.has(iid)
-    && !Number.isInteger(it.step) && !CHEST_ARMOR.has(iid) && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
+    && !(Number.isInteger(it.step) && Number(it.tier) > 7) && !CHEST_ARMOR.has(iid) && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
   for (const id of ids) {
     const s = S[id], R = s.row.reqLv, H = P.huntedAt(R, G);
     const rivals = ids.filter((o) => o !== id && S[o].row.slot === s.row.slot && S[o].row.armourClass === s.row.armourClass && S[o].row.reqLv <= R).map((o) => S[o].row)

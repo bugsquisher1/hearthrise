@@ -45,7 +45,7 @@
 import { withGearStats } from './gear-profiles.js';
 import { STEP_MATERIALS, materialWord, stepOf } from './gear-tiers.js';
 
-/* THE MADE PIECES OF A STEP TIER (lane/gear-phase-b; gear-tiers.js STEP_TIERS): the line its word comes from, its label and book multiplier
+/* THE MADE PIECES OF A TIER WITH HOMES (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): the line its word comes from, its label and book multiplier
    (the shipped rungs' vmul), the bench that makes it and the top input that bench works (the shipped ladder's top bar or plank: the
    Dawnsteel Bar and the Duskwood Plank, both made today). The part is the tier row's (`parts`). */
 const STEP_JEWELS = Object.freeze([
@@ -200,7 +200,7 @@ export const SLOT_ITEMS = withGearStats({
   spellstone_ring:   { n: 'Spellstone Ring',   icon: '💍', v: 26000,          type: 'jewelry', slot: 'ring', tier: 6, rarity: 'unique',     reqSkill: 'level',   reqLv: 68 },
   dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'level', reqLv: 84 },
 
-  /* ══ THE LADDER ON STEPS (lane/gear-phase-b; src/data/gear-tiers.js STEP_TIERS): one ring, one pair of earrings, one necklace and one cloak
+  /* ══ EVERY TIER WITH HOMES (lane/gear-phase-b; src/data/gear-tiers.js STEP_MATERIALS): one ring, one pair of earrings, one necklace and one cloak
      a step tier, worn from its Level, their stats the one formula's at the tier's item Level. MADE, never dropped (09-crafting: a crafter
      makes the slot families a Trait rides on): the metal pieces at Smithing, the cloak at Crafting, each from the top bar or plank and a part
      one of its home ground's bodies drops (drop-hours.js DROP_HOURS.made: a made piece's ground is its part's). STEP_MADE below. ══ */

@@ -2,7 +2,7 @@
 // src/data/base-drops.js — EVERY STEP TIER'S BASE DROPS ON ITS HOME GROUNDS (systems, lane/gear-phase-b, 2026-11-23).
 //
 // docs/design/redesign/12-targets.md 3.3 ("the gear base is fixed by the ground", drops with a home), 27-formula-overhaul.md G-2 phase B,
-// src/data/drop-hours.js (drops authored in hunted hours). A step tier (src/data/gear-tiers.js STEP_TIERS) names its `homes`; each home drops
+// src/data/drop-hours.js (drops authored in hunted hours). A tier with homes (src/data/gear-tiers.js STEP_MATERIALS) names them; each home drops
 // the tier's whole plain base, every armor piece of the three weights, every weapon family's rung, the codex and the shield, as the ground's
 // OWN drop rows (src/data/hunt-grounds.js folds them onto the ground row's `drops`, after any rows it already has, so no earlier draw on the
 // seeded stream moves: src/core/hunt/play-rows.js groundDropsOn). The jewels and the cloak are made, never dropped (slot-ladders.js STEP_MADE).

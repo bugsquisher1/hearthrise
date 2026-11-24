@@ -3,7 +3,7 @@
 // tools/world-art/step-tier-icons.mjs — THE STEP TIERS' PLACEHOLDER ICONS, RE-DYED FROM THE SHIPPED TOP
 // (systems, lane/gear-phase-b, 2026-11-23; the Art Director judges each and may replace it with bespoke art).
 //
-// Every piece of a step tier (src/data/gear-tiers.js STEP_TIERS: the ladder past Dawnsteel on item Levels) needs a 32x32 pixel icon
+// Every piece this lane adds (src/data/gear-tiers.js MATERIAL_TIERS, 12-targets 8.3: the rungs past Dawnsteel, the jewels, cloaks and shields) needs a 32x32 pixel icon
 // (tests/pixel-icons.mjs: one file per ITEMS key). Rather than invent a style, each is the SAME SLOT'S shipped top re-dyed into its tier's
 // word (ladder-icons.mjs's rank rule): every opaque colour of the source, ranked dark to light, becomes the colour of the same rank in the
 // word's RAMP below, a run of the locked world palette (art/world/palette.json), so the icon stays on the palette, binary alpha, 32x32:

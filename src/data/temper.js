@@ -107,8 +107,9 @@ const UNIQUE_BAND_LEVELS = Object.keys(TEMPER_UNIQUE_BANDS).map(Number).sort((a,
 /** The ladder a worn piece reads: its band's first Level for armor past Dawnsteel (tier 7 or more, worn from Level 110 or more), else its gear tier. */
 export function temperTierOf(it) {
   if (!it) return 0;
-  /* a step tier's piece (src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b) is a base of the ladder past Dawnsteel, not a unique: it reads no
-     unique band, and its rung number has no row here, so the old ladders are shut on it. Its Temper is Temper on steps (src/core/temper-steps.js) */
+  /* a ladder piece carries its material's grid step (src/data/gear-tiers.js MATERIAL_TIERS, 12-targets 8.3; a Catacomb twin its twin's): a base,
+     never a unique, so it reads its tier's ladder and no unique band, worn from 110 or not. A tier past Dawnsteel has no row here, so the old
+     ladders are shut on it; its Temper is Temper on steps (src/core/temper-steps.js) */
   if (Number.isInteger(it.step)) return it.tier;
   const lv = Number(it.reqLv);
   if (it.armourClass && it.slot && Number(it.tier) >= 7 && lv >= TEMPER_UNIQUE_FROM) {

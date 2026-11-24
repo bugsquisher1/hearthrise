@@ -194,6 +194,7 @@ MEASURED on the set (`v1-climb.mjs`, the Steady mixed four, 6 seeds x 10 h, held
   - **Rare odds:** ×1 at depth 1, rising to ×3 at depth 20 (a starting value).
   - **Trait rank:** depths 1 to 7 roll rank I, 8 to 14 rank II, 15 to 20 rank III (section 8: three ranks, not five), up to the ground's highest rank: rank II only on grounds entered at Level 70 or more, rank III at 100 or more (`19-power-ledger.md` section 2, 2026-11-22). Muster Barrows rolls rank I.
 - **Never the base numbers.** If depth raised them, one ground would hold the best gear forever, and moving on would be pointless. That was Tyler's worry, and this rule answers it.
+- **Which tier a ground drops:** the highest tier at or under its reference Level, one metal a tier (section 8.3).
 - **Why move on, then?** The next ground's base tier is higher. A whole kit from there beats a whole kit from here, Traits and all (section 8: every Trait on a hero together is held to one tier). A single good Rare still outlives a few bases, and carry-over moves its Trait onto a new one. Both feel good: the old Rare had a life, then you outgrew it.
 
 ### 3.4 What the player sees
@@ -379,3 +380,51 @@ MEASURED on the set as merged at 1f3fa9fe6 (the Ford and the wings on the formul
 - **Under a tier, as ruled.** One tier moves the hold about 16 steps (3.1a). The best Traits moved it 12 to 14, so a whole kit a tier up still beats a kit a tier down. Nothing was capped or squeezed.
 - **Dominance (14-trait-candidates step 3, 40% of cells; only 8 cells here, 2 grounds x 4 seats, counting a Trait worth 1 expected step or more in its slot):** six Traits are over 40%. First Rank, Pauper's Share, Ledge Footing and Sour Vault are in 6 of 8 best kits, File Breaker and Hask's Bargain in 5. The causes: a strong four on Steady sits "fresh" (over 90% health) and "unhurt" (nobody under 70%) most of the hunt; the Lab healer runs under 30% mana most of the hunt, so every "dry healer" Trait is nearly always on; the healer's Green Sickness keeps the pull poisoned; every seat casts an area move into packed formula pulls; and Hask's Bargain's cost only reads damage taken, so it is near free on a back-row hero. Reported to the designer, not nerfed (the full check, V7, wants every scale ground).
 - **Always-on readings to watch:** Empty Wagon holds on 85 to 91% of the healer's heals, Ledge Footing on 80 to 90% of blows, First Rank on 42 to 97% (the front least). Every "casting" Trait holds a little on both grounds (the formula roles' wind-ups), not zero as 19 row 13 expected.
+
+### 8.3 One material a tier, and a ground's base tier (2026-11-23, designer, lane/base-tier-ruling)
+
+**How it plays:** every 20 item Levels is one tier and one metal. Steel is always better than iron and always worse than mithril, so a new word in the bag is an upgrade you can read without opening the card. A ground drops the tier its reference company can already wear, so a company at the reference Level sits mid-band, not pinned at the top.
+
+**(a) The ladder.** A tier is `tierSteps` = 20 item Levels (section 8). Each tier is one material, and a material's item Level is `20 x (its MATERIAL_TIERS tier - 1)`. A piece is worn from its item Level less `wearAhead` (10) everywhere, so the old ladder's `level` (15 / 30 / 45 / 60 / 75 / 88) stops being a wear gate, on the plain rows and on every named twin stamped to a tier. Smithing and crafting levels stay as they are: they gate making, not wearing.
+
+| Grid tier | Item Level, worn from | Material | Home grounds (by rule b) |
+|---|---|---|---|
+| 0 | 0, Level 1 | Bronze | Mill Cellar, Meadowbrook Thicket, Wickstead, Millrace Sewer |
+| 1 | 20, 10 | Iron | Mosslight Glade |
+| 2 | 40, 30 | Steel | Coppercap Warrens, Hask's Ford, the Slake |
+| 3 | 60, 50 | Mithril | Muster Barrows |
+| 4 | 80, 70 | Rune | Pyre Field, Krell's Hold |
+| 5 | 100, 90 | Emberforged | Carter's Rest |
+| 6 | 120, 110 | Dawnsteel | the Ox Road |
+| 7 | 140, 130 | Cobalt | Wyvern Roost |
+| 8 | 160, 150 | Wolfram | the Catacomb wings |
+
+- The step tiers gear-phase-b named Damask (100) and Electrum (120) take the shipped words, art and craft chains of Emberforged and Dawnsteel instead. Two metals on one tier is the bug this fixes (steel and mithril at 40 read as an upgrade that was not one), and nine tiers have room for nine metals. Keeping the seven shipped ones whole keeps their icons, bars, woods and recipes in use. One row set a tier: Systems keeps the shipped ids where a slot has one, and the step rows fill the slots the old ladder lacks (jewels, the step cloak) with the `parts` gear-phase-b built.
+- A tier past 160 gets the next new metal, named when a ground homes it.
+
+**(b) A ground's base tier** is the highest tier at or under its reference Level: `floor(refLevel / 20) x 20`, never above it (a base over the reference puts the reference company at depth 19 or 20, CONFLICTS 2026-11-23). The Level band is the dial, never the base: where the rule would leave a tier with no home, or a ground's Levels straddle a tier with its reference on the boundary, the ground's Levels move (staged or re-cut grounds), not its base. Every tier from 0 to the highest has at least one home, so the fresh company one tier back always exists.
+
+**(c) Each ground.** Levels from `src/data/hunts.js` `band`, reference from `DANGER_GROUNDS refLevel` where set (the scale-grounds-2 branches for the Glade to Krell's Hold). Bold marks a number that moves. Everything else is a word change at the item Level the bands were already cut on.
+
+| Ground | Levels, reference | Base | What moves |
+|---|---|---|---|
+| Mill Cellar | 1-8, 3 | Bronze 0 | nothing |
+| Meadowbrook Thicket | 5-15, 10 | Bronze 0 | nothing |
+| Wickstead | 8-18, about 13 | Bronze 0 | its iron pieces drop as bronze (one base a ground). Iron's first door is the Glade |
+| Millrace Sewer | **5-19**, about 12 | Bronze 0 | its top drops from 25 to 19, so it sits inside tier 0 (29 7.5) and stays the Level 5 party ground. The tutorial's "below" reads the band |
+| Mosslight Glade | 16-31, 23 | Iron 20 | nothing |
+| Coppercap Warrens | 32-50, 41 | Steel 40 | nothing |
+| Hask's Ford | 45-60, 52 | Steel 40 | word only (was mithril at 40) |
+| the Slake | 50-65, 57 | Steel 40 | word only (was mithril at 40) |
+| Muster Barrows | 55-75, 60 | Mithril 60 | word only (was rune at 60) |
+| Pyre Field | 70-90, 80 | Rune 80 | **item Level 60 to 80**, re-cut (step 3 measured it at 60) |
+| Krell's Hold | 85-110, 97 | Rune 80 | word only (was ember at 80) |
+| Carter's Rest (staged) | 110-125, about 117 | Emberforged 100 | word only (was Damask 100) |
+| the Ox Road (staged) | 112-128, **120** | Dawnsteel 120 | its reference is its middle, 120. If the cutter measures it lower, its Levels move up by the shortfall |
+| Wyvern Roost (staged) | **128-150, 140** | Cobalt 140 | Levels up from 125-142 so tier 140 has a home. It opens at the Ox Road's top |
+| the Catacomb wings (staged) | 165-185, 175 | Wolfram 160 | nothing |
+
+- **Holds:** a whole kit a tier up beats a kit a tier down (every tier is its own item Level again, so temper-play's next tier and C-2's tier back read cleanly). Found items are never scaled or capped by Level: the base is the ground's and the only gate is wear. C-2, V4 and K-6 are judged only on base tier 1 or more, and the four bronze grounds all sit inside tier 0. Confirmed: BD-7 and `new-ground.mjs` judge the K-6 hand-over only from a lower ground of base tier 1 or more.
+- **The armor rung band** is one grid tier: 5 to 8% a rung (04 section 1 puts a tier at +7.2% of power; bronze to iron reads 6.7%). The 3 to 5.5% band was the 15-Level rung.
+- **Known gap:** no ground covers Levels 151 to 164 (content plan, section 5).
+- **Economy:** an Emberforged or Dawnsteel piece is made at the same Smithing Level as before but is now item Level 100 or 120. Its book and sale rate follow its item Level (`loot-bands.js gearSaleRate` by tier), never the Smithing Level. Systems confirms it on the prices guard.

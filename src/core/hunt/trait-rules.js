@@ -74,6 +74,7 @@ const RULES = new WeakMap();
 function rulesOf(list) {
   let r = RULES.get(list);
   if (r) return r;
+  /** @type {Record<string, any[]>} */
   const o = { offense: [], defense: [], heal: [], party: [] };
   for (const w of wornTraitsOf(list) || NONE) {
     const t = TRAITS[w.id], steps = GEAR_STEPS.traitSteps[w.rank - 1];
@@ -96,10 +97,11 @@ export function syncTraits(u, hero) {
 /* the heroes of the instance that wear a party-wide Trait: read once an instance (a hero's pieces never change inside one swing) */
 function partyWearers(inst) {
   if (inst.traitParty) return inst.traitParty;
-  let out = NONE;
-  for (const u of inst.world.units) if (isHero(u) && u.traitRules && u.traitRules.party.length) (out === NONE ? (out = []) : out).push(u);
-  inst.traitParty = out;
-  return out;
+  /** @type {any[] | null} */
+  let out = null;
+  for (const u of inst.world.units) if (isHero(u) && u.traitRules && u.traitRules.party.length) (out || (out = [])).push(u);
+  inst.traitParty = out || NONE;
+  return inst.traitParty;
 }
 
 /* the blow's or the heal's context, as a Trait reads it (the header) */

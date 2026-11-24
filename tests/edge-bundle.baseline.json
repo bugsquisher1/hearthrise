@@ -458,6 +458,11 @@
         "bytes": 3826452,
         "on": "2026-11-24",
         "why": "lane/traits-in-engine on the merged set: src/core/hunt/trait-rules.js (the 40 Traits played as conditional gear-slice steps, dark behind traitsLive) and its tag and tr plumbing"
+      },
+      {
+        "bytes": 3826597,
+        "on": "2026-11-24",
+        "why": "lane/traits-in-engine: JSDoc types the type ratchet asked for on the worn-Trait plumbing (damage.js pipedBlow traits, trait-rules.js rule table)"
       }
     ]
   }

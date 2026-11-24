@@ -347,7 +347,7 @@ const mutants = [
   { name: 'a heal Trait reads the bar\'s ally, not its target', case: 'families', edits: [[TR, "      if (cx.channel !== 'heal' || w.subject === 'self') break;", '      break;']] },
   { name: 'the settle never syncs the Traits', case: 'real-settle', edits: [['src/core/combat-sim.js', '  syncTraits(u, m.hero);', '  void syncTraits;']] },
   { name: 'the member drops the worn list', case: 'real-settle', edits: [['src/core/member.js', "        ...(Array.isArray(h.wornTraits) && h.wornTraits.length ? { wornTraits: h.wornTraits } : {}),\n", '']] },
-  { name: 'the dmg event drops the Traits', case: 'real-settle', edits: [['src/core/hunt/damage.js', '    if (c.traits) r.traits = c.traits;\n', '']] },
+  { name: 'the dmg event drops the Traits', case: 'real-settle', edits: [['src/core/hunt/damage.js', '    return c.traits ? Object.assign(r, { traits: c.traits }) : r;', '    return r;']] },
   { name: 'the heal event drops the Traits', case: 'real-settle', edits: [['src/core/hunt/heal-rules.js', ', ...traitsField(cast && cast.tr) }));', ' }));']] },
   { name: 'the view names no Trait', case: 'view-names', edits: [['src/render/source-names.js', '  if (Object.hasOwn(TRAITS, id)) return TRAITS[id].name;\n', '']] },
   { name: 'the log forgets the Traits', case: 'view-names', edits: [['src/hunt-view/combat-log.js', 'text: ev.tr ? traitsSaid(ev, text) : text });', 'text });']] },

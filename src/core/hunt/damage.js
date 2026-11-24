@@ -148,8 +148,7 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
     const c = pipedBlow(inst, target, amount, source, element, ability, el, rng);
     const r = landOn(inst, target, source, blowAmount(inst, c));
     /* the worn Traits that held on it (src/core/hunt/trait-rules.js withTraits): its `dmg` event names them */
-    if (c.traits) r.traits = c.traits;
-    return r;
+    return c.traits ? Object.assign(r, { traits: c.traits }) : r;
   }
   /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
      element for the armour chain below (ruling K7). */
@@ -191,7 +190,7 @@ function pipedBlow(inst, target, mean, source, element, ability, el, rng) {
   mult = (mult * stanceOf(source).dealt * stanceOf(target).taken) / 1000000;
   return { source, target, mean: Math.max(0, mean), mult, el: isMonster(target) ? weakShare(el, ability) : el, ward: !!element && element !== 'physical',
     answerPm: ability && ability.answerPm, markPm: ability && ability.markPm, dealerPm: ability && ability.dealerPm, slowPm: source ? slowPmOf(source) : 0,
-    critMult: COMBAT_BALANCE.critMult, rng, tag: ability || null };
+    critMult: COMBAT_BALANCE.critMult, rng, tag: ability || null, traits: /** @type {string[] | undefined} */ (undefined) };
 }
 /* WHAT A BLOW DOES ONCE ITS AMOUNT IS KNOWN (both chains): the target's shield first, then HP. */
 function landOn(inst, target, source, n, exact) {

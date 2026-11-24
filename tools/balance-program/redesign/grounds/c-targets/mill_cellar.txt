@@ -1,31 +1,31 @@
-V1: 24 seed jobs (6 cells x 4 seeds x 4 h) on 4 workers; mill_cellar, Levels 3 / 6 / 70
-[1/24] base:careful#1 25 s, 25 s elapsed
-[2/24] base:careful#0 25 s, 25 s elapsed
-[3/24] base:careful#3 25 s, 25 s elapsed
-[4/24] base:careful#2 25 s, 25 s elapsed
-[5/24] base:steady#0 29 s, 54 s elapsed
-[6/24] base:steady#1 29 s, 54 s elapsed
-[7/24] base:steady#2 29 s, 54 s elapsed
-[8/24] base:steady#3 30 s, 55 s elapsed
-[9/24] base:bold#0 30 s, 84 s elapsed
-[10/24] levels:steady#0 0 s, 84 s elapsed
-[11/24] levels:steady#1 0 s, 84 s elapsed
-[12/24] levels:steady#2 0 s, 84 s elapsed
-[13/24] levels:steady#3 0 s, 84 s elapsed
-[14/24] base:bold#2 30 s, 84 s elapsed
-[15/24] base:bold#1 30 s, 84 s elapsed
-[16/24] base:bold#3 30 s, 85 s elapsed
-[17/24] back:steady#0 24 s, 108 s elapsed
-[18/24] back:steady#1 25 s, 109 s elapsed
-[19/24] back:steady#2 25 s, 109 s elapsed
-[20/24] back:steady#3 25 s, 110 s elapsed
-[21/24] up:steady#0 29 s, 137 s elapsed
-[22/24] up:steady#1 29 s, 137 s elapsed
-[23/24] up:steady#2 29 s, 138 s elapsed
-[24/24] up:steady#3 28 s, 138 s elapsed
+V1: 24 seed jobs (6 cells x 4 seeds x 4 h) on 6 workers; mill_cellar, Levels 3 / 6 / 70
+[1/24] base:careful#2 23 s, 23 s elapsed
+[2/24] base:careful#1 23 s, 24 s elapsed
+[3/24] base:careful#0 23 s, 24 s elapsed
+[4/24] base:careful#3 23 s, 24 s elapsed
+[5/24] base:steady#1 25 s, 26 s elapsed
+[6/24] base:steady#0 25 s, 26 s elapsed
+[7/24] base:steady#2 23 s, 47 s elapsed
+[8/24] levels:steady#0 0 s, 47 s elapsed
+[9/24] levels:steady#1 0 s, 47 s elapsed
+[10/24] levels:steady#2 0 s, 47 s elapsed
+[11/24] levels:steady#3 0 s, 47 s elapsed
+[12/24] base:steady#3 23 s, 47 s elapsed
+[13/24] base:bold#1 23 s, 47 s elapsed
+[14/24] base:bold#0 24 s, 48 s elapsed
+[15/24] base:bold#2 23 s, 49 s elapsed
+[16/24] base:bold#3 24 s, 49 s elapsed
+[17/24] back:steady#0 16 s, 63 s elapsed
+[18/24] back:steady#1 16 s, 63 s elapsed
+[19/24] back:steady#2 16 s, 64 s elapsed
+[20/24] back:steady#3 16 s, 64 s elapsed
+[21/24] up:steady#0 22 s, 70 s elapsed
+[22/24] up:steady#1 22 s, 71 s elapsed
+[23/24] up:steady#2 21 s, 83 s elapsed
+[24/24] up:steady#3 21 s, 84 s elapsed
 
 V1 on mill_cellar (4 seeds x 4 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
 base:careful          0 +- 0.1     -0.1   100   100      1    9.2       0     91.5      0     0  0 (0/0/0)                       3  {"hold":1302,"fall":148,"climb":10}
@@ -44,12 +44,12 @@ pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as
   up:steady          1.07x  sd 0.03  n 4  window 3 h  seeds 1.09 1.04 1.04 1.09
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:careful      L3  coin 9365 +- 28  income 9655 +- 29  store 3818  kit share 0.4 (meal 2, drink 2374, charge 681, shot 762)  loot by band: common 267, uncommon 8, scarce 16, other 0  n 4
-  base:steady       L3  coin 12654 +- 127  income 13030 +- 119  store 4164  kit share 0.32 (meal 52, drink 2646, charge 712, shot 754)  loot by band: common 348, uncommon 11, scarce 18, other 0  n 4
-  base:bold         L3  coin 16196 +- 86  income 16664 +- 90  store 4638  kit share 0.28 (meal 197, drink 2922, charge 754, shot 766)  loot by band: common 439, uncommon 14, scarce 17, other 0  n 4
+  base:careful      L3  coin 9366 +- 29  income 9697 +- 28  store 3818  kit share 0.39 (meal 2, drink 2374, charge 681, shot 762)  loot by band: common 306, uncommon 9, scarce 17, other 0  n 4
+  base:steady       L3  coin 12654 +- 127  income 13038 +- 119  store 4164  kit share 0.32 (meal 52, drink 2646, charge 712, shot 754)  loot by band: common 355, uncommon 11, scarce 18, other 0  n 4
+  base:bold         L3  coin 16196 +- 86  income 16666 +- 90  store 4638  kit share 0.28 (meal 197, drink 2922, charge 754, shot 766)  loot by band: common 440, uncommon 14, scarce 17, other 0  n 4
   levels:steady     L6  coin null +- 0  income null +- 0  store null  kit share n/a (meal 0, drink 0, charge 0, shot 0)  loot by band: common null, uncommon null, scarce null, other null  n 0
-  back:steady       L3  coin 9848 +- 73  income 10147 +- 73  store 4083  kit share 0.4 (meal 85, drink 2536, charge 709, shot 754)  loot by band: common 280, uncommon 8, scarce 12, other 0  n 4
-  up:steady         L3  coin 14967 +- 306  income 15410 +- 320  store 4165  kit share 0.27 (meal 50, drink 2651, charge 710, shot 755)  loot by band: common 408, uncommon 13, scarce 22, other 0  n 4
+  back:steady       L3  coin 9848 +- 73  income 10190 +- 74  store 4083  kit share 0.4 (meal 85, drink 2536, charge 709, shot 754)  loot by band: common 320, uncommon 9, scarce 13, other 0  n 4
+  up:steady         L3  coin 14967 +- 306  income 15413 +- 321  store 4165  kit share 0.27 (meal 50, drink 2651, charge 710, shot 755)  loot by band: common 411, uncommon 13, scarce 22, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
   levels:steady       null steps (sd 0, se 0, n 0)
@@ -87,10 +87,10 @@ the formula readers (lane/monster-formula): per seat dps (dealt a hunted second)
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
   base:careful      abs 0.3 (depth 1)  free 128  spell 869  food 2  taken 15.45 pm/s
-  base:steady       abs 0.7 (depth 13)  free 100  spell 850  food 50  taken 18.91 pm/s
+  base:steady       abs 0.8 (depth 14)  free 100  spell 850  food 50  taken 18.91 pm/s
   base:bold         abs 1 (depth 20)  free 77  spell 783  food 140  taken 23.61 pm/s
   levels:steady     abs n/a
   back:steady       abs 0.3 (depth 3)  free 60  spell 859  food 81  taken 20.18 pm/s
-  up:steady         abs 0.9 (depth 16)  free 94  spell 859  food 46  taken 19.59 pm/s
+  up:steady         abs 0.9 (depth 17)  free 94  spell 859  food 46  taken 19.59 pm/s
 
-wall 138 s
+wall 84 s

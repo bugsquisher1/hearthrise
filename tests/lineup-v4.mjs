@@ -25,6 +25,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { DANGER_GROUNDS } from '../src/data/danger.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { playCells } from '../tools/balance-program/redesign/held-four.mjs';
 import { refLevelOf } from './level-curve.mjs';
 
@@ -81,9 +82,13 @@ async function measure({ monoLevelUp = 0 } = {}) {
   for (const g of grounds) {
     const L = refLevelOf(g);
     if (!Number.isInteger(L)) throw new Error(`lineup-v4: scale ground ${g} has no reference Level (tests/level-curve.mjs REF_LEVEL)`);
-    cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS });
-    for (const s of STYLES) cells.push({ id: `${g}:mono:${s}`, ground: g, L: L + monoLevelUp, styles: [s, s, s, s], risk: 'steady', hours: HOURS, seeds: SEEDS });
-    if (grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS });
+    /* A GROUND WHOSE HUNT ENDS AT A LEVEL (hunt-grounds.js endsAtLevel: the Mill Cellar's at 5) holds every four at its Level (held-four.mjs
+       holdLevel, as tests/level-curve.mjs C7 does): a Level 3 four is outgrown inside the window, so every four would read the same XP, the
+       XP to the exit over two hours (4,574 a head an hour, mixed and mage alike), and V4 would judge the exit, not the lineup */
+    const hold = Number.isInteger(HUNT_GROUNDS[g] && HUNT_GROUNDS[g].endsAtLevel) ? { holdLevel: true } : {};
+    cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
+    for (const s of STYLES) cells.push({ id: `${g}:mono:${s}`, ground: g, L: L + monoLevelUp, styles: [s, s, s, s], risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
+    if (grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
   }
   const r = await playCells(ROOT, cells);
   const w = { grounds, mixed: {}, mono: {}, lineups: grounds.length >= 2 ? {} : null };

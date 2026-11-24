@@ -60,8 +60,9 @@ if (process.argv.includes('--mutate')) {
   const ALSO = [...new Set(['src/session', 'tools/balance-sim', 'tests/bands.mjs', 'tests/sustain.mjs', 'tests/_is-main.mjs', 'tools/balance-program/redesign/foundations',
     'tests/danger-band-pins.json', 'tools/balance-program/redesign/depth-budget', ...evidence])];
   const MUT = [
-    ['tests/bands.mjs', 'a ground inside one tier reads the next tier\'s strong four (29 7.5)', [['src/core/bands.js', 'topPm: at(top, own ? g.gearLevel : Math.max(', 'topPm: at(top, false ? g.gearLevel : Math.max(']]],
-    ['tests/bands.mjs', 'no ground is ever inside one tier', [['src/core/bands.js', '  return g.entryLevel >= g.gearLevel && top < g.gearLevel + GEAR_STEPS.tierSteps;', '  return false;']]],
+    ['tests/bands.mjs', 'a ground inside one tier reads the next tier\'s strong four (29 7.5)', [['src/core/bands.js', 'strong: own ? g.gearLevel : Math.max(', 'strong: false ? g.gearLevel : Math.max(']]],
+    ['tests/bands.mjs', 'a ground inside one tier reads a fresh four a tier back (29 7.5)', [['src/core/bands.js', 'fresh: own ? g.gearLevel : Math.max(', 'fresh: false ? g.gearLevel : Math.max(']]],
+    ['tests/bands.mjs', 'no ground is ever inside one tier', [['src/core/bands.js', '  const own = g.entryLevel >= g.gearLevel && top < g.gearLevel + T;', '  const own = false;']]],
   /* the controls: each test passes on the clean plant, so a mutant's red is its own and not a file the plant left out (until 2026-11-23
      every planted run died on a missing tests/_is-main.mjs, which tools/balance-sim/skill-lines.mjs imports, so every mutant read caught) */
   ['tests/bands.mjs', 'CONTROL: the clean plant', []],
@@ -160,7 +161,14 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   ok(b.refPm === byHand(g.refLevel, g.gearLevel), 'BD-4 ' + id + ' reference ' + b.refPm + ' is not the reference company\'s rating');
   ok(b.topPm === byHand(top, strongKit(g, top)), 'BD-4 ' + id + ' top ' + b.topPm + ' is not the strong four\'s rating (Level ' + top + ', kit ' + strongKit(g, top) + ')');
   ok(b.floorPm < b.refPm && b.refPm < b.topPm, 'BD-4 ' + id + ' band is not ordered: ' + JSON.stringify(b));
+  ok(JSON.stringify(B.companyKits(g, top)) === JSON.stringify({ own: insideOf(g, top), fresh: insideOf(g, top) ? g.gearLevel : Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack), strong: strongKit(g, top) }), 'BD-4 ' + id + ' companyKits ' + JSON.stringify(B.companyKits(g, top)) + ' is not the rule by hand');
   ok(Number.isInteger(g.refLevel) && g.refLevel >= band[0] && g.refLevel <= band[1], 'BD-4 ' + id + ' refLevel ' + g.refLevel + ' outside its Level band ' + band);
+}
+/* ...and the company rule on rows no scale ground carries yet (BD-4 by hand, so a rule no shipped band binds still bites): a Level 18 top
+   on an item Level 20 base can wear 20, not 40; a Level 60 top wears the tier ahead; a band inside its own tier wears it at both ends */
+for (const [row, top, want] of [[{ entryLevel: 8, gearLevel: 20 }, 18, { own: false, fresh: 0, strong: 20 }], [{ entryLevel: 45, gearLevel: 40 }, 60, { own: false, fresh: 20, strong: 60 }],
+  [{ entryLevel: 5, gearLevel: 0 }, 15, { own: true, fresh: 0, strong: 0 }], [{ entryLevel: 25, gearLevel: 20 }, 35, { own: true, fresh: 20, strong: 20 }]]) {
+  ok(JSON.stringify(B.companyKits(row, top)) === JSON.stringify(want), 'BD-4 companyKits(' + JSON.stringify(row) + ', ' + top + ') reads ' + JSON.stringify(B.companyKits(row, top)) + ', the rule ' + JSON.stringify(want));
 }
 
 /* BD-5 and BD-6 */

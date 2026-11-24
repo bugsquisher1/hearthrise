@@ -458,6 +458,11 @@
         "bytes": 3819585,
         "on": "2026-11-24",
         "why": "lane/scale-early-grounds merged onto set/v0.2.144 1f3fa9fe6 (designer-reads): the lane's own growth over the set's ceiling, no new module: the Cellar and the Thicket on the scale, coin levels a ground (danger.js coinLevelOf, the Ford's 7.1), insideOneTier (bands.js, 29 7.5), wage.js store step on refLevel, combat-sim.js fightItems"
+      },
+      {
+        "bytes": 3819945,
+        "on": "2026-11-24",
+        "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
       }
     ]
   }

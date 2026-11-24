@@ -301,7 +301,7 @@ export const COMBAT = [
     ev: 'CONFIRMED (read)' }),
   L('weapon.family-tables', 'weapon-power', 'archetype', 'Weapon accuracy and damage by family (the gear formula\'s profiles)', {
     at: [at('src/data/gear-profiles.js', 'export const GEAR_PROFILES')],
-    rows: rows('one profile a weapon family, off-hand, armor weight, cloak and jewel; the family rows of the ladder carry no stat', [home('src/data/gear-profiles.js#GEAR_PROFILES', 'keys'), home('src/data/gear-tiers.js#WEAPON_FAMILIES', 'count'), home('src/data/gear-tiers.js#SPELLBOOKS', 'count')]),
+    rows: rows('one profile a weapon family, off-hand, armor weight, cloak and jewel; the family rows of the ladder carry no stat', [home('src/data/gear-profiles.js#GEAR_PROFILES', 'keys'), home('src/data/gear-tiers.js#SHIPPED_FAMILIES', 'count'), home('src/data/gear-tiers.js#SPELLBOOKS', 'count')]),
     def: 'every piece\'s stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family\'s profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece states its offset (statPlus). Past 88 the staged Dawnsteel line still lives in tools (X-LINE-IN-TOOLS)',
     range: 'permille of the slot\'s share, whole; rarity never sizes the base (RARITY_PM all 1000)',
     touches: 'kill speed by gear state; what an upgrade is worth', out: KILL, f: ['C-GEAR-WEAPON'],

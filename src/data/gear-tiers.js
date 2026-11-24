@@ -351,6 +351,7 @@ export const GEAR_ITEMS = (() => {
   WEAPON_FAMILIES.forEach((fam) => {
     MATERIAL_TIERS.slice(0, fam.ids.length).forEach((mat, i) => {
       if (!fam.ids[i]) return;   // the practice kit holds this rung
+      /** @type {any} */
       const item = {
         n: fam.names[i],
         icon: fam.weaponType === 'ranged' ? '🏹' : fam.weaponType === 'magic' ? '🪄' : fam.weaponType === 'hammer' ? '🔨' : '⚔️',
@@ -402,5 +403,5 @@ export function armourLineWord(armourClass, tier) {
   const i = Math.floor(Number(tier)) - 1;
   const line = ARMOUR_LINES.find((l) => l.key === armourClass);
   if (!line || !(i >= 0 && i < MATERIAL_TIERS.length)) return null;
-  return (line.tierNames ? line.tierNames[i] : MATERIAL_TIERS[i].name).split(' ')[0];
+  return (/** @type {any} */ (line).tierNames ? /** @type {any} */ (line).tierNames[i] : MATERIAL_TIERS[i].name).split(' ')[0];
 }

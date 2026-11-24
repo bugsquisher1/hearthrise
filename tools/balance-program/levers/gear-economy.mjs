@@ -13,7 +13,7 @@ const MIG = 'supabase/migrations/';
 export const GEAR_ECONOMY = [
   /* ── 15. EQUIPMENT STATS AND PROGRESSION ───────────────────────────────────────────────────────────────────────────────────── */
   L('gear.material-tiers', 'equipment', 'archetype', 'Gear tiers: their Levels and value', {
-    at: [at(GEAR, 'export const MATERIAL_TIERS'), at(GEAR, 'export const ARMOUR_SLOTS'), at(GEAR, "  { key: 'plate', vmul: 1.00, icon"), at(GEAR, "  { key: 'leather', vmul: 0.70, icon"), at(GEAR, "  { key: 'cloth', vmul: 0.70, icon")],
+    at: [at(GEAR, 'export const MATERIAL_TIERS'), at(GEAR, 'export const ARMOUR_SLOTS'), at(GEAR, "  { key: 'plate', vmul: 1.00, icon"), at(GEAR, "  { key: 'leather', vmul: 0.70, icon"), at(GEAR, "  { key: 'cloth', vmul: 0.70, icon"), at(GEAR, 'const SHIPPED_TIERS = ['), at(GEAR, 'const SHIPPED_FAMILIES = [')],
     def: 'seven tiers worn from Levels 1, 15, 30, 45, 60, 75, 88 (smith and craft levels the same), each with a value multiplier',
     range: 'Levels rising; no tier 8. Gear is worn by Level (P35, SQL hr_item_requirement_unmet)',
     touches: 'when an upgrade arrives, book values (sale gold)', out: [...KILL, ...SURVIVE], f: ['P16', 'P35', 'C-GEAR-WEAPON', 'C-GEAR-ARMOR'],
@@ -29,7 +29,7 @@ export const GEAR_ECONOMY = [
     flags: [flag('ineffective', 'A tier of armor is worth 23 to 58% early and nothing once a set is at the 60% cap', '12-balance-pass item 6, MEASURED')],
     ev: 'CONFIRMED (read)' }),
   L('gear.accessories', 'equipment', 'content', 'Jewelry and cloaks', {
-    at: [at('src/data/slot-ladders.js', 'export const SLOT_ITEMS')],
+    at: [at('src/data/slot-ladders.js', 'export const SLOT_ITEMS'), at('src/data/slot-ladders.js', 'const STEP_JEWELS = '), at('src/data/slot-ladders.js', 'const STEP_CAPE_TOP = '), at('src/data/slot-ladders.js', 'const STEP_CAPE_KEEP_PM = '), at('src/data/slot-ladders.js', 'const STEP_MAKE = ')],
     rows: rows('rings, earrings, necklaces and cloaks on SLOT_ITEMS', [home('src/data/slot-ladders.js#SLOT_ITEMS', 'keys'), home('src/data/slot-ladders.js#TIER_VALUE', 'count'), home('src/data/slot-ladders.js#priced', 'count')], field('src/data/slot-ladders.js', 'SLOT_ITEMS', 'atkB')),
     def: 'a point of attack and strength a tier for every style (rings tiers 1-3, studs and necklaces 1-2), cloaks steadyPm; tiers 4 to 7 ruled, not built',
     range: 'whole',
@@ -128,7 +128,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
     ev: 'STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)' }),
   L('gear.rarity-hours', 'equipment', 'global', 'The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece\'s roll', {
-    at: [at('src/data/drop-hours.js', 'chDigits: 3,'), at('src/data/drop-hours.js', '    rare: Object.freeze({ everyHours: 40,'), at('src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400'),
+    at: [at('src/data/base-drops.js', 'export const EVERY_HOURS'), at('src/data/drop-hours.js', 'chDigits: 3,'), at('src/data/drop-hours.js', '    rare: Object.freeze({ everyHours: 40,'), at('src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400'),
       at('src/data/drop-hours.js', 'signature: Object.freeze({ everyHours: 45'), at('src/data/drop-hours.js', 'depthPm: Object.freeze([1000, 3000]),'),
       at('src/data/drop-hours.js', 'topRankPm: 500,'), at('src/data/drop-hours.js', 'topRankMaxPm: 800,')],
     def: 'a Rare (one Trait) about every 40 hunted hours a hero at the ground\'s reference step, a Very Rare (two) every 400, a given Signature every 45 on its home; each chance is 1 / (hours x the ground\'s reference kills a head an hour), / heroes at the kill; depth multiplies the Rare and Very Rare odds x1 at depth 1 to x3 at depth 20, read against the reference\'s depth; the top open rank lands topRankPm x (1 + luck), at most topRankMaxPm; a made cape or jewel rolls at its part\'s hours over the rung\'s',

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "0635b06be8a31f42",
+ "authored": "c076f65cfb729bb6",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -107,8 +107,8 @@
   },
   "byTest": {
    "asserted": 133,
-   "mentioned only": 89,
-   "none": 20
+   "mentioned only": 90,
+   "none": 19
   },
   "flags": {
    "redundant": 43,
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 763,
-  "typed": 16923,
-  "files": 260,
-  "lever": 334,
+  "bindings": 769,
+  "typed": 17234,
+  "files": 261,
+  "lever": 340,
   "notLever": 429,
   "unclaimed": 0
  },
@@ -946,9 +946,10 @@
      "tests/bands.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/ranger-bar.mjs",
-     "tests/hunt-live.mjs"
+     "tests/hunt-live.mjs",
+     "tests/refusal-words.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 6,
     "verdict": "asserted"
    },
    "perturb": {
@@ -975,7 +976,7 @@
      },
      {
       "table": "src/data/slot-ladders.js SLOT_ITEMS",
-      "rows": 28,
+      "rows": 44,
       "carrying": 7,
       "distinct": 7,
       "low": 1,
@@ -983,7 +984,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
+      "rows": 771,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -2354,7 +2355,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 80,
+     "line": 89,
      "text": "export const GEAR_PROFILES = Object.freeze({",
      "binding": "GEAR_PROFILES"
     }
@@ -2408,7 +2409,7 @@
     "what": "one profile a weapon family, off-hand, armor weight, cloak and jewel; the family rows of the ladder carry no stat",
     "homes": [
      "src/data/gear-profiles.js#GEAR_PROFILES",
-     "src/data/gear-tiers.js#WEAPON_FAMILIES",
+     "src/data/gear-tiers.js#SHIPPED_FAMILIES",
      "src/data/gear-tiers.js#SPELLBOOKS"
     ]
    },
@@ -2428,7 +2429,7 @@
    "sites": [
     {
      "file": "src/data/library2-items.js",
-     "line": 229,
+     "line": 231,
      "text": "const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];",
      "binding": "AMMO_STR"
     },
@@ -4110,19 +4111,19 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 99,
+     "line": 108,
      "text": "plate: Object.freeze({ curve: 'defense', defB: 1000, rangeAtkB: -250, magicAtkB: -500 }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 101,
+     "line": 110,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 102,
+     "line": 111,
      "text": "cloth: Object.freeze({ curve: 'defense', defB: 305, magicAtkB: 600, magicStrB: 111, atkB: -250, rangeAtkB: -200 }),",
      "binding": "GEAR_PROFILES"
     },
@@ -4642,7 +4643,7 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 101,
+     "line": 110,
      "text": "leather: Object.freeze({ curve: 'defense', defB: 550, rangeAtkB: 500, magicAtkB: -150, even: Object.freeze({ critB: 0.597 }) }),",
      "binding": "GEAR_PROFILES"
     }
@@ -6232,7 +6233,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6618,7 +6619,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7173,7 +7174,7 @@
     },
     {
      "file": "src/data/boss-calls.js",
-     "line": 45,
+     "line": 46,
      "text": "limitMs: 10 * 60000,",
      "binding": "BOSS_CALL_RULES"
     }
@@ -7262,7 +7263,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 50,
+    "mentionCount": 51,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7350,7 +7351,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 51,
+    "mentionCount": 52,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7392,13 +7393,13 @@
    "sites": [
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 514,
+     "line": 518,
      "text": "export const DENSITY_FULL_BOX = 8;",
      "binding": "DENSITY_FULL_BOX"
     },
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 518,
+     "line": 522,
      "text": "export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });",
      "binding": "DENSITY_PICK"
     }
@@ -7668,7 +7669,7 @@
    "sites": [
     {
      "file": "src/data/hunt-grounds.js",
-     "line": 163,
+     "line": 164,
      "text": "export const GROUND_NODE_KINDS = Object.freeze({",
      "binding": "GROUND_NODE_KINDS"
     }
@@ -8023,7 +8024,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 284,
+     "line": 291,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -8092,19 +8093,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 291,
+     "line": 298,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 292,
+     "line": 299,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 293,
+     "line": 300,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
@@ -8168,7 +8169,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 320,
+     "line": 327,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -8372,7 +8373,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 228,
+     "line": 235,
      "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8446,32 +8447,32 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 228,
+     "line": 235,
      "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 230,
-     "text": "catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "line": 237,
+     "text": "catacomb_bone_wing: ground({ refStep: 520, floorStep: 420, topStep: 580, refKillsHead: 145, coinPm: 4000, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 234,
+     "line": 241,
      "text": "meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 235,
+     "line": 242,
      "text": "mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 236,
-     "text": "catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "line": 243,
+     "text": "catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 515, refKillsHead: 145, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8555,7 +8556,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 229,
+     "line": 236,
      "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8636,7 +8637,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 254,
+     "line": 261,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -10172,7 +10173,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10242,7 +10243,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10363,7 +10364,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10482,7 +10483,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 117,
+    "mentionCount": 118,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10860,33 +10861,45 @@
    "sites": [
     {
      "file": "src/data/gear-tiers.js",
-     "line": 48,
+     "line": 122,
      "text": "export const MATERIAL_TIERS = [",
-     "binding": "MATERIAL_TIERS"
+     "binding": "STEP_TIERS"
     },
     {
      "file": "src/data/gear-tiers.js",
-     "line": 69,
+     "line": 154,
      "text": "export const ARMOUR_SLOTS = [",
      "binding": "ARMOUR_SLOTS"
     },
     {
      "file": "src/data/gear-tiers.js",
-     "line": 198,
+     "line": 296,
      "text": "{ key: 'plate', vmul: 1.00, icon: '🛡️',",
      "binding": "ARMOUR_LINES"
     },
     {
      "file": "src/data/gear-tiers.js",
-     "line": 201,
+     "line": 299,
      "text": "{ key: 'leather', vmul: 0.70, icon: '🎽', craftMat: 'plank',",
      "binding": "ARMOUR_LINES"
     },
     {
      "file": "src/data/gear-tiers.js",
-     "line": 212,
+     "line": 310,
      "text": "{ key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',",
      "binding": "ARMOUR_LINES"
+    },
+    {
+     "file": "src/data/gear-tiers.js",
+     "line": 59,
+     "text": "const SHIPPED_TIERS = [",
+     "binding": "SHIPPED_TIERS"
+    },
+    {
+     "file": "src/data/gear-tiers.js",
+     "line": 172,
+     "text": "const SHIPPED_FAMILIES = [",
+     "binding": "SHIPPED_FAMILIES"
     }
    ],
    "definition": "seven tiers worn from Levels 1, 15, 30, 45, 60, 75, 88 (smith and craft levels the same), each with a value multiplier",
@@ -10933,11 +10946,10 @@
      "tests/catalogue-coherence.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/hunt-core/sewer.mjs",
-     "tests/hunt-core/spell-rule.mjs",
      "tests/sustain.mjs",
-     "tests/temper-buy.mjs"
+     "tests/weapon-line.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10949,7 +10961,9 @@
      "src/data/gear-tiers.js: export const ARMOUR_SLOTS = [",
      "src/data/gear-tiers.js: { key: 'plate', vmul: 1.00, icon: '🛡️',",
      "src/data/gear-tiers.js: { key: 'leather', vmul: 0.70, icon: '🎽', craftMat: 'plank',",
-     "src/data/gear-tiers.js: { key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',"
+     "src/data/gear-tiers.js: { key: 'cloth', vmul: 0.70, icon: '🧥', craftMat: 'plank',",
+     "src/data/gear-tiers.js: const SHIPPED_TIERS = [",
+     "src/data/gear-tiers.js: const SHIPPED_FAMILIES = ["
     ],
     "existingPatches": []
    },
@@ -10969,31 +10983,31 @@
    "sites": [
     {
      "file": "src/data/gear-profiles.js",
-     "line": 59,
+     "line": 67,
      "text": "export const GEAR_CURVES = Object.freeze({",
      "binding": "GEAR_CURVES"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 67,
+     "line": 76,
      "text": "export const GEAR_CURVE_TOP = 88;",
      "binding": "GEAR_CURVE_TOP"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 68,
+     "line": 77,
      "text": "export const GEAR_SCALE_STAT_PM = 500;",
      "binding": "GEAR_SCALE_STAT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 71,
+     "line": 80,
      "text": "export const GEAR_SLOT_PM = Object.freeze({",
      "binding": "GEAR_SLOT_PM"
     },
     {
      "file": "src/data/gear-profiles.js",
-     "line": 76,
+     "line": 85,
      "text": "export const GEAR_EVEN_SHARE_PM = 75;",
      "binding": "GEAR_EVEN_SHARE_PM"
     }
@@ -11059,9 +11073,33 @@
    "sites": [
     {
      "file": "src/data/slot-ladders.js",
-     "line": 55,
+     "line": 86,
      "text": "export const SLOT_ITEMS = withGearStats({",
      "binding": "SLOT_ITEMS"
+    },
+    {
+     "file": "src/data/slot-ladders.js",
+     "line": 52,
+     "text": "const STEP_JEWELS = Object.freeze([",
+     "binding": "STEP_JEWELS"
+    },
+    {
+     "file": "src/data/slot-ladders.js",
+     "line": 62,
+     "text": "const STEP_CAPE_TOP = Object.freeze({ tier: 7, steadyPm: 255 });",
+     "binding": "STEP_CAPE_TOP"
+    },
+    {
+     "file": "src/data/slot-ladders.js",
+     "line": 63,
+     "text": "const STEP_CAPE_KEEP_PM = 960;",
+     "binding": "STEP_CAPE_KEEP_PM"
+    },
+    {
+     "file": "src/data/slot-ladders.js",
+     "line": 67,
+     "text": "const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });",
+     "binding": "STEP_MAKE"
     }
    ],
    "definition": "a point of attack and strength a tier for every style (rings tiers 1-3, studs and necklaces 1-2), cloaks steadyPm; tiers 4 to 7 ruled, not built",
@@ -11088,15 +11126,21 @@
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [],
-    "mentions": [],
-    "mentionCount": 0,
-    "verdict": "none"
+    "mentions": [
+     "tests/gear-stats.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "mentioned only"
    },
    "perturb": {
     "kind": "patch",
     "note": "patches/items-2.json gives the accessories tier 7 numbers; it needs its plan.jewelryStandIn step (matrix-plan.mjs: x0.5 from Level 110 to 185, x1.0 from 186; rows as the tree holds them under 110)",
     "from": [
-     "src/data/slot-ladders.js: export const SLOT_ITEMS = withGearStats({"
+     "src/data/slot-ladders.js: export const SLOT_ITEMS = withGearStats({",
+     "src/data/slot-ladders.js: const STEP_JEWELS = Object.freeze([",
+     "src/data/slot-ladders.js: const STEP_CAPE_TOP = Object.freeze({ tier: 7, steadyPm: 255 });",
+     "src/data/slot-ladders.js: const STEP_CAPE_KEEP_PM = 960;",
+     "src/data/slot-ladders.js: const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });"
     ],
     "existingPatches": []
    },
@@ -11109,11 +11153,11 @@
     ],
     "today": {
      "table": "src/data/slot-ladders.js SLOT_ITEMS",
-     "rows": 28,
-     "carrying": 15,
-     "distinct": 8,
+     "rows": 44,
+     "carrying": 27,
+     "distinct": 14,
      "low": 1,
-     "high": 10
+     "high": 18
     }
    },
    "flags": [
@@ -11220,7 +11264,7 @@
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 125,
+     "line": 129,
      "text": "export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>",
      "binding": "SAMPLE"
     }
@@ -11318,13 +11362,13 @@
    "sites": [
     {
      "file": "src/data/special-attributes.js",
-     "line": 32,
+     "line": 33,
      "text": "export const SPECIAL_ATTRIBUTES = Object.freeze({",
      "binding": "SPECIAL_ATTRIBUTES"
     },
     {
      "file": "src/data/special-attributes.js",
-     "line": 22,
+     "line": 23,
      "text": "export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);",
      "binding": "SPECIAL_TIERS"
     }
@@ -11431,7 +11475,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 122,
+    "mentionCount": 124,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11446,7 +11490,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
+      "rows": 771,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11454,7 +11498,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
+      "rows": 771,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11529,7 +11573,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 122,
+    "mentionCount": 124,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11547,19 +11591,19 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
-      "carrying": 370,
-      "distinct": 33,
+      "rows": 771,
+      "carrying": 441,
+      "distinct": 37,
       "low": 1,
       "high": 168
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
-      "carrying": 184,
-      "distinct": 37,
+      "rows": 771,
+      "carrying": 225,
+      "distinct": 61,
       "low": 1,
-      "high": 90
+      "high": 164
      }
     ]
    },
@@ -11752,15 +11796,15 @@
     ],
     "mentions": [
      "tests/bands.mjs",
+     "tests/catacomb-armor.mjs",
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/trait-rules.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11827,15 +11871,15 @@
     ],
     "mentions": [
      "tests/bands.mjs",
+     "tests/catacomb-armor.mjs",
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/trait-rules.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11926,15 +11970,15 @@
     ],
     "mentions": [
      "tests/bands.mjs",
+     "tests/catacomb-armor.mjs",
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/trait-rules.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12016,6 +12060,12 @@
    "category": "equipment",
    "name": "The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll",
    "sites": [
+    {
+     "file": "src/data/base-drops.js",
+     "line": 27,
+     "text": "export const EVERY_HOURS = 1.5;",
+     "binding": "EVERY_HOURS"
+    },
     {
      "file": "src/data/drop-hours.js",
      "line": 53,
@@ -12157,15 +12207,15 @@
     ],
     "mentions": [
      "tests/bands.mjs",
+     "tests/catacomb-armor.mjs",
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
-     "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/trait-rules.mjs",
-     "tests/lineup-v4.mjs"
+     "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12184,7 +12234,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 228,
+     "line": 235,
      "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -12259,7 +12309,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 228,
+     "line": 235,
      "text": "muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -12957,25 +13007,25 @@
    "sites": [
     {
      "file": "src/data/temper.js",
-     "line": 177,
+     "line": 181,
      "text": "rankEvery: 40,",
      "binding": "TEMPER_STEPS"
     },
     {
      "file": "src/data/temper.js",
-     "line": 178,
+     "line": 182,
      "text": "hoursPm: 3000,",
      "binding": "TEMPER_STEPS"
     },
     {
      "file": "src/data/temper.js",
-     "line": 179,
+     "line": 183,
      "text": "kitSharePm: 500,",
      "binding": "TEMPER_STEPS"
     },
     {
      "file": "src/data/temper.js",
-     "line": 180,
+     "line": 184,
      "text": "carryPm: 350,",
      "binding": "TEMPER_STEPS"
     }
@@ -13741,7 +13791,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 122,
+    "mentionCount": 124,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13759,7 +13809,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
+      "rows": 771,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13767,7 +13817,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 700,
+      "rows": 771,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -17741,7 +17791,7 @@
    ],
    "bindings": 1
   },
-  "src/data/gear-tiers.js#WEAPON_FAMILIES": {
+  "src/data/gear-tiers.js#SHIPPED_FAMILIES": {
    "pin": "count",
    "keys": [
     "bars",
@@ -18099,13 +18149,16 @@
    "pin": "keys",
    "keys": [
     "critB",
+    "dawnlit_mantle",
     "madeLv",
     "rangeAtkB",
     "rangeStrB",
     "reqLv",
+    "seam_jasper_band",
     "steadyPm",
     "tier",
-    "v"
+    "v",
+    "warband_bulwark"
    ],
    "bindings": 1
   },
@@ -18146,9 +18199,11 @@
   "src/data/library2-items.js#BANE_GEAR": {
    "pin": "keys",
    "keys": [
-    "reqLv",
+    "lazlos_maul",
+    "rat_stick",
     "tier",
-    "v"
+    "v",
+    "void_censer"
    ],
    "bindings": 1
   },
@@ -18159,21 +18214,19 @@
   "src/data/library2-items.js#chitin": {
    "pin": "count",
    "keys": [
-    "reqLv",
     "tier",
     "v"
    ],
-   "typed": 4,
+   "typed": 3,
    "bindings": 1
   },
   "src/data/library2-items.js#watch": {
    "pin": "count",
    "keys": [
-    "reqLv",
     "tier",
     "v"
    ],
-   "typed": 3,
+   "typed": 2,
    "bindings": 1
   },
   "src/data/library2-items.js#TIER_VALUE": {
@@ -19837,16 +19890,12 @@
    "typed": 2,
    "bindings": 1
   },
-  "src/data/gear-tiers.js#MATERIAL_TIERS": {
+  "src/data/gear-tiers.js#STEP_TIERS": {
    "pin": "count",
    "keys": [
-    "craft",
-    "level",
-    "smith",
-    "tier",
-    "value"
+    "step"
    ],
-   "typed": 30,
+   "typed": 2,
    "bindings": 1
   },
   "src/data/gear-tiers.js#ARMOUR_SLOTS": {
@@ -19865,6 +19914,18 @@
     "vmul"
    ],
    "typed": 2,
+   "bindings": 1
+  },
+  "src/data/gear-tiers.js#SHIPPED_TIERS": {
+   "pin": "count",
+   "keys": [
+    "craft",
+    "level",
+    "smith",
+    "tier",
+    "value"
+   ],
+   "typed": 30,
    "bindings": 1
   },
   "src/data/gear-profiles.js#GEAR_CURVES": {
@@ -19920,6 +19981,42 @@
    "typed": 1,
    "bindings": 1
   },
+  "src/data/slot-ladders.js#STEP_JEWELS": {
+   "pin": "count",
+   "keys": [
+    "vmul"
+   ],
+   "typed": 3,
+   "bindings": 1
+  },
+  "src/data/slot-ladders.js#STEP_CAPE_TOP": {
+   "pin": "count",
+   "keys": [
+    "steadyPm",
+    "tier"
+   ],
+   "typed": 2,
+   "bindings": 1
+  },
+  "src/data/slot-ladders.js#STEP_CAPE_KEEP_PM": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/slot-ladders.js#STEP_MAKE": {
+   "pin": "count",
+   "keys": [
+    "input",
+    "ms",
+    "part",
+    "xp"
+   ],
+   "typed": 4,
+   "bindings": 1
+  },
   "src/data/jewelry.js#SURGE_MULT_PM": {
    "pin": "count",
    "keys": [
@@ -19945,11 +20042,10 @@
     "mult",
     "physical",
     "pm",
-    "reqLv",
     "tier",
     "v"
    ],
-   "typed": 16,
+   "typed": 12,
    "bindings": 1
   },
   "src/data/special-attributes.js#SPECIAL_ATTRIBUTES": {
@@ -20036,6 +20132,14 @@
     "wearAhead"
    ],
    "typed": 32,
+   "bindings": 1
+  },
+  "src/data/base-drops.js#EVERY_HOURS": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/drop-hours.js#DROP_HOURS": {

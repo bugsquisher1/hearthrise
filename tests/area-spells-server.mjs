@@ -30,7 +30,8 @@
 //
 // The text mutants patch a file's SQL before it is applied (its own self-check may be what refuses it: that counts, by name).
 import { isMain } from './_is-main.mjs';
-import { bootReplay, manifest } from './schema-replay.mjs';
+import { bootReplay as bootReplayRaw, manifest } from './schema-replay.mjs';
+import { withdrawScale } from './_tier-path.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 /* THE AREA BATCH'S OWN CATALOGUE, by name: tools/gen-hunt-sessions.mjs OUT_NAME has moved on to 2027-04-16-combat-training's, which carries this one whole. */
 const CAT = '2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql';
@@ -82,6 +83,8 @@ function shapeBefore(file) {
   return null;
 }
 const WARRENS = 'coppercap_warrens';
+/* the Warrens joined the Danger scale (lane/scale-grounds-2): these arms play the tier path's area spells, so each replayed database withdraws its scale rows (tests/_tier-path.mjs) */
+const bootReplay = async (o) => { const b = await bootReplayRaw(o); await withdrawScale(b.db, [WARRENS]); return b; };
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 5, WINDOW_MS = 90000;
 const AREA_ABILITIES = Object.freeze(['turning_cut', 'raking_shot', 'hoarfrost', 'spring_tide']);

@@ -16,7 +16,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/muster_barrows-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/muster_barrows-ref.json",
+    "tools/balance-program/redesign/grounds/muster_barrows-top.json",
+    "tools/balance-program/redesign/grounds/muster_barrows-floor.json"
    ]
   },
   "hasks_ford": {
@@ -35,7 +37,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/hasks_ford-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
+    "tools/balance-program/redesign/grounds/hasks_ford-top.json",
+    "tools/balance-program/redesign/grounds/hasks_ford-floor.json"
    ]
   },
   "catacomb_bone_wing": {
@@ -114,7 +118,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/meadowbrook_thicket-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-ref.json",
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
+    "tools/balance-program/redesign/grounds/meadowbrook_thicket-floor.json"
    ]
   },
   "mosslight_glade": {
@@ -133,7 +139,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/mosslight_glade-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/mosslight_glade-ref.json",
+    "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
+    "tools/balance-program/redesign/grounds/mosslight_glade-floor.json"
    ]
   },
   "coppercap_warrens": {
@@ -151,7 +159,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/coppercap_warrens-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/coppercap_warrens-ref.json",
+    "tools/balance-program/redesign/grounds/coppercap_warrens-top.json",
+    "tools/balance-program/redesign/grounds/coppercap_warrens-floor.json"
    ]
   },
   "the_slake": {
@@ -169,7 +179,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/the_slake-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/the_slake-ref.json",
+    "tools/balance-program/redesign/grounds/the_slake-top.json",
+    "tools/balance-program/redesign/grounds/the_slake-floor.json"
    ]
   },
   "pyre_field": {
@@ -188,7 +200,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/pyre_field-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/pyre_field-ref.json",
+    "tools/balance-program/redesign/grounds/pyre_field-top.json",
+    "tools/balance-program/redesign/grounds/pyre_field-floor.json"
    ]
   },
   "krells_hold": {
@@ -206,7 +220,9 @@
    },
    "measured": "2026-11-24",
    "evidence": [
-    "tools/balance-program/redesign/grounds/krells_hold-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/krells_hold-ref.json",
+    "tools/balance-program/redesign/grounds/krells_hold-top.json",
+    "tools/balance-program/redesign/grounds/krells_hold-floor.json"
    ]
   }
  }

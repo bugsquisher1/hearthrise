@@ -224,6 +224,9 @@ export const REAL_KRELL_FOUR_SHIFTS = Object.freeze([
      origin/set/v0.2.144 at 447acb3c3 against the lane): store x0.517, every other metric x1.000. Not re-measured on K1's own guard cell */
   Object.freeze({ why: 'the store priced in hours of wage (lane/econ-levers)',
     mult: Object.freeze({ levelXp: 1, kills: 1, income: 1, store: 0.517 }) }),
+  /* Krell's Hold on the Danger scale (lane/scale-grounds-sweep): MEASURED on the two recorded Deadly fours' replay (calibration-shift.mjs, 2 h x 2 seeds, origin/set/v0.2.144 at 5a62cd800 against the lane): Level XP x1.099, kills x1.099, income x1.104, store x0.584. Not re-measured on K1's own guard cell */
+  Object.freeze({ why: 'Krells Hold on the Danger scale: formula monsters with roles, rune at item Level 80',
+    mult: Object.freeze({ levelXp: 1.099, kills: 1.099, income: 1.104, store: 0.584 }) }),
 ]);
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */

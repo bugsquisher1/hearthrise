@@ -700,14 +700,14 @@ export const MONSTERS = {
      Oak Wand and the bats' Oakboard Spellbook, each hourly. The Rares (slime staff, spider bows, kobold hatchets and club) are a party's
      lucky door to what Wickstead and the Glade drop hourly. The Rat King keeps his Crown Shard and his Kingsgrate. ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 45, atk: 6, aim: 14, evasion: 12, def: 0, xp: 78, gp: [6, 17], formula: true, speed: 3400,
+    hp: 45, atk: 6, aim: 14, evasion: 13, def: 0, xp: 78, gp: [6, 17], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .9, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'rat_incisor', ch: .08, band: 'uncommon' },
       { id: 'bronze_platelegs', ch: .03, band: 'scarce' }, { id: 'leather_pants', ch: .03, band: 'scarce' }, { id: 'apprentice_pants', ch: .03, band: 'scarce' },
       { id: 'ironbound_shield', ch: .03, band: 'scarce' }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): the sump shrugs off half of every element. */
     elements: { ember: 50, frost: 50, poison: 50 },
-    hp: 56, atk: 6, aim: 12, evasion: 18, def: 2, xp: 107, gp: [7, 22], formula: true, speed: 2400,
+    hp: 56, atk: 6, aim: 12, evasion: 20, def: 2, xp: 107, gp: [7, 22], formula: true, speed: 2400,
     drops: [{ id: 'slime_gel', ch: .95, band: 'common' }, { id: 'lamp_jelly', ch: .35, band: 'common' }, { id: 'sump_membrane', ch: .08, band: 'uncommon' },
       { id: 'bronze_platebody', ch: .05, band: 'scarce' }, { id: 'leather_body', ch: .05, band: 'scarce' }, { id: 'apprentice_body', ch: .05, band: 'scarce' },
       { id: 'oak_wand', ch: .05, band: 'scarce' }, { id: 'oak_staff', ch: .0036, band: 'rare' }] },
@@ -719,10 +719,10 @@ export const MONSTERS = {
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is only a quarter off, not the vermin half. */
     elements: { frost: -15, poison: 25 },
-    hp: 120, atk: 7, aim: 20, evasion: 26, def: 6, xp: 317, gp: [16, 46], formula: true, speed: 3600,
+    hp: 120, atk: 7, aim: 20, evasion: 27, def: 6, xp: 317, gp: [16, 46], formula: true, speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Sewer Kobold', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 70, atk: 7, aim: 17, evasion: 15, def: 1, xp: 135, gp: [9, 27], formula: true, speed: 3200,
+    hp: 70, atk: 7, aim: 17, evasion: 16, def: 1, xp: 135, gp: [9, 27], formula: true, speed: 3200,
     /* its spell: a fistful of outfall muck thrown at its target's tile, which a ranged hero steps off (lane/d-spell-tuning) */
     spells: ['muck_fling'],
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's chips, and a Hearth fuel) */
@@ -732,7 +732,7 @@ export const MONSTERS = {
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elements: { ember: 25, frost: -15, poison: 50 },
-    hp: 612, atk: 6, aim: 34, evasion: 28, def: 8, xp: 1844, gp: [79, 239], formula: true, speed: 2800,
+    hp: 612, atk: 6, aim: 34, evasion: 29, def: 8, xp: 1844, gp: [79, 239], formula: true, speed: 2800,
     /* his spells (monster-spells.js): the Tail Lash his tank stands in, and the Squeal the whole party takes */
     spells: ['tail_lash', 'squeal'],
     drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .016, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0017, band: 'trophy' }] },
@@ -914,13 +914,13 @@ export const MONSTERS = {
      earrings, ring and necklace, so here they are the prize above it, never a regular drop. Stats: src/data/balance-sheet.js. ══ */
   granary_rat: { name: 'Granary Rat', icon: '🐀', tier: 1, level: 9, cls: 'vermin', family: 'Vermin',
     /* the swarm: fat on the farm's grain, many and quick */
-    hp: 17, atk: 5, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400,
+    hp: 17, atk: 5, aim: 21, evasion: 12, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .308, band: 'common' }, { id: 'bones', ch: .269, band: 'common' }, { id: 'granary_whisker', ch: .0616, band: 'uncommon' },
       { id: 'bronze_boots', ch: .00377, band: 'scarce' }, { id: 'leather_boots', ch: .00377, band: 'scarce' }, { id: 'apprentice_boots', ch: .00377, band: 'scarce' }] },
   barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 18, atk: 5, aim: 29, evasion: 13, def: 0, xp: 60, gp: [2, 8], formula: true, speed: 4600,
+    hp: 18, atk: 5, aim: 29, evasion: 14, def: 0, xp: 60, gp: [2, 8], formula: true, speed: 4600,
     /* the helmets .0231 to .0247 (lane/d-harder-monsters, 2026-11-19): with the formula's tenth more HP the floor hero met fewer wasps, a helmet every 1.55 h (the band is 0.75-1.5) */
     drops: [{ id: 'venom_sac', ch: .193, band: 'common' }, { id: 'dry_husk', ch: .308, band: 'common' }, { id: 'barn_wasp_sting', ch: .0616, band: 'uncommon' },
       { id: 'bronze_helm', ch: .0247, band: 'scarce' }, { id: 'leather_helmet', ch: .0247, band: 'scarce' }, { id: 'apprentice_helmet', ch: .0247, band: 'scarce' },
@@ -928,7 +928,7 @@ export const MONSTERS = {
   barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
     /* the tank: slow and webbed in; fire takes the web */
     elements: { ember: -15, poison: 50 },
-    hp: 28, atk: 5, aim: 20, evasion: 20, def: 3, xp: 91, gp: [4, 11], formula: true, speed: 2600,
+    hp: 28, atk: 5, aim: 20, evasion: 22, def: 3, xp: 91, gp: [4, 11], formula: true, speed: 2600,
     spells: ['venom_spray'],
     drops: [{ id: 'silk_thread', ch: .308, band: 'common' }, { id: 'dry_husk', ch: .385, band: 'common' }, { id: 'loft_web', ch: .0616, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .0127, band: 'scarce' }, { id: 'studded_pants', ch: .0127, band: 'scarce' }, { id: 'adept_pants', ch: .0127, band: 'scarce' },
@@ -936,7 +936,7 @@ export const MONSTERS = {
   orchard_boar: { name: 'Orchard Boar', icon: '🐗', tier: 1, level: 12, cls: 'mammal', family: 'Mammal',
     /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
     weaponWeak: 'sword', weaponResist: ['hammer'],
-    hp: 26, atk: 5, aim: 20, evasion: 20, def: 3, xp: 82, gp: [4, 10], formula: true, speed: 3000,
+    hp: 26, atk: 5, aim: 20, evasion: 21, def: 3, xp: 82, gp: [4, 10], formula: true, speed: 3000,
     /* no Rare: the Tusker's Charm is Old Tusker's relic, ONE source (tests/w0f-fun-content.mjs); he joins the Orchard as its
        champion with his own (larger) art, the next batch. Its Iron Hatchets (2026-11-18) are the orchard keepers' lost pruning pair. */
     drops: [{ id: 'boar_bristle', ch: .462, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'orchard_boar_tusk', ch: .0616, band: 'uncommon' },

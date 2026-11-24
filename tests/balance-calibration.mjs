@@ -125,6 +125,12 @@ export const DECLARED_SHIFTS = Object.freeze([
      (2 h x 2 seeds, origin/set/v0.2.144 f1b2f6c1e against the lane, sim over sim); Krell's two fours read x1.000 on every metric. */
   Object.freeze({ after: '2026-11-23', grounds: Object.freeze(['coppercap_warrens']), why: 'one material a tier: the ladder on item Levels 20 x (tier - 1) (12-targets 8.3)',
     mult: Object.freeze({ killsPerH: 1.043, levelXpPerH: 1.037, coinPerH: 1.037, dealtPerH: 1.034, takenPerH: 0.904, healedPerH: 0.866, storePerH: 0.943 }) }),
+  /* (5) KRELL'S HOLD ON THE DANGER SCALE (lane/scale-grounds-2 step 3 + sweep, 12-targets 8.3): its monsters play the formula with roles and its drops
+     are rune at item Level 80 (the stamp it kept), so the recorded Deadly fours meet a gentler, quicker hold. MEASURED by calibration-shift.mjs
+     (2 h x 2 seeds, origin/set/v0.2.144 at 5a62cd800 against the lane, sim over sim, geometric mean of the two hunts); the harness hero read taken x0.684, the played profile (BC-4) a point lower, so 0.675 here; the Warrens read x0.99 to
+     x1.02 on every metric (nothing declared). */
+  Object.freeze({ after: '2026-11-23', grounds: Object.freeze(['krells_hold']), why: 'Krells Hold on the Danger scale: formula monsters with roles, rune at item Level 80',
+    mult: Object.freeze({ killsPerH: 1.099, levelXpPerH: 1.099, coinPerH: 1.104, dealtPerH: 1.096, takenPerH: 0.675, healedPerH: 0.622, storePerH: 0.584 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

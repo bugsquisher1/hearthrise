@@ -53,7 +53,7 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 | Typed edges (one writes what another reads) | 348 |
 | Edges the formula register declares | 199 |
 | Calls between formula homes, read from the code | 45 |
-| Levers joined, and knobs | 241, 35 |
+| Levers joined, and knobs | 242, 35 |
 | Targets joined, and how many reach a measured outcome | 100, 37 |
 <!-- /graph:counts -->
 
@@ -215,7 +215,7 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 <!-- graph:source -->
 Measured data: sensitivity-matrix, GitHub run 44969087150,44971044252,44972398698,44976040886, tree 0,1,2,3, 68 cells, 0+4 seeds. Rule: the sensitivity lane's own rule: an effect is resolved beyond Student's t times its standard error over the seeds, and beyond half a percent.
 
-Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 210 of 241.
+Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 211 of 242.
 <!-- /graph:source -->
 
 **How a direction is predicted.** A quantity's depth is the fewest mechanics between the lever and it. Its predicted direction is the direction of its shortest paths. If two shortest paths disagree the answer is "mixed" and the graph does not call it. A longer path that disagrees is kept and printed as the counter-path. This is a reading of a graph. It knows directions, never sizes.
@@ -388,35 +388,35 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 | 9 | `GF-88907c52` | carrier | C-MON-STATS / C-BOSS-ROOM | 20 | The register says C-MON-STATS feeds C-BOSS-ROOM, and C-MON-STATS writes nothing C-BOSS-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
 | 10 | `GF-f278d21d` | writers | C-BOSS-PHASE / C-MON-STATS | 20 | C-BOSS-PHASE and C-MON-STATS both write mon.atk, mon.aim. The register holds no edge between them |
 | 11 | `GF-12adb5f8` | feeds | C-JEWEL-PERKS / E18 | 12 | C-JEWEL-PERKS writes hero.regen and E18 reads it. The register holds no edge between them |
-| 12 | `GF-52cf6242` | writers | C-WEAKNESS / E44 | 11 | C-WEAKNESS and E44 both write drop.chance. The register holds no edge between them |
-| 13 | `GF-a6696e80` | feeds | C-GEAR-WEAPON / C-WEAKNESS | 11 | C-GEAR-WEAPON writes gear.weapon and C-WEAKNESS reads it. The register holds no edge between them |
-| 14 | `GF-f13838cd` | feeds | P11 / E18 | 11 | P11 writes hero.maxMana and E18 reads it. The register holds no edge between them |
-| 15 | `GF-fe23c52f` | carrier | C-ARMOR-CHAIN / E18 | 11 | The register says C-ARMOR-CHAIN feeds E18, and C-ARMOR-CHAIN writes nothing E18 reads (C-ARMOR-CHAIN writes hero.mitigation) |
-| 16 | `GF-c6a7d6ac` | feeds | C-JEWEL-PERKS / C-HERO-POWER | 11 | C-JEWEL-PERKS writes hero.skill, hero.buff and C-HERO-POWER reads it. The register holds no edge between them |
-| 17 | `GF-09df4953` | carrier | C-MON-BLOW / E18 | 10 | The register says C-MON-BLOW feeds E18, and C-MON-BLOW writes nothing E18 reads (C-MON-BLOW writes mon.maxHit) |
-| 18 | `GF-5b325892` | carrier | C-BASIC-BLOW / E18 | 10 | The register says C-BASIC-BLOW feeds E18, and C-BASIC-BLOW writes nothing E18 reads (C-BASIC-BLOW writes hero.blow) |
+| 12 | `GF-c6a7d6ac` | feeds | C-JEWEL-PERKS / C-HERO-POWER | 12 | C-JEWEL-PERKS writes hero.skill, hero.buff and C-HERO-POWER reads it. The register holds no edge between them |
+| 13 | `GF-52cf6242` | writers | C-WEAKNESS / E44 | 11 | C-WEAKNESS and E44 both write drop.chance. The register holds no edge between them |
+| 14 | `GF-5b325892` | carrier | C-BASIC-BLOW / E18 | 11 | The register says C-BASIC-BLOW feeds E18, and C-BASIC-BLOW writes nothing E18 reads (C-BASIC-BLOW writes hero.blow) |
+| 15 | `GF-a6696e80` | feeds | C-GEAR-WEAPON / C-WEAKNESS | 11 | C-GEAR-WEAPON writes gear.weapon and C-WEAKNESS reads it. The register holds no edge between them |
+| 16 | `GF-f13838cd` | feeds | P11 / E18 | 11 | P11 writes hero.maxMana and E18 reads it. The register holds no edge between them |
+| 17 | `GF-fe23c52f` | carrier | C-ARMOR-CHAIN / E18 | 11 | The register says C-ARMOR-CHAIN feeds E18, and C-ARMOR-CHAIN writes nothing E18 reads (C-ARMOR-CHAIN writes hero.mitigation) |
+| 18 | `GF-09df4953` | carrier | C-MON-BLOW / E18 | 10 | The register says C-MON-BLOW feeds E18, and C-MON-BLOW writes nothing E18 reads (C-MON-BLOW writes mon.maxHit) |
 | 19 | `GF-843e9c9d` | call | E20 / E18 | 10 | E18 reaches `consumeOrder` in the home of E20 (src/core/hunt/consumables.js:183), and no quantity is declared between them (E20 writes supplies.used) |
-| 20 | `GF-de2b29ea` | carrier | E20 / E18 | 10 | The register says E20 feeds E18, and E20 writes nothing E18 reads (E20 writes supplies.used) |
-| 21 | `GF-167b8a1b` | call | C-REGEN / E12 | 9 | E12 reaches `tickHeroes` in the home of C-REGEN (src/core/hunt/pull-cycle.js:400), and no quantity is declared between them (C-REGEN writes hero.regen) |
-| 22 | `GF-2bcdd401` | feeds | C-SPELL-SHELL / E18 | 9 | C-SPELL-SHELL writes hero.manaCost and E18 reads it. The register holds no edge between them |
-| 23 | `GF-3c842d04` | feeds | P19 / C-WEAKNESS | 9 | P19 writes gear.special and C-WEAKNESS reads it. The register holds no edge between them |
-| 24 | `GF-6ee0cbba` | feeds | C-WEAKNESS / E45 | 9 | C-WEAKNESS writes drop.chance and E45 reads it. The register holds no edge between them |
-| 25 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 9 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
-| 26 | `GF-9411a106` | carrier | C-TEMPER / C-HERO-POWER | 9 | The register says C-TEMPER feeds C-HERO-POWER, and C-TEMPER writes nothing C-HERO-POWER reads (C-TEMPER writes temper.blows, temper.armor) |
-| 27 | `GF-c1facf18` | feeds | C-WEAKNESS / C-HERO-TOHIT | 9 | C-WEAKNESS writes hero.weakFactor and C-HERO-TOHIT reads it. The register holds no edge between them |
-| 28 | `GF-057157d5` | feeds | E18 / O-MANAWAIT | 8 | E18 writes supplies.used and O-MANAWAIT reads it. The register holds no edge between them |
-| 29 | `GF-125608ba` | writers | C-SCALED / E01 | 8 | C-SCALED and E01 both write kill.xp. The register holds no edge between them |
-| 30 | `GF-27240a11` | feeds | C-HURT / E18 | 8 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
-| 31 | `GF-631efa95` | feeds | C-MON-DEF / C-HERO-POWER | 8 | C-MON-DEF writes mon.defCut and C-HERO-POWER reads it. The register holds no edge between them |
-| 32 | `GF-6872e027` | feeds | E18 / O-SUSTAIN | 8 | E18 writes supplies.used and O-SUSTAIN reads it. The register holds no edge between them |
-| 33 | `GF-6bf926a5` | feeds | E18 / O-REGENSHARE | 8 | E18 writes supplies.used and O-REGENSHARE reads it. The register holds no edge between them |
-| 34 | `GF-78e71beb` | feeds | C-SCALED / E01 | 8 | C-SCALED writes mon.level, mon.hp and E01 reads it. The register holds no edge between them |
-| 35 | `GF-7b43ec0a` | carrier | C-PULL / E10 | 8 | The register says C-PULL feeds E10, and C-PULL writes nothing E10 reads (C-PULL writes mon.fightHp, pull.size) |
-| 36 | `GF-8bdca139` | feeds | E18 / O-STORE | 8 | E18 writes supplies.cost and O-STORE reads it. The register holds no edge between them |
-| 37 | `GF-8ef79389` | call | C-PULL / E12 | 8 | E12 reaches `startPull` in the home of C-PULL (src/core/hunt/pull-cycle.js:287), and no quantity is declared between them (C-PULL writes mon.fightHp, pull.size) |
-| 38 | `GF-bf3a3000` | carrier | C-HERO-POWER / P06 | 8 | The register says C-HERO-POWER feeds P06, and C-HERO-POWER writes nothing P06 reads (C-HERO-POWER writes hero.maxHit) |
-| 39 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
-| 40 | `GF-d078483b` | feeds | E18 / O-SUPPLIES | 8 | E18 writes supplies.used and O-SUPPLIES reads it. The register holds no edge between them |
+| 20 | `GF-9411a106` | carrier | C-TEMPER / C-HERO-POWER | 10 | The register says C-TEMPER feeds C-HERO-POWER, and C-TEMPER writes nothing C-HERO-POWER reads (C-TEMPER writes temper.blows, temper.armor) |
+| 21 | `GF-de2b29ea` | carrier | E20 / E18 | 10 | The register says E20 feeds E18, and E20 writes nothing E18 reads (E20 writes supplies.used) |
+| 22 | `GF-167b8a1b` | call | C-REGEN / E12 | 9 | E12 reaches `tickHeroes` in the home of C-REGEN (src/core/hunt/pull-cycle.js:400), and no quantity is declared between them (C-REGEN writes hero.regen) |
+| 23 | `GF-2bcdd401` | feeds | C-SPELL-SHELL / E18 | 9 | C-SPELL-SHELL writes hero.manaCost and E18 reads it. The register holds no edge between them |
+| 24 | `GF-3c842d04` | feeds | P19 / C-WEAKNESS | 9 | P19 writes gear.special and C-WEAKNESS reads it. The register holds no edge between them |
+| 25 | `GF-631efa95` | feeds | C-MON-DEF / C-HERO-POWER | 9 | C-MON-DEF writes mon.defCut and C-HERO-POWER reads it. The register holds no edge between them |
+| 26 | `GF-6ee0cbba` | feeds | C-WEAKNESS / E45 | 9 | C-WEAKNESS writes drop.chance and E45 reads it. The register holds no edge between them |
+| 27 | `GF-bf3a3000` | carrier | C-HERO-POWER / P06 | 9 | The register says C-HERO-POWER feeds P06, and C-HERO-POWER writes nothing P06 reads (C-HERO-POWER writes hero.maxHit) |
+| 28 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 9 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
+| 29 | `GF-c1facf18` | feeds | C-WEAKNESS / C-HERO-TOHIT | 9 | C-WEAKNESS writes hero.weakFactor and C-HERO-TOHIT reads it. The register holds no edge between them |
+| 30 | `GF-057157d5` | feeds | E18 / O-MANAWAIT | 8 | E18 writes supplies.used and O-MANAWAIT reads it. The register holds no edge between them |
+| 31 | `GF-125608ba` | writers | C-SCALED / E01 | 8 | C-SCALED and E01 both write kill.xp. The register holds no edge between them |
+| 32 | `GF-1fdc0345` | feeds | P37 / C-HERO-POWER | 8 | P37 writes hero.skill and C-HERO-POWER reads it. The register holds no edge between them |
+| 33 | `GF-27240a11` | feeds | C-HURT / E18 | 8 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
+| 34 | `GF-6872e027` | feeds | E18 / O-SUSTAIN | 8 | E18 writes supplies.used and O-SUSTAIN reads it. The register holds no edge between them |
+| 35 | `GF-6bf926a5` | feeds | E18 / O-REGENSHARE | 8 | E18 writes supplies.used and O-REGENSHARE reads it. The register holds no edge between them |
+| 36 | `GF-78e71beb` | feeds | C-SCALED / E01 | 8 | C-SCALED writes mon.level, mon.hp and E01 reads it. The register holds no edge between them |
+| 37 | `GF-7b43ec0a` | carrier | C-PULL / E10 | 8 | The register says C-PULL feeds E10, and C-PULL writes nothing E10 reads (C-PULL writes mon.fightHp, pull.size) |
+| 38 | `GF-8bdca139` | feeds | E18 / O-STORE | 8 | E18 writes supplies.cost and O-STORE reads it. The register holds no edge between them |
+| 39 | `GF-8ef79389` | call | C-PULL / E12 | 8 | E12 reaches `startPull` in the home of C-PULL (src/core/hunt/pull-cycle.js:287), and no quantity is declared between them (C-PULL writes mon.fightHp, pull.size) |
+| 40 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
 
 257 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
 <!-- /graph:ghosts -->

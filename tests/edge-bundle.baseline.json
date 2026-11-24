@@ -448,6 +448,11 @@
         "bytes": 3808616,
         "on": "2026-11-23",
         "why": "lane/roads-wave3 on the merged set: src/data/talents.js gains Parry, Stagger and Gash roads (30 nodes) and two town rows; abilities and statuses comments"
+      },
+      {
+        "bytes": 3817150,
+        "on": "2026-11-24",
+        "why": "lane/skills-time-parity on set b05780245 with the designer's dials (29 section 7 item 10): the combat skills on the Level clock (src/core/xp.js two walks, src/data/core-model.js SKILL_CURVE, refHealthOf, FLAME_SKILL_CURVE and SUPPLY_GATES with their evidence, src/core/bands.js the clock's line, runes.js versionLevel by skill and craftLevel). +8,534 bytes"
       }
     ]
   }

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "ba21e5b9992057da",
+ "authored": "8ec53b56aeb2c5ad",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,10 +63,10 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 241,
+  "levers": 242,
   "byCategory": {
    "base-damage": 14,
-   "skill-scaling": 10,
+   "skill-scaling": 11,
    "level-scaling": 9,
    "weapon-power": 6,
    "spells": 15,
@@ -89,14 +89,14 @@
   "byClass": {
    "global": 128,
    "archetype": 32,
-   "content": 51,
+   "content": 52,
    "exception-intentional": 19,
    "exception-accidental": 11
   },
   "byPerturb": {
    "knob": 31,
    "not-playable:dead": 8,
-   "patch": 78,
+   "patch": 79,
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 36,
    "not-playable:harness-fixed": 6,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 132,
+   "asserted": 133,
    "mentioned only": 89,
    "none": 20
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 762,
-  "typed": 16991,
+  "bindings": 763,
+  "typed": 17015,
   "files": 260,
-  "lever": 334,
+  "lever": 335,
   "notLever": 428,
   "unclaimed": 0
  },
@@ -622,7 +622,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 316,
+     "line": 330,
      "text": "export const MAX_BANE_MULT = 1.40;",
      "binding": "MAX_BANE_MULT"
     }
@@ -895,6 +895,102 @@
    "evidence": "MEASURED (tools/balance-program/redesign/skills/parity.mjs, 2026-11-23)"
   },
   {
+   "id": "skill.supply-gates",
+   "category": "skill-scaling",
+   "name": "Skill-gated supplies on the Level clock",
+   "sites": [
+    {
+     "file": "src/data/core-model.js",
+     "line": 200,
+     "text": "export const SUPPLY_GATES = Object.freeze({",
+     "binding": "SUPPLY_GATES"
+    }
+   ],
+   "definition": "the skill an arrow, bolt, whetstone or rune tier needs, and a rune spell version (runes.js versionLevel): the Level the old party careers first reached the old gate (1 / 15 / 30 / 45 / 60 / 75 / 88), so each tier arrives at the Level it did (the designer's ruling 29 section 7 item 10)",
+   "range": "derived from tools/balance-sim/skill-lines.json, never tuned: tests/bands.mjs BD-10 re-derives every tier",
+   "touches": "which ammo and rune tier a hero may carry at a Level, so its damage and supply bill (EL-KIT)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "storePerH"
+   ],
+   "formulas": [
+    "C-HERO-POWER",
+    "E19",
+    "C-CAST-POWER"
+   ],
+   "reach": {
+    "feeds": 6,
+    "closure": 78
+   },
+   "class": "content",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/bands.mjs",
+      "what": "BD-10 the supply gates keep their Level",
+      "reads": [
+       "SUPPLY_GATES"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/bands.mjs"
+    ],
+    "mentionCount": 1,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "patch",
+    "note": "the kits carry the ammo and runes their skill may use (gear.mjs accessories)",
+    "from": [
+     "src/data/core-model.js: export const SUPPLY_GATES = Object.freeze({"
+    ],
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "each ammo and rune row's made-at Level (madeLv: the store prices it there, never at its gate)",
+    "homes": [
+     "src/data/stonecraft.js#AMMO_MADE_LV"
+    ],
+    "today": [
+     {
+      "table": "src/data/stonecraft.js STONECRAFT_ITEMS",
+      "rows": 39,
+      "carrying": 37,
+      "distinct": 7,
+      "low": 1,
+      "high": 88
+     },
+     {
+      "table": "src/data/slot-ladders.js SLOT_ITEMS",
+      "rows": 28,
+      "carrying": 7,
+      "distinct": 7,
+      "low": 1,
+      "high": 88
+     },
+     {
+      "table": "src/data/items.js ITEMS",
+      "rows": 700,
+      "carrying": 45,
+      "distinct": 7,
+      "low": 1,
+      "high": 88
+     }
+    ]
+   },
+   "flags": [],
+   "evidence": "MEASURED (the old party careers, skill-lines.json, read as measured)"
+  },
+  {
    "id": "skill.flame-curve",
    "category": "skill-scaling",
    "name": "Inner Flame's curve",
@@ -952,7 +1048,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 247,
+     "line": 261,
      "text": "hitXpPerDamage: 1.5,",
      "binding": "COMBAT_XP"
     }
@@ -1014,7 +1110,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 248,
+     "line": 262,
      "text": "defenseXpPerLevelPermille: 200,",
      "binding": "COMBAT_XP"
     }
@@ -1671,13 +1767,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 196,
+     "line": 210,
      "text": "hpBase: 150,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 197,
+     "line": 211,
      "text": "hpPerLevel: 10,",
      "binding": "VITALS"
     }
@@ -1753,13 +1849,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 198,
+     "line": 212,
      "text": "manaBase: 100,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 199,
+     "line": 213,
      "text": "manaPerLevel: 10,   // Tyler 2026-10-19: \"10 and 10\"",
      "binding": "VITALS"
     }
@@ -2334,7 +2430,7 @@
     },
     {
      "file": "src/data/stonecraft.js",
-     "line": 81,
+     "line": 82,
      "text": "const AMMO_STAT = [2, 3, 5, 8, 11, 14, 18];",
      "binding": "AMMO_STAT"
     }
@@ -2382,7 +2478,6 @@
     "what": "arrow and bolt strength and requirement, whetstone ammoPerShot",
     "homes": [
      "src/data/library2-items.js#AMMO_REQ",
-     "src/data/stonecraft.js#AMMO_REQ_LV",
      "src/data/stonecraft.js#STONECRAFT_ITEMS",
      "src/data/library2-items.js#whet"
     ]
@@ -2843,8 +2938,8 @@
      "table": "src/data/abilities.js ABILITIES",
      "rows": 25,
      "carrying": 8,
-     "distinct": 4,
-     "low": 10,
+     "distinct": 5,
+     "low": 5,
      "high": 20
     }
    },
@@ -3013,7 +3108,7 @@
    "sites": [
     {
      "file": "src/data/runes.js",
-     "line": 48,
+     "line": 49,
      "text": "Object.freeze({ tier: 2, name: 'Scored', level: 15, stepPm: 1100 }),",
      "binding": "RUNE_TIERS"
     }
@@ -3051,12 +3146,13 @@
      }
     ],
     "mentions": [
+     "tests/bands.mjs",
      "tests/econ-levers.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/spell-rule.mjs",
      "tests/hunt-sessions-settle.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3088,7 +3184,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 252,
+     "line": 255,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -3739,7 +3835,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 384,
+     "line": 387,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -3801,19 +3897,19 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 229,
+     "line": 243,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 230,
+     "line": 244,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 231,
+     "line": 245,
      "text": "ward: Object.freeze({ perPointPm: 1500 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3877,13 +3973,13 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 229,
+     "line": 243,
      "text": "dodge: Object.freeze({ maxPm: 650, k: 0.4 }),",
      "binding": "ARMOUR_MITIGATION"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 230,
+     "line": 244,
      "text": "absorb: Object.freeze({ maxPm: 750, k: 0.62 }),",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -3947,7 +4043,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 232,
+     "line": 246,
      "text": "capPm: 600,",
      "binding": "ARMOUR_MITIGATION"
     }
@@ -4027,13 +4123,13 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 200,
+     "line": 214,
      "text": "heavyHpPermille: 280,",
      "binding": "VITALS"
     },
     {
      "file": "src/data/core-model.js",
-     "line": 201,
+     "line": 215,
      "text": "lightManaPermille: 350,",
      "binding": "VITALS"
     }
@@ -4793,7 +4889,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 204,
+     "line": 218,
      "text": "inFightRegenPermillePerS: 3,",
      "binding": "VITALS"
     },
@@ -4860,7 +4956,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 256,
+     "line": 270,
      "text": "export const FLAME_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });",
      "binding": "FLAME_REGEN"
     }
@@ -6177,7 +6273,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 260,
+     "line": 274,
      "text": "export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });",
      "binding": "MONSTER_LEVEL_BY_TIER"
     }
@@ -10940,7 +11036,7 @@
    "sites": [
     {
      "file": "src/data/slot-ladders.js",
-     "line": 54,
+     "line": 55,
      "text": "export const SLOT_ITEMS = withGearStats({",
      "binding": "SLOT_ITEMS"
     }
@@ -11312,7 +11408,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 120,
+    "mentionCount": 121,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11359,7 +11455,7 @@
    "sites": [
     {
      "file": "src/data/items.js",
-     "line": 25,
+     "line": 26,
      "text": "export const ITEMS={",
      "binding": "ITEMS"
     }
@@ -11410,7 +11506,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 120,
+    "mentionCount": 121,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11430,9 +11526,9 @@
       "table": "src/data/items.js ITEMS",
       "rows": 700,
       "carrying": 370,
-      "distinct": 23,
+      "distinct": 33,
       "low": 1,
-      "high": 88
+      "high": 168
      },
      {
       "table": "src/data/items.js ITEMS",
@@ -13197,13 +13293,13 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 106,
+     "line": 107,
      "text": "export const BASIC_SUPPLIES = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     },
     {
      "file": "src/data/supply-basics.js",
-     "line": 243,
+     "line": 244,
      "text": "export const SUPPLY_SHOP_OFFERS = Object.freeze([",
      "binding": "SUPPLY_SHOP_OFFERS"
     }
@@ -13271,7 +13367,7 @@
    "sites": [
     {
      "file": "src/data/core-model.js",
-     "line": 300,
+     "line": 314,
      "text": "export const FOOD_HEAL_SCALE = 12;",
      "binding": "FOOD_HEAL_SCALE"
     }
@@ -13380,7 +13476,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 99,
+     "line": 100,
      "text": "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -13622,7 +13718,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 120,
+    "mentionCount": 121,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -16605,7 +16701,7 @@
     },
     {
      "file": "src/data/core-model.js",
-     "line": 290,
+     "line": 304,
      "text": "export const FLAME_FUEL = Object.freeze({",
      "binding": "FLAME_FUEL"
     }
@@ -17509,6 +17605,14 @@
   }
  ],
  "pins": {
+  "src/data/stonecraft.js#AMMO_MADE_LV": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 6,
+   "bindings": 1
+  },
   "src/data/abilities.js#ABILITIES": {
    "pin": "keys",
    "keys": [
@@ -17626,18 +17730,11 @@
    "typed": 6,
    "bindings": 1
   },
-  "src/data/stonecraft.js#AMMO_REQ_LV": {
-   "pin": "count",
-   "keys": [
-    "·"
-   ],
-   "typed": 6,
-   "bindings": 1
-  },
   "src/data/stonecraft.js#STONECRAFT_ITEMS": {
    "pin": "keys",
    "keys": [
     "ammoPerShot",
+    "madeLv",
     "rarity",
     "reqLv",
     "strB",
@@ -17962,6 +18059,7 @@
    "pin": "keys",
    "keys": [
     "critB",
+    "madeLv",
     "rangeAtkB",
     "rangeStrB",
     "reqLv",
@@ -18100,6 +18198,7 @@
     "durationMs",
     "foodTier",
     "heals",
+    "madeLv",
     "magnitude",
     "rangeStrB",
     "reqLv",
@@ -18802,6 +18901,16 @@
     "xpPerHealthHour"
    ],
    "typed": 2,
+   "bindings": 1
+  },
+  "src/data/core-model.js#SUPPLY_GATES": {
+   "pin": "count",
+   "keys": [
+    "magic",
+    "melee",
+    "ranged"
+   ],
+   "typed": 16,
    "bindings": 1
   },
   "src/data/core-model.js#FLAME_SKILL_CURVE": {

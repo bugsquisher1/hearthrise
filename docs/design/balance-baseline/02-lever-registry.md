@@ -21,7 +21,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Category | Levers | Global | Archetype | Content | Exception | On a knob | Not playable | A test asserts it |
 |---|---|---|---|---|---|---|---|---|
 | Base damage coefficients | 14 | 13 | 1 | 0 | 0 | 4 | 9 | 5 |
-| Skill scaling | 10 | 8 | 0 | 2 | 0 | 1 | 4 | 6 |
+| Skill scaling | 11 | 8 | 0 | 3 | 0 | 1 | 4 | 7 |
 | Level scaling | 9 | 7 | 0 | 0 | 2 | 4 | 3 | 6 |
 | Weapon power and attack frequency | 6 | 2 | 3 | 1 | 0 | 1 | 0 | 2 |
 | Spell coefficients, costs, cooldowns and areas | 15 | 6 | 1 | 7 | 1 | 1 | 3 | 5 |
@@ -40,14 +40,14 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 46 | 31 | 2 | 12 | 1 | 0 | 41 | 34 |
-| **All** | **241** | 128 | 32 | 51 | 30 | 31 | 127 | 132 |
+| **All** | **242** | 128 | 32 | 52 | 30 | 31 | 127 | 133 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 762 (in 260 files, 16991 typed numbers) |
-| Claimed by a lever | 334 |
+| Top-level bindings in the rule code that hold a typed number | 763 (in 260 files, 17015 typed numbers) |
+| Claimed by a lever | 335 |
 | Claimed by a not-a-lever reason | 428 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 19 and 11 |

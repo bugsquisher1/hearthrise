@@ -61,7 +61,7 @@ export const FORMULA_IO = Object.freeze({
     { as: { hp: 'hero.healCast' } }),
   'C-SPELL-SHELL': f(['src/data/abilities.js#castAmount', 'src/core/hunt/abilities.js#landsShield,shieldRefund', EFFECT], ['+hero.maxHit', ['+hero.castPower', 'the cast\'s power is the argument pm']], ['hero.shell', ['hero.manaCost', 'a recast of a self shell refunds the unused part as mana']],
     { as: { mana: 'hero.manaCost' }, skip: { maxHp: 'landsShield passes the caster\'s max HP on to castAmount, where only Mend reads it' } }),
-  'C-CAST-POWER': f(['src/data/runes.js#versionStep,versionLevel', 'src/core/hunt/abilities.js#surged', EFFECT], ['+hero.skill', ['+gear.perk', 'Surge is a jewel perk, read off the unit as surgePm']], ['hero.castPower'],
+  'C-CAST-POWER': f(['src/data/runes.js#versionStep,versionLevel', 'src/core/hunt/abilities.js#surged,runeFor', EFFECT], ['+hero.skill', ['+gear.perk', 'Surge is a jewel perk, read off the unit as surgePm']], ['hero.castPower'],
     { as: { level: 'hero.skill' }, skip: { heals: 'Surge asks only whether the row lands a number', shells: 'the same question' } }),
   'C-STATUS': f(['src/core/hunt/status.js#stackScale,tickAmount,stacksOf,countOf,applyStatus,tickStatuses'], ['+hero.maxHit>status.tick', '+hero.castPower', '-hero.resist'],
     ['status.tick', ['status.mark', 'a marking status is a row with takenPm, landed by applyStatus'], ['status.wither', 'a heal-cutting status is a row with healCutPm, landed by applyStatus'], ['unit.slow', 'a slowing status is a row with slowPm, landed by applyStatus']],

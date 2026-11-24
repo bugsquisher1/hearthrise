@@ -120,6 +120,16 @@ export const COMBAT = [
     tests: [['tests/bands.mjs', 'BD-1 the line is the Level clock and the curve is built on it'], ['tests/wiki-window.mjs', 'the wiki\'s curve text']],
     perturb: NP('harness-fixed', 'cells take skills from tools/balance-sim/skill-lines.mjs, not from the curve (planned knob skillCurve, V1)', 'skillCurve'),
     ev: 'MEASURED (tools/balance-program/redesign/skills/parity.mjs, 2026-11-23)' }),
+  L('skill.supply-gates', 'skill-scaling', 'content', 'Skill-gated supplies on the Level clock', {
+    at: [at('src/data/core-model.js', 'export const SUPPLY_GATES = Object.freeze({')],
+    rows: rows('each ammo and rune row\'s made-at Level (madeLv: the store prices it there, never at its gate)', [home('src/data/stonecraft.js#AMMO_MADE_LV', 'count')],
+      fields(field('src/data/stonecraft.js', 'STONECRAFT_ITEMS', 'madeLv'), field('src/data/slot-ladders.js', 'SLOT_ITEMS', 'madeLv'), field('src/data/items.js', 'ITEMS', 'madeLv'))),
+    def: 'the skill an arrow, bolt, whetstone or rune tier needs, and a rune spell version (runes.js versionLevel): the Level the old party careers first reached the old gate (1 / 15 / 30 / 45 / 60 / 75 / 88), so each tier arrives at the Level it did (the designer' + "'" + 's ruling 29 section 7 item 10)',
+    range: 'derived from tools/balance-sim/skill-lines.json, never tuned: tests/bands.mjs BD-10 re-derives every tier',
+    touches: 'which ammo and rune tier a hero may carry at a Level, so its damage and supply bill (EL-KIT)', out: [...KILL, 'storePerH'], f: ['C-HERO-POWER', 'E19', 'C-CAST-POWER'],
+    tests: [['tests/bands.mjs', 'BD-10 the supply gates keep their Level']], testReads: ['SUPPLY_GATES'],
+    perturb: P('the kits carry the ammo and runes their skill may use (gear.mjs accessories)'),
+    ev: 'MEASURED (the old party careers, skill-lines.json, read as measured)' }),
   L('skill.flame-curve', 'skill-scaling', 'global', 'Inner Flame\'s curve', {
     at: [at('src/data/core-model.js', 'export const FLAME_SKILL_CURVE = Object.freeze({ skill: \'inner_flame\', base: 15')],
     def: 'XP from Inner Flame s to s+1 = floor(15 x s^2 x 1.04^(s-1)), the core rebuild\'s geometric curve, which every combat skill walked until stage 7; the Hearth fuel\'s XP is sized on it (FLAME_FUEL)',
@@ -301,7 +311,7 @@ export const COMBAT = [
     ev: 'CONFIRMED (read)' }),
   L('weapon.ammo', 'weapon-power', 'content', 'Ammunition strength and use', {
     at: [at('src/data/library2-items.js', 'const AMMO_STR = '), at('src/data/stonecraft.js', 'const AMMO_STAT = ')],
-    rows: rows('arrow and bolt strength and requirement, whetstone ammoPerShot', [home('src/data/library2-items.js#AMMO_REQ', 'count'), home('src/data/stonecraft.js#AMMO_REQ_LV', 'count'), home('src/data/stonecraft.js#STONECRAFT_ITEMS', 'keys'), home('src/data/library2-items.js#whet', 'count')]),
+    rows: rows('arrow and bolt strength and requirement, whetstone ammoPerShot', [home('src/data/library2-items.js#AMMO_REQ', 'count'), home('src/data/stonecraft.js#STONECRAFT_ITEMS', 'keys'), home('src/data/library2-items.js#whet', 'count')]),
     def: 'arrows and bolts add strength (AMMO_STR / AMMO_STAT a tier) and spend one a shot (ammoPerShot)',
     range: 'rising by tier',
     touches: 'a shooter\'s damage and supply bill', out: [...KILL, 'storePerH'], f: ['C-HERO-POWER', 'E19'],

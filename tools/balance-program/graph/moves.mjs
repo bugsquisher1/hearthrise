@@ -63,6 +63,7 @@ export const LEVER_MOVES = Object.freeze({
   'resist.weapon-resist-unread': ['+hero.weakFactor'],
   'damage.permanent-cap': ['+hero.buff', '+perk.permanent'],
   'weapon.ammo': ['+hero.maxHit'],
+  'skill.supply-gates': [['-hero.maxHit', 'a later gate keeps a tier of ammo from a hero longer: a smaller blow'], ['-hero.castPower', 'and a rune spell on a lower version longer']],
   'crit.leather': ['+hero.crit'],
   // ── skills and Levels ──
   'skill.curve': ['+skill.cost', '-hero.skill'],

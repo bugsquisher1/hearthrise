@@ -114,7 +114,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/live-events.js#pmAt', why: 'a window\'s tuple length' }, { at: 'src/core/goals.js#*', why: 'the goal tracker\'s cap' }, { at: 'src/core/away.js#*', why: 'a day in ms' },
   { at: 'src/core/xp.js#sumK2', why: 'a closed form (/ 6)' }, { at: 'src/core/xp.js#charLevelFromXp', why: 'a search bound (1e7)' }, { at: 'src/core/xp.js#MAX_LEVEL', why: 'the capped table\'s top (99): its shape' },
   { at: 'src/core/hearthfind.js#actionsPerHour', why: 'an hour in ms' }, { at: 'src/core/farm.js#growthHours', why: 'an hour in ms' }, { at: 'src/core/farm.js#readyInMs', why: 'an hour in ms' },
-  { at: 'src/core/farm.js#MAX_WATERINGS', why: 'a defensive array cap' }, { at: 'src/core/skill-sim.js#MAX_SLICES', why: 'a simulation budget' }, { at: 'src/core/skill-sim.js#emptySummary', why: 'a summary shape' },
+  { at: 'src/core/farm.js#MAX_WATERINGS', why: 'a defensive array cap' }, { at: 'src/data/wage.js#twoFigures', why: 'base ten: a list price is the wage price to two significant figures' }, { at: 'src/core/skill-sim.js#MAX_SLICES', why: 'a simulation budget' }, { at: 'src/core/skill-sim.js#emptySummary', why: 'a summary shape' },
   { at: 'src/core/artisan-sim.js#emptySummary', why: 'a summary shape' }, { at: 'src/core/artisan-sim.js#simulateArtisanSpan', why: 'a simulation budget' },
   { at: 'supabase/functions/hr-accrue/**', why: 'server plumbing: HTTP status codes, request and body bounds, settle cadences and engine budgets, accrual fuses, hashing. The edge\'s two economy numbers are levers (econ.sale-rates)' },
 ]);

@@ -588,14 +588,15 @@ async function run(mutate) {
     const BUYBACK_EXPECT = {
       /* The legacy seed.* and equip.* rows are no longer sold (lane/b-gold-sinks, 2026-10-22: not_listed), but they
          stay the vendor price list their caps are read from, so these bids do not move. The nine crop seeds moved to
-         the seed counter's listed supply.* rows at the SAME unit price (lane/b-orphan-sources): their bids hold too. */
-      carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
-      wheat_seed: 7, tomato_seed: 15,
+         the seed counter's listed supply.* rows (lane/b-orphan-sources). Since K-3 (lane/prices-wage-hours, 2026-11-23) a seed's row is the
+         store's ask, storeCeiling x its book (store-kit.js storeAsk), so its bid is half that: turnip 8 -> 4, carrot 15 -> 7, ... */
+      carrot_seed: 7, potato_seed: 15, pumpkin_seed: 37, turnip_seed: 4,
+      wheat_seed: 11, tomato_seed: 22,
       /* WORN GEAR at half book (Tyler 2026-10-23, loot-bands.js VENDOR_GEAR_RATE), under the b565 cap: maul 110 -> 55
          (cap 70), bow 90 -> 45 (cap 60), staff 80 -> 40 (cap 60). */
       stone_maul: 55, shortbow: 45, apprentice_staff: 40,
       /* A Blank Rune is a bulk good since the craft wage (designer 2026-11-01, items.js BULK_GOODS): a fifth of its book, floored at 1. */
-      rune_blank: 1, goldenroot_seed: 75, emberfruit_seed: 150,
+      rune_blank: 1, goldenroot_seed: 67, emberfruit_seed: 120,
       /* Lane S2 (Coordinator ruling, 2026-10-18): cooked food is back on the shop
          as `supply.*` offers at the designer's rate (salted price a point x the
          food's heal: shrimp 19, trout 56, lobster 250), so the b565 cap applies
@@ -1069,7 +1070,11 @@ async function run(mutate) {
       `G-PROV: the Counter still sells cooked lobster (${JSON.stringify(lob).slice(0, 160)}) — row 2 took cooked food off it`);
     /* The seed bundles are retired with every hidden offer (lane/b-gold-sinks, 2026-10-22: only a listed Shop row is
        sold); the rule is proven on a listed one-piece row: the count multiplies the catalogue price and grant. */
-    const OFF = 'supply.copper_ring'; const ITEM = 'copper_ring'; const PRICE = 240; const PER = 1;
+    /* the price is the DATA's row (src/data/supply-basics.js: the store's ask, storeCeiling x book since K-3, lane/prices-wage-hours), read
+       independently of the edge's resolveOffer it is held against */
+    const { SUPPLY_SHOP_OFFERS } = await import('../src/data/supply-basics.js');
+    const OFF = 'supply.copper_ring'; const ITEM = 'copper_ring'; const PER = 1;
+    const PRICE = (SUPPLY_SHOP_OFFERS.find((o) => o.offer === OFF) || {}).price;
     const res = buy.resolveOffer(OFF);
     ok(res.ok === true && res.offer.gold === PRICE
       && JSON.stringify(res.offer.grant) === JSON.stringify([{ id: ITEM, amount: PER }]),

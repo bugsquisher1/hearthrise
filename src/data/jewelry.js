@@ -32,6 +32,7 @@
 // ============================================================================
 
 import { SLOT_ITEMS } from './slot-ladders.js';
+import { storeAsk } from './store-kit.js';
 
 /* ── THE PERKS. T3 numbers are the designer's measured sizes; T2 about two thirds (the spec). Permille. ──
    `what` is the player's sentence, with {pct} for the size. Each perk counts ONCE per hero, whatever it wears
@@ -84,11 +85,13 @@ export const JEWEL_TIERS = Object.freeze({
     reforge: Object.freeze({ bars: 6 }) }),
 });
 
-/** THE SHOP'S PRICE for a plain crafted jewel (Tyler 2026-11-05, call 5: plain jewelry stays in the Shop at a premium; the designer's
-    3,000 g at T2 and 12,000 g at T3). At least JEWEL_SHOP_PREMIUM times the piece's book, so the Shop never undercuts a crafter
-    (tests/catalogue-coherence.mjs C6). A cloak is not jewelry: the Shop sells none past the Traveler Cape. */
-export const JEWEL_SHOP_PRICE = Object.freeze({ banded_signet: 3000, fang_studs: 3000, wolfbone_torc: 3000, seam_jasper_band: 12000 });
-export const JEWEL_SHOP_PREMIUM = 10;
+/** THE SHOP'S PRICE for a plain crafted jewel: plain jewelry stays in the Shop, so a fighter is never blocked, at the store's one
+    ceiling over the piece's book (27-formula-overhaul.md K-3, lane/prices-wage-hours 2026-11-23: src/data/store-kit.js storeAsk; the old
+    JEWEL_SHOP_PREMIUM 10, 3,000 g at T2 and 12,000 g at T3, is that lever now). The Shop never undercuts a crafter: a crafted plain piece
+    sells to players for anything under this and still beats it (tests/catalogue-coherence.mjs C6). A cloak is not jewelry: the Shop sells
+    none past the Traveler Cape. Derived, never typed. */
+export const JEWEL_SHOP_PRICE = Object.freeze(Object.fromEntries(['banded_signet', 'fang_studs', 'wolfbone_torc', 'seam_jasper_band']
+  .map((id) => [id, storeAsk(SLOT_ITEMS[id].v)])));
 /** The slots the Shop's premium covers: jewelry (the ruling's words), never a cloak. */
 export const JEWEL_SHOP_SLOTS = Object.freeze(['ring', 'necklace', 'earrings']);
 

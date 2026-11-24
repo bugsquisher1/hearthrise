@@ -20,7 +20,8 @@
 //        shows plot 0 planted again and both plots watered, plot 7 gone; the bag holds the harvest; the next bill has
 //        nothing to do and the window's press is off.
 //   FT-3 THE SAME KEY answers the same receipt and moves nothing; a NEW key right after is nothing_to_tend.
-//   FT-4 THE SEED BILL: no seed and gold for one: the bill buys one seed (5 gp) and says plot 2 stays empty for want of
+//   FT-4 THE SEED BILL: no seed and gold for one: the bill buys one seed (its Shop price, read off the server's catalogue: K-3 prices a
+//        seed at the store's ask, lane/prices-wage-hours) and says plot 2 stays empty for want of
 //        gold; a press at a stale price is refused quote_changed, moves nothing, and the session re-reads the server's
 //        bill before the refusal resolves; the press at the bill's gold buys it, plants it and journals the purchase.
 //   FT-5 THE CHOSEN CROP: an empty plot, "Plant with: Turnip": the server's compact bill for it, then one press plants it.
@@ -41,8 +42,8 @@ const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
 /* The file's §4 self-check would refuse most mutants at apply; it is blinded so THIS guard's arms judge them. */
 const GATE_BLIND = [
-  ['  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text;\nbegin\n',
-   '  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n'],
+  ['  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text; v_p bigint;\nbegin\n',
+   '  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text; v_p bigint;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n'],
 ];
 const MUTANTS = {
   no_water: {
@@ -200,32 +201,33 @@ async function run(mutant) {
     ok(v1 && v1.ok === true && v1.envelope && v1.envelope.state && JSON.stringify(v2) === JSON.stringify(receipt) && await rows(A) === n4,
       'FT-3 the same key answered ' + JSON.stringify(v2) + ' after ' + JSON.stringify(v1) + ' (journal ' + n4 + ' -> ' + (await rows(A)) + ')');
 
-    // ── FT-4 ── both plots ready, no seed, gold for one seed
+    // ── FT-4 ── both plots ready, no seed, gold for one seed (P, the server's Shop price) and not two (the purse P + 2)
+    const P = Number(await one("select price::text from public.hr_shop_supply_offers where item_id = 'turnip_seed'"));
     await q("update public.account_farm_plots set planted_at = now() - interval '2000 hours', waterings = '{}' where user_id = $1", [A]);
     await setSeeds(A, 0);
-    await setPurse(A, 7);
+    await setPurse(A, P + 2);
     clock += 600000;
     await cs.load();
     bill = FT.farmTendOf(cs);
-    ok(!!bill && bill.gold === 5 && JSON.stringify(bill.plant) === '[{"i":0,"crop":"turnip"}]' && bill.empty.length === 1
+    ok(P >= 3 && !!bill && bill.gold === P && JSON.stringify(bill.plant) === '[{"i":0,"crop":"turnip"}]' && bill.empty.length === 1
        && bill.empty[0].i === 1 && bill.empty[0].why === 'cannot_afford' && bill.seeds[0] && bill.seeds[0].buy === 1,
       'FT-4 the seed bill reads ' + JSON.stringify(bill && { ...bill, choices: undefined }));
     const n5 = await rows(A);
     const loads = sent.filter((c) => c.name === 'hr_load').length;
     clock += 600000;
     const stale = await FT.tendField(account, cs, null, 0);
-    ok(stale.ok === false && stale.error === 'quote_changed' && stale.gold === 5 && await rows(A) === n5 && await purse(A) === 7,
+    ok(stale.ok === false && stale.error === 'quote_changed' && stale.gold === P && await rows(A) === n5 && await purse(A) === P + 2,
       'FT-4 a press at a stale price answered ' + JSON.stringify(stale) + ' (journal ' + n5 + ' -> ' + (await rows(A)) + ', purse ' + (await purse(A)) + ')');
     ok(sent.filter((c) => c.name === 'hr_load').length === loads + 1, 'FT-4 the refused press did not re-read the server\'s bill once');
     const fresh = WT.tendPress(cs, sc);
     clock += 600000;
     const paid = await FT.tendField(account, cs, null, fresh ? fresh.gold : -1);
-    ok(paid.ok === true && JSON.stringify(paid.body.bought) === '[{"seed":"turnip_seed","qty":1,"gold":5}]' && await purse(A) === 2
+    ok(paid.ok === true && JSON.stringify(paid.body.bought) === JSON.stringify([{ seed: 'turnip_seed', qty: 1, gold: P }]) && await purse(A) === 2
        && JSON.stringify((await plots(A)).map((p) => p.i)) === '[0]',
       'FT-4 the press at the bill\'s gold answered ' + JSON.stringify(paid) + ' (purse ' + (await purse(A)) + ', plots ' + JSON.stringify(await plots(A)) + ')');
-    ok(Number(await one("select count(*)::text from public.player_ledger where user_id = $1 and intent = 'farm_tend_seed' and qty = 1 and gold = -5 and purse = 2", [A])) === 1,
-      'FT-4 the bought seed is not journalled once (qty 1, gold -5, the purse after)');
-    ok(paid.ok && /Bought 1 Turnip Seed for 5 gp · .*Plot 2: empty \(no Turnip Seed, not enough gold\)$/.test(WT.tendLine(paid, (x) => x.error)),
+    ok(Number(await one("select count(*)::text from public.player_ledger where user_id = $1 and intent = 'farm_tend_seed' and qty = 1 and gold = $2 and purse = 2", [A, -P])) === 1,
+      'FT-4 the bought seed is not journalled once (qty 1, gold minus its price, the purse after)');
+    ok(paid.ok && new RegExp('Bought 1 Turnip Seed for ' + P + ' gp · .*Plot 2: empty \\(no Turnip Seed, not enough gold\\)$').test(WT.tendLine(paid, (x) => x.error)),
       'FT-4 the line after the press reads ' + JSON.stringify(paid.ok && WT.tendLine(paid, (x) => x.error)));
 
     // ── FT-5 ── plot 1 stands empty; the seeds are in Storage this time

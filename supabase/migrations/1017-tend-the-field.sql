@@ -516,7 +516,7 @@ declare
   v_u constant uuid := '000000c0-0000-4000-a000-00001009fe01';
   v_v constant uuid := '000000c0-0000-4000-a000-00001009fe02';
   k   constant text := '000000c0-0000-4000-b000-00001009';
-  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text;
+  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text; v_p bigint;
 begin
   begin
     foreach v_who in array array[v_u, v_v] loop
@@ -545,7 +545,9 @@ begin
     b := public.hr_state_of(v_u, 0) -> 'farm_tend';
     if b is null or b -> 'harvest' <> '[0, 7]'::jsonb or b -> 'plant' <> '[{"i": 0, "crop": "turnip"}]'::jsonb
        or b -> 'water' <> '[0, 1]'::jsonb or b -> 'empty' <> '[]'::jsonb or (b ->> 'gold')::bigint <> 0
-       or b -> 'seeds' <> '[{"seed": "turnip_seed", "crop": "turnip", "use": 1, "bag": 1, "storage": 0, "buy": 0, "gold": 0, "price": 5}]'::jsonb then
+       -- the seed's price is the Shop's catalogue row, read, not typed (lane/prices-wage-hours, 2026-11-23: K-3 prices a seed at the store's ask)
+       or b -> 'seeds' <> jsonb_build_array(jsonb_build_object('seed', 'turnip_seed', 'crop', 'turnip', 'use', 1, 'bag', 1, 'storage', 0, 'buy', 0, 'gold', 0,
+            'price', (select o.price from public.hr_shop_supply_offers o where o.item_id = 'turnip_seed'))) then
       raise exception 'tend §4(a): the envelope''s bill reads %', b; end if;
     if jsonb_typeof(b -> 'choices') <> 'array' or not exists (select 1 from jsonb_array_elements(b -> 'choices') c
          where c ->> 'crop' = 'turnip' and (c ->> 'plant')::int = 1 and (c ->> 'gold')::bigint = 0) then
@@ -590,30 +592,33 @@ begin
     if v2 ->> 'error' is distinct from 'nothing_to_tend' then raise exception 'tend §4(d): a second visit answered %', v2; end if;
     if (select count(*) from public.player_ledger where user_id = v_u) <> v_led + 6 then raise exception 'tend §4(d): nothing_to_tend journalled'; end if;
 
-    -- (e) THE SEED BILL: no seed held, the purse covers one seed (5) and not two
+    -- (e) THE SEED BILL: no seed held, the purse covers one seed (its Shop price v_p, read from the catalogue: lane/prices-wage-hours,
+    --     2026-11-23, K-3 prices a seed at the store's ask) and not two: the purse is v_p + 2
+    v_p := (select o.price from public.hr_shop_supply_offers o where o.item_id = 'turnip_seed');
+    if v_p is null or v_p < 3 then raise exception 'tend §4(e): the turnip seed has no Shop price over 2 (%)', v_p; end if;
     update public.account_farm_plots set planted_at = now() - interval '2000 hours', waterings = '{}' where user_id = v_u;
     delete from public.player_inventory where user_id = v_u and item_id = 'turnip_seed';
-    update public.account_wallet set gold = 7 where user_id = v_u;
+    update public.account_wallet set gold = v_p + 2 where user_id = v_u;
     b := public.hr_state_of(v_u, 0) -> 'farm_tend';
-    if b -> 'plant' <> '[{"i": 0, "crop": "turnip"}]'::jsonb or (b ->> 'gold')::bigint <> 5
-       or b -> 'empty' <> '[{"i": 1, "crop": "turnip", "why": "cannot_afford", "seed": "turnip_seed", "price": 5}]'::jsonb
-       or b -> 'seeds' <> '[{"seed": "turnip_seed", "crop": "turnip", "use": 1, "bag": 0, "storage": 0, "buy": 1, "gold": 5, "price": 5}]'::jsonb then
+    if b -> 'plant' <> '[{"i": 0, "crop": "turnip"}]'::jsonb or (b ->> 'gold')::bigint <> v_p
+       or b -> 'empty' <> jsonb_build_array(jsonb_build_object('i', 1, 'crop', 'turnip', 'why', 'cannot_afford', 'seed', 'turnip_seed', 'price', v_p))
+       or b -> 'seeds' <> jsonb_build_array(jsonb_build_object('seed', 'turnip_seed', 'crop', 'turnip', 'use', 1, 'bag', 0, 'storage', 0, 'buy', 1, 'gold', v_p, 'price', v_p)) then
       raise exception 'tend §4(e): the seed bill reads %', b; end if;
     v2 := public.hr_farm_tend(0, null, 0, (k || '0003')::uuid);
-    if v2 ->> 'error' is distinct from 'quote_changed' or (v2 ->> 'gold')::bigint <> 5
-       or (select gold from public.account_wallet where user_id = v_u) <> 7
+    if v2 ->> 'error' is distinct from 'quote_changed' or (v2 ->> 'gold')::bigint <> v_p
+       or (select gold from public.account_wallet where user_id = v_u) <> v_p + 2
        or (select count(*) from public.account_farm_plots where user_id = v_u and planted_at > now() - interval '1 hour') <> 0 then
       raise exception 'tend §4(e): a press at the wrong price answered % or moved something', v2; end if;
-    v := public.hr_farm_tend(0, null, 5, (k || '0004')::uuid);
-    if coalesce(v ->> 'ok', '') <> 'true' or v -> 'bought' <> '[{"seed": "turnip_seed", "qty": 1, "gold": 5}]'::jsonb
+    v := public.hr_farm_tend(0, null, v_p, (k || '0004')::uuid);
+    if coalesce(v ->> 'ok', '') <> 'true' or v -> 'bought' <> jsonb_build_array(jsonb_build_object('seed', 'turnip_seed', 'qty', 1, 'gold', v_p))
        or v -> 'planted' <> '[{"i": 0, "crop": "turnip"}]'::jsonb or v -> 'empty' -> 0 ->> 'why' is distinct from 'cannot_afford'
        or (select gold from public.account_wallet where user_id = v_u) <> 2
        or exists (select 1 from public.account_farm_plots where user_id = v_u and plot_idx = 1)
        or coalesce((select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = 'turnip_seed'), 0) <> 0 then
       raise exception 'tend §4(e): the bought-seed press answered %', v; end if;
     if not exists (select 1 from public.player_ledger where user_id = v_u and intent = 'farm_tend_seed' and kind = 'shop'
-                    and item_id = 'turnip_seed' and qty = 1 and gold = -5 and gold_kind = 'farm' and purse = 2) then
-      raise exception 'tend §4(e): the seed purchase is not journalled (qty 1, gold -5, the purse after)'; end if;
+                    and item_id = 'turnip_seed' and qty = 1 and gold = -v_p and gold_kind = 'farm' and purse = 2) then
+      raise exception 'tend §4(e): the seed purchase is not journalled (qty 1, gold minus its price, the purse after)'; end if;
 
     -- (f) FORGED
     select count(*) into v_led from public.player_ledger where user_id = v_u;

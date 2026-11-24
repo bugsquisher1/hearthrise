@@ -8,7 +8,7 @@
 --
 -- WHAT (lane/flame-temper-build, systems, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md): the rule the server reads, so no
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
---   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (4 Remains goods by band)
+--   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (6 Remains goods by band)
 --   hr_temper_rules (1 row, kit_item null: Temper Kits are owed, a rank is refused kits_owed), hr_temper_slots (13 slots)
 --   hr_item_levels (324 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
@@ -187,7 +187,9 @@ insert into public.hr_flame_fuel (item_id, band) values
   ('big_bones', 45),
   ('bone_chips', 45),
   ('bones', 45),
-  ('grave_dust', 45);
+  ('grave_dust', 45),
+  ('razor_claw', 70),
+  ('wraith_veil', 70);
 delete from public.hr_temper_rules;
 insert into public.hr_temper_rules (id, ranks, il_per_rank, rank_every, hours_pm, kit_share_pm, carry_pm, kit_hours_pm, kit_item, n_slots, rank_sum, tier_steps) values
   (1, 5, 1, 40, 3000, 500, 350, 100, null, 13, 15, 20);
@@ -224,12 +226,12 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('apprentice_primer', 0),
   ('apprentice_staff', 0),
   ('apprentice_wand', 0),
-  ('archmage_belt', 75),
-  ('archmage_body', 75),
-  ('archmage_boots', 75),
-  ('archmage_gloves', 75),
-  ('archmage_helmet', 75),
-  ('archmage_pants', 75),
+  ('archmage_belt', 80),
+  ('archmage_body', 80),
+  ('archmage_boots', 80),
+  ('archmage_gloves', 80),
+  ('archmage_helmet', 80),
+  ('archmage_pants', 80),
   ('bakers_cap', 160),
   ('banded_legguards', 88),
   ('banded_signet', 20),
@@ -240,7 +242,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('banded_signet_surge', 20),
   ('banded_signet_surge_follow', 20),
   ('barrowking_mantle', 52),
-  ('bierguard_sword', 75),
+  ('bierguard_sword', 80),
   ('boarhide_belt', 40),
   ('boarhide_body', 40),
   ('boarhide_boots', 40),
@@ -271,7 +273,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('copper_ring', 1),
   ('copper_studs', 0),
   ('coppercap_shield', 40),
-  ('cordwood_hatchets', 75),
+  ('cordwood_hatchets', 80),
   ('cranemans_helm', 160),
   ('dawn_belt', 88),
   ('dawn_boots', 88),
@@ -294,12 +296,12 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('demoncaller_staff', 68),
   ('dockhands_boots', 160),
   ('dragon_gem_earrings', 82),
-  ('dragonhide_belt', 75),
-  ('dragonhide_body', 75),
-  ('dragonhide_boots', 75),
-  ('dragonhide_gloves', 75),
-  ('dragonhide_helmet', 75),
-  ('dragonhide_pants', 75),
+  ('dragonhide_belt', 80),
+  ('dragonhide_body', 80),
+  ('dragonhide_boots', 80),
+  ('dragonhide_gloves', 80),
+  ('dragonhide_helmet', 80),
+  ('dragonhide_pants', 80),
   ('drovers_crossbow', 40),
   ('dunns_slippers', 160),
   ('duskweave_belt', 88),
@@ -314,16 +316,16 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('duskwood_staff', 88),
   ('duskwood_wand', 88),
   ('dyers_boots', 160),
-  ('ember_belt', 75),
-  ('ember_boots', 75),
-  ('ember_gauntlets', 75),
-  ('ember_hatchets', 75),
-  ('ember_helm', 75),
-  ('ember_platebody', 75),
-  ('ember_platelegs', 75),
-  ('ember_sword', 75),
-  ('ember_tower_shield', 75),
-  ('ember_warhammer', 75),
+  ('ember_belt', 80),
+  ('ember_boots', 80),
+  ('ember_gauntlets', 80),
+  ('ember_hatchets', 80),
+  ('ember_helm', 80),
+  ('ember_platebody', 80),
+  ('ember_platelegs', 80),
+  ('ember_sword', 80),
+  ('ember_tower_shield', 80),
+  ('ember_warhammer', 80),
   ('fang_studs', 20),
   ('fang_studs_focus', 20),
   ('fang_studs_steady', 20),
@@ -369,7 +371,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('leather_helmet', 0),
   ('leather_pants', 0),
   ('longbow', 20),
-  ('lychgate_crossbow', 75),
+  ('lychgate_crossbow', 80),
   ('maple_bow', 40),
   ('maple_crossbow', 40),
   ('maple_spellbook', 40),
@@ -388,7 +390,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('mithril_platelegs', 40),
   ('mithril_sword', 40),
   ('mithril_warhammer', 40),
-  ('mourners_staff', 75),
+  ('mourners_staff', 80),
   ('oak_crossbow', 20),
   ('oak_practice_blade', 1),
   ('oak_spellbook', 20),
@@ -398,7 +400,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('orchard_keepers_crossbow', 20),
   ('packlord_band', 22),
   ('palisade_sword', 20),
-  ('passing_bell_hammer', 75),
+  ('passing_bell_hammer', 80),
   ('porters_boots', 160),
   ('pothunters_hood', 160),
   ('practice_bow', 1),
@@ -426,11 +428,11 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('rune_sword', 60),
   ('rune_warhammer', 60),
   ('runebound_shield', 60),
-  ('runewood_bow', 75),
-  ('runewood_codex', 75),
-  ('runewood_crossbow', 75),
-  ('runewood_staff', 75),
-  ('runewood_wand', 75),
+  ('runewood_bow', 80),
+  ('runewood_codex', 80),
+  ('runewood_crossbow', 80),
+  ('runewood_staff', 80),
+  ('runewood_wand', 80),
   ('scholar_belt', 40),
   ('scholar_body', 40),
   ('scholar_boots', 40),
@@ -446,7 +448,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('seam_jasper_band_surge', 40),
   ('seam_jasper_band_surge_follow', 40),
   ('sewermans_boots', 160),
-  ('sextons_wand', 75),
+  ('sextons_wand', 80),
   ('shadowsilk_cape', 60),
   ('shortbow', 0),
   ('snakeskin_belt', 40),
@@ -462,7 +464,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('sorcerer_gloves', 60),
   ('sorcerer_helmet', 60),
   ('sorcerer_pants', 60),
-  ('spellstone_ring', 68),
+  ('spellstone_ring', 80),
   ('spidereye_studs', 40),
   ('spidersilk_choker', 40),
   ('steel_belt', 40),
@@ -493,7 +495,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('verdite_helm', 38),
   ('verdite_platebody', 38),
   ('verdite_platelegs', 38),
-  ('vigil_bow', 75),
+  ('vigil_bow', 80),
   ('void_censer', 60),
   ('warband_bulwark', 40),
   ('warlock_belt', 40),
@@ -740,7 +742,7 @@ end $mig$;
 do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
-  if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 4
+  if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 6
      or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 324
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
@@ -1226,5 +1228,5 @@ begin
     (10, 200, 143095::bigint)) p(st, il, g) loop
     if public.hr_carry_fee(v_r.st, v_r.il) <> v_r.g then raise exception 'VERIFY(q): a carry of % steps onto item Level % costs % in SQL, % in JS', v_r.st, v_r.il, public.hr_carry_fee(v_r.st, v_r.il), v_r.g; end if;
   end loop;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 4 fuels, 13 Temper slots, 324 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 324 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

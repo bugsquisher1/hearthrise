@@ -78,10 +78,10 @@ insert into public.hr_tally_tasks (task_id, ord, hunt_id, monster_id, target, go
   ('glade_poachers', 5, 'mosslight_glade', 'glade_poacher', 60, 4900, false),
   ('warrens_goblin_diggers', 6, 'coppercap_warrens', 'goblin_digger', 30, 5300, true),
   ('ford_fordsunk', 7, 'hasks_ford', 'fordsunk', 40, 5500, false),
-  ('slake_mudlarks', 8, 'the_slake', 'mudlark', 45, 3040, false),
+  ('slake_mudlarks', 8, 'the_slake', 'mudlark', 45, 5700, false),
   ('barrows_barrow_knights', 9, 'muster_barrows', 'muster_knight', 30, 5700, true),
-  ('pyre_stokers', 10, 'pyre_field', 'stoker', 35, 3880, false),
-  ('hold_gatekeepers', 11, 'krells_hold', 'gatekeeper', 20, 4290, false)
+  ('pyre_stokers', 10, 'pyre_field', 'stoker', 35, 6200, false),
+  ('hold_gatekeepers', 11, 'krells_hold', 'gatekeeper', 20, 6600, false)
   on conflict (task_id) do update set ord = excluded.ord, hunt_id = excluded.hunt_id, monster_id = excluded.monster_id,
     target = excluded.target, gold = excluded.gold, party = excluded.party;
 delete from public.hr_tally_tasks where task_id <> all (array['cellar_giant_rats', 'thicket_gray_wolves', 'wickstead_turncoats', 'sewer_rat_king', 'glade_poachers', 'warrens_goblin_diggers', 'ford_fordsunk', 'slake_mudlarks', 'barrows_barrow_knights', 'pyre_stokers', 'hold_gatekeepers']::text[]);
@@ -429,7 +429,7 @@ do $$
 declare v_role text; v_bad text;
 begin
   if (select count(*) from public.hr_tally_tasks) <> 11
-     or (select sum(gold) from public.hr_tally_tasks) <> 39530
+     or (select sum(gold) from public.hr_tally_tasks) <> 46820
      or (select count(*) from public.hr_tally_pieces) <> 123
      or (select count(*) from public.hr_tally_materials) <> 30
      or (select held_max from public.hr_tally_config) <> 3
@@ -471,5 +471,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 11 tasks (39530 g in all), 123 pieces on 11 grounds, 30 materials, 166 worn tiers; all green';
+  raise notice 'tally-catalogue: 11 tasks (46820 g in all), 123 pieces on 11 grounds, 30 materials, 166 worn tiers; all green';
 end $$;

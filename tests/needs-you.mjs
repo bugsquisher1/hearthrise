@@ -210,23 +210,23 @@ ARMS['NY-HELD'] = async (X) => {
 };
 
 /* NY-TOP (lane/r10-more-grounds; 12-targets.md 3.2): a hero whose held step on a Danger-scale ground is the band's top (the server's `danger`
-   section) has outgrown it: "{Name} has outgrown {ground}." with "Go to {next}", the next OPEN ground on the scale (Hask's Ford's is Muster
-   Barrows); one step under the top is no row; a ground the server never named held is none. */
+   section) has outgrown it: "{Name} has outgrown {ground}." with "Go to {next}", the next OPEN ground on the scale by its band's floor (Hask's
+   Ford's is the Slake since it joined the scale, lane/scale-grounds-2); one step under the top is no row; a ground the server never named held is none. */
 ARMS['NY-TOP'] = async (X) => {
   const out = [];
-  const FORD = 'hasks_ford', MUSTER = 'muster_barrows';
+  const FORD = 'hasks_ford', SLAKE = 'the_slake', KRELL = 'krells_hold';
   const { DANGER_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/danger.js')).href);
   const top = DANGER_GROUNDS[FORD].topStep;
   const at = (held) => hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: { [FORD]: held }, playing: { hunt: FORD, from: 'steady', risk: 'steady', start: 0, step: held, cool: 0 } } });
   const rowAt = (held) => X.N.needsRowsOf({ peers: () => [at(held)], plan: null, wearOn: true }).find((r) => r.kind === 'outgrown') || null;
   const row = rowAt(top);
-  if (!row || row.go !== 'ground' || row.slot !== 0 || row.hunt !== MUSTER || !/^Ready for: (The )?Muster Barrows$/.test(row.text) || row.label !== 'Go') out.push('a hero held at the top reads ' + JSON.stringify(row));
+  if (!row || row.go !== 'ground' || row.slot !== 0 || row.hunt !== SLAKE || !/^Ready for: (The )?Slake$/.test(row.text) || row.label !== 'Go') out.push('a hero held at the top reads ' + JSON.stringify(row));
   if (rowAt(top - 1)) out.push('a hero one step under the top was told it outgrew the ground');
-  /* Muster's top: the next ground up the scale (the Catacomb wings) is staged, so the end of the open road */
-  const mTop = DANGER_GROUNDS[MUSTER].topStep;
-  const mt = X.N.needsRowsOf({ peers: () => [hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: { [MUSTER]: mTop },
-    playing: { hunt: MUSTER, from: 'steady', risk: 'steady', start: 0, step: mTop, cool: 0 } } })], plan: null, wearOn: true }).find((r) => r.kind === 'outgrown');
-  if (!mt || mt.text !== 'Max depth reached' || mt.label !== '' || mt.hunt !== null) out.push('Muster held at its top reads ' + JSON.stringify(mt));
+  /* Krell's Hold's top: the next grounds up the scale (Carter's Rest, the Catacomb wings) are staged, so the end of the open road */
+  const mTop = DANGER_GROUNDS[KRELL].topStep;
+  const mt = X.N.needsRowsOf({ peers: () => [hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: { [KRELL]: mTop },
+    playing: { hunt: KRELL, from: 'steady', risk: 'steady', start: 0, step: mTop, cool: 0 } } })], plan: null, wearOn: true }).find((r) => r.kind === 'outgrown');
+  if (!mt || mt.text !== 'Max depth reached' || mt.label !== '' || mt.hunt !== null) out.push('Krell\'s Hold held at its top reads ' + JSON.stringify(mt));
   const none = X.N.needsRowsOf({ peers: () => [hero(0, 'Tess', 'stamina', { danger: { risk: 'steady', held: {}, playing: null } })], plan: null, wearOn: true });
   if (none.some((r) => r.kind === 'outgrown')) out.push('a hero with nothing held was told it outgrew a ground');
   return out;

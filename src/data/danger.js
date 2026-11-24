@@ -196,9 +196,8 @@ export const DANGER_GROUNDS = Object.freeze({
        catacomb_bone_wing       LOW 165: 394.4 (391)             MID 175: 480.4 BIS 185: 537.9   floor 415 -> 380, top 545 -> 540, 0 deaths in 24 days
        catacomb_flooded_wing    LOW 165: 367.4 (361)             MID 175: 438.9 BIS 185: 503.7   floor 370 -> 350, top 510 -> 505, BIS died once
      Every fresh four now reads depth 2 (its lowest seed at depth 1 to 2); the MID four depth 11 to 16.
-     NOT ON THE SCALE (measured the same way, 2026-11-22): Krell's Hold died on Steady in every seed-day at Levels 85, 97 and 110 (4 of 4
-     each), Pyre Field in 1 to 3 of 4 (and drops two ladder tiers, Muster's and Krell's), against 12-targets C-3's none. They wait for their
-     monsters' fit, not for a band. */
+     Krell's Hold and Pyre Field died on Steady in their old rows (2026-11-22); on the monster formula neither does, in any of their band and
+     C-target cells (lane/scale-grounds-2, grounds/ and grounds/c-targets/), and Pyre Field drops its one base, rune. */
   /* muster_barrows ON THE FORMULA (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md): its four rows carry roles, and on the formula the
      Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way.
      EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23; 29-tuning-pass.md section 6): the Ford's four rows and the
@@ -240,6 +239,11 @@ export const DANGER_GROUNDS = Object.freeze({
      the C-target cells in grounds/c-targets). The Glade's fresh four holds step 8, so its floor is the scale's first step */
   mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 135, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
   coppercap_warrens: ground({ refStep: 80, floorStep: 20, topStep: 140, refKillsHead: 125, refHeld: 85, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
+  /* THE THIRD BATCH (lane/scale-grounds-2): the Slake on mithril (40, beside the Ford), the Pyre Field on rune (60, beside Muster), Krell's
+     Hold on ember (80). The same anchor and the same measuring as the second pair */
+  the_slake: ground({ refStep: 90, floorStep: 60, topStep: 160, refKillsHead: 125, coinPm: 4600, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
+  pyre_field: ground({ refStep: 70, floorStep: 0, topStep: 150, refKillsHead: 150, coinPm: 2700, formulaStep: 70, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
+  krells_hold: ground({ refStep: 40, floorStep: 0, topStep: 125, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 6, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 

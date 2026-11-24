@@ -51,8 +51,9 @@
 // WARDER (the first Warder body). The Catacomb wings: Shrouded Pauper swarm, Vault Leech stalker, Bone Wall brute, Night Carter and Keeper
 // Dunn casters (their own Lime Sack and Snuff the Candles are the wind-ups). THE THIRD (lane/scale-grounds-2), the hunt-grounds.js header's words:
 // the Glade's crow swarm, poacher shooter, vine, sluicer and bear brutes, Rook a warder (the crows know his whistle); the Warrens' scavenger
-// swarm, skulker shooter (Tyler's Goblin Archer), digger and foreman brutes, Chief Coppercap a caster (his Slag Rain). Krell's Hold's and
-// the Pyre Field's bodies are the next batch.
+// swarm, skulker shooter (Tyler's Goblin Archer), digger and foreman brutes, Chief Coppercap a caster (his Slag Rain); each pack's own words
+// for the Slake (pikeman swarm, bargeman and sergeant brutes, mudlark stalker), the Pyre Field (pikeman swarm, stoker and provost brutes,
+// lurcher stalker, wraith caster) and Krell's Hold (farmhand swarm, grave guard and gatekeeper brutes, the priest a warder: he mends the dead).
 // Every number below is a lever row (tools/balance-program/levers/world.mjs `roles.*`), MEASURED on the real engine before it shipped
 // (tools/balance-program/redesign/w2/summary.txt).
 //

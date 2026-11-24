@@ -52,6 +52,8 @@ import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED }
 
 const { dropWhereWords } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href);
 const { ARTISAN_RECIPES } = await import(pathToFileURL(join(ROOT, 'src/data/recipes.js')).href);
+/* the first temperable tier's wear Level (iron, tier 2: 10 since 12-targets 8.3, the old 15), read off the data the pane reads */
+const IRON_LV = (await import(pathToFileURL(join(ROOT, 'src/data/gear-tiers.js')).href)).MATERIAL_TIERS[1].level;
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const SECTIONS = {
@@ -309,17 +311,17 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Bronze');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Not temperable \(requires Level 15\+ gear\)/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
+        if (!new RegExp('Not temperable \\(requires Level ' + IRON_LV + '\\+ gear\\)').test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }
     { // SV-7: gear ABOVE the server's ladders says which Levels the smith has rungs for (the playthrough audit's F17: "can't be tempered yet" at
-      // Level 55 in Mithril, no reason). The Levels are the server's ladders here (tiers 2 and 3: worn from 15 to 30), never this build's table.
+      // Level 55 in Mithril, no reason). The Levels are the server's ladders here (tiers 2 and 3: worn from IRON_LV to 30), never this build's table.
       const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), { equipment: { weapon: 'mithril_sword', body: 'mithril_platebody' }, temper: clone(TEMPER.temper) }));
       if (!opened) fails.push('SV-7 the Services tab did not open on Mithril');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Not temperable \(Levels 15–30 only\)/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
+        if (!new RegExp('Not temperable \\(Levels ' + IRON_LV + '–30 only\\)').test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }

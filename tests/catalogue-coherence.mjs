@@ -27,8 +27,8 @@
 //   C6  the Local Shop sells STARTER gear only (no tier >= 2 equippable for gold
 //       — top-10 #2: the first upgrade a player wears is one they made), on the
 //       legacy equip table AND the outfitter's rows; the one exception is a plain
-//       crafted jewelry piece at a premium (Tyler 2026-11-05, call 5: at least
-//       JEWEL_SHOP_PREMIUM x its book, so it never undercuts the crafter);
+//       crafted jewelry piece at its shop price (Tyler 2026-11-05, call 5; since K-3
+//       the store's one ceiling over its book, JEWEL_SHOP_PRICE: it never undercuts the crafter);
 //   C7  the Collection Log's denominator is obtainableItemIds(), and that set is
 //       the whole catalogue;
 //   C8  armour climbs (2026-10-21: iron plate gave LESS max HP than bronze, its
@@ -109,7 +109,7 @@ import {
 } from '../src/data/catalogue-coherence.js';
 
 import { unclassifiedGrantIds } from '../src/data/item-authority.js';
-import { JEWEL_PIECES, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
+import { JEWEL_PIECES, JEWEL_SHOP_PRICE } from '../src/data/jewelry.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
@@ -347,8 +347,9 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
     const gold = ((o.cost || []).find((c) => c && c.kind === 'currency' && c.id === 'gold') || {}).amount || 0;
     for (const g of o.grant || []) {
       const it = ITEMS[g.id] || {};
-      /* plain crafted jewelry at a premium (src/data/jewelry.js JEWEL_SHOP_PRICE): the Shop never undercuts the crafter */
-      if (o.table === 'supply' && JEWEL_PIECES[g.id] && gold >= JEWEL_SHOP_PREMIUM * (Number(it.v) || 0)) continue;
+      /* plain crafted jewelry at its shop price (src/data/jewelry.js JEWEL_SHOP_PRICE, the store's one ceiling over its book, K-3): the Shop
+         never undercuts the crafter */
+      if (o.table === 'supply' && JEWEL_PIECES[g.id] && gold === JEWEL_SHOP_PRICE[g.id] && gold > (Number(it.v) || 0)) continue;
       if (EQUIP_TYPES[it.type] && Number(it.tier) >= 2) loud.push(`${o.id} (tier ${it.tier})`);
       if (EQUIP_TYPES[it.type] && Number(it.reqLv) > 1) loud.push(`${o.id} (req ${it.reqSkill} ${it.reqLv})`);
     }

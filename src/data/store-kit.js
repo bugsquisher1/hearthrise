@@ -112,3 +112,17 @@ export function storePriceOf(t, step) {
 export function storePrice({ step, ...row }, k = STORE_KIT) {
   return storePriceOf(storeTerms(row, k), step);
 }
+
+/**
+ * THE STORE'S ASK FOR A GOOD IT SELLS WHOLE (27-formula-overhaul.md K-3, lane/prices-wage-hours 2026-11-23): a tool, a piece of gear, a
+ * jewel or a seed costs `storeCeiling` times what its crafted partner is worth, `book` (the good's book value) times `count`, rounded up
+ * once and never under a whole gold. ONE CEILING: the old SHOP_PREMIUM 2 (tools, gear, seeds) and JEWEL_SHOP_PREMIUM 10 (plain
+ * jewelry) are this lever now, so the store is dearer than the crafted good by the same factor everywhere, and the shop's bid for the
+ * crafted good (at most `buyback` of the store's ask) stays under what it cost: buy-then-sell always loses. Exact integers (permille),
+ * so a generator's catalogue and this read agree to the gold.
+ */
+export function storeAsk(book, count = 1, k = STORE_KIT) {
+  const v = Math.max(0, Math.floor(Number(book) || 0)) * Math.max(1, Math.floor(Number(count) || 1));
+  const ceilPm = Math.round(k.storeCeiling * 1000);
+  return Math.max(1, Math.ceil((v * ceilPm) / 1000));
+}

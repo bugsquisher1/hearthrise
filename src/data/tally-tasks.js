@@ -33,10 +33,18 @@
 // hr_tally_tasks / hr_tally_pieces / hr_tally_materials GENERATED from this file
 // by `node tools/gen-tally-tasks.mjs` (`--check` fails the build on drift).
 //
-// PURE ESM. Data only.
+// HER GOLD ON THE DANGER SCALE IS HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; 27-formula-overhaul.md E-6, the Coordinator's seam
+// with lane/scale-early-grounds): on a ground whose hour pays the wage (a DANGER_GROUNDS row), her gold is the rule above as a formula,
+// TALLY_RULES.sharePm of the task's hours (`hoursPm`, the count's length: TALLY_RULES.taskHoursPm unless a row says) of wage at the
+// ground's refLevel, as a list price (src/data/wage.js wageListPrice). A task on a ground off the scale keeps its measured gold (`gold`,
+// 35% of that ground's own coin) until the ground joins the scale (stage 6), and then reads the formula with no edit here.
+//
+// PURE ESM. Data and the wage's list price.
 // ════════════════════════════════════════════════════════════════════════
 
 import { TOWN_NAME } from './world/town/plan.js';
+import { DANGER_GROUNDS } from './danger.js';
+import { wageListPrice } from './wage.js';
 
 /** Who keeps the tally. What she says lives in src/data/text/tally.js (first person, one line per state). */
 export const TALLY_KEEPER = Object.freeze({
@@ -49,6 +57,10 @@ export const TALLY_KEEPER = Object.freeze({
 export const TALLY_RULES = Object.freeze({
   heldMax: 3,
   paidPerDay: 3,
+  /* her pay on the scale: sharePm of the task's hours of wage (the file's rule, "about 35% of the ground's hourly coin for that hour") */
+  sharePm: 350,
+  /* a task's length unless its row says: "a count is about an hour at the ground's floor" */
+  taskHoursPm: 1000,
   /* The armour weights a hero may ask her for (core-model.js ARMOUR_WEIGHT's values). */
   weights: Object.freeze(['heavy', 'medium', 'light']),
   /* Her default slot order: the next piece is the first slot in this order she has not given yet. */
@@ -65,13 +77,22 @@ export const TALLY_RULES = Object.freeze({
      party     true: the ground is built for a party (the board says so)
      piecesFrom (optional) a hunt id: her pieces on this task are that ground's Scarce set, not its own (the Glade: lane/b-rulings-1102)
      materials her pick once every Scarce piece of the ground is given, in turn: [{ item, qty }] */
-const row = (r) => Object.freeze({ ...r, materials: Object.freeze(r.materials.map((m) => Object.freeze(m))) });
+/* a ground on the scale pays the wage at its refLevel, so her gold there is a share of the task's hours of it; off the scale, its measured gold */
+const onScale = (hunt) => (Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, hunt) ? DANGER_GROUNDS[hunt] : null);
+function goldOf(r, hoursPm) {
+  const g = onScale(r.hunt);
+  return g && Number.isInteger(g.refLevel) ? wageListPrice(Math.round((TALLY_RULES.sharePm * hoursPm) / 1000), g.refLevel) : r.gold;
+}
+const row = (r) => {
+  const hoursPm = r.hoursPm || TALLY_RULES.taskHoursPm;
+  return Object.freeze({ ...r, hoursPm, gold: goldOf(r, hoursPm), materials: Object.freeze(r.materials.map((m) => Object.freeze(m))) });
+};
 
 export const TALLY_TASKS = Object.freeze([
   /* THE FIRST TASK FINISHES INSIDE THE FIRST HUNT (designer 2026-11-10, lane/d-first-ten-minutes, played: 120 took 27 minutes of a ground the game
      sends a hero out of at 16). Three fresh heroes had 24 to 29 rats at hunt minute 5 to 6 (rats are 61% of the Cellar's kills). 25 gp for 25 rats is
      the old 100 for 120 per rat, and her three pays a day cap it. Her Cellar piece is a helmet in every weight, worn at Level 1. */
-  row({ id: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', label: 'Giant Rats', count: 25, gold: 25, party: false,
+  row({ id: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', label: 'Giant Rats', count: 25, gold: 25, hoursPm: 90, party: false,
     materials: [{ item: 'slime_gel', qty: 4 }, { item: 'silk_thread', qty: 1 }] }),
   row({ id: 'thicket_gray_wolves', hunt: 'meadowbrook_thicket', monster: 'gray_wolf', label: 'Gray Wolves', count: 200, gold: 480, party: false,
     materials: [{ item: 'raw_wolf_meat', qty: 5 }, { item: 'bones', qty: 6 }] }),

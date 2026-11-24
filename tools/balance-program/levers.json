@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c03bdb6419a5fe71",
+ "authored": "f1fe0af63705525f",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,10 +118,10 @@
  },
  "census": {
   "bindings": 761,
-  "typed": 17249,
+  "typed": 17100,
   "files": 261,
-  "lever": 334,
-  "notLever": 427,
+  "lever": 333,
+  "notLever": 428,
   "unclaimed": 0
  },
  "problems": [],
@@ -4673,13 +4673,13 @@
    "sites": [
     {
      "file": "src/data/jewelry.js",
-     "line": 45,
+     "line": 46,
      "text": "second_wind: Object.freeze({ name: 'Second Wind', pm: Object.freeze({ 2: 7, 3: 10 }), what: '{pct} of your max HP back on each kill' }),",
      "binding": "JEWEL_PERKS"
     },
     {
      "file": "src/data/jewelry.js",
-     "line": 59,
+     "line": 60,
      "text": "focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 20, 3: 30 }), what: '{pct} of your max mana back on each kill' }),",
      "binding": "JEWEL_PERKS"
     }
@@ -6075,7 +6075,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6461,7 +6461,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7623,7 +7623,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 21,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7702,7 +7702,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 21,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7778,7 +7778,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 21,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7847,7 +7847,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 21,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8258,7 +8258,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8379,7 +8379,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8460,7 +8460,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10098,7 +10098,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10168,7 +10168,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10289,7 +10289,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10408,7 +10408,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 117,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10765,7 +10765,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11058,19 +11058,19 @@
    "sites": [
     {
      "file": "src/data/jewelry.js",
-     "line": 40,
+     "line": 41,
      "text": "keen: Object.freeze({ name: 'Keen', pm: Object.freeze({ 2: 40, 3: 60 }), what: '{pct} more chance that a basic blow lands critical' }),",
      "binding": "JEWEL_PERKS"
     },
     {
      "file": "src/data/jewelry.js",
-     "line": 58,
+     "line": 59,
      "text": "steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 200, 3: 300 }), what: '{pct} of your basic blows that would miss land anyway' }),",
      "binding": "JEWEL_PERKS"
     },
     {
      "file": "src/data/jewelry.js",
-     "line": 63,
+     "line": 64,
      "text": "export const SURGE_MULT_PM = 1500;",
      "binding": "SURGE_MULT_PM"
     }
@@ -11357,7 +11357,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 120,
+    "mentionCount": 121,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11455,7 +11455,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 120,
+    "mentionCount": 121,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11623,13 +11623,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 54,
+     "line": 55,
      "text": "tierSteps: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 55,
+     "line": 56,
      "text": "wearAhead: 10,",
      "binding": "GEAR_STEPS"
     }
@@ -11683,10 +11683,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/temper-steps.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11705,7 +11705,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 58,
+     "line": 59,
      "text": "weapon: 200, shield: 80, body: 120, pants: 90, helmet: 70, boots: 60, gloves: 60, belt: 50, cape: 60,",
      "binding": "GEAR_STEPS"
     }
@@ -11758,10 +11758,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/temper-steps.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11780,31 +11780,31 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 64,
+     "line": 65,
      "text": "traitSteps: Object.freeze([4, 7, 10]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 87,
+     "line": 88,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 89,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 90,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 90,
+     "line": 91,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -11857,10 +11857,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/temper-steps.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12029,13 +12029,13 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 67,
+     "line": 68,
      "text": "tradeSteps: Object.freeze([7, 13, 18]),",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 70,
+     "line": 71,
      "text": "shownPct: Object.freeze({ rank: Object.freeze([1.5, 2.5, 3.5]), tradeGain: Object.freeze([2.5, 4.5, 6.5]) }),",
      "binding": "GEAR_STEPS"
     }
@@ -12088,10 +12088,10 @@
      "tests/gear-steps.mjs",
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/lineup-v4.mjs",
-     "tests/temper-steps.mjs"
+     "tests/hunt-core/trait-rules.mjs",
+     "tests/level-curve.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12166,7 +12166,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12242,7 +12242,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 20,
+    "mentionCount": 22,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13056,7 +13056,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 112,
+     "line": 114,
      "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
      "binding": "CARRY"
     }
@@ -13242,15 +13242,15 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 106,
+     "line": 105,
      "text": "export const BASIC_SUPPLIES = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     },
     {
      "file": "src/data/supply-basics.js",
-     "line": 243,
+     "line": 246,
      "text": "export const SUPPLY_SHOP_OFFERS = Object.freeze([",
-     "binding": "SUPPLY_SHOP_OFFERS"
+     "binding": "BASIC_SUPPLIES"
     }
    ],
    "definition": "five store heals and six drinks, each heal or mana typed (three quarters of its crafted partner); every PRICE is derived (econ.store-kit: Salted Shrimp 7 ... Salted Shark 72, Thin Turnip Juice 9 ... Thin Emberfruit Cordial 238); the crafted twins' price list follows it",
@@ -13285,15 +13285,15 @@
     ],
     "mentions": [
      "tests/account-gold.mjs",
-     "tests/alpha-server.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/boss-hall-advice.mjs",
      "tests/craft-wages.mjs",
      "tests/econ-levers.mjs",
      "tests/hunt-core/abilities.mjs",
-     "tests/hunt-core/conditions.mjs"
+     "tests/hunt-core/conditions.mjs",
+     "tests/hunt-core/fixtures/h4.js"
     ],
-    "mentionCount": 23,
+    "mentionCount": 20,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13364,7 +13364,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 59,
+     "line": 58,
      "text": "export const BASIC_EFFECT_SHARE = 0.75;",
      "binding": "BASIC_EFFECT_SHARE"
     }
@@ -13425,7 +13425,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 99,
+     "line": 98,
      "text": "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -13565,7 +13565,7 @@
    "sites": [
     {
      "file": "src/data/start-kit.js",
-     "line": 124,
+     "line": 133,
      "text": "startSlot('d_food', 'cooked_shrimp', 'self_hp_pct', 60),",
      "binding": "START_BAR"
     }
@@ -13667,7 +13667,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 120,
+    "mentionCount": 121,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14217,7 +14217,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14329,12 +14329,18 @@
    "sites": [
     {
      "file": "src/data/start-kit.js",
-     "line": 44,
+     "line": 53,
      "text": "export const START_CURRENCY = Object.freeze({",
      "binding": "START_CURRENCY"
+    },
+    {
+     "file": "src/data/start-kit.js",
+     "line": 52,
+     "text": "export const START_GOLD_HOURS_PM = 250;",
+     "binding": "START_GOLD_HOURS_PM"
     }
    ],
-   "definition": "500 gold, 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account",
+   "definition": "the purse 250 milli-hours of wage(1) as a list price (3,200 gold, an hour of store kit at the reference share; 27 E-11), 20 cooked shrimp, 50 bronze arrows, 10 whetstones a hero; 10 shrimp and 8 turnip seeds an account",
    "range": "whole",
    "touches": "the first hour",
    "outcomes": [],
@@ -14361,9 +14367,10 @@
      "tests/character-bootstrap-guard.mjs",
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/forest-cave.mjs",
-     "tests/start-kits.mjs"
+     "tests/start-kits.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14808,9 +14815,10 @@
     ],
     "mentions": [
      "tests/econ-levers.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14836,7 +14844,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 66,
+     "line": 65,
      "text": "export const BASIC_AMMO_PREMIUM = 0.5;",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -15692,12 +15700,12 @@
    "sites": [
     {
      "file": "src/data/gold-sinks.js",
-     "line": 63,
+     "line": 71,
      "text": "export const SINK_RULES = Object.freeze({",
      "binding": "SINK_RULES"
     }
    ],
-   "definition": "price ladders: powder 2k..10k, rounds 5k..20k, criers 1k..16k, three free setup slots then 15,000 and 40,000, hero colors 1,500 + 50 a Level, the House dummy 150k..600k",
+   "definition": "price ladders in milli-hours of wage at step 1, as list prices (27 E-6; src/data/wage.js wageLadder): powder 2k..10k, rounds 5k..20k, criers 1k..16k, the House dummy 150k..600k; hero colors 1,500 + 50 a Level (a Level formula the server prices in hr_sink_price, not yet the wage)",
    "range": "whole; per-day caps. S-3 a: setup slots priced as ruled 11-05",
    "touches": "gold out",
    "outcomes": [],
@@ -15723,9 +15731,10 @@
     "mentions": [
      "tests/hero-colors.mjs",
      "tests/setup-slots.mjs",
-     "tests/town-shows.mjs"
+     "tests/town-shows.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15755,7 +15764,7 @@
    "sites": [
     {
      "file": "src/data/shops.js",
-     "line": 55,
+     "line": 88,
      "text": "export const HERO_SLOTS = Object.freeze({ count: 4, free: true });",
      "binding": "HERO_SLOTS"
     }
@@ -15849,12 +15858,12 @@
    "sites": [
     {
      "file": "src/data/shops.js",
-     "line": 59,
+     "line": 92,
      "text": "export const SHOP_OFFERS = [",
      "binding": "SHOP_OFFERS"
     }
    ],
-   "definition": "authored rows; listed gear, tools and seeds at 2 x book (SHOP_PREMIUM, a plain 2 the census cannot see); store jewelry at 10 x",
+   "definition": "deeds in milli-hours of wage at their tier's step (PROPERTY_HOURS_PM, list prices), rooms from ROOM_RUNGS; every good the store sells whole (tool, gear, jewel, seed, the legacy equip and seed rows) at the store's ask, storeCeiling x book (27 K-3: SHOP_PREMIUM 2 and JEWEL_SHOP_PREMIUM 10 retired); the companions still typed (three copies)",
    "range": "whole",
    "touches": "gold out; the arbitrage floor of the buyback",
    "outcomes": [],
@@ -15888,7 +15897,7 @@
      "tests/gold-intents.mjs",
      "tests/hero-slot-buy.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15900,8 +15909,7 @@
     "what": "gold costs on shop offers",
     "homes": [
      "src/data/shops.js#DERIVED_PRICES",
-     "src/data/jewelry.js#JEWEL_SHOP_PRICE",
-     "src/data/jewelry.js#JEWEL_SHOP_PREMIUM",
+     "src/data/shops.js#PROPERTY_HOURS_PM",
      "src/data/companion-unlocks.js#COMPANION_OFFERS"
     ]
    },
@@ -15915,13 +15923,13 @@
    "sites": [
     {
      "file": "src/data/homestead-tiers.js",
-     "line": 41,
+     "line": 53,
      "text": "export const PROPERTY_TIERS = Object.freeze([",
      "binding": "PROPERTY_TIERS"
     },
     {
      "file": "src/data/homestead-tiers.js",
-     "line": 93,
+     "line": 127,
      "text": "export const ROOM_RUNGS = Object.freeze({",
      "binding": "ROOM_RUNGS"
     },
@@ -15932,7 +15940,7 @@
      "binding": "ROOM_PERKS"
     }
    ],
-   "definition": "hand-typed ladders (property 400 / 25k / 150k / 600k / 2.5M ruled); room rungs cost gold and materials and grant perks (buffDuration 0.2..0.8, smithSpeed 2..8%, XP ...) under the 20% permanent cap",
+   "definition": "rungs and chests in milli-hours of wage at their property tier's step (PROPERTY_TIERS step 1 / 1 / 10 / 30 / 55 / 90), list prices (property 400 / 25k / 150k / 600k / 2.5M ruled); room rungs cost gold and materials and grant perks (buffDuration 0.2..0.8, smithSpeed 2..8%, XP ...) under the 20% permanent cap",
    "range": "whole; the cap PERMANENT_CAP",
    "touches": "gold out; town work speed; permanent perks",
    "outcomes": [],
@@ -15964,9 +15972,9 @@
      "tests/perk-channel.mjs",
      "tests/room-identity-perks.mjs",
      "tests/room-purpose.mjs",
-     "tests/world-town-home.mjs"
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15994,30 +16002,30 @@
    "sites": [
     {
      "file": "src/data/gold-ladders.js",
-     "line": 45,
-     "text": "export const BANK_BASE = 3000;",
-     "binding": "BANK_BASE"
+     "line": 55,
+     "text": "export const BANK_BASE_HOURS_PM = 232;",
+     "binding": "BANK_BASE_HOURS_PM"
     },
     {
      "file": "src/data/gold-ladders.js",
-     "line": 46,
+     "line": 56,
      "text": "export const BANK_GROWTH = 1.32;",
      "binding": "BANK_GROWTH"
     },
     {
      "file": "src/data/gold-ladders.js",
-     "line": 47,
+     "line": 57,
      "text": "export const BANK_RUNGS = 10;",
      "binding": "BANK_RUNGS"
     },
     {
      "file": "src/data/gold-ladders.js",
-     "line": 69,
-     "text": "export const KEY_RING_GOLD = 25000;",
-     "binding": "KEY_RING_GOLD"
+     "line": 79,
+     "text": "export const KEY_RING_HOURS_PM = 1933;",
+     "binding": "KEY_RING_HOURS_PM"
     }
    ],
-   "definition": "round(3000 x 1.32^k), ten rungs of 20 stacks; a key ring 25,000",
+   "definition": "the list price of round(232 x 1.32^k) milli-hours of wage(1) (3,000 at rung 1), ten rungs of 20 stacks; a key ring 1,933 milli-hours (25,000)",
    "range": "whole",
    "touches": "gold out (storage)",
    "outcomes": [],
@@ -16034,7 +16042,7 @@
     "asserts": [],
     "mentions": [
      "tests/bank-cap-rungs.mjs",
-     "tests/tower-chest.mjs"
+     "tests/wage-prices.mjs"
     ],
     "mentionCount": 2,
     "verdict": "mentioned only"
@@ -16066,19 +16074,19 @@
    "sites": [
     {
      "file": "src/data/training.js",
-     "line": 48,
+     "line": 50,
      "text": "xpPerHour: 30000,",
      "binding": "TRAINING_RULES"
     },
     {
      "file": "src/data/training.js",
-     "line": 54,
+     "line": 56,
      "text": "feeBase: 50,",
      "binding": "TRAINING_RULES"
     },
     {
      "file": "src/data/training.js",
-     "line": 55,
+     "line": 57,
      "text": "feePerLevel: 6,",
      "binding": "TRAINING_RULES"
     }
@@ -16152,12 +16160,12 @@
    "sites": [
     {
      "file": "src/data/training.js",
-     "line": 96,
+     "line": 101,
      "text": "boostPermille: 2000,",
      "binding": "TRAINING_GEAR"
     }
    ],
-   "definition": "x2 yard pay for 12 or 24 hours, 250,000 and 450,000 gold, ten a day",
+   "definition": "x2 yard pay for 12 or 24 hours, 19,333 and 34,800 milli-hours of wage(1) (list prices 250,000 and 450,000 gold), ten a day",
    "range": "whole",
    "touches": "a gold sink and idle skill pace",
    "outcomes": [],
@@ -16182,9 +16190,10 @@
     ],
     "mentions": [
      "tests/balance-guard.mjs",
-     "tests/combat-training.mjs"
+     "tests/combat-training.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -16342,12 +16351,12 @@
    "sites": [
     {
      "file": "src/data/town-works.js",
-     "line": 39,
-     "text": "perActive: 20000,",
+     "line": 47,
+     "text": "map: 'town_common', hoursPm: Object.freeze({ minGift: 8, perDay: 1933, perActive: 1547 }), minGift: gold(8), perDay: gold(1933), perMinute: 20,",
      "binding": "TOWN_WORKS"
     }
    ],
-   "definition": "max(250,000, 20,000 x weekly active accounts); a gift 100 at least, 25,000 a day at most",
+   "definition": "in milli-hours of wage(1) as list prices (27 T-5): max(250,000, 20,000 x weekly active accounts); a gift 100 at least, 25,000 a day at most",
    "range": "whole. SQL hr_town_works_goal (1014-works-goal-sized.sql)",
    "touches": "a shared gold sink",
    "outcomes": [],
@@ -16366,9 +16375,10 @@
      "tests/char-wipe.mjs",
      "tests/town-shows-race.mjs",
      "tests/town-works-world.mjs",
-     "tests/town-works.mjs"
+     "tests/town-works.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 5,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -16403,7 +16413,7 @@
      "binding": "BURN_BASE"
     }
    ],
-   "definition": "every node's and recipe's time, XP, level and output; a speed bonus never past x0.7 time, never under 0.5 s; a burn chance 25% at the recipe's level, -1 point a level; tools +2% XP and double a tier; farm plots 500..100,000 gold",
+   "definition": "every node's and recipe's time, XP, level and output; a speed bonus never past x0.7 time, never under 0.5 s; a burn chance 25% at the recipe's level, -1 point a level; tools +2% XP and double a tier; farm plots in milli-hours of wage(1), 510..100,000 gold",
    "range": "whole and permille",
    "touches": "materials and crafted supplies an hour, town skill Levels, the farm",
    "outcomes": [],
@@ -16477,19 +16487,19 @@
    "sites": [
     {
      "file": "src/data/jewelry.js",
-     "line": 81,
+     "line": 82,
      "text": "export const JEWEL_TIERS = Object.freeze({",
      "binding": "JEWEL_TIERS"
     },
     {
      "file": "src/data/jewelry.js",
-     "line": 98,
+     "line": 101,
      "text": "export const ROLL_ODDS = Object.freeze({",
      "binding": "ROLL_ODDS"
     },
     {
      "file": "src/data/jewelry.js",
-     "line": 136,
+     "line": 139,
      "text": "export const HALLMARK_DAY_LIMIT = 10;",
      "binding": "HALLMARK_DAY_LIMIT"
     }
@@ -16540,12 +16550,12 @@
    "sites": [
     {
      "file": "src/data/tally-tasks.js",
-     "line": 70,
+     "line": 91,
      "text": "export const TALLY_TASKS = Object.freeze([",
      "binding": "TALLY_TASKS"
     }
    ],
-   "definition": "a kill count and gold a task (25 rats for 25 gold ...), three held, three paid a day",
+   "definition": "a kill count and gold a task, three held, three paid a day; on a Danger-scale ground the gold is sharePm 350 of the task's hours (taskHoursPm 1000) of wage at refLevel, a list price; off it the measured gold (25 rats for 25 gold ...)",
    "range": "whole",
    "touches": "early gold and pieces",
    "outcomes": [],
@@ -16559,9 +16569,10 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/tally-tasks.mjs"
+     "tests/tally-tasks.mjs",
+     "tests/wage-prices.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -17221,7 +17232,7 @@
    "why": "units: blowTopBp in hundredths of a percent (10000); the lever is amount.blow-top"
   },
   {
-   "at": "src/core/hunt/damage.js#pipedAmount",
+   "at": "src/core/hunt/damage.js#pipedBlow",
    "why": "units: two permille factors multiplied (1000000)"
   },
   {
@@ -17523,6 +17534,10 @@
   {
    "at": "src/core/farm.js#MAX_WATERINGS",
    "why": "a defensive array cap"
+  },
+  {
+   "at": "src/data/wage.js#twoFigures",
+   "why": "base ten: a list price is the wage price to two significant figures"
   },
   {
    "at": "src/core/skill-sim.js#MAX_SLICES",
@@ -18364,30 +18379,22 @@
     "VENDOR_GEAR_RATES",
     "VENDOR_HOURLY_ARMOR_T2_RATE",
     "VENDOR_RAW_RATE",
-    "base",
+    "baseHoursPm",
     "growth",
     "slots"
    ],
    "typed": 12,
    "bindings": 1
   },
-  "src/data/jewelry.js#JEWEL_SHOP_PRICE": {
-   "pin": "count",
+  "src/data/shops.js#PROPERTY_HOURS_PM": {
+   "pin": "keys",
    "keys": [
-    "banded_signet",
-    "fang_studs",
-    "seam_jasper_band",
-    "wolfbone_torc"
+    "castle",
+    "farmstead",
+    "homestead",
+    "keep",
+    "manor"
    ],
-   "typed": 4,
-   "bindings": 1
-  },
-  "src/data/jewelry.js#JEWEL_SHOP_PREMIUM": {
-   "pin": "count",
-   "keys": [
-    "·"
-   ],
-   "typed": 1,
    "bindings": 1
   },
   "src/data/companion-unlocks.js#COMPANION_OFFERS": {
@@ -18649,8 +18656,10 @@
    "pin": "count",
    "keys": [
     "#key",
-    "farming",
-    "gold"
+    "2",
+    "3",
+    "4",
+    "5"
    ],
    "typed": 11,
    "bindings": 1
@@ -18692,9 +18701,10 @@
    "pin": "count",
    "keys": [
     "heldMax",
-    "paidPerDay"
+    "paidPerDay",
+    "sharePm"
    ],
-   "typed": 2,
+   "typed": 3,
    "bindings": 1
   },
   "src/core/companion-perk.js#COMPANION_MAX_LEVEL": {
@@ -20304,14 +20314,6 @@
    "typed": 11,
    "bindings": 1
   },
-  "src/data/supply-basics.js#SUPPLY_SHOP_OFFERS": {
-   "pin": "count",
-   "keys": [
-    "·"
-   ],
-   "typed": 18,
-   "bindings": 1
-  },
   "src/data/core-model.js#FOOD_HEAL_SCALE": {
    "pin": "count",
    "keys": [
@@ -20456,10 +20458,17 @@
   "src/data/start-kit.js#START_CURRENCY": {
    "pin": "count",
    "keys": [
-    "gold",
     "hp"
    ],
-   "typed": 2,
+   "typed": 1,
+   "bindings": 1
+  },
+  "src/data/start-kit.js#START_GOLD_HOURS_PM": {
+   "pin": "count",
+   "keys": [
+    "·"
+   ],
+   "typed": 1,
    "bindings": 1
   },
   "src/data/hunt-sessions.js#STAMINA_MAX_MS": {
@@ -20627,6 +20636,7 @@
    "keys": [
     "bookS",
     "gapS",
+    "hoursPm",
     "maxLetters",
     "minLevel",
     "perDay",
@@ -20636,7 +20646,7 @@
     "prices",
     "seconds"
    ],
-   "typed": 32,
+   "typed": 50,
    "bindings": 1
   },
   "src/data/shops.js#HERO_SLOTS": {
@@ -20661,12 +20671,30 @@
    "pin": "count",
    "keys": [
     "amount",
-    "reqLv"
+    "bear_pelt",
+    "big_bones",
+    "cooked_shrimp",
+    "copper_ore",
+    "ember_bar",
+    "gatekeepers_chain",
+    "iron_fitting",
+    "iron_ore",
+    "maple_plank",
+    "normal_log",
+    "oak_log",
+    "reqLv",
+    "runewood_plank",
+    "silk_thread",
+    "steel_bar",
+    "timber_beam",
+    "willow_plank",
+    "wolf_pelt",
+    "·"
    ],
-   "typed": 195,
+   "typed": 31,
    "bindings": 1
   },
-  "src/data/gold-ladders.js#BANK_BASE": {
+  "src/data/gold-ladders.js#BANK_BASE_HOURS_PM": {
    "pin": "count",
    "keys": [
     "·"
@@ -20690,7 +20718,7 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/gold-ladders.js#KEY_RING_GOLD": {
+  "src/data/gold-ladders.js#KEY_RING_HOURS_PM": {
    "pin": "count",
    "keys": [
     "·"
@@ -20722,7 +20750,7 @@
     "buyPerDay",
     "hours"
    ],
-   "typed": 16,
+   "typed": 20,
    "bindings": 1
   },
   "src/data/scaled-hunts.js#SCALED_HUNTS": {
@@ -20763,13 +20791,14 @@
    "pin": "count",
    "keys": [
     "gifts",
+    "minGift",
     "perActive",
     "perDay",
     "perMinute",
     "plaqueTop",
     "stages"
    ],
-   "typed": 9,
+   "typed": 13,
    "bindings": 1
   },
   "src/core/pacing.js#SPEED_FUSE": {
@@ -20832,9 +20861,10 @@
    "keys": [
     "count",
     "gold",
+    "hoursPm",
     "qty"
    ],
-   "typed": 50,
+   "typed": 51,
    "bindings": 1
   },
   "src/data/companions.js#COMPANIONS": {

@@ -31,8 +31,10 @@
 //   startMin a floor on the stock the hero STARTED THE HUNT with, for a Trait whose `when` reads running low (#36): a Trait that pays
 //            for few arrows left counts only when the hunt began with at least twice that many, so packing 50 arrows never keeps it on
 //
-// TRAITS ARE HIDDEN. Nothing rolls them, no drop table names them, no fight reads them and no screen shows them until wave 4 (half-built
-// features stay hidden). tests/gear-steps.mjs GS-6 holds that only src/data/gear-steps.js imports this file (and re-exports it).
+// TRAITS ARE HIDDEN. Nothing rolls them, no drop table names them and no screen shows them until wave 4 (half-built features stay hidden).
+// The engine PLAYS a worn Trait (src/core/hunt/trait-rules.js: each row a rule on a conditional step of the gear slice), but only on a hero
+// handed one, and no server or client file hands one while GEAR_STEPS.traitsLive is false (tests/hunt-core/trait-rules.mjs dark); the Lab
+// and the tests do. tests/gear-steps.mjs GS-6 holds that only src/data/gear-steps.js imports this file (and re-exports it).
 // THE VERY RARE PAIR RULE (12-targets section 8.1) is the roller's (wave 4): GEAR_STEPS.traitSlots, GEAR_STEPS.veryRareBanned and the
 // keys here are its data, and GS-5 proves every slot can roll a pair of two keys.
 //

@@ -1823,6 +1823,12 @@ jobs:
         run: |
           node tests/temper-steps.mjs
           node tools/mutant-gate.mjs node tests/temper-steps.mjs --mutate
+      # tests/wage-prices.mjs
+      - name: Prices in hours of wage - no town price row types its gold, one store ceiling
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/wage-prices.mjs
+          node tools/mutant-gate.mjs node tests/wage-prices.mjs --mutate
       # tools/balance-program/arrival-kit.mjs
       - name: The arrival-kit run scales only jewelry numbers, moves only the arrival offset, and reads LOW over MID by stretch
         if: ${{ !cancelled() }}

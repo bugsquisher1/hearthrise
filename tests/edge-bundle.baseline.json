@@ -465,9 +465,19 @@
         "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
       },
       {
-        "bytes": 3823413,
+        "bytes": 3836439,
         "on": "2026-11-24",
-        "why": "lane/scale-grounds-2: the Glade and the Warrens on the Danger scale (two DANGER_GROUNDS rows, eleven monster roles, their drop rows authored in hours, the called bosses' tables joined from their field rows) and iron/steel's generated stats at item Levels 20 and 40"
+        "why": "lane/traits-in-engine on the set at 77572308a: src/core/hunt/trait-rules.js (the 40 Traits as conditional gear-slice steps, dark behind traitsLive), its typed tag and tr plumbing"
+      },
+      {
+        "bytes": 3830481,
+        "on": "2026-11-24",
+        "why": "cut locked in (5958 bytes)"
+      },
+      {
+        "bytes": 3833973,
+        "on": "2026-11-24",
+        "why": "lane/scale-grounds-2 merged on the set (Traits, wage prices): the Glade and the Warrens on the Danger scale (two rows, eleven roles, drop rows in hours, the called bosses' tables joined) and iron/steel's generated stats at item Levels 20 and 40"
       }
     ]
   }

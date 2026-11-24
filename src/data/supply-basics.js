@@ -50,9 +50,8 @@ import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName, isRune, runeTierOf, versio
 import { ITEMS } from './items.js';
 import { ARTISAN_RECIPES } from './recipes.js';
 import { DRINK_ITEMS, DRINK_RECIPES } from './drinks.js';
-import { storePrice, storeTerms, storePriceOf } from './store-kit.js';
+import { storePrice, storeTerms, storePriceOf, storeAsk } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
-import { JEWEL_SHOP_PRICE } from './jewelry.js';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
@@ -185,8 +184,8 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
 // vendor pays at most half the cheapest shop price, catalogue.js
 // SHOP_BUYBACK_RATE). Every supply row has a basic. THE TIER-1 GATHERING TOOLS (Tyler
 // 10-18: the shop sells the Bronze Axe and Bronze Pickaxe; better tiers stay
-// smithing-only) are kind 'tool' with no basic, priced SHOP_PREMIUM x book
-// value, so the vendor's buy-back (at most half) never moves and buy-then-sell loses.
+// smithing-only) are kind 'tool' with no basic, priced at the store's ask (store-kit.js storeAsk: storeCeiling x book),
+// so the vendor's buy-back (at most half) pays under the price and buy-then-sell loses.
 // The server catalogue (hr_shop_supply_offers) is generated from these rows;
 // src/data/shops.js lists them as `supply.*` offers.
 //
@@ -205,8 +204,8 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
 // every better plain shield drops, src/data/shields.js SOURCES): the Bronze-Rimmed Shield (src/data/shields.js), tier 1 at
 // Defense 1, on the same rules. The shield slot joins the outfitter's: the Rat King's Kingsgrate is a
 // tier-2 Rare, never the shop's piece, so the Shop still never competes with a drop at its tier.
-// Price = SHOP_PREMIUM x book value, the tools' rule, so the vendor's buy-back (at most
-// half the shop price) pays at most what the piece cost, halved: buy-then-sell loses.
+// Price = the store's ask (storeCeiling x book), the tools' rule, so the vendor's buy-back (at most
+// half the shop price) pays under what the piece cost: buy-then-sell loses.
 // tools/gen-alpha-catalogue.mjs refuses a gear row off any of these rules.
 //
 // THE SEED COUNTER (designer ruling 2026-10-22, lane/b-orphan-sources; farming is in Early Access,
@@ -214,20 +213,24 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
 // before this no Shop tab listed one: only the kit's 8 turnip seeds and two quest rewards could ever
 // reach a bag, so wheat, tomato, pumpkin, goldenroot, emberfruit and moonbloom were catalogued and
 // unplantable. Every crop's seed is now a Shop row, kind 'seed', one seed per unit. The price is the
-// counter's own per-seed price (the legacy seed.* bundles, unit for unit, which these rows replace:
-// one item, one price): book value for the six early seeds, so a first planting is never a gold
-// decision, and above it for the three late ones (goldenroot 150, emberfruit 300, moonbloom 800), the
-// sink an endgame farmer meets. Keeping the unit price keeps every vendor bid where it was (half the
-// cheapest shop unit, catalogue.js vendorPriceOf): buy-then-sell loses half. Farming level and plot tier
+// store's ask for one seed (storeCeiling x its book, 27-formula-overhaul.md K-3; the old counter's own price list, book for the six
+// early seeds and 150 / 300 / 800 for the late three, is retired with SHOP_PREMIUM). A seed's book climbs with its crop, so a first
+// planting is never a gold decision and the late seeds are the sink an endgame farmer meets. The vendor bids at most half the cheapest
+// shop unit (catalogue.js vendorPriceOf): buy-then-sell loses. Farming level and plot tier
 // still gate the PLANTING (src/core/farm.js), never the purchase. tools/gen-alpha-catalogue.mjs refuses a
 // seed row for an item that is not a crop's seed, below its book value, or with a basic.
-export const SHOP_PREMIUM = 2;
+//
+// ONE STORE CEILING (27-formula-overhaul.md K-3, lane/prices-wage-hours 2026-11-23): SHOP_PREMIUM 2 is retired into
+// store-kit.js STORE_KIT.storeCeiling, the one lever that also prices the store's basics, so the store is dearer than the crafted
+// good by the same factor for every tool, piece and seed it sells (store-kit.js storeAsk). No row types its gold.
 /* The kinds the Shop's Buy tab lists and `shop_buy` sells; every other row is a price only. */
 export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);
 /* The slots the Shop may sell gear for: the ones no walked ground's regular gear drops (a Rare named piece, such as
    Grayjaw's Ruff, may share a slot with a Shop basic: tests/hunt-core/forest-cave.mjs shop-outfits-defense). */
 export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace', 'shield']);
 const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
+/* A good the store sells whole (a tool, a piece, a jewel, a seed): the store's ask for its book, never typed. */
+const good = (item, kind) => sell(item, kind, null, storeAsk(Number(ITEMS[item].v) || 0));
 /* A CRAFTED PARTNER'S LIST PRICE is its store row's, never typed (lane/econ-levers): the basic's price a point times the item's own heal or
    mana, rounded up; an arrow's is its shot's. */
 const listOf = (item, basicId) => {
@@ -262,32 +265,32 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   /* every store rune's crafted partner, so the shop's bid for a crafted rune is capped at half the store's list like an arrow's
      (lane/econ-levers: the store's rune ladder is derived, and the cap keeps it above the bid, tests/craft-wages.mjs W-RUNE) */
   ...BASIC_SUPPLIES.filter((b) => b.kind === 'ammo' && /_rune$/.test(b.id)).map((b) => sellSupply(b.partner, 'ammo', b.id)),
-  sell('bronze_axe', 'tool', null, 120),
-  sell('bronze_pickaxe', 'tool', null, 120),
+  good('bronze_axe', 'tool'),
+  good('bronze_pickaxe', 'tool'),
   /* The outfitter: the two armour pieces first (medium gloves for anyone, a heavy belt), then the rest. */
-  sell('leather_gloves', 'gear', null, 160),
-  sell('bronze_belt', 'gear', null, 220),
-  sell('traveler_cape', 'gear', null, 300),
-  sell('copper_studs', 'gear', null, 120),
-  sell('copper_ring', 'gear', null, 240),
-  sell('hunter_necklace', 'gear', null, 360),
-  sell('bronze_rimmed_shield', 'gear', null, 140),
-  /* PLAIN JEWELRY STAYS IN THE SHOP, AT A PREMIUM (Tyler 2026-11-05, call 5): a fighter is never blocked, and a crafter can sell the
-     plain piece for anything under this and still beat the Shop (src/data/jewelry.js JEWEL_SHOP_PRICE; tests/catalogue-coherence.mjs C6). */
-  sell('banded_signet', 'gear', null, JEWEL_SHOP_PRICE.banded_signet),
-  sell('fang_studs', 'gear', null, JEWEL_SHOP_PRICE.fang_studs),
-  sell('wolfbone_torc', 'gear', null, JEWEL_SHOP_PRICE.wolfbone_torc),
-  sell('seam_jasper_band', 'gear', null, JEWEL_SHOP_PRICE.seam_jasper_band),
+  good('leather_gloves', 'gear'),
+  good('bronze_belt', 'gear'),
+  good('traveler_cape', 'gear'),
+  good('copper_studs', 'gear'),
+  good('copper_ring', 'gear'),
+  good('hunter_necklace', 'gear'),
+  good('bronze_rimmed_shield', 'gear'),
+  /* PLAIN JEWELRY STAYS IN THE SHOP, at the one ceiling (K-3): a fighter is never blocked, and a crafter can sell the plain piece
+     for anything under this and still beat the Shop (src/data/jewelry.js JEWEL_SHOP_PRICE, the same ask; tests/catalogue-coherence.mjs C6). */
+  good('banded_signet', 'gear'),
+  good('fang_studs', 'gear'),
+  good('wolfbone_torc', 'gear'),
+  good('seam_jasper_band', 'gear'),
   /* The seed counter, in crop order (src/data/gathering.js CROPS). */
-  sell('turnip_seed', 'seed', null, 5),
-  sell('carrot_seed', 'seed', null, 10),
-  sell('wheat_seed', 'seed', null, 15),
-  sell('potato_seed', 'seed', null, 20),
-  sell('tomato_seed', 'seed', null, 30),
-  sell('pumpkin_seed', 'seed', null, 50),
-  sell('goldenroot_seed', 'seed', null, 150),
-  sell('emberfruit_seed', 'seed', null, 300),
-  sell('moonbloom_seed', 'seed', null, 800),
+  good('turnip_seed', 'seed'),
+  good('carrot_seed', 'seed'),
+  good('wheat_seed', 'seed'),
+  good('potato_seed', 'seed'),
+  good('tomato_seed', 'seed'),
+  good('pumpkin_seed', 'seed'),
+  good('goldenroot_seed', 'seed'),
+  good('emberfruit_seed', 'seed'),
+  good('moonbloom_seed', 'seed'),
 ]);
 
 /** The offer ids a Shop tab lists: the ONLY ids `shop_buy` sells (supabase/functions/hr-accrue/catalogue.js

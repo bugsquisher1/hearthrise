@@ -621,7 +621,8 @@ export function evaluatorGaps() {
   return { missing: METRICS.map((m) => m.id).filter((id) => !EVAL[id]), extra: Object.keys(EVAL).filter((id) => !METRIC.has(id)) };
 }
 
-function compare(op, a, b) {
+/** One comparison of the bar (an operator of OPERATORS on two numbers or two booleans): a worn Trait's too (trait-rules.js). */
+export function compare(op, a, b) {
   switch (op) {
     case 'lt': return a < b;
     case 'lte': return a <= b;

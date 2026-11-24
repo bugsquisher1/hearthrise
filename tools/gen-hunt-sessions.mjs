@@ -1089,7 +1089,9 @@ function trainingRows(S, groundRowsOut) {
     if (g.bound) {
       if (it.bop !== true || Number(it.v) !== 0 || g.gold !== null) throw new Error(`training item ${g.id} is bound but tradable, worth something, or sold for gold`);
     } else {
-      if (it.bop || !(whole(g.gold) && g.gold >= 1 && g.gold <= 1000000000) || it.v * GR.bidShare !== g.gold) throw new Error(`training item ${g.id}: a gold row must trade at its price ${g.gold} / ${GR.bidShare}`);
+      /* its book is its price / bidShare in whole gold (the price is hours of wage, lane/prices-wage-hours): the market's ceiling, bidShare x book, never
+         passes the Arms Master's own price */
+      if (it.bop || !(whole(g.gold) && g.gold >= 1 && g.gold <= 1000000000) || it.v !== Math.floor(g.gold / GR.bidShare)) throw new Error(`training item ${g.id}: a gold row must trade at its price ${g.gold} / ${GR.bidShare}, whole`);
     }
     gear.push({ id: g.id, skill: g.skill, ms: g.hours * R.hourMs, bound: g.bound, price: g.gold });
   }
@@ -2083,7 +2085,7 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
                  or g.hours_ms % 3600000 <> 0
                  or (g.bound and (exists (select 1 from public.hr_items i where i.item_id = g.item_id and (i.tradeable or i.value <> 0))
                                   or exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id)))
-                 or (not g.bound and (not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.tradeable and i.value * ${trainRule.bidShare} = g.price)
+                 or (not g.bound and (not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.tradeable and i.value = g.price / ${trainRule.bidShare})
                                       or not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id and v.unit * 2 <= g.price))))
      or exists (select 1 from public.hr_items i where i.kind = 'training' and not exists (select 1 from public.hr_training_gear g where g.item_id = i.item_id)) then
     raise exception 'a training item is not its catalogue row, a bound one trades or is worth something, or a gold one sells back for more than half'; end if;

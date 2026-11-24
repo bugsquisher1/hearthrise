@@ -42,8 +42,9 @@
 // docs/design/redesign/12-targets.md section 8 and 13-market.md section 2.3. Temper stays with the hero's slot, never the piece.
 //
 // TRAITS ARE HIDDEN. The 40 rows are src/data/traits.js (lane/traits-20). The roller is built (src/core/trait-roll.js, lane/drop-formula) and
-// DARK: `traitsLive` is false, so nothing hands the settle a roll, no drop table names a Trait, no fight reads them and no screen shows them
-// (half-built features stay hidden). tests/gear-steps.mjs holds the rows' shape and who may import either file.
+// DARK: `traitsLive` is false, so nothing hands the settle a roll, no drop table names a Trait and no screen shows them (half-built features
+// stay hidden). The engine plays a worn Trait (src/core/hunt/trait-rules.js) only on a hero handed one, and nothing hands one while this is
+// false. tests/gear-steps.mjs holds the rows' shape and who may import either file.
 //
 // PURE ESM. Data only. Imports only src/data/traits.js (re-exported below) and src/data/power-ledger.js (the ramp's Level).
 // ════════════════════════════════════════════════════════════════════════
@@ -98,7 +99,8 @@ export const GEAR_STEPS = Object.freeze({
   pity: Object.freeze({ rare: true, very_rare: true }),
   /* TRAITS ROLL ONLY WHEN THIS IS TRUE (wave 4, with the piece table and its Security review). The roller exists (src/core/trait-roll.js) and
      the settle carries it, but nothing hands the settle a roll while this is false: tests/drop-formula.mjs DF-6 holds that no server or client
-     file does, and content-coherence CC-1 / CC-3 turn their warnings red the day it flips */
+     file does, and content-coherence CC-1 / CC-3 turn their warnings red the day it flips. The same for a WORN Trait: the engine plays one
+     (src/core/hunt/trait-rules.js) only on a hero handed `wornTraits`, and tests/hunt-core/trait-rules.mjs `dark` holds that nothing does */
   traitsLive: false,
 });
 

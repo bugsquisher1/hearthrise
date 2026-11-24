@@ -25,8 +25,9 @@
 //         keys (so a Very Rare can roll), every similar group the doc lists shares one key, no Very Rare pair shares a key, every
 //         ground's pool serves 2 or more seats; every scale ground's gearLevel is a whole tier and its traits are exactly its pool;
 //         THE ROLL (GEAR_STEPS.traitRoll, 24-content-pipeline.md G8): slot first, then the (ground, slot) cell, no cell over cellMax
-//   GS-6  HIDDEN: the only files under src/ or supabase/functions/ that import gear-steps.js are src/data/danger.js and the dark roller
-//         src/core/trait-roll.js, the only one that
+//   GS-6  HIDDEN: the only files under src/ or supabase/functions/ that import gear-steps.js are src/data/danger.js, the dark roller
+//         src/core/trait-roll.js, the dark worn-Trait rules src/core/hunt/trait-rules.js and the hunt view's name resolver
+//         src/render/source-names.js (an event's `tr`, which no event carries while dark), the only one that
 //         imports traits.js is gear-steps.js (the generated preload list src/app/game-modules.js may name both), and no other src
 //         file names a Trait's id or name (no drop table, item, text or screen)
 //
@@ -60,8 +61,10 @@ const MOVES = new Set(['area', 'spell', 'ranged']);
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* who may name each file: the scale's grounds read the gear table, the gear table re-exports the Traits, and the generated preload list */
 const IMPORTERS = Object.freeze({
-  /* the roller (lane/drop-formula) reads the Traits to roll them; it is dark: tests/drop-formula.mjs DF-6 holds that nobody hands it a roll */
-  'gear-steps.js': new Set(['src/data/danger.js', 'src/core/trait-roll.js', 'src/app/game-modules.js']),
+  /* the roller (lane/drop-formula) reads the Traits to roll them; it is dark: tests/drop-formula.mjs DF-6 holds that nobody hands it a roll.
+     The engine's worn-Trait rules (lane/traits-in-engine) read them to play them and the hunt view's name resolver to name an event's `tr`;
+     both dark the same way: tests/hunt-core/trait-rules.mjs `dark` holds that nobody hands a hero a worn Trait, so no event carries one */
+  'gear-steps.js': new Set(['src/data/danger.js', 'src/core/trait-roll.js', 'src/core/hunt/trait-rules.js', 'src/render/source-names.js', 'src/app/game-modules.js']),
   'traits.js': new Set(['src/data/gear-steps.js', 'src/app/game-modules.js']),
 });
 const HOMES = new Set(['src/data/gear-steps.js', 'src/data/traits.js']);

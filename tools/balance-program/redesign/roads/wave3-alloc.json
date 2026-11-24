@@ -1,0 +1,1236 @@
+{
+ "seeds": 4,
+ "hours": 6,
+ "risk": "steady",
+ "four": [
+  "tank",
+  "bow",
+  "mage",
+  "healer"
+ ],
+ "wallS": 1162,
+ "cells": {
+  "sword:L60:suggested": {
+   "id": "sword:L60:suggested",
+   "hero": "sword",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "suggested",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "flame_strike": {
+      "outPm": 30
+     },
+     "parry": {
+      "cdMs": -900,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -120,
+      "outPm": 30,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    640.9,
+    638.2,
+    640.6,
+    642.4
+   ],
+   "heldMean": 640.5,
+   "deaths": 0,
+   "xpMean": 325675
+  },
+  "sword:L60:cand:sug+vows": {
+   "id": "sword:L60:cand:sug+vows",
+   "hero": "sword",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:sug+vows",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "flame_strike": {
+      "outPm": 30
+     },
+     "parry": {
+      "cdMs": -900,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -120,
+      "outPm": 30,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    633.5,
+    636.4,
+    648.4,
+    638.6
+   ],
+   "heldMean": 639.2,
+   "deaths": 0,
+   "xpMean": 322082
+  },
+  "sword:L60:cand:live": {
+   "id": "sword:L60:cand:live",
+   "hero": "sword",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:live",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "flame_strike": {
+      "outPm": 30
+     },
+     "parry": {
+      "cdMs": -900,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "outPm": 75,
+      "nearFallPm": 180,
+      "notNearFallPm": -60
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    639,
+    635.8,
+    630,
+    638.5
+   ],
+   "heldMean": 635.8,
+   "deaths": 0,
+   "xpMean": 319427
+  },
+  "sword:L60:cand:live+vows": {
+   "id": "sword:L60:cand:live+vows",
+   "hero": "sword",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:live+vows",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "flame_strike": {
+      "outPm": 30
+     },
+     "parry": {
+      "cdMs": -900,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "outPm": 75,
+      "nearFallPm": 180,
+      "notNearFallPm": -60
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    636.4,
+    634.3,
+    640.5,
+    634.9
+   ],
+   "heldMean": 636.5,
+   "deaths": 0,
+   "xpMean": 318733
+  },
+  "sword:L120:suggested": {
+   "id": "sword:L120:suggested",
+   "hero": "sword",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "suggested",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "flame_strike": {
+      "mana": 1,
+      "outPm": 60
+     },
+     "parry": {
+      "cdMs": -1800,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -240,
+      "outPm": 60,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    509.3,
+    515.6,
+    513.6,
+    512.6
+   ],
+   "heldMean": 512.8,
+   "deaths": 0,
+   "xpMean": 577747
+  },
+  "sword:L120:cand:sug+vows": {
+   "id": "sword:L120:cand:sug+vows",
+   "hero": "sword",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:sug+vows",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "flame_strike": {
+      "mana": 1,
+      "outPm": 60
+     },
+     "parry": {
+      "cdMs": -1800,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -240,
+      "outPm": 60,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    508.9,
+    512.1,
+    509.7,
+    514.4
+   ],
+   "heldMean": 511.3,
+   "deaths": 0,
+   "xpMean": 572503
+  },
+  "sword:L120:cand:live": {
+   "id": "sword:L120:cand:live",
+   "hero": "sword",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:live",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "flame_strike": {
+      "mana": 1,
+      "outPm": 60
+     },
+     "parry": {
+      "cdMs": -1800,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": 1,
+      "outPm": 150,
+      "nearFallPm": 360,
+      "notNearFallPm": -120
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    511.2,
+    509.1,
+    509.9,
+    510.9
+   ],
+   "heldMean": 510.3,
+   "deaths": 0,
+   "xpMean": 569575
+  },
+  "sword:L120:cand:live+vows": {
+   "id": "sword:L120:cand:live+vows",
+   "hero": "sword",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:live+vows",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "flame_strike": {
+      "mana": 1,
+      "outPm": 60
+     },
+     "parry": {
+      "cdMs": -1800,
+      "mana": -1
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": 1,
+      "outPm": 150,
+      "nearFallPm": 360,
+      "notNearFallPm": -120
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    509.4,
+    507.5,
+    512.4,
+    507.8
+   ],
+   "heldMean": 509.3,
+   "deaths": 0,
+   "xpMean": 568730
+  },
+  "club:L60:suggested": {
+   "id": "club:L60:suggested",
+   "hero": "club",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "suggested",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "mana": -1,
+      "outPm": -45
+     },
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -120,
+      "outPm": 30,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    641.3,
+    636.5,
+    630.2,
+    631
+   ],
+   "heldMean": 634.8,
+   "deaths": 0,
+   "xpMean": 332109
+  },
+  "club:L60:cand:sug+vows": {
+   "id": "club:L60:cand:sug+vows",
+   "hero": "club",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:sug+vows",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -15,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "mana": -1,
+      "outPm": -45
+     },
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -120,
+      "outPm": 30,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    639.5,
+    639.5,
+    633.9,
+    639.4
+   ],
+   "heldMean": 638.1,
+   "deaths": 0,
+   "xpMean": 335758
+  },
+  "club:L60:cand:live": {
+   "id": "club:L60:cand:live",
+   "hero": "club",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:live",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "cdMs": 900,
+      "mana": -1,
+      "outPm": 30
+     },
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "mend": {
+      "outPm": 75,
+      "nearFallPm": 180,
+      "notNearFallPm": -60
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    632.7,
+    636.3,
+    634.9,
+    631.1
+   ],
+   "heldMean": 633.8,
+   "deaths": 0,
+   "xpMean": 327801
+  },
+  "club:L60:cand:live+vows": {
+   "id": "club:L60:cand:live+vows",
+   "hero": "club",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:live+vows",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -15,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "cdMs": 900,
+      "mana": -1,
+      "outPm": 30
+     },
+     "power_strike": {
+      "cdMs": 600,
+      "mana": -1,
+      "outPm": 75
+     },
+     "mend": {
+      "outPm": 75,
+      "nearFallPm": 180,
+      "notNearFallPm": -60
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    637.1,
+    635.2,
+    629.1,
+    641.9
+   ],
+   "heldMean": 635.8,
+   "deaths": 0,
+   "xpMean": 334066
+  },
+  "club:L120:suggested": {
+   "id": "club:L120:suggested",
+   "hero": "club",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "suggested",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "mana": -1,
+      "outPm": -90
+     },
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -240,
+      "outPm": 60,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    510.8,
+    511.7,
+    513.9,
+    508.8
+   ],
+   "heldMean": 511.3,
+   "deaths": 0,
+   "xpMean": 578626
+  },
+  "club:L120:cand:sug+vows": {
+   "id": "club:L120:cand:sug+vows",
+   "hero": "club",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:sug+vows",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -30,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "mana": -1,
+      "outPm": -90
+     },
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -240,
+      "outPm": 60,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    513.8,
+    512.6,
+    511.9,
+    512.6
+   ],
+   "heldMean": 512.7,
+   "deaths": 0,
+   "xpMean": 580053
+  },
+  "club:L120:cand:live": {
+   "id": "club:L120:cand:live",
+   "hero": "club",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:live",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "cdMs": 1800,
+      "mana": -1,
+      "outPm": 60
+     },
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "mend": {
+      "mana": 1,
+      "outPm": 150,
+      "nearFallPm": 360,
+      "notNearFallPm": -120
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    509.7,
+    512.3,
+    511.6,
+    513.4
+   ],
+   "heldMean": 511.8,
+   "deaths": 0,
+   "xpMean": 577050
+  },
+  "club:L120:cand:live+vows": {
+   "id": "club:L120:cand:live+vows",
+   "hero": "club",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:live+vows",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -30,
+      "r": 1,
+      "maxHits": 1
+     },
+     "stagger": {
+      "cdMs": 1800,
+      "mana": -1,
+      "outPm": 60
+     },
+     "power_strike": {
+      "cdMs": 1200,
+      "mana": -1,
+      "outPm": 150
+     },
+     "mend": {
+      "mana": 1,
+      "outPm": 150,
+      "nearFallPm": 360,
+      "notNearFallPm": -120
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    512.3,
+    513.7,
+    512.5,
+    515.2
+   ],
+   "heldMean": 513.4,
+   "deaths": 0,
+   "xpMean": 582694
+  },
+  "dual_axe:L60:suggested": {
+   "id": "dual_axe:L60:suggested",
+   "hero": "dual_axe",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "suggested",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "outPm": -30,
+      "statusMs": 300,
+      "statusPm": -60,
+      "also": "sickness"
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 15,
+      "statusMs": 900,
+      "statusPm": 60
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -120,
+      "outPm": 30,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    645.4,
+    639.6,
+    640.4,
+    637.9
+   ],
+   "heldMean": 640.8,
+   "deaths": 0,
+   "xpMean": 347950
+  },
+  "dual_axe:L60:cand:sug+vows": {
+   "id": "dual_axe:L60:cand:sug+vows",
+   "hero": "dual_axe",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:sug+vows",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "outPm": -30,
+      "statusMs": 300,
+      "statusPm": -60,
+      "also": "sickness"
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 15,
+      "statusMs": 900,
+      "statusPm": 60
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -120,
+      "outPm": 30,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    645.4,
+    639.6,
+    640.4,
+    637.9
+   ],
+   "heldMean": 640.8,
+   "deaths": 0,
+   "xpMean": 347950
+  },
+  "dual_axe:L60:cand:live": {
+   "id": "dual_axe:L60:cand:live",
+   "hero": "dual_axe",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:live",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "statusMs": 1200,
+      "statusPm": 60
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 15,
+      "statusMs": 900,
+      "statusPm": 60
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "outPm": 75,
+      "nearFallPm": 180,
+      "notNearFallPm": -60
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    627.5,
+    637.5,
+    631.4,
+    646.6
+   ],
+   "heldMean": 635.8,
+   "deaths": 0,
+   "xpMean": 336735
+  },
+  "dual_axe:L60:cand:live+vows": {
+   "id": "dual_axe:L60:cand:live+vows",
+   "hero": "dual_axe",
+   "L": 60,
+   "ground": "muster_barrows",
+   "name": "cand:live+vows",
+   "spent": 59,
+   "points": 59,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "statusMs": 1200,
+      "statusPm": 60
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 15,
+      "statusMs": 900,
+      "statusPm": 60
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -75,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "outPm": 75,
+      "nearFallPm": 180,
+      "notNearFallPm": -60
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    627.5,
+    637.5,
+    631.4,
+    646.6
+   ],
+   "heldMean": 635.8,
+   "deaths": 0,
+   "xpMean": 336735
+  },
+  "dual_axe:L120:suggested": {
+   "id": "dual_axe:L120:suggested",
+   "hero": "dual_axe",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "suggested",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "outPm": -60,
+      "statusMs": 600,
+      "statusPm": -120,
+      "also": "sickness"
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 30,
+      "statusMs": 1800,
+      "statusPm": 120
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -240,
+      "outPm": 60,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    511.1,
+    515.2,
+    508.3,
+    511.2
+   ],
+   "heldMean": 511.4,
+   "deaths": 0,
+   "xpMean": 591297
+  },
+  "dual_axe:L120:cand:sug+vows": {
+   "id": "dual_axe:L120:cand:sug+vows",
+   "hero": "dual_axe",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:sug+vows",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "outPm": -60,
+      "statusMs": 600,
+      "statusPm": -120,
+      "also": "sickness"
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 30,
+      "statusMs": 1800,
+      "statusPm": 120
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": -1,
+      "manaPm": -240,
+      "outPm": 60,
+      "hotMs": 6000,
+      "hotAll": true
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    511.1,
+    515.2,
+    508.3,
+    511.2
+   ],
+   "heldMean": 511.4,
+   "deaths": 0,
+   "xpMean": 591297
+  },
+  "dual_axe:L120:cand:live": {
+   "id": "dual_axe:L120:cand:live",
+   "hero": "dual_axe",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:live",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "statusMs": 2400,
+      "statusPm": 120
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 30,
+      "statusMs": 1800,
+      "statusPm": 120
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": 1,
+      "outPm": 150,
+      "nearFallPm": 360,
+      "notNearFallPm": -120
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    508.6,
+    510.1,
+    508.3,
+    511.1
+   ],
+   "heldMean": 509.5,
+   "deaths": 0,
+   "xpMean": 585064
+  },
+  "dual_axe:L120:cand:live+vows": {
+   "id": "dual_axe:L120:cand:live+vows",
+   "hero": "dual_axe",
+   "L": 120,
+   "ground": "catacomb_bone_wing",
+   "name": "cand:live+vows",
+   "spent": 119,
+   "points": 119,
+   "grants": {
+    "mods": {
+     "rend": {
+      "mana": -1,
+      "statusMs": 2400,
+      "statusPm": 120
+     },
+     "gash": {
+      "mana": -1,
+      "outPm": 30,
+      "statusMs": 1800,
+      "statusPm": 120
+     },
+     "turning_cut": {
+      "mana": -1,
+      "outPm": -150,
+      "r": 1,
+      "maxHits": 1
+     },
+     "mend": {
+      "mana": 1,
+      "outPm": 150,
+      "nearFallPm": 360,
+      "notNearFallPm": -120
+     }
+    },
+    "held": 0,
+    "borrowed": [],
+    "idle": 0
+   },
+   "held": [
+    508.6,
+    510.1,
+    508.3,
+    511.1
+   ],
+   "heldMean": 509.5,
+   "deaths": 0,
+   "xpMean": 585064
+  }
+ },
+ "gaps": [
+  {
+   "hero": "sword",
+   "L": 60,
+   "best": "suggested",
+   "steps": 0,
+   "se": 0,
+   "pacePct": 0,
+   "within": true
+  },
+  {
+   "hero": "sword",
+   "L": 120,
+   "best": "suggested",
+   "steps": 0,
+   "se": 0,
+   "pacePct": 0,
+   "within": true
+  },
+  {
+   "hero": "club",
+   "L": 60,
+   "best": "cand:sug+vows",
+   "steps": 3.3,
+   "se": 2.1,
+   "pacePct": 2.3,
+   "within": true
+  },
+  {
+   "hero": "club",
+   "L": 120,
+   "best": "cand:live+vows",
+   "steps": 2.1,
+   "se": 1.6,
+   "pacePct": 1.5,
+   "within": true
+  },
+  {
+   "hero": "dual_axe",
+   "L": 60,
+   "best": "suggested",
+   "steps": 0,
+   "se": 0,
+   "pacePct": 0,
+   "within": true
+  },
+  {
+   "hero": "dual_axe",
+   "L": 120,
+   "best": "suggested",
+   "steps": 0,
+   "se": 0,
+   "pacePct": 0,
+   "within": true
+  }
+ ]
+}

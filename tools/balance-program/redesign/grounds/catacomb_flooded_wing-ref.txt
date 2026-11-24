@@ -1,23 +1,28 @@
 
-V1 on catacomb_flooded_wing (4 seeds x 12 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":120,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+V1 on catacomb_flooded_wing (8 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       527.6 +- 1.6     -1.7  58.6  92.1   36.4    3.5     0.6    168.8      0     0  1 (0/0/1)                       8  {"hold":6160,"climb":1785,"fall":155}
+base:steady       453.5 +- 2.5     -0.8  77.9  96.7   11.7    0.9     1.1     64.2      0     0  0 (0/0/0)                       6  {"hold":3798,"climb":1270,"fall":61}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        2.48x  sd 0.02  n 4  window 8 h  seeds 2.48 2.49 2.49 2.45
+  base:steady        0.88x  sd 0.04  n 8  window 6 h  seeds 0.84 0.91 0.83 0.94 0.88 0.91 0.85 0.9
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L175  coin 80982 +- 580  income 85787 +- 586  store 4842  kit share 0.06 (meal 300, drink 328, charge 1097, shot 3118)  loot by band: common 2825, uncommon 1687, scarce 0, other 293  n 4
+  base:steady       L175  coin 25666 +- 388  income 27470 +- 459  store 5469  kit share 0.2 (meal 283, drink 369, charge 1191, shot 3626)  loot by band: common 1099, uncommon 579, scarce 0, other 126  n 8
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.841  bow 0.059  mage 0.043  healer 0.057
+  base:steady       hammer 0.537  bow 0.224  mage 0.083  healer 0.156
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 36.05 land 71.63% hit 96.46 (2429.38/h) | bow dps 36.34 land 88.07% hit 78.53 (1242.5/h) | mage dps 48.77 land 94.06% hit 133.13 (275/h) | healer dps 22.39 land 90.26% hit 86.98 (781/h)
+                    night_carter(caster) 81.3/h 21.3 s 2058 | shrouded_pauper(swarm) 165.7/h 19.1 s 861 | keeper_dunn(caster) 21.1/h 10.8 s 955 | bone_wall(brute) 42.3/h 27.9 s 1344 | vault_leech(stalker) 116.9/h 30.7 s 421
+                    broke off by: fall:night_carter@2 26, fall:shrouded_pauper@0 25, fall:bone_wall@0 9, fall:night_carter@0 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 168.7 (depth 11)  free 216  spell 767  food 17  taken 17.74 pm/s
+  base:steady       abs 167.3 (depth 12)  free 176  spell 803  food 20  taken 14.98 pm/s
 
-wall 54 s
+wall 165 s

@@ -17,7 +17,7 @@
     "the change was intended. Never edit a hash by hand to make a build green —",
     "a red hash is the check working."
   ],
-  "generated": "2026-11-23",
+  "generated": "2026-11-24",
   "project": "nezapsylztqbbwuwembx",
   "postgres": {
     "production": "17.x",
@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 6269,
+  "replay_ms": 6850,
   "counts": {
     "tracked_names": 1140,
     "entries": 965

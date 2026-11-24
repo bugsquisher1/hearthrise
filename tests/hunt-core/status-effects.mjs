@@ -70,10 +70,12 @@ const cases = {
   'rows-valid': (M) => {
     const bad = [...M.ST.validate(), ...M.AU.validate()];
     if (bad.length) return bad.join('; ');
-    for (const id of ['poison', 'armor_break', 'weakened', 'silenced', 'burning_ground', 'guarded', 'emboldened', 'renewing']) {
+    for (const id of ['poison', 'burning_ground', 'guarded', 'emboldened', 'renewing']) {
       const r = M.ST.STATUSES[id];
       if (!r || r.hidden !== true) return 'the E2 row ' + id + ' is missing or not hidden';
     }
+    /* (lane/roads-wave3) the E2 rows Roads options lay are shown, so a bar may test them (tests/hunt-core/talents.mjs bar-can-test) */
+    for (const id of ['armor_break', 'weakened', 'silenced']) if (!M.ST.STATUSES[id] || M.ST.STATUSES[id].hidden) return 'the E2 row ' + id + ' is missing or hidden';
     const refused = (row, o, why) => (M.ST.validateStatus(Object.assign({}, row, o)).length ? null : why);
     const S = M.ST.STATUSES;
     return refused(S.burning_ground, { refresh: 'restart' }, 'a ground patch that restarts passed')

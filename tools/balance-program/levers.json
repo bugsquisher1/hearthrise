@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "ce46f4c927d1b7c4",
+ "authored": "ba21e5b9992057da",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 239,
+  "levers": 241,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 10,
@@ -76,9 +76,9 @@
    "crit": 3,
    "leech": 2,
    "regen": 6,
-   "monster-stats": 36,
+   "monster-stats": 37,
    "spawn": 12,
-   "monster-rewards": 18,
+   "monster-rewards": 19,
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
@@ -90,7 +90,7 @@
    "global": 128,
    "archetype": 32,
    "content": 51,
-   "exception-intentional": 17,
+   "exception-intentional": 19,
    "exception-accidental": 11
   },
   "byPerturb": {
@@ -100,25 +100,25 @@
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 36,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 40,
+   "not-playable:not-in-runs": 42,
    "variant": 5,
    "not-playable:not-built": 27,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 130,
+   "asserted": 132,
    "mentioned only": 89,
    "none": 20
   },
   "flags": {
-   "redundant": 41,
+   "redundant": 43,
    "ineffective": 34,
    "contradictory": 37
   }
  },
  "census": {
   "bindings": 762,
-  "typed": 16965,
+  "typed": 16991,
   "files": 260,
   "lever": 334,
   "notLever": 428,
@@ -1333,9 +1333,10 @@
      }
     ],
     "mentions": [
-     "tests/balance-sheet.mjs"
+     "tests/balance-sheet.mjs",
+     "tests/hunt-core/engine-parity.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -2841,7 +2842,7 @@
     "today": {
      "table": "src/data/abilities.js ABILITIES",
      "rows": 25,
-     "carrying": 6,
+     "carrying": 8,
      "distinct": 4,
      "low": 10,
      "high": 20
@@ -3087,7 +3088,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 248,
+     "line": 252,
      "text": "bonusPct: 20, durMs: 8000 }),",
      "binding": "ABILITIES"
     },
@@ -3226,73 +3227,73 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 130,
+     "line": 134,
      "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 133,
-     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
-     "binding": "STATUSES"
-    },
-    {
-     "file": "src/data/statuses.js",
-     "line": 135,
-     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
-     "binding": "STATUSES"
-    },
-    {
-     "file": "src/data/statuses.js",
      "line": 137,
-     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),",
+     "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 140,
+     "line": 139,
+     "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 141,
+     "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', durationMs: 3000, maxStacks: 1, silence: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 144,
      "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 145,
+     "line": 149,
      "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 146,
+     "line": 150,
      "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 147,
+     "line": 151,
      "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 153,
+     "line": 157,
      "text": "mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 156,
+     "line": 160,
      "text": "echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 159,
-     "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
+     "line": 163,
+     "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 162,
+     "line": 166,
      "text": "frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     }
@@ -3460,13 +3461,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 117,
+     "line": 119,
      "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 118,
+     "line": 120,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3526,8 +3527,8 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 113,
-     "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2000, maxStacks: 1, parry: true }),",
+     "line": 115,
+     "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2100, maxStacks: 1, parry: true }),",
      "binding": "STATUSES"
     },
     {
@@ -3738,7 +3739,7 @@
    "sites": [
     {
      "file": "src/data/abilities.js",
-     "line": 380,
+     "line": 384,
      "text": "lane: 'heal', cdMs: 6000, mana: 15, target: 'self', healHpPm: 110, whenBelowPct: 50, magicXpMult: 250 }),",
      "binding": "ABILITIES"
     }
@@ -4410,7 +4411,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 125,
+     "line": 127,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -7921,7 +7922,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 250,
+     "line": 265,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7990,19 +7991,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 257,
+     "line": 272,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 258,
+     "line": 273,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 259,
+     "line": 274,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
      "binding": "RISKS"
     }
@@ -8066,8 +8067,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 277,
-     "text": "export const HOLDER = Object.freeze({ linePm: 800 });",
+     "line": 295,
+     "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
    ],
@@ -8110,13 +8111,13 @@
      "tests/auth-lock.mjs",
      "tests/delta-key-allowlists.mjs",
      "tests/hunt-core/danger.mjs",
+     "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-core/party-defense.mjs",
      "tests/hunt-core/targeting.mjs",
      "tests/hunt-live.mjs",
-     "tests/trophy-call-sites.mjs",
-     "tests/world-tick-armed-cap.mjs"
+     "tests/trophy-call-sites.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8126,7 +8127,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md)"
+   "evidence": "MEASURED (lane/moves-pass-1, spell-run.mjs plan P, 6 paired seeds x 8 h); kept at 800 by lane/tuning-pass 2026-11-23 (the tank four, Steady: on Muster on the formula 600 and 700 never died; on the Ford on its rows 600 died 3 times in 12 seed-days, 700 once in 32, 800 never in 18; tools/balance-program/redesign/tuning, 29-tuning-pass.md); 700 since lane/monster-roles-ford-wings 2026-11-23, every scale ground on the formula: the tank four never died at 700 in 12 seed-days on each of the four (48, beside the tuning pass's 32 on Muster; tools/balance-program/redesign/tuning/roles/line)"
   },
   {
    "id": "danger.pay",
@@ -8270,7 +8271,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 205,
+     "line": 220,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8338,13 +8339,185 @@
    "evidence": "MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)"
   },
   {
+   "id": "danger.formula-step",
+   "category": "monster-stats",
+   "name": "Where a formula ground's reference monsters stand",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 222,
+     "text": "catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 223,
+     "text": "catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "a formula ground's monsters are written at a gap of 0 for the formula's reference company here, and its pull is sized from here (src/core/hunt/danger.js formulaStepOf, read by monster-formula.js and formulaBasePull); absent, the row's refStep. refStep stays the pay's reference, cut by the band rule where the MEASURED reference company holds: held at one step, a ground whose company holds far off the anchor paid every stance under the pay floor",
+   "range": "a whole step inside the scale (tools/gen-danger.mjs refuses one off it). A bridge like refStep: it goes when bands, monsters and pay are all in absolute steps (27 stage 6)",
+   "touches": "where the band rule's reference sits against the monsters, so C7 and C-5 on that ground",
+   "outcomes": [
+    "levelXpPerH",
+    "netLevelXpPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [
+    "C-MON-STATS"
+   ],
+   "reach": {
+    "feeds": 12,
+    "closure": 79
+   },
+   "class": "exception-intentional",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/monster-formula.mjs",
+      "what": "grounds: each monster at its derived health on the anchor, a ground paid off its anchor",
+      "reads": [
+       "formulaStepOf"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/bands.mjs",
+     "tests/content-coherence.mjs",
+     "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 18,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only (tools/balance-program/redesign/tuning/roles)",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the scale grounds whose measured reference company holds off the formula's anchor (the Catacomb wings)",
+    "homes": [
+     "src/data/danger.js#DANGER_GROUNDS"
+    ]
+   },
+   "flags": [
+    {
+     "kind": "redundant",
+     "why": "A second per-ground step beside refStep (LR-1: no per-ground dial); it retires with absolute steps",
+     "ev": "27 stage 6; JUDGMENT"
+    }
+   ],
+   "evidence": "MEASURED (lane/monster-roles-ford-wings: the Bone Wing's Steady mixed four at Level 175 held 440 against the anchor 520, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles/after)"
+  },
+  {
+   "id": "danger.rows-kept",
+   "category": "monster-rewards",
+   "name": "The kill rate a ground's coin and drop rows were written at",
+   "sites": [
+    {
+     "file": "src/data/danger.js",
+     "line": 221,
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    }
+   ],
+   "definition": "a scale kill pays its row's coin and its drop table x rowsKillsHead / the ground's reference kills (src/core/hunt/danger.js rowsKeptOf), so a ground whose rows were written at another kill rate keeps its hour's coin and loot on the scale while the tier path plays the rows as written (drop chances derived at this rate, src/core/drop-rate.js rowsKillsHour); absent, x1. The server's ceiling a kill reads the dial (tools/gen-danger.mjs coin_pm_max)",
+   "range": "a whole kill rate a head an hour (tools/gen-danger.mjs refuses any other). A bridge: it goes when coin is written in hours (27 stage 9)",
+   "touches": "coin and loot an hour on that ground (EL-PAY, the drop hours), and the kit share through it",
+   "outcomes": [
+    "netPerH",
+    "storePerH"
+   ],
+   "formulas": [
+    "C-TIER",
+    "P22"
+   ],
+   "reach": {
+    "feeds": 9,
+    "closure": 78
+   },
+   "class": "exception-intentional",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/danger.mjs",
+      "what": "rowskept: a ground keeps its coin and its drop table at the kill rate they were written for, at every step and party size",
+      "reads": [
+       "rowsKillsHead"
+      ]
+     },
+     {
+      "file": "tests/drop-formula.mjs",
+      "what": "DF-1: every scale row chance is its hours over the kills its rows are written at",
+      "reads": [
+       "rowsKillsHead",
+       "rowsKillsHour"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/balance-guard.mjs",
+     "tests/bands.mjs",
+     "tests/content-coherence.mjs",
+     "tests/danger-client.mjs",
+     "tests/danger-db.mjs",
+     "tests/drop-formula.mjs",
+     "tests/gear-stats.mjs",
+     "tests/gear-steps.mjs"
+    ],
+    "mentionCount": 18,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-in-runs",
+    "note": "played by the V1 probe only (tools/balance-program/redesign/tuning/roles)",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the scale grounds whose rows were written for another kill rate (Hask's Ford, on its hand rows, which the tier path still plays)",
+    "homes": [
+     "src/data/danger.js#DANGER_GROUNDS"
+    ]
+   },
+   "flags": [
+    {
+     "kind": "redundant",
+     "why": "A per-ground number for coin until coin is written in hours (LR-1)",
+     "ev": "27 stage 9; JUDGMENT"
+    }
+   ],
+   "evidence": "MEASURED (lane/monster-roles-ford-wings: on its hand rows the Ford's Steady four killed 232 a head an hour and earned 12,243 coin a hero-hour; on the formula 134 and 6,783, 8 seeds x 10 h, tools/balance-program/redesign/tuning/roles)"
+  },
+  {
    "id": "danger.band-rule",
    "category": "monster-rewards",
    "name": "How every ground's band is cut from its three Lab cells",
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 226,
+     "line": 241,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8378,10 +8551,11 @@
      }
     ],
     "mentions": [
+     "tests/bands.mjs",
      "tests/dead-exports.mjs",
      "tests/new-ground.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8553,19 +8727,19 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 82,
+     "line": 85,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 84,
+     "line": 87,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 90,
+     "line": 93,
      "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
      "binding": "MONSTER_ROLES"
     }
@@ -8641,37 +8815,37 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 80,
+     "line": 83,
      "text": "armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 83,
+     "line": 86,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 86,
+     "line": 89,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 89,
+     "line": 92,
      "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 91,
+     "line": 94,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 95,
+     "line": 98,
      "text": "armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
      "binding": "MONSTER_ROLES"
     }
@@ -8749,7 +8923,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 96,
+     "line": 99,
      "text": "mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
      "binding": "MONSTER_ROLES"
     }
@@ -8814,7 +8988,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 133,
+     "line": 136,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8878,13 +9052,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 135,
+     "line": 138,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 136,
+     "line": 139,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8943,7 +9117,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 138,
+     "line": 141,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9005,7 +9179,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 139,
+     "line": 142,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -9067,13 +9241,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 141,
+     "line": 144,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 142,
+     "line": 145,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9970,7 +10144,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 40,
+     "distinct": 45,
      "low": 0.06,
      "high": 1
     }
@@ -10214,7 +10388,7 @@
       "trophy"
      ],
      "rows": 320,
-     "distinct": 79,
+     "distinct": 80,
      "low": 0.0005,
      "high": 0.05
     }
@@ -11891,7 +12065,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 205,
+     "line": 220,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -11966,7 +12140,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 205,
+     "line": 220,
      "text": "muster_barrows: ground({ refStep: 590, floorStep: 575, topStep: 700, refHeld: 610, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -12360,69 +12534,87 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 192,
+     "line": 196,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 254,
+     "line": 258,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 313,
+     "line": 317,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 558,
+     "line": 600,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 553,
+     "line": 595,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 327,
+     "line": 331,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 367,
+     "line": 383,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 394,
+     "line": 424,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 425,
+     "line": 467,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 490,
+     "line": 532,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 576,
+     "line": 621,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 358,
+     "text": "[opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),",
+     "binding": "SWORD_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 397,
+     "text": "[opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),",
+     "binding": "CLUB_NODES"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 441,
+     "text": "[opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),",
+     "binding": "AXE_NODES"
     }
    ],
    "definition": "each node's effects at full size: step rows in the build slice (x ramp, the net clamped at buildStepsMax x ramp) and move modifiers (numbers x ramp, tiles whole); a vow +18 on its condition and -8 always; and the engine pieces (lane/talent-effects): a heal over time, healing received, per-target output, more targets, a status's strength, mana returns, reactions with their clocks and caps, unit rules (src/data/talents.js MOD_FX, REACT_ON / REACT_DO, UNIT_FIELDS; src/core/hunt/heal-rules.js, reactions.js) (src/data/talents.js, src/core/talents.js grantsOf)",
@@ -17192,6 +17384,10 @@
    "why": "a permille to share conversion (/ 1000) in the load check of the run pay against its mode"
   },
   {
+   "at": "src/data/how-to-play.js#HELP_NOTES",
+   "why": "unit conversions for the help text (ms an hour, minutes an hour): the numbers it shows are STAMINA_MAX_MS and RULED.hunt.blockMin"
+  },
+  {
    "at": "src/data/bosses.js#bossRole",
    "why": "a ppm to share conversion (/ 1e6)"
   },
@@ -17667,12 +17863,14 @@
    "keys": [
     "entryLevel",
     "floorStep",
+    "formulaStep",
     "gearLevel",
     "ladderTier",
     "refHeld",
     "refKillsHead",
     "refLevel",
     "refStep",
+    "rowsKillsHead",
     "topStep"
    ],
    "bindings": 1
@@ -19767,15 +19965,17 @@
     "circle_of_renewal",
     "fireball",
     "flame_strike",
+    "gash",
     "greater_mend",
     "hoarfrost",
     "power_strike",
     "protective_ward",
     "rend",
     "shelter",
+    "stagger",
     "turning_cut"
    ],
-   "typed": 10,
+   "typed": 12,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {
@@ -19860,13 +20060,14 @@
     "cdMs",
     "effects",
     "mana",
+    "manaOnCastPm",
     "manaPm",
     "ms",
     "outPm",
     "pm",
     "·"
    ],
-   "typed": 31,
+   "typed": 35,
    "bindings": 1
   },
   "src/data/talents.js#CLUB_NODES": {
@@ -19882,7 +20083,7 @@
     "pm",
     "·"
    ],
-   "typed": 17,
+   "typed": 23,
    "bindings": 1
   },
   "src/data/talents.js#AXE_NODES": {
@@ -19893,11 +20094,12 @@
     "cdPm",
     "effects",
     "ms",
+    "outPm",
     "pm",
     "statusMs",
     "statusPm"
    ],
-   "typed": 16,
+   "typed": 24,
    "bindings": 1
   },
   "src/data/talents.js#RANGED_NODES": {
@@ -19955,7 +20157,7 @@
     "statusPm",
     "·"
    ],
-   "typed": 40,
+   "typed": 41,
    "bindings": 1
   },
   "src/core/hunt/talent-rows.js#NEAR_FALL_PM": {

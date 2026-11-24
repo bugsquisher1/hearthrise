@@ -107,7 +107,11 @@ export const SWEEP_NOT_LEVERS = Object.freeze({
   'gear-steps.js': [[/^GEAR_STEPS\.dominanceMaxPm$/, 'a Trait guard (GS-3, lever gear.trait-budget), not XP: the sweep reads "MaxPm" as xp']],
   /* the Danger scale's coin level (lane/econ-levers): one global dial on the scale's own pay, registered as lever danger.coin-level and read
      only by src/core/hunt/danger.js dangerDial beside the depth ratio, which the classed carriers of a ground's or a tier's coin never reach */
+  /* a scale ground's own coin level (lane/scale-early-grounds, lane/scale-grounds-2): measured by tools/new-ground.mjs so its reference hour is
+     the wage at its refLevel, registered on lever danger.ref-step's row, read only by src/core/hunt/danger.js coinLevelOf in PAY.coinPm's
+     place; a bridge until 27 stage 9 writes coin in hours */
   'danger.js': [[/^PAY\.coinPm$/, 'the scale\'s coin level (lever danger.coin-level, levers.mjs), read by danger.js dangerDial, not a ground or tier coin dial'],
+    [/^DANGER_GROUNDS\.\*\.coinPm$/, 'a scale ground\'s own coin level in PAY.coinPm\'s place (lever danger.ref-step\'s row), measured onto the wage, read by danger.js coinLevelOf'],
     [/^GEAR_STEPS\.dominanceMaxPm$/, 'gear-steps.js GEAR_STEPS re-exported by danger.js (lane/r9), the same Trait guard as in gear-steps.js']],
   /* a boss kind is its base role (the elite) times its encounter's row: the boss side of the monster stat formula, as STAT_FORMULA above is
      the monster side. What a boss pays is what it is written to, not a lever a player stacks (levers.mjs registers it as mon.boss-kinds) */

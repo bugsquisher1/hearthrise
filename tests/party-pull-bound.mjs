@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMain } from './_is-main.mjs';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { withdrawScale } from './_tier-path.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
 import { plant } from './hunt-core/fixtures/h1.js';
@@ -100,6 +101,7 @@ async function main() {
     let got;
     try {
       const { db } = await bootReplay();
+      await withdrawScale(db, ['mill_cellar']);
       got = await play(db, 'mill_cellar', p.root);
     } finally { p.done(); }
     const hit = got.some((x) => /kills_over/.test(x));
@@ -115,6 +117,8 @@ async function main() {
   /* One replay a ground: the fixture's heroes are one party, and its hunt is its ground. */
   for (const hunt of GROUNDS) {
     const { db } = await bootReplay();
+    /* a party's Normal pull on the tier path: both grounds joined the Danger scale (lane/scale-early-grounds), withdrawn in this database */
+    await withdrawScale(db, [hunt]);
     problems.push(...await play(db, hunt));
   }
   problems.push(...await selfCheck());

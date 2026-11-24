@@ -764,7 +764,11 @@ async function smoke({ shots, viewport, touch, site }) {
     step('skip 10 min: the real tick settled it, no backlog left', skipped.moved === 1 && skipped.lagMs < 100000, JSON.stringify(skipped));
     const after = await sql(`select level_xp::bigint as xp from public.player_state limit 1`);
     const kills = await sql(`select count(*)::int as rows, coalesce(sum(xp), 0)::bigint as xp, coalesce(sum(gold), 0)::bigint as gold from public.player_ledger where kind = 'combat'`);
-    step('the hero FOUGHT through the skip (600+ Level XP in 10 min; a skip of the clocks alone idles)', Number(after.xp) >= Number(before.xp) + 600, JSON.stringify({ before, after, kills }));
+    /* (lane/scale-early-grounds) the Cellar is on the Danger scale: a kill pays a share of the hero's own Level by the hours a Level takes, so
+       10 minutes at Level 1 to 3 is a few hundred Level XP, not the old rows' 600; the claim is that it fought (a skip of the clocks alone
+       idles): Level XP, combat rows and their coin all moved */
+    step('the hero FOUGHT through the skip (Level XP, kills and their coin in 10 min; a skip of the clocks alone idles)',
+      Number(after.xp) > Number(before.xp) && Number(kills.rows) > 0 && Number(kills.gold) > 0, JSON.stringify({ before, after, kills }));
     console.log('       ' + JSON.stringify({ before, after, kills, pushed: world.pushed() }));
     await p.page.waitForFunction(() => /\d/.test(document.querySelector('[data-hs-widget="analyzer"]')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
     await p.shot('after-skip');

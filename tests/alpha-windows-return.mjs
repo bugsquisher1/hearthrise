@@ -249,7 +249,8 @@ async function checks(overrides, shots, opts) {
       const dressed = (e) => {
         e.state = Object.assign({}, e.state, { level_xp: L8, active_kind: 'idle', active_id: null });
         e.equipment = Object.assign({}, e.equipment, { helmet: 'bronze_helm', body: 'bronze_platebody' });
-        e.hunt = Object.assign({}, e.hunt, { hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        /* (lane/scale-early-grounds) the Thicket plays the Danger scale and no tier: the hero is back from the Sewer, a tier ground at Level 8 */
+        e.hunt = Object.assign({}, e.hunt, { hunt_id: 'millrace_sewer', ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
         e.hunt_tier = { picks: {}, playing: null };
         /* one hero on the account: a second past the first hour would already know (the card is `knowledge`, and the stub answers every slot with this hero) */
         e.hero_slots = [0];
@@ -260,7 +261,7 @@ async function checks(overrides, shots, opts) {
         for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
         await page.waitForTimeout(300);
         const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
-        if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
+        if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → The Sewer → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
         if (shots) await shot(page, 'alpha-1440x900-first-dangerous');
         if (!(await openWin(page, 'h', 'hunts'))) fails.push('AW-99 Hunts did not open');
         else {
@@ -268,12 +269,12 @@ async function checks(overrides, shots, opts) {
           const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] [data-coach-ring]'))
             .map((e) => (e.getAttribute('data-hunt') || '') + ':' + (e.getAttribute('data-tier') || '')));
           const onLine = await ringed();
-          if (JSON.stringify(onLine) !== '["meadowbrook_thicket:"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(onLine) + ', want the Thicket\'s line');
+          if (JSON.stringify(onLine) !== '["millrace_sewer:"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(onLine) + ', want the Sewer\'s line');
           if (shots) await shot(page, 'alpha-1440x900-first-dangerous-hunts');
-          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]');
+          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="millrace_sewer"]');
           await page.waitForTimeout(400);
           const onTier = await ringed();
-          if (JSON.stringify(onTier) !== '["meadowbrook_thicket:dangerous"]') fails.push('AW-99 on the Thicket\'s page the ring stands on ' + JSON.stringify(onTier) + ', want its Dangerous press');
+          if (JSON.stringify(onTier) !== '["millrace_sewer:dangerous"]') fails.push('AW-99 on the Sewer\'s page the ring stands on ' + JSON.stringify(onTier) + ', want its Dangerous press');
           if (shots) await shot(page, 'alpha-1440x900-first-dangerous-tier');
         }
         if (errors.length) fails.push('AW-99 console errors: ' + errors.join(' | ').slice(0, 300));

@@ -36,7 +36,7 @@ check('DC-1', parseDanger({ risk: 'reckless', held: {}, playing: null }).risk ==
   'an unknown Risk reads null, a missing section reads null');
 
 // DC-2
-check('DC-2', onScale(M) && !onScale('mill_cellar') && depthOf('mill_cellar', 600) === null, 'only the scale grounds read a depth');
+check('DC-2', onScale(M) && !onScale('the_burning_tower') && depthOf('the_burning_tower', 600) === null, 'only the scale grounds read a depth');
 check('DC-2', depthOf(M, band.floorStep).depth === 1 && depthOf(M, band.topStep).depth === DEPTHS && depthOf(M, band.topStep).of === 20
   && depthOf(M, 0).depth === 1 && depthOf(M, 4000).depth === DEPTHS && depthOf(M, band.refStep).depth > 1 && depthOf(M, band.refStep).depth < DEPTHS,
   'floor is Depth 1, top Depth 20, middle between, held to the band: ' + JSON.stringify(depthOf(M, band.refStep)));

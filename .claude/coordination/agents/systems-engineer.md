@@ -2,6 +2,11 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-23 · lane/scale-early-grounds step 1 (the scale view only for a fight on the scale)
+1. *A view keyed by the ground, not the fight, is a hidden mode switch.* `scaleItems` answered by ground id, so a tier fight on a scale ground fought a frozen cached copy; the fix keys it on the same plan the world opens by (`combat-sim.js planOf`), one function for both, so the two can't drift.
+2. *Decide once per start point, carry it.* The browser asked `scaleItems` at three sites; now `start()` decides and the swings and slot tester read `s.items`. Fewer doors, one answer.
+3. *Touching combat-sim.js selects ~200 tests in guards-for* (version-stamp.mjs names it). Run the ones whose outcome the change can move (the tier-path class, the engine pins, the readers' guards) and let GitHub judge the rest; at 99% CPU the full list is hours.
+
 ## 2026-11-23 · lane/ci-reds-client-1123 (next run 45189052837, balance and screen side)
 1. *A data generator moved, the screen tests did not.* The gear formula (c0c39be28) changed leather and bronze numbers; hunt-summary T1/T5, AW-98 and AW-21 still quoted the hand tables. Same class across three files: sweep every literal that quotes a derived stat when a formula lands.
 2. *G14 reads model.mjs, not levers.mjs.* Two lever registries exist: the BL-2 registry (levers.mjs, numeric classes) already claimed the four strangers; the balance guard's scan needs a carrier + LEVER_KEYS + a stack class in model.mjs. A field the sweep catches by accident ("MaxPm" reads as xp) is still worth a carrier when it is a real drop lever.
@@ -5427,3 +5432,11 @@ Merged in order: lane/c-tower-all b1e4ab021, lane/a-next-steps ded1b94a6, lane/b
 3. *The edit hook is the cheapest guard.* mutant-anchors and typecheck caught three stale anchors and every missing import the moment they happened; GS-6 caught a Trait NAME in a comment (it greps raw text for names, comments included).
 4. *The free rung never depletes.* Bronze Arrows (ammoPerShot 0) never run low, so a running-low Trait needs a depleting shot in any real-settle test.
 5. *Stop a Lab run before merging the set under it.* Each v1-climb invocation loads the tree when it starts; a merge between two runs of one comparison measures two trees.
+## 2026-11-23 · lane/scale-early-grounds (27 stage 6 sample: the Mill Cellar and the Thicket on the Danger scale)
+1. *A band's company is AT a Level; under Level 20 the Lab must hold it there.* A measuring day grows a Level 3 four to Level 10, and the Cellar's hunt ends at 5 within the hour, so the first cell read "held null". `--hold-level` (play-ground.mjs holdLevel, cell.mjs, v1-climb, new-ground, held-four) pays each window and never carries it; C7 reads the held Level's table.
+2. *The wage is nearly flat in Level; the old rows' coin is not.* wage(3) is 13,035 an hour, a Giant Rat's coin row 1 gold: on the scale the kit (sized in wage hours, about 4,200 a hero-hour at any Level) cost the Cellar's four 4.2 times its pay. A ground's coin level (`coinPm`, measured, linear in coin and not in loot) is the bridge until coin is written in hours; the first hour now earns the wage, and town prices are still the old economy's (CONFLICTS).
+3. *A field that meant two things needed a third split.* The depth-reading-fix lane split refHeld (the reading's middle) from refStep (the anchor) and left the pay on the anchor. On the Thicket the reference four holds 40 own steps over it and earned 1.36 of the hours table: the pay reads where refKillsHead and the coin level were measured (payRowOf). Muster moved with it (0.88, coinPm 7000). The anchors' offset is stage 2's (reference times by Level).
+4. *Guards wrote "a real number is over 0" where 0 is a real tier.* GS-5 (gearLevel > 0), GSF-7 (iL > 0), gen-store-prices (gearLevel >= 1 as the wage step: K-5 says refLevel anyway) and the band rule's floor (lowest seed - margin went negative) each refused tier 0, the starting kit.
+5. *An "off the scale" example names a ground that will not move.* gold-estimate's JS and SQL self-checks and danger-client DC-2 used mill_cellar as the off-scale ground; the Tower never joins the scale.
+6. *Restructure around an anchor, again.* dangerDial's coin line and gapOf's return are mutant anchors: the coin level multiplies after the anchored line (only when the row has one, so every other dial is the same to the bit) and the pay row is swapped on the line above gapOf's return.
+7. *Handoffs:* HANDOFFS 2026-11-23 (scale-early-grounds): coin levels and the pay at the hold for the roles lane, the tier map for gear-phase-b, the stance pick on the Cellar for first-hour-rewrite.

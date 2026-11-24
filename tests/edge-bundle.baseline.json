@@ -483,6 +483,11 @@
         "bytes": 3872896,
         "on": "2026-11-24",
         "why": "lane/gear-phase-b merged over the skills clock: the ladder past Dawnsteel (Cobalt, Wolfram, base drops on every home, the made jewels and cloaks) and 12-targets 8.3's grid (named twins, sourceLevelOf) reach the settle's catalogue"
+      },
+      {
+        "bytes": 3873060,
+        "on": "2026-11-24",
+        "why": "lane/gear-phase-b: the Party window lines re-measured on the merged tree reach the edge through the ground packs (+164 B)"
       }
     ]
   }

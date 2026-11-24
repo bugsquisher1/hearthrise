@@ -310,6 +310,12 @@
         "gzipBytes": 958924,
         "on": "2026-11-24",
         "why": "three wave-3 roads (299 nodes) and four statuses shown to the bar picker (lane/roads-wave3)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958946,
+        "on": "2026-11-24",
+        "why": "Bold breakOff rule in danger.js (lane/designer-reads-1123)"
       }
     ]
   }

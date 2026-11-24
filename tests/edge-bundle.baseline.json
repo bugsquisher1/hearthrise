@@ -448,6 +448,11 @@
         "bytes": 3808616,
         "on": "2026-11-23",
         "why": "lane/roads-wave3 on the merged set: src/data/talents.js gains Parry, Stagger and Gash roads (30 nodes) and two town rows; abilities and statuses comments"
+      },
+      {
+        "bytes": 3810103,
+        "on": "2026-11-24",
+        "why": "+1,487 B: Bold fights every pull (breakOff, breaksOff) and the bottom-depth hold (lane/designer-reads-1123)"
       }
     ]
   }

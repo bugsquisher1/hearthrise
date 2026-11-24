@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f00692cf7b99bec7",
+ "authored": "e2d3c38a94848faf",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -7948,7 +7948,7 @@
     {
      "file": "src/data/danger.js",
      "line": 274,
-     "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady' }),",
+     "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
    ],
@@ -8011,7 +8011,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 295,
+     "line": 301,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }

@@ -582,7 +582,8 @@ const CASES = {
       if (want !== 1) kept++;
       for (const s of [0, row.floorStep, row.refStep, row.topStep]) {
         const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, s))));
-        const base = (n0 / pull) * M.danger.gapPayRatio(Math.min(PAY.gapMax, row.topStep - row.refStep, s - row.refStep), COIN) * PAY.coinPm;
+        /* at the ground's own coin level (lane/scale-early-grounds: DANGER_GROUNDS coinPm, danger.js coinLevelOf), else PAY.coinPm */
+        const base = (n0 / pull) * M.danger.gapPayRatio(Math.min(PAY.gapMax, row.topStep - row.refStep, s - row.refStep), COIN) * (Number.isInteger(row.coinPm) ? row.coinPm : PAY.coinPm);
         for (const h of [1, 4]) {
           const got = M.danger.dangerDial(g, s, h).coinPm / base;
           if (Math.abs(got - want) > 1e-9) return gid + ' at step ' + s + ' (' + h + ' heroes) pays a kill x' + got + ' of its row\'s coin, its rows are kept at x' + want;

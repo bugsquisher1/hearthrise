@@ -117,7 +117,7 @@ const CASES = {
     if (!(R.rare.everyHours < R.very_rare.everyHours)) return 'a Very Rare is not rarer than a Rare';
     if (JSON.stringify(R.plain.band) !== JSON.stringify(M.LB.BAND_TARGETS.scarce.hours)) return 'Plain is not the Scarce band';
     for (const [gid, row] of Object.entries(M.D.DANGER_GROUNDS)) {
-      /* the reference company's hold (src/core/bands.js refHeldOf: a formula ground's refStep is the pay's anchor, its four holds over it) */
+      /* the reference company's hold at the band's grain (src/core/bands.js refHeldOf: refHeld ?? refStep, the depth reading's middle) */
       const held = M.B.refHeldOf(gid);
       const d1 = M.DR.depthRarePm(gid, row.floorStep), dTop = M.DR.depthRarePm(gid, row.topStep), dRef = M.DR.depthRarePm(gid, held);
       if (M.DR.depthOf(gid, row.floorStep) !== 1 || M.DR.depthOf(gid, row.topStep) !== M.D.DEPTHS) return gid + ': the band does not read depth 1 to ' + M.D.DEPTHS;

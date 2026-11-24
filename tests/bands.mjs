@@ -65,8 +65,8 @@ if (process.argv.includes('--mutate')) {
   ['tests/sustain.mjs', 'CONTROL: the clean plant', []],
   ['tests/bands.mjs', 'the reading\'s middle is the pay anchor, not the reference hold', [['src/core/bands.js', 'm = g ? refHeldOf(groundId) : null;', 'm = g ? g.refStep : null;']]],
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
-  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 525, topStep: 700, refHeld: 610,']]],
-  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 575, topStep: 700,']]],
+  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000,', 'refStep: 610, floorStep: 525, topStep: 700, coinPm: 7000,']]],
+  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115,', 'refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125,']]],
   /* (lane/monster-roles-ford-wings) the Flooded Wing's middle at the pay's grain (450 for a hold of 453.5): its reference four reads 2 depths deep */
   ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 465, refHeld: 455, formulaStep: 500,', 'topStep: 465, formulaStep: 500,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
@@ -189,7 +189,7 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
 const BD8_PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   /* a formula ground's reading reads its reference four's MEASURED hold (its pin's MID evidence) at the band's grain: refHeld where that is
-     not refStep (Muster: refStep is the chosen anchor; the Flooded Wing: 453.5 is 450 to the pay's grain), refStep where it is
+     not refStep (the Thicket 113.2, the Mill Cellar 55.2, the Flooded Wing 453.5: 110, 60 and 450 to the pay's grain), refStep where it is
      (lane/monster-roles-ford-wings: the Ford holds on its anchor, the Bone Wing's refStep is cut from its hold) */
   if (g.monsters === 'formula') {
     const ev = BD8_PINS[id] && Array.isArray(BD8_PINS[id].evidence) ? BD8_PINS[id].evidence[0] : null;

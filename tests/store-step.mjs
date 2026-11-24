@@ -38,8 +38,8 @@ import { DANGER } from '../src/data/danger.js';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const MUSTER = 'muster_barrows';
 const LEVEL = 60;
-/* (lane/scale-early-grounds) 800, not 760: the store's depth is read from where the reference company holds (Muster's refHeld 610, not its
-   anchor 590), so 760 opened only 10 steps past the pay ceiling, a price difference the whole gold rounds away (the gap_max mutant escaped) */
+/* (lane/scale-early-grounds) 800, not 760: the store's depth is read from where the reference company holds (Muster's refStep 610, not its
+   monsters' anchor 590), so 760 opened only 10 steps past the pay ceiling, a price difference the whole gold rounds away (the gap_max mutant escaped) */
 const DEEP = 800;
 const FOOD = 'salted_shrimp';
 /* every weapon and armor piece item Level 60 (tests/danger-db.mjs REF_KIT): at 760 it falls back rather than dying in its first pull */

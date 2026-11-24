@@ -83,9 +83,11 @@ if (arg('ref')) {
   reports = { floor: run('floor', entry, 'low'), top: run('top', top, 'bis'), ref: run('ref', mid, 'mid') };
 }
 
-/* the scale ground one tier under this one (27 K-6: its top must reach this floor), by the rows' gear base */
-const prev = DANGER_GROUNDS[G] ? Object.keys(DANGER_GROUNDS).find((k) => DANGER_GROUNDS[k].gearLevel === DANGER_GROUNDS[G].gearLevel - GEAR_STEPS.tierSteps) : null;
-const abs = DANGER_GROUNDS[G] ? { band: bandAbs(G), prevTopPm: prev && bandAbs(prev) ? bandAbs(prev).topPm : null, refLevel: DANGER_GROUNDS[G].refLevel, sustain: SUSTAIN } : null;
+/* the scale grounds one tier under this one (27 K-6: each one's top must reach this floor; tests/bands.mjs BD-7), by the rows' gear base, the
+   lowest top read; a lower ground of base tier 0 is not judged (29 7.5: out of the starting kit the handover is Levels, lane/scale-grounds-2) */
+const prevTops = DANGER_GROUNDS[G] ? Object.keys(DANGER_GROUNDS).filter((k) => DANGER_GROUNDS[k].gearLevel === DANGER_GROUNDS[G].gearLevel - GEAR_STEPS.tierSteps
+  && DANGER_GROUNDS[k].gearLevel >= GEAR_STEPS.tierSteps && bandAbs(k)).map((k) => bandAbs(k).topPm) : [];
+const abs = DANGER_GROUNDS[G] ? { band: bandAbs(G), prevTopPm: prevTops.length ? Math.min(...prevTops) : null, refLevel: DANGER_GROUNDS[G].refLevel, sustain: SUSTAIN } : null;
 /* a ground on the monster formula keeps its refStep (the monsters' and the pay's anchor, chosen by hand) and pins the MID four's hold as
    refHeld, the depth reading's middle point (tools/lib/danger-band.mjs, lane/depth-reading-fix) */
 const anchorStep = anchorOf(DANGER_GROUNDS[G]);

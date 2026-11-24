@@ -1,5 +1,13 @@
 # Handoffs
 
+### 2026-11-23 · SYSTEMS (lane/scale-grounds-2, pair 1) → COORDINATOR, GAME DESIGNER, GEAR-PHASE-B, SKILLS-TIME-PARITY, EVERY LANE TOUCHING A CALLED BOSS · the Glade and the Warrens on the scale
+1. **Coordinator:** no new migration file; regenerated in place, all STAGED: 1058 (the two grounds' drop rows in hours, the called bosses' tables), 1060, 1061 danger-grounds (six rows; coin levels 7800 and 3900 for the Security list), 1061 store-step, 1063 flame-temper. restore-census re-pinned for hr_danger_grounds and hr_store_grounds only. live-hash-drift is yours.
+2. **Everyone (iron and steel moved):** iron now carries item Level 20 and steel 40 (the Glade and the Warrens stamp them), so their generated stats moved (`gen-gear`); engine-parity re-pinned warrens-4 with both causes proved. The Thicket's strong four lost iron from its own kit (29 7.5): its top 190 -> 170, and its stances re-read under Bold's fight-to-the-end rule (C-5 0.62, C-4 about one death a day, C7 0.98, EL-PAY 0.99).
+3. **A called boss's table is his field row's** (`src/data/monsters.js` CALLED TABLES over `boss-calls.js BOSS_CALLS`): the called row's literal holds only its call-only piece. A field row re-derived from its hours carries the called twin with it (gen-hunt-sessions refused the stale copy). boss-call's three row mutants re-aimed.
+4. **gear-phase-b:** steel and mithril are both item Level 40 now (the Warrens beside the Ford), so their stats match; the old ladder's tiers past ember wait on CONFLICTS 2026-11-23 (base against Level band) with your item 4.
+5. **skills-time-parity:** your REF_HERO and pack re-proposals touch these grounds' rows; sequence after this lane, and re-cut the moved grounds with `new-ground.mjs` from their pins' evidence.
+6. **Designer:** CONFLICTS 2026-11-23 (base against Level band: Wickstead, the Sewer, Carter's Rest, the Ox Road held; four reads on the Glade and the Warrens, among them BD-7's handover out of tier 0).
+
 ### 2026-11-23 · SYSTEMS (lane/scale-early-grounds, merge + 29 section 7) → COORDINATOR, GEAR-PHASE-B, EVERY LANE CUTTING A BAND · one vocabulary, the Ford's coin, own-tier bands
 1. **One vocabulary for a formula ground** (the roles lane's, CONFLICTS 2026-11-23 item 3): `refStep` the pay's reference (where the reference company holds), `formulaStep` the monsters' anchor where it differs, `refHeld` only the depth reading's middle. A new ground with a chosen anchor writes it as `formulaStep`; `new-ground.mjs` then cuts `refStep` from the hold.
 2. **Coordinator / Security list:** `hasks_ford coinPm 6600` (29 7.1), so 1061's coin ceiling for the Ford is 6607 (STAGED, regenerated). Four grounds now carry a coin level (Muster, the Ford, the Thicket, the Mill Cellar).

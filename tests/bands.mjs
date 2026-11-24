@@ -25,7 +25,9 @@
 //   BD-6  ONE DEPTH: depthAt reads Depth 1 at the floor and DEPTHS at the top, never falls with the step, stays in 1..DEPTHS, and is an even
 //         cut in absolute steps (the reference hold sits at its absolute share of the band); the browser's danger-sections.js depthOf and
 //         the edge's drop-rate.js depthOf read it for every step of every band
-//   BD-7  27 K-6, THE HANDOVER: a scale ground one tier over another starts at or under where the lower one tops out
+//   BD-7  27 K-6, THE HANDOVER: a scale ground one tier over another starts at or under where the lower one tops out. Judged from a
+//         lower ground of base tier 1 or more (29-tuning-pass.md 7.5 read for K-6 as for C-2 and V4; lane/scale-grounds-2): out of
+//         tier 0, the starting kit, both companies wear that kit and the handover is the Levels between the bands, not a strength skip
 //   BD-8  THE READING'S MIDDLE IS A HOLD (lane/depth-reading-fix, 12-targets 3.1a; at the band's grain, lane/monster-roles-ford-wings): a
 //         formula ground's middle (refHeld, else refStep) is its pin's MID four's hold to BAND_RULE.topTo; a ground carrying refHeld (its
 //         refStep is the chosen anchor, not where the reference four holds), a whole step inside its band; refHeldOf reads it, else refStep
@@ -70,7 +72,9 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'the reading\'s middle is the pay anchor, not the reference hold', [['src/core/bands.js', 'm = g ? refHeldOf(groundId) : null;', 'm = g ? g.refStep : null;']]],
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
   ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000,', 'refStep: 610, floorStep: 525, topStep: 700, coinPm: 7000,']]],
-  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115,', 'refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125,']]],
+  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55,', 'refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135,']]],
+  /* (lane/scale-grounds-2) 27 K-6: the strong company leaves in its own base, so the Glade's top (Level 31 in iron) falls under the Warrens' floor */
+  ['tests/bands.mjs', 'the strong company never wears the tier ahead (the handover)', [['src/data/bands.js', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 0 });']]],
   /* (lane/monster-roles-ford-wings) the Flooded Wing's middle at the pay's grain (450 for a hold of 453.5): its reference four reads 2 depths deep */
   ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 465, refHeld: 455, formulaStep: 500,', 'topStep: 465, formulaStep: 500,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
@@ -196,7 +200,7 @@ ok(B.depthAt('nowhere', 10) === null && B.absPmOf('nowhere', 10) === null && B.b
 /* BD-7 */
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   for (const [pid, p] of Object.entries(DANGER_GROUNDS)) {
-    if (p.gearLevel !== g.gearLevel - T) continue;
+    if (p.gearLevel !== g.gearLevel - T || p.gearLevel < T) continue;
     ok(B.bandAbs(pid).topPm >= B.bandAbs(id).floorPm, 'BD-7 ' + pid + ' tops out at ' + B.bandAbs(pid).topPm + ', under ' + id + '\'s floor ' + B.bandAbs(id).floorPm);
   }
 }

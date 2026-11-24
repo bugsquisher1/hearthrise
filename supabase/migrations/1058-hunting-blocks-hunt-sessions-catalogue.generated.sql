@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: dd1b3f05cb1ea7cf955f054034a7363222d2cfa562fa3b9266c2484af4672af1
+--   digest: 11c9e6eb8fdc59d5f592d281bcd2d52ca5e326575d144f2d4349bdb833ca647f
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   636 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
@@ -979,7 +979,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('rat_king_called', 0, 0, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1,"kingstooth":1}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
-  ('rook_poacher', 40, 536, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"oak_crossbow":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1}'::jsonb),
+  ('rook_poacher', 40, 536, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"oak_crossbow":1,"rooks_whistle":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1}'::jsonb),
   ('salamander', 17, 81, '{"dragon_scale":1,"coal":1,"bones":1,"studded_gloves":1}'::jsonb),
   ('scarecrow', 5, 33, '{"wheat":1,"normal_log":1,"pumpkin":1,"bronze_gauntlets":1}'::jsonb),
   ('shadow_creeper', 190, 760, '{"shadow_thread":1,"silk_thread":1,"void_chitin":1,"shadowsilk_cape":1}'::jsonb),
@@ -2245,7 +2245,7 @@ delete from public.hr_boss_calls;
 -- the price's CHECK is restated below; it goes first, so a row the new one allows (a fight at 0 gold, Tyler 2026-11-20) is never judged by the old
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level, boss_id, wins) values
-  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 0, 150000, 100, '[{"item":"big_bones","ppm":1000000,"band":"common"},{"item":"gold_ore","ppm":500000,"band":"common"},{"item":"goblin_totem","ppm":300000,"band":"common"},{"item":"coppercaps_tallow","ppm":150000,"band":"uncommon"},{"item":"steel_platebody","ppm":44000,"band":"scarce"},{"item":"boarhide_body","ppm":44000,"band":"scarce"},{"item":"scholar_body","ppm":44000,"band":"scarce"},{"item":"coppercap_shield","ppm":44000,"band":"scarce"},{"item":"war_crown","ppm":14100,"band":"rare"},{"item":"willow_wand","ppm":11400,"band":"rare"},{"item":"willow_spellbook","ppm":11400,"band":"rare"},{"item":"willow_staff","ppm":11400,"band":"rare"},{"item":"verdigris_cake","ppm":11400,"band":"rare"},{"item":"coppercaps_cauldron","ppm":1530,"band":"trophy"},{"item":"cauldron_lid","ppm":8000,"band":"rare"}]'::jsonb, 52, 'chief_coppercap', 10),
+  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 0, 150000, 100, '[{"item":"big_bones","ppm":1000000,"band":"common"},{"item":"gold_ore","ppm":480000,"band":"common"},{"item":"goblin_totem","ppm":288000,"band":"common"},{"item":"coppercaps_tallow","ppm":144000,"band":"uncommon"},{"item":"steel_platebody","ppm":42200,"band":"scarce"},{"item":"boarhide_body","ppm":42200,"band":"scarce"},{"item":"scholar_body","ppm":42200,"band":"scarce"},{"item":"coppercap_shield","ppm":42200,"band":"scarce"},{"item":"war_crown","ppm":13500,"band":"rare"},{"item":"willow_wand","ppm":11000,"band":"rare"},{"item":"willow_spellbook","ppm":11000,"band":"rare"},{"item":"willow_staff","ppm":11000,"band":"rare"},{"item":"verdigris_cake","ppm":11000,"band":"rare"},{"item":"coppercaps_cauldron","ppm":1400,"band":"trophy"},{"item":"cauldron_lid","ppm":8000,"band":"rare"}]'::jsonb, 52, 'chief_coppercap', 10),
   ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 0, 120000, 100, '[{"item":"rat_tail","ppm":1000000,"band":"common"},{"item":"bones","ppm":1000000,"band":"common"},{"item":"knotted_tails","ppm":150000,"band":"uncommon"},{"item":"crown_shard","ppm":14000,"band":"rare"},{"item":"kingsgrate","ppm":16000,"band":"rare"},{"item":"rat_kings_knot","ppm":14000,"band":"rare"},{"item":"rat_kings_crown","ppm":1410,"band":"trophy"},{"item":"kingstooth","ppm":10000,"band":"rare"}]'::jsonb, 25, 'rat_king', 10);
 alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
   alter column boss_level set not null, alter column boss_id set not null, alter column wins set not null;
@@ -2721,7 +2721,6 @@ begin
     ('mosslight_glade', 'adept_pants', 1),
     ('mosslight_glade', 'bear_claw', 1),
     ('mosslight_glade', 'bear_pelt', 1),
-    ('mosslight_glade', 'boarhide_helmet', 1),
     ('mosslight_glade', 'bone_chips', 1),
     ('mosslight_glade', 'bones', 1),
     ('mosslight_glade', 'brook_bear_tooth', 1),
@@ -2744,10 +2743,8 @@ begin
     ('mosslight_glade', 'raw_wolf_meat', 1),
     ('mosslight_glade', 'rooks_moss_charm', 1),
     ('mosslight_glade', 'rooks_whistle', 1),
-    ('mosslight_glade', 'scholar_helmet', 1),
     ('mosslight_glade', 'sluice_crust', 1),
     ('mosslight_glade', 'snare_wire', 1),
-    ('mosslight_glade', 'steel_helm', 1),
     ('mosslight_glade', 'studded_body', 1),
     ('mosslight_glade', 'studded_boots', 1),
     ('mosslight_glade', 'studded_helmet', 1),

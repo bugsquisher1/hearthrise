@@ -160,6 +160,7 @@ async function load(root) {
     drops: await imp(root, 'src/core/drops.js'),
     vendor: (await imp(root, 'supabase/functions/hr-accrue/catalogue.js')).vendorPriceOf,
     ladders: (await imp(root, 'src/data/gear-tiers.js')).GEAR_LADDERS,
+    scale: (await imp(root, 'src/data/danger.js')).DANGER_GROUNDS,
   };
 }
 
@@ -172,7 +173,7 @@ function rosterOf(ground) {
 const weightOf = (M, it) => (it && it.type === 'armor' && BUILD_SLOTS.includes(it.slot) && M.WEIGHT[it.armourClass]) || null;
 
 /* Why a revealed (Rare / Trophy) row's item may not be revealed, or null: the lucky-finds / field-salvage item rules. */
-function revealWhy(M, tag, mid, m, d) {
+function revealWhy(M, tag, mid, m, d, gid) {
   const it = M.ITEMS[d.id];
   if (!M.live(it)) return tag + ' reveals ' + d.id + ', which declares a dormant effect';
   if (it.hearthfind) return tag + ' reveals ' + d.id + ', a Hearthfind (it has one door, hr_apply\'s hearthfind arm)';
@@ -180,6 +181,10 @@ function revealWhy(M, tag, mid, m, d) {
   if (!M.hasIcon(d.id)) return tag + ' reveals ' + d.id + ', which has no pixel icon (the reveal shows it)';
   if (M.shopSold.has(d.id)) return tag + ' reveals ' + d.id + ', which a listed Shop row sells (a drop it shortcuts)';
   if (M.hfSources.has(mid)) return tag + ' is a Hearthfind source and reveals ' + d.id + ' (two chase rolls on one kill)';
+  /* A DANGER-SCALE GROUND DROPS ONE BASE (12-targets 3.3; lane/scale-grounds-2): a revealed piece is the ground's base item Level, never the
+     next tier's (the tier path's Rare rule below is the old ladder's) */
+  const g = gid && M.scale && Object.prototype.hasOwnProperty.call(M.scale, gid) ? M.scale[gid] : null;
+  if (g && it.slot && Number.isInteger(g.gearLevel)) return it.iL === g.gearLevel ? null : tag + ' reveals ' + d.id + ' at item Level ' + it.iL + ', not the ground base ' + g.gearLevel;
   if (Number.isInteger(it.tier) && !(it.tier === m.tier || it.tier === m.tier + 1)) return tag + ' reveals ' + d.id + ' of tier ' + it.tier + ', not its tier ' + m.tier + ' or one above';
   return null;
 }
@@ -217,7 +222,7 @@ const cases = {
             trophies++;
             if (m.boss !== true) return tag + ' carries a Trophy row (' + d.id + ') and is no boss';
           }
-          if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d); if (why) return why; }
+          if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d, gid); if (why) return why; }
         }
         if (commons < 1 || (commons > 2 && !COMMONS_PENDING.includes(id))) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
         if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
@@ -701,6 +706,8 @@ const dataMutants = [
   { name: 'a boneless body drops bones beside its Hearth fuel', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.splice(2, 0, { id: 'bones', ch: 1, band: 'common' }); } },
   { name: 'an imbuement item on a monster of the wrong tier', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
   /* the loot bands */
+  /* (lane/scale-grounds-2) a scale ground's Rare off its base: Rook's tier-3 helmet back on the Glade, the next tier's piece the one-base rule removed */
+  { name: 'a scale ground reveals the next tier', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'rook_poacher', 'iron_helm').id = 'steel_helm'; } },
   { name: 'a band row loses its band', case: 'loot-structure', edit: (ms) => { delete rowOf(ms, 'gray_wolf', 'bones').band; } },
   { name: 'a misspelt band', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'gray_whelp', 'bronze_boots').band = 'scarse'; } },
   { name: 'an old-model flag on a banded row', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'briarcoat_wolf', 'leather_pants').gear = true; } },

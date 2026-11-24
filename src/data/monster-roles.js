@@ -49,7 +49,10 @@
 // THE SECOND BATCH (lane/monster-roles-ford-wings, 2026-11-23; 20-v030 C2): every monster on the scale's other grounds, each read from its
 // own row's words. Hask's Ford: Banded Pikeman swarm, Fordsunk brute, Ledger Wight CASTER (the first Caster on an open ground), Bannerman
 // WARDER (the first Warder body). The Catacomb wings: Shrouded Pauper swarm, Vault Leech stalker, Bone Wall brute, Night Carter and Keeper
-// Dunn casters (their own Lime Sack and Snuff the Candles are the wind-ups). Krell's Hold's and the Pyre Field's bodies are the next batch.
+// Dunn casters (their own Lime Sack and Snuff the Candles are the wind-ups). THE THIRD (lane/scale-grounds-2), the hunt-grounds.js header's words:
+// the Glade's crow swarm, poacher shooter, vine, sluicer and bear brutes, Rook a warder (the crows know his whistle); the Warrens' scavenger
+// swarm, skulker shooter (Tyler's Goblin Archer), digger and foreman brutes, Chief Coppercap a caster (his Slag Rain). Krell's Hold's and
+// the Pyre Field's bodies are the next batch.
 // Every number below is a lever row (tools/balance-program/levers/world.mjs `roles.*`), MEASURED on the real engine before it shipped
 // (tools/balance-program/redesign/w2/summary.txt).
 //

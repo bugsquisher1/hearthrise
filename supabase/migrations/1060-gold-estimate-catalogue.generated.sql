@@ -9,9 +9,9 @@
 -- WHAT (lane/gold-per-hour, systems-engineer, 2026-11-22; Tyler 2026-11-22): the Hunts window's "About N gold an hour, before supplies"
 -- on each Danger scale ground, computed here, never in the browser (CLAUDE.md §6).
 --   hr_gold_estimate(hunt, risk, level)  internal, the twin of goldEstimate: floor(hr_wage(min(Level, the band top)) x risk permille / 1000),
---                                        to two significant figures, halves up; null under the band floor, off the scale (6 grounds:
---                                        catacomb_bone_wing Levels 165-185, catacomb_flooded_wing Levels 165-185, hasks_ford Levels 45-60, meadowbrook_thicket Levels 5-15, mill_cellar Levels 1-8, muster_barrows Levels 55-75) or for a Risk with no ratio
---                                        (bold 1190, careful 760, steady 1000). Pinned at 252 values (§3).
+--                                        to two significant figures, halves up; null under the band floor, off the scale (8 grounds:
+--                                        catacomb_bone_wing Levels 165-185, catacomb_flooded_wing Levels 165-185, coppercap_warrens Levels 32-50, hasks_ford Levels 45-60, meadowbrook_thicket Levels 5-15, mill_cellar Levels 1-8, mosslight_glade Levels 16-31, muster_barrows Levels 55-75) or for a Risk with no ratio
+--                                        (bold 1190, careful 760, steady 1000). Pinned at 336 values (§3).
 --   SECTION `gold_estimate` (hr_gold_estimate_view): { level, grounds: { <hunt>: { <risk>: gold } } }, every ground that is both in this
 --                                        file and in the server's own scale catalogue (hr_danger_grounds); null with no hero or no ground.
 -- READERS: the client's src/session/gold-estimate-sections.js (the Hunts window's line under the Risk pick). Nothing that moves value.
@@ -40,8 +40,8 @@ end $mig$;
 create or replace function public.hr_gold_estimate(p_hunt text, p_risk text, p_level int)
 returns bigint language plpgsql immutable set search_path = public, pg_catalog as $fn$
 declare
-  v_floor int := case p_hunt when 'catacomb_bone_wing' then 165 when 'catacomb_flooded_wing' then 165 when 'hasks_ford' then 45 when 'meadowbrook_thicket' then 5 when 'mill_cellar' then 1 when 'muster_barrows' then 55 end;
-  v_top int := case p_hunt when 'catacomb_bone_wing' then 185 when 'catacomb_flooded_wing' then 185 when 'hasks_ford' then 60 when 'meadowbrook_thicket' then 15 when 'mill_cellar' then 8 when 'muster_barrows' then 75 end;
+  v_floor int := case p_hunt when 'catacomb_bone_wing' then 165 when 'catacomb_flooded_wing' then 165 when 'coppercap_warrens' then 32 when 'hasks_ford' then 45 when 'meadowbrook_thicket' then 5 when 'mill_cellar' then 1 when 'mosslight_glade' then 16 when 'muster_barrows' then 55 end;
+  v_top int := case p_hunt when 'catacomb_bone_wing' then 185 when 'catacomb_flooded_wing' then 185 when 'coppercap_warrens' then 50 when 'hasks_ford' then 60 when 'meadowbrook_thicket' then 15 when 'mill_cellar' then 8 when 'mosslight_glade' then 31 when 'muster_barrows' then 75 end;
   v_pm int := case p_risk when 'bold' then 1190 when 'careful' then 760 when 'steady' then 1000 end;
   v_step int := greatest(1, least(4000, coalesce(p_level, 1)));
   v_g bigint; v_h bigint := 1;
@@ -65,7 +65,7 @@ begin
   -- plan's Risk and draws the number; it computes nothing.
   if not exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot) then return null; end if;
   v_lv := greatest(1, coalesce(public.hr_level_of(p_user, p_slot), 1));
-  for v_h in select g.hunt_id from public.hr_danger_grounds g where g.hunt_id in ('catacomb_bone_wing', 'catacomb_flooded_wing', 'hasks_ford', 'meadowbrook_thicket', 'mill_cellar', 'muster_barrows') order by g.hunt_id loop
+  for v_h in select g.hunt_id from public.hr_danger_grounds g where g.hunt_id in ('catacomb_bone_wing', 'catacomb_flooded_wing', 'coppercap_warrens', 'hasks_ford', 'meadowbrook_thicket', 'mill_cellar', 'mosslight_glade', 'muster_barrows') order by g.hunt_id loop
     v_out := v_out || jsonb_build_object(v_h, (select jsonb_object_agg(k.risk, public.hr_gold_estimate(v_h, k.risk, v_lv) order by k.risk)
                                                  from unnest(array['bold', 'careful', 'steady']) k(risk)));
   end loop;
@@ -176,6 +176,48 @@ begin
     ('catacomb_flooded_wing', 'steady', 200, 27000::bigint),
     ('catacomb_flooded_wing', 'steady', 4000, 27000::bigint),
     ('catacomb_flooded_wing', 'steady', 5000, 27000::bigint),
+    ('coppercap_warrens', 'bold', 1, null::bigint),
+    ('coppercap_warrens', 'bold', 10, null::bigint),
+    ('coppercap_warrens', 'bold', 40, 18000::bigint),
+    ('coppercap_warrens', 'bold', 54, 19000::bigint),
+    ('coppercap_warrens', 'bold', 55, 19000::bigint),
+    ('coppercap_warrens', 'bold', 60, 19000::bigint),
+    ('coppercap_warrens', 'bold', 63, 19000::bigint),
+    ('coppercap_warrens', 'bold', 70, 19000::bigint),
+    ('coppercap_warrens', 'bold', 74, 19000::bigint),
+    ('coppercap_warrens', 'bold', 75, 19000::bigint),
+    ('coppercap_warrens', 'bold', 76, 19000::bigint),
+    ('coppercap_warrens', 'bold', 200, 19000::bigint),
+    ('coppercap_warrens', 'bold', 4000, 19000::bigint),
+    ('coppercap_warrens', 'bold', 5000, 19000::bigint),
+    ('coppercap_warrens', 'careful', 1, null::bigint),
+    ('coppercap_warrens', 'careful', 10, null::bigint),
+    ('coppercap_warrens', 'careful', 40, 11000::bigint),
+    ('coppercap_warrens', 'careful', 54, 12000::bigint),
+    ('coppercap_warrens', 'careful', 55, 12000::bigint),
+    ('coppercap_warrens', 'careful', 60, 12000::bigint),
+    ('coppercap_warrens', 'careful', 63, 12000::bigint),
+    ('coppercap_warrens', 'careful', 70, 12000::bigint),
+    ('coppercap_warrens', 'careful', 74, 12000::bigint),
+    ('coppercap_warrens', 'careful', 75, 12000::bigint),
+    ('coppercap_warrens', 'careful', 76, 12000::bigint),
+    ('coppercap_warrens', 'careful', 200, 12000::bigint),
+    ('coppercap_warrens', 'careful', 4000, 12000::bigint),
+    ('coppercap_warrens', 'careful', 5000, 12000::bigint),
+    ('coppercap_warrens', 'steady', 1, null::bigint),
+    ('coppercap_warrens', 'steady', 10, null::bigint),
+    ('coppercap_warrens', 'steady', 40, 15000::bigint),
+    ('coppercap_warrens', 'steady', 54, 16000::bigint),
+    ('coppercap_warrens', 'steady', 55, 16000::bigint),
+    ('coppercap_warrens', 'steady', 60, 16000::bigint),
+    ('coppercap_warrens', 'steady', 63, 16000::bigint),
+    ('coppercap_warrens', 'steady', 70, 16000::bigint),
+    ('coppercap_warrens', 'steady', 74, 16000::bigint),
+    ('coppercap_warrens', 'steady', 75, 16000::bigint),
+    ('coppercap_warrens', 'steady', 76, 16000::bigint),
+    ('coppercap_warrens', 'steady', 200, 16000::bigint),
+    ('coppercap_warrens', 'steady', 4000, 16000::bigint),
+    ('coppercap_warrens', 'steady', 5000, 16000::bigint),
     ('hasks_ford', 'bold', 1, null::bigint),
     ('hasks_ford', 'bold', 10, null::bigint),
     ('hasks_ford', 'bold', 40, null::bigint),
@@ -302,6 +344,48 @@ begin
     ('mill_cellar', 'steady', 200, 13000::bigint),
     ('mill_cellar', 'steady', 4000, 13000::bigint),
     ('mill_cellar', 'steady', 5000, 13000::bigint),
+    ('mosslight_glade', 'bold', 1, null::bigint),
+    ('mosslight_glade', 'bold', 10, null::bigint),
+    ('mosslight_glade', 'bold', 40, 17000::bigint),
+    ('mosslight_glade', 'bold', 54, 17000::bigint),
+    ('mosslight_glade', 'bold', 55, 17000::bigint),
+    ('mosslight_glade', 'bold', 60, 17000::bigint),
+    ('mosslight_glade', 'bold', 63, 17000::bigint),
+    ('mosslight_glade', 'bold', 70, 17000::bigint),
+    ('mosslight_glade', 'bold', 74, 17000::bigint),
+    ('mosslight_glade', 'bold', 75, 17000::bigint),
+    ('mosslight_glade', 'bold', 76, 17000::bigint),
+    ('mosslight_glade', 'bold', 200, 17000::bigint),
+    ('mosslight_glade', 'bold', 4000, 17000::bigint),
+    ('mosslight_glade', 'bold', 5000, 17000::bigint),
+    ('mosslight_glade', 'careful', 1, null::bigint),
+    ('mosslight_glade', 'careful', 10, null::bigint),
+    ('mosslight_glade', 'careful', 40, 11000::bigint),
+    ('mosslight_glade', 'careful', 54, 11000::bigint),
+    ('mosslight_glade', 'careful', 55, 11000::bigint),
+    ('mosslight_glade', 'careful', 60, 11000::bigint),
+    ('mosslight_glade', 'careful', 63, 11000::bigint),
+    ('mosslight_glade', 'careful', 70, 11000::bigint),
+    ('mosslight_glade', 'careful', 74, 11000::bigint),
+    ('mosslight_glade', 'careful', 75, 11000::bigint),
+    ('mosslight_glade', 'careful', 76, 11000::bigint),
+    ('mosslight_glade', 'careful', 200, 11000::bigint),
+    ('mosslight_glade', 'careful', 4000, 11000::bigint),
+    ('mosslight_glade', 'careful', 5000, 11000::bigint),
+    ('mosslight_glade', 'steady', 1, null::bigint),
+    ('mosslight_glade', 'steady', 10, null::bigint),
+    ('mosslight_glade', 'steady', 40, 15000::bigint),
+    ('mosslight_glade', 'steady', 54, 15000::bigint),
+    ('mosslight_glade', 'steady', 55, 15000::bigint),
+    ('mosslight_glade', 'steady', 60, 15000::bigint),
+    ('mosslight_glade', 'steady', 63, 15000::bigint),
+    ('mosslight_glade', 'steady', 70, 15000::bigint),
+    ('mosslight_glade', 'steady', 74, 15000::bigint),
+    ('mosslight_glade', 'steady', 75, 15000::bigint),
+    ('mosslight_glade', 'steady', 76, 15000::bigint),
+    ('mosslight_glade', 'steady', 200, 15000::bigint),
+    ('mosslight_glade', 'steady', 4000, 15000::bigint),
+    ('mosslight_glade', 'steady', 5000, 15000::bigint),
     ('muster_barrows', 'bold', 1, null::bigint),
     ('muster_barrows', 'bold', 10, null::bigint),
     ('muster_barrows', 'bold', 40, null::bigint),
@@ -356,5 +440,5 @@ begin
     raise exception 'VERIFY(c): a client role runs the estimate'; end if;
   if not exists (select 1 from public.hr_state_sections where key = 'gold_estimate' and fn = 'hr_gold_estimate_view') then
     raise exception 'VERIFY(d): the gold_estimate section is not registered'; end if;
-  raise notice 'gen-gold-estimate: % ground(s), % Risks, % pins; all green', 6, 3, 252;
+  raise notice 'gen-gold-estimate: % ground(s), % Risks, % pins; all green', 8, 3, 336;
 end $mig$;

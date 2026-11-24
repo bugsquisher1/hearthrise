@@ -488,7 +488,8 @@ const CASES = {
     const IRON = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' };
     const { eq, setBonus, profile } = M.member.loadoutOf(IRON, M.ITEMS);
     const snap = M.member.heroSnapshot({ skills: { melee: 0, defense: 0 }, levelXp: 0 }, { eq, equipment: IRON, items: M.ITEMS, bonus: () => 0, setBonus, profile });
-    const W = GEAR_STEPS.slotPm, lv = (id) => M.ITEMS[id].reqLv;
+    /* a piece's item Level is its row's iL, else its reqLv (danger.js itemLevelOf): iron carries 20 since the Glade stamps it (lane/scale-grounds-2) */
+    const W = GEAR_STEPS.slotPm, lv = (id) => (Number.isInteger(M.ITEMS[id].iL) ? M.ITEMS[id].iL : M.ITEMS[id].reqLv);
     const want = Object.entries(IRON).reduce((a, [s, id]) => a + W[s] * lv(id), 0);
     if (snap.gearPm !== want) return 'the snapshot carries a gear part of ' + snap.gearPm + ', the table ' + want + ' (an empty slot adds 0)';
     const kit = Object.fromEntries(Object.keys(W).map((s) => [s, 'iron_helm']));

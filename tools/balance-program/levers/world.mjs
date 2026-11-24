@@ -374,8 +374,8 @@ export const WORLD = [
     ev: 'MEASURED (the Steady four at Level 60 held 589.5 +- 14, 2 seeds x 6 h)' }),
   /* (lane/monster-roles-ford-wings, 2026-11-23) two bridges a formula ground can need beside its band */
   L('danger.formula-step', 'monster-stats', 'exception-intentional', 'Where a formula ground\'s reference monsters stand', {
-    at: [at(DZ, 'formulaStep: 520', { count: 5 })],
-    rows: rows('the scale grounds whose measured reference company holds off the formula\'s anchor (the Catacomb wings; Muster Barrows, the Thicket and the Mill Cellar, whose anchors are chosen: lane/scale-early-grounds)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
+    at: [at(DZ, 'formulaStep: 520', { count: 7 })],
+    rows: rows('the scale grounds whose measured reference company holds off the formula\'s anchor (the Catacomb wings; Muster Barrows, the Thicket, the Mill Cellar, the Glade and the Warrens, whose anchors are chosen: lane/scale-early-grounds, lane/scale-grounds-2)', [home(DZ + '#DANGER_GROUNDS', 'keys')]),
     def: 'a formula ground\'s monsters are written at a gap of 0 for the formula\'s reference company here, and its pull is sized from here (src/core/hunt/danger.js formulaStepOf, read by monster-formula.js and formulaBasePull); absent, the row\'s refStep. refStep stays the pay\'s reference, cut by the band rule where the MEASURED reference company holds: held at one step, a ground whose company holds far off the anchor paid every stance under the pay floor',
     range: 'a whole step inside the scale (tools/gen-danger.mjs refuses one off it). A bridge like refStep: it goes when bands, monsters and pay are all in absolute steps (27 stage 6)',
     touches: 'where the band rule\'s reference sits against the monsters, so C7 and C-5 on that ground', out: [...PACE, ...SURVIVE], f: ['C-MON-STATS'],

@@ -463,6 +463,11 @@
         "bytes": 3819945,
         "on": "2026-11-24",
         "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
+      },
+      {
+        "bytes": 3823413,
+        "on": "2026-11-24",
+        "why": "lane/scale-grounds-2: the Glade and the Warrens on the Danger scale (two DANGER_GROUNDS rows, eleven monster roles, their drop rows authored in hours, the called bosses' tables joined from their field rows) and iron/steel's generated stats at item Levels 20 and 40"
       }
     ]
   }

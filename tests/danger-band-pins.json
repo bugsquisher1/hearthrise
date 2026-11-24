@@ -103,9 +103,8 @@
   "meadowbrook_thicket": {
    "refStep": 110,
    "floorStep": 0,
-   "topStep": 190,
+   "topStep": 170,
    "refKillsHead": 125,
-   "refHeld": 115,
    "coinPm": 38400,
    "print": "8b9dbeecdc7bb74f",
    "verdict": "OPEN",
@@ -114,11 +113,52 @@
     "top": 15,
     "mid": 10
    },
-   "measured": "2026-11-23",
+   "measured": "2026-11-24",
    "evidence": [
     "tools/balance-program/redesign/grounds/c-targets/meadowbrook_thicket.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-floor.json"
+   ]
+  },
+  "mosslight_glade": {
+   "refStep": 60,
+   "floorStep": 0,
+   "topStep": 130,
+   "refKillsHead": 135,
+   "coinPm": 7800,
+   "print": "ad56fafa26ed1603",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 16,
+    "top": 31,
+    "mid": 23
+   },
+   "measured": "2026-11-24",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/mosslight_glade-played.json",
+    "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
+    "tools/balance-program/redesign/grounds/mosslight_glade-floor.json"
+   ]
+  },
+  "coppercap_warrens": {
+   "refStep": 80,
+   "floorStep": 20,
+   "topStep": 140,
+   "refKillsHead": 125,
+   "refHeld": 85,
+   "coinPm": 3900,
+   "print": "fcd61bd30599d9a7",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 32,
+    "top": 50,
+    "mid": 41
+   },
+   "measured": "2026-11-24",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/coppercap_warrens-played.json",
+    "tools/balance-program/redesign/grounds/coppercap_warrens-top.json",
+    "tools/balance-program/redesign/grounds/coppercap_warrens-floor.json"
    ]
   }
  }

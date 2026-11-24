@@ -163,7 +163,12 @@ const SEED = '-4611686018427387904';
    hold at every settle on the set's pin, and so do its kills (170) and the four tier scenarios, to the byte. Cause: what a kill PAYS. The pay's
    reference is where the reference company holds (DANGER_GROUNDS refStep): Muster's is 610 now, its monsters' anchor 590 named apart
    (formulaStep), so a kill's Level XP and coin read 20 steps less of depth, and Muster carries its own coin level (coinPm 7000, measured: the
-   reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json). */
+   reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json).
+   RE-PINNED 2026-11-23 (lane/scale-grounds-2), warrens-4 ONLY (kills 200 -> 229): the Warrens joined the Danger scale on steel at item Level
+   40. Two causes, each proved: (1) the WORLD from settle 1, steel's generated stats at item Level 40, where its reqLv 30 stood (tools/gen-gear.mjs;
+   with only the old src/data/gear-stats.generated.js laid back the world holds every settle, kills 200); (2) the TALLY from settle 2, the
+   Warrens' drop rows authored in hours and derived at its measured 125 kills a head (tools/gen-drop-hours.mjs). glade-4, glade-1-kite,
+   sewer-2 and muster-steps-4 hold to the byte. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

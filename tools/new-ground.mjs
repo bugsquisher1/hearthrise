@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/new-ground.mjs — PUT A GROUND ON THE DANGER SCALE IN ONE COMMAND (lane/content-pipeline, 2026-11-22).
 //
-//   node tools/new-ground.mjs <ground> --entry L --top L [--mid L] [--seeds 4] [--hours 12] [--workers 6] [--write]
+//   node tools/new-ground.mjs <ground> --entry L --top L [--mid L] [--seeds 4] [--hours 12] [--settle 4] [--hold-level] [--workers 6] [--write]
 //   node tools/new-ground.mjs <ground> --ref a.json --top-report b.json --floor c.json [--write]     (read reports already run)
 //
 // THE BAND IS A FORMULA, THIS IS ITS MEASURING CHECK (lane/foundations-block, 2026-11-23; src/data/bands.js): a ground's band in absolute
@@ -30,7 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bandFromReports, packPrint, rewriteRow } from './lib/danger-band.mjs';
+import { bandFromReports, packPrint, rewriteRow, anchorOf } from './lib/danger-band.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -42,7 +42,7 @@ if (!G) die('usage: node tools/new-ground.mjs <ground> --entry L --top L [--mid 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { DANGER_GROUNDS, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
 /* THE ABSOLUTE BAND (lane/foundations-block): the band is a formula of the row (src/core/bands.js bandAbs); the cells measure its bridge */
-const { bandAbs, absPmOf, depthAt } = await imp('src/core/bands.js');
+const { bandAbs, absPmOf, depthAt, insideOneTier } = await imp('src/core/bands.js');
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { SUSTAIN } = await imp('src/data/sustain.js');
 const { HUNT_GROUNDS, monstersOn } = await imp('src/data/hunt-grounds.js');
@@ -65,11 +65,18 @@ if (arg('ref')) {
   levels = { entry, top, mid };
   mkdirSync(OUT, { recursive: true });
   const V1 = join(ROOT, 'tools', 'balance-program', 'redesign', 'v1-climb.mjs');
+  const OWN_TIER = insideOneTier(G);
+  if (OWN_TIER) process.stderr.write('new-ground: ' + G + ' sits inside one gear tier: every cell wears its own tier (item Level ' + DANGER_GROUNDS[G].gearLevel + ' to ' + (DANGER_GROUNDS[G].gearLevel + GEAR_STEPS.tierSteps - 1) + ')\n');
   const run = (cell, L, gear) => {
     const json = join(OUT, G + '-' + cell + '.json');
     process.stderr.write('new-ground: ' + G + ' ' + cell + ' (' + gear + ' kits, Level ' + L + ')\n');
+    /* --hold-level (lane/scale-early-grounds): each company stays at its Level all day (v1-climb.mjs --hold-level), for a ground whose
+       Levels come faster than a measuring day (under about Level 20) or whose hunt ends at a Level (the Mill Cellar's at 5) */
     const txt = execFileSync(process.execPath, [V1, '--ground', G, '--level', String(L), '--gear', gear, '--seeds', arg('seeds', '4'), '--hours', arg('hours', '12'),
-      '--settle', '4', '--workers', arg('workers', '6'), '--only', 'base:steady', '--json', json], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 << 20 });
+      '--settle', arg('settle', '4'), '--workers', arg('workers', '6'), '--only', 'base:steady', '--json', json, ...(argv.includes('--hold-level') ? ['--hold-level'] : []),
+      /* A GROUND INSIDE ONE GEAR TIER (src/core/bands.js insideOneTier; 29-tuning-pass.md 7.5): every cell in the ground's own tier's kit */
+      ...(OWN_TIER ? ['--max-il', String(DANGER_GROUNDS[G].gearLevel + GEAR_STEPS.tierSteps - 1)] : [])],
+      { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 << 20 });
     writeFileSync(join(OUT, G + '-' + cell + '.txt'), txt);
     return readJson(json);
   };
@@ -81,17 +88,23 @@ const prev = DANGER_GROUNDS[G] ? Object.keys(DANGER_GROUNDS).find((k) => DANGER_
 const abs = DANGER_GROUNDS[G] ? { band: bandAbs(G), prevTopPm: prev && bandAbs(prev) ? bandAbs(prev).topPm : null, refLevel: DANGER_GROUNDS[G].refLevel, sustain: SUSTAIN } : null;
 /* a ground on the monster formula keeps its refStep (the monsters' and the pay's anchor, chosen by hand) and pins the MID four's hold as
    refHeld, the depth reading's middle point (tools/lib/danger-band.mjs, lane/depth-reading-fix) */
-const anchorStep = DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters === 'formula' ? DANGER_GROUNDS[G].refStep : null;
-const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE, abs, { anchorStep });
+const anchorStep = anchorOf(DANGER_GROUNDS[G]);
+/* the ground's coin level (tools/lib/danger-band.mjs coinLevelFrom): the reference hour against the wage at the row's refLevel, the cells
+   played at the row's own level (else PAY.coinPm) */
+const { wage, levelStep } = await imp('src/core/wage.js');
+const coin = DANGER_GROUNDS[G] && Number.isInteger(DANGER_GROUNDS[G].refLevel)
+  ? { wage: wage(levelStep(DANGER_GROUNDS[G].refLevel)), played: Number.isInteger(DANGER_GROUNDS[G].coinPm) ? DANGER_GROUNDS[G].coinPm : PAY.coinPm, payCoinPm: PAY.coinPm } : null;
+const cut = bandFromReports(reports, PAY, DEPTHS, BAND_RULE, abs, { anchorStep, coin });
 const { _lowDepth, ...band } = cut.band;
-const print = packPrint(ground, MONSTERS, monstersOn, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters);
+const print = packPrint(ground, MONSTERS, monstersOn, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].monsters, DANGER_GROUNDS[G] && DANGER_GROUNDS[G].formulaStep);
 const row = DANGER_GROUNDS[G];
 console.log('\n' + G + ' on the Danger scale (the Steady mixed four, v1-climb.mjs): ' + cut.verdict);
 console.log('  MID  Level ' + cut.cells.ref.L + ': held ' + cut.cells.ref.held + ', ' + cut.cells.ref.killsPerH + ' kills an hour');
 console.log('  BIS  Level ' + cut.cells.top.L + ': held ' + cut.cells.top.held);
 console.log('  LOW  Level ' + cut.cells.floor.L + ': held ' + cut.cells.floor.held + ', lowest seed ' + cut.cells.floor.lowest + ' (depth ' + _lowDepth + ' of ' + DEPTHS + ')');
 console.log('  band refStep ' + band.refStep + (anchorStep === null ? '' : ' (the formula\'s anchor, kept)') + '  floorStep ' + band.floorStep + '  topStep ' + band.topStep + (band.refKillsHead ? '  refKillsHead ' + band.refKillsHead : '  refKillsHead (PAY.refKillsHead ' + PAY.refKillsHead + ')')
-  + (band.refHeld !== undefined ? '  refHeld ' + band.refHeld + ' (the reference four\'s hold, the depth reading\'s middle)' : ''));
+  + (band.refHeld !== undefined ? '  refHeld ' + band.refHeld + ' (the reference four\'s hold, the depth reading\'s middle)' : '')
+  + (band.coinPm !== undefined ? '  coinPm ' + band.coinPm + ' (the ground\'s coin level)' : ''));
 if (row) console.log('  today  refStep ' + row.refStep + '  floorStep ' + row.floorStep + '  topStep ' + row.topStep + '  refKillsHead ' + (row.refKillsHead || '-') + '  refHeld ' + (row.refHeld === undefined ? '-' : row.refHeld));
 for (const n of cut.notes) console.log('  note: ' + n);
 for (const n of cut.info) console.log('  info: ' + n);

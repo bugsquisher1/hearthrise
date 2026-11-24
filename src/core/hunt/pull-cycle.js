@@ -311,7 +311,11 @@ function travel(inst, sc, k) {
    west edge, room 119, one or two monsters queued out of his reach every pull) while its east edge feeds all eight. Short
    of a full box, he walks on to the free tile within two of the centre, inside the pack area, with the most room he can
    reach (strictly more than his own, the nearest of those) and pulls on arriving; nothing pulls him until then. A walled
-   pull that already has a full box is untouched. Answers whether he walks on. */
+   pull that already has a full box is untouched. Answers whether he walks on.
+   THE WAY THERE STAYS IN THE PACK AREA (lane/monster-roles-ford-wings, 2026-11-23): an edge he can reach only by leaving the
+   area is no edge, so he pulls where the ring stopped him. The Catacombs' Flooded Vault fills a three-wide corridor with its
+   full box at the plank bridge's mouth: its far edge was a walk round the whole map, the leader walked it, the party followed
+   him back and forth over the bridge, and every Steady hunt there ended `no_fight` within two hours. */
 function roomierEdge(inst, k, p, cx, cy) {
   const here = roomAt(inst, p, k.x, k.y);
   if (here >= ROOM_MAX) return false;
@@ -327,7 +331,7 @@ function roomierEdge(inst, k, p, cx, cy) {
   }
   for (const r of [...byRoom.keys()].sort((a, b) => b - a)) {
     const tiles = byRoom.get(r);
-    const at = goToNearest(inst, k, (x, y) => tiles.has(tileKey(inst.grid, x, y)));
+    const at = goToNearest(inst, k, (x, y) => tiles.has(tileKey(inst.grid, x, y)), (x, y) => !inArea(inst, p, x, y));
     if (at && k.goal) { k.aiMs = AI_REPATH_MS.travel; return true; }
   }
   return false;

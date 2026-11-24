@@ -591,13 +591,15 @@ const EVAL = Object.freeze({
   target_hp_pct: (cx) => { const t = foeTarget(cx); return t ? share(t.hp, t.maxHp) : null; },
   /* a Mark still running at this instant (damage.js landHit reads the same: markUntil after now); no instant known, no Mark */
   target_marked: (cx) => { const t = foeTarget(cx); return !!t && Number.isInteger(cx.atMs) && int(t.markPm) > 0 && int(t.markUntil) > cx.atMs; },
+  /* a wind-up still to land (monster-spells.js `cast`: its time left), a spell or a heavy blow, the moment Stagger and Parry answer */
+  target_winding_up: (cx) => { const t = foeTarget(cx); return !!t && isObj(t.cast) && int(t.cast.left) > 0; },
   target_stacks: (cx, c) => {
     const t = foeTarget(cx);
     const id = c.subject || Object.keys(METRIC.get('target_stacks').subject)[0];
     return t && Array.isArray(t.statuses) ? t.statuses.filter((st) => st.s === id).length : 0;
   },
   /* THE LAST MOVE ON THE SLOT'S OWN LANE (an ability slot: a rotation reads its lane, so a Mark or a Challenge between two strikes
-     never breaks "after Quarry Blow"), else on any lane (a supply slot, a stop rule). '' before the first such cast: "my last move is
+     never breaks "after Stagger"), else on any lane (a supply slot, a stop rule). '' before the first such cast: "my last move is
      not Rend" holds, "is Rend" does not. */
   last_move: (cx) => {
     const a = cx.slot && cx.slot.action;
@@ -619,7 +621,8 @@ export function evaluatorGaps() {
   return { missing: METRICS.map((m) => m.id).filter((id) => !EVAL[id]), extra: Object.keys(EVAL).filter((id) => !METRIC.has(id)) };
 }
 
-function compare(op, a, b) {
+/** One comparison of the bar (an operator of OPERATORS on two numbers or two booleans): a worn Trait's too (trait-rules.js). */
+export function compare(op, a, b) {
   switch (op) {
     case 'lt': return a < b;
     case 'lte': return a <= b;

@@ -17,9 +17,14 @@
 //   data    every role carries its dials inside their bands, a wind-up shape exactly when it has a wind-up share; every scale ground names
 //           its reference Level and its switch; on every scale ground the derived spell rows land inside the spell bounds unclamped (a
 //           clamped row would not deal its dial); every monster of a formula ground names a role.
+//   grounds EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings): Muster Barrows, Hask's Ford and both Catacomb wings, each
+//           monster on its derived row at its derived health on the reference step, a row's own wind-up kept (id and shape) with the formula's
+//           number, a row with none casting its role's, a Warder mending.
 //   play    THE ONE ENGINE (CLAUDE.md section 6): Muster Barrows with its switch on, a four on Steady at its reference step through the real
 //           settle: its monsters stand at their derived health over the dial, a Brute's wind-up (Heavy Blow) is cast, and the hunt is the
 //           same, kill for kill, settled in one window and in 1-minute windows (viewed or closed); with the switch off no derived spell.
+//   play-ford  the same on Hask's Ford, the first newly switched ground: the Bannerman (a Warder) mends, the Ledger Wight (a Caster) and the
+//           Fordsunk (a Brute) wind up.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -55,6 +60,13 @@ const MUSTER_ON = ['src/data/danger.js', "entryLevel: 55, refLevel: 60, monsters
 /* SHIPPED ON since the tuning pass (lane/tuning-pass, 2026-11-23, 29-tuning-pass.md): the tree is the switch on, the off side is planted. A
    mutant marked `on: true` plays on the tree as it ships; every other one with the switch planted off, as before */
 const MUSTER_OFF = [MUSTER_ON[0], MUSTER_ON[2], MUSTER_ON[1]];
+/* EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23): Hask's Ford and both Catacomb wings switched on once each of
+   their monsters carried a role. The switch's off side (switch, dial-off) needs a scale ground on its rows, so the Ford is planted back on
+   its rows there; the off view (derive, dial-off, tower, data, play-off) plants both Muster and the Ford off */
+const FORD_ON = ['src/data/danger.js', "entryLevel: 45, refLevel: 52, monsters: 'rows' })", "entryLevel: 45, refLevel: 52, monsters: 'formula' })"];
+const FORD_OFF = [FORD_ON[0], FORD_ON[2], FORD_ON[1]];
+const OFF_VIEW = [MUSTER_OFF, FORD_OFF];
+const SWITCHED = Object.freeze(['hasks_ford', 'catacomb_bone_wing', 'catacomb_flooded_wing']);
 const close = (a, b, rel) => Math.abs(a - b) <= rel * Math.max(1, Math.abs(b));
 /* a scale ground's row with its switch on (derive reads only the row) */
 const onRow = (M, id) => ({ ...M.dangerData.DANGER_GROUNDS[id], monsters: 'formula' });
@@ -114,14 +126,15 @@ const CASES = {
     if (!d) return 'CONTROL: no derived row for the Barrow Knight';
     const s = M.mf.roleStats(row.role, g, 'pull');
     const at = (step, heroes) => M.tiers.atTier(d, M.danger.dangerDial(ground, step, heroes));
-    const r0 = at(g.refStep, 4);
+    /* the monsters' reference step is the formula's anchor (formulaStepOf: Muster's 590, apart from the pay's refStep, its four's hold) */
+    const anchor = M.danger.formulaStepOf(g), r0 = at(anchor, 4);
     if (!close(r0.hp, s.hp, 0.002)) return 'the Knight stands at ' + r0.hp + ' health on the reference step, its derivation says ' + Math.round(s.hp);
     const top0 = M.combat.monsterMaxHit(r0);
     if (!close(top0, s.maxHit, 0.01)) return 'the Knight\'s biggest blow on the reference step is ' + top0 + ', its derivation says ' + s.maxHit.toFixed(1);
-    const r20 = at(g.refStep + 20, 4);
+    const r20 = at(anchor + 20, 4);
     if (!close(r20.hp / r0.hp, Math.pow(1 + DANGER.powerStep, 20), 0.003)) return 'twenty steps deeper the Knight has x' + (r20.hp / r0.hp).toFixed(4) + ' health, not the step\'s ratio';
     for (const h of [1, 2, 3, 4]) {
-      const dz = M.danger.dangerDial(ground, g.refStep, h);
+      const dz = M.danger.dangerDial(ground, anchor, h);
       const want = Math.max(1, Math.min(DANGER.pullMax, Math.round(h * F.encounterPerHero)));
       if (dz.pull[0] !== want) return h + ' heroes meet a pull of ' + dz.pull[0] + ' on the reference step, not heroes x encounterPerHero (' + want + ')';
       const each = M.tiers.atTier(d, dz).hp;
@@ -133,8 +146,10 @@ const CASES = {
     /* coin a kill on the switch is the as-built pull's: the same number the switch off pays */
     const asBuilt = (step) => { const n0 = ground.route.reduce((a, p) => a + ground.pockets[p].spawns.length, 0) / ground.route.length;
       const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, step)))); return n0 / pull; };
-    const dz = M.danger.dangerDial(ground, g.refStep, 4);
-    if (!close(dz.coinPm, asBuilt(g.refStep) * PAY.coinPm, 1e-6)) return 'on the switch a kill pays ' + dz.coinPm + ' coin permille, the as-built pull ' + asBuilt(g.refStep) * PAY.coinPm;
+    /* (lane/scale-early-grounds) read at the pay's reference (refStep, where the reference four holds) and the ground's own coin level */
+    const payRef = g.refStep, level = Number.isInteger(g.coinPm) ? g.coinPm : PAY.coinPm;
+    const dz = M.danger.dangerDial(ground, payRef, 4);
+    if (!close(dz.coinPm, asBuilt(payRef) * level, 1e-6)) return 'on the switch a kill pays ' + dz.coinPm + ' coin permille, the as-built pull ' + asBuilt(payRef) * level;
     return null;
   },
   'dial-off'(M) {
@@ -188,6 +203,65 @@ const CASES = {
     if (t.rat !== M.MONSTERS.rat) return 'a monster of another ground moved';
     return null;
   },
+  /* EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings): Hask's Ford and both Catacomb wings beside Muster Barrows. On each,
+     every monster that stands there names a role and plays its derived row with its content its own; the dial puts it at its derived health
+     on the formula's anchor (danger.js formulaStepOf) for the reference four; a row's own wind-up keeps its id and shape with the formula's
+     number (the Bone Wall's Bone Slide, the Night Carter's Lime Sack, Keeper Dunn's Snuff the Candles) and a row with none casts its role's;
+     a Warder (the Bannerman) mends. At least one ground's pay reference (refStep) sits off its anchor (the wings: their measured company
+     holds under the formula's), so the anchor is read, never the pay's step */
+  grounds(M) {
+    let kept = 0, mends = 0, apart = 0;
+    for (const gid of ['muster_barrows', ...SWITCHED]) {
+      const g = M.dangerData.DANGER_GROUNDS[gid], ground = M.grounds.HUNT_GROUNDS[gid];
+      if (!g || !ground) return 'CONTROL: ' + gid + ' is no scale ground';
+      if (!M.mf.formulaOn(gid)) return gid + ' is not on the monster formula';
+      const t = M.mf.formulaTable(gid, M.MONSTERS);
+      if (!t) return gid + ' on the formula has no derived table';
+      /* (on the formula's anchor, danger.js formulaStepOf: the row's formulaStep where the measured reference company holds elsewhere) */
+      /* (an anchor over the band's top is never stood on, the Flooded Wing's: read at the top, the step's ratio and the pull's share
+         under the anchor's own pull of 4 x encounterPerHero) */
+      const anchor = M.danger.formulaStepOf(g), at = Math.min(anchor, g.topStep), refPull = 4 * M.roleData.MONSTER_FORMULA.encounterPerHero;
+      const dz = M.danger.dangerDial(ground, at, 4);
+      if (anchor !== g.refStep) apart++;
+      if (at === anchor && dz.pull[0] !== refPull) return gid + ': the reference four meets a pull of ' + dz.pull[0] + ' on the formula\'s anchor, not 4 x encounterPerHero';
+      const scaleAt = Math.pow(1 + M.dangerData.DANGER.powerStep, at - anchor) * (refPull / dz.pull[0]);
+      /* the pull grows from the anchor's (4 x encounterPerHero there) by pullStep a step, so at the pay's reference it is that pull's */
+      const { DANGER: DZ } = M.dangerData, wantRefPull = Math.max(1, Math.min(DZ.pullMax, Math.round(refPull * Math.pow(1 + DZ.pullStep, g.refStep - anchor))));
+      const refPullNow = M.danger.dangerDial(ground, g.refStep, 4).pull[0];
+      if (refPullNow !== wantRefPull) return gid + ': the reference four meets a pull of ' + refPullNow + ' at refStep ' + g.refStep + ', grown from the anchor ' + anchor + ' it is ' + wantRefPull;
+      for (const id of M.grounds.monstersOn(ground)) {
+        const a = M.MONSTERS[id], b = t[id];
+        if (!a || !M.roleData.MONSTER_ROLES[a.role]) return gid + ': ' + id + ' names no role';
+        if (!b || b.formula !== 'role') return gid + ': ' + id + ' is not on its derived row';
+        for (const k of ['name', 'drops', 'gp', 'xp', 'cls', 'tier', 'role', 'boss']) if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) return gid + ': ' + id + ' its ' + k + ' moved on the derived row';
+        const s = M.mf.roleStats(a.role, g, a.boss === true ? 'boss' : 'pull');
+        const hp = M.tiers.atTier(b, dz).hp;
+        /* (the row is written in whole points at step 0, so the dial carries its rounding: half a point of the row) */
+        if (!close(hp, s.hp * scaleAt, 0.5 / b.hp + 0.001)) return gid + ': ' + id + ' stands at ' + hp + ' health at step ' + at + ', its role says ' + Math.round(s.hp * scaleAt);
+        const R = M.roleData.MONSTER_ROLES[a.role], mine = M.spells.spellsOf(a).map((sid) => [sid, M.spells.spellRow(sid)]);
+        const strike = mine.find(([, r]) => !M.spells.mends(r)), heal = mine.find(([, r]) => M.spells.mends(r));
+        /* [the id it casts, the role's own id for that strike or mend]: the row's own when it has one, else the role's */
+        const want = [...(R.windupShare > 0 ? [[strike ? strike[0] : 'mf_' + a.role, 'mf_' + a.role]] : []),
+          ...(R.mend ? [[heal ? heal[0] : 'mf_' + a.role + '_mend', 'mf_' + a.role + '_mend']] : [])];
+        if (JSON.stringify(b.spells || []) !== JSON.stringify(want.map(([sid]) => sid))) return gid + ': ' + id + ' casts ' + JSON.stringify(b.spells || []) + ', its role and its own rows say ' + JSON.stringify(want.map(([sid]) => sid));
+        for (const [sid, roleId] of want) {
+          const d = b.spellRows && b.spellRows[sid], own = M.spells.spellRow(sid);
+          if (!d) return gid + ': ' + id + ' lists ' + sid + ' with no derived row';
+          if (own) {
+            for (const k of ['n', 'shape', 'r', 'len', 'range', 'windupMs', 'element']) if (JSON.stringify(own[k]) !== JSON.stringify(d[k])) return gid + ': ' + id + ' keeps ' + sid + ' but its ' + k + ' moved (' + JSON.stringify(own[k]) + ' -> ' + JSON.stringify(d[k]) + ')';
+            kept++;
+          }
+          /* the number is the formula's, never the row's typed one: the same hit the role's own shape would carry */
+          if (d.hitPm !== s.spells[roleId].hitPm) return gid + ': ' + id + ' ' + sid + ' hits at ' + d.hitPm + ' permille, its role at ' + s.spells[roleId].hitPm;
+          if (d.shape === 'mend') mends++;
+        }
+      }
+    }
+    if (!kept) return 'CONTROL: no monster on a formula ground keeps its own wind-up';
+    if (!mends) return 'CONTROL: no Warder mends on a formula ground';
+    if (!apart) return 'CONTROL: every formula ground pays at its anchor (no row names a formulaStep)';
+    return null;
+  },
   /* THE TOWER'S ONE DOOR (src/core/hunt/tower.js rowAt, TOWER_RULES.monsters): on the formula a band's room fields its reach role's derived
      stats at the floor's Level, grown by the depth and the share; on its rows no room carries a role's armor */
   tower(M) {
@@ -234,27 +308,55 @@ const CASES = {
   },
 };
 
-/* THE PLAY: Muster Barrows, a four on Steady at the reference step, ten minutes through the real settle (fixtures/play-ground.mjs) */
+/* THE PLAY: a four on Steady at a ground's reference step, ten minutes through the real settle (fixtures/play-ground.mjs) */
 const ROLES4 = ['tank', 'ranger', 'mage', 'healer'];
-function playMuster(P, windowMs) {
-  const spells = {}, hp = {};
-  const x = P.run('muster_barrows', 60, ROLES4, { spanMs: 600000, windowMs, plan: { risk: 'steady', danger: 590 }, onWindow: (out) => {
+/* `decode` (src/core/hunt/world-state.js decode): the settle hands back the world in its stored form, so its units are read through the
+   engine's own decoder (lane/monster-roles-ford-wings: read as `out.world.units` they were never there, and the health check never ran) */
+function playOn(P, hunt, L, step, windowMs, decode) {
+  const spells = {}, hp = {}, first = {};
+  const x = P.run(hunt, L, ROLES4, { spanMs: 600000, windowMs, plan: { risk: 'steady', danger: step }, onWindow: (out) => {
     for (const e of out.events || []) if (e.type === 'spell') spells[e.spell] = (spells[e.spell] || 0) + 1;
-    for (const u of (out.world && out.world.units) || []) if (u.side === 'mon') hp[u.kind] = Math.max(hp[u.kind] || 0, u.maxHp);
+    const stored = typeof out.world === 'string' ? JSON.parse(out.world) : out.world;
+    const units = decode && stored ? decode(stored).units : [];
+    for (const u of units) if (u.side === 'mon') { hp[u.kind] = Math.max(hp[u.kind] || 0, u.maxHp); if (first[u.kind] === undefined) first[u.kind] = u.maxHp; }
   } });
-  return { kills: x.kills, totals: JSON.stringify(x.totals), spells, hp };
+  return { kills: x.kills, totals: JSON.stringify(x.totals), spells, hp, first };
+}
+const playMuster = (P, windowMs, decode) => playOn(P, 'muster_barrows', 60, 590, windowMs, decode);
+/* HASK'S FORD ON THE FORMULA (lane/monster-roles-ford-wings): the first newly switched ground played whole, viewed and closed. Its Bannerman
+   is the first Warder with a body and its Ledger Wight the first Caster on an open ground: the play casts the Warder's mend, the Caster's
+   Hex and the Fordsunk's Heavy Blow, each Banded Pikeman stands at its derived health, and the hunt is the same kill for kill in one window
+   and in 1-minute windows */
+async function playFordCase(root) {
+  const P = await loadPlay(root);
+  const M = await load(root);
+  /* (no switch control here: the Ford back on its rows casts no role's spell, and the casts below are the rule that says so) */
+  const g = M.dangerData.DANGER_GROUNDS.hasks_ford;
+  const one = playOn(P, 'hasks_ford', g.refLevel, g.refStep, 600000), ones = playOn(P, 'hasks_ford', g.refLevel, g.refStep, 60000, M.worldstate.decode);
+  if (!(one.kills > 0)) return 'CONTROL: the four killed nothing on the Ford in ten minutes';
+  if (one.totals !== ones.totals) return 'the Ford hunt moved with 1-minute windows (viewed or closed are not the one hunt): ' + one.totals.slice(0, 120) + ' vs ' + ones.totals.slice(0, 120);
+  if (!(one.spells.mf_warder_mend > 0)) return 'no Warder mend was cast on the Ford in ten minutes (spells ' + JSON.stringify(one.spells) + ')';
+  if (!(one.spells.mf_brute > 0)) return 'no Brute wind-up was cast on the Ford in ten minutes (spells ' + JSON.stringify(one.spells) + ')';
+  if (!(one.spells.mf_caster > 0)) return 'no Caster wind-up was cast on the Ford in ten minutes (spells ' + JSON.stringify(one.spells) + ')';
+  const t = M.mf.formulaTable('hasks_ford', M.MONSTERS), dz = M.danger.dangerDial(M.grounds.HUNT_GROUNDS.hasks_ford, g.refStep, 4);
+  /* (the first minute's: the four starts on the reference step, then climbs or falls a few steps) */
+  const want = M.tiers.atTier(t.banded_pikeman, dz).hp;
+  if (!(ones.first.banded_pikeman > 0) || Math.abs(ones.first.banded_pikeman - want) > 0.05 * want) return 'a Banded Pikeman stood at ' + ones.first.banded_pikeman + ' health in the first minute, its derived row at the step ' + want;
+  return null;
 }
 async function playCase(root) {
   const P = await loadPlay(root);
   const M = await load(root);
   if (M.dangerData.DANGER_GROUNDS.muster_barrows.monsters !== 'formula') return 'CONTROL: the play needs Muster Barrows switched on';
-  const one = playMuster(P, 600000), ones = playMuster(P, 60000);
+  const one = playMuster(P, 600000), ones = playMuster(P, 60000, M.worldstate.decode);
   if (!(one.kills > 0)) return 'CONTROL: the four killed nothing in ten minutes';
   if (one.totals !== ones.totals) return 'the hunt moved with 1-minute windows (viewed or closed are not the one hunt): ' + one.totals.slice(0, 120) + ' vs ' + ones.totals.slice(0, 120);
   if (!(one.spells.mf_brute > 0)) return 'no Brute wind-up was cast in ten minutes (spells ' + JSON.stringify(one.spells) + ')';
   const t = M.mf.formulaTable('muster_barrows', M.MONSTERS), dz = M.danger.dangerDial(M.grounds.HUNT_GROUNDS.muster_barrows, 590, 4);
+  /* (the first minute's: the four starts on the reference step, then climbs or falls a few steps; read through the stored world's decoder,
+     it was `undefined` before lane/monster-roles-ford-wings and the check passed without running) */
   const want = M.tiers.atTier(t.barrow_pikeman, dz).hp;
-  if (one.hp.barrow_pikeman !== undefined && Math.abs(one.hp.barrow_pikeman - want) > 0.05 * want) return 'a Pikeman stood at ' + one.hp.barrow_pikeman + ' health, its derived row at the step ' + want;
+  if (!(ones.first.barrow_pikeman > 0) || Math.abs(ones.first.barrow_pikeman - want) > 0.05 * want) return 'a Pikeman stood at ' + ones.first.barrow_pikeman + ' health in the first minute, its derived row at the step ' + want;
   return null;
 }
 async function playOffCase(root) {
@@ -285,33 +387,48 @@ const MUTANTS = [
   { name: 'the Tower room never reads the depth on the formula', case: 'tower-on', edits: [TOWER_ON, ['src/core/hunt/tower.js', 'hp: Math.max(1, Math.round(f.hp * k)),', 'hp: Math.max(1, Math.round(f.hp * share)),']] },
   { name: 'a formula boss drops its boss kind', case: 'ramp', edits: [['src/core/hunt/monster-formula.js', "const kind = row.boss === true ? 'boss' : 'pull';", "const kind = row.boss === true ? 'boss' : 'pull'; row = { ...row, boss: false };"]] },
   { name: 'a role row loses its pressure', case: 'data', edits: [['src/data/monster-roles.js', 'secondsToKill: 2.5, pressure: ', 'secondsToKill: 2.5, pressur: ']] },
+  /* (lane/monster-roles-ford-wings) every newly switched ground, on the tree as it ships */
+  { name: 'a row\'s own wind-up is dropped for its role\'s', case: 'grounds', on: true, edits: [['src/core/hunt/monster-formula.js', '{ windup: mine.find(([, r]) => !mends(r)) || null,', '{ windup: null,']] },
+  { name: 'a derived spell keeps the row\'s typed number', case: 'grounds', on: true, edits: [['src/core/hunt/monster-formula.js', '    spells[id] = Object.freeze({ ...shape, hitPm:', '    spells[id] = Object.freeze({ ...shape, hitPm: shape.hitPm ||']] },
+  { name: 'a Warder never mends', case: 'grounds', on: true, edits: [['src/core/hunt/monster-formula.js', '  if (R.mend && R.mend.seconds > 0) derive(', '  if (false && R.mend && R.mend.seconds > 0) derive(']] },
+  { name: 'Hask\'s Ford is back on its rows', case: 'grounds', on: true, edits: [FORD_OFF] },
+  { name: 'the pull is sized from the pay\'s step, not the anchor', case: 'grounds', on: true, edits: [['src/core/hunt/danger.js', 'powStep(1 + DANGER.pullStep, formulaStepOf(g));', 'powStep(1 + DANGER.pullStep, g.refStep);']] },
+  { name: 'the reference multiple reads the pay\'s step', case: 'grounds', on: true, edits: [['src/core/hunt/monster-formula.js', '  const at = formulaStepOf(g);\n', '  const at = g.refStep;\n']] },
+  { name: 'a wing monster names no role', case: 'grounds', on: true, edits: [['src/data/grounds/unmarked_catacombs/pack.js', "      role: 'caster',\n      spells: ['lime_sack'],", "      spells: ['lime_sack'],"]] },
 ];
-/* the engine half, each planted with the switch on (play) or off (play-off) */
+/* the engine half, each planted with the switch on (play, ford) or off (play-off) */
 const PLAY_MUTANTS = [
   { name: 'the settle plays the hand rows on the scale', on: true, edits: [['src/core/hunt/play-rows.js', '  return onScale && formulaOn(groundId)', '  return false && formulaOn(groundId)']] },
   { name: 'a derived wind-up is never cast', on: true, edits: [['src/data/monster-spells.js', 'spellsOf(m).concat(derivedSpellsOf(m)) : []);', 'spellsOf(m) : []);']] },
+  { name: 'a derived mend is never cast on the Ford', play: 'ford', edits: [['src/core/hunt/monster-formula.js', '  if (R.mend && R.mend.seconds > 0) derive(', '  if (false && R.mend && R.mend.seconds > 0) derive(']] },
+  { name: 'the Ford plays its hand rows', play: 'ford', edits: [FORD_OFF] },
 ];
 
 const R = makeReport('hunt-core/monster-formula');
-const OFF = plant([MUSTER_OFF], PLAY_TREES), TON = plant([TOWER_ON]);
+const OFF = plant(OFF_VIEW, PLAY_TREES), TON = plant([TOWER_ON]), FOFF = plant([FORD_OFF]);
 try {
-  const M = await load(OFF.root), Mon = await load(ROOT), Mton = await load(TON.root);
-  const which = (cn) => (cn === 'dial' || cn === 'switch' || cn === 'ramp' || cn === 'armor' ? Mon : M);
+  const M = await load(OFF.root), Mon = await load(ROOT), Mton = await load(TON.root), Mfoff = await load(FOFF.root);
+  /* the view each case plays: the tree (on), the Ford alone on its rows (switch), the Tower on, else the off view */
+  const which = (cn) => (cn === 'switch' ? Mfoff : cn === 'tower-on' ? Mton : cn === 'dial' || cn === 'ramp' || cn === 'armor' || cn === 'grounds' ? Mon : M);
   for (const [cn, fn] of Object.entries(CASES)) {
     let why = null;
-    try { why = fn(cn === 'tower-on' ? Mton : which(cn)); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    try { why = fn(which(cn)); } catch (e) { why = 'threw ' + (e && e.stack || e); }
     R.ok(!why, cn + ': ' + why);
   }
   let why = null;
   try { why = await playCase(ROOT); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, 'play: ' + why);
   why = null;
+  try { why = await playFordCase(ROOT); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  R.ok(!why, 'play-ford: ' + why);
+  why = null;
   try { why = await playOffCase(OFF.root); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, 'play-off: ' + why);
-} finally { OFF.done(); TON.done(); }
+} finally { OFF.done(); TON.done(); FOFF.done(); }
 for (const mu of MUTANTS) {
-  const on = mu.on === true || mu.case === 'switch' || mu.case === 'ramp' || mu.case === 'armor';
-  const edits = on ? mu.edits : [MUSTER_OFF, ...mu.edits];
+  const on = mu.on === true || mu.case === 'ramp' || mu.case === 'armor';
+  /* the switch's mutants play the tree with the Ford alone on its rows (its off side); the rest the tree (on) or the off view */
+  const edits = mu.case === 'switch' ? [FORD_OFF, ...mu.edits] : on ? mu.edits : [...OFF_VIEW, ...mu.edits];
   const p = plant(edits);
   try {
     let why = null;
@@ -323,9 +440,9 @@ for (const mu of PLAY_MUTANTS) {
   const p = plant(mu.edits, PLAY_TREES);
   try {
     let why = null;
-    try { why = await playCase(p.root); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by play' + missWhy(why));
+    try { why = await (mu.play === 'ford' ? playFordCase : playCase)(p.root); } catch (e) { why = 'threw ' + e.message; }
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by play' + (mu.play === 'ford' ? '-ford' : '') + missWhy(why));
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(CASES).length + ' cases + play, ' + (MUTANTS.length + PLAY_MUTANTS.length) + ' mutants caught');
+if (!R.fails.length) console.log('  ' + Object.keys(CASES).length + ' cases + play, play-ford, ' + (MUTANTS.length + PLAY_MUTANTS.length) + ' mutants caught');
 R.finish();

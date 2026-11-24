@@ -16,7 +16,8 @@
 //   the-first-hours-hold      32-8: a Level 1 hero's blow is 4, and its first strike and its heal land their beginner's floor, never
 //                             a share of 4 (Power Strike 7-13, Greater Mend 50 x its step)
 //   rows-are-shares           the data: no row carries a fixed number (dmg, heal, shield, lvPm), every damage row a hitPm, the steps
-//                             1000..1400, Cleave gone, Power Strike off the axes, Quarry Blow the club's Earth rune strike, Mend 110 of max HP
+//                             1000..1400, Cleave gone, Power Strike off the axes, Stagger (Quarry Blow reworked) the club's Earth rune
+//                             strike, Mend 110 of max HP
 //   power-strike-beats-a-swing  the plan's test: on the career kit at Levels 10, 60 and 110 (tools/balance-sim gear and skill lines, the
 //                             unit's own max hit and its real to-hit on a same-Level regular), Power Strike lands more than a plain swing
 //   borrowed-reads-the-native-blow  18-roads-review-design R4 (lane/bar-metrics): a borrowed move reads its native weapon's reference
@@ -109,8 +110,8 @@ const cases = {
       return Math.floor(Math.round(TH.refHeroAt(L).main) * 0.35 + str * 0.6 + 2);
     };
     for (const L of [10, 60, 110]) {
-      const got = BB.borrowBlowsOf(['greater_mend', 'quarry_blow', 'mend', 'no_such_move'], L);
-      const want = { greater_mend: typed('staff', L), quarry_blow: typed('warhammer', L) };
+      const got = BB.borrowBlowsOf(['greater_mend', 'stagger', 'mend', 'no_such_move'], L);
+      const want = { greater_mend: typed('staff', L), stagger: typed('warhammer', L) };
       if (JSON.stringify(got) !== JSON.stringify(want)) return 'Level ' + L + ': borrowed blows ' + JSON.stringify(got) + ', the rule ' + JSON.stringify(want);
     }
     if (BB.borrowBlowsOf([], 60) !== null || BB.borrowBlowsOf(['mend'], 60) !== null) return 'nothing borrowed (or only Mend, every weapon\'s) still wrote blows';
@@ -175,8 +176,9 @@ const cases = {
     if (A.ABILITIES.power_strike.disciplines.includes('dual_axe')) return 'the two axes still hold Power Strike (32-3)';
     const tc = A.suggestedTrigger(A.ABILITIES.turning_cut);
     if (JSON.stringify(tc) !== JSON.stringify([{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])) return 'a new Turning Cut slot starts ' + JSON.stringify(tc) + ', want 2 in its ring';
-    const q = A.ABILITIES.quarry_blow;
-    if (!q || JSON.stringify(q.disciplines) !== '["club"]' || q.rune !== 'chalked_earth_rune' || !A.landsBlow(q) || q.unlock) return 'Quarry Blow is no club-only Earth rune strike from Level 1: ' + JSON.stringify(q);
+    /* (Quarry Blow reworked into Stagger, 23-spell-audit.md wave 3: still the club's Earth rune strike from Level 1, at 60% of its share) */
+    const q = A.ABILITIES.stagger;
+    if (A.ABILITIES.quarry_blow || !q || JSON.stringify(q.disciplines) !== '["club"]' || q.rune !== 'chalked_earth_rune' || !A.landsBlow(q) || q.unlock || q.hitPm !== 840) return 'Stagger is no club-only Earth rune strike from Level 1 at 840: ' + JSON.stringify(q);
     if (A.ABILITIES.mend.healHpPm !== 110 || !A.ABILITIES.mend.universal) return 'Mend does not heal 11% of max HP: ' + JSON.stringify(A.ABILITIES.mend);
     return null;
   },

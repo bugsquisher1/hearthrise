@@ -91,9 +91,10 @@ export function reachable(inst, u, gx, gy) {
  * Aim `u` at the NEAREST tile `goal(x, y)` accepts that it can reach round every
  * monster standing now (occupancy fresh; grid.bfsTo). Answers that tile (its own
  * when it already stands on one: the goal is cleared) or null, leaving `u` as it was.
+ * `veto(x, y)` (optional) refuses more tiles on the way, as the leash does.
  */
-export function goToNearest(inst, u, goal) {
-  const p = bfsTo(inst.grid, u.x, u.y, goal, (x, y) => blocks(inst, u, x, y) || !leashAllows(inst, u, x, y), HUNT_TUNING.pathNodeCap);
+export function goToNearest(inst, u, goal, veto) {
+  const p = bfsTo(inst.grid, u.x, u.y, goal, (x, y) => blocks(inst, u, x, y) || !leashAllows(inst, u, x, y) || (veto ? veto(x, y) : false), HUNT_TUNING.pathNodeCap);
   if (!p) return null;
   if (!p.length) { clearGoal(u); return [u.x, u.y]; }
   const end = p[p.length - 1];

@@ -315,8 +315,8 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 33, atk: 13, aim: 61, evasion: 17, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, aim: 77, evasion: 16, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
-  ['hp: 52, atk: 12, aim: 51, evasion: 25, def: 5, xp: 199', 'hp: 52, atk: 2, def: 5, xp: 226'], ['hp: 81, atk: 23, aim: 73, evasion: 29, def: 8, xp: 346', 'hp: 81, atk: 2, def: 8, xp: 393'],
+const GLADE_SOFT = [['hp: 33, atk: 13, aim: 61, evasion: 16, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, aim: 77, evasion: 15, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
+  ['hp: 52, atk: 12, aim: 51, evasion: 24, def: 5, xp: 199', 'hp: 52, atk: 2, def: 5, xp: 226'], ['hp: 81, atk: 23, aim: 73, evasion: 29, def: 8, xp: 346', 'hp: 81, atk: 2, def: 8, xp: 393'],
   ['hp: 90, atk: 24, aim: 76, evasion: 31, def: 9, xp: 401', 'hp: 90, atk: 2, def: 9, xp: 456'], ['hp: 57, atk: 17, aim: 53, evasion: 25, def: 6, xp: 225', 'hp: 57, atk: 2, def: 6, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
@@ -330,7 +330,8 @@ const mutants = [
     ['src/data/gear-stats.generated.js', '"studded_body": f({', '"studded_body": f({ defB: 3, rangeAtkB: 6, magicAtkB: -2, critB: 0.004 }), "studded_body~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_pants": f({', '"studded_pants": f({ defB: 2, rangeAtkB: 4, magicAtkB: -1, critB: 0.004 }), "studded_pants~shipped": f({'],
     ['src/data/gear-stats.generated.js', '"studded_helmet": f({', '"studded_helmet": f({ defB: 2, rangeAtkB: 3, magicAtkB: -1, critB: 0.004 }), "studded_helmet~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_belt": f({', '"studded_belt": f({ defB: 1, rangeAtkB: 2, magicAtkB: -1, critB: 0.004 }), "studded_belt~shipped": f({'],
     ['src/data/gear-stats.generated.js', '"studded_boots": f({', '"studded_boots": f({ defB: 1, rangeAtkB: 2, magicAtkB: -1, critB: 0.004 }), "studded_boots~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_gloves": f({', '"studded_gloves": f({ defB: 1, rangeAtkB: 1, critB: 0.004 }), "studded_gloves~shipped": f({']] },
-  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"iron_platebody": f({', '"iron_platebody": f({ defB: 6, rangeAtkB: -3, magicAtkB: -6 }), "iron_platebody~shipped": f({']] },
+  /* (lane/scale-early-grounds) bronze is tier 0, item Level 0, since the Cellar and the Thicket joined the scale: its body is defB 5, so the flat rung is iron at 5 */
+  { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"iron_platebody": f({', '"iron_platebody": f({ defB: 5, rangeAtkB: -3, magicAtkB: -6 }), "iron_platebody~shipped": f({']] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },

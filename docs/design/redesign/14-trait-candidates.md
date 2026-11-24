@@ -80,7 +80,7 @@ Note: Similar to #26.
 +1.5 / 2.5 / 3.5% healing below 30% mana
 Best for: Healer
 
-**13. Slack Water** · Hask's Ford
+**13. Slack Water** · The Slake
 +1.5 / 2.5 / 3.5% damage while the party is above 90% health
 Best for: Ranger, Mage
 Note: Always on at easy depths. Similar to #19.
@@ -147,7 +147,7 @@ Best for: Healer
 Best for: Mage
 Note: The opposite of #16. Doesn't stack with it.
 
-**25. Numbed** · Hask's Ford
+**25. Numbed** · The Slake
 −1.5 / 2.5 / 3.5% damage taken from chilled enemies
 Best for: Tank
 Note: Needs a frost user in the party (Frost Slam, Hoarfrost, Chilling Lance or the support's Cold Palm).
@@ -254,8 +254,11 @@ Note: Needs Green Sickness in the party. It's the only Sickness left after the s
 
 Re-homed 2026-11-22 (the designer, lane/band-floor; 24-content-pipeline.md G4 and G8): Hask's Ford had none, and most scale Traits sat on a slot their ground never drops. Moved: 37 Hask's Bargain, 13 Slack Water, 25 Numbed, 14 Goaded and 20 Carter's Flight to Hask's Ford; 5 Snuffed and 26 Long Rite to Muster Barrows; 15 Keeper's Carry to the Flooded Wing (Keeper Dunn's wing). All 40 kept.
 
+Re-homed 2026-11-23 (the designer, lane/designer-reads-1123; 29-tuning-pass.md 7.8): the Slake joins the scale with no Trait, so 13 Slack Water (the river goes slack at the Slake) and 25 Numbed (its cold bilge water) move there from Hask's Ford. The Slake drops both slots and serves two seats; the Ford keeps three on two seats.
+
 - **Muster Barrows:** 1, 5, 6, 10, 26, 27, 33
-- **Hask's Ford:** 13, 14, 20, 25, 37
+- **Hask's Ford:** 14, 20, 37
+- **The Slake:** 13, 25
 - **Pyre Field:** 4, 11, 21
 - **Krell's Hold:** 3, 7, 9, 28, 34
 - **Carter's Rest:** 8, 22, 23, 35

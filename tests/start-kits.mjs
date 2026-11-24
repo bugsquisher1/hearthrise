@@ -8,7 +8,9 @@
 // residue), then real players through hr_create_hero and hr_create_character.
 //   K-ONCE    a new account: the first hero gets the account kit (the kit's gold to the purse, ACCOUNT_KIT to its bag) and the hero kit;
 //             the second gets the hero kit and no gold; one ledger row each saying which kits it paid
-//   K-PICK    every STARTER_SETS row: the hero wears that set (its first item a slot), every other practice weapon is in its bag
+//   K-PICK    every STARTER_SETS row: the hero wears that set (its first item a slot), every other practice weapon is in its bag; a set
+//             whose worn weapon shoots also wears one of the hero kit's shots in its ammo slot (a bow never goes on empty,
+//             lane/recruits-ammo-talents 2026-11-23), and a set that shoots nothing wears no ammo
 //   K-REMADE  a hero made in a slot already paid gets the practice weapons and nothing else
 //   K-SEED    L-02: the live account and each of its heroes is marked paid; its next hero in a new slot gets the hero kit, no account kit
 //   K-COACH   L-03: the live account is taught every card any of its heroes read; the heroes' rows are not written
@@ -22,6 +24,7 @@ import { bootReplay, closeReplays, chainFiles } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 import { ACCOUNT_KIT, HERO_KIT, STARTER_SETS, START_CURRENCY } from '../src/data/start-kit.js';
 import { ITEMS } from '../src/data/items.js';
+import { roleForWeapon, shootsItem, wornRoleKey } from '../src/data/hunt-roles.js';
 
 const KITS = '1038-start-kits.sql';
 const COACH = '1039-account-coach.sql';
@@ -82,7 +85,16 @@ export async function rules(db) {
     await db.query('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
     await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'start-kits pick') on conflict do nothing", [uid]);
     const r = await make(uid, 0, set, 'Kitpick ' + set.replace('_', ' ').slice(0, 10));
-    arm('K-PICK', r && r.ok === true && same(await wornOf(db, uid, 0), wearsOf(set)), set + ' wears ' + JSON.stringify(await wornOf(db, uid, 0)) + ' (' + JSON.stringify(r) + ')');
+    /* the set's own pieces, and (a weapon that shoots) one of the hero kit's shots in the ammo slot, the rest of that stack in the bag */
+    const role = roleForWeapon(wornRoleKey(wearsOf(set), ITEMS));
+    const shots = Object.keys(HERO_KIT).filter((id) => shootsItem(role, ITEMS[id]));
+    const worn = await wornOf(db, uid, 0);
+    const own = { ...wearsOf(set), ...(shots.length ? { ammo: worn.ammo } : {}) };
+    arm('K-PICK', r && r.ok === true && same(worn, own) && (!shots.length || shots.includes(worn.ammo)), set + ' wears ' + JSON.stringify(worn) + ' (' + JSON.stringify(r) + ')');
+    if (shots.length && shots.includes(worn.ammo)) {
+      const left = (await bagOf(db, uid, 0))[worn.ammo] || 0;
+      arm('K-PICK', left === HERO_KIT[worn.ammo] - 1, set + ' holds ' + left + ' of the kit\'s ' + HERO_KIT[worn.ammo] + ' ' + worn.ammo + ' beside the one loaded');
+    }
   }
   /* K-REMADE: slot 2's kit marked paid as a hero once made there was; the hero made there now gets the practice weapons alone */
   await db.query("insert into public.account_kits (user_id, grant_key, slot) values ($1, 'hero:2', 2)", [NEW]);

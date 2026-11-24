@@ -292,6 +292,42 @@
         "gzipBytes": 957515,
         "on": "2026-11-23",
         "why": "first-hour rewrite: new coach cards (talent_point, depth, fell_back, risk_pick) and tutorial sections feeding them (lane/first-hour-rewrite)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958090,
+        "on": "2026-11-23",
+        "why": "Parry, Gash, Stagger rows, the target_winding_up bar condition and its text (lane/moves-wave-3)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958238,
+        "on": "2026-11-23",
+        "why": "lane/monster-roles-ford-wings merged over the set (3329b4bb0): the Ford and Catacomb wing rows carry roles and spells, the Ford's drop chances at its rows' kill rate, REF_HERO's regenerated rows, formulaStep, refHeld and rowsKillsHead on the danger rows"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958924,
+        "on": "2026-11-24",
+        "why": "three wave-3 roads (299 nodes) and four statuses shown to the bar picker (lane/roads-wave3)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 958946,
+        "on": "2026-11-24",
+        "why": "Bold breakOff rule in danger.js (lane/designer-reads-1123)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 959538,
+        "on": "2026-11-24",
+        "why": "Mill Cellar and Meadowbrook on the scale, coin levels and the inside-one-tier band rule (lane/scale-early-grounds)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 962053,
+        "on": "2026-11-24",
+        "why": "lane/traits-in-engine: the worn-Trait rules join the game half"
       }
     ]
   }

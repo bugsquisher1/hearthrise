@@ -8,10 +8,10 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 8fa8756723dbdbb1224e403a94a2967692edcec8118ef02b9cf5e8fac3317af4
+--   digest: 2bc8690bd2f115d696484a1debaa4da147ed55ca05caf6c6cc5241e49a2a5009
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   636 vendor values, 49 store supplies paid per use, 5 target modes,
---   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
+--   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
 --   1054-danger-scale-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_limits' stamina_free_min moves, 480 -> 600 (src/data/hunt-sessions.js
@@ -19,6 +19,9 @@
 --   rests to 10 h and a full one hunts 10 h. No ground, spawn, kill bound, bid, end reason or world shape moves. ORDER: the sequence in its name,
 --   after 1056 and before 1058-hunting-blocks.sql (its self-check hunts the 10 h day). EDGE: none (the engine reads the pool and its cap from
 --   the server, never STAMINA_MAX_MS; hunt-sessions.js is in the hr-accrue payload, so its bytes move: deploy either side of the apply).
+--   FOLDED IN (lane/moves-wave-3, systems-engineer, 2026-11-23, while this file was STAGED; docs/design/redesign/23-spell-audit.md wave 3):
+--   hr_hunt_abilities loses quarry_blow and gains stagger (the club's Earth rune strike, its rework), parry (the sword's) and gash (the axes'
+--   Rupture rune ring). No default bar names any of them. 1069-wave3-moves-rune-spells.generated.sql, after this file, carries their runes.
 -- CARRIED FROM 1054-danger-scale-hunt-sessions-catalogue (lane/v1-climb wave 1, backend-architect, 2026-11-22; 02 package 3, 05 stage 6 wave 1: the Danger scale on the server). It carries
 --   1028-spell-rule-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_world_shape moves: the world carries the scale's six fields (risk, danger, climb,
 --   clean, low, cool) and every pack its down count (src/core/hunt/danger.js PERSISTED). No ground, spawn, kill bound, limit, bid or end reason moves (the
@@ -888,7 +891,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('dark_wizard', 25, 97, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1,"oak_wand":1,"oak_spellbook":1}'::jsonb),
   ('death_knight', 260, 1010, '{"big_bones":1,"death_steel":1}'::jsonb),
   ('deserter', 46, 198, '{"iron_bar":1,"steel_bar":1,"iron_fitting":1,"bones":1,"maple_bow":1}'::jsonb),
-  ('dire_gray', 11, 142, '{"raw_wolf_meat":1,"bones":1,"dire_hackle":1,"bronze_platebody":1,"leather_body":1,"apprentice_body":1,"studded_body":1,"den_knot":1}'::jsonb),
+  ('dire_gray', 11, 142, '{"raw_wolf_meat":1,"bones":1,"dire_hackle":1,"bronze_platebody":1,"leather_body":1,"apprentice_body":1,"den_knot":1}'::jsonb),
   ('dire_wolf', 40, 193, '{"wolf_pelt":1,"dire_fang":1,"alpha_fang":1,"raw_wolf_meat":1,"boarhide_boots":1}'::jsonb),
   ('draconia', 646, 1924, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"dawnbound_amulet":1}'::jsonb),
   ('dragon', 700, 2030, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1}'::jsonb),
@@ -929,7 +932,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('grave_guard', 89, 2189, '{"big_bones":1,"grave_dust":1,"barrow_nail":1,"ember_platelegs":1,"dragonhide_pants":1,"archmage_pants":1,"ember_tower_shield":1,"ember_belt":1,"dragonhide_belt":1,"archmage_belt":1}'::jsonb),
   ('gray_whelp', 4, 35, '{"raw_wolf_meat":1,"bones":1,"whelp_milk_tooth":1,"bronze_boots":1,"leather_boots":1,"apprentice_boots":1}'::jsonb),
   ('gray_wolf', 6, 67, '{"raw_wolf_meat":1,"bones":1,"gray_dewclaw":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"leather_belt":1,"apprentice_belt":1}'::jsonb),
-  ('grayjaw', 13, 169, '{"wolf_pelt":1,"bones":1,"grayjaw_whisker":1,"alpha_fang":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"grayjaws_ruff":1}'::jsonb),
+  ('grayjaw', 13, 169, '{"wolf_pelt":1,"bones":1,"grayjaw_whisker":1,"alpha_fang":1,"grayjaws_ruff":1}'::jsonb),
   ('greened_pikeman', 33, 584, '{"bones":1,"copper_ore":1,"green_rivet":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_sword":1}'::jsonb),
   ('grim_reaper', 668, 1797, '{"lich_soul":1,"death_steel":1,"hollow_sigil":1,"big_bones":1,"vamp_dust":1}'::jsonb),
   ('hall_grave_guard', 80, 2246, '{}'::jsonb),
@@ -1026,29 +1029,31 @@ insert into public.hr_hunt_target_modes (mode) values
   ('weakest');
 delete from public.hr_hunt_abilities;
 insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active, ord) values
-  ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 15),
+  ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 17),
   ('challenge', array['shield']::text[], 'support', 8000, 0, null, 0, true, 0),
-  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 17),
-  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 12),
+  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 19),
+  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 14),
   ('flame_strike', array['shield', 'sword']::text[], 'offense', 8000, 10, 'chalked_fire_rune', 0, true, 3),
-  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 9),
-  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 13),
+  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 11),
+  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 15),
   ('frost_slam', array['shield']::text[], 'support', 6000, 6, 'chalked_ice_rune', 0, true, 1),
-  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 16),
-  ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 19),
-  ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 14),
-  ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 8),
-  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 22),
+  ('gash', array['dual_axe']::text[], 'offense', 8000, 10, 'chalked_rupture_rune', 0, true, 8),
+  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 18),
+  ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 21),
+  ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 16),
+  ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 10),
+  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 24),
+  ('parry', array['sword']::text[], 'support', 10000, 10, null, 0, true, 5),
   ('power_strike', array['club', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 4),
-  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 10),
-  ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 20),
-  ('quarry_blow', array['club']::text[], 'offense', 8000, 10, 'chalked_earth_rune', 0, true, 7),
-  ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 11),
-  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 6),
+  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 12),
+  ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 22),
+  ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 13),
+  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 7),
   ('shelter', array['shield']::text[], 'support', 30000, 25, 'chalked_earth_rune', 0, true, 2),
-  ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 18),
-  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 5),
-  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 21);
+  ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 20),
+  ('stagger', array['club']::text[], 'offense', 10000, 10, 'chalked_earth_rune', 0, true, 9),
+  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 6),
+  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 23);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max, ends_at_level) values
@@ -2307,7 +2312,7 @@ begin
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
      or (select count(*) from public.hr_hunt_kill_bounds) <> 170
-     or (select count(*) from public.hr_hunt_abilities) <> 23
+     or (select count(*) from public.hr_hunt_abilities) <> 25
      or (select count(*) from public.hr_hunt_grounds) <> 25
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> 70
@@ -2372,6 +2377,7 @@ begin
     ('fireball', 'offense', array['destruction']::text[], 'chalked_fire_rune', 0),
     ('flame_volley', 'offense', array['ranged']::text[], 'chalked_fire_rune', 3),
     ('frost_slam', 'support', array['shield']::text[], 'chalked_ice_rune', 0),
+    ('gash', 'offense', array['dual_axe']::text[], 'chalked_rupture_rune', 0),
     ('green_sickness', 'offense', array['restoration']::text[], 'chalked_poison_rune', 0),
     ('hoarfrost', 'offense', array['destruction']::text[], 'chalked_ice_rune', 0),
     ('raking_shot', 'offense', array['ranged']::text[], null::text, 2),
@@ -2620,7 +2626,6 @@ begin
     ('krells_hold_hall', 'duskwood_staff', 1),
     ('krells_hold_hall', 'duskwood_wand', 1),
     ('krells_hold_hall', 'krells_tollgate', 1),
-    ('meadowbrook_thicket', 'adept_helmet', 1),
     ('meadowbrook_thicket', 'alpha_fang', 1),
     ('meadowbrook_thicket', 'apprentice_belt', 1),
     ('meadowbrook_thicket', 'apprentice_body', 1),
@@ -2640,15 +2645,12 @@ begin
     ('meadowbrook_thicket', 'gray_dewclaw', 1),
     ('meadowbrook_thicket', 'grayjaw_whisker', 1),
     ('meadowbrook_thicket', 'grayjaws_ruff', 1),
-    ('meadowbrook_thicket', 'iron_helm', 1),
     ('meadowbrook_thicket', 'leather_belt', 1),
     ('meadowbrook_thicket', 'leather_body', 1),
     ('meadowbrook_thicket', 'leather_boots', 1),
     ('meadowbrook_thicket', 'leather_helmet', 1),
     ('meadowbrook_thicket', 'leather_pants', 1),
     ('meadowbrook_thicket', 'raw_wolf_meat', 1),
-    ('meadowbrook_thicket', 'studded_body', 1),
-    ('meadowbrook_thicket', 'studded_helmet', 1),
     ('meadowbrook_thicket', 'whelp_milk_tooth', 1),
     ('meadowbrook_thicket', 'wolf_pelt', 1),
     ('mill_cellar', 'apprentice_helmet', 1),
@@ -3062,7 +3064,6 @@ begin
     ('duskwood_staff'),
     ('duskwood_wand'),
     ('krells_tollgate'),
-    ('adept_helmet'),
     ('alpha_fang'),
     ('apprentice_belt'),
     ('apprentice_body'),
@@ -3081,15 +3082,12 @@ begin
     ('gray_dewclaw'),
     ('grayjaw_whisker'),
     ('grayjaws_ruff'),
-    ('iron_helm'),
     ('leather_belt'),
     ('leather_body'),
     ('leather_boots'),
     ('leather_helmet'),
     ('leather_pants'),
     ('raw_wolf_meat'),
-    ('studded_body'),
-    ('studded_helmet'),
     ('whelp_milk_tooth'),
     ('wolf_pelt'),
     ('giant_rat_hide'),
@@ -3103,6 +3101,7 @@ begin
     ('sticky_core'),
     ('venom_sac'),
     ('adept_boots'),
+    ('adept_helmet'),
     ('bat_wing'),
     ('cistern_venom_gland'),
     ('crown_shard'),
@@ -3110,6 +3109,7 @@ begin
     ('dry_husk'),
     ('iron_boots'),
     ('iron_hatchets'),
+    ('iron_helm'),
     ('iron_sword'),
     ('iron_warhammer'),
     ('ironbound_shield'),
@@ -3125,6 +3125,7 @@ begin
     ('rat_kings_crown'),
     ('rat_kings_knot'),
     ('studded_boots'),
+    ('studded_helmet'),
     ('sump_membrane'),
     ('kingstooth'),
     ('adept_body'),
@@ -3145,6 +3146,7 @@ begin
     ('rooks_whistle'),
     ('sluice_crust'),
     ('snare_wire'),
+    ('studded_body'),
     ('studded_pants'),
     ('coffin_nail'),
     ('hasks_coin'),

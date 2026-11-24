@@ -193,6 +193,8 @@ function targetLine(r) {
   const spec = areaSpec(r);
   /* a ring round the hero that lands only its status (Frost Slam): what the status does, by its own row (bar.target_status_ring_<status>) */
   if (spec && spec.shape === 'ring' && spec.r === 1 && !landsBlow(r) && r.status) return t('bar.target_status_ring_' + r.status);
+  /* one target that lands only its status (Parry): the same, by its own row (bar.target_status_enemy_<status>) */
+  if (r.target === 'enemy' && !landsBlow(r) && r.status) return t('bar.target_status_enemy_' + r.status);
   if (spec && spec.shape === 'line') return t('bar.target_line', { len: spec.len });
   /* a strike that picks its mark (`prefers`): the roles it takes first, by their own names (monster-roles.js) */
   if (r.target === 'enemy' && Array.isArray(r.prefers)) return t('bar.target_prefers', { roles: r.prefers.map((id) => MONSTER_ROLES[id].name).join(', ') });
@@ -221,7 +223,7 @@ function blowShareLine(r, pm) {
 function statusLine(st, tier) {
   const status = st.name.toLowerCase();
   if (!st.durationMs) return t('bar.effect_status', { status });
-  const does = st.slowPm ? ['_slow', slowAt(st, slowScaleAt(st, tier))] : st.takenPm ? ['_taken', st.takenPm] : null;
+  const does = st.slowPm ? ['_slow', slowAt(st, slowScaleAt(st, tier))] : st.takenPm ? ['_taken', st.takenPm] : st.parry ? ['_parry', 0] : null;
   return t('bar.effect_status_for' + (does ? does[0] : ''), Object.assign({ status, secs: secs(st.durationMs) }, does ? { pct: does[1] / 10 } : null));
 }
 
@@ -252,6 +254,9 @@ export function factsOf(a, ctx) {
     if (Number.isInteger(r.healHpPm)) numbers.push(t('bar.effect_heal_hp', { pct: sharePct(r.healHpPm, k.pm) }));
     if (shells(r)) numbers.push(t('bar.effect_shield_blow', { pct: sharePct(r.shieldPm, k.pm) }));
     if (r.base !== undefined) numbers.push(floorWords(r, k.pm, 'effect'));
+    /* the answers to a wind-up (Stagger): it ends one, and the monster's next attack waits */
+    if (r.interrupts === true) numbers.push(t('bar.effect_interrupt'));
+    if (r.pushMs > 0) numbers.push(t('bar.effect_push', { secs: secs(r.pushMs) }));
     const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status], k.version)] : []);
     /* (the universal self-heal needs no particular weapon) */
     return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),

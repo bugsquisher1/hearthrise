@@ -435,14 +435,44 @@
         "why": "+1,826 B: refHeld field + refHeldOf and depthRarePm on the reference hold (lane/depth-reading-fix)"
       },
       {
-        "bytes": 3776720,
+        "bytes": 3792663,
         "on": "2026-11-23",
-        "why": "cut locked in (6093 bytes)"
+        "why": "lane/moves-wave-3 (23-spell-audit wave 3): Stagger, Parry and Gash rows with their reasons (data/abilities.js), the Parried status and its parry effect (data/statuses.js, core/hunt/status.js spendFlag), the wind-up answers in core/hunt/abilities.js (answer, the one-target status move), monster-spells.js interrupt and its parried landing, damage.js's parried swing, the target_winding_up test (data/condition-metrics.js, core/hunt/conditions.js); re-raised on the merge of set 050a9b999, the same +9,850 B"
       },
       {
-        "bytes": 3776855,
+        "bytes": 3802631,
         "on": "2026-11-23",
-        "why": "prices-wage-hours: Tamsin's scale-ground pay reads the wage (tally-tasks.js), +135 B over this lane's own -6,093 B cut (net -5,958 against the set)"
+        "why": "lane/monster-roles-ford-wings merged over the set (3329b4bb0): the Ford and both Catacomb wings on the formula with roles and spells, formulaStep and refHeld readers, rowsKillsHead kept on coin and loot, drop-rate.js rowsKillsHour, REF_HERO regenerated with its rows, the corridor pull's area veto (+9,968 B over the set)"
+      },
+      {
+        "bytes": 3808616,
+        "on": "2026-11-23",
+        "why": "lane/roads-wave3 on the merged set: src/data/talents.js gains Parry, Stagger and Gash roads (30 nodes) and two town rows; abilities and statuses comments"
+      },
+      {
+        "bytes": 3810103,
+        "on": "2026-11-24",
+        "why": "+1,487 B: Bold fights every pull (breakOff, breaksOff) and the bottom-depth hold (lane/designer-reads-1123)"
+      },
+      {
+        "bytes": 3819585,
+        "on": "2026-11-24",
+        "why": "lane/scale-early-grounds merged onto set/v0.2.144 1f3fa9fe6 (designer-reads): the lane's own growth over the set's ceiling, no new module: the Cellar and the Thicket on the scale, coin levels a ground (danger.js coinLevelOf, the Ford's 7.1), insideOneTier (bands.js, 29 7.5), wage.js store step on refLevel, combat-sim.js fightItems"
+      },
+      {
+        "bytes": 3819945,
+        "on": "2026-11-24",
+        "why": "lane/scale-early-grounds: bands.js companyKits, the company-kit rule as one pure function (29 7.5) a guard can read on any row, +360 B"
+      },
+      {
+        "bytes": 3836439,
+        "on": "2026-11-24",
+        "why": "lane/traits-in-engine on the set at 77572308a: src/core/hunt/trait-rules.js (the 40 Traits as conditional gear-slice steps, dark behind traitsLive), its typed tag and tr plumbing"
+      },
+      {
+        "bytes": 3830481,
+        "on": "2026-11-24",
+        "why": "cut locked in (5958 bytes)"
       }
     ]
   }

@@ -17,7 +17,11 @@
 //            slot their ground drops): to Hask's Ford, Hask's Bargain (the toll Hask took at this ford), Slack Water (a river's still
 //            water), Numbed (cold ford water), Goaded (teams driven across) and Carter's Flight (the flight across the water); to Muster
 //            Barrows, Snuffed (barrow candles) and Long Rite (the officers' burial rite; Pyre Field keeps its twin, Pyre Tender); Keeper's
-//            Carry to the Flooded Wing, Keeper Dunn's own. The Bone Wing's helmet cell held three, over traitRoll.cellMax
+//            Carry to the Flooded Wing, Keeper Dunn's own. The Bone Wing's helmet cell held three, over traitRoll.cellMax.
+//            RE-HOMED AGAIN (the designer, lane/designer-reads-1123 2026-11-23, 29-tuning-pass.md 7.8): the Slake joins the scale with no
+//            pool, so Slack Water (the Slake is where the river goes slack) and Numbed (its cold bilge water) move there from Hask's Ford.
+//            The Slake drops both slots (pants on the Bargeman, belts as its Rares) and serves two seats (ranger, tank); the Ford keeps
+//            three Traits on two seats (melee, healer), over traitRoll.seatsMin
 //   best     the seat (src/data/hunt-roles.js HUNT_ROLES) and ground it is sized on (04 guard 1)
 //   tip      the tooltip, in the doc's genre style: {pct} is the rank's shown percent (GEAR_STEPS.shownPct.rank), {gain} a trade's (shownPct.tradeGain)
 //   trade    a gain with a cost (#37): offense rises by GEAR_STEPS.tradeSteps and defense FALLS by traitSteps while `when` holds.
@@ -27,8 +31,10 @@
 //   startMin a floor on the stock the hero STARTED THE HUNT with, for a Trait whose `when` reads running low (#36): a Trait that pays
 //            for few arrows left counts only when the hunt began with at least twice that many, so packing 50 arrows never keeps it on
 //
-// TRAITS ARE HIDDEN. Nothing rolls them, no drop table names them, no fight reads them and no screen shows them until wave 4 (half-built
-// features stay hidden). tests/gear-steps.mjs GS-6 holds that only src/data/gear-steps.js imports this file (and re-exports it).
+// TRAITS ARE HIDDEN. Nothing rolls them, no drop table names them and no screen shows them until wave 4 (half-built features stay hidden).
+// The engine PLAYS a worn Trait (src/core/hunt/trait-rules.js: each row a rule on a conditional step of the gear slice), but only on a hero
+// handed one, and no server or client file hands one while GEAR_STEPS.traitsLive is false (tests/hunt-core/trait-rules.mjs dark); the Lab
+// and the tests do. tests/gear-steps.mjs GS-6 holds that only src/data/gear-steps.js imports this file (and re-exports it).
 // THE VERY RARE PAIR RULE (12-targets section 8.1) is the roller's (wave 4): GEAR_STEPS.traitSlots, GEAR_STEPS.veryRareBanned and the
 // keys here are its data, and GS-5 proves every slot can roll a pair of two keys.
 //
@@ -69,7 +75,7 @@ export const TRAITS = Object.freeze({
   /* legs */
   empty_wagon: T({ n: 12, name: 'Empty Wagon', slot: 'pants', raises: 'heal', key: 'dry_heal', source: 'ox_road', seat: 'healer',
     when: W('self_mana_pct', 'lt', 30), tip: '+{pct}% healing below 30% mana' }),
-  slack_water: T({ n: 13, name: 'Slack Water', slot: 'pants', raises: 'offense', key: 'unhurt', source: 'hasks_ford', seat: 'ranger',
+  slack_water: T({ n: 13, name: 'Slack Water', slot: 'pants', raises: 'offense', key: 'unhurt', source: 'the_slake', seat: 'ranger',
     when: W('party_hp_pct', 'gt', 90), tip: '+{pct}% damage while the party is above 90% health' }),
   goaded: T({ n: 14, name: 'Goaded', slot: 'pants', raises: 'offense', key: 'rally', source: 'hasks_ford', seat: 'melee_dps',
     when: W('allies_below', 'gte', 2, 'under_70'), tip: '+{pct}% damage while 2+ party members are below 70% health' }),
@@ -97,7 +103,7 @@ export const TRAITS = Object.freeze({
   /* belt */
   banked_coals: T({ n: 24, name: 'Banked Coals', slot: 'belt', raises: 'offense', move: 'spell', key: 'mana', source: 'ox_road', seat: 'mage',
     when: W('self_mana_pct', 'lt', 30), tip: '+{pct}% spell damage below 30% mana' }),
-  numbed: T({ n: 25, name: 'Numbed', slot: 'belt', raises: 'defense', key: 'status_guard', source: 'hasks_ford', seat: 'tank',
+  numbed: T({ n: 25, name: 'Numbed', slot: 'belt', raises: 'defense', key: 'status_guard', source: 'the_slake', seat: 'tank',
     when: on('chill'), tip: '−{pct}% damage taken from chilled enemies' }),
   long_rite: T({ n: 26, name: 'Long Rite', slot: 'belt', raises: 'heal', key: 'mass_heal', source: 'muster_barrows', seat: 'healer',
     when: W('party_hp_pct', 'lt', 50), tip: '+{pct}% healing while the party is below 50% health' }),

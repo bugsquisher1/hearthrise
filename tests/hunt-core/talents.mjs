@@ -32,6 +32,7 @@ async function load(root) {
   M.AU = await imp('src/core/hunt/auras.js');
   M.AB = await imp('src/data/abilities.js');
   M.roleData = await imp('src/data/hunt-roles.js');
+  M.CM = await imp('src/data/condition-metrics.js');
   M.conditions = M.hunt.conditions;
   return M;
 }
@@ -178,9 +179,10 @@ const cases = {
     }
     if (!TD.validate(TD.TALENT_NODES, { values: { ...TD.BORROW_VALUES, rend: null } }).some((s) => /rend has no measured V0/.test(s))) return 'validate passed an unmeasured town move';
     /* A SIDE THAT GETS NOTHING: a hero of one of the town's two countries for whom every move it names is its own weapon's or not offered
-       still pays a point for nothing. OPEN with the designer (CONFLICTS 2026-11-23, lane/roads-borrow-values): these four, a list that
-       only shrinks (a new one is red; one that now lends is taken off) */
-    const NOTHING = ['border.shield_restoration.town:shield', 'border.club_dual_axe.town:dual_axe', 'border.sword_club.town:sword', 'border.destruction_restoration.town:destruction'];
+       still pays a point for nothing. OPEN with the designer (CONFLICTS 2026-11-23, lane/roads-borrow-values): a list that
+       only shrinks (a new one is red; one that now lends is taken off). lane/roads-wave3 took two off: Club · Dual Axe lends the axes
+       Stagger, Sword · Club lends the sword Stagger */
+    const NOTHING = ['border.shield_restoration.town:shield', 'border.destruction_restoration.town:destruction'];
     const nothing = [];
     for (const n of towns) for (const d of n.countries) {
       const moves = n.options.map((o) => (o.effects.find((e) => e.kind === 'borrow') || {}).move);
@@ -222,6 +224,19 @@ const cases = {
       if (!T.suggestedOrder(d, 'party').some(([id]) => id === m + '.x2')) return d + ' casts ' + m + ' but never walks its road';
     }
     return null;
+  },
+  /* A BAR CAN TEST WHAT A ROAD LAYS (lane/roads-wave3): every status a Roads option, waystone or vow lays on a monster (a reaction's status, a
+     mod's second status) is one the bar's effect picker offers (condition-metrics.js EFFECT_IDS, the server's catalogue), so a hero who
+     took Breaking Strike can write "my target lacks Armor Break" once and never time it by hand. A ground patch is no effect a unit holds */
+  'bar-can-test': (M) => {
+    const laid = new Set();
+    for (const n of M.TD.TALENT_NODES) for (const fx of [n.effects || [], ...(n.options || []).map((o) => o.effects)]) for (const e of fx) {
+      if (e.kind === 'react' && e.do === 'status') laid.add(e.status);
+      if (e.kind === 'mod' && e.also) laid.add(e.also);
+    }
+    if (!laid.size) return 'no Roads option lays a status: nothing read';
+    const missing = [...laid].filter((s) => !M.CM.EFFECT_IDS.includes(s));
+    return missing.length ? 'a road lays a status the bar cannot test: ' + missing.join(', ') : null;
   },
   /* EVERY NODE LANDS (17 section 9: "no dead nodes"): each mod names a field its move's row reads (outPm on a row that lands something, a
      status's time, strength and second status on a row with a status, a ring's reach on a ring, an area's side on an area, a heal's or a
@@ -344,9 +359,11 @@ const mutants = [
   { name: 'not_offered asked after the points', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", ''],
     [T, "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n", "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n  if (!offered(n, pick)) return 'not_offered';\n"]] },
   { name: 'a saved build keeps a pick that lends nothing', case: 'town-values', edits: [[T, "    if (!offered(n, v)) out.push({ node: id, why: 'not_offered' });\n", '']] },
-  { name: 'a town lends a club hero only its own moves', case: 'town-values', edits: [['src/data/talents.js', "...border('club', 'dual_axe', ['rend', 'turning_cut'],", "...border('club', 'dual_axe', ['power_strike', 'turning_cut'],"]] },
+  { name: 'a town lends a club hero only its own moves', case: 'town-values', edits: [['src/data/talents.js', "...border('club', 'dual_axe', ['rend', 'stagger'],", "...border('club', 'dual_axe', ['turning_cut', 'stagger'],"]] },
   { name: 'a pick whose move never reads its field', case: 'every-node-lands', edits: [['src/data/talents.js', "[mod('rend', { statusMs: 3000 })]", "[mod('power_strike', { statusMs: 3000 })]"]] },
   { name: 'a reaction on a move that lands no blow', case: 'every-node-lands', edits: [['src/data/talents.js', "{ of: 'turning_cut', pm: 10, to: 'self' }", "{ of: 'challenge', pm: 10, to: 'self' }"]] },
+  { name: 'a status a road lays is hidden from the bar', case: 'bar-can-test', edits: [['src/data/statuses.js', "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs", "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs"]] },
+  { name: 'a wave-3 road left off the map', case: 'whole-map', edits: [['src/data/talents.js', "  club: Object.freeze(['turning_cut', 'stagger']),", "  club: Object.freeze(['turning_cut']),"]] },
   { name: 'a shared road is never walked', case: 'whole-map', edits: [[T, ".flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));", ".flatMap(() => []);"]] },
   { name: 'the cast path reads the shared rows', case: 'engine-rows', edits: [['src/core/hunt/abilities.js', '  const ABILITIES = rowsFor(hero);\n', '']] },
   { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'm.queued = false; m.holdMs = tauntHold(k); }', 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }']] },

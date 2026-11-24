@@ -25,6 +25,7 @@ import { healIn } from './heal-cut.js';
 import { offerShield, overflowShield } from './shields.js';
 import { layStack, statusRow } from './status.js';
 import { outPmFor, nearFall } from './talent-rows.js';
+import { traitsField } from './trait-rules.js';
 import { dist2 } from './grid.js';
 import { isAlly, isHero } from './sides.js';
 
@@ -63,7 +64,8 @@ export function landHeal(u, t, n, sc, surge, row, piped, cast) {
     const cut = healIn(inst, t, n);
     const got = Math.max(0, Math.min(cut, missing));
     t.hp = int(t.hp) + got;
-    sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, ...(surge ? { crit: true } : {}) }));
+    /* (the worn Traits that held on its amount, abilities.js effect: the event names them, src/core/hunt/trait-rules.js) */
+    sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, ...(surge ? { crit: true } : {}), ...traitsField(cast && cast.tr) }));
     /* HEALING PAST FULL KEPT AS A SHIELD (a heal row's overShieldPm, High Tide): its overflow's share, under the one shield rule */
     if (row && row.overShieldPm) overflowShield(sc, u, t, cut, missing, row.overShieldPm);
     if (fx && fx.hotPm > 0 && fx.hotMs > 0) layOverTime(inst, sc, u, t, Math.floor((n * fx.hotPm) / 1000), fx.hotMs);

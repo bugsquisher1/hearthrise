@@ -15,7 +15,7 @@
 //                            to a stronger landing's scale (never lowered); one more stack is added under maxStacks; at maxStacks a
 //                            weaker stack of ANOTHER row of the key is replaced by the landing (15: "the stronger one replaces")
 //                   keep     the stacks there keep their own clocks; at maxStacks the oldest goes; the landing is added (a ground patch)
-//   hidden        true: no player meets it yet (no move, Trait or Signature lands it). Not offered to the bar's effect picker
+//   hidden        true: no player meets it yet (no move, Roads option, Trait or Signature lands it). Not offered to the bar's effect picker
 //                 (condition-metrics.js EFFECT_IDS, the server's catalogue), not a stacks subject; the engine and its tests read it
 // EFFECTS (any combination, except that one stack has ONE scale, so a tick, a tiered slow and a guarded heal cut never share a row):
 //   tick          a TICKING status (damage over time, or heal over time with `heals`):
@@ -43,7 +43,10 @@
 //                 tier of the cast that landed it, the tank rune spells 2026-11-19): slow = round(slowPm x tierPermille[tier-1] / 1000)
 //   silence       true: its unit starts no spell while it lasts (monster-spells.js: its cooldowns still run; a windup already started
 //                 still lands, ending one is Stagger's, 23 section 4)
-//   healCutPm     { hero, monster } permille LESS of every heal its unit takes while it lasts, by the unit's side (heal-cut.js healTaken,
+//   parry         true: its unit's NEXT BLOW lands nothing, and the stack is spent on it (damage.js resolveAttacks: a swing and its
+//                 splash; monster-spells.js land: a wind-up's landing, which is its caster's blow; a mend strikes no hero and spends
+//                 none). A tick is no blow. Fixed: never scaled by skill or rune tier
+//   healCutPm    { hero, monster } permille LESS of every heal its unit takes while it lasts, by the unit's side (heal-cut.js healTaken,
 //                 the one reader). guard (optional): an element; a HERO's resistance to it lowers the hero's cut by the same percent,
 //                 fixed as the stack lands: cut = floor(healCutPm.hero x taken / 1000). A monster's cut is never guarded
 // THE KEYS' COUNT (status-effects.js effectPm): a unit's value of one effect is, over its keys, the key's value summed:
@@ -72,6 +75,7 @@ export const STATUS_KEYS = Object.freeze({
   armor_break: Object.freeze({ combine: 'strongest' }),         // one a monster, the largest counts
   monster_deals_less: Object.freeze({ combine: 'strongest' }),  // Weakened, Shaken, Hard Challenge: the largest counts
   silenced: Object.freeze({ combine: 'strongest' }),            // one at a time, restarts the time
+  parried: Object.freeze({ combine: 'strongest' }),             // one at a time: a second Parry restarts the window, never a second blow
   burning_ground: Object.freeze({ combine: 'strongest' }),
   /* "different sources add, the Lab sets one cap for the total" (15): PROVISIONAL caps, the Lab's to set */
   hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),
@@ -104,6 +108,11 @@ export const STATUSES = Object.freeze({
   /* GREEN SICKNESS's mark (Bible §17 Restoration: "lower-power AoE plus a fixed, non-stacking ~10% damage-taken
      vulnerability for a short duration"; lane b-spell-content, PROVISIONAL): one stack, 6 s, +10% from every blow. */
   sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),
+  /* PARRIED (the sword's Parry, docs/design/redesign/23-spell-audit.md section 4: "your target's next blow within 2 s lands 0"): the
+     monster's next blow, a swing or a wind-up's landing, lands nothing, and the stack is spent on it. Its 2.1 s is Parry's window (the
+     designer, lane/roads-wave3): a status ticks in the sub-step it lands, so 2000 covered a blow up to 1.9 s off and missed every 2 s
+     group spell the cast's own rule ("my target is winding up") fires on. 2100 answers them, so that rule never casts a Parry that whiffs */
+  parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2100, maxStacks: 1, parry: true }),
   /* CHILL (Tyler 2026-11-08, the area-spells design: Hoarfrost's frost; PROVISIONAL, the designer's numbers): its unit's
      swings and spell windups run 30% longer for 4 s, one stack. BY RUNE TIER (the tank rune spells, board 2026-11-19 piece 3):
      30 / 35 / 40 / 45 / 50% on a Chalked .. Graven Ice Rune's cast, for every Ice spell (Hoarfrost, Frost Slam). */
@@ -117,17 +126,19 @@ export const STATUSES = Object.freeze({
   ...(NECROTIC_STORM.live ? { withered: Object.freeze({ id: 'withered', name: 'Withered', key: 'withered', durationMs: 6000, maxStacks: 1,
     healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),
 
-  /* ── HIDDEN: the engine's vocabulary for the Roads, the Wraps, Signatures and Traits (E2). No move lands any yet. ── */
+  /* ── HIDDEN: the engine's vocabulary for the Roads, the Wraps, Signatures and Traits (E2), while nothing a player meets lands it. Armor
+     Break, Weakened, Silenced and Sapped are shown: Roads options lay them, so a bar may test them (lane/roads-wave3; tests/hunt-core/
+     talents.mjs bar-can-test) ── */
   /* POISON (15 #7 Floodwater Hatchets: "Rend also applies Poison, 20% of Rend's damage over 6 s"): a poison tick beside Bleed, a share of
      the source's blow as Bleed's is. One stack; a new one restarts it. */
   poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,
     tick: Object.freeze([1, 3]), everyMs: 1000, durationMs: 6000, maxStacks: 1, blowPm: 20, tierPermille: TIERS, damageType: 'poison' }),
   /* ARMOR BREAK (22 Coal Hands, Coal Palm: "-25% armor for 6 s"): the monster keeps a quarter less of its defence. One a monster. */
-  armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),
+  armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', durationMs: 6000, maxStacks: 1, armorPm: -250 }),
   /* WEAKENED (22 Lye: "-8% damage dealt for 8 s"): on the "monster deals less" key with Shaken and Hard Challenge. */
-  weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),
+  weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', durationMs: 8000, maxStacks: 1, dealtPm: -80 }),
   /* SILENCED (22 Cold Palm: "can't start a spell for 3 s"; 15 #15): one at a time, a new one restarts the time. */
-  silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),
+  silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', durationMs: 3000, maxStacks: 1, silence: true }),
   /* BURNING GROUND (15 #10 Coal Runner's Bow: "Flame Volley leaves the ground burning for 4 s, 10% of its damage a second"): a patch
      round the tile it lands on, each its own; three at most from one hero. */
   burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',
@@ -149,7 +160,7 @@ export const STATUSES = Object.freeze({
   echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',
     tick: Object.freeze([1, 1]), everyMs: 2000, durationMs: 2000, maxStacks: 5, blowPm: 1, tierPermille: TIERS, damageType: 'physical' }),
   /* SAPPED (Weakening Sickness: "Sick enemies: -6% damage dealt"): beside Sickness, on the "monster deals less" key */
-  sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),
+  sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs: 6000, maxStacks: 1, dealtPm: -60 }),
   /* FROZEN GROUND (Cold Ground: "Frozen ground 4 s, chills enemies on it"): a patch round the tank that lays Chill on every enemy in it
      each second (`lays`), one a hero */
   frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',
@@ -163,7 +174,7 @@ export const ticks = (row) => Array.isArray(row.tick);
 /** A HARMFUL row on a hero (a cleanse takes it off, src/core/hunt/heal-rules.js): a damage tick, a heal cut, a slow, a silence, more
     taken, less dealt, less armor. A ground patch is its holder's, never on it. */
 export const harmful = (row) => !!row && !row.ground && ((ticks(row) && !row.heals) || !!row.healCutPm || row.slowPm > 0 || row.silence === true
-  || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
+  || row.parry === true || row.takenPm > 0 || row.dealtPm < 0 || row.armorPm < 0);
 
 /** A SLOWING STACK'S SLOW, permille, at its fixed `scale` (status.js stackScale: the landing's tier share, 1000 with none):
     round(slowPm x scale / 1000). One formula for the engine (damage.js slowed) and the bar's words. 0 for a row that slows nothing. */
@@ -184,13 +195,13 @@ const ID = /^[a-z0-9_]{1,32}$/;
 const SIGNED = Object.freeze(['takenPm', 'dealtPm', 'armorPm']);
 const TICK_FIELDS = Object.freeze(['tick', 'everyMs', 'blowPm', 'damageType', 'heals', 'lays']);
 const KNOWN = new Set(['id', 'name', 'key', 'durationMs', 'maxStacks', 'refresh', 'hidden', ...TICK_FIELDS, 'tierPermille', 'ground',
-  ...SIGNED, 'slowPm', 'silence', 'healCutPm', 'guard']);
-/** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, healCutPm. */
+  ...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm', 'guard']);
+/** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry, healCutPm. */
 export function effectsOf(row) {
   const out = [];
   if (row.tick !== undefined) out.push('tick');
   if (row.ground !== undefined) out.push('ground');
-  for (const k of [...SIGNED, 'slowPm', 'silence', 'healCutPm']) if (row[k] !== undefined) out.push(k);
+  for (const k of [...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm']) if (row[k] !== undefined) out.push(k);
   return out;
 }
 
@@ -213,7 +224,7 @@ export function validateStatus(row) {
   for (const k of ['durationMs', 'maxStacks']) posInt(k);
   onGrid('durationMs');
   const fx = effectsOf(row);
-  if (!fx.length) out.push(at + 'does nothing: it needs an effect (tick, ground, takenPm, dealtPm, armorPm, slowPm, silence or healCutPm)');
+  if (!fx.length) out.push(at + 'does nothing: it needs an effect (tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry or healCutPm)');
   /* ONE SCALE A STACK: a tick's (its source's blow), a tiered slow's (its rune tier) or a guarded heal cut's (the hero's guard) */
   const scaled = [row.tick !== undefined, row.slowPm !== undefined && row.tierPermille !== undefined, row.healCutPm !== undefined].filter(Boolean).length;
   if (scaled > 1) out.push(at + 'a tick, a tiered slow and a heal cut each fix a stack\'s scale: one a row');
@@ -223,6 +234,7 @@ export function validateStatus(row) {
   }
   if (row.slowPm !== undefined && (!Number.isInteger(row.slowPm) || row.slowPm <= 0 || row.slowPm > 1000)) out.push(at + 'slowPm must be an integer 1..1000');
   if (row.silence !== undefined && row.silence !== true) out.push(at + 'silence is true or absent');
+  if (row.parry !== undefined && row.parry !== true) out.push(at + 'parry is true or absent');
   if (row.healCutPm !== undefined) {
     const c = row.healCutPm;
     if (!c || typeof c !== 'object' || Object.keys(c).sort().join() !== 'hero,monster' || !['hero', 'monster'].every((k) => Number.isInteger(c[k]) && c[k] > 0 && c[k] < 1000)) {

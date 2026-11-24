@@ -114,7 +114,7 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads, borrowed) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads, borrowed, traits) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25), unless
        opts.start gives its own Level XP and skill XP (a career run carries them from one run to the next). */
     const st = (start && start(role, i, L)) || {};
@@ -136,7 +136,10 @@ export async function loadPlay(root) {
         /* opts.borrowed ((role, seat) -> [ability id] | null): moves of another weapon on the hero's own borrow list (heroSetup `borrowed`,
            the engine's path a lent move plays: its native row and its native weapon's blow, src/core/borrow-blow.js), with no build and so
            no penalty (lane/roads-borrow-values: a town move's V0 at full power) */
-        ...(borrowed && borrowed(role, i) ? { borrowed: borrowed(role, i) } : {}) }),
+        ...(borrowed && borrowed(role, i) ? { borrowed: borrowed(role, i) } : {}),
+        /* opts.traits ((role, seat) -> [{ id, rank }] | null): the Traits the hero's pieces carry, as the server would project them
+           (src/core/hunt/trait-rules.js; DARK in the game: only the Lab and the tests hand them) */
+        ...(traits && traits(role, i) ? { wornTraits: traits(role, i) } : {}) }),
     };
   };
   const run = (huntId, L, roles, opts = {}) => {
@@ -145,7 +148,7 @@ export async function loadPlay(root) {
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold, typeof opts.roads === 'function' ? opts.roads : null,
-      typeof opts.borrowed === 'function' ? opts.borrowed : null));
+      typeof opts.borrowed === 'function' ? opts.borrowed : null, typeof opts.traits === 'function' ? opts.traits : null));
     /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
        (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });
@@ -232,9 +235,14 @@ export async function loadPlay(root) {
           /* a training item's hours, spent as the server spends them (the window's claim, journal meta.boost_ms) */
           ...(m.huntSession.trainBoostMs ? { trainBoostMs: Math.max(0, m.huntSession.trainBoostMs - (p.delta.journal.meta.boost_ms || 0)) } : {}) });
         m.unitId = h.unit_id; m.hp = p.delta.hp; m.gold += p.delta.gold || 0;
-        for (const [k, v] of Object.entries(p.delta.xp || {})) m.skills = { ...m.skills, [k]: (m.skills[k] || 0) + v };
-        if (m.xpFrac && p.delta.xp_frac) m.xpFrac = { ...m.xpFrac, ...p.delta.xp_frac };
-        m.levelXp += p.delta.level_xp || 0;
+        /* opts.holdLevel (lane/scale-early-grounds): the company stays at the Level and skills it started at, every window paid as the
+           settle pays it but never carried (a Danger band's three companies are each AT a Level; a Level 1 to 15 company grows several
+           Levels in a measuring day, and a Mill Cellar hero is outgrown at 5 within the hour). Off by default */
+        if (opts.holdLevel !== true) {
+          for (const [k, v] of Object.entries(p.delta.xp || {})) m.skills = { ...m.skills, [k]: (m.skills[k] || 0) + v };
+          if (m.xpFrac && p.delta.xp_frac) m.xpFrac = { ...m.xpFrac, ...p.delta.xp_frac };
+          m.levelXp += p.delta.level_xp || 0;
+        }
         if (h.ended) m.ended = h.ended;
       }
       if (members.every((m) => m.ended)) break;

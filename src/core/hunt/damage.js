@@ -50,10 +50,11 @@ import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit, rowOf as standsIn } from './monster-roles.js';
 import { monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
-import { applyStatus, statusRow } from './status.js';
+import { applyStatus, statusRow, spendFlag } from './status.js';
 import { effectPm } from './status-effects.js';
 import { noteHurt, breaksOff } from './danger.js';
 import { stepsOn, blowAmount, manaOn } from './amount.js';
+import { traitsField } from './trait-rules.js';
 import { AMOUNT } from '../../data/amount.js';
 import { isEnemy, isAlly, isHero, isMonster } from './sides.js';
 import { queueOn, reactorsOf } from './react-queue.js';
@@ -143,7 +144,12 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   /* ON THE DANGER SCALE, THE AMOUNT PIPELINE (src/core/hunt/amount.js): `amount` is the move's MEAN in its source's units, and the one
      pipeline lands it (base share, the step contest with every conditional step, one roll, the reference health), rounded once. The
      monster's flat defence, the armor chain and its cap, Tempering's draw and the after-the-chain power step are not read there. */
-  if (stepsOn(inst)) return landOn(inst, target, source, pipedAmount(inst, target, amount, source, element, ability, el, rng));
+  if (stepsOn(inst)) {
+    const c = pipedBlow(inst, target, amount, source, element, ability, el, rng);
+    const r = landOn(inst, target, source, blowAmount(inst, c));
+    /* the worn Traits that held on it (src/core/hunt/trait-rules.js withTraits): its `dmg` event names them */
+    return c.traits ? Object.assign(r, { traits: c.traits }) : r;
+  }
   /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
      element for the armour chain below (ruling K7). */
   let n = Math.max(0, Math.floor(amount));
@@ -170,10 +176,11 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   return landOn(inst, target, source, n);
 }
 
-/* THE PIPELINE'S BLOW (src/core/hunt/amount.js blowAmount) from what hurt was handed: the move's multipliers (its version or store share,
-   the dealer's stance, the target's stance, a called boss's guard) as one base-share permille, the element answer as steps, and the mark
-   and the slow that landHit and the dealer carry (`ability.markPm`, the source's slowPm). */
-function pipedAmount(inst, target, mean, source, element, ability, el, rng) {
+/* THE PIPELINE'S BLOW (src/core/hunt/amount.js blowAmount), its context from what hurt was handed: the move's multipliers (its version or
+   store share, the dealer's stance, the target's stance, a called boss's guard) as one base-share permille, the element answer as steps,
+   the mark and the slow that landHit and the dealer carry (`ability.markPm`, the source's slowPm), and the hit's tag (`tag`: the move a
+   worn Trait's `move` reads, src/core/hunt/trait-rules.js). */
+function pipedBlow(inst, target, mean, source, element, ability, el, rng) {
   let mult = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
   if (isMonster(target)) mult = (mult * guardPmOf(inst, target)) / 1000;
   /* a formula monster's role armor (monsterArmorPm, Armor Break moving it: armorKept) is a share of the blow on the scale too: the monster
@@ -181,9 +188,9 @@ function pipedAmount(inst, target, mean, source, element, ability, el, rng) {
   const arm = isMonster(target) ? armorKept(inst, target) : 0;
   if (arm > 0) mult = (mult * (1000 - arm)) / 1000;
   mult = (mult * stanceOf(source).dealt * stanceOf(target).taken) / 1000000;
-  return blowAmount(inst, { source, target, mean: Math.max(0, mean), mult, el: isMonster(target) ? weakShare(el, ability) : el, ward: !!element && element !== 'physical',
+  return { source, target, mean: Math.max(0, mean), mult, el: isMonster(target) ? weakShare(el, ability) : el, ward: !!element && element !== 'physical',
     answerPm: ability && ability.answerPm, markPm: ability && ability.markPm, dealerPm: ability && ability.dealerPm, slowPm: source ? slowPmOf(source) : 0,
-    critMult: COMBAT_BALANCE.critMult, rng });
+    critMult: COMBAT_BALANCE.critMult, rng, tag: ability || null, traits: /** @type {string[] | undefined} */ (undefined) };
 }
 /* WHAT A BLOW DOES ONCE ITS AMOUNT IS KNOWN (both chains): the target's shield first, then HP. */
 function landOn(inst, target, source, n, exact) {
@@ -243,7 +250,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* ON THE SCALE a mark and a dealer's status are conditional steps (src/core/hunt/amount.js), never a multiplier */
   const tag = piped ? (markPm || dealtPm ? Object.assign({}, ability, { markPm, dealerPm: dealtPm }) : ability)
     : markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability;
-  /** @type {{ dmg: number, killed: boolean, absorbed?: number, guard?: { u: any, n: number } }} */
+  /** @type {{ dmg: number, killed: boolean, absorbed?: number, guard?: { u: any, n: number }, traits?: string[] }} */
   const r = hurt(inst, target, amount, source, element, tag, sc.rng);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
@@ -263,7 +270,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const vit = isHero(target) ? { hp: Math.max(0, Math.floor(Number(target.hp) || 0)), max: Math.max(0, Math.floor(Number(target.maxHp) || 0)) } : null;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(vit || {}) }));
+    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(vit || {}), ...traitsField(r.traits) }));
   /* A SHIELD THAT BROKE (it held before this blow and is spent now): `shield_break` names the hero who cast it (`by`) and the blow's
      dealer (`u`), so the bar's triggers and the report read one event (abilities.js offerShield writes every shield). */
   if (shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0)) {
@@ -374,6 +381,9 @@ export function resolveAttacks(inst, sc) {
       /* THE DANGER SCALE'S FALL BACK (danger.js breaksOff): once a hero is under the stance's line, no monster swings again in this pull;
          the party breaks off at the next sub-step (pull-cycle.js breakOff). Off the scale it never holds. */
       if (breaksOff(inst)) continue;
+      /* A PARRIED BLOW (statuses.js `parry`, the sword's Parry): the swing is made and its clock restarts, but it lands nothing, nor its
+         splash; the stack is spent on it (status.js spendFlag) and the screen shows a miss. Draws nothing. */
+      if (spendFlag(u, 'parry', sc)) { restart(u, inst); sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id, parried: true })); continue; }
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);

@@ -1,0 +1,9 @@
+V1: 8 seed jobs (1 cells x 8 seeds x 10 h) on 8 workers; catacomb_bone_wing, Levels 175 / 178 / 70
+[1/8] base:steady#4 32 s, 32 s elapsed
+[2/8] base:steady#3 32 s, 33 s elapsed
+[3/8] base:steady#0 32 s, 33 s elapsed
+[4/8] base:steady#2 32 s, 33 s elapsed
+[5/8] base:steady#6 32 s, 33 s elapsed
+[6/8] base:steady#5 32 s, 33 s elapsed
+[7/8] base:steady#1 32 s, 33 s elapsed
+[8/8] base:steady#7 32 s, 33 s elapsed

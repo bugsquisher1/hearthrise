@@ -4,7 +4,8 @@
 // src/data/drop-hours.js, src/core/drop-rate.js, src/core/trait-roll.js, tools/gen-drop-hours.mjs; 04 sections 10-11, 21 section 4,
 // 24 G8 / G10, 12-targets 3.3 and 8.1.
 //
-//   DF-1  THE FORMULA ON THE DATA: every scale ground's owned row (a monster row of its pack, under certainty) carries `everyHours` and the
+//   DF-1  THE FORMULA ON THE DATA: every scale ground's owned row (a monster row of its pack, or of src/data/monsters.js for a ground with no
+//         pack, under certainty) carries `everyHours` and the
 //         `ch` those hours derive (rowChance: 1 / (hours x refKillsHead x the monster's share of the kills at refStep), 3 significant
 //         digits), so hours x kills a hero-hour x ch is 1 within rounding; a Catacomb wing's rows the same over its own kill rate
 //   DF-2  A KILL-RATE CHANGE KEEPS THE HOURS: the same hours over twice the kills derive half the chance (a re-measured ground keeps its drops)
@@ -74,10 +75,15 @@ function killsToHit(M, groundId, step, o) {
 const CASES = {
   'DF-1'(M) {
     let rows = 0;
-    for (const p of M.PACKS) {
+    /* (lane/scale-early-grounds) a scale ground with no pack owns the src/data/monsters.js rows no pack defines (the Mill Cellar's, the
+       Thicket's), read as a pack-shaped view, as tools/gen-drop-hours.mjs owns them */
+    const packed = new Set(M.PACKS.map((p) => p.id)), inPack = new Set(M.PACKS.flatMap((p) => Object.keys(p.monsters || {})));
+    const bases = Object.keys(M.D.DANGER_GROUNDS).filter((g) => !packed.has(g) && M.grounds.HUNT_GROUNDS[g])
+      .map((g) => ({ id: g, monsters: Object.fromEntries([...M.grounds.monstersOn(M.grounds.HUNT_GROUNDS[g])].filter((m) => M.MONSTERS[m] && !inPack.has(m)).map((m) => [m, M.MONSTERS[m]])) }));
+    for (const p of [...M.PACKS, ...bases]) {
       if (!Object.prototype.hasOwnProperty.call(M.D.DANGER_GROUNDS, p.id)) continue;
       const g = M.grounds.HUNT_GROUNDS[p.id];
-      const kph = M.DR.killsHeadHour(g), shares = M.DR.killShares(g);
+      const kph = M.DR.rowsKillsHour(g), shares = M.DR.killShares(g);
       for (const [mid, mon] of Object.entries(p.monsters || {})) {
         for (const r of mon.drops || []) {
           if (r.ch >= 1) continue;
@@ -111,7 +117,7 @@ const CASES = {
     if (!(R.rare.everyHours < R.very_rare.everyHours)) return 'a Very Rare is not rarer than a Rare';
     if (JSON.stringify(R.plain.band) !== JSON.stringify(M.LB.BAND_TARGETS.scarce.hours)) return 'Plain is not the Scarce band';
     for (const [gid, row] of Object.entries(M.D.DANGER_GROUNDS)) {
-      /* the reference company's hold (src/core/bands.js refHeldOf: a formula ground's refStep is the pay's anchor, its four holds over it) */
+      /* the reference company's hold at the band's grain (src/core/bands.js refHeldOf: refHeld ?? refStep, the depth reading's middle) */
       const held = M.B.refHeldOf(gid);
       const d1 = M.DR.depthRarePm(gid, row.floorStep), dTop = M.DR.depthRarePm(gid, row.topStep), dRef = M.DR.depthRarePm(gid, held);
       if (M.DR.depthOf(gid, row.floorStep) !== 1 || M.DR.depthOf(gid, row.topStep) !== M.D.DEPTHS) return gid + ': the band does not read depth 1 to ' + M.D.DEPTHS;
@@ -260,6 +266,9 @@ const CASES = {
     if (JSON.stringify([...made.slots].sort()) !== JSON.stringify(['cape', 'earrings', 'necklace', 'ring'])) return 'the made slots are not the bench ones (cape and jewelry): ' + made.slots.join(', ');
     for (const gid of Object.keys(M.D.DANGER_GROUNDS)) {
       const g = M.grounds.HUNT_GROUNDS[gid];
+      /* (lane/scale-early-grounds) a ground that rolls no rank (gear-steps.js maxRankAt: entry under 40) rolls no Trait at all, so a cape it
+         drops (the Thicket's Grayjaw's Ruff) is no second roll */
+      if (M.D.DANGER_GROUNDS[gid].maxRank === 0) continue;
       if (g && made.slots.some((s) => M.DR.traitSlotsDropped(g, M.GS.GEAR_STEPS.traitSlots).includes(s))) return gid + ' drops a piece in a made slot: the made rule and the drop rule would both roll it';
     }
     const parts = M.PACKS.filter((p) => M.D.DANGER_GROUNDS[p.id]).flatMap((p) => Object.values(p.items || {})).filter((it) => it && it[made.part]);
@@ -271,7 +280,12 @@ const CASES = {
 const MUTANTS = [
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'rune_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'rune_sword', ch: 0.016,"]] },
+  /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */
+  { name: 'a typed chance on a base scale ground', case: 'DF-1', edits: [['src/data/monsters.js', "{ id: 'rat_tail', everyHours: 0.02565, ch: 0.42,", "{ id: 'rat_tail', ch: 0.42,"]] },
   { name: 'kills shares off the reference pull', case: 'DF-1', edits: [['src/core/drop-rate.js', 'const size = dangerDial(ground, row.refStep).pull[0];', 'const size = 3;']] },
+  /* (lane/monster-roles-ford-wings) a row's chance read at the scale's kill rate, not the one its rows are written at (the Ford's 235: the
+     tier path plays them as written) */
+  { name: 'chances derived at the scale\'s kills, not the rows\'', case: 'DF-1', edits: [['src/core/drop-rate.js', '  return Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead : refKillsOf(ground);', '  return refKillsOf(ground);']] },
   { name: 'depth read raw, not against the reference', case: 'DF-3', edits: [['src/core/drop-rate.js', 'return (1000 * depthPmAt(d)) / depthPmAt(ref);', 'return depthPmAt(d);']] },
   /* (lane/depth-reading-fix) the authored hours are the reference COMPANY's: x1 where it holds, not at the pay's anchor */
   { name: 'the Rare odds read against the pay anchor, not the reference hold', case: 'DF-3', edits: [['src/core/drop-rate.js', 'ref = depthOf(groundId, refHeldOf(groundId));', 'ref = depthOf(groundId, row.refStep); void refHeldOf;']] },

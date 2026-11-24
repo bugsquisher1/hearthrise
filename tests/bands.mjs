@@ -17,15 +17,17 @@
 //   BD-3  THE RATING (04 section 1): a hero with every part at its Level rates its Level; a gear part under it counts at weightGearBelowPm,
 //         over it at weightGearPm, a skill Level at weightSkillPm, the weights the engine's own (src/data/danger.js POWER)
 //   BD-4  THE BAND IS A FORMULA of the row: every scale ground's bandAbs is the rating of its three companies (a fresh four one tier back at
-//         the entry Level, the reference at refLevel, a strong four one tier ahead at its hunt's top Level), recomputed here by hand, and
-//         ordered floor < reference < top; refLevel sits inside the hunt's Level band (27 K-5)
+//         the entry Level, the reference at refLevel, a strong four one tier ahead at its hunt's top Level; a ground whose band sits inside
+//         its own base tier, both in its own kit: 29-tuning-pass.md 7.5, insideOneTier), recomputed here by hand, and ordered floor <
+//         reference < top; refLevel sits inside the hunt's Level band (27 K-5)
 //   BD-5  THE BRIDGE: absPmOf maps the row's floorStep, reference hold (refHeldOf) and topStep to the formula's three points exactly and
 //         never falls with the step
 //   BD-6  ONE DEPTH: depthAt reads Depth 1 at the floor and DEPTHS at the top, never falls with the step, stays in 1..DEPTHS, and is an even
 //         cut in absolute steps (the reference hold sits at its absolute share of the band); the browser's danger-sections.js depthOf and
 //         the edge's drop-rate.js depthOf read it for every step of every band
 //   BD-7  27 K-6, THE HANDOVER: a scale ground one tier over another starts at or under where the lower one tops out
-//   BD-8  THE READING'S MIDDLE IS A HOLD (lane/depth-reading-fix, 12-targets 3.1a): a ground on the monster formula carries refHeld (its
+//   BD-8  THE READING'S MIDDLE IS A HOLD (lane/depth-reading-fix, 12-targets 3.1a; at the band's grain, lane/monster-roles-ford-wings): a
+//         formula ground's middle (refHeld, else refStep) is its pin's MID four's hold to BAND_RULE.topTo; a ground carrying refHeld (its
 //         refStep is the chosen anchor, not where the reference four holds), a whole step inside its band; refHeldOf reads it, else refStep
 //   BD-9  AN ORDINARY CLIMB READS RIGHT, ON THE MEASURED COMPANIES (12-targets 3.1 and 3.1a): on every pinned ground the arriving company
 //         (its pin's floor evidence, one tier back at the entry Level) reads at most ARRIVE_MAX and the reference company (its MID evidence)
@@ -42,7 +44,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { SKILL_LINE, BAND_ABS } = await imp('src/data/bands.js');
-const { DANGER_GROUNDS, DEPTHS, POWER } = await imp('src/data/danger.js');
+const { DANGER_GROUNDS, DEPTHS, POWER, BAND_RULE } = await imp('src/data/danger.js');
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { HUNT_INDEX } = await imp('src/data/hunts.js');
 const B = await imp('src/core/bands.js');
@@ -58,16 +60,24 @@ if (process.argv.includes('--mutate')) {
   const ALSO = [...new Set(['src/session', 'tools/balance-sim', 'tests/bands.mjs', 'tests/sustain.mjs', 'tests/_is-main.mjs', 'tools/balance-program/redesign/foundations',
     'tests/danger-band-pins.json', 'tools/balance-program/redesign/depth-budget', ...evidence])];
   const MUT = [
+    ['tests/bands.mjs', 'a ground inside one tier reads the next tier\'s strong four (29 7.5)', [['src/core/bands.js', 'strong: own ? g.gearLevel : Math.max(', 'strong: false ? g.gearLevel : Math.max(']]],
+    ['tests/bands.mjs', 'a ground inside one tier reads a fresh four a tier back (29 7.5)', [['src/core/bands.js', 'fresh: own ? g.gearLevel : Math.max(', 'fresh: false ? g.gearLevel : Math.max(']]],
+    ['tests/bands.mjs', 'no ground is ever inside one tier', [['src/core/bands.js', '  const own = g.entryLevel >= g.gearLevel && top < g.gearLevel + T;', '  const own = false;']]],
   /* the controls: each test passes on the clean plant, so a mutant's red is its own and not a file the plant left out (until 2026-11-23
      every planted run died on a missing tests/_is-main.mjs, which tools/balance-sim/skill-lines.mjs imports, so every mutant read caught) */
   ['tests/bands.mjs', 'CONTROL: the clean plant', []],
   ['tests/sustain.mjs', 'CONTROL: the clean plant', []],
   ['tests/bands.mjs', 'the reading\'s middle is the pay anchor, not the reference hold', [['src/core/bands.js', 'm = g ? refHeldOf(groundId) : null;', 'm = g ? g.refStep : null;']]],
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
-  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 525, topStep: 700, refHeld: 610,']]],
-  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 590, floorStep: 575, topStep: 700, refHeld: 610,', 'refStep: 590, floorStep: 575, topStep: 700,']]],
+  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000,', 'refStep: 610, floorStep: 525, topStep: 700, coinPm: 7000,']]],
+  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115,', 'refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125,']]],
+  /* (lane/monster-roles-ford-wings) the Flooded Wing's middle at the pay's grain (450 for a hold of 453.5): its reference four reads 2 depths deep */
+  ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 465, refHeld: 455, formulaStep: 500,', 'topStep: 465, formulaStep: 500,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
-  ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'topPm: at(top, g.gearLevel + T * BAND_ABS.topTiersAhead),', 'topPm: at(top, g.gearLevel),']]],
+  ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel']]],
+  /* lane/scale-early-grounds: the strong four wears what its top Level can wear, at the Level its hunt still plays */
+  ['tests/bands.mjs', 'the top wears a tier its Level cannot', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel + T * BAND_ABS.topTiersAhead']]],
+  ['tests/bands.mjs', 'the top Level past the hunt\'s exit', [['src/core/bands.js', 'return gr && Number.isInteger(gr.endsAtLevel) ? Math.min(top, gr.endsAtLevel - 1) : top;', 'return top;']]],
   ['tests/bands.mjs', 'one gear weight both sides', [['src/core/bands.js', 'const wG = gGap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;', 'const wG = POWER.weightGearPm;']]],
   ['tests/bands.mjs', 'the skill weight dropped from the rating', [['src/core/bands.js', 'gGap * wG + sGap * POWER.weightSkillPm', 'gGap * wG']]],
   ['tests/bands.mjs', 'the browser cuts its own depth', [['src/session/danger-sections.js', '  const depth = depthAt(hunt, s);', '  const g = DANGER_GROUNDS[hunt], span = Math.max(1, g.topStep - g.floorStep);\n  const depth = Math.max(1, Math.min(DEPTHS, 1 + Math.round(((s - g.floorStep) / span) * (DEPTHS - 1))));']]],
@@ -128,15 +138,37 @@ const byHand = (L, gear) => {
   const gap = gear - L, w = gap < 0 ? POWER.weightGearBelowPm : POWER.weightGearPm;
   return Math.floor((2 * (1000 * 1000 * L + 1000 * gap * w) + 1000) / 2000);
 };
+/* (lane/scale-early-grounds) the top Level is the last one the ground's hunt plays (an endsAtLevel ground's: the Mill Cellar's 4), and the
+   strong four wears the tier ahead only if that Level can wear it (a piece is worn from its item Level less wearAhead), else its own tier */
+const { HUNT_GROUNDS } = await imp('src/data/hunt-grounds.js');
+const topOf = (id, band) => (Number.isInteger(HUNT_GROUNDS[id] && HUNT_GROUNDS[id].endsAtLevel) ? Math.min(band[1], HUNT_GROUNDS[id].endsAtLevel - 1) : band[1]);
+/* (29-tuning-pass.md 7.5) a ground whose band, entry to top, sits inside its own base tier's Levels: both companies in its own kit */
+const insideOf = (g, top) => g.entryLevel >= g.gearLevel && top < g.gearLevel + T;
+const strongKit = (g, L) => {
+  if (insideOf(g, L)) return g.gearLevel;
+  let kit = g.gearLevel + T * BAND_ABS.topTiersAhead;
+  while (kit > g.gearLevel && kit - GEAR_STEPS.wearAhead > L) kit -= T;
+  return kit;
+};
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
   const b = B.bandAbs(id), band = HUNT_INDEX[id] && HUNT_INDEX[id].band;
   ok(b, 'BD-4 ' + id + ' has no absolute band');
   if (!b) continue;
-  ok(b.floorPm === byHand(g.entryLevel, g.gearLevel - T * BAND_ABS.freshTiersBack), 'BD-4 ' + id + ' floor ' + b.floorPm + ' is not the fresh four\'s rating');
+  const top = topOf(id, band);
+  const freshKit = insideOf(g, top) ? g.gearLevel : Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack);
+  ok(b.floorPm === byHand(g.entryLevel, freshKit), 'BD-4 ' + id + ' floor ' + b.floorPm + ' is not the fresh four\'s rating (kit ' + freshKit + ')');
+  ok(B.insideOneTier(id) === insideOf(g, top), 'BD-4 ' + id + ' insideOneTier reads ' + B.insideOneTier(id) + ', its band ' + g.entryLevel + ' to ' + top + ' on base ' + g.gearLevel + ' says ' + insideOf(g, top));
   ok(b.refPm === byHand(g.refLevel, g.gearLevel), 'BD-4 ' + id + ' reference ' + b.refPm + ' is not the reference company\'s rating');
-  ok(b.topPm === byHand(band[1], g.gearLevel + T * BAND_ABS.topTiersAhead), 'BD-4 ' + id + ' top ' + b.topPm + ' is not the strong four\'s rating');
+  ok(b.topPm === byHand(top, strongKit(g, top)), 'BD-4 ' + id + ' top ' + b.topPm + ' is not the strong four\'s rating (Level ' + top + ', kit ' + strongKit(g, top) + ')');
   ok(b.floorPm < b.refPm && b.refPm < b.topPm, 'BD-4 ' + id + ' band is not ordered: ' + JSON.stringify(b));
+  ok(JSON.stringify(B.companyKits(g, top)) === JSON.stringify({ own: insideOf(g, top), fresh: insideOf(g, top) ? g.gearLevel : Math.max(0, g.gearLevel - T * BAND_ABS.freshTiersBack), strong: strongKit(g, top) }), 'BD-4 ' + id + ' companyKits ' + JSON.stringify(B.companyKits(g, top)) + ' is not the rule by hand');
   ok(Number.isInteger(g.refLevel) && g.refLevel >= band[0] && g.refLevel <= band[1], 'BD-4 ' + id + ' refLevel ' + g.refLevel + ' outside its Level band ' + band);
+}
+/* ...and the company rule on rows no scale ground carries yet (BD-4 by hand, so a rule no shipped band binds still bites): a Level 18 top
+   on an item Level 20 base can wear 20, not 40; a Level 60 top wears the tier ahead; a band inside its own tier wears it at both ends */
+for (const [row, top, want] of [[{ entryLevel: 8, gearLevel: 20 }, 18, { own: false, fresh: 0, strong: 20 }], [{ entryLevel: 45, gearLevel: 40 }, 60, { own: false, fresh: 20, strong: 60 }],
+  [{ entryLevel: 5, gearLevel: 0 }, 15, { own: true, fresh: 0, strong: 0 }], [{ entryLevel: 25, gearLevel: 20 }, 35, { own: true, fresh: 20, strong: 20 }]]) {
+  ok(JSON.stringify(B.companyKits(row, top)) === JSON.stringify(want), 'BD-4 companyKits(' + JSON.stringify(row) + ', ' + top + ') reads ' + JSON.stringify(B.companyKits(row, top)) + ', the rule ' + JSON.stringify(want));
 }
 
 /* BD-5 and BD-6 */
@@ -170,8 +202,17 @@ for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
 }
 
 /* BD-8 */
+const BD8_PINS = JSON.parse(readFileSync(join(ROOT, 'tests', 'danger-band-pins.json'), 'utf8')).grounds;
 for (const [id, g] of Object.entries(DANGER_GROUNDS)) {
-  if (g.monsters === 'formula') ok(g.refHeld !== undefined, 'BD-8 ' + id + ' plays the monster formula, whose refStep is the chosen anchor, and carries no measured refHeld (node tools/new-ground.mjs ' + id + ' ... --write)');
+  /* a formula ground's reading reads its reference four's MEASURED hold (its pin's MID evidence) at the band's grain: refHeld where that is
+     not refStep (the Thicket 113.2, the Mill Cellar 55.2, the Flooded Wing 453.5: 110, 60 and 450 to the pay's grain), refStep where it is
+     (lane/monster-roles-ford-wings: the Ford holds on its anchor, the Bone Wing's refStep is cut from its hold) */
+  if (g.monsters === 'formula') {
+    const ev = BD8_PINS[id] && Array.isArray(BD8_PINS[id].evidence) ? BD8_PINS[id].evidence[0] : null;
+    const c = ev ? JSON.parse(readFileSync(join(ROOT, ev), 'utf8')).cells['base:steady'] : null;
+    const held = c && c.held ? Math.round(c.held.mean / BAND_RULE.topTo) * BAND_RULE.topTo : NaN;
+    ok(B.refHeldOf(id) === held, 'BD-8 ' + id + ' plays the monster formula and the middle of its reading ' + B.refHeldOf(id) + ' is not the hold of its reference four ' + held + ' (' + ev + '; node tools/new-ground.mjs ' + id + ' ... --write)');
+  }
   if (g.refHeld !== undefined) {
     ok(Number.isInteger(g.refHeld) && g.floorStep < g.refHeld && g.refHeld < g.topStep, 'BD-8 ' + id + ' refHeld ' + g.refHeld + ' is not a whole step inside ' + g.floorStep + '..' + g.topStep);
     ok(B.refHeldOf(id) === g.refHeld, 'BD-8 ' + id + ' refHeldOf reads ' + B.refHeldOf(id) + ', the row says ' + g.refHeld);

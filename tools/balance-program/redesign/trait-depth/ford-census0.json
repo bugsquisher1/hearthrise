@@ -1,0 +1,860 @@
+{
+ "ground": "hasks_ford",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 2,
+ "hours": 6,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "back:steady": {
+   "id": "back:steady",
+   "variant": "back",
+   "risk": "steady",
+   "L": 60,
+   "start": 622,
+   "traitsBySeat": [
+    [
+     {
+      "id": "file_breaker",
+      "rank": 3
+     },
+     {
+      "id": "soft_scale",
+      "rank": 3
+     },
+     {
+      "id": "tarred_through",
+      "rank": 3
+     },
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "empty_wagon",
+      "rank": 3
+     },
+     {
+      "id": "slack_water",
+      "rank": 3
+     },
+     {
+      "id": "keepers_carry",
+      "rank": 3
+     },
+     {
+      "id": "full_wick",
+      "rank": 3
+     },
+     {
+      "id": "carters_flight",
+      "rank": 3
+     },
+     {
+      "id": "scorched_grip",
+      "rank": 3
+     },
+     {
+      "id": "slate_hand",
+      "rank": 3
+     },
+     {
+      "id": "numbed",
+      "rank": 3
+     },
+     {
+      "id": "long_rite",
+      "rank": 3
+     },
+     {
+      "id": "captains_due",
+      "rank": 3
+     },
+     {
+      "id": "crag_shelter",
+      "rank": 3
+     },
+     {
+      "id": "lime_pit",
+      "rank": 3
+     },
+     {
+      "id": "dunns_warning",
+      "rank": 3
+     },
+     {
+      "id": "banded_oath",
+      "rank": 3
+     },
+     {
+      "id": "lookouts_promise",
+      "rank": 3
+     },
+     {
+      "id": "bottom_of_the_quiver",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "bolting_team",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "file_breaker",
+      "rank": 3
+     },
+     {
+      "id": "soft_scale",
+      "rank": 3
+     },
+     {
+      "id": "tarred_through",
+      "rank": 3
+     },
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "empty_wagon",
+      "rank": 3
+     },
+     {
+      "id": "slack_water",
+      "rank": 3
+     },
+     {
+      "id": "keepers_carry",
+      "rank": 3
+     },
+     {
+      "id": "full_wick",
+      "rank": 3
+     },
+     {
+      "id": "carters_flight",
+      "rank": 3
+     },
+     {
+      "id": "scorched_grip",
+      "rank": 3
+     },
+     {
+      "id": "slate_hand",
+      "rank": 3
+     },
+     {
+      "id": "numbed",
+      "rank": 3
+     },
+     {
+      "id": "long_rite",
+      "rank": 3
+     },
+     {
+      "id": "captains_due",
+      "rank": 3
+     },
+     {
+      "id": "crag_shelter",
+      "rank": 3
+     },
+     {
+      "id": "lime_pit",
+      "rank": 3
+     },
+     {
+      "id": "dunns_warning",
+      "rank": 3
+     },
+     {
+      "id": "banded_oath",
+      "rank": 3
+     },
+     {
+      "id": "lookouts_promise",
+      "rank": 3
+     },
+     {
+      "id": "bottom_of_the_quiver",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "bolting_team",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "file_breaker",
+      "rank": 3
+     },
+     {
+      "id": "soft_scale",
+      "rank": 3
+     },
+     {
+      "id": "tarred_through",
+      "rank": 3
+     },
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "empty_wagon",
+      "rank": 3
+     },
+     {
+      "id": "slack_water",
+      "rank": 3
+     },
+     {
+      "id": "keepers_carry",
+      "rank": 3
+     },
+     {
+      "id": "full_wick",
+      "rank": 3
+     },
+     {
+      "id": "carters_flight",
+      "rank": 3
+     },
+     {
+      "id": "scorched_grip",
+      "rank": 3
+     },
+     {
+      "id": "slate_hand",
+      "rank": 3
+     },
+     {
+      "id": "numbed",
+      "rank": 3
+     },
+     {
+      "id": "long_rite",
+      "rank": 3
+     },
+     {
+      "id": "captains_due",
+      "rank": 3
+     },
+     {
+      "id": "crag_shelter",
+      "rank": 3
+     },
+     {
+      "id": "lime_pit",
+      "rank": 3
+     },
+     {
+      "id": "dunns_warning",
+      "rank": 3
+     },
+     {
+      "id": "banded_oath",
+      "rank": 3
+     },
+     {
+      "id": "lookouts_promise",
+      "rank": 3
+     },
+     {
+      "id": "bottom_of_the_quiver",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "bolting_team",
+      "rank": 3
+     }
+    ],
+    [
+     {
+      "id": "file_breaker",
+      "rank": 3
+     },
+     {
+      "id": "soft_scale",
+      "rank": 3
+     },
+     {
+      "id": "tarred_through",
+      "rank": 3
+     },
+     {
+      "id": "first_rank",
+      "rank": 3
+     },
+     {
+      "id": "empty_wagon",
+      "rank": 3
+     },
+     {
+      "id": "slack_water",
+      "rank": 3
+     },
+     {
+      "id": "keepers_carry",
+      "rank": 3
+     },
+     {
+      "id": "full_wick",
+      "rank": 3
+     },
+     {
+      "id": "carters_flight",
+      "rank": 3
+     },
+     {
+      "id": "scorched_grip",
+      "rank": 3
+     },
+     {
+      "id": "slate_hand",
+      "rank": 3
+     },
+     {
+      "id": "numbed",
+      "rank": 3
+     },
+     {
+      "id": "long_rite",
+      "rank": 3
+     },
+     {
+      "id": "captains_due",
+      "rank": 3
+     },
+     {
+      "id": "crag_shelter",
+      "rank": 3
+     },
+     {
+      "id": "lime_pit",
+      "rank": 3
+     },
+     {
+      "id": "dunns_warning",
+      "rank": 3
+     },
+     {
+      "id": "banded_oath",
+      "rank": 3
+     },
+     {
+      "id": "lookouts_promise",
+      "rank": 3
+     },
+     {
+      "id": "bottom_of_the_quiver",
+      "rank": 3
+     },
+     {
+      "id": "hasks_bargain",
+      "rank": 3
+     },
+     {
+      "id": "bolting_team",
+      "rank": 3
+     }
+    ]
+   ],
+   "seedsRead": 2,
+   "payX": {
+    "mean": 1.36,
+    "sd": 0.01,
+    "n": 2,
+    "perSeed": [
+     1.36,
+     1.35
+    ],
+    "fromH": 4,
+    "windowH": 2
+   },
+   "held": {
+    "mean": 651.4,
+    "sd": 0.8,
+    "se": 0.6,
+    "perSeed": [
+     652,
+     651
+    ]
+   },
+   "drift": -4.2,
+   "within10": 100,
+   "within20": 100,
+   "changesPerH": 7.3,
+   "fallsPerH": 0.5,
+   "reachH": 0.7,
+   "pullsPerH": 61.5,
+   "killsPerH": 489,
+   "xpPerHeroH": 373373,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 15926,
+     "sd": 306,
+     "n": 2
+    },
+    "incomePerHeroH": {
+     "mean": 20288,
+     "sd": 135,
+     "n": 2
+    },
+    "storePerHeroH": {
+     "mean": 11638,
+     "sd": 183,
+     "n": 2
+    },
+    "commonPerHeroH": {
+     "mean": 828,
+     "sd": 18,
+     "n": 2
+    },
+    "uncommonPerHeroH": {
+     "mean": 311,
+     "sd": 35,
+     "n": 2
+    },
+    "scarcePerHeroH": {
+     "mean": 3223,
+     "sd": 223,
+     "n": 2
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 2
+    }
+   },
+   "kit": {
+    "meal": 252,
+    "drink": 5623,
+    "charge": 3454,
+    "shot": 2309
+   },
+   "kitIds": {
+    "salted_lobster": 10.5,
+    "plain_rune_arrows": 769.8,
+    "plain_scored_fire_rune": 60.9,
+    "thin_carrot_juice": 351.5,
+    "plain_graven_fire_rune": 73.8,
+    "plain_graven_ice_rune": 160.7,
+    "plain_earth_rune": 25.8,
+    "plain_graven_poison_rune": 59.6,
+    "plain_graven_earth_rune": 67.9,
+    "plain_graven_water_rune": 299.2
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 6,
+   "fourH": 2,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 624,
+    "climb": 108,
+    "fall": 3
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.668
+    },
+    {
+     "style": "bow",
+     "mean": 0.105
+    },
+    {
+     "style": "mage",
+     "mean": 0.109
+    },
+    {
+     "style": "healer",
+     "mean": 0.117
+    }
+   ],
+   "causes": {
+    "fall:ledger_wight@2": 3
+   },
+   "seats": [
+    {
+     "style": "hammer",
+     "dps": 19.65,
+     "landedPct": 62.1,
+     "dmgPerSwing": 36.83,
+     "swingsPerH": 5898,
+     "takenPerH": 217234.5
+    },
+    {
+     "style": "bow",
+     "dps": 18.93,
+     "landedPct": 93.5,
+     "dmgPerSwing": 69.29,
+     "swingsPerH": 493,
+     "takenPerH": 34156
+    },
+    {
+     "style": "mage",
+     "dps": 26.92,
+     "landedPct": 82.4,
+     "dmgPerSwing": 33.24,
+     "swingsPerH": 1066.5,
+     "takenPerH": 35451.5
+    },
+    {
+     "style": "healer",
+     "dps": 10.69,
+     "landedPct": 87.15,
+     "dmgPerSwing": 49.22,
+     "swingsPerH": 774.5,
+     "takenPerH": 38135
+    }
+   ],
+   "kinds": {
+    "banded_pikeman": {
+     "role": "swarm",
+     "killsPerH": 264.7,
+     "ttkS": 25.6,
+     "takenPerKill": 415
+    },
+    "fordsunk": {
+     "role": "brute",
+     "killsPerH": 112,
+     "ttkS": 33.1,
+     "takenPerKill": 612
+    },
+    "ledger_wight": {
+     "role": "caster",
+     "killsPerH": 81.4,
+     "ttkS": 39.2,
+     "takenPerKill": 1706
+    },
+    "bannerman": {
+     "role": "warder",
+     "killsPerH": 30.5,
+     "ttkS": 38.1,
+     "takenPerKill": 260
+    }
+   },
+   "traits": [
+    {
+     "style": "hammer",
+     "worn": [
+      "file_breaker 3",
+      "soft_scale 3",
+      "tarred_through 3",
+      "first_rank 3",
+      "empty_wagon 3",
+      "slack_water 3",
+      "keepers_carry 3",
+      "full_wick 3",
+      "carters_flight 3",
+      "scorched_grip 3",
+      "slate_hand 3",
+      "numbed 3",
+      "long_rite 3",
+      "captains_due 3",
+      "crag_shelter 3",
+      "lime_pit 3",
+      "dunns_warning 3",
+      "banded_oath 3",
+      "lookouts_promise 3",
+      "bottom_of_the_quiver 3",
+      "hasks_bargain 3",
+      "bolting_team 3"
+     ],
+     "events": {
+      "offense": 40687,
+      "defense": 43928,
+      "heal": 340
+     },
+     "share": {
+      "file_breaker": 0.412,
+      "soft_scale": 0,
+      "tarred_through": 0.039,
+      "first_rank": 0.382,
+      "empty_wagon": 0,
+      "slack_water": 0.578,
+      "keepers_carry": 1,
+      "full_wick": 0,
+      "carters_flight": 0,
+      "scorched_grip": 0.007,
+      "slate_hand": 0.302,
+      "numbed": 0.16,
+      "long_rite": 0.006,
+      "captains_due": 0,
+      "crag_shelter": 0,
+      "lime_pit": 0.239,
+      "dunns_warning": 0.215,
+      "banded_oath": 0,
+      "lookouts_promise": 0,
+      "bottom_of_the_quiver": 0,
+      "hasks_bargain": 0.345,
+      "bolting_team": 0
+     }
+    },
+    {
+     "style": "bow",
+     "worn": [
+      "file_breaker 3",
+      "soft_scale 3",
+      "tarred_through 3",
+      "first_rank 3",
+      "empty_wagon 3",
+      "slack_water 3",
+      "keepers_carry 3",
+      "full_wick 3",
+      "carters_flight 3",
+      "scorched_grip 3",
+      "slate_hand 3",
+      "numbed 3",
+      "long_rite 3",
+      "captains_due 3",
+      "crag_shelter 3",
+      "lime_pit 3",
+      "dunns_warning 3",
+      "banded_oath 3",
+      "lookouts_promise 3",
+      "bottom_of_the_quiver 3",
+      "hasks_bargain 3",
+      "bolting_team 3"
+     ],
+     "events": {
+      "offense": 39657,
+      "defense": 5531,
+      "heal": 0
+     },
+     "share": {
+      "file_breaker": 0.334,
+      "soft_scale": 0.299,
+      "tarred_through": 0.017,
+      "first_rank": 0.797,
+      "empty_wagon": 0,
+      "slack_water": 0.611,
+      "keepers_carry": 0,
+      "full_wick": 0.007,
+      "carters_flight": 0,
+      "scorched_grip": 0,
+      "slate_hand": 0.292,
+      "numbed": 0.181,
+      "long_rite": 0,
+      "captains_due": 0,
+      "crag_shelter": 0,
+      "lime_pit": 0.25,
+      "dunns_warning": 0,
+      "banded_oath": 0,
+      "lookouts_promise": 0,
+      "bottom_of_the_quiver": 0,
+      "hasks_bargain": 0.75,
+      "bolting_team": 0
+     }
+    },
+    {
+     "style": "mage",
+     "worn": [
+      "file_breaker 3",
+      "soft_scale 3",
+      "tarred_through 3",
+      "first_rank 3",
+      "empty_wagon 3",
+      "slack_water 3",
+      "keepers_carry 3",
+      "full_wick 3",
+      "carters_flight 3",
+      "scorched_grip 3",
+      "slate_hand 3",
+      "numbed 3",
+      "long_rite 3",
+      "captains_due 3",
+      "crag_shelter 3",
+      "lime_pit 3",
+      "dunns_warning 3",
+      "banded_oath 3",
+      "lookouts_promise 3",
+      "bottom_of_the_quiver 3",
+      "hasks_bargain 3",
+      "bolting_team 3"
+     ],
+     "events": {
+      "offense": 43489,
+      "defense": 10547,
+      "heal": 0
+     },
+     "share": {
+      "file_breaker": 0.374,
+      "soft_scale": 0.284,
+      "tarred_through": 0.024,
+      "first_rank": 0.449,
+      "empty_wagon": 0,
+      "slack_water": 0.612,
+      "keepers_carry": 0,
+      "full_wick": 0.001,
+      "carters_flight": 0,
+      "scorched_grip": 0.02,
+      "slate_hand": 0.306,
+      "numbed": 0.183,
+      "long_rite": 0,
+      "captains_due": 0,
+      "crag_shelter": 0.015,
+      "lime_pit": 0.294,
+      "dunns_warning": 0,
+      "banded_oath": 0,
+      "lookouts_promise": 0,
+      "bottom_of_the_quiver": 0,
+      "hasks_bargain": 0.626,
+      "bolting_team": 0
+     }
+    },
+    {
+     "style": "healer",
+     "worn": [
+      "file_breaker 3",
+      "soft_scale 3",
+      "tarred_through 3",
+      "first_rank 3",
+      "empty_wagon 3",
+      "slack_water 3",
+      "keepers_carry 3",
+      "full_wick 3",
+      "carters_flight 3",
+      "scorched_grip 3",
+      "slate_hand 3",
+      "numbed 3",
+      "long_rite 3",
+      "captains_due 3",
+      "crag_shelter 3",
+      "lime_pit 3",
+      "dunns_warning 3",
+      "banded_oath 3",
+      "lookouts_promise 3",
+      "bottom_of_the_quiver 3",
+      "hasks_bargain 3",
+      "bolting_team 3"
+     ],
+     "events": {
+      "offense": 27791,
+      "defense": 8098,
+      "heal": 22392
+     },
+     "share": {
+      "file_breaker": 0.345,
+      "soft_scale": 0,
+      "tarred_through": 0.013,
+      "first_rank": 0.758,
+      "empty_wagon": 0.917,
+      "slack_water": 0.609,
+      "keepers_carry": 0.01,
+      "full_wick": 0.001,
+      "carters_flight": 0,
+      "scorched_grip": 0,
+      "slate_hand": 0.283,
+      "numbed": 0.168,
+      "long_rite": 0,
+      "captains_due": 0,
+      "crag_shelter": 0.462,
+      "lime_pit": 0.161,
+      "dunns_warning": 0.295,
+      "banded_oath": 0.001,
+      "lookouts_promise": 0,
+      "bottom_of_the_quiver": 0,
+      "hasks_bargain": 0.737,
+      "bolting_team": 0
+     }
+    }
+   ],
+   "abs": {
+    "level": 57.8,
+    "depth": 19
+   },
+   "sustain": {
+    "freePm": 94,
+    "spellPm": 876,
+    "foodPm": 29,
+    "takenPmS": 28.5
+   }
+  }
+ },
+ "wallS": 49,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

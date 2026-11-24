@@ -68,7 +68,7 @@ export function rowsOf(d) {
 
   const fc = d.flameC, tc = d.temperC, ic = d.imbueC, lc = d.loot;
   const itemLevels = Object.entries(d.items.ITEMS).filter(([, it]) => it && it.slot && it.slot !== 'ammo')
-    .map(([id, it]) => [id, Math.floor(Number(Number.isInteger(it.iL) ? it.iL : it.reqLv))]).filter(([, l]) => Number.isFinite(l) && l > 0)
+    .map(([id, it]) => [id, Math.floor(Number(Number.isInteger(it.iL) ? it.iL : it.reqLv))]).filter(([, l]) => Number.isFinite(l) && l >= 0)
     .sort((a, b) => (a[0] < b[0] ? -1 : 1));
   const imbues = Object.entries(d.imbueD.IMBUE_RULES).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([id, r]) => ({
     id, kind: r.kind, slot: d.imbueD.IMBUE_SLOTS[r.kind], raises: r.raises, key: r.key, part: r.part, band: d.imbueD.imbueBandOf(id), item: 'imbue_' + id }));
@@ -161,7 +161,7 @@ create table if not exists public.hr_temper_rules (
   tier_steps int not null check (tier_steps > 0)
 );
 create table if not exists public.hr_temper_slots (equip_slot text primary key, slot_pm int not null check (slot_pm > 0));
-create table if not exists public.hr_item_levels (item_id text primary key, item_level int not null check (item_level > 0));
+create table if not exists public.hr_item_levels (item_id text primary key, item_level int not null check (item_level >= 0));
 create table if not exists public.hr_imbue_rules (
   imbue_id text primary key, kind text not null check (kind in ('edge', 'ward', 'leech')), equip_slot text not null,
   raises text not null check (raises in ('offense', 'defense', 'heal', 'mana')), key text not null, part_item text not null,

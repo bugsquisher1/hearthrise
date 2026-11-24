@@ -974,7 +974,9 @@ export const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a M
    else the highest it has hunted, else the lowest (the Thicket at 8). Null when none has one: the card is passed by. */
 function dangerGround(f) {
   const floor = (g) => HUNT_INDEX[g.hunt].band[0];
-  const fits = Object.values(OPEN_GROUNDS).filter((g) => { const h = HUNT_INDEX[g.hunt]; return !!h && f.charLevel >= h.band[0] && f.charLevel <= h.band[1] && tiersOf(g.id).includes(DANGER_TIER); });
+  /* a ground on the Danger scale plays no tier (lane/scale-early-grounds: the Thicket's Hunts page shows the Risk, so a Dangerous ring there
+     stands on nothing); when no open ground at the hero's Level has the tier, the offer is not made */
+  const fits = Object.values(OPEN_GROUNDS).filter((g) => { const h = HUNT_INDEX[g.hunt]; return !!h && !DANGER_GROUNDS[g.id] && f.charLevel >= h.band[0] && f.charLevel <= h.band[1] && tiersOf(g.id).includes(DANGER_TIER); });
   const seen = been(f);
   return fits.find((g) => g.hunt === f.lastHunt) || fits.filter((g) => seen.includes(g.hunt)).sort((a, b) => floor(b) - floor(a))[0]
     || fits.sort((a, b) => floor(a) - floor(b))[0] || null;

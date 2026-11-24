@@ -36,7 +36,7 @@
 
 import { GROUND_PACKS } from './grounds/index.js';
 import { CATACOMB_ARMOR, WING_LEAN } from './catacomb-armor.js';
-import { DANGER_GROUNDS } from './danger.js';
+import { DANGER_GROUNDS, PAY } from './danger.js';
 import { DROP_HOURS, chanceOf, roundChance } from './drop-hours.js';
 
 /* the whole ground through the packs' index, never by path: a generator's whole view (tools/pack/whole.mjs) may leave it out, then no wings */
@@ -60,12 +60,15 @@ const WINGS = Object.freeze([
 /* One wing's drop rows: all 24 pieces, each slot's share of ARMOR_EVERY_HOURS's pieces split evenly over that slot's pieces, as hours a
    piece (drop-hours.js: a ground row, so every kill on the wing rolls it), and the chance those hours give at the wing's reference kills
    (src/core/drop-rate.js rowChance reads the same). Rows in CATACOMB_ARMOR's order, so a piece added there never moves an earlier row's draw. */
+/* a wing's reference kills a head an hour: its row's, else the scale's (src/core/hunt/danger.js refKillsOf's rule; lane/monster-roles-ford-wings:
+   the Flooded Wing on the formula kills 106 a head, so its row names none and its pieces rolled at a chance of 0) */
+const killsHeadOf = (row) => (Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead);
 function wingDrops(id, lean) {
   const w = WING_LEAN[lean];
   const count = (slot) => CATACOMB_ARMOR.filter((r) => r.slot === slot).length;
   return Object.freeze(CATACOMB_ARMOR.map((r) => {
     const everyHours = Number(((ARMOR_EVERY_HOURS * 1000 * count(r.slot)) / w[r.slot]).toPrecision(DROP_HOURS.chDigits));
-    return Object.freeze({ id: r.id, everyHours, ch: roundChance(chanceOf(everyHours, DANGER_GROUNDS[id].refKillsHead)), band: 'rare' });
+    return Object.freeze({ id: r.id, everyHours, ch: roundChance(chanceOf(everyHours, killsHeadOf(DANGER_GROUNDS[id]))), band: 'rare' });
   }));
 }
 

@@ -59,6 +59,7 @@ import { challengeable, challengeFrom, holderTank } from './targeting.js';
 import { roleOf as monsterRoleOf } from './monster-roles.js';
 import { MONSTER_ROLES } from '../../data/monster-roles.js';
 import { applyStatus, statusRow, stretchStatus } from './status.js';
+import { interrupt } from './monster-spells.js';
 import { rowsFor } from './talent-rows.js';
 import { reachOf, allyOrder, allyTargets, partyOf, onlyOne, tuneAfflict } from './cast-targets.js';
 import { levelOf } from '../xp.js';
@@ -103,6 +104,9 @@ export function inReach(inst, hero, range, t) {
   return dist2(hero, t) <= r * r && los(inst.grid, hero, t);
 }
 
+/* Does unit `m` hold a live stack of status `id` (status.js stacks, persisted with the world)? */
+const holds = (m, id) => Array.isArray(m.statuses) && m.statuses.some((st) => st.s === id && st.left > 0);
+
 /* Order candidates: the hero's own target first, then nearest, then id. */
 const byPreference = (hero) => (a, b) => ((b.id === hero.target) - (a.id === hero.target))
   || (dist2(a, hero) - dist2(b, hero)) || (a.id - b.id);
@@ -130,12 +134,14 @@ function targetFor(inst, hero, h, row, sc, cx) {
     /* A STRIKE THAT PICKS ITS MARK (`prefers`, monster roles: Precision Shot takes a Shooter, Caster or Stalker in reach first, the
        bow's job of reaching the back row, 23 section 4); else, as every strike, the hero's own target, then the nearest. Off the Danger
        scale no monster plays a role (monster-roles.js roleOf), so it is the hero's own target. */
+    /* ONE TARGET THAT LANDS ONLY ITS STATUS (Parry): never a monster still holding that status, so a cast never lands for nothing. */
     case 'enemy': {
+      const fresh = landsBlow(row) || !row.status ? near : near.filter((m) => !holds(m, row.status));
       if (Array.isArray(row.prefers)) {
-        const picked = near.find((m) => { const r = monsterRoleOf(inst, m); return !!r && row.prefers.some((id) => MONSTER_ROLES[id] === r); });
+        const picked = fresh.find((m) => { const r = monsterRoleOf(inst, m); return !!r && row.prefers.some((id) => MONSTER_ROLES[id] === r); });
         if (picked) return picked;
       }
-      return near[0] || null;
+      return fresh[0] || null;
     }
     case 'area': {
       if (cx && cx.aim && cx.aim.alive) return cx.aim;
@@ -467,13 +473,21 @@ function effect(inst, u, row, t, sc, v) {
   /* ON THE SCALE every number of the cast goes through the pipeline (src/core/hunt/amount.js): a hit's mean to landHit, a heal or a shell
      through healAmount (the caster's rating over its own Level, one roll), each at its share of the caster's top */
   const piped = stepsOn(inst), blow = unitOf(inst, u, row);
-  const amount = () => {
+  /* `to`: the hero the next amount lands on (a worn Trait's per-target condition reads it, src/core/hunt/trait-rules.js); the cast's context
+     carries the Traits that held on that amount (`tr`) to the heal event heal-rules.js landHeal writes next */
+  let to = null;
+  const amount = (o) => {
     const a = /** @type {{ hit?: number[], heal?: number, shield?: number }} */ (castAmount(row, blow, u.maxHp, pm) || {});
-    if (piped && a.heal) a.heal = healAmount(inst, u, a.heal, { hp: !Number.isInteger(row.healPm) && Number.isInteger(row.healHpPm), rng: sc.rng });
-    if (piped && a.shield) a.shield = healAmount(inst, u, a.shield, { rng: sc.rng });
+    /** @type {{ hp?: boolean, rng: any, to: any, traits?: string[] }} */
+    const hc = { hp: !Number.isInteger(row.healPm) && Number.isInteger(row.healHpPm), rng: sc.rng, to: o || to };
+    if (piped && a.heal) a.heal = healAmount(inst, u, a.heal, hc);
+    /** @type {{ rng: any, to: any, traits?: string[] }} */
+    const sh = { rng: sc.rng, to: hc.to };
+    if (piped && a.shield) a.shield = healAmount(inst, u, a.shield, sh);
+    if (hc.traits || cast.tr) cast.tr = hc.traits;
     return a;
   };
-  /** @type {{ id: string, mult?: number, weakPm?: number }} */
+  /** @type {{ id: string, mult?: number, weakPm?: number, area?: number }} */
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
   /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */
   if (Number.isInteger(row.weakPm)) hitTag.weakPm = row.weakPm;
@@ -502,6 +516,15 @@ function effect(inst, u, row, t, sc, v) {
     if (row.statusMs > 0) stretchStatus(m, row.status, u.id, row.statusMs);
     if (fx) tuneAfflict(inst, sc, u, m, row, fx, hit, (v && v.version) || 1);
   };
+  /* THE ANSWERS TO A WIND-UP (src/data/abilities.js `interrupts`, `pushMs`; the hammer's Stagger, 23-spell-audit.md section 4), on a monster
+     the cast reached that still stands, after its hit: its wind-up ends (monster-spells.js interrupt) and its next swing waits pushMs more
+     (damage.js's clock, persisted), so an interrupted monster does not swing at once instead; never more than the bound a row may carry
+     (ABILITY_RULES.pushMaxMs: a modded row's push is held to it too). Draws nothing. */
+  const answer = (m) => {
+    if (!m || m.alive !== true) return;
+    if (row.interrupts === true) interrupt(m, sc);
+    if (row.pushMs > 0) m.swingLeftMs = Math.max(0, int(m.swingLeftMs)) + Math.min(row.pushMs, ABILITY_RULES.pushMaxMs);
+  };
   /* THE CAST'S CONTEXT for the pieces (heal-rules.js: its inst, the row's `fx`, the mana it cost, whether a target was near fall-back) */
   const fx = row.fx || null;
   const cast = (v && v.cast) || { inst, fx, spent: 0, near: false };
@@ -512,11 +535,13 @@ function effect(inst, u, row, t, sc, v) {
       t.markPm = row.bonusPct * 10; t.markUntil = sc.atMs + row.durMs;
       sc.emit(makeEvent('mark', sc.atMs, { u: u.id, t: t.id }));
       break;
+    /* (one target that lands only its status, Parry: no blow, no kill, no weapon XP, as a status-only shape) */
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
-        strike(t);
+        if (landsBlow(row)) strike(t);
         afflict(t);
       }
+      answer(t);
       break;
     /* AN AREA: every engaged monster the row's shape covers (shapes.js, areaSpec: the 3x3 on its aim, a line from the hero
        through it, a ring round the hero), in id order, up to its maxHits. */
@@ -525,11 +550,15 @@ function effect(inst, u, row, t, sc, v) {
       const hit = engaged(inst, u).filter((o) => covers(s, o.x, o.y)).sort((a, b) => a.id - b.id).filter(onlyOne(inst, u, t, row, s));
       /* A shape that lands only its status (Frost Slam: landsBlow false) strikes no blow: no dmg event, no kill, no weapon XP. */
       const blows = landsBlow(row);
-      for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {
+      const reached = Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit;
+      /* how many it covers, on each of its blows (a worn Trait's enemies_in_aoe, src/core/hunt/trait-rules.js) */
+      hitTag.area = reached.length;
+      for (const m of reached) {
         if (!blows) { afflict(m); continue; }
         strike(m);
         afflict(m);
       }
+      for (const m of reached) answer(m);
       /* A PATCH LEFT BEHIND (fx.ground, Cold Ground): a ground status held by the caster on the shape's middle (the hero's tile for a ring) */
       if (fx && fx.ground) applyStatus(inst, u, statusRow(fx.ground), { u: u.id, maxHit: 1, runeTier: 1, at: row.target === 'ring' ? [u.x, u.y] : [t.x, t.y] }, sc);
       break;
@@ -537,14 +566,16 @@ function effect(inst, u, row, t, sc, v) {
     /* A SHIELD lands through the one shield rule (shields.js offerShield: one a hero, a bigger one replaces it); the bar's gates
        (firstUsable: a self shell recasts only to land more, an ally shield takes a hero holding none) mean every cast here is bigger. */
     case 'self':
+      to = u;
       if (heals(row)) { healOne(u, u, amount().heal, sc, sg, row, piped, cast); break; }
       offerShield(sc, u, u, amount().shield);
       break;
     /* AN ALLY row lands on its target, and with more targets (fx.extra, Twin Ward) on the next the row's own rule takes; a shell with pieces
        through heal-rules.js landShell (its per-target output, a heal of it) */
     case 'ally':
-      if (heals(row)) { for (const o of allyTargets(inst, u, row, t)) healOne(u, o, amount().heal, sc, sg, row, piped, cast); break; }
-      if (fx) { for (const o of allyTargets(inst, u, row, t)) landShell(u, o, amount().shield, sc, row, cast); break; }
+      if (heals(row)) { for (const o of allyTargets(inst, u, row, t)) healOne(u, o, amount(o).heal, sc, sg, row, piped, cast); break; }
+      if (fx) { for (const o of allyTargets(inst, u, row, t)) landShell(u, o, amount(o).shield, sc, row, cast); break; }
+      to = t;
       offerShield(sc, u, t, amount().shield);
       break;
     /* A PARTY row: every living hero within its radius, the caster too, in id order (with fx.limit only that many, by its pick: Deep
@@ -553,6 +584,7 @@ function effect(inst, u, row, t, sc, v) {
     case 'party':
       for (const a of partyOf(inst, u, row)) {
         if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
+        to = a;
         if (heals(row)) { healOne(u, a, amount().heal, sc, sg, row, piped, cast); continue; }
         if (fx) { landShell(u, a, amount().shield, sc, row, cast); continue; }
         offerShield(sc, u, a, amount().shield);
@@ -586,7 +618,7 @@ export function fire(inst, u, pick, sc) {
   if (!pick.free) u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
   /* STILL MIND (a unit rule stillMs, regenMana): the time of the hero's last cast, kept with its cooldowns (persisted) */
   if (u.stillMs > 0) u.cds['~cast'] = sc.atMs;
-  /* THE LAST MOVE (condition-metrics.js last_move: a rotation, "after Quarry Blow"): the row cast last on its lane and on any lane,
+  /* THE LAST MOVE (condition-metrics.js last_move: a rotation, "after Stagger"): the row cast last on its lane and on any lane,
      persisted with the world so a settle cut between two casts reads the same. */
   u.lastMove = Object.assign({}, u.lastMove && typeof u.lastMove === 'object' ? u.lastMove : {}, { [row.lane]: row.id, any: row.id });
   /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. A rune

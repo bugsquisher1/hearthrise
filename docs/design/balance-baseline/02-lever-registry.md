@@ -24,33 +24,33 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Skill scaling | 9 | 7 | 0 | 2 | 0 | 1 | 3 | 5 |
 | Level scaling | 9 | 7 | 0 | 0 | 2 | 4 | 3 | 6 |
 | Weapon power and attack frequency | 6 | 2 | 3 | 1 | 0 | 1 | 0 | 2 |
-| Spell coefficients, costs, cooldowns and areas | 14 | 6 | 1 | 6 | 1 | 1 | 2 | 4 |
+| Spell coefficients, costs, cooldowns and areas | 15 | 6 | 1 | 7 | 1 | 1 | 3 | 5 |
 | Healing and shielding | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | Armor and mitigation | 6 | 3 | 2 | 0 | 1 | 3 | 1 | 2 |
 | Resistances | 5 | 2 | 0 | 2 | 1 | 0 | 2 | 2 |
 | Critical chance and damage | 3 | 1 | 1 | 0 | 1 | 1 | 0 | 0 |
 | Life and mana leech | 2 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | Regeneration | 6 | 5 | 0 | 0 | 1 | 2 | 4 | 2 |
-| Monster HP, damage, armor, resistances and behavior | 37 | 13 | 10 | 5 | 9 | 7 | 19 | 23 |
+| Monster HP, damage, armor, resistances and behavior | 38 | 13 | 10 | 5 | 10 | 7 | 20 | 24 |
 | Spawn pacing and encounter composition | 12 | 7 | 1 | 3 | 1 | 1 | 6 | 5 |
-| Monster XP and loot values | 18 | 9 | 1 | 2 | 6 | 3 | 7 | 10 |
+| Monster XP and loot values | 19 | 9 | 1 | 2 | 7 | 3 | 8 | 11 |
 | Equipment stats and progression | 24 | 11 | 4 | 9 | 0 | 0 | 15 | 18 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 46 | 31 | 2 | 12 | 1 | 0 | 41 | 34 |
-| **All** | **238** | 127 | 32 | 51 | 28 | 31 | 124 | 129 |
+| **All** | **241** | 127 | 32 | 52 | 30 | 31 | 127 | 132 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 760 (in 260 files, 16892 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 761 (in 261 files, 16992 typed numbers) |
 | Claimed by a lever | 333 |
-| Claimed by a not-a-lever reason | 427 |
+| Claimed by a not-a-lever reason | 428 |
 | Unclaimed | 0 |
-| Exceptions, intentional and accidental | 17 and 11 |
+| Exceptions, intentional and accidental | 19 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
 
@@ -114,6 +114,8 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `mon.scaled-danger` Scaled-hunt exceptions | A per-ground combat number. The cause is the bow against a melee pack | 44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS |
 | redundant | `spawn.respawn` Pack respawn time | Written on the hunt row and on the ground row. The engine reads the ground's | CONFIRMED (pull-cycle.js reads inst.ground.respawnMs only) |
 | redundant | `danger.ref-step` A ground's reference step, band and kill rate | A per-ground number that stands in for one absolute step unit (LR-1: no per-ground dial). It retires when grounds carry absolute bands | 02 package 3 cost. JUDGMENT |
+| redundant | `danger.formula-step` Where a formula ground's reference monsters stand | A second per-ground step beside refStep (LR-1: no per-ground dial). It retires with absolute steps | 27 stage 6. JUDGMENT |
+| redundant | `danger.rows-kept` The kill rate a ground's coin and drop rows were written at | A per-ground number for coin until coin is written in hours (LR-1) | 27 stage 9. JUDGMENT |
 | redundant | `mf.ref` The reference company a formula ground is anchored on | A measured table by Level that stands in for the reference company's damage in steps. It retires when hero power is counted in steps (04 section 1, wave 3) | JUDGMENT |
 | redundant | `reward.xp-floor-fit` Early-ground XP fit | Falls away with the ground-fit fix (a kill reward that follows kills an hour) | 44 E-X04, CONFIRMED |
 | redundant | `reward.ground-xp-fit` Per-ground XP fit | Outputs of the missing kill-rate term, hand-fitted (re-fitted 11-08, 11-11, 11-19). Knobs.json lists it under notKnobs | 44 E-X01, CONFIRMED |
@@ -269,6 +271,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `roads.nodes` The Roads sample's nodes: crossroads, waystones and vows, in steps and move modifiers | Equipment stats and progression | dark behind TALENT_RULES.live. Alloc-run.mjs measures the five allocations |
 | not-built | `roads.rules` The Roads: a point a Level, vow slots, borrowed moves, the idle point's cost | Equipment stats and progression | dark behind TALENT_RULES.live. The Lab runs it with tools/balance-program/redesign/roads/alloc-run.mjs |
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
+| not-built | `spell.answers` The answers to a wind-up: Parried's window and the push bound | Spell coefficients, costs, cooldowns and areas | no played bar slots Parry or Stagger yet: both are the player's picks, off every default bar (23 section 9 step 8 re-runs the move table) |
 | not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
 | not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
 | not-built | `temper.steps` Temper on steps: ranks by Level, price in hours of wage, the re-seat | Equipment stats and progression | the switch temper_steps is off and the Temper Kit is not an item. T1 measured with tools/balance-program/candidates/temper-5.json |
@@ -281,6 +284,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `danger.band-rule` How every ground's band is cut from its three Lab cells | Monster XP and loot values | a cut, not a play: tools/new-ground.mjs re-measures every ground with it |
 | not-in-runs | `danger.climb` The climb and the fall back | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.coin-level` The scale's coin level | Monster XP and loot values | played by the V1 probe only |
+| not-in-runs | `danger.formula-step` Where a formula ground's reference monsters stand | Monster HP, damage, armor, resistances and behavior | played by the V1 probe only (tools/balance-program/redesign/tuning/roles) |
 | not-in-runs | `danger.holder-line` The holding tank's line | Monster HP, damage, armor, resistances and behavior | played by spell-run.mjs (plan P) on the real engine |
 | not-in-runs | `danger.loot-step` Loot follows depth | Monster XP and loot values | played by the V1 probe (candidate loot-depth-off pairs it away) |
 | not-in-runs | `danger.pay` Pay by depth | Monster XP and loot values | played by the V1 probe only. The server bounds it (hr_danger_level_xp_max, 1055) |
@@ -292,6 +296,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-in-runs | `danger.pull` Danger pull growth | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.readiness` Pulls on readiness | Spawn pacing and encounter composition | played by the V1 probe only |
 | not-in-runs | `danger.ref-step` A ground's reference step, band and kill rate | Monster XP and loot values | played by the V1 probe only |
+| not-in-runs | `danger.rows-kept` The kill rate a ground's coin and drop rows were written at | Monster XP and loot values | played by the V1 probe only (tools/balance-program/redesign/tuning/roles) |
 | not-in-runs | `econ.scaled-hunts` Scaled hunts: pay and price | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
 | not-in-runs | `econ.training` Training yard pay and fee | Economy sources and sinks | the matrix plays hunts, not the yard |
 | not-in-runs | `econ.training-items` Training items | Economy sources and sinks | the engine reads it and cell.mjs could play it, but no matrix RUN plays that mode (the Tower, the Catacombs, scaled hunts, boss halls and calls, the yard, live events) |
@@ -384,6 +389,7 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `mon.boss-kinds` Boss kinds and the ramp | 12 | 19 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
 | `mon.party-fit` Party ground monster formula | 12 | 19 | 79 | knob `partyGroundHp` | exception-intentional |
 | `mon.roles` Monster roles | 12 | 19 | 79 | patch | archetype |
+| `danger.formula-step` Where a formula ground's reference monsters stand | 12 | 15 | 79 | NOT PLAYABLE (not-in-runs) | exception-intentional |
 | `mf.blow-cap` A formula monster's largest steady blow | 12 | 11 | 79 | NOT PLAYABLE (not-in-runs) | global |
 | `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | 12 | 11 | 79 | NOT PLAYABLE (not-in-runs) | global |
 | `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 79 | knob `monsterDamage` | global |
@@ -393,7 +399,6 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 | `mf.mend` A Warder's mend | 12 | 8 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
 | `danger.power-gear` The power step on gear | 11 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
 | `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 78 | patch | archetype |
-| `weapon.family-tables` Weapon accuracy and damage by family (the gear formula's profiles) | 9 | 8 | 79 | patch | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

@@ -1,0 +1,80 @@
+
+V1 on catacomb_flooded_wing (8 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful      351.9 +- 3         -2  72.5  98.7   20.9    1.5     0.7     91.7      0     0  0 (0/0/0)                       6  {"hold":5394,"climb":1831,"fall":101}
+base:steady        null +- 0          0     0     0      0      0       0     81.1      0     0  0 (0/0/0)                       0  {"hold":784,"climb":579,"fall":3}
+base:bold          null +- 0          0     0     0      0      0       0     94.3      0     0  0 (0/0/0)                       0  {"hold":506,"climb":497}
+levels:steady       446 +- 0          0  12.5  12.5      0      0     0.1     77.3      0     0  0 (0/0/0)                       0  {"hold":979,"climb":642,"fall":7}
+back:steady       430.7 +- 3.7     -2.8  68.7  95.6   11.7    0.9     1.3     64.2      0     0  0 (0/0/0)                       6  {"hold":3791,"climb":1278,"fall":56}
+up:steady          null +- 0          0     0     0      0      0       0     81.1      0     0  0 (0/0/0)                       0  {"hold":784,"climb":579,"fall":3}
+high:steady        null +- 0          0     0     0      0      0       0       82      0     0  0 (0/0/0)                       0  {"hold":801,"climb":586,"fall":3}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful       0.36x  sd 0  n 8  window 6 h  seeds 0.37 0.36 0.36 0.36 0.36 0.37 0.37 0.36
+  base:steady        nullx  sd 0  n 0  window 0 h  seeds 
+  base:bold          nullx  sd 0  n 0  window 0 h  seeds 
+  levels:steady         0x  sd 0  n 1  window 0 h  seeds 0
+  back:steady         0.3x  sd 0  n 8  window 6 h  seeds 0.3 0.3 0.3 0.3 0.3 0.29 0.3 0.31
+  up:steady          nullx  sd 0  n 0  window 0 h  seeds 
+  high:steady        nullx  sd 0  n 0  window 0 h  seeds 
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L175  coin 20111 +- 101  income 21646 +- 93  store 5725  kit share 0.26 (meal 4, drink 374, charge 1267, shot 4081)  loot by band: common 934, uncommon 534, scarce 0, other 67  n 8
+  base:steady       L175  coin 21509 +- 932  income 23256 +- 926  store 4690  kit share 0.2 (meal 96, drink 178, charge 1043, shot 3371)  loot by band: common 1069, uncommon 585, scarce 0, other 91  n 8
+  base:bold         L175  coin 24210 +- 292  income 26159 +- 342  store 4427  kit share 0.17 (meal 58, drink 110, charge 987, shot 3270)  loot by band: common 1179, uncommon 653, scarce 0, other 116  n 8
+  levels:steady     L178  coin 20608 +- 1065  income 22275 +- 1144  store 4758  kit share 0.21 (meal 111, drink 193, charge 1061, shot 3395)  loot by band: common 1007, uncommon 570, scarce 0, other 91  n 8
+  back:steady       L175  coin 16353 +- 125  income 17747 +- 143  store 5250  kit share 0.3 (meal 245, drink 302, charge 1147, shot 3555)  loot by band: common 872, uncommon 459, scarce 0, other 63  n 8
+  up:steady         L175  coin 21509 +- 932  income 23256 +- 926  store 4690  kit share 0.2 (meal 96, drink 178, charge 1043, shot 3371)  loot by band: common 1069, uncommon 585, scarce 0, other 91  n 8
+  high:steady       L185  coin 21703 +- 1203  income 23419 +- 1295  store 4654  kit share 0.2 (meal 84, drink 166, charge 1039, shot 3358)  loot by band: common 1037, uncommon 593, scarce 0, other 83  n 8
+
+power moves (paired seeds): the held step at the changed power minus at base
+  levels:steady       null steps (sd 0, se 0, n 0)
+  back:steady         null steps (sd 0, se 0, n 0)
+  up:steady           null steps (sd 0, se 0, n 0)
+  high:steady         null steps (sd 0, se 0, n 0)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:careful      hammer 0.489  bow 0.208  mage 0.102  healer 0.201
+  base:steady       hammer 0.524  bow 0.221  mage 0.089  healer 0.166
+  base:bold         hammer 0.515  bow 0.21  mage 0.1  healer 0.175
+  levels:steady     hammer 0.529  bow 0.222  mage 0.086  healer 0.163
+  back:steady       hammer 0.559  bow 0.217  mage 0.072  healer 0.152
+  up:steady         hammer 0.524  bow 0.221  mage 0.089  healer 0.166
+  high:steady       hammer 0.519  bow 0.223  mage 0.09  healer 0.168
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:careful      hammer dps 36.86 land 72.39% hit 79.73 (2424/h) | bow dps 38.28 land 89.23% hit 75.18 (1091.88/h) | mage dps 52.24 land 96.75% hit 128.4 (313.5/h) | healer dps 23.87 land 89.68% hit 67.42 (1180.25/h)
+                    night_carter(null) 117.4/h 20 s 1621 | shrouded_pauper(null) 205.9/h 13.2 s 492 | keeper_dunn(null) 30.1/h 12.1 s 921 | bone_wall(null) 57.6/h 22.3 s 857 | vault_leech(null) 117.3/h 24 s 226
+                    broke off by: fall:shrouded_pauper@0 45, fall:night_carter@0 16, fall:night_carter@2 14, fall:vault_leech@1 10, fall:bone_wall@0 7, fall:keeper_dunn@0 7, fall:night_carter@3 2
+  base:steady       hammer dps 31.89 land 71.54% hit 83.81 (1990.88/h) | bow dps 32.94 land 89.45% hit 71.8 (977.88/h) | mage dps 43.29 land 92.94% hit 102.63 (278.25/h) | healer dps 19.97 land 91.53% hit 76.23 (691.63/h)
+                    night_carter(null) 92.6/h 17.1 s 1414 | shrouded_pauper(null) 175.9/h 14.3 s 575 | keeper_dunn(null) 26.9/h 8.4 s 616 | bone_wall(null) 42.3/h 22.8 s 941 | vault_leech(null) 114.1/h 24 s 291
+                    broke off by: fall:shrouded_pauper@0 2, fall:night_carter@2 1
+  base:bold         hammer dps 29.96 land 71.76% hit 74.09 (1833/h) | bow dps 31.52 land 89.96% hit 66.8 (830.75/h) | mage dps 41.53 land 91.23% hit 82.03 (322.88/h) | healer dps 18.97 land 91.96% hit 71.21 (646.38/h)
+                    night_carter(null) 102.7/h 15.6 s 1124 | shrouded_pauper(null) 190.9/h 11.9 s 417 | keeper_dunn(null) 31.7/h 7.1 s 469 | bone_wall(null) 44.7/h 19.7 s 717 | vault_leech(null) 114.9/h 19.1 s 194
+                    broke off by: 
+  levels:steady     hammer dps 32.52 land 71.26% hit 87.03 (2052.75/h) | bow dps 33.48 land 88.93% hit 73.32 (1024.75/h) | mage dps 44.16 land 92.96% hit 113.6 (255.63/h) | healer dps 20.38 land 91.7% hit 77.89 (708.38/h)
+                    night_carter(null) 89.5/h 17.5 s 1512 | shrouded_pauper(null) 171.6/h 15.3 s 643 | keeper_dunn(null) 25.4/h 8.7 s 707 | bone_wall(null) 41.6/h 24 s 1036 | vault_leech(null) 114.2/h 25.5 s 328
+                    broke off by: fall:night_carter@0 3, fall:shrouded_pauper@0 2, fall:bone_wall@0 1, fall:night_carter@2 1
+  back:steady       hammer dps 31.97 land 71.26% hit 100.94 (2268.63/h) | bow dps 34.48 land 87.85% hit 73.37 (1210.63/h) | mage dps 45.18 land 97.64% hit 151.72 (195/h) | healer dps 21.16 land 90% hit 79.31 (784/h)
+                    night_carter(null) 81.4/h 19 s 1833 | shrouded_pauper(null) 160.2/h 18.3 s 872 | keeper_dunn(null) 21.2/h 10.6 s 961 | bone_wall(null) 39.7/h 27.3 s 1349 | vault_leech(null) 115.7/h 29.9 s 404
+                    broke off by: fall:shrouded_pauper@0 41, fall:night_carter@0 13, fall:keeper_dunn@0 1, fall:bone_wall@0 1
+  up:steady         hammer dps 31.89 land 71.54% hit 83.81 (1990.88/h) | bow dps 32.94 land 89.45% hit 71.8 (977.88/h) | mage dps 43.29 land 92.94% hit 102.63 (278.25/h) | healer dps 19.97 land 91.53% hit 76.23 (691.63/h)
+                    night_carter(null) 92.6/h 17.1 s 1414 | shrouded_pauper(null) 175.9/h 14.3 s 575 | keeper_dunn(null) 26.9/h 8.4 s 616 | bone_wall(null) 42.3/h 22.8 s 941 | vault_leech(null) 114.1/h 24 s 291
+                    broke off by: fall:shrouded_pauper@0 2, fall:night_carter@2 1
+  high:steady       hammer dps 32.24 land 71.09% hit 85.94 (1987.25/h) | bow dps 33.03 land 89.14% hit 74.86 (980.25/h) | mage dps 43.68 land 92.79% hit 109.21 (272.5/h) | healer dps 20.03 land 92.06% hit 79.05 (696.63/h)
+                    night_carter(null) 93.3/h 16.9 s 1456 | shrouded_pauper(null) 177.1/h 14.2 s 589 | keeper_dunn(null) 27.1/h 8.4 s 674 | bone_wall(null) 42.7/h 22.6 s 962 | vault_leech(null) 114.8/h 23.9 s 307
+                    broke off by: fall:bone_wall@0 2, fall:night_carter@0 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:careful      abs 126.8 (depth 1)  free 235  spell 765  food 0  taken 13.57 pm/s
+  base:steady       abs n/a  free 220  spell 770  food 10  taken 10.94 pm/s
+  base:bold         abs n/a  free 270  spell 723  food 7  taken 9.06 pm/s
+  levels:steady     abs 150.3 (depth 3)  free 208  spell 780  food 12  taken 11.43 pm/s
+  back:steady       abs 146.5 (depth 1)  free 175  spell 806  food 19  taken 14.07 pm/s
+  up:steady         abs n/a  free 220  spell 770  food 10  taken 10.94 pm/s
+  high:steady       abs n/a  free 224  spell 767  food 9  taken 10.74 pm/s
+
+wall 168 s

@@ -1,0 +1,96 @@
+V1: 24 seed jobs (6 cells x 4 seeds x 4 h) on 6 workers; mill_cellar, Levels 3 / 6 / 70
+[1/24] base:careful#2 23 s, 23 s elapsed
+[2/24] base:careful#1 23 s, 24 s elapsed
+[3/24] base:careful#0 23 s, 24 s elapsed
+[4/24] base:careful#3 23 s, 24 s elapsed
+[5/24] base:steady#1 25 s, 26 s elapsed
+[6/24] base:steady#0 25 s, 26 s elapsed
+[7/24] base:steady#2 23 s, 47 s elapsed
+[8/24] levels:steady#0 0 s, 47 s elapsed
+[9/24] levels:steady#1 0 s, 47 s elapsed
+[10/24] levels:steady#2 0 s, 47 s elapsed
+[11/24] levels:steady#3 0 s, 47 s elapsed
+[12/24] base:steady#3 23 s, 47 s elapsed
+[13/24] base:bold#1 23 s, 47 s elapsed
+[14/24] base:bold#0 24 s, 48 s elapsed
+[15/24] base:bold#2 23 s, 49 s elapsed
+[16/24] base:bold#3 24 s, 49 s elapsed
+[17/24] back:steady#0 16 s, 63 s elapsed
+[18/24] back:steady#1 16 s, 63 s elapsed
+[19/24] back:steady#2 16 s, 64 s elapsed
+[20/24] back:steady#3 16 s, 64 s elapsed
+[21/24] up:steady#0 22 s, 70 s elapsed
+[22/24] up:steady#1 22 s, 71 s elapsed
+[23/24] up:steady#2 21 s, 83 s elapsed
+[24/24] up:steady#3 21 s, 84 s elapsed
+
+V1 on mill_cellar (4 seeds x 4 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:careful          0 +- 0.1     -0.1   100   100      1    9.2       0     91.5      0     0  0 (0/0/0)                       3  {"hold":1302,"fall":148,"climb":10}
+base:steady        55.2 +- 2.4      7.2  97.8   100    4.9      0     0.7     69.3      0     0  0 (0/0/0)                       3  {"hold":975,"climb":129}
+base:bold           110 +- 0          0   100   100      0      0     0.4     58.4      0     0  0 (0/0/0)                       3  {"hold":547,"climb":382}
+levels:steady      null +- 0          0     0     0      0      0    null        0      0     0  0 (0/0/0)                       0  {}
+back:steady         9.9 +- 0.8      3.5   100   100    2.7    0.1       0     81.4      0     0  0 (0/0/0)                       3  {"hold":1243,"climb":54,"fall":2}
+up:steady          80.2 +- 4.9      6.8  98.4   100    4.8      0     0.6     68.1      0     0  0 (0/0/0)                       3  {"hold":944,"climb":142}
+
+pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:careful        0.7x  sd 0  n 4  window 3 h  seeds 0.7 0.7 0.7 0.7
+  base:steady         0.9x  sd 0  n 4  window 3 h  seeds 0.91 0.91 0.9 0.9
+  base:bold           1.1x  sd 0  n 4  window 3 h  seeds 1.1 1.1 1.1 1.1
+  levels:steady      nullx  sd 0  n 0  window 0 h  seeds 
+  back:steady        0.69x  sd 0  n 4  window 3 h  seeds 0.69 0.69 0.69 0.69
+  up:steady          1.07x  sd 0.03  n 4  window 3 h  seeds 1.09 1.04 1.04 1.09
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:careful      L3  coin 9366 +- 29  income 9697 +- 28  store 3818  kit share 0.39 (meal 2, drink 2374, charge 681, shot 762)  loot by band: common 306, uncommon 9, scarce 17, other 0  n 4
+  base:steady       L3  coin 12654 +- 127  income 13038 +- 119  store 4164  kit share 0.32 (meal 52, drink 2646, charge 712, shot 754)  loot by band: common 355, uncommon 11, scarce 18, other 0  n 4
+  base:bold         L3  coin 16196 +- 86  income 16666 +- 90  store 4638  kit share 0.28 (meal 197, drink 2922, charge 754, shot 766)  loot by band: common 440, uncommon 14, scarce 17, other 0  n 4
+  levels:steady     L6  coin null +- 0  income null +- 0  store null  kit share n/a (meal 0, drink 0, charge 0, shot 0)  loot by band: common null, uncommon null, scarce null, other null  n 0
+  back:steady       L3  coin 9848 +- 73  income 10190 +- 74  store 4083  kit share 0.4 (meal 85, drink 2536, charge 709, shot 754)  loot by band: common 320, uncommon 9, scarce 13, other 0  n 4
+  up:steady         L3  coin 14967 +- 306  income 15413 +- 321  store 4165  kit share 0.27 (meal 50, drink 2651, charge 710, shot 755)  loot by band: common 411, uncommon 13, scarce 22, other 0  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+  levels:steady       null steps (sd 0, se 0, n 0)
+  back:steady        -45.2 steps (sd 2.8, se 1.4, n 4)
+  up:steady           24.8 steps (sd 6.2, se 3.1, n 4)
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:careful      hammer 0.944  bow 0.055  mage 0  healer 0.001
+  base:steady       hammer 0.934  bow 0.063  mage 0  healer 0.003
+  base:bold         hammer 0.933  bow 0.064  mage 0  healer 0.003
+  levels:steady     hammer null  bow null  mage null  healer null
+  back:steady       hammer 1  bow 0  mage 0  healer 0
+  up:steady         hammer 0.93  bow 0.065  mage 0  healer 0.004
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:careful      hammer dps 3.26 land 70.07% hit 6.77 (5633.75/h) | bow dps 4.01 land 72.7% hit 3.35 (667.75/h) | mage dps 5.08 land null% hit null (0/h) | healer dps 2.8 land 100% hit 19.84 (2/h)
+                    rat(swarm) 411/h 21.2 s 79 | slime(brute) 82.1/h 19.3 s 71 | hive_wasp(stalker) 81.9/h 44.2 s 27
+                    broke off by: fall:rat@0 146, fall:slime@0 2
+  base:steady       hammer dps 3.28 land 70.85% hit 7.5 (6161/h) | bow dps 3.93 land 72.25% hit 3.58 (869.75/h) | mage dps 4.93 land null% hit null (0/h) | healer dps 2.7 land 100% hit 21.72 (8/h)
+                    rat(swarm) 374.5/h 23.1 s 92 | slime(brute) 97.5/h 31.4 s 126 | hive_wasp(stalker) 68.8/h 49.5 s 42
+                    broke off by: 
+  base:bold         hammer dps 3.32 land 70.93% hit 9.17 (6285.5/h) | bow dps 3.93 land 72.55% hit 4.52 (880.5/h) | mage dps 5.1 land null% hit null (0/h) | healer dps 2.76 land 100% hit 25.1 (7.25/h)
+                    rat(swarm) 318.7/h 28 s 131 | slime(brute) 85.3/h 39 s 192 | hive_wasp(stalker) 58/h 61.6 s 62
+                    broke off by: 
+  levels:steady     hammer dps 0 land null% hit null (0/h) | bow dps 0 land null% hit null (0/h) | mage dps 0 land null% hit null (0/h) | healer dps 0 land null% hit null (0/h)
+                    
+                    broke off by: 
+  back:steady       hammer dps 3.15 land 70.4% hit 6.61 (7476.75/h) | bow dps 3.96 land null% hit null (0/h) | mage dps 5.27 land null% hit null (0/h) | healer dps 2.67 land null% hit null (0/h)
+                    rat(swarm) 406.2/h 22.2 s 89 | slime(brute) 81/h 27.2 s 107 | hive_wasp(stalker) 81/h 34.3 s 54
+                    broke off by: fall:slime@0 1, fall:rat@0 1
+  up:steady         hammer dps 3.48 land 70.63% hit 7.69 (6201.75/h) | bow dps 4.18 land 73.25% hit 3.8 (884/h) | mage dps 5.24 land null% hit null (0/h) | healer dps 2.91 land 100% hit 22.11 (9.75/h)
+                    rat(swarm) 371.3/h 23.5 s 94 | slime(brute) 99/h 32.2 s 133 | hive_wasp(stalker) 67.7/h 49.9 s 45
+                    broke off by: 
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:careful      abs 0.3 (depth 1)  free 128  spell 869  food 2  taken 15.45 pm/s
+  base:steady       abs 0.8 (depth 14)  free 100  spell 850  food 50  taken 18.91 pm/s
+  base:bold         abs 1 (depth 20)  free 77  spell 783  food 140  taken 23.61 pm/s
+  levels:steady     abs n/a
+  back:steady       abs 0.3 (depth 3)  free 60  spell 859  food 81  taken 20.18 pm/s
+  up:steady         abs 0.9 (depth 17)  free 94  spell 859  food 46  taken 19.59 pm/s
+
+wall 84 s

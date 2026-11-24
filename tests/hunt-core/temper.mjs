@@ -77,7 +77,8 @@ const cases = {
     const { armorPmOf, blowsPmOf, temperRung, armorLineOf } = M.temper;
     const D = M.temperData, I = M.ITEMS;
     const DAWN = { weapon: 'dawn_sword', helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' };
-    if (I.dawn_sword.tier !== 7 || I.dawn_platebody.tier !== 7 || I.dawn_platebody.reqLv !== 88) return 'fixture: Dawnsteel is not tier 7 worn from 88';
+    /* (worn from its item Level 120 less 10 since 12-targets 8.3) */
+    if (I.dawn_sword.tier !== 7 || I.dawn_platebody.tier !== 7 || I.dawn_platebody.reqLv !== 110) return 'fixture: Dawnsteel is not tier 7 worn from 110';
     const ladder = D.temperLadder('armor', 7), blows = D.temperLadder('blows', 7);
     if (!ladder || !blows) return 'Dawnsteel has no ladder: ' + JSON.stringify({ ladder, blows });
     const full = ladder.rungs * ladder.pm;
@@ -113,9 +114,10 @@ const cases = {
     const I = { ...M.ITEMS };
     const DAWN = { helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' };
     const line = {};
-    for (const [slot, id] of Object.entries(DAWN)) { I['tu_' + slot] = { ...I[id], defB: Math.round(I[id].defB * 1.5), reqLv: 165, rarity: 'unique' }; line[slot] = 'tu_' + slot; }
+    /* (a unique is its own item Level: it carries no grid step, its base's is the ladder's alone, 12-targets 8.3) */
+    for (const [slot, id] of Object.entries(DAWN)) { const { step, ...base } = I[id]; void step; I['tu_' + slot] = { ...base, defB: Math.round(I[id].defB * 1.5), reqLv: 165, rarity: 'unique' }; line[slot] = 'tu_' + slot; }
     const full = D.TEMPER_UNIQUE_BANDS[165].gold.length * D.TEMPER_UNIQUE_RUNG_PM;
-    if (I.tu_body.tier !== 7 || I.dawn_platebody.reqLv !== 88) return 'fixture: Dawnsteel is not tier 7 worn from 88';
+    if (I.tu_body.tier !== 7 || I.dawn_platebody.reqLv !== 110) return 'fixture: Dawnsteel is not tier 7 worn from 110';
     if (full !== 25) return 'a full band ladder is ' + full + ' pm: the ruling is about 2-3%, measured 2.5% (tools/balance-sim/temper-uniques-table.mjs next)';
     if (armorPmOf(line, I, { 'temper:armor:165': 5 }) !== full) return 'a whole line set at rung 5 reads ' + armorPmOf(line, I, { 'temper:armor:165': 5 }) + ' pm, want ' + full;
     if (armorPmOf(line, I, { 'temper:armor:165': 99 }) !== full) return 'a forged band rung reads ' + armorPmOf(line, I, { 'temper:armor:165': 99 }) + ' pm';
@@ -209,7 +211,7 @@ const cases = {
     if (snapOf(CAPED).armorPm !== 70) return 'a Houndskin Cloak snaps to ' + snapOf(CAPED).armorPm;
     if (snapOf(CAPED, { 'temper:armor:2': 5 }).armorPm !== 120) return 'a Houndskin Cloak and five Armor rungs snap to ' + snapOf(CAPED, { 'temper:armor:2': 5 }).armorPm;
     if (snapOf(CAPED).def !== snapOf(IRON).def) return 'a cape moved the to-hit roll: ' + snapOf(CAPED).def + ' against ' + snapOf(IRON).def;
-    if (snapOf({ ...IRON, shield: 'ironbound_shield' }).def !== snapOf(IRON).def + 5) return 'the Ironbound Shield no longer guards';
+    if (snapOf({ ...IRON, shield: 'ironbound_shield' }).def !== snapOf(IRON).def + M.ITEMS.ironbound_shield.defB || !(M.ITEMS.ironbound_shield.defB > 0)) return 'the Ironbound Shield no longer guards';
     if ('armorPm' in snapOf(IRON)) return 'a hero with no cape and no rung carries a cut';
     const rng = rngOf(M, 5);
     const mean = landed(4000, () => mitigate(1000, 1000, NO_MITIGATION, 70, rng)) / 4000;
@@ -347,7 +349,8 @@ const mutants = [
   { name: 'a band is never clamped', case: 'a-unique-reads-its-band', edits: [['src/data/temper.js', 'return u ? { rungs: u.gold.length, pm: TEMPER_UNIQUE_RUNG_PM } : null;', 'return u ? { rungs: 99, pm: TEMPER_UNIQUE_RUNG_PM } : null;']] },
   { name: 'a band takes Blows too', case: 'a-unique-reads-its-band', edits: [['src/data/temper.js', "const u = track === 'armor' ? TEMPER_UNIQUE_BANDS[tier] : null;", 'const u = TEMPER_UNIQUE_BANDS[tier] || null;']] },
   { name: 'the smith offers the tier-7 key', case: 'a-unique-reads-its-band', edits: [[T, '    const t = def > 0 ? temperTierOf(it) : 0;\n', '    const t = def > 0 ? it.tier : 0;\n']] },
-  { name: "a band's rungs pay on Dawnsteel (every tier-7 piece reads a band)", case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', 'if (it.armourClass && it.slot && Number(it.tier) >= 7 && lv >= TEMPER_UNIQUE_FROM) {', 'if (it.armourClass && it.slot && Number(it.tier) >= 7) {']] },
+  /* (since 12-targets 8.3 Dawnsteel is worn from 110, a band's first Level: only its grid step keeps it on the tier-7 ladder) */
+  { name: "a band's rungs pay on Dawnsteel (its grid step forgotten)", case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', 'if (Number.isInteger(it.step)) return it.tier;', '/* a grid step reads nothing */']] },
   { name: 'every piece counts the same, whatever it wears', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'if (def > 0) { worn += def; rungs += def * temperRung(', 'if (def > 0) { worn += 1; rungs += temperRung(']] },
   { name: 'a shield carries the Armor rung', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor', 'it && it.slot ? 1 + Math.floor']] },
   /* (lane/r9: the rung rides danger.js powerPm's one draw beside the power step; off the scale powerPm hands it back as it was) */

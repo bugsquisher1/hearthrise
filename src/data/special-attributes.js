@@ -17,6 +17,7 @@
 // ============================================================================
 
 import { withGearStats } from './gear-profiles.js';
+import { MATERIAL_TIERS, stepOf } from './gear-tiers.js';
 
 /** The gear tiers a special piece exists at. Tier 1 has none: a Rare drop takes 10 to 20 hours and tier 1 is outgrown in about 5. */
 export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);
@@ -90,21 +91,21 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
 const SAMPLE = {
   krells_tollgate: Object.freeze({
     row: Object.freeze({ n: 'Krell\'s Tollgate', icon: '🛡️', v: 43200, type: 'offhand', slot: 'shield', offhand: 'shield',
-      resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
+      resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'mythic', reqSkill: 'level' }),
     base: null, attr: Object.freeze(['resist_element', 'ember']),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
     text: 'Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it.',
   }),
   banded_legguards: Object.freeze({
     row: Object.freeze({ n: 'Banded Legguards', icon: '🛡️', v: 79200, type: 'armor', slot: 'pants', armourClass: 'plate',
-      resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
+      resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level' }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_physical', 'physical']),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
     text: 'Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
   }),
   mudlarks_mitts: Object.freeze({
     row: Object.freeze({ n: 'Mudlark\'s Mitts', icon: '🎽', v: 735, type: 'armor', slot: 'gloves', armourClass: 'leather',
-      rangedPlus: 2, tier: 4, rarity: 'epic', reqSkill: 'level', reqLv: 45 }),
+      rangedPlus: 2, tier: 4, rarity: 'epic', reqSkill: 'level' }),
     base: 'snakeskin_gloves', attr: Object.freeze(['skill', 'ranged']),
     source: Object.freeze({ monster: 'mudlark', ground: 'the_slake', how: 'rare' }), use: 'worn',
     text: 'Your Ranged counts as 2 higher while you wear them. A Mudlark finds things in the river by feel, and these are worn thin at every fingertip.',
@@ -113,7 +114,7 @@ const SAMPLE = {
   demoncaller_staff: Object.freeze({
     row: Object.freeze({ n: 'Demoncaller', icon: '🪄', v: 13000, type: 'weapon', slot: 'weapon', weaponType: 'magic', discipline: 'restoration', twoHanded: true,
       bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
-      tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75 }),
+      tier: 6, rarity: 'legendary', reqSkill: 'level' }),
     base: 'runewood_staff', attr: Object.freeze(['bane', 'undead']),
     source: Object.freeze({ monster: 'provost', ground: 'pyre_field', how: 'rare' }), use: 'worn',
     text: 'It hits the Undead 10% harder. The Provosts carried these to call the burned back up. The soldiers they called had another name for them.',
@@ -122,5 +123,8 @@ const SAMPLE = {
 /* THE SAMPLE AS IT SHIPS: each row's base stats DERIVED (src/data/gear-profiles.js; tools/gen-gear.mjs writes them under
    'special:<id>', since a hidden row's id can be a live item's too): a row with a `base` is that standard piece at its item Level (the
    attribute on top), one without (a shield) is its ladder's piece at its own item Level. */
+/* A ROW IS STAMPED TO ITS TIER (12-targets 8.3): its material's grid step, worn from its item Level less wearAhead (src/data/gear-tiers.js
+   MATERIAL_TIERS), so no row types a Level and a special piece is worn as its standard piece is. */
+const onGrid = (row) => { const m = MATERIAL_TIERS[row.tier - 1]; return { ...row, reqLv: m.level, ...stepOf(m) }; };
 export const SPECIAL_SAMPLE = /** @type {Readonly<typeof SAMPLE>} */ (Object.freeze(Object.fromEntries(Object.entries(SAMPLE).map(([id, s]) =>
-  [id, Object.freeze({ ...s, row: withGearStats({ [id]: s.row }, 'special:')[id] })]))));
+  [id, Object.freeze({ ...s, row: withGearStats({ [id]: onGrid(s.row) }, 'special:')[id] })]))));

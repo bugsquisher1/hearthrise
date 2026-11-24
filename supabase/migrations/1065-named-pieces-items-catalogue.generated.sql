@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 47f77d0bd8107e982ff9934da4f91a43c8cd94d06d289df369d42174f5875bbb
+--   catalogue digest: 5b0aa4740eabe5cfa242ee40ce364f3f4b7d483ee541f567e286913afb4e0b9e
 --   rows: 750 items (27 untradeable) ·
 --         464 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -229,7 +229,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('archmage_pants','Archmage Robe Bottom',true,'armor',20020,'level',90,null,false,'light',false),
   ('baked_potato','Baked Potato',true,null,150,null,null,240,true,null,false),
   ('bakers_cap','Baker''s Cap',true,'armor',1260,'level',150,null,false,'light',false),
-  ('banded_legguards','Banded Legguards',true,'armor',79200,'level',88,null,false,'heavy',false),
+  ('banded_legguards','Banded Legguards',true,'armor',79200,'level',110,null,false,'heavy',false),
   ('banded_signet','Banded Signet',true,'jewelry',260,'level',15,null,false,null,false),
   ('banded_signet_follow','Banded Signet (Follow-through)',true,'jewelry',260,'level',15,null,false,null,false),
   ('banded_signet_keen','Banded Signet (Keen)',true,'jewelry',260,'level',15,null,false,null,false),
@@ -568,7 +568,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('klappas_club','Klappa''s Klub',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
   ('kobold_scale','Kobold Scale',true,null,26,null,null,null,false,null,false),
-  ('krells_tollgate','Krell''s Tollgate',true,'offhand',43200,'level',88,null,false,null,false),
+  ('krells_tollgate','Krell''s Tollgate',true,'offhand',43200,'level',110,null,false,null,false),
   ('lamp_jelly','Lamp Jelly',true,null,1,null,null,null,false,null,false),
   ('lamplighters_wand','Lamplighter''s Wand',true,'weapon',115,'level',10,null,false,null,false),
   ('lazlos_maul','Lazlo''s Maul',true,'weapon',1650,'level',45,null,false,null,false),
@@ -2376,7 +2376,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '47f77d0bd8107e982ff9934da4f91a43c8cd94d06d289df369d42174f5875bbb', now())
+  values (true, '5b0aa4740eabe5cfa242ee40ce364f3f4b7d483ee541f567e286913afb4e0b9e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2612,7 +2612,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 47f77d0bd8107e982ff9934da4f91a43c8cd94d06d289df369d42174f5875bbb',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5b0aa4740eabe5cfa242ee40ce364f3f4b7d483ee541f567e286913afb4e0b9e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

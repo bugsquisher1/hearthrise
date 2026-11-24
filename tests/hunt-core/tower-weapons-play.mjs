@@ -59,9 +59,11 @@ const cases = {
       const profile = MB.deriveProfile(it.weaponType);
       const skill = profile.accuracySkill;
       /* the same row in every number but its name, its +skill and its lock */
-      const { n: _a, iL: _d, towerKey, [C.SKILL_PLUS_FIELDS[skill]]: plus, ...rest } = it;
+      const { n: _a, iL: _d, reqLv: _e, towerKey, [C.SKILL_PLUS_FIELDS[skill]]: plus, ...rest } = it;
       /* (`iL` is the piece's item Level: the twin's can be a scale ground's mark, src/data/danger.js scaleItemLevels, and a Tower weapon drops on none) */
-      const { n: _b, iL: _c, ...twinRest } = twin;
+      /* (and its wear, which follows the item Level, 12-targets 8.3: a Tower weapon is worn from its own tier's Level, the twin's may be a ground's stamp) */
+      const { n: _b, iL: _c, reqLv: _f, ...twinRest } = twin;
+      if (it.reqLv !== (GT.MATERIAL_TIERS[it.tier - 1] || {}).level) return id + ' is worn from ' + it.reqLv + ', not the Level its tier is worn from, ' + (GT.MATERIAL_TIERS[it.tier - 1] || {}).level;
       if (JSON.stringify(sorted(rest)) !== JSON.stringify(sorted(twinRest))) return id + ' is not ' + twinId + ' in its other numbers';
       if (plus !== k.skillPlus || towerKey !== k.id) return id + ' gives +' + plus + ' ' + skill + ' from ' + towerKey + ', the key says +' + k.skillPlus;
       let better = false;

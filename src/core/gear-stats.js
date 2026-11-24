@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { GEAR_STAT_FIELDS, GEAR_CURVES, GEAR_PROFILES, GEAR_SLOT_PM, GEAR_EVEN_SHARE_PM, GEAR_CURVE_TOP, GEAR_SCALE_STAT_PM, RARITY_PM } from '../data/gear-profiles.js';
-import { GEAR_STEPS, DANGER_GROUNDS } from '../data/danger.js';
+import { GEAR_STEPS, DANGER_GROUNDS, tierLevel } from '../data/danger.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
@@ -72,6 +72,10 @@ export function budgetOf(curve, iL) {
   const at = (x) => c.c0 + c.c1 * x + c.c2 * x * x;
   return L <= GEAR_CURVE_TOP ? at(L) : (at(GEAR_CURVE_TOP) * L) / GEAR_CURVE_TOP;
 }
+
+/** A row's SOURCE item Level where nothing stamps it (tools/gen-gear.mjs, never the iL a table wrote back): its material's grid tier
+    (`step`, 12-targets 8.3), else its `reqLv`. */
+export const sourceLevelOf = (row) => (Number.isInteger(row && row.step) ? tierLevel(row.step) : Math.max(0, Math.floor(Number(row && row.reqLv) || 0)));
 
 /** The item Level the formula reads: the row's `iL`, else its `reqLv` (the power step's own reading, danger.js itemLevelOf). */
 export function itemLevelOfRow(row) {

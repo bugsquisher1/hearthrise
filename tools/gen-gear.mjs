@@ -37,8 +37,9 @@ export const isCopy = (it) => !!(it && (it.towerKey || it.catacombTier || it.jew
 /** id -> base stats for every piece the catalogue holds (the inputs only: slot, item Level, profile, rarity, statsAs). */
 export function deriveAll(GS, items, fists, sample, itemLevels = {}) {
   const out = {};
-  /* a piece's SOURCE item Level: the one src/data/items.js ITEM_LEVELS gives it (its scale ground's base, or its step tier's), else its reqLv (never the iL this table wrote back onto the row) */
-  const levelOf = (id, row) => (Object.prototype.hasOwnProperty.call(itemLevels, id) ? itemLevels[id] : Math.max(0, Math.floor(Number(row.reqLv) || 0)));
+  /* a piece's SOURCE item Level: the one src/data/items.js ITEM_LEVELS gives it (its scale ground's base, or its tier's), else its grid tier's or
+     its reqLv (GS.sourceLevelOf: a staged sample row has no ITEM_LEVELS entry); never the iL this table wrote back onto the row */
+  const levelOf = (id, row) => (Object.prototype.hasOwnProperty.call(itemLevels, id) ? itemLevels[id] : GS.sourceLevelOf(row));
   const put = (key, row, pool, id = key) => {
     const asId = typeof row.statsAs === 'string' ? row.statsAs : null;
     const iL = asId && pool[asId] ? levelOf(asId, pool[asId]) : levelOf(id, row);

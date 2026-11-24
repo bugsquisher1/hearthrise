@@ -10,7 +10,8 @@
 //        its source monster's drops and nobody else's, at its `pm` when it is a daily prize. The only src/ file that imports
 //        src/data/special-attributes.js is a shipped row's home pack (src/data/grounds/<source.ground>/pack.js).
 //   SA2  THE STANDARD PIECE: a sample row with a `base` carries that row's slot, weight, tier, Level, rarity, value and every stat,
-//        so it is never a stat stick. One with no base sits on its ladder's next rung (a shield: +2 guard a tier).
+//        so it is never a stat stick. One with no base sits on its ladder's rung (a shield: its tier's plain shield's guard). Every row is
+//        stamped to its tier (12-targets 8.3): its material's grid step, worn from the tier's item Level less wearAhead.
 //   SA3  ONE ATTRIBUTE, AT ITS TIER'S SIZE: exactly one attribute field beyond the base, of the size the catalogue names for the
 //        row's tier, on a slot the catalogue allows, with a key it knows, never an unproven one, and inside the cap.
 //   SA4  A HOME A PLAYER CAN REACH: the source monster is met on an open ground or in an open keyed hall of the ground named.
@@ -35,6 +36,7 @@ import { ITEM_DESC } from '../src/data/item-descriptions.js';
 import { OPEN_GROUNDS, OPEN_HALL_GROUNDS } from '../src/data/hunt-grounds.js';
 import { hallOfHunt } from '../src/data/boss-halls.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE, SPECIAL_TIERS } from '../src/data/special-attributes.js';
+import { MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 import { statLines } from '../src/shell/bag-model.js';
 import { SKILL_PLUS_FIELDS } from '../src/core/combat.js';
 
@@ -46,7 +48,9 @@ const WORDS = new Set(['n', 'icon']);
 const ATTR_FIELDS = new Set(['resistPm', ...Object.values(SKILL_PLUS_FIELDS), 'bane', 'effects']);
 /* the item field attribute `def` writes for `key`: its one field, or the one its key names */
 const fieldOf = (def, key) => (typeof def.field === 'string' ? def.field : (def.field || {})[key]);
-const SHIELD_GUARD = (tier) => 3 + 2 * (tier - 1);
+/* the shield ladder's rung of a tier: its plain shield's guard (src/data/shields.js, the formula's at the tier's item Level, 12-targets 8.3) */
+const SHIELD_GUARD = (tier) => { const m = MATERIAL_TIERS[tier - 1], p = m && Object.values(ITEMS).find((it) => it && it.offhand === 'shield' && it.tier === tier
+  && !it.gearProfile && !it.resistPm && it.step === m.step && it.iL === m.iL); return p ? p.defB : null; };
 
 /* every src file's text, once (SA1) */
 function srcFiles(dir, out = []) {
@@ -124,12 +128,16 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
     if (s.base && !base) { out.push('SA2 ' + id + ': base ' + s.base + ' is not an item'); continue; }
     if (!SPECIAL_TIERS.includes(row.tier)) out.push('SA3 ' + id + ': tier ' + row.tier + ' carries no special piece');
     /* SA2 */
+    /* stamped to its tier (12-targets 8.3): its material's grid step, worn from that item Level less wearAhead, as its standard piece is on the
+       grid (the base's own may carry a ground's stamp until that ground's rows are re-pointed, so the wear is read from the grid, not the base) */
+    const grid = MATERIAL_TIERS[row.tier - 1];
+    if (!grid || row.reqLv !== grid.level || row.step !== grid.step) out.push('SA2 ' + id + ': step ' + row.step + ', worn from ' + row.reqLv + ', not the grid of its tier ' + row.tier + ' (' + (grid ? grid.step + ', ' + grid.level : 'none') + ')');
     if (base) {
       for (const k of new Set([...Object.keys(base), ...Object.keys(row)])) {
         if (WORDS.has(k) || ATTR_FIELDS.has(k)) continue;
         /* `iL` is the Danger scale's mark on a scale ground's drop (src/data/danger.js scaleItemLevels), not a number of the piece: hunt-core/danger
            ilevel holds every scale drop to its ground's */
-        if (k === 'iL') continue;
+        if (k === 'iL' || k === 'reqLv') continue;
         if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('SA2 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', the standard ' + s.base + ' has ' + JSON.stringify(base[k]));
       }
     } else if (row.slot === 'shield') {
@@ -190,6 +198,8 @@ const MUTANTS = [
   ['the Tollgate rolls at 10%, not its 3%', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, lord_krell: { ...o.monsters.lord_krell, drops: o.monsters.lord_krell.drops.map((d) => (d.id === 'krells_tollgate' ? { ...d, ch: 0.1 } : d)) } }; }],
   ['a second monster drops the Legguards', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, gatekeeper: { ...o.monsters.gatekeeper, drops: [...o.monsters.gatekeeper.drops, { id: 'banded_legguards', ch: 0.01, band: 'rare' }] } }; }],
   ['the Tollgate\'s card text drifts', 'SA1', (S, A, o) => { o.desc = { ...o.desc, krells_tollgate: 'A shield' }; }],
+  ['the Legguards worn from the old Dawnsteel Level 88', 'SA2', (S) => { S.banded_legguards.row.reqLv = 88; }],
+  ['the Tollgate off the grid step of its tier', 'SA2', (S) => { delete S.krells_tollgate.row.step; }],
   ['a stat stick: the Legguards gain 6 armor', 'SA2', (S) => { S.banded_legguards.row.defB = 70; }],
   ['the Tollgate leaves its ladder rung', 'SA2', (S) => { S.krells_tollgate.row.defB = 17; }],
   ['a second attribute on the Mitts', 'SA3', (S) => { S.mudlarks_mitts.row.resistPm = { ember: 100 }; }],

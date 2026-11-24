@@ -11,6 +11,11 @@
 //         ground but at most one, and there by at most V4_ANSWER_MAX (restated 2026-11-23, below)
 //   V4-2  no lineup of LINEUPS is the best on every scale ground. Judged since R10 opened more scale grounds (lane/r10-more-grounds);
 //         with one ground it is printed as not judged, and the rule itself is proven on planted grounds in --mutate.
+// JUDGED ONLY ON A GROUND OF BASE TIER 1 OR MORE (the designer's ruling 29-tuning-pass.md 7.5, read for V4 as it reads for C-2;
+// lane/scale-grounds-2, 2026-11-23): a ground whose base is tier 0 (DANGER_GROUNDS gearLevel under GEAR_STEPS.tierSteps: the Mill Cellar,
+// Meadowbrook Thicket) is the starting kit, where a Level 3 hero has no style yet to mix, so a lineup reading there is not a lineup
+// question (the Cellar's mage four read 1.04 of the mixed four, its healers 1.02). Those grounds are not measured, and printed as not
+// judged; every ground of base tier 1 or more is, both claims (judgedOf, its boundary held by two cases in --mutate).
 // Measured 2026-11-22 on muster_barrows, Level 60, 3 seeds x 2 h: mixed 0.88x the hours table; healer x4 0.58x, mage x4 0.43x,
 // hammer x4 0.19x, bow x4 0.19x.
 //
@@ -24,7 +29,7 @@
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { DANGER_GROUNDS } from '../src/data/danger.js';
+import { DANGER_GROUNDS, GEAR_STEPS } from '../src/data/danger.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { playCells } from '../tools/balance-program/redesign/held-four.mjs';
 import { refLevelOf } from './level-curve.mjs';
@@ -45,11 +50,16 @@ const SEEDS = 3, HOURS = 2;
    the band's top with no death). It may win there by at most this much. Winning a second ground, or one by more, is a monoculture */
 export const V4_ANSWER_MAX = 1.15;
 
-/** Every failed claim. w = { grounds: [id], mixed: {g: xp}, mono: {g: {style: xp}}, lineups: {g: {id: xp}} | null }. Pure. */
+/** The grounds V4 judges, of `base` ({ ground: its base item Level, DANGER_GROUNDS gearLevel }): base tier 1 or more (29 7.5). Pure. */
+export const judgedOf = (base) => Object.keys(base).filter((g) => Number.isInteger(base[g]) && base[g] >= GEAR_STEPS.tierSteps);
+
+/** Every failed claim. w = { base: {g: gearLevel}, mixed: {g: xp}, mono: {g: {style: xp}}, lineups: {g: {id: xp}} | null }, read on the
+    grounds judgedOf(w.base) keeps. Pure. */
 export function judge(w) {
   const out = [];
   const wins = [];
-  for (const g of w.grounds) {
+  const grounds = judgedOf(w.base);
+  for (const g of grounds) {
     const mx = w.mixed[g];
     if (!Number.isFinite(mx)) { out.push(`V4-1: ${g}: the mixed four was not measured`); continue; }
     for (const s of STYLES) {
@@ -64,20 +74,21 @@ export function judge(w) {
     const why = winGrounds.size > 1 ? `one-style fours win ${winGrounds.size} grounds (at most one)` : `over ${V4_ANSWER_MAX}x on its one ground`;
     if (winGrounds.size > 1 || !(v.x <= v.mx * V4_ANSWER_MAX)) out.push(`V4-1: ${v.g}: four of ${v.s} earns ${Math.round(v.x)} Level XP a head an hour, the mixed four ${Math.round(v.mx)}: ${why}`);
   }
-  if (w.grounds.length >= 2) {
-    const tops = w.grounds.map((g) => {
+  if (grounds.length >= 2) {
+    const tops = grounds.map((g) => {
       const row = (w.lineups && w.lineups[g]) || {};
       const ids = Object.keys(LINEUPS).filter((id) => Number.isFinite(row[id]));
       if (ids.length < Object.keys(LINEUPS).length) { out.push(`V4-2: ${g}: not every lineup was measured`); return null; }
       return ids.reduce((a, b) => (row[b] > row[a] ? b : a));
     });
-    if (tops.every((t) => t && t === tops[0])) out.push(`V4-2: ${tops[0]} is the best lineup on every scale ground (${w.grounds.join(', ')}): no lineup may be best everywhere`);
+    if (tops.every((t) => t && t === tops[0])) out.push(`V4-2: ${tops[0]} is the best lineup on every scale ground (${grounds.join(', ')}): no lineup may be best everywhere`);
   }
   return out;
 }
 
 async function measure({ monoLevelUp = 0 } = {}) {
-  const grounds = Object.keys(DANGER_GROUNDS);
+  const base = Object.fromEntries(Object.entries(DANGER_GROUNDS).map(([g, row]) => [g, row.gearLevel]));
+  const grounds = judgedOf(base);
   const cells = [];
   for (const g of grounds) {
     const L = refLevelOf(g);
@@ -91,7 +102,7 @@ async function measure({ monoLevelUp = 0 } = {}) {
     if (grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
   }
   const r = await playCells(ROOT, cells);
-  const w = { grounds, mixed: {}, mono: {}, lineups: grounds.length >= 2 ? {} : null };
+  const w = { base, mixed: {}, mono: {}, lineups: grounds.length >= 2 ? {} : null };
   for (const g of grounds) {
     w.mixed[g] = r[`${g}:mixed`].xpHeadH;
     w.mono[g] = Object.fromEntries(STYLES.map((s) => [s, r[`${g}:mono:${s}`].xpHeadH]));
@@ -103,26 +114,34 @@ async function measure({ monoLevelUp = 0 } = {}) {
 async function mutate() {
   const w = await measure();
   if (judge(w).length) { console.error('lineup-v4 --mutate: the shipped game already fails (run the guard)'); process.exit(1); }
-  const g = w.grounds[0];
+  const G = judgedOf(w.base);
+  const g = G[0];
   /* the grounds where a one-style four already wins (at most one on the shipped game) are left as measured; plants go on the others */
-  const clean = w.grounds.filter((x) => STYLES.every((s) => w.mono[x][s] < w.mixed[x]));
+  const clean = G.filter((x) => STYLES.every((s) => w.mono[x][s] < w.mixed[x]));
   const [c1, c2] = clean;
   const monoAt = (gg, s, k) => ({ ...w, mono: { ...w.mono, [gg]: { ...w.mono[gg], [s]: w.mixed[gg] * k } } });
   const both = (s, k) => { const a = monoAt(c1, s, k); return { ...a, mono: { ...a.mono, [c2]: { ...a.mono[c2], [s]: w.mixed[c2] * k } } }; };
-  const two =(topA, topB) => ({ grounds: ['g1', 'g2'], mixed: { g1: 10, g2: 10 }, mono: { g1: { hammer: 1, bow: 1, mage: 1, healer: 1 }, g2: { hammer: 1, bow: 1, mage: 1, healer: 1 } },
+  const flat = { hammer: 1, bow: 1, mage: 1, healer: 1 };
+  const two =(topA, topB) => ({ base: { g1: 20, g2: 20 }, mixed: { g1: 10, g2: 10 }, mono: { g1: flat, g2: flat },
     lineups: { g1: { one_each: 5, two_hammers: 5, two_bows: 5, two_mages: 5, [topA]: 9 }, g2: { one_each: 5, two_hammers: 5, two_bows: 5, two_mages: 5, [topB]: 9 } } });
+  /* THE BASE-TIER BOUNDARY (29 7.5): a one-style four 5% over the mixed four on a ground of base `b`, beside the same answer on a tier 8
+     ground (one judged answer). Judged at item Level 20 (tier 1) it is a second ground's win, red; at 0 (tier 0) it is not judged, green */
+  const beside = (b) => ({ base: { g0: b, g8: 160 }, mixed: { g0: 10, g8: 10 }, mono: { g0: { ...flat, mage: 10.5 }, g8: { ...flat, healer: 10.5 } },
+    lineups: { g0: { one_each: 5, two_hammers: 5, two_bows: 5, two_mages: 9 }, g8: { one_each: 5, two_hammers: 5, two_bows: 9, two_mages: 5 } } });
   const cases = [
     ['V4-1 a four of healers ties the mixed four on two grounds', both('healer', 1), true],
     ['V4-1 a four of mages beats the mixed four by 20% on one ground', monoAt(c1, 'mage', 1.2), true],
-    ['V4-1 a one-style answer on a second ground beside the shipped one', clean.length < w.grounds.length ? monoAt(c1, 'bow', 1.05) : both('bow', 1.05), true],
-    ['control: a four of mages beats the mixed four by 10% on one ground', clean.length === w.grounds.length ? monoAt(c1, 'mage', 1.1) : w, false],
+    ['V4-1 a one-style answer on a second ground beside the shipped one', clean.length < G.length ? monoAt(c1, 'bow', 1.05) : both('bow', 1.05), true],
+    ['control: a four of mages beats the mixed four by 10% on one ground', clean.length === G.length ? monoAt(c1, 'mage', 1.1) : w, false],
+    ['V4-1 a one-style answer on a ground of base tier 1 beside another ground\'s (tier 1 is judged)', beside(GEAR_STEPS.tierSteps), true],
+    ['control: a one-style answer on a ground of base tier 0 beside another ground\'s (tier 0 is not judged, 29 7.5)', beside(0), false],
     ['V4-1 one style never measured', { ...w, mono: { ...w.mono, [g]: { ...w.mono[g], bow: undefined } } }, true],
     ['V4-1 the mixed four never measured', { ...w, mixed: { ...w.mixed, [g]: undefined } }, true],
     ['V4-2 one lineup tops both of two grounds', two('two_mages', 'two_mages'), true],
     ['V4-2 a ground with a lineup unmeasured', { ...two('two_mages', 'two_bows'), lineups: { ...two('two_mages', 'two_bows').lineups, g2: { one_each: 5 } } }, true],
     ['control: two grounds, two different best lineups', two('two_mages', 'two_bows'), false],
     /* one ground cut from the measured world: V4-2 is not judged with a single ground (R10 opened more, so the cut is explicit) */
-    ['control: one scale ground, V4-2 not judged', { ...w, grounds: [g], lineups: null }, false],
+    ['control: one scale ground, V4-2 not judged', { ...w, base: { [g]: w.base[g] }, lineups: null }, false],
     ['V4-2 every ground measured but one lineup missing on the real world', w.lineups ? { ...w, lineups: { ...w.lineups, [g]: { ...w.lineups[g], two_bows: undefined } } } : { ...two('two_mages', 'two_bows'), lineups: { g1: two('two_mages', 'two_bows').lineups.g1, g2: {} } }, true],
   ];
   let miss = 0;
@@ -148,9 +167,10 @@ async function main(argv) {
   const w = await measure();
   const out = judge(w);
   for (const x of out) console.error('✗ ' + x);
-  const line = w.grounds.map((g) => `${g}: mixed ${Math.round(w.mixed[g])}, ${STYLES.map((s) => `${s} x4 ${Math.round(w.mono[g][s])}`).join(', ')}`).join('; ');
+  const G = judgedOf(w.base), skipped = Object.keys(w.base).filter((g) => !G.includes(g));
+  const line = G.map((g) => `${g}: mixed ${Math.round(w.mixed[g])}, ${STYLES.map((s) => `${s} x4 ${Math.round(w.mono[g][s])}`).join(', ')}`).join('; ');
   if (out.length) { console.error(`lineup-v4: ${out.length} claim(s) red`); process.exit(1); }
-  console.log(`lineup-v4: green (${line} Level XP a head an hour${w.grounds.length < 2 ? '; V4-2 not judged: one scale ground until R10' : ''})`);
+  console.log(`lineup-v4: green (${line} Level XP a head an hour${G.length < 2 ? '; V4-2 not judged: one judged ground' : ''}${skipped.length ? `; not judged, base tier 0 (29 7.5): ${skipped.join(', ')}` : ''})`);
 }
 
 if (isMain(import.meta.url)) main(process.argv.slice(2)).catch((e) => { console.error(e); process.exit(2); });

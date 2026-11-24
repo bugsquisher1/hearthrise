@@ -334,6 +334,12 @@
         "gzipBytes": 966952,
         "on": "2026-11-24",
         "why": "lane/gear-phase-b on set/v0.2.144 79c424175: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B), +4.8 KB gzip to town: 124 new gear rows the bag, the market and the item card read (their generated stats, the four step-tier rows and their builders, their lines in item-descriptions.js), base-drops.js, the cloak and Temper step rules, the scale view's hold and the wings' re-cut rows. Catalogue data the town reads at once, not an import() on need"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 967440,
+        "on": "2026-11-24",
+        "why": "Glade, Warrens, Slake, Pyre, Krell on the scale and Ford/Muster re-pointed to 8.3 (lane/scale-grounds-sweep)"
       }
     ]
   }

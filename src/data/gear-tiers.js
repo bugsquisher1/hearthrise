@@ -15,10 +15,11 @@
 // one WEAPON_FAMILIES row and its profile.
 //
 // Design rules this encodes:
-//   • Seven shipped material tiers spanning levels 1 → 88, so a player is never
-//     more than ~15 levels from the next visible upgrade. Past them the ladder
-//     runs on item Levels, one tier every GEAR_STEPS.tierSteps (STEP_TIERS below,
-//     lane/gear-phase-b): every Level band has its base tier, a new tier is one row.
+//   • ONE MATERIAL A TIER ON ONE GRID (12-targets 8.3, lane/gear-phase-b): a tier's
+//     item Level is GEAR_STEPS.tierSteps x (tier - 1), bronze 0 to Wolfram 160, worn
+//     from it less wearAhead, so a player is never more than one tier (20 Levels)
+//     from the next upgrade and every Level band has its base tier. A new tier past
+//     the last is one STEP_TIERS row below (its words, homes and parts).
 //   • Every armour slot exists at every tier — you can always complete a set.
 //   • Every weapon family runs the full ladder, so every combat style
 //     progresses at the same pace.

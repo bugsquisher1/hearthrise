@@ -108,16 +108,17 @@ export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 16
    four +40 -> +35, the Catacombs' Deadly pair +40 -> +50). Every harder-tier mix still reads at or over its heroes alone, every Deadly four under
    2.5x the contract. Still the plain harness hero on both sides of each line (the board's fix 1 moved the balance tables to the played hero, not these).
    RE-WRITTEN 2026-11-23 (lane/gear-phase-b, party-class-xp-line --table --mixed --write, 3 seeds): 12-targets 8.3 moved every ladder kit's item
-   Level, so the lines moved by 5 to 10 a cell; the Glade's Deadly four +60 -> +50 (first-week-bands vs-alone measured +48). */
+   Level, so the lines moved by 5 to 10 a cell; the Glade's Deadly four +60 -> +50 (first-week-bands vs-alone measured +48). Re-measured
+   again the same way on the merge with set/v0.2.144 at 31077c8bf (the skills clock and its gates): the lines here and in every pack are that run's. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 /* a ground's lines, one per tier it offers: { normal: said(..), dangerous: said(..), deadly: said(..) } */
 const lines = (byTier) => Object.freeze(Object.fromEntries(Object.entries(byTier).map(([tier, l]) => [tier, said(l[2], l[3], l[4])])));
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: lines({ normal: said([-60, -30], [-70, -50, -45], [-80, -65, -60, -60]) }),
-  meadowbrook_thicket: lines({ normal: said([-45, -5], [-55, -20, -15], [-65, -35, -35, -30]), dangerous: said([-45, -10], [-55, -25, -20], [-60, -35, -35, -35]), deadly: said([-45, -10], [-55, -25, -20], [-60, -40, -35, -35]) }),
-  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-50, -10], [-55, -25, -20], [-60, -40, -35, -35]), deadly: said([-45, -10], [-55, -25, -20], [-60, -35, -30, -30]) }),
-  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 10, 20], [-40, 0, 5, 10]), deadly: said([10, 85], [0, 65, 75], [-15, 40, 45, 50]) }),
-  millrace_sewer: lines({ normal: said([-35, 10], [-35, 15, 25], [-45, 5, 15, 15]), dangerous: said([-30, 25], [-25, 25, 30], [-30, 10, 20, 20]), deadly: said([-30, 15], [-25, 20, 25], [-30, 15, 20, 20]) }),
+  mill_cellar: lines({ normal: said([-60, -30], [-70, -50, -45], [-80, -60, -60, -60]) }),
+  meadowbrook_thicket: lines({ normal: said([-45, -5], [-50, -15, -10], [-60, -35, -30, -30]), dangerous: said([-45, -5], [-50, -20, -15], [-60, -35, -30, -30]), deadly: said([-45, -5], [-50, -20, -15], [-60, -35, -30, -30]) }),
+  wickstead: lines({ normal: said([-45, -10], [-50, -20, -15], [-65, -40, -35, -35]), dangerous: said([-45, -10], [-55, -25, -20], [-60, -35, -30, -30]), deadly: said([-45, -10], [-55, -25, -20], [-60, -35, -30, -30]) }),
+  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 10, 20], [-40, 0, 5, 10]), deadly: said([5, 85], [0, 60, 70], [-15, 40, 45, 50]) }),
+  millrace_sewer: lines({ normal: said([-30, 15], [-35, 20, 25], [-40, 10, 20, 20]), dangerous: said([-30, 20], [-30, 15, 25], [-25, 20, 25, 30]), deadly: said([-30, 20], [-25, 25, 30], [-25, 20, 25, 25]) }),
   coppercap_warrens: lines({ normal: said([-25, 25], [-20, 30, 35], [-30, 20, 25, 30]), dangerous: said([-25, 25], [-20, 30, 40], [-25, 20, 30, 30]), deadly: said([-30, 20], [-20, 25, 35], [-25, 25, 30, 35]) }),
 });
 /* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */

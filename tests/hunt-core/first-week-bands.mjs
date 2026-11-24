@@ -249,7 +249,9 @@ cases['before-bonuses'] = () => {
 cases['vs-alone'] = (R) => {
   const lone = (g, s, L) => R.runCell({ id: 'va:' + g + ':' + s, ground: g, party: [s], level: L, hours: 0.5, seeds: 1, windowMs: 120000 }).heroes[0].levelXpPerH;
   const MIX = ['tank', 'healer', 'bow', 'mage'];
-  for (const [g, L, roles] of [['meadowbrook_thicket', 10, ['tank', 'healer', 'ranger', 'mage']], ['mosslight_glade', 24, ['tank', 'healer', 'ranger', 'mage']]]) {
+  /* at each ground's floor, where tests/party-class-xp-line.mjs --write measures the line: inside the Thicket's band iron is worn from Level 10
+     since 12-targets 8.3, so a Level 10 four there no longer wears the floor's kit the window's one number was measured in */
+  for (const [g, L, roles] of [['meadowbrook_thicket', floorOf('meadowbrook_thicket'), ['tank', 'healer', 'ranger', 'mage']], ['mosslight_glade', floorOf('mosslight_glade'), ['tank', 'healer', 'ranger', 'mage']]]) {
     const hs = R.runCell({ id: 'va:' + g, ground: g, party: MIX, level: L, hours: 0.5, seeds: 2, windowMs: 120000 }).heroes;
     const each = hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length, alone = MIX.reduce((s, x) => s + lone(g, x, L), 0) / MIX.length;
     const got = Math.round((each / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, roles);
@@ -267,7 +269,7 @@ cases['vs-alone'] = (R) => {
   }
   /* A THICKET FOUR OF ONE ROLE READS ITS OWN LINE (ONE_ROLE_VS_ALONE; CLAUDE.md §6), played on the two that sit furthest apart: a four of wands over solo, a four of shields under. */
   for (const s of ['mage', 'tank']) {
-    const cell = (party) => R.runCell({ id: 'va1:' + party.length + ':' + s, ground: 'meadowbrook_thicket', party, level: 10, hours: HOURS, seeds: 2, windowMs: 120000 });
+    const cell = (party) => R.runCell({ id: 'va1:' + party.length + ':' + s, ground: 'meadowbrook_thicket', party, level: floorOf('meadowbrook_thicket'), hours: HOURS, seeds: 2, windowMs: 120000 });
     const got = Math.round((cell(Array(4).fill(s)).party.levelXpPerHeroPerH / cell([s]).heroes[0].levelXpPerH - 1) * 100), said = LINES.PCX.partyVsAlone('meadowbrook_thicket', Array(4).fill(s));
     if (Math.abs(got - said) > 5) return 'a Thicket four of ' + s + ' measures ' + got + '% against alone, and the Party window says ' + said + '%';
   }

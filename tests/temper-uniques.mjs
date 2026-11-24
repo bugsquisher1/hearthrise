@@ -58,11 +58,13 @@ const dawnOf = () => {
   return l ? { gold: [...TD.TEMPER_TIERS[7]], pm: l.pm, rungs: l.rungs, blowsPm: (TD.temperLadder('blows', 7) || {}).pm, mat: structuredClone(TD.TEMPER_MATERIALS[7] || null) } : null;
 };
 const real = () => ({ bands: structuredClone(TD.TEMPER_UNIQUE_BANDS), pm: TD.TEMPER_UNIQUE_RUNG_PM, from: TD.TEMPER_UNIQUE_FROM, item: TD.TEMPER_UNIQUE_ITEM,
-  items: ITEMS, unlocks: TD.TEMPER_UNLOCKS, offers: TD.TEMPER_OFFERS, floors: { ...FLOORS }, dawn: dawnOf() });
+  items: ITEMS, unlocks: TD.TEMPER_UNLOCKS, offers: TD.TEMPER_OFFERS, floors: { ...FLOORS }, dawn: dawnOf(), tierOf: TD.temperTierOf });
 const bandsOf = (D) => Object.keys(D.bands).map(Number).sort((a, b) => a - b);
 /* the band a piece reads under D: the module's rule (temper.js temperTierOf), read over D's numbers */
 const bandOf = (D, it) => {
   if (!it || !it.armourClass || !it.slot || !(Number(it.tier) >= 7) || !(Number(it.reqLv) >= D.from)) return null;
+  /* a step tier's piece is a base of the ladder past Dawnsteel, never a unique (lane/gear-phase-b) */
+  if (Number.isInteger(it.step)) return null;
   let b = null;
   for (const x of bandsOf(D)) if (x <= Number(it.reqLv)) b = x;
   return b;
@@ -133,6 +135,13 @@ export function problems(D = real()) {
   /* TU5 */
   const read = new Map(bands.map((b) => [b, []]));
   for (const [id, it] of Object.entries(D.items)) { const b = bandOf(D, it); if (b !== null) read.get(b).push(id); }
+  /* the copy is the module's rule: under the module's own Level it names the band temper.js temperTierOf does for every armor piece (a rule
+     typed twice drifts: the step tiers once read a band here and none there) */
+  if (D.from === TD.TEMPER_UNIQUE_FROM) for (const [id, it] of Object.entries(D.items)) {
+    if (!it || !it.armourClass || !it.slot) continue;
+    const t = D.tierOf(it), mod = Object.prototype.hasOwnProperty.call(D.bands, t) && Number(it.tier) >= 7 ? t : null;
+    if (mod !== bandOf(D, it)) out.push('TU5 ' + id + ': temper.js reads band ' + mod + ' and this guard ' + bandOf(D, it));
+  }
   for (const b of bands) {
     const open = D.bands[b].open === true, ids = 'temper:armor:' + b;
     if (open && !read.get(b).length) out.push('TU5 band ' + b + ' is open and no item reads it: a rung that pays on nothing');
@@ -217,6 +226,7 @@ const TU7_MUTANTS = [
 
 const piece = { n: 'what-if', type: 'armor', slot: 'body', armourClass: 'plate', defB: 135, tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 };
 const MUTANTS = [
+  ['temper.js reads a band on a step-tier piece (the rule typed twice drifts)', 'TU5', (D) => { const f = D.tierOf; D.tierOf = (it) => (it && Number.isInteger(it.step) ? 145 : f(it)); }],
   ['a whole ladder is 3%', 'TU1', (D) => { D.pm = 6; }],
   ['a band rung worth a tier rung', 'TU1', (D) => { D.pm = 10; D.bands = { 110: D.bands[110] }; }],
   ['two bands five Levels apart', 'TU2', (D) => { D.bands[115] = D.bands[125]; delete D.bands[125]; }],

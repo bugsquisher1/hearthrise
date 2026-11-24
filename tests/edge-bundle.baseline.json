@@ -443,6 +443,11 @@
         "bytes": 3813349,
         "on": "2026-11-23",
         "why": "lane/gear-phase-b merged with set/v0.2.144 050a9b999: the base's own growth since this lane's raise, lane/first-hour-rewrite's tutorial and text data the edge vendors (src/data/hunt-tutorial.js, text/hunts.js), +573 bytes; no file of this lane moved"
+      },
+      {
+        "bytes": 3814189,
+        "on": "2026-11-24",
+        "why": "lane/gear-phase-b: a step tier's cloak steps its Steady armor as armor steps (slot-ladders.js stepCapeSteadyPm, the cape ladder rule) and a step piece reads no unique Temper band (temper.js temperTierOf): +840 bytes, code and its reason"
       }
     ]
   }

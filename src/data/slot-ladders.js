@@ -54,9 +54,13 @@ const STEP_JEWELS = Object.freeze([
   Object.freeze({ key: 'necklace', label: 'Necklace', line: 'metal', slot: 'necklace', type: 'jewelry', icon: '📿', vmul: 200, skill: 'smithing', input: 'dawn_bar' }),
   Object.freeze({ key: 'cloak', label: 'Cloak', line: 'cloth', slot: 'cape', type: 'armor', icon: '🦸', vmul: 240, skill: 'crafting', input: 'duskwood_plank' }),
 ]);
-/* A step cloak's Steady armor (an attribute the cloak line carries, not a base stat: gear-profiles.js), the shipped top's (the Dawnlit
-   Mantle's 255) until the designer gives the line its own curve. STARTING VALUE. */
-const STEP_CAPE_STEADY_PM = 255;
+/* A step cloak's Steady armor (an attribute the cloak line carries, not a base stat: gear-profiles.js) steps as armor steps (balance ruling
+   section 9: each tier's best cape lets through 95 to 97% of what the tier below does; tests/hunt-core/temper.mjs a-cape-steps-like-armor):
+   from the shipped top's (the Dawnlit Mantle, tier 7, 255) each rung keeps STEP_CAPE_KEEP_PM of the damage, so tier 8 is 285 (the Wyrmgilt
+   Mantle's own), 9 313, 10 341, 11 367. STARTING VALUE: the band's middle. */
+const STEP_CAPE_TOP = Object.freeze({ tier: 7, steadyPm: 255 });
+const STEP_CAPE_KEEP_PM = 960;
+const stepCapeSteadyPm = (tier) => 1000 - Math.round((1000 - STEP_CAPE_TOP.steadyPm) * (STEP_CAPE_KEEP_PM / 1000) ** (tier - STEP_CAPE_TOP.tier));
 /* What a made step piece takes, its XP and its time: STARTING VALUES on the shipped top's shape (the Dawnsteel tools at Smithing 92: 2 bars and
    4,200 XP), a part a piece more than a bar */
 const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });
@@ -203,7 +207,7 @@ export const SLOT_ITEMS = withGearStats({
   ...Object.fromEntries(STEP_MATERIALS.flatMap((m) => STEP_JEWELS.map((j) => {
     const [wid, word] = materialWord(m, j.line);
     return [wid + '_' + j.key, { n: word + ' ' + j.label, icon: j.icon, v: Math.max(1, Math.round((j.vmul * m.value) / 5) * 5), type: j.type,
-      slot: j.slot, ...(j.slot === 'cape' ? { armourClass: 'cape', steadyPm: STEP_CAPE_STEADY_PM } : {}), tier: m.tier, rarity: m.rarity,
+      slot: j.slot, ...(j.slot === 'cape' ? { armourClass: 'cape', steadyPm: stepCapeSteadyPm(m.tier) } : {}), tier: m.tier, rarity: m.rarity,
       reqSkill: 'level', reqLv: m.level, ...stepOf(m) }];
   }))),
 });

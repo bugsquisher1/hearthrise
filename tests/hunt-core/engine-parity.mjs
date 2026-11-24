@@ -163,7 +163,13 @@ const SEED = '-4611686018427387904';
    hold at every settle on the set's pin, and so do its kills (170) and the four tier scenarios, to the byte. Cause: what a kill PAYS. The pay's
    reference is where the reference company holds (DANGER_GROUNDS refStep): Muster's is 610 now, its monsters' anchor 590 named apart
    (formulaStep), so a kill's Level XP and coin read 20 steps less of depth, and Muster carries its own coin level (coinPm 7000, measured: the
-   reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json). */
+   reference hour 1.01 of wage(60), tools/balance-program/redesign/grounds/muster_barrows-ref.json).
+   RE-PINNED 2026-11-23 (lane/gear-phase-b, 12-targets 8.3: one material a tier, item Level 20 x (tier - 1), worn from it less 10), ALL FIVE:
+   every scenario's full-set kit is the ladder by Level, and the ladder's item Levels moved (iron 15 -> 20 and worn from 10, steel 30 -> 40,
+   mithril 45 -> 60, ...), so each hero's stats and power step grew: kills warrens-4 200 -> 229, glade-4 489 -> 508, glade-1-kite 140 -> 148,
+   sewer-2 99 -> 105, muster-steps-4 held at 170 (its hashes moved). The engine is the pin's: git diff 7a338a8a7 HEAD -- src/core
+   supabase/functions is one unused export (gear-stats.js sourceLevelOf, read by tools/gen-gear.mjs); on 7a338a8a7 (the lane before the
+   re-stamp) all five hold the old pin. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

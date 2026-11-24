@@ -97,7 +97,7 @@ const cases = {
     const dh = A.defenseGearPm({ body: heavy }, M.ITEMS), dl = A.defenseGearPm({ body: light }, M.ITEMS);
     if (!(dh.armorPm > dh.wardPm) || !(dl.wardPm > dl.armorPm)) return 'a plate body splits ' + JSON.stringify(dh) + ', a cloth one ' + JSON.stringify(dl);
     /* in steps: the same plate 100 item Levels up keeps the same armor over ward (a share would grow) */
-    const W = M.dangerData.GEAR_STEPS.slotPm.body, lv = M.ITEMS[heavy].reqLv;
+    const W = M.dangerData.GEAR_STEPS.slotPm.body, lv = M.ITEMS[heavy].iL; /* (its item Level, not its wear: 12-targets 8.3 wears a piece 10 under it) */
     if (dh.armorPm - dh.wardPm !== W * (sp.heavy.armorSteps - sp.heavy.wardSteps) || dh.armorPm !== W * (lv + sp.heavy.armorSteps)) return 'a plate body\'s split is not its steps on its item Level: ' + JSON.stringify(dh);
     return null;
   },

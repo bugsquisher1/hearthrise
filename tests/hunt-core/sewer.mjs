@@ -1273,7 +1273,9 @@ const cases = {
     /* NO BENCH MAKES A WEAPON (Tyler 2026-11-18, lane/d-drop-homes): every role's next tier leads with a drop, so no What next gear line names a bench
        (a Level 12 Ranger read "Longbow, made at Crafting 15" until the recipe was cut). Each role, below tiers 2, 3 and 4. */
     const lines = (L, role) => { const g = M.tut.nextGoal({ charLevel: L, role, skillLevel: L, defenseXp: 9, land: null, inParty: false }); return [g.text, ...g.also]; };
-    for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) for (const L of [14, 29, 44]) {
+    /* (a Level under each tier's wear: 12-targets 8.3 wears tier t from 20 x (t - 1) less 10, src/data/gear-tiers.js MATERIAL_TIERS) */
+    const { MATERIAL_TIERS } = await import(pathToFileURL(join(M.root, 'src/data/gear-tiers.js')).href + V);
+    for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) for (const L of [2, 3, 4].map((t) => MATERIAL_TIERS[t - 1].level - 1)) {
       const gear = lines(L, role).filter((x) => /^Next gear at Level /.test(x));
       if (!gear.length || gear.some((x) => /, made (at|in) /.test(x))) return role + ' at Level ' + L + ': What next names a bench for its next weapon: ' + JSON.stringify(gear);
     }
@@ -1282,10 +1284,12 @@ const cases = {
     const fixture = Object.freeze({ id: 'fixture_string_longbow', name: 'String Longbow', icon: '🏹', inputs: Object.freeze({ oak_plank: 3, silk_thread: 2 }), output: 'longbow', xp: 110, req: 15, ms: 3600 });
     const crafts = M.recipes.ARTISAN_RECIPES.crafting;
     crafts.push(fixture);
+    /* (a Level under the bow's wear, 12-targets 8.3: the old Level 12 under 15) */
+    const bowUnder = M.items.ITEMS.longbow.reqLv - 1;
     let g12;
-    try { g12 = lines(12, 'ranger'); } finally { crafts.splice(crafts.indexOf(fixture), 1); }
+    try { g12 = lines(bowUnder, 'ranger'); } finally { crafts.splice(crafts.indexOf(fixture), 1); }
     const bowLine = 'Next gear at Level ' + M.items.ITEMS.longbow.reqLv + ': Longbow, made at Crafting ' + fixture.req;
-    if (!g12.includes(bowLine)) return 'ranger at Level 12 with a Crafting 15 bow on the bench: What next reads ' + JSON.stringify(g12) + ', wanted ' + JSON.stringify(bowLine);
+    if (!g12.includes(bowLine)) return 'ranger at Level ' + bowUnder + ' with a Crafting 15 bow on the bench: What next reads ' + JSON.stringify(g12) + ', wanted ' + JSON.stringify(bowLine);
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('Buy a third hero slot for 15,000 gp')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
@@ -1696,13 +1700,16 @@ const cases = {
     const reach = reachableSources();
     const byName = new Map(Object.entries(ITEMS).map(([id, it]) => [it.n, id]));
     const goal = (charLevel, role) => whatNext(M.tut.nextGoal({ charLevel, role, skillLevel: charLevel, defenseXp: 10, land: null }));
-    const tank = goal(12, 'tank');
-    /* Wickstead (v0.2.63) makes the Bramble Blade reachable at 15 too, so it may stand between the two: the line names both */
-    if (!/Next gear at Level 15: Iron Sword and \d+ more/.test(tank)) return 'a Level-12 tank is not told the Iron Sword at Level 15: ' + tank;
-    const mage = goal(12, 'mage');
+    /* a Level under iron's wear (12-targets 8.3: worn from its item Level 20 less 10, src/data/gear-tiers.js MATERIAL_TIERS) */
+    const { MATERIAL_TIERS } = await imp('src/data/gear-tiers.js');
+    const IRON = MATERIAL_TIERS[1].level, under = IRON - 1;
+    const tank = goal(under, 'tank');
+    /* Wickstead (v0.2.63) makes the Bramble Blade reachable at iron's Level too, so it may stand between the two: the line names both */
+    if (!new RegExp('Next gear at Level ' + IRON + ': Iron Sword and \\d+ more').test(tank)) return 'a Level-' + under + ' tank is not told the Iron Sword at Level ' + IRON + ': ' + tank;
+    const mage = goal(under, 'mage');
     /* the third name moved with Wickstead (v0.2.63): its tier-2 gloves are reachable, and the Studded Vambraces carry no magic
        penalty (leather's is round(def x 0.15) = 0 at def 2), so a classless Mage may wear them; the wand and its book lead */
-    if (!/Next gear at Level 15: Oak Wand(?: and \d+ more|, made at Crafting \d+)/.test(mage)) return 'a Level-12 Mage is not told the Oak Wand at Level 15: ' + mage;
+    if (!new RegExp('Next gear at Level ' + IRON + ': Oak Wand(?: and \\d+ more|, made at Crafting \\d+)').test(mage)) return 'a Level-' + under + ' Mage is not told the Oak Wand at Level ' + IRON + ': ' + mage;
     if (!/Next at Magic 15: Scored /.test(mage)) return 'the Mage\'s skill line lost its runes (supplies keep their skill): ' + mage;
     let named = 0;
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {

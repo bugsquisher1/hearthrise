@@ -227,6 +227,10 @@ const CASES = {
       const scaleAt = Math.pow(1 + M.dangerData.DANGER.powerStep, at - anchor) * (refPull / dz.pull[0]);
       /* the pull grows from the anchor's (4 x encounterPerHero there) by pullStep a step, so at the pay's reference it is that pull's */
       const { DANGER: DZ } = M.dangerData, wantRefPull = Math.max(1, Math.min(DZ.pullMax, Math.round(refPull * Math.pow(1 + DZ.pullStep, g.refStep - anchor))));
+      /* the pull at step 0, before any rounding, is sized from the anchor: where a ground's refStep sits a few steps off it the rounded pull
+         can read the same either way (lane/gear-phase-b's wing re-cut put the Bone Wing's refStep on its anchor) */
+      const base0 = M.danger.formulaBasePull(g, 4), want0 = refPull / M.danger.powStep(1 + DZ.pullStep, anchor);
+      if (Math.abs(base0 / want0 - 1) > 1e-9) return gid + ': the pull at step 0 is ' + base0 + ', sized from the anchor ' + anchor + ' it is ' + want0;
       const refPullNow = M.danger.dangerDial(ground, g.refStep, 4).pull[0];
       if (refPullNow !== wantRefPull) return gid + ': the reference four meets a pull of ' + refPullNow + ' at refStep ' + g.refStep + ', grown from the anchor ' + anchor + ' it is ' + wantRefPull;
       for (const id of M.grounds.monstersOn(ground)) {

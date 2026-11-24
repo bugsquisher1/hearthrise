@@ -25,7 +25,7 @@
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
 //                  next to nothing, and a party that pushes together is paid in full.
-//   armor-rungs    balance ruling 2026-10-25 §9: every armor rung on its own ground, exact: each weight's mean piece takes 3-5% off what reaches HP, and only the cloth pieces named here stand still.
+//   armor-rungs    balance ruling 2026-10-25 §9: every armor rung on its own ground, exact: each weight's mean piece takes 5-8% off what reaches HP (one grid tier, 12-targets 8.3; cloth its own 3-9.5%), and only the cloth pieces named here stand still.
 //   vs-alone       the Party window's measured line against a full mix on two grounds, and on a harder tier of two (the line the leader's tier picks).
 //   weapon-rungs   the hammer's and the hatchets' tier 2 and tier 3 each pay at least +5% Level XP an hour over the tier behind, on the first ground the rung is worn for.
 //   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, pace, the top eases, a held pull pays more XP.
@@ -184,7 +184,9 @@ cases['risk-ladder'] = (R) => {
 
 /* A MEANINGFUL ARMOR UPGRADE IS 3-5% LESS ACTUAL INCOMING DAMAGE (balance ruling 2026-10-25 §9). The unit is a piece a player finds, so the bar reads a rung's mean piece on its own ground. Plate's first rung on the Glade reads 5.1 and
    stays under 5.5. Cloth is over the band on its second rung and stays: its flat ward is worth more against bigger blows, and that step lands it level with leather on its own ground (board 2026-11-05). */
-const RUNG_BAR = Object.freeze({ plate: [3, 5.5], leather: [3, 5.5], cloth: [3, 9.5] });
+/* ONE GRID TIER A RUNG (12-targets 8.3, the designer 2026-11-23): 5 to 8% a rung for plate and leather (04 section 1 puts a tier at +7.2% of power;
+   bronze to iron reads 6.7%); the 3 to 5.5% band was the 15-Level rung. Cloth keeps its own wider bar, its flat ward (above). */
+const RUNG_BAR = Object.freeze({ plate: [5, 8], leather: [5, 8], cloth: [3, 9.5] });
 const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:belt']);
 /* EIGHT SEEDS (lane/b-one-difficulty, 2026-11-08): one hour's cut swings 0.8-10.4% seed by seed at the Warrens (seeds 0-7, the same seed bare and caped), so four
    seeds read a 7% cloak anywhere from about 3.5% to 8%; eight pool to 6.1%. The bar is the same 4-10%. */

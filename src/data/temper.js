@@ -18,7 +18,7 @@ export const TEMPER_RUNGS = 5;
 /* What a rung is worth, in permille: 1% harder blows and heals, or 1% less damage reaching the hero. 5% at most. */
 export const TEMPER_RUNG_PM = 10;
 export const TEMPER_TRACKS = Object.freeze(['blows', 'armor']);
-/* The gold of each rung, by gear tier (gear-tiers.js: Iron, Studded and Adept are tier 2, worn at Level 15; Steel, Boarhide and Scholar tier 3, at Level 30). */
+/* The gold of each rung, by gear tier (gear-tiers.js: Iron, Studded and Adept are tier 2, worn from Level 10; Steel, Boarhide and Scholar tier 3, from 30: 12-targets 8.3). */
 /* TIERS 4 TO 6, PRICED BY THE LEVEL THE GEAR IS WORN AT (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F17 and F20, on
    lane/d-audit-balance-1's proposal). The Barrow March has worn Mithril, Rune and Emberforged since v0.2.132 and the smith had no rungs for
    them, so from Level 45 to 88 no gold sink grew with the hero. MEASURED on one hero's life (`node tools/balance-sim/audit-table.mjs sinks`,

@@ -19,6 +19,7 @@ import { huntedOnly, saleWords } from '../item-lore.js';
 import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js';
 import { patchParts, targetOf } from '../goto.js';
 import { t } from '../../render/player-text.js';
+import { MATERIAL_TIERS } from '../../data/gear-tiers.js';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'damage and heals', sign: '+', none: 'Requires a weapon' },
@@ -32,7 +33,7 @@ function rowWords(track, r) {
   /* SAY WHY (the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): gear above every ladder names the
      Levels the SERVER's ladders cover (temper-sections.js `span`), so the line is true before and after a new tier's rungs are sold. */
   if (!r.ladder) return !r.below && r.span ? t('temper.no_rungs', { from: r.span.from, to: r.span.to })
-    : 'Not temperable' + (r.below ? ' (requires Level 15+ gear)' : ' yet');
+    : 'Not temperable' + (r.below ? ' (requires Level ' + MATERIAL_TIERS[1].level + '+ gear)' : ' yet');
   const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
   /* Dawnsteel's rungs are 0.4%, not 1% (src/data/temper.js TEMPER_TIER_RUNG_PM): "Next: +0.8%" after Emberforged's 1% steps needs its why.
      Unique armor past Dawnsteel (a band, 0.5%) also says its ladder is the band's, from the SERVER's bands (temper-sections.js `bands`). */

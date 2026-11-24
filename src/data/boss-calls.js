@@ -79,7 +79,7 @@ export const BOSS_CALLS = Object.freeze({
    2026-11-18). No jewelry: high-end jewelry is crafted (Tyler 2026-11-14). Designer lane/d-coherence-fixes 2026-11-16, re-landed by
    lane/a-honesty-rescue. Source: his called fight's win only (monsters.js `<id>_called` drops). Use: worn, and traded (a drop, so it trades). */
 export const CALL_ITEMS = Object.freeze(withGearStats({
-  /* tier 2, worn at Level 15. The Iron Sword's numbers (the formula's, no offset),
+  /* tier 2, worn as iron is (gear-tiers.js onTier, 12-targets 8.3: from 10). The Iron Sword's numbers (the formula's, no offset),
      and it does 10% more to Vermin (the special catalogue's bane at tier 2: the Mill Cellar and the Sewer are vermin grounds) */
   kingstooth: Object.freeze({ n: 'Kingstooth', icon: '🗡️', v: 600, type: 'weapon', slot: 'weapon', weaponType: 'sword',
     bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),

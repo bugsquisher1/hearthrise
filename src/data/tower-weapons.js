@@ -34,7 +34,7 @@ const row = (key, family, id, name, line) => Object.freeze({ key, family, id, na
 
 /* In key order, then the families' order (gear-tiers.js WEAPON_FAMILIES: sword, warhammer, bow, staff, wand, hatchets, crossbow). */
 export const TOWER_WEAPONS = Object.freeze([
-  /* BRONZE (worn at Level 15, the Iron or Oak numbers, +1): the second batch (14 rows with Gold), after the sample's audit. */
+  /* BRONZE (worn as iron is, from Level 10 since 12-targets 8.3, the Iron or Oak numbers, +1): the second batch (14 rows with Gold), after the sample's audit. */
   row('bronze', 'sword', 'palisade_sword', 'Palisade Sword', 'The night watch on Havora\'s palisade carried this one. He walked that wall for thirty years'),
   row('bronze', 'warhammer', 'millwrights_mallet', 'Millwright\'s Mallet', 'It fixed the town mill\'s wheel more times than anybody could count'),
   row('bronze', 'bow', 'fowling_bow', 'Fowling Bow', 'A light bow for ducks on the shore. Whoever owned it never missed a dinner'),

@@ -53,14 +53,14 @@
    "start": 440,
    "seedsRead": 6,
    "payX": {
-    "mean": 1.05,
-    "sd": 0.07,
+    "mean": 1.04,
+    "sd": 0.06,
     "n": 6,
     "perSeed": [
      1.02,
      0.94,
      1.1,
-     1.1,
+     1.05,
      1.11,
      1.04
     ],
@@ -68,51 +68,51 @@
     "windowH": 6
    },
    "held": {
-    "mean": 482.7,
-    "sd": 7.4,
-    "se": 3,
+    "mean": 481.5,
+    "sd": 6.7,
+    "se": 2.7,
     "perSeed": [
      477,
      471,
      488,
-     489,
+     482,
      488,
      483
     ]
    },
-   "drift": -2.2,
-   "within10": 51.8,
-   "within20": 87.9,
-   "changesPerH": 18.1,
+   "drift": -1.5,
+   "within10": 53.9,
+   "within20": 88.7,
+   "changesPerH": 18,
    "fallsPerH": 2.1,
    "reachH": 0.2,
-   "pullsPerH": 76.3,
+   "pullsPerH": 76.4,
    "killsPerH": 588,
-   "xpPerHeroH": 971296,
+   "xpPerHeroH": 964742,
    "gold": {
     "coinPerHeroH": {
-     "mean": 30788,
-     "sd": 1269,
+     "mean": 16561,
+     "sd": 609,
      "n": 6
     },
     "incomePerHeroH": {
-     "mean": 40308,
-     "sd": 1808,
+     "mean": 26139,
+     "sd": 1202,
      "n": 6
     },
     "storePerHeroH": {
-     "mean": 6509,
-     "sd": 221,
+     "mean": 6482,
+     "sd": 199,
      "n": 6
     },
     "commonPerHeroH": {
-     "mean": 1526,
-     "sd": 73,
+     "mean": 1520,
+     "sd": 69,
      "n": 6
     },
     "uncommonPerHeroH": {
-     "mean": 841,
-     "sd": 41,
+     "mean": 829,
+     "sd": 33,
      "n": 6
     },
     "scarcePerHeroH": {
@@ -121,28 +121,28 @@
      "n": 6
     },
     "otherPerHeroH": {
-     "mean": 7152,
-     "sd": 515,
+     "mean": 7228,
+     "sd": 577,
      "n": 6
     }
    },
    "kit": {
-    "meal": 283,
-    "drink": 686,
-    "charge": 1436,
-    "shot": 4103
+    "meal": 280,
+    "drink": 676,
+    "charge": 1432,
+    "shot": 4095
    },
    "kitIds": {
-    "salted_lobster": 11.8,
-    "plain_dawnpoint_arrows": 683.9,
-    "plain_scored_fire_rune": 57,
-    "plain_carved_fire_rune": 70.9,
-    "plain_carved_ice_rune": 150.2,
-    "plain_earth_rune": 16.9,
-    "plain_carved_poison_rune": 62.8,
-    "plain_carved_earth_rune": 63.3,
-    "plain_water_rune": 263.9,
-    "thin_carrot_juice": 42.9
+    "salted_lobster": 11.7,
+    "plain_dawnpoint_arrows": 682.4,
+    "plain_scored_fire_rune": 56.9,
+    "plain_carved_fire_rune": 70.7,
+    "plain_carved_ice_rune": 149.8,
+    "plain_earth_rune": 16.7,
+    "plain_carved_poison_rune": 62.6,
+    "plain_carved_earth_rune": 63.2,
+    "plain_water_rune": 262.3,
+    "thin_carrot_juice": 42.2
    },
    "deaths": 0,
    "wipes": 0,
@@ -155,9 +155,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 3494,
-    "climb": 963,
-    "fall": 118
+    "hold": 3495,
+    "climb": 962,
+    "fall": 120
    },
    "takenShare": [
     {
@@ -174,92 +174,92 @@
     },
     {
      "style": "healer",
-     "mean": 0.14
+     "mean": 0.139
     }
    ],
    "causes": {
-    "fall:bone_wall@0": 37,
-    "fall:shrouded_pauper@0": 55,
+    "fall:bone_wall@0": 44,
+    "fall:shrouded_pauper@0": 48,
     "fall:night_carter@2": 20,
-    "fall:night_carter@0": 4,
+    "fall:night_carter@0": 5,
     "fall:vault_leech@1": 1,
-    "fall:keeper_dunn@0": 1
+    "fall:keeper_dunn@0": 2
    },
    "seats": [
     {
      "style": "hammer",
-     "dps": 44.99,
-     "landedPct": 72.12,
-     "dmgPerSwing": 89.35,
-     "swingsPerH": 3583.33,
-     "takenPerH": 320359
+     "dps": 44.9,
+     "landedPct": 72.08,
+     "dmgPerSwing": 89.11,
+     "swingsPerH": 3570.17,
+     "takenPerH": 318277.5
     },
     {
      "style": "bow",
-     "dps": 52,
-     "landedPct": 89,
-     "dmgPerSwing": 77.8,
-     "swingsPerH": 1370.17,
-     "takenPerH": 106592.83
+     "dps": 51.92,
+     "landedPct": 89.03,
+     "dmgPerSwing": 77.36,
+     "swingsPerH": 1373.67,
+     "takenPerH": 106270.17
     },
     {
      "style": "mage",
-     "dps": 76.87,
-     "landedPct": 88.33,
-     "dmgPerSwing": 79.86,
-     "swingsPerH": 804.5,
-     "takenPerH": 64250
+     "dps": 76.58,
+     "landedPct": 88.35,
+     "dmgPerSwing": 79.92,
+     "swingsPerH": 797.33,
+     "takenPerH": 63711.33
     },
     {
      "style": "healer",
-     "dps": 32.23,
-     "landedPct": 92.33,
-     "dmgPerSwing": 100.92,
-     "swingsPerH": 790.33,
-     "takenPerH": 79814.17
+     "dps": 32.14,
+     "landedPct": 92.35,
+     "dmgPerSwing": 100.24,
+     "swingsPerH": 789,
+     "takenPerH": 79136.83
     }
    ],
    "kinds": {
     "shrouded_pauper": {
      "role": "swarm",
-     "killsPerH": 243.4,
-     "ttkS": 19.9,
-     "takenPerKill": 732
+     "killsPerH": 243.1,
+     "ttkS": 19.8,
+     "takenPerKill": 727
     },
     "night_carter": {
      "role": "caster",
      "killsPerH": 99.2,
-     "ttkS": 29.1,
-     "takenPerKill": 2492
+     "ttkS": 28.9,
+     "takenPerKill": 2473
     },
     "vault_leech": {
      "role": "stalker",
      "killsPerH": 148.5,
      "ttkS": 26.4,
-     "takenPerKill": 281
+     "takenPerKill": 282
     },
     "bone_wall": {
      "role": "brute",
-     "killsPerH": 72.1,
+     "killsPerH": 72,
      "ttkS": 25.7,
-     "takenPerKill": 1204
+     "takenPerKill": 1199
     },
     "keeper_dunn": {
      "role": "caster",
      "killsPerH": 24.8,
-     "ttkS": 9.6,
-     "takenPerKill": 699
+     "ttkS": 9.5,
+     "takenPerKill": 702
     }
    },
    "abs": {
-    "level": 163,
-    "depth": 10
+    "level": 164.8,
+    "depth": 11
    },
    "sustain": {
     "freePm": 170,
     "spellPm": 815,
     "foodPm": 15,
-    "takenPmS": 19.61
+    "takenPmS": 19.48
    }
   },
   "back:steady": {
@@ -308,13 +308,13 @@
    "xpPerHeroH": 835745,
    "gold": {
     "coinPerHeroH": {
-     "mean": 27138,
-     "sd": 858,
+     "mean": 14681,
+     "sd": 464,
      "n": 6
     },
     "incomePerHeroH": {
-     "mean": 35588,
-     "sd": 1018,
+     "mean": 23130,
+     "sd": 631,
      "n": 6
     },
     "storePerHeroH": {
@@ -468,8 +468,8 @@
     }
    },
    "abs": {
-    "level": 158.7,
-    "depth": 8
+    "level": 160.3,
+    "depth": 9
    },
    "sustain": {
     "freePm": 174,
@@ -479,7 +479,7 @@
    }
   }
  },
- "wallS": 149,
+ "wallS": 138,
  "candidate": "C0",
  "moves": {
   "levels:steady": null,
@@ -488,8 +488,8 @@
   "back:steady": {
    "from": "base:steady",
    "to": "back:steady",
-   "mean": -10.7,
-   "sd": 6.9,
+   "mean": -9.5,
+   "sd": 6.8,
    "se": 2.8,
    "n": 6
   },

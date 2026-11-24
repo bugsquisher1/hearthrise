@@ -44,8 +44,9 @@
   "catacomb_bone_wing": {
    "refStep": 520,
    "floorStep": 420,
-   "topStep": 585,
-   "refKillsHead": 140,
+   "topStep": 580,
+   "refKillsHead": 145,
+   "coinPm": 4000,
    "print": "b6c7e3781a0acd3b",
    "verdict": "OPEN",
    "levels": {
@@ -63,9 +64,9 @@
   "catacomb_flooded_wing": {
    "refStep": 480,
    "floorStep": 440,
-   "topStep": 520,
+   "topStep": 515,
    "refKillsHead": 145,
-   "refHeld": 485,
+   "coinPm": 3300,
    "print": "db1bf83de76b3192",
    "verdict": "OPEN",
    "levels": {

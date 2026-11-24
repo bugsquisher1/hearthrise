@@ -224,16 +224,23 @@ export const DANGER_GROUNDS = Object.freeze({
      MEASURED depths (tools/balance-program/redesign/depth-budget): arriving 4, reference 9, strong 18 on Steady, 20 on Bold
      coinPm 7000 (lane/scale-early-grounds): the pay reads the hold (refStep 610; the anchor is formulaStep 590), 20 steps over the anchor it read, so the reference hour's coin fell
      14%; its own coin level puts it back on the wage, 1.01 of wage(60) (8 seeds x 10 h, grounds/muster_barrows-ref.json). Level XP at the
-     hold: 0.88 of the hours table (tests/level-curve.mjs C7, Level held; was 1.06 read at the anchor) */
+     hold: 0.88 of the hours table (tests/level-curve.mjs C7, Level held; was 1.06 read at the anchor)
+     THE WINGS RE-CUT ON THEIR OWN BASE (lane/gear-phase-b, 2026-11-23; 29-tuning-pass 7.3, the re-read handed there): their bands were cut on
+     kits that could not wear item Level 160. With the step tiers (gear-tiers.js STEP_TIERS) the Lab's companies wear their Level's tier (fresh
+     at 165 in Cobalt, one back; reference at 175 and strong at 185 in Wolfram), and on the old bands the reference four held at depth 19 and
+     earned 1.5x to 1.9x the hours. new-ground.mjs on those cells (top lifted first: a capped climb measures the cap; the coin level read back
+     as played), 6 seeds x 10 h, no Steady death: Bone 420 / 520 / 580, coinPm 4000 (LOW 437.6, MID 519.1, BIS 582.1); Flooded 440 / 480 / 515,
+     coinPm 3300 (451.1, 481.5, 517.4). The reference hour pays 1.00 and 1.01 of wage(175) and 0.97x and 1.04x the hours. A whole kit one
+     tier back at 175 moves 16.2 and 9.3 steps, 2 depths each (C-2) */
   muster_barrows: ground({ refStep: 610, floorStep: 575, topStep: 700, coinPm: 7000, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 5, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 550, topStep: 660, refKillsHead: 135, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 4, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
-  catacomb_bone_wing: ground({ refStep: 440, floorStep: 385, topStep: 525, refKillsHead: 130, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_bone_wing: ground({ refStep: 520, floorStep: 420, topStep: 580, refKillsHead: 145, coinPm: 4000, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
      coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. */
   meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
   mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
-  catacomb_flooded_wing: ground({ refStep: 450, floorStep: 410, topStep: 465, refHeld: 455, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 515, refKillsHead: 145, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

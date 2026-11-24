@@ -50,6 +50,7 @@ import { TRAINING_GEAR_ITEMS } from './training.js';
 import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js';
 import { STEP_MATERIALS } from './gear-tiers.js';
 import { STEP_MADE } from './slot-ladders.js';
+import { basePiecesOf } from './base-drops.js';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js';
@@ -209,9 +210,10 @@ export const UNREACHABLE = Object.freeze({
     'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
     /* A TIER WHOSE HOMES ARE ALL STAGED (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): every piece of it no open ground's body drops (a
        home's base row or a made piece from a home's part) waits for a home to open. DERIVED, so a piece leaves the list the build its home
-       opens or an open ground starts dropping it; a named copy (a chest's twin) has its own door */
-    ...Object.keys(ITEMS).filter((id) => ITEMS[id] && !ITEMS[id].towerKey && !ITEMS[id].catacombTier && !OPEN_BODY_DROPS.has(id)
-      && STEP_MATERIALS.some((m) => m.step === ITEMS[id].step && !m.homes.some((g) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)))),
+       opens or an open ground starts dropping it; a named piece of the tier (a chest's twin, a lucky find) has its own door */
+    ...STEP_MATERIALS.filter((m) => !m.homes.some((g) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)))
+      .flatMap((m) => [...basePiecesOf(m), ...Object.values(STEP_MADE).flat().map((r) => r.output).filter((id) => ITEMS[id] && ITEMS[id].step === m.step)])
+      .filter((id) => ITEMS[id] && !OPEN_BODY_DROPS.has(id)),
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next

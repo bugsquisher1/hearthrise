@@ -101,6 +101,9 @@ import { FIXTURE, wait, reloadAndPlay, pushEnvelope, openWin, count, sent, pageR
 /* The Cellar's one gear line, alone, as the page must print it (its math is checked from the rows in huntsPure). */
 /* The Level XP a hero at Level 30 holds (src/core/xp.js): gear is worn by the hero's Level (Tyler 2026-10-24). */
 const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
+/* AW-21's piece a Level 30 hero cannot wear yet: the Rune Helm (worn from its item Level less 10, 12-targets 8.3; the Mithril Helm it was
+   is worn from 30 while the Ford still stamps mithril at 40) */
+const LOCKED_HELM = 'rune_helm', LOCKED_LV = (await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href)).ITEMS.rune_helm.reqLv;
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
 const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep'], ['x', 'havora']];
 /* A PRESS IS CHECKED, NOT CLICKED BLIND (runs 42678595702 and 42735492394: a 6 s click timeout read as HARNESS, never as
@@ -749,11 +752,11 @@ async function checks(overrides, shots, opts) {
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, the same family, so it goes on
-           (designer 2026-11-03); the Mithril Helm needs Level 45. */
+           (designer 2026-11-03); the Rune Helm needs a Level over 30 (LOCKED_LV). */
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
         /* a heavy hero (Bronze Boots worn, no weight chosen at Tamsin's): its bare gloves slot takes the bag's medium Leather Gloves (designer ruling 2b of 2026-11-18: a bare armor slot takes any weight that beats bare), and every heavy piece goes on */
         e.equipment = Object.assign({}, e.equipment, { boots: 'bronze_boots' });
-        Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, mithril_helm: 1 });
+        Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, [LOCKED_HELM]: 1 });
         e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
@@ -776,17 +779,17 @@ async function checks(overrides, shots, opts) {
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
         /* Every step below presses or reads this line: when it is already wrong the catch is made, so stop here rather than click a line a mutant
            reshaped (nightly run 42678595702: a 6 s click timeout on a loaded runner read as HARNESS, not the catch it was). */
-        if (!pre.on || pre.off || !/^Upgrade: Iron Helm \(\+\d+ Defense\)/.test(pre.q) || /Steel|Mithril/.test(pre.q)) { fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre)); break aw21; }
+        if (!pre.on || pre.off || !/^Upgrade: Iron Helm \(\+\d+ Defense\)/.test(pre.q) || /Steel|Mithril|Rune/.test(pre.q)) { fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre)); break aw21; }
         /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns
            was offered Equip on a helm he could not wear, and the refusal said nothing on screen; gear is worn by Level
            since): the picked line's Equip is off and says why, and a press sends nothing. */
-        await page.click('.hw-pocket[data-item="mithril_helm"]');
+        await page.click('.hw-pocket[data-item="' + LOCKED_HELM + '"]');
         await page.waitForTimeout(150);
         const need = await page.evaluate(() => ({ off: document.querySelector('.hw-inv [data-hs-act="primary"]').disabled,
           why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
         await page.keyboard.press('Enter');
         await page.waitForTimeout(300);
-        if (!need.off || need.why !== 'Requires Level 45, now 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        if (!need.off || need.why !== 'Requires Level ' + LOCKED_LV + ', now 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Rune Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
         /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
            window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';

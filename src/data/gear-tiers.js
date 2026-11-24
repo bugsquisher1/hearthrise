@@ -143,6 +143,9 @@ export const materialWord = (mat, line) => (line === 'metal' ? [mat.id, mat.name
     stamps the item Level tierLevel(step) from it (ITEM_LEVELS) and tools/gen-gear.mjs sizes the piece there, never at the iL the generated table
     wrote back. Every material's piece carries it (12-targets 8.3). */
 export const stepOf = (mat) => (mat && Number.isInteger(mat.step) ? { step: mat.step } : {});
+/** A NAMED PIECE STAMPED TO TIER `tier` (12-targets 8.3: "on every named twin stamped to a tier"): its material's grid step and worn from that
+    item Level less wearAhead, so a named piece is its tier's numbers plus its rule (28-named-pieces.md) and no row types a wear Level. */
+export const onTier = (tier) => { const m = MATERIAL_TIERS[tier - 1]; return m ? { reqLv: m.level, ...stepOf(m) } : {}; };
 
 /* ── Armour slots ─────────────────────────────────────────────────────
    Each slot's armor is its share of the formula's defense budget (src/data/gear-profiles.js: the slot's

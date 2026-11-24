@@ -219,7 +219,9 @@ function stepLadder(o) {
     }
     const shields = Object.keys(S.shields).filter((id) => S.shields[id].step === m.step && o.items[id]);
     if (shields.length !== 1) out.push('GSF-9 ' + m.id + ' has ' + shields.length + ' shields, the ladder one');
-    const made = ['ring', 'earrings', 'necklace', 'cape'].map((slot) => [slot, Object.keys(S.slotItems).filter((id) => S.slotItems[id].slot === slot && S.slotItems[id].step === m.step && o.items[id])]);
+    /* (a named find of the tier, a monster's own drop such as Elder Cinder's Dawnlit Mantle, is no rung of the made ladder) */
+    const found = new Set(Object.values(S.monsters).flatMap((mo) => ((mo && mo.drops) || []).map((d) => d.id)));
+    const made = ['ring', 'earrings', 'necklace', 'cape'].map((slot) => [slot, Object.keys(S.slotItems).filter((id) => S.slotItems[id].slot === slot && S.slotItems[id].step === m.step && o.items[id] && !found.has(id))]);
     for (const [slot, ids] of made) if (ids.length !== 1) out.push('GSF-9 ' + m.id + ' has ' + ids.length + ' ' + slot + ' pieces, the ladder one');
     /* a source for each: the dropped base on every home (its base row, or a home body's own row), the made pieces at their bench from a part */
     const bodyDrops = (h) => new Set([...S.monstersOn(S.grounds[h])].flatMap((mid) => ((S.monsters[mid] || {}).drops || []).map((d) => d.id)));

@@ -39,6 +39,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { withGearStats } from './gear-profiles.js';
+import { onTier } from './gear-tiers.js';
 
 export const BOSS_CALL_RULES = Object.freeze({
   /* One fight's limit from its first swing: nobody sits in the room for ever. */
@@ -82,13 +83,13 @@ export const CALL_ITEMS = Object.freeze(withGearStats({
      and it does 10% more to Vermin (the special catalogue's bane at tier 2: the Mill Cellar and the Sewer are vermin grounds) */
   kingstooth: Object.freeze({ n: 'Kingstooth', icon: '🗡️', v: 600, type: 'weapon', slot: 'weapon', weaponType: 'sword',
     bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),
-    tier: 2, rarity: 'rare', reqSkill: 'level', reqLv: 15 }),
+    tier: 2, rarity: 'rare', reqSkill: 'level', ...onTier(2) }),
   /* tier 3, worn at Level 30. The Coppercap Shield's guard (the formula's, no offset), no swing penalty, and 10% less
      fire damage (the special catalogue's element resistance; "less from every hit" starts at tier 5, so no tier-3 piece carries
      it). The Chief's own Slag Rain and Slag Toss are fire, and so are the Goblin Digger's Blasting Charge and the Turncoat's Smoke
      Pot (src/data/monster-spells.js) */
   cauldron_lid: Object.freeze({ n: 'Cauldron Lid', icon: '🛡️', v: 1200, type: 'offhand', slot: 'shield', offhand: 'shield',
-    resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', reqLv: 30 }),
+    resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', ...onTier(3) }),
 }));
 export const CALL_ITEM_DESC = Object.freeze({
   kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. Vermin feel it most',

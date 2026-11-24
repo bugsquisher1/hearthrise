@@ -853,6 +853,14 @@ export const ITEM_LEVELS = (() => {
     out[id] = iL;
     ITEMS[id] = { ...it, iL };
   }
+  /* A TWIN (`statsAs`: a named piece that is another row's piece to the number, 12-targets 8.3 "every named twin stamped to a tier") is worn
+     as its base is: its step, its item Level and its wear, whatever stamp the base carries */
+  for (const [id, it] of Object.entries(ITEMS)) {
+    const b = it && typeof it.statsAs === 'string' ? ITEMS[it.statsAs] : null;
+    if (!b) continue;
+    ITEMS[id] = { ...it, reqLv: b.reqLv, ...(Number.isInteger(b.step) ? { step: b.step } : {}), ...(Number.isInteger(b.iL) ? { iL: b.iL } : {}) };
+    if (Number.isInteger(b.iL)) out[id] = b.iL;
+  }
   return Object.freeze(out);
 })();
 

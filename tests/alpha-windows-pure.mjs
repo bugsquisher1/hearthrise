@@ -126,12 +126,13 @@ async function pure() {
   /* A worn piece is never traded away: the plate Bronze Belt (more Defense) never replaces a worn Leather Belt (its critical chance). */
   const worn = plan({ weapon: 'bronze_sword', belt: 'leather_belt' }, [['bronze_belt']]);
   if ('belt' in worn.ops) fails.push('AW-21 Equip upgrades traded away a worn belt: ' + ops(worn));
-  /* Gear is worn by the hero's LEVEL (Tyler 2026-10-24): at Level 15 with every skill at 1 the Iron Helm goes on, at
-     Level 14 it does not, and a Level the server has not sent reads as "cannot wear yet". */
-  const byLevel = plan({ weapon: 'bronze_sword' }, [['iron_helm']], lv1, 15);
-  if (ops(byLevel) !== '{"helmet":"iron_helm"}') fails.push('AW-21 a Level-15 hero with Defense 1 would put on ' + ops(byLevel) + ', not the Iron Helm');
-  const under = plan({ weapon: 'bronze_sword' }, [['iron_helm']], { ...lv1, defense: { level: 99 } }, 14);
-  if (Object.keys(under.ops).length) fails.push('AW-21 a Level-14 hero (Defense 99) would put on ' + ops(under));
+  /* Gear is worn by the hero's LEVEL (Tyler 2026-10-24): at the Iron Helm's Level (10 since 12-targets 8.3) with every skill at 1 it goes on,
+     a Level under it does not, and a Level the server has not sent reads as "cannot wear yet". */
+  const IRON_LV = (await imp('src/data/items.js')).ITEMS.iron_helm.reqLv;
+  const byLevel = plan({ weapon: 'bronze_sword' }, [['iron_helm']], lv1, IRON_LV);
+  if (ops(byLevel) !== '{"helmet":"iron_helm"}') fails.push('AW-21 a Level-' + IRON_LV + ' hero with Defense 1 would put on ' + ops(byLevel) + ', not the Iron Helm');
+  const under = plan({ weapon: 'bronze_sword' }, [['iron_helm']], { ...lv1, defense: { level: 99 } }, IRON_LV - 1);
+  if (Object.keys(under.ops).length) fails.push('AW-21 a Level-' + (IRON_LV - 1) + ' hero (Defense 99) would put on ' + ops(under));
   const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null, null);
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
   /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
@@ -590,17 +591,19 @@ async function planRules(base) {
   const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
   {
     const plan = (equipment, bag, skills = lv1, level = 5) => UP.upgradePlan({ equipment, bag: bag.map(([id, qty]) => ({ id, qty: qty || 1 })), skills, level });
+    /* the numbers a line says are the catalogue's own (the formula's, 12-targets 8.3's item Levels); the wording and the picks are the rule here */
+    const IT0 = (await imp('src/data/items.js')).ITEMS, d = (a, b, k) => (IT0[a][k] || 0) - (IT0[b][k] || 0);
     /* THE WEAPON, SAME FAMILY ONLY (designer 2026-11-03; blind panel: a sword hero wore the Practice Sword for 19 hunted hours over eight Iron Swords). A better one of its family goes on, the
        shield stays where it is, and the style and role never move: another family, another grip, empty hands and the off-hand are the player's choice. */
     const hands = plan({ weapon: 'bronze_sword' }, [['practice_shield'], ['ironbound_shield']], { melee: { level: 99 }, defense: { level: 99 } }, 30);
     if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would put a shield on: ' + ops2(hands));
     const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
-    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Upgrade: Iron Sword (+4 Melee accuracy)') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
-    if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
+    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Upgrade: Iron Sword (+' + d('iron_sword', 'practice_sword', 'atkB') + ' Melee accuracy)') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
+    if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, IT0.iron_sword.reqLv - 1).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
     /* A BANE IS A PLUS (designer re-read 2026-11-11: Level 16 in the Practice Sword with 6 Bramble Blades in the bag): the blade goes on and its preview names the bane, the
        engine's clamped number; a worn bane is never traded away for plain numbers, and the tooltip says what the bane is. */
     const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
-    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Upgrade: Bramble Blade (+4 Melee accuracy, +4 Melee damage, +40% damage to Plant monsters)') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
+    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Upgrade: Bramble Blade (+' + d('bramble_blade', 'practice_sword', 'atkB') + ' Melee accuracy, +' + d('bramble_blade', 'practice_sword', 'strB') + ' Melee damage, +40% damage to Plant monsters)') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
     if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
     /* A WORN BANE AGAINST A PLAIN STRONGER BLADE IS SAID, NEVER SWAPPED (designer small call 2, 2026-11-11): the slot is a choice and the line says the trade in the
        engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
@@ -617,7 +620,7 @@ async function planRules(base) {
     const sk = (melee) => ({ defense: { level: 50, xp: XPC.skillXpForLevel('defense', 50) }, melee: { level: melee, xp: XPC.skillXpForLevel('melee', melee) }, ranged: { level: 1, xp: 0 }, magic: { level: 1, xp: 0 } });
     const seasoned = sk(50);
     const past = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 3], ['mithril_sword', 40]], seasoned, 55);
-    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Upgrade: Mithril Sword (+10 Melee accuracy)')
+    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Upgrade: Mithril Sword (+' + d('mithril_sword', 'bramble_blade', 'atkB') + ' Melee accuracy)')
       fails.push('AW-21 a Level 55 hero in a Bramble Blade with Mithril Swords in the bag reads ' + ops2(past) + ' / ' + JSON.stringify(past.choices) + ' / ' + UP.upgradeWords(past));
     const vines = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 2]], sk(30), 30);
     if (ops2(vines) !== '{}' || JSON.stringify(vines.choices) !== '[{"slot":"weapon","ids":["steel_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]')
@@ -625,7 +628,7 @@ async function planRules(base) {
     /* A WORN OFF-HAND TAKES A BETTER ONE OF ITS KIND (audit 2026-11-15 F8: a Level 31 tank still held the Practice Shield): a shield for a shield, a spellbook for a
        spellbook; never a piece into an empty off-hand (above), never a shield for a spellbook, and a shield that costs accuracy for its guard is the player's pick. */
     const guard = plan({ weapon: 'steel_sword', shield: 'practice_shield' }, [['ironbound_shield'], ['practice_spellbook']], lv1, 31);
-    if (ops2(guard) !== '{"shield":"ironbound_shield"}' || UP.upgradeWords(guard) !== 'Upgrade: Ironbound Shield (+2 Defense)') fails.push('AW-21 a tank in the Practice Shield with an Ironbound Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
+    if (ops2(guard) !== '{"shield":"ironbound_shield"}' || UP.upgradeWords(guard) !== 'Upgrade: Ironbound Shield (+' + d('ironbound_shield', 'practice_shield', 'defB') + ' Defense)') fails.push('AW-21 a tank in the Practice Shield with an Ironbound Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
     if (ops2(plan({ weapon: 'practice_wand', shield: 'practice_spellbook' }, [['bronze_rimmed_shield'], ['ironbound_shield']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would trade a spellbook for a shield');
     if (ops2(plan({ weapon: 'steel_sword', shield: 'ironbound_shield' }, [['kingsgrate']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would put on a shield that costs accuracy');
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
@@ -638,9 +641,9 @@ async function planRules(base) {
       const BM = await imp('src/shell/bag-model.js');
       const said = (l) => l.map((x) => x.text + ' ' + x.label + (x.delta === undefined ? '' : x.delta > 0 ? ' (gain)' : ' (loss)')).join(', ');
       for (const [got, want] of [
-        [said(BM.statLines('bramble_blade')), '+8 Melee accuracy, +7 Melee damage, +40% Damage to Plant monsters'],
-        [said(BM.statLines('cauldron_lid')), '+7 Defense, −10% Fire damage taken'],
-        [said(BM.statLines('kingstooth')), '+8 Melee accuracy, +7 Melee damage, +10% Damage to Vermin monsters'],
+        [said(BM.statLines('bramble_blade')), '+' + IT0.iron_sword.atkB + ' Melee accuracy, +' + IT0.iron_sword.strB + ' Melee damage, +40% Damage to Plant monsters'],
+        [said(BM.statLines('cauldron_lid')), '+' + IT0.coppercap_shield.defB + ' Defense, −10% Fire damage taken'],
+        [said(BM.statLines('kingstooth')), '+' + IT0.iron_sword.atkB + ' Melee accuracy, +' + IT0.iron_sword.strB + ' Melee damage, +10% Damage to Vermin monsters'],
         /* a named piece is its tier's numbers (28-named-pieces.md): the compare is its rule alone */
         [said(BM.compare('kingstooth', 'iron_sword')), '+10% Damage to Vermin monsters (gain)'],
         [said(BM.compare('iron_sword', 'kingstooth')), '−10% Damage to Vermin monsters (loss)'],
@@ -672,7 +675,8 @@ async function planRules(base) {
       const line = (id, key) => { const s = BM.statLines(id).find((x) => x.key === key); return s ? s.label + ' ' + s.text : 'no line'; };
       if (line('banded_legguards', 'resistPm.physical') !== 'Physical damage taken −3%') fails.push('AW-21 the Banded Legguards\' card reads ' + line('banded_legguards', 'resistPm.physical') + ', not Physical damage taken −3%');
       if (line('krells_tollgate', 'resistPm.ember') !== 'Fire damage taken −10%') fails.push('AW-21 Krell\'s Tollgate\'s card reads ' + line('krells_tollgate', 'resistPm.ember') + ', not Fire damage taken −10%');
-      if (line('krells_tollgate', 'defB') !== 'Defense +15' || BM.statLines('krells_tollgate').length !== 2) fails.push('AW-21 Krell\'s Tollgate\'s card is not its guard and its one attribute: ' + JSON.stringify(BM.statLines('krells_tollgate')));
+      /* (its guard is its tier's plain shield's, the Dawnsteel Shield's: tests/special-attributes.mjs SA2) */
+      if (line('krells_tollgate', 'defB') !== 'Defense +' + IT0.dawn_shield.defB || BM.statLines('krells_tollgate').length !== 2) fails.push('AW-21 Krell\'s Tollgate\'s card is not its guard and its one attribute: ' + JSON.stringify(BM.statLines('krells_tollgate')));
       if (BM.statLines('dawn_platelegs').some((s) => /^resistPm/.test(s.key))) fails.push('AW-21 a piece with no resistance shows a resistance line');
       const cmp = JSON.stringify(BM.compare('banded_legguards', 'dawn_platelegs'));
       if (cmp !== '[{"label":"Physical damage taken","delta":30,"text":"−3%"}]') fails.push('AW-21 the Banded Legguards against Dawnsteel Platelegs read ' + cmp + ', not the 3% alone');
@@ -736,8 +740,8 @@ async function planRules(base) {
       if (ops2(gain) !== '{"pants":"aw21_fire_legs"}' || UP.upgradeWords(gain) !== 'Upgrade: Fireproof Legs (-10% Fire damage taken)') fails.push('AW-21 fire resistance where fire is dealt reads ' + ops2(gain) + ' / ' + UP.upgradeWords(gain));
       if (Object.keys(legs('bronze_platelegs', 'aw21_fire_legs', 20).ops).length) fails.push('AW-21 fire resistance counts with no fire in range');
       const keep = legs('aw21_fire_legs', 'iron_platelegs', 17);
-      if (ops2(keep) !== '{}' || JSON.stringify(keep.choices) !== '[{"slot":"pants","ids":["iron_platelegs"],"keeps":"aw21_fire_legs","lost":[{"resist":"ember","pct":10}],"gain":"+4 Defense"}]'
-        || UP.upgradeWords(keep) !== 'No clear upgrade: Iron Platelegs adds +4 Defense, Fireproof Legs cuts fire damage by 10%')
+      if (ops2(keep) !== '{}' || JSON.stringify(keep.choices) !== '[{"slot":"pants","ids":["iron_platelegs"],"keeps":"aw21_fire_legs","lost":[{"resist":"ember","pct":10}],"gain":"+' + d('iron_platelegs', 'bronze_platelegs', 'defB') + ' Defense"}]'
+        || UP.upgradeWords(keep) !== 'No clear upgrade: Iron Platelegs adds +' + d('iron_platelegs', 'bronze_platelegs', 'defB') + ' Defense, Fireproof Legs cuts fire damage by 10%')
         fails.push('AW-21 a worn fire resistance against bigger plain numbers where fire is dealt reads ' + ops2(keep) + ' / ' + JSON.stringify(keep.choices) + ' / ' + UP.upgradeWords(keep));
       const gone = legs('aw21_fire_legs', 'iron_platelegs', 20);
       if (ops2(gone) !== '{"pants":"iron_platelegs"}' || gone.choices.length) fails.push('AW-21 a fire resistance with no fire in range holds the bigger numbers off: ' + ops2(gone) + ' / ' + JSON.stringify(gone.choices));

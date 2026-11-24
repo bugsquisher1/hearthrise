@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 5b0aa4740eabe5cfa242ee40ce364f3f4b7d483ee541f567e286913afb4e0b9e
+--   catalogue digest: fa590bd34b6e63f32f05fd529cc4e063d264d18fa17c992e6428563dc4c59b37
 --   rows: 750 items (27 untradeable) ·
 --         464 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -230,13 +230,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('baked_potato','Baked Potato',true,null,150,null,null,240,true,null,false),
   ('bakers_cap','Baker''s Cap',true,'armor',1260,'level',150,null,false,'light',false),
   ('banded_legguards','Banded Legguards',true,'armor',79200,'level',110,null,false,'heavy',false),
-  ('banded_signet','Banded Signet',true,'jewelry',260,'level',15,null,false,null,false),
-  ('banded_signet_follow','Banded Signet (Follow-through)',true,'jewelry',260,'level',15,null,false,null,false),
-  ('banded_signet_keen','Banded Signet (Keen)',true,'jewelry',260,'level',15,null,false,null,false),
-  ('banded_signet_keen_follow','Hallmarked Banded Signet (Keen, Follow-through)',true,'jewelry',260,'level',15,null,false,null,false),
-  ('banded_signet_keen_surge','Hallmarked Banded Signet (Keen, Surge)',true,'jewelry',260,'level',15,null,false,null,false),
-  ('banded_signet_surge','Banded Signet (Surge)',true,'jewelry',260,'level',15,null,false,null,false),
-  ('banded_signet_surge_follow','Hallmarked Banded Signet (Surge, Follow-through)',true,'jewelry',260,'level',15,null,false,null,false),
+  ('banded_signet','Banded Signet',true,'jewelry',260,'level',10,null,false,null,false),
+  ('banded_signet_follow','Banded Signet (Follow-through)',true,'jewelry',260,'level',10,null,false,null,false),
+  ('banded_signet_keen','Banded Signet (Keen)',true,'jewelry',260,'level',10,null,false,null,false),
+  ('banded_signet_keen_follow','Hallmarked Banded Signet (Keen, Follow-through)',true,'jewelry',260,'level',10,null,false,null,false),
+  ('banded_signet_keen_surge','Hallmarked Banded Signet (Keen, Surge)',true,'jewelry',260,'level',10,null,false,null,false),
+  ('banded_signet_surge','Banded Signet (Surge)',true,'jewelry',260,'level',10,null,false,null,false),
+  ('banded_signet_surge_follow','Hallmarked Banded Signet (Surge, Follow-through)',true,'jewelry',260,'level',10,null,false,null,false),
   ('barbed_arrows','Barbed Arrows',true,'ammo',1,'ranged',15,null,false,null,false),
   ('barge_nail','Barge Nail',true,null,108,null,null,null,false,null,false),
   ('barn_wasp_sting','Barn Wasp Sting',true,null,22,null,null,null,false,null,false),
@@ -263,7 +263,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bone_needle','Bone Needle',true,'tool',70,null,null,null,false,null,false),
   ('bones','Bones',true,null,1,null,null,null,false,null,false),
   ('bonesetters_staff','Bonesetter''s Staff',true,'weapon',130,'level',10,null,false,null,true),
-  ('bramble_blade','Bramble Blade',true,'weapon',130,'level',15,null,false,null,false),
+  ('bramble_blade','Bramble Blade',true,'weapon',130,'level',10,null,false,null,false),
   ('briar_burr','Briar Burr',true,null,20,null,null,null,false,null,false),
   ('bronze_arrows','Bronze Arrows',true,'ammo',0,'ranged',1,null,false,null,false),
   ('bronze_axe','Bronze Axe',true,'tool',60,null,null,null,false,null,false),
@@ -308,12 +308,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('chalked_rupture_rune','Chalked Rupture Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chalked_water_rune','Chalked Water Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chandlers_wand','Chandler''s Wand',true,'weapon',1350,'level',50,null,false,null,false),
-  ('chitin_belt','Chitin Belt',true,'armor',840,'level',45,null,false,'medium',false),
-  ('chitin_body','Chitin Body',true,'armor',3150,'level',45,null,false,'medium',false),
-  ('chitin_boots','Chitin Boots',true,'armor',840,'level',45,null,false,'medium',false),
-  ('chitin_gloves','Chitin Bracers',true,'armor',735,'level',45,null,false,'medium',false),
-  ('chitin_helmet','Chitin Hood',true,'armor',1260,'level',45,null,false,'medium',false),
-  ('chitin_pants','Chitin Chaps',true,'armor',2310,'level',45,null,false,'medium',false),
+  ('chitin_belt','Chitin Belt',true,'armor',840,'level',30,null,false,'medium',false),
+  ('chitin_body','Chitin Body',true,'armor',3150,'level',30,null,false,'medium',false),
+  ('chitin_boots','Chitin Boots',true,'armor',840,'level',30,null,false,'medium',false),
+  ('chitin_gloves','Chitin Bracers',true,'armor',735,'level',30,null,false,'medium',false),
+  ('chitin_helmet','Chitin Hood',true,'armor',1260,'level',30,null,false,'medium',false),
+  ('chitin_pants','Chitin Chaps',true,'armor',2310,'level',30,null,false,'medium',false),
   ('chitinweave_cloak','Chitinweave Cloak',true,'armor',15200,'level',76,null,false,null,false),
   ('choirbone','Choirbone',true,null,3800,null,null,null,false,null,false),
   ('cistern_venom_gland','Cistern Venom Gland',true,null,40,null,null,null,false,null,false),
@@ -392,7 +392,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawnhide_gloves','Dawnhide Bracers',true,'armor',17640,'level',110,null,false,'medium',false),
   ('dawnhide_helmet','Dawnhide Hood',true,'armor',30240,'level',110,null,false,'medium',false),
   ('dawnhide_pants','Dawnhide Chaps',true,'armor',55440,'level',110,null,false,'medium',false),
-  ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'level',88,null,false,null,false),
+  ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'level',110,null,false,null,false),
   ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',88,null,false,null,false),
   ('dawnsteel_rod','Dawnsteel Rod',true,'tool',58000,null,null,null,false,null,false),
   ('dawnstone_ore','Dawnstone Ore',true,null,95,null,null,null,false,null,false),
@@ -478,10 +478,10 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('etched_poison_rune','Etched Poison Rune',true,'ammo',3,'magic',30,null,false,null,false),
   ('etched_rupture_rune','Etched Rupture Rune',true,'ammo',3,'magic',30,null,false,null,false),
   ('etched_water_rune','Etched Water Rune',true,'ammo',3,'magic',30,null,false,null,false),
-  ('fang_studs','Fang Studs',true,'jewelry',130,'level',15,null,false,null,false),
-  ('fang_studs_focus','Fang Studs (Focus)',true,'jewelry',130,'level',15,null,false,null,false),
-  ('fang_studs_steady','Fang Studs (Steady)',true,'jewelry',130,'level',15,null,false,null,false),
-  ('fang_studs_steady_focus','Hallmarked Fang Studs (Steady, Focus)',true,'jewelry',130,'level',15,null,false,null,false),
+  ('fang_studs','Fang Studs',true,'jewelry',130,'level',10,null,false,null,false),
+  ('fang_studs_focus','Fang Studs (Focus)',true,'jewelry',130,'level',10,null,false,null,false),
+  ('fang_studs_steady','Fang Studs (Steady)',true,'jewelry',130,'level',10,null,false,null,false),
+  ('fang_studs_steady_focus','Hallmarked Fang Studs (Steady, Focus)',true,'jewelry',130,'level',10,null,false,null,false),
   ('farmhands_tag','Farmhand''s Tag',true,null,172,null,null,null,false,null,false),
   ('ferrymans_bow','Ferryman''s Bow',true,'weapon',1575,'level',50,null,false,null,true),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
@@ -564,14 +564,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('keystone','Keystone',true,null,3000,null,null,null,false,null,false),
   ('kindling_wand','Kindling Wand',true,'weapon',32400,'level',110,null,false,null,false),
   ('kingsgrate','Kingsgrate',true,'offhand',300,'level',10,null,false,null,false),
-  ('kingstooth','Kingstooth',true,'weapon',600,'level',15,null,false,null,false),
+  ('kingstooth','Kingstooth',true,'weapon',600,'level',10,null,false,null,false),
   ('klappas_club','Klappa''s Klub',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
   ('kobold_scale','Kobold Scale',true,null,26,null,null,null,false,null,false),
   ('krells_tollgate','Krell''s Tollgate',true,'offhand',43200,'level',110,null,false,null,false),
   ('lamp_jelly','Lamp Jelly',true,null,1,null,null,null,false,null,false),
   ('lamplighters_wand','Lamplighter''s Wand',true,'weapon',115,'level',10,null,false,null,false),
-  ('lazlos_maul','Lazlo''s Maul',true,'weapon',1650,'level',45,null,false,null,false),
+  ('lazlos_maul','Lazlo''s Maul',true,'weapon',1650,'level',50,null,false,null,false),
   ('leather_belt','Leather Belt',true,'armor',35,'level',1,null,false,'medium',false),
   ('leather_body','Leather Body',true,'armor',125,'level',1,null,false,'medium',false),
   ('leather_boots','Leather Boots',true,'armor',35,'level',1,null,false,'medium',false),
@@ -871,7 +871,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('verdite_platelegs','Verdite Platelegs',true,'armor',1980,'level',38,null,false,'heavy',false),
   ('vigil_bow','Vigil Bow',true,'weapon',13650,'level',90,null,false,null,true),
   ('void_banquet','Void Banquet',true,null,2400,null,null,720,false,null,false),
-  ('void_censer','Banishing Censer',true,'weapon',4500,'level',60,null,false,null,false),
+  ('void_censer','Banishing Censer',true,'weapon',4500,'level',70,null,false,null,false),
   ('void_chitin','Void Chitin',true,null,800,null,null,null,false,null,false),
   ('void_core','Void Core',true,null,2200,null,null,null,false,null,false),
   ('void_essence','Void Essence',false,null,3000,null,null,null,false,null,false),
@@ -890,12 +890,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('warlords_torc','Warlord''s Necklace',true,'jewelry',3000,'level',52,null,false,null,false),
   ('warrant_seal','Warrant Seal',true,null,160,null,null,null,false,null,false),
   ('washerwomans_slippers','Washerwoman''s Slippers',true,'armor',75,'level',150,null,false,'light',false),
-  ('watchknight_belt','Watchknight Belt',true,'armor',3600,'level',60,null,false,'heavy',false),
-  ('watchknight_body','Watchknight Cuirass',true,'armor',13500,'level',60,null,false,'heavy',false),
-  ('watchknight_boots','Watchknight Boots',true,'armor',3600,'level',60,null,false,'heavy',false),
-  ('watchknight_gloves','Watchknight Gauntlets',true,'armor',3150,'level',60,null,false,'heavy',false),
-  ('watchknight_helmet','Watchknight Helm',true,'armor',5400,'level',60,null,false,'heavy',false),
-  ('watchknight_pants','Watchknight Leg Plates',true,'armor',9900,'level',60,null,false,'heavy',false),
+  ('watchknight_belt','Watchknight Belt',true,'armor',3600,'level',50,null,false,'heavy',false),
+  ('watchknight_body','Watchknight Cuirass',true,'armor',13500,'level',50,null,false,'heavy',false),
+  ('watchknight_boots','Watchknight Boots',true,'armor',3600,'level',50,null,false,'heavy',false),
+  ('watchknight_gloves','Watchknight Gauntlets',true,'armor',3150,'level',50,null,false,'heavy',false),
+  ('watchknight_helmet','Watchknight Helm',true,'armor',5400,'level',50,null,false,'heavy',false),
+  ('watchknight_pants','Watchknight Leg Plates',true,'armor',9900,'level',50,null,false,'heavy',false),
   ('waterlogged_key_bronze','Bronze Waterlogged Key',false,'key',0,null,null,null,false,null,false),
   ('waterlogged_key_gold','Gold Waterlogged Key',false,'key',0,null,null,null,false,null,false),
   ('waterlogged_key_platinum','Platinum Waterlogged Key',false,'key',0,null,null,null,false,null,false),
@@ -914,7 +914,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('willow_staff','Willow Staff',true,'weapon',500,'level',30,null,false,null,true),
   ('willow_wand','Willow Wand',true,'weapon',450,'level',30,null,false,null,false),
   ('wolf_pelt','Wolf Pelt',true,null,35,null,null,null,false,null,false),
-  ('wolfbone_torc','Wolfbone Necklace',true,'jewelry',260,'level',15,null,false,null,false),
+  ('wolfbone_torc','Wolfbone Necklace',true,'jewelry',260,'level',10,null,false,null,false),
   ('wolfram_belt','Wolfram Belt',true,'armor',33760,'level',150,null,false,'heavy',false),
   ('wolfram_boots','Wolfram Boots',true,'armor',33760,'level',150,null,false,'heavy',false),
   ('wolfram_earrings','Wolfram Earrings',true,'jewelry',42200,'level',150,null,false,null,false),
@@ -2376,7 +2376,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '5b0aa4740eabe5cfa242ee40ce364f3f4b7d483ee541f567e286913afb4e0b9e', now())
+  values (true, 'fa590bd34b6e63f32f05fd529cc4e063d264d18fa17c992e6428563dc4c59b37', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2612,7 +2612,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5b0aa4740eabe5cfa242ee40ce364f3f4b7d483ee541f567e286913afb4e0b9e',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest fa590bd34b6e63f32f05fd529cc4e063d264d18fa17c992e6428563dc4c59b37',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

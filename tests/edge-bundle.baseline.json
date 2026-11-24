@@ -478,6 +478,11 @@
         "bytes": 3863682,
         "on": "2026-11-24",
         "why": "lane/gear-phase-b on set/v0.2.144 557c7987b: the gear ladder past Dawnsteel on item Levels (27 G-2 phase B). The settle reads 124 new gear rows (their generated stats, the four step-tier rows and their builders in gear-tiers.js, shields.js and slot-ladders.js), base-drops.js (the homes' base rows the settle rolls on a kill), temper.js's step rule, the scale view held at the curve's top (gear-stats.js), and the Catacomb wings re-cut on their own base (danger.js rows, coin levels and their measured note)"
+      },
+      {
+        "bytes": 3864168,
+        "on": "2026-11-24",
+        "why": "lane/gear-phase-b, 12-targets 8.3: named twins stamped to a tier (gear-tiers.js onTier, items.js twin rule) and gear-stats.js sourceLevelOf reach the settle's catalogue"
       }
     ]
   }

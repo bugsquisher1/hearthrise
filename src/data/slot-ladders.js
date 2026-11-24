@@ -43,7 +43,7 @@
 // ============================================================
 
 import { withGearStats } from './gear-profiles.js';
-import { STEP_MATERIALS, materialWord, stepOf } from './gear-tiers.js';
+import { STEP_MATERIALS, materialWord, stepOf, onTier } from './gear-tiers.js';
 
 /* THE MADE PIECES OF A TIER WITH HOMES (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): the line its word comes from, its label and book multiplier
    (the shipped rungs' vmul), the bench that makes it and the top input that bench works (the shipped ladder's top bar or plank: the
@@ -127,7 +127,7 @@ export const SLOT_ITEMS = withGearStats({
      `level < req_lv`); it states the lane's requirement so the column is non-NULL across
      all seven rungs and the server has one shape to read. */
   copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1 },
-  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15 },
+  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', ...onTier(2) },
   spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 34 },
   wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50 },
   rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 66 },
@@ -168,14 +168,14 @@ export const SLOT_ITEMS = withGearStats({
      30, book priced like its rungs, armourClass cape so it never counts toward a plate set) and its plain stats help every way to fight (the
      plan's rule): the ladder's cut between the Houndskin's 70 and the Trollhide's 150, and a point of damage for each style. Ships plain until
      the cloak's perks (Slip, Stride) are hooked. */
-  warband_bulwark: { n: 'Warband Bulwark', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, steadyPm: 110 },
+  warband_bulwark: { n: 'Warband Bulwark', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'level', ...onTier(3), steadyPm: 110 },
   shadowsilk_cape: { n: 'Spidersilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, steadyPm: 185 },
-  dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, steadyPm: 255 },
+  dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', ...onTier(7), steadyPm: 255 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
   /* CRAFTED NOW (Tyler 2026-11-18: the two dropped Wickstead jewels become crafted; src/data/jewelry.js): Smithing 15. Its plain stats help every way to
      fight (the itemization plan's rule: atkB 3 alone gave a hammer +1.0% and a bow or a wand nothing, measured 2026-11-18), a Banded Signet's +2 +2 each. */
-  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15 },
+  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', ...onTier(2) },
   spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34 },
   warlords_torc:     { n: "Warlord's Necklace",icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52 },
   dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86 },
@@ -185,11 +185,11 @@ export const SLOT_ITEMS = withGearStats({
      ring rungs are roughly half the necklace's.                             */
   /* CRAFTED NOW (src/data/jewelry.js, the designer's spec 2026-11-05): plain pieces read for EVERY style, +2 +2, since a bow or a
      wand drew nothing from a ring that paid melee only. Its Fine and Hallmarked rows copy this row. */
-  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15 },
+  banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', ...onTier(2) },
   /* THE TIER 3 RING (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18): Smithing 30 makes it from Steel Bars, and a Seam Jasper, the
      Warrens' gem, is set in it. Every style a point more than the Banded Signet, as that one is for all three. A Hallmarked Banded Signet
      reforges into one (src/data/jewelry.js REFORGE_OFFERS). */
-  seam_jasper_band:  { n: 'Seam Jasper Band',  icon: '💍', v: priced(200, 3), type: 'jewelry', slot: 'ring', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30 },
+  seam_jasper_band:  { n: 'Seam Jasper Band',  icon: '💍', v: priced(200, 3), type: 'jewelry', slot: 'ring', tier: 3, rarity: 'rare',      reqSkill: 'level', ...onTier(3) },
   ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52 },
   /* The second scroll the code has been waiting for: `spellstone_diagram` →
      `spellstone_ring`, same b145 note, same three steps. Magic-flavoured

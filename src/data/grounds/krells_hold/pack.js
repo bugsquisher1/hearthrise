@@ -226,7 +226,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 5], 3: [-45, -10, -5], 4: [-55, -30, -25, -25] }, dangerous: { 2: [-30, 20], 3: [-25, 25, 30], 4: [-30, 15, 20, 25] }, deadly: { 2: [-10, 55], 3: [0, 60, 70], 4: [-15, 35, 45, 45] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-50, -15, -10], 4: [-60, -35, -30, -30] }, dangerous: { 2: [-25, 30], 3: [-25, 25, 30], 4: [-30, 15, 20, 25] }, deadly: { 2: [-20, 30], 3: [-15, 35, 40], 4: [-30, 15, 25, 25] } },
   /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 89 (the designer's Q4 2026-11-12 "Deadly keeps six, bring a Healer", checks.deadlyFourNeeds below;
      the page says it since lane/a-honesty-rescue 2026-11-18). MEASURED on set/v0.2.139 (Deadly: pull 6, blows 1330, HP 1150), the ladder kit, 6 seeds
      x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage: Level 85 (the floor) 6.7 / 0, 88 1 / 0,

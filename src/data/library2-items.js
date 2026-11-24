@@ -57,6 +57,7 @@
 
 import { MAX_BANE_MULT } from './core-model.js';
 import { withGearStats } from './gear-profiles.js';
+import { onTier } from './gear-tiers.js';
 
 /* The generator's own value expression, so a hand-authored rung and a generated
    one can never price differently. Kept local rather than exported from
@@ -83,7 +84,7 @@ const BANE_GEAR = {
   lazlos_maul: {
     n: "Lazlo's Maul", icon: '🔨', v: priced(110, 4), type: 'weapon', slot: 'weapon',
     weaponType: 'hammer', tier: 4, rarity: 'epic',
-    reqSkill: 'level', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
+    reqSkill: 'level', ...onTier(4), bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   // ITEM-NEW-04 · sword T2 · vs Plant. Sword T2 curve (7/6) × 0.85. Cheap and
@@ -91,7 +92,7 @@ const BANE_GEAR = {
   bramble_blade: {
     n: 'Bramble Blade', icon: '⚔️', v: priced(100, 2), type: 'weapon', slot: 'weapon',
     weaponType: 'sword', tier: 2, rarity: 'uncommon',
-    reqSkill: 'level', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
+    reqSkill: 'level', ...onTier(2), bane: BANE('plant'), effects: ['bane'],
   },
   // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Named the Banishing Censer (lane/named-pieces 2026-11-23: "Void" is a filler word). Staff T5 curve (21/29) × 0.85.
   // The review book also gives it "reveals the hidden element weakness"; that is
@@ -101,7 +102,7 @@ const BANE_GEAR = {
   void_censer: {
     n: 'Banishing Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
     weaponType: 'magic',
-    tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 60,
+    tier: 5, rarity: 'legendary', reqSkill: 'level', ...onTier(5),
     /* a censer is a healer's tool: Restoration (roadmap p23, m03) */
     discipline: 'restoration',
     bane: BANE('extra_dimensional'), effects: ['bane'],
@@ -110,7 +111,7 @@ const BANE_GEAR = {
   rat_stick: {
     n: 'Rat Stick', icon: '🔨', v: priced(110, 3), type: 'weapon', slot: 'weapon',
     weaponType: 'hammer', tier: 3, rarity: 'rare',
-    reqSkill: 'level', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
+    reqSkill: 'level', ...onTier(3), bane: BANE('vermin'), effects: ['bane'],
   },
 };
 
@@ -135,13 +136,14 @@ const BANE_GEAR = {
 const chitin = (slot, vmul) => ({
   n: 'Chitin ' + slot.label, icon: '🪲', v: priced(vmul, 4, 0.70), type: 'armor',
   slot: slot.slot, armourClass: 'leather', rarity: 'epic', tier: 4,
-  reqSkill: 'level', reqLv: 45, statsAs: 'snakeskin_' + slot.slot,
+  /* worn as its base is (a twin is its base's piece: src/data/items.js ITEM_LEVELS, 12-targets 8.3) */
+  reqSkill: 'level', statsAs: 'snakeskin_' + slot.slot,
 });
 /* Plate T5: the Rune piece of its slot, to the number (`statsAs`, as above). */
 const watch = (slot, vmul) => ({
   n: 'Watchknight ' + slot.label, icon: '🛡️', v: priced(vmul, 5), type: 'armor',
   slot: slot.slot, armourClass: 'plate', rarity: 'legendary', tier: 5,
-  reqSkill: 'level', reqLv: 60, statsAs: 'rune_' + slot.key,
+  reqSkill: 'level', statsAs: 'rune_' + slot.key,
   /* The review book's set identity is "damage taken WHILE AWAY reduced". That
      needs src/core/away.js AWAY_SCOPE and is not built, so it is declared and
      dormant. The pieces still ship PLAYABLE because they are honest plate at

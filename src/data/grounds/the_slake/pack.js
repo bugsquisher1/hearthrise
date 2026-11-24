@@ -202,7 +202,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.68, threes 0.46-0.64, fours 0.18-0.51), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.15, threes 1.00-1.09, the four 1.09); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-50, -15, -10], 4: [-60, -30, -30, -25] }, dangerous: { 2: [-30, 20], 3: [-30, 15, 20], 4: [-35, 5, 10, 10] }, deadly: { 2: [-25, 25], 3: [-25, 25, 30], 4: [-30, 15, 20, 20] } },
+  partyVsAlone: { normal: { 2: [-45, -5], 3: [-55, -25, -20], 4: [-65, -40, -40, -35] }, dangerous: { 2: [-35, 15], 3: [-35, 10, 15], 4: [-40, -5, 0, 5] }, deadly: { 2: [-30, 15], 3: [-30, 10, 20], 4: [-40, 0, 5, 5] } },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g
      an HP. The tier-4 Swordfish is 1.50). The melee line holds about three hours of a lone tank's bill at the floor (6.3k g an
      hour, drop-tables). */

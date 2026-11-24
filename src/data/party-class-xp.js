@@ -106,17 +106,19 @@ export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 16
    order, as one player's heroes enter live (tests/hunt-core/fixtures/play-ground.mjs memberKey; it entered by role name), and the bow's default set casts
    Flame Volley (rule-subjects.js). Most moved cells moved 5 points; the most, 10 (the Warrens' Deadly three of three +45 -> +35, the Glade's Deadly
    four +40 -> +35, the Catacombs' Deadly pair +40 -> +50). Every harder-tier mix still reads at or over its heroes alone, every Deadly four under
-   2.5x the contract. Still the plain harness hero on both sides of each line (the board's fix 1 moved the balance tables to the played hero, not these). */
+   2.5x the contract. Still the plain harness hero on both sides of each line (the board's fix 1 moved the balance tables to the played hero, not these).
+   RE-WRITTEN 2026-11-23 (lane/gear-phase-b, party-class-xp-line --table --mixed --write, 3 seeds): 12-targets 8.3 moved every ladder kit's item
+   Level, so the lines moved by 5 to 10 a cell; the Glade's Deadly four +60 -> +50 (first-week-bands vs-alone measured +48). */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 /* a ground's lines, one per tier it offers: { normal: said(..), dangerous: said(..), deadly: said(..) } */
 const lines = (byTier) => Object.freeze(Object.fromEntries(Object.entries(byTier).map(([tier, l]) => [tier, said(l[2], l[3], l[4])])));
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: lines({ normal: said([-55, -30], [-70, -45, -40], [-80, -60, -60, -60]) }),
-  meadowbrook_thicket: lines({ normal: said([-50, -10], [-55, -25, -20], [-65, -40, -40, -35]), dangerous: said([-45, -10], [-55, -25, -20], [-65, -40, -40, -35]), deadly: said([-45, -5], [-50, -20, -15], [-65, -40, -40, -35]) }),
-  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]), dangerous: said([-50, -10], [-55, -25, -20], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -25, -20], [-60, -35, -35, -30]) }),
-  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, 0], [-55, -25, -20, -20]), dangerous: said([-30, 15], [-30, 10, 15], [-40, 0, 5, 10]), deadly: said([15, 95], [10, 75, 85], [-10, 45, 55, 60]) }),
-  millrace_sewer: lines({ normal: said([-40, 10], [-35, 10, 15], [-45, 5, 10, 10]), dangerous: said([-30, 20], [-30, 15, 25], [-35, 10, 15, 20]), deadly: said([-35, 15], [-30, 15, 25], [-30, 10, 20, 20]) }),
-  coppercap_warrens: lines({ normal: said([-30, 20], [-25, 25, 30], [-30, 20, 25, 30]), dangerous: said([-25, 25], [-20, 30, 35], [-25, 25, 35, 35]), deadly: said([-25, 30], [-15, 35, 45], [-20, 30, 40, 40]) }),
+  mill_cellar: lines({ normal: said([-60, -30], [-70, -50, -45], [-80, -65, -60, -60]) }),
+  meadowbrook_thicket: lines({ normal: said([-45, -5], [-55, -20, -15], [-65, -35, -35, -30]), dangerous: said([-45, -10], [-55, -25, -20], [-60, -35, -35, -35]), deadly: said([-45, -10], [-55, -25, -20], [-60, -40, -35, -35]) }),
+  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-50, -10], [-55, -25, -20], [-60, -40, -35, -35]), deadly: said([-45, -10], [-55, -25, -20], [-60, -35, -30, -30]) }),
+  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 10, 20], [-40, 0, 5, 10]), deadly: said([10, 85], [0, 65, 75], [-15, 40, 45, 50]) }),
+  millrace_sewer: lines({ normal: said([-35, 10], [-35, 15, 25], [-45, 5, 15, 15]), dangerous: said([-30, 25], [-25, 25, 30], [-30, 10, 20, 20]), deadly: said([-30, 15], [-25, 20, 25], [-30, 15, 20, 20]) }),
+  coppercap_warrens: lines({ normal: said([-25, 25], [-20, 30, 35], [-30, 20, 25, 30]), dangerous: said([-25, 25], [-20, 30, 40], [-25, 20, 30, 30]), deadly: said([-30, 20], [-20, 25, 35], [-25, 25, 30, 35]) }),
 });
 /* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */
 /* Then the Catacombs' wings (src/data/catacomb-wings.js `partyVsAlone`): rooms of the Unmarked Catacombs, carrying its lines until each wing is

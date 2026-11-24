@@ -715,7 +715,7 @@ export const MONSTERS = {
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is only a quarter off, not the vermin half. */
     elements: { frost: -15, poison: 25 },
-    hp: 120, atk: 7, aim: 20, evasion: 27, def: 6, xp: 317, gp: [16, 46], formula: true, speed: 3600,
+    hp: 120, atk: 7, aim: 20, evasion: 26, def: 6, xp: 317, gp: [16, 46], formula: true, speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
   kobold_tosher: { name: 'Sewer Kobold', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 70, atk: 7, aim: 17, evasion: 15, def: 1, xp: 135, gp: [9, 27], formula: true, speed: 3200,
@@ -746,7 +746,7 @@ export const MONSTERS = {
      Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
      Cellar's 1,738 (forest-cave, 6-seed median), with this coin 1,777.5. Coin is the lever: the bill is coin, the Gray Wolf the most killed. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
-    hp: 19, atk: 4, aim: 22, evasion: 11, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,
+    hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,
     drops: [{ id: 'raw_wolf_meat', ch: .375, band: 'common' }, { id: 'bones', ch: .375, band: 'common' }, { id: 'gray_dewclaw', ch: .06, band: 'uncommon' },
       { id: 'bronze_helm', ch: .00675, band: 'scarce' }, { id: 'leather_helmet', ch: .00675, band: 'scarce' }, { id: 'apprentice_helmet', ch: .00675, band: 'scarce' },
       { id: 'leather_belt', ch: .0005, band: 'rare' }, { id: 'apprentice_belt', ch: .0005, band: 'rare' }] },
@@ -764,7 +764,7 @@ export const MONSTERS = {
       { id: 'studded_body', ch: .00225, band: 'rare' }, { id: 'den_knot', ch: .00202, band: 'rare' }] },
   grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
-    hp: 38, atk: 4, aim: 29, evasion: 25, def: 5, xp: 112, gp: [4, 13], formula: true, speed: 3200,
+    hp: 38, atk: 4, aim: 29, evasion: 24, def: 5, xp: 112, gp: [4, 13], formula: true, speed: 3200,
     drops: [{ id: 'wolf_pelt', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'grayjaw_whisker', ch: .112, band: 'uncommon' },
       { id: 'alpha_fang', ch: .00225, band: 'rare' }, { id: 'iron_helm', ch: .00225, band: 'rare' }, { id: 'studded_helmet', ch: .00225, band: 'rare' },
       { id: 'adept_helmet', ch: .00225, band: 'rare' }, { id: 'grayjaws_ruff', ch: .00225, band: 'rare' }] },
@@ -859,18 +859,18 @@ export const MONSTERS = {
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 33, atk: 13, aim: 61, evasion: 17, def: 1, xp: 101, gp: [5, 14], formula: true, speed: 4400,
+    hp: 33, atk: 13, aim: 61, evasion: 16, def: 1, xp: 101, gp: [5, 14], formula: true, speed: 4400,
     drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0103, band: 'scarce' }, { id: 'studded_boots', ch: .0103, band: 'scarce' }, { id: 'adept_boots', ch: .0103, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
-    hp: 29, atk: 15, aim: 77, evasion: 16, def: 1, xp: 114, gp: [4, 13], formula: true, speed: 3400,
+    hp: 29, atk: 15, aim: 77, evasion: 15, def: 1, xp: 114, gp: [4, 13], formula: true, speed: 3400,
     /* a volley down a line of tiles, on the glass poacher (not Rook): it dies fast, so it casts in few Normal fights (lane/d-spell-tuning) */
     spells: ['poachers_volley'],
     drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
       { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }, { id: 'houndskin_cloak', ch: .0018, band: 'rare' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
-    hp: 52, atk: 12, aim: 51, evasion: 25, def: 5, xp: 199, gp: [8, 23], formula: true, speed: 2400,
+    hp: 52, atk: 12, aim: 51, evasion: 24, def: 5, xp: 199, gp: [8, 23], formula: true, speed: 2400,
     spells: ['spore_cloud'],
     drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'pithwood', ch: .5, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' },
       { id: 'oak_staff', ch: .019, band: 'scarce' }, { id: 'mosslight_clump', ch: .0013, band: 'rare' }] },
@@ -907,7 +907,7 @@ export const MONSTERS = {
   barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 18, atk: 5, aim: 29, evasion: 12, def: 0, xp: 60, gp: [2, 8], formula: true, speed: 4600,
+    hp: 18, atk: 5, aim: 29, evasion: 13, def: 0, xp: 60, gp: [2, 8], formula: true, speed: 4600,
     /* the helmets .0231 to .0247 (lane/d-harder-monsters, 2026-11-19): with the formula's tenth more HP the floor hero met fewer wasps, a helmet every 1.55 h (the band is 0.75-1.5) */
     drops: [{ id: 'venom_sac', ch: .193, band: 'common' }, { id: 'dry_husk', ch: .308, band: 'common' }, { id: 'barn_wasp_sting', ch: .0616, band: 'uncommon' },
       { id: 'bronze_helm', ch: .0247, band: 'scarce' }, { id: 'leather_helmet', ch: .0247, band: 'scarce' }, { id: 'apprentice_helmet', ch: .0247, band: 'scarce' },

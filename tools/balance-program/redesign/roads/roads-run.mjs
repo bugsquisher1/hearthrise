@@ -80,6 +80,9 @@ const HOW = {
   turning_cut: { family: null, after: 'challenge', cond: AOE(2) },
   raking_shot: { family: null, after: 'turning_cut', cond: AOE(2) },
   circle_of_renewal: { family: 'water', after: 'power_strike', cond: [{ op: 'gte', value: 2, metric: 'allies_below', subject: 'under_90' }] },
+  /* lane/roads-wave3: the wave-3 town moves on their own starting rules (abilities.js `trigger`, the area rule) */
+  stagger: { family: 'earth', after: 'turning_cut', cond: ABILITIES.stagger.trigger },
+  gash: { family: 'rupture', after: 'turning_cut', cond: AOE(2) },
   /* E3's samples (e3-lab.json): an aura move holds while slotted; Warm Stone takes the ally-shield target rule (an ally under 70%, unshielded) */
   t_open_fire: { family: null, after: 'greater_mend', cond: [] },
   t_open_fire_whole: { family: null, after: 'greater_mend', cond: [] },
@@ -138,6 +141,9 @@ const PLANS = {
     /* lane/roads-v0-remeasure: Protective Ward at its native 7 tiles, and Challenge taunting from the hammer (17's "from any seat") */
     cellOf('N+PW@sw:reach7', 'N', [[3, 'protective_ward', 'engine', 0]]),
     cellOf('M', 'M'), cellOf('M+CH@ham', 'M', [[0, 'challenge', 'engine', 0]])],
+  /* V0 OF WAVE 3'S TOWN MOVES (lane/roads-wave3, 18 section 7's method): Stagger on the sword in S (no hammer), Gash on the hammer in M
+     (no axes), each by the engine's own borrow */
+  v0w3: [cellOf('S', 'S'), cellOf('S+ST@sw', 'S', [[0, 'stagger', 'engine', 0]]), cellOf('M', 'M'), cellOf('M+GA@ham', 'M', [[0, 'gash', 'engine', 0]])],
   /* Q5: one cell, timed */
   time: [cellOf('M', 'M')],
   /* E3 (lane/e2-e3-statuses): Open Fire on the healer as sized (build slice, ramped) and whole, and Warm Stone on the hammer (pm null: the row as it is) */

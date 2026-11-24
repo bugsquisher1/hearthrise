@@ -22,7 +22,12 @@
 // monster and the pay, so it is chosen, never measured (moved, the monsters move with it and the four holds the same distance over it).
 // Given that anchor (`anchorStep`), the cut keeps it as refStep, caps the top at anchor + PAY.gapMax (the pay stops there), and the MID
 // four's hold, cut as refStep would be, is `refHeld`: the bridge's middle point (src/core/bands.js refHeldOf), so the reference company
-// reads its own share of the band. A ground on its rows needs no refHeld: its refStep is that hold.
+// reads its own share of the band. A formula ground whose anchor is its own DANGER_GROUNDS formulaStep (lane/monster-roles-ford-wings:
+// the wings' company holds 60 to 80 steps under the anchor, so the pay reads the hold) has its refStep cut from the hold like a rows
+// ground's: anchorOf names the anchor a cut keeps, or none. THE READING'S MIDDLE is the hold at the band's own grain (BAND_RULE.topTo),
+// not the pay's (refTo): on the Flooded Wing's narrow top (15 steps for 9 depths) the pay's rounding, 453.5 to 450, read the reference
+// four 2 depths deep (bands BD-9). refHeld is pinned wherever that hold is not refStep. Three readers, two overrides: the pay reads
+// refStep, the monsters formulaStep ?? refStep, the depth reading refHeld ?? refStep.
 // The floor needs the LOW cell: no band is cut without it. C-3 (12-targets: Steady dies never) is the open gate: any death in any of
 // the three cells holds the ground off.
 // ════════════════════════════════════════════════════════════════════════
@@ -57,24 +62,28 @@ export const floorOf = (F, rule, topStep, depths) => Math.floor((lowestSeed(F) -
 /**
  * The band from three reports: `ref` (MID kits, middle Level), `top` (BIS kits, top Level), `floor` (LOW kits, entry Level).
  * `pay` is danger.js PAY, `depths` danger.js DEPTHS, `rule` danger.js BAND_RULE. `anchorStep`: a formula ground's chosen refStep (above),
- * kept, with the MID four's hold as refHeld. Returns { band, verdict, notes, info, cells }.
+ * kept. refHeld: the MID four's hold at the band's grain where it is not refStep. Returns { band, verdict, notes, info, cells }.
  */
+/** The refStep a cut keeps for a DANGER_GROUNDS row (above): a formula ground's, unless its formulaStep anchors the monsters apart from
+    it. Null: the cut measures refStep from the MID four's hold. */
+export const anchorOf = (row) => (row && row.monsters === 'formula' && !Number.isInteger(row.formulaStep) ? row.refStep : null);
+
 export function bandFromReports({ ref, top, floor }, pay, depths, rule, abs = null, { anchorStep = null } = {}) {
   if (!floor) throw new Error('bandFromReports: no LOW cell (the floor is where a fresh company at the entry Level holds, 12-targets 3.1)');
   if (!rule || ![rule.floorUnder, rule.floorTo, rule.refTo, rule.topTo].every((x) => Number.isInteger(x) && x >= 0) || !(rule.floorTo > 0 && rule.refTo > 0 && rule.topTo > 0)) throw new Error('bandFromReports: no band rule (src/data/danger.js BAND_RULE)');
   if (anchorStep !== null && !Number.isInteger(anchorStep)) throw new Error('bandFromReports: the anchor ' + anchorStep + ' is not a whole step');
   const R = steadyCell(ref), T = steadyCell(top), F = steadyCell(floor);
-  const held = round(R.held.mean, rule.refTo);
+  const held = round(R.held.mean, rule.refTo), heldAt = round(R.held.mean, rule.topTo);
   const refStep = anchorStep === null ? held : anchorStep;
   const topStep = Math.min(round(T.held.mean, rule.topTo), refStep + pay.gapMax);
   const floorStep = floorOf(F, rule, topStep, depths);
   const kills = round(R.killsPerH / 4, 5);
-  const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}), ...(anchorStep === null ? {} : { refHeld: held }) };
+  const band = { refStep, floorStep, topStep, ...(kills > pay.refKillsHead ? { refKillsHead: kills } : {}), ...(heldAt === refStep ? {} : { refHeld: heldAt }) };
   const notes = [], info = [];
   const deaths = [['MID', R], ['BIS', T], ['LOW', F]].filter(([, c]) => c.deaths > 0);
   for (const [k, c] of deaths) notes.push('C-3: the ' + k + ' four died ' + c.deaths + ' times at Level ' + c.L + ' (Steady must not die)');
   if (!(floorStep < refStep && refStep < topStep)) notes.push('the band is not floor < ref < top (' + floorStep + ' / ' + refStep + ' / ' + topStep + '): the LOW four holds at or over the MID four, so the Level band reads too narrow');
-  else if (anchorStep !== null && !(floorStep < held && held < topStep)) notes.push('the reference four holds ' + held + ', outside the band ' + floorStep + '..' + topStep + ': the depth reading has no middle point');
+  else if (!(floorStep < heldAt && heldAt < topStep)) notes.push('the reference four holds ' + heldAt + ', outside the band ' + floorStep + '..' + topStep + ': the depth reading has no middle point');
   else if (topStep - floorStep < depths - 1) notes.push('the band ' + floorStep + '..' + topStep + ' is under one step a depth');
   if (T.held.mean > refStep + pay.gapMax) info.push('the BIS four held ' + T.held.mean + ', past refStep + gapMax: the top is the pay cap, not the four');
   /* (own steps cut evenly: the wave-1 reading; with the absolute band the game cuts depths in absolute steps, src/core/bands.js depthAt) */
@@ -119,7 +128,7 @@ function stable(v) {
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().filter((k) => v[k] !== undefined && typeof v[k] !== 'function').map((k) => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
   return JSON.stringify(v === undefined ? null : v);
 }
-export function packPrint(ground, monsters, monstersOn, switchOf = null) {
+export function packPrint(ground, monsters, monstersOn, switchOf = null, formulaStep = null) {
   if (!ground) throw new Error('packPrint: no ground row');
   const shape = {
     route: ground.route,
@@ -128,6 +137,10 @@ export function packPrint(ground, monsters, monstersOn, switchOf = null) {
     /* THE MONSTERS' SWITCH (src/data/danger.js DANGER_GROUNDS `monsters`, lane/monster-formula): a ground on the formula plays other numbers
        than its rows, so the print carries it; on its rows (or with no switch named) the print is what it always was */
     ...(switchOf === 'formula' ? { monsters: 'formula' } : {}),
+    /* THE FORMULA'S ANCHOR (DANGER_GROUNDS `formulaStep`, lane/monster-roles-ford-wings; src/core/hunt/danger.js formulaStepOf): where a
+       formula ground's monsters stand on its own steps, so a moved anchor moves every hold the band was cut from. A row with none anchors at
+       its refStep, which the band itself carries */
+    ...(switchOf === 'formula' && Number.isInteger(formulaStep) ? { formulaStep } : {}),
   };
   const ids = [...monstersOn(ground)].sort();
   const rows = Object.fromEntries(ids.map((id) => [id, Object.fromEntries(Object.entries(monsters[id] || { missing: true }).filter(([k]) => !MONSTER_WORDS.has(k)))]));

@@ -34,6 +34,10 @@
 //   loot    (lane/foundations-block) LOOT FOLLOWS DEPTH: the dial's dropPm is 1000 at the reference step, an hour a step deeper drops
 //           (1 + payStepLoot) more of the kill's table (the pull's share paid back), never under PAY.floor of it below the reference; a
 //           kill's drop rolls read it (a row's chance x dropPm / 1000, a certainty untouched, never past one roll a kill); off the scale none.
+//           Read on every scale ground, each on its monster formula: its loot follows the pull it fights (lane/monster-roles-ford-wings).
+//   rowskept (lane/monster-roles-ford-wings) ROWS KEPT IN THEIR HOURS: a ground whose rows were written at another kill rate
+//           (DANGER_GROUNDS rowsKillsHead) pays each kill that rate over its reference kills of its row's coin and of its drop table, at
+//           every step and party size; a ground with none pays its as-built share and the table as written.
 //   ledger  (lane/ledger-l1-l3, 19-power-ledger.md L1) THE LEDGER'S CLAMP: the slice caps at Levels 10, 30, 60, 200 and 400
 //           (src/core/power-ledger.js on src/data/power-ledger.js), no ramp on what a hero finds, gains-only and signed slices, one key,
 //           an ally's party row, the closed clan slice, and the engine's power step reading the clamped steps both ways on the scale only.
@@ -214,6 +218,14 @@ const CASES = {
     if (under.w.packs[0].aggro || under.m.target !== null || under.m.hp !== under.m.maxHp) return 'the broken-off pack still fights: aggro ' + under.w.packs[0].aggro + ', target ' + under.m.target + ', HP ' + under.m.hp + '/' + under.m.maxHp;
     if (under.w.danger !== 200 - CLIMB.fallSteps) return 'the break-off left the step at ' + under.w.danger + ', not ' + (200 - CLIMB.fallSteps);
     if (!under.sc.events.some((e) => e.type === 'danger' && e.why === 'fall') || !under.sc.events.some((e) => e.type === 'pack_reset')) return 'the break-off told nobody: ' + JSON.stringify(under.sc.events.map((e) => e.type));
+    /* BOLD FIGHTS THE PULL TO THE END (RISKS.bold.breakOff false): under its line the pull goes on; the line is read when it ends */
+    const bd = RISKS.bold;
+    if (bd.breakOff !== false) return 'fixture: Bold breaks off (breakOff ' + bd.breakOff + ')';
+    const bold = run('bold', bd.fallPm - 1);
+    if (bold.w.phase !== 'fight' || !bold.w.packs[0].aggro) return 'Bold under its line (' + (bd.fallPm - 1) + ') broke the pull off (' + bold.w.phase + ')';
+    const bi = instOf(M, bold.w), bsc = subStep(0);
+    M.danger.pullEnds(bi, bsc, true);
+    if (bold.w.danger !== 200 - CLIMB.fallSteps) return 'Bold ending a pull under its line left the step at ' + bold.w.danger + ', not a fall back to ' + (200 - CLIMB.fallSteps);
     const dead = run('steady', 0);
     if (dead.w.phase !== 'regroup' || dead.w.danger !== Math.max(0, 200 - CLIMB.deathSteps)) return 'a death in the pull left phase ' + dead.w.phase + ' and step ' + dead.w.danger;
     /* no monster swings once a hero is under the line, even in the sub-step before the break-off */
@@ -448,9 +460,13 @@ const CASES = {
       }
     }
     /* coin: a ground with a reference step (the fixture's pockets under Muster's id), far under it, pays the pull's share x the floor */
-    const gm = groundRow({ id: 'hasks_ford' }); /* a ground on its rows (lane/tuning-pass: Muster plays the formula) */
+    /* (Muster's id: its rows are written at its own kill rate, no rowsKillsHead; the case rowskept reads a ground that keeps another's) */
+    const gm = groundRow({ id: 'muster_barrows' });
     const d = M.danger.dangerDial(gm, 0), d1 = M.danger.dangerDial(gm, ref);
-    const share = (x) => x.hpPm / (1000 * Math.pow(1 + M.dangerData.DANGER.powerStep, x.step));
+    /* the AS-BUILT pull's share, the one a kill's coin keeps on either monster switch (a formula ground's pull is sized to the party, its coin
+       is not: lane/monster-formula; every scale ground plays the formula since lane/monster-roles-ford-wings) */
+    const { DANGER } = M.dangerData, n0 = gm.route.reduce((a, p) => a + gm.pockets[p].spawns.length, 0) / gm.route.length;
+    const share = (x) => n0 / Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, x.step))));
     if (Math.abs(d.coinPm / (PAY.coinPm * share(d)) - PAY.floor) > 1e-9) return 'step 0 on Muster pays coin x' + d.coinPm / (PAY.coinPm * share(d)) + ', not the floor';
     if (Math.abs(d1.coinPm / (PAY.coinPm * share(d1)) - 1) > 1e-9) return 'the reference step pays coin x' + d1.coinPm / (PAY.coinPm * share(d1));
     return null;
@@ -553,26 +569,65 @@ const CASES = {
     if (peer.skillGapPm !== behind.skillGapPm) return 'the browser\'s peer fights at a skill gap of ' + peer.skillGapPm + ', the server\'s ' + behind.skillGapPm;
     return null;
   },
+  /* (lane/monster-roles-ford-wings) ROWS KEPT IN THEIR HOURS: a ground whose rows were written at another kill rate (DANGER_GROUNDS
+     rowsKillsHead: Hask's Ford's, on its hand rows, which the tier path still plays) pays every kill rowsKillsHead / its reference kills of
+     its row's coin and of its drop table, at every step and party size, so its hour's coin and loot stand where its rows were written; a
+     ground with none pays exactly the as-built share and the table as written (x 1) */
+  rowskept(M) {
+    const { DANGER, DANGER_GROUNDS, PAY } = M.dangerData;
+    const COIN = (1 + M.wageData.WAGE.payStepCoin) * (1 + DANGER.powerStep) - 1;
+    let kept = 0;
+    for (const [gid, row] of Object.entries(DANGER_GROUNDS)) {
+      const g = M.grounds.HUNT_GROUNDS[gid];
+      if (!g) return 'CONTROL: scale ground ' + gid + ' has no ground row';
+      const n0 = g.route.reduce((a, p) => a + g.pockets[p].spawns.length, 0) / g.route.length;
+      const want = Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead / (Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead) : 1;
+      if (want !== 1) kept++;
+      for (const s of [0, row.floorStep, row.refStep, row.topStep]) {
+        const pull = Math.max(1, Math.min(DANGER.pullMax, Math.round(n0 * Math.pow(1 + DANGER.pullStep, s))));
+        const base = (n0 / pull) * M.danger.gapPayRatio(Math.min(PAY.gapMax, row.topStep - row.refStep, s - row.refStep), COIN) * PAY.coinPm;
+        for (const h of [1, 4]) {
+          const got = M.danger.dangerDial(g, s, h).coinPm / base;
+          if (Math.abs(got - want) > 1e-9) return gid + ' at step ' + s + ' (' + h + ' heroes) pays a kill x' + got + ' of its row\'s coin, its rows are kept at x' + want;
+        }
+        /* its drop table at the reference step, for a lone hero and a four: the table as written, x the same ratio */
+        for (const h of [1, 4]) {
+          const dropAt = M.danger.dangerDial(g, row.refStep, h).dropPm / 1000;
+          if (Math.abs(dropAt - want) > 1e-9) return gid + ' at its reference step (' + h + ' heroes) drops x' + dropAt + ' of its table, its rows are kept at x' + want;
+        }
+      }
+    }
+    if (!kept) return 'CONTROL: no scale ground keeps rows written at another kill rate';
+    return null;
+  },
   loot(M) {
     const { DANGER, DANGER_GROUNDS, PAY } = M.dangerData;
-    const g = M.grounds.HUNT_GROUNDS.hasks_ford, row = DANGER_GROUNDS.hasks_ford; /* a ground on its rows (Muster plays the formula, whose pull sizes to the party: lane/tuning-pass) */
-    const d = (s) => M.danger.dangerDial(g, s);
-    if (Math.abs(d(row.refStep).dropPm - 1000) > 1e-9) return 'the reference step drops ' + d(row.refStep).dropPm + ' permille of the table, not the table';
-    /* an hour's loot: dropPm x the pull's size (a pull's length grows by the step's health, paid back in the ratio) */
-    const hour = (s) => d(s).dropPm * d(s).pull[0];
-    const want = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep);
-    for (let s = row.refStep; s < row.topStep; s++) {
-      const got = hour(s + 1) / hour(s);
-      if (Math.abs(got - want) > 1e-9) return 'step ' + s + ' to ' + (s + 1) + ': a pull\'s loot grew x' + got + ', not x' + want;
-    }
-    /* under the reference, an hour's loot is the depth ratio exactly, floored, whatever the pull's size (Muster's pull changes size here) */
+    /* EVERY SCALE GROUND, each on its monster formula (lane/monster-roles-ford-wings): its pull is sized to the party, and its loot follows
+       THAT pull, as a hand ground's follows its as-built one (a formula ground read the as-built pull until this lane: an hour's loot jumped
+       where the two pulls round apart, Muster under 547, the Ford under 579) */
     let sizes = 0;
-    for (let s = row.floorStep; s < row.refStep; s++) {
-      if (d(s + 1).pull[0] !== d(s).pull[0]) sizes++;
-      const r = hour(s) / hour(row.refStep), want2 = Math.max(PAY.floor, 1 / Math.pow(want, row.refStep - s));
-      if (Math.abs(r / want2 - 1) > 1e-6) return 'step ' + s + ' under the reference drops x' + r + ' of the reference pull\'s loot, want x' + want2;
+    for (const [gid, row] of Object.entries(DANGER_GROUNDS)) {
+      const g = M.grounds.HUNT_GROUNDS[gid];
+      if (!g) return 'CONTROL: scale ground ' + gid + ' has no ground row';
+      const d = (s) => M.danger.dangerDial(g, s);
+      /* (a ground whose rows were written at another kill rate drops that ratio more of them at every step: the case rowskept) */
+      const kept = Number.isInteger(row.rowsKillsHead) ? row.rowsKillsHead / (Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead) : 1;
+      if (Math.abs(d(row.refStep).dropPm / kept - 1000) > 1e-9) return gid + ': the reference step drops ' + d(row.refStep).dropPm + ' permille of the table, not the table x' + kept;
+      /* an hour's loot: dropPm x the pull's size (a pull's length grows by the step's health, paid back in the ratio) */
+      const hour = (s) => d(s).dropPm * d(s).pull[0];
+      const want = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep);
+      for (let s = row.refStep; s < row.topStep; s++) {
+        const got = hour(s + 1) / hour(s);
+        if (Math.abs(got - want) > 1e-9) return gid + ': step ' + s + ' to ' + (s + 1) + ': a pull\'s loot grew x' + got + ', not x' + want;
+      }
+      /* under the reference, an hour's loot is the depth ratio exactly, floored, whatever the pull's size */
+      for (let s = row.floorStep; s < row.refStep; s++) {
+        if (d(s + 1).pull[0] !== d(s).pull[0]) sizes++;
+        const r = hour(s) / hour(row.refStep), want2 = Math.max(PAY.floor, 1 / Math.pow(want, row.refStep - s));
+        if (Math.abs(r / want2 - 1) > 1e-6) return gid + ': step ' + s + ' under the reference drops x' + r + ' of the reference pull\'s loot, want x' + want2;
+      }
     }
-    if (!sizes) return 'CONTROL: Muster\'s pull never changes size under its reference';
+    if (!sizes) return 'CONTROL: no scale ground\'s pull changes size under its reference';
     /* the kill's rolls read it: a row's chance x dropPm / 1000, a certainty untouched, never over 0.95 */
     const asked = [];
     const rng = { chance: (pp) => { asked.push(pp); return false; }, int: (a) => a };
@@ -749,9 +804,15 @@ const MUTANTS = [
   { name: 'the snapshot reads the skill, not its Level on the line', case: 'skill', edits: [['src/core/member.js', 'const skillGapPm = skillLv === null ? 0 : skillLv - 1000 * level;', 'const skillGapPm = 0;']] },
   { name: 'the unit never carries the skill part', case: 'skill', edits: [['src/core/combat-sim.js', '  u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;\n', '']] },
   { name: 'the browser\'s peer fights on its line', case: 'skill', edits: [['src/core/member.js', '      skillGapPm: snap.skillGapPm || 0,\n', '']] },
-  { name: 'loot does not follow depth', case: 'loot', edits: [['src/core/hunt/danger.js', '  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);', '  dial.dropPm = 1000;']] },
+  { name: 'loot does not follow depth', case: 'loot', edits: [['src/core/hunt/danger.js', 'const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);', 'const dropPmAt = (ground) => 1000 * rowsKeptOf(ground);']] },
+  /* (lane/monster-roles-ford-wings) a ground's rows written at another kill rate are not kept in their hours, or kept upside down */
+  { name: 'coin is never kept at the kill rate it was written for', case: 'rowskept', edits: [['src/core/hunt/danger.js', '  dial.coinPm *= rowsKeptOf(ground);\n', '']] },
+  { name: 'the drop table is never kept at the kill rate it was written for', case: 'rowskept', edits: [['src/core/hunt/danger.js', ' * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);', ' * depthRatio(ground, s, LOOT_STEP);']] },
+  { name: 'rows are kept upside down', case: 'rowskept', edits: [['src/core/hunt/danger.js', 'row.rowsKillsHead / refKillsOf(ground)', 'refKillsOf(ground) / row.rowsKillsHead']] },
+  /* (lane/monster-roles-ford-wings) a formula ground's loot reads the as-built pull, not the one it fights */
+  { name: 'a formula ground\'s loot follows the as-built pull', case: 'loot', edits: [['src/core/hunt/danger.js', '  dial.dropPm = dropPmAt(ground, s, nf, pull);\n', '']] },
   { name: 'loot pays the step a pull, not an hour', case: 'loot', edits: [['src/core/hunt/danger.js', 'const LOOT_STEP = (1 + PAY.payStepLoot) * (1 + DANGER.powerStep) - 1;', 'const LOOT_STEP = PAY.payStepLoot;']] },
-  { name: 'a bigger pull drops more of the table', case: 'loot', edits: [['src/core/hunt/danger.js', '  dial.dropPm = ((1000 * pullAt(n0, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP);', '  dial.dropPm = 1000 * depthRatio(ground, s, LOOT_STEP);']] },
+  { name: 'a bigger pull drops more of the table', case: 'loot', edits: [['src/core/hunt/danger.js', 'const dropPmAt = (ground, s, n, pull) => ((1000 * pullAt(n, refOf(ground))) / pull) * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);', 'const dropPmAt = (ground, s) => 1000 * depthRatio(ground, s, LOOT_STEP) * rowsKeptOf(ground);']] },
   { name: 'the kill\'s rolls never read the depth', case: 'loot', edits: [['src/core/hunt-rewards.js', 'rollDropTable(row.drops, { depthPm, dropMult:', 'rollDropTable(row.drops, { dropMult:']] },
   { name: 'depth scales a certainty', case: 'loot', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch);\n', '']] },
   /* lane/moves-pass-1: the holder's line */
@@ -780,6 +841,7 @@ const MUTANTS = [
   { name: 'a pull is never broken off', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '    } else if (breaksOff(inst)) breakOff(inst, sc);\n', '    }\n']] },
   { name: 'the broken-off pack stays on the party', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', '  for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);\n  for (const h of heroes(inst)) h.target = null;\n', '  for (const h of heroes(inst)) h.target = null;\n']] },
   { name: 'a break-off moves on to the next pocket', case: 'breakoff', edits: [['src/core/hunt/pull-cycle.js', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;\n}', 'w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = true;\n}']] },
+  { name: 'Bold breaks off like Steady', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'dangerOn(inst.world) && RISKS[inst.world.risk].breakOff !== false\n', 'dangerOn(inst.world)\n']] },
   { name: 'the break-off waits for the climb threshold', case: 'breakoff', edits: [['src/core/hunt/danger.js', 'inst.world.low < RISKS[inst.world.risk].fallPm && marginPm(inst) < RISKS[inst.world.risk].fallPm;', 'inst.world.low < RISKS[inst.world.risk].cleanPm && marginPm(inst) < RISKS[inst.world.risk].cleanPm;']] },
   { name: 'a size change puts a jump in the curve', case: 'scale', edits: [['src/core/hunt/danger.js', 'const share = n0 / pull;', 'const share = 1;']] },
   { name: 'the step raises the aim too', case: 'scale', edits: [['src/core/hunt/danger.js', 'aimPm: 1000, lvPm: 1000,', 'lvPm: 1000,']] },

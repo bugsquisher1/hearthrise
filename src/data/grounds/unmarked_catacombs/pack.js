@@ -81,41 +81,52 @@ export default definePack({
       name: 'Shrouded Pauper', icon: '🧟', tier: 6, level: 166, cls: 'undead', family: 'Undead', speed: 3400,
       /* the swarm, the common majority: somebody's grandmother, sewn into a gray sheet and tied at the head and feet, with a wooden tag on the
          wrist. Undead, no override: a hammer breaks them, fire does 15% more. Bones and grave dust for the Hearth, and the tag. */
+      /* THE SWARM (src/data/monster-roles.js; the Danger scale only, so the wings: src/data/catacomb-wings.js) */
+      role: 'swarm',
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' }],
-      hp: 238, atk: 154, aim: 150, evasion: 40, def: 7, xp: 2641, gp: [35, 105], formula: true },
+      hp: 238, atk: 154, aim: 152, evasion: 41, def: 7, xp: 2641, gp: [35, 105], formula: true },
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
       /* the glass: a leech as long as your arm that came in with the river and fed on the vaults for a hundred years. Vermin, one override on the
          weapon axis: it's soft, so a blade opens it (arrows still go through without much). Living and boneless, so no bones. A live leech for
          the shop, and its jaw. */
       weaponWeak: 'sword', weaponResist: ['ranged'],
+      /* THE STALKER (monster-roles.js; the wings): it goes for the hero with the least health */
+      role: 'stalker',
       drops: [{ id: 'live_leech', ch: 0.4, band: 'common' }, { id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
-      hp: 227, atk: 202, aim: 205, evasion: 40, def: 7, xp: 3045, gp: [33, 100], formula: true },
+      hp: 227, atk: 202, aim: 208, evasion: 41, def: 7, xp: 3045, gp: [33, 100], formula: true },
     bone_wall: {
       name: 'Bone Wall', icon: '💀', tier: 6, level: 173, cls: 'construct', family: 'Construct', speed: 2400,
       /* the heavy: a stretch of the ossuary, skulls and long bones the Keepers set in lime to make room, that pulled itself off the wall. A
          Construct, no override: a hammer breaks it, fire does 25% less, ice 15% more. Bone Slide is a marked ring round it as the stack comes down
          (`spells` below): the tank holds, everyone else steps off. Big Bones and Bone Chips, and a lump of the lime. */
+      /* THE BRUTE (monster-roles.js; the wings): it comes down on the front row, and on the formula its Bone Slide is the Brute's wind-up
+         (its own ring and warning, the formula's hit and cooldown) */
+      role: 'brute',
       spells: ['bone_slide'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' }],
-      hp: 371, atk: 150, aim: 129, evasion: 61, def: 42, xp: 4604, gp: [55, 163], formula: true },
+      hp: 371, atk: 150, aim: 131, evasion: 61, def: 42, xp: 4604, gp: [55, 163], formula: true },
     night_carter: {
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of the men who dug in from the Sewer side and sold the unburned dead up the north road by the cartload. Their buyer's
          gone and they're still down here. Human, no override: an arrow drops him, poison does 15% more. He throws a sack of lime over the whole
          party (Lime Sack, `spells` below). The gold he was paid in, and his hook. */
+      /* THE CASTER (monster-roles.js; the wings): the lime goes over the back row, and Lime Sack is the Caster's wind-up on the formula */
+      role: 'caster',
       spells: ['lime_sack'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'carters_hook', ch: 0.08, band: 'uncommon' }],
-      hp: 315, atk: 191, aim: 173, evasion: 45, def: 14, xp: 3578, gp: [46, 139], formula: true },
+      hp: 315, atk: 191, aim: 175, evasion: 46, def: 14, xp: 3578, gp: [46, 139], formula: true },
     keeper_dunn: {
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
          Book every night and lighting a candle for each. Undead, no override. When you come in he snuffs the candles, and the cold of the deep
          vault hits everyone (Snuff the Candles, `spells` below): kill him first, or bring frost resistance. His snuffer. His candle, the Rare,
          waits on its reveal icon (the header). */
+      /* THE CASTER (monster-roles.js; the wings): Snuff the Candles is the Caster's wind-up on the formula. Kill him first */
+      role: 'caster',
       spells: ['snuff_the_candles'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
-      hp: 518, atk: 196, aim: 175, evasion: 68, def: 58, xp: 6843, gp: [76, 229], formula: true },
+      hp: 518, atk: 196, aim: 177, evasion: 69, def: 58, xp: 6843, gp: [76, 229], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
@@ -138,6 +149,8 @@ export default definePack({
     candle_snuffer: 'Keeper Dunn\'s snuffer. He lights a candle for every name in the book, and snuffs them out when you come in',
     live_leech: 'A leech off the vault floor, still alive. Somebody in town always buys leeches',
   },
+  /* ON THE WINGS (lane/monster-roles-ford-wings, 2026-11-23): both wings play the monster formula, so each spell below keeps its shape and
+     warning there and takes the formula's hit and cooldown (src/core/hunt/monster-formula.js); the numbers below play off the scale only. */
   /* THE CATACOMBS' THREE (src/data/monster-spells.js rows; numbers start from rows that already play: Venom Spray's ring, Blasting Charge's group, the
      Turncoat's rare group spell scaled down). Measured with the ground on the grade, not tuned one at a time.
      BONE SLIDE 1800 (was 2000; lane/d-harder-monsters, 2026-11-19): the formula's blows are x1.1 since Tyler's "raise HP and damage done by all monsters

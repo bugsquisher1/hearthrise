@@ -70,7 +70,7 @@ export async function real() {
   const sigs = await optional('src/data/signatures.js');
   const pinsFile = join(ROOT, 'tests', 'danger-band-pins.json');
   const pins = existsSync(pinsFile) ? JSON.parse(readFileSync(pinsFile, 'utf8')).grounds : {};
-  const prints = Object.fromEntries(Object.keys(DANGER_GROUNDS).filter((g) => HUNT_GROUNDS[g]).map((g) => [g, packPrint(HUNT_GROUNDS[g], MONSTERS, monstersOn, DANGER_GROUNDS[g].monsters)]));
+  const prints = Object.fromEntries(Object.keys(DANGER_GROUNDS).filter((g) => HUNT_GROUNDS[g]).map((g) => [g, packPrint(HUNT_GROUNDS[g], MONSTERS, monstersOn, DANGER_GROUNDS[g].monsters, DANGER_GROUNDS[g].formulaStep)]));
   const plain = (o) => JSON.parse(JSON.stringify(o));
   /* the Trait slots each ground drops: its monsters' drop rows and its own (a Catacomb wing's), read through the items' slots */
   const { ITEMS } = await imp('src/data/items.js');

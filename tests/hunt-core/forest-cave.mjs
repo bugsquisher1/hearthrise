@@ -572,7 +572,7 @@ const mutants = [
       ['src/data/monsters.js', 'xp: 949, gp: [18, 52]', 'xp: 216, gp: [9, 26]'], ['src/data/monsters.js', 'xp: 1597, gp: [27, 80]', 'xp: 363, gp: [14, 41]'],
       ['src/data/monsters.js', 'xp: 6137, gp: [94, 282]', 'xp: 1395, gp: [48, 142]']] },
   { name: 'the Thicket\'s Gray Wolf pays three times the coin and five times the XP (staying in the wood pays more of both)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 22, evasion: 11, def: 1, xp: 38, gp: [2, 6]', 'hp: 19, atk: 4, aim: 22, evasion: 11, def: 1, xp: 200, gp: [6, 18]']] },
+    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6]', 'hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 200, gp: [6, 18]']] },
   /* the party-built pack's climb is the four's (lane/d-open-march-balance). RE-AIMED (lane/d-flat-party-xp, one party table, Tyler 2026-11-16): the Slake's
      own four cell is gone, so its four at 55 earns about half the Muster's (368k against 689k Level XP an hour on set v0.2.135, cloth's smaller damage and Turning Cut in; it read 380k against 767k) and the old 0.76-fit slip (x0.94) no longer
      crosses it. The Muster's XP rows at x0.4 (about 275k) put the Slake back over it. */
@@ -597,7 +597,7 @@ const mutants = [
     edits: [['src/data/core-model.js', "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);",
       "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
-    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 22, evasion: 11, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,', 'hp: 19, atk: 16, aim: 22, evasion: 11, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,']] },
+    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,', 'hp: 19, atk: 16, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',

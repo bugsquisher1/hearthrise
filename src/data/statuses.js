@@ -15,7 +15,7 @@
 //                            to a stronger landing's scale (never lowered); one more stack is added under maxStacks; at maxStacks a
 //                            weaker stack of ANOTHER row of the key is replaced by the landing (15: "the stronger one replaces")
 //                   keep     the stacks there keep their own clocks; at maxStacks the oldest goes; the landing is added (a ground patch)
-//   hidden        true: no player meets it yet (no move, Trait or Signature lands it). Not offered to the bar's effect picker
+//   hidden        true: no player meets it yet (no move, Roads option, Trait or Signature lands it). Not offered to the bar's effect picker
 //                 (condition-metrics.js EFFECT_IDS, the server's catalogue), not a stacks subject; the engine and its tests read it
 // EFFECTS (any combination, except that one stack has ONE scale, so a tick, a tiered slow and a guarded heal cut never share a row):
 //   tick          a TICKING status (damage over time, or heal over time with `heals`):
@@ -109,8 +109,10 @@ export const STATUSES = Object.freeze({
      vulnerability for a short duration"; lane b-spell-content, PROVISIONAL): one stack, 6 s, +10% from every blow. */
   sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),
   /* PARRIED (the sword's Parry, docs/design/redesign/23-spell-audit.md section 4: "your target's next blow within 2 s lands 0"): the
-     monster's next blow, a swing or a wind-up's landing, lands nothing, and the stack is spent on it. Its 2 s is Parry's window. */
-  parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2000, maxStacks: 1, parry: true }),
+     monster's next blow, a swing or a wind-up's landing, lands nothing, and the stack is spent on it. Its 2.1 s is Parry's window (the
+     designer, lane/roads-wave3): a status ticks in the sub-step it lands, so 2000 covered a blow up to 1.9 s off and missed every 2 s
+     group spell the cast's own rule ("my target is winding up") fires on. 2100 answers them, so that rule never casts a Parry that whiffs */
+  parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2100, maxStacks: 1, parry: true }),
   /* CHILL (Tyler 2026-11-08, the area-spells design: Hoarfrost's frost; PROVISIONAL, the designer's numbers): its unit's
      swings and spell windups run 30% longer for 4 s, one stack. BY RUNE TIER (the tank rune spells, board 2026-11-19 piece 3):
      30 / 35 / 40 / 45 / 50% on a Chalked .. Graven Ice Rune's cast, for every Ice spell (Hoarfrost, Frost Slam). */
@@ -124,17 +126,19 @@ export const STATUSES = Object.freeze({
   ...(NECROTIC_STORM.live ? { withered: Object.freeze({ id: 'withered', name: 'Withered', key: 'withered', durationMs: 6000, maxStacks: 1,
     healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),
 
-  /* ── HIDDEN: the engine's vocabulary for the Roads, the Wraps, Signatures and Traits (E2). No move lands any yet. ── */
+  /* ── HIDDEN: the engine's vocabulary for the Roads, the Wraps, Signatures and Traits (E2), while nothing a player meets lands it. Armor
+     Break, Weakened, Silenced and Sapped are shown: Roads options lay them, so a bar may test them (lane/roads-wave3; tests/hunt-core/
+     talents.mjs bar-can-test) ── */
   /* POISON (15 #7 Floodwater Hatchets: "Rend also applies Poison, 20% of Rend's damage over 6 s"): a poison tick beside Bleed, a share of
      the source's blow as Bleed's is. One stack; a new one restarts it. */
   poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,
     tick: Object.freeze([1, 3]), everyMs: 1000, durationMs: 6000, maxStacks: 1, blowPm: 20, tierPermille: TIERS, damageType: 'poison' }),
   /* ARMOR BREAK (22 Coal Hands, Coal Palm: "-25% armor for 6 s"): the monster keeps a quarter less of its defence. One a monster. */
-  armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', hidden: true, durationMs: 6000, maxStacks: 1, armorPm: -250 }),
+  armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', durationMs: 6000, maxStacks: 1, armorPm: -250 }),
   /* WEAKENED (22 Lye: "-8% damage dealt for 8 s"): on the "monster deals less" key with Shaken and Hard Challenge. */
-  weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', hidden: true, durationMs: 8000, maxStacks: 1, dealtPm: -80 }),
+  weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', durationMs: 8000, maxStacks: 1, dealtPm: -80 }),
   /* SILENCED (22 Cold Palm: "can't start a spell for 3 s"; 15 #15): one at a time, a new one restarts the time. */
-  silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', hidden: true, durationMs: 3000, maxStacks: 1, silence: true }),
+  silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', durationMs: 3000, maxStacks: 1, silence: true }),
   /* BURNING GROUND (15 #10 Coal Runner's Bow: "Flame Volley leaves the ground burning for 4 s, 10% of its damage a second"): a patch
      round the tile it lands on, each its own; three at most from one hero. */
   burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',
@@ -156,7 +160,7 @@ export const STATUSES = Object.freeze({
   echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',
     tick: Object.freeze([1, 1]), everyMs: 2000, durationMs: 2000, maxStacks: 5, blowPm: 1, tierPermille: TIERS, damageType: 'physical' }),
   /* SAPPED (Weakening Sickness: "Sick enemies: -6% damage dealt"): beside Sickness, on the "monster deals less" key */
-  sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: -60 }),
+  sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs: 6000, maxStacks: 1, dealtPm: -60 }),
   /* FROZEN GROUND (Cold Ground: "Frozen ground 4 s, chills enemies on it"): a patch round the tank that lays Chill on every enemy in it
      each second (`lays`), one a hero */
   frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',

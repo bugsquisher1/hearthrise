@@ -235,6 +235,10 @@ const WAITS_FOR_OTHERS = Object.freeze({ challenge: 'nothing leaves a lone tank'
 const OFF_THE_DEFAULT_BAR = Object.freeze({
   frost_slam: 'Tyler 2026-11-19: "Do not add rune spells or XP to the tank\'s default bar" (the tank rune spells, party only)',
   shelter: 'Tyler 2026-11-19: "Do not add rune spells or XP to the tank\'s default bar" (the tank rune spells, party only)',
+  /* the designer, lane/roads-wave3: wave 3's moves are the player's picks (rule-subjects.js ROLE_RULES), announced once by the new-spell
+     prompt at their unlock, whose Add to bar is the one decision; an unedited bar's gold and lanes do not move under them */
+  parry: 'the designer 2026-11-23 (lane/roads-wave3): a wave-3 pick, offered by the new-spell prompt at Melee 10',
+  gash: 'the designer 2026-11-23 (lane/roads-wave3): a wave-3 pick, offered by the new-spell prompt at Melee 12',
 });
 /* A new hero on the real settle: an empty stored bar, the kit's bag. Each cast of its own ability, by the first pull's clock. */
 function newHeroCasts(M, worn, huntId, L, ground, spanMs, secret) {

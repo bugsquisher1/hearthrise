@@ -13,7 +13,8 @@
 --                              sql-rows case):
 --     target_winding_up  bool  my own target is winding up a spell or a heavy blow (its persisted `cast`, src/core/hunt/conditions.js)
 --     last_move          move  its vals follow the ability table: quarry_blow out, stagger, parry and gash in
---     effect_missing     effect its vals gain parried (statuses.js: Parry's status, met by players, so a bar may test it)
+--     effect_missing     effect its vals gain parried (statuses.js: Parry's status, met by players, so a bar may test it), and
+--                        armor_break, weakened, silenced, sapped (lane/roads-wave3: Roads options lay them; talents.mjs bar-can-test)
 --   No kind word, function body, table, grant or signature moves: a bool, a move and an effect are kinds 1061 already reads.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ insert into public.hr_hunt_condition_metrics (metric, kind, ops, lo, hi, subject
   ('target_resists', 'bool', array['eq']::text[], null, null, '{}'::text[], true, '{}'::text[]),
   ('target_is_boss', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),
   ('item_qty', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100000, array['item', 'food', 'drink', 'ammo']::text[], false, '{}'::text[]),
-  ('effect_missing', 'effect', array['has_effect', 'lacks_effect']::text[], null, null, array['target', 'self', 'ally']::text[], false, array['bleed', 'sickness', 'parried', 'chill']::text[]),
+  ('effect_missing', 'effect', array['has_effect', 'lacks_effect']::text[], null, null, array['target', 'self', 'ally']::text[], false, array['bleed', 'sickness', 'parried', 'chill', 'armor_break', 'weakened', 'silenced', 'sapped']::text[]),
   ('target_hp_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, '{}'::text[], false, '{}'::text[]),
   ('target_marked', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),
   ('target_winding_up', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),
@@ -82,6 +83,12 @@ begin
   if t is distinct from 'bad_value' then raise exception 'VERIFY(b): Quarry Blow, reworked into Stagger, still answered %', t; end if;
   v := public.hr_hunt_conds_check('[{"metric":"effect_missing","op":"lacks_effect","value":"parried","subject":"target"}]'::jsonb, '"and"'::jsonb, false);
   if v is not null then raise exception 'VERIFY(b): Parried as an effect was refused: %', v; end if;
+  v := public.hr_hunt_conds_check('[{"metric":"effect_missing","op":"lacks_effect","value":"armor_break","subject":"target"},{"metric":"effect_missing","op":"has_effect","value":"weakened","subject":"target"}]'::jsonb, '"and"'::jsonb, false);
+  if v is not null then raise exception 'VERIFY(b): a status the Roads lay was refused as an effect: %', v; end if;
+  v := public.hr_hunt_conds_check('[{"metric":"effect_missing","op":"lacks_effect","value":"silenced","subject":"target"},{"metric":"effect_missing","op":"lacks_effect","value":"sapped","subject":"target"}]'::jsonb, '"and"'::jsonb, false);
+  if v is not null then raise exception 'VERIFY(b): a status the Roads lay was refused as an effect: %', v; end if;
+  t := public.hr_hunt_cond_check('{"metric":"effect_missing","op":"lacks_effect","value":"poison","subject":"target"}'::jsonb, false);
+  if t is distinct from 'bad_value' then raise exception 'VERIFY(b): Poison, hidden, answered %', t; end if;
   -- (c) the bounds bite: a wind-up written as a number, an operator a bool lacks
   t := public.hr_hunt_cond_check('{"metric":"target_winding_up","op":"eq","value":1}'::jsonb, false);
   if t is distinct from 'bad_value' then raise exception 'VERIFY(c): a wind-up as a number answered %', t; end if;

@@ -57,7 +57,8 @@ import { weaponPower } from '../tools/balance-sim/weapon-power.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* the fields a sample row may differ from its base in: its words, its numbers, Level, value, rarity and its one attribute */
-const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'iL', 'rarity', ...LINE.LINE_FIELDS, 'critB', 'bane', 'effects']);
+/* (and its base's grid step is the ladder's alone, 12-targets 8.3: a sample is its own item Level and carries none, below) */
+const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'iL', 'rarity', ...LINE.LINE_FIELDS, 'critB', 'bane', 'effects', 'step']);
 const ATTR_TIER = 7;
 const MAGE_BAR = 1.3;
 /* the Levels the line is read at for the Mage bar: the late grounds' floors, the next region and Level 200 */
@@ -130,6 +131,7 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
     const ln = line.lineWeapon(s.family, row.reqLv);
     if (ln && line.LINE_FIELDS.every((k) => (ln[k] === undefined) === (row[k] === undefined) && (ln[k] === undefined || ln[k] === row[k]))) out.push('WL4 ' + id + ': its attack and damage are the line\'s own, a template and not a unique');
     /* WL5 */
+    if (row.step !== undefined) out.push('WL5 ' + id + ' carries the grid step ' + row.step + ': a unique is its own item Level, never a ladder tier');
     for (const k of new Set([...Object.keys(base), ...Object.keys(row)])) {
       if (OWN.has(k)) continue;
       if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('WL5 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', its base ' + b.id + ' has ' + JSON.stringify(base[k]));
@@ -238,6 +240,7 @@ const MUTANTS = [
   ['the sword becomes a hammer', 'WL5', (L) => { L.WEAPON_SAMPLE.limewashed_sword.row.weaponType = 'hammer'; }],
   ['worn under its ground\'s floor', 'WL5', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.reqLv = 150; }],
   ['worn from Carter\'s Rest\'s floor, the anchor, where the line is Dawnsteel itself', 'WL5', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.reqLv = 110; }],
+  ['a unique on the ladder grid', 'WL5', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.step = 6; }],
   ['a book under the base', 'WL5', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.v = 39600; }],
   ['a second attribute', 'WL6', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.critB = 0.1; }],
   ['the bane at 1.2', 'WL6', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.bane = { class: 'human', mult: 1.2 }; }],

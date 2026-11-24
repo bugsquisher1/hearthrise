@@ -13,7 +13,7 @@
 //         weapon on its style's accuracy + damage; a rung is two-handed exactly when its practice weapon is
 //   SG-3  the cloth line: every tier-1 and tier-2 piece is reachable light armour (armourClass cloth: a drop since
 //         2026-11-18, Tyler: armor, weapons and shields drop, a bench makes none), tier 1
-//         worn at Level 1 and tier 2 at Level 15, and each tier's set carries more magic damage than the last
+//         worn from its material's Level (src/data/gear-tiers.js: tier 1 at 1, tier 2 at 10), and each tier's set carries more magic damage than the last
 //   SG-4  a reforged piece (Klappa's Club, style-gear.js; the Steelgrate, shields.js: the only made weapons and shields since
 //         2026-11-18) never sells for more than the BOOK value of what went in (the bench is never a faucet)
 //   SG-5  every reforge opens at or below the level its piece is worn at, from inputs a player can reach without it
@@ -51,7 +51,7 @@ import { indexArtisanRecipes, simulateArtisanSpan } from '../src/core/artisan-si
 import { playerCombatRolls } from '../src/core/combat.js';
 import { deriveProfile } from '../src/core/member.js';
 import { skillXpForLevel } from '../src/core/xp.js';
-import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
+import { GEAR_LADDERS, MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 
 /* Every style's accuracy and damage fields (SG-9: a weapon carries its own pair only). */
 const STYLE_PAIRS = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB']);
@@ -97,7 +97,8 @@ export function check() {
       const it = ITEMS[id];
       if (!it || it.armourClass !== 'cloth') { fails.push(`SG-3 tier ${tier}: ${id} is not cloth armour`); continue; }
       if (!reach.has(id)) fails.push(`SG-3 tier ${tier}: ${id} has no source a player can reach`);
-      const want = Number(tier) === 1 ? 1 : 15;
+      /* its material's wear Level (12-targets 8.3: worn from the tier's item Level less wearAhead; bronze 1, iron 10) */
+      const want = (MATERIAL_TIERS[Number(tier) - 1] || {}).level;
       /* Worn by the hero's Level (Tyler 2026-10-24: every piece of gear), never a skill. */
       if (it.reqSkill !== 'level' || Number(it.reqLv) !== want) fails.push(`SG-3 tier ${tier}: ${id} is worn at ${it.reqSkill} ${it.reqLv}, want Level ${want}`);
       magic += (it.magicStrB || 0);
@@ -220,6 +221,7 @@ function mutate() {
   run('the hatchets rung worn only at Melee 30', 'SG-2', () => setField('iron_hatchets', 'reqLv', 30));
   run('the crossbow rung no stronger than the practice crossbow', 'SG-2', () => { const a = setField('oak_crossbow', 'rangeAtkB', 4); const b = setField('oak_crossbow', 'rangeStrB', 4); return () => { b(); a(); }; });
   run('the club rung one-handed again', 'SG-2', () => setField('iron_warhammer', 'twoHanded', false));
+  run('an adept robe worn from the old iron Level 15', 'SG-3', () => setField('adept_body', 'reqLv', 15));
   run('an adept robe that is plate', 'SG-3', () => setField('adept_body', 'armourClass', 'plate'));
   /* worn gear sells by tier (loot-bands.js, tier 3 at 0.14): a 5,000 g Steelgrate sells for 700, over the 675 a Kingsgrate and three Steel Bars book at */
   run('the Steelgrate at 5,000 g (it sells for more than its inputs)', 'SG-4', () => swap('steelgrate', { v: 5000 }));
@@ -241,7 +243,7 @@ function mutate() {
   run('the Banishing Censer carries a Melee copy (atkB 15)', 'SG-9', () => setField('void_censer', 'atkB', 15));
   run('an Iron Sword with a Magic pair', 'SG-9', () => setField('iron_sword', 'magicAtkB', 3));
   run('Klappa\'s Club worn from Level 1', 'SG-7', () => setField('klappas_club', 'reqLv', 1));
-  run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', 7));
+  run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', ITEMS.iron_warhammer.atkB));
   run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 6));
   run('Klappa\'s Club borrows the Iron Warhammer\'s numbers again', 'SG-7', () => setField('klappas_club', 'statsAs', 'iron_warhammer'));
   run('its fangs off the Cellar\'s rats', 'SG-7', () => undrop('rat', 'small_fang'));

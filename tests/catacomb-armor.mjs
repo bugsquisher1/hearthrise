@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
+import { GEAR_STEPS } from '../src/data/danger.js';
 import { ELEMENTS } from '../src/data/elements.js';
 import * as COMBAT from '../src/core/combat.js';
 import { CATACOMB_ARMOR, CATACOMB_ATTRS, CATACOMB_TIERS, WING_LEAN, CATACOMB_ARMOR_NOW, catacombArmorItems, attributeOf } from '../src/data/catacomb-armor.js';
@@ -59,7 +60,8 @@ function srcTexts() {
   return out;
 }
 
-const noIL = (row) => { if (!row) return row; const { iL, ...rest } = row; void iL; return rest; };
+/* the item Level the Danger scale writes on a scale drop, and the wear it sets with it (12-targets 8.3: worn from the item Level less wearAhead) */
+const noIL = (row) => { if (!row) return row; const { iL, reqLv, ...rest } = row; void iL; void reqLv; return rest; };
 
 /** Every problem, as 'CAn ...' strings. `d` is the data (a copy for a mutant), `gen` the row builder. */
 export function problems(d, gen = catacombArmorItems, files = srcTexts()) {
@@ -78,6 +80,7 @@ export function problems(d, gen = catacombArmorItems, files = srcTexts()) {
     if (now.includes(r.key) !== isItem) out.push('CA1 ' + r.id + (isItem ? ' is an item, and its tier does not ship' : ' does not ship, and its tier does'));
     /* every field the builder makes, less the item Level the Danger scale writes on a scale drop (src/data/danger.js scaleItemLevels) */
     else if (isItem && JSON.stringify(noIL(items[r.id])) !== JSON.stringify(noIL(shippedRows[r.id]))) out.push('CA1 ' + r.id + ' ships as another row than its generated one');
+    else if (isItem && items[r.id].reqLv !== Math.max(1, items[r.id].iL - GEAR_STEPS.wearAhead)) out.push('CA1 ' + r.id + ' is item Level ' + items[r.id].iL + ' and worn from ' + items[r.id].reqLv + ', not its item Level less ' + GEAR_STEPS.wearAhead);
     if (itemNames.has(r.name)) out.push('CA1 ' + r.id + ': another item is called ' + r.name);
   }
   /* CA2 */
@@ -157,6 +160,7 @@ const MUTANTS = [
   ['a tier that does not ship is an item', 'CA1', (d) => { d.now = ['bronze']; return d; }],
   ['a tier that ships is no item', 'CA1', (d) => { delete d.items.coffer_guards_helm; return d; }],
   ['a shipped tier leaves the list and stays an item', 'CA1', (d) => { d.now = ['bronze', 'silver', 'gold']; return d; }],
+  ['a shipped piece worn from its twin Level', 'CA1', (d) => { d.items.coffer_guards_helm.reqLv = 90; return d; }],
   ['a shipped piece is not its generated row', 'CA1', (d) => { d.items.tinkers_kettle.defB += 1; return d; }],
   ['a row takes an item\'s id', 'CA1', (d) => { row(d, 'tinkers_kettle').id = 'iron_helm'; return d; }],
   ['a row takes an item\'s name', 'CA1', (d) => { row(d, 'ratters_hood').name = 'Iron Helm'; return d; }],

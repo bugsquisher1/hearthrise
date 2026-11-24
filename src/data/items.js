@@ -834,8 +834,9 @@ for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS
    ground that drops one stamps its own base (above) and the two agree; two numbers for one piece throw (one base, one number), with one
    exception that keeps the stamp, worn from it less wearAhead: a ground whose rows still drop another tier's pieces until they are
    re-pointed (12-targets 8.3 c, the grounds' lane; tests/gear-stats.mjs GSF-9 names each one and reds it the day it agrees). A named
-   Catacomb piece carries no step (its twin's stays with the twin): it is its wing's stamp, worn from it less wearAhead too. ITEM_LEVELS is
-   every item Level a row is given here: tools/gen-gear.mjs sizes each piece at it, never at the iL its own table wrote back. */
+   Catacomb piece carries its twin's step (the metal it is cut from: its Temper reads that tier, src/data/temper.js temperTierOf) and is
+   its wing's stamp, worn from it less wearAhead. ITEM_LEVELS is every item Level a row is given here: tools/gen-gear.mjs sizes each piece
+   at it, never at the iL its own table wrote back. */
 const STAMPED_ELSEWHERE = new Set(Object.values(DANGER_GROUNDS).filter((g) => Number.isInteger(g.ladderTier) && MATERIAL_TIERS[g.ladderTier - 1]
   && MATERIAL_TIERS[g.ladderTier - 1].iL !== g.gearLevel).map((g) => g.ladderTier));
 export const ITEM_LEVELS = (() => {

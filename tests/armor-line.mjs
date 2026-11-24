@@ -55,7 +55,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* the fields a sample row may differ from its base in: its words, its numbers, Level, value, rarity and its one attribute (a + skill on the
    engine's own field, row 1c) */
-const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'iL', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', ...Object.values(SKILL_PLUS_FIELDS)]);
+/* (and its base's grid step is the ladder's alone, 12-targets 8.3: a sample is its own item Level and carries none, below) */
+const OWN = new Set(['step', 'n', 'icon', 'v', 'reqLv', 'iL', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', ...Object.values(SKILL_PLUS_FIELDS)]);
 /* the item field attribute `def` writes for `key`: its one field, or the one its key names */
 const fieldOf = (def, key) => (typeof def.field === 'string' ? def.field : (def.field || {})[key]);
 const CASTER_DAMAGE = ['magicStrB', 'rangeStrB'];
@@ -145,6 +146,7 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
     /* AL4: a template is the line's own numbers: the line's armor and every style number its base's (an attribute or not on top) */
     if (row.defB === line.lineArmor(row.slot, row.armourClass, row.reqLv) && STYLE.every((k) => (Number(row[k]) || 0) === (Number(base[k]) || 0))) out.push('AL4 ' + id + ': the line\'s own armor and its base\'s numbers, a template and not a unique');
     /* AL5 */
+    if (row.step !== undefined) out.push('AL5 ' + id + ' carries the grid step ' + row.step + ': a unique is its own item Level, never a ladder tier');
     for (const k of new Set([...Object.keys(base), ...Object.keys(row)])) {
       if (OWN.has(k)) continue;
       if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('AL5 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', its base ' + s.base + ' has ' + JSON.stringify(base[k]));
@@ -244,6 +246,7 @@ const MUTANTS = [
   ['a second Vaults helm out-wins the Watchman\'s everywhere', 'AL4', (L) => { L.LINE_SAMPLE.rival_helm = { ...structuredClone(L.LINE_SAMPLE.watchmans_helm), row: { ...L.LINE_SAMPLE.watchmans_helm.row, n: 'Rival Helm', defB: 85 } }; L.LINE_SAMPLE.rival_helm.source = { ...L.LINE_SAMPLE.rival_helm.source, monster: 'bone_wall' }; }],
   /* the Leg Plates at 125 (under plate's 129) win on the Roost alone (1.004 measured): dropped on the Ox Road, they win only off their own ground */
   ['a plate piece under its first Level wins only off its own ground', 'AL4', (L) => { L.LINE_SAMPLE.burnt_crag_leg_plates.source = { monster: 'dead_teamster', ground: 'ox_road', how: 'rare', ch: 0.002 }; }],
+  ['a unique on the ladder grid', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.step = 6; }],
   ['the jerkin changes weight', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.armourClass = 'plate'; }],
   ['worn under its ground\'s floor', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.reqLv = 150; }],
   ['the Breastplate kept at the Roost\'s 125 on the Night Shift (122)', 'AL5', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.row.reqLv = 125; }],

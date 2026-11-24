@@ -195,7 +195,8 @@ async function smithRow(root) {
   const S = await imp('src/session/temper-sections.js');
   /* a unique plate set worn from 165, registered for the read and taken out after (the reader's own ITEMS instance) */
   const eq = {};
-  for (const [slot, id] of Object.entries(TU7_SET)) { const k = 'tu7_' + slot; I[k] = { ...I[id], n: 'TU7 ' + slot, defB: Math.round(I[id].defB * 1.5), reqLv: 165, rarity: 'unique' }; eq[slot] = k; }
+  /* (a unique is its own item Level: it carries no grid step, its base's is the ladder's alone, 12-targets 8.3) */
+  for (const [slot, id] of Object.entries(TU7_SET)) { const k = 'tu7_' + slot, { step, ...base } = I[id]; void step; I[k] = { ...base, n: 'TU7 ' + slot, defB: Math.round(I[id].defB * 1.5), reqLv: 165, rarity: 'unique' }; eq[slot] = k; }
   const cs = (temper) => ({ read: (k) => (k === 'temper' ? temper : k === 'equipment' ? eq : k === 'inventory' ? {} : k === 'skills' ? {} : undefined) });
   const tier2 = { track: 'armor', tier: 2, rung: 0, max: 5, offer: 'temper.armor.2.1', gold: 2000, items: { temper_salts: 10 } };
   try {

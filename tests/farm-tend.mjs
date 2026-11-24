@@ -42,8 +42,8 @@ const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
 /* The file's §4 self-check would refuse most mutants at apply; it is blinded so THIS guard's arms judge them. */
 const GATE_BLIND = [
-  ['  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text;\nbegin\n',
-   '  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n'],
+  ['  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text; v_p bigint;\nbegin\n',
+   '  v jsonb; v2 jsonb; b jsonb; v_who uuid; v_xp0 bigint; v_xp1 bigint; v_led bigint; v_plots text; v_p bigint;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n'],
 ];
 const MUTANTS = {
   no_water: {

@@ -1090,6 +1090,7 @@ async function checks(overrides, shots, opts) {
           for (let i = 0; i < 40 && moving(); i++) await new Promise((r) => setTimeout(r, 50));
           await frames(3);
           const body = win.querySelector('.hs-win-body'), foot = win.querySelector('.hpb-foot');
+          const rises = win.classList.contains('is-rise');
           /* each slot at rest: whole above the foot's drawn rule and the topmost thing at its middle, wholly out of view, or cut; the foot's
              rule is its box-shadow drawn over the line above its box (a slot ending 1 px into it reads cut, and its well's frame under it) */
           const rule = (() => { const m = /(-?[\d.]+)px\s+(-?[\d.]+)px/.exec(getComputedStyle(foot).boxShadow || ''); return m ? Math.min(0, parseFloat(m[2])) : 0; })();
@@ -1116,12 +1117,14 @@ async function checks(overrides, shots, opts) {
           await frames(2);
           const scrolled = read();
           body.scrollTop = 0;
-          return { rest, scrolled, phone: matchMedia('(max-height: 540px) and (max-width: 1024px)').matches };
+          return { rest, scrolled, rises, phone: matchMedia('(max-height: 540px) and (max-width: 1024px)').matches };
         });
         /* at rest a row is whole or wholly out of view, never cut; in town on a desktop the window has the room, so all twenty show */
         if (m.rest.cut.length) fails.push('AW-101 at ' + at + ' Hunt prep opens with the bar cut: ' + JSON.stringify(m.rest));
         if (scene === 'town' && !m.phone && (m.rest.ok !== 20 || !m.rest.well)) fails.push('AW-101 at ' + at + ' Hunt prep opens without its whole bar: ' + JSON.stringify(m.rest));
         if (m.scrolled.ok !== 20 || !m.scrolled.well || !m.scrolled.foot) fails.push('AW-101 at ' + at + ' the bar scrolled into view is not whole above the foot: ' + JSON.stringify(m.scrolled));
+        /* no size is left where the World is short enough that `rise` alone decides (every Hunt prep now fits above the bar), so the row's flag itself is read: a docked Hunt prep that cannot rise would slide its bar under Close and Save the day a World is shorter */
+        if (scene === 'town' && !m.rises) fails.push('AW-101 at ' + at + ' Hunt prep does not rise over the bar in town');
         if (!m.rest.foot) fails.push('AW-101 at ' + at + ' Hunt prep\'s Close and Save are out of view');
         if (shots) await shot(page, 'prep-bar-' + w + 'x' + h + '-' + scene);
         await ctx.close();

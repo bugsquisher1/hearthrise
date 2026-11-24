@@ -2,7 +2,6 @@
 // Hearthrise — THE PRICE CATALOGUE (data since lane S2, 2026-10-18: gen-shops.mjs + legacy.js are gone; the `supply.*` rows spread in from supply-basics.js SUPPLY_SHOP_OFFERS, the source hr_shop_supply_offers is generated from).
 // EVERY GOLD AMOUNT IS A FORMULA since lane/prices-wage-hours (2026-11-23): hours of wage or the store's ask, see NO GOLD IS TYPED below;
 // the companions are the one typed holdout (tests/wage-prices.mjs UNCONVERTED).
-//
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   seed               3  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22; the Air Rune row left
@@ -18,9 +17,7 @@
 //   { kind, id, amount }
 //     kind    'currency' | 'item' | 'money'   (cost side)
 //             'currency' | 'item' | 'unlock' | 'capacity'  (grant side)
-//             — kind names WHICH SERVER TABLE a payment debits: an id may be
-//               both an hr_items row and a currency column, so the kind is
-//               never inferred from the id.
+//             — kind names WHICH SERVER TABLE a payment debits (an id may be both an item and a currency): never inferred from the id.
 //     amount  a non-negative safe integer in the smallest unit.
 //             money is in CENTS ('$6.99' → 699).
 //
@@ -57,10 +54,8 @@ function supplyOffer(s) {
    The material lines follow the gold, in id order, exactly as the server's catalogue lists them. tests/wage-prices.mjs holds it. */
 const gold = (amount) => ({ kind: "currency", id: "gold", amount });
 const itemLines = (items) => Object.keys(items).sort().map((id) => ({ kind: "item", id, amount: items[id] }));
-/** A legacy equip row: the store's ask for one, a vendor price list only. */
 const equipOffer = (item) => ({ id: "equip." + item, table: "equip", name: ITEMS[item].n, cost: [gold(storeAsk(ITEMS[item].v))],
   grant: [{ kind: "item", id: item, amount: 1 }], repeatable: true });
-/** A legacy seed-counter bundle of `count`: the store's ask for the stack, a vendor price list only. */
 const bundleOffer = (item, count) => ({ id: "seed." + item, table: "seed", name: ITEMS[item].n, cost: [gold(storeAsk(ITEMS[item].v, count))],
   grant: [{ kind: "item", id: item, amount: count }], repeatable: true });
 /** Every deed's price in milli-hours of wage at its tier's step (the property ladder's one price home; tests/wage-prices.mjs reads it). */
@@ -81,10 +76,7 @@ const ROOM_OFFERS = Object.keys(ROOM_RUNGS).sort().flatMap((room) => ROOM_RUNGS[
     grant: [{ kind: "unlock", id: "room:" + room, amount: i + 1 }] };
 }));
 
-/* THE HERO SLOTS (Tyler 2026-11-21, executive decision: "just allow all 4 characters from the start"): every account owns four
-   from its first second, and nothing is for sale. The server's catalogue is public.hr_hero_slots (1036-four-starter-slots.sql:
-   slots 1-3 starter rows at no cost, slot 0 never in it), bound to this row by tests/hero-slot-buy.mjs. The Path reads it as the
-   flag of the party's first beat (src/data/the-path.js). */
+/* THE HERO SLOTS (Tyler 2026-11-21): every account owns four from its first second, nothing is for sale (public.hr_hero_slots, 1036; tests/hero-slot-buy.mjs; the Path's first beat reads it). */
 export const HERO_SLOTS = Object.freeze({ count: 4, free: true });
 
 /** Every offer whose price is data. shop_buy sells only what a Shop tab lists (supply-basics.js SHOP_SOLD_KINDS; the rest
@@ -116,9 +108,7 @@ export const SHOP_OFFERS = [
     cost: [{ kind: "currency", id: "gold", amount: 5000 }],
     grant: [{ kind: "unlock", id: "companion:sparrow", amount: 1 }],
   },
-  /* THE LEGACY EQUIP AND SEED ROWS: a vendor price list only (no Shop tab lists them, so shop_buy refuses each not_listed). Each is the
-     store's ask for the good (store-kit.js storeAsk, 27-formula-overhaul.md K-3: storeCeiling x its book), the cap the vendor's
-     buy-back reads (half the cheapest shop unit). Never typed. */
+  /* THE LEGACY EQUIP AND SEED ROWS: a vendor price list only (shop_buy refuses each not_listed): the store's ask (storeAsk, K-3), never typed. */
   equipOffer('apprentice_staff'),
   equipOffer('apprentice_wand'),
   equipOffer('apprentice_primer'),
@@ -134,8 +124,7 @@ export const SHOP_OFFERS = [
      Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
      rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power.
      THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
-  /* PRICED IN HOURS OF WAGE (lane/prices-wage-hours, 2026-11-23; homestead-tiers.js says how): milli-hours at the tier's own step, whose
-     list prices are the 2026-11-22 deeds, 2,500,000 / 600,000 / 150,000 / 25,000 / 400. */
+  /* PRICED IN HOURS OF WAGE (homestead-tiers.js): list prices 2,500,000 / 600,000 / 150,000 / 25,000 / 400. */
   propertyOffer('castle', { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
   propertyOffer('farmstead', { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
   propertyOffer('homestead', { copper_ore: 20, normal_log: 30 }),

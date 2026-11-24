@@ -37,7 +37,9 @@
 //                             ATTACKER's Level, src/core/mitigation.js) and its blow against a health line in Level both hold their worth
 //                             when a stat grows with the Level it faces, the same shape the staged lines past Dawnsteel were measured on
 //                             (tools/balance-sim/staged: x Level / 110). JUDGMENT, measured on the
-//                             Tower (tools/balance-sim/tower-curve.mjs) and the Catacomb wings in the lane's report
+//                             Tower (tools/balance-sim/tower-curve.mjs) and the Catacomb wings in the lane's report. ON THE DANGER SCALE the
+//                             view below holds its stats at this top (src/core/gear-stats.js scaleStatLevel): there the item Level is the
+//                             power, and grown stats moved one style's hold through the old chain's last readers
 //
 // STARTING VALUES, NOT RULINGS (lane/gear-catalogue-steps 2026-11-22; the Lab tunes them, in band is enough):
 //   GEAR_CURVES   the SHAPES the seven-tier ladder's attack and armor tables were hand-drawn on, fitted by least squares over all seven

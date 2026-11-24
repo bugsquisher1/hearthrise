@@ -108,6 +108,14 @@ export function check(o) {
       }
       for (const id of ids) if (o.items[id].iL !== view[id].iL) out.push('GSF-4 ' + id + ' lost its item Level on the scale');
     }
+    /* and on a ground whose base is past the curve's top (the Catacomb wings, 160) the view's stats hold at the top: the item Level carries the
+       rest (src/core/gear-stats.js scaleStatLevel) */
+    const high = Object.keys(DANGER_GROUNDS).find((g) => DANGER_GROUNDS[g].gearLevel > GEAR_CURVE_TOP);
+    if (high) {
+      const hv = o.scaleItems(o.items, { id: high }), id = 'dawn_platebody';
+      const want = o.GS.statsOfRow(o.items[id], GEAR_CURVE_TOP, o.items);
+      if (hv[id] && !same(hv[id], want)) out.push('GSF-4 on ' + high + ' ' + id + ' fights ' + JSON.stringify(statsOf(hv[id])) + ', past the curve\'s top ' + JSON.stringify(want));
+    }
   }
   /* GSF-5 */
   for (const [file, needle] of READERS) if (!o.readers[file] || !o.readers[file].includes(needle)) out.push('GSF-5 ' + file + ' builds a hunt\'s heroes without the scale view (' + needle + ')');
@@ -239,6 +247,16 @@ const MUTANTS = [
       return v;
     };
   }],
+  ['GSF-4', 'the scale view grows its stats past the curve\'s top on the wings', (o) => { const g = o.GS; o.scaleItems = (items, gr) => {
+    const L = DANGER_GROUNDS[gr.id] && DANGER_GROUNDS[gr.id].gearLevel;
+    if (!L) return items;
+    const v = {};
+    for (const [k, it] of Object.entries(items)) {
+      const st = g.isGearRow(it) && g.profileKeyOf(it) ? g.statsOfRow(it, L + ((g.baseOf(it, undefined, items).iL - L) * GEAR_SCALE_STAT_PM) / 1000, items) : null;
+      v[k] = st ? { ...Object.fromEntries(Object.entries(it).filter(([x]) => !GEAR_STAT_FIELDS.includes(x))), ...st } : it;
+    }
+    return v;
+  }; }],
   ['GSF-4', 'the scale view drops the item Level', (o) => { const f = o.scaleItems; o.scaleItems = (items, g) => { const v = f(items, g); if (v === items) return v; const w = {}; for (const [k, it] of Object.entries(v)) { const { iL, ...r } = it; void iL; w[k] = r; } return w; }; }],
   ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: scaleItems(inp.items || {}, inp.ground)', 'items: inp.items || {}'); }],
   ['GSF-5', 'the browser fights the catalogue as written', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('{ items: scaleItems(items, where.ground) }', '{ items }'); }],

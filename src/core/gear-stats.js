@@ -130,8 +130,12 @@ export function statsOfRow(row, iL, items) {
 }
 
 /* ── THE SCALE VIEW ── */
-/** The item Level a piece of item Level `own` is sized at on a ground whose base is `base`: GEAR_SCALE_STAT_PM of the way from the base. */
-export const scaleStatLevel = (base, own) => base + ((own - base) * GEAR_SCALE_STAT_PM) / 1000;
+/** The item Level a piece of item Level `own` is sized at on a ground whose base is `base`: GEAR_SCALE_STAT_PM of the way from the base, and
+    never past GEAR_CURVE_TOP. On the scale a piece's power is its item Level (the power step and the amount pipeline read it, uncapped); the
+    stats this view hands the old chain's last readers (the to-hit, a crit) are a bridge drawn on the seven-tier curve, and grown past its top
+    they moved one style's hold, not every style's alike (lane/gear-phase-b, MEASURED: on the Bone Wing a mage four over the mixed four 1.18x with
+    the view held, 1.30x grown, tests/lineup-v4.mjs). Off the scale a piece fights its own stats, which grow with its item Level. */
+export const scaleStatLevel = (base, own) => Math.min(GEAR_CURVE_TOP, base + ((own - base) * GEAR_SCALE_STAT_PM) / 1000);
 const VIEWS = new WeakMap();
 /**
  * THE CATALOGUE AS A DANGER-SCALE GROUND FIGHTS IT: `items` with every gear row's base stats re-derived at the ground's base item Level

@@ -233,10 +233,9 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   const uc = await buildGrid(ROOT, 'quick', { grounds: [open], uniques: true, chest: true });
   check(uc.length === uq.length && uc.every((j) => j.id.includes(',chest') && (j.grade.gear === 'practice' || j.gear.chest === true)), 'uniques --chest: the what-if cells say ,chest and wear the chest\'s pieces');
   const late = 'carters_rest', gl = gear || await loadGear(ROOT), OPEN4 = ['carters_rest', 'ox_road', 'wyvern_roost', 'unmarked_catacombs'].filter((g) => G.HUNT_GROUNDS[g]);
-  /* the Level the what-if is read at: the last one where the seven-tier ladder's top is a sword's best ground drop. From 90 a step tier (item
-     Level 100, src/data/gear-tiers.js STEP_TIERS, lane/gear-phase-b) outranks every chest weapon, a Dawnsteel twin, so no swap is left to name
-     (their re-sort onto steps: CONFLICTS 2026-11-23). It was 110 on the seven-tier ladder */
-  const LV = 89;
+  /* the Level the what-if is read at: one where a chest weapon is a sword's swap. On one grid (12-targets 8.3) a chest weapon is its twin's tier
+     at its item Level plus a skill, so from 110 (Dawnsteel worn, the Ox Road's base) the Dawnsteel twin outranks the plain Dawnsteel Sword */
+  const LV = 110;
   if (G.HUNT_GROUNDS[late]) {
     const g4 = { uniques: true, openAlso: OPEN4 }, kit = gl.kitOf('sword', LV, { ground: late, ...g4 });
     const cell = (gearOpts) => ({ cell: { ground: late, gear: gearOpts }, heroes: [{ style: 'sword', level: LV, kit: gl.kitOf('sword', LV, { ground: late, ...gearOpts }) }] });

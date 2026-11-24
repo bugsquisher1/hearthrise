@@ -69,7 +69,7 @@ const cases = {
     if (M.ITEMS.iron_sword.tier !== 2 || M.ITEMS.steel_sword.tier !== 3 || M.ITEMS.iron_platebody.tier !== 2) return 'the gear\'s tiers moved: this test names the wrong pieces';
     return null;
   },
-  /* DAWNSTEEL (designed on lane/d-temper-dawnsteel, Tyler 2026-11-16; built by lane/d-gold-sinks 2026-11-18): tier 7, worn from 88, has both
+  /* DAWNSTEEL (designed on lane/d-temper-dawnsteel, Tyler 2026-11-16; built by lane/d-gold-sinks 2026-11-18): tier 7, worn from 110 since 12-targets 8.3, has both
      tracks at 0.4% a rung, 2% a ladder (Tyler 2026-11-15/16: a small cap, about +2-3%), read the same way as every tier (its weapon's tier, its
      pieces' tier), clamped, and never paid by tier 6's rungs; tier 6 still reads 1% a rung; a mixed Emberforged and Dawnsteel set reads each
      piece's own ladder at its own worth. */

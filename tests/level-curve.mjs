@@ -56,7 +56,8 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import * as XP from '../src/core/xp.js';
 import { LEVEL_CURVE, LEVEL_PACE, LEVEL_HOURS, levelHoursOf } from '../src/data/core-model.js';
-import { DANGER_GROUNDS } from '../src/data/danger.js';
+import { DANGER_GROUNDS, GEAR_STEPS } from '../src/data/danger.js';
+import { insideOneTier } from '../src/core/bands.js';
 import { paceFingerprint, loadPaceData, referenceRate } from '../tools/balance-sim/pace.mjs';
 import { playCells, tableRate } from '../tools/balance-program/redesign/held-four.mjs';
 
@@ -159,7 +160,10 @@ async function measureHeld({ start } = {}) {
   for (const g of Object.keys(DANGER_GROUNDS)) {
     const L0 = refLevelOf(g);
     if (!Number.isInteger(L0)) continue;
-    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) cells.push({ id: `${g}:${L}`, ground: g, L, styles: MIXED, risk: 'steady', hours: C7_HOURS, seeds: C7_SEEDS, holdLevel: true, ...(Number.isInteger(start) ? { start } : {}) });
+    /* A GROUND INSIDE ONE GEAR TIER (29-tuning-pass.md 7.5, lane/scale-grounds-2): its companies wear its own tier, as its band was cut; at the
+       Thicket's top Level the Lab's MID kit is iron (item Level 20 since the Glade stamps it), a company that has outgrown the ground */
+    const own = insideOneTier(g) ? { maxIl: DANGER_GROUNDS[g].gearLevel + GEAR_STEPS.tierSteps - 1 } : {};
+    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) cells.push({ id: `${g}:${L}`, ground: g, L, styles: MIXED, risk: 'steady', hours: C7_HOURS, seeds: C7_SEEDS, holdLevel: true, ...own, ...(Number.isInteger(start) ? { start } : {}) });
   }
   const res = await playCells(ROOT, cells);
   const held = {};

@@ -57,16 +57,19 @@ function pool(root, jobs, n) {
 
 /**
  * Play every cell `seeds` times and read each one's Level XP a head an hour (the party's, over the whole hunt).
- * A cell: { id, ground, L, styles, risk, start?, hours, seeds, gear? }. Throws on any worker error (a harness fault, never a verdict).
+ * A cell: { id, ground, L, styles, risk, start?, hours, seeds, gear?, maxIl? }. maxIl: no seat wears a piece over that item Level (a ground
+ * inside one gear tier measured in its own kit, 29-tuning-pass.md 7.5, as v1-climb.mjs --max-il). Throws on any worker error (a harness fault, never a verdict).
  */
 export async function playCells(root, cells, { workers = Math.max(1, Math.min(8, cpus().length - 1)) } = {}) {
   const { loadGridData, buildCell } = await imp(root, 'tools/balance-program/progression-grid.mjs');
   const { loadKits } = await imp(root, 'tools/balance-program/grid-kit.mjs');
   const D = await loadGridData(root), K = await loadKits(root);
+  const { ITEMS } = await imp(root, 'src/data/items.js');
+  const over = (maxIl) => Object.keys(ITEMS).filter((id) => { const it = ITEMS[id]; return it && typeof it.slot === 'string' && it.slot !== 'ammo' && Number.isInteger(it.iL) && it.iL > maxIl; });
   const jobs = [];
   for (const c of cells) {
     const start = Number.isInteger(c.start) ? c.start : await heldStart(root, c.ground);
-    const b = buildCell(D, K, { L: c.L, gear: c.gear || 'mid', styles: c.styles, tier: 'normal', ground: c.ground });
+    const b = buildCell(D, K, { L: c.L, gear: c.gear || 'mid', styles: c.styles, tier: 'normal', ground: c.ground, ...(Number.isInteger(c.maxIl) ? { exclude: over(c.maxIl) } : {}) });
     /* c.holdLevel (lane/scale-early-grounds): the four stays at Level L all the cell (tools/balance-sim/cell.mjs holdLevel), so its pay is read
        against Level L's table exactly; a Level 3 four on the Mill Cellar would otherwise be outgrown within the hour */
     const cell = { ...b.cell, options: { risk: c.risk, danger: start }, hours: c.hours, seeds: 1, ...(c.holdLevel ? { holdLevel: true } : {}) };

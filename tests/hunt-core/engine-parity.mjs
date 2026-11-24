@@ -187,7 +187,9 @@ const SEED = '-4611686018427387904';
    supabase/functions is one unused export (gear-stats.js sourceLevelOf, read by tools/gen-gear.mjs); on 7a338a8a7 (the lane before the
    re-stamp) all five hold the old pin. Re-pinned again on the merge with set/v0.2.144 at 31077c8bf (skills-time-parity): kills warrens-4
    200 -> 228, glade-4 489 -> 508, glade-1-kite 140 -> 148, sewer-2 99 -> 105, muster-steps-4 170 held. Proof: every src file this lane changes
-   (the diff from the set, src only) laid back at the set's version over a copy of the merged tree holds every one of the set's pins. */
+   (the diff from the set, src only) laid back at the set's version over a copy of the merged tree holds every one of the set's pins.
+   Re-pinned on the merge of lane/scale-grounds-2 (warrens-4): the Warrens' drop rows authored in hours and derived at its measured 125 kills a head
+   (tools/gen-drop-hours.mjs) move its TALLY from settle 2; world and timeline hold. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

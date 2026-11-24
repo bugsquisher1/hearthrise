@@ -120,7 +120,7 @@ const MUTANTS = [
       "for (const d of (m.drops || [])) if (d && d.id && ID.test(d.id) && d.band !== 'uncommon') drops[d.id]"]] },
   { name: 'a kill bound of one unit whatever the rows', want: /^item-bound: .*\(2 a kill\), the settle's bound is 1/,
     edits: [['tools/gen-hunt-sessions.mjs', 'drops[d.id] = (drops[d.id] || 0) + 1;', 'drops[d.id] = 1;'],
-      ['src/data/monsters.js', "{ id: 'raw_bear_meat', ch: .6, band: 'common' },", "{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'raw_bear_meat', ch: .2, band: 'common' },"]] },
+      ['src/data/monsters.js', "{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.533, band: 'common' },", "{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.533, band: 'common' }, { id: 'raw_bear_meat', everyHours: 1, ch: 0.178, band: 'common' },"]] },
   /* a folded pack's spawn row lost by the whole file that empties the table after it (the pack's own earlier file still names it, and
      must not hide the loss: the tables are read as the settle reads them, last writer first) */
   { name: 'the whole file loses the folded Pyre Field\'s Charred Pikeman spawn row', want: /^reach: pyre_field: the engine spawns charred_pikeman/, committed: true,

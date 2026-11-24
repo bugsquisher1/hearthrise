@@ -273,6 +273,7 @@ async function main() {
       }
       const boot = async () => {
         const b = await bootReplay();
+        await withdrawScale(b.db, [THICKET, GLADE, WARRENS]);
         const def = await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn]);
         if (!def.includes(m.find)) throw new Error('HARNESS: ' + m.fn + ' has no ' + JSON.stringify(m.find.slice(0, 60)));
         await b.db.exec(def.replace(m.find, () => m.repl));
@@ -288,8 +289,9 @@ async function main() {
     process.exitCode = escaped ? 1 : 0;
     return;
   }
-  /* every arm here is the tier path; the Thicket joined the Danger scale (lane/scale-early-grounds), so its scale rows leave this database */
-  const boot = async () => { const b = await bootReplay(); await withdrawScale(b.db, [THICKET]); return b; };
+  /* every arm here is the tier path; the Thicket, the Glade and the Warrens joined the Danger scale (lane/scale-early-grounds, lane/scale-grounds-2),
+     so their scale rows leave this database */
+  const boot = async () => { const b = await bootReplay(); await withdrawScale(b.db, [THICKET, GLADE, WARRENS]); return b; };
   const problems = [...await bothPaths(boot), ...await aFour(boot), ...await asItStands(boot), ...await dialsTwice((await boot()).db)];
   for (const p of problems) console.log('FAIL  ' + p);
   console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters, the dials are the data\'s twice, the row names its tier from the open on both paths)');

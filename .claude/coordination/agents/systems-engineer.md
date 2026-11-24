@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-23 · lane/scale-grounds-2 (V4 on 7.5, the Glade and the Warrens on the scale)
+1. *Compute the formula before measuring.* `companyKits` + `ratingPm` on a candidate row says in milliseconds whether a base fits a Level band: rating = gear wherever gear is over the Level, so a ground whose base sits over its reference Level and whose top cannot wear the tier ahead reads its reference near depth 20 (Wickstead degenerate, the Sewer 19, Carter's Rest 19). Held those for the designer before spending a run.
+2. *A placeholder band poisons every pay reading.* The pay reads refStep, so the first C-target run on a placeholder row is good for holds and deaths only. Order: cut the band, then the C cells on it, then the coin level, then one cell as played; pin the as-played cell as the reference evidence or NG-1 re-cuts a different coin level.
+3. *A pipe eats the exit code.* `gen-hunt-sessions --write | tail` printed EXIT 0 over a thrown error. Redirect to a file and branch on `$?`.
+4. *A copied table drifts.* The called bosses held typed copies of their field rows; hours-derived rows broke the copy at once. Join it in code from the one source.
+
 ## 2026-11-23 · lane/scale-early-grounds step 1 (the scale view only for a fight on the scale)
 1. *A view keyed by the ground, not the fight, is a hidden mode switch.* `scaleItems` answered by ground id, so a tier fight on a scale ground fought a frozen cached copy; the fix keys it on the same plan the world opens by (`combat-sim.js planOf`), one function for both, so the two can't drift.
 2. *Decide once per start point, carry it.* The browser asked `scaleItems` at three sites; now `start()` decides and the swings and slot tester read `s.items`. Fewer doors, one answer.

@@ -530,7 +530,10 @@ async function restoring(root, fn) {
 }
 
 const ROW_KING = "hp: 2000, atk: 42, aim: 41, evasion: 8, def: 4, xp: 0, gp: [0, 0], speed: 2800,\n    /* A WIN PAYS HIS OWN TABLE";
-const KING_TAIL = "{ id: 'rat_kings_crown', ch: .0017, band: 'trophy' },\n      { id: 'kingstooth', ch: .01, band: 'rare' }],";
+/* his table is his field row's, joined in src/data/monsters.js CALLED TABLES (lane/scale-grounds-2): the literal holds his call-only piece,
+   the join the field row's rates */
+const KING_TAIL = "    drops: [{ id: 'kingstooth', ch: .01, band: 'rare' }],";
+const JOIN = 'drops: [...field.drops.map(({ id, ch, band }) => ({ id, ch, band })), ...called.drops]';
 /* the drop door's own lines (src/core/hunt-rewards.js calledSwing) */
 const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (isMonster(t) && t.kind === boss) {\n";
 const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: isMonster(k) ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
@@ -544,13 +547,13 @@ const MUTANTS = [
   { name: 'the drop door ignores its switch', edits: [['src/core/hunt-rewards.js', 'if (BOSS_CALL_RULES.dropsLive === true && ids.length && row)', 'if (ids.length && row)']], want: /SHUT/ },
   /* HIS OWN TABLE, ONLY ON A WIN (Tyler 2026-11-14) */
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
-  { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace(/ch: \.\d+/, 'ch: .5')]], want: /BC-ROW/ },
+  { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', JOIN, JOIN.replace('({ id, ch, band })),', '({ id, ch: Math.min(1, ch * 2), band })),')]], want: /BC-ROW/ },
   /* A CALL-ONLY PIECE IS NEVER A COPY, AND IS ITS TIER'S SIZE (coherence pass 2026-11-15 C1, C2; lane/d-coherence-fixes, re-landed by lane/a-honesty-rescue) */
   { name: 'Kingstooth loses its bane: the Iron Sword again', edits: [['src/data/boss-calls.js', "bane: Object.freeze({ class: 'vermin', mult: 1.1 }), effects: Object.freeze(['bane']),", '']], want: /BC-ROW/ },
   { name: 'the Cauldron Lid loses its fire: the Coppercap Shield again', edits: [['src/data/boss-calls.js', '    resistPm: Object.freeze({ ember: 100 }), tier: 3,', '    tier: 3,']], want: /BC-ROW/ },
   { name: 'the Cauldron Lid cuts every hit at tier 3', edits: [['src/data/boss-calls.js', "cauldron_lid: Object.freeze({ n: 'Cauldron Lid',", "cauldron_lid: Object.freeze({ steadyPm: 50, n: 'Cauldron Lid',"]], want: /BC-ROW/ },
   { name: 'Kingstooth\'s bane past its tier\'s size', edits: [['src/data/boss-calls.js', "class: 'vermin', mult: 1.1 }", "class: 'vermin', mult: 1.2 }"]], want: /BC-ROW/ },
-  { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .0017, band: 'trophy' }],"]], want: /BC-ROW/ },
+  { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, '    drops: [],']], want: /BC-ROW/ },
   { name: 'a loss that pays: his table rolled on a hero\'s death', edits: [['src/core/hunt-rewards.js', DOOR_DEATH, DOOR_DEATH.replace('      const k = unitOf(ev.u);\n', '      ' + PAY_HERE + '\n      const k = unitOf(ev.u);\n')]], want: /BC-DEATH|BC-WAVE|BC-RECORD/ },
   { name: 'a timeout that pays: his table rolled on his blows taken, not his kill', edits: [['src/core/hunt-rewards.js', DOOR_KILL, "    if (ev.type === 'dmg' && unitOf(ev.t) && unitOf(ev.t).kind === boss) " + PAY_HERE + "\n" + DOOR_KILL]], want: /BC-TIME|BC-PAY|BC-DEATH/ },
   { name: 'the win rolls the ground boss\'s row, not his own', edits: [['src/core/hunt-rewards.js', 'const row = (ctx.monsters || MONSTERS)[boss];', 'const row = (ctx.monsters || MONSTERS)[ctx.call.of];']], want: /BC-PAY/ },

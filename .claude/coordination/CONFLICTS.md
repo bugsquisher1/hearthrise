@@ -14,6 +14,20 @@
   | Ox Road (112-128) | dawn / Electrum 120 | 18 | Damask 100 | 10 to 11 |
 - **The rule the numbers give:** a ground's base is the highest tier at or under its reference Level (`floor(refLevel / tierSteps) x tierSteps`). It holds on every pinned ground (Thicket 0, Ford 40, Muster 60) and agrees with gear-phase-b's grid past 88 except the Ox Road. The Sewer fits no single base: its Levels cross a tier with the reference on the boundary (iron reads 19, bronze 3), so its Level band is the dial (5 to 15 on bronze, or 15 to 30 on iron).
 - **Built here meanwhile:** the grounds the brief's mapping reads clean (the Glade, the Warrens, Pyre Field, Krell's Hold, the Slake). **Held for the ruling:** Wickstead (bronze 0 means its iron legs, bodies, belts, gloves and hatchets go down to bronze, the brief's swap the other way), the Sewer (its Level band), Carter's Rest and the Ox Road (with gear-phase-b's CONFLICTS item 4, the same call).
+- **THE GLADE AND THE WARRENS ON THE SCALE (MEASURED, `v1-climb.mjs --hold-level`, the Steady mixed four, 4 seeds; the Glade 6 h from hour 2, the Warrens 10 h from hour 4; `grounds/c-targets/`, `grounds/*-played.json`):**
+
+  | Target | Mosslight Glade (iron 20; band 0 / 60 / 130) | Coppercap Warrens (steel 40; 20 / 80 / 140, refHeld 85) |
+  |---|---|---|
+  | C7 Steady at its hold | 1.01 | 0.99 |
+  | EL-PAY, coin level as played | 0.99 (coinPm 7800) | 0.99 (coinPm 3900) |
+  | C-5 Careful over Steady | 0.64 | 0.59 |
+  | C-4 Bold (fights to the end) | died in 3 of 4 seeds, at 1 to 3.7 h (about one a day) | died in 4 of 4, at 1.1 to 2.8 h; its day under Steady's |
+  | C-2 a tier back / up | -4 depths (FAIL by 1) / +2 | -3 / none (no tier ahead is worn at 41) |
+  | EL-KIT (store bill on the wage) | 0.34 | 0.39 (a Caster ground: 0.35) |
+  | C-3 Steady deaths | 0 | 0 |
+- **DESIGNER, four reads:** (1) **K-6 out of tier 0 (BUILT, confirm or overrule):** `tests/bands.mjs` BD-7 and `new-ground.mjs` now judge the handover only from a lower ground of base tier 1 or more, 7.5 read for K-6 as for C-2 and V4: the Thicket's strong four (Level 15, tier 0) rates 3.75 and the Glade's fresh four (Level 16, tier 0) 4.0, the one Level between the bands, and the Cellar's top (Level 4) could never reach any tier-1 floor. Overrule: open the Glade at Level 15. (2) **The role picks** (`src/data/monster-roles.js`, the header's words): Rook a Warder, the Glade Poacher and the Goblin Skulker Shooters, Chief Coppercap a Caster. (3) **C-2 a tier back on the Glade** reads 4 depths (bronze at Level 23 against iron 20: -31 own steps). (4) **Kit share** 0.34 and 0.39 at the wage (stage 8's prices).
+- **V4-1 RED ON FIVE GROUNDS (MEASURED, `node tests/lineup-v4.mjs`, after this pair; green on four at step 0):** the stamp is by LADDER tier, so the iron and steel rings, earrings, necklaces and capes took item Levels 20 and 40 too, and the Lab's MID kits wear them from Level 30 to 185 (`seam_jasper_band`, `fang_studs`, `wolfbone_torc`, `warband_bulwark`): every company from Muster to the wings is a few points stronger. One-style fours over the mixed four: Muster mage 1.006, Flooded Wing healer 1.003, the Glade mage 1.013, the Warrens mage 1.073, the Bone Wing healer 1.072 (its ruled answer). Three are inside 1.3%, a 3-seed reading's own spread. **Designer:** the mage four's margin (STYLE-3's open question), or V4's measure at these margins. Not refit here.
+- **Set in the same pass (CLAUDE.md 3.5, a band my change pushed out):** the Warrens' tier-path trophy pace read 123.7 h (band 125 to 150) with steel's stats at 40; Coppercap's Cauldron `everyHours` 261 -> 274 (the called Chief follows, CALLED TABLES). `drop-tables` loot-structure now reads a scale ground's Rare as its base (one base a ground), with a mutant (Rook's tier-3 helmet back).
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 

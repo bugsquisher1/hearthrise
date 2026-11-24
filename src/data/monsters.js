@@ -70,6 +70,7 @@ import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
 import { PATTERN_DROPS } from './patterns.js';
 import { LOOT_BANDS } from './loot-bands.js';
+import { BOSS_CALLS } from './boss-calls.js';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -781,58 +782,62 @@ export const MONSTERS = {
      tier-3 set in three weights about hourly for a party of four at 32 AND a lone hero at 45. The swarm dies fastest,
      so the scavengers carry two slots (boots, legs) and the Steel Sword they pick off the spoil; the diggers the helmets
      and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies and the Coppercap Shield (2026-11-18). Rares, ~13-15 h: the skulkers'
-     willow bows, the foreman's steel hatchets, the willow caster pieces in the Chief's hoard beside his War Crown. ══ */
+     willow bows, the foreman's steel hatchets, the willow caster pieces in the Chief's hoard beside his War Crown. Roles on the Danger scale: the header's words (lane/scale-grounds-2). ══ */
   goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
+    role: 'swarm',
     hp: 162, atk: 20, aim: 39, evasion: 22, def: 3, xp: 580, gp: [13, 37], formula: true, speed: 3200,
-    drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'copper_ore', ch: .5, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'glowing_copper_fleck', ch: .08, band: 'uncommon' },
-      { id: 'steel_boots', ch: .0176, band: 'scarce' }, { id: 'boarhide_boots', ch: .0176, band: 'scarce' }, { id: 'scholar_boots', ch: .0176, band: 'scarce' },
-      { id: 'steel_platelegs', ch: .0176, band: 'scarce' }, { id: 'boarhide_pants', ch: .0176, band: 'scarce' }, { id: 'scholar_pants', ch: .0176, band: 'scarce' }, { id: 'steel_sword', ch: .0176, band: 'scarce' }] },
+    drops: [{ id: 'goblin_ear', everyHours: 0.03333, ch: 0.576, band: 'common' }, { id: 'copper_ore', everyHours: 0.04, ch: 0.48, band: 'common' }, { id: 'bones', everyHours: 0.04, ch: 0.48, band: 'common' }, { id: 'glowing_copper_fleck', everyHours: 0.25, ch: 0.0768, band: 'uncommon' },
+      { id: 'steel_boots', everyHours: 1.136, ch: 0.0169, band: 'scarce' }, { id: 'boarhide_boots', everyHours: 1.136, ch: 0.0169, band: 'scarce' }, { id: 'scholar_boots', everyHours: 1.136, ch: 0.0169, band: 'scarce' },
+      { id: 'steel_platelegs', everyHours: 1.136, ch: 0.0169, band: 'scarce' }, { id: 'boarhide_pants', everyHours: 1.136, ch: 0.0169, band: 'scarce' }, { id: 'scholar_pants', everyHours: 1.136, ch: 0.0169, band: 'scarce' }, { id: 'steel_sword', everyHours: 1.136, ch: 0.0169, band: 'scarce' }] },
   goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, level: 38, cls: 'humanoid', family: 'Humanoid', formation: true,
+    role: 'shooter',
     hp: 135, atk: 24, aim: 46, evasion: 21, def: 2, xp: 606, gp: [11, 31], formula: true, speed: 4400,
-    drops: [{ id: 'goblin_ear', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'iron_ore', ch: .2, band: 'common' }, { id: 'skulkers_shiv', ch: .08, band: 'uncommon' },
-      { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
-      { id: 'coppercap_shield', ch: .044, band: 'scarce' },
-      { id: 'willow_longbow', ch: .00546, band: 'rare' }, { id: 'willow_crossbow', ch: .00546, band: 'rare' },
+    drops: [{ id: 'goblin_ear', everyHours: 0.0513, ch: 0.576, band: 'common' }, { id: 'bones', everyHours: 0.0615, ch: 0.48, band: 'common' }, { id: 'iron_ore', everyHours: 0.154, ch: 0.192, band: 'common' }, { id: 'skulkers_shiv', everyHours: 0.3846, ch: 0.0768, band: 'uncommon' },
+      { id: 'steel_platebody', everyHours: 0.7, ch: 0.0422, band: 'scarce' }, { id: 'boarhide_body', everyHours: 0.7, ch: 0.0422, band: 'scarce' }, { id: 'scholar_body', everyHours: 0.7, ch: 0.0422, band: 'scarce' },
+      { id: 'coppercap_shield', everyHours: 0.7, ch: 0.0422, band: 'scarce' },
+      { id: 'willow_longbow', everyHours: 5.64, ch: 0.00524, band: 'rare' }, { id: 'willow_crossbow', everyHours: 5.64, ch: 0.00524, band: 'rare' },
       /* the first tier-3 gloves (lane b-unsourced-items): a Rare, since the Shop owns the slot's basic */
-      { id: 'steel_gauntlets', ch: .00546, band: 'rare' }, { id: 'boarhide_gloves', ch: .00546, band: 'rare' }, { id: 'scholar_gloves', ch: .00546, band: 'rare' }] },
+      { id: 'steel_gauntlets', everyHours: 5.64, ch: 0.00524, band: 'rare' }, { id: 'boarhide_gloves', everyHours: 5.64, ch: 0.00524, band: 'rare' }, { id: 'scholar_gloves', everyHours: 5.64, ch: 0.00524, band: 'rare' }] },
   goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
+    role: 'brute',
     hp: 226, atk: 18, aim: 31, evasion: 32, def: 10, xp: 949, gp: [18, 52], formula: true, speed: 2600,
     spells: ['blasting_charge'],
-    drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
-      { id: 'steel_helm', ch: .0308, band: 'scarce' }, { id: 'boarhide_helmet', ch: .0308, band: 'scarce' }, { id: 'scholar_helmet', ch: .0308, band: 'scarce' }, { id: 'steel_warhammer', ch: .0308, band: 'scarce' },
+    drops: [{ id: 'copper_ore', everyHours: 0.04167, ch: 0.768, band: 'common' }, { id: 'coal', everyHours: 0.0833, ch: 0.384, band: 'common' }, { id: 'bones', everyHours: 0.0667, ch: 0.48, band: 'common' }, { id: 'goblin_ear', everyHours: 0.0833, ch: 0.384, band: 'common' }, { id: 'dented_copper_pot', everyHours: 0.4167, ch: 0.0768, band: 'uncommon' },
+      { id: 'steel_helm', everyHours: 1.082, ch: 0.0296, band: 'scarce' }, { id: 'boarhide_helmet', everyHours: 1.082, ch: 0.0296, band: 'scarce' }, { id: 'scholar_helmet', everyHours: 1.082, ch: 0.0296, band: 'scarce' }, { id: 'steel_warhammer', everyHours: 1.082, ch: 0.0296, band: 'scarce' },
       /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
-      { id: 'steel_belt', ch: .00238, band: 'rare' }, { id: 'boarhide_belt', ch: .00238, band: 'rare' }, { id: 'scholar_belt', ch: .00238, band: 'rare' },
+      { id: 'steel_belt', everyHours: 14, ch: 0.00229, band: 'rare' }, { id: 'boarhide_belt', everyHours: 14, ch: 0.00229, band: 'rare' }, { id: 'scholar_belt', everyHours: 14, ch: 0.00229, band: 'rare' },
       /* the jeweler's tier 3 gem (src/data/jewelry.js), broken out of the copper seams: last, so no earlier row's draw moves */
-      { id: 'seam_jasper', ch: .00238, band: 'rare' }] },
+      { id: 'seam_jasper', everyHours: 14, ch: 0.00229, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
+    role: 'brute',
     hp: 344, atk: 25, aim: 44, evasion: 39, def: 15, xp: 1597, gp: [27, 80], formula: true, speed: 3000,
     /* his spell: the lash he drops (foremans_lash), swept across the two tiles in front of him (lane/d-spell-tuning) */
     spells: ['lash_sweep'],
-    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', ch: .6, band: 'common' }, { id: 'coal', ch: .6, band: 'common' }, { id: 'foremans_lash', ch: .08, band: 'uncommon' },
-      { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
-      { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'steel_hatchets', ch: .0114, band: 'rare' }] },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'iron_ore', everyHours: 0.3333, ch: 0.576, band: 'common' }, { id: 'coal', everyHours: 0.3333, ch: 0.576, band: 'common' }, { id: 'foremans_lash', everyHours: 2.5, ch: 0.0768, band: 'uncommon' },
+      { id: 'steel_platebody', everyHours: 4.55, ch: 0.0422, band: 'scarce' }, { id: 'boarhide_body', everyHours: 4.55, ch: 0.0422, band: 'scarce' }, { id: 'scholar_body', everyHours: 4.55, ch: 0.0422, band: 'scarce' },
+      { id: 'coppercap_shield', everyHours: 4.55, ch: 0.0422, band: 'scarce' }, { id: 'steel_hatchets', everyHours: 17.5, ch: 0.011, band: 'rare' }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elements: { frost: 25, poison: -15 },
+    role: 'caster',
     hp: 1206, atk: 30, aim: 47, evasion: 40, def: 17, xp: 6137, gp: [94, 282], formula: true, speed: 2800,
     spells: ['slag_toss', 'slag_rain'],
-    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
-      { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
-      { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
-      { id: 'willow_wand', ch: .0114, band: 'rare' }, { id: 'willow_spellbook', ch: .0114, band: 'rare' }, { id: 'willow_staff', ch: .0114, band: 'rare' },
-      /* the Cauldron .00132 and his Rares .0114 keep him in the trophy band (125-150 h) and at the rare band's 20 h a hero (drop-tables.mjs), re-fitted on the to-hit ratio and again on 12-targets 8.3 (steel at item Level 40 kills him faster: 118.8 h at .00153; git log has each step) */
-      { id: 'verdigris_cake', ch: .0114, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00132, band: 'trophy' }] },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.8, ch: 0.48, band: 'common' }, { id: 'goblin_totem', everyHours: 1.333, ch: 0.288, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.67, ch: 0.144, band: 'uncommon' },
+      { id: 'steel_platebody', everyHours: 9.1, ch: 0.0422, band: 'scarce' }, { id: 'boarhide_body', everyHours: 9.1, ch: 0.0422, band: 'scarce' }, { id: 'scholar_body', everyHours: 9.1, ch: 0.0422, band: 'scarce' },
+      { id: 'coppercap_shield', everyHours: 9.1, ch: 0.0422, band: 'scarce' }, { id: 'war_crown', everyHours: 28.4, ch: 0.0135, band: 'rare' },
+      { id: 'willow_wand', everyHours: 35, ch: 0.011, band: 'rare' }, { id: 'willow_spellbook', everyHours: 35, ch: 0.011, band: 'rare' }, { id: 'willow_staff', everyHours: 35, ch: 0.011, band: 'rare' },
+      /* the Cauldron and his Rares keep him in the trophy band (125-150 h) and the rare band (20 h) a hero on the tier path (drop-tables.mjs); the Cauldron 274 h since steel is item Level 40 (lane/scale-grounds-2) */
+      { id: 'verdigris_cake', everyHours: 35, ch: 0.011, band: 'rare' }, { id: 'coppercaps_cauldron', everyHours: 274, ch: 0.0014, band: 'trophy' }] },
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED BOSS PAYS ONLY HIS DROPS, ON A WIN (Tyler 2026-11-14): xp 0, gp [0, 0], his ground table plus one call-only piece; his adds pay nothing (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. His to-hit was a low `baseAcc` that took it off the old 85% ceiling so Defense and a shield counted; since the to-hit ratio (src/data/to-hit.js, L15) they always count, and each called row's aim and evasion land the chances its `baseAcc` landed on the reference hero of its Level (ported 2026-11-20). Art: monster-art.js HUNT_ART_ALIAS. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
     elements: { ember: 25, frost: -15, poison: 50 },
     spells: ['tail_lash', 'squeal'],
     hp: 2000, atk: 42, aim: 41, evasion: 8, def: 4, xp: 0, gp: [0, 0], speed: 2800,
-    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): the Rat King's ground rows at the ground's rates, then his call-only piece (boss-calls.js CALL_ITEMS). */
-    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .016, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0017, band: 'trophy' },
-      { id: 'kingstooth', ch: .01, band: 'rare' }],
+    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): the Rat King's rows, joined below (CALLED TABLES), then his call-only piece */
+    drops: [{ id: 'kingstooth', ch: .01, band: 'rare' }],
     phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600 } },
   /* HIS ADDS (hunt-grounds.js `adds`, boss-phases.js): the ground's own Drain Rat, called too, so a wave pays nothing (only his win drops). No boss: a slot's "target is a boss" tells them apart. */
   drain_rat_called: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, add: true,
@@ -841,13 +846,8 @@ export const MONSTERS = {
     elements: { frost: 25, poison: -15 },
     spells: ['slag_toss', 'slag_rain_called'],   // his own pulse (monster-spells.js slag_rain_called); the field Chief keeps slag_rain
     hp: 6000, atk: 110, aim: 14, evasion: 9, def: 28, xp: 0, gp: [0, 0], speed: 2800,
-    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's ground rows at the ground's rates (the Cauldron at the field Chief's .00132), then his call-only piece. */
-    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
-      { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' },
-      { id: 'coppercap_shield', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
-      { id: 'willow_wand', ch: .0114, band: 'rare' }, { id: 'willow_spellbook', ch: .0114, band: 'rare' }, { id: 'willow_staff', ch: .0114, band: 'rare' },
-      { id: 'verdigris_cake', ch: .0114, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00132, band: 'trophy' }, // the field Chief's rate (gen-hunt-sessions: a called boss drops his rows at their rates)
-      { id: 'cauldron_lid', ch: .008, band: 'rare' }],
+    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's rows, joined below (CALLED TABLES), then his call-only piece */
+    drops: [{ id: 'cauldron_lid', ch: .008, band: 'rare' }],
     phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
   /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow
      (`guardPm`, boss-phases.js): burning him through them lost to the careless four (53% before), and Target on Lowest HP is the add wave's answer (board, 2026-11-05). */
@@ -861,45 +861,51 @@ export const MONSTERS = {
 
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their
-     Longbow, vines helmets, sluicers bodies); Rook keeps his Whistle and hides the tier-3 helmets, about every 15 h. Stats: src/data/balance-sheet.js.
+     Longbow, vines helmets, sluicers bodies); Rook keeps his Whistle and hides the tier-2 helmets as Rares (one base on the Danger scale, lane/scale-grounds-2). Stats: src/data/balance-sheet.js.
      Hourly since 2026-11-18 (weapons drop): Rook's Oak Crossbow, the vines' Oak Staff, the sluicers' Iron Warhammer. ══ */
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
+    role: 'swarm',
     hp: 33, atk: 13, aim: 61, evasion: 16, def: 1, xp: 101, gp: [5, 14], formula: true, speed: 4400,
-    drops: [{ id: 'bone_chips', ch: .5, band: 'common' }, { id: 'crow_quill', ch: .08, band: 'uncommon' }, { id: 'iron_boots', ch: .0103, band: 'scarce' }, { id: 'studded_boots', ch: .0103, band: 'scarce' }, { id: 'adept_boots', ch: .0103, band: 'scarce' }] },
+    drops: [{ id: 'bone_chips', everyHours: 0.0348, ch: 0.444, band: 'common' }, { id: 'crow_quill', everyHours: 0.2174, ch: 0.0711, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.69, ch: 0.00915, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.69, ch: 0.00915, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.69, ch: 0.00915, band: 'scarce' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
+    role: 'shooter',
     hp: 29, atk: 15, aim: 77, evasion: 15, def: 1, xp: 114, gp: [4, 13], formula: true, speed: 3400,
     /* a volley down a line of tiles, on the glass poacher (not Rook): it dies fast, so it casts in few Normal fights (lane/d-spell-tuning) */
     spells: ['poachers_volley'],
-    drops: [{ id: 'wolf_pelt', ch: .3, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'snare_wire', ch: .08, band: 'uncommon' },
-      { id: 'iron_platelegs', ch: .028, band: 'scarce' }, { id: 'studded_pants', ch: .028, band: 'scarce' }, { id: 'adept_pants', ch: .028, band: 'scarce' }, { id: 'longbow', ch: .028, band: 'scarce' }, { id: 'houndskin_cloak', ch: .0018, band: 'rare' }] },
+    drops: [{ id: 'wolf_pelt', everyHours: 0.148, ch: 0.267, band: 'common' }, { id: 'bones', everyHours: 0.0889, ch: 0.444, band: 'common' }, { id: 'snare_wire', everyHours: 0.5556, ch: 0.0711, band: 'uncommon' },
+      { id: 'iron_platelegs', everyHours: 1.59, ch: 0.0248, band: 'scarce' }, { id: 'studded_pants', everyHours: 1.59, ch: 0.0248, band: 'scarce' }, { id: 'adept_pants', everyHours: 1.59, ch: 0.0248, band: 'scarce' }, { id: 'longbow', everyHours: 1.59, ch: 0.0248, band: 'scarce' }, { id: 'houndskin_cloak', everyHours: 24.7, ch: 0.0016, band: 'rare' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
+    role: 'brute',
     hp: 52, atk: 12, aim: 51, evasion: 24, def: 5, xp: 199, gp: [8, 23], formula: true, speed: 2400,
     spells: ['spore_cloud'],
-    drops: [{ id: 'magic_essence', ch: .25, band: 'common' }, { id: 'pithwood', ch: .5, band: 'common' }, { id: 'mosslight_tendril', ch: .08, band: 'uncommon' }, { id: 'iron_helm', ch: .019, band: 'scarce' }, { id: 'studded_helmet', ch: .019, band: 'scarce' }, { id: 'adept_helmet', ch: .019, band: 'scarce' },
-      { id: 'oak_staff', ch: .019, band: 'scarce' }, { id: 'mosslight_clump', ch: .0013, band: 'rare' }] },
+    drops: [{ id: 'magic_essence', everyHours: 0.16, ch: 0.222, band: 'common' }, { id: 'pithwood', everyHours: 0.08, ch: 0.444, band: 'common' }, { id: 'mosslight_tendril', everyHours: 0.5, ch: 0.0711, band: 'uncommon' }, { id: 'iron_helm', everyHours: 2.1, ch: 0.0169, band: 'scarce' }, { id: 'studded_helmet', everyHours: 2.1, ch: 0.0169, band: 'scarce' }, { id: 'adept_helmet', everyHours: 2.1, ch: 0.0169, band: 'scarce' },
+      { id: 'oak_staff', everyHours: 2.1, ch: 0.0169, band: 'scarce' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00115, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elements: { ember: 25, poison: -15 },
+    role: 'brute',
     hp: 81, atk: 23, aim: 73, evasion: 29, def: 8, xp: 346, gp: [12, 36], formula: true, speed: 3000,
-    drops: [{ id: 'copper_ore', ch: .6, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'sluice_crust', ch: .08, band: 'uncommon' },
-      { id: 'iron_platebody', ch: .05, band: 'scarce' }, { id: 'studded_body', ch: .05, band: 'scarce' }, { id: 'adept_body', ch: .05, band: 'scarce' },
-      { id: 'iron_warhammer', ch: .05, band: 'scarce' }] },
+    drops: [{ id: 'copper_ore', everyHours: 0.2222, ch: 0.533, band: 'common' }, { id: 'bones', everyHours: 0.2667, ch: 0.444, band: 'common' }, { id: 'sluice_crust', everyHours: 1.667, ch: 0.0711, band: 'uncommon' },
+      { id: 'iron_platebody', everyHours: 2.667, ch: 0.0444, band: 'scarce' }, { id: 'studded_body', everyHours: 2.667, ch: 0.0444, band: 'scarce' }, { id: 'adept_body', everyHours: 2.667, ch: 0.0444, band: 'scarce' },
+      { id: 'iron_warhammer', everyHours: 2.667, ch: 0.0444, band: 'scarce' }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
     /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
+    role: 'warder',
     hp: 90, atk: 24, aim: 76, evasion: 31, def: 9, xp: 401, gp: [13, 40], formula: true, speed: 3200,
-    drops: [{ id: 'raw_wolf_meat', ch: .7, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', ch: .15, band: 'uncommon' },
-      { id: 'oak_crossbow', ch: .05, band: 'scarce' }, { id: 'rooks_whistle', ch: .0038, band: 'rare' },
-      { id: 'steel_helm', ch: .0038, band: 'rare' }, { id: 'boarhide_helmet', ch: .0038, band: 'rare' }, { id: 'scholar_helmet', ch: .0038, band: 'rare' }] },
+    drops: [{ id: 'raw_wolf_meat', everyHours: 0.5714, ch: 0.622, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'rooks_moss_charm', everyHours: 2.67, ch: 0.133, band: 'uncommon' },
+      { id: 'oak_crossbow', everyHours: 8, ch: 0.0444, band: 'scarce' }, { id: 'rooks_whistle', everyHours: 105.3, ch: 0.00338, band: 'rare' },
+      { id: 'iron_helm', everyHours: 105.3, ch: 0.00338, band: 'rare' }, { id: 'studded_helmet', everyHours: 105.3, ch: 0.00338, band: 'rare' }, { id: 'adept_helmet', everyHours: 105.3, ch: 0.00338, band: 'rare' }] },
   brook_bear: { name: 'Brook Bear', icon: '🐻', tier: 3, level: 24, cls: 'mammal', family: 'Mammal',
     /* the Meadowbrook's bruiser: the wet coat sheds frost, fire takes it. The Keep and Trophy Room ask for its Pelt (Andy's report), about an hour's errand, so the Claw, a pie's trophy, rides a Rare row (drop-tables rare-pace: it stands in Vine Hollow as built, lane/c-brook-bear). */
     elements: { ember: -15, frost: 25 },
+    role: 'brute',
     hp: 57, atk: 17, aim: 53, evasion: 25, def: 6, xp: 225, gp: [8, 26], formula: true, speed: 3000,
     /* the Pelt .18 to .21 (lane/d-harder-monsters, 2026-11-19): the bear's tenth more HP slowed the pull, and the Keep's five took 2.2 h at the Glade's Dangerous 6 (the bar is 2 h) */
-    drops: [{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'bear_pelt', ch: .21, band: 'common' }, { id: 'brook_bear_tooth', ch: .08, band: 'uncommon' }, { id: 'bear_claw', ch: .0033, band: 'rare' }] },
+    drops: [{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.533, band: 'common' }, { id: 'bear_pelt', everyHours: 0.952, ch: 0.187, band: 'common' }, { id: 'brook_bear_tooth', everyHours: 2.5, ch: 0.0711, band: 'uncommon' }, { id: 'bear_claw', everyHours: 60.6, ch: 0.00293, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and
@@ -950,6 +956,16 @@ export const MONSTERS = {
 for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => (p.hall ? { ...p.monsters, ...p.hall.monsters } : p.monsters)))) {
   if (Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('ground pack: monster ' + id + ' is already taken; a pack only adds');
   MONSTERS[id] = { ...row };
+}
+
+/* CALLED TABLES (boss-calls.js BOSS_CALLS; tools/gen-hunt-sessions.mjs holds the rule): a called boss's win drops his field row's table at
+   its rates, then his call-only piece, so a field row re-derived from its hours (tools/gen-drop-hours.mjs) carries his called twin along */
+for (const c of Object.values(BOSS_CALLS)) {
+  /** @type {string} */ const of = c.of;
+  /** @type {string} */ const monster = c.monster;
+  const field = MONSTERS[of], called = MONSTERS[monster];
+  if (!field || !called) throw new Error('boss call ' + c.id + ': no ' + (field ? monster : of) + ' row');
+  MONSTERS[monster] = { ...called, drops: [...field.drops.map(({ id, ch, band }) => ({ id, ch, band })), ...called.drops] };
 }
 
 /* THE PATTERNS (src/data/patterns.js): each live pattern's row joins its monsters' tables among their Rares, before the first row of a

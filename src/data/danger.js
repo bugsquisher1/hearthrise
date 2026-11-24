@@ -237,9 +237,16 @@ export const DANGER_GROUNDS = Object.freeze({
   catacomb_bone_wing: ground({ refStep: 520, floorStep: 420, topStep: 580, refKillsHead: 145, coinPm: 4000, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
-     coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. */
-  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 125, refHeld: 115, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+     coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. The Thicket re-cut on 29 7.5's own kit once iron took
+     item Level 20 (lane/scale-grounds-2): its strong four in tier 0 holds 170, where it held the old top 190 in iron. */
+  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 170, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
   mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
+  /* THE SECOND PAIR (lane/scale-grounds-2; 27 stage 6): the Glade on iron (item Level 20, ladder tier 2), the Warrens on steel (40, ladder
+     tier 3, beside the Ford's mithril), each the highest tier at or under its refLevel, so the reference reads the band's middle (CONFLICTS
+     2026-11-23). formulaStep 70 as on the first grounds; the band, coin level and kill rate are measured (tools/new-ground.mjs --hold-level,
+     the C-target cells in grounds/c-targets). The Glade's fresh four holds step 8, so its floor is the scale's first step */
+  mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 135, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
+  coppercap_warrens: ground({ refStep: 80, floorStep: 20, topStep: 140, refKillsHead: 125, refHeld: 85, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 515, refKillsHead: 145, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 

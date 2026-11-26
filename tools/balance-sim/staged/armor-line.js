@@ -51,18 +51,23 @@ export const LINE_TRADE = 0.05;
 /** THE LINE'S FIRST LEVEL by weight: the lowest Level whose whole line set is safer than fully tempered Dawnsteel on every late
     ground a hero of that Level is sent to (armor-power.mjs firstLevel; the guard re-measures it). Plate waits for the Roost: on
     Carter's Rest and the Ox Road Dawnsteel plate is at the cap. */
-export const LINE_FIRST_LEVEL = Object.freeze({ plate: 129, leather: 120, cloth: 113 });
+/* RESTATED ON 8.3 (the designer, lane/designer-reds-1126, 12-targets 8.4): the base is Dawnsteel at item Level 120, worn from 110, every number
+   x 120 / 88 (the formula's own growth past 88) and each sample by the same factor, its spend kept; the Roost's Leg Plates follow the Roost to 128.
+   Re-measured: plate's first Level is 165, because Dawnsteel plate now sits at the absorb cap on every late ground short of the Catacombs. Those
+   grounds' monsters were cut against Dawnsteel at 88 and lane/scale-grounds-sweep re-cuts them on 8.3, so AL3, AL4 and temper-uniques' TU2 and
+   TU6 are read again after that re-cut, not refit here. */
+export const LINE_FIRST_LEVEL = Object.freeze({ plate: 165, leather: 122, cloth: 113 });
 
 /* The Dawnsteel set the line starts from, by slot and weight (gear-tiers.js ARMOUR_SLOTS x ARMOUR_LINES at tier 7: plate,
    Dawnhide leather, Duskweave cloth). Restated, never read, so this file imports nothing; tests/armor-line.mjs AL1 holds it to
    the generated rows. */
 export const LINE_BASE = Object.freeze({
   plate: Object.freeze({ ids: Object.freeze({ helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' }),
-    defB: Object.freeze({ helmet: 44, body: 90, pants: 64, boots: 30, gloves: 23, belt: 30 }) }),
+    defB: Object.freeze({ helmet: 60, body: 123, pants: 87, boots: 41, gloves: 32, belt: 41 }) }),
   leather: Object.freeze({ ids: Object.freeze({ helmet: 'dawnhide_helmet', body: 'dawnhide_body', pants: 'dawnhide_pants', boots: 'dawnhide_boots', gloves: 'dawnhide_gloves', belt: 'dawnhide_belt' }),
-    defB: Object.freeze({ helmet: 24, body: 50, pants: 35, boots: 17, gloves: 13, belt: 17 }) }),
+    defB: Object.freeze({ helmet: 33, body: 68, pants: 48, boots: 23, gloves: 17, belt: 23 }) }),
   cloth: Object.freeze({ ids: Object.freeze({ helmet: 'duskweave_helmet', body: 'duskweave_body', pants: 'duskweave_pants', boots: 'duskweave_boots', gloves: 'duskweave_gloves', belt: 'duskweave_belt' }),
-    defB: Object.freeze({ helmet: 13, body: 27, pants: 19, boots: 9, gloves: 7, belt: 9 }) }),
+    defB: Object.freeze({ helmet: 18, body: 37, pants: 27, boots: 12, gloves: 10, belt: 12 }) }),
 });
 
 /** The line's multiplier for a piece worn from Level `reqLv`: 1 up to the anchor, then reqLv / 110. */
@@ -78,9 +83,9 @@ export function lineArmor(slot, armourClass, reqLv) {
 /* ── THE LINE BY BAND: the Levels a unique is worn from, from the Morrow Hills ladder and the Catacombs (board 2026-11-14 section 5,
    2026-11-15 the Unmarked Catacombs), and what a full set on the line wears. For the board and the wiki; every number is lineArmor's. ── */
 export const LINE_BANDS = Object.freeze([
-  Object.freeze({ reqLv: 110, where: 'Carter\'s Rest (Dawnsteel itself; the Ox Road opens at 112)' }),
+  Object.freeze({ reqLv: 110, where: 'Dawnsteel itself, worn from 110 (12-targets 8.3: the Ox Road\'s tier)' }),
   Object.freeze({ reqLv: 122, where: 'The Night Shift' }),
-  Object.freeze({ reqLv: 125, where: 'Wyvern Roost' }),
+  Object.freeze({ reqLv: 128, where: 'Wyvern Roost' }),
   Object.freeze({ reqLv: 138, where: 'The Old Guard' }),
   Object.freeze({ reqLv: 145, where: 'The Bellows, Father Gault' }),
   Object.freeze({ reqLv: 165, where: 'The Unmarked Catacombs' }),
@@ -114,42 +119,42 @@ export const LINE_BANDS = Object.freeze([
 export const LINE_SAMPLE = Object.freeze({
   /* ── THE NIGHT SHIFT, 122 (not built: planned) ── */
   wagon_guards_breastplate: Object.freeze({
-    row: Object.freeze({ n: 'Wagon Guard\'s Breastplate', icon: '🛡️', v: 119780, type: 'armor', slot: 'body', defB: 100, armourClass: 'plate', atkB: -1, rangeAtkB: -23, magicAtkB: -45,
+    row: Object.freeze({ n: 'Wagon Guard\'s Breastplate', icon: '🛡️', v: 119780, type: 'armor', slot: 'body', defB: 136, armourClass: 'plate', atkB: -1, rangeAtkB: -31, magicAtkB: -61,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 122 }),
     base: 'dawn_platebody', attr: null,
     spend: 'heavy: the line\'s armor, 10 over Dawnsteel, and a stiff shoulder takes a point off your Melee',
     source: Object.freeze({ place: 'night_shift', planned: true, how: 'rare' }), use: 'worn',
-    text: 'It carries 100 armor, more than any other breastplate at Level 122, and your Melee lands a little less often in it. The wagon guards who rode out of Morrow wore these thick, and Gault put the dead ones to work in the mine, armor and all.',
+    text: 'It carries 136 armor, more than any other breastplate at Level 122, and your Melee lands a little less often in it. The wagon guards who rode out of Morrow wore these thick, and Gault put the dead ones to work in the mine, armor and all.',
   }),
   /* ── WYVERN ROOST, 125: the ground's own fire answer (row 2 swapped the legs back from the Roost Mother) ── */
   burnt_crag_leg_plates: Object.freeze({
-    row: Object.freeze({ n: 'Burnt Crag Leg Plates', icon: '🛡️', v: 90000, type: 'armor', slot: 'pants', defB: 81, armourClass: 'plate', strB: -2, rangeAtkB: -16, magicAtkB: -32,
-      resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 125 }),
+    row: Object.freeze({ n: 'Burnt Crag Leg Plates', icon: '🛡️', v: 92160, type: 'armor', slot: 'pants', defB: 110, armourClass: 'plate', strB: -3, rangeAtkB: -22, magicAtkB: -43,
+      resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 128 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_element', 'ember']),
     spend: 'fireproof and heavy: the Crag Wyvern\'s fire, more armor, and they cost you some of your swing',
     source: Object.freeze({ place: 'wyvern_roost', monster: 'crag_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0023 }), use: 'worn',
-    text: 'You take 10% less fire damage, and your blows land 2 lighter. They came off the Burnt Crag black, and the wyverns\' fire never got through them.',
+    text: 'You take 10% less fire damage, and your blows land 3 lighter. They came off the Burnt Crag black, and the wyverns\' fire never got through them.',
   }),
   /* ── THE OLD GUARD, 138 (not built: planned) ── */
   outriders_visor: Object.freeze({
-    row: Object.freeze({ n: 'Outrider\'s Visor', icon: '🛡️', v: 54195, type: 'armor', slot: 'helmet', defB: 55, armourClass: 'plate', atkB: -2, rangeAtkB: -11, magicAtkB: -22,
+    row: Object.freeze({ n: 'Outrider\'s Visor', icon: '🛡️', v: 54195, type: 'armor', slot: 'helmet', defB: 75, armourClass: 'plate', atkB: -3, rangeAtkB: -15, magicAtkB: -30,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 138 }),
     base: 'dawn_helm', attr: null,
-    spend: 'closed: the most armor a helm has here, and a narrow slit costs your Melee 2',
+    spend: 'closed: the most armor a helm has here, and a narrow slit costs your Melee 3',
     source: Object.freeze({ place: 'old_guard', planned: true, how: 'rare' }), use: 'worn',
-    text: 'It carries 55 armor and costs your Melee 2. The outriders rode ahead of the wagons with these shut against the wind on the stair, and the stone guards there still have the ones that never came back down.',
+    text: 'It carries 75 armor and costs your Melee 3. The outriders rode ahead of the wagons with these shut against the wind on the stair, and the stone guards there still have the ones that never came back down.',
   }),
   /* ── THE UNMARKED CATACOMBS, 165 ── */
   watchmans_helm: Object.freeze({
-    row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 67, armourClass: 'plate', atkB: -1, rangeAtkB: -11, magicAtkB: -22,
+    row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 91, armourClass: 'plate', atkB: -1, rangeAtkB: -15, magicAtkB: -30,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_helm', attr: null,
     spend: 'heavy: a full face, 1 more armor than the line, and the narrow slit costs your Melee a point',
     source: Object.freeze({ monster: 'shrouded_pauper', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0007 }), use: 'worn',
-    text: 'It carries 67 armor, the most of any helm, and your Melee lands a little less often in it. The Havora Watch wore them shut on the night rounds, and some of the paupers were old Watch.',
+    text: 'It carries 91 armor, the most of any helm, and your Melee lands a little less often in it. The Havora Watch wore them shut on the night rounds, and some of the paupers were old Watch.',
   }),
   limewashed_plate: Object.freeze({
-    row: Object.freeze({ n: 'Limewashed Plate', icon: '🛡️', v: 162000, type: 'armor', slot: 'body', defB: 128, armourClass: 'plate', rangeAtkB: -23, magicAtkB: -45,
+    row: Object.freeze({ n: 'Limewashed Plate', icon: '🛡️', v: 162000, type: 'armor', slot: 'body', defB: 174, armourClass: 'plate', rangeAtkB: -31, magicAtkB: -61,
       resistPm: Object.freeze({ poison: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_platebody', attr: Object.freeze(['resist_element', 'poison']),
     spend: 'the lime\'s answer: under the line\'s armor, and the Night Carters\' Lime Sack does less',
@@ -157,7 +162,7 @@ export const LINE_SAMPLE = Object.freeze({
     text: 'You take 10% less poison damage. It went into the ossuary wall with whoever wore it, and a hundred years in the lime turned it white and sealed it against the stuff.',
   }),
   keepers_leg_plates: Object.freeze({
-    row: Object.freeze({ n: 'Keeper\'s Leg Plates', icon: '🛡️', v: 118800, type: 'armor', slot: 'pants', defB: 86, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32,
+    row: Object.freeze({ n: 'Keeper\'s Leg Plates', icon: '🛡️', v: 118800, type: 'armor', slot: 'pants', defB: 116, armourClass: 'plate', rangeAtkB: -22, magicAtkB: -43,
       resistPm: Object.freeze({ frost: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_element', 'frost']),
     spend: 'the cold\'s answer: under the line\'s armor, and Keeper Dunn\'s Snuff the Candles does less',
@@ -165,19 +170,19 @@ export const LINE_SAMPLE = Object.freeze({
     text: 'You take 10% less ice damage. The Keepers stood their watches in the cold vaults for years, and these are lined against it.',
   }),
   haulers_jerkin: Object.freeze({
-    row: Object.freeze({ n: 'Hauler\'s Jerkin', icon: '🎽', v: 113400, type: 'armor', slot: 'body', defB: 69, armourClass: 'leather', rangeAtkB: 45, critB: 0.035, magicAtkB: -14,
+    row: Object.freeze({ n: 'Hauler\'s Jerkin', icon: '🎽', v: 113400, type: 'armor', slot: 'body', defB: 93, armourClass: 'leather', rangeAtkB: 61, critB: 0.048, magicAtkB: -18,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawnhide_body', attr: null,
-    spend: 'light: damage over dodge, 6 under the line\'s armor and a quarter more critical chance than Dawnhide',
+    spend: 'light: damage over dodge, 9 under the line\'s armor and a quarter more critical chance than Dawnhide',
     source: Object.freeze({ monster: 'night_carter', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0031 }), use: 'worn',
-    text: 'You land a critical hit 3.5% more often in it, a quarter more than a Dawnhide Body, and it carries 69 armor. The Night Carters cut their coats loose at the shoulders to swing the sacks up, and it draws a bow the same way.',
+    text: 'You land a critical hit 4.8% more often in it, a quarter more than a Dawnhide Body, and it carries 93 armor. The Night Carters cut their coats loose at the shoulders to swing the sacks up, and it draws a bow the same way.',
   }),
   paupers_shroud: Object.freeze({
-    row: Object.freeze({ n: 'Pauper\'s Shroud', icon: '🧥', v: 113400, type: 'armor', slot: 'body', defB: 36, armourClass: 'cloth', magicAtkB: 54, magicStrB: 10, atkB: -23, rangeAtkB: -18,
+    row: Object.freeze({ n: 'Pauper\'s Shroud', icon: '🧥', v: 113400, type: 'armor', slot: 'body', defB: 48, armourClass: 'cloth', magicAtkB: 74, magicStrB: 14, atkB: -31, rangeAtkB: -25,
       resistPm: Object.freeze({ frost: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'duskweave_body', attr: Object.freeze(['resist_element', 'frost']),
-    spend: 'the cold\'s answer for a caster: a thin sheet, 5 under the line\'s ward, and Keeper Dunn\'s Snuff the Candles does less',
+    spend: 'the cold\'s answer for a caster: a thin sheet, 8 under the line\'s ward, and Keeper Dunn\'s Snuff the Candles does less',
     source: Object.freeze({ monster: 'shrouded_pauper', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0007 }), use: 'worn',
-    text: 'You take 10% less ice damage, and it wards 36. A thin gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning.',
+    text: 'You take 10% less ice damage, and it wards 48. A thin gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning.',
   }),
 });

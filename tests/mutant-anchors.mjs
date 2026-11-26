@@ -16,9 +16,20 @@
 // struck" after action-facts.js. The browser --mutate shards only find out when
 // that mutant's turn comes. This finds it statically, in about a second.
 //
-// HOW. Every `const <name> = [ … ]` / `{ … }` whose name says mutant (or a
-// self-check SILENCE pair) in tests/**/*.mjs and tools/*.mjs is cut out with a
-// lexer and evaluated as DATA in an empty vm: the file's own simple top-level
+// WHICH LISTS. Every `const <name> = [ … ]` / `{ … }` in tests/**/*.mjs and
+// tools/*.mjs, at any depth, is a mutant list when ONE of three things says so,
+// none of them a guess (2026-11-26: the name rule alone read 356 lists and left
+// MUT / MUTATIONS / PLANTS / GATE_BLIND unread, ten of them stale):
+//   THE SHAPE     every entry is a written-out mutant, under any name: a
+//                 `[label, file, from, to]`, a `[label, file, [[from, to], …]]`, or a
+//                 `{ file, find|from|anchor, to|replace }` / `{ file, edits|pairs: … }`
+//                 whose file is a real file of the repo.
+//   THE NAME      mutant / mutation / MUT / plant / silence / companion.
+//   THE REGISTER  `// mutant-lists: NAME NAME …` in the file, for a list whose
+//                 shape cannot say it (a bare `[from, to]` pair with an implied
+//                 target: `const GATE_BLIND = ['if v_ok then', 'if true then']`).
+//                 A registered name with no such list in the file is red.
+// Then it is cut out with a lexer and evaluated as DATA in an empty vm: the file's own simple top-level
 // constants (MIG, FN, join(ROOT, …)) are in scope, anything else is an opaque
 // placeholder, and no function in the list is ever called. Each entry yields its
 // patches — `[name, file, from, to]`, `[id, name, file, [[from, to], …]]`,
@@ -42,7 +53,8 @@ import { lex, referencedFiles } from '../tools/guard-anchors.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const SKIP_DIRS = new Set(['node_modules', '.git', '.pglite-cache', '.ci-local', 'fixtures']);
-const LIST_NAME = /mutant|silence|companion/i;
+const LIST_NAME = /mutant|mutat|(?:^|_)mut(?:s|_|$)|plant|silence|companion|blind|disarm|neuter|self_?check/i;
+const REGISTER = /^\s*\/\/\s*mutant-lists:\s*(.+?)\s*$/gm;
 const PATHY = /^\/?[\w./@-]+\.(?:m?js|sql|json|ts|css|html|toml|ya?ml|sh)$/;
 const UNRESOLVED = '\u0000?\u0000';
 const SELF = '\u0000self';
@@ -92,15 +104,34 @@ export function closeOf(src, at) {
   return -1;
 }
 
-/** Every `const NAME = [ … ]` / `{ … }` naming a mutant list: [{ name, line, text }]. */
-export function mutantLists(src) {
+/** A file's `// mutant-lists:` lines: `NAME …` registers lists, `not NAME … — why` says a list whose
+    shape looks written-out is not a mutant list (the why is required). { names, not: Map(name → why), bad: [line] } */
+export function registeredNames(src) {
+  const names = new Set(); const not = new Map(); const bad = [];
+  for (const m of src.matchAll(REGISTER)) {
+    const [head, ...why] = m[1].split(/\s+[—–]\s+|\s+--?\s+/);
+    const words = head.split(/[\s,]+/).filter(Boolean);
+    const neg = words[0] === 'not';
+    const ids = (neg ? words.slice(1) : words).filter((n) => /^[A-Za-z_$][\w$]*$/.test(n));
+    if (!ids.length || (neg && !why.join(' ').trim())) { bad.push(m[0].trim()); continue; }
+    for (const n of ids) if (neg) not.set(n, why.join(' — ').trim()); else names.add(n);
+  }
+  return { names, not, bad };
+}
+
+/** Every `const NAME = [ … ]` / `{ … }` literal: [{ name, line, text, named }]. `named` = the name
+    or the register says mutant list; the rest are read only when their shape does (`all`), and
+    never when the register says `not`. */
+export function mutantLists(src, { all = false } = {}) {
   const out = [];
+  const reg = registeredNames(src);
   for (const m of src.matchAll(/^[ \t]*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*([[{])/gm)) {
-    if (!LIST_NAME.test(m[1])) continue;
+    const named = reg.names.has(m[1]) || (LIST_NAME.test(m[1]) && !reg.not.has(m[1]));
+    if (!named && (!all || reg.not.has(m[1]))) continue;
     const at = m.index + m[0].length - 1;
     const end = closeOf(src, at);
     if (end < 0) continue;
-    out.push({ name: m[1], line: src.slice(0, m.index).split('\n').length, text: src.slice(at, end) });
+    out.push({ name: m[1], line: src.slice(0, m.index).split('\n').length, text: src.slice(at, end), named });
   }
   return out;
 }
@@ -142,19 +173,19 @@ function pathHelpers(root, testDir) {
 function constants(src, ctx) {
   for (const m of src.matchAll(/^([ \t]*)(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n;]+);[ \t]*(?:\/\/.*)?$/gm)) {
     m.splice(1, 1, ...(m[1] && !/^[A-Z_][A-Z0-9_]*$/.test(m[2]) ? [null] : []));
-    if (m[1] === null || m[1] in ctx.env || LIST_NAME.test(m[1])) continue;
+    if (m[1] === null || m[1] in ctx.env) continue;
     try {
       /* every declarator of the line: `const SR = 'a.js', DM = 'b.js';` gives SR 'a.js', never the
          comma's last value (signature-rules.mjs read its SR mutants against damage.js, 2026-11-26) */
       for (const [k, v] of Object.entries(evalDeclarators(m[1], m[2], ctx))) {
-        if (k in ctx.env || LIST_NAME.test(k)) continue;
+        if (k in ctx.env) continue;
         if (typeof v === 'string' || typeof v === 'number' || (typeof v === 'function' && !isOpaque(v) && /=>/.test(m[2]))) ctx.env[k] = v;
       }
     } catch { /* stays opaque */ }
   }
   /* multi-line UPPER_CASE data tables: `const FILES = { renderers: 'src/…', … };` */
   for (const m of src.matchAll(/^(?:export\s+)?const\s+([A-Z_][A-Z0-9_]*)\s*=\s*(?:Object\.freeze\()?([[{])/gm)) {
-    if (m[1] in ctx.env || LIST_NAME.test(m[1])) continue;
+    if (m[1] in ctx.env) continue;
     const at = m.index + m[0].length - 1;
     const end = closeOf(src, at);
     if (end < 0) continue;
@@ -191,7 +222,8 @@ function evalData(text, ctx, opts = undefined) {
 function context(root, testRel, src) {
   const sandbox = vm.createContext({});
   const globals = new Set(vm.runInContext('Object.getOwnPropertyNames(globalThis)', sandbox));
-  const ctx = { sandbox, globals, env: pathHelpers(root, dirname(join(root, testRel))) };
+  const reg = registeredNames(src);
+  const ctx = { sandbox, globals, env: pathHelpers(root, dirname(join(root, testRel))), isList: (n) => reg.names.has(n) || LIST_NAME.test(n) };
   constants(src, ctx);
   return ctx;
 }
@@ -202,7 +234,7 @@ const pathy = (v) => str(v) && (PATHY.test(v.replace(/\\/g, '/').replace(/^[A-Za
 const isPairList = (v) => Array.isArray(v) && v.length > 0 && v.every((p) => Array.isArray(p) && p.length >= 2 && p.length <= 3);
 
 /** [{ file: string|null, anchor: string|RegExp }] for one entry, in the order the harness applies them. */
-export function patchesOf(entry, inherited = null) {
+export function patchesOf(entry, inherited = null, env = null) {
   const out = [];
   const fromPairs = (list, file) => {
     for (const p of list) {
@@ -216,7 +248,8 @@ export function patchesOf(entry, inherited = null) {
     const file = fi >= 0 ? entry[fi] : inherited;
     const pairs = entry.find(isPairList);
     if (pairs) fromPairs(pairs, file);
-    else if (fi >= 0 && (str(entry[fi + 1]) || entry[fi + 1] instanceof RegExp) && fi + 2 < entry.length) out.push({ file, anchor: entry[fi + 1], to: entry[fi + 2] });
+    /* [file, from, to]: the replacement is text (or a replacer); `[test, 'CONTROL: …', []]` plants nothing (bands.mjs) */
+    else if (fi >= 0 && (str(entry[fi + 1]) || entry[fi + 1] instanceof RegExp) && ['string', 'function'].includes(typeof entry[fi + 2])) out.push({ file, anchor: entry[fi + 1], to: entry[fi + 2] });
     /* [label, 'public.hr_fn(uuid,integer)', from, to] — a replayed body named by signature */
     else if (fi < 0 && entry.length >= 3 && entry.every((x) => typeof x === 'string')) out.push({ file, anchor: entry[entry.length - 2], to: entry[entry.length - 1] });
     return out;
@@ -224,7 +257,7 @@ export function patchesOf(entry, inherited = null) {
   if (CALLS.has(entry)) {
     const { name, args } = CALLS.get(entry);
     if (!PATCH_CALLEE.test(name)) return out;
-    if (args.some(pathy)) return patchesOf(args, inherited);
+    if (args.some(pathy)) return patchesOf(args, inherited, env);
     const n = args.length;
     if (n >= 2 && str(args[n - 2]) && typeof args[n - 1] === 'string') out.push({ file: inherited, anchor: args[n - 2], to: args[n - 1] });
     return out;
@@ -239,14 +272,41 @@ export function patchesOf(entry, inherited = null) {
     }
     for (const [k, v] of Object.entries(entry)) {
       if (ANCHOR_KEYS.includes(k)) continue;
+      /* `mig3Pairs: [...]` beside `file: MIG2` patches the file the key names (MIG3), never the entry's own */
+      const keyed = /^(.+?)Pairs$/.exec(k);
+      if (keyed && isPairList(v)) { const f = env && env[keyed[1].toUpperCase()]; fromPairs(v, typeof f === 'string' ? f : null); continue; }
       if (isPairList(v)) fromPairs(v, file);
-      else if (CALLS.has(v)) out.push(...patchesOf(v, file));
+      else if (CALLS.has(v)) out.push(...patchesOf(v, file, env));
       else if (Array.isArray(v) && v.length && v.every((x) => CALLS.has(x) || (x && typeof x === 'object' && !Array.isArray(x) && !isOpaque(x)))) {
-        for (const x of v) out.push(...patchesOf(x, file));
+        for (const x of v) out.push(...patchesOf(x, file, env));
       }
     }
   }
   return out;
+}
+
+/** THE SHAPE: a written-out mutant, whatever its list is called. Only the canonical shapes count,
+    and only with a file `resolves` finds: `[label…, file, from, to…]` (labels first, so a
+    `[file, needle, why]` assertion row is not one), `[label…, file, [[from, to], …]]`, and an object
+    with a file key and an anchor + replacement (or a pair list). */
+function writtenOut(e, resolves) {
+  const anchor = (v) => (str(v) && v.length > 0) || v instanceof RegExp;
+  try {
+    if (Array.isArray(e)) {
+      const fi = e.findIndex(pathy);
+      if (fi < 1 || !e.slice(0, fi).every((x) => str(x) && !pathy(x)) || !resolves(e[fi])) return false;
+      const [a, b] = e.slice(fi + 1);
+      if (isPairList(a)) return a.every((p) => anchor(p[p.length - 2]) && typeof p[p.length - 1] === 'string');
+      return anchor(a) && typeof b === 'string';
+    }
+    if (e && typeof e === 'object' && !isOpaque(e) && !CALLS.has(e)) {
+      const fk = FILE_KEYS.find((k) => typeof e[k] === 'string');
+      if (!fk || !pathy(e[fk]) || !resolves(e[fk])) return false;
+      if (ANCHOR_KEYS.some((k) => anchor(e[k]))) return TO_KEYS.some((t) => typeof e[t] === 'string');
+      return ['edits', 'pairs', 'patches', ...ANCHOR_KEYS].some((k) => isPairList(e[k]));
+    }
+  } catch { /* a getter that throws is not data */ }
+  return false;
 }
 
 /** The entries of an evaluated list: an array's elements, a keyed object's values, or the list itself. */
@@ -381,28 +441,51 @@ export function check(root = ROOT, { only = null, files = null } = {}) {
   for (const testRel of files || guardFiles(root)) {
     if (testRel === 'tests/mutant-anchors.mjs') continue;
     const src = read(testRel);
-    if (!src || !LIST_NAME.test(src)) continue;
+    if (!src) continue;
     /* --for: a test that never names the file (or its stem, for `file: 'bounds'`) cannot patch it */
     if (only && !src.includes(basename(only).replace(/\.\w+$/, ''))) continue;
-    const found = mutantLists(src);
+    const found = mutantLists(src, { all: true });
+    /* THE REGISTER: a registered name is a promise that the list exists; a rename that drops it is red */
+    const reg = registeredNames(src);
+    for (const b of reg.bad) findings.push(`REGISTER ${testRel}: "${b}" is not \`// mutant-lists: NAME …\` or \`// mutant-lists: not NAME … — why\``);
+    for (const n of [...reg.names, ...reg.not.keys()]) if (!new RegExp(`^[ \\t]*(?:export\\s+)?(?:const|let)\\s+${n.replace(/\$/g, '\\$')}\\s*=\\s*[[{]`, 'm').test(src)) {
+      findings.push(`REGISTER ${testRel}: \`// mutant-lists:\` names ${n}, and no \`const ${n} = [ … ]\` / \`{ … }\` is in the file`);
+    }
     if (!found.length) continue;
     let ctx = null; let hints = null;
+    /* pass 1: which literals are mutant lists — the named ones, and the rest only by their shape */
+    const picked = [];
     for (const L of found) {
-      lists++;
       ctx = ctx || context(root, testRel, src);
-      if (!hints) {
-        hints = hintsOf(root, testRel, src, ctx);
-        /* the test itself, its mutant lists blanked: a proof that patches its own functions */
-        let self = src;
-        for (const X of found) self = self.replace(X.text, '[]');
-        cache.set(SELF, self);
-      }
       let value;
-      try { value = evalData(L.text, ctx, { timeout: 1000 }); } catch (e) { unread.push(`${testRel}:${L.line} ${L.name} — ${String(e.message).split('\n')[0]}`); continue; }
-      const entries = entriesOf(value);
+      try { value = evalData(L.text, ctx, { timeout: 1000 }); } catch (e) {
+        if (L.named) unread.push(`${testRel}:${L.line} ${L.name} — ${String(e && e.message).split('\n')[0]}`);
+        continue;
+      }
+      let entries;
+      try { entries = entriesOf(value); } catch { entries = null; }
+      if (!L.named) {
+        /* a list: an array of entries, or a keyed object of them, never one lone entry (`const hk = { file, from, to }`) */
+        if (!entries || !entries.length || (entries.length === 1 && entries[0] === value)) continue;
+        if (!entries.every((e) => writtenOut(e, () => true))) continue;
+        hints = hints || hintsOf(root, testRel, src, ctx);
+        if (!entries.every((e) => writtenOut(e, (f) => resolveFile(root, testRel, f, hints) != null))) continue;
+      }
+      if (!entries) { unread.push(`${testRel}:${L.line} ${L.name} — its entries cannot be read as data`); continue; }
+      picked.push({ L, entries });
+    }
+    if (!picked.length) continue;
+    hints = hints || hintsOf(root, testRel, src, ctx);
+    /* the test itself, its mutant lists blanked: a proof that patches its own functions */
+    let self = src;
+    for (const { L: X } of picked) self = self.replace(X.text, '[]');
+    cache.set(SELF, self);
+    for (const { L, entries } of picked) {
+      lists++;
       let any = false;
       entries.forEach((e, i) => {
-        const ps = patchesOf(e);
+        let ps;
+        try { ps = patchesOf(e, null, ctx.env); } catch { ps = []; }
         if (!ps.length) return;
         any = true;
         const label = `${testRel}:${L.line} ${L.name} "${String(labelOf(e, i)).slice(0, 70)}"`;

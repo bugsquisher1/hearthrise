@@ -151,28 +151,28 @@ async function run(indexSrc, envelopePath) {
 const MUTATIONS = {
   always_emit: {
     what: 'the emit restores the unconditional `trophies: claimed` — the defect exactly as reviewed',
-    file: 'index',
+    file: INDEX_TS,
     find: '        ...(trophyRows ? { trophies: claimed } : {}),',
     repl: '        trophies: claimed,',
     expect: 'W1',
   },
   empty_array_instead_of_omission: {
     what: 'the key is conditional on the ROWS rather than on the ANSWER, so a server that answered with zero rows and a server that did not answer become the same wire',
-    file: 'index',
+    file: INDEX_TS,
     find: '        ...(trophyRows ? { trophies: claimed } : {}),',
     repl: '        ...(claimed.length ? { trophies: claimed } : {}),',
     expect: 'W2',
   },
   client_fills_the_key: {
     what: 'the client applier fills a missing trophies key with [] — "did not say" becomes "none"',
-    file: 'envelope',
+    file: ENVELOPE_JS,
     find: "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
     repl: "if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(k === 'bestiary' ? Object.assign({ trophies: [] }, env[k]) : env[k]);",
     expect: 'W4',
   },
   control_comment_only: {
     what: 'NEGATIVE CONTROL — an inert comment INSIDE the lifted block must move nothing',
-    file: 'index',
+    file: INDEX_TS,
     find: '        const st = Number(r?.stage ?? 0);',
     repl: '        const st = Number(r?.stage ?? 0); /* control */',
     expect: null,
@@ -201,7 +201,7 @@ const main = async () => {
   const { tmpdir } = await import('node:os');
 
   for (const [name, m] of Object.entries(MUTATIONS)) {
-    const base = m.file === 'index' ? indexSrc : envSrc;
+    const base = m.file === INDEX_TS ? indexSrc : envSrc;
     if (base.split(m.find).length - 1 !== 1) {
       console.error(`  HARNESS: anchor for ${name} matched ${base.split(m.find).length - 1} times (need 1)`);
       process.exit(2);
@@ -213,7 +213,7 @@ const main = async () => {
     const realError = console.error;
     console.error = (line) => { seen.push(String(line)); };
     try {
-      if (m.file === 'index') {
+      if (m.file === INDEX_TS) {
         await run(mutated, ENVELOPE_JS);
       } else {
         // The applier's import graph reaches across src/** by relative path

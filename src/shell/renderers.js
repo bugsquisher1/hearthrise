@@ -34,6 +34,7 @@ import { renderAlerts } from './widgets/alerts.js';
 import { renderHuntSummary } from './windows/hunt-summary.js';
 import { renderAway } from './windows/away.js';
 import { renderReport } from './windows/report.js';
+import { renderPlanShare } from './windows/plan-share.js';
 import { renderDeath } from './windows/death.js';
 import { renderPlayCap } from './windows/play-cap.js';
 import { renderOnline } from './widgets/online.js';
@@ -85,6 +86,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   inspect: renderInspect,
   settings: renderSettings,
   report: renderReport,
+  'plan-share': renderPlanShare,
   'game-master': renderGameMaster,
   monster: renderMonster,
   wiki: renderWiki,

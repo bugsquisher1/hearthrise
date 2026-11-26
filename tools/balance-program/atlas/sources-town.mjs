@@ -69,23 +69,16 @@ export function townSources(D, T) {
   /* A SOURCE AN ENGINE CODES (catalogue-coherence CODED_SOURCES, e.g. a burnt cook): a by-product whose chance is not a data row */
   for (const [id, c] of Object.entries(D.CODED_SOURCES || {})) out.push({ sid: 'coded:' + id, kind: 'recipe', system: 'cooking', item: id, qty: 1, state: 'OPEN', opens: 1, byproduct: true,
     where: c.label + ' (' + c.file + ')', chance: true, label: 'CODED in ' + c.file + ': its chance is not a data row' });
-  /* TEMPERING: a rung is an upgrade the atlas names temper:<track>:<tier>:<rung>; its gold and salts are the offer row's */
-  for (const o of D.TEMPER_OFFERS) {
-    const [, track, tier, rung] = o.offer_id.split('.');
-    const item = 'temper:' + track + ':' + tier + ':' + rung;
-    out.push({ sid: 'temper:' + o.offer_id, kind: 'temper', system: 'tempering', item, qty: 1, state: 'OPEN', opens: tierLevel(D, Number(tier)), where: o.name, chance: false,
-      label: 'READ FROM DATA', upgrade: { track, tier: Number(tier), rung: Number(rung), gold: o.gold, inputs: o.items, after: Number(rung) > 1 ? 'temper:' + track + ':' + tier + ':' + (Number(rung) - 1) : null } });
-  }
+  /* TEMPER ON STEPS (src/data/temper.js TEMPER_STEPS; the old rungs retired with lane/tp-im-steps): dark behind temper_steps, so PLANNED rows,
+     one a rank, opening at its Level; its price is hours of wage at the worn piece (src/core/temper-steps.js), never an offer row */
+  for (let rank = 1; rank <= D.TEMPER_STEPS.ranks; rank++) out.push({ sid: 'temper:rank:' + rank, kind: 'temper', system: 'tempering', item: 'temper:rank:' + rank, qty: 1, state: 'PLANNED',
+    opens: rank * D.TEMPER_STEPS.rankEvery, where: 'the smith (dark: temper_steps)', chance: false, label: 'PLANNED: Temper on steps is staged and dark' });
   /* THE HALLMARK and THE REFORGE (src/data/jewelry.js): a graded piece and a gem (and bars) and gold into the next row, at the jeweler */
   for (const o of D.HALLMARK_OFFERS) out.push({ sid: 'hallmark:' + o.from + ':' + o.to, kind: 'hallmark', system: 'jewelry', item: o.to, qty: 1, state: 'OPEN', opens: o.level || 1, where: 'the jeweler (Hallmark)',
     chance: false, label: 'READ FROM DATA', step: { from: o.from, gold: o.gold, inputs: { [o.from]: 1, [o.gem]: 1 }, skill: o.skill, req: o.level, perDay: 10 } });
   for (const o of D.REFORGE_OFFERS) out.push({ sid: 'reforge:' + o.from + ':' + o.to, kind: 'hallmark', system: 'jewelry', item: o.to, qty: 1, state: 'OPEN', opens: o.level || 1, where: 'the jeweler (reforge)',
     chance: false, label: 'READ FROM DATA', step: { from: o.from, gold: o.gold, inputs: { [o.from]: 1, [o.gem]: 1, [o.metal]: o.bars || 0 }, skill: o.skill, req: o.level } });
-  /* LININGS: ruled (one monster part + gold, 12 hunted hours a lining, cured in House slots), NOT BUILT: one PLANNED row a kind and tier */
-  const kinds = new Map();
-  for (const [id, it] of Object.entries(D.IMBUE_ITEMS)) if (it.imbue) { const k = it.imbue.kind + ':' + it.imbue.tier; if (!kinds.has(k)) kinds.set(k, []); kinds.get(k).push(id); }
-  for (const [k, parts] of kinds) out.push({ sid: 'lining:' + k, kind: 'lining', system: 'linings', item: 'lining:' + k, qty: 1, state: 'PLANNED', opens: D.IMBUE_TIER_FLOORS[Number(k.split(':')[1]) - 1] || 1,
-    where: 'curing (not built)', chance: false, label: 'PLANNED: imbuements.js "IMBUING IS NOT BUILT"; no gold row to price', planned: { parts, curingHours: 4, lastsHuntedHours: 12 } });
+  /* (the old linings' PLANNED rows read each part's retired imbue kind and tier: imbuements are src/data/imbue-rules.js's rows now, dark) */
   /* THE MARKET: every tradeable item (a floor and a ceiling, never a real price: three sales ever) */
   for (const [id, it] of Object.entries(D.ITEMS)) {
     if (!it || it.bop || !TRADE_TYPES.has(it.type) || it.type === 'key' || !(Number(it.v) > 0)) continue;

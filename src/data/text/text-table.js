@@ -34,12 +34,12 @@ import { PARTY_TEXT } from './party.js';
 import { PEOPLE_TEXT } from './people.js';
 import { PREP_TEXT } from './prep.js';
 import { REPORT_TEXT } from './report.js';
+import { SHARE_TEXT } from './share.js';
 import { SHOP_TEXT } from './shop.js';
 import { SLOTS_TEXT } from './slots.js';
 import { SUMMARY_TEXT } from './summary.js';
 import { TALLY_TEXT } from './tally.js';
 import { TALENTS_TEXT } from './talents.js';
-import { TEMPER_TEXT } from './temper.js';
 import { WINDOWS_TEXT } from './windows.js';
 import { WIKI_TEXT } from './wiki.js';
 import { WORK_TEXT } from './work.js';
@@ -73,12 +73,12 @@ export const TEXT = Object.freeze({
   people: PEOPLE_TEXT,
   prep: PREP_TEXT,
   report: REPORT_TEXT,
+  share: SHARE_TEXT,
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,
   summary: SUMMARY_TEXT,
   talents: TALENTS_TEXT,
   tally: TALLY_TEXT,
-  temper: TEMPER_TEXT,
   tower: TOWER_TEXT,
   training: TRAINING_TEXT,
   windows: WINDOWS_TEXT,

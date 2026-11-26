@@ -14,6 +14,8 @@
 //   gold-plate-down.png   10x12, the same plate pressed (no lip, the shadow falls in at the top)
 //   steel-arrow.png        3x5: the dark arrow on a primary that goes somewhere (Enter)
 //   ground-shadow.png     24x5: the shadow a creature stands on in a window (shadow at half alpha)
+//   std-frame-rare.png     7x7, slice 3: the Rare frame under an item's icon (frost and water; hunt.css .hh-std)
+//   std-frame-signature.png 7x7, slice 3: the Signature frame (gold, bronze and a torch-lit corner point)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createImage, encodePNG, decodePNG } from './world-art/png.mjs';
 import { isMain } from '../tests/_is-main.mjs';
@@ -62,6 +64,41 @@ function thin() {
   for (const [ox, oy] of [[0, 0], [S - C, 0], [0, S - C], [S - C, S - C]]) {
     for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) im.put(ox + x, oy + y, x === 1 && y === 1 ? P.i3 : P.out);
   }
+  return im;
+}
+
+/* THE STANDOUT FRAMES (v0.3.0 A1, 20-v030-the-roads.md gate 12): the steel family's thin frame in the rarity's own metal, drawn
+   under an item's icon one art px outside it (hunt.css .hh-std). 7x7, slice 3; the edge is two art px (an outline and one lit
+   line), so the icon keeps its room, and the corners carry the mark.
+   Rare: a frost line (frost 1 up-left, water 2 down-right) and a 2x2 frost stud in each corner that bulges inward, lit at its
+   top-left (frost 2), like the thin steel frame's studs. Signature: a gold band two art px deep (gold up-left, bronze 3
+   down-right, then bronze 2 inside), each outer corner cut and a torch-lit point where the lines meet. Two cues beside colour:
+   line against band, square stud against cut corner (ART_DIRECTION §8: colour is never the only cue). */
+const STD = {
+  rare: { lit: '#4fa8e8', shade: '#2b4a6a', hi: '#a8e4ff' },
+  signature: { lit: '#e8c547', shade: '#cfa25c', hi: '#ffd36a' },
+};
+function rareFrame() {
+  const S = 7, C = STD.rare, im = img(S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const d = ring(S, x, y), lit = litAt(S, x, y, d);
+    im.put(x, y, d === 0 ? P.out : d === 1 ? (lit ? C.lit : C.shade) : null);
+  }
+  for (const [ox, oy] of [[1, 1], [4, 1], [1, 4], [4, 4]]) {
+    im.put(ox, oy, C.hi); im.put(ox + 1, oy, C.lit); im.put(ox, oy + 1, C.lit); im.put(ox + 1, oy + 1, C.shade);
+  }
+  return im;
+}
+/* 9x9, slice 4: a DOUBLE gold rule (the ladder's double border for its top rung, §8): outline, the gold line lit up-left,
+   a dark channel, an inner gold line; the outer corners cut and a torch-lit point where the top-left lines meet. */
+function signatureFrame() {
+  const S = 9, C = STD.signature, im = img(S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const d = ring(S, x, y), lit = litAt(S, x, y, d);
+    im.put(x, y, d === 0 || d === 2 ? P.out : d === 1 || d === 3 ? (lit ? C.lit : C.shade) : null);
+  }
+  for (const [x, y] of [[0, 0], [S - 1, 0], [0, S - 1], [S - 1, S - 1]]) im.data.set([0, 0, 0, 0], (y * S + x) * 4);
+  im.put(1, 1, C.hi);
   return im;
 }
 
@@ -126,6 +163,8 @@ export const ART = {
   'gold-plate-down.png': () => plate(true),
   'steel-arrow.png': arrow,
   'ground-shadow.png': groundShadow,
+  'std-frame-rare.png': rareFrame,
+  'std-frame-signature.png': signatureFrame,
 };
 
 const urlOf = (name) => new URL('../assets/ui/' + name, import.meta.url);

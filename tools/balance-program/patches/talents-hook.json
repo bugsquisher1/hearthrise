@@ -40,8 +40,8 @@
   },
   {
    "file": "src/core/member.js",
-   "from": "temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };",
-   "to": "temper: mi.perks && mi.perks.temper ? mi.perks.temper : null, talents: mi.perks && mi.perks.talents ? mi.perks.talents : null };"
+   "from": "temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null };",
+   "to": "temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null, talents: mi.perks && mi.perks.talents ? mi.perks.talents : null };"
   },
   {
    "file": "src/core/member.js",

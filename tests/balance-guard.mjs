@@ -78,7 +78,6 @@ const { TOWER_RULES } = await import(u('src/data/tower.js'));
 const { LEVEL_PACE } = await import(u('src/data/core-model.js'));
 const { contractXpPerH } = await import(u('src/data/balance-sheet.js'));
 const TRAINING = await import(u('src/data/training.js'));
-const { TEMPER_TIERS } = await import(u('src/data/temper.js'));
 const { STAMINA_REFILL } = await import(u('src/data/stamina-refill.js'));
 const { STAMINA_MAX_MS } = await import(u('src/data/hunt-sessions.js'));
 const XP = await import(u('src/core/xp.js'));
@@ -208,7 +207,7 @@ function dataInputs() {
   return {
     refill: { ...STAMINA_REFILL },
     bar: { lanes: { ...ABIL.ABILITY_LANES }, rows: Object.values(ABIL.ABILITIES).map((r) => ({ id: r.id, lane: r.lane, cdMs: r.cdMs, disciplines: [...r.disciplines], replaces: r.replaces || null })), budget: { ...GC.BAR_BUDGET } },
-    temper: TEMPER_TIERS, training: { rules: TRAINING.TRAINING_RULES, gear: TRAINING.TRAINING_GEAR, fee: TRAINING.trainingFee },
+    training: { rules: TRAINING.TRAINING_RULES, gear: TRAINING.TRAINING_GEAR, fee: TRAINING.trainingFee },
     costIn: costInputs(),
     stamina: { freeH: STAMINA_MAX_MS.free / 3600000, refillH: STAMINA_REFILL.perDay * STAMINA_REFILL.maxMinPerBuy / 60, players: MODEL.REFERENCE_PLAYERS },
     luckTop: LUCK.MAGIC_FIND_MAX,
@@ -340,17 +339,6 @@ function judge(I) {
     'store x' + (1 - GC.G8_OWN_SHARE) + ' (a quarter own); linings not built (L32)');
   {
     const rows = [];
-    for (const p of GC.POOL_POINTS) for (const seat of ['lone', 'four']) {
-      const base = R('ref:' + p.id + ':' + seat), pool = R(seat + '-pool:' + p.id), arm = R(seat + '-armor-1:' + p.id);
-      const tk = (r) => (r ? (seat === 'four' ? r.front.takenPerH : r.takenPerH) : NaN);
-      rows.push(row(p.id + ' ' + seat + ' xp', pool && base ? pool.levelXpPerH / base.levelXpPerH : NaN, band('G10', 'xp')));
-      const poolCut = 1 - tk(pool) / tk(base), stepCut = 1 - tk(base) / tk(arm);
-      rows.push(row(p.id + ' ' + seat + ' dmg', stepCut > 0 ? poolCut / stepCut : Infinity, band('G10', 'dmg'), f2, ' (' + Math.round(poolCut * 100) + '% / ' + Math.round(stepCut * 100) + '%)'));
-    }
-    line('G10', rows, 'pool = Tempering both 5/5 + main and Defense +10; perks are not worn by the harness');
-  }
-  {
-    const rows = [];
     for (const p of GC.POOL_POINTS) {
       const base = R('ref:' + p.id + ':lone'), xm = R('lone-yard-main:' + p.id), xd = R('lone-yard-def:' + p.id), t = yardLevels(p.level);
       rows.push(row(p.id + ' xp', xm && base ? xm.levelXpPerH / base.levelXpPerH : NaN, band('G11', 'xp'), f2, ' (+' + t.main + ' main)'));
@@ -362,11 +350,9 @@ function judge(I) {
     const rows = [];
     const T = I.data.training, xpFor = (k, lv) => XP.skillXpForLevel(k, lv);
     for (const p of GC.POOL_POINTS) {
-      const base = R('ref:' + p.id + ':lone'), blows = R('lone-blows:' + p.id), main10 = R('lone-main10:' + p.id);
-      if (!base || !blows || !main10 || !(base.netPerH > 0)) { rows.push({ at: p.id, value: NaN, status: 'ERR', shown: 'no lone net' }); continue; }
+      const base = R('ref:' + p.id + ':lone'), main10 = R('lone-main10:' + p.id);
+      if (!base || !main10 || !(base.netPerH > 0)) { rows.push({ at: p.id, value: NaN, status: 'ERR', shown: 'no lone net' }); continue; }
       const net = base.netPerH, per1 = (gold, gain) => (gain > 0 ? gold / net / (100 * gain) : Infinity);
-      const rung = I.data.temper[p.gearTier][0], gT = (blows.levelXpPerH / base.levelXpPerH - 1) / 5;
-      rows.push(row(p.id + ' Tempering rung 1', per1(rung, gT), band('G12')));
       const m = SL.skillsAt(LINES_SNAP, 'alone', 'hammer', p.level).melee, g10 = main10.levelXpPerH / base.levelXpPerH - 1;
       let yard = 0;
       for (let k = 0; k < 10; k++) yard += (xpFor('melee', m + k + 1) - xpFor('melee', m + k)) / T.rules.xpPerHour * T.fee(m + k);
@@ -376,9 +362,7 @@ function judge(I) {
       while (left > 0 && lv < 50) { const step = xpFor('melee', m + lv + 1) - xpFor('melee', m + lv); if (left >= step) { left -= step; lv++; } else { lv += left / step; left = 0; } }
       rows.push(row(p.id + ' item 12 h', per1(T.gear.gold[12], g10 * lv / 10), band('G12')));
     }
-    const cheapestRung = Math.min(...rows.filter((r) => /Tempering/.test(r.at)).map((r) => r.value));
-    const under = rows.filter((r) => !/Tempering/.test(r.at) && r.value < cheapestRung).map((r) => r.at);
-    line('G12', rows, 'lone REF hours of gold a +1%' + (under.length ? '; cheaper than Tempering\'s cheapest rung: ' + under.join(', ') : ''));
+    line('G12', rows, 'lone REF hours of gold a +1% (Temper on steps is priced in hours of wage: 21 section 2.2)');
   }
   {
     const drop = ['charms', 'trophy-multipliers', 'band-boost', 'monster-drop-bonus', 'food-xp-buffs'].filter((id) => I.scan.byLever.has(id));
@@ -523,7 +507,6 @@ const redSet = (lines) => new Set(lines.flatMap((l) => l.rows.filter((r) => r.st
 /** The first row of `id` (in the line's order) that is neither RED nor gated nor failed on the clean judge, matching `want`. */
 const firstClean = (clean, id, want = () => true) => (clean.find((l) => l.id === id).rows.find((r) => !['RED', 'ERR', 'uncal'].includes(r.status) && want(r)) || null);
 const pointOf = (at) => at.split(' ')[0].replace(/\*$/, '');
-const BYID = (id) => GC.BY_ID[id];
 /* PRE-STEPS a plant may need so its line is judged at all. CALIBRATE: K1 reads the real Krell four exactly (the gate opens).
    NIGHTLY: the twin's and the Tower's rows planted in band (a plain measure has none), then calibrated (D1, D2 are gated). */
 function calibrate(J) {
@@ -570,7 +553,6 @@ async function selftest(workers) {
   const P = [];
   const plant = (name, pick, apply, extra = {}) => P.push({ name, pick, apply, pre: 'none', ...extra });
   const cal = { pre: 'cal' };
-  plant('a stack over its cap: the gear pool +25% Level XP', (c) => firstClean(c, 'G10', (r) => /xp$/.test(r.at)), (J, r) => { const [p, seat] = r.at.split(' '); J.rows[seat + '-pool:' + p].levelXpPerH *= 1.25; });
   plant('a cost over the allowance: one more statement on every settle', (c) => firstClean(c, 'G16', (r) => r.at === 'ownfour'), (J) => { for (const f of Object.values(J.data.costIn.fixtures)) f.statements_a_settle += 1; }, { also: (c) => c.find((l) => l.id === 'G16').rows.filter((r) => r.status !== 'RED').map((r) => 'G16 ' + r.at) });
   /* RE-AIMED (lane/econ-levers: under the store's derived prices a bill x4 stayed inside the keep): the bill set past the four's gold in */
   plant('Deadly loses gold: the Krell-kit four\'s store bill past its gold in', (c) => firstClean(c, 'G8'), (J, r) => { const x = J.rows['four-real:' + r.at]; x.storePerH = (1.25 * x.incomePerH) / (1 - GC.G8_OWN_SHARE); }, cal);
@@ -589,7 +571,7 @@ async function selftest(workers) {
   /* G1 (re-aimed, C-7): a lone hero out-earns the mixed four's head */
   plant('a lone hero runs away: 1.3x the four\'s head', (c) => firstClean(c, 'G1'), (J, r) => { const [g, style] = r.at.split(' '); J.rows['scale-lone:' + g + ':' + style].levelXpPerH = 1.3 * J.rows['scale-four:' + g].levelXpPerH; });
   plant('one way runs away alone: the bow x2 Level XP', (c) => firstClean(c, 'G2'), (J, r) => { J.rows['way:' + pointOf(r.at) + ':bow'].levelXpPerH *= 2; });
-  plant('a gold-for-power offer far too cheap: Tempering\'s first rung at 1 gold', (c) => firstClean(c, 'G12', (r) => /Tempering/.test(r.at) && Number.isFinite(r.value)), (J, r) => { J.data.temper = { ...J.data.temper, [BYID(pointOf(r.at)).gearTier]: [1, ...J.data.temper[BYID(pointOf(r.at)).gearTier].slice(1)] }; });
+  plant('a gold-for-power offer far too cheap: a training item at 1 gold', (c) => firstClean(c, 'G12', (r) => /item 12 h/.test(r.at) && Number.isFinite(r.value)), (J) => { J.data.training = { ...J.data.training, gear: { ...J.data.training.gear, gold: { ...J.data.training.gear.gold, 12: 1 } } }; });
   /* a machine's timing: planted as three times the line's own budget, whatever this machine measured (a x3 on a fast machine stays inside it) */
   plant('a settle three times past its budget: a Krell window at 3 x 200 ms', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] = 3 * LINE.G17.keep[1] * J.rows['time-krell:warm'].partyHours * 36; });
   plant('the Own four hunts 14 hours a day with no new press', (c) => firstClean(c, 'G18', (r) => r.at === 'ownfour'), (J) => { J.data.stamina.players = J.data.stamina.players.map((p) => (p.id === 'ownfour' ? { ...p, huntHoursADay: 14 } : p)); });

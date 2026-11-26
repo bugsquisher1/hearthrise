@@ -26,17 +26,8 @@
 //         controls stay off and the window says the server has not priced them
 //   SV-6  THE ANSWER STAYS: the tab's words ("Blessing II is yours.") survive the
 //         Shop's next repaint (the Shop writes only its own line)
-//   SV-7  TEMPERING AT THE SERVER'S PRICE: two rows for what this hero wears, in the server's numbers; a press only asks, at
-//         that price, and the question is on screen; confirming sends ONE unlock_buy naming the offer and NO number; a row
-//         at the top reads Full, a row short of gold says how short, gear with no ladder says so, and all of them are off
-//   SV-8  ITS MATERIAL (Tyler 2026-11-05): a row says what the rung takes and what the hero holds, bag and Storage; short of it the button stays off and one
-//         line says where to get it; a refusal comes back in words, naming both sources, and the window re-reads
-//   SV-9  ON A PHONE THE ANSWER COVERS NOTHING (lane/c-temper-craft's play, 2026-11-05: "Your Iron armor is at rung 1." stood stuck to the sheet's foot over
-//         the note on where the next salts come from, for the 30 s an answer stands): at 844x390 the answer takes the question's place, in view as it
-//         lands, and lies over no line of the tab however the sheet is scrolled
-//   SV-10 WHERE A HUNTED INPUT DROPS (Tyler 2026-11-07: "what drops the Fine Tempering Salts? haven't dropped any yet"): short of Fine
-//         Tempering Salts, the line counts the recipe's inputs ("2 Iron Bars and 1 Big Bones") and names where Big Bones drop, read from the
-//         monsters' rows and the open grounds (hunt-ground-facts dropWhereWords), never typed
+//   SV-7 to SV-10 (the smith's old Tempering rungs, their material, the phone answer, where a salt's input drops) retired with the rungs
+//         (lane/tp-im-steps, 2026-11-26): Temper on steps has its own verbs, and its tab is the client follow-up (HANDOFFS)
 //   SV-11 BLESS ALL (designer re-read 2026-11-11: three presses to bless again after every death): one press sends one hr_blessing_buy per
 //         missing tier, in order, each at the price the envelope its last purchase brought back quotes; no client total; the button goes
 //         once nothing is missing
@@ -45,15 +36,10 @@ import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 
-const { dropWhereWords } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-ground-facts.js')).href);
-const { ARTISAN_RECIPES } = await import(pathToFileURL(join(ROOT, 'src/data/recipes.js')).href);
-/* the first temperable tier's wear Level (iron, tier 2: 10 since 12-targets 8.3, the old 15), read off the data the pane reads */
-const IRON_LV = (await import(pathToFileURL(join(ROOT, 'src/data/gear-tiers.js')).href)).MATERIAL_TIERS[1].level;
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const SECTIONS = {
@@ -63,11 +49,6 @@ const SECTIONS = {
     { tier: 3, permille: 950, price: 220, held: false }] },
 };
 const RPCS = ['hr_time_buy', 'hr_blessing_buy'];
-/* Tempering, as hr_temper_view states it: Blows rung 1 at a price the fixture's 5,200 gp can pay, Armor at the top, and the next tier's ladders never begun. */
-const TEMPER = { equipment: { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody', pants: 'iron_platelegs', boots: 'iron_boots' },
-  inventory: Object.assign({}, BASE_ENV.inventory, { temper_salts: 15 }), bank: { temper_salts: 5 }, temper: [
-  { track: 'armor', tier: 2, rung: 5, max: 5, offer: null, gold: null, items: null }, { track: 'armor', tier: 3, rung: 0, max: 5, offer: 'temper.armor.3.1', gold: 7000, items: { fine_temper_salts: 10 } },
-  { track: 'blows', tier: 2, rung: 1, max: 5, offer: 'temper.blows.2.2', gold: 4000, items: { temper_salts: 20 } }, { track: 'blows', tier: 3, rung: 0, max: 5, offer: 'temper.blows.3.1', gold: 7000, items: { fine_temper_salts: 10 } }] };
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -78,13 +59,6 @@ async function stub(page, s) {
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-    if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 3 }) });
-    /* SV-9: the sale spends the salts and the gold, and the smith takes a moment */
-    if (s.spendSalts && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) {
-      s.env = Object.assign(clone(s.env), { inventory: Object.assign({}, s.env.inventory, { temper_salts: 0 }), bank: {}, state: Object.assign({}, s.env.state, { gold: 1000, gold_v: 9 }) });
-      await new Promise((ok) => setTimeout(ok, 600));
-    }
-    if (s.refuseSale && name === 'hr-accrue' && JSON.stringify(body).includes('unlock_buy')) return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, verb: 'unlock_buy', error: 'insufficient_item', stage: 'buy', detail: { ok: false, error: 'insufficient_item', item_id: 'temper_salts', have: 4, need: 20, bag: 3, storage: 1 } }) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(clone(s.env), { version: ++s.version, ok: true }));
     /* SV-11: the server holds the bought tier, and the next read says so (hr_blessing_view) */
     if (s.blessMoves && name === 'hr_blessing_buy') {
@@ -178,167 +152,6 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       }
       await ctx.close();
     }
-    { // SV-7
-      const { ctx, page, s, opened } = await open(Object.assign(clone(SECTIONS), clone(TEMPER)));
-      const P = '[data-hs-win="shop"] [data-pane="services"] ';
-      if (!opened) fails.push('SV-7 the Services tab did not open');
-      else {
-        const blows = await txt(page, '.hw-temper [data-track="blows"]'), armor = await txt(page, '.hw-temper [data-track="armor"]');
-        if (!/Iron Sword/.test(blows || '') || !/Rung 1\/5/.test(blows || '') || !/damage and heals \+1%/.test(blows || '') || !/Next: \+2%/.test(blows || '')) fails.push('SV-7 the Blows row reads ' + JSON.stringify(blows));
-        if (!/Tempering Salts: 20\/20, 5 in Storage/.test(blows || '')) fails.push('SV-8 the Blows row does not say what it takes and what the hero holds: ' + JSON.stringify(blows));
-        if ((await txt(page, '.hw-temper-way')) !== '') fails.push('SV-8 a hero who holds enough is told where to get it');
-        if (!/Rung 5\/5/.test(armor || '') || !/damage taken -5%, max/.test(armor || '') || !/Full/.test(armor || '')) fails.push('SV-7 the Armor row reads ' + JSON.stringify(armor));
-        if (!(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 a full ladder can still be pressed');
-        if (/Smaller rungs/.test((blows || '') + (armor || ''))) fails.push('SV-7 Iron is told it takes smaller rungs: ' + JSON.stringify([blows, armor]));
-        const before = s.calls.length;
-        const sales = () => s.calls.slice(before).filter((c) => c.name === 'hr-accrue' && JSON.stringify(c.body).includes('unlock_buy'));
-        await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-7');
-        await page.waitForTimeout(150);
-        if (sales().length) fails.push('SV-7 Temper sent a sale before the confirmation');
-        if (!/rung 2 for 4,000 gp and 20 Tempering Salts/.test(await txt(page, '.hw-temper-ask .hw-confirm-q') || '')) fails.push('SV-7 the question does not state the rung, the gold and the material: ' + await txt(page, '.hw-temper-ask .hw-confirm-q'));
-        const seen = await page.evaluate((q) => { const e = document.querySelector(q); const r = e.getBoundingClientRect(); const w = e.closest('[data-hs-win]').getBoundingClientRect(); return r.height > 0 && r.top >= w.top && r.bottom <= w.bottom; }, P + '.hw-temper-ask');
-        if (!seen) fails.push('SV-7 the question opened out of sight: the press looks dead');
-        await press(page, P + '[data-hs-act="temper-yes"]', 'SV-7');
-        await page.waitForTimeout(800);
-        const buys = sales();
-        if (buys.length !== 1) fails.push('SV-7 the confirm sent ' + buys.length + ' unlock_buy: ' + JSON.stringify(s.calls.slice(before).map((c) => c.name)));
-        else {
-          const raw = JSON.stringify(buys[0].body);
-          if (!raw.includes('temper.blows.2.2')) fails.push('SV-7 the sale names another offer: ' + raw);
-          if (/4000|"gold"|"price"|"items"|"qty"/.test(raw)) fails.push('SV-7 a number crossed in the sale: ' + raw);
-        }
-        /* the sheet says what the rungs do for what is worn now, from the same server rows */
-        await page.keyboard.press('c');
-        const sheet = await wait(page, () => /\+1% dealt, -5% taken/.test((document.querySelector('[data-combat="temper"]') || {}).textContent || ''), null, 3000);
-        if (!sheet) fails.push('SV-7 the sheet reads ' + JSON.stringify(await page.evaluate(() => (document.querySelector('[data-combat="temper"]') || {}).textContent || null)));
-      }
-      await ctx.close();
-    }
-    { // SV-8: short of the material the button is off with gold in hand, one line says where to get it, and it is said once
-      const short = clone(TEMPER);
-      short.inventory.temper_salts = 3; short.bank.temper_salts = 1;
-      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), short));
-      if (!opened) fails.push('SV-8 the Services tab did not open short of material');
-      else {
-        const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Tempering Salts: 4\/20, 1 in Storage/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
-        const way = await txt(page, '.hw-temper-way');
-        if (!/Tempering Salts: requires Smithing 15 \(now \d+\) · Made from 1 Iron Bar and 1 Bone Chips · Bone Chips: dropped by /.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
-      }
-      await ctx.close();
-    }
-    { // SV-10: a Steel Sword short of Fine Tempering Salts is told the recipe's counts and where Big Bones drop, from the data
-      const fine = clone(TEMPER);
-      fine.equipment.weapon = 'steel_sword';
-      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), fine));
-      if (!opened) fails.push('SV-10 the Services tab did not open on a Steel Sword');
-      else {
-        const way = (await txt(page, '.hw-temper-way')) || '';
-        const ins = (ARTISAN_RECIPES.smithing.find((r) => r.output === 'fine_temper_salts') || {}).inputs || {};
-        const where = dropWhereWords('big_bones').replace(/^Dropped by /, '');
-        if (!where || !way.includes('Made from ' + ins.iron_bar + ' Iron Bars and ' + ins.big_bones + ' Big Bones') || !way.includes('Big Bones: dropped by ' + where))
-          fails.push('SV-10 the way never says where Big Bones drop (' + JSON.stringify(where) + '): ' + JSON.stringify(way));
-      }
-      await ctx.close();
-    }
-    { // SV-8: a stale window: the server refuses in words, and the window re-reads
-      const { ctx, page, s, opened } = await open(Object.assign(clone(SECTIONS), clone(TEMPER)));
-      const P = '[data-hs-win="shop"] [data-pane="services"] ';
-      if (!opened) fails.push('SV-8 the Services tab did not open for the refusal');
-      else {
-        s.refuseSale = true;
-        await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-8');
-        await page.waitForTimeout(100);
-        await press(page, P + '[data-hs-act="temper-yes"]', 'SV-8');
-        /* the answer shows only after the re-read has landed: read both in the one frame the words first appear */
-        const seen = await page.waitForFunction(() => { const m = document.querySelector('.hw-temper-msg'); const b = document.querySelector('.hw-temper [data-track="blows"]'); return m && /Not enough/.test(m.textContent) ? b.textContent : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
-        const said = !!seen;
-        if (!said || !/Not enough Tempering Salts: 3 in bag, 1 in Storage, need 20/.test(await txt(page, '.hw-temper-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
-        if (!/Tempering Salts: 8\/20, 5 in Storage/.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
-      }
-      await ctx.close();
-    }
-    { // SV-9: a phone tempers its last salts; the answer stands in the flow and the note on where to get more stays readable
-      const { ctx, page, s, opened } = await open(Object.assign(clone(SECTIONS), clone(TEMPER)), true);
-      const P = '[data-hs-win="shop"] [data-pane="services"] ';
-      if (!opened) fails.push('SV-9 the Services tab did not open on a phone');
-      else {
-        s.spendSalts = true;
-        await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-9');
-        await page.waitForTimeout(150);
-        await press(page, P + '[data-hs-act="temper-yes"]', 'SV-9');
-        /* while the smith works the player reads back up the sheet; the answer still lands where it is seen (played at 844x390: half of it stood under the foot) */
-        await page.evaluate(() => { document.querySelector('[data-hs-win="shop"] .hs-win-body').scrollTop = 0; });
-        const landed = await wait(page, () => /: rung 2/.test(document.querySelector('.hw-services').textContent) && /Also sold at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
-        /* the line that holds the answer, wherever the window put it, against every other line of the tab that shows */
-        const cover = () => page.evaluate(() => {
-          const lines = Array.from(document.querySelectorAll('.hw-services p, .hw-services li, .hw-services h3, .hw-services small')).filter((e) => e.getClientRects().length && e.textContent.trim());
-          const m = lines.find((e) => /: rung 2/.test(e.textContent) && !e.querySelector('p, li'));
-          if (!m) return { none: true };
-          const a = m.getBoundingClientRect(), body = m.closest('.hs-win-body').getBoundingClientRect();
-          const under = lines.filter((e) => e !== m && !e.contains(m) && !m.contains(e)).filter((e) => { const b = e.getBoundingClientRect(); return b.bottom > a.top + 1 && b.top < a.bottom - 1 && b.right > a.left && b.left < a.right; });
-          return { inView: a.top >= body.top - 1 && a.bottom <= body.bottom + 1, under: under.map((e) => e.className + ': ' + e.textContent.slice(0, 50)) };
-        });
-        if (!landed) fails.push('SV-9 the answer or the note never came: ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
-        else {
-          const now = await cover();
-          if (now.none || !now.inView) fails.push('SV-9 the answer landed out of sight on a phone: ' + JSON.stringify(now));
-          else if (now.under.length) fails.push('SV-9 the answer lies over ' + now.under.join(' | '));
-          /* a player reads up from the foot, the answer still standing: it never follows the sheet over the note */
-          for (const up of [40, 120]) {
-            await page.evaluate((px) => { const b = document.querySelector('[data-hs-win="shop"] .hs-win-body'); b.scrollTop = b.scrollHeight - b.clientHeight - px; }, up);
-            await page.waitForTimeout(80);
-            const read = await cover();
-            if (read.under && read.under.length) fails.push('SV-9 scrolled up ' + up + ' px, the answer lies over ' + read.under.join(' | '));
-          }
-        }
-      }
-      await ctx.close();
-    }
-    { // SV-7: short of gold says how short, and the button is off
-      const short = clone(TEMPER);
-      short.temper = short.temper.map((l) => (l.track === 'blows' && l.tier === 2 ? { ...l, rung: 3, offer: 'temper.blows.2.4', gold: 16000, items: { temper_salts: 20 } } : l));
-      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), short));
-      if (!opened) fails.push('SV-7 the Services tab did not open short of gold');
-      else {
-        const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Need 10,800 gp more/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 short of gold reads ' + JSON.stringify(b));
-      }
-      await ctx.close();
-    }
-    { // SV-7: gear with no ladder says so, and nothing is on
-      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), { equipment: { weapon: 'bronze_sword', body: 'bronze_platebody' }, temper: clone(TEMPER.temper) }));
-      if (!opened) fails.push('SV-7 the Services tab did not open on Bronze');
-      else {
-        const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!new RegExp('Not temperable \\(requires Level ' + IRON_LV + '\\+ gear\\)').test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
-      }
-      await ctx.close();
-    }
-    { // SV-7: gear ABOVE the server's ladders says which Levels the smith has rungs for (the playthrough audit's F17: "can't be tempered yet" at
-      // Level 55 in Mithril, no reason). The Levels are the server's ladders here (tiers 2 and 3: worn from IRON_LV to 30), never this build's table.
-      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), { equipment: { weapon: 'mithril_sword', body: 'mithril_platebody' }, temper: clone(TEMPER.temper) }));
-      if (!opened) fails.push('SV-7 the Services tab did not open on Mithril');
-      else {
-        const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!new RegExp('Not temperable \\(Levels ' + IRON_LV + '–30 only\\)').test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
-      }
-      await ctx.close();
-    }
-    { // SV-7: DAWNSTEEL (lane/d-gold-sinks, the lane/d-temper-dawnsteel design): tier 7 takes smaller rungs, 0.4% each (src/data/temper.js
-      // TEMPER_TIER_RUNG_PM), so "Next: +1.2%" after Emberforged's 1% steps says why, on both rows, in the server's ladders (tier 7 at rung 2 and at the top)
-      const dawn = { equipment: { weapon: 'dawn_sword', helmet: 'dawn_helm', body: 'dawn_platebody' }, temper: [...clone(TEMPER.temper),
-        { track: 'blows', tier: 7, rung: 2, max: 5, offer: 'temper.blows.7.3', gold: 160000, items: { ember_temper_salts: 40 } }, { track: 'armor', tier: 7, rung: 5, max: 5, offer: null, gold: null, items: null }] };
-      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), dawn));
-      if (!opened) fails.push('SV-7 the Services tab did not open on Dawnsteel');
-      else {
-        const b = await txt(page, '.hw-temper [data-track="blows"]'), a = await txt(page, '.hw-temper [data-track="armor"]');
-        if (!/Dawnsteel Sword/.test(b || '') || !/Rung 2\/5: damage and heals \+0\.8% · Next: \+1\.2% · Smaller rungs: 0\.4% each/.test(b || '')) fails.push('SV-7 a Dawnsteel Sword reads ' + JSON.stringify(b));
-        if (!/Rung 5\/5: damage taken -2%, max · Smaller rungs: 0\.4% each/.test(a || '') || !(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 Dawnsteel armor reads ' + JSON.stringify(a));
-        if (!/160,000/.test((await txt(page, '.hw-temper [data-track="blows"] button')) || '')) fails.push('SV-7 the Dawnsteel rung is not at the server\'s price: ' + JSON.stringify(await txt(page, '.hw-temper [data-track="blows"] button')));
-      }
-      await ctx.close();
-    }
     { // SV-5
       /* SV-11 BLESS ALL (designer re-read 2026-11-11: three presses to bless again): ONE press buys every missing tier in order, each at the price
          the envelope the last purchase brought back quotes, and the button goes once nothing is missing */
@@ -368,7 +181,6 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
         if (!(await off(page, '[data-hs-act="stam-ask"]'))) fails.push('SV-5 Buy stamina is on with no quote');
         if ((await txt(page, '.hw-stam-quote')) !== 'No block price yet') fails.push('SV-5 the stamina line does not say it is unpriced');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
-        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-temper li').length) !== 0) fails.push('SV-5 Tempering rows were invented');
       }
       await ctx.close();
     }
@@ -380,24 +192,6 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
-  ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = el.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = el.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', el, sc, repaint);\n    sc.msg = '';"],
-  ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
-  ['Dawnsteel never says why its rungs are smaller (SV-7)', 'src/shell/windows/temper-pane.js', "const small = (r.smallPm ? ' · ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '') + bands;", "const small = bands;"],
-  ['every tier is told it takes smaller rungs (SV-7)', 'src/session/temper-sections.js', '  return l && l.pm < TEMPER_RUNG_PM ? l.pm : 0;', '  return l ? l.pm : 0;'],
-  ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
-  ['short of material stays on (SV-8)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || !!short ||"],
-  ['Storage is not counted (SV-8)', 'src/session/temper-sections.js', 'const storage = row ? row.qty : 0;', 'const storage = 0;'],
-  ['the row hides what it takes (SV-8)', 'src/shell/windows/temper-pane.js', "      text(li.querySelector('.hw-temper-need'), needWords(r.needs));\n", ''],
-  ['the way is not said (SV-8)', 'src/shell/windows/temper-pane.js', "  patchParts(root.querySelector('.hw-temper-way'), all ? wayParts([all.blows, all.armor]) : []);\n", ''],
-  /* the re-read after a refusal is the session's (A20): one rule for every hero's ask, character-session.js _settled */
-  ['a refused sale never re-reads (SV-8)', 'src/session/character-session.js', "    if (!(restated && this._take(restated, 'load'))) await afterRefusal(this, ans);\n", ''],
-  ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || itemsShort ||"],
-  ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !!short ||"],
-  ['the answer sticks to the sheet\'s foot again (SV-9)', 'src/styles/windows.css', '.hw-temper-msg { margin: 6px 0 0;', '.hw-temper-msg { position: sticky; bottom: 0; margin: 6px 0 0;'],
-  ['the tab\'s foot line says Tempering\'s answer too (SV-9)', 'src/shell/windows/services.js', "sc.msgAt === 'temper' ? '' : sc.msg", 'sc.msg'],
-  ['the answer lands out of sight on a short sheet (SV-9)', 'src/shell/windows/temper-pane.js', ".then(() => {\n      if (line && line.isConnected && line.textContent && line.scrollIntoView) line.scrollIntoView({ block: 'nearest' });\n    });", ';'],
-  ['the question opens out of sight (SV-7)', 'src/shell/windows/temper-pane.js', "    if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });\n", ''],
-  ['the reader invents a ladder (SV-5)', 'src/session/temper-sections.js', "  if (!Array.isArray(s)) return null;\n", "  if (!Array.isArray(s)) return [{ track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.blows.2.1', gold: 1 }];\n"],
   ['the confirm sends a price of its own', 'src/shell/windows/services.js', "cs.buyTime('hunt', q.price)", "cs.buyTime('hunt', q.price - 1)"],
   ['Buy sends without a confirmation', 'src/shell/windows/services.js',
     "if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }",

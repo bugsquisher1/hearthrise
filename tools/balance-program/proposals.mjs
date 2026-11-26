@@ -142,7 +142,7 @@ const STATIC = {
       { file: 'src/core/member.js', from: '  applyVitals(state, equipment, items);', to: '  applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
       { file: 'src/core/member.js', from: 'applied > 0) applyVitals(state, equipment, items);', to: 'applied > 0) applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
       { file: 'src/core/member.js', from: '> lv0) applyVitals(state, equipment, items);', to: '> lv0) applyVitals(state, equipment, items, mi.perks && mi.perks.talents);' },
-      { file: 'src/core/member.js', from: 'temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };', to: 'temper: mi.perks && mi.perks.temper ? mi.perks.temper : null, talents: mi.perks && mi.perks.talents ? mi.perks.talents : null };' },
+      { file: 'src/core/member.js', from: 'temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null };', to: 'temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null, talents: mi.perks && mi.perks.talents ? mi.perks.talents : null };' },
       { file: 'src/core/member.js', from: "  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0));",
         to: "  const def = Math.floor(((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0)) * (1 + ((c.talents && c.talents.footing) || 0) / 1000));" },
     ],

@@ -42,18 +42,19 @@ export const WEARER = Object.freeze({
 
 /**
  * The power measure on the given module instances.
- * mods: { ITEMS, MONSTERS, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, temperCore, temperData, elements, spells, monsterLevelOf,
+ * mods: { ITEMS, MONSTERS, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, elements, spells, monsterLevelOf,
  *         deriveProfile, skillXpForLevel, line (tools/balance-sim/staged/armor-line.js) }
  */
 export function armorPower(mods) {
   const { DANGER_GROUNDS = {} } = mods;
-  const { ITEMS, MONSTERS, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, temperCore, temperData, elements, spells, monsterLevelOf, deriveProfile, skillXpForLevel, line } = mods;
+  const { ITEMS, MONSTERS, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, elements, spells, monsterLevelOf, deriveProfile, skillXpForLevel, line } = mods;
   const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   const TICK = combat.COMBAT_BALANCE.tickMs;
   const CAP = mods.capPm;
   const skillsAt = (L) => ({ melee: skillXpForLevel('melee', L), ranged: skillXpForLevel('ranged', L), magic: skillXpForLevel('magic', L), defense: skillXpForLevel('defense', L) });
-  /* fully tempered Dawnsteel: both tier-7 tracks at their last rung (src/data/temper.js), read by the engine's own armorPmOf */
-  const fullTemper = () => { const l = temperData.temperLadder('armor', 7); return l ? { [temperData.temperUnlockId('armor', 7)]: l.rungs } : {}; };
+  /* the old Armor rungs retired with lane/tp-im-steps: Temper on steps is item Levels in the gear part, which this reader does not play, so
+     "tempered" Dawnsteel reads as Dawnsteel (no cut) */
+  const fullTemper = () => null;
   const spawnsOf = (gid) => {
     const g = HUNT_GROUNDS[gid], h = g && HUNT_INDEX[g.hunt];
     return (h && h.spawns || []).filter((s) => MONSTERS[s.monster] && s.w > 0);
@@ -97,7 +98,7 @@ export function armorPower(mods) {
     const { items, equipment } = worn, W = WEARER[items[equipment.weapon] ? Object.keys(WEARER).find((k) => WEARER[k].weapon === equipment.weapon) : 'plate'];
     const skills = skillsAt(L), eq = combat.equipmentStats(equipment, items), profile = deriveProfile(items[equipment.weapon].weaponType);
     const values = mitigation.armourValues(equipment, items);
-    const armorPm = temper ? temperCore.armorPmOf(equipment, items, temper) : 0;
+    const armorPm = 0;
     const resist = eq.resistPm || null;
     let kills = 0, time = 0, hurt = 0;
     for (const s of spawnsOf(gid)) {
@@ -182,12 +183,12 @@ export function armorPower(mods) {
     from this tool's own tree (a guard's planted copy carries src/, never tools/). */
 export async function loadArmorPower(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
-  const [{ ITEMS }, { MONSTERS, monsterLevelOf }, { HUNT_GROUNDS }, { HUNT_INDEX }, combat, mitigation, temperCore, temperData, elements, spells, member, xp, line, core, { DANGER_GROUNDS }] = await Promise.all([
+  const [{ ITEMS }, { MONSTERS, monsterLevelOf }, { HUNT_GROUNDS }, { HUNT_INDEX }, combat, mitigation, elements, spells, member, xp, line, core, { DANGER_GROUNDS }] = await Promise.all([
     import(u('src/data/items.js')), import(u('src/data/monsters.js')), import(u('src/data/hunt-grounds.js')), import(u('src/data/hunts.js')),
-    import(u('src/core/combat.js')), import(u('src/core/mitigation.js')), import(u('src/core/temper.js')), import(u('src/data/temper.js')),
+    import(u('src/core/combat.js')), import(u('src/core/mitigation.js')),
     import(u('src/core/elements.js')), import(u('src/data/monster-spells.js')), import(u('src/core/member.js')), import(u('src/core/xp.js')),
     import(new URL('./staged/armor-line.js', import.meta.url).href), import(u('src/data/core-model.js')), import(u('src/data/danger.js'))]);
-  return { mods: { ITEMS, MONSTERS, monsterLevelOf, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, temperCore, temperData, elements, spells,
+  return { mods: { ITEMS, MONSTERS, monsterLevelOf, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, elements, spells,
     deriveProfile: member.deriveProfile, skillXpForLevel: xp.skillXpForLevel, line, capPm: core.ARMOUR_MITIGATION.capPm, DANGER_GROUNDS }, line };
 }
 

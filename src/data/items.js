@@ -705,7 +705,7 @@ export const ITEMS={
   warden_seal:    {n:"Warden's Seal",   icon:'🔱', v:4400, tier:7},
   wyrm_gilding:   {n:'Wyrm Gilding',    icon:'✨', v:5200, tier:7},
 
-  /* The cape ladder's tier-8 rung (a cloak's rule is its Steady armor; tests/hunt-core/temper.mjs a-cape-steps-like-armor). */
+  /* The cape ladder's tier-8 rung (a cloak's rule is its Steady armor; tests/hunt-core/steady-cut.mjs a-cape-steps-like-armor). */
   wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   steadyPm: 285, rarity:'unique', tier:8, reqSkill:'level', reqLv:88},
 
   /* The five other tier-8 "Hunt-forged" pieces and the five dungeon boss weapons were CUT (the designer, lane/named-pieces 2026-11-23,
@@ -835,7 +835,7 @@ for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS
    ground that drops one stamps its own base (above) and the two agree; two numbers for one piece throw (one base, one number), with one
    exception that keeps the stamp, worn from it less wearAhead: a ground whose rows still drop another tier's pieces until they are
    re-pointed (12-targets 8.3 c, the grounds' lane; tests/gear-stats.mjs GSF-9 names each one and reds it the day it agrees). A named
-   Catacomb piece carries its twin's step (the metal it is cut from: its Temper reads that tier, src/data/temper.js temperTierOf) and is
+   Catacomb piece carries its twin's step (the metal it is cut from: its Temper kit is that band's, src/core/temper-steps.js temperKitAt) and is
    its wing's stamp, worn from it less wearAhead. ITEM_LEVELS is every item Level a row is given here: tools/gen-gear.mjs sizes each piece
    at it, never at the iL its own table wrote back. */
 const STAMPED_ELSEWHERE = new Set(Object.values(DANGER_GROUNDS).filter((g) => Number.isInteger(g.ladderTier) && MATERIAL_TIERS[g.ladderTier - 1]

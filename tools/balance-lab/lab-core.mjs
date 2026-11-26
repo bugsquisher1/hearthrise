@@ -195,8 +195,8 @@ function playHunt(huntId, levels, roles, o) {
   const ground = o.ground || HUNT_GROUNDS[huntId], grid = gridOfMap(ground.map);
   const members = roles.map((r, i) => heroOf(huntId, r, i, levels[i], roles, o));
   if (Number.isInteger(o.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: o.density });
-  /* o.temper: every hero's rungs, the map hr_perks_of's `temper` carries (play-ground.mjs, the same line) */
-  if (o.temper) for (const m of members) m.perks = { temper: o.temper };
+  /* o.temperSteps: every hero's seated Temper ranks by slot, the map hr_perks_of's `temperSteps` carries (play-ground.mjs, the same line) */
+  if (o.temperSteps) for (const m of members) m.perks = { temperSteps: o.temperSteps };
   /* o.talents: each seat's Talents on m.perks.talents (play-ground.mjs, the same line) */
   if (o.talents) members.forEach((m, i) => { if (o.talents[i]) m.perks = { ...(m.perks || {}), talents: clone(o.talents[i]) }; });
   if (o.levelXpPm > 0) for (const m of members) m.perks = { ...(m.perks || {}), levelXpPm: o.levelXpPm };
@@ -478,12 +478,12 @@ export function playCell(cell, seeds, hooks = {}) {
         ground: cell.groundPatch ? { ...ground, ...cell.groundPatch } : null,
         shouldStop: hooks.shouldStop,
         onProgress: hooks.onProgress ? (ms) => hooks.onProgress(Math.min(1, (doneMs + ms) / totalMs)) : null,
-        temper: cell.temper || null, talents: Array.isArray(cell.talentsBySeat) ? cell.talentsBySeat : null,
+        temperSteps: cell.temperSteps || null, talents: Array.isArray(cell.talentsBySeat) ? cell.talentsBySeat : null,
         /* the Traits each seat's pieces carry (cell.traitsBySeat, Rare and Very Rare kits: tools/balance-program/trait-kits.mjs) */
         traits: Array.isArray(cell.traitsBySeat) ? (role, i) => cell.traitsBySeat[i] || null : null,
       };
       if (R) Object.assign(o, { bar: R.bar ? (role, i) => clone(R.bar[i]) : null, bag: (role, i) => clone(R.bag[i]), start: R.start ? (role, i) => (R.start[i] ? clone(R.start[i]) : null) : null,
-        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temper: R.temper || null, dropEnded: real, talents: R.talents || null });
+        options: R.options ? (role, i) => clone(R.options[i]) : null, leaveTogether: R.leaveTogether, density: R.density, temperSteps: R.temperSteps || null, dropEnded: real, talents: R.talents || null });
       const res = playHunt(cell.ground, levels, roles, o);
       for (const h of H) close(h, live[h.key]);
       /* book the time hunted, never more (cell.mjs, the same line) */

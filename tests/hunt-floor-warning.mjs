@@ -89,8 +89,12 @@ async function run(base) {
     }
     if (inBand && r.note !== null) { ok('G2', false, 'a fitting ground still carries a note at Level ' + lv); break; }
   }
-  const duo = HL.recommendation([12, 20], 2, rows);
-  ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
+  /* the pair's top seat at the party ground's own top, read from the data (the Sewer 5-25 -> 5-19, 12-targets 8.3): 12 and 20 held one
+     ground until the re-cut, and now none holds both */
+  const hallRow = rows.find((r) => r.hunt === halls[0]), pair = [12, hallRow ? hallRow.band[1] : NaN];
+  ok('G2', !!hallRow && hallRow.band[0] <= pair[0] && pair[0] < pair[1], 'the party ground ' + halls[0] + ' does not hold Level 12 under its top: ' + (hallRow && hallRow.band));
+  const duo = HL.recommendation(pair, 2, rows);
+  ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= pair[0] && pair[1] <= duo.row.band[1] && duo.note === null, 'a party at Levels ' + pair.join(' and ') + ' is recommended ' + (duo.row && duo.row.hunt));
   /* G4: where a hero alone's advice stands (level-curve reads it), and a pair's first ground is the Sewer. THE WARRENS FITS A LONE HERO FROM ITS
      soloFrom (hunt-grounds.js; the advice reads it, src/shell/hunt-list.js fitsGroup), and that is 45 again (designer ruling 2026-11-19, the board's
      "2026-11-19 Two rulings for v0.2.142": from 36 the lone road reached Level 50 in 123 h against the ruled 168), so no lone Level under it is sent

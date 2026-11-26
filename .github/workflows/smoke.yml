@@ -6997,6 +6997,12 @@ jobs:
         run: |
           node tests/needs-you.mjs
           node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
+      # tests/piece-client.mjs
+      - name: Trait pieces in the browser - the readers, the drop moment, the return card line, the two intents
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/piece-client.mjs
+          node tools/mutant-gate.mjs node tests/piece-client.mjs --mutate
       # tests/tally-window-pure.mjs
       - name: Tally window rules that need no browser (the tally's pure half)
         if: ${{ !cancelled() }}

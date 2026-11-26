@@ -798,6 +798,8 @@
     "node tests/mutant-anchors.mjs": "client-guards",
     "node tests/needs-you.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate": "client-guards",
+    "node tests/piece-client.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/piece-client.mjs --mutate": "client-guards",
     "node tests/tally-window-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate": "client-guards",
     "node tools/mutant-gate.mjs --nightly-gate": "client-guards",

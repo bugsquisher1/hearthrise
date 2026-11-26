@@ -384,7 +384,7 @@ const addBuys = (m, n, row = SHRIMP) => { m.hunt.buys = Object.assign({}, m.hunt
    (lane/econ-levers), and at the tuning pass's (Shrimp 6 g, a window of 12 + 5 coins) no count of Shrimp falls between 12 and 17.
    Null when no row's whole uses can, and the claim's precondition says so. `room`: the most uses a window's food lane buys (49: past it the
    bill is refused too_many_uses, not gold_short), so a window that earned more coins than 49 Shrimp (the Cellar on the Danger scale since
-   1071-retire-tier-chain.sql) sizes its bill at the lane's top or in a dearer row. */
+   1072-retire-tier-chain.sql) sizes its bill at the lane's top or in a dearer row. */
 const LANE_USES = 49;
 function billBetween(lo, hi, room = LANE_USES) {
   const rows = BASIC_SUPPLIES.filter((b) => (b.kind === 'heal' || b.kind === 'mana') && b.price > 0)
@@ -690,7 +690,7 @@ async function huntArms(mutate, M) {
   {
     const u = await d.newAccount();
     await d.seedPurse(u, 300);                                    // exactly the default floor (300)
-    /* the party plays the Cellar's Danger scale since the tier rows retired (1071-retire-tier-chain.sql: Steady, step 0, where a Normal tier
+    /* the party plays the Cellar's Danger scale since the tier rows retired (1072-retire-tier-chain.sql: Steady, step 0, where a Normal tier
        played it as built), whose first pulls hit at once: each hero carries its own food so no store use spends the purse (at its floor)
        before the window's coins come (the bill below is the one store spend this arm plants) */
     await hunting(d, u, [0, 1], { party: true, mins: 14, seed: G5_SEED, bag: [{ item: 'cooked_shrimp', qty: 20 }] });

@@ -78,7 +78,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
--- (lane/retire-tier-chain, 2026-11-26: the plan's hero `tier` is out of this body, folded in from 1071-retire-tier-chain.sql, which drops
+-- (lane/retire-tier-chain, 2026-11-26: the plan's hero `tier` is out of this body, folded in from 1072-retire-tier-chain.sql, which drops
 --  hunt_density.tier: a staged body is edited in place, never moved by a later file)
 do $mig$
 begin

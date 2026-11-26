@@ -16,7 +16,7 @@
 // installed as a throwaway function inside the arm's rolled-back transaction, called on the same key after the first press.
 //
 // ARMS (the real replayed chain, PGlite)
-//   (KL-SCALED, hr_scaled_hunt_buy's second press, left with the scaled hunts: 1071-retire-tier-chain.sql drops the verb; KL-AGAIN still
+//   (KL-SCALED, hr_scaled_hunt_buy's second press, left with the scaled hunts: 1072-retire-tier-chain.sql drops the verb; KL-AGAIN still
 //    reads its body at FILE's own place, where it stands)
 //   KL-HEARTH   hr_hearth_burn: press A burns a named fuel (two in the bag); the second press after the lock lights no flame, writes no
 //               square line, keeps the second fuel and pays no Inner Flame XP
@@ -44,7 +44,7 @@ const HOUR = 3600000;
 const FILE = '2027-04-19-key-under-lock.sql';
 const ARMS = ['KL-HEARTH', 'KL-TIME', 'KL-CLASS', 'KL-AGAIN'];
 const SIG = Object.freeze({
-  /* (FILE restates it; 1071-retire-tier-chain.sql drops it later in the chain: KL-AGAIN's alone) */
+  /* (FILE restates it; 1072-retire-tier-chain.sql drops it later in the chain: KL-AGAIN's alone) */
   scaled: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
   hearth: 'public.hr_hearth_burn(integer,text,uuid)',
   time: 'public.hr_time_buy(text,integer,bigint,uuid)',
@@ -169,7 +169,7 @@ const DB_ARMS = {
       else if (!s.ok && s.src.indexOf(safe.check, s.lock) < 0) bad.push(name + ' is safe by state only through ' + safe.check + ' after its lock, and its body no longer has it');
     }
     for (const name of Object.keys(SAFE_BY_STATE)) if (!shaped.has(name)) bad.push('SAFE_BY_STATE names ' + name + ', which no longer has the shape (or is gone): drop the entry');
-    /* (the scaled purchase is KL-AGAIN's alone: 1071-retire-tier-chain.sql drops it before the chain's end, where this census reads) */
+    /* (the scaled purchase is KL-AGAIN's alone: 1072-retire-tier-chain.sql drops it before the chain's end, where this census reads) */
     for (const sig of [SIG.hearth, SIG.time]) if (!shaped.get(sig.slice('public.'.length, sig.indexOf('(')))) bad.push('CONTROL: ' + sig + ' is not in the census');
     return bad;
   },

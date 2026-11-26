@@ -153,7 +153,7 @@ async function tickUntilHome(db, M, uid, o = {}) {
 /* Each phase's ended sessions an hour back: a fixture in one transaction enters every session at the same now(). */
 const ageEnded = (db, uid) => db.query(`update public.hunt_sessions set entered_at = entered_at - interval '1 hour' where user_id = $1 and ended_at is not null`, [uid]);
 
-/* THE FOUR LAST PLANS: slot 0 the Cellar alone; slot 1 the Thicket for 2 hours (its tier pick left with the tiers, 1071-retire-tier-chain.sql);
+/* THE FOUR LAST PLANS: slot 0 the Cellar alone; slot 1 the Thicket for 2 hours (its tier pick left with the tiers, 1072-retire-tier-chain.sql);
    slots 2 and 3 a party of the account's own. */
 async function fourPlans(db, M) {
   await heroes(db, M, A, 4);

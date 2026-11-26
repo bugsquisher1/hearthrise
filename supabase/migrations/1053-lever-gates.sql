@@ -27,7 +27,7 @@
 --   hr_party_hold_set      ONE SPLICE (marker hr_party_hold_put): its update becomes the writer.
 --   hr_party_hold_clear    RESTATED (trigger, a seat emptied): through the writer.
 --   hr_hunt_instance_read  ONE SPLICE: `hold_seat` is hr_party_hold_played(p, v_i.settled_to), the window's own.
--- THE SCALE (RETIRED with the scaled hunts, lane/retire-tier-chain 2026-11-26: §2 is gone, 1071-retire-tier-chain.sql; as written:)
+-- THE SCALE (RETIRED with the scaled hunts, lane/retire-tier-chain 2026-11-26: §2 is gone, 1072-retire-tier-chain.sql; as written:)
 --   public.hunt_scale_holds (instance_id, until, scale, at)   NEW TABLE, RLS on, no policy, no client or engine privilege:
 --   the instance's scale as it stood (hr_scaled_hunt_of's answer with its owner's spent_ms, or JSON null) for every window
 --   starting at or before `until`.
@@ -61,15 +61,16 @@ begin
      or to_regclass('public.hunt_parties') is null or to_regprocedure('public.hr_hunt_limit(text)') is null then
     raise exception 'PRECONDITION: the seed horizon (1052) or the party table is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_instance_read(uuid,integer)', '43c031340d414ede76522755f7060233', '6f5382c62729e84c47579c5c4259f948'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '43c031340d414ede76522755f7060233', '558e8c46c20b0d06bd770fa67c2ec6f9'),
     ('public.hr_party_hold_set(integer,integer,uuid)', 'ca4ce803cceb577ea8adb1e54766709c', '09b2d6618bc975ea70dd8fdcad169121'),
     ('public.hr_party_hold_clear()', 'b7a225a8149f30dc32b573f02b2030d5', '4bc8c642106dba6846780e5808142b4f')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     -- A RETRY AFTER 1056-danger-scale.sql (staged after this file) finds the instance read at 1056's image: this file's hold seat read
-    -- already in it, plus the frozen stance in the overlay. The splice below then finds its post text and moves nothing.
+    -- already in it, plus the frozen stance in the overlay. The splice below then finds its post text and moves nothing. After
+    -- 1071-trait-pieces.sql, at 1071's image (restated whole with this file's hold seat read in it, plus the worn pieces).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 = 'e0b569fcc3d856126934683a2129363e') then
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e')) then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
@@ -135,7 +136,7 @@ revoke execute on function public.hr_party_hold_clear() from public, anon, authe
 --     is hr_party_hold_played(p, v_i.settled_to), the window's own (it read the live p.hold_seat). §0 pins both images; §4 the post.
 --     CREATE OR REPLACE keeps its owner and grants (hr_engine executes it, §4).
 -- (lane/retire-tier-chain, 2026-11-26: no `tier`, `scale` or `scale_level` keys and no member options `tier`, folded in from
---  1071-retire-tier-chain.sql, which drops their columns and hr_scaled_hunt_of: a staged body is edited in place)
+--  1072-retire-tier-chain.sql, which drops their columns and hr_scaled_hunt_of: a staged body is edited in place)
 CREATE OR REPLACE FUNCTION public.hr_hunt_instance_read(p_user uuid, p_slot integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -152,7 +153,7 @@ begin
   -- (its options.density overlaid), the one the settle bounds count; NULL (opened before the freeze) = as stored.
   -- SETTLE-COST (2027-02-02-settle-cost.sql): each member's `state` is its ENGINE INPUTS (hr_hunt_member_state),
   -- never its whole envelope: the engine reads eleven fields of it, and nine envelopes a settle were its cost.
-  -- RETIRE-TIER-CHAIN (1071-retire-tier-chain.sql): no tier and no scale; off the Danger scale a member plays the ground's rows as written.
+  -- RETIRE-TIER-CHAIN (1072-retire-tier-chain.sql): no tier and no scale; off the Danger scale a member plays the ground's rows as written.
   -- TARGET-KIND (2027-04-22-target-kind.sql): RESTATED WHOLE (the two splices below folded in). Each member's options carry its own
   -- First target on this ground (options.target_kind, hunt-spawn.js heroSetup), read afresh every settle, never frozen.
   -- SESSION-MODES (2027-04-23-session-modes.sql): the instance carries the session mode the server froze at its start (session_mode),
@@ -239,7 +240,7 @@ end $mig$;
 
 -- ── §2 THE SCALE: gone (lane/retire-tier-chain, 2026-11-26) ─────────────────────────────────────────────────
 -- The scale hold (hunt_scale_holds, hr_scaled_hours_hold and its triggers, hr_scaled_hunt_of's restatement) left with the scaled hunts,
--- folded in from 1071-retire-tier-chain.sql, which drops what the applied history made of them: a staged file is edited in place.
+-- folded in from 1072-retire-tier-chain.sql, which drops what the applied history made of them: a staged file is edited in place.
 
 -- ── §4 THE SELF-CHECK, BY EXECUTING IT ───────────────────────────────────────
 -- (a) the hold seat a window plays, at, before and with no horizon; (b) owner-only: no client or engine role executes a new
@@ -267,7 +268,7 @@ begin
   end loop;
   if not has_function_privilege('hr_engine', 'public.hr_hunt_instance_read(uuid,integer)', 'execute') then
     raise exception 'VERIFY(c): the spliced instance read lost hr_engine''s EXECUTE'; end if;
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) not in ('6f5382c62729e84c47579c5c4259f948', 'e0b569fcc3d856126934683a2129363e')
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) not in ('558e8c46c20b0d06bd770fa67c2ec6f9', '4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e')
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_set(integer,integer,uuid)'::regprocedure) is distinct from '09b2d6618bc975ea70dd8fdcad169121'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_clear()'::regprocedure) is distinct from '4bc8c642106dba6846780e5808142b4f' then
     raise exception 'VERIFY(c): a body landed off its post pin: instance_read %, hold_set %, hold_clear %',

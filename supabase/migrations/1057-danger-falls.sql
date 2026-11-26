@@ -305,7 +305,7 @@ begin
 end $fn$;
 revoke execute on function public.hr_hunt_report_add(jsonb, jsonb) from public, anon, authenticated, service_role;
 
--- (lane/retire-tier-chain, 2026-11-26: an ended session's `tier` is out of this body, folded in from 1071-retire-tier-chain.sql, which
+-- (lane/retire-tier-chain, 2026-11-26: an ended session's `tier` is out of this body, folded in from 1072-retire-tier-chain.sql, which
 --  drops hunt_sessions.tier: a staged body is edited in place, never moved by a later file)
 -- ── §3 THE HUNT VIEW: hr_hunt_view RESTATED WHOLE (1053's, its plan-cache wrapper kept) ─────────────────────────────────────────────
 -- The report's falls each name the character that held the seat (DANGER-FALLS), and an ended scale session its end stance and step.

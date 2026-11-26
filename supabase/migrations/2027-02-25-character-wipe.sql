@@ -128,6 +128,8 @@ declare
     /* the company's flame, each hero's Temper ranks, worn imbuements and loot pity (1063-flame-temper.sql): an account's and its heroes',
        earned by heroes the wipe clears; a wiped account lights its flame again from Level 1 and its heroes start with no Temper or pity */
     'company_flame', 'hero_temper', 'hero_worn_imbue', 'hero_pity',
+    /* the account's Trait and Signature pieces (1071-trait-pieces.sql): found by heroes the wipe clears; a wiped account starts with none */
+    'trait_pieces',
     /* each hero's Roads build, its saved builds per hunt and their journal (1064-roads-sample.sql): earned by heroes the wipe clears */
     'hero_talents', 'hero_talent_builds', 'hero_talent_log',
     'session_claims', 'social_presence', 'town_bodies', 'town_moves', 'town_positions', 'town_seen', 'town_snapshot', 'world_finds'];
@@ -196,7 +198,9 @@ declare
     'hr_hearth_fire_rule',
     /* the flame, Temper, imbuement, loot-pity and carry-over catalogues (1063-flame-temper-catalogue.generated.sql) */
     'hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels', 'hr_imbue_rules',
-    'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'];
+    'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules',
+    /* the Trait-piece catalogue (1071-trait-pieces-catalogue.generated.sql): the rules, the Traits, each ground's ranks, depths and bases */
+    'hr_piece_rules', 'hr_piece_traits', 'hr_piece_fixed', 'hr_piece_grounds', 'hr_piece_depths', 'hr_piece_bases', 'hr_piece_signatures'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

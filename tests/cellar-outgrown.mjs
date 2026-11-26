@@ -15,7 +15,7 @@
 //              END_ORDER's outgrown is in hr_hunt_end_reasons and resumes, and the Hunts list reads the Cellar's band as the Level under it
 //   CO-DOOR    signed in through hr_hunt_enter: a hero one Level under the exit enters the Cellar; at the exit it is refused `outgrown` naming
 //              the Level and NOTHING opens; the same hero enters the Thicket (the refusal is the exit's alone)
-//   (CO-SCALED, the scaled way past the Cellar's exit, left with the scaled hunts: 1071-retire-tier-chain.sql; CO-DOOR holds the exit alone)
+//   (CO-SCALED, the scaled way past the Cellar's exit, left with the scaled hunts: 1072-retire-tier-chain.sql; CO-DOOR holds the exit alone)
 //   CO-PROOF   the settle proves the end from the Level it holds: a window ending `outgrown` one XP under the exit is refused end_not_proven
 //              and moves nothing; at the exit the same window ends the session `outgrown`, an automatic end
 //   CO-ENGINE  the one engine, browser closed (the settle the world tick runs): a tank twenty rats under the exit ends `outgrown` at the exit,

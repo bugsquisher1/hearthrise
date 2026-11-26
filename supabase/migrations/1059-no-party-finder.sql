@@ -23,7 +23,7 @@
 --   (hr_gm_wall_list, hr_gm_wall_relist, 2027-03-13-gm-tools.sql): a walled hero can no longer list anything.
 -- RESTATED BY AN ANCHORED SPLICE (one site each, the rest of each body byte for byte as the chain left it):
 --   hr_hunt_party_view     no `listed` key (the client read it only for the finder's switch), and no `leader_tiers` (folded in from
---                          1071-retire-tier-chain.sql, lane/retire-tier-chain 2026-11-26)
+--                          1072-retire-tier-chain.sql, lane/retire-tier-chain 2026-11-26)
 --   hr_party_alone         a lone seat waits for no listing (a hunt or a live invite still keeps the party)
 --   hr_hunt_party_accept   calls the 3-argument join
 -- RESTATED WHOLE: hr_party_join_for(uuid,int,uuid), the 4-argument body without p_need_listed and its not_listed refusal; the
@@ -62,7 +62,7 @@ begin
      or to_regclass('public.hr_state_sections') is null or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
     raise exception 'PRECONDITION: the party chain, the RPC baseline or the envelope sections are missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_party_view(uuid,integer)', '3457eceb61842396d1ad70b287578cae', '51c2dbe73785787db539af70fd58c885'),
+    ('public.hr_hunt_party_view(uuid,integer)', '3457eceb61842396d1ad70b287578cae', '8a1c6092767da47b0399a6a2d7ad91a4'),
     ('public.hr_party_alone(uuid,uuid,integer)', '74cb86e98dc487edfb7e4cd090ef27f0', 'a74d45e612005ad3d01609f3cac60474'),
     ('public.hr_hunt_party_accept(integer,uuid,uuid)', '5b00f9a8aceb887c7e4752f5312e80ef', '69b3144a072705e7c3e08b33533d2a38')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
@@ -120,7 +120,7 @@ do $mig$
 declare v_r record; v_def text; v_n int;
 begin
   for v_r in select * from (values
-    -- (lane/retire-tier-chain, 2026-11-26: the leader's tier picks, `leader_tiers`, folded in from 1071-retire-tier-chain.sql, which drops
+    -- (lane/retire-tier-chain, 2026-11-26: the leader's tier picks, `leader_tiers`, folded in from 1072-retire-tier-chain.sql, which drops
     --  hr_hunt_tier_view: a staged body is edited in place, never moved by a later file)
     ('public.hr_hunt_party_view(uuid,integer)',
      $a$    'listed', coalesce(v_p.listed, false), 'leader_tiers', coalesce(v_ltier, '{}'::jsonb),
@@ -130,7 +130,7 @@ $a$,
      $a$  -- HUNT-TIERS (2027-02-27-hunt-tiers.sql): `leader_tiers`, the leader's tier picked per ground (hunt_density.tier)
   -- every seat's picker shows read-only; it replaces `leader_densities`, the dial is gone.
 $a$,
-     $b$  -- RETIRE-TIER-CHAIN (1071-retire-tier-chain.sql): no tier picks of the leader's; a member reads its leader's Risk (the `danger` section).
+     $b$  -- RETIRE-TIER-CHAIN (1072-retire-tier-chain.sql): no tier picks of the leader's; a member reads its leader's Risk (the `danger` section).
 $b$),
     ('public.hr_hunt_party_view(uuid,integer)',
      $a$      v_lseat := v_r.seat;

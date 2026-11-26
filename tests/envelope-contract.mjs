@@ -107,7 +107,7 @@ function contract(R, cs, body, tl) {
   const mc = hb && hb.grounds.mill_cellar;
   need('hunt_bests', !!hb && hb.minMs === 600000 && !!mc && !!mc.solo && mc.solo.xpH === 2000 && mc.solo.balanceH === 200 && mc.party === null,
     'huntBestsOf yields ' + JSON.stringify(hb) + ' from ' + JSON.stringify(body.hunt_bests));
-  /* (hunt_tier, the hunt picker's tier per ground, and scaled_hunts left with the tiers and the scaled hunts: 1071-retire-tier-chain.sql) */
+  /* (hunt_tier, the hunt picker's tier per ground, and scaled_hunts left with the tiers and the scaled hunts: 1072-retire-tier-chain.sql) */
   need('hunt_tier', !('hunt_tier' in body) && !('scaled_hunts' in body), 'the envelope still carries a retired section: ' + JSON.stringify(Object.keys(body).filter((k) => k === 'hunt_tier' || k === 'scaled_hunts')));
   // hunt_target_kind (the bar's First target per ground, 2027-04-22-target-kind.sql): the hero's own Giant Rat on its ground
   const fk = R.HS.huntTargetKindOf(cs);

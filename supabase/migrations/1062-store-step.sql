@@ -137,7 +137,7 @@ end $mig$;
 
 -- ── §2 hr_hunt_apply_member, RESTATED WHOLE (its chain was 2 deep since 1005-lever-horizon.sql; this file's lines are marked STORE-STEP) ──
 -- (lane/retire-tier-chain, 2026-11-26: the scaled hunts' widening of the value, defense and item bounds and the scaled tally span are
---  out of this body, folded in from 1071-retire-tier-chain.sql, which drops their tables: a staged body is edited in place, never moved
+--  out of this body, folded in from 1072-retire-tier-chain.sql, which drops their tables: a staged body is edited in place, never moved
 --  by a later file, so this file's second apply stays a no-op. Its post pin is the body as it stands now.)
 CREATE OR REPLACE FUNCTION public.hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)
  RETURNS jsonb

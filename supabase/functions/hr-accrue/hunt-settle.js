@@ -657,6 +657,7 @@ export async function readHuntSettle(o, mode) {
      role's default for the party standing in the world at each boundary, the engine's to read (KNOWN-F1, 2026-11-18). */
   for (const m of members) {
     m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, leaveTogether: m._leaveTogether,
+      wornTraits: m._wornTraits, wornSignature: m._wornSignature,
       talents: m._talents, level: charLevelFromXp(m.levelXp), lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
@@ -689,6 +690,8 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
      edge's limit counts too). `clock` is the request budget's timer (engineBudget); absent, performance.now. */
   const tick = typeof clock === 'function' ? clock : perfNow;
   const t0 = tick();
+  /* THE TRAIT ROLL (1071-trait-pieces.sql): handed only when the server's read says it is on; the engine rolls it on the scale alone */
+  const drops = traitDropsOf(inst, members);
   const out = accrueHunt({
     instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,
       worldSwing: Number(inst.world_swing) || 0 },
@@ -699,16 +702,18 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
     sessionMode: inst.session_mode,
     /* the Tower's floor, the read's own (readHuntSettle proposes nothing on the Tower without one) */
     ...(towerOf(where.ground) ? { towerFloor: inst.tower_floor } : {}),
+    ...(drops ? { traitDrops: drops } : {}),
   });
   const engineMs = Math.max(0, tick() - t0);
   if (!out.accrued) return { out, commit: null, engineMs };
   const payload = [];
   for (const p of out.members) {
     const m = members.find((x) => x.key === p.key);
+    const traits = traitsFor(drops, m.key);
     payload.push({ user: m.user, slot: m.slot, session: m.sessionId, version: m.version,
       intent: await intentIdFor({ user: m.user, slot: m.slot, watermark: huntWatermarkLabel(inst, m),
         version: m.version, salt: String(inst.secret || ''), attempt: attempt || 0 }),
-      delta: p.delta, hunt: p.hunt, analyzer: p.analyzer });
+      delta: p.delta, hunt: p.hunt, analyzer: p.analyzer, ...(traits ? { traits } : {}) });
   }
   return { out, engineMs, commit: { instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
     settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world },
@@ -764,7 +769,45 @@ function memberInput(m, inst, perks) {
     prizeLeft: m.prize_left === true,
     /* ...and whether that roll is this hero's first on the boss, ever (hr_boss_prize_first, `prize_first`): the engine makes it a sure one */
     prizeFirst: m.prize_first === true,
+    /* THE PIECES IT WEARS (1071-trait-pieces.sql, hr_hunt_instance_read `worn_traits` / `worn_signature`): the Traits of the server's own
+       trait_pieces rows the hero wears, [{ id, rank }], and the Signature of the first one it put on; null while each switch is off. heroSetup
+       drops an unknown id or rank (trait-rules.js wornTraitsOf, signature-rules.js wornSignatureOf); a read without them wears nothing */
+    _wornTraits: Array.isArray(m.worn_traits) && m.worn_traits.length ? m.worn_traits : null,
+    _wornSignature: typeof m.worn_signature === 'string' && m.worn_signature ? m.worn_signature : null,
+    /* WHAT ITS TRAIT ROLL READS (hr_hunt_instance_read `drops`, hr_trait_drops_of): its pity by rarity and its company flame's luck at the
+       window's start; null while trait_drops is off (traitDropsOf hands the engine no roll) */
+    _drops: m.drops && typeof m.drops === 'object' ? m.drops : null,
   };
+}
+
+const RARITIES = Object.freeze(['rare', 'very_rare']);
+const wholeOr0 = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
+
+/** THE TRAIT ROLL THIS WINDOW HANDS THE ENGINE (src/core/trait-roll.js traitSwing's `drops`), or null: only when the server's read says the
+    switch is on (hr_hunt_instance_read instance `trait_drops`, 1071-trait-pieces.sql), each member's pity and luck from its own read. Built
+    afresh for every proposal, so a degraded retry rolls from the window's start again. Never a client value: the read is the server's. */
+export function traitDropsOf(inst, members) {
+  if (!inst || inst.trait_drops !== true) return null;
+  const luckPm = {}, pity = {};
+  for (const m of members) {
+    const d = m._drops || {};
+    luckPm[m.key] = wholeOr0(d.luck_pm);
+    const p = d.pity && typeof d.pity === 'object' ? d.pity : {};
+    pity[m.key] = Object.fromEntries(RARITIES.map((r) => [r, wholeOr0(p[r])]));
+  }
+  return { luckPm, pity, found: [], start: JSON.parse(JSON.stringify(pity)) };
+}
+
+/** ONE MEMBER'S `traits` FOR THE COMMIT (hr_trait_pieces_land re-proves every field): the pieces its kills made, in the server's words, and
+    its pity after the window. None when the window found nothing and its pity stood still. */
+export function traitsFor(drops, key) {
+  if (!drops) return null;
+  const found = drops.found.filter((f) => f.key === key).map((f) => ({
+    rarity: f.rarity, slot: f.slot, base: f.base, traits: f.traits.map((t) => ({ id: t.id, rank: t.rank })),
+    ground: f.ground, step: f.step, depth: f.depth, il: f.iL, at_ms: f.atMs, kill: f.kill }));
+  const after = Object.fromEntries(RARITIES.map((r) => [r, wholeOr0((drops.pity[key] || {})[r])]));
+  const moved = RARITIES.some((r) => after[r] !== (drops.start[key] || {})[r]);
+  return found.length || moved ? { found, pity: after } : null;
 }
 
 /** The derived intent label of one member's share of an instance window: the

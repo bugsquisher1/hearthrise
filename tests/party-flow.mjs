@@ -41,7 +41,7 @@
 //               live horizon (2026-10-31-live-horizon.sql: no door ends a hunt at once), and its
 //               seat goes now
 //   PF-RESTART  (#60) the real Start twice on one party instance: the second hunt plays the
-//               server's density (0: the leader's tier pick that set it left with the tiers, 1071-retire-tier-chain.sql), never
+//               server's density (0: the leader's tier pick that set it left with the tiers, 1072-retire-tier-chain.sql), never
 //               the first hunt's, and none of its strikes
 //   PF-ROLE     (2027-02-18-party-truth.sql, blind panel 2026-11-01) a seat's weapon is what it wears NOW, in the view,
 //               with no re-forming; the frozen column is gone; a swap nudges the seat-mate's open client
@@ -585,7 +585,7 @@ const ARMS = {
      the density frozen on it (nor its strikes), so a party played its FIRST hunt's pick on every later hunt and ground.
      The real Start, twice (2027-02-10-party-instance-reset.sql): the party hunts; the hunt ends with a density and strikes
      left on the instance; the leader starts again: the instance, and what the engine reads for every member, hold the
-     server's density (0 since the tier pick retired, 1071-retire-tier-chain.sql) and no strikes. */
+     server's density (0 since the tier pick retired, 1072-retire-tier-chain.sql) and no strikes. */
   'PF-RESTART': async (db) => {
     const { hunt } = await world(db);
     const p = await threeOf(db);

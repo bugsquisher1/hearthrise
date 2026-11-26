@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/arm-switches.mjs — THE ARMED FEATURES, PLAYED BY A STRANGER (lane/c-arm-switches; supabase/migrations/2027-05-14-arm-switches.sql,
 // the live events on for everyone; Tyler's "ARM features built but OFF", master backlog 2026-11-18 item 4). The scaled hunts' arm
-// (2027-05-18-arm-scaled-hunts.sql) left with the scaled hunts (1071-retire-tier-chain.sql, lane/retire-tier-chain 2026-11-26).
+// (2027-05-18-arm-scaled-hunts.sql) left with the scaled hunts (1072-retire-tier-chain.sql, lane/retire-tier-chain 2026-11-26).
 //
 //   node tests/arm-switches.mjs            the guard
 //   node tests/arm-switches.mjs --mutate   every planted defect must turn its arm red

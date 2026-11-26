@@ -515,7 +515,7 @@ grant  execute on function public.hr_party_lead_set(int, int, uuid) to authentic
 
 -- ── §4 THE ONE START ─────────────────────────────────────────────────────────
 -- THE PLAN (owner-only, read only): 1024's, plus the plan's ground, each ground's Setup and the pending seat.
--- (lane/retire-tier-chain, 2026-11-26: the plan's hero `tier` is out of this body, folded in from 1071-retire-tier-chain.sql, which drops
+-- (lane/retire-tier-chain, 2026-11-26: the plan's hero `tier` is out of this body, folded in from 1072-retire-tier-chain.sql, which drops
 --  hunt_density.tier: a staged body is edited in place, never moved by a later file)
 create or replace function public.hr_carry_on_plan_of(p_uid uuid, p_slots int[])
 returns jsonb language plpgsql set search_path = public, pg_catalog as $fn$

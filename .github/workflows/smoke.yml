@@ -5412,6 +5412,14 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
           node tests/trade-formulas.mjs
           node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
+      # tests/trait-pieces-db.mjs
+      - name: Trait pieces - the worn projection and the settle's Trait roll, both paths, the bounds through the real commit (1071)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-trait-pieces.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-trait-pieces.mjs --selftest
+          node tests/trait-pieces-db.mjs
+          node tools/mutant-gate.mjs node tests/trait-pieces-db.mjs --mutate
       # tests/whats-new.mjs
       - name: What's new - one card an account, the fresh line for a returning account
         if: ${{ !cancelled() }}
@@ -7848,11 +7856,13 @@ jobs:
   # + hero-slot-buy --selftest 136 s, plot-tier-price-replay --mutate 92 s, kill-daily-credit --selftest 48 s
   # (2026-11-13, lane/a-audit-guards, measured locally) = 276 s; x2 = 9.2 min, 34 -> 44.
   # 2026-11-18 (lane/ci-speed): timeout 44 -> 20: the full sweep measured 9.8 min, x2.
+  # + deploy-differential --selftest (2026-11-26, lane/deploy-diff-arm3, measured locally on a cached chain): 62 s, a proof
+  # only (nightly, or a release that moves the tool); x2 = 2.1 min, 20 -> 22.
   db-replay-11:
     runs-on: ubuntu-latest
     needs: release-proven
     if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 20
+    timeout-minutes: 22
 
     steps:
       - uses: actions/checkout@v4
@@ -8023,6 +8033,14 @@ jobs:
       - name: Kill daily credit — mutation proof
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/kill-daily-credit.mjs --selftest
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tools/deploy-differential.mjs
+      - name: Gather deploy differential - every planted pack fault caught on a synthetic probe, through the replayed hr_apply
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest
+      # ── END SELF-REGISTERED GUARDS ──
 
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on

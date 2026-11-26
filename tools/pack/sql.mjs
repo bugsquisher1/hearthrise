@@ -23,7 +23,7 @@ export const PACK_TABLES = Object.freeze({
   hr_hunt_roster: ['monster_id'],
   hr_hunt_travel: ['hunt_id'],
   hr_hunt_vendor_value: ['item_id'],
-  /* (hr_ground_tiers left with the tier rows: 1071-retire-tier-chain.sql drops it, lane/retire-tier-chain 2026-11-26) */
+  /* (hr_ground_tiers left with the tier rows: 1072-retire-tier-chain.sql drops it, lane/retire-tier-chain 2026-11-26) */
   /* a pack's keyed hall (its `hall`, src/data/boss-halls.js): the one row that says which room its key opens. Krell's Hold is the first */
   hr_boss_halls: ['hall_id'],
   /* a ground after Krell pays a faction standing (its standingFor, tools/gen-factions.mjs): the one row that says which side */

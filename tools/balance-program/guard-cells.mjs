@@ -118,7 +118,7 @@ export const RETIRED = Object.freeze({
     + '(lane/retire-tier-chain 2026-11-26; on their ground as built they read 0.7-1.4x, under the band it was set for). On the scale a party is '
     + 'paid by depth; the pair and the three at their held depth are the designer\'s to band (12-targets C-6, CONFLICTS 2026-11-26). Its '
     + 'real-engine proof and the K1 gate\'s control moved to G8, the gated line a played four still reads.',
-  G24: 'A scaled hunt is never the best lone XP: the scaled hunts retired with the tier chain (1071-retire-tier-chain.sql, lane/retire-tier-chain '
+  G24: 'A scaled hunt is never the best lone XP: the scaled hunts retired with the tier chain (1072-retire-tier-chain.sql, lane/retire-tier-chain '
     + '2026-11-26). An outgrown ground is left for the next ground on the scale; what a deeper step pays over the next ground is 12-targets C-11 (G7).',
 });
 

@@ -285,25 +285,8 @@ const MUTANTS = [
    heroes alone, a mix read as one class, and ONE GROUND PAID ITS OWN CELL (the stopgap's shape, typed in the engine): each plays its ground's tier at the
    floor, one seed, against the same tree's lone ways on the tier. */
 const TIER_MUTANTS = [
-  { name: 'the table at the old rows\' scale (x1.7): a Deadly four past ' + PACE_CAP + 'x the contract', g: 'mosslight_glade', tier: 'deadly', party: 'four', bar: 'pace',
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(1.7)]] },
-  { name: 'the table cut too deep (x0.5): a Deadly mix under its heroes alone', g: 'hasks_ford', tier: 'deadly', party: 'duo tank+healer', bar: 'alone',
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  { name: 'a mixed party\'s cell read as one class on Dangerous (the Glade three)', g: 'mosslight_glade', tier: 'dangerous', party: 'trio tank+healer+bow', bar: 'alone',
-    edits: [['src/data/party-class-xp.js', 'const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', 'const cell = cells[0];']] },
-  /* lane/d-party-pace: the pace read at Level 10 on a ground whose floor is under it still bites */
-  { name: 'the Sewer\'s Deadly pays x2.5 a kill: a four at Level 10 past ' + PACE_CAP + 'x the contract', g: 'millrace_sewer', tier: 'deadly', party: 'four', bar: 'pace',
-    edits: [['src/data/balance-sheet.js', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 1220 }) }),', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 3050 }) }),']] },
-  /* A HEALER'S TIER (lane/d-142-rulings): it excuses a mix with no Healer only, and only where the data makes it one. With a Healer the bar binds
-     there as anywhere (Krell's Hold's Deadly is a Healer's tier at its floor); and the Catacombs' tank and bow pair, printed today, binds the day its
-     Deadly stops being a Healer's tier at the floor */
-  { name: 'the table cut too deep on a Healer\'s tier (x0.5): Krell\'s Hold\'s Deadly pair WITH a Healer under its heroes alone', g: 'krells_hold', tier: 'deadly', party: 'duo tank+healer', bar: 'alone',
-    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  /* (seed 0 alone reads that pair at 1.07, the two seeds' 0.968: the table cut makes it plainly under, and only the moved row lets the bar see it) */
-  { name: 'the Catacombs\' Deadly no Healer\'s tier at its floor (healerTiers 165) and the table cut (x0.5): the tank and bow pair binds and reads under its heroes alone', g: 'unmarked_catacombs', tier: 'deadly', party: 'duo tank+bow', bar: 'alone',
-    edits: [['src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },', '  healerTiers: { deadly: 165 },'], ['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  { name: 'one ground pays its own cell (Hask\'s Ford x1.7, typed in the engine)', g: 'hasks_ford', tier: 'deadly', party: 'four', bar: 'pace',
-    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'hasks_ford' ? 1.7 : 1));"]] },
+  /* (the harder tiers' mutants left with the tiers, lane/retire-tier-chain 2026-11-26: the tool's tier column is Normal alone,
+     tools/balance-sim/tier-axis.mjs, so no cell plays the Dangerous or Deadly row they planted on) */
 ];
 
 /* ONE TABLE, READ STATICALLY (Tyler 2026-11-16): the table holds party sizes and nothing else; no ground pack carries a pay cell of its own; the reader

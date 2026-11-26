@@ -88,7 +88,6 @@ const REGISTERED = Object.freeze({
   'tests/hr-state-of-final-body.mjs': ['NEGATIVE_CONTROL'],
   'tests/hunt-floor-warning.mjs': ['CONTROLS'],
   'tests/hunts-c1.mjs': ['M'],
-  'tests/party-pull-bound.mjs': ['BIGGER_PULL'],
   'tests/perf-budget.mjs': ['PROBES'],
   'tests/phone-touch.mjs': ['WORLD_HOOK'],
   'tests/readonly-rpc.mjs': ['BACK_TO_STABLE'],

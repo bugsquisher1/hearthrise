@@ -85,7 +85,7 @@ export function patchPlanNone(box, tl, plan, pending) {
     next point cannot take here (`takeOn`: its Take is on). */
 export function patchPlanPick(root, tl, plan, sel, pending, suggestPlan, takeOn) {
   const n = NODE_INDEX[sel];
-  const btn = root.querySelector('[data-hs-act="rd-plan"]');
+  const btn = root.querySelector('.rdw-plan-go');
   const state = root.querySelector('.rdw-planned');
   const planned = plan.planned.has(sel);
   text(state, planned ? t('talents.planned') : '');

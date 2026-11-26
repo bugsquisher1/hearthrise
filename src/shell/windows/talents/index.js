@@ -48,7 +48,9 @@ const scratchOf = (cs) => {
       /* the stage as last painted ({ w, h, fit, phone }), the country list's measured width, and a pending Country fit */
       view: null, listW: 0, fitCountry: false,
       /* Find talent's words and rows, and the filters on (find.js): display scratch */
-      find: '', found: [], filters: new Set() };
+      find: '', found: [], filters: new Set(),
+      /* the phone's sheet held open with nothing picked */
+      sheet: false };
     SCRATCH.set(cs, s);
   }
   return s;
@@ -57,12 +59,14 @@ const roleKeyOf = (cs) => { const eq = /** @type {{ weapon?: string }} */ (equip
 
 /** The skeleton (built once per opening): an opening starts where the hero is (the camera is chosen at the first paint). */
 export function renderBody(ctx) {
-  if (ctx.character) { const sc = scratchOf(ctx.character); sc.cam = null; sc.sel = null; sc.hover = null; sc.msg = ''; sc.find = ''; sc.found = []; }
+  if (ctx.character) { const sc = scratchOf(ctx.character); sc.cam = null; sc.sel = null; sc.hover = null; sc.msg = ''; sc.find = ''; sc.found = []; sc.sheet = false; }
   return '<div class="rdw">'
     + '<div class="rdw-band">'
     + '<p class="rdw-stat"><span></span><b class="rdw-points"></b></p><p class="rdw-stat"><span></span><b class="rdw-vows"></b></p>'
     /* the band's one toggle (18 section 8): the standing rule, as the server holds it */
     + '<button type="button" class="hh-tool rdw-auto" data-hs-act="rd-auto" aria-pressed="false"></button>'
+    /* the phone's way to the sheet with nothing picked (the plan's rows): the desktop's card always stands beside the map */
+    + '<button type="button" class="hh-tool rdw-sheet-open" data-hs-act="rd-sheet" aria-expanded="false"></button>'
     + '<span class="rdw-gap"></span>'
     + '<div class="hw-tabs rdw-tiers" role="tablist">' + TIERS.map((k) => '<button type="button" role="tab" class="hw-tab" data-hs-act="rd-tier" data-tier="' + k + '"></button>').join('') + '</div>'
     + '<button type="button" class="hh-tool is-link" data-hs-act="rd-home"></button>'
@@ -132,6 +136,10 @@ export function patchBody(body, ctx) {
   text(go, t('talents.spend_suggested'));
   attr(go, 'aria-pressed', String(!!(tl && tl.auto)));
   prop(go, 'disabled', sc.pending);
+  const sheet = root.querySelector('[data-hs-act="rd-sheet"]');
+  text(sheet, t('talents.plan_label'));
+  attr(sheet, 'aria-expanded', String(sc.sheet && !sc.sel));
+  cls(root, 'is-sheet', sc.sheet && !sc.sel);
   text(root.querySelector('[data-hs-act="rd-home"]'), t('talents.recenter'));
   patchTools(root, ctx, sc);
 
@@ -244,6 +252,8 @@ function gestures(body, ctx, sc, M) {
       sc.sel = id;
       sc.hover = null;
       sc.msg = '';
+      /* a tap on the map lets the phone's held sheet go (a stone's own card takes its place) */
+      sc.sheet = false;
       /* a phone's card covers the map's right edge: a stone picked under it moves to the middle of the room left of it (18 section 6) */
       const card = body.querySelector('.rdw-card');
       const cw = v.phone && card ? card.offsetWidth : 0;
@@ -322,6 +332,7 @@ export function actBody(ctx, body, action, ev, el) {
   const v = sc.view;
   const tlOf = () => talentsOf(cs, roleKeyOf(cs), PLAN);
   if (actPlan(ctx, sc, action, el, repaint, tlOf, PLAN)) return true;
+  if (action === 'rd-sheet') { sc.sheet = !(sc.sheet && !sc.sel); sc.sel = null; sc.msg = ''; repaint(); return true; }
   if (action === 'rd-filter') {
     const f = el.getAttribute('data-filter');
     if (Object.prototype.hasOwnProperty.call(FILTERS, f)) { if (sc.filters.has(f)) sc.filters.delete(f); else sc.filters.add(f); }

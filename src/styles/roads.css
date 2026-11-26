@@ -18,6 +18,8 @@
 .rdw-stat { margin: 0; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
 .rdw-stat b { margin-left: 6px; color: var(--ink); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .rdw-gap { flex: 1 1 auto; }
+/* the phone's Plan press (the sheet with nothing picked): the desktop's card always stands beside the map */
+.rdw-band .rdw-sheet-open { display: none; }
 .rdw-tiers { margin-bottom: 0; border-bottom: 0; }
 .rdw-main { flex: 1 1 auto; height: 640px; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 10px; }
 
@@ -169,7 +171,8 @@
   .rdw-mapbox { position: absolute; inset: 0; }
   .rdw-card { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 70%); box-sizing: border-box; padding: 8px 10px; z-index: 1;
     background: var(--bg-2); box-shadow: -2px 0 0 var(--steel-btn); transform: translateX(105%); transition: transform 120ms ease-out; }
-  .rdw.is-picked:not([data-tier="country"]) .rdw-card { transform: none; }
+  .rdw.is-picked:not([data-tier="country"]) .rdw-card, .rdw.is-sheet:not([data-tier="country"]) .rdw-card { transform: none; }
+  .rdw-band .rdw-sheet-open { display: inline-block; }
   .rdw-countries:not([hidden]) { display: block; }
   /* Country view on a phone names the countries in its list: the map's own names would stack on a map this small */
   .rdm[data-tier="country"] .rdl-country { display: none; }

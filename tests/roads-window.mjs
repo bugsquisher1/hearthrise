@@ -452,6 +452,14 @@ async function checks(overrides, opts = {}) {
       const { ctx, page, errors, s } = await open(SECTION(OWNED, 6), undefined, false, COMPANY);
       await openMap(page);
       await page.waitForTimeout(400);
+      /* a far choice: each of its options is planned on its own row */
+      const fork = await page.evaluate(({ W }) => { const r = document.querySelector(W + ' [data-rd-node="power_strike.x2"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, { W });
+      await page.mouse.click(fork.x, fork.y);
+      await page.waitForTimeout(300);
+      const rowsPlan = await page.evaluate(({ W }) => [...document.querySelectorAll(W + ' .rdw-opt')].map((li) => { const b = li.querySelector('[data-hs-act="rd-plan"]'); return b && !b.hidden ? b.textContent : null; }), { W });
+      if (rowsPlan.length !== 3 || rowsPlan.some((x) => x !== 'Plan')) fails.push('RW-13 a far choice\'s rows offer ' + JSON.stringify(rowsPlan) + ', not a Plan each');
+      await page.click(W + ' [data-hs-act="rd-clear"]');
+      await page.waitForTimeout(200);
       const box = await page.evaluate(({ W, FAR }) => { const r = document.querySelector(W + ' [data-rd-node="' + FAR + '"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, { W, FAR });
       await page.mouse.click(box.x, box.y);
       await page.waitForTimeout(300);
@@ -493,7 +501,7 @@ async function checks(overrides, opts = {}) {
     }
     /* RW-10: the phone */
     {
-      const { ctx, page, errors } = await open(SECTION(), { width: 922, height: 423 }, true);
+      const { ctx, page, errors } = await open(SECTION(OWNED, LEVEL, pointsAt(LEVEL), { builds: { [GROUND]: planRoute(OWNED, null, FAR, null, 'party') } }), { width: 922, height: 423 }, true, COMPANY);
       await openMap(page);
       await page.waitForTimeout(400);
       let lk = await look(page);
@@ -506,6 +514,14 @@ async function checks(overrides, opts = {}) {
       await page.waitForTimeout(400);
       const list = await page.evaluate(({ W }) => [...document.querySelectorAll(W + ' .rdw-countries .rdw-country')].filter((b) => b.offsetParent !== null).length, { W });
       if (list !== L.countries.length) fails.push('RW-10 Country view lists ' + list + ' countries on the phone');
+      /* the band's Plan opens the sheet with nothing picked: the plan's rows and Spend on plan, on the screen */
+      await page.click(W + ' [data-hs-act="rd-tier"][data-tier="road"]');
+      await page.waitForTimeout(300);
+      await page.click(W + ' [data-hs-act="rd-sheet"]');
+      await page.waitForTimeout(400);
+      const sheet = await page.evaluate(({ W }) => { const r = document.querySelector(W + ' .rdw-card').getBoundingClientRect(), b = document.querySelector(W + ' [data-hs-act="rd-plan-pay"]').getBoundingClientRect();
+        return { left: r.left, pay: b.width > 0 && b.left >= r.left && b.right <= 923 }; }, { W });
+      if (!(sheet.left < 922 - 200) || !sheet.pay) fails.push('RW-10 the band\'s Plan does not open the sheet with the plan on it: ' + JSON.stringify(sheet));
       if (errors.length) fails.push('RW-10 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -536,6 +552,7 @@ const MUTANTS = [
   { name: 'the toggle only ever turns the rule on', file: 'src/shell/windows/talents/index.js', from: 'setTalentAuto(ctx.account, cs, on ? PLAN : null)', to: 'setTalentAuto(ctx.account, cs, PLAN)', want: /RW-12/ },
   { name: 'the plan shown before the server saved it', file: 'src/shell/windows/talents/road-plan.js', from: 'runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)',
     to: 'tl.builds[plan.ground] = p.nodes; MEMO.delete(tl); repaint(); runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)', want: /RW-13/ },
+  { name: 'Plan route written over a choice\'s first Plan', file: 'src/shell/windows/talents/road-plan.js', from: "root.querySelector('.rdw-plan-go')", to: "root.querySelector('[data-hs-act=\"rd-plan\"]')", want: /RW-13/ },
   { name: 'a planned choice paid with no pick', file: 'src/core/talent-route.js', from: 'const pick = PICK_KINDS.includes(n.kind) ? draft[n.id] : null;', to: 'const pick = null;', want: /RW-13/ },
   { name: 'Spend on plan pays past the server\'s points', file: 'src/shell/windows/talents/road-plan.js', from: 'if (!tl || !(tl.left > 0)) break;', to: 'if (!tl) break;', want: /RW-13/ },
   { name: 'Find talent ignores the options\' names', file: 'src/shell/windows/talents/find.js', from: "if (PICK_KINDS.includes(n.kind) && n.kind !== 'crossing') for (const o of optionsOf(n))", to: 'if (false) for (const o of optionsOf(n))', want: /RW-14/ },

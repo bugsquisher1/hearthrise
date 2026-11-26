@@ -109,7 +109,9 @@ export function patchCard(root, ctx, v) {
       const picked = held === o.id;
       cls(li, 'is-current', picked);
       cls(li, 'is-passed', !!held && !picked);
-      text(li.querySelector('b'), picked ? t('talents.picked', { name: o.n }) : o.n);
+      /* the option the server's saved plan holds here, while the hero does not hold this choice yet */
+      const inPlan = !held && !!v.plan.draft && v.plan.draft[sel] === o.id;
+      text(li.querySelector('b'), picked ? t('talents.picked', { name: o.n }) : inPlan ? t('talents.planned_pick', { name: o.n }) : o.n);
       text(li.querySelector('small'), o.tip);
       /* a lent move opens at a Level (17 section 3: by value): the card says which */
       const lend = o.effects.find((e) => e.kind === 'borrow');

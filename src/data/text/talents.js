@@ -99,6 +99,7 @@ export const TALENTS_TEXT = Object.freeze({
   plan_route: 'Plan route',
   plan: 'Plan',
   planned: 'Planned',
+  planned_pick: '{name} (Planned)',
   plan_label: 'Plan',
   plan_to_go: 'To go',
   plan_done: 'Done',

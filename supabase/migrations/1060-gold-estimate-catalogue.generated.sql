@@ -10,7 +10,7 @@
 -- on each Danger scale ground, computed here, never in the browser (CLAUDE.md §6).
 --   hr_gold_estimate(hunt, risk, level)  internal, the twin of goldEstimate: floor(hr_wage(min(Level, the band top)) x risk permille / 1000),
 --                                        to two significant figures, halves up; null under the band floor, off the scale (16 grounds:
---                                        carters_rest Levels 110-125, catacomb_bone_wing Levels 165-185, catacomb_flooded_wing Levels 165-185, coppercap_warrens Levels 32-50, hasks_ford Levels 45-60, krells_hold Levels 85-110, meadowbrook_thicket Levels 5-15, mill_cellar Levels 1-8, millrace_sewer Levels 5-19, mosslight_glade Levels 16-31, muster_barrows Levels 55-75, ox_road Levels 112-128, pyre_field Levels 70-90, the_slake Levels 50-65, wickstead Levels 8-18, wyvern_roost Levels 128-150) or for a Risk with no ratio
+--                                        carters_rest Levels 110-125, catacomb_bone_wing Levels 165-185, catacomb_flooded_wing Levels 165-185, coppercap_warrens Levels 32-50, hasks_ford Levels 45-60, krells_hold Levels 85-110, meadowbrook_thicket Levels 5-15, mill_cellar Levels 1-8, millrace_sewer Levels 5-19, mosslight_glade Levels 16-31, muster_barrows Levels 55-75, ox_road Levels 112-130, pyre_field Levels 70-90, the_slake Levels 50-65, wickstead Levels 8-18, wyvern_roost Levels 128-150) or for a Risk with no ratio
 --                                        (bold 1190, careful 760, steady 1000). Pinned at 672 values (§3).
 --   SECTION `gold_estimate` (hr_gold_estimate_view): { level, grounds: { <hunt>: { <risk>: gold } } }, every ground that is both in this
 --                                        file and in the server's own scale catalogue (hr_danger_grounds); null with no hero or no ground.
@@ -41,7 +41,7 @@ create or replace function public.hr_gold_estimate(p_hunt text, p_risk text, p_l
 returns bigint language plpgsql immutable set search_path = public, pg_catalog as $fn$
 declare
   v_floor int := case p_hunt when 'carters_rest' then 110 when 'catacomb_bone_wing' then 165 when 'catacomb_flooded_wing' then 165 when 'coppercap_warrens' then 32 when 'hasks_ford' then 45 when 'krells_hold' then 85 when 'meadowbrook_thicket' then 5 when 'mill_cellar' then 1 when 'millrace_sewer' then 5 when 'mosslight_glade' then 16 when 'muster_barrows' then 55 when 'ox_road' then 112 when 'pyre_field' then 70 when 'the_slake' then 50 when 'wickstead' then 8 when 'wyvern_roost' then 128 end;
-  v_top int := case p_hunt when 'carters_rest' then 125 when 'catacomb_bone_wing' then 185 when 'catacomb_flooded_wing' then 185 when 'coppercap_warrens' then 50 when 'hasks_ford' then 60 when 'krells_hold' then 110 when 'meadowbrook_thicket' then 15 when 'mill_cellar' then 8 when 'millrace_sewer' then 19 when 'mosslight_glade' then 31 when 'muster_barrows' then 75 when 'ox_road' then 128 when 'pyre_field' then 90 when 'the_slake' then 65 when 'wickstead' then 18 when 'wyvern_roost' then 150 end;
+  v_top int := case p_hunt when 'carters_rest' then 125 when 'catacomb_bone_wing' then 185 when 'catacomb_flooded_wing' then 185 when 'coppercap_warrens' then 50 when 'hasks_ford' then 60 when 'krells_hold' then 110 when 'meadowbrook_thicket' then 15 when 'mill_cellar' then 8 when 'millrace_sewer' then 19 when 'mosslight_glade' then 31 when 'muster_barrows' then 75 when 'ox_road' then 130 when 'pyre_field' then 90 when 'the_slake' then 65 when 'wickstead' then 18 when 'wyvern_roost' then 150 end;
   v_pm int := case p_risk when 'bold' then 1190 when 'careful' then 760 when 'steady' then 1000 end;
   v_step int := greatest(1, least(4000, coalesce(p_level, 1)));
   v_g bigint; v_h bigint := 1;
@@ -593,9 +593,9 @@ begin
     ('ox_road', 'steady', 74, null::bigint),
     ('ox_road', 'steady', 75, null::bigint),
     ('ox_road', 'steady', 76, null::bigint),
-    ('ox_road', 'steady', 200, 21000::bigint),
-    ('ox_road', 'steady', 4000, 21000::bigint),
-    ('ox_road', 'steady', 5000, 21000::bigint),
+    ('ox_road', 'steady', 200, 22000::bigint),
+    ('ox_road', 'steady', 4000, 22000::bigint),
+    ('ox_road', 'steady', 5000, 22000::bigint),
     ('pyre_field', 'bold', 1, null::bigint),
     ('pyre_field', 'bold', 10, null::bigint),
     ('pyre_field', 'bold', 40, null::bigint),

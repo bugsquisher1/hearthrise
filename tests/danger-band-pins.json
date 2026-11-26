@@ -271,13 +271,13 @@
   "ox_road": {
    "refStep": 160,
    "floorStep": 70,
-   "topStep": 230,
+   "topStep": 240,
    "coinPm": 4800,
    "print": "57e70ea7700daed6",
    "verdict": "OPEN",
    "levels": {
     "entry": 112,
-    "top": 128,
+    "top": 130,
     "mid": 120
    },
    "measured": "2026-11-26",

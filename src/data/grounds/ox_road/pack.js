@@ -33,7 +33,7 @@ export default definePack({
   /* Weights are the pockets' head-count at a pull of 4 (the first four of each box): 10 Teamsters, 4 Coal Runners, 5 Yoke Oxen, 4 Drovers, 1 Wagonmaster. */
   hunt: {
     name: 'The Ox Road', theme: 'The last wagons out of Morrow got stuck here when Krell shut the road. Gault got the drivers and their oxen back up.',
-    band: [112, 128],
+    band: [112, 130],   // 128 -> 130 (lane/scale-grounds-sweep, 12-targets 8.3: the Level band is the dial): at 128 the strong four could not wear Cobalt (worn from 130), so the reference read depth 18
     spawns: [{ monster: TM, w: 10, rarity: 'common' }, { monster: OX, w: 5, rarity: 'uncommon' }, { monster: RN, w: 4, rarity: 'uncommon' },
       { monster: DR, w: 4, rarity: 'uncommon' }, { monster: WM, w: 1, rarity: 'rare' }],
     family: 'Undead', art: TM, travelS: 0, pull: 4, respawnMs: 60000,

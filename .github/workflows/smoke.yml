@@ -5424,6 +5424,12 @@ jobs:
         run: |
           node tests/recruits.mjs
           node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
+      # tests/tp-im-server.mjs
+      - name: Temper and imbuements on steps, the server half - the old rungs gone, the kit a band from the bag then Storage, the band lock, both doors (1071)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tp-im-server.mjs
+          node tools/mutant-gate.mjs node tests/tp-im-server.mjs --mutate
       # tests/trade-formulas.mjs
       - name: Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
         if: ${{ !cancelled() }}

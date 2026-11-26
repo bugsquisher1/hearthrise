@@ -35,6 +35,10 @@ const STOKE_PINS = [{ keep: 'full' }, { keep: 'two_thirds', own_first: false, bu
   { keep: 'off', buy_per_day: 40, cap_hours_pm: 60 }, { keep: 'hot' }, {}];
 const IL_PINS = [1, 20, 60, 80, 100, 120, 200, 400];
 const LEVEL_PINS = [0, 39, 40, 79, 80, 120, 199, 200, 500];
+/* the kit a band (lane/tp-server-1): every band's first and last item Level, below the first band and past the last row */
+const KIT_IL_PINS = [0, 1, 19, 20, 39, 40, 59, 60, 79, 80, 99, 100, 119, 120, 139, 140, 159, 160, 400];
+/* the imbuement band lock (lane/tp-server-1): bands either side of each hero Level's wear-ahead edge, and the empty ends */
+const WEAR_PINS = [[0, 40], [45, 0], [45, 34], [45, 35], [45, 36], [50, 39], [50, 40], [55, 44], [55, 45], [70, 59], [70, 60], [70, 200], [210, 199], [210, 200]];
 const CH_PINS = [[0.5, 1, 0], [0.5, 4, 0], [1, 4, 0], [0.002, 3, 200], [0.0001, 2, 360], [0.9, 1, 600], [0, 2, 100]];
 const PITY_PINS = [[0.0002, 0], [0.0002, 438000], [0.01, 5000000], [0.5, 9000000], [0.00001, 1]];
 
@@ -60,9 +64,22 @@ export function rowsOf(d) {
   if (T.kitSharePm >= 1000) problems.push('TEMPER_STEPS.kitSharePm must leave a fee (under 1000)');
   if (T.carryPm >= 1000) problems.push('TEMPER_STEPS.carryPm must be under 1000: a re-seat costs less than the ranks');
   if (T.ranks * T.ilPerRank !== d.ledger.POWER_LEDGER.temperStepsMax) problems.push('TEMPER_STEPS: ranks x ilPerRank must be the ledger\'s Temper slice (' + d.ledger.POWER_LEDGER.temperStepsMax + ')');
-  if (T.kitItem !== null && !(typeof T.kitItem === 'string' && Object.prototype.hasOwnProperty.call(d.items.ITEMS, T.kitItem))) problems.push('TEMPER_STEPS.kitItem ' + T.kitItem + ' is no item');
   /* the Temper kits (lane/tp-im-steps): a rank on the first Level a rank opens wears a band that has its kit, so rank 1 is never kits_owed by data */
   if (!d.tradesC.temperKitAt(T.rankEvery)) problems.push('no Temper kit at item Level ' + T.rankEvery + ', where rank 1 opens');
+  /* THE KIT A BAND, as the server sells it (lane/tp-server-1; 21 D-14): every named kit is an item or a declared new good, it is the face
+     src/core/trades.js temperKitAt answers on its band's every item Level, and no two bands share one, so a cheap band's kit can never pay
+     for a dear band's rank (hr_temper_kits.item_id is unique for the same reason) */
+  const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+  const kitRows = [];
+  (d.temperD.TEMPER_KITS || []).forEach((k, band) => {
+    if (k === null) return;
+    if (typeof k !== 'string' || !(own(d.items.ITEMS, k) || own(d.temperD.TEMPER_KIT_NEW, k))) { problems.push('TEMPER_KITS[' + band + '] ' + k + ' is no item and no declared new good'); return; }
+    if (kitRows.some(([, x]) => x === k)) problems.push('TEMPER_KITS: ' + k + ' is the kit of two bands');
+    for (const il of [band * G.tierSteps, band * G.tierSteps + G.tierSteps - 1]) if (d.tradesC.temperKitAt(il) !== k) problems.push('TEMPER_KITS[' + band + '] ' + k + ' is not the kit temperKitAt answers at item Level ' + il);
+    kitRows.push([band, k]);
+  });
+  if (!kitRows.length) problems.push('TEMPER_KITS names no kit: every rank would be kits_owed');
+  if (!(Number.isInteger(G.wearAhead) && G.wearAhead >= 0)) problems.push('GEAR_STEPS.wearAhead is not a whole number');
   /* every imbuement row resolves to a recipe the bench can make (its part on a pack, its band) */
   for (const id of Object.keys(d.imbueD.IMBUE_RULES)) if (!d.imbueC.imbueRecipe(id)) problems.push('imbuement ' + id + ' has no recipe');
   const slotSum = Object.values(G.slotPm).reduce((a, b) => a + b, 0);
@@ -93,6 +110,8 @@ export function rowsOf(d) {
     fee: [], chance: CH_PINS.map(([ch, n, l]) => [ch, n, l, lc.heroChance(ch, n, l)]),
     pity: PITY_PINS.map(([p, m]) => [p, m, lc.pityChance(p, m), lc.pityAfter(m, p, false), lc.pityAfter(m, p, true)]),
     carry: [],
+    kit: KIT_IL_PINS.map((il) => [il, d.tradesC.temperKitAt(il)]),
+    wear: WEAR_PINS.map(([b, L]) => [b, L, ic.imbueStepsAt(b, L) > 0]),
   };
   for (const s of slots) for (let r = 1; r <= T.ranks; r++) for (const il of [60, 200]) pins.rank.push([s, r, il, tc.rankQuote(s, r, il)]);
   for (const s of ['weapon', 'ring1', 'body']) for (const il of IL_PINS) for (const n of [0, 1, 2, 5]) pins.seat.push([s, n, il, tc.seatPrice(s, n, il)]);
@@ -106,7 +125,7 @@ export function rowsOf(d) {
     pins.carry.push([q.steps, il, q.fee]);
   }
   return {
-    F, T, I, P, C, G, slots, itemLevels, imbues, levels: d.flameD.FLAME_LEVELS, fuel: d.flameD.FLAME_FUEL, powerStep: d.danger.DANGER.powerStep,
+    F, T, I, P, C, G, slots, itemLevels, imbues, kits: kitRows, levels: d.flameD.FLAME_LEVELS, fuel: d.flameD.FLAME_FUEL, powerStep: d.danger.DANGER.powerStep,
     rampLevel: d.ledger.POWER_LEDGER.rampLevel, pins,
   };
 }
@@ -119,21 +138,26 @@ export function buildSql(r) {
 -- Hearthrise — THE INNER FLAME, TEMPER ON STEPS, IMBUEMENT, PERSONAL LOOT AND CARRY-OVER CATALOGUE  (GENERATED — DO NOT EDIT)
 --
 --   Generated by tools/gen-flame-temper.mjs from src/data/inner-flame.js (FLAME, FLAME_LEVELS, FLAME_FUEL), src/data/temper.js
---   (TEMPER_STEPS), src/data/imbue-rules.js (IMBUE, IMBUE_RULES), src/data/party.js (PERSONAL_LOOT), src/data/gear-steps.js (CARRY,
---   GEAR_STEPS.slotPm) and src/data/items.js (item Levels), every twin pinned against src/core (inner-flame.js, temper-steps.js, imbue.js,
---   personal-loot.js, carry-over.js). Any hand edit FAILS \`node tools/gen-flame-temper.mjs --check\`.
+--   (TEMPER_STEPS, TEMPER_KITS), src/data/imbue-rules.js (IMBUE, IMBUE_RULES), src/data/party.js (PERSONAL_LOOT), src/data/gear-steps.js
+--   (CARRY, GEAR_STEPS.slotPm, wearAhead) and src/data/items.js (item Levels), every twin pinned against src/core (inner-flame.js,
+--   temper-steps.js, trades.js temperKitAt, imbue.js, personal-loot.js, carry-over.js). Any hand edit FAILS \`node tools/gen-flame-temper.mjs --check\`.
 --
 -- WHAT (lane/flame-temper-build, systems, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md): the rule the server reads, so no
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
 --   hr_flame_rules (1 row), hr_flame_levels (${r.levels.length} Levels), hr_flame_fuel (${r.fuel.length} Remains goods by band)
---   hr_temper_rules (1 row, kit_item ${T.kitItem === null ? 'null: Temper Kits are owed, a rank is refused kits_owed' : T.kitItem}), hr_temper_slots (${r.slots.length} slots)
+--   hr_temper_rules (1 row), hr_temper_slots (${r.slots.length} slots)
+--   hr_temper_kits (${r.kits.length} rows, lane/tp-server-1: the Temper kit a band, 21 D-14; a band with no row, or whose kit is no hr_items row
+--     yet, is refused kits_owed, never sold for gold alone). hr_temper_rules.kit_item, 1063's one kit column, is no longer written: it
+--     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
 --   hr_item_levels (${r.itemLevels.length} gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (${r.imbues.length} rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
 --   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp; hr_temper_rank_mh, hr_temper_rank_cap,
---   hr_temper_rank_quote, hr_temper_seat_price; hr_imbue_life_ms, hr_imbue_fee; hr_hero_chance, hr_pity_chance, hr_pity_after; hr_carry_fee.
--- READERS: 1063-flame-temper.sql (the verbs, the settle's decay and timers, the sections). The drop roller (lane/drop-formula) reads
---   hr_flame_luck_pm, hr_flame_top_rank_pm and the loot twins at its window's start.
+--   hr_temper_rank_quote, hr_temper_seat_price, hr_temper_kit_at; hr_imbue_life_ms, hr_imbue_fee, hr_imbue_wearable (wearAhead ${G.wearAhead});
+--   hr_hero_chance, hr_pity_chance, hr_pity_after; hr_carry_fee.
+-- READERS: 1063-flame-temper.sql (the verbs, the settle's decay and timers, the sections), restated for the kit a band and the band lock by
+--   1071-tp-im-server.sql. The drop roller (lane/drop-formula) reads hr_flame_luck_pm, hr_flame_top_rank_pm and the loot twins at its
+--   window's start.
 -- ORDER: 1063 in its name, before 1063-flame-temper.sql. Needs hr_wage (1058-hunting-blocks-catalogue.generated.sql). Idempotent: tables made
 --   if missing, rows rewritten whole, functions restated: a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables and internal functions, revoked from every client role. No value moves here.
@@ -167,6 +191,7 @@ create table if not exists public.hr_temper_rules (
   tier_steps int not null check (tier_steps > 0)
 );
 create table if not exists public.hr_temper_slots (equip_slot text primary key, slot_pm int not null check (slot_pm > 0));
+create table if not exists public.hr_temper_kits (band int primary key check (band > 0), item_id text not null unique);
 create table if not exists public.hr_item_levels (item_id text primary key, item_level int not null check (item_level >= 0));
 create table if not exists public.hr_imbue_rules (
   imbue_id text primary key, kind text not null check (kind in ('edge', 'ward', 'leech')), equip_slot text not null,
@@ -185,8 +210,8 @@ create table if not exists public.hr_carry_rules (
 do $mig$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels',
-                             'hr_imbue_rules', 'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'] loop
+  foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_temper_kits',
+                             'hr_item_levels', 'hr_imbue_rules', 'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -205,11 +230,14 @@ delete from public.hr_flame_fuel;
 insert into public.hr_flame_fuel (item_id, band) values
 ${values(r.fuel, (f) => `  ('${f.item}', ${f.band})`)};
 delete from public.hr_temper_rules;
-insert into public.hr_temper_rules (id, ranks, il_per_rank, rank_every, hours_pm, kit_share_pm, carry_pm, kit_hours_pm, kit_item, n_slots, rank_sum, tier_steps) values
-  (1, ${T.ranks}, ${T.ilPerRank}, ${T.rankEvery}, ${T.hoursPm}, ${T.kitSharePm}, ${T.carryPm}, ${T.kitHoursPm}, ${lit(T.kitItem)}, ${r.slots.length}, ${(T.ranks * (T.ranks + 1)) / 2}, ${G.tierSteps});
+insert into public.hr_temper_rules (id, ranks, il_per_rank, rank_every, hours_pm, kit_share_pm, carry_pm, kit_hours_pm, n_slots, rank_sum, tier_steps) values
+  (1, ${T.ranks}, ${T.ilPerRank}, ${T.rankEvery}, ${T.hoursPm}, ${T.kitSharePm}, ${T.carryPm}, ${T.kitHoursPm}, ${r.slots.length}, ${(T.ranks * (T.ranks + 1)) / 2}, ${G.tierSteps});
 delete from public.hr_temper_slots;
 insert into public.hr_temper_slots (equip_slot, slot_pm) values
 ${values(r.slots, (s) => `  ('${s}', ${G.slotPm[s]})`)};
+delete from public.hr_temper_kits;
+insert into public.hr_temper_kits (band, item_id) values
+${values(r.kits, ([b, k]) => `  (${b}, '${k}')`)};
 delete from public.hr_item_levels;
 insert into public.hr_item_levels (item_id, item_level) values
 ${values(r.itemLevels, ([id, l]) => `  ('${id}', ${l})`)};
@@ -357,6 +385,14 @@ begin
   if v_mh = 0 then return 0; end if;
   return ceil(v_mh::numeric * r.carry_pm * public.hr_wage(greatest(1, coalesce(p_item_level, 1))) / 1000000)::bigint;
 end $fn$;
+-- THE KIT A RANK TAKES (src/core/trades.js temperKitAt): the kit of the worn piece's band (item Level / tier_steps), or null where no band's
+-- kit is named. plpgsql, not sql: the temper section reads it on every slot of every projection (tests/settle-budget.mjs SB-3).
+create or replace function public.hr_temper_kit_at(p_item_level int)
+returns text language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
+  return (select k.item_id from public.hr_temper_kits k join public.hr_temper_rules r on r.id = 1
+           where k.band = greatest(0, coalesce(p_item_level, 0)) / r.tier_steps);
+end $fn$;
 
 -- ── §5 IMBUEMENT, PERSONAL LOOT AND CARRY-OVER TWINS (src/core/imbue.js, personal-loot.js, carry-over.js) ──
 create or replace function public.hr_imbue_life_ms(p_quality text)
@@ -371,6 +407,13 @@ returns bigint language sql stable set search_path = public, pg_catalog as $fn$
               * least(v.ramp_level, greatest(0, coalesce(p_hero_level, 0))) / (1000::numeric * v.ramp_level))::bigint
     from public.hr_imbue_levers v where v.id = 1
 $fn$;
+-- THE BAND LOCK (src/core/imbue.js imbueStepsAt, which counts 0 past it): an imbuement of band b is worn by a hero of Level L only when
+-- both are whole and b stands at most GEAR_STEPS.wearAhead (${G.wearAhead}) over L. plpgsql: the imbues section reads it on every row.
+create or replace function public.hr_imbue_wearable(p_band int, p_level int)
+returns boolean language plpgsql immutable set search_path = public, pg_catalog as $fn$
+begin
+  return coalesce(p_band, 0) > 0 and coalesce(p_level, 0) > 0 and p_band <= p_level + ${G.wearAhead};
+end $fn$;
 create or replace function public.hr_hero_chance(p_ch float8, p_n int, p_luck int)
 returns float8 language sql immutable set search_path = public, pg_catalog as $fn$
   select case when coalesce(p_ch, 0) <= 0 then 0::float8
@@ -403,8 +446,8 @@ begin
       'public.hr_flame_decay(bigint,bigint,bigint,bigint)', 'public.hr_flame_worth_mpts(bigint,integer,integer)',
       'public.hr_flame_burn_units(bigint,integer,bigint,integer,integer)', 'public.hr_flame_stoke_clamp(jsonb)',
       'public.hr_temper_rank_mh(text,integer)', 'public.hr_temper_rank_cap(integer)', 'public.hr_temper_rank_quote(text,integer,integer)',
-      'public.hr_temper_seat_price(text,integer,integer)', 'public.hr_imbue_life_ms(text)', 'public.hr_imbue_fee(integer,integer)',
-      'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
+      'public.hr_temper_seat_price(text,integer,integer)', 'public.hr_temper_kit_at(integer)', 'public.hr_imbue_life_ms(text)',
+      'public.hr_imbue_fee(integer,integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
       'public.hr_pity_after(bigint,double precision,boolean)', 'public.hr_carry_fee(integer,integer)'] loop
     execute format('revoke execute on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
@@ -419,10 +462,11 @@ declare v_r record; v_j jsonb; v_t text;
 begin
   if (select count(*) from public.hr_flame_levels) <> ${r.levels.length} or (select count(*) from public.hr_flame_fuel) <> ${r.fuel.length}
      or (select count(*) from public.hr_temper_slots) <> ${r.slots.length} or (select count(*) from public.hr_item_levels) <> ${r.itemLevels.length}
-     or (select count(*) from public.hr_imbue_rules) <> ${r.imbues.length} or (select sum(slot_pm) from public.hr_temper_slots) <> 1000 then
+     or (select count(*) from public.hr_imbue_rules) <> ${r.imbues.length} or (select sum(slot_pm) from public.hr_temper_slots) <> 1000
+     or (select count(*) from public.hr_temper_kits) <> ${r.kits.length} then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
-  foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels',
-                             'hr_imbue_rules', 'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'] loop
+  foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_temper_kits',
+                             'hr_item_levels', 'hr_imbue_rules', 'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'] loop
     if has_table_privilege('anon', 'public.' || v_t, 'select') or has_table_privilege('authenticated', 'public.' || v_t, 'select') then
       raise exception 'VERIFY(b): a client role reads %', v_t; end if;
   end loop;
@@ -500,7 +544,20 @@ ${values(r.pins.pity, ([p, m, c, a, z]) => `    (${lit(p)}::float8, ${m}::bigint
 ${values(r.pins.carry, ([st, il, g]) => `    (${st}, ${il}, ${g}::bigint)`)}) p(st, il, g) loop
     if public.hr_carry_fee(v_r.st, v_r.il) <> v_r.g then raise exception 'VERIFY(q): a carry of % steps onto item Level % costs % in SQL, % in JS', v_r.st, v_r.il, public.hr_carry_fee(v_r.st, v_r.il), v_r.g; end if;
   end loop;
-  raise notice 'gen-flame-temper: ${r.levels.length} Flame Levels, ${r.fuel.length} fuels, ${r.slots.length} Temper slots, ${r.itemLevels.length} item Levels, ${r.imbues.length} imbuements; every twin pinned; all green';
+  for v_r in select * from (values
+${values(r.pins.kit, ([il, k]) => `    (${il}, ${k === null ? 'null::text' : `'${k}'`})`)}) p(il, k) loop
+    if public.hr_temper_kit_at(v_r.il) is distinct from v_r.k then
+      raise exception 'VERIFY(r): a rank on item Level % takes kit % in SQL, % in src/core/trades.js temperKitAt', v_r.il, public.hr_temper_kit_at(v_r.il), v_r.k; end if;
+  end loop;
+  for v_r in select * from (values
+${values(r.pins.wear, ([b, L, w]) => `    (${b}, ${L}, ${w})`)}) p(b, l, w) loop
+    if public.hr_imbue_wearable(v_r.b, v_r.l) is distinct from v_r.w then
+      raise exception 'VERIFY(s): band % on a Level % hero is wearable % in SQL, % in src/core/imbue.js imbueStepsAt', v_r.b, v_r.l, public.hr_imbue_wearable(v_r.b, v_r.l), v_r.w; end if;
+  end loop;
+  if has_function_privilege('authenticated', 'public.hr_temper_kit_at(integer)', 'execute')
+     or has_function_privilege('authenticated', 'public.hr_imbue_wearable(integer,integer)', 'execute') then
+    raise exception 'VERIFY(r): a client role runs the kit or band-lock twin'; end if;
+  raise notice 'gen-flame-temper: ${r.levels.length} Flame Levels, ${r.fuel.length} fuels, ${r.slots.length} Temper slots, ${r.kits.length} Temper kits, ${r.itemLevels.length} item Levels, ${r.imbues.length} imbuements; every twin pinned; all green';
 end $mig$;
 `;
 }
@@ -521,14 +578,19 @@ async function selftest() {
   plant('Temper past the ledger slice', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, ranks: 6 }; });
   plant('Temper sold for gold alone (no kit share fee split)', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, kitSharePm: 1000 }; });
   plant('a re-seat that costs the whole ranks', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, carryPm: 1000 }; });
-  plant('a Temper Kit that is no item', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, kitItem: 'no_such_kit' }; });
+  /* the kit a band (lane/tp-server-1): a kit that is no good, one kit on two bands, a list the trade's faces do not answer, no kit at all */
+  plant('a Temper kit that is no item and no new good', (d) => { d.temperD.TEMPER_KITS = Object.assign([...base.temperD.TEMPER_KITS], { 3: 'no_such_kit' }); });
+  plant('a cheap band\'s kit paying for a dear band', (d) => { d.temperD.TEMPER_KITS = Object.assign([...base.temperD.TEMPER_KITS], { 4: base.temperD.TEMPER_KITS[1] }); });
+  plant('a kit list the trade\'s faces do not answer', (d) => { const k = [...base.temperD.TEMPER_KITS]; [k[1], k[2]] = [k[2], k[1]]; d.temperD.TEMPER_KITS = k; });
+  plant('no Temper kit named', (d) => { d.temperD.TEMPER_KITS = base.temperD.TEMPER_KITS.map(() => null); });
+  plant('no wear-ahead to lock a band by', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, wearAhead: -1 } }; });
   plant('a pity that never keeps the stated rate', (d) => { d.party.PERSONAL_LOOT = { ...base.party.PERSONAL_LOOT, pityBasePm: 0 }; });
   plant('a carry with no price', (d) => { d.danger = { ...base.danger, CARRY: { ...base.danger.CARRY, hoursPerStepPm: 0 } }; });
   plant('slot weights off 1000', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, slotPm: { ...base.danger.GEAR_STEPS.slotPm, weapon: 300 } } }; });
   const sql = buildSql(rowsOf(base));
-  for (const v of 'abcdefghijklmnopq') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
+  for (const v of 'abcdefghijklmnopqrs') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
   if (bites.length) { console.error('gen-flame-temper --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-flame-temper --selftest: 9 refusals bite, 17 verifications pinned');
+  console.log('gen-flame-temper --selftest: 13 refusals bite, 19 verifications pinned');
 }
 
 if (isMain(import.meta.url)) {

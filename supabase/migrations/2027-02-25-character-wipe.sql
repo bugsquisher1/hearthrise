@@ -196,6 +196,8 @@ declare
     'hr_clan_rules', 'hr_chat_global_rule', 'hr_chat_slow_mode', 'hr_friend_link_rule',
     /* the Great Hearth's rule (1042-hearthrise-live-events-catalogue.generated.sql) */
     'hr_hearth_fire_rule',
+    /* the Temper kit a band (1069-gear-phase-b-flame-temper-catalogue.generated.sql, lane/tp-server-1): one item a band, no player in it */
+    'hr_temper_kits',
     /* the flame, Temper, imbuement, loot-pity and carry-over catalogues (1063-flame-temper-catalogue.generated.sql) */
     'hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels', 'hr_imbue_rules',
     'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules',

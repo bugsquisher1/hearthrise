@@ -101,6 +101,8 @@ function scene(M, id) {
     target_weak: (on) => { s.el = on ? 1250 : 1000; },
     target_resists: (on) => { s.el = on ? 750 : 1000; },
     target_is_boss: (on) => { s.mon = monU(on ? 'captain_hask' : 'barrow_pikeman'); },
+    /* the hero's own target (conditions.js foeTarget): the monster in the scene, fresh or worn down (12-targets 8.4: First Rank, Early Start) */
+    target_hp_pct: (on) => { s.w.target = s.mon.id; pctHp(s.mon, sides(c.op, c.value)[on ? 0 : 1]); },
     effect_missing: (on) => { s.mon.statuses = on ? [{ s: c.value }] : []; },
     item_qty: (on) => { s.h = { hs: { bag: { bronze_arrows: { loaded: 2 * c.value, left: on ? c.value : c.value + 20 } } }, ammo: 'bronze_arrows' }; },
   };
@@ -223,9 +225,10 @@ const cases = {
     const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
     const P = await loadPlay(M.root);
     const four = ['tank', 'ranger', 'mage', 'healer'];
-    /* one Trait of each family: defense (tank), offense and a trade and running low (ranger, 120 Steel Arrows packed: the free rung,
+    /* one Trait of each family: defense and a trade (tank), offense and running low (ranger, 120 Steel Arrows packed: the free rung,
        Bronze, never depletes), a move and a party-wide one (mage), heal on a target (healer) */
-    const KIT = [[{ id: 'first_rank', rank: 3 }], [{ id: 'early_start', rank: 3 }, { id: 'hasks_bargain', rank: 3 }, { id: 'bottom_of_the_quiver', rank: 3 }],
+    /* (12-targets 8.4: Hask's Bargain holds below 90% health, so it is worn by the tank, the hero who is struck; on the back-row ranger it never held) */
+    const KIT = [[{ id: 'first_rank', rank: 3 }, { id: 'hasks_bargain', rank: 3 }], [{ id: 'early_start', rank: 3 }, { id: 'bottom_of_the_quiver', rank: 3 }],
       [{ id: 'file_breaker', rank: 3 }, { id: 'full_wick', rank: 3 }, { id: 'snuffed', rank: 3 }], [{ id: 'keepers_carry', rank: 3 }, { id: 'full_cellar', rank: 3 }]];
     /* every Trait worn must hold at least once (each names its family) */
     const FAMILY = { defense: ['first_rank'], offense: ['early_start'], trade: ['hasks_bargain'], low: ['bottom_of_the_quiver'], 'move (area)': ['file_breaker'],

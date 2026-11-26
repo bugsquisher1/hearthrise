@@ -69,14 +69,14 @@ export const TRAITS = Object.freeze({
   tarred_through: T({ n: 9, name: 'Tarred Through', slot: 'body', raises: 'defense', key: 'casting', source: 'krells_hold', seat: 'tank',
     when: W('enemy_casting', 'gte', 2, 'any'), tip: '−{pct}% damage taken while 2+ enemies are casting' }),
   first_rank: T({ n: 10, name: 'First Rank', slot: 'body', raises: 'defense', key: 'fresh', source: 'muster_barrows', seat: 'tank',
-    when: W('self_hp_pct', 'gt', 90), tip: '−{pct}% damage taken above 90% health' }),
+    when: W('target_hp_pct', 'gt', 90), tip: '−{pct}% damage taken while your target is above 90% health' }),
   pyre_tender: T({ n: 11, name: 'Pyre Tender', slot: 'body', raises: 'heal', key: 'mass_heal', source: 'pyre_field', seat: 'healer',
     when: W('allies_below', 'gte', 2, 'under_50'), tip: '+{pct}% healing while 2+ party members are below 50% health' }),
   /* legs */
   empty_wagon: T({ n: 12, name: 'Empty Wagon', slot: 'pants', raises: 'heal', key: 'dry_heal', source: 'ox_road', seat: 'healer',
-    when: W('self_mana_pct', 'lt', 30), tip: '+{pct}% healing below 30% mana' }),
+    when: W('self_mana_pct', 'lt', 10), tip: '+{pct}% healing below 10% mana' }),
   slack_water: T({ n: 13, name: 'Slack Water', slot: 'pants', raises: 'offense', key: 'unhurt', source: 'the_slake', seat: 'ranger',
-    when: W('party_hp_pct', 'gt', 90), tip: '+{pct}% damage while the party is above 90% health' }),
+    when: W('party_hp_pct', 'gt', 95), tip: '+{pct}% damage while the party is above 95% health' }),
   goaded: T({ n: 14, name: 'Goaded', slot: 'pants', raises: 'offense', key: 'rally', source: 'hasks_ford', seat: 'melee_dps',
     when: W('allies_below', 'gte', 2, 'under_70'), tip: '+{pct}% damage while 2+ party members are below 70% health' }),
   /* helmet */
@@ -90,7 +90,7 @@ export const TRAITS = Object.freeze({
   floodmark: T({ n: 18, name: 'Floodmark', slot: 'boots', raises: 'defense', key: 'casting', source: 'catacomb_flooded_wing', seat: 'ranger',
     when: W('enemy_casting', 'gte', 1, 'self'), tip: '−{pct}% damage taken while an enemy is casting on you' }),
   ledge_footing: T({ n: 19, name: 'Ledge Footing', slot: 'boots', raises: 'offense', key: 'unhurt', source: 'wyvern_roost', seat: 'ranger',
-    when: W('allies_below', 'eq', 0, 'under_70'), tip: '+{pct}% damage while no party member is below 70% health' }),
+    when: W('allies_below', 'eq', 0, 'under_90'), tip: '+{pct}% damage while no party member is below 90% health' }),
   carters_flight: T({ n: 20, name: 'Carter\'s Flight', slot: 'boots', raises: 'defense', key: 'retreat', source: 'hasks_ford', seat: 'healer',
     when: W('party_hp_pct', 'lt', 50), tip: '−{pct}% damage taken while the party is below 50% health' }),
   /* gloves */
@@ -122,7 +122,7 @@ export const TRAITS = Object.freeze({
   dunns_warning: T({ n: 31, name: 'Dunn\'s Warning', slot: 'necklace', raises: 'heal', key: 'forewarn', source: 'catacomb_bone_wing', seat: 'healer',
     when: W('enemy_casting', 'gte', 1, 'any'), tip: '+{pct}% healing while an enemy is casting' }),
   early_start: T({ n: 32, name: 'Early Start', slot: 'necklace', raises: 'offense', key: 'fresh', source: 'ox_road', seat: 'melee_dps',
-    when: W('self_hp_pct', 'gt', 90), tip: '+{pct}% damage above 90% health' }),
+    when: W('target_hp_pct', 'gt', 90), tip: '+{pct}% damage vs targets above 90% health' }),
   /* ring */
   banded_oath: T({ n: 33, name: 'Banded Oath', slot: 'ring', raises: 'defense', key: 'party_hurt', scope: 'party', source: 'muster_barrows', seat: 'tank',
     when: W('allies_below', 'gte', 2, 'under_50'), tip: 'Party: −{pct}% damage taken while 2+ party members are below 50% health' }),
@@ -134,7 +134,7 @@ export const TRAITS = Object.freeze({
     when: W('item_qty', 'lte', 50, 'ammo'), startMin: Object.freeze({ subject: 'ammo', value: 100 }),
     tip: '+{pct}% ranged damage with 50 or fewer arrows left, if you started the hunt with 100+' }),
   hasks_bargain: T({ n: 37, name: 'Hask\'s Bargain', slot: 'ring', raises: 'offense', key: 'bargain', source: 'hasks_ford', seat: 'melee_dps', trade: true,
-    when: W('self_hp_pct', 'gt', 90), tip: '+{gain}% damage above 90% health, but +{pct}% damage taken' }),
+    when: W('self_hp_pct', 'lt', 90), tip: '+{gain}% damage below 90% health, but +{pct}% damage taken' }),
   /* earrings */
   stair_bearer: T({ n: 38, name: 'Stair Bearer', slot: 'earrings', raises: 'heal', key: 'rescue', source: 'catacomb_bone_wing', seat: 'healer',
     when: W('ally_hp_pct', 'lt', 50, 'tank'), tip: '+{pct}% healing on your tank below 50% health' }),

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b726ca6cbbb6be79",
+ "authored": "7e54f23ccaa340c4",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 772,
-  "typed": 17666,
-  "files": 262,
+  "bindings": 777,
+  "typed": 17678,
+  "files": 264,
   "lever": 341,
-  "notLever": 431,
+  "notLever": 436,
   "unclaimed": 0
  },
  "problems": [],
@@ -8148,9 +8148,10 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/plan-share.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17301,6 +17302,14 @@
   {
    "at": "src/data/balance-sheet.js#tierRowFor",
    "why": "a solver's search bounds (lo 1, hi 10, 60 halvings) for a gentle ground's tier lift"
+  },
+  {
+   "at": "src/core/plan-code.js#**",
+   "why": "the share code's format: a paste bound (8192 characters), a clamp past any Level's points (2000), the FNV-1a hash constants, base36 and base64 padding; a code is a convenience string the server never trusts"
+  },
+  {
+   "at": "src/data/whats-new.js#semverCmp",
+   "why": "a semver compare: its three parts"
   },
   {
    "at": "src/data/world/**",

@@ -69,12 +69,12 @@ export const TRAITS = Object.freeze({
   tarred_through: T({ n: 9, name: 'Tarred Through', slot: 'body', raises: 'defense', key: 'casting', source: 'krells_hold', seat: 'tank',
     when: W('enemy_casting', 'gte', 2, 'any'), tip: '−{pct}% damage taken while 2+ enemies are casting' }),
   first_rank: T({ n: 10, name: 'First Rank', slot: 'body', raises: 'defense', key: 'fresh', source: 'muster_barrows', seat: 'tank',
-    when: W('target_hp_pct', 'gt', 90), tip: '−{pct}% damage taken while your target is above 90% health' }),
+    when: W('target_hp_pct', 'gt', 70), tip: '−{pct}% damage taken while your target is above 70% health' }),
   pyre_tender: T({ n: 11, name: 'Pyre Tender', slot: 'body', raises: 'heal', key: 'mass_heal', source: 'pyre_field', seat: 'healer',
     when: W('allies_below', 'gte', 2, 'under_50'), tip: '+{pct}% healing while 2+ party members are below 50% health' }),
   /* legs */
   empty_wagon: T({ n: 12, name: 'Empty Wagon', slot: 'pants', raises: 'heal', key: 'dry_heal', source: 'ox_road', seat: 'healer',
-    when: W('self_mana_pct', 'lt', 10), tip: '+{pct}% healing below 10% mana' }),
+    when: W('self_mana_pct', 'lt', 15), tip: '+{pct}% healing below 15% mana' }),
   slack_water: T({ n: 13, name: 'Slack Water', slot: 'pants', raises: 'offense', key: 'unhurt', source: 'the_slake', seat: 'ranger',
     when: W('party_hp_pct', 'gt', 95), tip: '+{pct}% damage while the party is above 95% health' }),
   goaded: T({ n: 14, name: 'Goaded', slot: 'pants', raises: 'offense', key: 'rally', source: 'hasks_ford', seat: 'melee_dps',
@@ -122,7 +122,7 @@ export const TRAITS = Object.freeze({
   dunns_warning: T({ n: 31, name: 'Dunn\'s Warning', slot: 'necklace', raises: 'heal', key: 'forewarn', source: 'catacomb_bone_wing', seat: 'healer',
     when: W('enemy_casting', 'gte', 1, 'any'), tip: '+{pct}% healing while an enemy is casting' }),
   early_start: T({ n: 32, name: 'Early Start', slot: 'necklace', raises: 'offense', key: 'fresh', source: 'ox_road', seat: 'melee_dps',
-    when: W('target_hp_pct', 'gt', 90), tip: '+{pct}% damage vs targets above 90% health' }),
+    when: W('target_hp_pct', 'gt', 70), tip: '+{pct}% damage vs targets above 70% health' }),
   /* ring */
   banded_oath: T({ n: 33, name: 'Banded Oath', slot: 'ring', raises: 'defense', key: 'party_hurt', scope: 'party', source: 'muster_barrows', seat: 'tank',
     when: W('allies_below', 'gte', 2, 'under_50'), tip: 'Party: −{pct}% damage taken while 2+ party members are below 50% health' }),

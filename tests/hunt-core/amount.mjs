@@ -231,7 +231,31 @@ cases.refco = (M) => {
   if (!(onScale > room * 2)) return 'a scale ground\'s brute at 175 has ' + onScale + ' health, a Tower room\'s ' + room + ': the scale is not read off the pipeline';
   return null;
 };
+/* IMBUEMENTS ON THE SCALE (lane/tp-im-steps; src/core/imbue.js, 21 D-11): one blow through the pipeline. A Level 200 hero wearing Brute
+   Edge, Fire Ward and Mana Leech at its own band reads 2 more conditional steps on a brute (Muster's knight) and none on a swarm (a
+   pikeman), 2 fewer on an ember blow at it and none on a plain one, and a damage meal on top of the three adds nothing (their room fills
+   the consumable slice); the same meal alone counts. */
+cases.imbue = (M) => {
+  const A = M.amount, inst = instOn('steady', M), L = 200;
+  const knight = { side: 'mon', id: 3, kind: 'muster_knight', alive: true }, pike = { side: 'mon', id: 4, kind: 'barrow_pikeman', alive: true };
+  if (M.MONSTERS.muster_knight.role !== 'brute' || M.MONSTERS.barrow_pikeman.role !== 'swarm') return 'CONTROL: Muster\'s knight is no brute or its pikeman no swarm';
+  const set = [{ id: 'brute_edge', band: L, kind: 'edge' }, { id: 'fire_ward', band: L, kind: 'ward' }, { id: 'mana_leech', band: L, kind: 'leech' }];
+  const cond = (src, tgt, element) => { const t = {}; A.blowAmount(inst, { source: src, target: tgt, mean: 1000, el: 1000, ward: !!element, element, rng: LOW, trace: t }); return t.cond; };
+  const bare = heroAt(L, 1000 * L), worn = heroAt(L, 1000 * L, { imbues: set });
+  const fed = heroAt(L, 1000 * L, { buffDmgPm: 50 }), both = heroAt(L, 1000 * L, { buffDmgPm: 50, imbues: set });
+  const d = (a, b) => Math.round((a - b) * 1000) / 1000;
+  if (d(cond(worn, knight), cond(bare, knight)) !== 2) return 'Brute Edge on a brute moves the blow ' + d(cond(worn, knight), cond(bare, knight)) + ' steps, want 2';
+  if (d(cond(worn, pike), cond(bare, pike)) !== 0) return 'Brute Edge on a swarm moves the blow ' + d(cond(worn, pike), cond(bare, pike)) + ' steps, want 0';
+  if (d(cond(bare, pike, 'ember'), cond(worn, pike, 'ember')) !== 0 || d(cond(knight, bare, 'ember'), cond(knight, worn, 'ember')) !== 2) return 'Fire Ward does not take 2 steps off an ember blow at its hero, and only that';
+  if (d(cond(knight, bare), cond(knight, worn)) !== 0) return 'Fire Ward moves a plain blow at its hero';
+  if (!(d(cond(fed, pike), cond(bare, pike)) > 0)) return 'CONTROL: a damage meal alone moves nothing';
+  if (d(cond(both, pike), cond(worn, pike)) !== 0 || d(cond(both, knight), cond(worn, knight)) !== 0) return 'a damage meal on top of three imbuements adds ' + d(cond(both, pike), cond(worn, pike)) + ' steps: the room rule is gone (21 D-11)';
+  return null;
+};
 const mutants = [
+  { name: 'an imbuement never reaches the fight', case: 'imbue', edits: [[A, 'const rows = u.imbues ? imbueRows(', 'const rows = false ? imbueRows(']] },
+  { name: 'an imbuement reads no monster role', case: 'imbue', edits: [[A, '{ role: other ? roleIdOf(inst, other) : null,', '{ role: null,']] },
+  { name: 'an imbuement reads no element', case: 'imbue', edits: [[A, 'element: c.element || null }, u.heroLv)', 'element: null }, u.heroLv)']] },
   { name: 'the scale reads the old chain\'s table', case: 'refco', edits: [['src/core/hunt/monster-formula.js', "refCompany(g.refLevel, Number.isInteger(g.refStep) ? 'steps' : null)", 'refCompany(g.refLevel, null)']] },
   { name: 'the pipeline reference grows like the table', case: 'refco', edits: [['src/core/reference-company.js', '    const dpsHead = share * refHealth(L);', '    const dpsHead = tableDps(L);']] },
   { name: 'the pipeline reference takes the armor chain\'s share', case: 'refco', edits: [['src/core/reference-company.js', '      takePm: AMOUNT.pressurePm,', '      takePm: R.takePm + 1,']] },

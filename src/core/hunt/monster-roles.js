@@ -36,6 +36,11 @@ export function roleOf(inst, m) {
   return row && typeof row.role === 'string' && own(MONSTER_ROLES, row.role) ? MONSTER_ROLES[row.role] : null;
 }
 
+/** The id of the role roleOf reads ('brute'), or null: what a worn imbuement's `target_role` names (src/core/imbue.js imbueRows). */
+export function roleIdOf(inst, m) {
+  return roleOf(inst, m) ? (inst.monsters || MONSTERS)[m.kind].role : null;
+}
+
 /** A hero's row ('front' or 'back'): its own `row` setting when it names one, else front for a role that fights beside its target
     (hunt-roles.js `melee`), back for any other. A hero with no role row stands in the front. */
 export function rowOf(u) {

@@ -398,6 +398,8 @@ export function memberSide(mi, ctx) {
         ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),
         /* THE TRAITS IT WEARS (src/core/hunt/trait-rules.js; hunt-spawn.js heroSetup): DARK, only on a hero handed them */
         ...(Array.isArray(h.wornTraits) && h.wornTraits.length ? { wornTraits: h.wornTraits } : {}),
+        /* THE IMBUEMENTS IT WEARS (src/core/imbue.js wornImbuesOf; hunt-spawn.js heroSetup): DARK, only on a hero handed them */
+        ...(Array.isArray(h.wornImbues) && h.wornImbues.length ? { wornImbues: h.wornImbues } : {}),
         /* THE SIGNATURE IT PLAYS (src/core/hunt/signature-rules.js; hunt-spawn.js heroSetup): DARK, only on a hero handed one */
         ...(typeof h.wornSignature === 'string' && h.wornSignature ? { wornSignature: h.wornSignature } : {}),
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null },

@@ -67,6 +67,7 @@ import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 import { syncTalents } from './hunt/talent-rows.js';
 import { syncTraits } from './hunt/trait-rules.js';
+import { wornImbuesOf } from './imbue.js';
 import { syncSignature } from './hunt/signature-rules.js';
 import { traitSwing } from './trait-roll.js';
 import { scaleItems } from './gear-stats.js';
@@ -186,6 +187,9 @@ function syncUnit(u, m, roles) {
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
   syncTraits(u, m.hero);                // THE TRAITS it wears, the same (trait-rules.js syncTraits): none while Traits are dark
+  /* THE IMBUEMENTS it wears, the same (src/core/imbue.js: amount.js reads them as consumable rows): never persisted, none while dark */
+  const imb = wornImbuesOf(m.hero.wornImbues);
+  if (imb) u.imbues = imb; else if (u.imbues !== undefined) delete u.imbues;
   syncSignature(u, m.hero);             // THE SIGNATURE it plays, after the Roads' reactions (signature-rules.js): none while dark
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;

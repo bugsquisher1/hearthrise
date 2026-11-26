@@ -42,6 +42,8 @@ import { ledgerSteps } from '../power-ledger.js';
 import { temperLevelsOn } from '../temper-steps.js';
 import { auraRowsOn } from './auras.js';
 import { withTraits } from './trait-rules.js';
+import { roleIdOf } from './monster-roles.js';
+import { imbueRows } from '../imbue.js';
 import { dangerOn, itemLevelOf } from './danger.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -136,9 +138,10 @@ export function defenseGearPm(equipment, items, temperSteps) {
 export const topBpOf = (u) => (u && Number.isInteger(u.blowBp) && u.blowBp > 0 ? u.blowBp : AMOUNT.blowTopBp.neutral);
 
 /* the D-8 multipliers a hero carries, as ledger rows of the gear slice (crit, the answer to this monster), the consumable slice (a damage
-   food) and the temper slice (Tempering), so each is held to its slice's cap and none stacks past it */
-function heroRows(u, channel, c) {
-  const rows = [];
+   food, and its worn imbuements: src/core/imbue.js, each firing on its own condition or waiting and taking its room, 21 D-11) and the
+   temper slice (Tempering), so each is held to its slice's cap and none stacks past it. `other` is the monster on the blow's other side */
+function heroRows(u, channel, c, inst, other) {
+  const rows = u.imbues ? imbueRows(u.imbues, channel, { role: other ? roleIdOf(inst, other) : null, element: c.element || null }, u.heroLv) : [];
   const add = (slice, steps, key) => { if (steps) rows.push({ slice, raises: channel, steps, key }); };
   if (channel === 'offense' || channel === 'heal') {
     add('temper', stepsOf(1 + int(u.blowsPm) / 1000), 'blows');
@@ -170,7 +173,7 @@ export function blowAmount(inst, c) {
     base = (c.mean / 1000) * (topBpOf(source) / 10000) * refHealth(L0);
     if (isHero(source)) {
       gap = (offensePm(source) - R) / 1000;
-      cond += ledgerSteps(source, 'offense', withTraits(heroRows(source, 'offense', c).concat(auraRowsOn(inst, source)), inst, source, 'offense', c));
+      cond += ledgerSteps(source, 'offense', withTraits(heroRows(source, 'offense', c, inst, target).concat(auraRowsOn(inst, source)), inst, source, 'offense', c));
     }
     /* the monster's element answer: a weakness is a held gain, a resistance a whole cost */
     const e = stepsOf(c.el / 1000);
@@ -180,7 +183,7 @@ export function blowAmount(inst, c) {
     const L = lvOf(target);
     base = c.mean * (AMOUNT.pressurePm / 1000) * (refHealth(L) / refHealth(L0));
     gap = (R - defensePm(target, c.ward)) / 1000;
-    cond -= ledgerSteps(target, 'defense', withTraits(heroRows(target, 'defense', c).concat(auraRowsOn(inst, target)), inst, target, 'defense', c));
+    cond -= ledgerSteps(target, 'defense', withTraits(heroRows(target, 'defense', c, inst, source).concat(auraRowsOn(inst, target)), inst, target, 'defense', c));
     /* the hero's resistance to this blow's element: a held gain for the hero, a weakness a whole cost */
     const e = stepsOf(1000 / Math.max(1, c.el));
     cond -= e > 0 ? held(e) : e;
@@ -207,7 +210,7 @@ export function healAmount(inst, u, mean, c) {
   const L = lvOf(u);
   const base = c.hp ? mean : (mean / 1000) * (topBpOf(u) / 10000) * refHealth(L);
   const gap = (offensePm(u) - 1000 * L) / 1000;
-  const cond = ledgerSteps(u, 'heal', withTraits(heroRows(u, 'heal', c).concat(auraRowsOn(inst, u)), inst, u, 'heal', c));
+  const cond = ledgerSteps(u, 'heal', withTraits(heroRows(u, 'heal', c, inst, null).concat(auraRowsOn(inst, u)), inst, u, 'heal', c));
   const steps = Math.round(gap + cond);
   const sp = AMOUNT.rollSpreadPm;
   /* (no stream: the mean, for an estimate that draws nothing, abilities.js landsShield) */

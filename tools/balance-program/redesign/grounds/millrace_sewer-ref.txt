@@ -1,0 +1,28 @@
+
+V1 on millrace_sewer (4 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady        21.2 +- 21.8    -2.9  81.6   100   10.5    0.7     0.8     59.1      0     0  0 (0/0/0)                       6  {"hold":1934,"climb":399,"fall":28}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.88x  sd 0.16  n 4  window 6 h  seeds 1.12 0.8 0.81 0.8
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L12  coin 12725 +- 1275  income 13447 +- 1338  store 3449  kit share 0.26 (meal 71, drink 2027, charge 623, shot 729)  loot by band: common 181, uncommon 42, scarce 499, other 0  n 4
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.808  bow 0.173  mage 0.014  healer 0.005
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 6.52 land 75.63% hit 12.13 (3719.5/h) | bow dps 5.87 land 80.25% hit 5.15 (1872/h) | mage dps 7.52 land 40.05% hit 2.85 (129.25/h) | healer dps 3.67 land 85.65% hit 11.17 (37.5/h)
+                    drain_rat(swarm) 129.7/h 25.2 s 147 | sump_slime(brute) 69.7/h 45.9 s 271 | culvert_bat(stalker) 100.4/h 33.1 s 42 | cistern_spider(brute) 38.9/h 30.7 s 194 | kobold_tosher(shooter) 69.7/h 23.4 s 71 | rat_king(caster) 9.7/h 61.7 s 112
+                    broke off by: fall:sump_slime@0 22, fall:drain_rat@0 5, fall:kobold_tosher@2 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 3 (depth 11)  free 106  spell 839  food 55  taken 13.93 pm/s
+
+wall 77 s

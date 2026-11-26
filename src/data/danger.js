@@ -238,11 +238,11 @@ export const DANGER_GROUNDS = Object.freeze({
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
      coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. The Thicket re-cut on 29 7.5's own kit once iron took
      item Level 20 (lane/scale-grounds-2): its strong four in tier 0 holds 170, where it held the old top 190 in iron. */
-  meadowbrook_thicket: ground({ refStep: 100, floorStep: 0, topStep: 150, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  meadowbrook_thicket: ground({ refStep: 100, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
   /* THE LAST BRONZE GROUNDS (lane/scale-grounds-sweep step 2; 12-targets 8.3): Wickstead (8-18) and the Sewer (5-19) inside tier 0, so every
      cell wears bronze (29 7.5); formulaStep 70 as on the first grounds, the band, kill rate and coin level measured (new-ground.mjs --hold-level) */
-  wickstead: ground({ refStep: 100, floorStep: 0, topStep: 200, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),
-  millrace_sewer: ground({ refStep: 100, floorStep: 0, topStep: 200, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),
+  wickstead: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 140, refHeld: 65, coinPm: 17700, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),
+  millrace_sewer: ground({ refStep: 20, floorStep: 0, topStep: 110, coinPm: 6200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),
   mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   /* THE SECOND PAIR (lane/scale-grounds-2; 27 stage 6): the Glade on iron (item Level 20, ladder tier 2), the Warrens on steel (40, ladder
      tier 3, beside the Ford's mithril), each the highest tier at or under its refLevel, so the reference reads the band's middle (CONFLICTS
@@ -258,9 +258,9 @@ export const DANGER_GROUNDS = Object.freeze({
   /* THE MORROW HILLS ON THE SCALE (lane/scale-grounds-sweep step 3; 12-targets 8.3): Carter's Rest on Emberforged (100), the Ox Road on Dawnsteel
      (120, its reference its middle), Wyvern Roost on Cobalt (140, Levels 128-150), each the highest tier at or under its refLevel; the same anchor
      and the same measuring as the third batch (new-ground.mjs --hold-level); their own bodies carry roles (each pack's header words) */
-  carters_rest: ground({ refStep: 100, floorStep: 0, topStep: 200, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
-  ox_road: ground({ refStep: 100, floorStep: 0, topStep: 200, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
-  wyvern_roost: ground({ refStep: 100, floorStep: 0, topStep: 200, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
+  carters_rest: ground({ refStep: 100, floorStep: 0, topStep: 200, refKillsHead: 165, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
+  ox_road: ground({ refStep: 160, floorStep: 70, topStep: 400, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
+  wyvern_roost: ground({ refStep: 190, floorStep: 75, topStep: 400, coinPm: 1300, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 490, floorStep: 455, topStep: 505, refKillsHead: 150, refHeld: 495, coinPm: 3400, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 

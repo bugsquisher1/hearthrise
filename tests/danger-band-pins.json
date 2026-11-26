@@ -108,7 +108,7 @@
   "meadowbrook_thicket": {
    "refStep": 100,
    "floorStep": 0,
-   "topStep": 150,
+   "topStep": 145,
    "refKillsHead": 125,
    "coinPm": 38400,
    "print": "e76b954dcab4871f",
@@ -118,7 +118,7 @@
     "top": 15,
     "mid": 10
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-26",
    "evidence": [
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-ref.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
@@ -139,7 +139,7 @@
     "top": 31,
     "mid": 23
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-26",
    "evidence": [
     "tools/balance-program/redesign/grounds/mosslight_glade-ref.json",
     "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
@@ -225,6 +225,104 @@
     "tools/balance-program/redesign/grounds/krells_hold-ref.json",
     "tools/balance-program/redesign/grounds/krells_hold-top.json",
     "tools/balance-program/redesign/grounds/krells_hold-floor.json"
+   ]
+  },
+  "wickstead": {
+   "refStep": 60,
+   "floorStep": 0,
+   "topStep": 130,
+   "refKillsHead": 140,
+   "refHeld": 65,
+   "coinPm": 17700,
+   "print": "24a4c200bd7b31d9",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 8,
+    "top": 18,
+    "mid": 13
+   },
+   "measured": "2026-11-26",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/wickstead-ref.json",
+    "tools/balance-program/redesign/grounds/wickstead-top.json",
+    "tools/balance-program/redesign/grounds/wickstead-floor.json"
+   ]
+  },
+  "carters_rest": {
+   "refStep": 40,
+   "floorStep": 0,
+   "topStep": 55,
+   "refKillsHead": 165,
+   "coinPm": 1800,
+   "print": "44322bb805f96672",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 110,
+    "top": 125,
+    "mid": 117
+   },
+   "measured": "2026-11-26",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/carters_rest-ref.json",
+    "tools/balance-program/redesign/grounds/carters_rest-top.json",
+    "tools/balance-program/redesign/grounds/carters_rest-floor.json"
+   ]
+  },
+  "ox_road": {
+   "refStep": 160,
+   "floorStep": 70,
+   "topStep": 200,
+   "coinPm": 4800,
+   "print": "57e70ea7700daed6",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 112,
+    "top": 128,
+    "mid": 120
+   },
+   "measured": "2026-11-26",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/ox_road-ref.json",
+    "tools/balance-program/redesign/grounds/ox_road-top.json",
+    "tools/balance-program/redesign/grounds/ox_road-floor.json"
+   ]
+  },
+  "millrace_sewer": {
+   "refStep": 20,
+   "floorStep": 0,
+   "topStep": 110,
+   "coinPm": 6200,
+   "print": "0f68cb1f7eec4853",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 5,
+    "top": 19,
+    "mid": 12
+   },
+   "measured": "2026-11-26",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/millrace_sewer-ref.json",
+    "tools/balance-program/redesign/grounds/millrace_sewer-top.json",
+    "tools/balance-program/redesign/grounds/millrace_sewer-floor.json"
+   ]
+  },
+  "wyvern_roost": {
+   "refStep": 190,
+   "floorStep": 75,
+   "topStep": 200,
+   "coinPm": 1300,
+   "print": "fd373fa332c37429",
+   "verdict": "OPEN",
+   "levels": {
+    "entry": 128,
+    "top": 150,
+    "mid": 140
+   },
+   "measured": "2026-11-26",
+   "evidence": [
+    "tools/balance-program/redesign/grounds/wyvern_roost-ref.json",
+    "tools/balance-program/redesign/grounds/wyvern_roost-top.json",
+    "tools/balance-program/redesign/grounds/wyvern_roost-floor.json"
    ]
   }
  }

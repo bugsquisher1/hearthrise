@@ -1,0 +1,283 @@
+{
+ "ground": "wyvern_roost",
+ "levels": [
+  128,
+  131,
+  70
+ ],
+ "seeds": 4,
+ "hours": 10,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 128,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 0.99,
+    "sd": 0.01,
+    "n": 4,
+    "perSeed": [
+     0.99,
+     0.98,
+     0.97,
+     1
+    ],
+    "fromH": 4,
+    "windowH": 6
+   },
+   "held": {
+    "mean": 86.5,
+    "sd": 3.3,
+    "se": 1.7,
+    "perSeed": [
+     87,
+     86,
+     82,
+     91
+    ]
+   },
+   "drift": -2.4,
+   "within10": 70.3,
+   "within20": 95.4,
+   "changesPerH": 13.5,
+   "fallsPerH": 1.1,
+   "reachH": 1.7,
+   "pullsPerH": 67.6,
+   "killsPerH": 523,
+   "xpPerHeroH": 671278,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 24208,
+     "sd": 386,
+     "n": 4
+    },
+    "incomePerHeroH": {
+     "mean": 30021,
+     "sd": 581,
+     "n": 4
+    },
+    "storePerHeroH": {
+     "mean": 3446,
+     "sd": 57,
+     "n": 4
+    },
+    "commonPerHeroH": {
+     "mean": 564,
+     "sd": 12,
+     "n": 4
+    },
+    "uncommonPerHeroH": {
+     "mean": 317,
+     "sd": 12,
+     "n": 4
+    },
+    "scarcePerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 4
+    },
+    "otherPerHeroH": {
+     "mean": 4932,
+     "sd": 222,
+     "n": 4
+    }
+   },
+   "kit": {
+    "meal": 215,
+    "drink": 1597,
+    "charge": 1634,
+    "shot": 0
+   },
+   "kitIds": {
+    "salted_lobster": 9,
+    "plain_scored_fire_rune": 69.8,
+    "plain_carved_fire_rune": 84.7,
+    "plain_carved_ice_rune": 169.9,
+    "plain_earth_rune": 1.8,
+    "thin_carrot_juice": 99.8,
+    "plain_carved_poison_rune": 69.2,
+    "plain_carved_earth_rune": 71,
+    "plain_water_rune": 308.5
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 10,
+   "fourH": 6,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 2103,
+    "climb": 561,
+    "fall": 34
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.69
+    },
+    {
+     "style": "bow",
+     "mean": 0.185
+    },
+    {
+     "style": "mage",
+     "mean": 0.013
+    },
+    {
+     "style": "healer",
+     "mean": 0.112
+    }
+   ],
+   "causes": {
+    "fall:bull_wyvern@0": 11,
+    "fall:wyvern_fledgling@0": 21,
+    "fall:brood_wyvern@0": 2
+   },
+   "seats": [
+    {
+     "style": "hammer",
+     "dps": 37.57,
+     "landedPct": 47.13,
+     "dmgPerSwing": 56.35,
+     "swingsPerH": 4935,
+     "takenPerH": 278091
+    },
+    {
+     "style": "bow",
+     "dps": 35.55,
+     "landedPct": 90.73,
+     "dmgPerSwing": 44.68,
+     "swingsPerH": 1665.5,
+     "takenPerH": 74415.5
+    },
+    {
+     "style": "mage",
+     "dps": 54.45,
+     "landedPct": 84.53,
+     "dmgPerSwing": 31.05,
+     "swingsPerH": 170.5,
+     "takenPerH": 5311.5
+    },
+    {
+     "style": "healer",
+     "dps": 26.46,
+     "landedPct": 91.08,
+     "dmgPerSwing": 41.3,
+     "swingsPerH": 1096.75,
+     "takenPerH": 45292.5
+    }
+   ],
+   "kinds": {
+    "wyvern_fledgling": {
+     "role": "swarm",
+     "killsPerH": 272.2,
+     "ttkS": 27.4,
+     "takenPerKill": 733
+    },
+    "ledge_wyvern": {
+     "role": "shooter",
+     "killsPerH": 98.2,
+     "ttkS": 30.1,
+     "takenPerKill": 877
+    },
+    "crag_wyvern": {
+     "role": "caster",
+     "killsPerH": 74.3,
+     "ttkS": 25.8,
+     "takenPerKill": 522
+    },
+    "bull_wyvern": {
+     "role": "brute",
+     "killsPerH": 66.6,
+     "ttkS": 33.7,
+     "takenPerKill": 1103
+    },
+    "brood_wyvern": {
+     "role": "brute",
+     "killsPerH": 11.1,
+     "ttkS": 15.3,
+     "takenPerKill": 474
+    }
+   },
+   "abs": {
+    "level": 137.7,
+    "depth": 9
+   },
+   "sustain": {
+    "freePm": 127,
+    "spellPm": 857,
+    "foodPm": 16,
+    "takenPmS": 18.43
+   }
+  }
+ },
+ "wallS": 92,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

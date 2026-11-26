@@ -28,6 +28,34 @@ Tyler: "more variety is better, but I'll go with designers judgement."
 
 **Why this sample.** One per seat. Two homes on the scale. Each needs a different engine piece (a low-health gear shield, a reset per kill, a status that moves on a death, a reset from another move, a timed party damage buff), so the sample builds the pieces later batches reuse.
 
+## The sample, measured (systems, lane/signatures-sample, 2026-11-26)
+
+**How it plays:** the five work in the fight engine when a hero wears one. Players still see none of them: nothing drops or hands a Signature until wave 4 (`SIGNATURE_RULES.live` false). Each is one rule on the engine pieces the Talent tree already uses (`src/data/signatures.js`, `src/core/hunt/signature-rules.js`, `reactions.js`), so a later batch adds rows, not code:
+
+| Piece | What it is | First used by | Later batches that reuse it |
+|---|---|---|---|
+| Low-health shield | on the wearer's health falling under a line, a shield of a share of max health, on its own clock | #36 | #23, #37 (the low-health trigger) |
+| Reset per kill | a kill by a move takes time off a cooldown, capped a cast (the Talent tree's own reset) | #6 | #11 |
+| A status moves on a death | when a monster dies (anyone's blow), its Mark or a status the wearer laid moves to the nearest monster with its time left | #9 | #28, Spread |
+| A reset from another move | a move's hit on a target carrying a status makes another move ready | #14 | #3, #5 |
+| A timed boon on a heal | a heal move landing on a hero gives it a status for a time (Emboldened, +10% dealt) | #18 | #16, #17, #38 |
+
+MEASURED on `set/v0.2.144` 5d2434803 (`tools/balance-program/redesign/signature-depth/run.sh`, `sum.mjs`: each Signature on its seat's reference company, MID kits at the ground's reference Level, Steady, 6 seeds x 8 h, held from hour 4; the same four with none on the same dice). The strong four is not the cell here: it sits at Muster's top (698 of 700), where nothing can show.
+
+| Signature | Ground | Plain held | With it | Held delta (se) | Level XP/h | Verdict on the size (10 +- 3) |
+|---|---|---|---|---|---|---|
+| Cairn Belt (tank four) | Muster Barrows | 678.8 | 688.5 | +9.7 (3.1) | +3.3% | **In band.** The tank's fall-backs halve (1.4 to 0.7 an hour) |
+| Barrow Knight's Blade (sword four) | Muster Barrows | 628.1 | 616.6 | -11.5 (5.5) | -2.9% | **Fails.** The sword's damage is flat (16.3 a second both ways) and its fall-backs double (0.5 to 1.0 an hour). Likely cause (not proven): the extra Turning Cuts spend the mana its Mend needs |
+| Lurcher's Collar (bow) | Pyre Field | 77.2 | 77.2 | +0.0 (2.8) | +0.4% | **Fails.** The Mark lasts 8 s on a 12 s cooldown and the bow re-casts it as soon as it is ready, so a moved Mark buys a few seconds of +20% on one monster |
+| The Wood Book (mage) | Muster Barrows | 618.5 | 623.6 | +5.2 (5.1) | +2.9% | Under the band, inside one se of it. Needs more seeds |
+| Brewer's Apron (healer) | Muster Barrows | 618.5 | 624.9 | +6.5 (4.9) | +3.8% | Under the band, inside one se of it. Every seat's damage rises 1 to 2% |
+
+- **The dominance check, as far as a sample of 5 can go.** One Signature a hero and one candidate a seat, so no Signature competes with another for a slot here. Step 1 (the size) is read above. Step 2 (a Signature's average over every scale ground at most half its best) needs each one on a second ground. Steps 3 to 5 need the kit sampler (19 V10). Owed with batch 2.
+- **Homes off the scale.** Keeper Dunn (the Unmarked Catacombs) and Carter's Rest are not on the Danger scale on this set, so The Wood Book and Brewer's Apron were measured on Muster Barrows, a scale ground both seats hunt. Re-read each on its home once the home is on the scale.
+- **The gear slice cap does not clamp a Signature.** The cap counts steps on one blow. A shield, a reset or a moved Mark has no steps, and Emboldened is its own held step. "Inside the gear slice" holds by the measured size only (CONFLICTS 2026-11-26).
+- **What the words do in the engine.** "Each hero it heals" is each hero a cast lands on, even one already at full health. A Signature's reset can't set off another (the reaction queue never chains). "Below 30% health" and "vs a chilled target" are read as the blow lands.
+- **Designer's calls (nothing nerfed or raised here):** the Blade and the Collar fail their size as written. The Wood Book and the Apron want a 12-seed re-read before any number moves.
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.

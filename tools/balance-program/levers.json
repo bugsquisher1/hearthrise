@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b726ca6cbbb6be79",
+ "authored": "4e80cb146b68722b",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 772,
-  "typed": 17666,
-  "files": 262,
+  "bindings": 777,
+  "typed": 17678,
+  "files": 264,
   "lever": 341,
-  "notLever": 431,
+  "notLever": 436,
   "unclaimed": 0
  },
  "problems": [],
@@ -8148,9 +8148,10 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/plan-share.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17821,6 +17822,26 @@
   {
    "at": "src/core/artisan-sim.js#simulateArtisanSpan",
    "why": "a simulation budget"
+  },
+  {
+   "at": "src/core/plan-code.js#CODE",
+   "why": "a share code's bounds: its longest text and the most nodes it may name (a request bound; a build's own points are talents.js's)"
+  },
+  {
+   "at": "src/core/plan-code.js#check",
+   "why": "the code's checksum: FNV-1a 32's offset basis and prime, written as 7 base36 digits"
+  },
+  {
+   "at": "src/core/plan-code.js#fromB64url",
+   "why": "base64url padding to a multiple of 4"
+  },
+  {
+   "at": "src/core/plan-code.js#decodePlanCode",
+   "why": "the code shape's match groups (version, body, checksum)"
+  },
+  {
+   "at": "src/data/whats-new.js#semverCmp",
+   "why": "the three parts of a semver version"
   },
   {
    "at": "supabase/functions/hr-accrue/**",

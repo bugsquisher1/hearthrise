@@ -118,5 +118,11 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/hearthfind.js#actionsPerHour', why: 'an hour in ms' }, { at: 'src/core/farm.js#growthHours', why: 'an hour in ms' }, { at: 'src/core/farm.js#readyInMs', why: 'an hour in ms' },
   { at: 'src/core/farm.js#MAX_WATERINGS', why: 'a defensive array cap' }, { at: 'src/data/wage.js#twoFigures', why: 'base ten: a list price is the wage price to two significant figures' }, { at: 'src/core/skill-sim.js#MAX_SLICES', why: 'a simulation budget' }, { at: 'src/core/skill-sim.js#emptySummary', why: 'a summary shape' },
   { at: 'src/core/artisan-sim.js#emptySummary', why: 'a summary shape' }, { at: 'src/core/artisan-sim.js#simulateArtisanSpan', why: 'a simulation budget' },
+  /* plan share codes and the What's new card (lane/wn-sh): text encodings and version parts, no fight, purse or clock reads them */
+  { at: 'src/core/plan-code.js#CODE', why: 'a share code\'s bounds: its longest text and the most nodes it may name (a request bound; a build\'s own points are talents.js\'s)' },
+  { at: 'src/core/plan-code.js#check', why: 'the code\'s checksum: FNV-1a 32\'s offset basis and prime, written as 7 base36 digits' },
+  { at: 'src/core/plan-code.js#fromB64url', why: 'base64url padding to a multiple of 4' },
+  { at: 'src/core/plan-code.js#decodePlanCode', why: 'the code shape\'s match groups (version, body, checksum)' },
+  { at: 'src/data/whats-new.js#semverCmp', why: 'the three parts of a semver version' },
   { at: 'supabase/functions/hr-accrue/**', why: 'server plumbing: HTTP status codes, request and body bounds, settle cadences and engine budgets, accrual fuses, hashing. The edge\'s two economy numbers are levers (econ.sale-rates)' },
 ]);

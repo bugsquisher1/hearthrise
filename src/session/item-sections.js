@@ -305,6 +305,23 @@ export function buffsOf(cs) {
     .map((x) => ({ type: x.type, magnitude: x.magnitude, msLeft: x.remaining_ms }));
 }
 
+/**
+ * `temper_steps` (hr_temper_steps_view, 1063-flame-temper.sql; 21 section 2.6; null while the `temper_steps` switch is off): each equip
+ * slot's Temper as the server holds it, { equip_slot: { rank, cap, seated, itemLevel, nextAt } }: the ranks bought, the most this hero's
+ * Level opens, whether they count on what the slot wears, the worn piece's item Level (null with nothing worn) and the Level the next
+ * rank opens at. A row that is no count is dropped. Null with none.
+ */
+export function temperStepsOf(cs) {
+  const s = read(cs, 'temper_steps');
+  if (!isObj(s)) return null;
+  const out = {};
+  for (const [slot, v] of Object.entries(s)) {
+    if (!/^[a-z0-9]{1,16}$/.test(slot) || !isObj(v) || count(v.rank) === null || count(v.cap) === null) continue;
+    out[slot] = { rank: v.rank, cap: v.cap, seated: v.seated === true, itemLevel: count(v.item_level), nextAt: count(v.next_at) };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** @type {Set<string>} */
 const IMBUE_SLOT_SET = new Set(Object.values(IMBUE_SLOTS));
 /**

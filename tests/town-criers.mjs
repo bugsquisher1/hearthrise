@@ -42,7 +42,7 @@ const MODULES = {
   shell: 'src/shell/town-criers.js', data: 'src/data/town-criers.js', facts: 'src/session/crier-facts.js', store: 'src/social/chat-store.js',
   stations: 'src/data/world/stations.js', windows: 'src/data/shell-windows.js', text: 'src/render/player-text.js', launcher: 'src/shell/launcher-coach.js', accountCoach: 'src/session/account-coach.js',
   settings: 'src/data/settings.js', model: 'src/shell/settings-model.js', tips: 'src/data/tips.js', residue: 'src/session/residue.js',
-  temper: 'src/data/temper.js', items: 'src/data/items.js',
+  items: 'src/data/items.js',
 };
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
@@ -52,10 +52,9 @@ async function load(base) {
 }
 
 /* ── A HERO AS THE SERVER PROJECTS IT ── a fresh one has done nothing: no XP, no task, an empty Storage, no Blessing,
-   an Iron Sword with its ladder untouched. `done` flips every fact. */
+   a Level 40 hero's weapon slot with its first Temper rank open and unbought (the server's temper_steps). `done` flips every fact. */
 function sections(M, o = {}) {
-  const tier = Math.min(...Object.keys(M.temper.TEMPER_TIERS).map(Number));
-  const weapon = Object.keys(M.items.ITEMS).find((id) => M.items.ITEMS[id].slot === 'weapon' && M.items.ITEMS[id].tier === tier);
+  const weapon = Object.keys(M.items.ITEMS).find((id) => M.items.ITEMS[id].slot === 'weapon' && M.items.ITEMS[id].tier === 2);
   const done = o.done === true;
   return {
     name: 'Odalys',
@@ -67,7 +66,7 @@ function sections(M, o = {}) {
     bank: done ? { bread: 3 } : {},
     blessings: { permille: 0, tiers: [{ tier: 1, permille: 250, price: 100, held: done }] },
     equipment: { weapon },
-    temper: [{ track: 'blows', tier, rung: done ? 1 : 0, max: 3, offer: 'temper_blows_' + tier + '_1', gold: 100, items: {} }],
+    temper_steps: { weapon: { rank: done ? 1 : 0, cap: 1, seated: done, item_level: 40, next_at: done ? 80 : 40, quote: null } },
   };
 }
 
@@ -146,7 +145,7 @@ async function pureRules(M) {
         if (!target || !windows.has(target.win)) fail('TC-1 crier ' + c.id + ' line ' + l.id + ' links to no window the shell has: ' + JSON.stringify(target));
       }
     }
-    /* the three Tyler named: the crier at the gate (Hunts), the smith (tempering), Tamsin at her board */
+    /* the three Tyler named: the crier at the gate (Hunts), the smith (Temper on steps), Tamsin at her board */
     const by = Object.fromEntries(TOWN_CRIERS.map((c) => [c.id, c]));
     if (!by.crier || SH.crierTarget(by.crier, by.crier.lines[0], null).win !== 'hunts') fail('TC-1 the Town Crier\'s first line does not open Hunts');
     if (!by.smith || !by.smith.lines.some((l) => l.when === 'untempered' && SH.crierTarget(by.smith, l, null).tab === 'services')) fail('TC-1 the smith has no tempering line that opens the Services tab');

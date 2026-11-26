@@ -679,6 +679,7 @@
   "account_house_dummy",
   "account_kits",
   "account_storage_chests",
+  "account_time_offers",
   "account_wallet",
   "active_bounty",
   "character_names",
@@ -705,6 +706,7 @@
   "hero_tally_given",
   "hero_tally_tasks",
   "hero_temper",
+  "hero_time_rules",
   "hero_worn_imbue",
   "hr_combat_xp_credit_log",
   "hr_faction_companies",
@@ -891,6 +893,11 @@
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (bought with gold and materials). The storage chests an ACCOUNT has built, once each (2026-11-10-storage-chests.sql); the depot's capacity is derived from these rows. Written only by hr_storage_chest_build; own-read RLS, no client write. A rebuild returns it EMPTY: every account loses the space it paid for, and a depot over the base then refuses new stacks. The ledger (intent storage_chest:<id>) re-derives it only inside the ledger's retention window.",
    "replay": 0
+  },
+  "account_time_offers": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "PLAYER VALUE (a choice; 1071-work-blocks.sql): the account's one answer to the block-rule coach card (12-targets 9.3), up_to 0 = Not now. Written only by hr_time_offer_answer. Lost, the card is offered once more when the purse holds 3 days of pay; the heroes' rules (hero_time_rules) are untouched."
   },
   "account_wallet": {
    "class": "restore_only",
@@ -1151,6 +1158,11 @@
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (1063-flame-temper.sql, 21 section 2): a hero's Temper ranks per gear slot and the tier they sit on. Written only by hr_temper_rank / hr_temper_seat (gold and kits burned); own-read RLS, no client write. A rebuild returning it EMPTY loses paid ranks. Dark until temper_steps flips.",
    "replay": 0
+  },
+  "hero_time_rules": {
+   "class": "restore_only",
+   "wiped_at_cutover": true,
+   "note": "PLAYER VALUE (a choice; 1071-work-blocks.sql): a hero's standing \"buy up to N blocks a day\" rule, one row a kind; no row is off (the default). Written only by hr_time_rule_write under the hero's lock. Lost, every hero reads as off and the server stops buying blocks for it until the player sets the rule again; no gold is owed or lost. Wiped with the hero at EA."
   },
   "hero_worn_imbue": {
    "class": "restore_only",
@@ -2274,8 +2286,13 @@
   },
   "hr_time_blocks": {
    "class": "seeded",
+   "replay": 2,
+   "note": "Generated catalogue (1072-work-blocks-catalogue.generated.sql, tools/gen-time-blocks.mjs from src/data/time-blocks.js; 1058 wrote the hunting row alone): one row per kind of bought time ('hunt': a 2 h block, 2 a day, x1.5; 'work': a 2 h town-work block, 4 a day, x1.5; each its price, earns_pm floor and the standing rule's lead). Empty, hr_time_buy refuses every kind (bad_kind) and the time_blocks section is null: no block can be bought, no gold moves. Rebuilt from repo, never restored."
+  },
+  "hr_time_standing": {
+   "class": "seeded",
    "replay": 1,
-   "note": "Generated catalogue (1058-hunting-blocks-catalogue.generated.sql, tools/gen-time-blocks.mjs from src/data/time-blocks.js): one row per kind of bought time ('hunt': a 2 h block, 2 a day, x1.5 each, its price levers). Empty, hr_time_buy refuses every kind (bad_kind) and the time_blocks section is null: no block can be bought, no gold moves. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1072-work-blocks-catalogue.generated.sql, tools/gen-time-blocks.mjs from src/data/time-blocks.js STANDING): the standing rule's one row (the reserve in hours of wage, the offer's kind, days of pay and choices). Empty, the sweep buys nothing (catalogue_missing) and no offer is shown: no gold moves. Rebuilt from repo, never restored."
   },
   "hr_titles": {
    "class": "seeded",

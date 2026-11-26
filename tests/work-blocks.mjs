@@ -308,6 +308,8 @@ const ARMS = {
       }
       else await viewedSettle(db, edge, u, 0);
       const end = await stateOf(db, u, 0);
+      /* the hero works its bought block down to 8 minutes left: due again, and the rule of 1 is spent */
+      await db.query('update public.player_state set work_ms = $2 where user_id = $1 and slot = 0', [u, base + TB.TIME_BLOCKS.work.blockMin * MIN - 8 * MIN]);
       const s2 = await sweep(db);
       const after = await blockRows(db, u, 'work');
       seen[door] = js(bought.map((r) => [r.intent, r.meta.auto, r.meta.n]));

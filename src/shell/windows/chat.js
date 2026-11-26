@@ -34,7 +34,7 @@ import { linkLabel } from '../../social/chat-lines.js';
 import { combatHtml, patchCombat, actCombat, keepPinned, isPinned } from './chat-combat.js';
 import { crierButtonHtml, crierBarHtml, crierMarkHtml, patchCrier, actCrier } from './chat-crier.js';
 import { showTip, hideTip } from './item-tip.js';
-import { rarityOf } from '../bag-model.js';
+import { standingOf } from '../item-standing.js';
 import { glyphSvg } from '../launcher.js';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js';
 import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js';
@@ -82,8 +82,9 @@ function partsHtml(parts) {
     /* a townsperson's "take me there" (src/shell/goto.js: the shell's one click handler follows it) */
     if (p.goto) return linkHtml(p.text, p.goto);
     if (!p.item) return esc(p.text);
-    const rar = rarityOf(p.item);
-    return '<button type="button" class="hc-link' + (rar ? ' rar-' + esc(rar) : '') + '" data-hs-act="link" data-item="' + esc(p.item) + '">' + esc(linkLabel(p.item)) + '</button>';
+    /* a Rare or Signature link in its frame's colour, the rest in stone (src/shell/item-standing.js) */
+    const std = standingOf(p.item);
+    return '<button type="button" class="hc-link' + (std ? ' is-' + std : '') + '" data-hs-act="link" data-item="' + esc(p.item) + '">' + esc(linkLabel(p.item)) + '</button>';
   }).join('');
 }
 

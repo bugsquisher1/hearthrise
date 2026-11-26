@@ -175,12 +175,6 @@ export function kindOf(id) {
   return 'other';
 }
 
-/** The rarity ladder name for a framed pocket (gear only; other kinds are plain pockets). */
-export function rarityOf(id) {
-  const it = ITEMS[id];
-  return it && it.slot && it.slot !== 'ammo' ? (it.rarity || 'common') : null;
-}
-
 /** Is this stack new: never seen, or more of it than when it was last seen? */
 export function isNew(seen, id, qty) {
   const s = seen && seen[id];

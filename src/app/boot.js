@@ -65,6 +65,13 @@ import { lowerFirst } from '../render/format.js';
 import { mountDevicePx } from '../render/device-px.js';
 import { raiseBackdrop } from './auth-backdrop.js';
 
+/** When the signed-in account was made (the auth user's created_at), in ms, or null. Display only (the What's new card's fresh line). */
+function createdAtOf(auth) {
+  const s = auth && typeof auth.session === 'function' ? auth.session() : null;
+  const at = s && s.user ? Date.parse(s.user.created_at) : NaN;
+  return Number.isFinite(at) ? at : null;
+}
+
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
 /* THE GAME HALF (src/app/game-half.js): the account, its heroes, the World pane and the shell, about 450 modules the
@@ -290,10 +297,13 @@ function startApp(win) {
     const playLine = rosterSlots.length ? G.playLineOf(a.statedLimit(), a.limit(), shown) : '';
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '.</p>' + (playLine ? '<p class="auth-lead">' + playLine + '</p>' : '')
+      + '<section class="whats-new" hidden></section>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
+    /* WHAT'S NEW (src/app/whats-new.js): once an account, from the account coach's server-held reads; display only */
+    G.paintWhatsNew(root.querySelector('.whats-new'), a, { createdAtMs: createdAtOf(auth) }).catch(() => { /* display only: no card */ });
     G.drawRosterFaces(root.querySelector('.char-list'), roster).catch(() => { /* display only: the wells stay empty */ });
     timing.drawn('characters');
   }

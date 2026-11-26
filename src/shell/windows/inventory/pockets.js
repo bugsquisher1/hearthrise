@@ -3,12 +3,12 @@
 //
 // The Inventory's bag grid and the Storage window draw the same pocket: a sunk
 // 36 px square holding the item's 32 px pixel icon at ×1 (a whole-number scale:
-// Tyler 10-18, "the items are far too big"), the count in the corner, gear
-// framed in its rarity with rank pips (colour is never the only cue), and the
-// marks a grid adds (new, locked, the bar key). Built once per stack, patched
-// in place. Display only.
+// Tyler 10-18, "the items are far too big"), the count in the corner, gear in
+// a quiet rim (a Rare or Signature piece in the standout frame its icon
+// carries, src/shell/item-standing.js), and the marks a grid adds (new,
+// locked, the bar key). Built once per stack, patched in place. Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, rarityOf } from '../../bag-model.js';
+import { kindOf } from '../../bag-model.js';
 import { text, cls } from '../../../render/paint.js';
 import { whole, short } from '../../../render/format.js';
 import { escapeHtml as esc } from '../../../utils/dom.js';
@@ -23,14 +23,10 @@ export function cornerCount(qty) {
   return (v < 10 ? Math.floor(v * 10) / 10 : Math.floor(v)) + (qty < 1e6 ? 'k' : 'kk');
 }
 
-const PIPS = Object.freeze({ common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, unique: 5 });
-
 /** A pocket's markup for item `id`; `act` is its [data-hs-act]. */
 export function pocketHtml(id, glyphs, act) {
-  const rar = rarityOf(id);
-  const pips = rar ? '<span class="hw-pips">' + '<i></i>'.repeat(PIPS[rar] || 0) + '</span>' : '';
-  return '<li class="hw-pocket is-' + kindOf(id) + (rar ? ' rar-' + rar : '') + '" role="option" tabindex="-1" draggable="true" data-hs-act="' + esc(act || 'pocket') + '" data-item="' + esc(id) + '" aria-label="' + esc(itemName(id)) + '">'
-    + '<span class="hw-ico">' + itemIconHtml(glyphs, id) + '</span>' + pips
+  return '<li class="hw-pocket is-' + kindOf(id) + '" role="option" tabindex="-1" draggable="true" data-hs-act="' + esc(act || 'pocket') + '" data-item="' + esc(id) + '" aria-label="' + esc(itemName(id)) + '">'
+    + '<span class="hw-ico">' + itemIconHtml(glyphs, id) + '</span>'
     + '<b class="hw-count"></b><i class="hw-new" aria-hidden="true"></i><span class="hw-lock">' + glyphSvg(glyphs, 'uiLock') + '</span><small class="hw-barkey"></small></li>';
 }
 

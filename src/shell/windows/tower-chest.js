@@ -34,7 +34,7 @@ import { t } from '../../render/player-text.js';
 import { busyWords } from '../training-words.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { runIntent } from '../intent-words.js';
-import { itemName, revealInWindow } from '../widgets/bits.js';
+import { itemName, itemIconHtml, revealInWindow } from '../widgets/bits.js';
 import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js';
 import { metalWord } from '../tower-stage.js';
 
@@ -267,7 +267,9 @@ function patchResult(pane, r, tw) {
   const used = pane.querySelector('.tc-used');
   prop(used, 'hidden', r.opens.length < 2);
   text(used, r.opens.length > 1 ? t('tower.opened_many', { count: r.opens.length }) : '');
-  const well = (id, name, sub, found) => '<div class="tc-loot-item' + (found ? ' tt-found-row' : '') + '"><img src="' + esc(PIXEL_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">'
+  /* each find's icon through the one item icon (bits.js itemIconHtml): the Chest is three Signatures' home, so its haul wears their frame */
+  const glyphs = (pane.ownerDocument.defaultView || {}).HR_GLYPHS;
+  const well = (id, name, sub, found) => '<div class="tc-loot-item' + (found ? ' tt-found-row' : '') + '">' + itemIconHtml(glyphs, id)
     + '<span><b class="' + (found ? 'tt-found' : 'tc-loot-name') + '">' + esc(name) + '</b><span class="tc-loot-sub">' + esc(sub) + '</span></span></div>';
   pane.querySelector('.tc-loot').innerHTML = finds.map((o) => well(o.bundle, itemName(o.bundle), t('tower.super_rare'), true)).join('')
     + weapons.map((o) => well(o.weapon, itemName(o.weapon),

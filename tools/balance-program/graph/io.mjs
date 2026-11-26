@@ -165,7 +165,7 @@ export const FORMULA_IO = Object.freeze({
   'E36': f(['src/data/gold-sinks.js#SINK_RULES'], [['+hero.level', 'a priced-by-Level sink reads base + perLevel x Level']], ['sink.town']),
   'E37': f(['src/core/wage.js#blessingPrice'], [['+hero.level', 'the Level arrives as the argument']], ['blessing.price', ['blessing.cut', 'the one Blessing\'s cut is a field of the same row (src/data/blessings.js BLESSING)']]),
   'E38': f(['src/data/temper.js#TEMPER_STEPS'], [], ['sink.temper']),
-  'P17': f(['src/core/temper-steps.js#rankCapAt,rankMilliHours,rankQuote,seatPrice,temperLevelsOn,temperKitAt'], [['+hero.level', 'the Level a rank opens at is the argument'], ['+sink.temper', 'its prices are TEMPER_STEPS, read through the data']], [], { skip: { temperLevelsOn: 'a seated rank is +1 item Level on its slot inside the gear part (danger.js gearPartPm), which the graph models as no quantity yet' } }),
+  'P17': f(['src/core/temper-steps.js#rankCapAt,rankMilliHours,rankQuote,seatPrice,temperLevelsOn'], [['+hero.level', 'the Level a rank opens at is the argument'], ['+sink.temper', 'its prices are TEMPER_STEPS, read through the data']], [], { skip: { temperLevelsOn: 'a seated rank is +1 item Level on its slot inside the gear part (danger.js gearPartPm), which the graph models as no quantity yet' } }),
   'E39': f(['src/data/shops.js#HERO_SLOTS'], [], ['sink.slots']),
   'E40': f(NO_HOME, [], [['sink.other', 'the Hallmark fee by jewel tier']], { note: 'SQL only: supabase/migrations/2027-03-14-jewelry-hallmark.sql' }),
   'E41': f(['src/data/town-works.js#TOWN_WORKS'], [], ['sink.works']),

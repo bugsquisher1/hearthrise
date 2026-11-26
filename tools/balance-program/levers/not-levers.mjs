@@ -37,6 +37,9 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/balance-sheet.js#TIER_SIZES', why: 'the party sizes a tier row answers for (1..4): a shape' },
   { at: 'src/data/balance-sheet.js#tierRowFor', why: 'a solver\'s search bounds (lo 1, hi 10, 60 halvings) for a gentle ground\'s tier lift' },
   /* display, words, art, UI */
+  /* the share code and the What's new card (lane/wn-sh): encoding and version arithmetic, no fight, purse or clock reads them */
+  { at: 'src/core/plan-code.js#**', why: 'the share code\'s format: a paste bound (8192 characters), a clamp past any Level\'s points (2000), the FNV-1a hash constants, base36 and base64 padding; a code is a convenience string the server never trusts' },
+  { at: 'src/data/whats-new.js#semverCmp', why: 'a semver compare: its three parts' },
   { at: 'src/data/world/**', why: 'the pixel world: layout, palettes, art budgets, ambient life, house layouts (no fight, purse or clock reads them)' },
   { at: 'src/data/grounds/*/map.js#default', why: 'a ground\'s tile map (pathing and art); its rooms\' monsters are the pack\'s' },
   { at: 'src/data/grounds/shape.js#*', why: 'the pack builders\' defaults (a box\'s full density 8, the gather slider\'s shares): structure, the levers are the packs\' rows' },

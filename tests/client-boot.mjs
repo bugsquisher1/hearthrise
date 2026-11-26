@@ -1265,9 +1265,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
-      /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
-      const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
-      if (pitch !== 'Hunts keep going with the game closed') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      /* The sign-in shows the crest, the name and the form, nothing else under the name (Tyler 2026-11-26). */
+      const pitch = await page.evaluate(() => { const b = document.querySelector('.auth-brand'); return b ? [...b.querySelectorAll('p')].filter((p) => p.getClientRects().length && !p.classList.contains('auth-name') && !p.classList.contains('auth-legal')).map((p) => p.textContent) : null; });
+      if (!pitch || pitch.length) fails.push('B-9 the sign-in screen shows a line under the name ' + JSON.stringify(pitch));
       /* THE PICK IS THE PLAYER'S (GR-24): a first hero comes with no way picked, Enter town sends nothing until one is, then the set goes with the name */
       const pick = await page.evaluate(async () => {
         const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
@@ -1637,7 +1637,7 @@ const MUTANTS = [
   ['the Hearth picture is let go after its load (B-23, a GC between load and draw asks again)', 'src/app/auth-backdrop.js', '      held = img;\n', ''],
   ['the Hearth is drawn at a fraction of a device px (B-23)', 'src/styles/app.css', 'calc(1024 * var(--art-px)) calc(640 * var(--art-px))', '2048px 1280px'],
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
-  ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
+  ['a line comes back under the name on the sign-in', 'src/app/sign-in.js', `'<p class="auth-name">Hearthrise</p></header>'`, `'<p class="auth-name">Hearthrise</p><p class="auth-pitch">Hunts keep going with the game closed</p></header>'`],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],
   ['the color strips are gone though the world draws them', 'src/data/outfits.js', 'export const HERO_DYES_SHOWN = true;', 'export const HERO_DYES_SHOWN = false;'],
   ['the characters screen draws no hero (B-11b)', 'src/app/boot.js', "    G.drawRosterFaces(root.querySelector('.char-list'), roster)", "    Promise.resolve()"],

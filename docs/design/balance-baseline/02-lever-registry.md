@@ -46,9 +46,9 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 764 (in 262 files, 17522 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 769 (in 264 files, 17534 typed numbers) |
 | Claimed by a lever | 331 |
-| Claimed by a not-a-lever reason | 433 |
+| Claimed by a not-a-lever reason | 438 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 19 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -369,31 +369,31 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 <!-- GENERATED:REACH (tools/balance-program/levers.mjs --write) -->
 | Lever | Formulas it feeds directly (COMPUTED) | Matrix outcomes it moves (JUDGED) | Formulas downstream (COMPUTED) | Perturbed by | Class |
 |---|---|---|---|---|---|
-| `level.hero-hp` Hero HP a Level | 17 | 11 | 78 | knob `heroHp` | global |
-| `danger.power-step` Danger power step | 16 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
-| `danger.pay` Pay by depth | 16 | 6 | 76 | NOT PLAYABLE (not-in-runs) | global |
-| `mon.rows` A monster row's stats (formula rows and hand rows) | 14 | 19 | 78 | patch | content |
-| `mon.hp-line` Monster HP line | 14 | 9 | 77 | knob `monsterHp` | global |
-| `blow.gear-term` Gear term of the largest blow | 14 | 8 | 78 | knob `playerAttack` | global |
-| `gear.item-stats` Item rows' stats and requirements | 13 | 19 | 78 | patch | content |
-| `gear.material-tiers` Gear tiers: their Levels and value | 13 | 19 | 77 | patch | archetype |
-| `mon.aim-evasion` Monster aim and evasion | 13 | 9 | 78 | knob `monsterAccuracy` | global |
-| `mon.level-by-tier` A Level from the art tier | 13 | 0 | 78 | patch | exception-accidental |
-| `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | 12 | 20 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mf.ref` The reference company a formula ground is anchored on | 12 | 19 | 79 | NOT PLAYABLE (not-in-runs) | exception-intentional |
-| `mon.boss-kinds` Boss kinds and the ramp | 12 | 19 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mon.party-fit` Party ground monster formula | 12 | 19 | 79 | knob `partyGroundHp` | exception-intentional |
-| `mon.roles` Monster roles | 12 | 19 | 79 | patch | archetype |
-| `danger.formula-step` Where a formula ground's reference monsters stand | 12 | 15 | 79 | NOT PLAYABLE (not-in-runs) | exception-intentional |
-| `mf.blow-cap` A formula monster's largest steady blow | 12 | 11 | 79 | NOT PLAYABLE (not-in-runs) | global |
-| `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | 12 | 11 | 79 | NOT PLAYABLE (not-in-runs) | global |
-| `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 79 | knob `monsterDamage` | global |
-| `mon.danger-ramp` The gentle-ground ramp | 12 | 11 | 79 | patch | exception-intentional |
-| `skill.reference-career` The reference hero monsters are written against | 12 | 9 | 78 | patch | content |
-| `mf.encounter-size` A formula monster size by encounter type | 12 | 8 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mf.mend` A Warder's mend | 12 | 8 | 79 | NOT PLAYABLE (not-in-runs) | archetype |
-| `danger.power-gear` The power step on gear | 11 | 19 | 78 | NOT PLAYABLE (not-in-runs) | global |
-| `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 78 | patch | archetype |
+| `level.hero-hp` Hero HP a Level | 17 | 11 | 79 | knob `heroHp` | global |
+| `danger.pay` Pay by depth | 17 | 6 | 77 | NOT PLAYABLE (not-in-runs) | global |
+| `danger.power-step` Danger power step | 16 | 19 | 79 | NOT PLAYABLE (not-in-runs) | global |
+| `mon.rows` A monster row's stats (formula rows and hand rows) | 14 | 19 | 79 | patch | content |
+| `mon.hp-line` Monster HP line | 14 | 9 | 78 | knob `monsterHp` | global |
+| `mon.aim-evasion` Monster aim and evasion | 13 | 9 | 79 | knob `monsterAccuracy` | global |
+| `blow.gear-term` Gear term of the largest blow | 13 | 8 | 79 | knob `playerAttack` | global |
+| `mon.level-by-tier` A Level from the art tier | 13 | 0 | 79 | patch | exception-accidental |
+| `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | 12 | 20 | 80 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mf.ref` The reference company a formula ground is anchored on | 12 | 19 | 80 | NOT PLAYABLE (not-in-runs) | exception-intentional |
+| `mon.boss-kinds` Boss kinds and the ramp | 12 | 19 | 80 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mon.party-fit` Party ground monster formula | 12 | 19 | 80 | knob `partyGroundHp` | exception-intentional |
+| `mon.roles` Monster roles | 12 | 19 | 80 | patch | archetype |
+| `gear.item-stats` Item rows' stats and requirements | 12 | 19 | 79 | patch | content |
+| `gear.material-tiers` Gear tiers: their Levels and value | 12 | 19 | 78 | patch | archetype |
+| `danger.formula-step` Where a formula ground's reference monsters stand | 12 | 15 | 80 | NOT PLAYABLE (not-in-runs) | exception-intentional |
+| `mf.blow-cap` A formula monster's largest steady blow | 12 | 11 | 80 | NOT PLAYABLE (not-in-runs) | global |
+| `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | 12 | 11 | 80 | NOT PLAYABLE (not-in-runs) | global |
+| `mon.blow-line` Monster blow line and the gentle cap | 12 | 11 | 80 | knob `monsterDamage` | global |
+| `mon.danger-ramp` The gentle-ground ramp | 12 | 11 | 80 | patch | exception-intentional |
+| `skill.reference-career` The reference hero monsters are written against | 12 | 9 | 79 | patch | content |
+| `mf.encounter-size` A formula monster size by encounter type | 12 | 8 | 80 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mf.mend` A Warder's mend | 12 | 8 | 80 | NOT PLAYABLE (not-in-runs) | archetype |
+| `danger.pay-floor` Pay floor under the reference step | 10 | 6 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 79 | patch | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

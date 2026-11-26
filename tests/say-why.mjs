@@ -227,6 +227,11 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/talents.js': [
     { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested: the line beside it says No points while the server\'s section holds none to spend (the busy line says Spending… for a press)' },
   ],
+  /* Share plan (lane/wn-sh SH): Copy is off with no plan to share, Use this plan when the pasted code changes nothing */
+  'src/shell/windows/plan-share.js': [
+    { cond: '!code', words: "t('share.none')", where: 'Copy: the line where the code stands says Nothing to share yet while the server holds no plan for this hero' },
+    { cond: '!sends || sc.pending', words: "t('share.nothing')", where: 'Use this plan: hidden until a code is read; then the line beside it says Already your plan when the code changes nothing on this hero (Saving… for a press)' },
+  ],
   /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
   'src/shell/windows/character/faction.js': [
     { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },

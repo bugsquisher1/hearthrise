@@ -315,7 +315,7 @@ async function hunting(d, uid, slots, o = {}) {
   const sids = {};
   for (const s of slots) {
     await d.as(uid); await d.gate();
-    const e = await d.one(`select public.hr_hunt_enter($1, 'mill_cellar', '[]'::jsonb, 0, null, gen_random_uuid())`, [s]);
+    const e = await d.one(`select public.hr_hunt_enter($1, 'mill_cellar', $2::jsonb, 0, null, gen_random_uuid())`, [s, JSON.stringify(o.bag || [])]);
     if (!e || e.ok !== true) throw harness(`enter (slot ${s}) refused: ${JSON.stringify(e)}`);
     sids[s] = e.session.id;
   }
@@ -382,11 +382,14 @@ const addBuys = (m, n, row = SHRIMP) => { m.hunt.buys = Object.assign({}, m.hunt
 /* G5's bill: whole uses of ONE food-lane row (heal or mana: the lane hr_hunt_apply_member bounds together), cheapest first, landing
    strictly above slot 0's coins and within both heroes'. A Salted Shrimp count alone cannot always do it: prices move with the wage
    (lane/econ-levers), and at the tuning pass's (Shrimp 6 g, a window of 12 + 5 coins) no count of Shrimp falls between 12 and 17.
-   Null when no row's whole uses can, and the claim's precondition says so. */
-function billBetween(lo, hi) {
+   Null when no row's whole uses can, and the claim's precondition says so. `room`: the most uses a window's food lane buys (49: past it the
+   bill is refused too_many_uses, not gold_short), so a window that earned more coins than 49 Shrimp (the Cellar on the Danger scale since
+   1071-retire-tier-chain.sql) sizes its bill at the lane's top or in a dearer row. */
+const LANE_USES = 49;
+function billBetween(lo, hi, room = LANE_USES) {
   const rows = BASIC_SUPPLIES.filter((b) => (b.kind === 'heal' || b.kind === 'mana') && b.price > 0)
     .sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1));
-  for (const row of rows) { const n = Math.floor(hi / row.price); if (n >= 1 && n * row.price > lo) return { row, n, gold: n * row.price }; }
+  for (const row of rows) { const n = Math.min(room, Math.floor(hi / row.price)); if (n >= 1 && n * row.price > lo) return { row, n, gold: n * row.price }; }
   return null;
 }
 
@@ -687,7 +690,10 @@ async function huntArms(mutate, M) {
   {
     const u = await d.newAccount();
     await d.seedPurse(u, 300);                                    // exactly the default floor (300)
-    await hunting(d, u, [0, 1], { party: true, mins: 14, seed: G5_SEED });
+    /* the party plays the Cellar's Danger scale since the tier rows retired (1071-retire-tier-chain.sql: Steady, step 0, where a Normal tier
+       played it as built), whose first pulls hit at once: each hero carries its own food so no store use spends the purse (at its floor)
+       before the window's coins come (the bill below is the one store spend this arm plants) */
+    await hunting(d, u, [0, 1], { party: true, mins: 14, seed: G5_SEED, bag: [{ item: 'cooked_shrimp', qty: 20 }] });
     const inst = await d.one('select count(distinct instance_id)::int from public.hunt_sessions where user_id = $1 and ended_at is null', [u]);
     ok(inst === 1, `G5: the two own heroes hunt ${inst} instances`);
     const from = Number(await d.one('select floor(extract(epoch from i.settled_to) * 1000)::bigint::text from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id where h.user_id = $1 and h.slot = 0', [u]));

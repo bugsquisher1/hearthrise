@@ -625,6 +625,9 @@ function rules(M) {
     const mk = () => ['tank', 'melee_dps'].map((role, i) => {
       const mi = memberOf(M, 'rw' + i, i, role, 60); mi.huntId = 'muster_barrows'; mi.hp = 1e9; mi.gold = 50000;
       mi.hero = Object.assign({}, mi.hero, { lead: i === 0, ...(i === 0 ? { risk: 'steady', danger: STEP } : {}) });
+      /* the leader swings at Melee 5, so its to-hit reads each monster's own evasion unclamped: a frozen peer rolled against the catalogue's rows,
+         not its ground's, lands other blows (LV-SCALE's trick, kept) */
+      if (i === 0) mi.skills = Object.assign({}, mi.skills, { melee: M.XP.skillXpForLevel('melee', 5) });
       return mi;
     });
     /* the rows the engine builds this ground's monsters from (its one door, play-rows.js, on the scale) and the steps the world stood at */
@@ -2157,8 +2160,9 @@ const MUTANTS = [
   ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],
   /* LV-ROWS (re-aimed from LV-SCALE, lane/retire-tier-chain): a ground's own rows through the step's dial. The scaled hunt's kill-pay mutants left
      with it: no ground's own rows move a kill's XP or coin (a hall's keep the catalogue's, a formula ground's pay through its dial), and the
-     swing's row is damage.mjs a-tier-is-the-monsters-stats' */
-  ["a peer is frozen against the catalogue's rows (LV-ROWS)", 'supabase/functions/hr-accrue/hunt-settle.js', 'kindsOf(inst, world, tower)), atMs, rows) };', 'kindsOf(inst, world, tower)), atMs) };', /^LV-ROWS: viewed/],
+     swing's row is damage.mjs a-tier-is-the-monsters-stats'. The frozen peer's rows (hunt-settle.js frozenAt `rows`) are the catalogue on every
+     ground but the Tower since the scaled rows left, so that mutant is equivalent here (proved escaped on LV-ROWS, 2026-11-26): the Tower's
+     viewed peer is a named follow-up (HANDOFFS lane/retire-tier-chain) */
   ['a spawn reads the catalogue row (LV-ROWS)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-ROWS: \d+ monster/],
   ['the prediction never answers why a slot waits (LV-WAITS)', 'src/hunt-view/live-engine.js', 'return side ? slotTesterOf(st.world, st.where.grid, side.member, st.items, st.next) : null;', 'return null;', /^LV-WAITS: CONTROL: the prediction never read/],
   ['asking why a slot waits moves the prediction (LV-WAITS)', 'src/hunt-view/live-engine.js', '    const t = testSlot(inst, u, h, slot, atMs);\n', '    const t = testSlot(inst, u, h, slot, atMs);\n    u.mana -= 1;\n', /^LV-WAITS: \d+ commit/],

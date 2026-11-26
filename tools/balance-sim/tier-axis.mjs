@@ -20,3 +20,5 @@ const NORMAL = Object.freeze({ id: DEFAULT_TIER, pull: Object.freeze([0, 0, 0, 0
 export const tierRowOf = () => NORMAL;
 /** The pull a row brings for a group: none (the ground as built). */
 export const pullOfTier = () => 0;
+/** A Healer's tier (a pack's healerTiers): none, they retired with the tier rows. */
+export const isHealerTier = () => false;

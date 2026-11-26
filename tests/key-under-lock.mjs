@@ -16,8 +16,8 @@
 // installed as a throwaway function inside the arm's rolled-back transaction, called on the same key after the first press.
 //
 // ARMS (the real replayed chain, PGlite)
-//   KL-SCALED   hr_scaled_hunt_buy: press A buys the slider's least hours on the first ground a Level 20 hero scales; the second press
-//               after the lock answers ok and moves nothing (purse, bank, ledger); a plain replay of the key still answers and moves nothing
+//   (KL-SCALED, hr_scaled_hunt_buy's second press, left with the scaled hunts: 1071-retire-tier-chain.sql drops the verb; KL-AGAIN still
+//    reads its body at FILE's own place, where it stands)
 //   KL-HEARTH   hr_hearth_burn: press A burns a named fuel (two in the bag); the second press after the lock lights no flame, writes no
 //               square line, keeps the second fuel and pays no Inner Flame XP
 //   KL-TIME     hr_time_buy (1058-hunting-blocks.sql, the money verb that replaced the stamina refill and copies its house pattern) on a
@@ -42,8 +42,9 @@ const { one, q, inTx, UIDS } = H;
 const UID = UIDS[0];
 const HOUR = 3600000;
 const FILE = '2027-04-19-key-under-lock.sql';
-const ARMS = ['KL-SCALED', 'KL-HEARTH', 'KL-TIME', 'KL-CLASS', 'KL-AGAIN'];
+const ARMS = ['KL-HEARTH', 'KL-TIME', 'KL-CLASS', 'KL-AGAIN'];
 const SIG = Object.freeze({
+  /* (FILE restates it; 1071-retire-tier-chain.sql drops it later in the chain: KL-AGAIN's alone) */
   scaled: 'public.hr_scaled_hunt_buy(integer,text,integer,bigint,uuid)',
   hearth: 'public.hr_hearth_burn(integer,text,uuid)',
   time: 'public.hr_time_buy(text,integer,bigint,uuid)',
@@ -92,29 +93,6 @@ async function afterLock(db, sig, as) {
 }
 
 const DB_ARMS = {
-  'KL-SCALED': async (db, M) => {
-    const bad = [];
-    await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'scaled_hunts'");
-    await hero(db, M, { level: 20, gold: 1000000, inv: {} });
-    const view = await one(db, 'select public.hr_scaled_hunts_view($1::uuid, 0) as v', [UID]);
-    const [g, row] = Object.entries((view && view.grounds) || {}).find(([, r]) => r.price != null) || [];
-    if (!g) return ['harness: no ground scales for a Level 20 hero: ' + JSON.stringify(view)];
-    const hours = view.min_hours, price = row.price * hours, k = crypto.randomUUID();
-    const bank = async () => Number(await one(db, 'select coalesce((select banked_ms from public.player_scaled_hours where user_id = $1 and slot = 0 and hunt_id = $2), 0)::text', [UID, g]));
-    const snap = async () => JSON.stringify({ purse: await purseOf(db), bank: await bank(), rows: await rowsOf(db, 'scaled\\_hunt\\_buy:%') });
-    const a = await press(db, 'select public.hr_scaled_hunt_buy(0, $1, $2, $3, $4::uuid) as r', [g, hours, price, k]);
-    const s1 = await snap();
-    if (!a || a.ok !== true || s1 !== JSON.stringify({ purse: 1000000 - price, bank: hours * HOUR, rows: 1 })) return ['harness: press A answered ' + JSON.stringify(a) + ' to ' + s1];
-    await afterLock(db, SIG.scaled, 'hr__kl_scaled');
-    const b = await press(db, 'select public.hr__kl_scaled(0, $1, $2, $3, $4::uuid) as r', [g, hours, price, k]);
-    const s2 = await snap();
-    if (s2 !== s1) bad.push('the second press of one key, run after the lock it waited on, moved ' + s1 + ' to ' + s2 + ' (answered ' + JSON.stringify(b).slice(0, 120) + ')');
-    else if (!b || b.ok !== true) bad.push('the second press after the lock answered ' + JSON.stringify(b).slice(0, 160) + ', want the first press\'s decision (ok)');
-    const c = await press(db, 'select public.hr_scaled_hunt_buy(0, $1, $2, $3, $4::uuid) as r', [g, hours, price, k]);
-    if ((await snap()) !== s1 || !c || c.ok !== true) bad.push('a plain replay of the key answered ' + JSON.stringify(c).slice(0, 120) + ' and left ' + (await snap()));
-    return bad;
-  },
-
   'KL-HEARTH': async (db, M) => {
     const bad = [];
     const [fuel] = await q(db, 'select item_id, req_lv from public.hr_hearth_named order by req_lv, item_id limit 1');
@@ -240,10 +218,10 @@ ${indent}if coalesce(v_a->>'replayed', 'false') = 'true' then return jsonb_build
 `;
 const old = (verb, indent) => [{ find: REREAD(verb), replace: '' }, { find: REPLAYED(indent), replace: '' }];
 const DB_MUTANTS = [
-  { arm: 'KL-SCALED', name: 'the scaled purchase as it was: the key read only before the lock', fn: SIG.scaled, edits: old('c_verb', '  ') },
   { arm: 'KL-HEARTH', name: 'the Hearth burn as it was: the key read only before the lock', fn: SIG.hearth, edits: old("'hearth_burn'", '    ') },
   { arm: 'KL-TIME', name: 'the hunting block with the key read only before the lock', fn: SIG.time, edits: old("'time_buy'", '  ') },
-  { arm: 'KL-CLASS', name: 'the scaled purchase reads its key only before the lock (its replayed line kept)', fn: SIG.scaled, edits: [{ find: REREAD('c_verb'), replace: '' }] },
+  /* (re-aimed from the scaled purchase, which left with the scaled hunts: the Hearth burn has the same shape) */
+  { arm: 'KL-CLASS', name: 'the Hearth burn reads its key only before the lock (its replayed line kept)', fn: SIG.hearth, edits: [{ find: REREAD("'hearth_burn'"), replace: '' }] },
   /* lane/c-tower-paydown: the Burning Tower's door read its key only before its lock (the climb's staged image); the read under its own door
      lock is the fix, and its loss must read red here. */
   { arm: 'KL-CLASS', name: 'the Tower\'s door reads its key only before its lock (its replayed line kept)', fn: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)',

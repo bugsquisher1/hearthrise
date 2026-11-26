@@ -109,7 +109,8 @@ const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).hre
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href + V);
 const { PARTY_CLASSES } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
 const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear.mjs')).href);
-const T = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + V);
+/* the tier column, Normal alone since the tier rows retired (lane/retire-tier-chain, tools/balance-sim/tier-axis.mjs): no harder cell is built */
+const T = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/tier-axis.mjs')).href);
 const { contractXpPerH } = await import(pathToFileURL(join(ROOT, 'src/data/balance-sheet.js')).href + V);
 const { LEVEL_PACE } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href + V);
 const PACE_FROM = LEVEL_PACE.targets[0][0];
@@ -346,7 +347,7 @@ async function mutate() {
   /* the harder tiers: a control on this tree first, then each mutant turns its bar red */
   /* the Healer's tier as the tree under test writes it (a mutant may move a pack's healerTiers), the verdict's own excuse (tierRed) */
   const healerTierOn = async (root, mu) => healerless(TIER_MIXED[mu.party])
-    && (await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random())).isHealerTier(mu.g, mu.tier, floorOf(mu.g));
+    && T.isHealerTier(mu.g, mu.tier, floorOf(mu.g));
   const tierOn = (R, mu) => {
     const party = TIER_MIXED[mu.party];
     const same = meanOf(party.map((w) => R.runCell(tierCellOf(mu.g, mu.tier, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH));

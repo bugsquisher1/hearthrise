@@ -165,7 +165,7 @@ const heroArb = fc.record({
 const cutArb = fc.record({ u: fc.integer({ min: 1, max: 999999 }), snap: fc.constantFrom('ms', 's', 'swing'), mode: fc.constantFrom('land', 'lost', 'retry') });
 const scenarioArb = (grounds) => fc.record({
   hunt: fc.constantFrom(...grounds),
-  tier: fc.constantFrom('normal', 'dangerous', 'deadly'),
+  /* (the tier a case picked left with the tier rows, lane/retire-tier-chain 2026-11-26) */
   density: fc.option(fc.integer({ min: 1, max: 8 }), { nil: null }),
   secret: fc.bigInt({ min: -(2n ** 63n), max: 2n ** 63n - 1n }).map(String),
   spanMs: fc.integer({ min: 1000, max: SPAN_MAX }),
@@ -204,7 +204,7 @@ function heroState(E, sc, h, i) {
     skills: Object.fromEntries(COMBAT.map((k) => [k, E.XP.skillXpForLevel(k, L)])),
     levelXp: at + Math.floor(((next > at ? next - at : 0) * h.over) / 1000), xpFrac: {}, hp: null, unitId: null,
     swingIndex: 0, nextSwingAtMs: T0, staminaMs: h.stamina === null ? 12 * 3600000 : h.stamina * E.tickMs, bag,
-    options: { ...(h.role === 'healer' ? { role: 'healer' } : {}), tier: sc.tier, ...(sc.density !== null ? { density: sc.density } : {}),
+    options: { ...(h.role === 'healer' ? { role: 'healer' } : {}), ...(sc.density !== null ? { density: sc.density } : {}),
       ...(h.stop ? { stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: h.stop.pct }], join: 'and', forMs: h.stop.forMs }] } : {}) },
     onEmpty: h.onEmpty, source: h.source, together: h.together, leaveAtMs: h.leaveAt === null ? null : T0 + h.leaveAt, ended: null,
   };
@@ -412,7 +412,7 @@ export function engineCase(E, sc, tally) {
 
 /* The shrunk case, compact: what a reader needs to see the failure. */
 function describe(sc) {
-  return JSON.stringify({ hunt: sc.hunt, tier: sc.tier, density: sc.density, secret: sc.secret, spanMs: sc.spanMs,
+  return JSON.stringify({ hunt: sc.hunt, density: sc.density, secret: sc.secret, spanMs: sc.spanMs,
     heroes: sc.heroes, cuts: cutOffsets(sc), near: sc.near || [] });
 }
 const sizeOf = (sc) => ({ heroes: sc.heroes.length, cuts: cutOffsets(sc).length + (sc.near ? sc.near.length : 0), spanMs: sc.spanMs });

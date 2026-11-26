@@ -41,23 +41,10 @@ export const G8_OWN_SHARE = 0.25;
    every day since the yard opens to it (src/data/training.js TRAINING_RULES.minLevel), on the lone pace table (src/data/core-model.js
    LEVEL_PACE.targets: the slowest an Own four hero reaches a Level, so an UPPER BOUND on the hours trained). */
 export const G11_PLAYER = 'ownfour';
-/* G19: the pair and the three the slot ladder made of the Own four (31-plan-audit M2: the fastest of each it measured). */
-export const SMALL_PARTIES = Object.freeze({ pair: Object.freeze(['hammer', 'mage']), three: Object.freeze(['tank', 'bow', 'mage']) });
-export const SMALL_POINTS = P('glade', 'ford');                                // G19: "Levels 30 to 50"
+/* (G19's pair and three, SMALL_PARTIES at SMALL_POINTS, retired with the tier rows: RETIRED below) */
 /* (G9 and G20 retired 2026-11-21 with the slot prices: patches/fb5-free-hero-slots.json) */
 /* G23 (21-combat.md B4, PROPOSED; the tank and the Healer by ruling): the share of the offense lane a discipline's offense rows may fill. */
 export const BAR_BUDGET = Object.freeze({ '*': 0.85, shield: 0.6, restoration: 0.3 });
-/* G24: the scaled grounds the endgame dive measured over or near the right-Level ground (22-endgame.md section 8), at the reference
-   point whose Level they scale to. The Thicket at Krell's Level is the in-band reading the guard's proof plants on. */
-export const SCALED_CELLS = Object.freeze([['coppercap_warrens', 'pyre'], ['coppercap_warrens', 'hold'], ['mosslight_glade', 'ford'], ['meadowbrook_thicket', 'hold']]);
-/* ...and the nightly twin plays the rest of the grid the re-issued plan names: every scalable ground (scaled-hunts.js SCALABLE_GROUNDS)
-   at 50, 80 and the top (Krell's Hold, the band the top open ground reaches), wherever it scales to that Level. */
-export const SCALED_GRID_POINTS = P('ford', 'pyre', 'hold');
-/** The scaled cells a run plays: [ground, point id] pairs that scale (ctx.scaledWhatIf), the plain four, then the grid at night. */
-export function scaledPlan(ctx, nightly) {
-  const grid = nightly ? ctx.scalableGrounds.flatMap((g) => SCALED_GRID_POINTS.map((p) => [g, p.id])).filter(([g, pid]) => !SCALED_CELLS.some(([x, q]) => x === g && q === pid)) : [];
-  return [...SCALED_CELLS, ...grid].filter(([g, pid]) => !!ctx.scaledWhatIf(g, BY_ID[pid].level));
-}
 /* K1'S GATE (30-plan section E as re-issued 2026-11-20, 31-plan-audit M3): the band K1 must read for a line on the harness's party to be judged. */
 export const K1_GATE = Object.freeze({ xp: Object.freeze([0.9, 1.1]), gold: Object.freeze([0.8, 1.2]) });
 /* G21 (nightly): the Tower from the landing at the hero's Level (tools/balance-program/endgame.mjs climb --from level, 90 minutes, 2 seeds). */
@@ -103,13 +90,11 @@ export const LINES = Object.freeze([
   { id: 'D1', words: 'Nightly twin: deaths a 100 hero-hours, the four on Deadly in band', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [1, 3.34], keep: [null, 6.25], turnsRedIn: 'L16', mode: 'report', nightly: true, gate: 'xp' },
   { id: 'D2', words: 'Nightly twin: deaths a 100 hero-hours, the four 10 Levels under the floor', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [6.25, null], keep: [6.25, null], turnsRedIn: 'L16', mode: 'report', nightly: true, gate: 'xp' },
   /* THE PLAN AUDIT'S LINES (docs/design/balance-program/31-plan-audit.md M2, M5, M9; the Coordinator 2026-11-20), all report. */
-  { id: 'G19', words: 'The pair and the three on Deadly, x contract a head (and x the four a head)', on: 'Levels 30 and 50: hammer + Mage, tank + bow + Mage (the fastest of each in the audit)', target: [1.8, 2.5], keep: [1.6, 2.6], turnsRedIn: 'L16', mode: 'report', gate: 'xp' },
   { id: 'G21', words: 'The Tower: a set-up four tops out between its Level and Level + 25; no hero from 10 to 30 earns more there than hunting', on: 'nightly: climbs from the landing (endgame.mjs climb --from level), fours at 30, 60, 105, a lone hammer and Mage at 10 and 30', target: null, keep: null, turnsRedIn: 'L18', mode: 'report', nightly: true,
     parts: { top: { target: [0, 25], keep: [0, 25] }, xp: { target: [null, 1], keep: [null, 1] } }, bands: 'top - Level 0-25; Tower XP / hunting XP <=1 (22-1, 22-7)' },
   { id: 'G22', words: 'Stamina refills: the second pays for itself alone at every Level; six are gold-neutral for the four at 80', on: 'stamina-refill.js rows, played net gold', target: null, keep: null, turnsRedIn: 'L06', mode: 'report',
     parts: { pays: { target: [null, 1], keep: [null, 1] }, six: { target: [0.9, 1.1], keep: [0.75, 1.33] } }, bands: 'refill 2 / its 4 h of lone net <=1; six / 24 h of net for the four 0.9-1.1, red outside 0.75-1.33 (24-1)' },
   { id: 'G23', words: 'The bar budget: the offense rows of a family fill at most 0.85 of the offense lane (the tank 0.6, the Healer 0.3)', on: 'abilities.js ABILITIES and ABILITY_LANES', target: null, keep: null, turnsRedIn: 'L17', mode: 'report', bands: 'at most its cap / red over it (21-6)' },
-  { id: 'G24', words: 'A scaled hunt is never the best lone XP: scaled ground / the right-Level ground', on: 'scaled-hunts.js scaledRow at the Level of the point, a lone hammer and a lone Mage', target: [null, 1], keep: [null, 1], turnsRedIn: 'L31', mode: 'report' },
 ]);
 
 /* ── RETIRED LINES (lane/econ-followups, 2026-11-22): report-only Normal/Deadly tier-path contracts the redesign replaces (12-targets 2.6:
@@ -118,7 +103,7 @@ export const LINES = Object.freeze([
 export const RETIRED = Object.freeze({
   G3: 'The four on Deadly x the contract (1.8-2.5x): the Deadly tier\'s pace premium. On the scale a four is paid by depth (04 section 7), '
     + 'and the four\'s pace at its held depth is tests/level-curve.mjs C7 (T-02 re-aimed: the hours table +-20%, judged in CI on every scale '
-    + 'ground). Its real-engine proof and the K1 gate\'s control moved to G19.',
+    + 'ground). Its real-engine proof and the K1 gate\'s control moved to G19, and with G19 to G8 (lane/retire-tier-chain).',
   G4: 'The fully invested four on Deadly (old-tier uniques, the Hearth Chest, Tempering 5/5, +10 skills) under 2.75x: on the scale investment '
     + 'moves the hold, never a tier dial, and what any hold pays a kill is bounded by construction at gapMax (src/data/danger.js PAY; the '
     + 'server\'s hr_danger_level_xp_max). The question it asked is C-2 (a gear tier moves the hold 1 to 3 depths), measured by lane/econ-levers '
@@ -127,10 +112,16 @@ export const RETIRED = Object.freeze({
     + 'climb pushes a company until its pulls stop being clean (RISKS cleanPm) and it breaks off at fallPm, so its low point sits between them '
     + 'by construction (src/data/danger.js); a weaker company holds shallower instead of dying. Deaths by stance are 12-targets C-3 and C-4 '
     + '(V2 stance runs).',
+  G19: 'The pair and the three on Deadly x the contract a head (1.8-2.5x): a tier-path contract like G3, retired with the tier rows '
+    + '(lane/retire-tier-chain 2026-11-26; on their ground as built they read 0.7-1.4x, under the band it was set for). On the scale a party is '
+    + 'paid by depth; the pair and the three at their held depth are the designer\'s to band (12-targets C-6, CONFLICTS 2026-11-26). Its '
+    + 'real-engine proof and the K1 gate\'s control moved to G8, the gated line a played four still reads.',
+  G24: 'A scaled hunt is never the best lone XP: the scaled hunts retired with the tier chain (1071-retire-tier-chain.sql, lane/retire-tier-chain '
+    + '2026-11-26). An outgrown ground is left for the next ground on the scale; what a deeper step pays over the next ground is 12-targets C-11 (G7).',
 });
 
 /* ── THE CELLS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ctx: { tiers (src/data/hunt-tiers.js), refCell (measure.mjs), lines + skillsAt (skill-lines.mjs), bandOf(ground) -> [lo, hi],
+   ctx: { tiers (the program's tier column, tools/balance-sim/tier-axis.mjs: Normal alone), refCell (measure.mjs), lines + skillsAt (skill-lines.mjs), bandOf(ground) -> [lo, hi],
    towerHunt (tower.js TOWER_RULES.hunt), MAIN (measure.mjs), scaleGrounds ([{ id, level, heldStart, floorStep }], every Danger scale
    ground), scaleCell(ground, level, styles, start) (a Steady cell on the scale from `start`) }. Answers [{ id, cell }]; a cell is what
    cell.mjs runCell plays. */
@@ -204,15 +195,6 @@ export function plainCells(ctx, size = SIZES.plain) {
     push('krell-real', { ground: R.ground, party, level, profile: 'played', options: { tier: R.tier }, ...(pull ? { density: pull } : {}),
       skillsBySeat: line.map((lv, i) => ({ ...lv, ...R.seats[i].skills })), runeTierByRole: { ...R.runeTierByRole } });
   }
-  /* G19: the pair and the three on the hardest tier their ground has, the pull of that tier for their size */
-  for (const p of SMALL_POINTS) for (const [k, party] of Object.entries(SMALL_PARTIES)) {
-    const ts = ctx.tiers.tiersOf(p.ground), tier = ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : 'normal';
-    const pull = tier === 'normal' ? null : ctx.tiers.pullOfTier(ctx.tiers.tierRowOf(p.ground, tier), party.length);
-    push('small:' + k + ':' + p.id, { ground: p.ground, party: [...party], level: p.level, profile: 'played', ...(tier === 'normal' ? {} : { options: { tier } }), ...(pull ? { density: pull } : {}) });
-  }
-  /* G24: a scaled ground at the point's Level (scaled-hunts.js scaledRow on every roster monster, played as a what-if the way
-     endgame.mjs scaledplay and tests/scaled-hunts.mjs play it), a lone hammer and a lone Mage */
-  for (const c of scaledCells(ctx, scaledPlan(ctx, false), hours, seeds)) out.push(c);
   /* G17: engine time a 100 s window (one seed, short: a timing, not a balance reading) */
   {
     const hold = ref(BY_ID.hold, FOUR);
@@ -223,13 +205,7 @@ export function plainCells(ctx, size = SIZES.plain) {
   return out;
 }
 
-/** G24's cells: a lone hammer and a lone Mage on each scaled [ground, point] pair, at the plain dice, sums only. */
-function scaledCells(ctx, plan, hours, seeds) {
-  return plan.flatMap(([g, pid]) => ['hammer', 'mage'].map((style) => ({ id: 'scaled:' + g + ':' + pid + ':' + style, whatIf: ctx.scaledWhatIf(g, BY_ID[pid].level),
-    cell: { id: 'BG:scaled:' + g + ':' + pid + ':' + style, hours, seeds, ground: g, party: [style], level: BY_ID[pid].level, profile: 'played', groundPatch: { endsAtLevel: null }, windowMs: SUMS_WINDOW_MS } })));
-}
-
-/** The nightly twin: the cells that judge a death rate (D1, D2) at the nightly size, and the slow lines (G21's Tower climbs, G24's grid). */
+/** The nightly twin: the cells that judge a death rate (D1, D2) at the nightly size, and the slow line (G21's Tower climbs). */
 export function nightlyCells(ctx, size = SIZES.nightly) {
   const { hours, seeds } = size;
   const out = [];
@@ -243,8 +219,5 @@ export function nightlyCells(ctx, size = SIZES.nightly) {
     party: [...party], level: L, profile: 'played', supply: 'own', gear: { uniques: true } } });
   for (const p of TOWER_FOURS) climb('tower-four:' + p.id, FOUR.party, p.level);
   for (const p of TOWER_LONE) for (const style of ['hammer', 'mage']) climb('tower-lone:' + p.id + ':' + style, [style], p.level);
-  /* G24's grid past the plain four pairs, at the plain dice (a sums reading, not a death rate) */
-  const plain = new Set(scaledPlan(ctx, false).map(([g, pid]) => g + ':' + pid));
-  for (const c of scaledCells(ctx, scaledPlan(ctx, true).filter(([g, pid]) => !plain.has(g + ':' + pid)), SIZES.plain.hours, SIZES.plain.seeds)) out.push(c);
   return out;
 }

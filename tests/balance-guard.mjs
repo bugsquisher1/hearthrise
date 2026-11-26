@@ -32,7 +32,7 @@
 // THE REDESIGN (lane/econ-followups, 2026-11-22): G1 and G7 are RE-AIMED on the Danger scale (C-7: a lone hero x the four's head, played on
 // every scale ground; C-11: the next scale ground's first depth over the last one's top, read from data), and G3, G4 and G5, the Deadly
 // tier's contracts, are RETIRED, each with the reason and the home of its question (guard-cells.mjs RETIRED; printed under the lines).
-// K1 GATES the lines read on the harness's party (G8, G19, D1, D2, and G22's party rows): while the harness four
+// K1 GATES the lines read on the harness's party (G8, D1, D2, and G22's party rows; G19 retired with the tier rows): while the harness four
 // reads the real Krell four outside 0.9-1.1 on Level XP and kills, or 0.8-1.2 on net gold (guard-cells.mjs K1_GATE, 30-plan E as
 // re-issued; today 0.83 and 0.51), they print their numbers as "uncalibrated" and are neither red nor green (31-plan-audit M3). The fix
 // is in the harness's four, not in the line.
@@ -71,7 +71,8 @@ const MEASURE = await import(u('tools/balance-program/measure.mjs'));
 const GOLD = await import(u('tools/balance-program/gold-model.mjs'));
 const SCAN = await import(u('tools/balance-program/lever-scan.mjs'));
 const SL = await import(u('tools/balance-sim/skill-lines.mjs'));
-const tiers = await import(u('src/data/hunt-tiers.js'));
+/* the program's tier column, Normal alone since the tier rows retired (lane/retire-tier-chain): measure.mjs refCell reads it */
+const tiers = await import(u('tools/balance-sim/tier-axis.mjs'));
 const { HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js'));
 const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
 const { TOWER_RULES } = await import(u('src/data/tower.js'));
@@ -83,9 +84,6 @@ const { STAMINA_REFILL } = await import(u('src/data/stamina-refill.js'));
 const { STAMINA_MAX_MS } = await import(u('src/data/hunt-sessions.js'));
 const XP = await import(u('src/core/xp.js'));
 const LUCK = await import(u('tools/balance-sim/staged/luck.js'));
-const SCALED = await import(u('src/data/scaled-hunts.js'));
-const { GROUND_ROSTER } = await import(u('src/data/balance-sheet.js'));
-const { MONSTERS } = await import(u('src/data/monsters.js'));
 const ABIL = await import(u('src/data/abilities.js'));
 const WAGE = await import(u('src/data/wage.js'));
 
@@ -106,16 +104,6 @@ function yardLevels(level) {
   const over = (k) => XP.skillLevelFromXp(k, XP.skillXpForLevel(k, line[k]) + trained) - line[k];
   return { main: over('melee'), defense: over('defense'), days, trained };
 }
-/** G24: a ground's roster as it plays scaled to `level` (scaled-hunts.js scaledRow), a worker what-if; null when it does not scale. */
-function scaledWhatIf(ground, level) {
-  const rows = {};
-  for (const id of Object.keys(GROUND_ROSTER[ground] || {})) {
-    const r = SCALED.scaledRow(MONSTERS[id], id, ground, level);
-    if (r === MONSTERS[id]) return null;
-    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
-  }
-  return Object.keys(rows).length ? { monsters: rows } : null;
-}
 /* THE SCALE (lane/econ-followups: G1 and G7 re-aimed): every Danger scale ground at the Level its reference step was measured at
    (tests/level-curve.mjs REF_LEVEL, as C7 and V4 read it), the held start (refStep - startMargin) and the band's floor; a cell on it is
    held-four.mjs's (progression-grid.mjs buildCell, the matrix's MID kits and played bars) with a Steady stance from `start`. */
@@ -126,7 +114,7 @@ const [GRID_D, GRID_K] = await Promise.all([GRID.loadGridData(ROOT), (await impo
 const SCALE_GROUNDS = Object.entries(DZ.DANGER_GROUNDS).map(([id, g]) => ({ id, level: refLevelOf(id), heldStart: Math.max(0, g.refStep - DZ.DANGER.startMargin), floorStep: g.floorStep }));
 const scaleCell = (ground, level, styles, start) => ({ ...GRID.buildCell(GRID_D, GRID_K, { L: level, gear: 'mid', styles: [...styles], tier: 'normal', ground }).cell,
   options: { risk: 'steady', danger: start } });
-const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf, scalableGrounds: Object.keys(SCALED.SCALABLE_GROUNDS),
+const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt,
   scaleGrounds: SCALE_GROUNDS, scaleCell };
 
 /* ── the pool: worker.mjs processes, one engine each ───────────────────────────────────────────────────────────────────────────── */
@@ -423,15 +411,7 @@ function judge(I) {
           row('party dmg', tot / K.damageAClockHour, band('K1'), f2, ' (' + kG(tot) + ')')]; })() : [])] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
     'harness / ' + K.label + ', restated on the engine of today (' + K.shifts + ' formula shifts since its hunt); harness deaths ' + (r ? r.deaths : '?') + ' in ' + (r ? r.heroHours.toFixed(0) : '?') + ' hero-hours');
   }
-  /* ── the plan audit's lines (31-plan-audit.md M2, M5, M9) ── */
-  {
-    const rows = [];
-    for (const p of GC.SMALL_POINTS) for (const k of Object.keys(GC.SMALL_PARTIES)) {
-      const r = R('small:' + k + ':' + p.id), four = R('ref:' + p.id + ':four');
-      rows.push(row(p.id + ' ' + k, xc(r, p.level), band('G19'), f2, r && four ? ' (x' + (r.levelXpPerH / four.levelXpPerH).toFixed(2) + ' the four, net ' + kG(r.netPerH) + ')' : ''));
-    }
-    line('G19', rows, 'pair ' + GC.SMALL_PARTIES.pair.join(' + ') + ', three ' + GC.SMALL_PARTIES.three.join(' + ') + '; the pace of record assumes 1.2 and 2.0 x the lone table');
-  }
+  /* ── the plan audit's lines (31-plan-audit.md M2, M5, M9; G19 retired with the tier rows, guard-cells.mjs RETIRED) ── */
   line('G21', I.nightly ? [
     ...GC.TOWER_FOURS.map((p) => { const r = R('tower-four:' + p.id); return row('four ' + p.level, r && Number.isFinite(r.towerTop) ? r.towerTop - p.level : NaN, band('G21', 'top'), (v) => (v >= 0 ? '+' : '') + v + ' floors'); }),
     ...GC.TOWER_LONE.flatMap((p) => ['hammer', 'mage'].map((s) => {
@@ -462,10 +442,6 @@ function judge(I) {
     }
     line('G23', rows, 'the lane filled = the sum of the offense lane over each row\'s cooldown; a row that replaces another shares its cooldown');
   }
-  line('G24', GC.scaledPlan(CTX, I.nightly).flatMap(([g, pid]) => ['hammer', 'mage'].map((s) => {
-    const r = R('scaled:' + g + ':' + pid + ':' + s), h = R('ref:' + pid + ':' + (s === 'hammer' ? 'lone' : 'mage'));
-    return row(g + '@' + pid + ' ' + s, r && h ? r.levelXpPerH / h.levelXpPerH : NaN, band('G24'));
-  })), 'Normal, against the reference ground of that Level; the switch is off (dark until L31)');
   const d100 = (r) => (r && r.heroHours > 0 ? 100 * r.deaths / r.heroHours : NaN);
   line('D1', I.nightly ? GC.DEADLY_POINTS.map((p) => row(p.id, d100(R('twin-band:' + p.id)), band('D1'))) : []);
   line('D2', I.nightly ? GC.DEADLY_POINTS.map((p) => row(p.id + '-10', d100(R('twin-under:' + p.id)), band('D2'))) : []);
@@ -536,7 +512,8 @@ function calibrate(J) {
    control that needed the measured K1 to be outside the gate went NOISY the day the harness came into band (51-baseline.md F16). */
 function uncalibrate(J) {
   const K = realKrellNow(), r = J.rows['krell-real'];
-  J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour * 0.5, killsPerH: K.killsAClockHour * 0.5 };
+  /* (and at half its net gold: G8, the gate's control since G19 retired, is gated on gold) */
+  J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour * 0.5, killsPerH: K.killsAClockHour * 0.5, incomePerH: K.netGoldAHeroHour * 0.5, storePerH: 0 };
   return J;
 }
 function inBandNightly(J) {
@@ -547,11 +524,6 @@ function inBandNightly(J) {
   }
   for (const p of GC.TOWER_FOURS) J.rows['tower-four:' + p.id] = { towerTop: p.level + 10 };
   for (const p of GC.TOWER_LONE) for (const s of ['hammer', 'mage']) J.rows['tower-lone:' + p.id + ':' + s] = { levelXpPerH: 0.8 * J.rows['ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH };
-  /* G24's night grid, in band (0.9 of the right-Level ground) wherever the plain run did not play it */
-  for (const [g, pid] of GC.scaledPlan(CTX, true)) for (const s of ['hammer', 'mage']) {
-    const id = 'scaled:' + g + ':' + pid + ':' + s;
-    if (!J.rows[id]) J.rows[id] = { levelXpPerH: 0.9 * J.rows['ref:' + pid + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH };
-  }
   return calibrate(J);
 }
 
@@ -600,7 +572,6 @@ async function selftest(workers) {
   plant('a dial-less live event gains a dial (the world boss window with xpPm)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('live-events.js', (m) => ({ ...m, LIVE_EVENT_TYPES: { ...m.LIVE_EVENT_TYPES, world_boss: { ...m.LIVE_EVENT_TYPES.world_boss, dial: 'xpPm' } } })); }, { redMode: true });
   plant('a lever-named field in a new place (a planted goldBonusPm)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('party.js', (m) => ({ ...m, PLANTED: { goldBonusPm: 1200 } })); }, { redMode: true });
   /* the plan audit's lines */
-  plant('the pair runs away on Deadly: x1.6 Level XP', (c) => firstClean(c, 'G19'), (J, r) => { const [p, k] = r.at.split(' '); J.rows['small:' + k + ':' + p].levelXpPerH *= 1.6; }, cal);
   plant('the Tower runs past the cap: a four tops out 60 floors over its Level', (c) => firstClean(c, 'G21', (r) => /^four/.test(r.at)), (J, r) => { const L = Number(r.at.split(' ')[1]); J.rows['tower-four:' + GC.TOWER_FOURS.find((p) => p.level === L).id].towerTop = L + 60; }, { pre: 'nightly' });
   plant('the Tower pays a lone hero more than hunting: x1.5', (c) => firstClean(c, 'G21', (r) => /^(hammer|mage)/.test(r.at)), (J, r) => { const [s, L] = r.at.split(' '); const p = GC.ALL_POINTS.find((q) => q.level === Number(L)); J.rows['tower-lone:' + p.id + ':' + s].levelXpPerH = 1.5 * J.rows['ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH; }, { pre: 'nightly' });
   plant('Deadly kills a four in band: 20 deaths in 128 hero-hours', (c) => firstClean(c, 'D1'), (J, r) => { J.rows['twin-band:' + r.at].deaths = 20; }, { pre: 'nightly' });
@@ -608,14 +579,14 @@ async function selftest(workers) {
   plant('refills twenty times their price: the second never pays', (c) => firstClean(c, 'G22', (r) => /2nd$/.test(r.at)), (J) => { J.data.refill.base *= 20; J.data.refill.perLevel *= 20; },
     { also: (c) => c.find((l) => l.id === 'G22').rows.filter((r) => (/2nd$/.test(r.at) && r.status !== 'RED') || (/^pyre all /.test(r.at) && !['RED', 'ERR', 'uncal'].includes(r.status))).map((r) => 'G22 ' + r.at) });   /* the six-refill row is the plant's own too, once K1's gold gate judges it */
   plant('a new offense row on the bow at a 4 s cooldown: the lane over its budget', (c) => firstClean(c, 'G23', (r) => r.at === 'ranged'), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: null }); });
-  plant('a scaled ground beats the right-Level one: x1.5 Level XP', (c) => firstClean(c, 'G24'), (J, r) => { const [gp, s] = r.at.split(' '); const [g, pid] = gp.split('@'); J.rows['scaled:' + g + ':' + pid + ':' + s].levelXpPerH *= 1.5; });
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });
   plant('NEGATIVE CONTROL: a meal that only heals (no buff)', () => ({ at: 'none' }), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Bread', heals: 10 })); }, { control: true });
   plant('NEGATIVE CONTROL: a new bow row that replaces Precision Shot (shares its cooldown)', () => ({ at: 'none' }), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: 'precision_shot' }); }, { control: true });
-  /* (moved from G3 when it retired, lane/econ-followups: G19 is the line a gated plant reads now) */
-  plant('NEGATIVE CONTROL (the K1 gate): the pair and the three x1.6 while K1 reads the harness at half the real four stay uncalibrated', () => ({ at: 'none' }),
-    (J) => { for (const p of GC.SMALL_POINTS) for (const k of Object.keys(GC.SMALL_PARTIES)) J.rows['small:' + k + ':' + p.id].levelXpPerH *= 1.6; },
-    { control: true, pre: 'uncal', check: (got) => got.find((l) => l.id === 'G19').status === 'uncalibrated' });
+  /* (moved from G3 when it retired, lane/econ-followups, and from G19 when it retired with the tier rows, lane/retire-tier-chain: G8 is the line a gated
+     plant reads now) */
+  plant('NEGATIVE CONTROL (the K1 gate): the Krell-kit four\'s store bill past its gold in while K1 reads the harness at half the real four stays uncalibrated', () => ({ at: 'none' }),
+    (J) => { for (const p of GC.DEADLY_POINTS) { const x = J.rows['four-real:' + p.id]; x.storePerH = (1.25 * x.incomePerH) / (1 - GC.G8_OWN_SHARE); } },
+    { control: true, pre: 'uncal', check: (got) => got.find((l) => l.id === 'G8').status === 'uncalibrated' });
 
   let fails = 0, n = 0;
   console.log('BALANCE GUARD --selftest: ' + P.length + ' plants on one clean measure (' + I.cells + ' cells, ' + (I.wallMs / 1000).toFixed(0) + ' s); each must turn its OWN row red and no other'
@@ -638,23 +609,22 @@ async function selftest(workers) {
     if (!ok) fails++;
     console.log('  ' + (p.control ? (ok ? 'SILENT ' : 'NOISY  ') : ok ? 'CAUGHT ' : 'MISSED ') + p.name + ': newly red ' + (fresh.join(', ') || 'nothing') + (ok ? '' : ' (expected ' + (expected.join(', ') || 'nothing') + ')') + '; --strict exits ' + strictExit + ', plain ' + plainExit);
   }
-  /* ON THE REAL ENGINE: the hardest tier's Level XP dial x1.6 on G19's grounds (worker.mjs whatIf), the pair and the three re-played, K1's
-     gate open. (Re-pointed from G3, which retired with the Deadly four's pace premium, lane/econ-followups 2026-11-22: G19 is the line that
-     still reads a tier dial off a played party.) */
+  /* ON THE REAL ENGINE: no monster pays a coin or drops a thing on G8's grounds (worker.mjs whatIf on the monster rows), the Krell-kit fours re-played,
+     K1's gate open: what the four earns falls under its store bill, so its net turns red (G8), and the six refills stop paying for it (G22's
+     four rows read the same cells). (Re-pointed from G3, which retired with the Deadly four's
+     pace premium, lane/econ-followups 2026-11-22, then from G19, which retired with the tier rows, lane/retire-tier-chain 2026-11-26.) */
   {
-    const tierOf = (g) => { const ts = tiers.tiersOf(g); return ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : null; };
-    const pts = GC.SMALL_POINTS.filter((p) => tierOf(p.ground));
-    const jobs = GC.plainCells(CTX).filter((j) => /^small:/.test(j.id) && pts.some((p) => j.id.endsWith(':' + p.id)));
-    const whatIf = { tiers: Object.fromEntries(pts.map((p) => { const t = tierOf(p.ground), r = tiers.tierRowOf(p.ground, t); return [p.ground, { [t]: { id: r.id, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: Math.round(r.xpPm * 1.6) } }]; })) };
+    const jobs = GC.plainCells(CTX).filter((j) => /^four-real:/.test(j.id));
+    const whatIf = { monsters: { '*': { gp: [0, 0], drops: [] } } };
     const { results, errors } = await playAll(jobs.map((j) => ({ ...j, whatIf })), workers);
     const J = calibrate(clone(I)), cleanRed = redSet(CLEAN.cal);
     for (const [id, r] of Object.entries(results)) J.rows[id] = { ...J.rows[id], ...MEASURE.rowOf(r.result, r.result.cell.party) };
     const got = judge(J), fresh = [...redSet(got)].filter((k) => !cleanRed.has(k)).sort();
-    const ratios = jobs.map((j) => J.rows[j.id].levelXpPerH / I.rows[j.id].levelXpPerH);
-    const ok = !errors.length && jobs.length > 0 && fresh.length > 0 && fresh.every((k) => k.startsWith('G19 ')) && ratios.every((x) => x > 1.4 && x < 1.8) && exitOf(got, true) === 1 && exitOf(got, false) === 0;
+    const ratios = jobs.map((j) => J.rows[j.id].incomePerH / I.rows[j.id].incomePerH);
+    const ok = !errors.length && jobs.length > 0 && fresh.some((k) => k.startsWith('G8 ')) && fresh.every((k) => k.startsWith('G8 ') || /^G22 .* \(four\)$/.test(k)) && ratios.every((x) => x < 0.2) && exitOf(got, true) === 1 && exitOf(got, false) === 0;
     n++;
     if (!ok) fails++;
-    console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'the hardest tier\'s Level XP dial x1.6 on the real engine (whatIf, ' + jobs.length + ' pair and three cells re-played): Level XP x' + ratios.map((x) => x.toFixed(2)).join('/') + ', newly red ' + (fresh.join(', ') || 'nothing') + (errors.length ? ' HARNESS ' + errors.map((e) => e.error).join('; ') : ''));
+    console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'no coin and no drop on the real engine (whatIf, ' + jobs.length + ' Krell-kit four cells re-played): gold in x' + ratios.map((x) => x.toFixed(2)).join('/') + ', newly red ' + (fresh.join(', ') || 'nothing') + (errors.length ? ' HARNESS ' + errors.map((e) => e.error).join('; ') : ''));
   }
   console.log(fails ? 'BALANCE GUARD --selftest: ' + fails + ' of ' + n + ' NOT caught' : 'BALANCE GUARD --selftest: all ' + n + ' caught, each on its own row, every control silent');
   return fails ? 1 : 0;

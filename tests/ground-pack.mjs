@@ -239,12 +239,12 @@ async function gp6(planted, mutate = null) {
    (Levels 50-65, the formula's numbers written by the pack tool, as a designer would). Not in CI (each guard runs whole);
    run it when a guard that names grounds is added. `--only a,b` runs those guards alone. ── */
 export const LOOPED = Object.freeze([
-  'tests/hunt-core/hunt-tiers.mjs', 'tests/hunt-core/forest-cave.mjs', 'tests/hunt-core/drop-tables.mjs', 'tests/hunt-core/hunt-data.mjs',
+  'tests/hunt-core/forest-cave.mjs', 'tests/hunt-core/drop-tables.mjs', 'tests/hunt-core/hunt-data.mjs',
   'tests/hunt-core/xp-share.mjs', 'tests/hunt-core/first-week-bands.mjs', 'tests/hunt-core/roles.mjs', 'tests/balance-sheet.mjs',
   'tests/level-curve.mjs', 'tests/core-purity.mjs', 'tests/party-class-xp-line.mjs', 'tests/hunt-floor-warning.mjs',
   'tests/world-core.mjs', 'tests/world-assets.mjs', 'tests/world-hunt.mjs', 'tests/supplies-catalogue.mjs', 'tests/hunts-c1.mjs',
   'tests/catalogue-coherence.mjs', 'tests/jewelry-sources.mjs', 'tests/settle-drop-bounds.mjs',
-  'tools/gen-hunts.mjs --check', 'tools/gen-hunt-sessions.mjs --check', 'tools/gen-catalogues.mjs --check', 'tools/gen-ground-tiers.mjs --check',
+  'tools/gen-hunts.mjs --check', 'tools/gen-hunt-sessions.mjs --check', 'tools/gen-catalogues.mjs --check',
   'tools/gen-ground-stats.mjs --check', 'tools/gen-tally-tasks.mjs --check', 'tools/gen-hearth-catalogue.mjs --check',
 ]);
 async function loop(argv) {

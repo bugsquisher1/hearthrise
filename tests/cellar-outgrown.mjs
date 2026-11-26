@@ -15,8 +15,7 @@
 //              END_ORDER's outgrown is in hr_hunt_end_reasons and resumes, and the Hunts list reads the Cellar's band as the Level under it
 //   CO-DOOR    signed in through hr_hunt_enter: a hero one Level under the exit enters the Cellar; at the exit it is refused `outgrown` naming
 //              the Level and NOTHING opens; the same hero enters the Thicket (the refusal is the exit's alone)
-//   CO-SCALED  past the Cellar's band with banked scaled hours on and the switch on, the door admits (the hunt plays scaled, at the hero's
-//              Level); with the hours off it refuses again
+//   (CO-SCALED, the scaled way past the Cellar's exit, left with the scaled hunts: 1071-retire-tier-chain.sql; CO-DOOR holds the exit alone)
 //   CO-PROOF   the settle proves the end from the Level it holds: a window ending `outgrown` one XP under the exit is refused end_not_proven
 //              and moves nothing; at the exit the same window ends the session `outgrown`, an automatic end
 //   CO-ENGINE  the one engine, browser closed (the settle the world tick runs): a tank twenty rats under the exit ends `outgrown` at the exit,
@@ -95,25 +94,6 @@ async function doorArm(db, M) {
     if (await openOf(db, A)) bad.push('CO-DOOR a refused door opened a hunt');
     v = await enter(db, THICKET);
     if (!v || v.ok !== true) bad.push('CO-DOOR CONTROL: at Level ' + EXIT + ' the Thicket answered ' + JSON.stringify(v));
-    return bad;
-  });
-}
-
-/* ── CO-SCALED ────────────────────────────────────────────────────────────── */
-async function scaledArm(db, M) {
-  return H.inTx(db, async () => {
-    const bad = [];
-    const top = Number(await one(db, 'select band_max from public.hr_hunts where hunt_id = $1', [CELLAR]));
-    await hero(db, M, M.XP.charXpForLevel(top + 1));
-    await db.query("update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'scaled_hunts'");
-    await db.query(`insert into public.player_scaled_hours (user_id, slot, hunt_id, banked_ms, use_on, bought_ms) values ($1, 0, $2, 3600000, true, 3600000)
-                    on conflict (user_id, slot, hunt_id) do update set banked_ms = excluded.banked_ms, use_on = true, bought_ms = excluded.bought_ms, spent_ms = 0`, [A, CELLAR]);
-    const admit = () => one(db, 'select public.hr_hunt_admit($1::uuid, 0, $2)', [A, CELLAR]);
-    let v = await admit();
-    if (v !== null && v !== undefined) bad.push('CO-SCALED with banked hours on, Level ' + (top + 1) + ' is refused: ' + JSON.stringify(v));
-    await db.query('update public.player_scaled_hours set use_on = false where user_id = $1 and slot = 0 and hunt_id = $2', [A, CELLAR]);
-    v = await admit();
-    if (!v || v.error !== 'outgrown') bad.push('CO-SCALED with the hours off, Level ' + (top + 1) + ' answered ' + JSON.stringify(v));
     return bad;
   });
 }
@@ -229,7 +209,7 @@ async function idemArm() {
   });
 }
 
-const ARMS = { data: dataArm, door: doorArm, scaled: scaledArm, proof: proofArm, engine: engineArm, idem: idemArm };
+const ARMS = { data: dataArm, door: doorArm, proof: proofArm, engine: engineArm, idem: idemArm };
 
 /* ── THE MUTANTS: a defect the exit exists to refuse, planted in the booted chain's live body (SQL) or a planted copy of src (the engine) ── */
 const FN = { admit: 'public.hr_hunt_admit(uuid,integer,text)', settle: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)' };
@@ -238,9 +218,7 @@ const MUTANTS = [
     find: "    if exists (select 1 from public.hr_hunt_grounds g\n                where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level)\n",
     replace: "    if false and exists (select 1 from public.hr_hunt_grounds g\n                where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level)\n" },
   { name: 'the door refuses one Level early', arm: 'door', want: /^CO-DOOR one XP under/, fn: FN.admit,
-    find: 'public.hr_level_of(p_user, p_slot) >= g.ends_at_level)\n       and public.hr_hunt_scaled_at_door', replace: 'public.hr_level_of(p_user, p_slot) >= g.ends_at_level - 1)\n       and public.hr_hunt_scaled_at_door' },
-  { name: 'the door forgets the scale', arm: 'scaled', want: /^CO-SCALED with banked hours on/, fn: FN.admit,
-    find: '       and public.hr_hunt_scaled_at_door(p_user, p_slot, p_hunt) is null then', replace: '       and true then' },
+    find: 'public.hr_level_of(p_user, p_slot) >= g.ends_at_level) then', replace: 'public.hr_level_of(p_user, p_slot) >= g.ends_at_level - 1) then' },
   { name: 'the proof takes any outgrown end', arm: 'proof', want: /^CO-PROOF one XP under/, fn: FN.settle,
     find: "      when 'outgrown' then exists (select 1 from public.hr_hunt_grounds g", replace: "      when 'outgrown' then true or exists (select 1 from public.hr_hunt_grounds g" },
   { name: 'the engine never ends a hunt outgrown', arm: 'engine', want: /^CO-ENGINE a tank twenty rats under/, src: [['src/core/action-rules.js',

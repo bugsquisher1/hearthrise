@@ -46,8 +46,8 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 766 (in 263 files, 17624 typed numbers) |
-| Claimed by a lever | 334 |
+| Top-level bindings in the rule code that hold a typed number | 765 (in 263 files, 17612 typed numbers) |
+| Claimed by a lever | 333 |
 | Claimed by a not-a-lever reason | 427 |
 | Unclaimed | 5 |
 | Exceptions, intentional and accidental | 17 and 9 |
@@ -127,9 +127,7 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | redundant | `cons.food-heal-scale` The food heal scale | A scale already folded into every heal row | CONFIRMED (read: core-model.js comment and readers) |
 | redundant | `party.class-xp` Party XP by size and classes | Nine cells hand-fitted, three re-cut for one measured case each | 44 P-X08, CONFIRMED |
 | redundant | `econ.sale-rates` What gear sells for | A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb. No row for tier 8 | 44 E-X17 and E-X18, CONFIRMED |
-| redundant | `econ.sale-rates` What gear sells for | VENDOR_RAW_RATE and SHOP_BUYBACK_RATE are authored in the edge function and restated in src/data/shops.js DERIVED_PRICES | 44 E-X20, CONFIRMED |
 | redundant | `econ.temper-price` Tempering prices | A hand-typed first rung a tier, priced in comments at 40 to 52% of its band's gold, with no row past tier 7 | 44 E-X25, CONFIRMED |
-| redundant | `econ.bank` Bank and key ring | The bank base, growth and stacks are restated in shops.js DERIVED_PRICES | CONFIRMED (read: DERIVED_PRICES base 3000, growth 1.32, slots 20) |
 | redundant | `econ.market` Market fee, cut and ceiling | The fee, cut, ceiling and gates live only as SQL column defaults, not as a src/data row | 44 E-X22, CONFIRMED |
 | ineffective | `blow.named-twins` The named blow constants the engine does not read | Moving them changes no outcome | CONFIRMED (read: only src/shell/wiki-model.js reads them) |
 | ineffective | `blow.weakness-damage` Weapon weakness damage | Spells do not read it: a cast is a share of the NEUTRAL blow, so a caster gets nothing from a weakness | 44 X-SPELLS-SKIP-WEAKNESS, CONFIRMED (that it is unintended is a HYPOTHESIS) |

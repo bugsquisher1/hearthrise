@@ -418,8 +418,8 @@ export const GEAR_ECONOMY = [
     touches: 'sold-loot gold (about a third of coin at Level 45)', out: GOLD, f: ['E26', 'E27'],
     tests: [['tests/hunt-core/drop-tables.mjs', 'gear sale against coin']], testReads: ['VENDOR_GEAR_RATES'],
     perturb: P('the cells sell every drop at once (gold is an upper bound: 12-balance-pass 3.7)', 'saleStep'),
-    flags: [flag('redundant', 'A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb; no row for tier 8', '44 E-X17 and E-X18, CONFIRMED'),
-      flag('redundant', 'VENDOR_RAW_RATE and SHOP_BUYBACK_RATE are authored in the edge function and restated in src/data/shops.js DERIVED_PRICES', '44 E-X20, CONFIRMED')],
+    /* (44 E-X20's restatement in shops.js DERIVED_PRICES left with that list, lane/retire-tier-chain 2026-11-26: the edge's two rates stand alone) */
+    flags: [flag('redundant', 'A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb; no row for tier 8', '44 E-X17 and E-X18, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('econ.start-gold', 'economy', 'global', 'Starting gold and kit', {
     at: [at('src/data/start-kit.js', 'export const START_CURRENCY'), at('src/data/start-kit.js', 'export const START_GOLD_HOURS_PM = 250')],
@@ -644,11 +644,11 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.shop-prices', 'economy', 'content', 'Shop offers', {
     at: [at('src/data/shops.js', 'export const SHOP_OFFERS')],
-    rows: rows('gold costs on shop offers', [home('src/data/shops.js#DERIVED_PRICES', 'count'), home('src/data/shops.js#PROPERTY_HOURS_PM', 'keys'), home('src/data/companion-unlocks.js#COMPANION_OFFERS', 'keys')]),
+    rows: rows('gold costs on shop offers', [home('src/data/shops.js#PROPERTY_HOURS_PM', 'keys'), home('src/data/companion-unlocks.js#COMPANION_OFFERS', 'keys')]),
     def: 'deeds in milli-hours of wage at their tier\'s step (PROPERTY_HOURS_PM, list prices), rooms from ROOM_RUNGS; every good the store sells whole (tool, gear, jewel, seed, the legacy equip and seed rows) at the store\'s ask, storeCeiling x book (27 K-3: SHOP_PREMIUM 2 and JEWEL_SHOP_PREMIUM 10 retired); the companions still typed (three copies)',
     range: 'whole',
     touches: 'gold out; the arbitrage floor of the buyback', out: [], f: ['E30', 'E29'],
-    tests: [['tests/vendor-shop-arbitrage.mjs', 'no buy-and-sell loop']], testReads: ['SHOP_OFFERS', 'DERIVED_PRICES', 'SHOP_BUYBACK_RATE'],
+    tests: [['tests/vendor-shop-arbitrage.mjs', 'no buy-and-sell loop']], testReads: ['SHOP_OFFERS', 'SHOP_BUYBACK_RATE'],
     perturb: NP('outside-hunt'),
     ev: 'CONFIRMED (read)' }),
   L('econ.house', 'economy', 'content', 'House: property, rooms, chests, room perks', {
@@ -667,7 +667,7 @@ export const GEAR_ECONOMY = [
     range: 'whole',
     touches: 'gold out (storage)', out: [], f: ['E34'],
     perturb: NP('outside-hunt'),
-    flags: [flag('redundant', 'The bank base, growth and stacks are restated in shops.js DERIVED_PRICES', 'CONFIRMED (read: DERIVED_PRICES base 3000, growth 1.32, slots 20)')],
+    /* (its restatement in shops.js DERIVED_PRICES left with that list, lane/retire-tier-chain 2026-11-26) */
     ev: 'CONFIRMED (read)' }),
   L('econ.training', 'economy', 'global', 'Training yard pay and fee', {
     at: [at('src/data/training.js', 'xpPerHour: 30000,'), at('src/data/training.js', 'feeBase: 50,'), at('src/data/training.js', 'feePerLevel: 6,')],

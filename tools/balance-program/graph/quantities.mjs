@@ -118,7 +118,7 @@ export const QUANTITIES = Object.freeze([
   q('item.book', S, 'An item\'s book value', ['book', 'imbueValueFor']),
   q('sale.rate', S, 'The share of book value the shop pays (gear rate, income dial)', ['VENDOR_GEAR_RATES', 'gearSaleRate', 'saleFitPm']),
   q('sale.price', S, 'What the shop pays for one unit', ['vendorPriceOf']),
-  q('shop.price', S, 'What the shop charges for one unit', ['SHOP_OFFERS', 'supplyOffer', 'SUPPLY_PRICE_LIST', 'DERIVED_PRICES']),
+  q('shop.price', S, 'What the shop charges for one unit', ['SHOP_OFFERS', 'supplyOffer', 'SUPPLY_PRICE_LIST']),
   q('shop.cheapest', S, 'The cheapest shop price of one unit of an item', ['cheapestShopUnitPrice']),
   q('supplies.used', S, 'Supplies a hunt uses (units)', ['consumeOrder', 'slotWants', 'starved', 'use']),
   q('supplies.cost', S, 'Gold a hunt spends on store supplies', ['goldOut']),

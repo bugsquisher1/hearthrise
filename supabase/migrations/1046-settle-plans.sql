@@ -74,7 +74,7 @@ begin
     -- 1069-skill-time-parity.generated.sql, hr_skill_level at 1069's image (restated with this file's splice (4) text in it, verbatim,
     -- and an Inner Flame branch on its own curve's index).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae'))
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae', 'e0b569fcc3d856126934683a2129363e'))
        and not (v_r.fn = 'public.hr_hunt_member_read(public.hunt_sessions)' and v_md5 = '8cf75f1bce69a3273f3490e52650354c')
        and not (v_r.fn = 'public.hr_skill_level(text,bigint)' and v_md5 = 'e01730edbac721c3eb5ea4c3f32a7514') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;

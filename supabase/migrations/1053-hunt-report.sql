@@ -88,8 +88,8 @@ begin
     -- A RETRY AFTER 1062-store-step.sql finds hr_hunt_apply_member at 1062's image (restated whole with the scale's bound and this
     -- file's HUNT-REPORT lines in it, its store priced at the buyer's step): the splice below finds its marker and moves nothing.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 in ('bdf1e6f5d5bf7266b64b82b2b9f7e5c1', '209f8462d94db3fc386a12980342f2e8'))
-       and not (v_r.fn = 'public.hr_hunt_view(uuid)' and v_md5 = '32668b16635573452a939532e2c9ec9f')
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 in ('bdf1e6f5d5bf7266b64b82b2b9f7e5c1', 'e3d169248d2c291574fd4d3fcd148a3f'))
+       and not (v_r.fn = 'public.hr_hunt_view(uuid)' and v_md5 in ('32668b16635573452a939532e2c9ec9f', '812ab2041a78d10ad28eb9e91011b05b'))
        and not (v_r.fn = 'public.hr_hunt_analyzer_basic(jsonb)' and v_md5 = '8d5fe398a14f4b44e0133e477b1ff2a4') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;

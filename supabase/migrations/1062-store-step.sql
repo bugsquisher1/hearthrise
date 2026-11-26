@@ -73,7 +73,7 @@ begin
      or to_regclass('public.hr_danger_grounds') is null then
     raise exception 'PRECONDITION: apply 1055-danger-scale-danger-catalogue.generated.sql and 1056-danger-scale.sql first'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1', '209f8462d94db3fc386a12980342f2e8'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1', 'e3d169248d2c291574fd4d3fcd148a3f'),
     ('public.hr_hunt_member_read(public.hunt_sessions)', '037ffba44e5d14d04af6abb053656d72', '8cf75f1bce69a3273f3490e52650354c'),
     ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '0960aa8565d01e4e28b8357f15634f90', 'a2991dfe16b083693b702f7a910ede1e'),
     ('public.hr_boss_call_plan(uuid,jsonb,timestamp with time zone)', 'ff8dcc80f17175fbba64b249772d3195', 'cf66efbe4a059800e8331f462c63f55b'),
@@ -136,6 +136,9 @@ begin
 end $mig$;
 
 -- ── §2 hr_hunt_apply_member, RESTATED WHOLE (its chain was 2 deep since 1005-lever-horizon.sql; this file's lines are marked STORE-STEP) ──
+-- (lane/retire-tier-chain, 2026-11-26: the scaled hunts' widening of the value, defense and item bounds and the scaled tally span are
+--  out of this body, folded in from 1071-retire-tier-chain.sql, which drops their tables: a staged body is edited in place, never moved
+--  by a later file, so this file's second apply stays a no-op. Its post pin is the body as it stands now.)
 CREATE OR REPLACE FUNCTION public.hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -355,11 +358,6 @@ begin
   select coalesce(max(b.gold_max), 0), coalesce(max(b.xp_max), 0) into v_vb_gold, v_vb_xp
     from public.hr_hunt_kill_bounds b
    where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id);
-  -- SCALED-HUNTS (2027-03-21-scaled-hunts.sql): a window the commit proved scaled (hunt_instances.scale_level, written by
-  -- hr_hunt_apply_instance before any member lands) is bounded by its scaled roster's most a kill pays as well (hr_scaled_kill_bounds).
-  select greatest(v_vb_gold, coalesce(max(b.gold_max), 0)), greatest(v_vb_xp, coalesce(max(b.xp_max), 0)) into v_vb_gold, v_vb_xp
-    from public.hunt_instances i join public.hr_scaled_kill_bounds b on b.hunt_id = i.hunt_id and b.level = i.scale_level
-   where i.id = p_instance;
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql): a climb's kills are bounded by the floors it stood on (hr_tower_floors, through hr_tower_check),
   -- and EVERY mode's XP by its share of a kill (hr_session_modes.xp_pm; a hunt's 1000 moves nothing).
   if v_tw is not null then v_vb_xp := greatest(v_vb_xp, (v_tw->>'xp_max')::bigint); end if;
@@ -379,8 +377,6 @@ begin
   v_def := ceil((greatest(v_win, 0) / public.hr_hunt_limit('swing_interval_ms') + 1)
                 * least(v_pass, greatest(v_dmax, 16))
                 * greatest(coalesce((select max(public.hr_monster_level(sp.monster_id)) from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id), 0),
-                           coalesce((select b.level_max from public.hunt_instances i join public.hr_scaled_kill_bounds b
-                                       on b.hunt_id = i.hunt_id and b.level = i.scale_level where i.id = p_instance), 0),
                            -- TOWER-CLIMB: a climb's monsters stand at the floor's Level
                            coalesce((v_tw->>'level')::bigint, 0))
                 * public.hr_hunt_limit('defense_xp_level_permille') / 1000.0 * public.hr_hunt_limit('block_mult'))::bigint;
@@ -416,9 +412,6 @@ begin
        and (e.value #>> '{}')::numeric > v_kills * coalesce((
              select max(coalesce((b.drops->>e.key)::numeric, 0)) from public.hr_hunt_kill_bounds b
               where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = v_s.hunt_id)), 0)
-           -- SCALED-LOOT (2027-05-17-scaled-loot.sql): a window the commit proved scaled rolls each row ceil(loot_pm / 1000) times
-           * coalesce((select ceil(b.loot_pm / 1000.0) from public.hunt_instances i join public.hr_scaled_kill_bounds b
-                        on b.hunt_id = i.hunt_id and b.level = i.scale_level where i.id = p_instance), 1)
      limit 1;
     if v_vb_item is not null then
       perform public.hr_reject('value_over', jsonb_build_object('what', 'item', 'item', left(v_vb_item, 64),
@@ -692,13 +685,6 @@ begin
            fight = case when p_analyzer ? 'fight' then jsonb_build_object('boss_pm', p_analyzer->'fight'->'boss_pm',
              'fired', public.hr_jsonb_add(coalesce(t.fight->'fired', '{}'::jsonb), coalesce(p_analyzer->'fight'->'fired', '{}'::jsonb))) else t.fight end
      where t.session_id = p_session;
-  end if;
-  -- SCALED-BEST (2027-05-17-scaled-best.sql): a window the commit proved scaled (hunt_instances.scale_level, written by
-  --   hr_hunt_apply_instance before any member lands) keeps its span on THIS session's tally, so its personal best is never folded
-  --   (hr_hunt_best_fold): a scaled run is not the ground's own.
-  if exists (select 1 from public.hunt_instances i where i.id = p_instance and i.scale_level is not null) then
-    insert into public.hunt_session_tally as t (session_id, user_id, slot, scaled_ms) values (p_session, p_user, p_slot, greatest(v_win, 1))
-      on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;
   end if;
   -- MEMBER-WRITE-ONCE: written only when it moves (the session half already took this row's version forward).
   update public.hunt_sessions set unit_id = case when ended_at is null then v_unit_id end

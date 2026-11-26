@@ -2765,8 +2765,8 @@
    ],
    "class": 2,
    "status": "CONFIRMED",
-   "what": "VENDOR_RAW_RATE 0.20 and SHOP_BUYBACK_RATE 0.5 are authored in the edge function, and restated in src/data/shops.js",
-   "where": "supabase/functions/hr-accrue/catalogue.js:307, 324, src/data/shops.js DERIVED_PRICES, src/data/scaled-hunts.js:197",
+   "what": "VENDOR_RAW_RATE 0.20 and SHOP_BUYBACK_RATE 0.5 are authored in the edge function (their restatement in src/data/shops.js DERIVED_PRICES and src/data/scaled-hunts.js left with them, lane/retire-tier-chain 2026-11-26)",
+   "where": "supabase/functions/hr-accrue/catalogue.js:307, 324",
    "fix": "author them in src/data; the edge imports them",
    "decided": null
   },

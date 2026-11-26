@@ -68,8 +68,8 @@ begin
     -- file's body with its gold_out proof priced at the store step; this file restates its own, and 1062's retry splices it back.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)'
-                and v_md5 in ('43c031340d414ede76522755f7060233', '01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae'))
-       and not (v_r.fn = 'public.hr_hunt_party_view(uuid,integer)' and v_md5 = 'c88adbee1f77556025bfea0ddf2c6c11')
+                and v_md5 in ('43c031340d414ede76522755f7060233', '01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae', 'e0b569fcc3d856126934683a2129363e'))
+       and not (v_r.fn = 'public.hr_hunt_party_view(uuid,integer)' and v_md5 = '51c2dbe73785787db539af70fd58c885')
        and not (v_r.fn = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)' and v_md5 = 'a2991dfe16b083693b702f7a910ede1e') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;

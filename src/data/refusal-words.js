@@ -111,7 +111,6 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     dummy_busy: 'Dummy in use',
     bad_skill: 'Melee, Ranged, Magic or Defense only',
   }),
-  scaled_hunt_buy: Object.freeze({ quote_changed: 'Price changed, check it and buy again' }),
   /* The training items (2027-04-23-training-gear.sql). The ones with the server's numbers are src/shell/training-words.js's. */
   training_gear_buy: Object.freeze({
     quote_changed: 'Price changed',

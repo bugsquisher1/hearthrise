@@ -45,7 +45,7 @@
 --
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
 --   -3 client verbs, one of them a gold purchase. The settle's kill, item and defense bounds only narrow (no scaled roster can widen
---   them), and a settle carrying a `scale` key is refused bad_settle like any other unknown key. No new grant, no new verb.
+--   them), and a settle carrying a `scale` key is refused bad_arguments (why: keys) like any other unknown key. No new grant, no new verb.
 --
 -- ── CONCURRENCY ─────────────────────────────────────────────────────────────
 --   DDL in one transaction: the column drops take ACCESS EXCLUSIVE on hunt_density, hunt_instances, hunt_sessions and
@@ -70,15 +70,15 @@ begin
      or to_regclass('public.hr_danger_grounds') is null then
     raise exception 'PRECONDITION: the hunt chain, the RPC baseline, the envelope sections or the Danger scale are missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_density_freeze()', '022927b62a7d6264ddb6bf783f6324b2', 'TBD-FREEZE'),
-    ('public.hr_hunt_instance_read(uuid,integer)', '3097347b88e3a5187f2f12cf0d7fbcae', 'TBD-READ'),
-    ('public.hr_hunt_party_view(uuid,integer)', 'c88adbee1f77556025bfea0ddf2c6c11', 'TBD-PARTY'),
-    ('public.hr_hunt_view(uuid)', '32668b16635573452a939532e2c9ec9f', 'TBD-VIEW'),
-    ('public.hr_carry_on_plan_of(uuid,integer[])', '87d33106294d561a8bf955f9496cd784', 'TBD-CARRY'),
-    ('public.hr_hunt_admit(uuid,integer,text)', 'bc37e6068b6078f26f7e4e586efc4d48', 'TBD-ADMIT'),
-    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '3a6748518733987584b75e42e1d204d5', 'TBD-INST'),
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '209f8462d94db3fc386a12980342f2e8', 'TBD-MEMBER'),
-    ('public.hr_hunt_best_fold(uuid)', 'b8a8da109b268ed62848d52073d6dbd9', 'TBD-BEST')) t(fn, pre, post) loop
+    ('public.hr_hunt_density_freeze()', '022927b62a7d6264ddb6bf783f6324b2', '66313edc576982bb584a10f296cf488e'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '3097347b88e3a5187f2f12cf0d7fbcae', 'e0b569fcc3d856126934683a2129363e'),
+    ('public.hr_hunt_party_view(uuid,integer)', 'c88adbee1f77556025bfea0ddf2c6c11', '51c2dbe73785787db539af70fd58c885'),
+    ('public.hr_hunt_view(uuid)', '32668b16635573452a939532e2c9ec9f', '812ab2041a78d10ad28eb9e91011b05b'),
+    ('public.hr_carry_on_plan_of(uuid,integer[])', '87d33106294d561a8bf955f9496cd784', 'e26422a4e4cf97b98c067b8a23d21351'),
+    ('public.hr_hunt_admit(uuid,integer,text)', 'bc37e6068b6078f26f7e4e586efc4d48', 'd6e40529d2d466c90fc7c38fb239c189'),
+    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '3a6748518733987584b75e42e1d204d5', '8f9b22a5e77bc4d4d727d0731edccad9'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '209f8462d94db3fc386a12980342f2e8', 'e3d169248d2c291574fd4d3fcd148a3f'),
+    ('public.hr_hunt_best_fold(uuid)', 'b8a8da109b268ed62848d52073d6dbd9', 'eb6f87fd1cbd443551db6691d60cfae8')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -91,7 +91,7 @@ end $mig$;
 -- Each anchor and its replacement are dollar-quoted, so the text a body holds after the splice is written here verbatim. A second apply
 -- finds every replacement already in place (its post pin, §0) and the anchor gone, and moves nothing.
 do $mig$
-declare v_r record; v_def text; v_n int;
+declare v_r record; v_def text; v_n int; v_fn text; v_moved boolean := false;
 begin
   for v_r in select * from (values
     -- THE FREEZE: pull 0, no tier
@@ -139,7 +139,7 @@ $a$,
      $a$  -- HUNT-TIERS (2027-02-27-hunt-tiers.sql): `leader_tiers`, the leader's tier picked per ground (hunt_density.tier)
   -- every seat's picker shows read-only; it replaces `leader_densities`, the dial is gone.
 $a$,
-     $b$  -- RETIRE-TIER-CHAIN (1071-retire-tier-chain.sql): no `leader_tiers`; a member reads its leader's Risk (the `danger` section).
+     $b$  -- RETIRE-TIER-CHAIN (1071-retire-tier-chain.sql): no tier picks of the leader's; a member reads its leader's Risk (the `danger` section).
 $b$),
     ('public.hr_hunt_party_view(uuid,integer)',
      $a$  v_ltier jsonb;
@@ -267,13 +267,20 @@ $a$,
   if coalesce((select t.scaled_ms from public.hunt_session_tally t where t.session_id = p_session), 0) > 0 then return; end if;
 $a$,
      $b$$b$)) t(fn, find, repl) loop
-    v_def := replace(pg_get_functiondef(v_r.fn::regprocedure), chr(13), '');
+    -- every site of one body is spliced into its text before the body is created once (a body is checked whole as it is created)
+    if v_fn is distinct from v_r.fn then
+      if v_fn is not null and v_moved then execute v_def; end if;
+      v_fn := v_r.fn; v_moved := false;
+      v_def := replace(pg_get_functiondef(v_r.fn::regprocedure), chr(13), '');
+    end if;
     v_n := (length(v_def) - length(replace(v_def, v_r.find, ''))) / length(v_r.find);
     -- a second apply: the anchor is gone (and the replacement, when it says something, is in place)
     if v_n = 0 and (v_r.repl = '' or strpos(v_def, v_r.repl) > 0) then continue; end if;
     if v_n <> 1 then raise exception 'SPLICE: % holds its anchor % times, want 1: %', v_r.fn, v_n, left(v_r.find, 80); end if;
-    execute replace(v_def, v_r.find, v_r.repl);
+    v_def := replace(v_def, v_r.find, v_r.repl);
+    v_moved := true;
   end loop;
+  if v_fn is not null and v_moved then execute v_def; end if;
 end $mig$;
 
 -- ── §2 THE VERBS, THE SECTIONS AND THE INTERNALS GO ──────────────────────────
@@ -324,7 +331,7 @@ alter table public.hunt_session_tally drop column if exists scaled_ms;
 --     engine's read carries no tier and no scale, a member's options no tier; the envelope carries no hunt_tier or scaled_hunts section;
 --     the party view no leader_tiers; the hunt view no session tier; the carry-on plan no hero tier.
 -- (c) THE OUTGROWN DOOR STILL REFUSES: the same hero at the Mill Cellar (its hunt ends at Level 5) is refused `outgrown`.
--- (d) A SETTLE CARRYING A SCALE CLAIM IS REFUSED: hr_hunt_apply_instance answers bad_settle for a `scale` key, with nothing written.
+-- (d) A SETTLE CARRYING A SCALE CLAIM IS REFUSED: hr_hunt_apply_instance answers bad_arguments (keys) for a `scale` key, before it reads anything.
 do $chk$
 declare
   c_u    constant uuid := '00000107-1000-4000-a000-000000000001';
@@ -397,14 +404,18 @@ begin
       raise exception 'retire-tier-chain §4(b): the hunt view still names a tier'; end if;
     if exists (select 1 from jsonb_array_elements(coalesce(public.hr_carry_on_plan_of(c_u, array[0])->'heroes', '[]'::jsonb)) e where e.value ? 'tier') then
       raise exception 'retire-tier-chain §4(b): the carry-on plan still names a tier'; end if;
-    -- (d) a scale claim is an unknown key, refused with nothing written
+    -- (d) a scale claim is an unknown key, refused before anything is read or written; the same window without it is not refused for
+    --     its keys (the control: it is the `scale` key the refusal names)
+    v := public.hr_hunt_apply_instance(v_iid, 0, jsonb_build_object('to', now(), 'world_swing', 0, 'world', null, 'scale', jsonb_build_object('level', 20)),
+      jsonb_build_array(jsonb_build_object('user', c_u, 'slot', 0)), c_u, 0);
+    if v->>'error' is distinct from 'bad_arguments' or v->>'why' is distinct from 'keys' then
+      raise exception 'retire-tier-chain §4(d): a scale claim answered %', v; end if;
     begin
-      v := public.hr_hunt_apply_instance(v_iid, 0, jsonb_build_object('to', now(), 'world_swing', 0, 'world', null, 'scale', jsonb_build_object('level', 20)),
+      v := public.hr_hunt_apply_instance(v_iid, 0, jsonb_build_object('to', now(), 'world_swing', 0, 'world', null),
         jsonb_build_array(jsonb_build_object('user', c_u, 'slot', 0)), c_u, 0);
-      if coalesce(v->>'error', '') <> 'bad_settle' then raise exception 'retire-tier-chain §4(d): a scale claim answered %', v; end if;
-    exception when sqlstate 'HR000' then
-      if sqlerrm not in ('bad_settle') then raise exception 'retire-tier-chain §4(d): a scale claim raised %', sqlerrm; end if;
+    exception when others then v := jsonb_build_object('raised', sqlerrm);
     end;
+    if v->>'why' is not distinct from 'keys' then raise exception 'retire-tier-chain §4(d) CONTROL: the window with no scale was refused for its keys: %', v; end if;
     perform public.hr_hunt_close(v_sid, 'left', now(), true);
     update public.player_state set active_kind = 'idle', active_id = null where user_id = c_u and slot = 0;
     -- (c)

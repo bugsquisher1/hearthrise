@@ -17,6 +17,7 @@ export { mountCharacterStrip, stripTargetOf } from './character-strip.js';
 export { renderHeroCreate } from './hero-create.js';
 export { playLineOf, rowsShown } from './slot-offer.js';
 export { drawRosterFaces } from './roster-faces.js';
+export { paintWhatsNew } from './whats-new.js';
 export { createAlertCenter } from '../shell/alerts.js';
 export { mountMarketWatch } from '../shell/market-watch.js';
 export { mountTownCriers } from '../shell/town-criers.js';

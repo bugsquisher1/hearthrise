@@ -158,7 +158,8 @@ export function patchBody(body, ctx) {
   /* the card */
   const card = root.querySelector('.rdw-card');
   cls(root, 'is-picked', !!sc.sel);
-  patchCard(card, ctx, { tl, sel: sc.sel, route: routeOf(memo, tl, sc.sel), states: memo.states, fork: homeOf(cs, tl) === 'hearth' ? null : homeOf(cs, tl), pending: sc.pending, msg: sc.msg });
+  const home = homeOf(cs, tl);
+  patchCard(card, ctx, { tl, sel: sc.sel, route: routeOf(memo, tl, sc.sel), states: memo.states, fork: home === 'hearth' ? null : home, pending: sc.pending, msg: sc.msg });
 }
 
 /* a size change repaints (the window docks, the phone turns, the card opens) */

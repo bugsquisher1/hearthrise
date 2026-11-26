@@ -88,7 +88,7 @@ export function mapOf(stage) {
   if (M) return M;
   const L = roadsLayout();
   const svg = stage.querySelector('svg.rdm');
-  M = { stage, svg, L, world: svg.querySelector('.rdm-world'), heart: svg.querySelector('.rdm-heart'), s: null, key: null, labelKey: null,
+  M = { stage, svg, L, world: svg.querySelector('.rdm-world'), heart: svg.querySelector('.rdm-heart'), s: null, key: 0, labelKey: null, states: null, routeKey: null, pick: null,
     nodes: {}, edges: [], regions: {}, posts: {}, labels: {}, rows: labelRows(L), widths: {}, spoke: signposts(L),
     sel: svg.querySelector('.rdm-sel'), badge: svg.querySelector('.rdm-badge') };
   for (const g of svg.querySelectorAll('[data-rd-node]')) M.nodes[g.getAttribute('data-rd-node')] = g;
@@ -150,9 +150,11 @@ export function paintMap(M, v) {
   if (M.s !== cam.s) { placeAll(M, cam.s); M.s = cam.s; M.labelKey = null; }
   panMap(M, cam, w, h);
   const onRoute = new Set(v.route ? v.route.path : []);
-  const stateKey = JSON.stringify([v.states, v.route && v.route.path, v.sel]);
-  if (stateKey !== M.key) {
-    M.key = stateKey; M.labelKey = null;
+  /* the states object is replaced whole by each server section (index.js memoOf), so its identity, the route's stones and the pick are
+     the key: an unchanged display tick writes nothing and builds no string of 299 states */
+  const routeKey = v.route ? v.route.path.join() : '';
+  if (v.states !== M.states || routeKey !== M.routeKey || v.sel !== M.pick) {
+    M.states = v.states; M.routeKey = routeKey; M.pick = v.sel; M.key = (M.key || 0) + 1; M.labelKey = null;
     for (const [id, g] of Object.entries(M.nodes)) {
       const st = onRoute.has(id) ? 'route' : (v.states[id] || 'locked');
       for (const s of ['locked', 'open', 'route', 'owned']) cls(g, 'is-' + s, s === st);

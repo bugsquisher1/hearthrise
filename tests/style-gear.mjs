@@ -216,8 +216,12 @@ function mutate() {
   run('the wand rung loses its drop (a style with no reachable upgrade)', 'SG-1', () => undrop('sump_slime', 'oak_wand'));
   /* a reforge's one door is its bench: the Steelgrate unbenched leaves the Kingsgrate's reforge with no source */
   run('the Steelgrate loses its reforge (a made piece no bench makes)', 'SG-6', () => { const a = unbench('smithing', 'reforge_steelgrate'); return a; });
-  /* the hoard is the Chief's and its called copy's (src/data/boss-calls.js: chief_coppercap_called drops the same rows) */
-  run('the wand\'s tier-3 rung loses its one drop (the Chief\'s hoard)', 'SG-1', () => { const a = undrop('chief_coppercap', 'willow_wand'); const b = undrop('chief_coppercap_called', 'willow_wand'); return () => { b(); a(); }; });
+  /* every body that drops it, read from the rows (the Chief and his called copy, and now the Warlock and the Color
+     Sergeant too): a named list of two stopped biting once a second home dropped it (2026-11-23) */
+  run('the wand\'s tier-3 rung loses every drop', 'SG-1', () => {
+    const undo = Object.keys(MONSTERS).filter((mid) => (MONSTERS[mid].drops || []).some((d) => d.id === 'willow_wand')).map((mid) => undrop(mid, 'willow_wand'));
+    return () => undo.reverse().forEach((u) => u());
+  });
   run('the hatchets rung worn only at Melee 30', 'SG-2', () => setField('iron_hatchets', 'reqLv', 30));
   run('the crossbow rung no stronger than the practice crossbow', 'SG-2', () => { const a = setField('oak_crossbow', 'rangeAtkB', 4); const b = setField('oak_crossbow', 'rangeStrB', 4); return () => { b(); a(); }; });
   run('the club rung one-handed again', 'SG-2', () => setField('iron_warhammer', 'twoHanded', false));

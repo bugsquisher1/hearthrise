@@ -52,7 +52,7 @@
 //                             RT-PIN): a pooled transaction is BEGIN, SET LOCAL ROLE, [the self marker], its statements, COMMIT; the
 //                             hello's read is one transaction of six statements, five in savepoints. 2%
 //   ledger_rows_a_hero_hour   player_ledger rows a hero-hour (wall 4, the journal): 20%, sized from the audit's spread (43-49 over
-//                             36 windows); a row a kill is +200% or more on every hunting fixture (MEASURED by --selftest)
+//                             36 windows); a row a kill is +88% (the lone Level 10, 2026-11-26) or more on every hunting fixture (MEASURED by --selftest)
 //   row_writes_a_settle       inserts + updates + deletes a settle (median, a save; WAL, wall 1): 20%
 //   row_writes_a_hero_hour    inserts + updates + deletes a hero-hour, every ask and fire counted (WAL, wall 1): 20%. THE FLUSH's
 //                             number: a watched four wrote a save every 16 s and writes one about every 90 s
@@ -649,12 +649,29 @@ async function main() {
     /* each plant must turn EVERY fixture red on each metric it moves */
     for (const [plant, metrics, what] of [['unit_row', ['ledger_rows_a_hero_hour', 'row_writes_a_settle'], 'a journal row a kill, or a unit a town job moves'],
       ['extra_statement', ['statements_a_settle', 'statements_a_hero_hour', 'round_trips_a_hero_hour'], 'one more statement a settle']]) {
-      const r = judge(await measureAll(db, M, { plant, only }), base, calibration);
+      const planted = await measureAll(db, M, { plant, only }); const excused = [];
+      const r = judge(planted, base, calibration);
       for (const fx of Object.keys(FIXTURES).filter((x) => !only || x.includes(only))) {
-        const missed = metrics.filter((k) => !r.red.some((x) => x.startsWith(`${fx} ${k}:`)));
+        /* A ROW A KILL A SETTLE, read off the JOURNAL (the plant's other metric, so never off the metric it excuses): the planted
+           journal rows a hero-hour over the saves a hero-hour (the clean run's row writes a hero-hour over its row writes a save, so a
+           watched four's confirms never count as saves). row_writes_a_settle can only see the plant where that is past its
+           own tolerance of the baseline (with a fifth to spare): the lone Level 10 at the Thicket kills about 2 a settle on 25 rows
+           (2026-11-26), under the 5 a 20% band can see, and its journal still goes red. Every other fixture is held to it. */
+        const reach = (k) => {
+          if (plant !== 'unit_row' || k !== 'row_writes_a_settle') return true;
+          const c = cleanM[fx]; const p = planted[fx];
+          const aSettle = (p.ledger_rows_a_hero_hour - c.ledger_rows_a_hero_hour) * c.row_writes_a_settle / c.row_writes_a_hero_hour;
+          return aSettle >= 1.2 * TOL.row_writes_a_settle * base.fixtures[fx].row_writes_a_settle;
+        };
+        const unseen = metrics.filter((k) => !reach(k));
+        if (unseen.length) { excused.push(fx); console.log(`  note    ${plant} on ${fx}: ${unseen.join(', ')} not held (the plant is under its band's reach; the journal is held)`); }
+        const missed = metrics.filter((k) => reach(k) && !r.red.some((x) => x.startsWith(`${fx} ${k}:`)));
         arm(`MUTANT ${plant} (${what}): ${fx} is red`, missed.length === 0,
           missed.length ? `NOT red on ${missed.join(', ')}` : r.red.filter((x) => x.startsWith(fx + ' ')).map((x) => x.slice(fx.length + 1)).join('; '));
       }
+      /* the reach never excuses the metric everywhere: a row a kill is red on row writes a settle somewhere, or the proof proves nothing for it */
+      const all = Object.keys(FIXTURES).filter((x) => !only || x.includes(only));
+      if (plant === 'unit_row' && all.length > 1) arm('CONTROL: the row writes a settle are held on most fixtures (' + (all.length - excused.length) + ' of ' + all.length + ')', excused.length * 2 < all.length, excused.join(', ') || 'none excused');
     }
     /* READ ONCE: the settle read with its party read inlined again is red on every fixture that reads a party (the town reads none) */
     const inl = judge(await measureAll(db, M, { plant: 'read_inlined', only }), base, calibration);

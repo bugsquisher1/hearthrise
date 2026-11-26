@@ -4,6 +4,18 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-26 · art-director (lane/a1-rare-frame) · where a Rare or Signature renders a placeholder today (v0.3.0 gate 12)
+
+No emoji is rendered anywhere for an item: the `icon:` emoji fields in `src/data/items.js` are data no screen reads. The placeholders are:
+
+| # | Where | What a Signature or Rare shows | Action |
+|---|---|---|---|
+| 1 | Every `itemIconHtml` surface (bag, Storage, worn slots, picked item, loot rows, hunt summary drops, return card Best find, market, monster and wiki drop lists, Hunts' Rare list) | a Signature id has no ITEMS row and no art: the generic chest glyph inside the gold frame, the name spelled from its id ("Cairn belt"), filed under Other | S1: an ITEMS row keyed by the Signature id; then the icon (HANDOFFS 2026-11-26 art director, sample of 5) |
+| 2 | `tower-chest.js revealHtml` (the find rising from the Hearth Chest) | an `<img>` of `PIXEL_DIR + id`: a Signature from the Gold lock (#16, #19, #37) with no art is a broken image, and no frame | when the Chest's Signatures land: draw the reveal through `itemIconHtml` (the haul list below it already does) |
+| 3 | `share-card.js` (the rare find's card) | no ITEMS row: no icon, so no frame; the name in gold | lands with #1 |
+| 4 | the rare-drop alert line (`src/shell/widgets/alerts.js`) and the combat log / scene float | a glyph and the item's name, never its icon or frame; the event names an item id, not a piece | T1's drop moment: the rare_drop event carries the piece (its rarity, its Signature), the alert shows `itemIconHtml(piece)` |
+| 5 | every bag stack before T1 | the client has no piece row, only `{ id: qty }`, so no Rare can show its frame yet | T1: project trait_pieces rows and pass them to the surfaces (one call each, `itemIconHtml(glyphs, piece)`) |
+
 ## 2026-11-23 · qa-engineer (lane/ci-reds-orphans) · the orphaned "not mine" reds on set/v0.2.144
 
 | # | Found | Sev | Affected | Action |

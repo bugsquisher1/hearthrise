@@ -92,9 +92,13 @@ alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_lead_
 insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm, lead_min) values
   ('hunt', 120, 2, 3, 2, 2000, 1000, 120),
   ('work', 120, 4, 3, 2, 500, 375, 10);
-alter table public.hr_time_blocks alter column earns_pm set not null;
-alter table public.hr_time_blocks alter column lead_min set not null;
-alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck check (earns_pm >= 1 and price_hour_pm > earns_pm);
+-- Both columns stay NULLABLE on purpose: a retried apply re-runs 1058-hunting-blocks-catalogue.generated.sql (which writes the hunting
+-- row without them) before this file runs again. A row with no earns_pm is held to 1058's own floor (more than an hour of wage); one
+-- with no lead_min is a kind the standing rule cannot buy (hr_time_auto_buy answers bad_kind). This file writes both on every row.
+alter table public.hr_time_blocks alter column earns_pm drop not null;
+alter table public.hr_time_blocks alter column lead_min drop not null;
+alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck
+  check (case when earns_pm is null then price_hour_pm > 1000 else earns_pm >= 1 and price_hour_pm > earns_pm end);
 alter table public.hr_time_blocks add constraint hr_time_blocks_lead_ck check (lead_min between 1 and block_min);
 -- THE STANDING RULE'S NUMBERS (src/data/time-blocks.js STANDING): the reserve (milli-hours of the hero's wage it never spends under) and
 -- the offer (its kind, milli-days of the company's pay, the card's choices). Rewritten whole.

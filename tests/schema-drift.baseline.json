@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-26",
- "digest": "16d6a18c86c29851f20af031aa6fdc3fb8f8eb929510a6b69dd0a1562c7f15d7",
+ "digest": "1c53bebdea7bdd9fdcadac369e5bd66dbd2932367133fe1d2380457e117a578b",
  "counts": {
   "relations": 374,
   "functions": 973,
@@ -5267,11 +5267,11 @@
    "hr_tick_shard_cursor.shard integer NOT NULL",
    "hr_tick_shard_cursor.updated_at timestamp with time zone NOT NULL",
    "hr_time_blocks.block_min integer NOT NULL",
-   "hr_time_blocks.earns_pm integer NOT NULL",
+   "hr_time_blocks.earns_pm integer",
    "hr_time_blocks.growth_den integer NOT NULL",
    "hr_time_blocks.growth_num integer NOT NULL",
    "hr_time_blocks.kind text NOT NULL",
-   "hr_time_blocks.lead_min integer NOT NULL",
+   "hr_time_blocks.lead_min integer",
    "hr_time_blocks.per_day integer NOT NULL",
    "hr_time_blocks.price_hour_pm integer NOT NULL",
    "hr_time_standing.id boolean NOT NULL",

@@ -201,9 +201,13 @@ alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_earns
 alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_lead_ck;
 insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm, lead_min) values
 ${values};
-alter table public.hr_time_blocks alter column earns_pm set not null;
-alter table public.hr_time_blocks alter column lead_min set not null;
-alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck check (earns_pm >= 1 and price_hour_pm > earns_pm);
+-- Both columns stay NULLABLE on purpose: a retried apply re-runs 1058-hunting-blocks-catalogue.generated.sql (which writes the hunting
+-- row without them) before this file runs again. A row with no earns_pm is held to 1058's own floor (more than an hour of wage); one
+-- with no lead_min is a kind the standing rule cannot buy (hr_time_auto_buy answers bad_kind). This file writes both on every row.
+alter table public.hr_time_blocks alter column earns_pm drop not null;
+alter table public.hr_time_blocks alter column lead_min drop not null;
+alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck
+  check (case when earns_pm is null then price_hour_pm > 1000 else earns_pm >= 1 and price_hour_pm > earns_pm end);
 alter table public.hr_time_blocks add constraint hr_time_blocks_lead_ck check (lead_min between 1 and block_min);
 -- THE STANDING RULE'S NUMBERS (src/data/time-blocks.js STANDING): the reserve (milli-hours of the hero's wage it never spends under) and
 -- the offer (its kind, milli-days of the company's pay, the card's choices). Rewritten whole.
@@ -325,7 +329,9 @@ async function selftest() {
   if (!/VERIFY\(c\)/.test(sql) || !/VERIFY\(d\)/.test(sql) || !/hr_time_block_price/.test(sql) || !/hr_wage/.test(sql)) bites.push('a twin is not pinned');
   /* the work row is written only after the verb that sells it as town work (THE FORWARD-FILE RULE above) */
   if (!sql.includes("'" + VERB_MARK + "'") || !/PRECONDITION: 1071-work-blocks\.sql first/.test(sql)) bites.push('the catalogue no longer refuses to land before ' + VERB_FILE);
-  if (!/check \(earns_pm >= 1 and price_hour_pm > earns_pm\)/.test(sql)) bites.push('the table no longer refuses a price at its earns_pm floor');
+  if (!/check \(case when earns_pm is null then price_hour_pm > 1000 else earns_pm >= 1 and price_hour_pm > earns_pm end\)/.test(sql)) {
+    bites.push('the table no longer refuses a price at its earns_pm floor (or at 1058\'s for a row without one)');
+  }
   if (bites.length) { console.error('gen-time-blocks --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
   console.log('gen-time-blocks --selftest: 19 refusals bite, both twins are pinned, the work row waits on its verb');
 }

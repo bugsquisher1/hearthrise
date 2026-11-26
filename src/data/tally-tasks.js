@@ -100,7 +100,9 @@ export const TALLY_TASKS = Object.freeze([
      2026-10-31, lane/b-core-loop-20h). The deserters who burned the farm. Played at Levels 10-16: ~50 Turncoats of the
      ground's ~600 kills an hour and ~2,200 gp of coin an hour, so 50 is about an hour and 780 gp about 35% of it. Her
      first picks here are the Iron Platebody and Platelegs (its Scarce rows), worn at 15: a goal for Levels 8-14. */
-  row({ id: 'wickstead_turncoats', hunt: 'wickstead', monster: 'turncoat', label: 'Turncoats', count: 50, gold: 780, party: false,
+  /* piecesFrom the Glade (lane/scale-grounds-sweep): Wickstead drops bronze since 12-targets 8.3, so her Wickstead pieces are iron's, the hand-up a tier
+     over the ground's own as the Glade's are the Warrens' */
+  row({ id: 'wickstead_turncoats', hunt: 'wickstead', monster: 'turncoat', label: 'Turncoats', count: 50, gold: 780, party: false, piecesFrom: 'mosslight_glade',
     materials: [{ item: 'silk_thread', qty: 4 }, { item: 'wolf_pelt', qty: 6 }] }),
   /* The designer's Sewer materials (2026-10-23). */
   row({ id: 'sewer_rat_king', hunt: 'millrace_sewer', monster: 'rat_king', label: 'the Rat King', count: 5, gold: 1020, party: true,

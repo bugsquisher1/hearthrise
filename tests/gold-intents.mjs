@@ -634,7 +634,14 @@ async function run(mutate) {
     /* worn gear at the gear rate: sampled at v >= 10 and off the shop list, so neither floor nor cap can hide it; then the ground's income dial
        (src/data/loot-sale.js: a dialed ground's drop sells at its dial, the highest of the grounds that drop it) */
     const gear = Object.keys(ITEMS).filter((id) => LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type) && Number(ITEMS[id].v) >= 10 && unshopped(id));
-    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === LS.dialedSale(Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id]))), id)),
+    /* ...and the sale ladder's floor under the dial (loot-sale.js LOWER_TWIN: a dialed piece never sells under its lower-tier twin; lane/scale-grounds-sweep
+       left the iron pieces on the Glade alone, so they are dialed and floored at bronze's bid) */
+    const wornBid = (id) => {
+      const whole = Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id]))), dialed = LS.dialedSale(whole, id);
+      const twin = Object.prototype.hasOwnProperty.call(LS.SALE_FIT_PM, id) && LS.LOWER_TWIN[id], twinBid = twin ? cat.vendorPriceOf(ITEMS, twin) : 0;
+      return twin && whole >= twinBid ? Math.max(dialed, twinBid) : dialed;
+    };
+    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === wornBid(id)),
       `G1-CONTROL: worn gear is not bid at its tier's share of book (${gear.slice(0, 5).map((id) => id + ' ' + cat.vendorPriceOf(ITEMS, id) + '/' + ITEMS[id].v).join(', ')})`);
     /* THE DIAL BITES: a dialed ground's own drop (the Ford's Kennel Tag, the Slake's tier 4 body) sells at its dial, never at the whole bid */
     for (const id of ['mithril_platebody', 'kennel_tag']) {

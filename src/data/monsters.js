@@ -891,7 +891,7 @@ export const MONSTERS = {
     spells: ['spore_cloud'],
     drops: [{ id: 'magic_essence', everyHours: 0.16, ch: 0.214, band: 'common' }, { id: 'pithwood', everyHours: 0.08, ch: 0.429, band: 'common' }, { id: 'mosslight_tendril', everyHours: 0.5, ch: 0.0686, band: 'uncommon' }, { id: 'iron_helm', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'studded_helmet', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'adept_helmet', everyHours: 2.1, ch: 0.0163, band: 'scarce' },
       { id: 'oak_staff', everyHours: 2.1, ch: 0.0163, band: 'scarce' },
-      { id: 'bramble_blade', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_wand', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_spellbook', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00111, band: 'rare' }] },
+      { id: 'bramble_blade', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_wand', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_spellbook', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00111, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elements: { ember: 25, poison: -15 },
@@ -939,7 +939,7 @@ export const MONSTERS = {
     /* the helmets .0231 to .0247 (lane/d-harder-monsters, 2026-11-19): with the formula's tenth more HP the floor hero met fewer wasps, a helmet every 1.55 h (the band is 0.75-1.5) */
     drops: [{ id: 'venom_sac', everyHours: 0.178, ch: 0.193, band: 'common' }, { id: 'dry_husk', everyHours: 0.1114, ch: 0.308, band: 'common' }, { id: 'barn_wasp_sting', everyHours: 0.5563, ch: 0.0616, band: 'uncommon' },
       { id: 'bronze_helm', everyHours: 1.39, ch: 0.0247, band: 'scarce' }, { id: 'leather_helmet', everyHours: 1.39, ch: 0.0247, band: 'scarce' }, { id: 'apprentice_helmet', everyHours: 1.39, ch: 0.0247, band: 'scarce' },
-      { id: 'bronze_belt', everyHours: 14.83, ch: 0.00231, band: 'rare' }, { id: 'leather_belt', everyHours: 14.83, ch: 0.00231, band: 'rare' }, { id: 'apprentice_belt', everyHours: 14.83, ch: 0.00231, band: 'rare' }] },
+      { id: 'leather_belt', everyHours: 14.83, ch: 0.00231, band: 'rare' }, { id: 'apprentice_belt', everyHours: 14.83, ch: 0.00231, band: 'rare' }] },
   barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
     /* the tank: slow and webbed in; fire takes the web */
     elements: { ember: -15, poison: 50 },

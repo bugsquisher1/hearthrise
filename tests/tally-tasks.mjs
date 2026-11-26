@@ -433,12 +433,14 @@ const ARMS = {
     await take(db, V, THICKET, null);
     await wear(V, 'body', 'iron_platebody');
     if ((await board(THICKET)) !== 'leather_pants') problems.push('wearing a Leather Helmet and an Iron Platebody her Thicket board says ' + (await board(THICKET)) + ', want leather_pants');
-    /* A LOWER TIER IS NO REASON: a Leather Body (tier 1) worn does not skip Wickstead's Studded Body (tier 2). */
+    /* A LOWER TIER IS NO REASON: a tier-1 piece worn does not skip Wickstead's tier-2 piece in its slot (her Wickstead pieces are the Glade's iron
+       since 12-targets 8.3, lane/scale-grounds-sweep: helmet first, so the Leather Helmet worn meets the Studded Helmet, then the body). */
     const t2 = await take(db, V, WICKSTEAD, null);
     if (!t2 || t2.ok !== true) problems.push('CONTROL: the Wickstead take was refused ' + JSON.stringify(t2));
-    if ((await board(WICKSTEAD)) !== 'studded_pants') problems.push('wearing tier 1 and tier 2 in helmet and body her Wickstead board says ' + (await board(WICKSTEAD)) + ', want studded_pants');
+    if ((await board(WICKSTEAD)) !== 'studded_helmet') problems.push('wearing tier 1 and tier 2 in helmet and body her Wickstead board says ' + (await board(WICKSTEAD)) + ', want studded_helmet');
+    await wear(V, 'helmet', 'iron_helm');
     await wear(V, 'body', 'leather_body');
-    if ((await board(WICKSTEAD)) !== 'studded_body') problems.push('wearing a Leather Body her Wickstead board says ' + (await board(WICKSTEAD)) + ', want the tier-2 studded_body');
+    if ((await board(WICKSTEAD)) !== 'studded_body') problems.push('wearing an Iron Helm and a Leather Body her Wickstead board says ' + (await board(WICKSTEAD)) + ', want the tier-2 studded_body');
 
     /* BOTH SETTLE DOORS: wearing the Cellar's one light piece, the hunt that ends pays the gold and her first material. */
     const U = H.UIDS[0];

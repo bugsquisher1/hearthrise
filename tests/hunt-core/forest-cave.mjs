@@ -589,8 +589,9 @@ const mutants = [
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  good('copper_studs', 'gear'),", "  good('copper_studs', 'gear'),\n  good('leather_helmet', 'gear'),"]] },
   /* the tier is the rule's (lane/d-drop-homes): a tier-1 shield as regular loot on a walked ground competes with the outfitter's Bronze-Rimmed */
+  /* (lane/scale-grounds-sweep: the Sewer is bronze now and drops no shield, so the plant puts the Shop's shield on the Rat King's own table) */
   { name: "the Sewer rats drop the Shop's tier-1 shield hourly", case: 'shop-outfits-defense',
-    edits: [['src/data/monsters.js', "{ id: 'ironbound_shield', ch: .03, band: 'scarce' }", "{ id: 'bronze_rimmed_shield', ch: .03, band: 'scarce' }"]] },
+    edits: [['src/data/monsters.js', "drops: [{ id: 'rat_tail', ch: 1, band: 'common' }", "drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bronze_rimmed_shield', ch: .03, band: 'scarce' }"]] },
   { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  good('leather_gloves', 'gear'),\n", '']] },
   { name: 'gloves and belts stop counting as armour (Defense never trains from them)', case: 'shop-outfits-defense',

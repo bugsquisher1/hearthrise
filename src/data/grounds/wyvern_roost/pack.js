@@ -104,7 +104,7 @@ export default definePack({
       /* the elite: a big female sitting on her eggs. No trick, she's just the hardest thing in the pass. The Roost Mother (the boss, board
          section 9) is the oldest of these, and she waits for her own lane. */
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', ch: 1, band: 'common' }, { id: 'dragon_scale', everyHours: 0.8, ch: 0.5, band: 'common' }, { id: 'stolen_fleece', everyHours: 4, ch: 0.1, band: 'uncommon' }],
+      drops: [{ id: 'dragon_bones', ch: 1, band: 'common' }, { id: 'dragon_scale', everyHours: 5, ch: 0.08, band: 'common' }, { id: 'stolen_fleece', everyHours: 4, ch: 0.1, band: 'uncommon' }],
       hp: 402, atk: 155, aim: 163, evasion: 70, def: 45, xp: 4505, gp: [59, 177], formula: true },
   },
   roster: { wyvern_fledgling: 'swarm', ledge_wyvern: 'glass', bull_wyvern: 'heavy', crag_wyvern: 'regular', brood_wyvern: 'elite' },

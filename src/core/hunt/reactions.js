@@ -115,11 +115,62 @@ const DO = Object.freeze({
     const dead = ctx.t;
     const n = Math.min(Math.floor((int(ctx.over) * row.pm) / 1000), Math.floor((int(dead && dead.maxHp) * row.capPm) / 1000));
     if (!dead || !(n > 0)) return false;
-    let m = null;
-    for (const o of inst.world.units) {
-      if (o === dead || o.alive !== true || !isMonster(o) || !Number.isInteger(o.target) || cheb(o, dead) > row.r) continue;
-      if (!m || cheb(o, dead) < cheb(m, dead) || (cheb(o, dead) === cheb(m, dead) && o.id < m.id)) m = o;
-    }
+    const m = nearestEngaged(inst, dead, row.r, () => true);
     return !!m && landHit(inst, sc, u, m, n, null, { id: 'carry', dot: true, exact: true }).dmg > 0;
   },
+  ready: (inst, sc, u, row) => readyNow(u, row.move, sc.atMs),
+  pass: (inst, sc, u, row, ctx) => passOn(inst, sc, u, row.what, ctx),
+  boon: (inst, sc, u, row, ctx) => {
+    const t = ctx.t;
+    if (!t || t.alive !== true || (t !== u && !isAlly(u, t))) return false;
+    const st = statusRow(row.status);
+    if (applyStatus(inst, t, st, { u: u.id, maxHit: 1, runeTier: 1 }, sc) === null) return false;
+    if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
+    return true;
+  },
 });
+
+/* THE NEAREST LIVING ENGAGED MONSTER to `from` within `r` tiles (Infinity: any) that `ok` takes, ties by id; null with none */
+function nearestEngaged(inst, from, r, ok) {
+  let m = null;
+  for (const o of inst.world.units) {
+    if (o === from || o.alive !== true || !isMonster(o) || !Number.isInteger(o.target) || cheb(o, from) > r || !ok(o)) continue;
+    if (!m || cheb(o, from) < cheb(m, from) || (cheb(o, from) === cheb(m, from) && o.id < m.id)) m = o;
+  }
+  return m;
+}
+
+/** `move` READY NOW on hero `u` at `atMs` (a `ready` reaction: The Wood Book's Hoarfrost): its cooldown ends now. Answers whether it was
+    cooling. */
+export function readyNow(u, move, atMs) {
+  if (!(readyAt(u.cds, move) > atMs)) return false;
+  u.cds = Object.assign({}, u.cds, { [move]: atMs });
+  return true;
+}
+
+/* WHAT THE FALLEN CARRIED MOVES ON (a `pass` reaction, on a death): `what` 'mark', a Mark still running as it fell (the moment's markPm and
+   markUntil), onto the nearest engaged monster not marked, with its time left (Lurcher's Collar); or a status id, every stack of it hero `u`
+   laid on the fallen, each onto the nearest engaged monster with its scale and its time left (15: "a status moving on a death", #28). */
+function passOn(inst, sc, u, what, ctx) {
+  const dead = ctx.t;
+  if (!dead) return false;
+  if (what === 'mark') {
+    if (!(int(ctx.markPm) > 0 && int(ctx.markUntil) > sc.atMs)) return false;
+    const m = nearestEngaged(inst, dead, Infinity, (o) => !(int(o.markUntil) > sc.atMs));
+    if (!m) return false;
+    m.markPm = ctx.markPm; m.markUntil = ctx.markUntil;
+    sc.emit(makeEvent('mark', sc.atMs, { u: u.id, t: m.id }));
+    return true;
+  }
+  const mine = (Array.isArray(dead.statuses) ? dead.statuses : []).filter((st) => st.s === what && st.src === u.id && st.left > 0);
+  const m = mine.length ? nearestEngaged(inst, dead, Infinity, () => true) : null;
+  if (!m) return false;
+  const row = statusRow(what);
+  for (const was of mine) {
+    if (applyStatus(inst, m, row, { u: u.id, maxHit: 1, runeTier: 1 }, sc) === null) return false;
+    let st = null;
+    for (const s of m.statuses) if (s.s === what && s.src === u.id && s.left === row.durationMs) st = s;
+    if (st) { st.left = was.left; st.scale = was.scale; for (const k of ['next', 'amt', 'pw', 'wu']) if (was[k] !== undefined) st[k] = was[k]; }
+  }
+  return true;
+}

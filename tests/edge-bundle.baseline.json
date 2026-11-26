@@ -495,14 +495,24 @@
         "why": "scale-grounds-sweep: five more grounds on the Danger scale (the Glade, the Warrens, the Slake, Pyre Field, Krell's Hold) carry their formula rows, drop rows in hours and gear stats into src/data the edge imports; 6.8 KB"
       },
       {
-        "bytes": 3886864,
+        "bytes": 3896347,
         "on": "2026-11-26",
-        "why": "lane/scale-grounds-sweep steps 2-3: five grounds join DANGER_GROUNDS (Wickstead, the Sewer, Carter's Rest, the Ox Road, Wyvern Roost) with roles on their monster rows and drops in hours, and the Glade takes the iron pieces the bronze grounds dropped (+6,990 B of data)"
+        "why": "lane/signatures-sample: the worn-Signature rules (src/core/hunt/signature-rules.js, src/data/signatures.js) and the reaction pieces they share with the Roads (death, heal and hp_below moments; ready, pass and boon) join the engine, dark (+16,473 B)"
       },
       {
-        "bytes": 3887113,
+        "bytes": 3896447,
         "on": "2026-11-26",
-        "why": "lane/scale-grounds-sweep step 3 after merging set dcd3e2145: the Flooded Wing's own Level band (150-170) and DANGER_GROUNDS row in the data, beside the set's reshaped Traits (+89 B)"
+        "why": "lane/signatures-sample: one Signature a hero reads SIGNATURE_RULES.perHero (signature-rules.js wornSignatureOf, +100 B)"
+      },
+      {
+        "bytes": 3896745,
+        "on": "2026-11-26",
+        "why": "lane/signatures-sample: the Signature rows carry 24 section 4's home { kind, id } and their move (src/data/signatures.js, +298 B)"
+      },
+      {
+        "bytes": 3904210,
+        "on": "2026-11-26",
+        "why": "lane/scale-grounds-sweep steps 2-3 merged onto set 3cbce4572: five grounds join DANGER_GROUNDS (Wickstead, the Sewer, Carter's Rest, the Ox Road, Wyvern Roost) with roles and drops in hours, the Glade takes the bronze grounds' iron pieces, the Flooded Wing's own band (+7,465 B of data over the set's ceiling)"
       }
     ]
   }

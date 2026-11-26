@@ -723,11 +723,39 @@ export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
    reset can't set off another one"). Its fields: move (a live move or '*heal': what a cast or a reset acts on), of (the moment's move it reads), pm (ramped), ms, capMs, clockMs (whole), per ('target':
    its clock is per target), row ('front' | 'back': ally_hit only on that row), melee (hit_taken only from beside), free (cast: no mana,
    no lane), to ('self' | 'lowest'), status (a status id), r and capPm (carry: its reach and its cap, whole) */
-export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost']);
-export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry']);
-const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm']);
+/* (lane/signatures-sample, the Signatures' moments and doers, one vocabulary with the Roads: `death` any monster's fall, whoever's blow; `heal`
+   the hero's cast heal landing on a hero; `hp_below` the hero's own health under `belowPm` after a blow; `ready` a move ready now; `pass` what
+   the fallen carried moves on (`what`: 'mark' or a status id); `boon` a status on the moment's hero; `has` the moment's monster carries a status) */
+export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below']);
+export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon']);
+const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what']);
 /* the unit rules (Hold Fast's no-switch, Bodyguard's share, Still Mind's regen): pm fields ramp, the rest whole */
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
+
+/** EVERY PROBLEM WITH ONE REACTION ROW (a Roads node's `react` effect, a Signature's rule: src/data/signatures.js), as strings. `moves`: the live
+    move ids (a test passes them; the data modules import no ability table). Empty = valid. */
+export function reactProblems(e, moves = null) {
+  const out = [];
+  for (const k of Object.keys(e)) if (!REACT_FIELDS.has(k)) out.push('react field ' + k + ' is not one the engine reads');
+  if (typeof e.id !== 'string' || !/^[a-z_]{1,48}$/.test(e.id)) out.push('a reaction names its id');
+  if (!REACT_ON.includes(e.on)) out.push('react on ' + e.on + ' is not one of ' + REACT_ON.join(', '));
+  if (!REACT_DO.includes(e.do)) out.push('react do ' + e.do + ' is not one of ' + REACT_DO.join(', '));
+  if ((e.do === 'cast' || e.do === 'reset') && (typeof e.move !== 'string' || (e.move !== '*heal' && moves && !moves.includes(e.move)))) out.push('a ' + e.do + ' names a live move or *heal');
+  if (['mana', 'heal', 'shield', 'echo', 'carry'].includes(e.do) && !(Number.isInteger(e.pm) && e.pm > 0 && e.pm <= 1000)) out.push('a ' + e.do + ' reaction carries pm 1..1000');
+  if (e.of !== undefined && (typeof e.of !== 'string' || (moves && !moves.includes(e.of)))) out.push('a reaction reads the moments of a live move (of)');
+  if (e.to !== undefined && !['self', 'lowest'].includes(e.to)) out.push('a reaction lands to self or lowest');
+  if (e.do === 'status' && !isStatus(e.status)) out.push('a status reaction names a status');
+  for (const k of ['ms', 'capMs', 'clockMs']) if (e[k] !== undefined && !(Number.isInteger(e[k]) && e[k] > 0 && e[k] % 100 === 0)) out.push(k + ' is a whole number of 100 ms steps');
+  if ((e.do === 'reset' || e.do === 'echo') && !e.ms) out.push('a ' + e.do + ' names its ms');
+  if (e.do === 'carry' && !(Number.isInteger(e.r) && e.r >= 1 && e.r <= 8 && Number.isInteger(e.capPm) && e.capPm > 0 && e.capPm <= 1000)) out.push('a carry names its reach r and its cap capPm');
+  if (e.do === 'boon' && !isStatus(e.status)) out.push('a boon names a status');
+  if (e.do === 'ready' && (typeof e.move !== 'string' || (moves && !moves.includes(e.move)))) out.push('a ready names a live move');
+  if (e.do === 'pass' && e.what !== 'mark' && !isStatus(e.what)) out.push('a pass moves the mark or a status (what)');
+  if (e.has !== undefined && !isStatus(e.has)) out.push('a reaction reads a status the moment\'s monster carries (has)');
+  if (e.belowPm !== undefined && !(Number.isInteger(e.belowPm) && e.belowPm > 0 && e.belowPm < 1000)) out.push('a health line is a permille 1..999 (belowPm)');
+  if (e.on === 'hp_below' && e.belowPm === undefined) out.push('hp_below names its line (belowPm)');
+  return out;
+}
 
 /** Every problem with the map (or `nodes`, a map of the same shape: a test plants a defective row), as strings. Empty = valid. */
 /** @param {readonly object[]} [nodes] @param {{ moves?: string[], values?: object }} [opts] */
@@ -797,18 +825,7 @@ export function validate(nodes = TALENT_NODES, opts = {}) {
           }
           if (e.hotAll && !e.hotMs) out.push(where + 'hotAll lays the heal over hotMs: name it');
         } else if (e.kind === 'react') {
-          for (const k of Object.keys(e)) if (!REACT_FIELDS.has(k)) out.push(where + 'react field ' + k + ' is not one the engine reads');
-          if (typeof e.id !== 'string' || !/^[a-z_]{1,48}$/.test(e.id)) out.push(where + 'a reaction names its id');
-          if (!REACT_ON.includes(e.on)) out.push(where + 'react on ' + e.on + ' is not one of ' + REACT_ON.join(', '));
-          if (!REACT_DO.includes(e.do)) out.push(where + 'react do ' + e.do + ' is not one of ' + REACT_DO.join(', '));
-          if ((e.do === 'cast' || e.do === 'reset') && (typeof e.move !== 'string' || (e.move !== '*heal' && moves && !moves.includes(e.move)))) out.push(where + 'a ' + e.do + ' names a live move or *heal');
-          if (['mana', 'heal', 'shield', 'echo', 'carry'].includes(e.do) && !(Number.isInteger(e.pm) && e.pm > 0 && e.pm <= 1000)) out.push(where + 'a ' + e.do + ' reaction carries pm 1..1000');
-          if (e.of !== undefined && (typeof e.of !== 'string' || (moves && !moves.includes(e.of)))) out.push(where + 'a reaction reads the moments of a live move (of)');
-          if (e.to !== undefined && !['self', 'lowest'].includes(e.to)) out.push(where + 'a reaction lands to self or lowest');
-          if (e.do === 'status' && !isStatus(e.status)) out.push(where + 'a status reaction names a status');
-          for (const k of ['ms', 'capMs', 'clockMs']) if (e[k] !== undefined && !(Number.isInteger(e[k]) && e[k] > 0 && e[k] % 100 === 0)) out.push(where + k + ' is a whole number of 100 ms steps');
-          if ((e.do === 'reset' || e.do === 'echo') && !e.ms) out.push(where + 'a ' + e.do + ' names its ms');
-          if (e.do === 'carry' && !(Number.isInteger(e.r) && e.r >= 1 && e.r <= 8 && Number.isInteger(e.capPm) && e.capPm > 0 && e.capPm <= 1000)) out.push(where + 'a carry names its reach r and its cap capPm');
+          for (const p of reactProblems(e, moves)) out.push(where + p);
         } else if (e.kind === 'heal_in') {
           if (!Number.isInteger(e.pm) || e.pm === 0 || Math.abs(e.pm) > TALENT_RULES.healInCapPm) out.push(where + 'healing received is a permille within the cap');
           if (e.when !== undefined && !WHEN.includes(e.when) && !WHEN_RE.test(e.when)) out.push(where + 'when ' + e.when + ' is not a condition the engine reads');

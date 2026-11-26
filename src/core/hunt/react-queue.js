@@ -2,9 +2,10 @@
 // src/core/hunt/react-queue.js — WHAT SETS A REACTION OFF: the queue the fight's seams write and reactions.js drains (lane/talent-effects;
 // docs/design/redesign/15 "New engine pieces", 16, 17).
 //
-// A hero's REACTIONS are rows the boundary writes on its unit (`reacts`, src/core/talents.js grantsOf: { id, on, do, ... }, never
-// persisted). The seams that see a moment (damage.js landHit: a hit, a crit, a kill, a hit taken, an ally hit, a fall toward the line, a
-// shell broken; targeting.js: a taunt, a taunt lost) call queueOn for the heroes whose rows react to it; world-step.js drains the queue
+// A hero's REACTIONS are rows the boundary writes on its unit (`reacts`, src/core/talents.js grantsOf: { id, on, do, ... }, and a worn
+// Signature's, src/core/hunt/signature-rules.js; never persisted). The seams that see a moment (damage.js landHit: a hit, a crit, a kill, a
+// hit taken, an ally hit, a fall toward the line, a shell broken, any monster's death, the hero's own health under a line; heal-rules.js
+// landHeal: a cast heal landing; targeting.js: a taunt, a taunt lost) call queueOn for the heroes whose rows react to it; world-step.js drains the queue
 // after every hook of the sub-step (reactions.js drainReactions), in the order the moments happened. While the queue drains nothing new
 // is queued, so a reaction never sets off another (15: "a free cast, a reset or an explosion can't set off another one").
 //
@@ -30,8 +31,15 @@ export function reactorsOf(inst) {
 /** Does unit `u` react to moment `on`. */
 export const reactsOn = (u, on) => !!u && u.alive === true && Array.isArray(u.reacts) && u.reacts.some((r) => r.on === on);
 
+/* A ROW'S READING OF THE MOMENT AS IT HAPPENS (a Signature's, src/data/signatures.js; read here, not when the queue drains, since the same
+   hook may change it before then): `has` the moment's unit carries a live stack of that status (The Wood Book: "vs a chilled target"),
+   `belowPm` the moment's unit is under that share of its max health (Cairn Belt: "below 30% health") */
+const carries = (t, id) => !!t && Array.isArray(t.statuses) && t.statuses.some((st) => st.s === id && st.left > 0);
+const under = (t, pm) => !!t && Number(t.maxHp) > 0 && Math.floor(Number(t.hp) || 0) * 1000 < pm * Math.floor(Number(t.maxHp));
+const holdsNow = (row, ctx) => (row.has === undefined || carries(ctx.t, row.has)) && (row.belowPm === undefined || under(ctx.t, row.belowPm));
+
 /** QUEUE every row of hero `u` that reacts to moment `on`, with what the moment says (`ctx`). Nothing while the queue drains. */
 export function queueOn(inst, u, on, ctx) {
   if (!inst || inst.reacting || !reactsOn(u, on)) return;
-  for (const row of u.reacts) if (row.on === on) (inst.reactQ || (inst.reactQ = [])).push({ u, row, ctx });
+  for (const row of u.reacts) if (row.on === on && holdsNow(row, ctx)) (inst.reactQ || (inst.reactQ = [])).push({ u, row, ctx });
 }

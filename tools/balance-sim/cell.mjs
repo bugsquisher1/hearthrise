@@ -522,6 +522,9 @@ export async function loadCellRunner(root) {
         /* cell.traitsBySeat [[{ id, rank }] | null]: the Traits each seat's pieces carry (tools/balance-program/trait-kits.mjs; the engine plays them,
            src/core/hunt/trait-rules.js, dark in the game), handed as play-ground.mjs opts.traits */
         if (Array.isArray(cell.traitsBySeat)) opts.traits = (role, i) => cell.traitsBySeat[i] || null;
+        /* cell.signatureBySeat [Signature id | null]: the Signature each seat plays (src/data/signatures.js; the engine plays it,
+           src/core/hunt/signature-rules.js, dark in the game), handed as play-ground.mjs opts.signature */
+        if (Array.isArray(cell.signatureBySeat)) opts.signature = (role, i) => cell.signatureBySeat[i] || null;
         /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
         if (run) Object.assign(opts, { ground: opts.ground || ground, sessionMode: ground.mode, tower: { floor: run.floor }, dropEnded: true });

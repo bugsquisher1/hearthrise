@@ -340,6 +340,12 @@
         "gzipBytes": 967440,
         "on": "2026-11-24",
         "why": "Glade, Warrens, Slake, Pyre, Krell on the scale and Ford/Muster re-pointed to 8.3 (lane/scale-grounds-sweep)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 969002,
+        "on": "2026-11-26",
+        "why": "lane/signatures-sample: the worn-Signature rules (src/core/hunt/signature-rules.js, src/data/signatures.js) and the shared reaction pieces join the game half with combat-sim, dark (+1.5 KB gzip)"
       }
     ]
   }

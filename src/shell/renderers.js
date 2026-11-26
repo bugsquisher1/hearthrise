@@ -52,6 +52,7 @@ import { renderGameMaster } from './windows/game-master.js';
 import { renderTraining } from './windows/training.js';
 import { renderFactionJoin } from './windows/faction-join.js';
 import { renderTower } from './windows/tower.js';
+import { renderTalents } from './windows/talents.js';
 
 export const WINDOW_RENDERERS = Object.freeze({
   hunts: renderHunts,
@@ -68,6 +69,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   house: renderHouse,
   training: renderTraining,
   tower: renderTower,
+  talents: renderTalents,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,

@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-26 · lane/r-ui-roads (the Roads screen, R-UI)
+1. *A window that is mostly one big view loads on need.* Eager, the map put +15.4 KB gzip on every player's town stage; behind a door (`new URL('./talents/index.js', import.meta.url)`, the game-master pattern, listed in `site-delivery.mjs RUNTIME_MODULES`) it costs +4 KB. Measure the base with `git archive` into the scratchpad and the same borrowed esbuild before blaming the lane.
+2. *Geometry derived from rows needs a look, not a proof.* Every numeric test passed on a map whose trunks were 240 px long and whose vows fanned back over their road; the screenshot found it. Shoot early, then pin the properties (no overlap, density band) in the test.
+3. *A forced label clamped to the stage lands on its neighbour.* Names past the rim pushed back on screen stacked at the top edge; mid-wedge names cannot collide (the wedges are disjoint).
+4. *A gate reads the server's own number first.* `spendProblem` derives the points from the Level; the button also reads the section's `left`, so a section that says none keeps it off whatever the formula says (RW-9 caught it).
+5. *A mutant must model the defect, not a side path.* "Owned before the answer" escaped because the route class outranked the owned class; the mutant that also dropped the route is the real prediction.
+
 ## 2026-11-26 · lane/scale-grounds-sweep steps 2 and 3 (the bronze grounds, the Morrow Hills, the wings on 8.3)
 1. *A capped climb measures the cap.* The Bone Wing's, the Ox Road's and the Roost's strong fours held exactly their row's topStep (580, 200, 200); a placeholder or an old top is a ceiling, so lift it (refStep + gapMax or more) before the cut and read the BIS hold again.
 2. *Compute the formula's companies before reading a cut.* `companyKits` said the Ox Road's top Level 128 cannot wear Cobalt (worn from 130), so its strong four rates 122 and the reference reads depth 18 whatever the steps say; one Level band move (top 130) puts it at 10. The Lab's MID kit wears the Level's best tier (wearAhead), so Carter's Rest's reference at 117 wears Dawnsteel, a tier over its base 100.

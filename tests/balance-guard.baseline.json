@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "c5eb0ad1d",
- "at": "2026-11-22",
- "why": "G16 ledger rows re-pinned, cause MEASURED (per-player-cost --only, ledger by kind, on archived trees): lane/c-tohit-ratio 2398754cb (to-hit as a ratio, rows re-authored) makes the Level 10 lone Thicket hero use supplies in 7 of 12 windows (was 4) and the Sewer four in 13 of 48 hero-windows (was 11); its parent 2398754cb^ reads 48 / 44.3, the commit 57 / 45.8. The rows are hunt supply_own, already ONE row a hero a save (meta.items batches every item), the journal of supplies destroyed (CLAUDE.md 1); combat accrue is unchanged at one a save. Worth it: no writer journals per item, and 1047-hourly-journal folds both shapes to one row a hero an hour after 180 min, so retained rows do not grow. The cut left is merging supply_own into hr_apply's accrue row (an economy-journal change across hr_apply and every restated apply_member body), not made here. Every other line's value re-read on this tree (set/v0.2.144 c5eb0ad1d + lane/a-ci-reds-144); the moves since 7392474f8 are in run 44979114749's MOVED lines.",
+ "commit": "221c8b67e",
+ "at": "2026-11-26",
+ "why": "G16 cost re-read after lane/scale-grounds-sweep's accepted per-player-cost raise (2026-11-26: the Sewer on the Danger scale, party4_L20_millrace_sewer ledger rows 45 -> 59.3 a hero-hour, its reason in tests/per-player-cost.baseline.json); every reference account's day reads that fixture, so G16 read 1.25-1.32 and the selftest's cost plant had no clean row (GitHub 45879403066). Re-written on set/v0.2.144 b6f8409d2 by lane/ci-reds-1126b",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -20,152 +20,151 @@
  "cost": {
   "new": {
    "statementsADay": 5460,
-   "rowWritesADay": 40954,
-   "ledgerRowsADay": 684,
+   "rowWritesADay": 34128,
+   "ledgerRowsADay": 900,
    "dbSADay": 193,
    "journalRowsADay": 2757
   },
   "ownfour": {
    "statementsADay": 5460,
-   "rowWritesADay": 133782,
-   "ledgerRowsADay": 2270,
+   "rowWritesADay": 121496,
+   "ledgerRowsADay": 2846,
    "dbSADay": 605,
    "journalRowsADay": 11482
   },
   "heavy": {
    "statementsADay": 5460,
-   "rowWritesADay": 133782,
-   "ledgerRowsADay": 2270,
+   "rowWritesADay": 121496,
+   "ledgerRowsADay": 2846,
    "dbSADay": 608,
    "journalRowsADay": 11634
   },
   "premium": {
    "statementsADay": 5460,
-   "rowWritesADay": 133782,
-   "ledgerRowsADay": 2270,
+   "rowWritesADay": 121496,
+   "ledgerRowsADay": 2846,
    "dbSADay": 605,
    "journalRowsADay": 11482
   },
   "ceiling": {
    "statementsADay": 10921,
-   "rowWritesADay": 267564,
-   "ledgerRowsADay": 4541,
+   "rowWritesADay": 242991,
+   "ledgerRowsADay": 5693,
    "dbSADay": 1181,
    "journalRowsADay": 21445
   },
   "whale": {
    "statementsADay": 5460,
-   "rowWritesADay": 133782,
-   "ledgerRowsADay": 2270,
+   "rowWritesADay": 121496,
+   "ledgerRowsADay": 2846,
    "dbSADay": 591,
    "journalRowsADay": 10722
   },
   "friends": {
    "statementsADay": 1365,
-   "rowWritesADay": 33445,
-   "ledgerRowsADay": 568,
+   "rowWritesADay": 30374,
+   "ledgerRowsADay": 712,
    "dbSADay": 193,
    "journalRowsADay": 2795
   }
  },
  "values": {
   "G1": {
-   "thicket": 1.065,
-   "glade": 1.07,
-   "ford": 1.375,
-   "slake": 1.257,
-   "pyre": 1.473,
-   "hold": 1.382,
-   "rest*": 1.25,
-   "catacombs*": 1.303
+   "muster_barrows hammer": 0.498,
+   "muster_barrows mage": 0.604,
+   "hasks_ford hammer": 0.802,
+   "hasks_ford mage": 0.854,
+   "catacomb_bone_wing hammer": 0.672,
+   "catacomb_bone_wing mage": 0.87,
+   "meadowbrook_thicket hammer": 0.521,
+   "meadowbrook_thicket mage": 0.757,
+   "wickstead hammer": 0.62,
+   "wickstead mage": 0.897,
+   "millrace_sewer hammer": 0.704,
+   "millrace_sewer mage": 0.82,
+   "mill_cellar hammer": 0.9,
+   "mill_cellar mage": 0.972,
+   "mosslight_glade hammer": 0.635,
+   "mosslight_glade mage": 0.933,
+   "coppercap_warrens hammer": 0.481,
+   "coppercap_warrens mage": 0.584,
+   "the_slake hammer": 0.772,
+   "the_slake mage": 1.009,
+   "pyre_field hammer": 0.586,
+   "pyre_field mage": 0.863,
+   "krells_hold hammer": 0.818,
+   "krells_hold mage": 1.152,
+   "carters_rest hammer": 0.737,
+   "carters_rest mage": 1.068,
+   "ox_road hammer": 0.67,
+   "ox_road mage": 0.784,
+   "wyvern_roost hammer": 0.609,
+   "wyvern_roost mage": 0.711,
+   "catacomb_flooded_wing hammer": 0.75,
+   "catacomb_flooded_wing mage": 0.951
   },
   "G2": {
-   "thicket": 1.136,
-   "glade": 1.209,
-   "ford": 1.189,
-   "slake": 1.305,
-   "pyre": 1.318,
-   "hold": 1.271,
-   "rest*": 1.235,
-   "catacombs*": 1.156
-  },
-  "G3": {
-   "glade": 1.836,
-   "ford": 2.964,
-   "slake": 2.819,
-   "pyre": 2.244,
-   "hold": 2.298,
-   "rest*": 2.146,
-   "catacombs*": 1.961
-  },
-  "G4": {
-   "glade": 1.918,
-   "ford": 3.376,
-   "slake": 3.081,
-   "pyre": 2.391,
-   "hold": 2.38,
-   "rest*": 2.308,
-   "catacombs*": 2.071
-  },
-  "G5": {
-   "ford": 72.8,
-   "pyre": 71.3,
-   "hold": 73.5,
-   "ford-10": 49.5,
-   "pyre-10": 58.6,
-   "hold-10": 64.5
+   "thicket": 1.109,
+   "glade": 1.136,
+   "ford": 1.169,
+   "slake": 1.204,
+   "pyre": 1.274,
+   "hold": 1.158,
+   "rest*": 1.138,
+   "catacombs*": 1.137
   },
   "G6": {
-   "Level 10": 5.81,
-   "longest under 10": 1.71
+   "Level 10": 6.61,
+   "longest under 10": 1.98
   },
   "G7": {
-   "thicket": 4014,
-   "glade": 11215,
-   "ford": 14493,
-   "slake": 15857,
-   "pyre": 28118,
-   "hold": 29767,
-   "rest*": 24465,
-   "catacombs*": 31434
+   "millrace_sewer -> mosslight_glade": 0.617,
+   "mosslight_glade -> coppercap_warrens": 0.645,
+   "mosslight_glade -> hasks_ford": 0.671,
+   "mosslight_glade -> the_slake": 0.645,
+   "hasks_ford -> muster_barrows": 0.645,
+   "muster_barrows -> krells_hold": 0.684,
+   "muster_barrows -> pyre_field": 0.619,
+   "krells_hold -> carters_rest": 0.595,
+   "carters_rest -> ox_road": 0.698,
+   "ox_road -> wyvern_roost": 0.487,
+   "wyvern_roost -> catacomb_bone_wing": 0.658,
+   "wyvern_roost -> catacomb_flooded_wing": 0.741
   },
   "G8": {
-   "ford": 9562.75,
-   "pyre": 15505,
-   "hold": 16312.5
+   "ford": 16065.5,
+   "pyre": 22207.5,
+   "hold": 23473
   },
   "G10": {
-   "glade lone xp": 1.072,
-   "glade lone dmg": 4.314,
-   "glade four xp": 1.045,
-   "glade four dmg": 1.465,
-   "slake lone xp": 1.068,
-   "slake lone dmg": 23.426,
-   "slake four xp": 1.093,
-   "slake four dmg": 2.599,
-   "hold lone xp": 1.054,
-   "hold lone dmg": 21.402,
-   "hold four xp": 1.028,
-   "hold four dmg": 1.005
+   "glade lone xp": 1.073,
+   "glade lone dmg": 11.953,
+   "glade four xp": 1.036,
+   "glade four dmg": 2.318,
+   "slake lone xp": 1.055,
+   "slake lone dmg": 36.93,
+   "slake four xp": 1.043,
+   "slake four dmg": 0.496,
+   "hold lone xp": 1.03,
+   "hold four xp": 1.01,
+   "hold four dmg": 1.157
   },
   "G11": {
-   "glade xp": 1.028,
-   "glade dmg": 0.167,
-   "slake xp": 1.019,
-   "slake dmg": 0.082,
-   "hold xp": 1.009,
-   "hold dmg": 0.057
+   "glade xp": 1.018,
+   "glade dmg": 0.089,
+   "slake xp": 1.017,
+   "slake dmg": 0.1,
+   "hold xp": 1.025,
+   "hold dmg": 0.06
   },
   "G12": {
-   "glade Tempering rung 1": 2.438,
-   "glade yard +10": 0.314,
-   "glade item 12 h": 14.737,
-   "slake Tempering rung 1": 1.703,
-   "slake yard +10": 2.082,
-   "slake item 12 h": 70.133,
-   "hold Tempering rung 1": 3.932,
-   "hold yard +10": 5.855,
-   "hold item 12 h": 161.181
+   "glade Tempering rung 1": 1.478,
+   "glade yard +10": 1.177,
+   "glade item 12 h": 67.282,
+   "slake yard +10": 2.39,
+   "slake item 12 h": 83.954,
+   "hold yard +10": 4.625,
+   "hold item 12 h": 105.133
   },
   "G13": {
    "staged top": 104
@@ -182,8 +181,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 41.778,
-   "tower": 51.997
+   "krell": 45.611,
+   "tower": 115.497
   },
   "G18": {
    "new": 12,
@@ -195,46 +194,46 @@
    "friends": 12
   },
   "K1": {
-   "Level XP": 0.902,
-   "kills": 0.904,
-   "net gold": 0.923,
-   "last seat dmg share": 1.165,
-   "party dmg": 0.746
+   "Level XP": 0.855,
+   "kills": 0.857,
+   "net gold": 0.879,
+   "last seat dmg share": 1.051,
+   "party dmg": 0.639
   },
   "G19": {
-   "glade pair": 2.226,
-   "glade three": 2.23,
-   "ford pair": 3.852,
-   "ford three": 3.595
+   "glade pair": 2.335,
+   "glade three": 2.276,
+   "ford pair": 4.26,
+   "ford three": 4.08
   },
   "G21": {},
   "G22": {
-   "thicket 2nd": 0.342,
-   "glade 2nd": 0.284,
-   "ford 2nd": 0.349,
-   "slake 2nd": 0.378,
-   "pyre 2nd": 0.28,
-   "hold 2nd": 0.343,
-   "pyre all 6 (four)": 0.762
+   "thicket 2nd": 0.304,
+   "glade 2nd": 0.289,
+   "ford 2nd": 0.343,
+   "slake 2nd": 0.368,
+   "pyre 2nd": 0.246,
+   "hold 2nd": 0.326,
+   "pyre all 6 (four)": 0.532
   },
   "G23": {
    "shield": 0.972,
    "sword": 0.98,
-   "club": 0.98,
-   "dual_axe": 0.686,
+   "club": 0.922,
+   "dual_axe": 0.98,
    "ranged": 0.922,
    "destruction": 0.922,
    "restoration": 1
   },
   "G24": {
-   "coppercap_warrens@pyre hammer": 0.934,
-   "coppercap_warrens@pyre mage": 1.204,
-   "coppercap_warrens@hold hammer": 0.946,
-   "coppercap_warrens@hold mage": 1.187,
-   "mosslight_glade@ford hammer": 0.936,
-   "mosslight_glade@ford mage": 1.108,
-   "meadowbrook_thicket@hold hammer": 0.803,
-   "meadowbrook_thicket@hold mage": 0.905
+   "coppercap_warrens@pyre hammer": 1.028,
+   "coppercap_warrens@pyre mage": 1.271,
+   "coppercap_warrens@hold hammer": 1.02,
+   "coppercap_warrens@hold mage": 1.283,
+   "mosslight_glade@ford hammer": 0.995,
+   "mosslight_glade@ford mage": 1.223,
+   "meadowbrook_thicket@hold hammer": 0.806,
+   "meadowbrook_thicket@hold mage": 0.923
   },
   "D1": {},
   "D2": {}
@@ -274,6 +273,11 @@
    "at": "2026-11-22",
    "commit": "c5eb0ad1d",
    "why": "G16 ledger rows re-pinned, cause MEASURED (per-player-cost --only, ledger by kind, on archived trees): lane/c-tohit-ratio 2398754cb (to-hit as a ratio, rows re-authored) makes the Level 10 lone Thicket hero use supplies in 7 of 12 windows (was 4) and the Sewer four in 13 of 48 hero-windows (was 11); its parent 2398754cb^ reads 48 / 44.3, the commit 57 / 45.8. The rows are hunt supply_own, already ONE row a hero a save (meta.items batches every item), the journal of supplies destroyed (CLAUDE.md 1); combat accrue is unchanged at one a save. Worth it: no writer journals per item, and 1047-hourly-journal folds both shapes to one row a hero an hour after 180 min, so retained rows do not grow. The cut left is merging supply_own into hr_apply's accrue row (an economy-journal change across hr_apply and every restated apply_member body), not made here. Every other line's value re-read on this tree (set/v0.2.144 c5eb0ad1d + lane/a-ci-reds-144); the moves since 7392474f8 are in run 44979114749's MOVED lines."
+  },
+  {
+   "at": "2026-11-26",
+   "commit": "221c8b67e",
+   "why": "G16 cost re-read after lane/scale-grounds-sweep's accepted per-player-cost raise (2026-11-26: the Sewer on the Danger scale, party4_L20_millrace_sewer ledger rows 45 -> 59.3 a hero-hour, its reason in tests/per-player-cost.baseline.json); every reference account's day reads that fixture, so G16 read 1.25-1.32 and the selftest's cost plant had no clean row (GitHub 45879403066). Re-written on set/v0.2.144 b6f8409d2 by lane/ci-reds-1126b"
   }
  ]
 }

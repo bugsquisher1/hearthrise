@@ -335,6 +335,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/roads-window.mjs
+      - name: Roads window - the Talents map zooms Country Road Node, previews a route with its cost and spends only from the server's state
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/roads-window.mjs
+          node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
+      # ── END SELF-REGISTERED GUARDS ──
+
   # db-replay-12: the two proofs that PLANT INTO THE WORKING TREE (tests/mutation-safety.mjs restores and hash-verifies),
   # so they share a job with nothing else that reads those files (2026-11-13, lane/a-audit-guards). Measured locally:
   # leaderboard-server-source --mutate 852 s (14 mutants, each a cold full-chain replay) + live-settlement --mutate 263 s
@@ -6672,17 +6681,6 @@ jobs:
           node tools/mutant-gate.mjs node tools/guard-anchors.mjs --selftest
           node tools/guard-anchors.mjs
 
-      # MUTANT ANCHORS (2026-10-22). Three runs went red ~1 h in because a lane's
-      # refactor moved the exact text a mutant patches, and the browser --mutate
-      # shards only met it on that mutant's turn. Every mutant list in tests/ and
-      # tools/ is read as data and each anchor must match its file EXACTLY once
-      # (an implied target: at least one file the test names). ~1 s, no browser.
-      # --selftest: a stale anchor, a double match, a stale helper-call anchor and
-      # a stale implied SQL target each go red; the clean control is green.
-      - name: Mutant anchors — every mutant anchor matches its file exactly once
-        run: |
-          node tools/mutant-gate.mjs node tests/mutant-anchors.mjs --selftest
-          node tests/mutant-anchors.mjs
       # HUNT-SCREEN SHARD PLAN (2026-10-22, run 39765799475: shard 1/3 CANCELLED at
       # 46 min). No browser: the --shard=K/N lines in this file are 1..N of one N,
       # the time-balanced plan for N puts every hunt-screen mutant in exactly one
@@ -6971,6 +6969,12 @@ jobs:
         run: |
           node tests/item-standing.mjs
           node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate
+      # tests/mutant-anchors.mjs
+      - name: Mutant anchors - every mutant anchor matches its file exactly once
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/mutant-anchors.mjs --selftest
+          node tests/mutant-anchors.mjs
       # tests/needs-you.mjs
       - name: Needs you on the return card - three at most, ranked, one row a kind, providers by kind
         if: ${{ !cancelled() }}

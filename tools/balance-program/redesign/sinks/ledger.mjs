@@ -31,6 +31,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from '../../../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..', '..');
@@ -225,7 +226,7 @@ export function referenceReading(pricing = PRICING) {
   return { reference: readOf(runAccount(PROFILES.reference, 180, pricing)[180]).ratio, withHall: readOf(runAccount(PROFILES['reference, buys the hall'], 180, pricing)[180]).ratio };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const out = { days: DAYS, report: REPORT, hour: HOUR, kitWork: r3(KIT_WORK), workDayH: WORK_DAY_H, imbueFrom: IMBUE_FROM, traitsFrom: TRAITS_FROM, profiles: {} };
   console.log('THE GOLD LEDGER (lane/sn-sinks): sinks over minted, cumulative from day 1, four heroes an account, castle 0');
   console.log(`  MEASURED (${REPORT}): Steady pays ${r3(HOUR.steady.payX)} of the wage an hour, coin ${pct(HOUR.steady.coinShare)} of it, the store kit ${pct(HOUR.steady.storeShare)}; Bold pays ${r3(HOUR.bold.payX)}, kit ${pct(HOUR.bold.storeShare)}, ${r3(HOUR.bold.deathsPerHeroH * 10)} deaths a hero a 10 h day`);

@@ -201,7 +201,12 @@ const SEED = '-4611686018427387904';
    glade-4's TALLY, the same lane after its Glade rows settled: the iron pieces the bronze grounds gave up drop in the Glade (the Iron Sword on
    the crow, the Oak Wand on the bear, the Oakboard Spellbook and the Bramble Blade on the vine, the Iron Hatchets on the poacher), so its
    loot draws shift from the first settle: items and the coin rolls beside them move (coin 6,052 -> 6,041), kills hold (512), world and timeline
-   hold. Proof: glade-4 played on the set's tree and on this one, totals diffed field by field. */
+   hold. Proof: glade-4 played on the set's tree and on this one, totals diffed field by field.
+   RE-PINNED 2026-11-26 (lane/ci-reds-1126b, GitHub 45879403066 on next 79f265559), glade-4's and glade-1-kite's TALLY ONLY: every world and
+   timeline hash and every kill count held (512 / 147); glade-4's tally moves from settle 1, glade-1-kite's at settles 7, 9 and 11. Cause, data:
+   the sweep's Glade rows after its own re-pin (12e6b4fb4, 826ce98ca: one Scarce weapon a body, so the Oak Wand leaves the bear's Scarce for
+   the vine's Rare beside the Oakboard Spellbook, the Ironbound Shield goes Rare on the sluicer). Proof: src/data/monsters.js of 9ed4c362e (the
+   pin before) laid back over a git archive of set/v0.2.144 b6f8409d2: all five scenarios hold the old pin (exit 0), Signatures (dark) included. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

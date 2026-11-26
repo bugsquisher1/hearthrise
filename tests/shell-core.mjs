@@ -339,7 +339,7 @@ async function runTests(mods) {
         ok(!/Shortcut: /.test(WH.helpLine(row, true)) && (!row.key || /Shortcut: /.test(WH.helpLine(row, false))), row.id + ': the shortcut label follows the keyboard');
       }
     }
-    eq(SW.filter((r) => r.help).map((r) => r.id).sort(), ['hunt-prep', 'hunts', 'inventory', 'shop', 'skills-trade', 'storage', 'wiki'], 'the windows with a help line');
+    eq(SW.filter((r) => r.help).map((r) => r.id).sort(), ['hunt-prep', 'hunts', 'inventory', 'shop', 'skills-trade', 'storage', 'talents', 'wiki'], 'the windows with a help line');
     for (const bad of [[{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['nope'] }], [{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['a'] }],
       [{ id: 'a', label: 'A', key: 'a', width: 1, pageOf: ['a'], launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, over: true, modal: true, launcher: false }],
       [{ id: 'a', label: 'A', key: 'a', width: 1, rise: true, modal: true, launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, rise: 'yes' }]]) {

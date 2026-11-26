@@ -37,6 +37,8 @@ export function talentsHtml() {
     + '<h3 class="hw-tl-fork"></h3><p class="hs-note hw-tl-cost"></p>'
     + '<ul class="hw-ledger hw-tl-options"></ul>'
     + '<button type="button" class="hh-tool" data-hs-act="tl-suggested"></button><p class="hs-note hw-tl-why"></p>'
+    /* the map, the planning view (src/shell/windows/talents/): a text link, it opens a window */
+    + '<button type="button" class="hh-tool is-link hw-tl-map" data-hs-open="talents"></button>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></section>';
 }
 
@@ -74,6 +76,7 @@ export function patchTalents(body, ctx, sc) {
   const noPoints = !tl || !left;
   prop(go, 'disabled', noPoints || sc.pending);
   text(root.querySelector('.hw-tl-why'), noPoints ? t('talents.no_points') : '');
+  text(root.querySelector('.hw-tl-map'), t('talents.open_map'));
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 }
 

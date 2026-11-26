@@ -779,8 +779,11 @@ async function runTests(M) {
       return TN.townStepsOf(cs, new Map());
     };
     const ground = (r) => { const g = r.steps.find((s) => s.id === 'ground'); return g ? [g.title, g.words, g.verb, g.glyph, g.place] : null; };
+    /* a ground's Levels as the data holds them (the Sewer re-cut 5-25 -> 5-19, 12-targets 8.3): the card's words are checked, never its band typed here */
+    const { HUNT_INDEX } = await import(pathToFileURL(join(M.ROOT, 'src/data/hunts.js')).href);
+    const bandOf = (id) => 'Levels ' + HUNT_INDEX[id].band[0] + '–' + HUNT_INDEX[id].band[1];
     const at7 = await home('mill_cellar', 7);
-    eq(ground(at7), ['Next ground: Meadowbrook Thicket', 'Levels 5–15, recommended for Level 7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'meadowbrook_thicket' }],
+    eq(ground(at7), ['Next ground: Meadowbrook Thicket', bandOf('meadowbrook_thicket') + ', recommended for Level 7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'meadowbrook_thicket' }],
       'the Cellar at the server\'s Level 7: the Thicket, the Hunts list\'s Recommended ground, its Show opening it');
     ok(at7.primary !== 'ground', 'it points, so it is never the gold press');
     const ids = at7.steps.map((s) => s.id), gi = ids.indexOf('ground');
@@ -795,7 +798,7 @@ async function runTests(M) {
     /* a party: every seat's Level, as the Hunts window reads them, and the party's tie goes to the party ground */
     const party = { id: '00000000-0000-4000-8000-000000000001', self_seat: 0, leader_seat: 0,
       members: [{ seat: 0, name: 'Tyler', level: 7, weapon: 'shield' }, { seat: 1, name: 'Mira', level: 6, weapon: 'bow' }, { seat: 2, name: 'Oren', level: 6, weapon: 'staff' }, { seat: 3, name: 'Sef', level: 7, weapon: 'sword' }] };
-    eq(ground(await home('mill_cellar', 7, party)), ['Next ground: The Sewer', 'Levels 5–25, recommended for Levels 6–7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'millrace_sewer' }],
+    eq(ground(await home('mill_cellar', 7, party)), ['Next ground: The Sewer', bandOf('millrace_sewer') + ', recommended for Levels 6–7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'millrace_sewer' }],
       'a party of four at 6 and 7: the Sewer, for the seats\' Levels');
     /* AN OUTGROWN CELLAR (hunt-grounds.js endsAtLevel; the board's 2026-11-19 complete balance look, change 1): the reason names the Level, Hunt
        again has nothing to send (the server refuses it), and once the chores are done the card's press is the next ground, never Hunt again */

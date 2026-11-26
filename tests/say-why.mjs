@@ -227,6 +227,13 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/talents.js': [
     { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested: the line beside it says No points while the server\'s section holds none to spend (the busy line says Spending… for a press)' },
   ],
+  /* the Roads map (lane/r-ui-roads, src/shell/windows/talents/): Spend as suggested in its band and a stone's Take, each off with its line beside it */
+  'src/shell/windows/talents/index.js': [
+    { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested (the map band): the line beside it says No points while the server section holds none to spend' },
+  ],
+  'src/shell/windows/talents/card.js': [
+    { cond: '!can || pending', words: "plain ? (can ? '' : why(problem))", where: 'Take (the node card): shown for the stone the next point could buy, its line says why it is off in the server words (No points, Requires the node before it, No free vow slot)' },
+  ],
   /* Share plan (lane/wn-sh SH): Copy is off with no plan to share, Use this plan when the pasted code changes nothing */
   'src/shell/windows/plan-share.js': [
     { cond: '!code', words: "t('share.none')", where: 'Copy: the line where the code stands says Nothing to share yet while the server holds no plan for this hero' },

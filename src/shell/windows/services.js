@@ -3,7 +3,7 @@
 //
 // Tyler 2026-10-25 ("Lets move services to the 'shop' menu"): no window of its own any more; the Shop
 // (shop.js) shows this pane as its third tab, and R opens the Shop on it (src/data/shell-windows.js tabKeys).
-// Three services the town sells, every number the SERVER's (Tempering, the smith's rungs, is temper-pane.js):
+// Two services the town sells, every number the SERVER's:
 //   Stamina    the next hunting block as the server prices it (`time_blocks`,
 //              1058-hunting-blocks.sql): the 2 h it adds, its gold, and how many
 //              of today's are bought. Buy opens a confirmation with that price; one
@@ -26,7 +26,6 @@ import { whole, gold, hoursWords as hoursText } from '../../render/format.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { runIntent } from '../intent-words.js';
 import { t } from '../../render/player-text.js';
-import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js';
 import { blessAll } from '../bless-all.js';
 import { timeRuleHtml, patchTimeRule, actTimeRule } from './time-rule-pane.js';
 
@@ -34,7 +33,7 @@ const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII
 /* A Blessing's name: "Blessing" when the server sells one, "Blessing II" among several (lane/level-costs, 2026-11-22). */
 const blessName = (b, tier) => t('shop.bless_name', { count: b && b.tiers ? b.tiers.length : 0, n: ROMAN[tier] || String(tier) });
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '', msgAt: null }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { confirm: false, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
 
 /** The tab's skeleton (built once per opening of the Shop, inside its pane). */
 export function servicesPaneHtml() {
@@ -52,7 +51,6 @@ export function servicesPaneHtml() {
     + '<ul class="hw-ledger hw-bless"></ul>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="bless-all"></button></div>'
     + '<p class="hs-note hw-bless-all-why" hidden></p>'
-    + temperPaneHtml()
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -121,9 +119,7 @@ export function patchServicesPane(body, ctx) {
   prop(root.querySelector('.hw-bless-all-why'), 'hidden', !allWhy);
   /* THE HUNTING BLOCK'S "BUY DAILY" RULE (under the stamina block's controls) */
   patchTimeRule(root, cs, sc, 'hunt');
-  patchTemperPane(root, ctx, sc);
-  /* the tab's line answers Stamina and Blessings; Tempering's answer stands in its own section (temper-pane.js) */
-  text(root.querySelector('.hh-intent-msg'), sc.msgAt === 'temper' ? '' : sc.msg);
+  text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
 }
 
@@ -133,15 +129,13 @@ export function actServicesPane(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => patchServicesPane(body, ctx);
-  if (actTemperPane(ctx, action, el, sc, repaint)) return true;
-  if (action === 'time-rule') { sc.msgAt = null; return actTimeRule(ctx, action, el, sc, repaint); }
+  if (action === 'time-rule') return actTimeRule(ctx, action, el, sc, repaint);
   if (action === 'stam-ask') { const q = huntBlockOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
   if (action === 'stam-no') { sc.confirm = false; repaint(); return true; }
   if (action === 'stam-yes' && sc.confirm) {
     const q = huntBlockOf(cs);
     sc.confirm = false;
     if (!q || !q.available) { repaint(); return true; }
-    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyTime('hunt', q.price), t('hud.stam_buying'), () => t('hud.stam_done'));
     return true;
   }
@@ -150,12 +144,10 @@ export function actServicesPane(ctx, body, action, ev, el) {
     const tier = Number(el.getAttribute('data-tier'));
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
-    sc.msgAt = null;
     runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => t('shop.bless_gained', { count: b.tiers.length, name: blessName(b, tier) }));
     return true;
   }
   if (action === 'bless-all') {
-    sc.msgAt = null;
     runIntent(sc, repaint, () => blessAll(cs), t('shop.bless_all_busy'), () => {
       const b = blessingsOf(cs);
       return b ? t('shop.bless_all_done', { count: b.tiers.length }) : '';

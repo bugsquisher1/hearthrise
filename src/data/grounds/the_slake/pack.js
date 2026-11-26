@@ -184,13 +184,13 @@ export default definePack({
     mudlark: 'glass',           // quick (4400), fragile, lands often
     color_sergeant: 'elite',    // the bruiser and the rare carrier
   },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw). A
-     ward and a keen, a life leech and an element ward. Each is a Material in the bag and only sells until its lining exists. */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    green_rivet: { n: 'Green Rivet', icon: '🔩', v: 100, raw: true, imbue: { kind: 'ward', tier: 2 } },
-    barge_nail: { n: 'Barge Nail', icon: '📌', v: 108, raw: true, imbue: { kind: 'keen', tier: 2 } },
-    mudlark_hook: { n: 'Mudlark Hook', icon: '🪝', v: 104, raw: true, imbue: { kind: 'life_leech', tier: 2 } },
-    color_cord: { n: 'Color Cord', icon: '🎗️', v: 116, raw: true, imbue: { kind: 'element_ward', tier: 2 } },
+    green_rivet: { n: 'Green Rivet', icon: '🔩', v: 100, raw: true, part: true },
+    barge_nail: { n: 'Barge Nail', icon: '📌', v: 108, raw: true, part: true },
+    mudlark_hook: { n: 'Mudlark Hook', icon: '🪝', v: 104, raw: true, part: true },
+    color_cord: { n: 'Color Cord', icon: '🎗️', v: 116, raw: true, part: true },
   },
   itemText: {
     green_rivet: 'A copper rivet off a Greened Pikeman\'s harness. The river silt turned it green',

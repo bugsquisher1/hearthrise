@@ -11,9 +11,8 @@
 //                      each false, true, or an object with the line's words; null until the server has said the Level
 // ════════════════════════════════════════════════════════════════════════
 import { levelOf } from './character-sections.js';
-import { bankOf, blessingsOf } from './item-sections.js';
+import { bankOf, blessingsOf, temperStepsOf } from './item-sections.js';
 import { tallyOf } from './tally-sections.js';
-import { temperRowsOf } from './temper-sections.js';
 import { tallyTask } from '../data/tally-tasks.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 
@@ -23,7 +22,7 @@ export function crierFactsOf(cs) {
   if (!lv) return null;
   const bank = bankOf(cs);
   const bless = blessingsOf(cs);
-  const temper = temperRowsOf(cs);
+  const temper = temperStepsOf(cs);
   const tally = tallyOf(cs);
   const open = tally ? tally.held.find((h) => !h.done) || null : null;
   const task = open ? tallyTask(open.task) : null;
@@ -32,8 +31,8 @@ export function crierFactsOf(cs) {
     unhunted: lv.xp === 0,
     no_blessing: !!bless && !bless.tiers.some((t) => t.held),
     storage_unused: !!bank && bank.length === 0,
-    /* gear with a ladder the hero has never begun, the smith's first rung on offer (temper-sections.js temperFirstRungOf's rule) */
-    untempered: !!temper && [temper.blows, temper.armor].some((r) => !!r.ladder && r.ladder.rung === 0 && !!r.ladder.offer),
+    /* a worn piece on a slot whose first Temper rank this hero's Level opens and has never bought (the server's temper_steps; dark: false) */
+    untempered: !!temper && Object.values(temper).some((r) => r.itemLevel !== null && r.rank === 0 && r.cap > 0),
     no_task: !!tally && tally.held.length === 0,
     task_open: open && task && ground ? { label: task.label, count: open.target - open.kills, ground, hunt: open.hunt } : false,
   };

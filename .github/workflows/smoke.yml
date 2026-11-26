@@ -1793,7 +1793,7 @@ jobs:
           node tools/gen-flame-temper.mjs --check
           node tools/mutant-gate.mjs node tools/gen-flame-temper.mjs --selftest
       # tests/imbue.mjs
-      - name: Imbuement rows (one of each kind a slot, a part from another ground, no family keys), life and the fee
+      - name: Imbuement rows (one of each kind a slot, a part from another open ground, no family keys), life, the fee, the worn set and the consumable slice's room
         if: ${{ !cancelled() }}
         run: |
           node tests/imbue.mjs
@@ -5397,6 +5397,12 @@ jobs:
         run: |
           node tests/carry-on.mjs
           node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
+      # tests/plan-share.mjs
+      - name: Share plan - a code made on one account rebuilt on a second, a tampered code refused
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/plan-share.mjs
+          node tools/mutant-gate.mjs node tests/plan-share.mjs --mutate
       # tests/recruit-company.mjs
       - name: The recruited company's first party hunt - the bow shoots and Talent points are spent as suggested, both doors (1038, 1069)
         if: ${{ !cancelled() }}
@@ -5417,6 +5423,12 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
           node tests/trade-formulas.mjs
           node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
+      # tests/whats-new.mjs
+      - name: What's new - one card an account, the fresh line for a returning account
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/whats-new.mjs
+          node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
       # tests/work-blocks.mjs
       - name: Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
         if: ${{ !cancelled() }}
@@ -6953,6 +6965,12 @@ jobs:
         run: |
           node tests/hunt-screen-pure.mjs
           node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
+      # tests/item-standing.mjs
+      - name: Presentation floor - the Rare and Signature frame
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/item-standing.mjs
+          node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate
       # tests/needs-you.mjs
       - name: Needs you on the return card - three at most, ranked, one row a kind, providers by kind
         if: ${{ !cancelled() }}
@@ -7011,29 +7029,17 @@ jobs:
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
 
-      # TEMPERING (Tyler 2026-11-04, lane/c-gear-upgrade): the sale of a rung on the replayed chain with the shipped edge.
-      # The fight's half (tests/hunt-core/temper*.mjs) runs in the hunt-core step, the browser's in hunt-live and services-window.
-      - name: Tempering - the catalogue and the sale, per hero, at the server's price
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-temper.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-temper.mjs --selftest
-          node tests/temper-buy.mjs
-          node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate
-
       # PAST DAWNSTEEL (Tyler 2026-11-14/15/16: unique gear past tier 7, the armor and weapon lines as power budgets, a small Tempering cap;
       # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
-      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden; the unique armor bands are shut until a piece
-      # is real, and the smith's row reads the server's bands. Seconds each; the proofs plant in memory (TU7 on a copy of src/).
-      - name: Past Dawnsteel - the armor and weapon lines, the unique Tempering bands
+      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden (the unique Tempering bands retired with the old
+      # rungs, lane/tp-im-steps). Seconds each; the proofs plant in memory.
+      - name: Past Dawnsteel - the armor and weapon lines
         if: ${{ !cancelled() }}
         run: |
           node tests/armor-line.mjs
           node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
           node tests/weapon-line.mjs
           node tools/mutant-gate.mjs node tests/weapon-line.mjs --mutate
-          node tests/temper-uniques.mjs
-          node tools/mutant-gate.mjs node tests/temper-uniques.mjs --mutate
 
       # SPECIAL-ATTRIBUTE GEAR (designer, lane/d-special-attributes; Tyler 2026-11-14 "sprinkle items like this throughout the game"): each of the
       # five sample rows in src/data/special-attributes.js is the standard piece plus one attribute at its tier's size, with a home a player can

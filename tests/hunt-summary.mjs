@@ -43,7 +43,7 @@
 //       per-stack hr_bank_move; a refusal moves nothing and says so
 //   T5  THE NEXT BUY (next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20): with gold to spend, ONE line names what the purse covers:
 //       a Shop piece better than the worn one (a bare slot first, then the cheapest) ahead of all (the designer's power first, board
-//       2026-11-15 F8/F12), then the shelf (T9): Tempering's next rung (weapon, then armor, material in hand), the cheapest room rung the
+//       2026-11-15 F8/F12), then the shelf (T9): the cheapest room rung the
 //       house is ready for, the dummy's next skill (a house, nobody on it), the cheapest the purse covers, else the nearest; in label words
 //       (Tyler 2026-11-14), never sentences; last on the card, Show its press, never the gold press
 //   T6  THE NEXT GROUND (hunt-list.js nextGroundFrom; audit 2026-11-18 A12: on a phone Hunt again kept a hero in the Mill Cellar all night after
@@ -56,7 +56,7 @@
 //   T8  ALWAYS SELL THESE (L03): after that sale, the junk it took with no plan is ONE press (the next gold one) setting the existing per-item plan
 //       Sell on each (one hr_loot_rule_set an item, twelve a press), done when the server's re-read plan says Sell; PLAYED on a session: the
 //       purse and the bag after the sale are the server's, and the next hunt's junk is the plan's sale
-//   T9  NEXT BUY WALKS THE WHOLE SHELF (L03): after the Shop's gear, each shelf's next rung (Tempering, rooms, the deed, a chest, the bag, the
+//   T9  NEXT BUY WALKS THE WHOLE SHELF (L03): after the Shop's gear, each shelf's next rung (rooms, the deed, a chest, the bag, the
 //       dummy, a hero slot, a trained skill's tool, a refill after a hunt out of stamina), the cheapest the purse covers, else the nearest with
 //       "Need N more"; every price the server's; Show opens where it is bought
 // No ?v= on imports here (tests/**).
@@ -634,8 +634,9 @@ async function runTests(M) {
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
     /* after a hunt whose death costs nothing (the Tower: QA gate 2026-11-17, the climb's card upsold Bless I/II/III) there is no Bless step */
     eq(steps({ free: true }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'no Bless step after a free-death mode');
-    /* nothing to do at all: no steps, Hunt again is the press (no plan, and no junk: the Rat Tail is the bag's one junk, T7) */
-    const none = steps({ plan: { ops: {}, picks: [], choices: [] }, bag: bag.filter((r) => r.id !== 'rat_tail'), rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
+    /* nothing to do at all: no steps, Hunt again is the press (no plan, and no junk: the Rat Tail and the Sticky Core, a part no imbuement
+       names, lane/tp-im-steps, are the bag's junk, T7) */
+    const none = steps({ plan: { ops: {}, picks: [], choices: [] }, bag: bag.filter((r) => r.id !== 'rat_tail' && r.id !== 'sticky_core'), rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
     eq([none.steps, none.primary], [[], 'again'], 'nothing to do lists nothing');
     eq(steps({ plan: null, bag: null, rules: null, bids: null, blessings: null, purse: null }).steps, [], 'sections not read yet list nothing');
   });
@@ -644,7 +645,7 @@ async function runTests(M) {
     eq(steps().primary, 'equip', 'Equip first');
     eq(steps({ plan: { ops: {}, picks: [] } }).primary, 'sell', 'with nothing to wear, Sell');
     const did = new Map([['equip', 'Equip 2 better pieces'], ['sell', 'Sell 2 stacks for 246 gp']]);
-    const r = steps({ plan: { ops: {}, picks: [] }, bag: bag.filter((x) => x.id !== 'rat_tail'), rules: { locked: new Set(), loot: { wolf_pelt: 'deposit' } }, did });
+    const r = steps({ plan: { ops: {}, picks: [] }, bag: bag.filter((x) => x.id !== 'rat_tail' && x.id !== 'sticky_core'), rules: { locked: new Set(), loot: { wolf_pelt: 'deposit' } }, did });
     eq([r.steps.map((s) => s.id + (s.done ? ':done' : '')), r.primary], [['equip:done', 'sell:done', 'deposit', 'bless'], 'deposit'], 'past the done rows, the first open step');
   });
 
@@ -689,7 +690,7 @@ async function runTests(M) {
     const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 } };
     const shop = (...o) => ({ offers: o.map(([item, price, kind]) => ({ offer: 'shop.' + item, item, kind: kind || 'gear', price })), bids: new Map() });
     const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: shop(['ironbound_shield', 200]),
-      temper: null, dummy: null, home: null, bag: [], bank: [] }, over || {}));
+      dummy: null, home: null, bag: [], bank: [] }, over || {}));
     const shield = buy();
     /* the Ironbound Shield's guard over the Practice Shield's, the catalogue's (the formula's at iron's item Level 20 since 12-targets 8.3) */
     const IT_ = (await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href)).ITEMS, GUARD = '+' + (IT_.ironbound_shield.defB - IT_.practice_shield.defB) + ' Defense vs Practice Shield';
@@ -729,18 +730,6 @@ async function runTests(M) {
     eq(move && [move.kind, move.title, move.words], ['gear', 'Next buy: Bronze Belt (220 gp)', '+1 Defense, +22 health, -0.2% critical chance vs Leather Belt'], 'a move to the chosen weight, its cost said');
     eq(buy({ equipment: { ...dressed, belt: 'studded_belt' }, shop: shop(['bronze_belt', 220]) }).kind, 'find', 'never a lower tier');
     eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
-    /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
-    const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
-    const temper = { blows: rung('Steel Sword', 3000, 0, 10), armor: rung('Bronze armor', 2000, 0, 10) };
-    const tb = buy({ shop: null, temper });
-    eq(tb && [tb.kind, tb.title, tb.words, tb.place], ['temper', 'Next buy: Temper Steel Sword (3,000 gp)', 'Damage and heals +1%', { kind: 'temper' }], 'the weapon\'s rung');
-    const ta = buy({ shop: null, temper: { ...temper, blows: rung('Steel Sword', 3000, 1, 10) } });
-    eq(ta && [ta.title, ta.words], ['Next buy: Temper Bronze armor (2,000 gp)', 'Damage taken −1%'], 'short of a material, the armor\'s rung');
-    /* neither rung in the purse: the nearest is named with what it still needs (the whole shelf, T9), the shelf's own first, the weapon's */
-    const near = buy({ shop: null, temper, purse: 1999 });
-    eq(near && [near.kind, near.title, near.words, near.short], ['temper', 'Next buy: Temper Steel Sword (3,000 gp)', 'Damage and heals +1% · Need 1,001 gp more', 1001], 'neither rung in the purse: the nearest, and what it needs');
-    /* the purse covers the armor's rung only: the shelf names the first it covers */
-    eq(buy({ shop: null, temper, purse: 2500 }).title, 'Next buy: Temper Bronze armor (2,000 gp)', 'the shelf\'s first rung the purse covers');
     /* the dummy's next skill, a house to hold it, nobody on it */
     const dummy = { needs: null, hasHome: true, owned: ['melee'], ladder: [100000, 250000], nextPrice: 250000, busy: null };
     const dm = buy({ shop: null, purse: 300000, dummy });
@@ -753,18 +742,18 @@ async function runTests(M) {
     const rm = buy({ shop: null, purse: 10000, home, bag: [{ id: 'oak_log', qty: 5 }], bank: [{ id: 'oak_log', qty: 15 }] });
     eq(rm && [rm.kind, rm.title, rm.words, rm.place], ['room', 'Next buy: Cellar upgrade (6,000 gp)', 'Next: Cellar II', { kind: 'house' }], 'the cheapest rung the house is ready for (the Garden waits on the next tier)');
     eq(buy({ shop: null, purse: 10000, home, bag: [{ id: 'oak_log', qty: 5 }], bank: [] }), null, 'short of the logs: nothing');
-    /* the order (the designer's, board 2026-11-15 F8/F12): gear, then Tempering, then a room rung, then the dummy; no purse read, nothing */
-    eq(buy({ temper, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'gear', 'gear first');
-    eq(buy({ shop: null, temper, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'temper', 'then Tempering');
+    /* the order (the designer's, board 2026-11-15 F8/F12): gear, then a room rung, then the dummy; no purse read, nothing. (The smith's old
+       Tempering shelf left with its rungs, lane/tp-im-steps: Temper on steps' shelf comes with its tab, HANDOFFS 2026-11-26 TP and IM) */
+    eq(buy({ dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'gear', 'gear first');
     eq(buy({ shop: null, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'room', 'then a room rung, ahead of the dummy');
     eq(buy({ shop: null, dummy, home, purse: 300000, bag: [] }).kind, 'dummy', 'then the dummy');
     /* label words, never a sentence (Tyler 2026-11-14): no full stop on any line the card can name */
-    const said = [shield, bare, tb, ta, dm, rm].flatMap((b) => [b.title, b.words]).filter((w) => /\.$/.test(w));
+    const said = [shield, bare, dm, rm].flatMap((b) => [b.title, b.words]).filter((w) => /\.$/.test(w));
     eq(said, [], 'every next-buy line is a label');
     eq([buy({ purse: null }), buy({ purse: 0 })], [null, null], 'no purse, nothing');
     /* on the card: one row, last, Show opens where it is bought, and it is never the gold press */
     const none = { ops: {}, picks: [], choices: [] };
-    const solo = steps({ plan: none, bag: bag.filter((r) => r.id !== 'rat_tail'), rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
+    const solo = steps({ plan: none, bag: bag.filter((r) => r.id !== 'rat_tail' && r.id !== 'sticky_core'), rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
     eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Next buy: Ironbound Shield (200 gp)', GUARD, 'Show', 'ironbound_shield']], 'again'],
       'with the bag sorted the card still names the buy, and Hunt again stays the press');
     const all = steps({ buy: shield });
@@ -790,8 +779,11 @@ async function runTests(M) {
       return TN.townStepsOf(cs, new Map());
     };
     const ground = (r) => { const g = r.steps.find((s) => s.id === 'ground'); return g ? [g.title, g.words, g.verb, g.glyph, g.place] : null; };
+    /* a ground's Levels as the data holds them (the Sewer re-cut 5-25 -> 5-19, 12-targets 8.3): the card's words are checked, never its band typed here */
+    const { HUNT_INDEX } = await import(pathToFileURL(join(M.ROOT, 'src/data/hunts.js')).href);
+    const bandOf = (id) => 'Levels ' + HUNT_INDEX[id].band[0] + '–' + HUNT_INDEX[id].band[1];
     const at7 = await home('mill_cellar', 7);
-    eq(ground(at7), ['Next ground: Meadowbrook Thicket', 'Levels 5–15, recommended for Level 7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'meadowbrook_thicket' }],
+    eq(ground(at7), ['Next ground: Meadowbrook Thicket', bandOf('meadowbrook_thicket') + ', recommended for Level 7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'meadowbrook_thicket' }],
       'the Cellar at the server\'s Level 7: the Thicket, the Hunts list\'s Recommended ground, its Show opening it');
     ok(at7.primary !== 'ground', 'it points, so it is never the gold press');
     const ids = at7.steps.map((s) => s.id), gi = ids.indexOf('ground');
@@ -806,7 +798,7 @@ async function runTests(M) {
     /* a party: every seat's Level, as the Hunts window reads them, and the party's tie goes to the party ground */
     const party = { id: '00000000-0000-4000-8000-000000000001', self_seat: 0, leader_seat: 0,
       members: [{ seat: 0, name: 'Tyler', level: 7, weapon: 'shield' }, { seat: 1, name: 'Mira', level: 6, weapon: 'bow' }, { seat: 2, name: 'Oren', level: 6, weapon: 'staff' }, { seat: 3, name: 'Sef', level: 7, weapon: 'sword' }] };
-    eq(ground(await home('mill_cellar', 7, party)), ['Next ground: The Sewer', 'Levels 5–25, recommended for Levels 6–7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'millrace_sewer' }],
+    eq(ground(await home('mill_cellar', 7, party)), ['Next ground: The Sewer', bandOf('millrace_sewer') + ', recommended for Levels 6–7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'millrace_sewer' }],
       'a party of four at 6 and 7: the Sewer, for the seats\' Levels');
     /* AN OUTGROWN CELLAR (hunt-grounds.js endsAtLevel; the board's 2026-11-19 complete balance look, change 1): the reason names the Level, Hunt
        again has nothing to send (the server refuses it), and once the chores are done the card's press is the next ground, never Hunt again */
@@ -959,7 +951,7 @@ async function runTests(M) {
     const { targetOf } = await import(pathToFileURL(join(M.ROOT, 'src/shell/goto.js')).href);
     const tank = { weapon: 'steel_sword', shield: 'bronze_rimmed_shield', helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', boots: 'bronze_boots', gloves: 'bronze_gauntlets', belt: 'bronze_belt' };
     const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 }, mining: { level: 1, xp: 0 } };
-    const shelf = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: null, temper: null, dummy: null, home: null,
+    const shelf = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: null, dummy: null, home: null,
       bag: [], bank: [], chests: null, bagGrow: null, slot: null, refill: null }, over || {}));
     const see = (b) => b && [b.kind, b.title, b.words, b.place];
     const room = (r, name, opens) => ({ room: r, name, level: 0, rungs: 5, opens, rungName: null, next: null });
@@ -973,12 +965,11 @@ async function runTests(M) {
     const chests = { used: 90, cap: 100, chests: [], next: { chest: 'millrace_crate', name: 'Millrace Crate', stacks: 20, tier: 0, built: false, gold: 1500, items: [{ id: 'normal_log', qty: 40 }], canBuild: true } };
     eq(see(shelf({ chests, bag: [{ id: 'normal_log', qty: 40 }] })), ['chest', 'Next buy: Millrace Crate (1,500 gp)', '+20 Storage spaces', { kind: 'house' }], 'the next Storage chest, its logs in hand');
     eq([shelf({ chests }), shelf({ chests: { ...chests, next: { ...chests.next, canBuild: false } }, bag: [{ id: 'normal_log', qty: 40 }] })], [null, null], 'short of logs, or the property tier not reached: nothing');
-    /* THE CHEAPEST THE PURSE COVERS, across every shelf: a Tempering rung (the first shelf) loses to a cheaper deed */
-    const rung = { piece: 'Steel Sword', below: false, ladder: { track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold: 3000, items: [] }, needs: [], nowPm: 0, nextPm: 10 };
-    const all = { temper: { blows: rung, armor: null }, home: deedHome(false), bagGrow: grow, dummy: { hasHome: true, nextPrice: 100000, busy: null } };
+    /* THE CHEAPEST THE PURSE COVERS, across every shelf: a dearer bag rung loses to a cheaper deed */
+    const all = { home: deedHome(false), bagGrow: grow, dummy: { hasHome: true, nextPrice: 100000, busy: null } };
     eq(shelf(all).kind, 'deed', 'the cheapest of all, the deed at 400');
     eq(shelf({ ...all, home: deedHome(true) }).kind, 'bag', 'the deed owned: the bag at 1,000');
-    eq(shelf({ ...all, home: deedHome(true), bagGrow: null }).kind, 'temper', 'then Tempering at 3,000');
+    eq(shelf({ ...all, home: deedHome(true), bagGrow: null }).kind, 'dummy', 'then the dummy, the nearest past the purse');
     /* NONE COVERED: the nearest, and what it still needs (the purse's shortfall at the server's price) */
     eq(shelf({ slot: { slotId: 1, cost: 400000 } }), null, 'no hero slot is ever a next buy: all four are the account\'s from the start');
     eq(shelf({ ...all, purse: 300 }).words, 'Opens Kitchen and Garden · Need 100 gp more', 'short of all of them: the nearest');
@@ -1120,7 +1111,6 @@ const MUTANTS = [
   { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },
   { test: 'T5', file: NEXT, from: "(Number(!!a.replaces) - Number(!!b.replaces)) || ", to: '' },
   { test: 'T5', file: NEXT, from: "x.kind === 'gear' && x.price <= o.purse && ", to: "x.kind === 'gear' && " },
-  { test: 'T5', file: NEXT, from: "&& !row.needs.some((n) => n.short > 0) ", to: '' },
   { test: 'T5', file: NEXT, from: "if (!d || !d.hasHome || ", to: "if (!d || " },
   { test: 'T5', file: NEXT, from: "&& r.next.need <= h.tier && ", to: '&& ' },
   { test: 'T5', file: NEXT, from: "&& roomDoes(r.room) && holds(r.next.items, o.bag, o.bank))", to: '&& roomDoes(r.room))' },
@@ -1133,7 +1123,7 @@ const MUTANTS = [
   /* T9 the whole shelf: across shelves the cheapest the purse covers, never the shelf order; the deed's gates; a tool only for a trained skill and
      a better tier; the hero slot from the account section; a refill only after a hunt out of stamina */
   { test: 'T9', file: NEXT, from: "  fronts.sort((a, b) => (a.row.gold - b.row.gold) || (a.rank - b.rank));\n", to: '' },
-  { test: 'T9', file: NEXT, from: "const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);", to: "const SHELF = Object.freeze([temperRows, roomRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);" },
+  { test: 'T9', file: NEXT, from: "const SHELF = Object.freeze([roomRows, deedRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);", to: "const SHELF = Object.freeze([roomRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);" },
   { test: 'T9', file: NEXT, from: "if (!c || !c.canBuild || !holds(c.items, o.bag, o.bank)) return [];", to: 'if (!c) return [];' },
   { test: 'T9', file: NEXT, from: "if (!sk || !(sk.xp > 0)) return false;", to: 'if (!it) return false;' },
   { test: 'T9', file: NEXT, from: "return (it.toolTier || 0) > ((best && best.toolTier) || 0);", to: 'return true;' },

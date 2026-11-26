@@ -22,7 +22,6 @@
 // Shelf entry: added 2026-11-21, expires 2027-02-21 (rule-slots.json). The winner of a comparison moves into src/core; the loser is deleted.
 // ════════════════════════════════════════════════════════════════════════
 import { ARMOUR_MITIGATION } from '../data/core-model.js';
-import { temperedAmount } from './temper.js';
 import { NO_MITIGATION, armourValues } from './mitigation.shipped.js';
 
 export * from './mitigation.shipped.js';
@@ -57,14 +56,22 @@ export function mitigationFor(equipment, items, level) {
 
 /**
  * A LANDED blow of `n` through absorb (priced on `n` itself), the resistance permille `el` and ward, never below 1. `armorPm` is the
- * wearer's Tempering and worn steadyPm, the chain's last step; none, and `rng` is not touched.
+ * wearer's steady cut (worn steadyPm and a steady meal), the chain's last step; none, and `rng` is not touched.
  */
+/* the shipped chain's cut (src/core/mitigation.js cutAmount): the part of a point is one draw, made only when there is a part */
+function cutAmount(amount, pm, rng) {
+  if (!pm || !(amount > 0)) return amount;
+  const milli = Math.floor(amount) * (1000 - pm);
+  const part = milli % 1000;
+  return Math.floor(milli / 1000) + (part > 0 && rng.chance(part / 1000) ? 1 : 0);
+}
+
 export function mitigate(n, el, mit, armorPm, rng) {
   const raw = Math.max(0, Math.floor(n));
   const m = mit || NO_MITIGATION;
   let x = raw - Math.floor((raw * absorbAgainst(nat(m.heavy), raw)) / 1000);
   x = Math.floor((x * el) / 1000);
   x -= Math.max(0, m.ward || 0);
-  if (armorPm) x = temperedAmount(x, -armorPm, rng);
+  if (armorPm) x = cutAmount(x, armorPm, rng);
   return Math.max(1, x);
 }

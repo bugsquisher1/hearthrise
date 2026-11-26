@@ -509,44 +509,31 @@ function rules(M) {
     ok('LV-A', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict the armoured peer: ${bad.length} of ${r.verdicts.length} commits diverged`);
   }
 
-  { // LV-TEMPER: TEMPERING, BOTH PATHS (src/core/temper.js): a viewer and a peer tank in Iron at the Sewer, each with rungs. BROWSER
-    // CLOSED: the server's commits land the rung's blows and the blows at the peer through it. VIEWED: the viewer's browser, which holds the
-    // peer only as frozen numbers, draws the same parts of a point on the same swings, so it predicts every commit.
-    const mk = (temper) => {
+  { // LV-STEADY: THE STEADY CUT, BOTH PATHS (src/core/mitigation.js steadyPmOf; the old Tempering rungs that shared this hook retired with
+    // lane/tp-im-steps): a viewer and a peer tank in Iron at the Sewer, the peer in a Houndskin Cloak. BROWSER CLOSED: the server's commits
+    // land the blows at the peer through the cut. VIEWED: the viewer's browser, which holds the peer only as frozen numbers, draws the same
+    // parts of a point on the same swings, so it predicts every commit.
+    const mk = (cape) => {
       const mis = [memberOf(M, 'a', 0, 'melee_dps', 20), memberOf(M, 'b', 1, 'tank', 20)];
       mis[0].equipment = { weapon: 'iron_sword', body: 'iron_platebody' };
-      mis[1].equipment = { weapon: 'iron_sword', shield: 'practice_shield', body: 'iron_platebody', helmet: 'iron_helm' };
-      for (const m of mis) { m.huntId = 'millrace_sewer'; if (temper) m.perks = { temper }; }
+      mis[1].equipment = { weapon: 'iron_sword', shield: 'practice_shield', body: 'iron_platebody', helmet: 'iron_helm', ...(cape ? { cape: 'houndskin_cloak' } : {}) };
+      for (const m of mis) m.huntId = 'millrace_sewer';
       return mis;
     };
-    const fought = (temper) => {
-      const mis = mk(temper), seen = [];
+    const fought = (cape) => {
+      const mis = mk(cape), seen = [];
       let atPeer = 0;
       const r = run(M, mis, 96000, { server: { hunt: 'millrace_sewer' }, onCommit: ({ c }) => {
         for (const e of c.tl.hunt_events) { if (e.type === 'dmg' || e.type === 'heal') seen.push(e.type + e.u + e.t + e.amount); if (e.type === 'dmg' && e.t === mis[1].unitId) atPeer++; }
       } });
       return { r, seen: seen.join(), atPeer };
     };
-    const plain = fought(null);
-    ok('LV-TEMPER', plain.seen.length > 0 && plain.atPeer > 0, 'the fixture has no fight: ' + plain.atPeer + ' blows at the peer');
-    for (const [why, temper] of [['Blows', { 'temper:blows:2': 5 }], ['Armor', { 'temper:armor:2': 5 }]]) {
-      const got = fought(temper);
-      ok('LV-TEMPER', got.seen !== plain.seen, why + ' changed nothing on the server');
-      const bad = got.r.verdicts.filter((x) => x.v !== 'match');
-      ok('LV-TEMPER', got.r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict a party with ${why} rungs: ${bad.length} of ${got.r.verdicts.length} commits diverged`);
-    }
-    /* A RUNG BOUGHT MID-HUNT: the next settle reads it, the browser's next start point carries it, and from there it predicts again. At most the one easing a purchase costs. */
-    {
-      const mis = mk(null);
-      let after = 0, off = 0;
-      const r = run(M, mis, 160000, { server: { hunt: 'millrace_sewer' }, onCommit: ({ t, v, E, srv }) => {
-        if (t - T0 === 48000) for (const m of mis) m.perks = { temper: { 'temper:blows:2': 5, 'temper:armor:2': 5 } };
-        if (t - T0 > 48000) { after++; if (v !== 'match') { off++; E.reseed(srv.live('a'), t); } }
-      } });
-      ok('LV-TEMPER', r.verdicts.length >= 9 && after >= 5, 'the mid-hunt fixture ran ' + after + ' commits after the purchase');
-      ok('LV-TEMPER', off <= 1, 'after a mid-hunt purchase ' + off + ' of ' + after + ' commits diverged: the browser never took the rung from its start point');
-      console.log('  LV-TEMPER a rung bought mid-hunt: ' + off + ' of ' + after + ' commits eased, then every one matched');
-    }
+    const plain = fought(false);
+    ok('LV-STEADY', plain.seen.length > 0 && plain.atPeer > 0, 'the fixture has no fight: ' + plain.atPeer + ' blows at the peer');
+    const got = fought(true);
+    ok('LV-STEADY', got.seen !== plain.seen, 'the cape changed nothing on the server');
+    const bad = got.r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-STEADY', got.r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict a caped peer: ${bad.length} of ${got.r.verdicts.length} commits diverged`);
   }
 
   { // LV-JEWEL: CRAFTED JEWELRY'S PERKS, BOTH PATHS (src/data/jewelry.js): a viewer in two Hallmarked Keen + Follow-through rings and a peer tank in
@@ -2342,10 +2329,8 @@ const MUTANTS = [
   ['the browser drops the tier of a peer (LV-TIER)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-TIER/],
   ["a spawn ignores the tier's health (LV-DIAL)", 'src/core/hunt/pull-cycle.js', 'const hp = Math.max(1, atTier(row, inst.tier).hp || 1);', 'const hp = Math.max(1, row.hp || 1);', /^LV-DIAL/],
   ['the browser drops the tier of a peer, health dial (LV-DIAL)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { tier: null }),', /^LV-DIAL/],
-  ["a peer's frozen numbers drop its Blows rung (LV-TEMPER)", 'src/core/member.js', '...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ', '', /^LV-TEMPER/],
-  ["a peer's frozen numbers drop its Armor rung (LV-TEMPER)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-TEMPER/],
-  ['the settle never puts the Armor rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;\n', '', /^LV-TEMPER/],
-  ['the settle never puts the Blows rung on the hero (LV-TEMPER)', 'src/core/combat-sim.js', '  if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;\n', '', /^LV-TEMPER/],
+  ["a peer's frozen numbers drop its steady cut (LV-STEADY)", 'src/core/member.js', '...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ', '', /^LV-STEADY/],
+  ['the settle never puts the steady cut on the hero (LV-STEADY)', 'src/core/combat-sim.js', '  if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;\n', '', /^LV-STEADY/],
   ["a peer's frozen numbers drop its jewelry perks (LV-JEWEL)", 'src/core/member.js', '...jewelSnap(snap), ', '', /^LV-JEWEL/],
   ['the settle never puts Follow-through on the hero (LV-JEWEL)', 'src/core/combat-sim.js', '  if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;\n', '', /^LV-JEWEL/],
   ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, armour: snap.armour || null, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],

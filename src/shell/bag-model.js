@@ -37,7 +37,8 @@ import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gatheri
 import { SHOP_OFFERS } from '../data/shops.js';
 import { HELD_HOME_OFFERS, HELD_HOME_ROOMS, STORAGE_CHESTS } from '../data/homestead-tiers.js';
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js';
-import { TEMPER_MATERIALS } from '../data/temper.js';
+import { TEMPER_KITS } from '../data/temper.js';
+import { imbuePartUses } from '../data/imbue-rules.js';
 import { recipeInputs } from '../core/artisan.js';
 import { BAG_SEEN_MAX } from '../session/residue.js';
 import { itemName } from './widgets/bits.js';
@@ -114,18 +115,19 @@ function homeSpends() {
 }
 /** Does a House price name this item? */
 export const houseSpends = (id) => homeSpends().has(id);
-/* What a Tempering rung takes besides gold (src/data/temper.js TEMPER_MATERIALS). */
-const TEMPER_SPENDS = new Set(Object.values(TEMPER_MATERIALS).map((m) => m.item));
-/** Does a Tempering rung take this item? */
+/* What a Temper rank takes besides gold: its band's Temper kit (src/data/temper.js TEMPER_KITS, src/core/trades.js temperKitAt). */
+const TEMPER_SPENDS = new Set(TEMPER_KITS.filter(Boolean));
+/** Does a Temper rank take this item? */
 export const temperSpends = (id) => TEMPER_SPENDS.has(id);
+/* the parts an imbuement row names (src/data/imbue-rules.js), read once */
+let PARTS = null;
 /**
- * Is this item kept for a use the game plans but has not built? An imbuement's ingredient (src/data/imbuements.js: every IMBUE_ITEMS
- * row carries `imbue: { kind, tier }`, the imbuement it will feed, Element Ward's ward items included) is a Material now and never
- * bulk-sold: Tyler, only get rid of what we are not planning to use, and imbuement items are never NPC-sold unless ticked (ruling
- * 2026-10-14). From the rows, so a new ground's imbuement drop files itself.
+ * Is this item kept for a use the game plans but has not built? An imbuement's part: a body's part that an imbuement row names
+ * (src/data/imbue-rules.js) is a Material and never bulk-sold, while the Artificing bench that makes it is dark. A part no row names is
+ * Junk and sells (lane/tp-im-steps, 2026-11-26: the old field promised every part an imbuement). From the rows, so a new row files its part.
  */
-export const plannedUse = (id) => !!(ITEMS[id] && ITEMS[id].imbue);
-/** Does any recipe, House price or Tempering rung spend this item? From the rows, so a new recipe or rung needs no list. */
+export const plannedUse = (id) => (PARTS || (PARTS = imbuePartUses())).has(id);
+/** Does any recipe, House price or Temper rank spend this item? From the rows, so a new recipe or rung needs no list. */
 export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);
 
 /** A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
@@ -171,12 +173,6 @@ export function kindOf(id) {
   if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
   if (RARE_RUNGS.has(it.rarity)) return 'rare';
   return 'other';
-}
-
-/** The rarity ladder name for a framed pocket (gear only; other kinds are plain pockets). */
-export function rarityOf(id) {
-  const it = ITEMS[id];
-  return it && it.slot && it.slot !== 'ammo' ? (it.rarity || 'common') : null;
 }
 
 /** Is this stack new: never seen, or more of it than when it was last seen? */

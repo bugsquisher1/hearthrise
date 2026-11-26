@@ -30,7 +30,7 @@
 import { STORE_KIT } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 import { IMBUE, IMBUE_SLOTS } from './imbue-rules.js';
-import { TEMPER_STEPS } from './temper.js';
+import { TEMPER_STEPS, TEMPER_KITS, TEMPER_KIT_NEW } from './temper.js';
 
 export const TRADE_LEVERS = Object.freeze({
   /* 09 4.3: the two lines the store never sells (the meal and charge shares live in STORE_KIT.lineShare). The four sum to one */
@@ -261,7 +261,8 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
    (13-market 3.2: how many make an hour-unit is the drop formulas'). */
 export const KIT_FACES = Object.freeze({
   ore: Object.freeze(['copper_ore']),
-  bar: Object.freeze(['bronze_bar']),
+  /* the bars Smithing smelts, a metal a band (gear-tiers.js MATERIAL_TIERS): the Temper kits' input to Dawnsteel */
+  bar: Object.freeze(['bronze_bar', 'iron_bar', 'steel_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar']),
   arrowhead: Object.freeze(['bronze_arrowheads']),
   log: Object.freeze(['normal_log']),
   shaft: Object.freeze(['normal_plank']),
@@ -271,11 +272,15 @@ export const KIT_FACES = Object.freeze({
   rune_stone: Object.freeze(['rune_essence']),
   cut_stone: Object.freeze(['rune_blank']),
   rune_fire: Object.freeze(['chalked_fire_rune']),
+  /* THE TEMPER KIT (21 section 2.2, lane/tp-im-steps 2026-11-26): the Tempering Salts the smith already sells are its faces, Iron to
+     Emberforged, and Dawnsteel's is new. Band 0 has none: Bronze is never tempered (a rank opens at Level 40, where Steel is worn). Cobalt
+     and Wolfram's land with the grounds that drop them. A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
+  temper_kit: TEMPER_KITS,
 });
 export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones']) });
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
-export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads' });
+export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', ...TEMPER_KIT_NEW });
 
 /** A recipe's id: its kind and its band ('arrow_b0'). Derived, never typed. */
 export const recipeId = (kind, band) => kind + '_b' + band;
@@ -288,22 +293,34 @@ const kitRow = (kind, band, name) => Object.freeze({ id: recipeId(kind, band), k
 
 /* THE SAMPLE: Mining, Smithing, Woodcrafting, Cooking, Runecutting, one each, band 0. The arrowhead and the arrow are 09 3.3's chain 1
    (two trades and one join), so the sample plays the one recipe that needs another trade's part. */
+/* THE TEMPER KITS (batch 2, lane/tp-im-steps, 2026-11-26; 21 section 2.2, 20 lane TP): one row a band a rank can sit on in v0.3.0, Iron to
+   Dawnsteel. Each is the same derived kind at its band, so the batch is one rule six times, not six designs. */
 export const KIT_RECIPES = Object.freeze([
   kitRow('ore', 0, 'Mine Copper Ore'),
   kitRow('arrowhead', 0, 'Forge Bronze Arrowheads'),
   kitRow('arrow', 0, 'Fletch Bronze Arrows'),
   kitRow('meal', 0, 'Cook Shrimp'),
   kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),
+  kitRow('temper_kit', 1, 'Mix Tempering Salts'),
+  kitRow('temper_kit', 2, 'Mix Fine Tempering Salts'),
+  kitRow('temper_kit', 3, 'Mix Mithril Tempering Salts'),
+  kitRow('temper_kit', 4, 'Mix Rune Tempering Salts'),
+  kitRow('temper_kit', 5, 'Mix Ember Tempering Salts'),
+  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),
 ]);
 
-/* At most this many named rows until the sample is read (CLAUDE.md section 10). */
+/* At most this many named band 0 rows until the first day's sample is read, one a trade (CLAUDE.md section 10), and at most KIT_BATCH_MAX
+   named rows in all (a batch of 20 or fewer). */
 const KIT_SAMPLE_MAX = 5;
+const KIT_BATCH_MAX = 20;
 const LABEL = /^[A-Z][A-Za-z' ]{2,40}$/;
 
 /** Every problem with the named recipes (the shipped ones by default), as sentences. Empty = valid. */
 export function validateKitRecipes(rows = KIT_RECIPES, kinds = KINDS, trades = TRADES, faces = KIT_FACES, fresh = NEW_FACES) {
   const out = [];
-  if (rows.length > KIT_SAMPLE_MAX) out.push(rows.length + ' kit recipes before the sample of ' + KIT_SAMPLE_MAX + ' is read (CLAUDE.md section 10)');
+  const first = rows.filter((r) => r.band === 0);
+  if (first.length > KIT_SAMPLE_MAX) out.push(first.length + ' band 0 kit recipes before the sample of ' + KIT_SAMPLE_MAX + ' is read (CLAUDE.md section 10)');
+  if (rows.length > KIT_BATCH_MAX) out.push(rows.length + ' kit recipes: past a batch of ' + KIT_BATCH_MAX + ' (CLAUDE.md section 10)');
   const seenTrade = new Set(), seenId = new Set();
   for (const r of rows) {
     const k = kinds[r.kind];
@@ -314,15 +331,16 @@ export function validateKitRecipes(rows = KIT_RECIPES, kinds = KINDS, trades = T
     if (r.id !== recipeId(r.kind, r.band)) out.push(r.id + ': the id is not recipeId(kind, band)');
     if (seenId.has(r.id)) out.push(r.id + ': twice');
     seenId.add(r.id);
-    if (seenTrade.has(k.trade)) out.push(r.id + ': a second ' + k.trade + ' recipe in the sample (one a trade)');
-    seenTrade.add(k.trade);
+    if (r.band === 0 && seenTrade.has(k.trade)) out.push(r.id + ': a second ' + k.trade + ' recipe in the sample (one a trade)');
+    if (r.band === 0) seenTrade.add(k.trade);
     if (k.stage === 'refine') out.push(r.id + ': a refine step is not a kit recipe the sample plays');
     if (!LABEL.test(r.name)) out.push(r.id + ': name ' + JSON.stringify(r.name) + ' is not a short label');
     if (!faceOf(r.kind, r.band)) out.push(r.id + ': no face for ' + r.kind + ' at band ' + r.band);
   }
   for (const [kind, list] of Object.entries(faces)) {
     if (!kinds[kind]) out.push('a face for no kind ' + kind);
-    for (const id of list) if (!/^[a-z][a-z0-9_]{1,40}$/.test(id)) out.push(kind + ': face ' + id + ' is not an item id');
+    /* a hole (null) is a band where the kind has no good: a recipe there has no face and is refused above */
+    for (const id of list) if (id !== null && !/^[a-z][a-z0-9_]{1,40}$/.test(id)) out.push(kind + ': face ' + id + ' is not an item id');
   }
   for (const [id, name] of Object.entries(fresh)) {
     if (!Object.values(faces).some((l) => l.includes(id))) out.push('new face ' + id + ' is no kind\'s face');

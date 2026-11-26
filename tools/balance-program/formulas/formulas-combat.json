@@ -104,7 +104,7 @@
     "src/core/combat.js:488-494 rollCrit, applyCrit",
     "src/core/combat.js:252-270 armorSetBonus"
    ],
-   "params": "COMBAT_BALANCE.critMult 1.5, critCap 0.60 (combat.js:64-65). Leather critB 0.004 x tier a piece (gear-tiers.js:215)",
+   "params": "COMBAT_BALANCE.critMult 1.5, critCap 0.60 (combat.js:64-65). Leather critB the same on every piece, the leather profile even critB over the defense budget (gear-profiles.js; 0.028 at Dawnsteel)",
    "deps": [
     "C-GEAR-ARMOR",
     "C-JEWEL-PERKS",
@@ -150,7 +150,7 @@
     "C-BOSS-PHASE",
     "C-STANCE",
     "C-ARMOR-CHAIN",
-    "C-TEMPER",
+    "C-STEADY",
     "C-SPELL-SHELL"
    ],
    "consumers": [
@@ -227,23 +227,19 @@
    "random": "deterministic"
   },
   {
-   "id": "C-TEMPER",
-   "computes": "Tempering: Blows raises what lands on a monster and every heal by rungs x the ladder's permille. Armor (with worn steadyPm and a food's steady) lowers what reaches the hero, last, never past the cap. The part of a point is a chance",
+   "id": "C-STEADY",
+   "computes": "The steady cut: worn steadyPm (a cape) and a food's steady lower what reaches the hero, last, never past the cap. The part of a point is a chance (the old Tempering rungs that shared it retired with lane/tp-im-steps)",
    "impl": [
-    "src/core/temper.js:38-57",
-    "src/core/hunt/damage.js:137",
-    "src/core/mitigation.js:83"
+    "src/core/mitigation.js:29-40",
+    "src/core/hunt/damage.js:171"
    ],
-   "params": "src/data/temper.js ladders (1% a rung tiers 2-6, 0.4% Dawnsteel, 0.5% unique bands)",
-   "deps": [
-    "E-TEMPER-COST (economy)"
-   ],
+   "params": "src/data/items.js capes steadyPm; a food's steady buff",
+   "deps": [],
    "consumers": [
     "C-HURT",
-    "C-SPELL-HEAL",
     "C-ARMOR-CHAIN"
    ],
-   "random": "one draw a blow, only for a hero holding a rung"
+   "random": "one draw a blow, only for a hero carrying a cut"
   },
   {
    "id": "C-SPELL-HIT",
@@ -277,7 +273,7 @@
     "C-HERO-POWER",
     "P-VITALS (progression)",
     "C-CAST-POWER",
-    "C-TEMPER",
+    "C-STEADY",
     "C-HEAL-CUT"
    ],
    "consumers": [
@@ -305,7 +301,7 @@
   },
   {
    "id": "C-CAST-POWER",
-   "computes": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges",
+   "computes": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at each tier's skill gate, runes.js versionLevel) x the store's share for a store rune x Surge when it surges",
    "impl": [
     "src/data/runes.js versionStep, versionLevel",
     "src/data/abilities.js:429-432 versionOf",
@@ -498,7 +494,7 @@
     "C-MON-STATS (its Level)",
     "C-TIER (levelAtTier)",
     "C-RESIST-HERO",
-    "C-TEMPER"
+    "C-STEADY"
    ],
    "consumers": [
     "C-HURT",
@@ -754,13 +750,13 @@
   },
   {
    "id": "C-GEAR-ARMOR",
-   "computes": "Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
+   "computes": "Armor points: the one gear formula (src/core/gear-stats.js gearStats): the weight's profile (plate 1000, leather 550, cloth 300 permille) x the slot's share (GEAR_SLOT_PM) x the defense budget at the piece's item Level, each line's trades a share of the same budget, a named piece its statPlus; on a Danger-scale ground read at the ground's base item Level (scaleItems). Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
    "impl": [
-    "src/data/gear-tiers.js:64-69 the slot table",
-    "src/data/gear-tiers.js:204-234 ARMOUR_LINES",
+    "src/core/gear-stats.js gearStats, scaleItems",
+    "src/data/gear-profiles.js GEAR_CURVES, GEAR_SLOT_PM, GEAR_PROFILES",
     "tools/balance-sim/staged/armor-line.js:64-70 lineArmor"
    ],
-   "params": "the slot table. defMul. LINE_ANCHOR_LEVEL 110, LINE_TRADE 0.05",
+   "params": "the defense curve, the slot split, the weights' profiles. LINE_ANCHOR_LEVEL 110, LINE_TRADE 0.05",
    "deps": [
     "P-GEAR-LEVELS (progression: worn by Level)"
    ],
@@ -774,12 +770,13 @@
   },
   {
    "id": "C-GEAR-WEAPON",
-   "computes": "Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
+   "computes": "Weapon accuracy and damage: the one gear formula, the family's profile x the slot's share (a two-handed weapon the shield's too) x the offense budget at the piece's item Level; on a Danger-scale ground read at the ground's base item Level. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
    "impl": [
-    "src/data/gear-tiers.js:77-150 WEAPON_FAMILIES",
+    "src/core/gear-stats.js gearStats, scaleItems",
+    "src/data/gear-profiles.js GEAR_CURVES, GEAR_PROFILES",
     "tools/balance-sim/staged/weapon-line.js:72-81 lineWeapon"
    ],
-   "params": "the family tables. WEAPON_LINE_ANCHOR 110",
+   "params": "the offense curve and the family profiles. WEAPON_LINE_ANCHOR 110",
    "deps": [
     "P-GEAR-LEVELS (progression)"
    ],
@@ -827,7 +824,7 @@
    "consumers": [
     "C-HERO-POWER",
     "C-CRIT",
-    "C-TEMPER"
+    "C-STEADY"
    ],
    "random": "deterministic"
   },
@@ -1255,8 +1252,8 @@
   },
   {
    "id": "X-TEMPER-ROUNDING",
-   "where": "src/core/temper.js:13-15",
-   "what": "Tempering rounds by chance (the part of a point is a draw). Every other step floors",
+   "where": "src/core/mitigation.js:29-36",
+   "what": "The steady cut rounds by chance (the part of a point is a draw). Every other step floors",
    "why": "2026-11-04: +1% on a blow of 20 paid nothing",
    "class": 3,
    "status": "C",
@@ -1554,8 +1551,16 @@
    "to": "C-HURT"
   },
   {
-   "from": "C-TEMPER",
+   "from": "C-STEADY",
    "to": "C-HURT"
+  },
+  {
+   "from": "C-BUFF-BONUS",
+   "to": "C-STEADY"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-STEADY"
   },
   {
    "from": "C-BOSS-PHASE",
@@ -1574,7 +1579,7 @@
    "to": "C-ARMOR-CHAIN"
   },
   {
-   "from": "C-TEMPER",
+   "from": "C-STEADY",
    "to": "C-ARMOR-CHAIN"
   },
   {
@@ -1592,10 +1597,6 @@
   {
    "from": "C-HURT",
    "to": "C-LEECH"
-  },
-  {
-   "from": "C-TEMPER",
-   "to": "C-SPELL-HEAL"
   },
   {
    "from": "C-REF-HERO",
@@ -1793,7 +1794,7 @@
   },
   {
    "lane": "economy",
-   "edge": "E-TEMPER-COST -> C-TEMPER. E-JEWEL-COST -> C-JEWEL-PERKS. E-FOOD -> C-BUFF-BONUS",
+   "edge": "E-TEMPER-COST -> the gear part (Temper on steps). E-JEWEL-COST -> C-JEWEL-PERKS. E-FOOD -> C-BUFF-BONUS",
    "why": "gold sinks buy combat percent"
   },
   {

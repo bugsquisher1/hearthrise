@@ -5406,6 +5406,14 @@ jobs:
         run: |
           node tests/carry-on.mjs
           node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
+      # tests/piece-verbs-db.mjs
+      - name: Trait piece verbs - the wear, the equip doors that never copy a piece, the store sale, both paths (1072)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-piece-value.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-piece-value.mjs --selftest
+          node tests/piece-verbs-db.mjs
+          node tools/mutant-gate.mjs node tests/piece-verbs-db.mjs --mutate
       # tests/plan-share.mjs
       - name: Share plan - a code made on one account rebuilt on a second, a tampered code refused
         if: ${{ !cancelled() }}

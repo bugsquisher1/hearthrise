@@ -191,7 +191,7 @@ async function plain() {
 /* [slot, property or generic line it must trip, the anchor in the formula family's file, the planted text] */
 const MUTANTS = [
   ['armor', 'neverAdds', 'return Math.max(1, x);', 'return Math.max(1, x) + 1;'],
-  ['armor', 'biggerBlowNoLess', 'if (armorPm) x = temperedAmount', 'if (raw > 1000 && m !== NO_MITIGATION) x = Math.floor(x / 100);\n  if (armorPm) x = temperedAmount'],
+  ['armor', 'biggerBlowNoLess', 'if (armorPm) x = cutAmount', 'if (raw > 1000 && m !== NO_MITIGATION) x = Math.floor(x / 100);\n  if (armorPm) x = cutAmount'],
   ['armor', 'moreArmorNoMore', 'x -= Math.max(0, m.ward || 0);', 'x += Math.max(0, m.ward || 0);'],
   ['armor', 'harderAttackerNoLess', 'levelLine(ARMOUR_MITIGATION.dodge, nat(v.medium), L)', 'levelLine(ARMOUR_MITIGATION.dodge, nat(v.medium) * L, 1)'],
   ['armor', 'noDrawWithoutTemper', 'const raw = Math.max(0, Math.floor(n));', 'const raw = Math.max(0, Math.floor(n)); if (rng) rng.chance(0.5);'],

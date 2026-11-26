@@ -38,6 +38,16 @@
 .hh-sep-t { font-size: 0; font-size-adjust: none; word-spacing: 0; }
 .hh-icon { width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
+/* THE STANDOUT FRAME (v0.3.0 A1; src/shell/item-standing.js says which pieces, bits.js itemIconHtml draws it, never a surface):
+   a Rare's frost line with a stud in each corner, a Signature's double gold rule with cut corners. Pixel art in the steel
+   family (tools/make-ui-steel-art.mjs) at whole device px (--art-px), one art px OUTSIDE the icon and UNDER it: the icon
+   paints over the frame's inner edge, so no well or row changes size and the art keeps its room. */
+.hh-std { position: relative; }
+.hh-std::before { content: ''; position: absolute; inset: calc(-1 * var(--art-px)); pointer-events: none; border: var(--art-3) solid transparent;
+  border-image: url('../../assets/ui/std-frame-rare.png') 3 / var(--art-3) stretch; image-rendering: pixelated; }
+.hh-std.is-signature::before { border-width: var(--art-4); border-image: url('../../assets/ui/std-frame-signature.png') 4 / var(--art-4) stretch; }
+.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: relative; }
+.hh-std > .hh-std-art { width: 100%; height: 100%; image-rendering: pixelated; }
 
 /* ── Gauges: a sunk bar with its number on it ── */
 /* The track is the same well as a bar slot, so an empty stretch still reads as a bar. */
@@ -585,7 +595,8 @@ select.ca-token { field-sizing: content; }
 .hc-role { display: inline-block; width: 11px; height: 11px; margin-left: 2px; vertical-align: -1px; }
 .hc-role .hs-glyph { width: 100%; height: 100%; fill: currentColor; }
 .hc-link { padding: 0; border: 0; background: none; font: inherit; color: var(--rar-common); cursor: help; }
-.hc-link[class*="rar-"] { color: var(--pocket-rar); }
+.hc-link.is-rare, .hc-link.is-very_rare { color: var(--rar-rare); }
+.hc-link.is-signature { color: var(--rar-unique); }
 .hc-link:hover { text-decoration: underline; }
 /* New messages: a square steel button floating over the log's foot. */
 .hc-pill { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); min-height: 28px; padding: 0 12px; border: 2px solid var(--steel-btn); border-radius: 0; background: var(--bg-2); color: var(--gold-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; box-shadow: 0 4px 10px color-mix(in srgb, var(--world-shadow) 50%, transparent); }

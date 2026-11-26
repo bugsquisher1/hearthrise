@@ -34,6 +34,7 @@ import { renderAlerts } from './widgets/alerts.js';
 import { renderHuntSummary } from './windows/hunt-summary.js';
 import { renderAway } from './windows/away.js';
 import { renderReport } from './windows/report.js';
+import { renderPlanShare } from './windows/plan-share.js';
 import { renderDeath } from './windows/death.js';
 import { renderPlayCap } from './windows/play-cap.js';
 import { renderOnline } from './widgets/online.js';
@@ -51,6 +52,7 @@ import { renderGameMaster } from './windows/game-master.js';
 import { renderTraining } from './windows/training.js';
 import { renderFactionJoin } from './windows/faction-join.js';
 import { renderTower } from './windows/tower.js';
+import { renderTalents } from './windows/talents.js';
 
 export const WINDOW_RENDERERS = Object.freeze({
   hunts: renderHunts,
@@ -67,6 +69,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   house: renderHouse,
   training: renderTraining,
   tower: renderTower,
+  talents: renderTalents,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,
@@ -83,6 +86,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   inspect: renderInspect,
   settings: renderSettings,
   report: renderReport,
+  'plan-share': renderPlanShare,
   'game-master': renderGameMaster,
   monster: renderMonster,
   wiki: renderWiki,

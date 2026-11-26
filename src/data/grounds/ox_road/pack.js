@@ -121,13 +121,14 @@ export default definePack({
       hp: 360, atk: 140, aim: 155, evasion: 68, def: 40, xp: 3732, gp: [53, 159], formula: true },
   },
   roster: { dead_teamster: 'swarm', coal_runner: 'glass', yoke_ox: 'heavy', drover: 'regular', wagonmaster: 'elite' },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    wagon_pin: { n: 'Wagon Pin', icon: '📌', v: 226, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
-    runners_tin: { n: 'Runner\'s Tin', icon: '🥫', v: 232, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
-    ox_shoe: { n: 'Ox Shoe', icon: '🔩', v: 238, raw: true, imbue: { kind: 'ward', tier: 3 } },
-    drovers_goad: { n: 'Drover\'s Goad', icon: '🦯', v: 242, raw: true, imbue: { kind: 'keen', tier: 3 } },
-    waybill: { n: 'Waybill', icon: '📜', v: 250, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
+    wagon_pin: { n: 'Wagon Pin', icon: '📌', v: 226, raw: true, part: true },
+    runners_tin: { n: 'Runner\'s Tin', icon: '🥫', v: 232, raw: true, part: true },
+    ox_shoe: { n: 'Ox Shoe', icon: '🔩', v: 238, raw: true, part: true },
+    drovers_goad: { n: 'Drover\'s Goad', icon: '🦯', v: 242, raw: true, part: true },
+    waybill: { n: 'Waybill', icon: '📜', v: 250, raw: true, part: true },
   },
   itemText: {
     wagon_pin: 'The pin that holds a wagon wheel on. The teamsters all carry spares, and their wagons still aren\'t going anywhere',

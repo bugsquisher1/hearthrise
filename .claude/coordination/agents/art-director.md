@@ -3992,3 +3992,19 @@ sheet and gestures, chrome to spec, build preview = Talents draft line + the exi
 Lessons: (1) a fitted overview of a dense map is not a default view: open where the player stands and let labels keep screen size;
 (2) pairing labels to roads by nearest distance mislabels a fan of roads from one hub (Greater Mend took Undertow's road): pair by
 source order or by id; (3) only decision marks should block label placement, or the 480 milestones cull every name.
+## 2026-11-26 lane/a1-rare-frame (v0.3.0 A1 step 1: the Rare and Signature standout frame, gate 12)
+Design: Rare = a frost line lit up-left (frost 1 / water 2) with a 2x2 frost stud in each corner (the thin steel frame's sibling, 7x7
+slice 3); Signature = a double gold rule (gold / bronze 3, a dark channel, an inner gold line) with cut corners and a torch-lit point
+(9x9 slice 4). Drawn by tools/make-ui-steel-art.mjs, shown by ONE component (bits.js itemIconHtml -> hunt.css .hh-std::before) one art
+px outside the icon and UNDER it, so no well changes size (measured: 44 and 36 px pockets equal framed or plain). Which pieces:
+src/shell/item-standing.js, by the PIECE (trait_pieces row) or a Signature id, never the catalogue rung. Plain gear lost its tier
+rim colours, pips and "Rare/Epic" kind word (a steel sword read "Rare"). Guard tests/item-standing.mjs IS-1..4, 11 mutants.
+Shots art/review/a1-rare-frame (inventory, tooltip, summary drops; desktop 1440x900 and 922x423), previewed through the page's own
+itemIconHtml since no piece rows exist yet. Not shot: the return card (the away card did not open in the local world after a 12 h
+absence; it draws the same component). Dropped on the way: a heavy gold+bronze band (read brown, a plaque), triangular corner plates
+(3 px triangles vanish at x2).
+Lessons: (1) a frame drawn under the icon and outside its box costs no layout and survives icons that fill 94%; (2) at 2 px an art
+px, a corner ornament under 4 art px reads as a notch, so tell two frames apart by structure along the whole edge (single line
+against double rule), not by corner detail; (3) a catalogue field named `rarity` can be a tier ladder in disguise: read what it
+holds (bronze=common, steel=rare) before painting by it; (4) the pane's screenshot crops an emulated viewport larger than the pane:
+take gate shots with openWorld + Playwright at the real size.

@@ -14,7 +14,8 @@ import { whole, gold } from '../../render/format.js';
 import { itemName } from '../widgets/bits.js';
 import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords, possiblePerksOf } from '../item-lore.js';
 import { t } from '../../render/player-text.js';
-import { statLines, compare, rarityOf } from '../bag-model.js';
+import { statLines, compare } from '../bag-model.js';
+import { standingOf } from '../item-standing.js';
 import { planWords } from '../loot-dispatch.js';
 import { pieceWords } from '../../data/armour-weights.js';
 import { ITEMS } from '../../data/items.js';
@@ -25,15 +26,17 @@ const GAP = 10;
 /**
  * The tooltip's HTML for one item.
  * @param {string} id
- * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, level?:number|null, ground?:string|null, features?:string[]}} o
+ * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, level?:number|null, ground?:string|null, features?:string[], piece?:object|null}} o
  *   ground: the hunt id of the hero's ground (widgets/first-target.js heroGroundOf), for the line on what the piece does there
  *   features: the server switches on for the hero's account (character-sections.js featuresOf), so a use behind one is named only there
+ *   piece: the bag's piece row when it holds one (src/shell/item-standing.js), for its step: a Rare or Signature names it
  */
 function tipHtml(id, o) {
   const opt = o || {};
-  const rar = rarityOf(id);
-  let h = '<b class="hw-tip-name' + (rar ? ' rar-' + rar : '') + '">' + esc(itemName(id)) + '</b>'
-    + '<span class="hw-tip-kind">' + esc(kindWords(id)) + '</span>';
+  /* a Rare or Signature piece's name in its frame's colour, its step named after the kind (src/shell/item-standing.js) */
+  const std = standingOf(opt.piece || id);
+  let h = '<b class="hw-tip-name' + (std ? ' is-' + std : '') + '">' + esc(itemName(id)) + '</b>'
+    + '<span class="hw-tip-kind">' + esc(kindWords(id, opt.piece)) + '</span>';
   const fl = flavourOf(id);
   if (fl) h += '<i class="hw-tip-flavour">' + esc(fl) + '</i>';
   /* The ladder's numbers and the piece's own attribute (a resistance, a bane) in the engine's numbers, one list (designer re-read 2026-11-11:

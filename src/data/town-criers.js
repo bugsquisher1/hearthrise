@@ -42,7 +42,7 @@ export const CRIER_CLOCK = Object.freeze({ firstMs: 40 * 1000, everyMs: 2 * MIN,
  *    unhunted        the hero has never hunted (no Level XP yet)
  *    no_blessing     no Blessing is held
  *    storage_unused  the account's Storage is empty
- *    untempered      the hero wears gear with a tempering ladder and has never bought a rung
+ *    untempered      the hero wears a piece on a slot whose first Temper rank its Level opens, and has never bought one
  *    no_task         no task is held on Tamsin's tally
  *    task_open       a task is held and not done; the fact carries { label, count, ground, hunt } for the line's words */
 export const CRIER_FACTS = Object.freeze(['unhunted', 'no_blessing', 'storage_unused', 'untempered', 'no_task', 'task_open']);
@@ -56,7 +56,7 @@ export const TOWN_CRIERS = Object.freeze([
     line('blessing', 'no_blessing', { at: 'shop', tab: 'services' }),
     line('storage', 'storage_unused', { at: 'storage' }),
   ]),
-  /* the smith works the forges, and tempers under the Shop's Services tab (src/shell/windows/temper-pane.js) */
+  /* the smith works the forges and tempers your gear slots (Temper on steps, src/data/temper.js): silent while the temper_steps switch is off */
   crier('smith', 'Garrick the Smith', 'smithy_forges', 6 * MIN, [
     line('temper', 'untempered', { at: 'shop', tab: 'services' }),
   ]),

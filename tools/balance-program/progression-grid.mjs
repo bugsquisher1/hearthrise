@@ -193,8 +193,8 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   const fromL = step === 'step:up' ? K.bandAfter(L) : L, fromState = step === 'step:up' ? 'mid' : 'low';
   if (step === 'step:up' && !fromL) throw new Error('buildCell: no gear band after Level ' + L);
   if (step) plans = plans.map((p, i) => K.mixPlan(p, K.kitFor(fromL, fromState, styles[i], { ground, mainSkill: skills[i][MAIN[styles[i]] || 'melee'], ...(exclude ? { exclude } : {}) }), groupOf[step]));
-  const temper = {};
-  for (const p of plans) for (const [k, n] of Object.entries(p.temper || {})) temper[k] = Math.max(temper[k] || 0, n);
+  const temperSteps = {};
+  for (const p of plans) for (const [k, n] of Object.entries(p.temperSteps || {})) temperSteps[k] = Math.max(temperSteps[k] || 0, n);
   const projected = STD.stretchOf(L).state === 'PROJECTED';
   let whatIf = null, tierRow = null;
   if (projected) {
@@ -213,7 +213,7 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
     talentsBySeat, build, deathRule: 'real', blessings, ...(Number.isFinite(blessedShareAt(L, blessings)) ? { blessedShare: blessedShareAt(L, blessings) } : {}), shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
     ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),
-    ...(Object.keys(temper).length ? { temper } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
+    ...(Object.keys(temperSteps).length ? { temperSteps } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
   return { cell, whatIf, plans };
 }
 
@@ -243,7 +243,7 @@ export function planCells(D, K, run, only = null) {
   }
   return { jobs, cells };
 }
-const slimPlan = (p) => ({ style: p.style, kit: p.kit, temper: p.temper, skillDelta: p.skillDelta, ...(p.projectedBand ? { band: p.projectedBand } : {}) });
+const slimPlan = (p) => ({ style: p.style, kit: p.kit, temperSteps: p.temperSteps, skillDelta: p.skillDelta, ...(p.projectedBand ? { band: p.projectedBand } : {}) });
 
 /* ── THE POOL: worker.mjs processes, one engine each, across the CPU ───────────────────────────────────────────────────────────── */
 export function playAll(jobs, workers, { log = () => {}, resumeFile = null } = {}) {
@@ -473,9 +473,9 @@ async function kits(L) {
   for (const style of Object.keys(MAIN)) for (const gear of STD.GEAR_STATE_IDS) {
     const lv = D.skillsAt(D.lines, 'alone', style, L);
     const p = K.kitFor(L, gear, style, { ground: D.groundAt(L, 1), mainSkill: lv[MAIN[style]] + K.skillDeltaOf(gear, L) });
-    console.log('\n' + style + ' ' + gear.toUpperCase() + ' (skills ' + (p.skillDelta >= 0 ? '+' : '') + p.skillDelta + ' on the career line; rungs ' + JSON.stringify(p.temper || {}) + ')');
+    console.log('\n' + style + ' ' + gear.toUpperCase() + ' (skills ' + (p.skillDelta >= 0 ? '+' : '') + p.skillDelta + ' on the career line; Temper ' + JSON.stringify(p.temperSteps || {}) + ')');
     for (const [slot, id] of Object.entries(p.kit)) console.log('  ' + slot.padEnd(9) + id.padEnd(30) + p.why[slot]);
-    if (p.temperShut.length) console.log('  no rung: ' + p.temperShut.join('; '));
+    if (p.temperShut.length) console.log('  no Temper rank: ' + p.temperShut.join('; '));
     if (p.projectedAdds.length) console.log('  ruled, not built (never played): ' + p.projectedAdds.map((a) => a.id + (a.budgetXp ? ' +' + Math.round(a.budgetXp * 100) + '% XP' : '')).join(', '));
   }
 }

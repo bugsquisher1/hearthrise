@@ -38,6 +38,12 @@
         "gzipBytes": 202673,
         "on": "2026-11-21",
         "why": "lane/c-job-counts merged after the raise above (every job takes a count and a THEN: windows/work.js +62 lines, town-work.js +59, away-work.js +34, hunt-after.js JOB_NEXTS +41, skill-sim, work and away text, the coach's tutorial row) and this lane's rule-11 halves (farm-tend.js and carry-on-intents.js take the carried envelope, a few bytes): the Work window's own feature code on the game half; sign-in moved by under 0.1 KB"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 205124,
+        "on": "2026-11-26",
+        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI), measured against set/v0.2.144 beded2a5b (197.2 KB sign-in, 948.7 KB town): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in, +4.0 KB to town with the Talents door and its text rows); the map itself (src/shell/windows/talents/, 7 modules) loads by URL on the window's first open, which keeps 11.4 KB gzip off the town stage (measured eager against on need on the earlier set), and as a second bundle entry esbuild splits 1 shared chunk onto sign-in and 4 onto town"
       }
     ],
     "town": [
@@ -346,6 +352,18 @@
         "gzipBytes": 969002,
         "on": "2026-11-26",
         "why": "lane/signatures-sample: the worn-Signature rules (src/core/hunt/signature-rules.js, src/data/signatures.js) and the shared reaction pieces join the game half with combat-sim, dark (+1.5 KB gzip)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 974785,
+        "on": "2026-11-26",
+        "why": "lane/wn-sh (20-v030 band 5 SH and WN): the Share plan window's own game-half code (core/plan-code.js the code, session/plan-share.js the editor and press, windows/plan-share.js, share text), the What's new card (app/whats-new.js, data/whats-new.js) on the characters screen, company-lines.js; +5.6 KB gzip to town, sign-in unchanged but for stylesheet rows. A window loads with the game half like every window; the card is drawn on the characters screen itself, so neither is a lazy candidate"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 975514,
+        "on": "2026-11-26",
+        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI), measured against set/v0.2.144 beded2a5b (197.2 KB sign-in, 948.7 KB town): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in, +4.0 KB to town with the Talents door and its text rows); the map itself (src/shell/windows/talents/, 7 modules) loads by URL on the window's first open, which keeps 11.4 KB gzip off the town stage (measured eager against on need on the earlier set), and as a second bundle entry esbuild splits 1 shared chunk onto sign-in and 4 onto town"
       }
     ]
   }

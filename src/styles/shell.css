@@ -392,8 +392,8 @@
 .hw-hd-h::after, .hw-ledger-head.is-on::after, .hw-slothead::after, .hw-skill-head::after, .hs-sub::after, .hw-cs-head.is-on::after, .hw-cs-head:first-child::after {
   content: ''; flex: 1; height: 2px; background: var(--steel-rule);
 }
-/* A SUNK FIELD: a well one art px deep, never a hairline box (search, selects, amounts, names, the report box). */
-.hw-search, .hs-win .hh-select, .hs-win .hh-num, .st-search, .st-select, .hf-name, .hc-field, .rp-text {
+/* A SUNK FIELD: a well one art px deep, never a hairline box (search, selects, amounts, names, the report box, the share codes). */
+.hw-search, .hs-win .hh-select, .hs-win .hh-num, .st-search, .st-select, .hf-name, .hc-field, .rp-text, .hps-code, .hps-paste {
   border: 0; border-radius: 0; background: var(--bg-0); box-shadow: var(--steel-well);
 }
 /* THE ONE PRIMARY: a raised gold plate (pixel art, a lip along its foot), pressed when pressed; its word in Cinzel. */
@@ -499,7 +499,7 @@
 .hs-win input[type="range"]:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .st-val { min-width: 44px; text-align: right; font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 /* A CONFIRMATION in a window, or the answer to a press: a sunk well with the gold bar at its left (the picked row's mark). */
-.hw-confirm, .hw-plancopy-confirm, .hs-win .hh-intent-msg:not(:empty, .ca-msg), .hw-temper-msg { background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--gold); }
+.hw-confirm, .hw-plancopy-confirm, .hs-win .hh-intent-msg:not(:empty, .ca-msg) { background: var(--bg-0); box-shadow: var(--steel-well); border-left: 4px solid var(--gold); }
 /* A home window (Chat) is held to the World's bottom-left by its bottom edge; a sized one fills its frame.
    Its grip sits on the frame's top-right corner: drag right to widen, up to grow taller (window-sizes.js). */
 .hs-win.is-home { top: auto; }

@@ -79,6 +79,11 @@ export const SHELL_WINDOWS = Object.freeze([
       'bag.key_sell', 'bag.key_lock']),
     beside: Object.freeze(['storage', 'shop', 'character']) }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
+  /* THE ROADS (lane/r-ui-roads, 18-roads-review-ux.md): the Talents map, a window wider than the dock (it lies over it, as Hunts does);
+     offered only while the server sends the `talents` section (the Roads switch). Every letter is a window's or WASD's and the top bar
+     holds 8 presses (tests/top-bar.mjs TB-1), so the Character window's Talents tab opens it (Open map), not an icon of its own. */
+  Object.freeze({ id: 'talents', label: 'Talents', title: 'The Roads', key: null, noShortcut: true, launcher: false, section: 'talents', glyph: 'uiStar', width: 1000,
+    object: 'plain', over: true, help: 'windows.help_talents' }),
   /* The band says "Skills" (UI audit 2026-11-18: "Gathering and crafting" took two lines beside Back, ?, the key and Close, and the
      window can't be wider: it docks beside Party, 440, inside 60% of a 1440 World, tests/shell-core.mjs W18). Its two sections
      name the rest; the icon row keeps the full label. */
@@ -170,6 +175,9 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', group: 'menu', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
   /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help: a phone's way in). */
   Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', group: 'menu', glyph: 'uiWarn', width: 420, object: 'plain' }),
+  /* SHARE PLAN (lane/wn-sh SH, 20-v030 band 5): this hero's plan and Roads build as a code, and a friend's code read into this hero's own
+     plan editor (src/shell/windows/plan-share.js). No key: every letter is taken; the Menu is the way in. */
+  Object.freeze({ id: 'plan-share', label: 'Share plan', key: null, noShortcut: true, group: 'menu', glyph: 'uiQuests', width: 460, object: 'ledger' }),
   /* One monster's facts, a page of the encyclopedia (Tyler 2026-11-09: every monster's stats are visible). A creature on a hunt's page opens it
      (src/shell/goto.js), so it has no icon and no key. It opens at the bottom-left, beside the Hunts window it was opened from: docked, it would close it. */
   Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book',

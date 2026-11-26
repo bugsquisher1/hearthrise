@@ -181,14 +181,14 @@ export default definePack({
     pyre_wraith: 'regular',     // the middle weight, the caster's mark
     provost: 'elite',           // the bruiser and the rare carrier
   },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw): one of
-     each of the five kinds, so the field supplies every imbuement the Slake and the Ford do not. */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    pike_ferrule: { n: 'Pike Ferrule', icon: '🔩', v: 140, raw: true, imbue: { kind: 'ward', tier: 2 } },
-    rake_tine: { n: 'Rake Tine', icon: '🪝', v: 148, raw: true, imbue: { kind: 'keen', tier: 2 } },
-    kennel_tag: { n: 'Kennel Tag', icon: '🏷️', v: 144, raw: true, imbue: { kind: 'life_leech', tier: 2 } },
-    shroud_pin: { n: 'Shroud Pin', icon: '📍', v: 152, raw: true, imbue: { kind: 'mana_leech', tier: 2 } },
-    warrant_seal: { n: 'Warrant Seal', icon: '🔘', v: 160, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
+    pike_ferrule: { n: 'Pike Ferrule', icon: '🔩', v: 140, raw: true, part: true },
+    rake_tine: { n: 'Rake Tine', icon: '🪝', v: 148, raw: true, part: true },
+    kennel_tag: { n: 'Kennel Tag', icon: '🏷️', v: 144, raw: true, part: true },
+    shroud_pin: { n: 'Shroud Pin', icon: '📍', v: 152, raw: true, part: true },
+    warrant_seal: { n: 'Warrant Seal', icon: '🔘', v: 160, raw: true, part: true },
   },
   /* THE ITEM LINES are player text (Tyler 2026-11-11, the voice rule): short, plain, everyday words, nothing poetic. Names stay. */
   /* THE PYRE FIELD'S SPELL (lane/d-harder-monsters, 2026-11-19; the balance audit's fix 2, board "2026-11-19 Balance audit (real hunts)"): the field had

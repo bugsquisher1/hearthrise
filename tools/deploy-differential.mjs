@@ -7,6 +7,11 @@
 //                                     one defect planted in the NEW pack copy
 //   node tools/deploy-differential.mjs <sha> --probe <p> --prove
 //                                     every plant must exit 1, the control 0
+//   node tools/deploy-differential.mjs --selftest
+//                                     --prove on HEAD with a synthetic gather probe (CI, nightly)
+//
+// ci-step: db-replay-11 | Gather deploy differential - every planted pack fault caught on a synthetic probe, through the replayed hr_apply
+// ci-run: node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest
 //
 // docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md: once gather is armed it
 // has no probe, so every edge deploy carries this differential BEFORE it
@@ -30,9 +35,9 @@
 //   (iii) Both chains applied through the REPLAYED hr_apply (this checkout's
 //         migration chain, PGlite) from ONE starting row seeded from the
 //         probe: the same accept/refuse answer per window, and identical state
-//         (player_state/skills/inventory/progress/equipment/bank) and ledger
-//         rows, excluding ids and timestamps. One transaction, so hr_apply's
-//         now() is one instant for both characters.
+//         (player_state/skills/inventory/progress/equipment, the account's
+//         Storage and purse) and ledger rows, excluding ids and timestamps. One
+//         transaction, so hr_apply's now() is one instant for both characters.
 //
 // Read-only on git and on production: no network, no credentials, no writes
 // outside the OS temp dir. Exit: 0 identical · 1 mismatch · 2 harness.
@@ -57,25 +62,19 @@ function harness(msg) { console.error(`deploy-differential: ${msg}`); process.ex
    only, each a different arm's subject. */
 const FN = 'supabase/functions/hr-accrue/';
 const PLANTS = {
-  'drop-op': { arms: 'ii, iii', channels: ['gather', 'combat'], file: `${FN}tick-contract.js`,
+  'drop-op': { arms: 'ii, iii', channels: ['gather'], file: `${FN}tick-contract.js`,
     find: '      prev.add += add;\n', repl: '' },
-  'merge-keys': { arms: 'ii, iii', channels: ['gather', 'combat'], file: `${FN}tick-contract.js`,
+  'merge-keys': { arms: 'ii, iii', channels: ['gather'], file: `${FN}tick-contract.js`,
     find: "    const id = `${op.kind}\\u0000${op.key}\\u0000${op.period ?? ''}`;", repl: '    const id = `${op.kind}`;' },
   'intent-key': { arms: 'i', channels: ['gather'], file: `${FN}tick-gather.js`,
     find: '  folded.accrued_to = new Date(windowToMs).toISOString();\n',
     repl: '  folded.accrued_to = new Date(windowToMs).toISOString();\n'
       + '  if (folded.xp) for (const k of Object.keys(folded.xp)) folded.xp[k] += 1;\n' },
-  /* The combat flush's counterpart (Security C1, lane c-hunts-c1): one XP point
-     minted per folded combat intent. */
-  'combat-intent-key': { arms: 'i', channels: ['combat'], file: `${FN}tick-combat.js`,
-    find: '  folded.accrued_to = new Date(windowToMs).toISOString();\n',
-    repl: '  folded.accrued_to = new Date(windowToMs).toISOString();\n'
-      + '  if (folded.xp) for (const k of Object.keys(folded.xp)) folded.xp[k] += 1;\n' },
-  /* An ENGINE plant (arm i's one-span and 10 s steps): every combat kill pays one
-     extra gold, in the shared engine the tick and the accrue path both run. */
-  'combat-kill-gold': { arms: 'i', channels: ['combat'], file: 'src/core/combat-sim.js',
-    find: '  state.gold = (state.gold || 0) + gp;\n',
-    repl: '  state.gold = (state.gold || 0) + gp + 1;\n' },
+  /* RETIRED 2026-11-26 (lane/anchors-all-lists): 'combat-intent-key' (tick-combat.js) and 'combat-kill-gold'
+     (src/core/combat-sim.js's kill gold). Their subject, the solo combat channel's settler tick-combat.js, was
+     deleted with the away model: a fight is a hunt session, settled by hunt-settle.js (tools/pack-edge.mjs), so
+     this differential has no combat channel to plant into (and imported the deleted file, so it could not
+     start at all). A combat deploy is judged by the hunt-session guards, not here. */
 };
 
 const args = process.argv.slice(2);
@@ -83,28 +82,71 @@ const valueOf = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i
 const probePath = valueOf('--probe');
 const plant = valueOf('--plant');
 const positional = args.filter((a, i) => !a.startsWith('--') && !['--probe', '--plant'].includes(args[i - 1]));
-if (args.includes('--prove')) {
-  const sha = positional[0];
-  if (!sha || !probePath) harness('usage: node tools/deploy-differential.mjs <sha> --probe <probe.json> --prove');
-  const run = (extra) => spawnSync(process.execPath, [process.argv[1], sha, sha, '--probe', probePath, ...extra],
+
+/* --prove: the control (sha against itself) must exit 0 and every plant 1, red on each arm it names. A child
+   that exits 2 prints its harness line here, so a rotted arm names its cause in the log, not just "exit 2". */
+async function prove(sha, probeFile, label) {
+  const run = (extra) => spawnSync(process.execPath, [process.argv[1], sha, sha, '--probe', probeFile, ...extra],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
+  const why = (r) => (r.status === 2 ? `\n      ${String(r.stderr).trim().split('\n')[0].slice(0, 300)}` : '');
   let bad = 0;
   let kind;
-  try { kind = JSON.parse(await readFile(probePath, 'utf8')).activeKind; } catch (e) { harness(`cannot read the probe: ${e.message}`); }
+  try { kind = JSON.parse(await readFile(probeFile, 'utf8')).activeKind; } catch (e) { harness(`cannot read the probe: ${e.message}`); }
   const ctl = run([]);
-  console.log(`  ${ctl.status === 0 ? '✓' : '✗'} control (nothing planted) -> exit ${ctl.status}`);
+  console.log(`  ${ctl.status === 0 ? '✓' : '✗'} control (nothing planted) -> exit ${ctl.status}${why(ctl)}`);
   if (ctl.status !== 0) bad++;
   for (const [name, p] of Object.entries(PLANTS)) {
     if (!p.channels.includes(kind)) continue;
     const r = run(['--plant', name]);
     const arms = [...new Set([...r.stdout.matchAll(/✗ (\w+) —/g)].map((m) => m[1]))].join(', ');
     const caught = r.status === 1 && p.arms.split(', ').every((a) => arms.split(', ').includes(a));
-    console.log(`  ${caught ? '✓' : '✗'} plant ${name} -> exit ${r.status}, red [${arms}], wanted [${p.arms}]`);
+    console.log(`  ${caught ? '✓' : '✗'} plant ${name} -> exit ${r.status}, red [${arms}], wanted [${p.arms}]${why(r)}`);
     if (!caught) bad++;
   }
-  console.log(bad ? `\ndeploy-differential --prove: RED (${bad})`
-    : '\ndeploy-differential --prove: green — the control passes, every plant is caught.');
+  console.log(bad ? `\ndeploy-differential ${label}: RED (${bad})`
+    : `\ndeploy-differential ${label}: green — the control passes, every plant is caught.`);
+  return bad;
+}
+
+/* --selftest: --prove on HEAD's packs with a SYNTHETIC gather probe, built here from this checkout's data, so CI
+   can run it (a real probe is a player's state and is never committed). It proves the TOOL still works on this
+   tree: the packs import, the chain replays, the seed fits the schema, and every plant is caught. The product
+   catches it shares with tests/progress-coalesce.mjs; the run exists because a deploy gate nobody runs rots
+   silently (the deleted tick-combat.js import and the dropped player_state.gold each left it exiting 2 unseen).
+   The packs are HEAD's committed files; the seed, the reference coalescer and the chain are the working tree. */
+async function syntheticProbe() {
+  const [{ TREES }, { xpForLevel }] = await Promise.all([
+    import(pathToFileURL(join(ROOT, 'src/data/gathering.js')).href),
+    import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href),
+  ]);
+  const tree = TREES[0];   /* the first tree, the entry rung (Woodcutting's table in catalogue.js GATHER_NODES) */
+  /* Relative to the clock and on the minute: the 4 h chain ends an hour before now, so no window is in the future
+     or past a horizon on any day this runs; every child of one run reads the one probe file. */
+  const t0 = Math.floor((Date.now() - 5 * 3600000) / 60000) * 60000;
+  return {
+    userId: '00000000-0000-4000-8000-0000000dd0f0', slot: 0, shard: 0, version: 1,
+    activeKind: 'gather', activeId: tree.id, activeSinceMs: t0, accruedToMs: t0,
+    capMs: 12 * 3600000, hp: 40, levelXp: 2500, gold: 1234,
+    skills: { woodcutting: xpForLevel(Math.max(5, tree.req)) }, inventory: {}, equipment: {}, toolCarry: {},
+    xpFrac: {}, perks: { ok: true, companion: null },
+  };
+}
+
+if (args.includes('--selftest')) {
+  if (positional.length || probePath || plant) harness('usage: node tools/deploy-differential.mjs --selftest (no sha, no probe: HEAD on a synthetic gather probe)');
+  const dir = await mkdtemp(join(tmpdir(), 'hr-ddiff-probe-'));
+  const file = join(dir, 'probe.json');
+  let bad;
+  try {
+    await writeFile(file, JSON.stringify(await syntheticProbe()), 'utf8');
+    bad = await prove('HEAD', file, '--selftest');
+  } finally { await rm(dir, { recursive: true, force: true }); }
   process.exit(bad ? 1 : 0);
+}
+if (args.includes('--prove')) {
+  const sha = positional[0];
+  if (!sha || !probePath) harness('usage: node tools/deploy-differential.mjs <sha> --probe <probe.json> --prove');
+  process.exit((await prove(sha, probePath, '--prove')) ? 1 : 0);
 }
 const [oldSha, newSha] = positional;
 if (!oldSha || !newSha || !probePath) {
@@ -133,34 +175,20 @@ async function packAt(sha, planted = null) {
   }
   const at = (p) => import(pathToFileURL(join(dir, p)).href);
   const fn = 'supabase/functions/hr-accrue/';
-  const [shadow, gather, combat, contract] = await Promise.all([
-    at(`${fn}tick-shadow.js`), at(`${fn}tick-gather.js`), at(`${fn}tick-combat.js`), at(`${fn}tick-contract.js`),
-  ]);
-  return { sha: full, dir, shadow, gather, combat, contract };
+  let shadow; let gather; let contract;
+  try {
+    [shadow, gather, contract] = await Promise.all([
+      at(`${fn}tick-shadow.js`), at(`${fn}tick-gather.js`), at(`${fn}tick-contract.js`),
+    ]);
+  } catch (e) { await rm(dir, { recursive: true, force: true }); harness(`the pack at ${full.slice(0, 10)} does not import: ${String(e.message).split('\n')[0]}`); }
+  return { sha: full, dir, shadow, gather, contract };
 }
 
 /** (i) inputs: one span, the 10 s steps, and the flush intents, for one pack. */
 function runPack(P, probe) {
-  const combat = probe.activeKind === 'combat';
   const f = probe.accruedToMs;
-  /* COMBAT TAKES THE WATERMARK'S TEXT (Security C1, lane c-hunts-c1):
-     `combatTick(char, watermarkMs, watermarkText, nowMs, opts)` seeds from the
-     hr_state_of RENDERING of accrued_to, never a Date. Window 1's label is
-     resolved by THIS checkout's `rosterWatermarkText` (the roster rule: the
-     probe's carried `accruedToText`, else the JSONB rendering of the instant),
-     and every later window by `pgTimestamptzText` — exactly as
-     settleCombatSession re-labels after each settle. Both packs get the same
-     strings, so a pack cannot grade its own spelling. */
-  const text0 = combat ? REF.rosterWatermarkText({ accrued_to: f,
-    mark_text: probe.accruedToText || REF.pgTimestamptzText(f) }, {}) : null;
-  const clone = () => {
-    const c = JSON.parse(JSON.stringify(probe));
-    if (combat) c.accruedToText = text0;
-    return c;
-  };
-  const tick = combat
-    ? (ch, wmMs, nowMs, o) => P.combat.combatTick(ch, wmMs, wmMs === f ? text0 : REF.pgTimestamptzText(wmMs), nowMs, o)
-    : P.gather.gatherTick;
+  const clone = () => JSON.parse(JSON.stringify(probe));
+  const tick = P.gather.gatherTick;
   const t = f + STEPS * STEP_MS;
   const one = tick(P.shadow.hydrate(clone()), f, t, {});
   const ch = P.shadow.hydrate(clone());
@@ -171,8 +199,7 @@ function runPack(P, probe) {
     steps.push(r);
     if (r && r.accrued) { P.shadow.advance(ch, r); wm = Date.parse(r.delta.accrued_to); }
   }
-  const settle = combat ? P.combat.settleCombatSession : P.gather.settleGatherSession;
-  const flush = settle(clone(), f, t, GEOM);
+  const flush = P.gather.settleGatherSession(clone(), f, t, GEOM);
   return { one, steps, intents: flush.intents.map((it) => it.args.p_delta) };
 }
 
@@ -187,12 +214,11 @@ const firstDiff = (a, b) => {
   return -1;
 };
 
-/* THE REFERENCE WATERMARK RENDERERS — this checkout's tick-combat.js, never a
-   pack's (the same rule as the reference coalescer in arm ii). */
-const REF = await import(pathToFileURL(join(ROOT, FN, 'tick-combat.js')).href);
 let probe;
 try { probe = JSON.parse(await readFile(probePath, 'utf8')); } catch (e) { harness(`cannot read the probe: ${e.message}`); }
 if (!Number.isFinite(probe.accruedToMs) || !probe.activeKind) harness('the probe is not an engine session (accruedToMs / activeKind missing)');
+/* gather only: the solo combat channel (tick-combat.js) was deleted with the away model; a fight is a hunt session */
+if (probe.activeKind !== 'gather') harness(`the probe is a ${probe.activeKind} session; this differential reads gather only (tick-combat.js is gone: a fight is a hunt session, settled by hunt-settle.js)`);
 
 console.log(`\ndeploy-differential ${oldSha} -> ${newSha} on ${probe.activeKind}:${probe.activeId}, `
   + `${new Date(probe.accruedToMs).toISOString()} + ${STEPS} x ${STEP_MS / 1000} s`);
@@ -236,21 +262,21 @@ try { ({ db } = await bootReplay({})); } catch (e) { await cleanup(); harness(`t
 const q = async (sql, p) => (await db.query(sql, p)).rows;
 const uOld = '00000000-0000-4000-8000-0000000dd001';
 const uNew = '00000000-0000-4000-8000-0000000dd002';
-/* Wallet-aware: since 2026-10-19-account-wallet.sql gems live in
-   account_wallet (player_state.gems is dropped). The replayed chain is the
-   checkout's, so the column is read, not assumed; gems start at 0 either way. */
-const HAS_GEMS_COL = (await q(`select 1 from information_schema.columns
-  where table_schema = 'public' and table_name = 'player_state' and column_name = 'gems'`)).length > 0;
-const HAS_WALLET = (await q(`select to_regclass('public.account_wallet') as t`))[0].t !== null;
-/* The depot became the ACCOUNT's (2026-11-27-account-depot.sql): player_bank folded into account_bank. */
-const BANK_TABLE = (await q(`select to_regclass('public.account_bank') as t`))[0].t !== null ? 'account_bank' : 'player_bank';
+/* THE STARTING ROW, WRITTEN TO THIS CHECKOUT'S SCHEMA. The replayed chain is the tool's own tree, so the
+   schema is known, not sniffed: a column the chain drops must turn this arm red (exit 2, named) on the
+   nightly that first replays the drop, never be skipped by a branch that only a database without it takes.
+   Gold and gems are the ACCOUNT's purse, account_wallet (2026-10-19-account-wallet.sql moved gems,
+   2026-12-15-account-gold.sql folded player_state.gold in and dropped the column); max HP is DERIVED from
+   level_xp and the worn armour (2026-10-27-core-schema.sql dropped max_hp), so the row carries level_xp;
+   Storage is the account's account_bank (2026-11-27-account-depot.sql). */
 const seed = async (u) => {
   await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-  await q(`insert into public.player_state (user_id, slot, gold, ${HAS_GEMS_COL ? 'gems, ' : ''}hp, max_hp, version, accrued_to,
+  await q('insert into public.account_wallet (user_id, gold) values ($1, $2)', [u, Math.max(0, Math.floor(probe.gold || 0))]);
+  await q(`insert into public.player_state (user_id, slot, hp, level_xp, version, accrued_to,
              active_kind, active_id, active_since, companion_equipped)
-           values ($1, 0, $2, ${HAS_GEMS_COL ? '0, ' : ''}$3, $4, 1, to_timestamp($5::double precision / 1000), $6, $7,
-                   to_timestamp($8::double precision / 1000), $9)`,
-  [u, Math.max(0, Math.floor(probe.gold || 0)), probe.hp, probe.maxHp, probe.accruedToMs, probe.activeKind,
+           values ($1, 0, $2, $3, 1, to_timestamp($4::double precision / 1000), $5, $6,
+                   to_timestamp($7::double precision / 1000), $8)`,
+  [u, probe.hp, Math.max(0, Math.floor(probe.levelXp || 0)), probe.accruedToMs, probe.activeKind,
     probe.activeId, probe.activeSinceMs ?? probe.accruedToMs, probe.perks?.companion?.id ?? null]);
   if (probe.toolCarry) await q('update public.player_state set tool_carry = $2::jsonb where user_id = $1', [u, JSON.stringify(probe.toolCarry)]);
   for (const [k, v] of Object.entries(probe.skills || {})) {
@@ -278,8 +304,8 @@ const STRIP = new Set(['user_id', 'id', 'ts', 'at', 'created_at', 'updated_at'])
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !STRIP.has(k)).sort(([a], [b]) => (a < b ? -1 : 1)));
 const stateOf = async (u) => {
   const out = {};
-  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', BANK_TABLE,
-    ...(HAS_WALLET ? ['account_wallet'] : [])]) {
+  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', 'account_bank',
+    'account_wallet']) {
     out[t] = (await q(`select to_jsonb(t) as j from public.${t} t where user_id = $1`, [u])).map((r) => JSON.stringify(clean(r.j))).sort();
   }
   return out;
@@ -309,7 +335,7 @@ check('iii', ad < 0 && accepted > 0, `hr_apply answered the same for all ${answe
 const [sO, sN] = [await stateOf(uOld), await stateOf(uNew)];
 let sdiff = null;
 for (const t of Object.keys(sO)) if (!isDeepStrictEqual(sO[t], sN[t])) { sdiff = t; break; }
-check('iii', !sdiff, 'state byte-identical (player_state, skills, inventory, progress, equipment, bank)',
+check('iii', !sdiff, 'state byte-identical (player_state, skills, inventory, progress, equipment, storage, purse)',
   `${sdiff} differs:\n      old ${js(sO[sdiff])}\n      new ${js(sN[sdiff])}`);
 const [lO, lN] = [await ledgerOf(uOld), await ledgerOf(uNew)];
 const ld = firstDiff(lO, lN);

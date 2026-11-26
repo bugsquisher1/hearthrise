@@ -227,6 +227,18 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/talents.js': [
     { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested: the line beside it says No points while the server\'s section holds none to spend (the busy line says Spending… for a press)' },
   ],
+  /* the Roads map (lane/r-ui-roads, src/shell/windows/talents/): Spend as suggested in its band and a stone's Take, each off with its line beside it */
+  'src/shell/windows/talents/index.js': [
+    { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested (the map band): the line beside it says No points while the server section holds none to spend' },
+  ],
+  'src/shell/windows/talents/card.js': [
+    { cond: '!can || pending', words: "plain ? (can ? '' : why(problem))", where: 'Take (the node card): shown for the stone the next point could buy, its line says why it is off in the server words (No points, Requires the node before it, No free vow slot)' },
+  ],
+  /* Share plan (lane/wn-sh SH): Copy is off with no plan to share, Use this plan when the pasted code changes nothing */
+  'src/shell/windows/plan-share.js': [
+    { cond: '!code', words: "t('share.none')", where: 'Copy: the line where the code stands says Nothing to share yet while the server holds no plan for this hero' },
+    { cond: '!sends || sc.pending', words: "t('share.nothing')", where: 'Use this plan: hidden until a code is read; then the line beside it says Already your plan when the code changes nothing on this hero (Saving… for a press)' },
+  ],
   /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
   'src/shell/windows/character/faction.js': [
     { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },
@@ -249,10 +261,6 @@ export const REASONS = Object.freeze({
     { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the key family\'s week of chests used); with no key held the press is hidden and the pane says how to earn one' },
     { cond: '!!block || all < 2', words: "t('tower.opens_left')", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Opens left 1 / 6" line says; hidden with fewer than two keys held' },
     { cond: 'pending || !held', words: "t('tower.count', { count: whole(k.heldAll) })", where: 'A key slot (direction A): off for a key not held, which its own count says on it ("x0"), dimmed' },
-  ],
-  'src/shell/windows/temper-pane.js': [
-    { cond: '!offer || !!short', words: "' · Need ' + gold(short) + ' more'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
-    { cond: 'itemsShort', words: "n.name + ': ' + whole(n.held) + '/' + whole(n.need)", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
   'src/shell/windows/hallmark-pane.js': [
     { cond: '!!why || sc.pending || !!sc.hallmark', words: "text(li.querySelector('.hw-hallmark-need'), why ||", where: 'Hallmark: the line beside it says the first thing missing (the Crafting level, the day\'s limit, the gem and where to get one, the gold short); while the confirm is open it asks in the window' },

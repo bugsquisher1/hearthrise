@@ -33,7 +33,6 @@ import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, ble
 import { farmFieldOf } from './farm-sections.js';
 import { homeOf, chestsOf } from './home-sections.js';
 import { tallyOf } from './tally-sections.js';
-import { temperFirstRungOf } from './temper-sections.js';
 import { partyMembershipOf } from './party-sections.js';
 import { trainingOf, quoteFor } from './training-sections.js';
 import { wearsArmour } from '../core/vitals.js';
@@ -226,7 +225,6 @@ export function tutorialFactsOf(cs, sh) {
     tally: tally ? { held: tally.held.length, paid: tally.recent.length, weight: !!tally.weight,
       tasks: Object.fromEntries(tally.held.map((h) => [h.task, { kills: h.kills, target: h.target, done: h.done }])),
       paidTasks: Array.from(new Set(tally.recent.map((p) => p.task))) } : null,
-    temper: temperFirstRungOf(cs),
     /* THE RECRUIT PRESS (1053-recruits.sql, Tyler RD-Q6 a): the server's offer ({ ready, count, level }), or null when there is none */
     recruits: recruitFact(cs),
     inParty: !!party && party.seats.length >= 2,
@@ -258,7 +256,7 @@ export function pointerCardOf(cs, sh) {
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotsOwned: f.slotsOwned, home: f.home,
-    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: huntBlockOf(cs), tally: f.tally, temper: f.temper, recruits: f.recruits,
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: huntBlockOf(cs), tally: f.tally, recruits: f.recruits,
     training: trainingRunOf(cs), partyGround: f.partyGround });
 }
 

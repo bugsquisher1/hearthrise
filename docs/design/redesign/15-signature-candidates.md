@@ -56,6 +56,31 @@ MEASURED on `set/v0.2.144` 5d2434803 (`tools/balance-program/redesign/signature-
 - **What the words do in the engine.** "Each hero it heals" is each hero a cast lands on, even one already at full health. A Signature's reset can't set off another (the reaction queue never chains). "Below 30% health" and "vs a chilled target" are read as the blow lands.
 - **Designer's calls (nothing nerfed or raised here):** the Blade and the Collar fail their size as written. The Wood Book and the Apron want a 12-seed re-read before any number moves.
 
+## The sample, re-read and reshaped (game designer, 2026-11-26, lane/designer-sig-1126)
+
+MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/run.sh`: MID kits at the ground's reference Level, Steady, 8 h, held from hour 4), variant rows played as temporary ids and taken out before commit. Paired against the same four with none on the same seeds.
+
+| Signature | Shape read | Seeds | Held delta (se) | Level XP/h | Reading |
+|---|---|---|---|---|---|
+| The Wood Book | as built | 12 | +5.5 (2.8) | +2.3% | Under the band |
+| The Wood Book | + 6% mana on the same hit | 12 | +5.5 (2.8) | +2.3% | Identical hunt: the mage's mana is full when Frost Lance lands |
+| Brewer's Apron | as built (Emboldened 4 s) | 12 | +5.3 (2.5) | +2.9% | Under the band |
+| Barrow Knight's Blade | as built (reset per kill) | 6 | -11.5 (5.5) | -2.9% | Fails |
+| Barrow Knight's Blade | + 4% mana a Turning Cut kill | 6 | -11.5 (5.5) | -2.9% | Identical hunt: **mana is not the cause**, the sword's mana is full at its kills |
+| Barrow Knight's Blade | 5% mana a kill, no reset | 6 | 0.0 (0.0) | 0.0% | Identical hunt to none (the refund never lands) |
+| Barrow Knight's Blade | a shield of 4 / 8 / 12% a Turning Cut kill, no reset | 6 | -4.3 (4.2) / -3.2 (3.4) / -7.7 (4.2) | -0.5 / -1.6 / -1.7% | No gain |
+| Lurcher's Collar | as built (the Mark moves) | 6 | +0.0 (2.8) | +0.4% | Fails |
+| Lurcher's Collar | Mark ready on any death | 6 | +0.3 (2.8) | +0.2% | No gain, and repeats the Ready Mark branch |
+| Lurcher's Collar | moves + ready | 6 | -0.8 (1.2) | +0.7% | No gain |
+| Lurcher's Collar | Precision Shot ready on any death | 6 | +2.0 (2.7) | +2.6% | Small |
+| Lurcher's Collar | Raking Shot ready on any death | 6 | -0.8 (1.4) | +1.9% | No gain |
+
+**What the readings say.**
+
+- **The Blade's cause is the kill, not mana.** Every rule hung on a Turning Cut kill reads -3 to -12 against one plain 6-seed run, so that plain run sits high and a kill rule's true size on the sword four is near zero. A kill lands when the pull is already thinning, and the sword's depth is its health while the pull is full. A rule that pays on the kill pays at the wrong moment.
+- **The Collar's cause is the Mark.** A Mark kept up nearly all the time (ready on any death) buys nothing: the Mark is one held step on blows at one monster, and the four's other conditional steps already reach the gear slice cap on it (`amount.js` markPm through `held`). No rule that only keeps the Mark up can reach 10.
+- **Mana is not a lever in the reference company.** Both mana refunds played the identical hunt. A Signature that gives mana reads zero until a cell runs dry. Batch 2 writes no mana Signature without a cell where mana binds.
+
 ## Decision: how a Signature stays inside the gear slice (game designer, 2026-11-26, lane/designer-sig-1126)
 
 **How it plays:** a lucky hero with a full Trait kit and a Signature is never more than the gear slice (20 steps) ahead of an unlucky one. The cap can't see a shield, a reset or a moved Mark, so each Signature earns its place by what it measures, before it ships.

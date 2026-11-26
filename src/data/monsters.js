@@ -891,7 +891,7 @@ export const MONSTERS = {
     spells: ['spore_cloud'],
     drops: [{ id: 'magic_essence', everyHours: 0.16, ch: 0.214, band: 'common' }, { id: 'pithwood', everyHours: 0.08, ch: 0.429, band: 'common' }, { id: 'mosslight_tendril', everyHours: 0.5, ch: 0.0686, band: 'uncommon' }, { id: 'iron_helm', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'studded_helmet', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'adept_helmet', everyHours: 2.1, ch: 0.0163, band: 'scarce' },
       { id: 'oak_staff', everyHours: 2.1, ch: 0.0163, band: 'scarce' },
-      { id: 'bramble_blade', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_spellbook', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00111, band: 'rare' }] },
+      { id: 'bramble_blade', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_wand', everyHours: 30.8, ch: 0.00111, band: 'rare' }, { id: 'oak_spellbook', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00111, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elements: { ember: 25, poison: -15 },
@@ -899,7 +899,7 @@ export const MONSTERS = {
     hp: 81, atk: 23, aim: 73, evasion: 30, def: 8, xp: 346, gp: [12, 36], formula: true, speed: 3000,
     drops: [{ id: 'copper_ore', everyHours: 0.2222, ch: 0.514, band: 'common' }, { id: 'bones', everyHours: 0.2667, ch: 0.429, band: 'common' }, { id: 'sluice_crust', everyHours: 1.667, ch: 0.0686, band: 'uncommon' },
       { id: 'iron_platebody', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'studded_body', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'adept_body', everyHours: 2.667, ch: 0.0429, band: 'scarce' },
-      { id: 'iron_warhammer', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'ironbound_shield', everyHours: 2.667, ch: 0.0429, band: 'scarce' },
+      { id: 'iron_warhammer', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'ironbound_shield', everyHours: 32.5, ch: 0.00352, band: 'rare' },
       { id: 'iron_gauntlets', everyHours: 32.5, ch: 0.00352, band: 'rare' }, { id: 'studded_gloves', everyHours: 32.5, ch: 0.00352, band: 'rare' }, { id: 'adept_gloves', everyHours: 32.5, ch: 0.00352, band: 'rare' }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
     /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
@@ -914,7 +914,7 @@ export const MONSTERS = {
     role: 'brute',
     hp: 57, atk: 17, aim: 53, evasion: 26, def: 6, xp: 225, gp: [8, 26], formula: true, speed: 3000,
     /* the Pelt .18 to .21 (lane/d-harder-monsters, 2026-11-19): the bear's tenth more HP slowed the pull, and the Keep's five took 2.2 h at the Glade's Dangerous 6 (the bar is 2 h) */
-    drops: [{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.514, band: 'common' }, { id: 'bear_pelt', everyHours: 0.85, ch: 0.202, band: 'common' }, { id: 'brook_bear_tooth', everyHours: 2.5, ch: 0.0686, band: 'uncommon' }, { id: 'oak_wand', everyHours: 2.5, ch: 0.0686, band: 'scarce' }, { id: 'bear_claw', everyHours: 60.6, ch: 0.00283, band: 'rare' }] },
+    drops: [{ id: 'raw_bear_meat', everyHours: 0.3333, ch: 0.514, band: 'common' }, { id: 'bear_pelt', everyHours: 0.85, ch: 0.202, band: 'common' }, { id: 'brook_bear_tooth', everyHours: 2.5, ch: 0.0686, band: 'uncommon' }, { id: 'bear_claw', everyHours: 60.6, ch: 0.00283, band: 'rare' }] },
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and

@@ -747,13 +747,14 @@ const dataMutants = [
   { name: 'a row still parked for an item that exists (the Kingsgrate)', case: 'pending-rows', edit: (ms, M2) => {
     M2.LB = { ...M2.LB, PENDING_ROWS: [{ monster: 'rat_king', id: 'kingsgrate', ch: 0.017, band: 'rare', after: 'crown_shard' }] }; } },
   { name: 'Leather Boots back at 90 (outselling Studded Boots)', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.leather_boots = { ...M2.ITEMS.leather_boots, v: 90 }; } },
-  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 200 }; } },
+  /* (lane/scale-grounds-sweep: the iron pieces drop only in the Glade now, so they sell at its dial; the plant sits under Iron's bid again) */
+  { name: 'Steel Boots cheaper than Iron Boots', case: 'sale-ladder', edit: (ms, M2) => { M2.ITEMS.steel_boots = { ...M2.ITEMS.steel_boots, v: 150 }; } },
   /* build coverage */
   { name: 'the Dire Grays drop helmets, not bodies', case: 'build-coverage', edit: (ms) => {
     rowOf(ms, 'dire_gray', 'bronze_platebody').id = 'bronze_helm'; rowOf(ms, 'dire_gray', 'leather_body').id = 'leather_helmet'; rowOf(ms, 'dire_gray', 'apprentice_body').id = 'apprentice_helmet';
   } },
   { name: 'the Sewer\'s kobolds drop helmets, not boots', case: 'build-coverage', edit: (ms) => {
-    rowOf(ms, 'kobold_tosher', 'adept_boots').id = 'adept_helmet'; rowOf(ms, 'kobold_tosher', 'studded_boots').id = 'studded_helmet'; rowOf(ms, 'kobold_tosher', 'iron_boots').id = 'iron_helm';
+    rowOf(ms, 'kobold_tosher', 'apprentice_boots').id = 'apprentice_helmet'; rowOf(ms, 'kobold_tosher', 'leather_boots').id = 'leather_helmet'; rowOf(ms, 'kobold_tosher', 'bronze_boots').id = 'bronze_helm';
   } },
   /* the standard ladder's end is a Level, not a pass for everything: moved past the Morrow Hills, their grounds owe a build again */
   { name: 'the standard ladder runs on past Level 110 (a tier 8 nobody built)', case: 'build-coverage', edit: (ms, M2) => { M2.uniqueGearFrom = 999; } },
@@ -772,7 +773,8 @@ const playMutants = [
   { name: 'the den mother\'s fang back to 1%', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').ch = 0.01; } },
   /* (lane/scale-early-grounds: the Dire Gray's Studded Leather Body left with the one-base rule; its Den Knot is the Thicket's other Rare) */
   { name: 'the Den Knot ten times rarer', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { rowOf(ms, 'dire_gray', 'den_knot').ch /= 10; } },
-  { name: 'the Sewer\'s bows too common for a solo hero', rule: 'rare-pace: millrace_sewer rare longbow', edit: (ms) => { for (const d of ms.cistern_spider.drops) if (d.band === 'rare') d.ch = 0.02; } },
+  /* (lane/scale-grounds-sweep: the Sewer is bronze and its spider drops no bow, so the plant is the Rat King's grate) */
+  { name: 'the Rat King\'s Kingsgrate too common for a solo hero', rule: 'rare-pace: millrace_sewer rare kingsgrate', edit: (ms) => { for (const d of ms.rat_king.drops) if (d.id === 'kingsgrate') d.ch = 0.08; } },
   { name: 'Rook\'s Whistle at 1%', rule: 'rare-pace: mosslight_glade rare rooks_whistle', edit: (ms) => { rowOf(ms, 'rook_poacher', 'rooks_whistle').ch = 0.01; } },
   { name: 'the War Crown at 4%', rule: 'rare-pace: coppercap_warrens rare war_crown', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'war_crown').ch = 0.04; } },
   { name: 'a boss Trophy every 44 h', rule: 'trophy-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.boss = true; ms.grayjaw.drops.push({ id: 'war_crown', ch: 0.001, band: 'trophy' }); } },
@@ -844,10 +846,10 @@ const engineMutants = [
      bid, so the floor each rate must stay over is the twin's DIALED bid. MEASURED on this tree: 0.0667 (Mithril Sword, book 1500, over the
      Steel Sword's 100), 0.0200 (Rune Sword 5000 over the Mithril's 100), 0.0088 (Ember Sword 13000 over the Rune's 115), 0.0038 (Dawnsteel
      Platelegs 79200 over the Ember ones' 300). Each mutant is one notch under its floor again. */
-  { name: 'tier-4 gear sells at 0.066 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.066, 0.033, 0.015, 0.007]);']] },
-  { name: 'tier-5 gear sells at 0.019 of book (a Rune Sword under the Mithril one)', case: 'sale-ladder',
-    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.019, 0.015, 0.007]);']] },
+  { name: 'tier-4 gear sells at 0.05 of book (a Mithril Sword under the Steel one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.05, 0.033, 0.015, 0.007]);']] },
+  { name: 'tier-5 gear sells at 0.015 of book (a Rune Sword under the Mithril one)', case: 'sale-ladder',
+    edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.015, 0.015, 0.007]);']] },
   { name: 'tier-6 gear sells at 0.0085 of book (an Ember Sword under the Rune one)', case: 'sale-ladder',
     edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.0085, 0.007]);']] },
   /* tier 7 (lane/d-barrow-data, designer 2026-11-13; floor re-measured above) */

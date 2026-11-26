@@ -124,15 +124,15 @@ export function buildSql(r) {
 --                        (growth_num / growth_den) ^ (n - 1)) in exact numeric, pinned at Levels ${PIN_LEVELS.join(', ')} for every block of
 --                        the day and the first one past it (§3).
 -- READERS: ${VERB_FILE}'s quotes (hr_time_quote, hr_work_block_quote), the \`time_blocks\` section, the verb hr_time_buy and the
--- standing rule (hr_work_extra_ms, hr_time_auto_charge); every later price in hours of wage (13-market.md V, Talent resets, Temper)
--- reads hr_wage. The client reads only the sections.
+-- standing rule (hr_time_auto_buy reads lead_min and hr_time_standing, hr_time_offer_of the offer); the work cap (hr_work_extra_ms);
+-- every later price in hours of wage (13-market.md V, Talent resets, Temper) reads hr_wage. The client reads only the sections.
 -- ORDER: ${OUT_NAME.replace(/-.*/, '')} in its name, AFTER ${VERB_FILE} (§0 refuses to run before it): the \`work\` row exists only once a verb sells it as town
 -- work (tools/gen-time-blocks.mjs, THE FORWARD-FILE RULE). Idempotent: the table is made if missing, converged to this shape and its rows
 -- rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added here. A catalogue table, RLS on, no policy, no grant to any client role; two internal functions revoked
 -- from every client role. No value moves here (the verbs that sell are ${VERB_FILE}'s, on the pre-EA Security list).
--- REVERSIBLE: re-apply 1058-hunting-blocks-catalogue.generated.sql (the hunting row alone; earns_pm and its check stay, harmless) after
--- ${VERB_FILE}'s readers are gone.
+-- REVERSIBLE: once ${VERB_FILE}'s readers are gone, drop hr_time_standing, the two checks (hr_time_blocks_earns_ck, _lead_ck) and the
+-- earns_pm and lead_min columns, then re-apply 1058-hunting-blocks-catalogue.generated.sql (the hunting row alone).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

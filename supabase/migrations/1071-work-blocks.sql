@@ -94,7 +94,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 --   Drop the cron 'hr-time-auto', hr_time_auto_sweep, hr_time_auto_buy, hr_time_offer_answer, hr_time_offer_of, hr_time_auto_set
---   (+ their baseline and GM wall rows), hero_time_rules, account_time_offers, hr_time_standing, hr_work_block_quote, hr_time_bought
+--   (+ their baseline and GM wall rows), hr_time_rule_write, hero_time_rules, account_time_offers, hr_time_standing, the lead_min column, hr_work_block_quote, hr_time_bought
 --   and the index; restate hr_time_quote, hr_time_blocks_view and hr_time_buy from 1058 and hr_work_extra_ms from 1059 (after the
 --   `work` row leaves hr_time_blocks: re-apply 1058's catalogue). Bought blocks stay bought (the ledger is history).
 -- ════════════════════════════════════════════════════════════════════════

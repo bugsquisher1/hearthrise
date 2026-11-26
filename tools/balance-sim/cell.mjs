@@ -649,7 +649,10 @@ export async function loadCellRunner(root) {
      ground's as-built spawn mix, through the engine's own to-hit, blow and armor functions; each piece moved one tier from a full set of the rung below, then the whole set. Rows: { line, from, to, ground, pieces { slot: % }, mean, set }. */
   function armorRungs() {
     const SLOTS = ['body', 'pants', 'helmet', 'boots', 'gloves', 'belt'];
-    const RUNGS = [[0, 1, ['wickstead', 'millrace_sewer', 'mosslight_glade']], [1, 2, ['mosslight_glade', 'coppercap_warrens']]];
+    /* EACH RUNG ON ITS UPPER TIER'S GROUNDS (12-targets 8.4, the designer 2026-11-26): iron is first worn at Level 10 (made, Wickstead and the Sewer) and
+       drops on the Glade; steel drops on the Warrens, the Ford and the Slake. The Glade drops no steel, and a steel piece there meets monsters iron already
+       answers (the chain is P / (P + k x the attacker's Level), so armor a tier over its ground saturates by design) */
+    const RUNGS = [[0, 1, ['wickstead', 'millrace_sewer', 'mosslight_glade']], [1, 2, ['coppercap_warrens', 'hasks_ford', 'the_slake']]];
     const worn = (line, tier) => Object.fromEntries(SLOTS.map((s) => [s, gear.ladder[line + ':' + s][tier]]));
     const perSwing = (kit, gid) => {
       const mix = new Map();

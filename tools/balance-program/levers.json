@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "4e80cb146b68722b",
+ "authored": "7e54f23ccaa340c4",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -17304,6 +17304,14 @@
    "why": "a solver's search bounds (lo 1, hi 10, 60 halvings) for a gentle ground's tier lift"
   },
   {
+   "at": "src/core/plan-code.js#**",
+   "why": "the share code's format: a paste bound (8192 characters), a clamp past any Level's points (2000), the FNV-1a hash constants, base36 and base64 padding; a code is a convenience string the server never trusts"
+  },
+  {
+   "at": "src/data/whats-new.js#semverCmp",
+   "why": "a semver compare: its three parts"
+  },
+  {
    "at": "src/data/world/**",
    "why": "the pixel world: layout, palettes, art budgets, ambient life, house layouts (no fight, purse or clock reads them)"
   },
@@ -17822,26 +17830,6 @@
   {
    "at": "src/core/artisan-sim.js#simulateArtisanSpan",
    "why": "a simulation budget"
-  },
-  {
-   "at": "src/core/plan-code.js#CODE",
-   "why": "a share code's bounds: its longest text and the most nodes it may name (a request bound; a build's own points are talents.js's)"
-  },
-  {
-   "at": "src/core/plan-code.js#check",
-   "why": "the code's checksum: FNV-1a 32's offset basis and prime, written as 7 base36 digits"
-  },
-  {
-   "at": "src/core/plan-code.js#fromB64url",
-   "why": "base64url padding to a multiple of 4"
-  },
-  {
-   "at": "src/core/plan-code.js#decodePlanCode",
-   "why": "the code shape's match groups (version, body, checksum)"
-  },
-  {
-   "at": "src/data/whats-new.js#semverCmp",
-   "why": "the three parts of a semver version"
   },
   {
    "at": "supabase/functions/hr-accrue/**",

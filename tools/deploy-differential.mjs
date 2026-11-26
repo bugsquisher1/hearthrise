@@ -7,6 +7,11 @@
 //                                     one defect planted in the NEW pack copy
 //   node tools/deploy-differential.mjs <sha> --probe <p> --prove
 //                                     every plant must exit 1, the control 0
+//   node tools/deploy-differential.mjs --selftest
+//                                     --prove on HEAD with a synthetic gather probe (CI, nightly)
+//
+// ci-step: db-replay-11 | Gather deploy differential - every planted pack fault caught on a synthetic probe, through the replayed hr_apply
+// ci-run: node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest
 //
 // docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md: once gather is armed it
 // has no probe, so every edge deploy carries this differential BEFORE it
@@ -77,28 +82,71 @@ const valueOf = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i
 const probePath = valueOf('--probe');
 const plant = valueOf('--plant');
 const positional = args.filter((a, i) => !a.startsWith('--') && !['--probe', '--plant'].includes(args[i - 1]));
-if (args.includes('--prove')) {
-  const sha = positional[0];
-  if (!sha || !probePath) harness('usage: node tools/deploy-differential.mjs <sha> --probe <probe.json> --prove');
-  const run = (extra) => spawnSync(process.execPath, [process.argv[1], sha, sha, '--probe', probePath, ...extra],
+
+/* --prove: the control (sha against itself) must exit 0 and every plant 1, red on each arm it names. A child
+   that exits 2 prints its harness line here, so a rotted arm names its cause in the log, not just "exit 2". */
+async function prove(sha, probeFile, label) {
+  const run = (extra) => spawnSync(process.execPath, [process.argv[1], sha, sha, '--probe', probeFile, ...extra],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
+  const why = (r) => (r.status === 2 ? `\n      ${String(r.stderr).trim().split('\n')[0].slice(0, 300)}` : '');
   let bad = 0;
   let kind;
-  try { kind = JSON.parse(await readFile(probePath, 'utf8')).activeKind; } catch (e) { harness(`cannot read the probe: ${e.message}`); }
+  try { kind = JSON.parse(await readFile(probeFile, 'utf8')).activeKind; } catch (e) { harness(`cannot read the probe: ${e.message}`); }
   const ctl = run([]);
-  console.log(`  ${ctl.status === 0 ? '✓' : '✗'} control (nothing planted) -> exit ${ctl.status}`);
+  console.log(`  ${ctl.status === 0 ? '✓' : '✗'} control (nothing planted) -> exit ${ctl.status}${why(ctl)}`);
   if (ctl.status !== 0) bad++;
   for (const [name, p] of Object.entries(PLANTS)) {
     if (!p.channels.includes(kind)) continue;
     const r = run(['--plant', name]);
     const arms = [...new Set([...r.stdout.matchAll(/✗ (\w+) —/g)].map((m) => m[1]))].join(', ');
     const caught = r.status === 1 && p.arms.split(', ').every((a) => arms.split(', ').includes(a));
-    console.log(`  ${caught ? '✓' : '✗'} plant ${name} -> exit ${r.status}, red [${arms}], wanted [${p.arms}]`);
+    console.log(`  ${caught ? '✓' : '✗'} plant ${name} -> exit ${r.status}, red [${arms}], wanted [${p.arms}]${why(r)}`);
     if (!caught) bad++;
   }
-  console.log(bad ? `\ndeploy-differential --prove: RED (${bad})`
-    : '\ndeploy-differential --prove: green — the control passes, every plant is caught.');
+  console.log(bad ? `\ndeploy-differential ${label}: RED (${bad})`
+    : `\ndeploy-differential ${label}: green — the control passes, every plant is caught.`);
+  return bad;
+}
+
+/* --selftest: --prove on HEAD's packs with a SYNTHETIC gather probe, built here from this checkout's data, so CI
+   can run it (a real probe is a player's state and is never committed). It proves the TOOL still works on this
+   tree: the packs import, the chain replays, the seed fits the schema, and every plant is caught. The product
+   catches it shares with tests/progress-coalesce.mjs; the run exists because a deploy gate nobody runs rots
+   silently (the deleted tick-combat.js import and the dropped player_state.gold each left it exiting 2 unseen).
+   The packs are HEAD's committed files; the seed, the reference coalescer and the chain are the working tree. */
+async function syntheticProbe() {
+  const [{ TREES }, { xpForLevel }] = await Promise.all([
+    import(pathToFileURL(join(ROOT, 'src/data/gathering.js')).href),
+    import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href),
+  ]);
+  const tree = TREES[0];   /* the first tree, the entry rung (Woodcutting's table in catalogue.js GATHER_NODES) */
+  /* Relative to the clock and on the minute: the 4 h chain ends an hour before now, so no window is in the future
+     or past a horizon on any day this runs; every child of one run reads the one probe file. */
+  const t0 = Math.floor((Date.now() - 5 * 3600000) / 60000) * 60000;
+  return {
+    userId: '00000000-0000-4000-8000-0000000dd0f0', slot: 0, shard: 0, version: 1,
+    activeKind: 'gather', activeId: tree.id, activeSinceMs: t0, accruedToMs: t0,
+    capMs: 12 * 3600000, hp: 40, levelXp: 2500, gold: 1234,
+    skills: { woodcutting: xpForLevel(Math.max(5, tree.req)) }, inventory: {}, equipment: {}, toolCarry: {},
+    xpFrac: {}, perks: { ok: true, companion: null },
+  };
+}
+
+if (args.includes('--selftest')) {
+  if (positional.length || probePath || plant) harness('usage: node tools/deploy-differential.mjs --selftest (no sha, no probe: HEAD on a synthetic gather probe)');
+  const dir = await mkdtemp(join(tmpdir(), 'hr-ddiff-probe-'));
+  const file = join(dir, 'probe.json');
+  let bad;
+  try {
+    await writeFile(file, JSON.stringify(await syntheticProbe()), 'utf8');
+    bad = await prove('HEAD', file, '--selftest');
+  } finally { await rm(dir, { recursive: true, force: true }); }
   process.exit(bad ? 1 : 0);
+}
+if (args.includes('--prove')) {
+  const sha = positional[0];
+  if (!sha || !probePath) harness('usage: node tools/deploy-differential.mjs <sha> --probe <probe.json> --prove');
+  process.exit((await prove(sha, probePath, '--prove')) ? 1 : 0);
 }
 const [oldSha, newSha] = positional;
 if (!oldSha || !newSha || !probePath) {
@@ -127,9 +175,12 @@ async function packAt(sha, planted = null) {
   }
   const at = (p) => import(pathToFileURL(join(dir, p)).href);
   const fn = 'supabase/functions/hr-accrue/';
-  const [shadow, gather, contract] = await Promise.all([
-    at(`${fn}tick-shadow.js`), at(`${fn}tick-gather.js`), at(`${fn}tick-contract.js`),
-  ]);
+  let shadow; let gather; let contract;
+  try {
+    [shadow, gather, contract] = await Promise.all([
+      at(`${fn}tick-shadow.js`), at(`${fn}tick-gather.js`), at(`${fn}tick-contract.js`),
+    ]);
+  } catch (e) { await rm(dir, { recursive: true, force: true }); harness(`the pack at ${full.slice(0, 10)} does not import: ${String(e.message).split('\n')[0]}`); }
   return { sha: full, dir, shadow, gather, contract };
 }
 

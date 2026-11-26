@@ -1130,11 +1130,10 @@ const SAY = Object.freeze({
     return f.carried && f.carried.klappas_club > 0 ? { text: t('coach.club_equip', { club: name('klappas_club') }), anchor: 'inventory' }
       : { text: t('coach.club_make', { recipe: CLUB_REFORGE.name }) };
   },
-  /* the smith's first rung when the purse covers it (Tempering, src/data/temper.js), else the hero and the House; unstated with no offer */
+  /* the hero and the House; unstated with no offer */
   purse_goal: (f) => {
     if (!ORDINAL[(Number(f.slotsOwned) || 0) + 1] || !Number.isSafeInteger(f.slotCost) || !Number.isSafeInteger(f.gold)) return null;
-    const smith = f.temper && Number.isSafeInteger(f.temper.gold) ? f.temper : null;
-    return { text: smith ? t('coach.goal_temper', { piece: smith.piece, gold: gp(smith.gold) }) : t('coach.purse_goal') };
+    return { text: t('coach.purse_goal') };
   },
   home: (f) => {
     const deed = f.home && f.home.next;
@@ -1275,12 +1274,6 @@ function deedLine(f, offer) {
   const deed = f.home && f.home.next && Array.isArray(f.home.next.items) && !f.home.next.items.some((x) => !name(x.id)) ? f.home.next : null;
   return deed && purse >= deed.gold ? t('coach.goal_deed', { deed: deed.name }) : null;
 }
-/* THE SMITH'S FIRST RUNG (Tempering, src/data/temper.js): named once a hero has twice its price in hand, so it never eats the food money, and only on a ladder this hero has not begun: after that it knows the way. */
-function temperLine(f) {
-  const r = f.temper;
-  if (!r || !Number.isSafeInteger(r.gold) || !Number.isSafeInteger(f.gold) || f.gold < r.gold * 2) return null;
-  return t('coach.goal_temper', { piece: r.piece, gold: gp(r.gold) });
-}
 /* OUT OF STAMINA WITH GOLD IN HAND: a bought hunting block (time-blocks.js: 2 h, two a day), named at the moment it can be used, at the server's quote. Priced in hours of
    the hero's wage (src/core/wage.js), the day's first costs about twice what its hours earn, so it is named only to a hero whose purse holds it. Nearly out: under half an hour. */
 const TOP_UP_UNDER_MS = 1800000;
@@ -1407,8 +1400,6 @@ export function nextGoal(facts) {
   }
   const deed = deedLine(facts, offer);
   if (deed) { lines.push(deed); ids.push('deed', String(facts.home.next.gold)); }
-  const smith = temperLine(facts);
-  if (smith) { lines.push(smith); ids.push('temper', String(facts.temper.gold)); }
   if (offer && offer.purse < offer.slot && offer.purse >= offer.slot * SAVING_FROM) {
     lines.push(t('coach.goal_saving', { nth: offer.nth, gold: gp(offer.slot) }));
     ids.push('saving', String(offer.slot));

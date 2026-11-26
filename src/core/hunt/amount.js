@@ -139,12 +139,13 @@ export const topBpOf = (u) => (u && Number.isInteger(u.blowBp) && u.blowBp > 0 ?
 
 /* the D-8 multipliers a hero carries, as ledger rows of the gear slice (crit, the answer to this monster), the consumable slice (a damage
    food, and its worn imbuements: src/core/imbue.js, each firing on its own condition or waiting and taking its room, 21 D-11) and the
-   temper slice (Tempering), so each is held to its slice's cap and none stacks past it. `other` is the monster on the blow's other side */
+   temper slice (the steady cut a cape and a steady meal carry: until its own slice is ruled it keeps the cap of 5 it has always had,
+   CONFLICTS 2026-11-26 tp-im-steps; Temper itself is item Levels in the gear part, defenseGearPm above). `other` is the monster on the
+   blow's other side */
 function heroRows(u, channel, c, inst, other) {
   const rows = u.imbues ? imbueRows(u.imbues, channel, { role: other ? roleIdOf(inst, other) : null, element: c.element || null }, u.heroLv) : [];
   const add = (slice, steps, key) => { if (steps) rows.push({ slice, raises: channel, steps, key }); };
   if (channel === 'offense' || channel === 'heal') {
-    add('temper', stepsOf(1 + int(u.blowsPm) / 1000), 'blows');
     add('consumable', stepsOf(1 + int(u.buffDmgPm) / 1000), 'food');
   }
   if (channel === 'offense') {
@@ -152,7 +153,7 @@ function heroRows(u, channel, c, inst, other) {
     const answer = stepsOf(int(c.answerPm || 1000) / 1000);
     if (answer > 0) add('gear', answer, 'answer');
   }
-  if (channel === 'defense') add('temper', stepsOf(1000 / (1000 - Math.min(999, Math.max(0, int(u.armorPm))))), 'armor');
+  if (channel === 'defense') add('temper', stepsOf(1000 / (1000 - Math.min(999, Math.max(0, int(u.armorPm))))), 'steady');
   return rows;
 }
 

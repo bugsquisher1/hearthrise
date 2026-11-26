@@ -12,7 +12,6 @@
 //            would then put on and where it comes from (a bench, a ground's drop), its Show opening there (findPiece)
 // ...then THE WHOLE SHELF (balance program L03, 2026-11-20; retention dive: at Level 9 with 14,206 gold "between 220 and 300,000 the
 // screen names nothing"): each shelf's next rung, the CHEAPEST the purse covers, else the nearest with how much more it needs:
-//   temper   the next Tempering rung of the worn weapon, then of the armor worn (temper-sections.js), material in hand
 //   room     the cheapest next House room rung the house is ready for, materials in hand (home-sections.js; the first rung of a
 //            bench's room also ends its tax, bench-tax.js BENCH_TAX_ROOMS)
 //   deed     the House's next property rung, and the rooms it opens       chest  the account Storage's next chest
@@ -38,11 +37,9 @@ import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf, bagExpandOf, hunt
 import { levelOf } from '../session/character-sections.js';
 import { tallyOf } from '../session/tally-sections.js';
 import { settingsOf, huntOf } from '../session/hunt-sections.js';
-import { temperRowsOf } from '../session/temper-sections.js';
 import { trainingOf } from '../session/training-sections.js';
 import { homeOf, chestsOf } from '../session/home-sections.js';
 
-const pct = (pm) => String(pm / 10) + '%';
 /* A room whose rungs do something (the House window offers no purchase for one that does nothing yet). */
 const roomDoes = (room) => (ROOM_PERKS[room] || []).some((m) => Object.values(m || {}).some((v) => v > 0));
 /* Every material a step asks for, in the bag then the account's Storage (the House window's own order, house.js costLines). */
@@ -121,18 +118,6 @@ function findPiece(o) {
    { kind, gold, title, words, icon, glyph, place }. A rung that needs a material, a property tier or a free dummy the hero has not got is
    never a candidate, so gold alone stands between the purse and every one. A new sink is one reader in SHELF. */
 
-/* Tempering's next rung: the worn weapon's, then the armor's (the smith's own order), its material in hand. */
-function temperRows(o) {
-  const rows = o.temper;
-  if (!rows) return [];
-  return [['blows', rows.blows], ['armor', rows.armor]].filter(([, row]) => {
-    const l = row && row.ladder;
-    return !!l && !!l.offer && Number.isSafeInteger(l.gold) && !row.needs.some((n) => n.short > 0) && Number.isFinite(row.nextPm);
-  }).map(([track, row]) => ({ kind: 'temper', gold: row.ladder.gold, title: t('summary.buy_temper', { piece: row.piece, price: gold(row.ladder.gold) }),
-    words: t(track === 'blows' ? 'summary.buy_temper_blows' : 'summary.buy_temper_armor', { pct: pct(row.nextPm) }),
-    icon: track === 'blows' && o.equipment && o.equipment.weapon ? o.equipment.weapon : null, glyph: 'navStore', place: { kind: 'temper' } }));
-}
-
 /* The House's next room rungs the house is ready for, materials in hand (the bag, then Storage), cheapest first. */
 function roomRows(o) {
   const h = o.home;
@@ -199,7 +184,7 @@ function refillRows(o) {
 }
 
 /* Every shelf, in the order a tie of one price goes. */
-const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);
+const SHELF = Object.freeze([roomRows, deedRows, chestRows, bagRows, dummyRows, toolRows, refillRows]);
 
 /**
  * The one buy to name, or null (no purse read yet, or nothing on the shelf at all):
@@ -207,7 +192,7 @@ const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows,
  *   2. else each shelf's next rung the purse covers (else its first), and of those the CHEAPEST the purse covers
  *   3. none covered: the nearest, the cheapest of them all, its words saying how much more it needs (the server's price less the server's purse)
  * @param {{ purse: number|null, equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null, shop: {offers:{item:string,kind:string,price:number}[]}|null,
- *           temper: object|null, dummy: object|null, home: object|null, bag: {id:string,qty:number}[]|null, bank: {id:string,qty:number}[]|null,
+ *           dummy: object|null, home: object|null, bag: {id:string,qty:number}[]|null, bank: {id:string,qty:number}[]|null,
  *           chests?: object|null, bagGrow?: object|null, refill?: object|null }} o
  *        `equipment`: the worn set with the bag's own Equip upgrades already on (so a piece the bag holds is never bought);
  *        `chosen`: the weight picked at Tamsin's and `prefer`: preferredWeight's, as upgradePlan reads them; `chests`: home-sections.js chestsOf;
@@ -238,7 +223,7 @@ export function nextBuyOf(cs, plan) {
   const eq = equipmentOf(cs) || {};
   const lv = levelOf(cs), tally = tallyOf(cs), s = settingsOf(cs), tr = trainingOf(cs), h = huntOf(cs);
   return nextBuy({ purse: goldOf(cs), equipment: Object.assign({}, eq, plan && plan.ops ? plan.ops : {}), skills: skillsOf(cs), level: lv ? lv.level : null,
-    chosen: tally ? tally.weight : null, prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), temper: temperRowsOf(cs), dummy: tr ? tr.dummy : null,
+    chosen: tally ? tally.weight : null, prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), dummy: tr ? tr.dummy : null,
     home: homeOf(cs), bag: bagOf(cs), bank: bankOf(cs), chests: chestsOf(cs), bagGrow: bagExpandOf(cs),
     refill: h && h.ended && h.endReason === 'stamina' ? huntBlockOf(cs) : null });
 }

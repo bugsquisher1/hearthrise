@@ -13,14 +13,16 @@
 // ci-run: node tests/kit-recipes.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
 //
-//   KR-ROWS    the sample is at most five rows, one a trade: Cooking, Smithing, Woodcrafting, Runecutting and one gathering trade; a row
-//              holds only its kind, band, derived id and a short label (no time, count, XP or price); validate() is clean
+//   KR-ROWS    the first day's sample is five band 0 rows, one a trade: Cooking, Smithing, Woodcrafting, Runecutting and one gathering
+//              trade; batch 2 (lane/tp-im-steps, 21 section 2.2) is the Temper kit a band, Iron to Dawnsteel, and nothing else past band 0;
+//              a row holds only its kind, band, derived id and a short label (no time, count, XP or price); validate() is clean
 //   KR-RUNG    a band's recipe opens at the band's rung (band b at rung b + 1, the last rung for every band past it, never before the
-//              kind's own rung), swept over every kind and bands 0 to 12; every sample row opens at trade Level 1, so the first day can
+//              kind's own rung), swept over every kind and bands 0 to 12; every band 0 row opens at trade Level 1, so the first day can
 //              make it
 //   KR-SOURCE  every input of every row names a face at the row's band that another row makes or that is a live item with a door
 //              (catalogue-coherence itemSources); every hunted input names its stream's face with a door; every output is used by
-//              another row or is a live item with a use (itemUses); a NEW face is no ITEMS row and is made and used inside the sample
+//              another row or is a live item with a use (itemUses); a NEW face is no ITEMS row, is made by a row and is used by a row
+//              or a declared use (the Temper kit's rank)
 //   KR-STORE   the store is the fallback and never the best buy: at every band 0 to 8, for a hero at the band's first and last step, the
 //              store's good stands one band behind (band 0: none behind) and costs more per hour of effect than the crafted good at the
 //              hero's band and one band behind, and at most storeCeiling times the crafted good's (it is a fallback, not a fine)
@@ -63,13 +65,15 @@ const ARMS = {
     if (refused) return ['KR-ROWS the catalogue refuses the rows: ' + refused];
     for (const p of KR.validateKitRecipes()) out.push('KR-ROWS ' + p);
     for (const p of KR.validate()) out.push('KR-ROWS trades: ' + p);
-    const rows = KR.KIT_RECIPES;
-    if (rows.length !== 5) out.push('KR-ROWS the sample is ' + rows.length + ' rows, not five');
+    const all = KR.KIT_RECIPES, rows = all.filter((r) => r.band === 0);
+    if (rows.length !== 5) out.push('KR-ROWS the first day sample is ' + rows.length + ' band 0 rows, not five');
+    const later = all.filter((r) => r.band !== 0);
+    if (later.some((r) => r.kind !== 'temper_kit') || later.map((r) => r.band).join() !== '1,2,3,4,5,6') out.push('KR-ROWS batch 2 is ' + later.map((r) => r.id).join(', ') + ', not the Temper kit at bands 1 to 6');
     const trades = rows.map((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade);
     for (const t of ['cooking', 'smithing', 'woodcrafting', 'runecutting']) if (trades.filter((x) => x === t).length !== 1) out.push('KR-ROWS ' + t + ' has ' + trades.filter((x) => x === t).length + ' rows, not one');
     const gather = rows.filter((r) => cat.kinds[r.kind] && cat.kinds[r.kind].stage === 'gather');
     if (gather.length !== 1) out.push('KR-ROWS ' + gather.length + ' gathering rows, not one');
-    for (const r of rows) {
+    for (const r of all) {
       const extra = Object.keys(r).filter((k) => !['id', 'kind', 'band', 'name'].includes(k));
       if (extra.length) out.push('KR-ROWS ' + r.id + ' types ' + extra.join(', '));
       if (r.id !== KR.recipeId(r.kind, r.band)) out.push('KR-ROWS ' + r.id + ' is not its derived id');
@@ -95,7 +99,7 @@ const ARMS = {
       const k = cat.kinds[r.kind];
       const want = Math.max(k.opens, Math.min(n, r.band + 1));
       if (r.rung !== want || r.R !== T.rungLevel(want)) out.push(`KR-RUNG ${r.id}: the catalogue opens it at rung ${r.rung} (Level ${r.R}), not ${want} (Level ${T.rungLevel(want)})`);
-      if (r.R !== 1) out.push(`KR-RUNG ${r.id} opens at trade Level ${r.R}: the first day cannot make it`);
+      if (r.band === 0 && r.R !== 1) out.push(`KR-RUNG ${r.id} opens at trade Level ${r.R}: the first day cannot make it`);
     }
     return out;
   },
@@ -120,11 +124,11 @@ const ARMS = {
     }
     for (const [f, id] of made) {
       if (!f) continue;
-      if (!used.has(f) && !(live(f) && has(uses, f))) out.push(`KR-SOURCE ${id}: output ${f} is used by no row and has no use`);
+      if (!used.has(f) && !((live(f) || KR.NEW_FACES[f]) && has(uses, f))) out.push(`KR-SOURCE ${id}: output ${f} is used by no row and has no use`);
     }
     for (const id of Object.keys(KR.NEW_FACES)) {
       if (ITEMS[id]) out.push(`KR-SOURCE new face ${id} is an ITEMS row before its door exists`);
-      if (!made.has(id) || !used.has(id)) out.push(`KR-SOURCE new face ${id} is not made and used inside the sample`);
+      if (!made.has(id) || !(used.has(id) || has(uses, id))) out.push(`KR-SOURCE new face ${id} is not made by a row and used by a row or a declared use`);
     }
     for (const f of made.keys()) if (f && !live(f) && !KR.NEW_FACES[f]) out.push(`KR-SOURCE ${f} is neither a live item nor a new face`);
     return out;
@@ -185,6 +189,8 @@ async function runPure(X, only = null) {
 const MUTANTS = [
   ['a sixth recipe and a second Smithing row before the sample is read', 'KR-ROWS', 'src/data/trades.js',
     "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n", "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n  kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),\n"],
+  ['batch 2 carries a kind that is no Temper kit', 'KR-ROWS', 'src/data/trades.js',
+    "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n", "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n  kitRow('meal', 1, 'Cook Trout'),\n"],
   ['a recipe row types its own time', 'KR-ROWS', 'src/data/trades.js',
     'Object.freeze({ id: recipeId(kind, band), kind, band, name })', 'Object.freeze({ id: recipeId(kind, band), kind, band, name, ms: 3000 })'],
   ['the catalogue opens a named recipe a rung late', 'KR-RUNG', 'src/core/trades.js', 'const k = out[r.kind], rung = bandRung(k, r.band);', 'const k = out[r.kind], rung = bandRung(k, r.band) + 1;'],

@@ -33,7 +33,6 @@ import { gearPartPm } from './hunt/danger.js';
 import { defenseGearPm } from './hunt/amount.js';
 import { AMOUNT } from '../data/amount.js';
 import { skillLevelPm } from './bands.js';
-import { blowsPmOf, armorPmOf } from './temper.js';
 import { resistProfile } from './elements.js';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
@@ -122,8 +121,9 @@ export function heroSnapshot(state, c) {
   /* `def` is the monster's TO-HIT roll: the Defense skill and the gear outside the armour weights
      (combat.js guardB: a shield). `armour` is what each weight wears; a blow prices it against its attacker (ruling K7, src/core/mitigation.js). */
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0));
-  /* TEMPERING (src/core/temper.js): only a hero with a rung carries these, so a rung-0 hero's snapshot is what it always was. */
-  const blowsPm = blowsPmOf(c.equipment, c.items, c.temper), armorPm = armorPmOf(c.equipment, c.items, c.temper) + steadyPmOf(c.eq, c.bonus);
+  /* THE STEADY CUT (src/core/mitigation.js steadyPmOf: a cape's steadyPm and a steady meal), only on a hero that carries one. Temper is the
+     gear part's (src/core/temper-steps.js: seated ranks are item Levels below), never a number on the unit. */
+  const armorPm = steadyPmOf(c.eq, c.bonus);
   /* CRAFTED JEWELRY (src/data/jewelry.js), the same way: Follow-through, Surge and Focus ride the unit as numbers, only on a hero that wears
      them (Keen and Steady are already in the rolls' crit chance and accuracy). */
   const jewel = (c.eq && c.eq.jewel) || null;
@@ -156,7 +156,7 @@ export function heroSnapshot(state, c) {
     gearPm,
     skillGapPm,
     armorGearPm: dg.armorPm, wardPm: dg.wardPm, blowBp, critPm, buffDmgPm,
-    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
+    ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
     ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
 
@@ -300,8 +300,7 @@ export function memberSide(mi, ctx) {
   const h = mi.hero || {};
   const snapCtx = { eq, equipment, items, bonus, setBonus, profile,
     /* TEMPER ON STEPS (src/core/temper-steps.js): the server's seated ranks by slot (hr_perks_of temperSteps; empty while its switch is off) */
-    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null,
-    temper: mi.perks && mi.perks.temper ? mi.perks.temper : null };
+    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null };
   /* THE HONE (src/core/ammo.js honeOf, lane c-work-fixes 2026-10-22): a whetstone is worn by this
      hero's swing clock (honeWornAt over the persisted swing index) from the hunt's own stock, and it
      pays its bonus only while the hunt still carries one: a spent or unpacked stone is the bare
@@ -542,7 +541,7 @@ export function frozenOf(side, kinds, atMs, monsters) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { ...(snap.blowsPm ? { blowsPm: snap.blowsPm } : {}), ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), gearPm: snap.gearPm || 0,
+    snap: { ...(snap.armorPm ? { armorPm: snap.armorPm } : {}), ...jewelSnap(snap), gearPm: snap.gearPm || 0,
       skillGapPm: snap.skillGapPm || 0,
       armorGearPm: snap.armorGearPm || 0, wardPm: snap.wardPm || 0, blowBp: snap.blowBp || 0, critPm: snap.critPm || 0,
       buffDmgPm: snap.buffDmgPm || 0,

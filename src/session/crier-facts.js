@@ -7,13 +7,12 @@
 // not said yet is false, so an unknown is never a tip. The facts a line may
 // key on are named in src/data/town-criers.js CRIER_FACTS; this is the one
 // place that reads them.
-//   crierFactsOf(cs)   { unhunted, no_blessing, storage_unused, untempered, no_task, task_open }
+//   crierFactsOf(cs)   { unhunted, no_blessing, storage_unused, no_task, task_open }
 //                      each false, true, or an object with the line's words; null until the server has said the Level
 // ════════════════════════════════════════════════════════════════════════
 import { levelOf } from './character-sections.js';
 import { bankOf, blessingsOf } from './item-sections.js';
 import { tallyOf } from './tally-sections.js';
-import { temperRowsOf } from './temper-sections.js';
 import { tallyTask } from '../data/tally-tasks.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 
@@ -23,7 +22,6 @@ export function crierFactsOf(cs) {
   if (!lv) return null;
   const bank = bankOf(cs);
   const bless = blessingsOf(cs);
-  const temper = temperRowsOf(cs);
   const tally = tallyOf(cs);
   const open = tally ? tally.held.find((h) => !h.done) || null : null;
   const task = open ? tallyTask(open.task) : null;
@@ -32,8 +30,6 @@ export function crierFactsOf(cs) {
     unhunted: lv.xp === 0,
     no_blessing: !!bless && !bless.tiers.some((t) => t.held),
     storage_unused: !!bank && bank.length === 0,
-    /* gear with a ladder the hero has never begun, the smith's first rung on offer (temper-sections.js temperFirstRungOf's rule) */
-    untempered: !!temper && [temper.blows, temper.armor].some((r) => !!r.ladder && r.ladder.rung === 0 && !!r.ladder.offer),
     no_task: !!tally && tally.held.length === 0,
     task_open: open && task && ground ? { label: task.label, count: open.target - open.kills, ground, hunt: open.hunt } : false,
   };

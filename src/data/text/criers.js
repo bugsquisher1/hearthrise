@@ -16,9 +16,6 @@ export const CRIERS_TEXT = Object.freeze({
   go_blessing: 'Open Services',
   say_storage: 'Bag getting full? Storage holds the rest, and every hero on your account can take from it.',
   go_storage: 'Open Storage',
-  /* the smith at the forges */
-  say_temper: 'That gear of yours isn\'t tempered. Bring it to me under Services at the Shop and I\'ll make it hit harder and hold up better.',
-  go_temper: 'Open Services',
   /* Tamsin Reeve at her board */
   say_board: 'Click on my board and see what I need help with. The jobs pay gold, and some pay armor.',
   go_board: 'Open my board',

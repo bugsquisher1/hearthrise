@@ -29,8 +29,8 @@
 //   skillPlus   the +combat skill its weapons give while worn (Tyler 2026-11-14: "bronze +1, silver +2, gold +3, plat +4"; an equipment
 //               bonus "like it does in tibia": the engine's half, one item field summed over what is worn, is the Systems lane's)
 //   cinders     the Hearth Cinders it always holds
-//   saltsQty    the tempering salts it always holds. WHICH salts is DERIVED, never written here: the material of the highest tempering
-//               tier at or under weaponTier (src/data/temper.js TEMPER_MATERIALS; keySalts). The coherence pass's C4: the Silver Key paid
+//   saltsQty    the Tempering Salts it always holds. WHICH salts is DERIVED, never written here: the Temper kit of the highest gear tier
+//               at or under weaponTier that is a live item (KEY_SALTS below, from src/data/trades.js KIT_FACES temper_kit; keySalts). The coherence pass's C4: the Silver Key paid
 //               tier 3's salts to heroes wearing tier 4; with tier 4 to 6 ladders (lane/d-audit-balance-2) Silver pays Mithril salts and
 //               Gold and Platinum Ember salts, and a tier 7 ladder moves Platinum by itself. Until those ladders land, the highest
 //               ladder there is (tier 3's Fine salts) is what any key past Bronze pays, and tools/gen-chests.mjs --check turns red the
@@ -58,9 +58,9 @@
 //   A key's chance, in parts per million: base x warmth x stoke, at most a sure thing (chestChancePpm). The server works it out
 //   again itself inside the open; the menu never sends a chance, a warmth or a Cinder count.
 //
-// PURE ESM DATA. Imports only the tempering table and the weapon families. Node, Deno and the browser.
+// PURE ESM DATA. Imports the Temper kits' faces and the weapon families. Node, Deno and the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { TEMPER_MATERIALS } from './temper.js';
+import { KIT_FACES, NEW_FACES } from './trades.js';
 import { WEAPON_FAMILIES } from './gear-tiers.js';
 import { TOWER_WEAPONS } from './tower-weapons.js';
 import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS, towerLevelAt } from './tower.js';
@@ -246,13 +246,18 @@ export function keyForLanding(landing, keys = HEARTH_CHEST_KEYS, ground = TOWER_
 }
 
 /** The salts item a key row always holds: the material of the highest tempering tier at or under its weapon tier, or null. Pure. */
-export function keySalts(k, materials = TEMPER_MATERIALS) {
+/* THE SALTS A KEY MAY HOLD, by gear tier (a band's kit is gear tier band + 1 on gear-tiers.js's count: Iron's band 1 is tier 2): the Temper
+   kits that are live items, so a key never holds a good no door makes yet (Dawnsteel's kit is a new face: Platinum keeps Ember's) */
+export const KEY_SALTS = Object.freeze(Object.fromEntries(KIT_FACES.temper_kit.map((id, band) => [band + 1, id])
+  .filter(([, id]) => id && !Object.prototype.hasOwnProperty.call(NEW_FACES, id)).map(([t, id]) => [t, Object.freeze({ item: id })])));
+
+export function keySalts(k, materials = KEY_SALTS) {
   const tiers = Object.keys(materials).map(Number).filter((t) => t <= k.weaponTier).sort((a, b) => b - a);
   return tiers.length ? materials[tiers[0]].item : null;
 }
 
 /** What a key row always holds: { item: qty }. Pure. */
-export function keyHaul(k, materials = TEMPER_MATERIALS) {
+export function keyHaul(k, materials = KEY_SALTS) {
   const out = { [CINDERS]: k.cinders };
   const salts = keySalts(k, materials);
   if (salts) out[salts] = (out[salts] || 0) + k.saltsQty;
@@ -290,7 +295,7 @@ export function chestChancePpm(k, dry, stokes, luck = CHEST_LUCK) {
 
 /** Everything wrong with the chest table, as strings (empty: valid). `landingEvery` is a key's spacing when its ground has no run row (the
     run row's own landingEvery otherwise: src/data/tower.js RUN_GROUNDS). Pure. */
-export function validateChests(keys = HEARTH_CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS, families = KEY_FAMILIES, tower = TOWER_WEAPONS,
+export function validateChests(keys = HEARTH_CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = KEY_SALTS, families = KEY_FAMILIES, tower = TOWER_WEAPONS,
   runs = RUN_GROUNDS) {
   const out = [];
   const ID = /^[a-z0-9_]{1,40}$/;

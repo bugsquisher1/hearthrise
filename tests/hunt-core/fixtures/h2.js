@@ -22,8 +22,6 @@ async function loadCore2(root) {
   M.sessions = await imp('src/data/hunt-sessions.js');
   M.hg = await imp('src/core/hunt-ground.js');
   M.mitigation = await imp('src/core/mitigation.js');
-  M.temper = await imp('src/core/temper.js');
-  M.temperData = await imp('src/data/temper.js');
   M.buffs = await imp('src/core/buffs.js');
   M.descriptions = (await imp('src/data/item-descriptions.js')).ITEM_DESC;
   M.tutorial = await imp('src/data/hunt-tutorial.js');

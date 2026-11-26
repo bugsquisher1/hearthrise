@@ -13,6 +13,8 @@
 import { TEMPER_STEPS } from '../data/temper.js';
 import { GEAR_STEPS } from '../data/danger.js';
 import { wage } from '../data/wage.js';
+import { faceOf } from '../data/trades.js';
+import { bandOf } from './trades.js';
 
 const T = TEMPER_STEPS;
 const SLOTS = Object.keys(GEAR_STEPS.slotPm);
@@ -45,6 +47,11 @@ export function rankQuote(slot, rank, itemLevel) {
     kits: Math.ceil((mh * T.kitSharePm) / (1000 * T.kitHoursPm)),
   };
 }
+
+/** THE TEMPER KIT a rank on a piece of item Level `itemLevel` takes: its band's (src/data/trades.js KIT_FACES temper_kit, the K1 kit trade
+    Smithing makes), or null where no band's kit is named (Bronze, and the bands past Dawnsteel until their grounds open): the server refuses
+    that rank `kits_owed`, never sells it for gold alone. */
+export const temperKitAt = (itemLevel) => faceOf('temper_kit', bandOf(whole(itemLevel)));
 
 /** THE RE-SEAT (hr_temper_seat's twin): carryPm of every held rank's full price at the new item Level, in gold, burned (D-3). */
 export function seatPrice(slot, ranks, itemLevel) {

@@ -1,41 +1,16 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/imbuements.js — THE IMBUEMENT SLOT OF EVERY DROP TABLE
+// src/data/imbuements.js — EVERY BODY'S OWN PART, THE IMBUER'S INPUT (designer 2026-10-21, lane c-loot-loop; the old five kinds and
+// three tiers retired by the game designer, lane/tp-im-steps, 2026-11-26: docs/design/redesign/21-flame-temper-imbue-loot.md section 3).
 //
-// Tyler 2026-10-14 (L1): every monster drops gold + 1 junk item + 1 imbuement
-// item (unique per monster, tiered by level) + 1 equipment piece; only ONE
-// monster per hunt carries the rare items. Tyler 2026-10-14/15 (L4): gear has
-// fixed stats and improves only by enhancement or imbuement; an imbuement is
-// per gear piece, each kind stacks once per character.
-//
-// DESIGNER RULING (2026-10-21, lane c-loot-loop). The four slots, per monster:
-//   coin       its gp range, every kill
-//   junk       ONE row: the creature's own product, at common odds (over 15%).
-//              It sells to the vendor; it may also be a craft input (wolf meat
-//              cooks, pelts build rooms, bone chips feed Smithing and the Hearth). Bones are NOT the junk
-//              slot: a boned creature may add a bones row (the Hearth's fuel), a slime or a
-//              spider has none.
-//   imbuement  ONE row: an item this monster and no other drops (IMBUE_ITEMS
-//              below), at uncommon odds (IMBUE_DROP), tier from the monster's
-//              level (imbueTierFor). Raw, so the vendor bids a fifth of its book
-//              value: its worth is to the imbuer, not the shop.
-//   equipment  the Scarce rows (src/data/loot-bands.js, Tyler 2026-10-23): one
-//              armour slot in three weights about hourly, never a reveal.
-//   + rare     the Rare (1 per 10-20 h) and Trophy (bosses, 1 per 100-150 h).
-//
-// IMBUING IS NOT BUILT (L4: no server table, no station, no recipe). Until it
-// is, an imbuement item drops, stacks, trades, and the loot filter keeps it
-// (selling is opt-in per item, so nothing auto-sells it; it is not `junk`, so
-// sell-to-cover never touches it). Its only use TODAY is the vendor, which is
-// why every id below is in catalogue-coherence.js VENDOR_TRASH until the L4
-// lane gives it a recipe. The `kind` is the imbuement it will feed (the five
-// kinds the Inventory's Advanced view already names); the L4 lane may move a
-// kind, never an item's source. Item text promises nothing that is not built.
-//
-// THE SAMPLE (DESIGN_STANDARDS §9): Meadowbrook Thicket and the Sewer, eleven
-// monsters, then Mosslight Glade's five (lane c-ground-16-31). The wolves are physical (Keen, Life Leech, Ward); the Sewer feeds
-// casters and elements (Mana Leech, Element Ward), so the two first grounds
-// compete on what they supply, not on numbers. The Warrens and the Mill Cellar
-// follow in the next batch (tests/hunt-core/drop-tables.mjs IMBUE_PENDING).
+// THE RULE, per monster: one row of an item this monster and no other drops (the rows below for the first grounds, each scale ground's
+// pack for its own), at uncommon odds (IMBUE_DROP), raw (the vendor bids a fifth of its book value), its book value 2 gold a Level of its
+// dropper (imbueValueFor). The item carries `part: true`, so the drop rule finds it.
+// WHAT A PART IS FOR. An imbuement row (src/data/imbue-rules.js) names the one part it is made from, at that part's ground's band, and a
+// step bench may take a ground's part (src/data/drop-hours.js made.part). A part no row names is Junk in the bag and sells (the bag's
+// rule, src/shell/bag-model.js plannedUse). The old `imbue: { kind, tier }` field promised an imbuement every part would feed; the
+// redesign makes imbuements a sample of rows instead, each a trade between two grounds (21 D-12).
+// The first grounds' parts below feed no imbuement row: under Level 45 an imbuement is worth under a quarter of a step after the ramp
+// (src/data/power-ledger.js ramp), so these parts are gold for a new player.
 //
 // ART: each id has its own 32x32 pixel icon at assets/icons-bundle/pixel/items/<id>.png
 // (tests/pixel-icons.mjs: palette-locked, unique, no shared art).
@@ -43,70 +18,53 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/** The five imbuement kinds (the Inventory's Advanced view words them). */
-export const IMBUE_KINDS = Object.freeze(['keen', 'life_leech', 'mana_leech', 'ward', 'element_ward']);
-
-/** Tier n is fed by monsters of Level IMBUE_TIER_FLOORS[n - 1] or more (provisional until L4 sets the recipes). */
-export const IMBUE_TIER_FLOORS = Object.freeze([1, 30, 80]);
-
-/** The tier a monster of `level` feeds: 1, 2 or 3. */
-export function imbueTierFor(level) {
-  const L = Number(level) || 0;
-  let t = 1;
-  for (let i = 0; i < IMBUE_TIER_FLOORS.length; i++) if (L >= IMBUE_TIER_FLOORS[i]) t = i + 1;
-  return t;
-}
-
-/** An imbuement row's odds: above the rare band (5%, so it is never a rare reveal), at most uncommon (15%). */
+/** A part row's odds: above the rare band (5%, so it is never a rare reveal), at most uncommon (15%). */
 export const IMBUE_DROP = Object.freeze({ above: 0.05, max: 0.15 });
 
 /** Book value: 2 gold a monster level (the vendor, raw, bids a fifth of it). */
 export function imbueValueFor(level) { return 2 * (Number(level) || 0); }
 
-const row = (n, icon, level, kind) => Object.freeze({ n, icon, v: imbueValueFor(level), raw: true,
-  imbue: Object.freeze({ kind, tier: imbueTierFor(level) }) });
+const row = (n, icon, level) => Object.freeze({ n, icon, v: imbueValueFor(level), raw: true, part: true });
 
-/* One per monster; the dropper's Level (src/data/monsters.js) sets value and tier. */
+/* One per monster; the dropper's Level (src/data/monsters.js) sets its value. */
 export const IMBUE_ITEMS = Object.freeze({
   /* Meadowbrook Thicket: the gray wolves */
-  whelp_milk_tooth: row('Pup Milk Tooth', '🦷', 5, 'life_leech'),
-  gray_dewclaw: row('Gray Dewclaw', '🐾', 8, 'keen'),
-  briar_burr: row('Briar Burr', '🌰', 10, 'ward'),
-  dire_hackle: row('Dire Gray Neck Fur', '🐺', 13, 'ward'),
-  grayjaw_whisker: row('Grayjaw Whisker', '〰️', 15, 'keen'),
+  whelp_milk_tooth: row('Pup Milk Tooth', '🦷', 5),
+  gray_dewclaw: row('Gray Dewclaw', '🐾', 8),
+  briar_burr: row('Briar Burr', '🌰', 10),
+  dire_hackle: row('Dire Gray Neck Fur', '🐺', 13),
+  grayjaw_whisker: row('Grayjaw Whisker', '〰️', 15),
   /* The Mill Cellar (designer 2026-10-23): the tutorial's three, so its rows read like every other ground's */
-  sticky_core: row('Sticky Core', '🟢', 2, 'element_ward'),
-  giant_rat_hide: row('Giant Rat Hide', '🐀', 2, 'ward'),
-  hive_wasp_stinger: row('Hive Wasp Stinger', '🐝', 4, 'keen'),
+  sticky_core: row('Sticky Core', '🟢', 2),
+  giant_rat_hide: row('Giant Rat Hide', '🐀', 2),
+  hive_wasp_stinger: row('Hive Wasp Stinger', '🐝', 4),
   /* The Sewer */
-  rat_incisor: row('Drain Rat Incisor', '🦷', 10, 'keen'),
-  sump_membrane: row('Sump Membrane', '🟢', 10, 'mana_leech'),
-  kobold_scale: row('Kobold Scale', '🦎', 13, 'ward'),
-  culvert_bat_fang: row('Culvert Bat Fang', '🦇', 15, 'life_leech'),
-  cistern_venom_gland: row('Cistern Venom Gland', '🟣', 20, 'element_ward'),
-  knotted_tails: row('Knotted Tails', '🐀', 25, 'element_ward'),
-  /* Mosslight Glade (lane c-ground-16-31, designer 2026-10-21): crows, poachers, vines and the goblins' sluice.
-     Mixed on purpose: the hunter's Keen and Life Leech, the caster's Mana Leech, Ward and Element Ward. */
-  crow_quill: row('Carrion Crow Quill', '🪶', 16, 'keen'),
-  snare_wire: row('Poacher\'s Snare Wire', '➰', 19, 'life_leech'),
-  mosslight_tendril: row('Mosslight Tendril', '🌿', 22, 'mana_leech'),
-  sluice_crust: row('Sluice Crust', '🟩', 26, 'ward'),
-  rooks_moss_charm: row('Rook\'s Moss Charm', '🧿', 29, 'element_ward'),
-  /* Coppercap Warrens (designer 2026-10-23): tier 2, the first ground past Level 30 */
-  glowing_copper_fleck: row('Glowing Copper Fleck', '✨', 34, 'mana_leech'),
-  skulkers_shiv: row('Skulker\'s Shiv', '🗡️', 38, 'keen'),
-  dented_copper_pot: row('Dented Copper Pot', '🥘', 40, 'ward'),
-  foremans_lash: row('Foreman\'s Lash', '➰', 46, 'life_leech'),
-  coppercaps_tallow: row('Coppercap\'s Tallow', '🕯️', 52, 'element_ward'),
-  /* Wickstead (lane b-greenhaven-6, designer 2026-10-28): the farm's vermin and the road's Turncoats. A caster's ground
-     beside the Thicket's physical three: Mana Leech, Ward and Element Ward, with the rats' Keen. */
-  granary_whisker: row('Granary Rat Whisker', '🐀', 9, 'keen'),
-  barn_wasp_sting: row('Barn Wasp Sting', '🐝', 11, 'mana_leech'),
-  loft_web: row('Loft Web', '🕸️', 13, 'ward'),
-  torn_company_badge: row('Torn Company Badge', '🎖️', 16, 'element_ward'),
+  rat_incisor: row('Drain Rat Incisor', '🦷', 10),
+  sump_membrane: row('Sump Membrane', '🟢', 10),
+  kobold_scale: row('Kobold Scale', '🦎', 13),
+  culvert_bat_fang: row('Culvert Bat Fang', '🦇', 15),
+  cistern_venom_gland: row('Cistern Venom Gland', '🟣', 20),
+  knotted_tails: row('Knotted Tails', '🐀', 25),
+  /* Mosslight Glade (lane c-ground-16-31, designer 2026-10-21): crows, poachers, vines and the goblins' sluice */
+  crow_quill: row('Carrion Crow Quill', '🪶', 16),
+  snare_wire: row('Poacher\'s Snare Wire', '➰', 19),
+  mosslight_tendril: row('Mosslight Tendril', '🌿', 22),
+  sluice_crust: row('Sluice Crust', '🟩', 26),
+  rooks_moss_charm: row('Rook\'s Moss Charm', '🧿', 29),
+  /* Coppercap Warrens (designer 2026-10-23): the first ground past Level 30 */
+  glowing_copper_fleck: row('Glowing Copper Fleck', '✨', 34),
+  skulkers_shiv: row('Skulker\'s Shiv', '🗡️', 38),
+  dented_copper_pot: row('Dented Copper Pot', '🥘', 40),
+  foremans_lash: row('Foreman\'s Lash', '➰', 46),
+  coppercaps_tallow: row('Coppercap\'s Tallow', '🕯️', 52),
+  /* Wickstead (lane b-greenhaven-6, designer 2026-10-28): the farm's vermin and the road's Turncoats */
+  granary_whisker: row('Granary Rat Whisker', '🐀', 9),
+  barn_wasp_sting: row('Barn Wasp Sting', '🐝', 11),
+  loft_web: row('Loft Web', '🕸️', 13),
+  torn_company_badge: row('Torn Company Badge', '🎖️', 16),
   /* The boar and the bear (lane b-unsourced-items; art lane b-boar-bear-art) */
-  orchard_boar_tusk: row('Orchard Boar Tusk', '🐗', 12, 'ward'),
-  brook_bear_tooth: row('Brook Bear Tooth', '🐻', 24, 'life_leech'),
+  orchard_boar_tusk: row('Orchard Boar Tusk', '🐗', 12),
+  brook_bear_tooth: row('Brook Bear Tooth', '🐻', 24),
 });
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */

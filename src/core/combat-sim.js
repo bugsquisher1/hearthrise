@@ -170,8 +170,7 @@ function syncUnit(u, m, roles) {
   u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;
   /* THE AMOUNT PIPELINE'S READS (src/core/hunt/amount.js, on the Danger scale only), the same: never persisted. */
   for (const k of PIPELINE_SNAP) u[k] = Number.isInteger(snap[k]) ? snap[k] : 0;
-  /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
-  if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
+  /* THE STEADY CUT (a cape's steadyPm and a steady meal: mitigation.js steadyPmOf), the same: never persisted, absent with none (damage.js hurt). */
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;
   /* CRAFTED JEWELRY'S PERKS, the same: never persisted, absent on a hero that wears none (damage.js roll, abilities.js fire). */
   if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;

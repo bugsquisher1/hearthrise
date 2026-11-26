@@ -43,7 +43,6 @@ import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, i
 import { shootsItem } from '../../data/hunt-roles.js';
 import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
-import { temperedAmount } from '../temper.js';
 import { swingRow, crossLines, guardPmOf, rampTick } from './boss-phases.js';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js';
 import { reaches } from './shooters.js';
@@ -143,7 +142,7 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   const el = elementOn(target, element);
   /* ON THE DANGER SCALE, THE AMOUNT PIPELINE (src/core/hunt/amount.js): `amount` is the move's MEAN in its source's units, and the one
      pipeline lands it (base share, the step contest with every conditional step, one roll, the reference health), rounded once. The
-     monster's flat defence, the armor chain and its cap, Tempering's draw and the after-the-chain power step are not read there. */
+     monster's flat defence, the armor chain and its cap, the steady cut's draw and the after-the-chain power step are not read there. */
   if (stepsOn(inst)) {
     const c = pipedBlow(inst, target, amount, source, element, ability, el, rng);
     const r = landOn(inst, target, source, blowAmount(inst, c));
@@ -169,10 +168,6 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
      ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
      Every landed blow deals at least 1. */
   n = isHero(target) ? mitigate(n, el, armourVs(inst, target, source), target.armorPm, rng) : Math.max(1, n);
-  /* TEMPERING: a hero's rung raises what lands on a monster, last, so +1% is +1% of the damage whatever the monster's defence (src/core/temper.js: the part of a point is one draw, made only by a hero with a rung).
-     (Off the scale only: on it the power step and Tempering are the amount pipeline's steps, src/core/hunt/amount.js.) */
-  const pm = source && source.blowsPm > 0 && isMonster(target) ? source.blowsPm : 0;
-  if (pm) n = Math.max(1, temperedAmount(n, pm, rng));
   return landOn(inst, target, source, n);
 }
 

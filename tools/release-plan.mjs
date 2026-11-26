@@ -46,7 +46,8 @@
 //   with N    "EDGE: with NNNN's" / "the same hr-accrue as NNNN": N's class
 //   A note it cannot class REFUSES the plan (UNCLASSED): a guessed edge point is the failure this tool exists to stop.
 //   The edge goes right after the last 'before' file. A planned 'after' file that sorts before a planned 'before' file is an EDGE
-//   COLLISION, and so is a 'before!' file that is not the last 'before': the plan is refused, naming the pair.
+//   COLLISION, and so is a 'before!' file that is not the last 'before': the plan is refused, naming the pair. An 'after' file
+//   anchored "right after NNNN" names the deploy's place: when NNNN is not the file the edge follows, it is an EDGE ANCHOR refusal.
 // EDGE MISMATCH. The one deploy is packed from today's src/ whole. A held or blocked file classed before or after (its note pairs it
 //   with that deploy) leaves the database and the engine on two designs (1054's note: every settle holds world_shape_pending). It is
 //   OWED and printed, and --strict fails on it; it is not a refusal, because the plan itself is sound.
@@ -67,6 +68,7 @@ const harness = (msg) => { const e = new Error(msg); e.harness = true; return e;
 export const RULES = {
   collision: true, immediate: true, unclassed: true, blocked: true, ordering: true, missing: true, carried: true,
   folded: true, image: true, paired: true, fateDerive: true, staleFate: true, inherit: true, tokenAgree: true, afterAnchor: true,
+  anchor: true,
 };
 
 const noteText = (n) => (Array.isArray(n) ? n.join(' ') : String(n || ''));
@@ -283,6 +285,16 @@ export function planOf({ chain, notes, fateRows, from = 1009, keep = [] }, rules
       refusals.push(`EDGE COLLISION: ${b.file} wants the edge right after it, but ${lastBefore.file} replays later and must also go before the edge`);
     }
   }
+  /* "the hr-accrue right after NNNN" names WHERE the one deploy goes, not only that this file follows it: an anchor that is not the
+     file the plan deploys after is an edge rule the plan does not keep (lane/ro-release-order 2026-11-26: 1061-bar-metrics asked for
+     the edge right after 1058 while the plan deployed it after 1054, read as a plain 'after' and never shown) */
+  if (rules.anchor) {
+    for (const a of plan.filter((x) => x.edge.cls === 'after' && x.edge.anchor != null)) {
+      if (!lastBefore || seqOfName(lastBefore.file) !== a.edge.anchor) {
+        refusals.push(`EDGE ANCHOR: ${a.file} wants the edge right after ${a.edge.anchor}, but the plan deploys it ${lastBefore ? `right after ${lastBefore.file}` : 'first'}`);
+      }
+    }
+  }
 
   const owed = [];
   for (const f of held) {
@@ -395,6 +407,12 @@ export const CASES = [
   ['"right after NNNN" of an earlier file puts this one after the edge', () => planOf({ chain: ['1009-a.sql', '1010-b.sql', '1011-c.sql'],
     notes: { '1009-a.sql': N('EDGE: the hr-accrue deploys right after this apply.'), '1010-b.sql': N('EDGE: the hr-accrue right after 1009.'), '1011-c.sql': N('EDGE: apply first, then deploy.') }, fateRows: [] }, RULES),
   (p) => p.refusals.some((r) => /EDGE COLLISION: 1010-b/.test(r))],
+  ['"right after NNNN" must name the file the edge follows: another anchor refuses, the same one plans', () => ({
+    bad: planOf({ chain: ['1009-a.sql', '1010-b.sql', '1011-c.sql'],
+      notes: { '1009-a.sql': N('EDGE: apply first, then deploy.'), '1010-b.sql': N('EDGE: apply first, then deploy.'), '1011-c.sql': N('EDGE: the hr-accrue right after 1009.') }, fateRows: [] }, RULES),
+    good: planOf({ chain: ['1009-a.sql', '1010-b.sql'],
+      notes: { '1009-a.sql': N('EDGE: apply first, then deploy.'), '1010-b.sql': N('EDGE: the hr-accrue right after 1009.') }, fateRows: [] }, RULES) }),
+  (p) => p.bad.refusals.some((r) => /EDGE ANCHOR: 1011-c.*right after 1009.*1010-b/.test(r)) && !p.good.refusals.length && p.good.edgeAfter === '1009-a.sql'],
   ['an EDGE-ORDER token that contradicts its own prose refuses', () => planOf({ chain: ['1009-a.sql'], notes: { '1009-a.sql': N('EDGE: edge first. EDGE-ORDER: before') }, fateRows: [] }, RULES),
   (p) => p.refusals.some((r) => /disagrees/.test(r))],
   ['"Keep, re-derived after NNNN" waits on a re-cut NNNN', () => planOf({ chain: ['1009-a.sql', '1010-b.sql'],

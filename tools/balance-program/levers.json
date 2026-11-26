@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "88c67362fd8e7c2a",
+ "authored": "b726ca6cbbb6be79",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 242,
+  "levers": 243,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 11,
@@ -80,7 +80,7 @@
    "spawn": 12,
    "monster-rewards": 19,
    "rare-drops": 8,
-   "equipment": 24,
+   "equipment": 25,
    "imbuements": 2,
    "economy": 46,
    "consumables": 9,
@@ -89,7 +89,7 @@
   "byClass": {
    "global": 128,
    "archetype": 32,
-   "content": 52,
+   "content": 53,
    "exception-intentional": 19,
    "exception-accidental": 11
   },
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 42,
    "variant": 5,
-   "not-playable:not-built": 27,
+   "not-playable:not-built": 28,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 133,
+   "asserted": 134,
    "mentioned only": 90,
    "none": 19
   },
@@ -117,23 +117,14 @@
   }
  },
  "census": {
-  "bindings": 771,
-  "typed": 17665,
+  "bindings": 772,
+  "typed": 17666,
   "files": 262,
-  "lever": 340,
-  "notLever": 429,
-  "unclaimed": 2
+  "lever": 341,
+  "notLever": 431,
+  "unclaimed": 0
  },
- "problems": [
-  {
-   "kind": "unclaimed",
-   "what": "src/data/signatures.js#SIGNATURES:48 holds 10 typed number(s) [36 300 250 60000 6 60 ...] and no lever row or NOT_LEVERS reason claims it"
-  },
-  {
-   "kind": "unclaimed",
-   "what": "src/data/talents.js#reactProblems:737 holds 1 typed number(s) [8] and no lever row or NOT_LEVERS reason claims it"
-  }
- ],
+ "problems": [],
  "levers": [
   {
    "id": "blow.skill-term",
@@ -10333,7 +10324,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 67,
+     "distinct": 64,
      "low": 0.06,
      "high": 1
     }
@@ -11381,10 +11372,10 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/signature-rules.mjs",
      "tests/hunt-core/talents.mjs",
-     "tests/special-attributes.mjs",
-     "tests/weapon-line.mjs"
+     "tests/kit-recipes.mjs",
+     "tests/special-attributes.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11544,7 +11535,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 124,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11642,7 +11633,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 124,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12123,6 +12114,71 @@
    },
    "flags": [],
    "evidence": "STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)"
+  },
+  {
+   "id": "gear.signatures",
+   "category": "equipment",
+   "name": "Signatures: each named piece's one rule, as reaction rows",
+   "sites": [],
+   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, death, heal) doing a shield, a ready, a pass or a boon (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
+   "range": "each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)",
+   "touches": "which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "mixed: ",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/signature-rules.mjs",
+      "what": "every case",
+      "reads": [
+       "SIGNATURES"
+      ]
+     }
+    ],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "dark: SIGNATURE_RULES.live false, nothing drops or hands one; only the tests hand a hero `wornSignature` (tests/hunt-core/signature-rules.mjs)",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the Signatures (a reaction row each: its line, size, clock and boon time; lane/signatures-sample)",
+    "homes": [
+     "src/data/signatures.js#SIGNATURES"
+    ]
+   },
+   "flags": [],
+   "evidence": "STATED (15-signature-candidates.md starting values; the Lab sizes them)"
   },
   {
    "id": "gear.rarity-hours",
@@ -13860,7 +13916,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 124,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -15008,10 +15064,11 @@
     ],
     "mentions": [
      "tests/econ-levers.mjs",
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/wage-prices.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17562,6 +17619,14 @@
    "why": "a road's rank stones numbered 1 to 5 (17 section 2's shape): ids, no value"
   },
   {
+   "at": "src/data/trades.js#KIT_SAMPLE_MAX",
+   "why": "a content process bound: at most 5 named kit recipes until the sample is read (CLAUDE.md section 10), no outcome reads it"
+  },
+  {
+   "at": "src/data/talents.js#reactProblems",
+   "why": "a validation bound: a carry reaches at most 8 tiles (a row past it is refused, no outcome reads the bound); the reach itself is the row's `r`, a roads.nodes lever"
+  },
+  {
    "at": "src/core/gear-stats.js#gearStats",
    "why": "the units of the gear formula (permille x permille x permille: / 10^9); its levers are src/data/gear-profiles.js"
   },
@@ -18394,6 +18459,17 @@
    "keys": [
     "n",
     "when"
+   ],
+   "bindings": 1
+  },
+  "src/data/signatures.js#SIGNATURES": {
+   "pin": "keys",
+   "keys": [
+    "belowPm",
+    "clockMs",
+    "ms",
+    "n",
+    "pm"
    ],
    "bindings": 1
   },

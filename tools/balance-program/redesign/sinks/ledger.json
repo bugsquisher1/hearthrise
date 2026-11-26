@@ -1,0 +1,552 @@
+{
+ "days": 180,
+ "report": "tools/balance-program/redesign/tuning/final/c0-muster-ref.json",
+ "hour": {
+  "steady": {
+   "id": "base:steady",
+   "L": 60,
+   "payX": 1.0357470210815765,
+   "coinShare": 0.8054277286135694,
+   "storeShare": 0.28857817109144546,
+   "deathsPerHeroH": 0
+  },
+  "bold": {
+   "id": "base:bold",
+   "L": 60,
+   "payX": 1.2703941338221816,
+   "coinShare": 0.8081289081289081,
+   "storeShare": 0.27911495911495915,
+   "deathsPerHeroH": 0.00625
+  }
+ },
+ "kitWork": 0.779,
+ "workDayH": 8,
+ "imbueFrom": 55,
+ "traitsFrom": 45,
+ "profiles": {
+  "reference": {
+   "profile": {
+    "ownH": 10,
+    "blocks": 2,
+    "bold": 0,
+    "crafts": 1,
+    "imbues": 1,
+    "resets": 0.2,
+    "carry": 0.2,
+    "hall": false,
+    "reserveH": 20,
+    "workUsed": 1,
+    "label": "REFERENCE: the full 10 h day, Steady, crafts its kit, the block rule at 2 (04 section 1, 20 section 4)"
+   },
+   "snaps": {
+    "30": {
+     "coin": 22134843.09196454,
+     "loot": 5347254.06660556,
+     "floor": 1112.0659999999993,
+     "storeKit": 2038474.7116774307,
+     "jobFee": 982043.104016691,
+     "imbue": 400032.46368750004,
+     "temper": 387124,
+     "carry": 327169.21999999986,
+     "bless": 0,
+     "reset": 191982.60000000006,
+     "block": 18326280,
+     "hall": 0,
+     "purse": 4830103.125188495,
+     "dayMinted": 1042582.9514207169,
+     "levels": [
+      85,
+      85,
+      85,
+      85
+     ],
+     "rungs": 0,
+     "hunted": 56
+    },
+    "180": {
+     "coin": 204466820.70076397,
+     "loot": 49394343.295570225,
+     "floor": 1112.0659999999993,
+     "storeKit": 19414934.706086557,
+     "jobFee": 8973975.95185348,
+     "imbue": 8649439.918874914,
+     "temper": 1493304,
+     "carry": 2932891.2200000472,
+     "bless": 0,
+     "reset": 1801395.7999999982,
+     "block": 179264410,
+     "hall": 0,
+     "purse": 31331924.465518568,
+     "dayMinted": 1776480.1466544569,
+     "levels": [
+      261,
+      261,
+      261,
+      261
+     ],
+     "rungs": 0,
+     "hunted": 56
+    }
+   }
+  },
+  "reference, rule at 1": {
+   "profile": {
+    "ownH": 10,
+    "blocks": 1,
+    "bold": 0,
+    "crafts": 1,
+    "imbues": 1,
+    "resets": 0.2,
+    "carry": 0.2,
+    "hall": false,
+    "reserveH": 20,
+    "workUsed": 1,
+    "label": "the same company, the block rule at 1"
+   },
+   "snaps": {
+    "30": {
+     "coin": 18850614.862450346,
+     "loot": 4553862.277787962,
+     "floor": 1112.0659999999993,
+     "storeKit": 948022.1971136366,
+     "jobFee": 967666.5018946468,
+     "imbue": 284074.2674999998,
+     "temper": 202740,
+     "carry": 261628.07999999958,
+     "bless": 0,
+     "reset": 189173.60000000012,
+     "block": 7359824,
+     "hall": 0,
+     "purse": 13192460.559730016,
+     "dayMinted": 870773.2355637029,
+     "levels": [
+      79,
+      79,
+      79,
+      79
+     ],
+     "rungs": 0,
+     "hunted": 48
+    },
+    "180": {
+     "coin": 168140698.16510856,
+     "loot": 40618812.08237074,
+     "floor": 1112.0659999999993,
+     "storeKit": 8631901.118636554,
+     "jobFee": 8601922.757754482,
+     "imbue": 7001845.645500068,
+     "temper": 1493304,
+     "carry": 2495104.0799999814,
+     "bless": 0,
+     "reset": 1689391.200000001,
+     "block": 67367184,
+     "hall": 0,
+     "purse": 111479969.51158854,
+     "dayMinted": 1522697.268560946,
+     "levels": [
+      235,
+      235,
+      235,
+      235
+     ],
+     "rungs": 0,
+     "hunted": 48
+    }
+   }
+  },
+  "reference, no rule": {
+   "profile": {
+    "ownH": 10,
+    "blocks": 0,
+    "bold": 0,
+    "crafts": 1,
+    "imbues": 1,
+    "resets": 0.2,
+    "carry": 0.2,
+    "hall": false,
+    "reserveH": 20,
+    "workUsed": 1,
+    "label": "the same company, no block rule (what blocks carry)"
+   },
+   "snaps": {
+    "30": {
+     "coin": 15511041.183012519,
+     "loot": 3747100.338527343,
+     "floor": 39975.98199999998,
+     "storeKit": 0,
+     "jobFee": 926246.5431510338,
+     "imbue": 173688.94499999995,
+     "temper": 202740,
+     "carry": 190422.59999999971,
+     "bless": 0,
+     "reset": 185939.2,
+     "block": 0,
+     "hall": 0,
+     "purse": 17619080.215388823,
+     "dayMinted": 707098.4825224616,
+     "levels": [
+      71,
+      71,
+      71,
+      71
+     ],
+     "rungs": 0,
+     "hunted": 40
+    },
+    "180": {
+     "coin": 131871329.24167399,
+     "loot": 31856991.198289007,
+     "floor": 339866.6679999999,
+     "storeKit": 0,
+     "jobFee": 7874736.5447397875,
+     "imbue": 5350957.425000007,
+     "temper": 1493304,
+     "carry": 2051652.6000000213,
+     "bless": 0,
+     "reset": 1580811.1999999997,
+     "block": 0,
+     "hall": 0,
+     "purse": 145716725.33822107,
+     "dayMinted": 1226711.2471567392,
+     "levels": [
+      208,
+      208,
+      208,
+      208
+     ],
+     "rungs": 0,
+     "hunted": 40
+    }
+   }
+  },
+  "reference, buys the hall": {
+   "profile": {
+    "ownH": 10,
+    "blocks": 2,
+    "bold": 0,
+    "crafts": 1,
+    "imbues": 1,
+    "resets": 0.2,
+    "carry": 0.2,
+    "hall": true,
+    "reserveH": 20,
+    "workUsed": 1,
+    "label": "the reference, buying the next deed or rung whenever the purse holds it"
+   },
+   "snaps": {
+    "30": {
+     "coin": 19639310.88200427,
+     "loot": 4744392.564375189,
+     "floor": 8991.816,
+     "storeKit": 1256810.4777664323,
+     "jobFee": 963299.0112043219,
+     "imbue": 314184.30843750003,
+     "temper": 341028,
+     "carry": 276244.2999999998,
+     "bless": 0,
+     "reset": 189292.80000000008,
+     "block": 11392350,
+     "hall": 7734700,
+     "purse": 1924786.3649712114,
+     "dayMinted": 1022006.8010999076,
+     "levels": [
+      82,
+      80,
+      80,
+      79
+     ],
+     "rungs": 34,
+     "hunted": 56
+    },
+    "180": {
+     "coin": 199762052.02664244,
+     "loot": 48257782.56547548,
+     "floor": 8991.816,
+     "storeKit": 18357524.39474868,
+     "jobFee": 8869264.31104122,
+     "imbue": 8438070.188999906,
+     "temper": 1493304,
+     "carry": 2877003.020000046,
+     "bless": 0,
+     "reset": 1774166.1999999993,
+     "block": 169097390,
+     "hall": 10234700,
+     "purse": 26887404.293327432,
+     "dayMinted": 1776480.146654427,
+     "levels": [
+      258,
+      257,
+      257,
+      257
+     ],
+     "rungs": 35,
+     "hunted": 56
+    }
+   }
+  },
+  "reference, works 0.8 of its day": {
+   "profile": {
+    "ownH": 10,
+    "blocks": 2,
+    "bold": 0,
+    "crafts": 1,
+    "imbues": 1,
+    "resets": 0.2,
+    "carry": 0.2,
+    "hall": false,
+    "reserveH": 20,
+    "workUsed": 0.8,
+    "label": "the reference, working 0.8 of its work day (09 5.1)"
+   },
+   "snaps": {
+    "30": {
+     "coin": 22134843.09196454,
+     "loot": 5347254.06660556,
+     "floor": 0,
+     "storeKit": 3213510.7413510154,
+     "jobFee": 786203.7657377599,
+     "imbue": 400032.46368750004,
+     "temper": 387124,
+     "carry": 327169.21999999986,
+     "bless": 0,
+     "reset": 191982.60000000006,
+     "block": 18326280,
+     "hall": 0,
+     "purse": 3849794.3677938376,
+     "dayMinted": 1042582.9514207169,
+     "levels": [
+      85,
+      85,
+      85,
+      85
+     ],
+     "rungs": 0,
+     "hunted": 56
+    },
+    "180": {
+     "coin": 204466820.70076397,
+     "loot": 49394343.295570225,
+     "floor": 0,
+     "storeKit": 30180290.153164264,
+     "jobFee": 7179750.0440072,
+     "imbue": 8649439.918874914,
+     "temper": 1493304,
+     "carry": 2932891.2200000472,
+     "bless": 0,
+     "reset": 1801395.7999999982,
+     "block": 179264410,
+     "hall": 0,
+     "purse": 22359682.860287327,
+     "dayMinted": 1776480.1466544569,
+     "levels": [
+      261,
+      261,
+      261,
+      261
+     ],
+     "rungs": 0,
+     "hunted": 56
+    }
+   }
+  },
+  "full day, store-fed": {
+   "profile": {
+    "ownH": 10,
+    "blocks": 2,
+    "bold": 0,
+    "crafts": 0,
+    "imbues": 1,
+    "resets": 0.2,
+    "carry": 0.2,
+    "hall": false,
+    "reserveH": 20,
+    "workUsed": 1,
+    "label": "the full day, no kit trades: every use bought at the store"
+   },
+   "snaps": {
+    "30": {
+     "coin": 21835536.860861577,
+     "loot": 5274948.767002748,
+     "floor": 480019,
+     "storeKit": 7823494.359890009,
+     "jobFee": 0,
+     "imbue": 391995.0825,
+     "temper": 387124,
+     "carry": 322921.60999999987,
+     "bless": 0,
+     "reset": 191731.60000000006,
+     "block": 17393212,
+     "hall": 0,
+     "purse": 1080025.975474334,
+     "dayMinted": 1058520.3858845085,
+     "levels": [
+      85,
+      85,
+      85,
+      83
+     ],
+     "rungs": 0,
+     "hunted": 56
+    },
+    "180": {
+     "coin": 200020676.71591827,
+     "loot": 48320260.167675205,
+     "floor": 4504301,
+     "storeKit": 71665773.37300332,
+     "jobFee": 0,
+     "imbue": 8450710.069312438,
+     "temper": 1493304,
+     "carry": 2880872.0400000378,
+     "bless": 0,
+     "reset": 1790420.9999999984,
+     "block": 164665156,
+     "hall": 0,
+     "purse": 1899001.401277111,
+     "dayMinted": 1749398.4271310866,
+     "levels": [
+      261,
+      261,
+      260,
+      249
+     ],
+     "rungs": 0,
+     "hunted": 54
+    }
+   }
+  },
+  "mix 6 h": {
+   "profile": {
+    "ownH": 6,
+    "blocks": 0,
+    "bold": 0.1,
+    "crafts": 0.7,
+    "imbues": 0.7,
+    "resets": 0.1,
+    "carry": 0.2,
+    "hall": true,
+    "reserveH": 20,
+    "workUsed": 0.8,
+    "label": "09 5.1 mix: 6 h a hero (SPECULATIVE)"
+   },
+   "snaps": {
+    "30": {
+     "coin": 9116015.122859754,
+     "loot": 2197662.6538588437,
+     "floor": 445051,
+     "storeKit": 975611.8392109995,
+     "jobFee": 379404.6041376107,
+     "imbue": 0,
+     "temper": 78596,
+     "carry": 57112.559999999976,
+     "bless": 4804.064999999997,
+     "reset": 89012.79999999997,
+     "block": 0,
+     "hall": 7734700,
+     "purse": 2439486.9083699957,
+     "dayMinted": 420465.0922089815,
+     "levels": [
+      54,
+      54,
+      54,
+      54
+     ],
+     "rungs": 34,
+     "hunted": 24
+    },
+    "180": {
+     "coin": 69976734.50573783,
+     "loot": 16869789.48472962,
+     "floor": 3416319,
+     "storeKit": 7489032.1848989995,
+     "jobFee": 2912401.4052384985,
+     "imbue": 1642699.3637249952,
+     "temper": 663672,
+     "carry": 1163034.9599999913,
+     "bless": 49373.0850000001,
+     "reset": 683281.9999999977,
+     "block": 0,
+     "hall": 10234700,
+     "purse": 65424647.99160574,
+     "dayMinted": 619310.1521539986,
+     "levels": [
+      150,
+      150,
+      150,
+      150
+     ],
+     "rungs": 35,
+     "hunted": 24
+    }
+   }
+  },
+  "mix 2 h": {
+   "profile": {
+    "ownH": 2,
+    "blocks": 0,
+    "bold": 0.1,
+    "crafts": 0.7,
+    "imbues": 0.7,
+    "resets": 0.05,
+    "carry": 0.2,
+    "hall": true,
+    "reserveH": 20,
+    "workUsed": 0.8,
+    "label": "09 5.1 mix: 2 h a hero (SPECULATIVE)"
+   },
+   "snaps": {
+    "30": {
+     "coin": 2867016.671677357,
+     "loot": 691172.116590283,
+     "floor": 419910,
+     "storeKit": 306833.125044913,
+     "jobFee": 119323.99307302169,
+     "imbue": 0,
+     "temper": 0,
+     "carry": 0,
+     "bless": 218.06000000000003,
+     "reset": 41992.000000000015,
+     "block": 0,
+     "hall": 2482500,
+     "purse": 1027231.6101497111,
+     "dayMinted": 138088.56168652605,
+     "levels": [
+      31,
+      31,
+      31,
+      31
+     ],
+     "rungs": 16,
+     "hunted": 8
+    },
+    "180": {
+     "coin": 19483730.765756138,
+     "loot": 4697081.66174151,
+     "floor": 2853633,
+     "storeKit": 2085182.8513759873,
+     "jobFee": 810904.4422017718,
+     "imbue": 209936.4875999998,
+     "temper": 202740,
+     "carry": 271935.6799999998,
+     "bless": 12386.674999999954,
+     "reset": 285372.2000000009,
+     "block": 0,
+     "hall": 10234700,
+     "purse": 12921287.091319876,
+     "dayMinted": 167258.06507790834,
+     "levels": [
+      79,
+      79,
+      79,
+      79
+     ],
+     "rungs": 35,
+     "hunted": 8
+    }
+   }
+  }
+ },
+ "mix": {
+  "30": 0.8015874707417169,
+  "180": 0.5879880751112089
+ }
+}

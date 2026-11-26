@@ -21,22 +21,26 @@
 -- DROPPED, SECTIONS: `hunt_tier` (hr_hunt_tier_view) and `scaled_hunts` (hr_scaled_hunts_view).
 -- DROPPED, INTERNAL: hr_hunt_tier_pick, hr_hunt_tier_open and hr_hunt_tier_stamp (and their two triggers on hunt_sessions),
 --   hr_scaled_hunt_of, hr_scaled_level, hr_scaled_hours_today, hr_hunt_scaled_at_door, hr_scaled_hours_hold (and its two triggers).
--- DROPPED, TABLES: hr_ground_tiers, hr_scaled_grounds, hr_scaled_kill_bounds, hr_scaled_hunt_rule, player_scaled_hours,
---   hunt_scale_holds (1053-lever-gates.sql). COLUMNS: hunt_density.tier, hunt_instances.tier, hunt_instances.scale_level,
+-- DROPPED, TABLES: hr_ground_tiers, hr_scaled_grounds, hr_scaled_kill_bounds, hr_scaled_hunt_rule, player_scaled_hours
+--   (hunt_scale_holds and hr_scaled_hours_hold, 1053-lever-gates.sql's scale half, are no longer made: dropped `if exists`). COLUMNS: hunt_density.tier, hunt_instances.tier, hunt_instances.scale_level,
 --   hunt_sessions.tier, hunt_session_tally.scaled_ms. THE SWITCH ROW: hr_feature_switches 'scaled_hunts'.
 -- RESTATED WHOLE (§1b: each patch chain was past its depth, tests/patch-chain-guard.mjs PATCH-1 and PATCH-3; the text the chain held,
 --   less what the tier chain and the scaled hunts wrote into it):
---   hr_hunt_instance_read    no `tier`, `scale`, `scale_level` keys; a member's options carry no `tier`
 --   hr_hunt_party_view       no `leader_tiers`
 --   hr_hunt_apply_instance   no `scale` claim key, no scale re-proof, no scale_level write, no hours debit
 --   hr_hunt_best_fold        no scaled run to skip
 -- RESTATED BY ANCHORED SPLICES (§1: one site each, the rest of each body byte for byte as the chain left it):
 --   hr_hunt_density_freeze   the instance's first session freezes pull 0 (the ground as built; on the scale the step sets the pull,
 --                            hr_danger_freeze)
---   hr_hunt_view             no session `tier`
---   hr_carry_on_plan_of      no hero `tier`
 --   hr_hunt_admit            an outgrown ground refuses with no scaled door
 --   hr_hunt_apply_member     the value, defense and item bounds lose their scaled widening; no scaled_ms on the tally
+--
+-- FOLDED INTO THE STAGED FILES THAT WRITE THEM (a staged body is edited in place, never moved by a later file: the staged tail's
+--   second apply, tests/schema-drift.mjs): 1024-carry-on.sql and 1051-company-start.sql (the plan's hero `tier`), 1053-hunt-report.sql
+--   and 1057-danger-falls.sql (an ended session's `tier`; 1053's VERIFY(d) reads either image of the member commit),
+--   1053-lever-gates.sql (its scale half, and the instance read's `tier`, `scale` and `scale_level`, with 1056-danger-scale.sql's
+--   overlay), 1059-no-party-finder.sql (`leader_tiers`), 1062-store-step.sql (the member commit's scaled
+--   bounds and tally span); and the retry allowances of 1025, 1046, 1053-lever-gates and 1056 name this file's images.
 --
 -- ── PLAYER STATE THIS FILE DROPS, BY DESIGN (CLAUDE.md section 1: no progress protection; say it in the release note) ─────────
 --   player_scaled_hours: hours bought with gold and not yet hunted (production, read only 2026-11-26: one account, 0.96 h of the 1 h it
@@ -74,9 +78,6 @@ begin
     raise exception 'PRECONDITION: the hunt chain, the RPC baseline, the envelope sections or the Danger scale are missing'; end if;
   for v_r in select * from (values
     ('public.hr_hunt_density_freeze()', '022927b62a7d6264ddb6bf783f6324b2', '66313edc576982bb584a10f296cf488e'),
-    ('public.hr_hunt_instance_read(uuid,integer)', '3097347b88e3a5187f2f12cf0d7fbcae', 'e0b569fcc3d856126934683a2129363e'),
-    ('public.hr_hunt_view(uuid)', '32668b16635573452a939532e2c9ec9f', '812ab2041a78d10ad28eb9e91011b05b'),
-    ('public.hr_carry_on_plan_of(uuid,integer[])', '87d33106294d561a8bf955f9496cd784', 'e26422a4e4cf97b98c067b8a23d21351'),
     ('public.hr_hunt_admit(uuid,integer,text)', 'bc37e6068b6078f26f7e4e586efc4d48', 'd6e40529d2d466c90fc7c38fb239c189'),
     ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '3a6748518733987584b75e42e1d204d5', '8f9b22a5e77bc4d4d727d0731edccad9'),
     ('public.hr_hunt_best_fold(uuid)', 'b8a8da109b268ed62848d52073d6dbd9', 'eb6f87fd1cbd443551db6691d60cfae8')) t(fn, pre, post) loop
@@ -114,19 +115,6 @@ $b$),
          density = coalesce((select t.pull[v_size] from public.hr_ground_tiers t where t.hunt_id = i.hunt_id and t.tier = v_tier), 0)
    where i.id = new.instance_id and i.density is null;$a$,
      $b$  update public.hunt_instances i set density = 0 where i.id = new.instance_id and i.density is null;$b$),
-    -- THE HUNT VIEW: no session tier
-    ('public.hr_hunt_view(uuid)',
-     $a$    -- ENDED-TIER (2027-03-16-ended-hunt-tier.sql): the tier an ended session ran at; null while open (hunt_tier.playing says it then)
-    'tier', s.tier,
-$a$,
-     $b$$b$),
-    -- THE CARRY-ON PLAN: no hero tier
-    ('public.hr_carry_on_plan_of(uuid,integer[])',
-     $a$      'tier', coalesce((select d.tier from public.hunt_density d
-                         where d.user_id = coalesce(v_p.leader_user, p_uid) and d.slot = coalesce(v_p.leader_slot, v_st.slot)
-                           and d.hunt_id = v_hunt), 'normal'),
-$a$,
-     $b$$b$),
     -- THE OUTGROWN DOOR: no scaled way in
     ('public.hr_hunt_admit(uuid,integer,text)',
      $a$    -- (hr_hunt_grounds.ends_at_level, hunt-grounds.js endsAtLevel: the Mill Cellar's 5) is refused to a hero already at it or over, unless
@@ -159,95 +147,6 @@ end $mig$;
 -- ── §1b THE BODIES RESTATED WHOLE ──────────────────────────────────────────────────
 -- Each patch chain was past its depth (tests/patch-chain-guard.mjs PATCH-1 and PATCH-3), so the body is authored whole here: the text the
 -- chain held, less what the tier chain and the scaled hunts wrote into it. A second apply restates the same text (its §0 post pin).
-
--- public.hr_hunt_instance_read(uuid,integer): no `tier`, `scale` or `scale_level` keys; a member's options carry no `tier`
-CREATE OR REPLACE FUNCTION public.hr_hunt_instance_read(p_user uuid, p_slot integer)
- RETURNS jsonb
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
- SET search_path TO 'public', 'pg_catalog'
-AS $function$
-declare
-  v_role text;
-  v_s    public.hunt_sessions%rowtype;
-  v_i    public.hunt_instances%rowtype;
-begin
-  -- PARTY-LEADER (2026-11-01-party-leader-density.sql): each member says whether it leads the instance's party.
-  -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql): every member plays the density frozen on the instance
-  -- (its options.density overlaid), the one the settle bounds count; NULL (opened before the freeze) = as stored.
-  -- SETTLE-COST (2027-02-02-settle-cost.sql): each member's `state` is its ENGINE INPUTS (hr_hunt_member_state),
-  -- never its whole envelope: the engine reads eleven fields of it, and nine envelopes a settle were its cost.
-  -- RETIRE-TIER-CHAIN (1071-retire-tier-chain.sql): no tier and no scale; off the Danger scale a member plays the ground's rows as written.
-  -- TARGET-KIND (2027-04-22-target-kind.sql): RESTATED WHOLE (the two splices below folded in). Each member's options carry its own
-  -- First target on this ground (options.target_kind, hunt-spawn.js heroSetup), read afresh every settle, never frozen.
-  -- SESSION-MODES (2027-04-23-session-modes.sql): the instance carries the session mode the server froze at its start (session_mode),
-  -- the engine's only source of it (hunt-settle.js; none, or one it has no row for, and it proposes nothing).
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql): the instance carries the Burning Tower's floor whose room stands or stands next (tower_floor:
-  -- hr_tower_floor_of, the server's own record), the engine's only source of it; null on every other ground.
-  -- LEVER-HORIZON (1005-lever-horizon.sql): RESTATED WHOLE. The First target is the member read's (the window's setup, held past a
-  -- lever inside the seed horizon), still only a kind the ground fields; its key is dropped from the session, which is byte-identical.
-  v_role := coalesce(nullif(current_setting('role', true), 'none'), session_user);
-  if v_role in ('anon', 'authenticated', 'service_role') then
-    raise exception 'hr_hunt_instance_read: not callable by %', v_role using errcode = '42501';
-  end if;
-  if p_user is null or p_slot is null then return null; end if;
-  select * into v_s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null;
-  if not found then return jsonb_build_object('open', false); end if;
-  select * into v_i from public.hunt_instances i where i.id = v_s.instance_id;
-  if not found then return jsonb_build_object('open', false); end if;
-  return jsonb_build_object(
-    'open', true,
-    'instance', jsonb_build_object(
-      'id', v_i.id, 'hunt', v_i.hunt_id, 'kind', v_i.kind, 'world', v_i.world, 'world_swing', v_i.world_swing,
-      'density', v_i.density,
-      'session_mode', v_i.session_mode,
-      'tower_floor', public.hr_tower_floor_of(v_i.id),
-      -- PARTY-HOLD (2026-12-08-party-hold.sql): the seat whose tank holds every lap (hunt_parties.hold_seat), null = take turns.
-      'hold_seat', (select public.hr_party_hold_played(p, v_i.settled_to) from public.hunt_parties p where p.id = v_i.id and p.closed_at is null),
-      -- DEPLOY-NO-FORFEIT (2026-12-11-hunt-deploy-no-forfeit.sql): the catalogue's world shape; an engine of another proposes nothing.
-      'world_shape', (select jsonb_build_object('v', w.version, 's', w.shape) from public.hr_hunt_world_shape w where w.id),
-      'settled_to_ms', ceil(extract(epoch from v_i.settled_to) * 1000)::bigint,
-      'next_swing_at_ms', ceil(extract(epoch from v_i.next_swing_at) * 1000)::bigint,
-      'enabled', coalesce((select c.enabled from public.hr_hunt_config c where c.id), false),
-      -- THE INSTANCE'S KEYED SEED SECRET (hunt-seed.js): reachable by the engine only.
-      'secret', public.hr_seed(null, 0, 'hunt:' || v_i.id::text)::text),
-    'members', coalesce((select jsonb_agg(jsonb_build_object(
-                 'user', h.user_id, 'slot', h.slot, 'seat', h.seat, 'unit_id', h.unit_id,
-                 -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): the member's own box (combat-sim.js cascadeFrom).
-                 'leave_together', public.hr_party_leave_together_of(h.user_id, h.slot, v_i.id),
-                 -- KICKED: still hunting in its party's instance but no longer seated in that party: only the leader's
-                 -- hr_hunt_party_kick does that (Leave party and Disband refuse while hunting, the sweep skips
-                 -- hunters). Its end sends nobody home (Coordinator ruling 2026-10-23).
-                 'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)
-                           and not exists (select 1 from public.hunt_party_members pm
-                                            where pm.party_id = v_i.id and pm.user_id = h.user_id and pm.slot = h.slot),
-                 -- THE PARTY LEADER (hunt_parties.leader_*; a party instance's id is its party's): its density sets the pull.
-                 'leads', exists (select 1 from public.hunt_parties p where p.id = v_i.id and p.closed_at is null
-                                    and p.leader_user = h.user_id and p.leader_slot = h.slot),
-                 'session', case when v_i.density is null then mr.r
-                                 else jsonb_set(mr.r, '{options}', coalesce(mr.r->'options', '{}'::jsonb) || jsonb_build_object('density', v_i.density)
-                                   -- DANGER-SCALE (1056-danger-scale.sql): the stance and start step the instance froze, null on a tier hunt (overlaid last)
-                                   || jsonb_build_object('risk', v_i.risk, 'danger', v_i.danger)) end,
-                 -- LIVE-EVENTS (2027-03-22-live-events.sql): the member's own Level XP windows from the instance's clock to an hour past now
-                 -- (hr_live_xp_windows: its switches, its ground, summed and capped); [] when none, so the engine sets no hook.
-                 'live_xp', public.hr_live_xp_windows(h.user_id, v_i.hunt_id, v_i.settled_to, now() + interval '1 hour'),
-                 -- BOSS-DAILY (2027-04-25-boss-daily.sql): in a keyed hall, whether this hero's daily prize is still to take today
-                 -- (hr_boss_prize_left: no player_boss_loot_day row of today's); null on every other hunt. The engine rolls only on true.
-                 'prize_left', public.hr_boss_prize_left(h.user_id, h.slot, v_i.hunt_id),
-                 -- ...and whether that roll is this hero's FIRST on the boss, ever (hr_boss_prize_first): the engine makes it a sure one.
-                 'prize_first', public.hr_boss_prize_first(h.user_id, h.slot, v_i.hunt_id),
-                 'state', public.hr_hunt_member_state(h.user_id, h.slot))
-                 order by h.user_id, h.slot)
-               from public.hunt_sessions h cross join lateral (select public.hr_hunt_member_read(h) as r0 offset 0) m0
-               -- TARGET-KIND: the member's OWN First target on this ground (LEVER-HORIZON: the window's, from the member read), only a kind
-               -- the catalogue holds there; none, no key. Any options.target_kind is dropped first (hr_action_set_options refuses the key;
-               -- this read does not lean on that alone), and so is the member read's own target_kind key.
-               cross join lateral (select jsonb_set(m0.r0 - 'target_kind', '{options}', (coalesce(m0.r0->'options', '{}'::jsonb) - 'target_kind') || coalesce(
-                   (select jsonb_build_object('target_kind', g.monster_id) from public.hr_hunt_ground_spawns g
-                     where g.hunt_id = v_i.hunt_id and g.monster_id = m0.r0->>'target_kind'), '{}'::jsonb)) as r offset 0) mr
-              where h.instance_id = v_i.id and h.ended_at is null), '[]'::jsonb),
-    'now_ms', floor(extract(epoch from now()) * 1000)::bigint);
-end $function$;
 
 -- public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer): no `scale` claim key (refused bad_arguments `keys`), no re-proof, no scale_level write, no hours debit
 CREATE OR REPLACE FUNCTION public.hr_hunt_apply_instance(p_instance uuid, p_world_from bigint, p_settle jsonb, p_members jsonb, p_project_user uuid DEFAULT NULL::uuid, p_project_slot integer DEFAULT NULL::integer)

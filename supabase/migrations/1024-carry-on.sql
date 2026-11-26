@@ -78,6 +78,8 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
+-- (lane/retire-tier-chain, 2026-11-26: the plan's hero `tier` is out of this body, folded in from 1071-retire-tier-chain.sql, which drops
+--  hunt_density.tier: a staged body is edited in place, never moved by a later file)
 do $mig$
 begin
   if to_regprocedure('public.hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)') is null
@@ -91,7 +93,6 @@ begin
      or to_regprocedure('public.hr_purse_of(uuid)') is null
      or to_regclass('public.hr_client_rpc_baseline') is null
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hunt_sessions' and column_name = 'after_done')
-     or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hunt_density' and column_name = 'tier')
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'after_choice') then
     raise exception 'PRECONDITION: a door, a helper, a table or a column this file reads is missing'; end if;
 end $mig$;
@@ -233,9 +234,6 @@ begin
       'slot', v_st.slot, 'name', public.hr_character_name(p_uid, v_st.slot),
       'state', case when v_why is null then 'go' else 'no' end, 'why', v_why, 'detail', v_detail,
       'hunt', v_hunt, 'session', v_s.id, 'ended', v_s.end_reason,
-      'tier', coalesce((select d.tier from public.hunt_density d
-                         where d.user_id = coalesce(v_p.leader_user, p_uid) and d.slot = coalesce(v_p.leader_slot, v_st.slot)
-                           and d.hunt_id = v_hunt), 'normal'),
       'party', v_party is not null, 'preset', v_preset, 'hours', v_hours,
       'storage', case when v_why is null then v_storage end, 'short', case when v_why is null then v_short end,
       'bless', v_bless, 'bless_gold', case when v_bless is not null then v_bgold end,

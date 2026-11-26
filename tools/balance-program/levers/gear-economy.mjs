@@ -681,16 +681,6 @@ export const GEAR_ECONOMY = [
     tests: [['tests/training-gear-db.mjs', 'the items in the database']], testReads: ['TRAINING_GEAR', 'hr_training_gear'],
     perturb: NP('not-in-runs'),
     ev: 'CONFIRMED (read)' }),
-  L('econ.scaled-hunts', 'economy', 'exception-intentional', 'Scaled hunts: pay and price', {
-    at: [at('src/data/scaled-hunts.js', 'xpPm: 730,'), at('src/data/scaled-hunts.js', 'partyPm: 700,'), at('src/data/scaled-hunts.js', 'coinPm: Object.freeze({ solo: 500'), at('src/data/scaled-hunts.js', 'price: Object.freeze({ perLevel: 40 })')],
-    rows: rows('the scaled hour\'s loot reader', [home('src/data/scaled-hunts.js#lootPmFor', 'count')]),
-    def: 'a scaled hour pays XP x0.73, a party x0.70, coin x0.5 of the rise, and costs 40 gold a Level an hour; 24 h at most, 48 h bought a day',
-    range: 'permille. Mode approved 2026-11-07',
-    touches: 'old grounds raised to the leader\'s Level', out: [], f: ['C-SCALED', 'P26', 'E07'],
-    tests: [['tests/scaled-hunts.mjs', 'the scaled hour']], testReads: ['SCALED_HUNTS'],
-    perturb: NP('not-in-runs'),
-    flags: [flag('redundant', 'xpPm and partyPm were re-dialed seven times to hold one guard: compensations for the missing kill-rate term', '44 E-X11, CONFIRMED; knobs.json notKnobs')],
-    ev: 'CONFIRMED (read)' }),
   L('econ.bench-tax', 'economy', 'global', 'Public bench tax', {
     at: [at('src/data/bench-tax.js', 'export const BENCH_TAX = '), at('src/data/bench-tax.js', 'export const BENCH_TAX_FREE_UNDER_MG = 500')],
     def: 'a public bench takes 15% of what a job\'s output sells for, free under half a gold',

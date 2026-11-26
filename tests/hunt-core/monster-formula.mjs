@@ -46,7 +46,7 @@ const load = async (root) => {
   M.statuses = await imp('src/data/statuses.js');
   M.tower = await imp('src/core/hunt/tower.js');
   M.towerData = await imp('src/data/tower.js');
-  M.tiers = await imp('src/data/hunt-tiers.js');
+  M.tiers = await imp('src/core/hunt/dial.js');
   M.grounds = await imp('src/data/hunt-grounds.js');
   M.combat = await imp('src/core/combat.js');
   M.vitals = (await imp('src/data/core-model.js')).VITALS;

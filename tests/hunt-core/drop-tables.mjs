@@ -145,7 +145,6 @@ async function load(root) {
     HUNTS: (await imp(root, 'src/data/hunts.js')).HUNT_INDEX,
     G: await imp(root, 'src/data/hunt-grounds.js'),
     packs: (await imp(root, 'src/data/grounds/index.js')).GROUND_PACKS,
-    TIERS: await imp(root, 'src/data/hunt-tiers.js'),
     IMB: await imp(root, 'src/data/imbuements.js'),
     LB: await imp(root, 'src/data/loot-bands.js'),
     WEIGHT: (await imp(root, 'src/data/core-model.js')).ARMOUR_WEIGHT,
@@ -561,12 +560,12 @@ function bigPull(M, P, monsters, R, print) {
     const standing = rosterOf(ground).filter((id) => asBuilt.has(id) && carriesPelt(monsters[id]));
     if (!fill.length && !standing.length) continue;
     const floor = M.HUNTS[ground.hunt].band[0];
-    /* THE PULLS A LONE HERO REALLY PLAYS: the tiers' own rows (hunt-tiers.js). */
-    const cap = M.TIERS.pullOfTier(M.TIERS.tierRowOf(gid, 'dangerous'), 1);
+    /* THE PULL THAT FIRST BRINGS IT (the room as built, or the first pack size that fields it): the old tiers' bigger pulls left with them
+       (lane/retire-tier-chain); on the Danger scale a pull grows with the step, read by the scale's own drop guards */
     for (const id of [...fill, ...standing]) {
       const built = asBuilt.has(id);
       const first = built ? 0 : Math.min(...ground.pockets.map((p) => (p.pack || []).findIndex((s) => s.monster === id)).filter((i) => i >= 0)) + 1;
-      for (const density of [...new Set([first, cap])]) {
+      for (const density of [first]) {
         const x = P.run(gid, floor, ['tank'], { spanMs: H, density, monsters });
         const kills = (x.killsBy[id] || 0) / (x.playedMs / H || 1);
         R.ok(kills > 0, 'big-pull: ' + gid + ' at density ' + density + ' met no ' + id + ' in a played hour');

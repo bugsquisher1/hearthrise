@@ -34,8 +34,6 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/monster-spells.js#SPELL_BOUNDS', why: 'the valid range of the MONSTER_SPELLS rows (mon.spells field 3)' },
   { at: 'src/data/shape-kinds.js#SHAPE_BOUNDS', why: 'the valid range of an area shape\'s size' },
   { at: 'src/data/catalogue-coherence.js#UNREACHABLE_CEILING', why: 'a coherence guard\'s ceiling on unreachable items' },
-  { at: 'src/data/balance-sheet.js#TIER_SIZES', why: 'the party sizes a tier row answers for (1..4): a shape' },
-  { at: 'src/data/balance-sheet.js#tierRowFor', why: 'a solver\'s search bounds (lo 1, hi 10, 60 halvings) for a gentle ground\'s tier lift' },
   /* display, words, art, UI */
   { at: 'src/data/world/**', why: 'the pixel world: layout, palettes, art budgets, ambient life, house layouts (no fight, purse or clock reads them)' },
   { at: 'src/data/grounds/*/map.js#default', why: 'a ground\'s tile map (pathing and art); its rooms\' monsters are the pack\'s' },

@@ -680,9 +680,7 @@ export async function loadCellRunner(root) {
     return out;
   }
 
-  /* the tiers (src/data/hunt-tiers.js): a career on a party's tier reads each ground's own row (career.mjs job.tier) */
-  const tiers = await import(u('src/data/hunt-tiers.js'));
-  return { runCell, armorRungs, STYLES, gear, XP, COMBAT_SKILLS, tiers };
+  return { runCell, armorRungs, STYLES, gear, XP, COMBAT_SKILLS };
 }
 
 /* THE RULING'S DIFFICULTY BANDS (§3): a cell's band by its typical encounter minimum HP and by its deaths per

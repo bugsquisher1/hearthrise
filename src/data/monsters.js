@@ -698,44 +698,54 @@ export const MONSTERS = {
      (bats) and boots (kobolds), every piece in three weights about hourly for a solo hero AND a party of four at the
      floor; and (weapons drop, a bench makes none: Tyler 2026-11-18) the kobolds' Iron Sword, the rats' Ironbound Shield, the slimes'
      Oak Wand and the bats' Oakboard Spellbook, each hourly. The Rares (slime staff, spider bows, kobold hatchets and club) are a party's
-     lucky door to what Wickstead and the Glade drop hourly. The Rat King keeps his Crown Shard and his Kingsgrate. ══════════ */
+     lucky door to what Wickstead and the Glade drop hourly. The Rat King keeps his Crown Shard and his Kingsgrate.
+     ON THE DANGER SCALE (lane/scale-grounds-sweep step 2; 12-targets 8.3): Levels 5-19, base bronze 0, one base a ground, so the helmets,
+     boots and weapons are bronze's (the Bronze Sword, the Bronze-Rimmed Shield, the Apprentice Wand, Primer and Staff, the Shortbow and the
+     Stone Maul); the iron pieces they replaced drop in the Glade. Roles from the hunt-grounds.js header: the rat swarm, the slime and the
+     spider brutes, the bat a stalker (it reaches the back line), the kobold a shooter (its thrown muck), the Rat King a caster (his Squeal). ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
+    role: 'swarm',
     hp: 45, atk: 6, aim: 14, evasion: 13, def: 0, xp: 78, gp: [6, 17], formula: true, speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .9, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'rat_incisor', ch: .08, band: 'uncommon' },
-      { id: 'bronze_platelegs', ch: .03, band: 'scarce' }, { id: 'leather_pants', ch: .03, band: 'scarce' }, { id: 'apprentice_pants', ch: .03, band: 'scarce' },
-      { id: 'ironbound_shield', ch: .03, band: 'scarce' }] },
+    drops: [{ id: 'rat_tail', everyHours: 0.02963, ch: 0.9, band: 'common' }, { id: 'bones', everyHours: 0.0762, ch: 0.35, band: 'common' }, { id: 'rat_incisor', everyHours: 0.3333, ch: 0.08, band: 'uncommon' },
+      { id: 'bronze_platelegs', everyHours: 0.89, ch: 0.03, band: 'scarce' }, { id: 'leather_pants', everyHours: 0.89, ch: 0.03, band: 'scarce' }, { id: 'apprentice_pants', everyHours: 0.89, ch: 0.03, band: 'scarce' },
+      { id: 'bronze_rimmed_shield', everyHours: 0.89, ch: 0.03, band: 'scarce' }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): the sump shrugs off half of every element. */
     elements: { ember: 50, frost: 50, poison: 50 },
+    role: 'brute',
     hp: 56, atk: 6, aim: 12, evasion: 20, def: 2, xp: 107, gp: [7, 22], formula: true, speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .95, band: 'common' }, { id: 'lamp_jelly', ch: .35, band: 'common' }, { id: 'sump_membrane', ch: .08, band: 'uncommon' },
-      { id: 'bronze_platebody', ch: .05, band: 'scarce' }, { id: 'leather_body', ch: .05, band: 'scarce' }, { id: 'apprentice_body', ch: .05, band: 'scarce' },
-      { id: 'oak_wand', ch: .05, band: 'scarce' }, { id: 'oak_staff', ch: .0036, band: 'rare' }] },
+    drops: [{ id: 'slime_gel', everyHours: 0.05263, ch: 0.95, band: 'common' }, { id: 'lamp_jelly', everyHours: 0.143, ch: 0.35, band: 'common' }, { id: 'sump_membrane', everyHours: 0.625, ch: 0.08, band: 'uncommon' },
+      { id: 'bronze_platebody', everyHours: 1, ch: 0.05, band: 'scarce' }, { id: 'leather_body', everyHours: 1, ch: 0.05, band: 'scarce' }, { id: 'apprentice_body', everyHours: 1, ch: 0.05, band: 'scarce' },
+      { id: 'apprentice_wand', everyHours: 1, ch: 0.05, band: 'scarce' }, { id: 'apprentice_staff', everyHours: 13.9, ch: 0.0036, band: 'rare' }] },
   culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, level: 15, cls: 'vermin', family: 'Vermin', formation: true,
+    role: 'stalker',
     hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .7, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'culvert_bat_fang', ch: .08, band: 'uncommon' },
-      { id: 'iron_helm', ch: .04, band: 'scarce' }, { id: 'studded_helmet', ch: .04, band: 'scarce' }, { id: 'adept_helmet', ch: .04, band: 'scarce' },
-      { id: 'oak_spellbook', ch: .04, band: 'scarce' }] },
+    drops: [{ id: 'bat_wing', everyHours: 0.0476, ch: 0.7, band: 'common' }, { id: 'bones', everyHours: 0.0667, ch: 0.5, band: 'common' }, { id: 'culvert_bat_fang', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
+      { id: 'bronze_helm', everyHours: 0.833, ch: 0.04, band: 'scarce' }, { id: 'leather_helmet', everyHours: 0.833, ch: 0.04, band: 'scarce' }, { id: 'apprentice_helmet', everyHours: 0.833, ch: 0.04, band: 'scarce' },
+      { id: 'apprentice_primer', everyHours: 0.833, ch: 0.04, band: 'scarce' }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is only a quarter off, not the vermin half. */
     elements: { frost: -15, poison: 25 },
+    role: 'brute',
     hp: 120, atk: 7, aim: 20, evasion: 27, def: 6, xp: 317, gp: [16, 46], formula: true, speed: 3600,
-    drops: [{ id: 'silk_thread', ch: .3, band: 'common' }, { id: 'dry_husk', ch: .5, band: 'common' }, { id: 'cistern_venom_gland', ch: .1, band: 'uncommon' }, { id: 'longbow', ch: .0055, band: 'rare' }, { id: 'oak_crossbow', ch: .0055, band: 'rare' }] },
+    drops: [{ id: 'silk_thread', everyHours: 0.333, ch: 0.3, band: 'common' }, { id: 'dry_husk', everyHours: 0.2, ch: 0.5, band: 'common' }, { id: 'cistern_venom_gland', everyHours: 1, ch: 0.1, band: 'uncommon' }, { id: 'shortbow', everyHours: 18.18, ch: 0.0055, band: 'rare' }] },
   kobold_tosher: { name: 'Sewer Kobold', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
+    role: 'shooter',
     hp: 70, atk: 7, aim: 17, evasion: 16, def: 1, xp: 135, gp: [9, 27], formula: true, speed: 3200,
     /* its spell: a fistful of outfall muck thrown at its target's tile, which a ranged hero steps off (lane/d-spell-tuning) */
     spells: ['muck_fling'],
     /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's chips, and a Hearth fuel) */
-    drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', ch: .5, band: 'common' }, { id: 'kobold_scale', ch: .08, band: 'uncommon' },
-      { id: 'iron_boots', ch: .05, band: 'scarce' }, { id: 'studded_boots', ch: .05, band: 'scarce' }, { id: 'adept_boots', ch: .05, band: 'scarce' }, { id: 'iron_sword', ch: .05, band: 'scarce' },
-      { id: 'iron_hatchets', ch: .0037, band: 'rare' }, { id: 'iron_warhammer', ch: .0037, band: 'rare' }] },
+    drops: [{ id: 'bones', ch: 1, band: 'common' }, { id: 'bone_chips', everyHours: 0.1, ch: 0.5, band: 'common' }, { id: 'kobold_scale', everyHours: 0.625, ch: 0.08, band: 'uncommon' },
+      { id: 'bronze_boots', everyHours: 1, ch: 0.05, band: 'scarce' }, { id: 'leather_boots', everyHours: 1, ch: 0.05, band: 'scarce' }, { id: 'apprentice_boots', everyHours: 1, ch: 0.05, band: 'scarce' }, { id: 'bronze_sword', everyHours: 1, ch: 0.05, band: 'scarce' },
+      { id: 'stone_maul', everyHours: 13.5, ch: 0.0037, band: 'rare' }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elements: { ember: 25, frost: -15, poison: 50 },
+    role: 'caster',
     hp: 612, atk: 6, aim: 34, evasion: 29, def: 8, xp: 1844, gp: [79, 239], formula: true, speed: 2800,
     /* his spells (monster-spells.js): the Tail Lash his tank stands in, and the Squeal the whole party takes */
     spells: ['tail_lash', 'squeal'],
-    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', ch: .15, band: 'uncommon' }, { id: 'crown_shard', ch: .014, band: 'rare' }, { id: 'kingsgrate', ch: .016, band: 'rare' }, { id: 'rat_kings_knot', ch: .014, band: 'rare' }, { id: 'rat_kings_crown', ch: .0017, band: 'trophy' }] },
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', everyHours: 2.67, ch: 0.15, band: 'uncommon' }, { id: 'crown_shard', everyHours: 28.6, ch: 0.014, band: 'rare' }, { id: 'kingsgrate', everyHours: 25, ch: 0.016, band: 'rare' }, { id: 'rat_kings_knot', everyHours: 28.6, ch: 0.014, band: 'rare' }, { id: 'rat_kings_crown', everyHours: 235, ch: 0.0017, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
@@ -868,7 +878,8 @@ export const MONSTERS = {
     weaponWeak: 'ranged', weaponResist: [],
     role: 'swarm',
     hp: 33, atk: 13, aim: 61, evasion: 17, def: 1, xp: 101, gp: [5, 14], formula: true, speed: 4400,
-    drops: [{ id: 'bone_chips', everyHours: 0.0348, ch: 0.428, band: 'common' }, { id: 'crow_quill', everyHours: 0.2174, ch: 0.0686, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }] },
+    drops: [{ id: 'bone_chips', everyHours: 0.0348, ch: 0.428, band: 'common' }, { id: 'crow_quill', everyHours: 0.2174, ch: 0.0686, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' },
+      { id: 'iron_belt', everyHours: 15, ch: 0.000994, band: 'rare' }, { id: 'studded_belt', everyHours: 15, ch: 0.000994, band: 'rare' }, { id: 'adept_belt', everyHours: 15, ch: 0.000994, band: 'rare' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     role: 'shooter',
@@ -876,14 +887,15 @@ export const MONSTERS = {
     /* a volley down a line of tiles, on the glass poacher (not Rook): it dies fast, so it casts in few Normal fights (lane/d-spell-tuning) */
     spells: ['poachers_volley'],
     drops: [{ id: 'wolf_pelt', everyHours: 0.148, ch: 0.257, band: 'common' }, { id: 'bones', everyHours: 0.0889, ch: 0.429, band: 'common' }, { id: 'snare_wire', everyHours: 0.5556, ch: 0.0686, band: 'uncommon' },
-      { id: 'iron_platelegs', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'studded_pants', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'adept_pants', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'longbow', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'houndskin_cloak', everyHours: 24.7, ch: 0.00154, band: 'rare' }] },
+      { id: 'iron_platelegs', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'studded_pants', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'adept_pants', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'longbow', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'iron_hatchets', everyHours: 1.59, ch: 0.024, band: 'scarce' }, { id: 'houndskin_cloak', everyHours: 24.7, ch: 0.00154, band: 'rare' }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
     role: 'brute',
     hp: 52, atk: 12, aim: 51, evasion: 25, def: 5, xp: 199, gp: [8, 23], formula: true, speed: 2400,
     spells: ['spore_cloud'],
     drops: [{ id: 'magic_essence', everyHours: 0.16, ch: 0.214, band: 'common' }, { id: 'pithwood', everyHours: 0.08, ch: 0.429, band: 'common' }, { id: 'mosslight_tendril', everyHours: 0.5, ch: 0.0686, band: 'uncommon' }, { id: 'iron_helm', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'studded_helmet', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'adept_helmet', everyHours: 2.1, ch: 0.0163, band: 'scarce' },
-      { id: 'oak_staff', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00111, band: 'rare' }] },
+      { id: 'oak_staff', everyHours: 2.1, ch: 0.0163, band: 'scarce' },
+      { id: 'bramble_blade', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'oak_wand', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'oak_spellbook', everyHours: 2.1, ch: 0.0163, band: 'scarce' }, { id: 'mosslight_clump', everyHours: 30.8, ch: 0.00111, band: 'rare' }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elements: { ember: 25, poison: -15 },
@@ -891,7 +903,8 @@ export const MONSTERS = {
     hp: 81, atk: 23, aim: 73, evasion: 30, def: 8, xp: 346, gp: [12, 36], formula: true, speed: 3000,
     drops: [{ id: 'copper_ore', everyHours: 0.2222, ch: 0.514, band: 'common' }, { id: 'bones', everyHours: 0.2667, ch: 0.429, band: 'common' }, { id: 'sluice_crust', everyHours: 1.667, ch: 0.0686, band: 'uncommon' },
       { id: 'iron_platebody', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'studded_body', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'adept_body', everyHours: 2.667, ch: 0.0429, band: 'scarce' },
-      { id: 'iron_warhammer', everyHours: 2.667, ch: 0.0429, band: 'scarce' }] },
+      { id: 'iron_warhammer', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'iron_sword', everyHours: 2.667, ch: 0.0429, band: 'scarce' }, { id: 'ironbound_shield', everyHours: 2.667, ch: 0.0429, band: 'scarce' },
+      { id: 'iron_gauntlets', everyHours: 15, ch: 0.00763, band: 'rare' }, { id: 'studded_gloves', everyHours: 15, ch: 0.00763, band: 'rare' }, { id: 'adept_gloves', everyHours: 15, ch: 0.00763, band: 'rare' }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
     /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
     role: 'warder',
@@ -911,43 +924,52 @@ export const MONSTERS = {
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and
      bodies (Turncoats, with their Bramble Blade) and the boars' Iron Hatchets, each about hourly. The Rares are the first tier-2 gloves
      (spiders), belts (wasps) and jewellery (Turncoats), each every 10-20 h: the Shop sells the basic gloves, belt,
-     earrings, ring and necklace, so here they are the prize above it, never a regular drop. Stats: src/data/balance-sheet.js. ══ */
+     earrings, ring and necklace, so here they are the prize above it, never a regular drop. Stats: src/data/balance-sheet.js.
+     ON THE DANGER SCALE (lane/scale-grounds-sweep step 2; 12-targets 8.3): base bronze 0, one base a ground, so the legs, bodies, belts and
+     gloves are bronze's and the boar's weapon is the Stone Maul (no bronze hatchets exist); the iron pieces they replaced drop in the Glade,
+     iron's first door. Roles from the hunt-grounds.js header: the rat swarm, the wasp stalker, the spider and the boar brutes, the
+     Turncoat a shooter (his thrown smoke pot, the bow the ground teaches). ══ */
   granary_rat: { name: 'Granary Rat', icon: '🐀', tier: 1, level: 9, cls: 'vermin', family: 'Vermin',
     /* the swarm: fat on the farm's grain, many and quick */
+    role: 'swarm',
     hp: 17, atk: 5, aim: 21, evasion: 12, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .308, band: 'common' }, { id: 'bones', ch: .269, band: 'common' }, { id: 'granary_whisker', ch: .0616, band: 'uncommon' },
-      { id: 'bronze_boots', ch: .00377, band: 'scarce' }, { id: 'leather_boots', ch: .00377, band: 'scarce' }, { id: 'apprentice_boots', ch: .00377, band: 'scarce' }] },
+    drops: [{ id: 'rat_tail', everyHours: 0.05, ch: 0.308, band: 'common' }, { id: 'bones', everyHours: 0.0572, ch: 0.269, band: 'common' }, { id: 'granary_whisker', everyHours: 0.2498, ch: 0.0616, band: 'uncommon' },
+      { id: 'bronze_boots', everyHours: 4.08, ch: 0.00377, band: 'scarce' }, { id: 'leather_boots', everyHours: 4.08, ch: 0.00377, band: 'scarce' }, { id: 'apprentice_boots', everyHours: 4.08, ch: 0.00377, band: 'scarce' }] },
   barn_wasp: { name: 'Barn Wasp', icon: '🐝', tier: 1, level: 11, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so an arrow brings it down and a club swings at air */
     weaponWeak: 'ranged', weaponResist: [],
+    role: 'stalker',
     hp: 18, atk: 5, aim: 29, evasion: 14, def: 0, xp: 60, gp: [2, 8], formula: true, speed: 4600,
     /* the helmets .0231 to .0247 (lane/d-harder-monsters, 2026-11-19): with the formula's tenth more HP the floor hero met fewer wasps, a helmet every 1.55 h (the band is 0.75-1.5) */
-    drops: [{ id: 'venom_sac', ch: .193, band: 'common' }, { id: 'dry_husk', ch: .308, band: 'common' }, { id: 'barn_wasp_sting', ch: .0616, band: 'uncommon' },
-      { id: 'bronze_helm', ch: .0247, band: 'scarce' }, { id: 'leather_helmet', ch: .0247, band: 'scarce' }, { id: 'apprentice_helmet', ch: .0247, band: 'scarce' },
-      { id: 'iron_belt', ch: .00231, band: 'rare' }, { id: 'studded_belt', ch: .00231, band: 'rare' }, { id: 'adept_belt', ch: .00231, band: 'rare' }] },
+    drops: [{ id: 'venom_sac', everyHours: 0.207, ch: 0.193, band: 'common' }, { id: 'dry_husk', everyHours: 0.13, ch: 0.308, band: 'common' }, { id: 'barn_wasp_sting', everyHours: 0.649, ch: 0.0616, band: 'uncommon' },
+      { id: 'bronze_helm', everyHours: 1.62, ch: 0.0247, band: 'scarce' }, { id: 'leather_helmet', everyHours: 1.62, ch: 0.0247, band: 'scarce' }, { id: 'apprentice_helmet', everyHours: 1.62, ch: 0.0247, band: 'scarce' },
+      { id: 'bronze_belt', everyHours: 17.3, ch: 0.00231, band: 'rare' }, { id: 'leather_belt', everyHours: 17.3, ch: 0.00231, band: 'rare' }, { id: 'apprentice_belt', everyHours: 17.3, ch: 0.00231, band: 'rare' }] },
   barn_spider: { name: 'Barn Spider', icon: '🕷️', tier: 2, level: 13, cls: 'vermin', family: 'Vermin',
     /* the tank: slow and webbed in; fire takes the web */
     elements: { ember: -15, poison: 50 },
+    role: 'brute',
     hp: 28, atk: 5, aim: 20, evasion: 22, def: 3, xp: 91, gp: [4, 11], formula: true, speed: 2600,
     spells: ['venom_spray'],
-    drops: [{ id: 'silk_thread', ch: .308, band: 'common' }, { id: 'dry_husk', ch: .385, band: 'common' }, { id: 'loft_web', ch: .0616, band: 'uncommon' },
-      { id: 'iron_platelegs', ch: .0127, band: 'scarce' }, { id: 'studded_pants', ch: .0127, band: 'scarce' }, { id: 'adept_pants', ch: .0127, band: 'scarce' },
-      { id: 'iron_gauntlets', ch: .00115, band: 'rare' }, { id: 'studded_gloves', ch: .00115, band: 'rare' }, { id: 'adept_gloves', ch: .00115, band: 'rare' }] },
+    drops: [{ id: 'silk_thread', everyHours: 0.1855, ch: 0.308, band: 'common' }, { id: 'dry_husk', everyHours: 0.1484, ch: 0.385, band: 'common' }, { id: 'loft_web', everyHours: 0.928, ch: 0.0616, band: 'uncommon' },
+      { id: 'bronze_platelegs', everyHours: 4.5, ch: 0.0127, band: 'scarce' }, { id: 'leather_pants', everyHours: 4.5, ch: 0.0127, band: 'scarce' }, { id: 'apprentice_pants', everyHours: 4.5, ch: 0.0127, band: 'scarce' },
+      { id: 'bronze_gauntlets', everyHours: 49.7, ch: 0.00115, band: 'rare' }, { id: 'leather_gloves', everyHours: 49.7, ch: 0.00115, band: 'rare' }, { id: 'apprentice_gloves', everyHours: 49.7, ch: 0.00115, band: 'rare' }] },
   orchard_boar: { name: 'Orchard Boar', icon: '🐗', tier: 1, level: 12, cls: 'mammal', family: 'Mammal',
     /* the orchard's tank (lane b-unsourced-items): its thick skull rings a hammer off; a blade finds the flank */
     weaponWeak: 'sword', weaponResist: ['hammer'],
+    role: 'brute',
     hp: 26, atk: 5, aim: 20, evasion: 21, def: 3, xp: 82, gp: [4, 10], formula: true, speed: 3000,
     /* no Rare: the Tusker's Charm is Old Tusker's relic, ONE source (tests/w0f-fun-content.mjs); he joins the Orchard as its
-       champion with his own (larger) art, the next batch. Its Iron Hatchets (2026-11-18) are the orchard keepers' lost pruning pair. */
-    drops: [{ id: 'boar_bristle', ch: .462, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'orchard_boar_tusk', ch: .0616, band: 'uncommon' },
-      { id: 'iron_hatchets', ch: .03, band: 'scarce' }] },
+       champion with his own (larger) art, the next batch. Its Stone Maul is the orchard keepers' fence maul (bronze has no hatchets). */
+    drops: [{ id: 'boar_bristle', everyHours: 0.433, ch: 0.462, band: 'common' }, { id: 'bones', everyHours: 0.52, ch: 0.385, band: 'common' }, { id: 'orchard_boar_tusk', everyHours: 3.247, ch: 0.0616, band: 'uncommon' },
+      { id: 'stone_maul', everyHours: 6.67, ch: 0.03, band: 'scarce' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',
     /* a deserter robbing the Thicket road; glass that hits hard. The jeweler's carrier: his Road Carnelian (jewelry.js) replaced the crafted Signet. */
+    role: 'shooter',
     hp: 25, atk: 5, aim: 33, evasion: 15, def: 1, xp: 96, gp: [3, 11], formula: true, speed: 3400,
     spells: ['smoke_pot'],
-    drops: [{ id: 'wolf_pelt', ch: .231, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'torn_company_badge', ch: .077, band: 'uncommon' },
-      { id: 'iron_platebody', ch: .0266, band: 'scarce' }, { id: 'studded_body', ch: .0266, band: 'scarce' }, { id: 'adept_body', ch: .0266, band: 'scarce' }, { id: 'bramble_blade', ch: .0266, band: 'scarce' },
-      { id: 'road_carnelian', ch: .00231, band: 'rare' }] },
+    drops: [{ id: 'wolf_pelt', everyHours: 0.577, ch: 0.231, band: 'common' }, { id: 'bones', everyHours: 0.346, ch: 0.385, band: 'common' }, { id: 'torn_company_badge', everyHours: 1.732, ch: 0.077, band: 'uncommon' },
+      { id: 'bronze_platebody', everyHours: 5.01, ch: 0.0266, band: 'scarce' }, { id: 'leather_body', everyHours: 5.01, ch: 0.0266, band: 'scarce' }, { id: 'apprentice_body', everyHours: 5.01, ch: 0.0266, band: 'scarce' }, { id: 'bronze_sword', everyHours: 5.01, ch: 0.0266, band: 'scarce' },
+      { id: 'road_carnelian', everyHours: 57.7, ch: 0.00231, band: 'rare' }] },
 };
 
 /* GROUND PACKS (src/data/grounds): each pack's new monsters join the table, a copy each (the seal below writes onto its rows).

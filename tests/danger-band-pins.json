@@ -43,19 +43,20 @@
    ]
   },
   "catacomb_bone_wing": {
-   "refStep": 520,
-   "floorStep": 420,
-   "topStep": 580,
-   "refKillsHead": 145,
-   "coinPm": 4000,
-   "print": "b6c7e3781a0acd3b",
+   "refStep": 590,
+   "floorStep": 510,
+   "topStep": 605,
+   "refKillsHead": 125,
+   "refHeld": 585,
+   "coinPm": 5500,
+   "print": "25574ef6dcbd84ef",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
     "top": 185,
     "mid": 175
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-26",
    "evidence": [
     "tools/balance-program/redesign/grounds/catacomb_bone_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_bone_wing-top.json",
@@ -63,19 +64,20 @@
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 480,
-   "floorStep": 440,
-   "topStep": 515,
-   "refKillsHead": 145,
-   "coinPm": 3300,
-   "print": "db1bf83de76b3192",
+   "refStep": 490,
+   "floorStep": 455,
+   "topStep": 505,
+   "refKillsHead": 150,
+   "refHeld": 495,
+   "coinPm": 3400,
+   "print": "1cb50454048f9ba8",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
     "top": 185,
     "mid": 175
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-26",
    "evidence": [
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-top.json",

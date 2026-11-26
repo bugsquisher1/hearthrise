@@ -92,7 +92,7 @@ const FOUR = ['hammer', 'bow', 'mage', 'healer'];
 
 async function runes() {
   const R = await loadCellRunner(ROOT);
-  const T = await import(u('tools/balance-program/tier-axis.mjs'));
+  const T = await import(u('tools/balance-sim/tier-axis.mjs'));
   const axes = await loadAxes(ROOT);
   const seeds = Number(arg('seeds', 3)), hours = Number(arg('hours', 2));
   const slots = (role, tier) => axes.ROLE_RULES[role].map((sl) => {
@@ -113,7 +113,7 @@ async function runes() {
 
 async function floors() {
   const R = await loadCellRunner(ROOT);
-  const T = await import(u('tools/balance-program/tier-axis.mjs'));
+  const T = await import(u('tools/balance-sim/tier-axis.mjs'));
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const hours = Number(arg('hours', 2)), seeds = Number(arg('seeds', 1));

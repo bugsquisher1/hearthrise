@@ -208,7 +208,7 @@ const { loadCellRunner } = await import('../cell.mjs');
 const { sourceQuery } = await import('../../lib/version-stamp.mjs');
 const R = await loadCellRunner(ROOT), XP = R.XP;
 const v = sourceQuery(ROOT);
-const T = await import(u('tools/balance-program/tier-axis.mjs'));
+const T = await import(u('tools/balance-sim/tier-axis.mjs'));
 const { recommendedHunt } = await import(u('src/shell/hunt-list.js') + v);
 /* every instance of the monster rows the engine may read (the stamped one and the bare one: worker.mjs ENG.monsters) */
 const TABLES = [...new Set([(await import(u('src/data/monsters.js') + v)).MONSTERS, MON])];

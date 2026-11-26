@@ -16,7 +16,7 @@ import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_GROUNDS } from '../../../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../../../src/data/hunts.js';
 /* the tier rows retired (lane/retire-tier-chain): the program's one tier axis answers Normal on every ground */
-import { tiersOf, tierRowOf, pullOfTier } from '../../balance-program/tier-axis.mjs';
+import { tiersOf, tierRowOf, pullOfTier } from '../../balance-sim/tier-axis.mjs';
 import { charXpForLevel } from '../../../src/core/xp.js';
 import { GROUND_ROSTER, FORMULA_EXCEPTIONS, formulaStats, contractXpPerH } from '../../../src/data/balance-sheet.js';
 import { SUPPLY } from '../../balance-program/standards.mjs';

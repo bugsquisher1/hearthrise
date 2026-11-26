@@ -190,7 +190,7 @@ async function bars() {
   const { rows } = await rowsFor([SPEC.band, SPEC.behind]);
   const { R } = await engine(rows);
   const TD = await import(u('src/data/temper.js'));
-  const T = await import(u('tools/balance-program/tier-axis.mjs'));
+  const T = await import(u('tools/balance-sim/tier-axis.mjs'));
   const full = (b) => ({ ['temper:armor:' + b]: TD.TEMPER_UNIQUE_BANDS[b].gold.length });
   const VARIANTS = [
     { label: 'On the line (worn from ' + SPEC.band + '), bare', r: SPEC.band, temper: null },

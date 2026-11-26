@@ -49,7 +49,7 @@ const VIRTUAL = {
 };
 /* the trees a bundled module may come from (anything else is a mistake in the graph: the client, the network, secrets) */
 const ALLOWED = [/^src\/core\//, /^src\/data\//, /^src\/build-info\.js$/, /^supabase\/functions\/hr-accrue\/[\w-]+\.js$/,
-  /^tools\/balance-lab\/[\w/-]+\.mjs$/, /^tools\/balance-sim\/(stats|styles|sustain-reads)\.mjs$/, /^tools\/balance-program\/(standards|knob-rules|grid-project|tier-axis)\.mjs$/];
+  /^tools\/balance-lab\/[\w/-]+\.mjs$/, /^tools\/balance-sim\/(stats|styles|sustain-reads|tier-axis)\.mjs$/, /^tools\/balance-program\/(standards|knob-rules|grid-project)\.mjs$/];
 const SHIMS = { 'node:crypto': 'tools/balance-lab/shims/node-crypto.mjs', 'node:url': 'tools/balance-lab/shims/node-stub.mjs', 'node:path': 'tools/balance-lab/shims/node-stub.mjs' };
 /* words that must never appear in a bundled module's CODE (comments are stripped first) */
 const FORBIDDEN = [/\bfetch\s*\(/, /\bXMLHttpRequest\b/, /\bWebSocket\b/, /\blocalStorage\b/, /\bdocument\./, /supabase\.co/, /\bDeno\.env\b/, /service_role/];

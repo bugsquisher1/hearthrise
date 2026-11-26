@@ -6,8 +6,8 @@
   "edits": [
     {
       "file": "src/data/balance-sheet.js",
-      "from": "    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),",
-      "to": "    party: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true, bossBlow: true, hit: 0, hitFull: 0, gp: 1, gpFull: 1, blowShape: 1 }),"
+      "from": "    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),",
+      "to": "    party: Object.freeze({ hp: 1, blow: 1, xp: 1, bossBlow: true, hit: 0, hitFull: 0, gp: 1, gpFull: 1, blowShape: 1 }),"
     }
   ],
   "targets": [

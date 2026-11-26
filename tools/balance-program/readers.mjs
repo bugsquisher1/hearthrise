@@ -38,6 +38,9 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { isMain } from '../../tests/_is-main.mjs';
 import * as STD from './standards.mjs';
+/* the program's tier column (Normal alone since the tier rows retired, lane/retire-tier-chain): a constant of the program, read from its
+   own home, never through a scratch tree's root */
+import * as TIER_AXIS from '../balance-sim/tier-axis.mjs';
 import { finding, diffFindings, pinOf, readPin, assumptionsOf, checkAssumptions, printAssumptions, interval, rate } from './lab-report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -302,7 +305,8 @@ export function cellsOf(doc) {
 /** What the readers read beyond the cells, from a tree (the repo, or the tree a results doc was played on: its data, not its code). */
 export async function contextOf(root = ROOT, o = {}) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [TI, AB, XP, BS] = await Promise.all(['tools/balance-program/tier-axis.mjs', 'src/data/abilities.js', 'src/core/xp.js', 'src/data/balance-sheet.js'].map(imp));
+  const TI = TIER_AXIS;
+  const [AB, XP, BS] = await Promise.all(['src/data/abilities.js', 'src/core/xp.js', 'src/data/balance-sheet.js'].map(imp));
   const ctx = {
     hardestOf: (g) => { const t = TI.tiersOf(g); return t[t.length - 1]; },
     isHeal: (a) => { const r = AB.ABILITIES[a]; return !!(r && (r.lane === 'heal' || r.healPm > 0)); },

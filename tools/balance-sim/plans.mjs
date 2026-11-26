@@ -13,6 +13,9 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { STYLES } from './gear.mjs';
+/* the program's tier column (Normal alone since the tier rows retired, lane/retire-tier-chain): a constant of the program, read from its
+   own home, never through a scratch tree's root */
+import * as TIER_AXIS from './tier-axis.mjs';
 
 export const SOLO_STYLES = Object.freeze(Object.keys(STYLES));
 /* the compositions of own heroes a party plays (tank + healer first, Tyler 10-16/22: any mix allowed) */
@@ -28,7 +31,7 @@ export async function loadAxes(root) {
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
-  const { tierRowOf } = await import(u('tools/balance-program/tier-axis.mjs'));
+  const { tierRowOf } = TIER_AXIS;
   /* A ground's band is the Levels a hero can hunt it at: a ground that ends its hunt at endsAtLevel (the Mill Cellar at 5, lane/d-first-day-path) is
      played to the Level under it. The ladder played the Cellar at 5 and 8, where its hunt ends on the first boundary, and read 3,411 Level XP an
      hour against its 9,884 (level-curve C5 went red on the steeper fit; lane/d-142-rulings, 2026-11-19). */

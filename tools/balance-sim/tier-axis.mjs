@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// tools/balance-program/tier-axis.mjs — THE BALANCE PROGRAM'S TIER AXIS, NOW ONE VALUE (lane/retire-tier-chain, 2026-11-26).
+// tools/balance-sim/tier-axis.mjs — THE BALANCE PROGRAM'S TIER AXIS, NOW ONE VALUE (lane/retire-tier-chain, 2026-11-26).
 //
 // The game's tier rows (Normal / Dangerous / Deadly, src/data/hunt-tiers.js and balance-sheet.js TIER_DIALS) retired for the Danger scale
 // (12-targets 8.4 item 4): every ground plays its step, and off the scale a ground plays its rows as built. The program's grids, plans,

@@ -58,6 +58,9 @@ import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices
 import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, locateKnob, knobReach, PATCH_SCHEMA, KnobGone } from './matrix-scratch.mjs';
 import { calibrationJobs, calibrationTable, printCalibration } from './matrix-calibration.mjs';
 import { STYLE_GROUPS, KNOB_FILE } from './knob-rules.mjs';
+/* the program's tier column (Normal alone since the tier rows retired, lane/retire-tier-chain): a constant of the program, read from its
+   own home, never through a scratch tree's root */
+import * as TIER_AXIS from '../balance-sim/tier-axis.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -77,7 +80,8 @@ const workersOf = () => Math.max(1, Number(arg('workers', Math.min(MAX_WORKERS, 
 export async function dataView(D, root) {
   if (resolve(root) === ROOT) return D;
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [XP, BS, MON, SB, TI, BL, LB, AR, WG] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'tools/balance-program/tier-axis.mjs', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js', 'src/core/wage.js'].map(imp));
+  const TI = TIER_AXIS;
+  const [XP, BS, MON, SB, BL, LB, AR, WG] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js', 'src/core/wage.js'].map(imp));
   /* AR: the tree's own death price (progression-grid.mjs deathXpAt), so a patch that moves it moves every reader */
   return { ...D, XP, BS, MONSTERS: MON.MONSTERS, SB, TI, BL, AR, WG, REVEAL_BANDS: LB.REVEAL_BANDS,
     projectD: { ...D.projectD, MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: TI.tierRowOf, tiersOf: TI.tiersOf } };
@@ -678,8 +682,12 @@ async function main() {
 
 /* ── THE SELFTEST ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const lone = (w) => [[w], w === 'hammer' ? 'h' : w];
+/* (the tier column is Normal alone since the tier rows retired, lane/retire-tier-chain: block a's hardest tier, the cell whose fights dipped,
+   is block d's hammers at Level 40 played on Krell's Hold, a ground far over them, which dip and hunt on: measured 2026-11-26, the LOW one's
+   worst tenth of fights at 17% HP and 0.6% of its time under 30%, the MID one's under monsterDamage x1.6) */
 const MINI = Object.freeze({ id: 'selftest', levels: [], seeds: 1, hours: 0.25, blocks: [
-  { id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid', 'low'], tiers: ['normal', 'hardest'] },
+  { id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid', 'low'], tiers: ['normal'] },
+  { id: 'd', levels: [40], comps: [lone('hammer')], gears: ['low', 'mid'], tiers: ['normal'], variants: [{ tag: 'under', ground: 'krells_hold' }] },
   { id: 'b', levels: [60], comps: compsOf(4), gears: ['mid'], tiers: ['normal'] },
   { id: 'c', levels: [HIGH_LEVELS[0]], comps: [lone('mage')], gears: ['mid'], tiers: ['normal'] },
 ] });
@@ -895,13 +903,15 @@ async function selftest() {
     const SH = await import('../balance-sim/played.mjs');
     const TAL = await import('./talents.mjs');
     const PG = await import('./progression-grid.mjs');
-    const lethal = buildCell(D, K, { L: 20, gear: 'low', styles: ['hammer'], tier: 'deadly', ground: D.groundAt(20, 1) }).cell;
-    const pairGround = D.groundAt(60, 2), pair = { ground: pairGround, party: ['bow', 'hammer'], level: [60, 5], profile: 'played', supply: 'store', deathRule: 'real', options: { tier: 'deadly' }, hours: 0.5, seeds: 1 };
+    /* the lethal cells play Normal far under their ground (the tier rows retired, lane/retire-tier-chain; measured 2026-11-26: Level 20 on Krell's
+       Hold dies at once and re-enters 56 times an hour, Level 40 on the Unmarked Catacombs dies at once, the pair's Level 5 hammer in a minute) */
+    const lethal = buildCell(D, K, { L: 20, gear: 'low', styles: ['hammer'], tier: 'normal', ground: D.groundAt(88, 1) }).cell;
+    const pairGround = D.groundAt(60, 2), pair = { ground: pairGround, party: ['bow', 'hammer'], level: [60, 5], profile: 'played', supply: 'store', deathRule: 'real', options: {}, hours: 0.5, seeds: 1 };
     const g60 = D.groundAt(60, 1), ham = buildCell(D, K, { L: 60, gear: 'mid', styles: ['hammer'], tier: 'normal', ground: g60 }).cell, mage = buildCell(D, K, { L: 60, gear: 'mid', styles: ['mage'], tier: 'normal', ground: g60 }).cell;
-    /* THE BLESSING'S DEATH (9d, and S-5's ladder below): a lone hero twenty Levels under its ground on Deadly dies at once, and at Level 40 its
+    /* THE BLESSING'S DEATH (9d, and S-5's ladder below): a lone hero far under its ground dies at once, and at Level 40 its
        Blessing has a price (free under BLESSING.freeUntilLevel). Not the pair: its dying hammer is Level 5 (free), and since R10 put the pair on
        a scale ground its Level 60 bow holds, so a check read on the bow priced a death nobody died. blessedShare unset: the Blessing's own cut */
-    const blessL = 40, dying = { ...buildCell(D, K, { L: blessL, gear: 'low', styles: ['hammer'], tier: 'deadly', ground: g60 }).cell, deathRule: 'real', blessedShare: undefined, hours: 0.5 };
+    const blessL = 40, dying = { ...buildCell(D, K, { L: blessL, gear: 'low', styles: ['hammer'], tier: 'normal', ground: D.groundAt(185, 1) }).cell, deathRule: 'real', blessedShare: undefined, hours: 0.5 };
     const jobs = [
       ['real', { ...lethal, hours: 1 }], ['reenter', { ...lethal, deathRule: 'reenter', hours: 1 }],
       ['apart', pair], ['together', { ...pair, endTogether: true }], ['blessed', { ...dying, blessings: 1 }],

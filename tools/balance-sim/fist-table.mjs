@@ -23,6 +23,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
 import { RUNE_TIERS } from './played.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
+/* the program's tier column (Normal alone since the tier rows retired, lane/retire-tier-chain): a constant of the program, read from its
+   own home, never through a scratch tree's root */
+import * as TIER_AXIS from './tier-axis.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -61,7 +64,7 @@ async function withSample(o, fn) {
     const R = await loadCellRunner(p.root);
     const M = { AD: await imp('src/data/abilities.js'), FISTS: await imp('src/data/fists.js'), XP: await imp('src/core/xp.js'), EL: await imp('src/core/elements.js'),
       MON: await imp('src/data/monsters.js'), G: await imp('src/data/hunt-grounds.js'), SB: await imp('src/data/supply-basics.js'), RUNES: await imp('src/data/runes.js'),
-      T: await imp('tools/balance-program/tier-axis.mjs') };
+      T: TIER_AXIS };
     return await fn(R, M);
   } finally { p.done(); }
 }

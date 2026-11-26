@@ -43,7 +43,7 @@ export function loadProposals(root = ROOT) {
    charged for a hero slot, so it is an identity on every cell; the readings it retires (the slot-arrival day and the slot-price guard cells)
    are listed so the dashboard drops them from the proposed side */
 export const retiredOn = (reg) => new Set(reg.frame.flatMap((f) => f.retires || []));
-/* a proposal plays one patch file, or several in order (GR-27: Dangerous brings five, then the balance pass's one blow dial): edits in order,
+/* a proposal plays one patch file, or several in order: edits in order,
    knobs multiplied, plan steps merged (a later file's wins), targets joined, the last file's kind */
 const readPatch = (root, p) => {
   const files = Array.isArray(p.patch) ? p.patch : p.patch ? [p.patch] : [];
@@ -115,19 +115,9 @@ const STATIC = {
     why: 'Armor and Defense XP read the monster row\'s own Level, not the Level the dial makes; the stat formula sizes blows on 150 + 10 x (L - 1), the health a hero has. A correctness fix; 44 says the dial may need one step up to hold S3 and S4',
     kind: 'coefficient', targets: ['survival', 'S3', 'S4'],
     edits: [
-      { file: 'src/data/hunt-tiers.js', from: "export const levelAtTier = (level, dial) => { const pm = splitPm(dial, 'lvPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };",
+      { file: 'src/core/hunt/dial.js', from: "export const levelAtTier = (level, dial) => { const pm = splitPm(dial, 'lvPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };",
         to: 'export const levelAtTier = (level, dial) => (void dial, level);' },
       { file: 'src/data/balance-sheet.js', from: '  refHp: (L) => VITALS.hpBase + VITALS.hpPerLevel * L,', to: '  refHp: (L) => VITALS.hpBase + VITALS.hpPerLevel * (L - 1),' },
-    ],
-  },
-  'patches/one-tier-table.json': {
-    name: 'One tier table: no per-ground tier dials, no floor-16 pull rule (60 G-5, 44 section 5.2, R12)',
-    why: 'Every ground takes TIER_DIALS. A ground keeps its pull capacity (how many its rooms hold: geography), loses its own dials, and the bigger pulls are no longer held back under floor 16',
-    kind: 'derivation', targets: ['pace', 'P9', 'survival'],
-    edits: [
-      { file: 'src/data/balance-sheet.js', from: 'export const TIER_PULL_OVERRIDES = Object.freeze(foldRows(',
-        to: 'export const TIER_PULL_OVERRIDES = ((o) => Object.freeze(Object.fromEntries(Object.entries(o).map(([g, r]) => { const { dials, ...rest } = r; void dials; return [g, Object.freeze(rest)]; }))))(foldRows(' },
-      { file: 'src/data/balance-sheet.js', from: 'export const TIER_PULL_FROM_FLOOR = 16;', to: 'export const TIER_PULL_FROM_FLOOR = 0;' },
     ],
   },
   'patches/talents-hook.json': {
@@ -347,8 +337,9 @@ async function selftest(o) {
   let refused = false;
   if (alt) { try { composePatch(ROOT, [...reg.recommended, alt.id], { reg }); } catch { refused = true; } }
   check('an alternative stacked on what it replaces is refused (' + (alt ? alt.id + ' with ' + alt.excludes.join(',') : 'none') + ')', !alt || refused);
-  const flags = shipsWithFlags(reg, reg.recommended.filter((id) => id !== 'GR-5b'));
-  check('ships-with: the proposed game without GR-5b flags GR-5 (it ships with it)', flags.some((f) => f.id === 'GR-5' && f.missing === 'GR-5b'), JSON.stringify(flags));
+  /* (re-aimed from GR-5 and GR-5b, which retired with the tier rows, lane/retire-tier-chain) */
+  const flags = shipsWithFlags(reg, reg.recommended.filter((id) => id !== 'GR-6'));
+  check('ships-with: the proposed game without GR-6 flags GR-7 (it ships with it)', flags.some((f) => f.id === 'GR-7' && f.missing === 'GR-6'), JSON.stringify(flags));
   /* the seat fit (--fit-seat): hours past Level 10 at half the ruled ones read a multiple twice the current, and land every point on the table */
   { const ruled = [[100, 600], [200, 1680]], f = seatMultiple({ hours: (L) => (L === 10 ? 2 : 2 + 0.5 * ((ruled.find(([l]) => l === L) || [0, 2])[1] - 2)), ruled, m0: 1.3 });
     check('the seat fit: hours at half the table past Level 10 read the multiple x2 (' + f.m + ') and land on it (' + f.readings.map(([, x]) => x).join(', ') + ')', f.m === 2.6 && f.readings.every(([, x]) => x === 1)); }

@@ -18,6 +18,9 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSy
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
+/* the program's tier column (Normal alone since the tier rows retired, lane/retire-tier-chain): a constant of the program, read from its
+   own home, never through a scratch tree's root */
+import * as TIER_AXIS from '../../balance-sim/tier-axis.mjs';
 
 export const TREE_FILE = '.baseline-tree.json';
 export const TREE_SCHEMA = 'hearthrise.balance-baseline-tree/1';
@@ -134,7 +137,7 @@ export async function manifest(root) {
   const tree = treeRecord(root);
   const { BUILD } = await imp('src/build-info.js');
   const { COMBAT_BALANCE } = await imp('src/core/combat.js');
-  const TI = await imp('tools/balance-program/tier-axis.mjs');
+  const TI = TIER_AXIS;
   const catalogues = filesUnder(root, 'supabase/migrations').filter((f) => f.endsWith('.generated.sql'));
   const config = { build: { version: BUILD.version, cache: BUILD.cache, date: BUILD.date || null }, combat: COMBAT_BALANCE, tierDials: TI.DIALS || null, groundTiers: TI.GROUND_TIERS || null, switches: switches(root) };
   return {

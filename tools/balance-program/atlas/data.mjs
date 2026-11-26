@@ -20,7 +20,7 @@ export async function loadData() {
     mod('src/data/boss-calls.js'), mod('src/data/bestiary.js'), mod('src/data/hearthfind.js'), mod('src/data/shops.js'), mod('src/data/supply-basics.js'),
     mod('src/data/recipes.js'), mod('src/data/gathering.js'), mod('src/data/temper.js'), mod('src/data/jewelry.js'), mod('src/data/imbuements.js'),
     mod('src/data/live-events.js'), mod('src/data/tally-tasks.js'), mod('src/data/start-kit.js'), mod('src/data/catalogue-coherence.js'), mod('src/data/premium.js'),
-    mod('src/data/training.js'), mod('src/data/stamina-refill.js'), mod('src/data/gear-tiers.js'), mod('tools/balance-program/tier-axis.mjs'), mod('src/core/xp.js'),
+    mod('src/data/training.js'), mod('src/data/stamina-refill.js'), mod('src/data/gear-tiers.js'), mod('tools/balance-sim/tier-axis.mjs'), mod('src/core/xp.js'),
     mod('src/core/pacing.js'), mod('src/data/balance-sheet.js'), mod('supabase/functions/hr-accrue/catalogue.js'), mod('src/data/bench-tax.js'),
     mod('src/data/shields.js'),
   ]);

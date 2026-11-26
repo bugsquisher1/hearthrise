@@ -30,7 +30,7 @@
 //               bonus "like it does in tibia": the engine's half, one item field summed over what is worn, is the Systems lane's)
 //   cinders     the Hearth Cinders it always holds
 //   saltsQty    the Tempering Salts it always holds. WHICH salts is DERIVED, never written here: the Temper kit of the highest gear tier
-//               at or under weaponTier that is a live item (KEY_SALTS below, from src/data/trades.js KIT_FACES temper_kit; keySalts). The coherence pass's C4: the Silver Key paid
+//               at or under weaponTier that is a live item (KEY_SALTS below, from src/data/temper.js TEMPER_KITS; keySalts). The coherence pass's C4: the Silver Key paid
 //               tier 3's salts to heroes wearing tier 4; with tier 4 to 6 ladders (lane/d-audit-balance-2) Silver pays Mithril salts and
 //               Gold and Platinum Ember salts, and a tier 7 ladder moves Platinum by itself. Until those ladders land, the highest
 //               ladder there is (tier 3's Fine salts) is what any key past Bronze pays, and tools/gen-chests.mjs --check turns red the
@@ -60,7 +60,7 @@
 //
 // PURE ESM DATA. Imports the Temper kits' faces and the weapon families. Node, Deno and the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { KIT_FACES, NEW_FACES } from './trades.js';
+import { TEMPER_KITS, TEMPER_KIT_NEW } from './temper.js';
 import { WEAPON_FAMILIES } from './gear-tiers.js';
 import { TOWER_WEAPONS } from './tower-weapons.js';
 import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS, towerLevelAt } from './tower.js';
@@ -248,8 +248,8 @@ export function keyForLanding(landing, keys = HEARTH_CHEST_KEYS, ground = TOWER_
 /** The salts item a key row always holds: the material of the highest tempering tier at or under its weapon tier, or null. Pure. */
 /* THE SALTS A KEY MAY HOLD, by gear tier (a band's kit is gear tier band + 1 on gear-tiers.js's count: Iron's band 1 is tier 2): the Temper
    kits that are live items, so a key never holds a good no door makes yet (Dawnsteel's kit is a new face: Platinum keeps Ember's) */
-export const KEY_SALTS = Object.freeze(Object.fromEntries(KIT_FACES.temper_kit.map((id, band) => [band + 1, id])
-  .filter(([, id]) => id && !Object.prototype.hasOwnProperty.call(NEW_FACES, id)).map(([t, id]) => [t, Object.freeze({ item: id })])));
+export const KEY_SALTS = Object.freeze(Object.fromEntries(TEMPER_KITS.map((id, band) => [band + 1, id])
+  .filter(([, id]) => id && !Object.prototype.hasOwnProperty.call(TEMPER_KIT_NEW, id)).map(([t, id]) => [t, Object.freeze({ item: id })])));
 
 export function keySalts(k, materials = KEY_SALTS) {
   const tiers = Object.keys(materials).map(Number).filter((t) => t <= k.weaponTier).sort((a, b) => b - a);

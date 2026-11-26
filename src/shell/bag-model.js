@@ -37,7 +37,7 @@ import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gatheri
 import { SHOP_OFFERS } from '../data/shops.js';
 import { HELD_HOME_OFFERS, HELD_HOME_ROOMS, STORAGE_CHESTS } from '../data/homestead-tiers.js';
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js';
-import { KIT_FACES } from '../data/trades.js';
+import { TEMPER_KITS } from '../data/temper.js';
 import { imbuePartUses } from '../data/imbue-rules.js';
 import { recipeInputs } from '../core/artisan.js';
 import { BAG_SEEN_MAX } from '../session/residue.js';
@@ -115,8 +115,8 @@ function homeSpends() {
 }
 /** Does a House price name this item? */
 export const houseSpends = (id) => homeSpends().has(id);
-/* What a Temper rank takes besides gold: its band's Temper kit (src/data/trades.js KIT_FACES temper_kit, src/core/temper-steps.js temperKitAt). */
-const TEMPER_SPENDS = new Set(KIT_FACES.temper_kit.filter(Boolean));
+/* What a Temper rank takes besides gold: its band's Temper kit (src/data/temper.js TEMPER_KITS, src/core/trades.js temperKitAt). */
+const TEMPER_SPENDS = new Set(TEMPER_KITS.filter(Boolean));
 /** Does a Temper rank take this item? */
 export const temperSpends = (id) => TEMPER_SPENDS.has(id);
 /* the parts an imbuement row names (src/data/imbue-rules.js), read once */

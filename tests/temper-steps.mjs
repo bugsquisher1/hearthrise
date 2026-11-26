@@ -11,7 +11,7 @@
 // ci-run: node tests/temper-steps.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/temper-steps.mjs --mutate
 //
-// mutant-anchors: src/core/temper-steps.js src/core/carry-over.js src/core/hunt/danger.js src/core/member.js
+// mutant-anchors: src/core/temper-steps.js src/core/carry-over.js src/core/hunt/danger.js src/core/member.js src/core/trades.js src/core/hunt/amount.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 //   TS-1  RANKS BY LEVEL: rank r opens at Level 40r, at most 5 (D-2)
@@ -23,6 +23,10 @@
 //         weights; an empty slot gains nothing; no ranks: byte for byte what it was
 //   TS-5  CARRY-OVER: every Trait moves (one on a Rare, two on a Very Rare), 2 + rank parts from the Trait's home ground, 0.5 h of wage a
 //         step at the new base; refused onto a lower tier, another slot, a piece with a Trait, from a Signature or out of escrow
+//   TS-6  THE KIT (lane/tp-im-steps, a K1 kit trade): a rank on a piece takes its band's Temper kit (Iron to Dawnsteel), never another band's;
+//         Bronze and the bands past Dawnsteel have none (kits_owed); every kit band is a named Smithing recipe; the quote's kits are whole
+//   TS-7  THE CAP HOLDS ON A FULL KIT (lane/tp-im-steps, 20 lane TP done-when): rank 5, or a forged 9, on every slot is +5 steps of armor
+//         and of ward as well as of the gear part, and never more; the old rungs are gone (src/data/temper.js holds Temper on steps alone)
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -31,8 +35,9 @@ import { runPureGuard } from './_pure-guard.mjs';
 async function pure(base) {
   const t = '?t=' + Date.now();
   const imp = (p) => import(pathToFileURL(join(base, p)).href + t);
-  const [T, C, danger, member, items, dd, traits] = await Promise.all([imp('src/core/temper-steps.js'), imp('src/core/carry-over.js'),
-    imp('src/core/hunt/danger.js'), imp('src/core/member.js'), imp('src/data/items.js'), imp('src/data/danger.js'), imp('src/data/traits.js')]);
+  const [T, C, danger, member, items, dd, traits, TR, TD, TRD, AM] = await Promise.all([imp('src/core/temper-steps.js'), imp('src/core/carry-over.js'),
+    imp('src/core/hunt/danger.js'), imp('src/core/member.js'), imp('src/data/items.js'), imp('src/data/danger.js'), imp('src/data/traits.js'),
+    imp('src/core/trades.js'), imp('src/data/temper.js'), imp('src/data/trades.js'), imp('src/core/hunt/amount.js')]);
   const out = [], ITEMS = items.ITEMS, W = dd.GEAR_STEPS.slotPm;
   /* TS-1 */
   if ([0, 39, 40, 79, 80, 120, 160, 199, 200, 999].map(T.rankCapAt).join() !== '0,0,1,1,2,3,4,4,5,5') out.push('TS-1 ranks do not open at 40, 80, 120, 160, 200');
@@ -74,6 +79,20 @@ async function pure(base) {
     [from, { slot: 'weapon', tier: 3, traits: [{ id: b, rank: 1 }] }, 'not_plain'], [{ ...from, signature: true }, { slot: 'weapon', tier: 3, traits: [] }, 'signature'],
     [from, { slot: 'weapon', tier: 3, traits: [], escrow: true }, 'escrowed'], [{ ...from, traits: [] }, { slot: 'weapon', tier: 3, traits: [] }, 'no_trait']];
   for (const [f, to, why] of refuse) { const r = C.carryQuote(f, to); if (r.ok || r.why !== why) out.push('TS-5 want ' + why + ', got ' + JSON.stringify(r)); }
+  /* TS-6 */
+  const kitAt = [0, 19, 20, 45, 60, 80, 100, 119, 120, 140].map((l) => TR.temperKitAt(l)).join();
+  if (kitAt !== ',,temper_salts,fine_temper_salts,mithril_temper_salts,rune_temper_salts,ember_temper_salts,ember_temper_salts,dawn_temper_salts,') out.push('TS-6 the kits by item Level read ' + kitAt);
+  const named = new Set(TRD.KIT_RECIPES.filter((r) => r.kind === 'temper_kit').map((r) => r.band));
+  TD.TEMPER_KITS.forEach((id, band) => { if (id && !named.has(band)) out.push('TS-6 the band ' + band + ' kit ' + id + ' is no named recipe'); });
+  if (!TR.temperKitAt(TD.TEMPER_STEPS.rankEvery)) out.push('TS-6 rank 1 opens where no kit is named');
+  if (!Number.isInteger(q.kits) || q.kits < 1) out.push('TS-6 a rank quotes ' + q.kits + ' kits');
+  /* TS-7 */
+  const nine = Object.fromEntries(Object.keys(W).map((s) => [s, 9]));
+  if (danger.gearPartPm(kit, ITEMS, nine) - danger.gearPartPm(kit, ITEMS) !== 5000) out.push('TS-7 a forged rank 9 on every slot is past 5 steps');
+  const d0 = AM.defenseGearPm(kit, ITEMS), d5 = AM.defenseGearPm(kit, ITEMS, all5), d9 = AM.defenseGearPm(kit, ITEMS, nine);
+  if (d5.armorPm - d0.armorPm !== 5000 || d5.wardPm - d0.wardPm !== 5000 || d9.armorPm !== d5.armorPm) out.push('TS-7 Temper 5 moves armor ' + (d5.armorPm - d0.armorPm) + ' and ward ' + (d5.wardPm - d0.wardPm) + ', want 5000 each, never more');
+  const left = Object.keys(TD).filter((k) => !['TEMPER_STEPS', 'TEMPER_KITS', 'TEMPER_KIT_NEW'].includes(k));
+  if (left.length) out.push('TS-7 src/data/temper.js still exports the old rungs: ' + left.join(', '));
   return out;
 }
 
@@ -90,7 +109,10 @@ const MUTANTS = [
   ['carry onto a piece with a Trait', 'src/core/carry-over.js', "if (Array.isArray(t.traits) && t.traits.length > 0) return { ok: false, why: 'not_plain' };", ''],
   ['a Very Rare carries one Trait', 'src/core/carry-over.js', '  for (const tr of traits) {', '  for (const tr of traits.slice(0, 1)) {'],
   ['the parts ignore rank', 'src/core/carry-over.js', 'CARRY.partsBase + rank;', 'CARRY.partsBase + 1;'],
+  ['a rank takes the kit of the band below', 'src/core/trades.js', "export const temperKitAt = (itemLevel) => faceOf('temper_kit', bandOf(itemLevel));", "export const temperKitAt = (itemLevel) => faceOf('temper_kit', Math.max(0, bandOf(itemLevel) - 1));"],
+  ['the defense part reads no Temper', 'src/core/hunt/amount.js', '    const il = itemLevelOf(it) + temperLevelsOn(temperSteps, slot);', '    const il = itemLevelOf(it);'],
+  ['a forged rank counts past 5 on the defense part', 'src/core/temper-steps.js', 'return temperSteps && own(temperSteps, slot) ? Math.min(T.ranks, whole(temperSteps[slot])) * T.ilPerRank : 0;', 'return temperSteps && own(temperSteps, slot) ? Math.min(9, whole(temperSteps[slot])) * T.ilPerRank : 0;'],
 ];
 
 process.exitCode = await runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/temper-steps.mjs', pure, mutants: MUTANTS,
-  green: 'ranks by Level, prices, the seat, the gear part both paths read, and carry-over all hold' });
+  green: 'ranks by Level, prices, the seat, the gear part both paths read, carry-over, the kit by band and the cap on a full kit all hold' });

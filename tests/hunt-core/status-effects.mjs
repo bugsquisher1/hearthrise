@@ -271,7 +271,7 @@ const mutants = [
   { name: 'an aura reaches past its radius', case: 'aura-party-rule', edits: [['src/core/hunt/auras.js', '      if (d > a.radius) continue;\n', '']] },
   { name: 'a dead wearer keeps its aura', case: 'aura-party-rule', edits: [['src/core/hunt/auras.js', '    if (w.alive !== true || (w !== unit && !isAlly(w, unit))) continue;', '    if (w !== unit && !isAlly(w, unit)) continue;']] },
   { name: 'every aura row counts as worn', case: 'aura-party-rule', edits: [['src/core/hunt/auras.js', "scope: 'party', worn: w === unit });", "scope: 'party', worn: true });"]] },
-  { name: 'the power step never reads an aura', case: 'aura-party-rule', edits: [['src/core/hunt/amount.js', "heroRows(source, 'offense', c).concat(auraRowsOn(inst, source))", "heroRows(source, 'offense', c)"]] },
+  { name: 'the power step never reads an aura', case: 'aura-party-rule', edits: [['src/core/hunt/amount.js', "heroRows(source, 'offense', c, inst, target).concat(auraRowsOn(inst, source))", "heroRows(source, 'offense', c, inst, target)"]] },
   { name: 'an aura move is cast', case: 'aura-party-rule', edits: [['src/core/hunt/abilities.js', "    && !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].target === 'aura')\n", '']] },
 ];
 

@@ -41,7 +41,7 @@ import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js';
 import { EFFECT_KINDS } from './item-effects.js';
 import { MONSTERS } from './monsters.js';
 import { NAMED_FUELS } from './hearth.js';
-import { KIT_FACES } from './trades.js';
+import { TEMPER_KITS } from './temper.js';
 import { imbuePartUses } from './imbue-rules.js';
 import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS } from './jewelry.js';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js';
@@ -406,7 +406,7 @@ export function itemUses() {
     for (const c of (o && o.cost) || []) if (c && c.kind === 'item') push(m, c.id, 'pays for ' + o.id);
   }
   /* Temper on steps (src/core/temper-steps.js): a band's Temper kit pays for a rank on a piece of that band (21 section 2.2) */
-  for (const id of KIT_FACES.temper_kit) if (id) push(m, id, 'pays for a Temper rank');
+  for (const id of TEMPER_KITS) if (id) push(m, id, 'pays for a Temper rank');
   /* an imbuement's part (src/data/imbue-rules.js): Artificing makes the imbuement from it (21 section 3.2) */
   for (const [id, made] of imbuePartUses()) push(m, id, 'makes ' + made.join(', ') + ' at the Artificing bench');
   /* the Hallmark step (src/data/jewelry.js, hr_hallmark): a Fine piece and its tier's gem make the Hallmarked row */

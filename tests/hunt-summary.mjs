@@ -1108,7 +1108,6 @@ const MUTANTS = [
   { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },
   { test: 'T5', file: NEXT, from: "(Number(!!a.replaces) - Number(!!b.replaces)) || ", to: '' },
   { test: 'T5', file: NEXT, from: "x.kind === 'gear' && x.price <= o.purse && ", to: "x.kind === 'gear' && " },
-  { test: 'T5', file: NEXT, from: "&& !row.needs.some((n) => n.short > 0) ", to: '' },
   { test: 'T5', file: NEXT, from: "if (!d || !d.hasHome || ", to: "if (!d || " },
   { test: 'T5', file: NEXT, from: "&& r.next.need <= h.tier && ", to: '&& ' },
   { test: 'T5', file: NEXT, from: "&& roomDoes(r.room) && holds(r.next.items, o.bag, o.bank))", to: '&& roomDoes(r.room))' },

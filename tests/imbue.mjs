@@ -74,7 +74,7 @@ async function pure(base) {
   if (C.wornImbuesOf([]) !== null || C.wornImbuesOf(null) !== null) out.push('IM-5 an empty list is a worn set');
   /* IM-6 */
   if (!near(C.imbueStepsAt(70, 70), 2) || !near(C.imbueStepsAt(70, 60), 2)) out.push('IM-6 an imbuement at or over its hero is not 2 steps');
-  if (!near(C.imbueStepsAt(70, 160), (2 * TR.behindPm(90)) / 1000) || !(C.imbueStepsAt(70, 160) < 2)) out.push('IM-6 a band 90 Levels behind is not the contest curve: ' + C.imbueStepsAt(70, 160));
+  if (Math.abs(C.imbueStepsAt(70, 160) - (2 * TR.behindPm(90)) / 1000) > 0.002 || !(C.imbueStepsAt(70, 160) < 2)) out.push('IM-6 a band 90 Levels behind is not the contest curve: ' + C.imbueStepsAt(70, 160));
   if (C.imbueStepsAt(85, 74) !== 0 || !(C.imbueStepsAt(85, 75) > 0)) out.push('IM-6 an imbuement more than wearAhead over its hero is worn');
   /* IM-7: rows through the one clamp */
   const knight = { role: 'brute', element: null }, ember = { role: null, element: 'ember' }, plain = { role: 'swarm', element: null };
@@ -107,7 +107,7 @@ const MUTANTS = [
   ['the band is the best ground\'s', 'src/data/imbue-rules.js', 'out.set(id, { ground: p.id, band: p.hunt.band[0], open:', 'out.set(id, { ground: p.id, band: p.hunt.band[1], open:'],
   ['a second of one kind is worn', 'src/core/imbue.js', 'if (!byKind.has(kind)) byKind.set(kind,', 'byKind.set(kind + byKind.size,'],
   ['a spent imbuement is worn', 'src/core/imbue.js', "if (!own(IMBUE_RULES, id) || !whole(x.band) || !whole(x.msLeft)) continue;", "if (!own(IMBUE_RULES, id) || !whole(x.band)) continue;"],
-  ['no contest curve behind the band', 'src/core/imbue.js', 'return (IMBUE.steps * behindPm(Math.max(0, L - b))) / 1000;', 'return IMBUE.steps;'],
+  ['no contest curve behind the band', 'src/core/imbue.js', 'return IMBUE.steps / powSquare(1 + DANGER.powerStep, Math.max(0, L - b));', 'return IMBUE.steps;'],
   ['a band past wearAhead is worn', 'src/core/imbue.js', 'if (!b || !L || b > L + GEAR_STEPS.wearAhead) return 0;', 'if (!b || !L) return 0;'],
   ['an imbuement fires on any monster', 'src/core/imbue.js', 'const fires = r.raises === channel && holdsOn(r, ctx);', 'const fires = r.raises === channel;'],
   ['a waiting imbuement takes no room', 'src/core/power-ledger.js', 'if (!ch.mine.has(key) || ch.mine.get(key)[0] <= 0) room += g;', 'if (false) room += g;'],

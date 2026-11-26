@@ -27,6 +27,12 @@
 // PURE ESM, no imports, no I/O. Node, Deno and the browser read it verbatim.
 // ============================================================================
 
+/* THE TEMPER KIT A BAND (the K1 kit trade's faces, src/data/trades.js KIT_FACES temper_kit reads them here): the Tempering Salts the smith
+   already sells, Iron (band 1) to Emberforged (band 5), and Dawnsteel's, a new good (TEMPER_KIT_NEW: not an item until the job slice makes it).
+   Band 0 has none: Bronze is never tempered (rank 1 opens at Level 40, where Steel is worn). Cobalt's and Wolfram's land with their grounds. */
+export const TEMPER_KITS = Object.freeze([null, 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts', 'dawn_temper_salts']);
+export const TEMPER_KIT_NEW = Object.freeze({ dawn_temper_salts: 'Dawnsteel Tempering Salts' });
+
 export const TEMPER_STEPS = Object.freeze({
   ranks: 5,
   ilPerRank: 1,

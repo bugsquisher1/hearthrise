@@ -18,9 +18,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { IMBUE, IMBUE_RULES, IMBUE_SLOTS, imbueBandOf, imbueItemOf } from '../data/imbue-rules.js';
 import { POWER_LEDGER } from '../data/power-ledger.js';
-import { GEAR_STEPS } from '../data/danger.js';
-import { wage } from '../data/wage.js';
-import { behindPm } from './trades.js';
+import { GEAR_STEPS, DANGER } from '../data/danger.js';
+import { wage, powSquare } from '../data/wage.js';
 
 const HOUR_MS = 3600000;
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -56,7 +55,8 @@ export function imbueRecipe(id) {
 export function imbueStepsAt(band, heroLevel) {
   const b = whole(band), L = whole(heroLevel);
   if (!b || !L || b > L + GEAR_STEPS.wearAhead) return 0;
-  return (IMBUE.steps * behindPm(Math.max(0, L - b))) / 1000;
+  /* the contest curve (src/core/trades.js behindPm's, the one power walk powSquare): a good n steps behind does 1 / (1 + powerStep)^n */
+  return IMBUE.steps / powSquare(1 + DANGER.powerStep, Math.max(0, L - b));
 }
 
 /** THE WORN SET AS THE FIGHT PLAYS IT, from the server's list [{ id, band, msLeft }]: an unknown id, a band no whole number, a spent one

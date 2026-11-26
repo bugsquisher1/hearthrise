@@ -30,7 +30,7 @@
 import { STORE_KIT } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 import { IMBUE, IMBUE_SLOTS } from './imbue-rules.js';
-import { TEMPER_STEPS } from './temper.js';
+import { TEMPER_STEPS, TEMPER_KITS, TEMPER_KIT_NEW } from './temper.js';
 
 export const TRADE_LEVERS = Object.freeze({
   /* 09 4.3: the two lines the store never sells (the meal and charge shares live in STORE_KIT.lineShare). The four sum to one */
@@ -275,12 +275,12 @@ export const KIT_FACES = Object.freeze({
   /* THE TEMPER KIT (21 section 2.2, lane/tp-im-steps 2026-11-26): the Tempering Salts the smith already sells are its faces, Iron to
      Emberforged, and Dawnsteel's is new. Band 0 has none: Bronze is never tempered (a rank opens at Level 40, where Steel is worn). Cobalt
      and Wolfram's land with the grounds that drop them. A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
-  temper_kit: Object.freeze([null, 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts', 'dawn_temper_salts']),
+  temper_kit: TEMPER_KITS,
 });
 export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones']) });
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
-export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', dawn_temper_salts: 'Dawnsteel Tempering Salts' });
+export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', ...TEMPER_KIT_NEW });
 
 /** A recipe's id: its kind and its band ('arrow_b0'). Derived, never typed. */
 export const recipeId = (kind, band) => kind + '_b' + band;

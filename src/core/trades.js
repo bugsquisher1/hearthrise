@@ -134,6 +134,12 @@ export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LIN
   return Object.freeze({ rawUh, refineUh, kinds: Object.freeze(out), recipes: Object.freeze(recipes), named: Object.freeze(named) });
 }
 
+/** THE TEMPER KIT a Temper rank on a piece of item Level `itemLevel` takes (21 section 2.2, lane/tp-im-steps): its band's face of the
+    Smithing kind temper_kit (src/data/trades.js KIT_FACES), or null where no band's kit is named (Bronze, and the bands past Dawnsteel until
+    their grounds open). A cheap band's kit never pays for a dear band's rank; the server refuses that rank `kits_owed`, never sells it for
+    gold alone (src/data/temper.js header). */
+export const temperKitAt = (itemLevel) => faceOf('temper_kit', bandOf(itemLevel));
+
 /* ── ONE CURVE (09 4.4) ───────────────────────────────────────────────── */
 
 const lv = (L) => Math.min(TRADE_PM.maxLevel, Math.max(1, Math.floor(Number(L) || 1)));

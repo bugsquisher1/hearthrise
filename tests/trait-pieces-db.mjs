@@ -16,9 +16,11 @@
 //        its session the hero's; one `trait` journal row a piece; more than one hero found (personal loot); the read hands each hero the
 //        pity the server holds; the viewer's answers name every piece its kills made (the drop moment); the `pieces` section lists them
 //        with their session (the return card's line).
-//   TP-3 THE WORN PIECE, BOTH PATHS: with trait_pieces lit, the leader wears a First Rank III piece on its steel body: the read and the
-//        plan hand it to that hero alone, the viewer's live start point carries it, the closed and the viewed hunt store the same world,
-//        and the world differs from the same four with the switch off (the Trait played); a base that left its slot plays nothing.
+//   TP-3 THE WORN PIECE, BOTH PATHS: with trait_pieces and signatures lit, the leader wears a First Rank III piece on its steel body and
+//        the second hero two Signature pieces (the Cairn Belt put on first): the read and the plan hand each to its hero alone, only the
+//        first Signature plays, the viewer's live start point carries its own Traits and the peer's Signature on its frozen row, the
+//        closed and the viewed hunt store the same world, and the world differs from the same four with the switches off (the Trait
+//        played; a dark read hands nothing); a base that left its slot plays nothing.
 //   TP-4 THE BOUNDS, THROUGH THE REAL COMMIT: a found piece the edge proposes, tampered (a rank over the ground's, a base off the ground's,
 //        more pieces than kills, a pity past the kills), refuses the whole settle with its code and lands nothing; the untampered proposal
 //        then lands and answers what it found.
@@ -67,6 +69,16 @@ const fixture = ({ flags = [], wear = null }) => async ({ db, uids, asUser, one:
     await db.query(`insert into public.trait_pieces (user_id, found_slot, base, slot, item_level, rarity, traits, hunt_id, step, depth, instance_id, kill_unit, at_ms,
                       worn_slot, worn_equip_slot, worn_at) values ($1, 0, $2, $3, 60, 'rare', $4::jsonb, $5, 600, 3, gen_random_uuid(), 1, 1, 0, $3, now())`,
       [uids[0], wear.base, wear.slot, JSON.stringify(wear.traits), MUSTER]);
+    /* the second hero wears two Signature pieces, the Cairn Belt put on first: only it plays (15 "one a hero") */
+    const belt = await q(db, `select min(item_id) from public.hr_item_slots where equip_slot = 'belt'`);
+    const neck = await q(db, `select min(item_id) from public.hr_item_slots where equip_slot = 'necklace'`);
+    await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'belt', $2), ($1, 0, 'necklace', $3)
+                    on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [uids[1], belt, neck]);
+    await db.query(`insert into public.trait_pieces (user_id, found_slot, base, slot, item_level, rarity, signature, hunt_id, step, depth, instance_id, kill_unit, at_ms,
+                      worn_slot, worn_equip_slot, worn_at) values
+                      ($1, 0, $2, 'belt', 60, 'signature', 'cairn_belt', $4, 600, 3, gen_random_uuid(), 2, 2, 0, 'belt', now() - interval '1 hour'),
+                      ($1, 0, $3, 'necklace', 60, 'signature', 'lurchers_collar', $4, 600, 3, gen_random_uuid(), 3, 3, 0, 'necklace', now())`,
+      [uids[1], belt, neck, MUSTER]);
   }
 };
 
@@ -170,15 +182,20 @@ async function roll(boot, o = {}) {
 async function worn(boot) {
   const problems = [];
   const wear = { base: GEAR.body, slot: 'body', traits: [{ id: 'first_rank', rank: 3 }] };
-  const closed = await door((await boot()).db, 'fire', { flags: ['trait_pieces'], wear });
-  const viewed = await door((await boot()).db, 'viewed', { flags: ['trait_pieces'], wear });
+  const closed = await door((await boot()).db, 'fire', { flags: ['trait_pieces', 'signatures'], wear });
+  const viewed = await door((await boot()).db, 'viewed', { flags: ['trait_pieces', 'signatures'], wear });
   const off = await door((await boot()).db, 'fire', { flags: [], wear });
   for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed], ['switch off', off]]) if (Number(r.inst.refusals) !== 0) problems.push('TP-3 ' + name + ': ' + r.inst.refusals + ' window(s) refused');
   const read = await one(closed.db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [closed.users[0]]);
   for (const m of (read && read.members) || []) {
     const want = m.user === closed.users[0] ? JSON.stringify(wear.traits) : 'null';
     if (JSON.stringify(m.worn_traits) !== want) problems.push('TP-3 the read hands ' + (m.user === closed.users[0] ? 'the wearer' : 'another hero') + ' ' + JSON.stringify(m.worn_traits));
+    /* the Signature: the second hero's FIRST put on (the Cairn Belt, an hour before its Collar), nobody else's */
+    const sig = m.user === closed.users[1] ? 'cairn_belt' : null;
+    if (m.worn_signature !== sig) problems.push('TP-3 the read hands ' + (sig ? 'the Signature wearer' : 'another hero') + ' Signature ' + JSON.stringify(m.worn_signature));
   }
+  const offRead = await one(off.db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [off.users[0]]);
+  if (!offRead || offRead.members.some((m) => m.worn_traits !== null || m.worn_signature !== null)) problems.push('TP-3 a dark read hands a worn piece');
   if (!read || read.members.length !== 4) problems.push('TP-3 CONTROL: the read holds ' + (read && read.members.length) + ' members');
   /* the plan hands it to that hero alone; the viewer's live start point carries it */
   const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
@@ -189,10 +206,16 @@ async function worn(boot) {
   else for (const m of plan.members) {
     const got = JSON.stringify(m.hero.wornTraits || null), want = m.user === closed.users[0] ? JSON.stringify(wear.traits) : 'null';
     if (got !== want) problems.push('TP-3 the plan hands ' + m.key + ' ' + got);
+    if ((m.hero.wornSignature || null) !== (m.user === closed.users[1] ? 'cairn_belt' : null)) problems.push('TP-3 the plan hands ' + m.key + ' Signature ' + JSON.stringify(m.hero.wornSignature));
   }
   const live = (viewed.evidence.answers || []).map((x) => x.hunt_live).find(Boolean);
   const self = live && live.members.find((m) => m.self);
   if (!self || JSON.stringify(self.hero && self.hero.wornTraits) !== JSON.stringify(wear.traits)) problems.push('TP-3 the viewer\'s live start point carries ' + JSON.stringify(self && self.hero && self.hero.wornTraits));
+  /* a peer's frozen row carries its Signature, so the browser plays the hero the settle plays (member.js frozenOf) */
+  const peers = live ? live.members.filter((m) => !m.self) : [];
+  if (peers.length !== 3 || peers.filter((m) => JSON.stringify(m.frozen || {}).includes('"wornSignature":"cairn_belt"')).length !== 1) {
+    problems.push('TP-3 the viewer\'s peers carry the Signature on ' + peers.filter((m) => JSON.stringify(m.frozen || {}).includes('cairn_belt')).length + ' of ' + peers.length + ' frozen rows (want 1)');
+  }
   if (closed.inst.world !== viewed.inst.world) problems.push('TP-3 the two doors stored different worlds');
   if (closed.inst.world === off.inst.world) problems.push('TP-3 the worn Trait changed nothing: the lit hunt stored the dark hunt\'s world');
   EVIDENCE.push('TP-3 worn First Rank III: doors ' + (closed.inst.world === viewed.inst.world ? 'store one world' : 'DIFFER') + ', ' + (closed.inst.world === off.inst.world ? 'SAME' : 'a different') + ' world from the switch off');
@@ -265,6 +288,8 @@ const MUTANTS = [
     find: "'rare', coalesce((select misses from public.hero_pity where user_id = p_user and slot = p_slot and rarity = 'rare'), 0)", repl: "'rare', 0", want: /^TP-2/, test: roll },
   { name: 'the read hands no worn Traits', fn: 'public.hr_worn_traits_of(uuid,integer)',
     find: "if not public.hr_flag_on('trait_pieces') then return null; end if;", repl: 'return null;', want: /^TP-3/, test: worn },
+  { name: 'the last Signature put on plays, not the first', fn: 'public.hr_worn_signature_of(uuid,integer)',
+    find: 'order by p.worn_at, p.id limit 1', repl: 'order by p.worn_at desc, p.id limit 1', want: /^TP-3/, test: worn },
   { name: 'a worn piece plays with its base gone', fn: 'public.hr_worn_traits_of(uuid,integer)',
     find: 'and e.equip_slot = p.worn_equip_slot and e.item_id = p.base\n', repl: 'and e.equip_slot = p.worn_equip_slot\n', want: /^TP-3/, test: worn },
   { name: 'the dark switch is ignored', fn: 'public.hr_trait_pieces_land(text,uuid,integer,uuid,uuid,jsonb,jsonb,timestamp with time zone,timestamp with time zone)',

@@ -9,7 +9,7 @@ pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as
   base:steady        0.88x  sd 0.16  n 4  window 6 h  seeds 1.12 0.8 0.81 0.8
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L12  coin 12725 +- 1275  income 13447 +- 1338  store 3449  kit share 0.26 (meal 71, drink 2027, charge 623, shot 729)  loot by band: common 181, uncommon 42, scarce 499, other 0  n 4
+  base:steady       L12  coin 12732 +- 1299  income 13420 +- 1359  store 3449  kit share 0.26 (meal 71, drink 2027, charge 623, shot 729)  loot by band: common 181, uncommon 43, scarce 465, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
@@ -25,4 +25,4 @@ held as absolute steps (src/core/bands.js: a Level of reference strength) and su
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
   base:steady       abs 3 (depth 11)  free 106  spell 839  food 55  taken 13.93 pm/s
 
-wall 77 s
+wall 57 s

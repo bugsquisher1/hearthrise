@@ -92,8 +92,8 @@
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 22420,
-     "sd": 233,
+     "mean": 22356,
+     "sd": 227,
      "n": 4
     },
     "storePerHeroH": {
@@ -102,8 +102,8 @@
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 561,
-     "sd": 16,
+     "mean": 496,
+     "sd": 23,
      "n": 4
     },
     "uncommonPerHeroH": {
@@ -256,7 +256,7 @@
    }
   }
  },
- "wallS": 69,
+ "wallS": 61,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

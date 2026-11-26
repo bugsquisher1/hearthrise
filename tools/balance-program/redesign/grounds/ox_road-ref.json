@@ -88,12 +88,12 @@
    "gold": {
     "coinPerHeroH": {
      "mean": 17115,
-     "sd": 380,
+     "sd": 379,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 20770,
-     "sd": 426,
+     "mean": 20700,
+     "sd": 425,
      "n": 4
     },
     "storePerHeroH": {
@@ -102,13 +102,13 @@
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 543,
+     "mean": 473,
      "sd": 11,
      "n": 4
     },
     "uncommonPerHeroH": {
      "mean": 234,
-     "sd": 5,
+     "sd": 6,
      "n": 4
     },
     "scarcePerHeroH": {
@@ -118,7 +118,7 @@
     },
     "otherPerHeroH": {
      "mean": 2464,
-     "sd": 79,
+     "sd": 78,
      "n": 4
     }
    },
@@ -246,8 +246,8 @@
     }
    },
    "abs": {
-    "level": 120.1,
-    "depth": 18
+    "level": 120.5,
+    "depth": 10
    },
    "sustain": {
     "freePm": 116,
@@ -257,7 +257,7 @@
    }
   }
  },
- "wallS": 115,
+ "wallS": 63,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

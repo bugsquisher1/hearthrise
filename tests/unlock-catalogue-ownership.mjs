@@ -108,6 +108,7 @@ const REPAIR_AFTER_WIPE = [
   '2027-05-22-cookbook-cut-unlocks.generated.sql',     // the cookbook cut: the same SCOPED upsert; also retires recipe:field_cookbook, recipe:marrow_cookbook, recipe:soul_recipe by id
   '1010-approved-rows-gold-ladders.generated.sql',     // the bag stops at 10 rungs a hero (Tyler 2026-11-20): bank upserted by id at max_value 10; the Key Ring carried
   '1035-approved-cuts-unlocks.generated.sql',          // the approved cuts (plan L10): the same SCOPED upsert; also retires the six gem-priced theme:* rows by id
+  '1071-tp-im-server.sql',                             // seeds nothing: retires Tempering's twelve ladders (namespace temper, lane/tp-server-1, D-15). Its delete must run AFTER the four temper catalogues above re-insert them
 ];
 
 /** The seventeen ids the 2026-08-23 refill destroyed, pinned BY VALUE (b493:
@@ -157,26 +158,37 @@ const FIX = '2026-09-05-companion-unlock-catalogue-reseed.sql';
 async function run({ control = false } = {}) {
   const repair = control === 'repair_list'
     ? REPAIR_AFTER_WIPE.filter((f) => f !== '2026-08-19-companion-unlocks.sql')
-    : REPAIR_AFTER_WIPE;
+    : control === 'retirement'
+      ? REPAIR_AFTER_WIPE.filter((f) => f !== '1071-tp-im-server.sql')
+      : REPAIR_AFTER_WIPE;
+  const declared = control === 'retirement' ? repair : REPAIR_AFTER_WIPE;
 
   // ── (1) THE DECLARED LIST IS DERIVED, NOT REMEMBERED ────────────────────
   // Every manifest file that writes hr_unlocks after OWNER must be declared.
   // This is the arm that catches the real failure: a new seeder nobody listed.
+  // A WRITER is a file with a top-level insert into OR delete from the table
+  // (catalogueWrites, the same statements the repair replays; lane/tp-server-1,
+  // 2026-11-26). It was "the text says insert into public.hr_unlocks anywhere",
+  // which a file that only RETIRES ladders (1071's delete of namespace temper)
+  // never matched, so the repair re-inserted rows the chain had retired and
+  // nothing said why; 2026-09-18-retired-iap-catalogue-removal.sql was listed
+  // only because a COMMENT in it spelled an insert. Measured the day it moved:
+  // both rules name the same 19 files on every file before 1071.
   const m = await manifest();
   const order = m.order || m;
   const writers = [];
   for (const f of order) {
     let src = '';
     try { src = await mig(f); } catch { continue; }
-    if (/insert\s+into\s+public\.hr_unlocks\b/i.test(src)) writers.push(f);
+    if (catalogueWrites(src).length) writers.push(f);
   }
   ok(writers[0] === OWNER,
     `the first migration to write hr_unlocks is ${writers[0]}, not ${OWNER}. A wholesale refill `
     + 'that is not first destroys whatever ran before it, every time it is applied.');
   const derived = writers.filter((f) => f !== OWNER);
-  ok(JSON.stringify(derived) === JSON.stringify(REPAIR_AFTER_WIPE.filter((f) => f !== OWNER)),
+  ok(JSON.stringify(derived) === JSON.stringify(declared.filter((f) => f !== OWNER)),
     `REPAIR_AFTER_WIPE is stale. The manifest's hr_unlocks writers after ${OWNER} are\n`
-    + `      [${derived.join(', ')}]\n    and this file declares\n      [${REPAIR_AFTER_WIPE.join(', ')}].\n`
+    + `      [${derived.join(', ')}]\n    and this file declares\n      [${declared.join(', ')}].\n`
     + '    A seeder that is not on the list is a seeder the next catalogue regen eats in silence — '
     + 'which is exactly how the 17 companion rows were lost on 2026-08-23.');
 
@@ -337,8 +349,12 @@ if (RUN_DIRECTLY) {
                     with a green companion count.
        fix          neutralise the reseed's own §1 insert (`where false`), so
                     arm 5 is asked to prove a fix that does not fix. This is the
-                    control for the arm that matters most before an apply. */
-    const CONTROLS = ['repair_list', 'fix'];
+                    control for the arm that matters most before an apply.
+       retirement   leave 1071-tp-im-server.sql (it only DELETES ladders) off the
+                    list, the omission the insert-only writer rule could not see:
+                    the derived list must name it, and the repair must not bring
+                    back the twelve temper:* ladders the chain retired. */
+    const CONTROLS = ['repair_list', 'fix', 'retirement'];
     let missed = 0;
     for (const control of CONTROLS) {
       problems.length = 0;
@@ -360,7 +376,7 @@ if (RUN_DIRECTLY) {
       process.exit(1);
     }
     console.log(`\nall ${CONTROLS.length} planted defects caught; the guard can see an unlisted `
-      + 'seeder AND a reseed that does not reseed.');
+      + 'seeder, an unlisted retirement AND a reseed that does not reseed.');
     process.exit(0);
   }
 

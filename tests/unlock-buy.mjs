@@ -583,8 +583,8 @@ async function run(mutate) {
        union the SQL sellable set is measured against. */
     const { COMPANION_OFFERS } = await import(
       pathToFileURL(join(ROOT, 'src', 'data', 'companion-unlocks.js')).href);
-    /* (Tempering's old rungs were a fourth source until lane/tp-im-steps retired them: the server's rows of source gen-temper leave with the
-       backend follow-up, HANDOFFS 2026-11-26 TP and IM; until it applies, U1 names them as the one difference) */
+    /* (Tempering's old rungs were a fourth source until lane/tp-im-steps retired them from the edge; their 60 server rows of source
+       gen-temper leave in 1071-tp-im-server.sql, lane/tp-server-1, so the two sides agree again without them) */
     const edgeById = Object.create(null);
     for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS]) {
       edgeById[r.offer_id] = { gold: r.gold, value: r.value, unlockId: r.unlock_id };

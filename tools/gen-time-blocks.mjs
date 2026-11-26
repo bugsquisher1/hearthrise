@@ -8,12 +8,18 @@
 // when it quotes and sells a block (1058-hunting-blocks.sql hr_time_quote, hr_time_buy), and every later price in hours of wage reads
 // hr_wage. This writes it whole, with the SQL twins and a self-check:
 //   hr_wage(step)                     wage.js wage: whole gold one reference hunted hero-hour pays at a step (its levers inline)
-//   hr_time_blocks                    per kind: block_min, per_day, growth_num, growth_den, price_hour_pm
+//   hr_time_blocks                    per kind: block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm (what an hour of
+//                                     the kind earns back at most: time-blocks.js EARNS_PM; the table refuses a price at or under it)
 //   hr_time_block_price(kind, L, n)   wage.js blockPrice: the gold block n of the day costs a hero of Level L (null past the cap)
 //
 // THE FORWARD-FILE RULE: an applied file is history and is never regenerated in place; new rows are a new sequence file (OUT_NAME).
-// OUT_NAME has never been applied (its sidecar says STAGED), so it is this generator's one forward file and the wage lands in it (the
-// house rule: ONE forward file per generator after the newest APPLIED, never-applied cuts collapsed into it).
+// OUT_NAME has never been applied (its sidecar says STAGED), so it is this generator's one forward file (the house rule: ONE forward
+// file per generator after the newest APPLIED, never-applied cuts collapsed into it). ONE EXCEPTION, ON PURPOSE (lane B1, 2026-11-26):
+// 1058-hunting-blocks-catalogue.generated.sql, never applied, is NOT collapsed into this file. The `work` row may exist only once a
+// verb sells it as town work: 1058-hunting-blocks.sql's hr_time_buy adds STAMINA for every row, so a `work` row written at 1058
+// would sell 2 h of stamina for a quarter of a hunting block's price between that apply and 1071-work-blocks.sql's. So 1058 keeps
+// the hunting row (frozen as generated before B1) and this file, after 1071 (its §0 refuses to run before the work-aware verb),
+// rewrites the whole table with both rows.
 //
 //   node tools/gen-time-blocks.mjs            write OUT_NAME
 //   node tools/gen-time-blocks.mjs --check    exit 1 if OUT_NAME is not what it would write
@@ -22,8 +28,8 @@
 // mutant-anchors: none — --selftest plants defects in an in-memory copy of the data; no tracked file is patched
 //
 // REFUSES (throws, nothing written): a table time-blocks.js validate() refuses (a non-positive number, a later block cheaper than the
-// one before it, a block hour no dearer than an hour of wage, a ruled number moved, a kind no verb sells), a wage whose levers are not
-// a positive whole base and a step in (0, 0.05), a price at the last step past a safe integer, and an empty table.
+// one before it, a block hour no dearer than what an hour of its kind earns back, a ruled number moved, a kind no verb sells), a wage
+// whose levers are not a positive whole base and a step in (0, 0.05), a price at the last step past a safe integer, and an empty table.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -32,7 +38,10 @@ import { isMain } from '../tests/_is-main.mjs';
 import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '1058-hunting-blocks-catalogue.generated.sql';
+export const OUT_NAME = '1072-work-blocks-catalogue.generated.sql';
+/* the verb file this catalogue must follow (its §0 refuses to run before it): the work-aware hr_time_quote carries this marker */
+const VERB_FILE = '1071-work-blocks.sql';
+const VERB_MARK = 'WORK-BLOCKS (1071';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 /* the steps the wage's twin is pinned at: R4's Levels, the 20-400 checkpoints, every power of two the squaring walks past (and the step
    either side), the last step and past it (held there) */
@@ -45,7 +54,8 @@ async function load(root) {
   const q = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + q);
   const [blocks, wageData, danger, core] = await Promise.all([imp('src/data/time-blocks.js'), imp('src/data/wage.js'), imp('src/data/danger.js'), imp('src/core/wage.js')]);
-  return { TIME_BLOCKS: blocks.TIME_BLOCKS, validate: blocks.validate, WAGE: wageData.WAGE, stepMax: danger.DANGER.stepMax, wage: core.wage, blockPriceOf: core.blockPriceOf };
+  return { TIME_BLOCKS: blocks.TIME_BLOCKS, EARNS_PM: blocks.EARNS_PM, validate: blocks.validate, WAGE: wageData.WAGE, stepMax: danger.DANGER.stepMax,
+    wage: core.wage, blockPriceOf: core.blockPriceOf };
 }
 
 /** The resolved rows and pins of the data, refused on a defect. */
@@ -65,7 +75,11 @@ export function rowsOf(data) {
        hr_time_buy's bigint and the client's number agree to the gold */
     const top = W.wageBase * (1 + W.payStepCoin) ** data.stepMax * (R.blockMin / 60) * (R.priceHourPm / 1000) * (R.growthNum / R.growthDen) ** (R.perDay - 1);
     if (!(top < Number.MAX_SAFE_INTEGER)) throw new Error('gen-time-blocks: ' + kind + ' block ' + R.perDay + ' at step ' + data.stepMax + ' costs about ' + top + ', past a safe integer');
-    return { kind, blockMin: R.blockMin, perDay: R.perDay, growthNum: R.growthNum, growthDen: R.growthDen, priceHourPm: R.priceHourPm };
+    const earnsPm = data.EARNS_PM && data.EARNS_PM[kind];
+    if (!Number.isInteger(earnsPm) || earnsPm < 1 || !(R.priceHourPm > earnsPm)) {
+      throw new Error('gen-time-blocks: ' + kind + ' earns back ' + earnsPm + ' permille an hour, priced at ' + R.priceHourPm + ': bought time would print gold');
+    }
+    return { kind, blockMin: R.blockMin, perDay: R.perDay, growthNum: R.growthNum, growthDen: R.growthDen, priceHourPm: R.priceHourPm, earnsPm };
   });
   const wagePins = WAGE_PINS.map((s) => ({ s, w: data.wage(s) }));
   const pins = [];
@@ -76,30 +90,35 @@ export function rowsOf(data) {
 }
 
 export function buildSql(r) {
-  const values = r.rows.map((x) => `  ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm})`).join(',\n');
+  const values = r.rows.map((x) => `  ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm}, ${x.earnsPm})`).join(',\n');
+  const rowValues = r.rows.map((x) => `    ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm}, ${x.earnsPm})`).join(',\n');
   const pinValues = r.pins.map((p) => `    ('${p.kind}', ${p.L}, ${p.n}, ${p.price === null ? 'null' : p.price}::bigint)`).join(',\n');
   const wageValues = r.wagePins.map((p) => `    (${p.s}, ${p.w}::bigint)`).join(',\n');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE WAGE AND THE BOUGHT-TIME CATALOGUE  (GENERATED — DO NOT EDIT)
 --
 --   Generated by tools/gen-time-blocks.mjs from src/core/wage.js (wage, blockPrice), src/data/wage.js (WAGE) and
---   src/data/time-blocks.js (TIME_BLOCKS). Any hand edit FAILS \`node tools/gen-time-blocks.mjs --check\`.
+--   src/data/time-blocks.js (TIME_BLOCKS, EARNS_PM). Any hand edit FAILS \`node tools/gen-time-blocks.mjs --check\`.
 --
--- WHAT (lane/r8-hunting-day, backend-architect, 2026-11-22; the wage, lane/w-wage, the same day; Tyler's rulings of 2026-11-22,
--- 04-math-strategy.md section 11): the rule the server reads, so no number is typed twice.
+-- WHAT (lane/r8-hunting-day, backend-architect, 2026-11-22; the wage, lane/w-wage, the same day; bought town work, lane B1, 2026-11-26;
+-- Tyler's rulings of 2026-11-22, 04-math-strategy.md section 11): the rule the server reads, so no number is typed twice.
 --   hr_wage(step)        internal, the twin of wage.js wage: floor(${r.wage.base} x (1 + ${r.wage.step}) ^ step), step held to [1, ${r.wage.stepMax}],
 --                        the power walked by squaring in float8 exactly as the JS walks it, pinned at ${r.wagePins.length} steps (§3).
---   hr_time_blocks       ${r.rows.length} row${r.rows.length === 1 ? '' : 's'} (${r.rows.map((x) => x.kind).join(', ')}), rewritten whole.
+--   hr_time_blocks       ${r.rows.length} row${r.rows.length === 1 ? '' : 's'} (${r.rows.map((x) => x.kind).join(', ')}), rewritten whole. earns_pm: the most an hour of the kind earns back
+--                        (permille of an hour of wage); the table refuses a price_hour_pm at or under it (bought time never prints gold).
 --   hr_time_block_price  internal, the twin of wage.js blockPrice: ceil(block_min / 60 x price_hour_pm / 1000 x hr_wage(Level) x
 --                        (growth_num / growth_den) ^ (n - 1)) in exact numeric, pinned at Levels ${PIN_LEVELS.join(', ')} for every block of
 --                        the day and the first one past it (§3).
--- READERS: 1058-hunting-blocks.sql's quote (hr_time_quote), the \`time_blocks\` section and the verb hr_time_buy; every later price in
--- hours of wage (13-market.md V, Talent resets, Temper) reads hr_wage. The client reads only the section.
--- ORDER: 1058 in its name, before 1058-hunting-blocks.sql (which reads this table and the price). Idempotent: the table is made if missing
--- and its rows rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
--- EXPLOIT SURFACE: none added. A catalogue table, RLS on, no policy, no grant to any client role; two internal functions revoked from
--- every client role. No value moves here.
--- REVERSIBLE: drop the functions and the table (after 1058-hunting-blocks.sql's readers are gone).
+-- READERS: ${VERB_FILE}'s quotes (hr_time_quote, hr_work_block_quote), the \`time_blocks\` section, the verb hr_time_buy and the
+-- standing rule (hr_work_extra_ms, hr_time_auto_charge); every later price in hours of wage (13-market.md V, Talent resets, Temper)
+-- reads hr_wage. The client reads only the sections.
+-- ORDER: ${OUT_NAME.replace(/-.*/, '')} in its name, AFTER ${VERB_FILE} (§0 refuses to run before it): the \`work\` row exists only once a verb sells it as town
+-- work (tools/gen-time-blocks.mjs, THE FORWARD-FILE RULE). Idempotent: the table is made if missing, converged to this shape and its rows
+-- rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- EXPLOIT SURFACE: none added here. A catalogue table, RLS on, no policy, no grant to any client role; two internal functions revoked
+-- from every client role. No value moves here (the verbs that sell are ${VERB_FILE}'s, on the pre-EA Security list).
+-- REVERSIBLE: re-apply 1058-hunting-blocks-catalogue.generated.sql (the hunting row alone; earns_pm and its check stay, harmless) after
+-- ${VERB_FILE}'s readers are gone.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -107,6 +126,10 @@ do $mig$
 begin
   if to_regclass('public.player_ledger') is null then
     raise exception 'PRECONDITION: the ledger first (player_ledger)'; end if;
+  -- THE ORDER THAT KEEPS THE WORK ROW SAFE: an hr_time_quote without the work branch would sell a \`work\` row as stamina.
+  if to_regprocedure('public.hr_time_quote(uuid,integer,text)') is not null
+     and strpos((select prosrc from pg_proc where oid = 'public.hr_time_quote(uuid,integer,text)'::regprocedure), '${VERB_MARK}') = 0 then
+    raise exception 'PRECONDITION: ${VERB_FILE} first (hr_time_quote has no work branch, so a work row would sell stamina)'; end if;
 end $mig$;
 
 -- ── §1 THE WAGE'S SQL TWIN (internal) ────────────────────────────────────────
@@ -134,17 +157,25 @@ create table if not exists public.hr_time_blocks (
   per_day       int    not null check (per_day between 1 and 24),
   growth_num    int    not null check (growth_num >= 1),
   growth_den    int    not null check (growth_den >= 1),
-  price_hour_pm int    not null check (price_hour_pm > 1000),
+  price_hour_pm int    not null,
+  earns_pm      int,
   check (growth_num >= growth_den)
 );
 alter table public.hr_time_blocks enable row level security;
 revoke all on public.hr_time_blocks from public, anon, authenticated, service_role;
 comment on table public.hr_time_blocks is '${OUT_NAME}: bought time, one row a kind (src/data/time-blocks.js through tools/gen-time-blocks.mjs).';
 
--- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
+-- ── §2 THE ROWS, AND THE TABLE CONVERGED TO THIS SHAPE ───────────────────────
+-- 1058's table priced every kind above an hour of wage (price_hour_pm > 1000), the hunting floor. A work-hour earns back a quarter of
+-- that, so the floor is each row's own: price_hour_pm > earns_pm (src/data/time-blocks.js EARNS_PM, 04 section 11).
 delete from public.hr_time_blocks;
-insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm) values
+alter table public.hr_time_blocks add column if not exists earns_pm int;
+alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_price_hour_pm_check;
+alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_earns_ck;
+insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm) values
 ${values};
+alter table public.hr_time_blocks alter column earns_pm set not null;
+alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck check (earns_pm >= 1 and price_hour_pm > earns_pm);
 
 -- ── §2b THE PRICE'S SQL TWIN (internal) ──────────────────────────────────────
 create or replace function public.hr_time_block_price(p_kind text, p_level int, p_n int)
@@ -179,6 +210,18 @@ declare v_r record; v_p bigint;
 begin
   if (select count(*) from public.hr_time_blocks) <> ${r.rows.length} then
     raise exception 'VERIFY(a): the catalogue holds % kinds, want ${r.rows.length}', (select count(*) from public.hr_time_blocks); end if;
+  for v_r in select * from (values
+${rowValues}) d(kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm) loop
+    if not exists (select 1 from public.hr_time_blocks b where b.kind = v_r.kind and b.block_min = v_r.block_min and b.per_day = v_r.per_day
+                     and b.growth_num = v_r.growth_num and b.growth_den = v_r.growth_den and b.price_hour_pm = v_r.price_hour_pm and b.earns_pm = v_r.earns_pm) then
+      raise exception 'VERIFY(a): the % row is not src/data/time-blocks.js''s', v_r.kind; end if;
+  end loop;
+  -- the table itself refuses a block hour that sells for no more than it earns back
+  begin
+    update public.hr_time_blocks set price_hour_pm = earns_pm where kind = '${r.rows[0].kind}';
+    raise exception using errcode = 'HR772', message = 'VERIFY(a): hr_time_blocks took a price at its earns_pm floor';
+  exception when check_violation then null;
+  end;
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r)
               where has_table_privilege(g.r, 'public.hr_time_blocks', 'select')
                  or has_function_privilege(g.r, 'public.hr_wage(integer)', 'execute')
@@ -210,18 +253,22 @@ async function selftest() {
     const T = JSON.parse(JSON.stringify(base.TIME_BLOCKS));
     const W = { ...base.WAGE };
     const d = { stepMax: base.stepMax };
-    patch(T, W, d);
+    const E = { ...base.EARNS_PM };
+    patch(T, W, d, E);
     /* the data module's own validate, read over the planted table */
-    const data = { ...base, TIME_BLOCKS: T, WAGE: W, stepMax: d.stepMax, validate: () => base.validate(T) };
+    const data = { ...base, TIME_BLOCKS: T, EARNS_PM: E, WAGE: W, stepMax: d.stepMax, validate: () => base.validate(T) };
     try { rowsOf(data); bites.push(name + ': NOT refused'); } catch { /* refused */ }
   };
   plant('a later block cheaper than the one before it', (T) => { T.hunt.growthNum = 1; T.hunt.growthDen = 2; });
   plant('the ruled cap moved', (T) => { T.hunt.perDay = 4; });
   plant('the ruled block length moved', (T) => { T.hunt.blockMin = 240; });
   plant('a block hour sold at an hour of wage (prints gold)', (T) => { T.hunt.priceHourPm = 1000; });
-  plant('a kind no verb sells (work before its verb)', (T) => { T.work = { ...T.hunt, perDay: 4, priceHourPm: 1500 }; });
+  plant('a kind no verb sells (a third kind before its branch)', (T) => { T.rest = { ...T.work }; });
+  plant('the ruled work cap moved (a fifth work block a day)', (T) => { T.work.perDay = 5; });
+  plant('a work block hour sold at what its goods fetch at the store\'s top (prints gold)', (T) => { T.work.priceHourPm = 375; });
+  plant('a kind whose hour earns nothing back (no floor to price above)', (T, W, d, E) => { delete E.work; });
   plant('a kind that is no word', (T) => { T['Hunt-2'] = { ...T.hunt }; });
-  plant('an empty table', (T) => { delete T.hunt; });
+  plant('an empty table', (T) => { delete T.hunt; delete T.work; });
   plant('a wage of no gold', (T, W) => { W.wageBase = 0; });
   plant('a wage that shrinks with the step', (T, W) => { W.payStepCoin = -0.001; });
   plant('a wage step past the band of safe powers', (T, W) => { W.payStepCoin = 0.05; });
@@ -229,8 +276,11 @@ async function selftest() {
   if (base.validate().length) bites.push('the shipped table is refused: ' + base.validate().join('; '));
   const sql = buildSql(rowsOf(base));
   if (!/VERIFY\(c\)/.test(sql) || !/VERIFY\(d\)/.test(sql) || !/hr_time_block_price/.test(sql) || !/hr_wage/.test(sql)) bites.push('a twin is not pinned');
+  /* the work row is written only after the verb that sells it as town work (THE FORWARD-FILE RULE above) */
+  if (!sql.includes("'" + VERB_MARK + "'") || !/PRECONDITION: 1071-work-blocks\.sql first/.test(sql)) bites.push('the catalogue no longer refuses to land before ' + VERB_FILE);
+  if (!/check \(earns_pm >= 1 and price_hour_pm > earns_pm\)/.test(sql)) bites.push('the table no longer refuses a price at its earns_pm floor');
   if (bites.length) { console.error('gen-time-blocks --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-time-blocks --selftest: 11 refusals bite, both twins are pinned');
+  console.log('gen-time-blocks --selftest: 14 refusals bite, both twins are pinned, the work row waits on its verb');
 }
 
 if (isMain(import.meta.url)) {

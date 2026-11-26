@@ -1,0 +1,7 @@
+-- ════════════════════════════════════════════════════════════════════════
+-- supabase/migrations/1071-work-blocks.sql — <one line: what this migration does>
+--
+-- STATUS: supabase/migration-notes/1071-work-blocks.sql.json (STAGED until the Coordinator applies it).
+-- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
+-- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
+-- ════════════════════════════════════════════════════════════════════════

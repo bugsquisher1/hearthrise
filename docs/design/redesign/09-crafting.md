@@ -659,7 +659,7 @@ Against `townWageShare` 0.25: a work-hour is worth it on the first rung from abo
 - **Own stock first, never two bands behind.** The plan spends the company's own goods at the heroes' band or one behind, then the store. A good two or more bands behind is weaker than the store's, so the plan sells it to the store floor or leaves it in storage.
 - **The work day is planned whole.** The server plans every work-hour from the stock rules (3.4), so a company that has something to make uses its whole day. The pace table below is why: at 0.8 of the day used, the kit lags its heroes by a band or more on 76 days of 140.
 
-**The sample** (`src/data/kit-recipes.js`, five rows, one a trade, CLAUDE.md section 10). Each row holds only its kind, its band and a label: the id, the trade Level, the inputs, the hours and every price are derived. Read on `src/core/trades.js` at band 0, a Level 1 company.
+**The sample** (`src/data/trades.js` `KIT_RECIPES`, resolved by `tradeCatalogue()` as `named`, five rows, one a trade, CLAUDE.md section 10). Each row holds only its kind, its band and a label: the id, the trade Level, the inputs, the hours and every price are derived. Read on `src/core/trades.js` at band 0, a Level 1 company.
 
 | Recipe | Trade | Kind, band | Opens at | Inputs (band 0 items) | Work in one good | One attempt at Level 1 | V | Job fee | Store ask, Level 1 / Level 60 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -669,7 +669,7 @@ Against `townWageShare` 0.25: a work-hour is worth it on the first rung from abo
 | Cook Shrimp | Cooking | meal, 0 | 1 | 1 Shrimp | 0.14 h | 4.2 min | 452 | 113 | 679 / 794 |
 | Cut Chalked Fire Runes | Runecutting | rune_fire, 0 | 1 | 2 Blank Runes, 0.15 hour-units of Bones | 0.28 h | 5.0 min | 905 | 227 | 1,358 / 1,587 |
 
-The arrowhead and the arrow are chain 1 of 3.3, two trades and one join, so the sample plays the one recipe that needs another trade's part. Bronze Arrowheads is the sample's one new good: made by one row and used by another. `tests/kit-recipes.mjs` holds all of this: one row a trade, rung by band (swept over every kind and bands 0 to 12), every input a door and every output a use (read from `catalogue-coherence.js`), the store the dearest option at every band, and a good one hunted hour (11 mutants, each caught by its own arm).
+The arrowhead and the arrow are chain 1 of 3.3, two trades and one join, so the sample plays the one recipe that needs another trade's part. Bronze Arrowheads is the sample's one new good: made by one row and used by another. `tests/kit-recipes.mjs` holds all of this: one row a trade, rung by band (swept over every kind and bands 0 to 12), every input a door and every output a use (read from `catalogue-coherence.js`), the store the dearest option at every band, and a good one hunted hour (13 mutants, each caught by its own arm).
 
 **Walk-through: the first day, on real data.** What the company holds at each step comes only from the steps before it and the real starting kit (`src/data/start-kit.js`: 500 gold, 10 Shrimp, 20 Cooked Shrimp, 50 Bronze Arrows, 10 Coarse Whetstone). Every item, node and monster below was grepped on the set. "Job slice" means the verb that plays it is the backend lane in HANDOFFS (2026-11-26, K1), and the step is doable once it lands.
 

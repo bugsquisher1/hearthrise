@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/kit-recipes.mjs — THE KIT TRADES' SAMPLE HOLDS ITS RULE (lane/k1-kit-trades-sample, game designer, 2026-11-26;
-//   docs/design/redesign/09-crafting.md section 4.9). src/data/kit-recipes.js (the five named rows and the band's faces),
-//   src/core/trades.js (bandRung and the catalogue they read), src/data/catalogue-coherence.js (the live doors a face must have).
+//   docs/design/redesign/09-crafting.md section 4.9). src/data/trades.js KIT_RECIPES (the five named rows and the band's faces),
+//   src/core/trades.js (bandRung, and the catalogue that resolves them as named), src/data/catalogue-coherence.js (the live doors).
 //
 //   node tests/kit-recipes.mjs            the guard (pure, Node)
 //   node tests/kit-recipes.mjs --mutate   every planted defect must turn its named arm red (each on a temp copy of src/)
 //
-// mutant-anchors: src/core/trades.js src/data/kit-recipes.js src/data/trades.js
+// mutant-anchors: src/core/trades.js src/data/trades.js
 //   (the mutants patch a temp copy of src/; no tracked file is patched)
 // ci-step: economy-selftests | Kit trades sample - one recipe a trade at band 0, rung by band, every face sourced and used, the store the fallback
 // ci-run: node tests/kit-recipes.mjs
@@ -45,18 +45,24 @@ const HOUR = 3600000;
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [T, D, KR, CC, IT, SK] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/kit-recipes.js'),
-    imp('src/data/catalogue-coherence.js'), imp('src/data/items.js'), imp('src/data/store-kit.js')]);
-  return { T, D, KR, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, cat: T.tradeCatalogue() };
+  const [T, D, CC, IT, SK] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/catalogue-coherence.js'), imp('src/data/items.js'), imp('src/data/store-kit.js')]);
+  return { T, D, KR: D, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, ...catalogueOf(T) };
+}
+
+/* The catalogue is the rows' consumer: a row it refuses is KR-ROWS's red (the arm reads the refusal), never a load that throws */
+function catalogueOf(T) {
+  try { return { cat: T.tradeCatalogue(), refused: null }; } catch (e) { return { cat: null, refused: String((e && e.message) || e) }; }
 }
 
 /* catalogue-coherence's doors: id -> [labels] (a Map) */
 const has = (m, id) => (m.get(id) || []).length > 0;
 
 const ARMS = {
-  'KR-ROWS'({ KR, cat }) {
+  'KR-ROWS'({ KR, cat, refused }) {
     const out = [];
-    for (const p of KR.validate()) out.push('KR-ROWS ' + p);
+    if (refused) return ['KR-ROWS the catalogue refuses the rows: ' + refused];
+    for (const p of KR.validateKitRecipes()) out.push('KR-ROWS ' + p);
+    for (const p of KR.validate()) out.push('KR-ROWS trades: ' + p);
     const rows = KR.KIT_RECIPES;
     if (rows.length !== 5) out.push('KR-ROWS the sample is ' + rows.length + ' rows, not five');
     const trades = rows.map((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade);
@@ -83,30 +89,31 @@ const ARMS = {
         prev = got;
       }
     }
-    for (const r of KR.KIT_RECIPES) {
+    /* the catalogue's named rows: every shipped row, each at its band's rung, and the sample's all at trade Level 1 */
+    if (cat.named.length !== KR.KIT_RECIPES.length) out.push(`KR-RUNG the catalogue names ${cat.named.length} recipes, not the ${KR.KIT_RECIPES.length} rows`);
+    for (const r of cat.named) {
       const k = cat.kinds[r.kind];
-      if (!k) continue;
-      const L = T.rungLevel(T.bandRung(k, r.band));
-      if (L !== 1) out.push(`KR-RUNG ${r.id} opens at trade Level ${L}: the first day cannot make it`);
+      const want = Math.max(k.opens, Math.min(n, r.band + 1));
+      if (r.rung !== want || r.R !== T.rungLevel(want)) out.push(`KR-RUNG ${r.id}: the catalogue opens it at rung ${r.rung} (Level ${r.R}), not ${want} (Level ${T.rungLevel(want)})`);
+      if (r.R !== 1) out.push(`KR-RUNG ${r.id} opens at trade Level ${r.R}: the first day cannot make it`);
     }
     return out;
   },
   'KR-SOURCE'({ KR, cat, ITEMS, sources, uses }) {
     const out = [];
-    const made = new Map(KR.KIT_RECIPES.map((r) => [KR.faceOf(r.kind, r.band), r.id]));
+    const made = new Map(cat.named.map((r) => [r.face, r.id]));
     const used = new Set();
     const live = (id) => !!ITEMS[id];
-    for (const r of KR.KIT_RECIPES) {
-      const k = cat.kinds[r.kind];
-      if (!k) continue;
-      for (const i of k.inputs) {
-        const f = KR.faceOf(i.kind, r.band);
+    for (const r of cat.named) {
+      for (const i of r.inputs) {
+        const f = i.face;
+        if (f !== KR.faceOf(i.kind, r.band)) out.push(`KR-SOURCE ${r.id}: its ${i.kind} reads ${f}, not band ${r.band}'s ${KR.faceOf(i.kind, r.band)}`);
         if (!f) { out.push(`KR-SOURCE ${r.id}: its ${i.kind} has no face at band ${r.band}`); continue; }
         used.add(f);
         if (!made.has(f) && !(live(f) && has(sources, f))) out.push(`KR-SOURCE ${r.id}: input ${f} is made by no row and has no door`);
       }
-      for (const h of k.hunted) {
-        const f = KR.streamFaceOf(h.stream, r.band);
+      for (const h of r.hunted) {
+        const f = h.face;
         if (!f) out.push(`KR-SOURCE ${r.id}: its ${h.stream} has no face at band ${r.band}`);
         else if (!(live(f) && has(sources, f))) out.push(`KR-SOURCE ${r.id}: hunted input ${f} has no door`);
       }
@@ -176,16 +183,18 @@ async function runPure(X, only = null) {
 
 /* each row: name, the arm that must name it, the file (a literal, so tools/guard-anchors.mjs reads it), the anchor, its replacement */
 const MUTANTS = [
-  ['a sixth recipe and a second Smithing row before the sample is read', 'KR-ROWS', 'src/data/kit-recipes.js',
-    "  row('rune_fire', 0, 'Cut Chalked Fire Runes'),\n", "  row('rune_fire', 0, 'Cut Chalked Fire Runes'),\n  row('honing_stone', 0, 'Grind Coarse Whetstones'),\n"],
-  ['a recipe row types its own time', 'KR-ROWS', 'src/data/kit-recipes.js',
+  ['a sixth recipe and a second Smithing row before the sample is read', 'KR-ROWS', 'src/data/trades.js',
+    "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n", "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n  kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),\n"],
+  ['a recipe row types its own time', 'KR-ROWS', 'src/data/trades.js',
     'Object.freeze({ id: recipeId(kind, band), kind, band, name })', 'Object.freeze({ id: recipeId(kind, band), kind, band, name, ms: 3000 })'],
+  ['the catalogue opens a named recipe a rung late', 'KR-RUNG', 'src/core/trades.js', 'const k = out[r.kind], rung = bandRung(k, r.band);', 'const k = out[r.kind], rung = bandRung(k, r.band) + 1;'],
+  ['the catalogue names an input from another band', 'KR-SOURCE', 'src/core/trades.js', 'face: faceOf(i.kind, r.band), n: i.n', 'face: faceOf(i.kind, r.band + 1), n: i.n'],
   ['every band opens at the first rung', 'KR-RUNG', 'src/core/trades.js',
     'Math.min(TRADE_PM.rungCount, Math.max(0, Math.floor(Number(band) || 0)) + 1)', '1'],
   ['a band ignores the kind\'s own rung', 'KR-RUNG', 'src/core/trades.js', 'Math.max(kind.opens, Math.min(', 'Math.max(1, Math.min('],
   ['a band past the ladder opens past the last rung', 'KR-RUNG', 'src/core/trades.js', 'Math.min(TRADE_PM.rungCount, Math.max(0,', 'Math.min(99, Math.max(0,'],
-  ['an input face with no door', 'KR-SOURCE', 'src/data/kit-recipes.js', "shaft: Object.freeze(['normal_plank'])", "shaft: Object.freeze(['normal_shaft'])"],
-  ['a hunted input face with no door', 'KR-SOURCE', 'src/data/kit-recipes.js', "remains: Object.freeze(['bones'])", "remains: Object.freeze(['cellar_dust'])"],
+  ['an input face with no door', 'KR-SOURCE', 'src/data/trades.js', "shaft: Object.freeze(['normal_plank'])", "shaft: Object.freeze(['normal_shaft'])"],
+  ['a hunted input face with no door', 'KR-SOURCE', 'src/data/trades.js', "remains: Object.freeze(['bones'])", "remains: Object.freeze(['cellar_dust'])"],
   ['the store sells at the hero\'s own band', 'KR-STORE', 'src/core/trades.js', 'bandStep(bandOf(heroStep)) - TRADE_PM.storeLag', 'bandStep(bandOf(heroStep))'],
   ['the store sells at the crafted price', 'KR-STORE', 'src/core/trades.js',
     'BigInt(TRADE_PM.storeCeiling) * big(kind.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * 1000n',

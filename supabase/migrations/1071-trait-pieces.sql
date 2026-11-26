@@ -522,6 +522,7 @@ declare
   v_sc    jsonb;          -- SCALED-HUNTS: the server's own scale of the instance (hr_scaled_hunt_of)
   v_sms   bigint := 0;    -- SCALED-HUNTS: the hours this window spends, in ms: its world swings x the swing
   v_tp    jsonb;          -- TRAIT-PIECES (1071-trait-pieces.sql): the pieces a member's kills made, as landed (its answer's `found`)
+  v_sid   uuid;           -- TRAIT-PIECES: an open session of the instance, whose fight record a Call series clears
 begin
   -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql): a refusal after the lock is counted; the sixth in a row forfeits.
   -- DEPLOY-NO-FORFEIT (2026-12-11-hunt-deploy-no-forfeit.sql): a world of the shape the catalogue just replaced is held, not counted.
@@ -754,8 +755,11 @@ begin
     -- fight's: the losing line reads it; each member's own tally write landed after its step, so it is cleared here), and the plan ends with this settle.
     if coalesce((nullif(current_setting('hr.boss_plan', true), '')::jsonb->>'next')::boolean, false) then
       v_world := null;
-      update public.hunt_session_tally t set fight = null
-        from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null and t.session_id = h.id and t.fight is not null;
+      -- TRAIT-PIECES (1071-trait-pieces.sql): each open session's tally cleared by its own id, the scope a reader of this body can see
+      -- (tests/selfcheck-no-global-dml.mjs: an owner column bound to a declared name); the same rows 2027-04-24's join cleared.
+      for v_sid in select h.id from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null order by h.id loop
+        update public.hunt_session_tally t set fight = null where t.session_id = v_sid and t.fight is not null;
+      end loop;
     end if;
     perform set_config('hr.boss_plan', '', true);
     perform set_config('hr.danger_window', '', true);  -- DANGER-SCALE (1056-danger-scale.sql): the proof was this settle's members' only

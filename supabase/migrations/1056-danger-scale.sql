@@ -127,7 +127,7 @@ begin
   -- (or, a retry after 1071-trait-pieces.sql, 1071's image: restated whole with this file's two splices in it, plus the land; its
   -- splices below find their marker and move nothing)
   if v_md5 is distinct from '1b940aa14719f1ea5693a870799d93b6' and v_md5 is distinct from '3a6748518733987584b75e42e1d204d5'
-     and v_md5 is distinct from 'af3629d543bf9c063a1853860f4e43b2' then
+     and v_md5 is distinct from '6c70ab34d2a622207521a56706d55dd3' then
     raise exception 'PIN: hr_hunt_apply_instance is neither the image this file was written against (1b940aa1...) nor its own (3a6748518733987584b75e42e1d204d5): md5 % - another file moved it; re-pin', v_md5;
   end if;
 end $mig$;

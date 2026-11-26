@@ -32,7 +32,7 @@
 // ci-run: node tests/trait-pieces-db.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/trait-pieces-db.mjs --mutate
 import { isMain } from './_is-main.mjs';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, closeReplays } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { plant } from './hunt-core/fixtures/h1.js';
 import { decodeStored } from '../src/core/hunt/world-state.js';
@@ -313,6 +313,7 @@ async function main() {
       };
       let got = [];
       try { got = await m.test(boot, { edits: m.edits || [] }); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+      await closeReplays();
       if (got.some((p) => /HARNESS/.test(p))) { console.log('  HARNESS ' + m.name + ': ' + got[0]); process.exitCode = 2; return; }
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;
@@ -323,7 +324,10 @@ async function main() {
     return;
   }
   const boot = () => bootReplay();
-  const problems = [...await dark(boot), ...await roll(boot), ...await worn(boot), ...await bounds(boot)];
+  /* ONE CASE'S REPLAYS AT A TIME (boss-call-db's lesson): an unclosed replay is ~300 MB that is never collected, and seven of them stalled a
+     loaded machine; each case closes what it booted */
+  const problems = [];
+  for (const c of [dark, roll, worn, bounds]) { problems.push(...await c(boot)); await closeReplays(); }
   for (const e of EVIDENCE) console.log('  ' + e);
   for (const p of problems) console.log('FAIL  ' + p);
   console.log(problems.length ? 'trait-pieces-db: ' + problems.length + ' FAILED' : 'trait-pieces-db: green (dark, the roll both paths, the worn piece both paths, the bounds through the real commit)');

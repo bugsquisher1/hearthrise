@@ -1,0 +1,15 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "tp-im-full",
+ "why": "20-v030-the-roads.md lanes TP and IM, read together (lane/tp-im-steps): every hero of the four wears Temper rank 5 on every gear slot (src/data/temper.js TEMPER_STEPS, read by the gear part, src/core/hunt/danger.js gearPartPm and amount.js defenseGearPm) and three imbuements at Muster's band (Brute Edge, Fire Ward, Mana Leech: src/data/imbue-rules.js, read as consumable rows, src/core/imbue.js imbueRows). Pass: the held step moves by Temper's 5 plus at most the consumable slice's cap at the Level (6 x ramp: 1.8 at Level 60), +5 to +7 within the cell's noise (21 T1, I3; 19 section 1 rows 4 and 10)",
+ "base": "tree",
+ "edits": [
+  { "file": "src/core/member.js", "from": "    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null };", "to": "    temperSteps: { weapon: 5, shield: 5, helmet: 5, body: 5, pants: 5, boots: 5, gloves: 5, belt: 5, cape: 5, necklace: 5, earrings: 5, ring1: 5, ring2: 5 } };" },
+  { "file": "src/core/combat-sim.js", "from": "  const imb = wornImbuesOf(m.hero.wornImbues);", "to": "  const imb = wornImbuesOf([{ id: 'brute_edge', band: 55, msLeft: 72000000 }, { id: 'fire_ward', band: 55, msLeft: 72000000 }, { id: 'mana_leech', band: 55, msLeft: 72000000 }]);" }
+ ],
+ "assumptions": [
+  "Temper rank 5 on every slot is forged past the Level's cap (rank 1 opens at 40, 5 at 200): the reading is 21 T1's whole kit at 5, the most Temper can ever be, clamped by temperLevelsOn to 5 ranks",
+  "The imbuements carry Muster's own band (55) so the contest curve takes nothing at Level 60; only Brute Edge has a condition that holds on Muster (its knight and Captain Hask are brutes); Fire Ward waits (no ember blow) and Mana Leech is sustain, so both only take their room",
+  "At Level 60 ramp is 0.3, so the consumable slice is 1.8 steps and Brute Edge counts 0.6 of them on a brute's blows"
+ ]
+}

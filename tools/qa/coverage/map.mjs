@@ -22,7 +22,6 @@ import { tiersOf } from '../../balance-sim/tier-axis.mjs';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { SHOP_LISTED_OFFER_IDS } from '../../../src/data/supply-basics.js';
-import { TEMPER_OFFERS } from '../../../src/data/temper.js';
 import { HALLMARK_OFFERS, recipeOutcomes } from '../../../src/data/jewelry.js';
 import { SINK_RULES } from '../../../src/data/gold-sinks.js';
 import { STORAGE_CHESTS } from '../../../src/data/homestead-tiers.js';
@@ -96,7 +95,6 @@ export function coverageMap() {
     const grants = (o.grant || []).filter((g) => g && g.kind === 'item').map((g) => g.id);
     sinks.push({ id: o.id, table: o.table, name: o.name || o.id, gold, items, grants, verb, listed: o.table === 'supply' ? SHOP_LISTED_OFFER_IDS.has(o.id) : null });
   }
-  for (const o of TEMPER_OFFERS) sinks.push({ id: o.offer_id, table: 'temper', name: o.name, gold: o.gold, items: Object.entries(o.items).map(([id, qty]) => ({ id, qty })), verb: 'unlock_buy' });
   for (const o of HALLMARK_OFFERS) sinks.push({ id: 'hallmark.' + o.from, table: 'hallmark', name: 'Hallmark ' + o.from, gold: o.gold || 0, items: [{ id: o.from, qty: 1 }, { id: o.gem, qty: 1 }], verb: 'hr_hallmark' });
   for (const c of STORAGE_CHESTS) {
     const cost = c.cost || {};

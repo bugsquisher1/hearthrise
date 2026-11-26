@@ -81,17 +81,6 @@ export const GEAR_ECONOMY = [
     perturb: P(),
     flags: [flag('redundant', 'One field, defB, feeds two formulas by item class', '44 X-DEFB-TWO-JOBS, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
-  L('gear.temper-effect', 'equipment', 'global', 'Tempering a rung', {
-    at: [at('src/data/temper.js', 'export const TEMPER_RUNG_PM = 10'), at('src/data/temper.js', 'export const TEMPER_TIER_RUNG_PM = '), at('src/data/temper.js', 'export const TEMPER_UNIQUE_RUNG_PM = 5'), at('src/data/temper.js', 'export const TEMPER_RUNGS = 5')],
-    rows: rows('the unique bands\' start and the tier reader', [home('src/data/temper.js#TEMPER_UNIQUE_FROM', 'count'), home('src/data/temper.js#temperTierOf', 'count')]),
-    def: 'five rungs a track (Blows, Armor); each 1% (0.4% on tier 7, 0.5% on a unique band); Blows raises what lands on a monster and every heal, Armor lowers what reaches the hero, never past the cap; tier 1 has no ladder',
-    range: 'permille; rungs whole. The part of a point is a chance (X-TEMPER-ROUNDING)',
-    touches: 'damage and damage taken of a tempered kit (MID holds 2 rungs, BiS 5)', out: [...KILL, ...SURVIVE], f: ['C-TEMPER'],
-    tests: [['tests/hunt-core/temper.mjs', 'a rung in a fight']], testReads: ['TEMPER_RUNG_PM', 'TEMPER_TIERS', 'temperTierOf'],
-    perturb: P('the kits hold rungs (standards.mjs GEAR_STATES temper)'),
-    flags: [flag('ineffective', 'The Armor track works inside the 60% cap, so a capped front hero gains nothing from it', 'COMPUTED from the cap rule and 12-balance-pass 3.6 (MEASURED for armor points)'),
-      flag('contradictory', 'Past Level 110 a ladder is keyed on the piece\'s Level band, not its tier, because every piece past Dawnsteel is still tier 7; the unique bands are shut (open: false)', '44 P-X34, CONFIRMED')],
-    ev: 'CONFIRMED (read)' }),
   /* PLAIN GEAR IN STEPS AND THE TRAITS (lane/g-gear-steps, 04 section 10, 12-targets 3.3 and 8). The scale grounds' gear: a piece is its
      item Level, a tier is tierSteps of it, a Trait is a rule worth its rank's steps while its `when` holds. Read by the engine's power
      step (R9) once it lands; nothing reads them today, so every row is not-built. */
@@ -249,7 +238,7 @@ export const GEAR_ECONOMY = [
     perturb: NP('not-built', 'the switch temper_steps is off and the Temper Kit is not an item; T1 measured with tools/balance-program/candidates/temper-5.json'),
     ev: 'STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)' }),
   L('imbue.rules', 'imbuements', 'global', 'Imbuements: 2 steps each, 20 hunted hours, the fee', {
-    at: [at('src/data/imbue-rules.js', '  hours: 20,'), at('src/data/imbue-rules.js', '  feeHoursPm: 400,'), at('src/data/imbue-rules.js', "convert: { element: 'fire', sharePm: 50 },")],
+    at: [at('src/data/imbue-rules.js', '  hours: 20,'), at('src/data/imbue-rules.js', '  feeHoursPm: 400,'), at('src/data/imbue-rules.js', "convert: { element: 'ember', sharePm: 50 },")],
     def: 'three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp',
     range: 'hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)',
     touches: 'a consumable choice in place of a draught; Remains to the bench as well as the fire', out: [...KILL, ...SURVIVE, ...GOLD], f: [],
@@ -275,13 +264,12 @@ export const GEAR_ECONOMY = [
 
   /* ── 16. IMBUEMENT EFFECTS ─────────────────────────────────────────────────────────────────────────────────────────────────── */
   L('imbue.parts', 'imbuements', 'content', 'Imbuement parts', {
-    at: [at('src/data/imbuements.js', 'export const IMBUE_TIER_FLOORS'), at('src/data/imbuements.js', 'export const IMBUE_DROP')],
-    rows: rows('the parts and the effect each names (life_leech, mana_leech, keen, ward ...)', [home('src/data/imbuements.js#IMBUE_ITEMS', 'keys')], field('src/data/imbuements.js', 'IMBUE_ITEMS', 'v')),
-    def: '29 parts drop with nothing to feed: book value 2 gold a monster Level, tier 1, 2 or 3 from monster Levels 1, 30, 80, a drop chance between 5 and 15%',
+    at: [at('src/data/imbuements.js', 'export const IMBUE_DROP')],
+    rows: rows('the first grounds\' parts', [home('src/data/imbuements.js#IMBUE_ITEMS', 'keys')], field('src/data/imbuements.js', 'IMBUE_ITEMS', 'v')),
+    def: 'every body drops its own part: book value 2 gold a monster Level, a drop chance between 5 and 15%; an imbuement row names the one part it is made from (src/data/imbue-rules.js), and a part no row names sells (lane/tp-im-steps retired the old five kinds and three tiers)',
     range: 'chance 0.05..0.15',
-    touches: 'sold-loot gold only today', out: GOLD, f: ['E31'],
-    perturb: NP('not-built', 'linings (Tyler\'s imbuement, ruled 2026-11-18: one part + gold, cured 4 h, 12 hunted hours, 48 h a socket) are not built; the effect each part names is read by nothing'),
-    flags: [flag('ineffective', 'The parts only sell; BUILD-LATER as linings, do not cut', '44 E-X32, CONFIRMED')],
+    touches: 'sold-loot gold, and the five sample imbuements\' inputs', out: GOLD, f: ['E31'],
+    perturb: NP('not-built', 'the Artificing bench that makes an imbuement from its part is the K1 job slice\'s; the switch imbuements is off'),
     ev: 'CONFIRMED (read)' }),
 
   /* ── 17. CONSUMABLE COSTS AND EFFECTIVENESS ────────────────────────────────────────────────────────────────────────────────── */
@@ -608,15 +596,6 @@ export const GEAR_ECONOMY = [
     tests: [['tests/level-costs.mjs', 'first free, then the wage price x2, Premium\'s daily free, the verb dark']], testReads: ['TALENT_RESET', 'resetPrice'],
     perturb: NP('outside-hunt', 'a reset is bought in town, never by a cell'),
     ev: 'STATED (04-math-strategy.md section 11 starting values)' }),
-  L('econ.temper-price', 'economy', 'content', 'Tempering prices', {
-    at: [at('src/data/temper.js', 'export const TEMPER_TIERS'), at('src/data/temper.js', 'export const TEMPER_MATERIALS'), at('src/data/temper.js', 'export const TEMPER_UNIQUE_BANDS')],
-    def: 'a first rung a tier (2,000 / 7,000 / 8,000 / 12,000 / 16,000 / 40,000), each rung double the last; salts 10..160 a rung; unique bands 60k..1.6M, shut',
-    range: 'whole, doubling. RULED: sinks stay above a band\'s gold (Tyler 2026-11-18 itemization section 13)',
-    touches: 'the gold sink of the gear chase', out: [], f: ['E38'],
-    tests: [['tests/temper-buy.mjs', 'a rung bought']], testReads: ['TEMPER_TIERS', 'TEMPER_MATERIALS'],
-    perturb: NP('outside-hunt', 'the kits hold rungs without paying for them', 'sinkShare'),
-    flags: [flag('redundant', 'A hand-typed first rung a tier, priced in comments at 40 to 52% of its band\'s gold, with no row past tier 7', '44 E-X25, CONFIRMED')],
-    ev: 'CONFIRMED (read)' }),
   L('econ.town-sinks', 'economy', 'content', 'Town sinks (powder, rounds, criers, setup slots, colors, the House dummy)', {
     at: [at('src/data/gold-sinks.js', 'export const SINK_RULES')],
     rows: rows('the rename price', [home('src/data/hero-rename.js#HERO_RENAME', 'count')]),

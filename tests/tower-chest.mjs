@@ -16,7 +16,7 @@
 //               halved a metal; lane/tower-boss-formula), Tyler's stokes and warmth (x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
 //               the design's warmth table read back through src/data/chests.js; the server's chance (hr_chest_chance_ppm) and the data's
 //               (chestChancePpm) agree on every key, warmth 0..60 and stoke 0..3; the open table (keyForLanding: the top row open-ended);
-//               the salts are the highest tempering tier's at or under each key's weapons (the coherence pass's C4); the catalogue rows
+//               the salts are the Temper kit of the highest gear tier at or under each key's weapons (the coherence pass's C4); the catalogue rows
 //               are the data's; the load-time rule refuses a higher key with better odds; every key in the Tower family, its caps the
 //               data's and Tyler's six a week, the open table read inside the Tower family alone
 //   TCH-ODDS    the server's roll (hr_chest_roll) over 20,000 keys a cell: a weapon at the chance it was handed (each key's base, a warm and
@@ -75,7 +75,7 @@ const Z = 4.5;     // the measurement's tolerance, in standard deviations
 async function load(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   return { ...(await C.load(root)), CH: await import(u('src/data/chests.js') + V), GT: await import(u('src/data/gear-tiers.js') + V),
-    TM: await import(u('src/data/temper.js') + V), ITEMS: (await import(u('src/data/items.js') + V)).ITEMS, root };
+    TM: await import(u('src/data/chests.js') + V), ITEMS: (await import(u('src/data/items.js') + V)).ITEMS, root };
 }
 
 /* the signed-in hero calls a verb (its rate counters cleared first: the arms call far more often than a player) */
@@ -161,11 +161,11 @@ async function dataArm(db, M) {
   const sqlLands = await one(db, `select string_agg((select k.key_id from public.hr_chest_keys k where k.ground = 'the_burning_tower' and k.from_landing <= l order by k.from_landing desc limit 1), ',' order by l)
     from unnest(array[40, 70, 80, 110, 120, 130, 140, 200, 1500]) l`);
   if (sqlLands !== lands) bad.push('TCH-DATA the server\'s open table reads ' + sqlLands);
-  /* C4: the salts of the highest tempering tier at or under the key's weapons, never a tier under the hero's gear when a ladder exists */
-  const tiers = Object.keys(M.TM.TEMPER_MATERIALS).map(Number);
+  /* C4: the Temper kit of the highest gear tier at or under the key's weapons that is a live item (chests.js KEY_SALTS from trades.js KIT_FACES) */
+  const tiers = Object.keys(M.TM.KEY_SALTS).map(Number);
   for (const k of K) {
     const t = Math.max(...tiers.filter((x) => x <= k.weaponTier));
-    if (keySalts(k) !== M.TM.TEMPER_MATERIALS[t].item) bad.push(`TCH-DATA ${k.id} pays ${keySalts(k)}, not tier ${t}'s ${M.TM.TEMPER_MATERIALS[t].item}`);
+    if (keySalts(k) !== M.TM.KEY_SALTS[t].item || !M.ITEMS[keySalts(k)]) bad.push(`TCH-DATA ${k.id} pays ${keySalts(k)}, not tier ${t}'s ${M.TM.KEY_SALTS[t].item}`);
   }
   /* the catalogue rows are the data's */
   const cat = await q(db, "select key_id, key_family, item_id, from_landing, weapon_pm, cinders, salts_item, salts_qty, food_item, food_qty, skill_plus from public.hr_chest_keys where key_family = 'tower' order by key_family, from_landing");

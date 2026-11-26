@@ -25,7 +25,7 @@
 //       selling, the category should just be Junk"): Big Bones, Bat Wing and Silk Thread are
 //       Materials, Rat Tail is Junk, a boss trophy is Rare; an imbuement's ingredient (a ward
 //       item: its row's `imbue`) is a Material and Sell all junk never takes it; across every
-//       monster drop, Junk is never something a recipe, the House or Tempering spends or an
+//       monster drop, Junk is never something a recipe, the House or a Temper rank spends or an
 //       imbuement will, and a recipe row added before the bag files anything makes its drop a
 //       Material by itself
 //   V7  A RARE IS NEVER JUNK (audit 2026-11-18 A16): a drop that is a Rare somewhere (the away card's Best find test) files under
@@ -70,13 +70,15 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   /* a quest keepsake nothing drops (the boss's crown is a Rare drop too, so it alone no longer proves the tag's rule) */
   ITM.ITEMS.v6_keepsake = { n: 'Keepsake', tag: 'quest', v: 1 };
   ok('V6', B.kindOf('v6_keepsake') === 'rare', 'a quest keepsake files under ' + B.kindOf('v6_keepsake') + ', not rare');
-  /* a ward item (Briar Burr feeds Ward, Cistern Venom Gland Element Ward): kept for the imbuement it will feed */
-  const wards = ['briar_burr', 'cistern_venom_gland'];
-  ok('V6', wards.every((id) => ITM.ITEMS[id] && ITM.ITEMS[id].imbue && B.kindOf(id) === 'material'), 'a ward item files under ' + wards.map((id) => B.kindOf(id)).join(',') + ', not material');
+  /* an imbuement's part (Pike Ferrule makes Brute Edge, Urn Shard Mana Leech: src/data/imbue-rules.js) is kept for the bench; a body's part
+     no imbuement row names (Briar Burr, Coffin Nail) is Junk and sells (lane/tp-im-steps) */
+  const wards = ['pike_ferrule', 'urn_shard'], loose = ['briar_burr', 'coffin_nail'];
+  ok('V6', wards.every((id) => ITM.ITEMS[id] && ITM.ITEMS[id].part === true && B.kindOf(id) === 'material'), 'an imbuement\'s part files under ' + wards.map((id) => B.kindOf(id)).join(',') + ', not material');
+  ok('V6', loose.every((id) => ITM.ITEMS[id] && ITM.ITEMS[id].part === true && B.kindOf(id) === 'junk'), 'a part no imbuement names files under ' + loose.map((id) => B.kindOf(id)).join(',') + ', not junk');
   ok('V6', B.lootToSell(wards.concat(['rat_tail']).map((id) => ({ id, qty: 3 }))).join() === 'rat_tail', 'Sell all junk takes ' + B.lootToSell(wards.concat(['rat_tail']).map((id) => ({ id, qty: 3 }))).join());
   const drops = new Set(Object.values(MON.MONSTERS).flatMap((m) => ((m && m.drops) || []).map((d) => d && d.id).filter(Boolean)));
   const wrong = [...drops].filter((id) => B.kindOf(id) === 'junk' && (B.isSpentMaterial(id) || B.plannedUse(id)));
-  ok('V6', wrong.length === 0, 'Junk that a recipe, the House or Tempering spends: ' + wrong.join(','));
+  ok('V6', wrong.length === 0, 'Junk that a recipe, the House or a Temper rank spends: ' + wrong.join(','));
   ok('V6', [...drops].some((id) => B.kindOf(id) === 'junk') && [...drops].some((id) => B.kindOf(id) === 'material' && B.isSpentMaterial(id)), 'the drops hold no Junk or no spent Material: the sweep proves nothing');
 
   /* V7 A RARE IS NEVER JUNK (audit 2026-11-18 A16: "Sell all junk" sold the Alpha Fang the away card had just called the Best find). The Alpha Fang

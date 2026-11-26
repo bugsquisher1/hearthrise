@@ -17,7 +17,7 @@ const { refillPrice, STAMINA_REFILL } = await mod('src/data/stamina-refill.js');
 const { blessingPrice } = await mod('src/core/wage.js');
 /* (the scaled hour's price left with the scaled hunts, lane/retire-tier-chain 2026-11-26) */
 const { DEATH_XP_LOSS, STAMINA_MAX_MS } = await mod('src/data/hunt-sessions.js');
-const { TEMPER_TIERS } = await mod('src/data/temper.js');
+const { TEMPER_STEPS } = await mod('src/data/temper.js');
 
 const LEVELS = [1, 10, 30, 50, 100, 200, 400, 1000, 2000, 5000];
 const rows = [];
@@ -72,7 +72,7 @@ const dayRows = gridRows.filter((g) => [10, 30, 50, 75, 100, 110, 145, 185, 200,
 });
 
 if (process.argv.includes('--json')) {
-  console.log(JSON.stringify({ rows, grid: gridRows, accountDay: dayRows, temperTopTier: Math.max(...Object.keys(TEMPER_TIERS).map(Number)), xpFormula: STAT_FORMULA.xp, gpFormula: STAT_FORMULA.gp }, null, 1));
+  console.log(JSON.stringify({ rows, grid: gridRows, accountDay: dayRows, temperRanks: TEMPER_STEPS.ranks, xpFormula: STAT_FORMULA.xp, gpFormula: STAT_FORMULA.gp }, null, 1));
 } else {
   console.log('FORMULA and DERIVED: a regular monster of Level L on a ground whose floor is L, a lone hero on the pace contract');
   console.table(rows);

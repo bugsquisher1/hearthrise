@@ -171,7 +171,7 @@ export function derive(D, grid, K = null) {
     const sw = get(L, 'mid', 1, 'normal', 'step:weapon'), sa = get(L, 'mid', 1, 'normal', 'step:armor');
     const lowToMid = K.upgradeCost(low, mid).total, midToBis = K.upgradeCost(mid, bis).total;
     const prices = Object.values(bis.kit).map((id) => K.priceOf(id));
-    for (const [key, n] of Object.entries(bis.temper || {})) { const t = Number(key.split(':')[2]); const row = K.temperTiers[t]; if (row) prices.push(row[n - 1]); }
+    for (const [slot, n] of Object.entries(bis.temperSteps || {})) prices.push(K.rankGold(slot, n, bis.kit[slot]));
     gearRows.push({ L, band: b0, nextBand: b1, bandHours: bandH, bandNet, lowToMid, midToBis, dearest: Math.max(0, ...prices),
       e3: bandNet > 0 ? lowToMid / bandNet : null, e4: bandNet > 0 ? midToBis / bandNet : null,
       weaponStep: sw ? lone.rates.levelXpPerH / sw.rates.levelXpPerH - 1 : null, armorStep: sa ? 1 - lone.rates.takenPerH / sa.rates.takenPerH : null,
@@ -593,7 +593,7 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'a gear RULE moves the kits: LOW at tierOffset -2 wears ' + moved.kit.weapon + ' / ' + moved.kit.body + ' where -1 wore ' + base.kit.weapon + ' / ' + base.kit.body);
     const states3 = JSON.parse(JSON.stringify(STD.GEAR_STATES)); states3.mid.temper.blows = 4;
     const K3 = await loadKits(ROOT, { states: states3 });
-    const r3 = K3.kitFor(45, 'mid', 'hammer', { ground: 'hasks_ford' }).temper, r0 = K.kitFor(45, 'mid', 'hammer', { ground: 'hasks_ford' }).temper;
+    const r3 = K3.kitFor(165, 'mid', 'hammer', { ground: 'hasks_ford' }).temperSteps, r0 = K.kitFor(165, 'mid', 'hammer', { ground: 'hasks_ford' }).temperSteps;
     const ok3 = Object.values(r3 || {}).every((n) => n === 4) && Object.values(r0 || {}).every((n) => n === 2) && Object.keys(r0 || {}).length > 0;
     if (!ok3) fails++;
     console.log('  ' + (ok3 ? 'CAUGHT ' : 'MISSED ') + 'a gear RULE moves the rungs: MID at 4 rungs holds ' + JSON.stringify(r3) + ' where the rule holds ' + JSON.stringify(r0));

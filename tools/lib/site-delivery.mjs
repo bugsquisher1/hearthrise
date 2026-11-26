@@ -50,6 +50,7 @@ export const AS_IS = Object.freeze({
    module). build-site SITE-11 holds this list to the source's `new URL('….js', import.meta.url)` loads, with RUNTIME_FILES. */
 export const RUNTIME_MODULES = Object.freeze({
   'src/shell/windows/game-master-body.js': 'src/shell/windows/game-master.js imports it by URL on the window\'s first open',
+  'src/shell/windows/talents/index.js': 'src/shell/windows/talents.js imports the Roads map by URL on the Talents window\'s first open',
 });
 /* A .js file loaded by URL that is not a module of the graph. */
 export const RUNTIME_FILES = Object.freeze({

@@ -508,7 +508,8 @@ export async function loadCellRunner(root) {
         if (!opts.start) delete opts.start;
         if (!opts.options) delete opts.options;
         if (Number.isInteger(cell.density)) opts.density = cell.density;
-        if (cell.temper) opts.temper = cell.temper;
+        /* cell.temperSteps { slot: rank }: every seat's seated Temper ranks (play-ground.mjs opts.temperSteps, src/core/temper-steps.js) */
+        if (cell.temperSteps) opts.temperSteps = cell.temperSteps;
         /* cell.holdLevel: the heroes stay at their starting Level and skills (play-ground.mjs opts.holdLevel; a Danger band's companies) */
         if (cell.holdLevel === true) opts.holdLevel = true;
         /* cell.talentsBySeat [{ force, footing, grit, reserve } | null]: each seat's Talents (tools/balance-program/talents.mjs), on m.perks.talents */
@@ -551,7 +552,7 @@ export async function loadCellRunner(root) {
     const staged = {};
     for (const k of kits) for (const id of Object.values(k)) if (id && gear.staged && gear.staged.has(id) && ITEMS[id]) staged[id] = clone(ITEMS[id]);
     return { ground: cell.ground, styles: [...party], roles: [...roles], levels: [...levels], equipment: kits.map((k) => ({ ...k })), bar: seat(opts.bar), bag: seat(opts.bag),
-      options: seat(opts.options), start: seat(opts.start), density: Number.isInteger(opts.density) ? opts.density : null, temper: clone(opts.temper) || null,
+      options: seat(opts.options), start: seat(opts.start), density: Number.isInteger(opts.density) ? opts.density : null, temperSteps: clone(opts.temperSteps) || null,
       leaveTogether: !!opts.leaveTogether, windowMs: opts.windowMs, segmentH: cell.segmentH || 2, staged,
       /* the death rule, Blessings, the timed buffs (server rows), the purse and the stamina bar (cell.mjs header) */
       talents: Array.isArray(cell.talentsBySeat) ? clone(cell.talentsBySeat) : null,

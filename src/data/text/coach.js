@@ -123,7 +123,6 @@ export const COACH_TEXT = Object.freeze({
   goal_harvest: 'Harvest {crops} on the Farm (J)',
   goal_tally: 'Take a task on Tamsin\'s tally (Q)',
   goal_deed: 'Buy the {deed} in the House',
-  goal_temper: 'Temper your {piece} for {gold}: Shop → Services',
   goal_saving: 'Next goal: a {nth} hero slot, {gold}',
   goal_party: 'Find a party for {ground}',
   goal_party_how: 'Invite a friend or create a second hero',

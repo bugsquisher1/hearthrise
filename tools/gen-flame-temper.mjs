@@ -41,11 +41,11 @@ const PITY_PINS = [[0.0002, 0], [0.0002, 438000], [0.01, 5000000], [0.5, 9000000
 async function load(root) {
   const q = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + q);
-  const [flameD, flameC, temperD, temperC, imbueD, imbueC, party, loot, danger, carry, items, ledger] = await Promise.all([
+  const [flameD, flameC, temperD, temperC, imbueD, imbueC, party, loot, danger, carry, items, ledger, tradesC] = await Promise.all([
     imp('src/data/inner-flame.js'), imp('src/core/inner-flame.js'), imp('src/data/temper.js'), imp('src/core/temper-steps.js'),
     imp('src/data/imbue-rules.js'), imp('src/core/imbue.js'), imp('src/data/party.js'), imp('src/core/personal-loot.js'),
-    imp('src/data/danger.js'), imp('src/core/carry-over.js'), imp('src/data/items.js'), imp('src/data/power-ledger.js')]);
-  return { flameD, flameC, temperD, temperC, imbueD, imbueC, party, loot, danger, carry, items, ledger };
+    imp('src/data/danger.js'), imp('src/core/carry-over.js'), imp('src/data/items.js'), imp('src/data/power-ledger.js'), imp('src/core/trades.js')]);
+  return { flameD, flameC, temperD, temperC, imbueD, imbueC, party, loot, danger, carry, items, ledger, tradesC };
 }
 
 const lit = (x) => (x === null || x === undefined ? 'null' : typeof x === 'number' ? (Number.isInteger(x) ? String(x) : `'${String(x)}'::float8`) : `'${String(x).replace(/'/g, "''")}'`);
@@ -61,6 +61,10 @@ export function rowsOf(d) {
   if (T.carryPm >= 1000) problems.push('TEMPER_STEPS.carryPm must be under 1000: a re-seat costs less than the ranks');
   if (T.ranks * T.ilPerRank !== d.ledger.POWER_LEDGER.temperStepsMax) problems.push('TEMPER_STEPS: ranks x ilPerRank must be the ledger\'s Temper slice (' + d.ledger.POWER_LEDGER.temperStepsMax + ')');
   if (T.kitItem !== null && !(typeof T.kitItem === 'string' && Object.prototype.hasOwnProperty.call(d.items.ITEMS, T.kitItem))) problems.push('TEMPER_STEPS.kitItem ' + T.kitItem + ' is no item');
+  /* the Temper kits (lane/tp-im-steps): a rank on the first Level a rank opens wears a band that has its kit, so rank 1 is never kits_owed by data */
+  if (!d.tradesC.temperKitAt(T.rankEvery)) problems.push('no Temper kit at item Level ' + T.rankEvery + ', where rank 1 opens');
+  /* every imbuement row resolves to a recipe the bench can make (its part on a pack, its band) */
+  for (const id of Object.keys(d.imbueD.IMBUE_RULES)) if (!d.imbueC.imbueRecipe(id)) problems.push('imbuement ' + id + ' has no recipe');
   const slotSum = Object.values(G.slotPm).reduce((a, b) => a + b, 0);
   if (slotSum !== 1000) problems.push('GEAR_STEPS.slotPm sums to ' + slotSum + ', not 1000');
   for (const k of ['hours', 'steps', 'lifeRungPm', 'feeHoursPm']) if (!(whole(I[k]) && I[k] > 0)) problems.push('IMBUE.' + k + ' is not a whole number above 0');

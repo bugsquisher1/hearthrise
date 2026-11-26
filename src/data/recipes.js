@@ -209,7 +209,7 @@ const BASE_RECIPES = {
     /* THE MARCH'S THREE SALTS (designer 2026-11-15, lane/d-audit-balance-2; src/data/temper.js tiers 4 to 6). Each opens at the Smithing level its
        metal does (45, 60, 75) and sits on that metal's own xp a second, never a new best. Grave Dust is the hardener: every March ground drops it
        and its one use was the Great Hearth, so a hero now chooses between Inner Flame and the smith. NO COAL in any of them, as Steel's salt
-       has none (Andy's slog, board 2026-11-05; tests/temper-buy.mjs TB-MATERIAL): each takes its metal's RAW ORE, unsmelted, since a Mithril Bar
+       has none (Andy's slog, board 2026-11-05): each takes its metal's RAW ORE, unsmelted, since a Mithril Bar
        already eats 3 coal (smelt_mithril's secondary) and a Rune or Emberforged Bar 4; 620 salts a tier would be 1,860 to 2,480. */
     {id:'mix_mithril_temper_salts', name:'Mix Mithril Tempering Salts', icon:'🧂', inputs:{mithril_ore:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
     {id:'mix_rune_temper_salts', name:'Mix Rune Tempering Salts', icon:'🧂', inputs:{mithril_ore:1, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},

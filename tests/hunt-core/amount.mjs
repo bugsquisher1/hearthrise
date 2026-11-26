@@ -17,6 +17,10 @@
 //   reference    (refco) the monster formula's one door (src/core/reference-company.js refCompany) answers the pipeline's own output for a
 //                ground on the scale: one share of a reference health a head a second at every Level, the blow reaching at pressurePm,
 //                landing at the to-hit only while hitRoll holds; a Tower room (no refStep) keeps the old chain's measured table
+//   imbue        (lane/tp-im-steps) worn imbuements are consumable rows on the blow: Brute Edge on a brute and not a swarm, Fire Ward on an
+//                ember blow and not a plain one, and a damage meal on top of three adds nothing (their room fills the slice, 21 D-11)
+//   temper-paths, imbue-paths   both paths: Temper 5 on every slot and three imbuements each change Muster's four through the real settle,
+//                and 10-minute and 100-second windows play one hunt (a closed hunt and a viewed one)
 //
 // mutant-anchors: src/core/hunt/amount.js src/core/hunt/damage.js src/data/amount.js src/core/member.js
 import { join } from 'node:path';
@@ -158,11 +162,12 @@ const cases = {
     /* a mark is a held gain on the target, a slow a held cost on the source */
     if (steps({ markPm: 400 }) !== CAP || steps({ markPm: 50 }) !== A.stepsOf(1.05)) return 'a mark reads ' + steps({ markPm: 400 }) + ' / ' + steps({ markPm: 50 });
     if (steps({ slowPm: 300 }) !== -CAP) return 'a slow reads ' + steps({ slowPm: 300 }) + ' steps on its unit\'s blow';
-    /* Tempering: its own slice's cap */
-    const tc = M.dangerData.GEAR_STEPS && 5;
-    const te = {};
-    A.blowAmount(inst, { source: { ...ref, blowsPm: 50 }, target: rat, mean: 1000, el: 1000, rng: LOW, trace: te });
-    if (te.steps !== Math.min(tc, A.stepsOf(1.05))) return 'Tempering +5% is ' + te.steps + ' steps, not its slice\'s ' + Math.min(tc, A.stepsOf(1.05));
+    /* the steady cut (a cape and a steady meal: armorPm) in the temper slice, held to its cap of 5 (CONFLICTS 2026-11-26 tp-im-steps) */
+    const tc = 5, te = {}, t0 = {};
+    A.blowAmount(inst, { source: rat, target: { ...ref, armorPm: 50 }, mean: 1000, el: 1000, rng: LOW, trace: te });
+    A.blowAmount(inst, { source: rat, target: ref, mean: 1000, el: 1000, rng: LOW, trace: t0 });
+    const cut = Math.round((t0.cond - te.cond) * 1000) / 1000;
+    if (cut !== Math.min(tc, A.stepsOf(1000 / 950))) return 'a 5% steady cut is ' + cut + ' steps, not its slice\'s ' + Math.min(tc, A.stepsOf(1000 / 950));
     return null;
   },
   roll(M) {
@@ -231,7 +236,62 @@ cases.refco = (M) => {
   if (!(onScale > room * 2)) return 'a scale ground\'s brute at 175 has ' + onScale + ' health, a Tower room\'s ' + room + ': the scale is not read off the pipeline';
   return null;
 };
+/* IMBUEMENTS ON THE SCALE (lane/tp-im-steps; src/core/imbue.js, 21 D-11): one blow through the pipeline. A Level 200 hero wearing Brute
+   Edge, Fire Ward and Mana Leech at its own band reads 2 more conditional steps on a brute (Muster's knight) and none on a swarm (a
+   pikeman), 2 fewer on an ember blow at it and none on a plain one, and a damage meal on top of the three adds nothing (their room fills
+   the consumable slice); the same meal alone counts. */
+cases.imbue = (M) => {
+  const A = M.amount, inst = instOn('steady', M), L = 200;
+  const knight = { side: 'mon', id: 3, kind: 'muster_knight', alive: true }, pike = { side: 'mon', id: 4, kind: 'barrow_pikeman', alive: true };
+  if (M.MONSTERS.muster_knight.role !== 'brute' || M.MONSTERS.barrow_pikeman.role !== 'swarm') return 'CONTROL: Muster\'s knight is no brute or its pikeman no swarm';
+  const set = [{ id: 'brute_edge', band: L, kind: 'edge' }, { id: 'fire_ward', band: L, kind: 'ward' }, { id: 'mana_leech', band: L, kind: 'leech' }];
+  const cond = (src, tgt, element) => { const t = {}; A.blowAmount(inst, { source: src, target: tgt, mean: 1000, el: 1000, ward: !!element, element, rng: LOW, trace: t }); return t.cond; };
+  const bare = heroAt(L, 1000 * L), worn = heroAt(L, 1000 * L, { imbues: set });
+  const fed = heroAt(L, 1000 * L, { buffDmgPm: 50 }), both = heroAt(L, 1000 * L, { buffDmgPm: 50, imbues: set });
+  const d = (a, b) => Math.round((a - b) * 1000) / 1000;
+  if (d(cond(worn, knight), cond(bare, knight)) !== 2) return 'Brute Edge on a brute moves the blow ' + d(cond(worn, knight), cond(bare, knight)) + ' steps, want 2';
+  if (d(cond(worn, pike), cond(bare, pike)) !== 0) return 'Brute Edge on a swarm moves the blow ' + d(cond(worn, pike), cond(bare, pike)) + ' steps, want 0';
+  if (d(cond(bare, pike, 'ember'), cond(worn, pike, 'ember')) !== 0 || d(cond(knight, bare, 'ember'), cond(knight, worn, 'ember')) !== 2) return 'Fire Ward does not take 2 steps off an ember blow at its hero, and only that';
+  if (d(cond(knight, bare), cond(knight, worn)) !== 0) return 'Fire Ward moves a plain blow at its hero';
+  if (!(d(cond(fed, pike), cond(bare, pike)) > 0)) return 'CONTROL: a damage meal alone moves nothing';
+  if (d(cond(both, pike), cond(worn, pike)) !== 0 || d(cond(both, knight), cond(worn, knight)) !== 0) return 'a damage meal on top of three imbuements adds ' + d(cond(both, pike), cond(worn, pike)) + ' steps: the room rule is gone (21 D-11)';
+  return null;
+};
+/* BOTH PATHS (CLAUDE.md section 4; lane/tp-im-steps): Temper on steps and three imbuements on Muster Barrows' four, through the real settle
+   (play-ground.mjs: the server's one settle), in 10-minute windows (a closed hunt) and 100-second ones (a viewed hunt): each changes the
+   hunt, and the two cuts play one hunt. Read from the repository's own settle (no mutant reaches it: the cases above hold the rules). */
+async function pathsOf(M, opts) {
+  const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href + V);
+  const P = await loadPlay(ROOT);
+  const four = ['tank', 'melee_dps', 'mage', 'healer'];
+  const go = (o, windowMs) => {
+    const r = P.run(G, 70, four, { spanMs: 600000, windowMs, secret: '-4611686018427387904', options: () => ({ risk: 'steady', danger: 570 }),
+      equipment: (role, i, L) => P.kitFor(L, role), ...o });
+    /* key order is the order a window first met each buy, so the signature sorts every key (the counts are the hunt) */
+    const sorted = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted(v[k])])) : v);
+    return JSON.stringify(sorted({ t: r.totals, x: r.heroXp }));
+  };
+  const plain = go({}, 600000), closed = go(opts, 600000), viewed = go(opts, 100000);
+  return { plain, closed, viewed };
+}
+const ALL5 = Object.freeze(Object.fromEntries(['weapon', 'shield', 'helmet', 'body', 'pants', 'boots', 'gloves', 'cape', 'amulet', 'ring1', 'ring2', 'ammo', 'belt'].map((s) => [s, 5])));
+const pathCases = {
+  'temper-paths': async (M) => {
+    const p = await pathsOf(M, { temperSteps: ALL5 });
+    if (p.plain === p.closed) return 'Temper 5 on every slot played the hunt of no Temper: the seated ranks never reached the gear part';
+    return p.closed === p.viewed ? null : 'Temper settled in 10-minute and 100-second windows played two hunts';
+  },
+  'imbue-paths': async (M) => {
+    const set = [{ id: 'brute_edge', band: 70, msLeft: 3600000 }, { id: 'fire_ward', band: 70, msLeft: 3600000 }, { id: 'mana_leech', band: 70, msLeft: 3600000 }];
+    const p = await pathsOf(M, { wornImbues: () => set });
+    if (p.plain === p.closed) return 'Brute Edge on Muster\'s knights played the hunt of no imbuement: the worn set never reached the fight';
+    return p.closed === p.viewed ? null : 'imbuements settled in 10-minute and 100-second windows played two hunts';
+  },
+};
 const mutants = [
+  { name: 'an imbuement never reaches the fight', case: 'imbue', edits: [[A, 'const rows = u.imbues ? imbueRows(', 'const rows = false ? imbueRows(']] },
+  { name: 'an imbuement reads no monster role', case: 'imbue', edits: [[A, '{ role: other ? roleIdOf(inst, other) : null,', '{ role: null,']] },
+  { name: 'an imbuement reads no element', case: 'imbue', edits: [[A, 'element: c.element || null }, u.heroLv)', 'element: null }, u.heroLv)']] },
   { name: 'the scale reads the old chain\'s table', case: 'refco', edits: [['src/core/hunt/monster-formula.js', "refCompany(g.refLevel, Number.isInteger(g.refStep) ? 'steps' : null)", 'refCompany(g.refLevel, null)']] },
   { name: 'the pipeline reference grows like the table', case: 'refco', edits: [['src/core/reference-company.js', '    const dpsHead = share * refHealth(L);', '    const dpsHead = tableDps(L);']] },
   { name: 'the pipeline reference takes the armor chain\'s share', case: 'refco', edits: [['src/core/reference-company.js', '      takePm: AMOUNT.pressurePm,', '      takePm: R.takePm + 1,']] },
@@ -259,6 +319,11 @@ const M = await load(ROOT);
 for (const [cn, fn] of Object.entries(cases)) {
   let why = null;
   try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  R.ok(!why, cn + ': ' + why);
+}
+for (const [cn, fn] of Object.entries(pathCases)) {
+  let why = null;
+  try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
 for (const mu of mutants) {

@@ -168,14 +168,14 @@ export default definePack({
     pyre_priest: 'regular',     // the middle weight, the mender (piece 3)
     gatekeeper: 'elite',        // the bruiser and the rare carrier
   },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw): one of each of the
-     five kinds, kept for the imbuer like every ground's (catalogue-coherence.js VENDOR_TRASH until imbuing is built). */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    farmhands_tag: { n: 'Farmhand\'s Tag', icon: '🪙', v: 172, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
-    lookouts_whistle: { n: 'Lookout\'s Whistle', icon: '📯', v: 176, raw: true, imbue: { kind: 'keen', tier: 3 } },
-    barrow_nail: { n: 'Barrow Nail', icon: '📌', v: 184, raw: true, imbue: { kind: 'ward', tier: 3 } },
-    priests_cord: { n: 'Priest\'s Cord', icon: '🧶', v: 190, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
-    gatekeepers_chain: { n: 'Gatekeeper\'s Chain', icon: '⛓️', v: 200, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
+    farmhands_tag: { n: 'Farmhand\'s Tag', icon: '🪙', v: 172, raw: true, part: true },
+    lookouts_whistle: { n: 'Lookout\'s Whistle', icon: '📯', v: 176, raw: true, part: true },
+    barrow_nail: { n: 'Barrow Nail', icon: '📌', v: 184, raw: true, part: true },
+    priests_cord: { n: 'Priest\'s Cord', icon: '🧶', v: 190, raw: true, part: true },
+    gatekeepers_chain: { n: 'Gatekeeper\'s Chain', icon: '⛓️', v: 200, raw: true, part: true },
     /* THE HALL KEY (the designer's 11-10 ruling 6: it TRADES). `opens` the hall of this ground (`hall` below; drop-tables loot-structure holds
        the Key band to it). One key opens the hall for the whole party and is the leader's; the server takes it on entry and journals it; it
        moves only through Storage and trade (the ruling's rails, for the keyed-room lane). Book value 800: the shop pays that, and the market's

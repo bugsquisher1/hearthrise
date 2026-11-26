@@ -57,8 +57,10 @@ export function clampLedger(rows, level) {
     let sl = by.get(r.slice);
     if (!sl) by.set(r.slice, (sl = new Map()));
     let ch = sl.get(r.raises);
-    if (!ch) sl.set(r.raises, (ch = { mine: new Map(), ally: new Map() }));
+    if (!ch) sl.set(r.raises, (ch = { mine: new Map(), ally: new Map(), room: new Map() }));
     if (ally) { if (r.steps > 0) ch.ally.set(key, Math.max(ch.ally.get(key) || 0, r.steps)); return; }
+    /* ROOM (holds false): a worn source that does not fire on this blow still takes its steps of a gains-only slice's room (21 D-11) */
+    if (r.holds === false) { if (r.steps > 0 && !LEDGER_SLICES[r.slice].signed) ch.room.set(key, Math.max(ch.room.get(key) || 0, r.steps)); return; }
     const kv = ch.mine.get(key) || [0, 0];
     if (r.steps > 0) kv[0] = Math.max(kv[0], r.steps); else kv[1] = Math.min(kv[1], r.steps);
     ch.mine.set(key, kv);
@@ -74,8 +76,11 @@ export function clampLedger(rows, level) {
         const mine = ch.mine.has(key) ? ch.mine.get(key)[0] : 0;
         if (g > mine) lent += g; else gains += mine;
       }
-      gains *= k; costs *= k; lent *= k;
-      out[channel] += (signed ? Math.min(cap, gains + costs) : Math.min(cap, gains) + costs) + lent;
+      /* a key that fires here counts its gain, never its room as well */
+      let room = 0;
+      for (const [key, g] of ch.room) if (!ch.mine.has(key) || ch.mine.get(key)[0] <= 0) room += g;
+      gains *= k; costs *= k; lent *= k; room *= k;
+      out[channel] += (signed ? Math.min(cap, gains + costs) : Math.max(0, Math.min(cap, gains + room) - room) + costs) + lent;
     }
   }
   return out;

@@ -13,7 +13,7 @@
 // FOUR AT A TIME, AS A POOL (lane r-green-first, 2026-11-07). This ran the files in fixed
 // batches of four and waited for each batch's slowest before starting the next, so the
 // step cost the SUM of nine batch maxima: drop-tables (335 s), first-week-bands (287 s) and
-// temper-play (110 s) each held three idle slots. Run 42351653896: 33 files, 1,365 s of
+// temper-play (110 s, retired 2026-11-26) each held three idle slots. Run 42351653896: 33 files, 1,365 s of
 // work, 989 s of step (16.5 min, the long pole of economy-selftests and so of most
 // releases). A free slot now takes the next file at once: the same 33 files, the same 4
 // processes, the same verdict; ~400 s modelled from that run's own per-file times.

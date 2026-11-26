@@ -23,7 +23,8 @@
 //   build-coverage   each ground's Scarce rows cover helmet, body, legs and boots in all three weights (the tutorial excepted)
 //   four-slots       each monster has a Common that is its own product (not bones, nor the Hearth fuel a boneless body
 //                    drops in their place: src/data/hearth.js FAMILY_FUELS), at most one bones row, and EXACTLY one
-//                    imbuement row (`imbue`, no other monster drops it, (5%, 15%], tier and book value from its Level)
+//                    part row (`part`, no other monster drops it, (5%, 15%], its book value from its Level: the imbuer's input
+//                    once an imbuement row names it, src/data/imbue-rules.js; the old kind and tier left with lane/tp-im-steps)
 //   gear-pace        (the floor hour, expected on its kills) each Scarce piece lands about once an hour per hero
 //                    (BAND_TARGETS.scarce, Tyler 2026-10-23), for the reference group AND a party ground's second group
 //                    (BAND_ALT); a fresh solo hero at the floor holds all four slots of EACH weight within GEAR_HOURS
@@ -224,7 +225,7 @@ const cases = {
           if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d, gid); if (why) return why; }
         }
         if (commons < 1 || (commons > 2 && !COMMONS_PENDING.includes(id))) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
-        if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its imbuement item)';
+        if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its part)';
         if (trophies > 1) return tag + ' has ' + trophies + ' Trophy rows, the rule is one per boss';
         /* every slot a monster carries comes in heavy, medium AND light, once each (one slot where the kills allow it;
            a fast-dying swarm may carry two, a slow trio may share one, to hold the hourly pace: gear-pace) */
@@ -315,13 +316,11 @@ const cases = {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       for (const id of rosterOf(ground)) {
         const m = M.MONSTERS[id], drops = m.drops || [];
-        const imbue = drops.filter((d) => M.ITEMS[d.id] && M.ITEMS[d.id].imbue);
-        if (imbue.length !== 1) return gid + ': ' + id + ' has ' + imbue.length + ' imbuement rows, the ruling is one';
-        const d = imbue[0], it = M.ITEMS[d.id];
-        if (!M.IMB.IMBUE_KINDS.includes(it.imbue.kind)) return gid + ': ' + d.id + ' feeds an unknown kind ' + it.imbue.kind;
-        if (it.imbue.tier !== M.IMB.imbueTierFor(m.level)) return gid + ': ' + d.id + ' is tier ' + it.imbue.tier + ', its dropper (Level ' + m.level + ') feeds tier ' + M.IMB.imbueTierFor(m.level);
+        const parts = drops.filter((d) => M.ITEMS[d.id] && M.ITEMS[d.id].part === true);
+        if (parts.length !== 1) return gid + ': ' + id + ' has ' + parts.length + ' part rows, the ruling is one';
+        const d = parts[0], it = M.ITEMS[d.id];
         if (it.v !== M.IMB.imbueValueFor(m.level) || it.raw !== true) return gid + ': ' + d.id + ' book value ' + it.v + ' (raw ' + it.raw + '), the rule is ' + M.IMB.imbueValueFor(m.level) + ', raw';
-        if (!(d.ch > M.IMB.IMBUE_DROP.above && d.ch <= M.IMB.IMBUE_DROP.max)) return gid + ': ' + id + ' imbuement row at ' + d.ch + ', not in the uncommon band';
+        if (!(d.ch > M.IMB.IMBUE_DROP.above && d.ch <= M.IMB.IMBUE_DROP.max)) return gid + ': ' + id + ' part row at ' + d.ch + ', not in the uncommon band';
         if (droppers[d.id].size !== 1) return gid + ': ' + d.id + ' is dropped by ' + [...droppers[d.id]].join(', ') + ', the ruling is one monster';
         const boneRow = (x) => BONES.includes(x.id) || M.bodyFuels.includes(x.id);
         if (drops.filter(boneRow).length > 1) return gid + ': ' + id + ' has two bones rows (bones, or the Hearth fuel of a boneless body)';
@@ -695,15 +694,15 @@ const rowOf = (ms, id, item) => ms[id].drops.find((d) => d.id === item);
 const scarceOf = (ms, id) => ms[id].drops.filter((d) => d.band === 'scarce');
 const dataMutants = [
   /* the four slots */
-  { name: 'the imbuement row dropped', case: 'four-slots', edit: (ms) => { ms.drain_rat.drops = ms.drain_rat.drops.filter((d) => d.id !== 'rat_incisor'); } },
-  { name: 'one imbuement item on two monsters', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.find((d) => d.id === 'sump_membrane').id = 'rat_incisor'; } },
-  { name: 'an imbuement row at rare odds', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.find((d) => d.id === 'gray_dewclaw').ch = 0.02; } },
+  { name: 'the part row dropped', case: 'four-slots', edit: (ms) => { ms.drain_rat.drops = ms.drain_rat.drops.filter((d) => d.id !== 'rat_incisor'); } },
+  { name: 'one part on two monsters', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.find((d) => d.id === 'sump_membrane').id = 'rat_incisor'; } },
+  { name: 'a part row at rare odds', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.find((d) => d.id === 'gray_dewclaw').ch = 0.02; } },
   { name: 'a third Common (the old free-form list)', case: 'loot-structure', edit: (ms) => { ms.gray_wolf.drops.splice(1, 0, { id: 'wolf_pelt', ch: 0.3, band: 'common' }); } },
   { name: 'the Slime\'s Sticky Core back at 2% (an hourly "Rare")', case: 'four-slots', edit: (ms) => { Object.assign(rowOf(ms, 'slime', 'sticky_core'), { ch: 0.02, band: 'rare' }); } },
   /* the spider's own product is its silk; its Dry Husk is its bones row (src/data/hearth.js FAMILY_FUELS) */
   { name: 'the junk row lost', case: 'four-slots', edit: (ms) => { ms.cistern_spider.drops = ms.cistern_spider.drops.filter((d) => d.id !== 'silk_thread'); } },
   { name: 'a boneless body drops bones beside its Hearth fuel', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.splice(2, 0, { id: 'bones', ch: 1, band: 'common' }); } },
-  { name: 'an imbuement item on a monster of the wrong tier', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
+  { name: 'a part whose book value is not its dropper\'s Level', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
   /* the loot bands */
   /* (lane/scale-grounds-2) a scale ground's Rare off its base: Rook's tier-3 helmet back on the Glade, the next tier's piece the one-base rule removed */
   { name: 'a scale ground reveals the next tier', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'rook_poacher', 'iron_helm').id = 'steel_helm'; } },

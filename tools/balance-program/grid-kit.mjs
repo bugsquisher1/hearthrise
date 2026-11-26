@@ -3,15 +3,15 @@
 //
 //   const K = await loadKits(root);
 //   K.kitFor(level, state, style, { ground, mainSkill })   -> a PLAN: what each slot wears and why, the cell's gear options, the
-//                                                            Tempering rungs, the skill offset, a what-if (projected rows), the sources
+//                                                            Temper ranks (temperSteps), the skill offset, a what-if (projected rows), the sources
 //                                                            that are ruled but not built
-//   K.kitCost(plan)                                       -> the gold of a plan's pieces and rungs (Shop price, else book value)
+//   K.kitCost(plan)                                       -> the gold of a plan's pieces and Temper ranks (Shop price, else book value)
 //   await K.traitPlans(kind, plans, { rates, taken })     -> the Traits each plan's pieces carry, for a party (Rare and Very Rare kits:
 //                                                            tools/balance-program/trait-kits.mjs lucky | theory | census:<k>), on plan.traits
 //
 // EVERY KIT IS A RULE ON THE GAME'S DATA. Nobody types a kit: the three states of standards.mjs GEAR_STATES are applied to src/data through
 // tools/balance-sim/gear.mjs kitOf (the ladder, the reachable sources, the staged uniques, the Hearth Chest's pieces), the accessory rule
-// below (jewelry.js grades, reachable sources), src/data/temper.js (which ladder a worn piece reads, open or shut) and, past Level 185,
+// below (jewelry.js grades, reachable sources), src/core/temper-steps.js (the ranks a Level opens) and, past Level 185,
 // the projected line (grid-project.mjs). A state that cannot be built from data throws: it fails loudly.
 //
 //   LOW   under 15 the start kit (gear.mjs `starter`). On the ladder (to 88) every slot one tier under (tierOffset -1, only 'all'). Past it,
@@ -26,7 +26,8 @@
 //         Storm, faction skills: ruled, not built in the engine, listed in `projectedAdds` with their ruled budget, never played.
 //   PROJECTED (past 185) the state's set at 185 with its weapon and armor moved to the projected line: MID and BIS the band's, LOW one back.
 //
-// Unique Tempering bands (temper.js TEMPER_UNIQUE_BANDS) are shut, so a unique or projected piece takes no rung; the plan says so.
+// TEMPER ON STEPS (lane/tp-im-steps retired the old rungs): a state's rung count is its Temper rank on every worn gear slot, at most what
+// the Level opens (rank r at 40r), the same on a unique, a step piece or a projected one: Temper belongs to the slot, never the piece.
 // The sibling lane's sources and paths (tools/balance-program/sources.mjs, paths.mjs) read kitFor and kitCost: keep them pure of the grid.
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
@@ -59,7 +60,9 @@ export async function loadKits(root, opts = {}) {
   const { loadGear, STYLES } = await import(u('tools/balance-sim/gear.mjs'));
   const gear = await loadGear(root);
   const ITEMS = gear.ITEMS;
-  const T = await import(u('src/data/temper.js') + v);
+  const TS = await import(u('src/core/temper-steps.js') + v);
+  const { GEAR_STEPS } = await import(u('src/data/danger.js') + v);
+  const { wage } = await import(u('src/data/wage.js') + v);
   const GT = await import(u('src/data/gear-tiers.js') + v);
   const G = await import(u('src/data/hunt-grounds.js') + v);
   const { HUNT_INDEX } = await import(u('src/data/hunts.js') + v);
@@ -78,11 +81,12 @@ export async function loadKits(root, opts = {}) {
   /* the staged grounds (built, hidden), by floor: a hero past a floor has been sent there, so its drops are reachable */
   const STAGED = Object.keys(G.HUNT_GROUNDS).filter((g) => !own(G.OPEN_GROUNDS, g)).sort((a, b) => floorOf(a) - floorOf(b));
   const stagedUpTo = (L) => STAGED.filter((g) => floorOf(g) <= L);
-  /* THE GEAR BANDS: the ladder's tiers (gear-tiers.js MATERIAL_TIERS), the unique bands (temper.js TEMPER_UNIQUE_BANDS), the projected ones */
+  /* THE GEAR BANDS: the ladder's tiers (gear-tiers.js MATERIAL_TIERS), the unique armor bands past Dawnsteel (the armor line's, worn from
+     110, 125, 145 and 165), the projected ones */
   const LADDER_BANDS = GT.MATERIAL_TIERS.map((t) => t.level).sort((a, b) => a - b);
-  const UNIQUE_BANDS = Object.keys(T.TEMPER_UNIQUE_BANDS).map(Number).sort((a, b) => a - b);
+  const UNIQUE_BANDS = [110, 125, 145, 165];
   const LADDER_TOP = LADDER_BANDS[LADDER_BANDS.length - 1];
-  const UNIQUE_FROM = T.TEMPER_UNIQUE_FROM;
+  const UNIQUE_FROM = UNIQUE_BANDS[0];
   const projectedStarts = [];
   for (let b = PROJECTED.from; b <= 400; b += PROJECTED.bandEvery) projectedStarts.push(b);
   const BANDS = [...new Set([...LADDER_BANDS, ...UNIQUE_BANDS, ...projectedStarts])].sort((a, b) => a - b);
@@ -115,18 +119,17 @@ export async function loadKits(root, opts = {}) {
 
   /* the slots a set may hold, so `also` names every one (a slot the plan leaves empty is null: gear.mjs deletes it) */
   const SLOTS = ['weapon', 'shield', ...ARMOR_SLOTS, ...Object.keys(JEWEL_SLOTS), 'ammo'];
-  /** The open-ladder rungs a set takes: { 'temper:<track>:<tier>': rung } and the shut pieces it names. */
-  function rungsOf(set, rung) {
+  /** The Temper ranks a set takes at Level L: { <equip slot>: rank } on every worn gear slot (GEAR_STEPS.slotPm), at most the Level's cap,
+      and the slots it names as unopened (under Level 40). */
+  function rungsOf(set, rung, L) {
     const out = {}, shut = [];
-    if (!rung) return { temper: null, shut };
+    if (!rung) return { temperSteps: null, shut };
+    const cap = TS.rankCapAt(L);
     for (const [slot, id] of Object.entries(set)) {
-      if (!id || !ITEMS[id] || slot === 'ammo' || own(JEWEL_SLOTS, slot)) continue;
-      const t = T.temperTierOf(ITEMS[id]);
-      const track = slot === 'weapon' ? 'blows' : 'armor';
-      if (own(T.TEMPER_TIERS, t)) out['temper:' + track + ':' + t] = rung;
-      else shut.push(slot + ' ' + id + ' (ladder ' + t + ': ' + (own(T.TEMPER_UNIQUE_BANDS, t) ? 'a unique band, shut' : 'none') + ')');
+      if (!id || !ITEMS[id] || !own(GEAR_STEPS.slotPm, slot)) continue;
+      if (cap > 0) out[slot] = Math.min(rung, cap); else shut.push(slot + ' ' + id + ' (no Temper rank opens before Level 40)');
     }
-    return { temper: Object.keys(out).length ? out : null, shut };
+    return { temperSteps: Object.keys(out).length ? out : null, shut };
   }
 
   /**
@@ -210,7 +213,7 @@ export async function loadKits(root, opts = {}) {
     const gearOpts = { ...(p.opts.starter ? {} : p.opts), ...(needsStaged ? { uniques: true } : {}), accessories: true, also: set };
     delete gearOpts.starter;
     const projected = p.stretch === 'PROJECTED';
-    const { temper, shut } = projected ? { temper: null, shut: ['every line piece (PROJECTED uniques: their Tempering bands are shut)'] } : rungsOf(worn, RUNGS[p.state]);
+    const { temperSteps, shut } = rungsOf(worn, RUNGS[p.state], p.level);
     const projectedAdds = p.state === 'bis'
       ? POWER_SOURCES.filter((s) => s.state === 'ruled' && (!s.from || s.from[0] <= p.level)).map((s) => ({ id: s.id, budgetXp: s.budgetXp, note: s.note || null }))
         .concat([{ id: 'linings', budgetXp: null, note: 'every socket at the 40% cap: not built in the engine (L32)' }])
@@ -218,7 +221,7 @@ export async function loadKits(root, opts = {}) {
     return {
       level: p.level, state: p.state, style: p.style, stretch: p.stretch, label: p.label, ground: p.ground, ...(p.projectedBand ? { projectedBand: p.projectedBand } : {}),
       kit: worn, why: Object.fromEntries(Object.keys(worn).map((k) => [k, p.reasons[k] || 'the kit builder\'s pick'])),
-      gear: gearOpts, temper, temperShut: shut, skillDelta: skillDeltaOf(p.state, p.level, STATES),
+      gear: gearOpts, temperSteps, temperShut: shut, skillDelta: skillDeltaOf(p.state, p.level, STATES),
       whatIfItems: p.whatIfItems || null, projectedAdds,
     };
   }
@@ -229,14 +232,13 @@ export async function loadKits(root, opts = {}) {
     if (!it) return 0;
     return Number(SHOP_PRICE.has(id) ? SHOP_PRICE.get(id) : it.v) || 0;
   };
-  /** The gold of a plan: its worn pieces (Shop price, else book value) and the rungs it holds (temper.js TEMPER_TIERS, the cumulative rungs). */
+  /** The gold of Temper rank `rank` on `slot` over the piece `id` it sits on: its full price in hours of wage at the piece's item Level. */
+  const rankGold = (slot, rank, id) => { const it = ITEMS[id] || {}; const iL = Number(it.iL) || Number(it.reqLv) || 1; return Math.ceil((TS.rankMilliHours(slot, rank) * wage(iL)) / 1000); };
+  /** The gold of a plan: its worn pieces (Shop price, else book value) and the Temper ranks it holds (each rank's full price, cumulative). */
   function kitCost(plan, onlySlots = null) {
     let pieces = 0, rungs = 0;
     for (const [slot, id] of Object.entries(plan.kit)) if (slot !== 'ammo' && (!onlySlots || onlySlots.includes(slot))) pieces += priceOf(id);
-    for (const [key, n] of Object.entries(plan.temper || {})) {
-      const t = Number(key.split(':')[2]);
-      rungs += (T.TEMPER_TIERS[t] || []).slice(0, n).reduce((a, b) => a + b, 0);
-    }
+    for (const [slot, n] of Object.entries(plan.temperSteps || {})) for (let r = 1; r <= n; r++) rungs += rankGold(slot, r, plan.kit[slot]);
     return { pieces, rungs, total: pieces + rungs };
   }
   /** The gold to go from plan `a` to plan `b` (same Level and way): every piece of b that a does not wear, and b's rungs over a's. */
@@ -279,5 +281,5 @@ export async function loadKits(root, opts = {}) {
     return kits;
   }
 
-  return { kitFor, mixPlan, traitPlans, shopSells: (id) => SHOP_PRICE.has(id), temperTiers: T.TEMPER_TIERS, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
+  return { kitFor, mixPlan, traitPlans, shopSells: (id) => SHOP_PRICE.has(id), rankGold, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
 }

@@ -26,6 +26,8 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
  * THE CARD for an account: the newest row at or under `version`, unless its mark is in `read`. `createdAtMs` is when the account was made
  * (the auth user's created_at), `buildDate` the running build's date (BUILD.date): an account made before the row's day is RETURNING and
  * reads the fresh line; a new one sees the card only when the row says forNew.
+ * @param {{ version?: string, read?: { has: (id: string) => boolean } | null, createdAtMs?: number | null, buildDate?: string,
+ *   rows?: ReadonlyArray<{ version: string, card: string, lines: readonly string[], fresh: string | null, since: string | null, forNew: boolean }> }} [o]
  * @returns {null | { card: string, version: string, lines: string[], fresh: string | null }}
  */
 export function whatsNewOf({ version = BUILD.version, read, createdAtMs = null, buildDate = BUILD.date, rows = WHATS_NEW } = {}) {

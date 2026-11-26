@@ -19,7 +19,6 @@
 // ============================================================
 
 import { STATUSES, harmful } from '../../data/statuses.js';
-import { temperedAmount } from '../temper.js';
 import { makeEvent } from './events.js';
 import { healIn } from './heal-cut.js';
 import { offerShield, overflowShield } from './shields.js';
@@ -51,8 +50,6 @@ export function layOverTime(inst, sc, u, t, total, ms) {
 
 /** ONE HEAL of cast `row` by `u` on `t` (the header). `cast` may be absent (a bare caller): no pieces, no healing received. */
 export function landHeal(u, t, n, sc, surge, row, piped, cast) {
-  /* TEMPERING raises a heal as it raises a blow (src/core/temper.js); on the scale it is steps in the pipeline's heal (amount.js). */
-  if (!piped) n = temperedAmount(n, u.blowsPm, sc.rng);
   const inst = cast ? cast.inst : null, fx = cast ? cast.fx : null;
   if (fx) {
     n = Math.floor((n * outPmFor(inst, u, row, t)) / 1000);

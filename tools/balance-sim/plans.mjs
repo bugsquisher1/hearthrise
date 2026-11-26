@@ -515,18 +515,18 @@ export function buildPlan(name, axes, scale = 1) {
     return out;
   }
   if (name === 'gu1105') {
-    /* TEMPERING ON ITS REAL HOOK (src/core/temper.js, on the settle; replaces gu1104's stand-ins): a whole ladder of Blows, of Armor, and both, against rung 0 and one tier behind, same dice. */
-    const FULL = { blows: { 'temper:blows:2': 5, 'temper:blows:3': 5 }, armor: { 'temper:armor:2': 5, 'temper:armor:3': 5 } };
-    const VARIANTS = [['base', {}], ['Bmax', { temper: FULL.blows }], ['Amax', { temper: FULL.armor }], ['Both', { temper: { ...FULL.blows, ...FULL.armor } }]];
+    /* TEMPER ON STEPS ON ITS REAL HOOK (src/core/temper-steps.js, the gear part, on the settle; the old rungs retired with lane/tp-im-steps):
+       rank 5 on every slot against none and one tier behind, same dice. */
+    const VARIANTS = [['base', {}], ['T5', { temperSteps: Object.freeze(Object.fromEntries(['weapon', 'shield', 'helmet', 'body', 'pants', 'boots', 'gloves', 'belt', 'cape', 'necklace', 'earrings', 'ring1', 'ring2'].map((s) => [s, 5]))) }]];
     const STEPS = [['stepW', { gear: { tierOffset: -1, only: 'weapon' } }], ['stepA', { gear: { tierOffset: -1, only: 'armour' } }]];
     for (const [ground, L] of [['mosslight_glade', 24], ['coppercap_warrens', 38]]) for (const s of ['tank', 'hammer', 'bow', 'mage', 'healer']) for (const [x, o] of [...VARIANTS, ...STEPS]) {
-      out.push({ ...cellOf({ ground, party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x, ...(o.gear ? { gear: o.gear } : {}) }), ...(o.temper ? { temper: o.temper } : {}) });
+      out.push({ ...cellOf({ ground, party: [s], level: L, hours: H(2), seeds: 2, x: 'P' + x, ...(o.gear ? { gear: o.gear } : {}) }), ...(o.temperSteps ? { temperSteps: o.temperSteps } : {}) });
     }
     for (const s of ['tank', 'hammer', 'mage']) for (const [x, o] of VARIANTS) {
-      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), ...(o.temper ? { temper: o.temper } : {}) });
+      out.push({ ...cellOf({ ground: 'mosslight_glade', party: [s], level: 24, density: 8, hours: H(2), seeds: 2, x: 'B' + x }), ...(o.temperSteps ? { temperSteps: o.temperSteps } : {}) });
     }
     for (const [x, o] of VARIANTS) {
-      out.push({ ...cellOf({ ground: 'coppercap_warrens', party: PARTIES.four, level: 40, hours: H(1), seeds: 2, x: 'Q' + x }), windowMs: 120000, ...(o.temper ? { temper: o.temper } : {}) });
+      out.push({ ...cellOf({ ground: 'coppercap_warrens', party: PARTIES.four, level: 40, hours: H(1), seeds: 2, x: 'Q' + x }), windowMs: 120000, ...(o.temperSteps ? { temperSteps: o.temperSteps } : {}) });
     }
     return out;
   }
@@ -650,10 +650,10 @@ export function buildPlan(name, axes, scale = 1) {
   if (name === 'tierladder') {
     /* THE LADDER RULE (src/data/hunt-tiers.js): a ground's top tier must not beat the next ground's Normal at the Level that fits it, or nobody moves on. Each rung at the upper ground's floor and past it, the rows as written, the Tempered kit beside the plain one (x = L<tier>, LT<tier>: every rung of both tracks, tier 1 has none). Read by tiers-table.mjs --ladder. */
     const WHO = [['tank'], ['sword'], ['hammer'], ['axes'], ['bow'], ['crossbow'], ['mage'], ['healer'], PARTIES.duo, PARTIES.trio, PARTIES.four, PARTIES.four_dps];
-    const FULL = { 'temper:blows:2': 5, 'temper:blows:3': 5, 'temper:armor:2': 5, 'temper:armor:3': 5 };
+    const FULL = Object.freeze(Object.fromEntries(['weapon', 'shield', 'helmet', 'body', 'pants', 'boots', 'gloves', 'belt', 'cape', 'necklace', 'earrings', 'ring1', 'ring2'].map((s) => [s, 5])));
     for (const [lower, upper, levels] of TIER_RUNGS) for (const level of levels) for (const party of WHO) for (const [x, temper] of [['L', null], ['LT', level >= 15 ? FULL : null]]) {
       if (x === 'LT' && !temper) continue;
-      const t = temper ? { temper } : {};
+      const t = temper ? { temperSteps: temper } : {};
       out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'normal', hours: H(1), seeds: 2, x: x + 'normal' }), ...t });
       out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'dangerous', hours: H(1), seeds: 2, x: x + 'dangerous' }), ...t });
       out.push({ ...tierCell(axes, { ground: lower, party, level, tier: 'deadly', hours: H(1), seeds: 2, x: x + 'deadly' }), ...t });

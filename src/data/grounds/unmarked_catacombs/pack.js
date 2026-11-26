@@ -130,14 +130,14 @@ export default definePack({
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five
-     kinds. */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    owing_tag: { n: 'Owing Tag', icon: '🏷️', v: 332, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
-    leech_jaw: { n: 'Leech Jaw', icon: '🦷', v: 338, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
-    lime_mortar: { n: 'Lime Mortar', icon: '🪨', v: 346, raw: true, imbue: { kind: 'ward', tier: 3 } },
-    carters_hook: { n: 'Carter\'s Hook', icon: '🪝', v: 352, raw: true, imbue: { kind: 'keen', tier: 3 } },
-    candle_snuffer: { n: 'Candle Snuffer', icon: '🔔', v: 362, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
+    owing_tag: { n: 'Owing Tag', icon: '🏷️', v: 332, raw: true, part: true },
+    leech_jaw: { n: 'Leech Jaw', icon: '🦷', v: 338, raw: true, part: true },
+    lime_mortar: { n: 'Lime Mortar', icon: '🪨', v: 346, raw: true, part: true },
+    carters_hook: { n: 'Carter\'s Hook', icon: '🪝', v: 352, raw: true, part: true },
+    candle_snuffer: { n: 'Candle Snuffer', icon: '🔔', v: 362, raw: true, part: true },
     /* the Leech's own Common (drop-tables four-slots: a part that sells), Junk: nothing in the game uses it, the shop buys it */
     live_leech: { n: 'Live Leech', icon: '🪱', v: 60 },
   },

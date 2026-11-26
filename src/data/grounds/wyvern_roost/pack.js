@@ -108,13 +108,14 @@ export default definePack({
       hp: 402, atk: 155, aim: 163, evasion: 70, def: 45, xp: 4505, gp: [59, 177], formula: true },
   },
   roster: { wyvern_fledgling: 'swarm', ledge_wyvern: 'glass', bull_wyvern: 'heavy', crag_wyvern: 'regular', brood_wyvern: 'elite' },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    eggshell: { n: 'Eggshell', icon: '🥚', v: 252, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
-    gizzard_stone: { n: 'Gizzard Stone', icon: '🪨', v: 260, raw: true, imbue: { kind: 'keen', tier: 3 } },
-    tail_spur: { n: 'Tail Spur', icon: '🦴', v: 266, raw: true, imbue: { kind: 'ward', tier: 3 } },
-    fire_gland: { n: 'Fire Gland', icon: '🔥', v: 272, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
-    stolen_fleece: { n: 'Stolen Fleece', icon: '🐑', v: 280, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
+    eggshell: { n: 'Eggshell', icon: '🥚', v: 252, raw: true, part: true },
+    gizzard_stone: { n: 'Gizzard Stone', icon: '🪨', v: 260, raw: true, part: true },
+    tail_spur: { n: 'Tail Spur', icon: '🦴', v: 266, raw: true, part: true },
+    fire_gland: { n: 'Fire Gland', icon: '🔥', v: 272, raw: true, part: true },
+    stolen_fleece: { n: 'Stolen Fleece', icon: '🐑', v: 280, raw: true, part: true },
   },
   itemText: {
     eggshell: 'A piece of wyvern eggshell as thick as a roof tile. The fledglings kick them off the ledges',

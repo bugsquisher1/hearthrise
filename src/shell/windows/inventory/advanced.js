@@ -7,16 +7,16 @@
 //   Active effects  the server's buff queue (`buffs`): name, effect, time left
 //   Worn set        the hunt role the worn weapon gives and the set's totals
 //                   from the catalogue rows of what the server says is worn
-//   Imbuements      per worn piece, its slots and what fills them, with the
-//                   time left (ruling D v2). Drawn ONLY when the server sends
-//                   `imbuements`: until it is built server-side the part is
-//                   absent, never an empty placeholder.
+//   Imbuements      per equip slot, the imbuement it wears and its hunted time
+//                   left (21 section 3.6). Drawn ONLY when the server sends
+//                   `imbues` (dark while the `imbuements` switch is off): never
+//                   an empty placeholder.
 // Read only; every number is the envelope's.
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../../../data/items.js';
 import { HUNT_ROLES } from '../../../data/hunt-roles.js';
 import { BUFFS_DEF } from '../../../core/buffs.js';
-import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js';
+import { buffsOf, imbuesOf, roleOf } from '../../../session/item-sections.js';
 import { partyOf } from '../../../session/hunt-sections.js';
 import { rows, text, cls, element } from '../../../render/paint.js';
 import { escapeHtml as esc } from '../../../utils/dom.js';
@@ -24,7 +24,6 @@ import { itemName } from '../../widgets/bits.js';
 import { DOLL } from './doll.js';
 
 const TOTALS = Object.freeze([['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'], ['rangeAtkB', 'Ranged'], ['magicAtkB', 'Magic']]);
-const IMBUE_WORDS = Object.freeze({ keen: 'Keen', life_leech: 'Life Leech', mana_leech: 'Mana Leech', ward: 'Ward', element_ward: 'Element Ward' });
 const SLOT_LABEL = new Map(DOLL.map(([s, l]) => [s, l]));
 
 /** "1 h 20 min" / "12 min" / "under a minute". */
@@ -83,18 +82,16 @@ export function patchAdvanced(root, st, ctx) {
     const v = Object.values(st.eq).reduce((s, id) => s + (ITEMS[id] && Number.isFinite(ITEMS[id][k]) ? ITEMS[id][k] : 0), 0);
     text(box.querySelector('[data-total="' + k + '"]'), v > 0 ? '+' + v : '0');
   }
-  const imb = imbuementsOf(cs);
+  const imb = imbuesOf(cs);
   const imbBox = box.querySelector('.hw-imbue');
-  const lines = imb ? DOLL.filter(([s]) => imb[s] && imb[s].slots > 0 && st.eq[s]).map(([s]) => ({ slot: s, item: st.eq[s], v: imb[s] })) : [];
+  const lines = imb ? DOLL.filter(([s]) => imb[s] && st.eq[s]).map(([s]) => ({ slot: s, item: st.eq[s], v: imb[s] })) : [];
   cls(imbBox, 'is-on', lines.length > 0);
   rows(imbBox.querySelector('.hw-imbue-list'), lines, {
     key: (l) => l.slot,
     build: () => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span></li>'),
     patch: (li, l) => {
       text(li.querySelector('b'), SLOT_LABEL.get(l.slot) + ': ' + itemName(l.item));
-      const filled = l.v.filled.map((f) => IMBUE_WORDS[f.kind] + ' (' + timeLeft(f.msLeft) + ')');
-      const free = l.v.slots - filled.length;
-      text(li.querySelector('small'), filled.concat(free > 0 ? [free + (free === 1 ? ' empty slot' : ' empty slots')] : []).join(', '));
+      text(li.querySelector('small'), l.v.name + ' · ' + timeLeft(l.v.msLeft) + ' left');
     },
   });
 }

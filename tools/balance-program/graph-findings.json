@@ -86,10 +86,6 @@
    "kind": "feeds",
    "key": "C-SPELL-SHELL>O-MANAWAIT"
   },
-  "GF-1102e9d3": {
-   "kind": "feeds",
-   "key": "C-BUFF-BONUS>C-TEMPER"
-  },
   "GF-12a6bf23": {
    "kind": "carrier",
    "key": "P25>C-RUN-ROOM"
@@ -510,10 +506,6 @@
    "kind": "carrier",
    "key": "P28>E37"
   },
-  "GF-56cb625d": {
-   "kind": "feeds",
-   "key": "C-JEWEL-PERKS>C-TEMPER"
-  },
   "GF-57bf9123": {
    "kind": "writers",
    "key": "E47|E49"
@@ -866,10 +858,6 @@
    "kind": "feeds",
    "key": "P28>O-NETXP"
   },
-  "GF-9411a106": {
-   "kind": "carrier",
-   "key": "C-TEMPER>C-HERO-POWER"
-  },
   "GF-9472920b": {
    "kind": "dead",
    "key": "monsterDefense"
@@ -1214,10 +1202,6 @@
    "kind": "feeds",
    "key": "E55>O-REGENSHARE"
   },
-  "GF-d7014299": {
-   "kind": "carrier",
-   "key": "C-GEAR-WEAPON>C-TEMPER"
-  },
   "GF-d92b5f90": {
    "kind": "undeclared-move",
    "key": "monsterHp|storePerH"
@@ -1277,10 +1261,6 @@
   "GF-e606524e": {
    "kind": "call",
    "key": "C-RESIST-HERO>C-JEWEL-PERKS"
-  },
-  "GF-e714037e": {
-   "kind": "feeds",
-   "key": "C-GEAR-ARMOR>C-TEMPER"
   },
   "GF-e7b82b2e": {
    "kind": "feeds",

@@ -150,7 +150,7 @@
     "C-BOSS-PHASE",
     "C-STANCE",
     "C-ARMOR-CHAIN",
-    "C-TEMPER",
+    "C-STEADY",
     "C-SPELL-SHELL"
    ],
    "consumers": [
@@ -227,23 +227,19 @@
    "random": "deterministic"
   },
   {
-   "id": "C-TEMPER",
-   "computes": "Tempering: Blows raises what lands on a monster and every heal by rungs x the ladder's permille. Armor (with worn steadyPm and a food's steady) lowers what reaches the hero, last, never past the cap. The part of a point is a chance",
+   "id": "C-STEADY",
+   "computes": "The steady cut: worn steadyPm (a cape) and a food's steady lower what reaches the hero, last, never past the cap. The part of a point is a chance (the old Tempering rungs that shared it retired with lane/tp-im-steps)",
    "impl": [
-    "src/core/temper.js:38-57",
-    "src/core/hunt/damage.js:137",
-    "src/core/mitigation.js:83"
+    "src/core/mitigation.js:29-40",
+    "src/core/hunt/damage.js:171"
    ],
-   "params": "src/data/temper.js ladders (1% a rung tiers 2-6, 0.4% Dawnsteel, 0.5% unique bands)",
-   "deps": [
-    "E-TEMPER-COST (economy)"
-   ],
+   "params": "src/data/items.js capes steadyPm; a food's steady buff",
+   "deps": [],
    "consumers": [
     "C-HURT",
-    "C-SPELL-HEAL",
     "C-ARMOR-CHAIN"
    ],
-   "random": "one draw a blow, only for a hero holding a rung"
+   "random": "one draw a blow, only for a hero carrying a cut"
   },
   {
    "id": "C-SPELL-HIT",
@@ -277,7 +273,7 @@
     "C-HERO-POWER",
     "P-VITALS (progression)",
     "C-CAST-POWER",
-    "C-TEMPER",
+    "C-STEADY",
     "C-HEAL-CUT"
    ],
    "consumers": [
@@ -498,7 +494,7 @@
     "C-MON-STATS (its Level)",
     "C-TIER (levelAtTier)",
     "C-RESIST-HERO",
-    "C-TEMPER"
+    "C-STEADY"
    ],
    "consumers": [
     "C-HURT",
@@ -810,7 +806,7 @@
    "consumers": [
     "C-HERO-POWER",
     "C-CRIT",
-    "C-TEMPER"
+    "C-STEADY"
    ],
    "random": "deterministic"
   },
@@ -1220,8 +1216,8 @@
   },
   {
    "id": "X-TEMPER-ROUNDING",
-   "where": "src/core/temper.js:13-15",
-   "what": "Tempering rounds by chance (the part of a point is a draw). Every other step floors",
+   "where": "src/core/mitigation.js:29-36",
+   "what": "The steady cut rounds by chance (the part of a point is a draw). Every other step floors",
    "why": "2026-11-04: +1% on a blow of 20 paid nothing",
    "class": 3,
    "status": "C",
@@ -1519,8 +1515,16 @@
    "to": "C-HURT"
   },
   {
-   "from": "C-TEMPER",
+   "from": "C-STEADY",
    "to": "C-HURT"
+  },
+  {
+   "from": "C-BUFF-BONUS",
+   "to": "C-STEADY"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-STEADY"
   },
   {
    "from": "C-BOSS-PHASE",
@@ -1539,7 +1543,7 @@
    "to": "C-ARMOR-CHAIN"
   },
   {
-   "from": "C-TEMPER",
+   "from": "C-STEADY",
    "to": "C-ARMOR-CHAIN"
   },
   {
@@ -1557,10 +1561,6 @@
   {
    "from": "C-HURT",
    "to": "C-LEECH"
-  },
-  {
-   "from": "C-TEMPER",
-   "to": "C-SPELL-HEAL"
   },
   {
    "from": "C-REF-HERO",
@@ -1750,7 +1750,7 @@
   },
   {
    "lane": "economy",
-   "edge": "E-TEMPER-COST -> C-TEMPER. E-JEWEL-COST -> C-JEWEL-PERKS. E-FOOD -> C-BUFF-BONUS",
+   "edge": "E-TEMPER-COST -> the gear part (Temper on steps). E-JEWEL-COST -> C-JEWEL-PERKS. E-FOOD -> C-BUFF-BONUS",
    "why": "gold sinks buy combat percent"
   },
   {

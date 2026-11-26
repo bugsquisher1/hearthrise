@@ -184,13 +184,13 @@ export default definePack({
     ledger_wight: 'glass',     // fragile, lands often, hits hard
     bannerman: 'elite',        // the bruiser and the rare carrier
   },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw).
-     Each is a Material in the bag and only sells until its lining exists. */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    pike_band: { n: 'Pike Band', icon: '💀', v: 90, raw: true, imbue: { kind: 'keen', tier: 2 } },
-    ford_weed: { n: 'Ford Weed', icon: '🌿', v: 100, raw: true, imbue: { kind: 'element_ward', tier: 2 } },
-    ledger_leaf: { n: 'Ledger Leaf', icon: '📜', v: 102, raw: true, imbue: { kind: 'mana_leech', tier: 2 } },
-    toll_token: { n: 'Toll Token', icon: '🪙', v: 112, raw: true, imbue: { kind: 'ward', tier: 2 } },
+    pike_band: { n: 'Pike Band', icon: '💀', v: 90, raw: true, part: true },
+    ford_weed: { n: 'Ford Weed', icon: '🌿', v: 100, raw: true, part: true },
+    ledger_leaf: { n: 'Ledger Leaf', icon: '📜', v: 102, raw: true, part: true },
+    toll_token: { n: 'Toll Token', icon: '🪙', v: 112, raw: true, part: true },
   },
   itemText: {
     pike_band: 'The iron ring off a Banded Pikeman\'s spear. It\'s stamped with Hask\'s mark',

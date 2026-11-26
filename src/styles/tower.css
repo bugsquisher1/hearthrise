@@ -160,8 +160,8 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-used { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .tc-loot { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
 .tc-loot-item { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 8px 0 0; background: var(--bg-0); box-shadow: var(--steel-well); }
-.tc-loot-item img { width: 64px; height: 64px; flex: none; image-rendering: pixelated; }
-.tc-loot-item > span { display: flex; flex-direction: column; min-width: 0; font-size: var(--t-micro); }
+.tc-loot-item > .hh-icon { width: var(--icon-2); height: var(--icon-2); }
+.tc-loot-item > span:not(.hh-icon) { display: flex; flex-direction: column; min-width: 0; font-size: var(--t-micro); }
 .tc-loot-item b { line-height: 1.15; }
 .tt-found { color: var(--gold-2); }
 .tc-loot-name { color: var(--ink); }

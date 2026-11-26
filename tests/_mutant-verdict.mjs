@@ -362,7 +362,7 @@ export const OWED_FOUND = Object.freeze([
   'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs',
   'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/party-hunt-start-gate.mjs',
   'tests/plot-tier-price-replay.mjs', 'tests/realtime-cost.mjs', 'tests/settle-drop-bounds.mjs', 'tests/setup-slots.mjs',
-  'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/temper-uniques.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
+  'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
   'tests/town-shows.mjs', 'tests/town-works.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',
   'tests/world-tick-presence-signal.mjs', 'tests/world-tick-scale.mjs',
 ]);

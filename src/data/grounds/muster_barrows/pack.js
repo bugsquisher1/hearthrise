@@ -191,12 +191,13 @@ export default definePack({
     muster_knight: 'elite',    // the bruiser in plate
     captain_hask: 'boss',
   },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, its tier and book value from its dropper's Level, raw). */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    coffin_nail: { n: 'Coffin Nail', icon: '🔩', v: 114, raw: true, imbue: { kind: 'ward', tier: 2 } },
-    urn_shard: { n: 'Urn Shard', icon: '🏺', v: 120, raw: true, imbue: { kind: 'mana_leech', tier: 2 } },
-    sergeant_spur: { n: 'Sergeant\'s Spur', icon: '⚙️', v: 132, raw: true, imbue: { kind: 'keen', tier: 2 } },
-    hasks_coin: { n: 'Hask\'s Coin', icon: '🪙', v: 150, raw: true, imbue: { kind: 'life_leech', tier: 2 } },
+    coffin_nail: { n: 'Coffin Nail', icon: '🔩', v: 114, raw: true, part: true },
+    urn_shard: { n: 'Urn Shard', icon: '🏺', v: 120, raw: true, part: true },
+    sergeant_spur: { n: 'Sergeant\'s Spur', icon: '⚙️', v: 132, raw: true, part: true },
+    hasks_coin: { n: 'Hask\'s Coin', icon: '🪙', v: 150, raw: true, part: true },
   },
   itemText: {
     coffin_nail: 'An iron nail off a Barrow Pikeman\'s coffin. It came loose when he climbed out',

@@ -372,7 +372,7 @@ export function formulaStats(spec, opts = {}) {
   const blowShare = R.floorCap ? Math.min(dz.blow * R.blow * (fit.bossBlow ? fit.blow : 1), (R.floorCap * F.refHp(Number(spec.floor))) / F.refHp(L))
     : Math.min(dz.blow * R.blow * fit.blow, (gentleCap * F.refHp(Number(spec.floor))) / F.refHp(L));
   /* THE BLOW'S SHAPE on a gentle party ground (fit.blowShape, 1 on a full one): the same swing worth as fewer, bigger blows, so a blow clears the
-     ward of cheap armor and an armor rung is felt (temper-play armor-below-the-next-set). The engine swings every 2 s (Tyler 10-15), so the
+     ward of cheap armor and an armor rung is felt (the old Tempering rungs measured it; they retired with lane/tp-im-steps). The engine swings every 2 s (Tyler 10-15), so the
      to-hit falls as the blow grows. */
   const shape = R.floorCap ? 1 : 1 + ((fit.blowShape || 1) - 1) * (1 - dz.ramp);
   const atk = Math.max(1, Math.round((blowShare * shape * F.refHp(L)) / scale));

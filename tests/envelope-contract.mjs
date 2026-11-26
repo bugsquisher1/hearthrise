@@ -39,9 +39,7 @@ const FN = join('supabase', 'functions', 'hr-accrue');
 /* Client reads the server does not project yet. Each must be ABSENT from the real envelope; when
    the server adds one, it moves to CONTRACT in the same commit. Lane S2 (2026-10-18) moved name,
    bag_rules, shop, hunt_presets, role and party_invites to CONTRACT. */
-export const PENDING = Object.freeze({
-  imbuements: 'per worn piece, its imbuement slots and what fills them (ruling D v2; the Inventory Advanced view, CONFLICTS.md 2026-10-18 playtest)',
-});
+export const PENDING = Object.freeze({});
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const missing = (obj, keys) => keys.filter((k) => obj == null || obj[k] === null || obj[k] === undefined);
@@ -286,13 +284,12 @@ function contract(R, cs, body, tl) {
   const kr = R.IS.keyRingOf(cs);
   need('key_ring', !!kr && kr.unlocked === false && !!kr.offer && kr.offer.offer === 'key_ring.0' && Number.isInteger(kr.offer.gold) && kr.offer.gold > 0
     && Array.isArray(kr.keys) && kr.keys.length === 0, 'keyRingOf yields ' + JSON.stringify(kr) + ' from ' + JSON.stringify(body.key_ring));
-  /* Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window. The ladders are the data's
-     (src/data/temper.js TEMPER_UNLOCKS, one per track and tier), never a written count: tiers 4 to 6 (v0.2.135) made a literal 4 stale. */
-  const tp = R.TP.temperOf(cs);
-  const ladders = R.TD.TEMPER_UNLOCKS.map((x) => x.unlock_id).sort().join();
-  need('temper', Array.isArray(tp) && tp.map((l) => R.TD.temperUnlockId(l.track, l.tier)).sort().join() === ladders
-    && tp.every((l) => l.rung === 0 && l.max === R.TD.TEMPER_RUNGS && l.offer === R.TD.temperOfferId(l.track, l.tier, 1) && Number.isInteger(l.gold) && l.gold > 0),
-    'temperOf yields ' + JSON.stringify(tp) + ' from ' + JSON.stringify(body.temper).slice(0, 160));
+  /* Temper on steps and imbuements (1063-flame-temper.sql; lane/tp-im-steps): both switches are off, so the server projects null and each
+     reader yields null (the smith stays silent, the Inventory shows no imbuement). The old `temper` rungs left the client with the rungs */
+  need('temper_steps', body.temper_steps === null && R.IS.temperStepsOf(cs) === null,
+    'temperStepsOf yields ' + JSON.stringify(R.IS.temperStepsOf(cs)) + ' from ' + JSON.stringify(body.temper_steps));
+  need('imbues', body.imbues === null && R.IS.imbuesOf(cs) === null,
+    'imbuesOf yields ' + JSON.stringify(R.IS.imbuesOf(cs)) + ' from ' + JSON.stringify(body.imbues));
   // the Hallmark step (2027-03-14-jewelry-hallmark.sql): the offers for the Fine pieces held (none here), the account's count and the day's limit
   const hm = R.JW.hallmarkOf(cs);
   need('hallmark', !!hm && Array.isArray(hm.offers) && hm.offers.length === 0 && hm.today === 0 && hm.perDay >= 1,
@@ -431,7 +428,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'time_blocks', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'boss_halls',
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper_steps', 'imbues', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
   'work_day', 'gold_estimate', 'watched', 'talents']);
 
@@ -490,7 +487,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), FT: await import(u('src/session/farm-tend.js')), HO: await import(u('src/session/home-sections.js')),
-    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')), TD: await import(u('src/data/temper.js')),
+    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
@@ -648,7 +645,6 @@ const DB_MUTANTS = [
   ['gold_estimate', 'public.hr_gold_estimate_view(uuid,integer)', "jsonb_build_object('level', v_lv, 'grounds', v_out)", "jsonb_build_object('level', v_lv, 'ground', v_out)"],
   /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
   ['unlocked_recipes', 'public.hr_state_of(uuid,integer)', "'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),", "'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),"],
-  ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
   ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
   ['features', 'public.hr_features_view(uuid,integer)', 'jsonb_agg(f.switch_id order by f.switch_id)', "jsonb_agg(jsonb_build_object('id', f.switch_id) order by f.switch_id)"],
   /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */

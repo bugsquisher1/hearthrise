@@ -493,6 +493,11 @@
         "bytes": 3879874,
         "on": "2026-11-24",
         "why": "scale-grounds-sweep: five more grounds on the Danger scale (the Glade, the Warrens, the Slake, Pyre Field, Krell's Hold) carry their formula rows, drop rows in hours and gear stats into src/data the edge imports; 6.8 KB"
+      },
+      {
+        "bytes": 3886864,
+        "on": "2026-11-26",
+        "why": "lane/scale-grounds-sweep steps 2-3: five grounds join DANGER_GROUNDS (Wickstead, the Sewer, Carter's Rest, the Ox Road, Wyvern Roost) with roles on their monster rows and drops in hours, and the Glade takes the iron pieces the bronze grounds dropped (+6,990 B of data)"
       }
     ]
   }

@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 769,
-  "typed": 17659,
+  "typed": 17657,
   "files": 261,
   "lever": 340,
   "notLever": 429,
@@ -8024,7 +8024,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 312,
+     "line": 313,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -8093,19 +8093,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 319,
+     "line": 320,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 320,
+     "line": 321,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 321,
+     "line": 322,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
@@ -8169,7 +8169,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 348,
+     "line": 349,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -8520,7 +8520,7 @@
     {
      "file": "src/data/danger.js",
      "line": 262,
-     "text": "ox_road: ground({ refStep: 160, floorStep: 70, topStep: 230, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
+     "text": "ox_road: ground({ refStep: 160, floorStep: 70, topStep: 240, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
@@ -8531,8 +8531,8 @@
     },
     {
      "file": "src/data/danger.js",
-     "line": 264,
-     "text": "catacomb_flooded_wing: ground({ refStep: 490, floorStep: 455, topStep: 505, refKillsHead: 150, refHeld: 495, coinPm: 3400, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "line": 265,
+     "text": "catacomb_flooded_wing: ground({ refStep: 510, floorStep: 460, topStep: 525, refKillsHead: 145, coinPm: 3500, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8697,7 +8697,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 282,
+     "line": 283,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -10324,8 +10324,8 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 71,
-     "low": 0.0528,
+     "distinct": 67,
+     "low": 0.06,
      "high": 1
     }
    },
@@ -10567,10 +10567,10 @@
       "key",
       "trophy"
      ],
-     "rows": 311,
-     "distinct": 88,
+     "rows": 309,
+     "distinct": 87,
      "low": 0.0005,
-     "high": 0.05
+     "high": 0.0686
     }
    },
    "flags": [
@@ -16714,9 +16714,10 @@
     ],
     "mentions": [
      "tests/jewelry-rolls.mjs",
-     "tests/jewelry-sources.mjs"
+     "tests/jewelry-sources.mjs",
+     "tests/market-window.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {

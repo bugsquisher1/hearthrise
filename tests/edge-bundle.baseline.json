@@ -498,6 +498,11 @@
         "bytes": 3886864,
         "on": "2026-11-26",
         "why": "lane/scale-grounds-sweep steps 2-3: five grounds join DANGER_GROUNDS (Wickstead, the Sewer, Carter's Rest, the Ox Road, Wyvern Roost) with roles on their monster rows and drops in hours, and the Glade takes the iron pieces the bronze grounds dropped (+6,990 B of data)"
+      },
+      {
+        "bytes": 3887113,
+        "on": "2026-11-26",
+        "why": "lane/scale-grounds-sweep step 3 after merging set dcd3e2145: the Flooded Wing's own Level band (150-170) and DANGER_GROUNDS row in the data, beside the set's reshaped Traits (+89 B)"
       }
     ]
   }

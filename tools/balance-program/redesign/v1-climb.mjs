@@ -54,6 +54,10 @@ const SKILL_DELTA = Number(arg('skill-delta', -10));
    Trait it wore and its share of the damage taken */
 const TRAITS_KIND = arg('traits');
 const CENSUS = arg('trait-census') ? arg('trait-census').split(',') : [];
+/* --signatures a,b,c,d (lane/signatures-sample): the Signature each seat plays, seat by seat (src/data/signatures.js ids, '-' for none), played
+   by the engine (src/core/hunt/signature-rules.js, dark in the game); paired against the same four with none on the same dice */
+const SIGS = arg('signatures') ? arg('signatures').split(',').map((x) => (x === '-' ? null : x)) : null;
+if (SIGS) { const { SIGNATURES } = await import(pathToFileURL(join(ROOT, 'src/data/signatures.js')).href); for (const x of SIGS) if (x !== null && !SIGNATURES[x]) { console.error('v1-climb: no Signature ' + x); process.exit(2); } }
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
@@ -141,7 +145,8 @@ for (const v of variants) for (const risk of v.risks) {
   if (TRAITS_KIND === 'theory' && !census) throw new Error('v1-climb: --traits theory reads its census (--trait-census a.json,...)');
   const traitsBySeat = TRAITS_KIND ? await K.traitPlans(TRAITS_KIND, b.plans, census || {}) : null;
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true, ...(HOLD_LEVEL ? { holdLevel: true } : {}),
-    ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}), ...(traitsBySeat ? { traitsBySeat } : {}) };
+    ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}), ...(traitsBySeat ? { traitsBySeat } : {}),
+    ...(SIGS ? { signatureBySeat: SIGS } : {}) };
   cells.push({ id, variant: v.id, risk, L: v.L, start, ...(traitsBySeat ? { traitsBySeat } : {}) });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
 }

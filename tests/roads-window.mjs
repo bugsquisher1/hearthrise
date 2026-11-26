@@ -21,7 +21,8 @@
 //         it lacks; a vow waits for Level 30
 //   RW-3  THE CAMERA (camera.js): the tier of a scale, a wheel crossing into the next tier lands on that tier's own scale (one at a time),
 //         a zoom keeps the point under the pointer
-//   RW-4  NOT OFFERED while the server sends no `talents` section (the switch off): no icon
+//   RW-4  NOT OFFERED while the server sends no `talents` section (the switch off): the Character window has no Talents tab and nothing
+//         opens the map; with the section, the tab's Open map opens it (the window has no icon: the top bar holds 8)
 //   RW-5  OPENS WHERE YOU ARE: Road view, the next stone of the hero's suggested road at the stage's middle; the owned stones owned, the
 //         frontier open, the rest locked, all from the server's section
 //   RW-6  THREE TIERS: Country (the countries named, no rank stones), Node (the signposts), Road; a wheel over the map zooms and
@@ -179,17 +180,29 @@ async function checks(overrides, opts = {}) {
     await signInAndPlay(page, 'http://127.0.0.1:' + port);
     return { ctx, page, errors, s };
   };
+  /* the player's way in: Character, its Talents tab, Open map */
+  const tabShown = (page) => page.evaluate(() => { const b = document.querySelector('[data-hs-win="character"] .hw-tab[data-tab="talents"]'); return !!b && !b.hidden && b.offsetParent !== null; });
+  const openCharacter = async (page) => {
+    await page.evaluate(() => document.querySelector('.hs-launchers [data-hs-open="character"]').click());
+    return wait(page, () => document.querySelector('[data-hs-win="character"] .hw-tab[data-tab="talents"]'));
+  };
   const openMap = async (page) => {
-    await page.evaluate(() => { const b = document.querySelector('.hs-launchers [data-hs-open="talents"]') || document.querySelector('[data-hs-open="talents"]'); if (b) b.click(); });
+    await openCharacter(page);
+    await wait(page, () => { const b = document.querySelector('[data-hs-win="character"] .hw-tab[data-tab="talents"]'); return b && !b.hidden; });
+    await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-tab[data-tab="talents"]').click());
+    await wait(page, () => { const b = document.querySelector('[data-hs-win="character"] .hw-tl-map'); return b && b.offsetParent !== null; });
+    await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-tl-map').click());
     return wait(page, ({ W }) => document.querySelector(W + ' [data-rd-node="hearth"][transform]'), { W });
   };
   const sent = (s) => s.calls.filter((c) => c.name === 'hr_talent_spend');
   try {
-    /* RW-4: the switch off, no section, no icon */
+    /* RW-4: the switch off, no section: no tab, nothing to open the map */
     {
       const { ctx, page } = await open(null);
-      const icon = await page.evaluate(() => { const b = document.querySelector('.hs-launchers [data-hs-open="talents"]'); return !!b && b.offsetParent !== null; });
-      if (icon) fails.push('RW-4 the Talents icon shows with no `talents` section from the server');
+      await openCharacter(page);
+      await page.waitForTimeout(300);
+      const way = await page.evaluate(() => [...document.querySelectorAll('[data-hs-open="talents"]')].some((b) => b.offsetParent !== null));
+      if (await tabShown(page) || way) fails.push('RW-4 the map is offered with no `talents` section from the server: ' + JSON.stringify({ tab: await tabShown(page), way }));
       await ctx.close();
     }
     /* RW-5 .. RW-8 on a desktop */

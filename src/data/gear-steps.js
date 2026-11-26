@@ -113,6 +113,14 @@ export const GEAR_STEPS = Object.freeze({
    partsBase 2 (1 to 4), workPm 1000 (500 to 2000). src/core/carry-over.js quotes it; the job (hr_carry_over) is owed with trait_pieces. */
 export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });
 
+/* WHAT A TRAIT PIECE IS WORTH (backend-architect, lane/t1b-piece-verbs, 2026-11-26; docs/design/redesign/13-market.md section 3.2, its levers
+   in section 5). V = sharePm / 1000 x rarityHours x wage(item Level) x (1 + rankValuePm / 1000 x (top rank - 1)): rarityHours is the rarity's
+   "one in about N hunted hours" (src/data/drop-hours.js DROP_HOURS.rarity), the top rank the piece's highest Trait's (a Signature, none: 1).
+   The store buys a piece at its floor share of V (src/data/trades.js TRADE_LEVERS.store.floorShare; 20-v030 section 1.2: "Trait pieces are
+   kept, carried over or sold to the store"). STARTING VALUES (13-market section 5): sharePm 100, rankValuePm 250. src/core/piece-value.js
+   prices it; its SQL twin is generated (tools/gen-piece-value.mjs), so the store's price is typed once. */
+export const PIECE_VALUE = Object.freeze({ sharePm: 100, rankValuePm: 250 });
+
 /** The item Level of base tier `tier` (tier 0 is the starting kit). */
 export const tierLevel = (tier) => tier * GEAR_STEPS.tierSteps;
 

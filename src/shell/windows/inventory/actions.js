@@ -54,7 +54,7 @@ import { offerForSale } from '../market/state.js';
 import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js';
 import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js';
 import { dispatchLoot } from '../../../session/loot-intents.js';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js';
+import { fitsSlot, dollTip, DRAG_WORN, pieceSlotOf } from './doll.js';
 import { askElsewhere } from './elsewhere.js';
 import { skillsOf, bagOf } from '../../../session/item-sections.js';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js';
@@ -479,10 +479,16 @@ function onDoll(ctx, st, action, ev, el, repaint) {
   if (action === 'unequip' && sc.slot && st.eq[sc.slot]) { wear(st, repaint, sc.slot, null, 'slot'); return true; }
   if (action === 'wear-piece' && sc.slot) { wearPieceIn(st, repaint, sc.slot, el.getAttribute('data-piece')); return true; }
   if (action === 'sell-piece' && sc.slot) { sellPieceAt(st, repaint, el.getAttribute('data-piece')); return true; }
+  /* the Rares strip under the bag: a piece opens its slot's line, where its Equip and Sell are (doll.js patchPieceFits) */
+  if (action === 'piece-open') {
+    const s = pieceSlotOf(freePiece(st, el.getAttribute('data-piece')));
+    if (s) { sc.slot = s; sc.sellPiece = null; sc.msg = ''; sc.msgAt = null; repaint(); }
+    return true;
+  }
   return false;
 }
 
-const DOLL_ACTS = new Set(['slot', 'fit-row', 'wear', 'unequip', 'wear-piece', 'sell-piece']);
+const DOLL_ACTS = new Set(['slot', 'fit-row', 'wear', 'unequip', 'wear-piece', 'sell-piece', 'piece-open']);
 
 function onPocket(ctx, body, st, action, ev, el, repaint) {
   const sc = st.sc;

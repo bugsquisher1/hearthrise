@@ -134,7 +134,7 @@ function fitsFor(slot, bag, eq) {
 /** Patch the worn slots from the server's `equipment`. */
 export function patchDoll(root, st, ctx) {
   const { eq, sc } = st;
-  for (const b of root.querySelectorAll('.hw-slot')) {
+  for (const b of root.querySelectorAll('.hw-doll .hw-slot')) {
     const s = b.getAttribute('data-slot');
     const id = eq[s] || '';
     /* a Trait piece worn here draws in its standout frame (the server's `pieces` row; item-standing.js) */
@@ -206,6 +206,35 @@ export function patchSlotLine(root, st, ctx) {
   });
   const pieces = patchPieceFits(line, st, ctx, { locked, lockWhy, skills, level: lv ? lv.level : null });
   cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length && !pieces);
+}
+
+/** The equip slot a piece's base goes in first (a ring's: the first ring), or null. */
+export function pieceSlotOf(p) {
+  const it = p ? ITEMS[p.base] : null;
+  return it && it.slot ? expandItemSlot(it.slot)[0] || null : null;
+}
+
+/** The strip of the account's free Trait pieces under the bag (hidden while the server sends none): a press opens the piece's slot line. */
+export function pieceStripHtml() {
+  return '<div class="hw-piece-strip" hidden><small>Rares</small><span class="hw-piece-icons"></span></div>';
+}
+
+/** Patch the strip from the server's `pieces` section. */
+export function patchPieceStrip(root, st, ctx) {
+  const strip = root.querySelector('.hw-piece-strip');
+  const list = piecesOf(st.cs) ? freePiecesOf(st.cs) : [];
+  prop(strip, 'hidden', !list.length);
+  rows(strip.querySelector('.hw-piece-icons'), list, {
+    key: (p) => p.id,
+    build: (p) => element(ctx.doc, '<button type="button" class="hw-slot" data-hs-act="piece-open" data-piece="' + esc(p.id) + '"><span class="hw-ico">'
+      + itemIconHtml(ctx.glyphs, p) + '</span></button>'),
+    patch: (el, p) => {
+      const words = standingWord(p) + ' ' + pieceName(p) + (traitWords(p) ? ' · ' + traitWords(p) : '');
+      attr(el, 'title', words);
+      attr(el, 'aria-label', words);
+      cls(el, 'is-open', !!st.sc.slot && st.sc.slot === pieceSlotOf(p));
+    },
+  });
 }
 
 /* THE PIECES THAT FIT THE OPEN SLOT (1072-piece-verbs.sql): every free Trait piece of the account whose base goes here, each with Equip (ONE

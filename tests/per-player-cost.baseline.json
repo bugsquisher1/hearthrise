@@ -18,7 +18,7 @@
   "state_reads_a_settle": 0,
   "settle_cpu_ms_a_hero_hour": 1
  },
- "calibration_ms": 203,
+ "calibration_ms": 156,
  "fixtures": {
   "lone_L10_meadowbrook_thicket": {
    "statements_a_settle": 4,
@@ -30,19 +30,19 @@
    "party_reads_a_settle": 1,
    "member_reads_a_settle": 1,
    "state_reads_a_settle": 0,
-   "settle_cpu_ms_a_hero_hour": 4657
+   "settle_cpu_ms_a_hero_hour": 3224
   },
   "party4_L20_millrace_sewer": {
    "statements_a_settle": 4,
    "statements_a_hero_hour": 36,
    "round_trips_a_hero_hour": 144,
-   "ledger_rows_a_hero_hour": 45,
-   "row_writes_a_settle": 99,
-   "row_writes_a_hero_hour": 924,
+   "ledger_rows_a_hero_hour": 59.3,
+   "row_writes_a_settle": 89,
+   "row_writes_a_hero_hour": 825.8,
    "party_reads_a_settle": 1,
    "member_reads_a_settle": 4,
    "state_reads_a_settle": 0,
-   "settle_cpu_ms_a_hero_hour": 1482
+   "settle_cpu_ms_a_hero_hour": 2123
   },
   "town_hour_bench": {
    "statements_a_settle": 8,
@@ -54,7 +54,7 @@
    "party_reads_a_settle": 0,
    "member_reads_a_settle": 0,
    "state_reads_a_settle": 1,
-   "settle_cpu_ms_a_hero_hour": 1655
+   "settle_cpu_ms_a_hero_hour": 1775
   },
   "krell4_L80_deadly_watched": {
    "statements_a_settle": 9,
@@ -66,7 +66,7 @@
    "party_reads_a_settle": 1,
    "member_reads_a_settle": 4,
    "state_reads_a_settle": 1,
-   "settle_cpu_ms_a_hero_hour": 10741
+   "settle_cpu_ms_a_hero_hour": 10592
   },
   "krell4_L80_deadly_closed": {
    "statements_a_settle": 4,
@@ -78,19 +78,19 @@
    "party_reads_a_settle": 1,
    "member_reads_a_settle": 4,
    "state_reads_a_settle": 0,
-   "settle_cpu_ms_a_hero_hour": 2594
+   "settle_cpu_ms_a_hero_hour": 2338
   },
   "tower4_L80_climb": {
    "statements_a_settle": 4,
-   "statements_a_hero_hour": 39.1,
-   "round_trips_a_hero_hour": 156.5,
-   "ledger_rows_a_hero_hour": 130.7,
-   "row_writes_a_settle": 100,
-   "row_writes_a_hero_hour": 1050.3,
+   "statements_a_hero_hour": 38.3,
+   "round_trips_a_hero_hour": 153.3,
+   "ledger_rows_a_hero_hour": 131.6,
+   "row_writes_a_settle": 102,
+   "row_writes_a_hero_hour": 1056,
    "party_reads_a_settle": 1,
    "member_reads_a_settle": 4,
    "state_reads_a_settle": 0,
-   "settle_cpu_ms_a_hero_hour": 1962
+   "settle_cpu_ms_a_hero_hour": 1875
   },
   "supply4_L50_hasks_ford_deadly": {
    "statements_a_settle": 4,
@@ -102,7 +102,7 @@
    "party_reads_a_settle": 1,
    "member_reads_a_settle": 4,
    "state_reads_a_settle": 0,
-   "settle_cpu_ms_a_hero_hour": 1790
+   "settle_cpu_ms_a_hero_hour": 1726
   }
  },
  "history": [
@@ -1080,6 +1080,100 @@
      "member_reads_a_settle": 4,
      "state_reads_a_settle": 0,
      "settle_cpu_ms_a_hero_hour": 1790
+    }
+   }
+  },
+  {
+   "at": "2026-11-26",
+   "why": "lane/scale-grounds-sweep: the Sewer joins the Danger scale (12-targets 8.3, bronze 0, Levels 5-19), so the audit's Level 20 four on it settles as a scale hunt: its stance, depth and pull rows and the scale's per-kill pay journal more rows a hero-hour (party4_L20_millrace_sewer ledger rows 45 -> 59.3); every other fixture is measured as it stands",
+   "raised": [
+    "party4_L20_millrace_sewer ledger_rows_a_hero_hour: 59.3 > 45 (+20% = 54)"
+   ],
+   "calibration_ms": 156,
+   "fixtures": {
+    "lone_L10_meadowbrook_thicket": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 144,
+     "round_trips_a_hero_hour": 576,
+     "ledger_rows_a_hero_hour": 75,
+     "row_writes_a_settle": 25,
+     "row_writes_a_hero_hour": 936,
+     "party_reads_a_settle": 1,
+     "member_reads_a_settle": 1,
+     "state_reads_a_settle": 0,
+     "settle_cpu_ms_a_hero_hour": 3224
+    },
+    "party4_L20_millrace_sewer": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 59.3,
+     "row_writes_a_settle": 89,
+     "row_writes_a_hero_hour": 825.8,
+     "party_reads_a_settle": 1,
+     "member_reads_a_settle": 4,
+     "state_reads_a_settle": 0,
+     "settle_cpu_ms_a_hero_hour": 2123
+    },
+    "town_hour_bench": {
+     "statements_a_settle": 8,
+     "statements_a_hero_hour": 321.4,
+     "round_trips_a_hero_hour": 1285.7,
+     "ledger_rows_a_hero_hour": 40.2,
+     "row_writes_a_settle": 12,
+     "row_writes_a_hero_hour": 522.3,
+     "party_reads_a_settle": 0,
+     "member_reads_a_settle": 0,
+     "state_reads_a_settle": 1,
+     "settle_cpu_ms_a_hero_hour": 1775
+    },
+    "krell4_L80_deadly_watched": {
+     "statements_a_settle": 9,
+     "statements_a_hero_hour": 724.2,
+     "round_trips_a_hero_hour": 2730.5,
+     "ledger_rows_a_hero_hour": 86.7,
+     "row_writes_a_settle": 103,
+     "row_writes_a_hero_hour": 1094.5,
+     "party_reads_a_settle": 1,
+     "member_reads_a_settle": 4,
+     "state_reads_a_settle": 1,
+     "settle_cpu_ms_a_hero_hour": 10592
+    },
+    "krell4_L80_deadly_closed": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 83.3,
+     "row_writes_a_settle": 103,
+     "row_writes_a_hero_hour": 947.3,
+     "party_reads_a_settle": 1,
+     "member_reads_a_settle": 4,
+     "state_reads_a_settle": 0,
+     "settle_cpu_ms_a_hero_hour": 2338
+    },
+    "tower4_L80_climb": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 38.3,
+     "round_trips_a_hero_hour": 153.3,
+     "ledger_rows_a_hero_hour": 131.6,
+     "row_writes_a_settle": 102,
+     "row_writes_a_hero_hour": 1056,
+     "party_reads_a_settle": 1,
+     "member_reads_a_settle": 4,
+     "state_reads_a_settle": 0,
+     "settle_cpu_ms_a_hero_hour": 1875
+    },
+    "supply4_L50_hasks_ford_deadly": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 76.5,
+     "row_writes_a_settle": 120,
+     "row_writes_a_hero_hour": 1104,
+     "party_reads_a_settle": 1,
+     "member_reads_a_settle": 4,
+     "state_reads_a_settle": 0,
+     "settle_cpu_ms_a_hero_hour": 1726
     }
    }
   }

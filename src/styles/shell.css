@@ -392,8 +392,8 @@
 .hw-hd-h::after, .hw-ledger-head.is-on::after, .hw-slothead::after, .hw-skill-head::after, .hs-sub::after, .hw-cs-head.is-on::after, .hw-cs-head:first-child::after {
   content: ''; flex: 1; height: 2px; background: var(--steel-rule);
 }
-/* A SUNK FIELD: a well one art px deep, never a hairline box (search, selects, amounts, names, the report box). */
-.hw-search, .hs-win .hh-select, .hs-win .hh-num, .st-search, .st-select, .hf-name, .hc-field, .rp-text {
+/* A SUNK FIELD: a well one art px deep, never a hairline box (search, selects, amounts, names, the report box, the share codes). */
+.hw-search, .hs-win .hh-select, .hs-win .hh-num, .st-search, .st-select, .hf-name, .hc-field, .rp-text, .hps-code, .hps-paste {
   border: 0; border-radius: 0; background: var(--bg-0); box-shadow: var(--steel-well);
 }
 /* THE ONE PRIMARY: a raised gold plate (pixel art, a lip along its foot), pressed when pressed; its word in Cinzel. */

@@ -10,10 +10,12 @@
 //                     the five are the ruled sample
 //   low-health-shield Cairn Belt: a blow that leaves the wearer under 30% shields it for 25% of its max health, once a 60 s clock; a blow
 //                     that leaves it over the line shields nothing; another hero's line is not the wearer's
-//   reset-per-kill    Barrow Knight's Blade: a Turning Cut kill takes 1 s off Turning Cut, at most 4 s a cast; another move's kill nothing
+//   reset-per-kill    Barrow Knight's Blade: a Turning Cut hit offers a 6% shield, one shell never added up; another move's hit nothing;
+//                     the reset piece (a planted row): a Turning Cut kill takes 1 s off Turning Cut, at most 4 s a cast
 //   pass-on-death     Lurcher's Collar: a marked monster's death (any hero's blow) moves its Mark, time left, to the nearest engaged monster
 //                     not marked; an unmarked death moves nothing; the general piece moves a status the wearer laid (a Bleed, scale and time)
-//   reset-from-move   The Wood Book: a Frost Lance hit on a chilled target makes Hoarfrost ready now; on an unchilled one, or another move's
+//   reset-from-move   The Wood Book: any Frost Lance hit makes Hoarfrost ready now, another move's nothing; the has filter (a planted
+//                     row): only on a chilled target, or another move's
 //                     hit on a chilled one, nothing; the chill is read as the hit lands
 //   heal-boon         Brewer's Apron: a Circle of Renewal landing on a hero gives it Emboldened for 4 s (+10% dealt), once a hero a cast;
 //                     another heal gives nothing
@@ -125,11 +127,20 @@ const cases = {
     const ms = [0, 1, 2, 3, 4, 5].map((i) => E(M, 10 + i, 0, 13, 3 + i, 1, { hp: 1, maxHp: 1 }));
     const inst = fight(M, [u, ...ms]);
     wear(M, u, 'barrow_knights_blade');
-    u.cds = { turning_cut: 8000 };
     const sc = sc2(M, 32);
+    const want = Math.floor((u.maxHp * 60) / 1000);
+    if (!(want > 0)) return 'CONTROL: the hero\'s 6% is ' + want;
     blowAt(M, inst, sc, u, ms[0], 5, 'power_strike'); M.RX.drainReactions(inst, sc);
-    if (u.cds.turning_cut !== 8000) return 'another move\'s kill cut Turning Cut to ' + u.cds.turning_cut;
+    if (u.shield) return 'another move\'s hit gave the Blade\'s shield: ' + u.shield;
     for (const m of ms.slice(1)) blowAt(M, inst, sc, u, m, 5, 'turning_cut');
+    M.RX.drainReactions(inst, sc);
+    if (u.shield !== want) return 'five Turning Cut hits left a shield of ' + u.shield + ' (want one 6% shell, ' + want + ', never added up)';
+    /* the reset piece the Blade used to carry stays the Roads' (Ready Mark, talents.js mark_reset): a planted row, capped a cast */
+    u.reacts = [{ kind: 'react', id: 'reset_test', on: 'kill', of: 'turning_cut', do: 'reset', move: 'turning_cut', ms: 1000, capMs: 4000 }];
+    u.cds = { turning_cut: 8000 };
+    const more = [0, 1, 2, 3, 4].map((i) => E(M, 20 + i, 0, 11, 3 + i, 1, { hp: 1, maxHp: 1 }));
+    inst.world.units.push(...more);
+    for (const m of more) blowAt(M, inst, sc, u, m, 5, 'turning_cut');
     M.RX.drainReactions(inst, sc);
     if (u.cds.turning_cut !== 4000) return 'five Turning Cut kills left its cooldown at ' + u.cds.turning_cut + ' (want 8000 less the 4 s cap)';
     return null;
@@ -165,17 +176,22 @@ const cases = {
     const u = H(M, 1, 10, 3, 'mage'), cold = E(M, 10, 0, 13, 3, 1, { hp: 900, maxHp: 900 }), warm = E(M, 11, 0, 13, 4, 1, { hp: 900, maxHp: 900 });
     const inst = fight(M, [u, cold, warm]);
     wear(M, u, 'the_wood_book');
-    cold.statuses = [{ s: 'chill', src: 1, left: 3000, next: 0, scale: 1000 }];
     u.cds = { hoarfrost: 9000 };
     const sc = sc2(M, 35, 1000);
+    blowAt(M, inst, sc, u, warm, 10, 'fireball'); M.RX.drainReactions(inst, sc);
+    if (u.cds.hoarfrost !== 9000) return 'another move\'s hit readied Hoarfrost';
     blowAt(M, inst, sc, u, warm, 10, 'frost_lance'); M.RX.drainReactions(inst, sc);
-    if (u.cds.hoarfrost !== 9000) return 'a Frost Lance on an unchilled target readied Hoarfrost';
-    blowAt(M, inst, sc, u, cold, 10, 'fireball'); M.RX.drainReactions(inst, sc);
-    if (u.cds.hoarfrost !== 9000) return 'another move on a chilled target readied Hoarfrost';
+    if (u.cds.hoarfrost !== 1000) return 'a Frost Lance hit left Hoarfrost at ' + u.cds.hoarfrost + ' (want now, 1000: any target, chilled or not)';
+    /* the general piece's `has` filter (a planted row: 15 #3 and #5's shape), read as the hit lands */
+    u.reacts = [{ kind: 'react', id: 'has_test', on: 'hit', of: 'frost_lance', has: 'chill', do: 'ready', move: 'hoarfrost' }];
+    cold.statuses = [{ s: 'chill', src: 1, left: 3000, next: 0, scale: 1000 }];
+    u.cds = { hoarfrost: 9000 };
+    blowAt(M, inst, sc, u, warm, 10, 'frost_lance'); M.RX.drainReactions(inst, sc);
+    if (u.cds.hoarfrost !== 9000) return 'a has-chill row readied Hoarfrost on an unchilled target';
     blowAt(M, inst, sc, u, cold, 10, 'frost_lance');
     cold.statuses = [];
     M.RX.drainReactions(inst, sc);
-    if (u.cds.hoarfrost !== 1000) return 'a Frost Lance on a chilled target left Hoarfrost at ' + u.cds.hoarfrost + ' (want now, 1000)';
+    if (u.cds.hoarfrost !== 1000) return 'a has-chill row on a target chilled as the hit landed left Hoarfrost at ' + u.cds.hoarfrost;
     return null;
   },
   'heal-boon': (M) => {

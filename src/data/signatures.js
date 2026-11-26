@@ -20,9 +20,12 @@
 //
 // THE FIVE (15 "Sample 5": one a seat, two homes on the scale, each a different engine piece later batches reuse):
 //   #36 Cairn Belt              tank      a low-health gear shield           hp_below -> shield, its own clock
-//   #6  Barrow Knight's Blade   sword     a reset per kill                   kill (of Turning Cut) -> reset Turning Cut, capped a cast
-//   #9  Lurcher's Collar        ranger    a status that moves on a death     death (a marked monster) -> pass the Mark
-//   #14 The Wood Book           mage      a reset from another move          hit (of Frost Lance, on a chilled target) -> ready Hoarfrost
+//   #6  Barrow Knight's Blade   sword     a shield from a crowd move         hit (of Turning Cut) -> shield 6% (the designer, 2026-11-26:
+//                                         a reset per kill pays as the pull thins and read near zero; the shield pays while it is full)
+//   #9  Lurcher's Collar        ranger    a status that moves on a death     death (a marked monster) -> pass the Mark (fails its size:
+//                                         15 "The sample, re-read"; five shapes read -0.8 to +2.0, re-written in batch 2)
+//   #14 The Wood Book           mage      a reset from another move          hit (of Frost Lance) -> ready Hoarfrost (the chill filter
+//                                         dropped 2026-11-26: +5.5 with it, +9.9 without, 12 seeds)
 //   #18 Brewer's Apron          healer    a timed party damage buff          heal (of Circle of Renewal) -> boon Emboldened, 4 s
 // Every number is the candidates doc's starting value (15: "a starting value for the Lab"); the Lab sizes them (the doc's reading).
 //
@@ -49,16 +52,16 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'hp_below', belowPm: 300, do: 'shield', pm: 250, clockMs: 60000 }] }),
   barrow_knights_blade: sig({ id: 'barrow_knights_blade', n: 6, name: 'Barrow Knight\'s Blade', slot: 'weapon', weapon: 'sword', move: 'turning_cut',
     home: { kind: 'monster', id: 'barrow_knight' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
-    tip: 'Turning Cut: each kill takes 1 s off its cooldown (up to 4 s a cast)',
-    reacts: [{ on: 'kill', of: 'turning_cut', do: 'reset', move: 'turning_cut', ms: 1000, capMs: 4000 }] }),
+    tip: 'Turning Cut hits: gain a shield for 6% of max health',
+    reacts: [{ on: 'hit', of: 'turning_cut', do: 'shield', pm: 60 }] }),
   lurchers_collar: sig({ id: 'lurchers_collar', n: 9, name: 'Lurcher\'s Collar', slot: 'necklace', move: 'hunters_mark',
     home: { kind: 'monster', id: 'lurcher' }, best: { seat: 'ranger', ground: 'pyre_field' },
     tip: 'Hunter\'s Mark: when the target dies, the mark moves to the nearest monster with its time left',
     reacts: [{ on: 'death', do: 'pass', what: 'mark' }] }),
   the_wood_book: sig({ id: 'the_wood_book', n: 14, name: 'The Wood Book', slot: 'shield', move: 'frost_lance',
     home: { kind: 'monster', id: 'keeper_dunn' }, best: { seat: 'mage', ground: 'muster_barrows' },
-    tip: 'Frost Lance vs a chilled target: Hoarfrost is ready again',
-    reacts: [{ on: 'hit', of: 'frost_lance', has: 'chill', do: 'ready', move: 'hoarfrost' }] }),
+    tip: 'Frost Lance hits: Hoarfrost is ready again',
+    reacts: [{ on: 'hit', of: 'frost_lance', do: 'ready', move: 'hoarfrost' }] }),
   brewers_apron: sig({ id: 'brewers_apron', n: 18, name: 'Brewer\'s Apron', slot: 'body', move: 'circle_of_renewal',
     home: { kind: 'monster', id: 'troll_brewer' }, best: { seat: 'healer', ground: 'muster_barrows' },
     tip: 'Circle of Renewal: each hero it heals deals 10% more damage for 4 s (once per cast)',

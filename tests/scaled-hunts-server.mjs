@@ -209,7 +209,8 @@ const DB_ARMS = {
       [['mill_cellar', 6, { price: 4801 }], 'quote_changed'], [['mill_cellar', 25, { price: 800 * 25 }], 'bad_hours'],
       /* the top ground never scales (read from the data: the Warrens until the Barrow March opened, Krell's Hold since) */
       [['mill_cellar', 0, { price: 800 }], 'bad_hours'], [[M.S.topGroundOf(), 1, { price: 800 }], 'not_scalable'],
-      [['millrace_sewer', 1, { price: 1040 }], 'scale_level'], [['mill_cellar', 19, {}], 'scaled_bank_full'],
+      /* a ground the Level 20 hero is still inside of (the Glade 16-31; the Sewer tops at 19 since 12-targets 8.3, so it scales from 20) */
+      [['mosslight_glade', 1, { price: 1040 }], 'scale_level'], [['mill_cellar', 19, {}], 'scaled_bank_full'],
     ];
     for (const [[hunt, hours, o], want] of refusals) {
       const x = await buy(db, UID, hunt, hours, o);

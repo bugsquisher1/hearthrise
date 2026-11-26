@@ -36,7 +36,7 @@ const STOKE_PINS = [{ keep: 'full' }, { keep: 'two_thirds', own_first: false, bu
 const IL_PINS = [1, 20, 60, 80, 100, 120, 200, 400];
 const LEVEL_PINS = [0, 39, 40, 79, 80, 120, 199, 200, 500];
 const CH_PINS = [[0.5, 1, 0], [0.5, 4, 0], [1, 4, 0], [0.002, 3, 200], [0.0001, 2, 360], [0.9, 1, 600], [0, 2, 100]];
-const PITY_PINS = [[0.0002, 0], [0.0002, 438000], [0.01, 5000000], [0.5, 9000000], [0.00001, 1]];
+const PITY_PINS = [[0.0002, 0], [0.0002, 438000000], [0.01, 5000000000], [0.5, 9000000000], [0.00001, 1]];
 
 async function load(root) {
   const q = sourceQuery(root);
@@ -69,6 +69,7 @@ export function rowsOf(d) {
   if (slotSum !== 1000) problems.push('GEAR_STEPS.slotPm sums to ' + slotSum + ', not 1000');
   for (const k of ['hours', 'steps', 'lifeRungPm', 'feeHoursPm']) if (!(whole(I[k]) && I[k] > 0)) problems.push('IMBUE.' + k + ' is not a whole number above 0');
   if (!(whole(P.pityGrowPm) && whole(P.pityBasePm) && P.pityBasePm > 0 && P.pityBasePm <= 1000)) problems.push('PERSONAL_LOOT: pityGrowPm whole, pityBasePm in 1..1000');
+  if (!(whole(P.pityUnit) && P.pityUnit >= 1000000000)) problems.push('PERSONAL_LOOT.pityUnit is not a whole number of at least 1e9 (a Very Rare miss in a party of four at depth 1 must not round away)');
   if (!(whole(C.hoursPerStepPm) && C.hoursPerStepPm > 0 && whole(C.partsBase) && whole(C.workPm) && C.workPm > 0)) problems.push('CARRY levers are not whole numbers above 0');
   if (problems.length) throw new Error('gen-flame-temper: ' + problems.join('; '));
 
@@ -380,13 +381,13 @@ create or replace function public.hr_pity_chance(p_p float8, p_missed bigint)
 returns float8 language sql stable set search_path = public, pg_catalog as $fn$
   select case when coalesce(p_p, 0) <= 0 then 0::float8
               else least(1::float8, ((p_p * l.pity_base_pm::float8) / 1000::float8)
-                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / 1000000::float8))) end
+                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / ${P.pityUnit}::float8))) end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_pity_after(p_missed bigint, p_p float8, p_hit boolean)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
   select case when p_hit then 0::bigint
-              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * 1000000::float8)::bigint else 0 end end
+              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * ${P.pityUnit}::float8)::bigint else 0 end end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_carry_fee(p_steps int, p_item_level int)
@@ -523,6 +524,7 @@ async function selftest() {
   plant('a re-seat that costs the whole ranks', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, carryPm: 1000 }; });
   plant('a Temper Kit that is no item', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, kitItem: 'no_such_kit' }; });
   plant('a pity that never keeps the stated rate', (d) => { d.party.PERSONAL_LOOT = { ...base.party.PERSONAL_LOOT, pityBasePm: 0 }; });
+  plant('a pity unit a Very Rare miss rounds away in', (d) => { d.party.PERSONAL_LOOT = { ...base.party.PERSONAL_LOOT, pityUnit: 1000000 }; });
   plant('a carry with no price', (d) => { d.danger = { ...base.danger, CARRY: { ...base.danger.CARRY, hoursPerStepPm: 0 } }; });
   plant('slot weights off 1000', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, slotPm: { ...base.danger.GEAR_STEPS.slotPm, weapon: 300 } } }; });
   const sql = buildSql(rowsOf(base));

@@ -13,7 +13,10 @@
 //   p(rarity) = chanceOf(its hours, the ground's reference kills a head an hour) / heroes at the kill
 //               x depthRarePm (x1 at depth 1 to x3 at depth 20, read against the reference's depth)
 //               x (1000 + luckPm) / 1000 (the hero's company flame, 21 section 1.2: after depth, before pity)
-//   then pity (pityChance), one draw: a hit ends the kill's roll for that hero, a miss counts toward the next
+//   then pity, one draw: a hit ends the kill's roll for that hero, a miss counts toward the next. THE ONE PITY (designer, lane/designer-pity,
+//   2026-11-26; 12-targets 8.6) is personal loot's (src/core/personal-loot.js pityChance / pityAfter, PERSONAL_LOOT): it counts the FINDS
+//   a hero was owed (the sum of each miss's chance), never the kills it missed, so a miss weighs what it was worth in a party of four, at
+//   depth 1 or on a slow ground, and pity banked where a kill's chance is small cannot be spent where it is big
 // A HIT (12-targets 8.1, GEAR_STEPS.traitRoll):
 //   1. the SLOT, uniformly over the ground's rollable cells: a Trait slot the ground drops a piece of (drop-rate.js traitSlotsDropped,
 //      slotFirst) that holds a Trait whose home is the ground; a Very Rare only over cells with an allowed pair
@@ -22,8 +25,10 @@
 //      one key, never a banned pair)
 //   4. each Trait's rank: the top rank open at the depth (rankDepths, held to the ground's maxRank), landing at topRankPm x (1 + luck), at
 //      most topRankMaxPm, else one under (21 D-4: depth sets the ceiling, luck how often it is reached)
-//   5. the BASE (lane/t1-traits-drop): uniformly over the pieces the ground drops in that slot at its base item Level (drop-rate.js
-//      traitBasesOf), drawn LAST so no draw above moves
+//   5. the BASE (lane/t1-traits-drop; ruled by the designer, lane/designer-pity, 2026-11-26, 12-targets 8.6): one draw over the pieces the
+//      ground drops in that slot at its base item Level (drop-rate.js traitBasesOf) that are the KIND the finder wears there (drop-rate.js
+//      kindOf: armor class, weapon type, off-hand), or over every one of them when none is (nothing worn there, or the ground drops no
+//      piece of that kind). GEAR_STEPS.traitRoll.baseFit 'worn'; 'uniform' draws over every one always. Drawn LAST so no draw above moves
 // The piece: { key, unit, rarity, slot, base, traits: [{ id, rank }], ground, step, depth, iL, kill, atMs } (iL the ground's gearLevel: the
 // ground fixes the base; step the swing's, the one the server derives the depth from; kill the monster's unit, so the kill that made it is
 // named and the server lands it once).
@@ -34,7 +39,9 @@
 import { GEAR_STEPS, TRAITS } from '../data/gear-steps.js';
 import { DANGER_GROUNDS } from '../data/danger.js';
 import { DROP_HOURS, chanceOf } from '../data/drop-hours.js';
-import { killsHeadHour, depthOf, depthRarePm, traitSlotsDropped, traitBasesOf } from './drop-rate.js';
+import { killsHeadHour, depthOf, depthRarePm, traitSlotsDropped, traitBasesOf, kindOf } from './drop-rate.js';
+import { pityChance, pityAfter } from './personal-loot.js';
+import { ITEMS } from '../data/items.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
@@ -63,12 +70,14 @@ export function rollableCells(ground, traits = TRAITS) {
   return out;
 }
 
-/** PITY (04 guard 5): the chance after `misses` missed rolls, linear and solved for the mean: C x (misses + 1), C = pi / 2 x p^2, so the
-    kills to a hit average 1 / p and the tail is a Rayleigh's (p90 1.71 x the mean, against 2.30 with none). `on` false: p, every roll. */
-export function pityChance(p, misses, on) {
-  if (!(p > 0)) return 0;
-  if (!on) return Math.min(1, p);
-  return Math.min(1, ((Math.PI / 2) * p * p) * ((Number.isInteger(misses) && misses > 0 ? misses : 0) + 1));
+/** THE BASES A FINDER DRAWS FROM (the header's step 5): of `list` (the ground's bases in `slot`), the ones of the kind `worn` (the hero's
+    equipment, { equip slot: item id }) holds in that Trait slot's equip slots, or the whole list when none is or `fit` is not 'worn'. */
+export function basesFor(list, slot, worn, fit, items = ITEMS) {
+  if (fit !== 'worn' || !worn || typeof worn !== 'object') return list;
+  const kinds = new Set((GEAR_STEPS.traitSlots[slot] || []).map((e) => (own(worn, e) ? worn[e] : null))
+    .filter((id) => typeof id === 'string' && own(items, id)).map((id) => kindOf(items[id])).filter(Boolean));
+  const mine = kinds.size ? list.filter((id) => own(items, id) && kinds.has(kindOf(items[id]))) : [];
+  return mine.length ? mine : list;
 }
 
 /** The rank one Trait rolls at `depth` on a ground whose top is `maxRank` (21 D-4): 0 when none is open. One draw only when two are. */
@@ -83,7 +92,7 @@ export function rankRoll(depth, maxRank, luckPm, rng) {
 const pick = (list, rng) => list[Math.min(list.length - 1, Math.floor(rng.next() * list.length))];
 
 /* the piece a hit makes: slot, then Traits, then ranks, then the base (the header's steps 1 to 5) */
-function makePiece(rarity, ground, step, depth, luckPm, rng, cells, slots, bases) {
+function makePiece(rarity, ground, step, depth, luckPm, rng, cells, slots, bases, worn, fit) {
   const row = DANGER_GROUNDS[ground.id];
   const banned = GEAR_STEPS.veryRareBanned;
   const slot = pick(slots, rng);
@@ -98,7 +107,7 @@ function makePiece(rarity, ground, step, depth, luckPm, rng, cells, slots, bases
   if (traits.some((t) => t.rank < 1)) return null;
   const list = bases[slot] || [];
   if (!list.length) return null;
-  return { rarity, slot, base: pick(list, rng), traits, ground: ground.id, step, depth, iL: row.gearLevel };
+  return { rarity, slot, base: pick(basesFor(list, slot, worn, fit), rng), traits, ground: ground.id, step, depth, iL: row.gearLevel };
 }
 
 /* a ground's bases (traitBasesOf), read once a ground: its rows and its gearLevel never change inside a run */
@@ -112,10 +121,11 @@ function basesOf(ground) {
 /**
  * ONE HERO'S ROLL ON ONE KILL. `tr` is the swing's roll (traitSwing): { ground, step, depth, rarePm, kills, hours?, luckPm, pity, found }.
  * `key` the hero's member key, `unit` its unit id, `n` the heroes at the kill, `rng` the hero's own stream, `atMs` the kill's instant and
- * `kill` the dead monster's unit id (the kill that made the piece). Pushes a piece onto tr.found and answers it, or null. Pity counts in
- * tr.pity[key][rarity] (the server's carry: read in, written back after the window).
+ * `kill` the dead monster's unit id (the kill that made the piece), `worn` the hero's equipment (the base's kind, step 5). Pushes a piece
+ * onto tr.found and answers it, or null. Pity is held in tr.pity[key][rarity] (the server's carry, hero_pity: read in, written back after
+ * the window), in PERSONAL_LOOT.pityUnit parts of the finds owed.
  */
-export function rollKillFor(tr, key, unit, n, rng, atMs, kill) {
+export function rollKillFor(tr, key, unit, n, rng, atMs, kill, worn) {
   if (!tr || !(n >= 1)) return null;
   const luck = (tr.luckPm && Number.isFinite(tr.luckPm[key]) && tr.luckPm[key] > 0) ? tr.luckPm[key] : 0;
   const pity = tr.pity[key] || (tr.pity[key] = {});
@@ -124,10 +134,12 @@ export function rollKillFor(tr, key, unit, n, rng, atMs, kill) {
     if (!tr.slots[rarity].length) continue;
     const hours = tr.hours && tr.hours[rarity] > 0 ? tr.hours[rarity] : DROP_HOURS.rarity[rarity].everyHours;
     const p = ((chanceOf(hours, tr.kills) || 0) / n) * (tr.rarePm / 1000) * ((1000 + luck) / 1000);
-    const misses = Number.isInteger(pity[rarity]) ? pity[rarity] : 0;
-    if (rng.next() >= pityChance(p, misses, tr.pityOn[rarity] === true)) { pity[rarity] = misses + 1; continue; }
-    pity[rarity] = 0;
-    const piece = makePiece(rarity, tr.ground, tr.step, tr.depth, luck, rng, tr.cells, tr.slots[rarity], tr.bases);
+    const owed = Number.isSafeInteger(pity[rarity]) && pity[rarity] > 0 ? pity[rarity] : 0;
+    const on = tr.pityOn[rarity] === true;
+    const hit = rng.next() < (on ? pityChance(p, owed) : Math.min(1, p));
+    pity[rarity] = on ? pityAfter(owed, p, hit) : 0;
+    if (!hit) continue;
+    const piece = makePiece(rarity, tr.ground, tr.step, tr.depth, luck, rng, tr.cells, tr.slots[rarity], tr.bases, worn, tr.baseFit);
     if (!piece) return null;
     const out = { key, unit, ...piece, ...(Number.isInteger(kill) ? { kill } : {}), ...(Number.isFinite(atMs) ? { atMs } : {}) };
     tr.found.push(out);
@@ -138,7 +150,7 @@ export function rollKillFor(tr, key, unit, n, rng, atMs, kill) {
 
 /**
  * THE SWING'S ROLL (combat-sim.js, once a swing on the scale): the server's `traitDrops` ({ luckPm, pity, found }: the objects the caller
- * reads back; `hours` and `pityOn` are the Lab's what-if dials, never the server's) with the swing's ground, step, depth and odds, and
+ * reads back; `hours`, `pityOn` and `baseFit` are the Lab's what-if dials, never the server's) with the swing's ground, step, depth and odds, and
  * `rngOf(unit)`: each hero's stream for the swing, made once and drawn on for every kill in it. Null off the scale (no reference kill
  * rate, no band, no pool).
  * A MADE PIECE (drop-hours.js made: capes and jewelry) rolls by the same rules at the bench, at its part's hours over the rung's; its roll
@@ -153,7 +165,7 @@ export function traitSwing(drops, ground, step, streamOf) {
   return {
     cells, slots, bases: basesOf(ground),
     ground, step, depth: depthOf(ground.id, step), rarePm: depthRarePm(ground.id, step), kills: killsHeadHour(ground),
-    hours: drops.hours || null, pityOn: drops.pityOn || GEAR_STEPS.pity, luckPm: drops.luckPm || {}, pity: drops.pity || (drops.pity = {}), found: drops.found || (drops.found = []),
+    hours: drops.hours || null, pityOn: drops.pityOn || GEAR_STEPS.pity, baseFit: drops.baseFit || GEAR_STEPS.traitRoll.baseFit, luckPm: drops.luckPm || {}, pity: drops.pity || (drops.pity = {}), found: drops.found || (drops.found = []),
     rngOf: (unit) => { if (!streams.has(unit)) streams.set(unit, streamOf(unit)); return streams.get(unit); },
   };
 }

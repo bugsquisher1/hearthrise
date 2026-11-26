@@ -778,13 +778,13 @@ create or replace function public.hr_pity_chance(p_p float8, p_missed bigint)
 returns float8 language sql stable set search_path = public, pg_catalog as $fn$
   select case when coalesce(p_p, 0) <= 0 then 0::float8
               else least(1::float8, ((p_p * l.pity_base_pm::float8) / 1000::float8)
-                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / 1000000::float8))) end
+                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / 1000000000::float8))) end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_pity_after(p_missed bigint, p_p float8, p_hit boolean)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
   select case when p_hit then 0::bigint
-              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * 1000000::float8)::bigint else 0 end end
+              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * 1000000000::float8)::bigint else 0 end end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_carry_fee(p_steps int, p_item_level int)
@@ -1241,11 +1241,11 @@ begin
       raise exception 'VERIFY(o): a hero''s chance on % among % at luck % is % in SQL, % in JS', v_r.ch, v_r.n, v_r.l, public.hr_hero_chance(v_r.ch, v_r.n, v_r.l), v_r.c; end if;
   end loop;
   for v_r in select * from (values
-    ('0.0002'::float8::float8, 0::bigint, '0.0000876'::float8::float8, 88::bigint, 0::bigint),
-    ('0.0002'::float8::float8, 438000::bigint, '0.00024107519999999998'::float8::float8, 438088::bigint, 0::bigint),
-    ('0.01'::float8::float8, 5000000::bigint, '0.09198'::float8::float8, 5004380::bigint, 0::bigint),
-    ('0.5'::float8::float8, 9000000::bigint, 1::float8, 9219000::bigint, 0::bigint),
-    ('0.00001'::float8::float8, 1::bigint, '0.00000438001752'::float8::float8, 5::bigint, 0::bigint)) p(p, m, c, a, z) loop
+    ('0.0002'::float8::float8, 0::bigint, '0.0000876'::float8::float8, 87600::bigint, 0::bigint),
+    ('0.0002'::float8::float8, 438000000::bigint, '0.00024107519999999998'::float8::float8, 438087600::bigint, 0::bigint),
+    ('0.01'::float8::float8, 5000000000::bigint, '0.09198'::float8::float8, 5004380000::bigint, 0::bigint),
+    ('0.5'::float8::float8, 9000000000::bigint, 1::float8, 9219000000::bigint, 0::bigint),
+    ('0.00001'::float8::float8, 1::bigint, '0.000004380000017520001'::float8::float8, 4381::bigint, 0::bigint)) p(p, m, c, a, z) loop
     if public.hr_pity_chance(v_r.p, v_r.m) is distinct from v_r.c or public.hr_pity_after(v_r.m, v_r.p, false) <> v_r.a or public.hr_pity_after(v_r.m, v_r.p, true) <> v_r.z then
       raise exception 'VERIFY(p): pity at % after % is % / % in SQL, % / % in JS', v_r.p, v_r.m, public.hr_pity_chance(v_r.p, v_r.m), public.hr_pity_after(v_r.m, v_r.p, false), v_r.c, v_r.a; end if;
   end loop;

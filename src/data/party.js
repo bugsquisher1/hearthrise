@@ -32,10 +32,15 @@ export const PARTY = Object.freeze({
    its misses since its last find, p0 = p x basePm / 1000. In x the hours to a find do not depend on the row's rate, so one pair of levers
    serves every row: at growPm 4000 the 90th percentile of rolls to a find is 1.94x the mean (21 section 4.2 asks under 2x; growth alone
    can never go under about 1.71x), and basePm 438 is the share of the row's chance that keeps the long-run rate the stated one
-   (the mean of the survival exp(-x - grow x^2 / 2), computed; tests/personal-loot.mjs re-derives both). Lab run L2 moves them. */
+   (the mean of the survival exp(-x - grow x^2 / 2), computed; tests/personal-loot.mjs re-derives both). Lab run L2 moves them.
+   THE ONE PITY (designer, lane/designer-pity, 2026-11-26; 12-targets 8.6): the Trait roller (src/core/trait-roll.js) reads this pity and no
+   other. It counts the finds a hero was owed, never the kills it missed, so a miss in a party of four, at depth 1 or on a slow ground
+   weighs what it was worth and none can be banked where a kill's chance is small and spent where it is big. x is held in pityUnit parts
+   (hero_pity.misses): a billionth, so a Very Rare miss in a party of four at depth 1 (p0 about 1e-6) never rounds away. */
 export const PERSONAL_LOOT = Object.freeze({
   pityGrowPm: 4000,
   pityBasePm: 438,
+  pityUnit: 1000000000,
   rarities: Object.freeze(['rare', 'very_rare']),
 });
 

@@ -83,8 +83,11 @@ export const GEAR_STEPS = Object.freeze({
      CELL: the Traits whose home is the ground and whose slot is the piece's. A new Trait then dilutes only its own cell, never the
      ground's other chases, and at most cellMax Traits a cell means no chase slows past half (a third would cut each to a third). A
      cell whose ground never drops its slot rolls nothing (its Traits wait for a home that does: tests/content-coherence.mjs CC-8), and
-     a scale ground's rollable Traits serve at least seatsMin seats (CC-1). tests/gear-steps.mjs GS-5 holds every cell to cellMax */
-  traitRoll: Object.freeze({ slotFirst: true, cellMax: 2, seatsMin: 2 }),
+     a scale ground's rollable Traits serve at least seatsMin seats (CC-1). tests/gear-steps.mjs GS-5 holds every cell to cellMax.
+     baseFit 'worn' (the designer, lane/designer-pity 2026-11-26, 12-targets 8.6): the found piece's BASE is the ground's piece of that slot
+     of the kind its finder wears there (src/core/drop-rate.js kindOf), so a Rare is a piece its finder can put on; any of them when it
+     wears none there. The Trait stays the market's question; the base never is. 'uniform' is the Lab's what-if */
+  traitRoll: Object.freeze({ slotFirst: true, cellMax: 2, seatsMin: 2, baseFit: 'worn' }),
   conditionalStepsMax: 20,
   traitAverageSharePm: 500,
   dominanceMaxPm: 400,
@@ -94,8 +97,8 @@ export const GEAR_STEPS = Object.freeze({
   /* how many Traits a piece of each rarity carries (02 package 2: a Very Rare's second Trait waits until one Trait a piece has been
      played). Two Traits on one piece never share a stacking key */
   traitsByRarity: Object.freeze({ rare: 1, very_rare: 2 }),
-  /* 04 guard 5: each rarity's roll rises after each miss so the long-run rate is the stated one (src/core/trait-roll.js pityChance, its
-     curve; src/data/drop-hours.js the hours it holds). One switch a rarity */
+  /* 04 guard 5: each rarity's roll rises after each miss so the long-run rate is the stated one (the one pity, 12-targets 8.6: src/core/
+     personal-loot.js pityChance and PERSONAL_LOOT its curve; src/data/drop-hours.js the hours it holds). One switch a rarity */
   pity: Object.freeze({ rare: true, very_rare: true }),
   /* TRAITS ROLL ONLY WHEN THIS IS TRUE (wave 4, with the piece table and its Security review). The roller exists (src/core/trait-roll.js) and
      the settle carries it, but nothing hands the settle a roll while this is false: tests/drop-formula.mjs DF-6 holds that no server or client

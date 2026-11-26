@@ -6,6 +6,8 @@
 // the two inputs it takes per hero, so personal loot and pity run on that one roller: the hero's share of a row (ch / n) with its
 // company's flame luck (src/core/inner-flame.js luckPm), and the pity on top. The server keeps each hero's pity in hero_pity (its own
 // settle write); the SQL twins of these three functions are in supabase/migrations/1063-flame-temper-catalogue.generated.sql, pinned there.
+// THE ONE PITY (designer, lane/designer-pity, 2026-11-26; 12-targets 8.6): src/core/trait-roll.js rollKillFor reads pityChance and writes
+// pityAfter, so the roller, hero_pity and the twins hold one model.
 // Order on a Rare roll: the row's chance, / n, x depth (the roller's), x (1 + luck), then pity. A guarantee (ch >= 1) is never scaled up.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: the roller draws on the server-only loot stream, seeded per hero.
@@ -13,7 +15,7 @@
 import { PERSONAL_LOOT } from '../data/party.js';
 
 const P = PERSONAL_LOOT;
-const UNIT = 1000000;
+const UNIT = P.pityUnit;
 
 /** A hero's chance on one row at a kill with `n` heroes alive at it, its company's flame at `luck` permille (luck reads only on a Rare row). */
 export function heroChance(ch, n, luck) {
@@ -22,7 +24,7 @@ export function heroChance(ch, n, luck) {
   return Math.min(1, (c / k) * ((1000 + l) / 1000));
 }
 
-/** The chance a hero rolls a Rare at, `p` its stated chance (heroChance x depth), `missed` its hero_pity row (millionths of x). */
+/** The chance a hero rolls a Rare at, `p` its stated chance (heroChance x depth), `missed` its hero_pity row (x in PERSONAL_LOOT.pityUnit parts). */
 export function pityChance(p, missed) {
   const pr = Number(p);
   if (!(pr > 0)) return 0;
@@ -30,7 +32,7 @@ export function pityChance(p, missed) {
   return Math.min(1, p0 * (1 + (P.pityGrowPm / 1000) * x));
 }
 
-/** The hero_pity row after one roll at stated chance `p`: 0 on a find, else the miss's p0 added (whole millionths, rounded once). */
+/** The hero_pity row after one roll at stated chance `p`: 0 on a find, else the miss's p0 added (whole pityUnit parts, rounded once). */
 export function pityAfter(missed, p, hit) {
   if (hit) return 0;
   const pr = Number(p);

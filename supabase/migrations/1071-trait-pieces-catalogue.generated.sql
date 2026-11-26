@@ -50,9 +50,11 @@ create table if not exists public.hr_piece_fixed (
   primary key (item_id, trait_id)
 );
 create table if not exists public.hr_piece_grounds (
-  hunt_id    text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
-  max_rank   int  not null check (max_rank >= 0),
-  gear_level int  not null check (gear_level >= 0)
+  hunt_id             text   primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  max_rank            int    not null check (max_rank >= 0),
+  gear_level          int    not null check (gear_level >= 0),
+  pity_step_rare      bigint not null check (pity_step_rare >= 0),
+  pity_step_very_rare bigint not null check (pity_step_very_rare >= 0)
 );
 create table if not exists public.hr_piece_depths (
   hunt_id   text not null references public.hr_piece_grounds (hunt_id),
@@ -80,7 +82,7 @@ begin
 end $mig$;
 comment on table public.hr_piece_rules is '1071-trait-pieces-catalogue.generated.sql: the Trait roll''s rules (src/data/gear-steps.js through tools/gen-trait-pieces.mjs). One row.';
 comment on table public.hr_piece_traits is '1071-trait-pieces-catalogue.generated.sql: every Trait (src/data/traits.js): its slot, stacking key, home ground and scope.';
-comment on table public.hr_piece_grounds is '1071-trait-pieces-catalogue.generated.sql: every open ground of the Danger scale: the highest Trait rank it rolls and the item Level of its base.';
+comment on table public.hr_piece_grounds is '1071-trait-pieces-catalogue.generated.sql: every open ground of the Danger scale: the highest Trait rank it rolls, the item Level of its base, and the most one missed roll may add to a hero''s pity there (tools/gen-trait-pieces.mjs pityStep).';
 comment on table public.hr_piece_depths is '1071-trait-pieces-catalogue.generated.sql: the first step of each depth on a ground that rolls a rank (src/core/drop-rate.js depthOf).';
 comment on table public.hr_piece_bases is '1071-trait-pieces-catalogue.generated.sql: the pieces a ground drops in each Trait slot at its base item Level (src/core/drop-rate.js traitBasesOf).';
 
@@ -136,18 +138,18 @@ insert into public.hr_piece_fixed (item_id, trait_id, rank) values
 delete from public.hr_piece_bases;
 delete from public.hr_piece_depths;
 delete from public.hr_piece_grounds;
-insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level) values
-  ('coppercap_warrens', 0, 40),
-  ('hasks_ford', 1, 40),
-  ('krells_hold', 2, 80),
-  ('meadowbrook_thicket', 0, 0),
-  ('mill_cellar', 0, 0),
-  ('millrace_sewer', 0, 0),
-  ('mosslight_glade', 0, 20),
-  ('muster_barrows', 1, 60),
-  ('pyre_field', 2, 80),
-  ('the_slake', 1, 40),
-  ('wickstead', 0, 0);
+insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level, pity_step_rare, pity_step_very_rare) values
+  ('coppercap_warrens', 0, 40, 0, 0),
+  ('hasks_ford', 1, 40, 199928, 19993),
+  ('krells_hold', 2, 80, 224919, 22492),
+  ('meadowbrook_thicket', 0, 0, 0, 0),
+  ('mill_cellar', 0, 0, 0, 0),
+  ('millrace_sewer', 0, 0, 0, 0),
+  ('mosslight_glade', 0, 20, 0, 0),
+  ('muster_barrows', 1, 60, 224919, 22492),
+  ('pyre_field', 2, 80, 192788, 19279),
+  ('the_slake', 1, 40, 224919, 22492),
+  ('wickstead', 0, 0, 0, 0);
 insert into public.hr_piece_depths (hunt_id, depth, step_from) values
   ('hasks_ford', 1, 0), ('hasks_ford', 2, 549), ('hasks_ford', 3, 555), ('hasks_ford', 4, 561), ('hasks_ford', 5, 568),
   ('hasks_ford', 6, 574), ('hasks_ford', 7, 580), ('hasks_ford', 8, 587), ('hasks_ford', 9, 593), ('hasks_ford', 10, 600),

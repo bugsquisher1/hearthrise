@@ -12,7 +12,10 @@
 //                        member's window may land, a fuse under the kill bound: FOUND_MAX below)
 //   hr_piece_traits            every Trait: n, slot, key, source (its home ground), scope
 //   hr_piece_fixed       a named piece that always carries a Trait (traits.js fixedOn): item, Trait, rank
-//   hr_piece_grounds     every OPEN ground of the scale: max_rank (GEAR_STEPS maxRankAt through DANGER_GROUNDS maxRank), gear_level
+//   hr_piece_grounds     every OPEN ground of the scale: max_rank (GEAR_STEPS maxRankAt through DANGER_GROUNDS maxRank), gear_level, and
+//                        pity_step_rare / pity_step_very_rare: the most one kill's miss may add to a hero's pity there (the one pity,
+//                        designer, lane/designer-pity, 12-targets 8.6: src/core/personal-loot.js pityAfter at the ground's highest chance,
+//                        a hero alone at its top depth on the fullest flame; PITY_STEP below), the land's bound on a window's pity
 //   hr_piece_depths      every such ground that rolls a rank: the first step of each depth 1..DEPTHS (depthOf, monotone, checked here)
 //   hr_piece_bases       every such ground's bases by Trait slot (drop-rate.js traitBasesOf at its gearLevel)
 //   hr_piece_signatures  every Signature: its equip slot (the worn projection names only a known one)
@@ -49,13 +52,27 @@ export const FOUND_MAX = 32;
 async function load(root) {
   const v = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
-  const [gs, danger, grounds, items, dr, sig] = await Promise.all([imp('src/data/gear-steps.js'), imp('src/data/danger.js'),
-    imp('src/data/hunt-grounds.js'), imp('src/data/items.js'), imp('src/core/drop-rate.js'), imp('src/data/signatures.js')]);
-  return { gs, danger, grounds, items, dr, sig };
+  const [gs, danger, grounds, items, dr, sig, dh, party, flame] = await Promise.all([imp('src/data/gear-steps.js'), imp('src/data/danger.js'),
+    imp('src/data/hunt-grounds.js'), imp('src/data/items.js'), imp('src/core/drop-rate.js'), imp('src/data/signatures.js'),
+    imp('src/data/drop-hours.js'), imp('src/data/party.js'), imp('src/data/inner-flame.js')]);
+  return { gs, danger, grounds, items, dr, sig, dh, party, flame };
+}
+
+/** THE PITY STEP (designer, lane/designer-pity, 2026-11-26; 12-targets 8.6): the most one missed roll of `rarity` may add to a hero's pity
+    on `ground` (PERSONAL_LOOT.pityUnit parts): pityAfter's p0 at the highest chance a hero rolls there, alone (n 1), at the ground's top
+    depth (depthRarePm at its topStep) and on a flame at its ceiling (FLAME.luckMaxPm, never reached), rounded up. A window's pity grows by
+    at most its kills times this, so a forged pity is refused while every honest one lands. */
+export function pityStep({ dr, dh, party, flame, danger }, ground, rarity) {
+  const P = party.PERSONAL_LOOT, row = danger.DANGER_GROUNDS[ground.id];
+  const ch = dh.chanceOf(dh.DROP_HOURS.rarity[rarity].everyHours, dr.killsHeadHour(ground));
+  if (!(ch > 0)) return 0;
+  const p = ch * (dr.depthRarePm(ground.id, row.topStep) / 1000) * ((1000 + flame.FLAME.luckMaxPm) / 1000);
+  return Math.ceil((p * P.pityBasePm / 1000) * P.pityUnit);
 }
 
 /** The resolved rows of the data, refused on a defect. */
-export function rowsOf({ gs, danger, grounds, items, dr, sig }) {
+export function rowsOf(d) {
+  const { gs, danger, grounds, items, dr, sig } = d;
   const { GEAR_STEPS, TRAITS } = gs;
   const { DANGER, DANGER_GROUNDS, DEPTHS } = danger;
   const ITEMS = items.ITEMS;
@@ -106,7 +123,11 @@ export function rowsOf({ gs, danger, grounds, items, dr, sig }) {
     if (first[1] !== 0 || dr.depthOf(id, row.topStep) !== DEPTHS) throw new Error('gen-trait-pieces: ' + id + ' does not read depth 1 from step 0 and ' + DEPTHS + ' at its top');
     const open = grounds.OPEN_GROUNDS ? own(grounds.OPEN_GROUNDS, id) : true;
     if (!open) continue;
-    ground.push({ id, maxRank, gearLevel });
+    const pity = maxRank < 1 ? { rare: 0, very_rare: 0 } : { rare: pityStep(d, g, 'rare'), very_rare: pityStep(d, g, 'very_rare') };
+    if (maxRank >= 1 && !(Number.isSafeInteger(pity.rare) && pity.rare >= 1 && Number.isSafeInteger(pity.very_rare) && pity.very_rare >= 1)) {
+      throw new Error('gen-trait-pieces: ' + id + ' rolls a rank with no pity step (' + JSON.stringify(pity) + '): its pity could never grow');
+    }
+    ground.push({ id, maxRank, gearLevel, pity });
     if (maxRank < 1) continue;
     for (let d = 1; d <= DEPTHS; d++) if (first[d] !== null) depthRows.push({ id, d, from: first[d] });
     const b = dr.traitBasesOf(g, slots, gearLevel);
@@ -190,9 +211,11 @@ create table if not exists public.hr_piece_fixed (
   primary key (item_id, trait_id)
 );
 create table if not exists public.hr_piece_grounds (
-  hunt_id    text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
-  max_rank   int  not null check (max_rank >= 0),
-  gear_level int  not null check (gear_level >= 0)
+  hunt_id             text   primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  max_rank            int    not null check (max_rank >= 0),
+  gear_level          int    not null check (gear_level >= 0),
+  pity_step_rare      bigint not null check (pity_step_rare >= 0),
+  pity_step_very_rare bigint not null check (pity_step_very_rare >= 0)
 );
 create table if not exists public.hr_piece_depths (
   hunt_id   text not null references public.hr_piece_grounds (hunt_id),
@@ -220,7 +243,7 @@ begin
 end $mig$;
 comment on table public.hr_piece_rules is '${OUT_NAME}: the Trait roll''s rules (src/data/gear-steps.js through tools/gen-trait-pieces.mjs). One row.';
 comment on table public.hr_piece_traits is '${OUT_NAME}: every Trait (src/data/traits.js): its slot, stacking key, home ground and scope.';
-comment on table public.hr_piece_grounds is '${OUT_NAME}: every open ground of the Danger scale: the highest Trait rank it rolls and the item Level of its base.';
+comment on table public.hr_piece_grounds is '${OUT_NAME}: every open ground of the Danger scale: the highest Trait rank it rolls, the item Level of its base, and the most one missed roll may add to a hero''s pity there (tools/gen-trait-pieces.mjs pityStep).';
 comment on table public.hr_piece_depths is '${OUT_NAME}: the first step of each depth on a ground that rolls a rank (src/core/drop-rate.js depthOf).';
 comment on table public.hr_piece_bases is '${OUT_NAME}: the pieces a ground drops in each Trait slot at its base item Level (src/core/drop-rate.js traitBasesOf).';
 
@@ -237,8 +260,8 @@ ${r.fixed.length ? `insert into public.hr_piece_fixed (item_id, trait_id, rank) 
 delete from public.hr_piece_bases;
 delete from public.hr_piece_depths;
 delete from public.hr_piece_grounds;
-insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level) values
-  ${r.ground.map((g) => `(${q(g.id)}, ${g.maxRank}, ${g.gearLevel})`).join(',\n  ')};
+insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level, pity_step_rare, pity_step_very_rare) values
+  ${r.ground.map((g) => `(${q(g.id)}, ${g.maxRank}, ${g.gearLevel}, ${g.pity.rare}, ${g.pity.very_rare})`).join(',\n  ')};
 ${r.depthRows.length ? `insert into public.hr_piece_depths (hunt_id, depth, step_from) values
   ${chunk(r.depthRows.map((d) => `(${q(d.id)}, ${d.d}, ${d.from})`), 5)};` : '-- (no ground rolls a rank)'}
 ${r.bases.length ? `insert into public.hr_piece_bases (hunt_id, slot, item_id) values
@@ -324,12 +347,20 @@ async function selftest() {
   tryRows('a depth that falls as the step climbs', () => ({ dr: { ...base.dr, depthOf: (id, s) => (s === 700 ? 1 : base.dr.depthOf(id, s)) } }));
   tryRows('a cell with no base', () => ({ dr: { ...base.dr, traitBasesOf: () => ({}) } }));
   tryRows('a base that is no item', () => ({ dr: { ...base.dr, traitBasesOf: (...a) => ({ ...base.dr.traitBasesOf(...a), weapon: ['no_such_sword'] }) } }));
+  tryRows('a rank ground whose pity could never grow', () => ({ party: { ...base.party, PERSONAL_LOOT: { ...base.party.PERSONAL_LOOT, pityBasePm: 0 } } }));
+  /* the pity step is the most an honest miss adds: over a miss at the reference, and over one at the ground's top depth alone */
+  {
+    const r = rowsOf(base), g = base.grounds.HUNT_GROUNDS.muster_barrows, row = r.ground.find((x) => x.id === 'muster_barrows');
+    const ch = base.dh.chanceOf(base.dh.DROP_HOURS.rarity.rare.everyHours, base.dr.killsHeadHour(g));
+    const topMiss = Math.round((ch * (base.dr.depthRarePm(g.id, base.danger.DANGER_GROUNDS[g.id].topStep) / 1000) * base.party.PERSONAL_LOOT.pityBasePm / 1000) * base.party.PERSONAL_LOOT.pityUnit);
+    if (!row || !(row.pity.rare >= topMiss && row.pity.rare < 2 * topMiss)) bites.push('the pity step ' + (row && row.pity.rare) + ' is not the top honest miss (' + topMiss + ') on the flame ceiling');
+  }
   /* a staged ground is judged, never served */
   { const r = rowsOf(base); if (r.ground.some((g) => g.id.startsWith('catacomb_'))) bites.push('a staged ground was written to the catalogue'); }
   /* the twins are pinned (the file's self-check) at every rank ground's depth edges */
   { const r = rowsOf(base); if (!r.pins.some((p) => p.top >= 2) || !r.pins.some((p) => p.top === 1)) bites.push('the twins are not pinned where a rank opens'); }
   if (bites.length) { console.error('gen-trait-pieces --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-trait-pieces --selftest: 13 refusals bite, a staged ground stays out, the twins pinned where ranks open');
+  console.log('gen-trait-pieces --selftest: 14 refusals bite, a staged ground stays out, the twins pinned where ranks open, the pity step is the top honest miss');
 }
 
 if (isMain(import.meta.url)) {

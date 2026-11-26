@@ -1,5 +1,9 @@
 # CONFLICTS
 
+## 2026-11-26 · TWO PITY MODELS FOR ONE ROLL, AND THE TRAIT PIECE'S BASE (backend-architect, `lane/t1-traits-drop`) → GAME DESIGNER, SYSTEMS · **OPEN (the server carries the roller's model; nothing tuned)**
+- **Pity:** the one roller that runs (`src/core/trait-roll.js` rollKillFor, lane/drop-formula; DF-4 proves its long-run rate and p90 under 2x) counts WHOLE MISSED ROLLS a rarity and reads them with its own Rayleigh curve. `src/core/personal-loot.js` (lane/flame-temper-build) and its SQL twins `hr_pity_chance` / `hr_pity_after` (1063 catalogue) describe a second model (millionths of x, `PERSONAL_LOOT.pityBasePm` / `pityGrowPm`) that nothing reads, and 1063 commented `hero_pity.misses` as that model's. 1071-trait-pieces.sql stores the roller's count in `hero_pity.misses` (comment restated) and bounds it by the kills. Designer: rule one model; the other's data, twins and test (`tests/personal-loot.mjs`) retire with a `chain-retire` / data cut, not by this lane.
+- **The base of a found piece:** drawn uniformly over the pieces the ground drops in the piece's slot at its base item Level (`drop-rate.js traitBasesOf`, drawn last so no earlier die moved). On Muster a weapon Rare is any of seven weapons, so a mage can find a sword with File Breaker. Weighting by the drop rows, or by the finder's weapon kind, is a designer call (one line in `trait-roll.js makePiece`, plus the generator's base rows).
+
 ## 2026-11-26 · EVERY GROUND ON THE 8.3 LADDER, STEPS 2 AND 3 (systems-engineer, `lane/scale-grounds-sweep`) → GAME DESIGNER, COORDINATOR · **OPEN (designer items below, NOT decided here)**
 - **Built (MEASURED, `new-ground.mjs --hold-level --hours 10`, the Steady mixed four, 4 seeds; each coin level read back as played; evidence `tools/balance-program/redesign/grounds/<g>-{floor,ref,top}`):**
 

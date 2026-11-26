@@ -33,7 +33,6 @@
 //                Glade summons the Brook Bear", its link the creature's facts, and the page's "A harder hunt summons the Brook Bear.", the
 //                name a link, no drop list (Tyler 2026-11-11).
 // ════════════════════════════════════════════════════════════════════════
-import { withdrawScale } from './_tier-path.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -67,14 +66,9 @@ async function gladeHunter(db, H, M, uid) {
     await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, equipSlot, item]);
   }
   await db.query('update public.hr_hunt_config set enabled = true where id');
-  /* the Glade is on the Danger scale (lane/scale-grounds-2): this arm plays the tier path (HP-1's closed room as built), so the fixture withdraws its scale rows */
-  await withdrawScale(db, [GLADE]);
   await asUser(db, uid);
   await calm(db);
-  /* NORMAL: a hero alone meets the bear in the room as built (the designer's ruling 3, 2026-11-10; it stood only in the fill rows before, so this hunt
-     was on Dangerous). Picked through the RPC, as the Hunts window picks it. */
-  const d = await one(db, "select public.hr_hunt_tier_set(0, $1, 'normal', $2::uuid)", [GLADE, idem()]);
-  if (!d || d.ok !== true || d.tier !== 'normal') throw new Error('tier refused: ' + JSON.stringify(d));
+  /* ON THE DANGER SCALE (the Glade's own, the server's default stance): a hero alone meets the bear in the room (the designer's ruling 3, 2026-11-10) */
   const e = await one(db, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)", [GLADE, idem()]);
   if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
   await asUser(db, '');

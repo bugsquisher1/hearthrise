@@ -33,7 +33,6 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { HARNESS as H } from './hunt-sessions-settle.mjs';
 import { ownHeroSlots } from './_slots.mjs';
-import { withdrawScale } from './_tier-path.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const PG = process.argv.includes('--pg');
@@ -65,9 +64,8 @@ async function fixture(db, M) {
       language sql as $f$ insert into realtime.bench_frames (topic, event, payload) values (topic, event, payload) $f$;
     update public.hr_tick_config set frame_push = true, enabled = true where id;
     update public.hr_hunt_config set enabled = true where id;`);
-  /* THE TIER-PATH CLASS (tests/_tier-path.mjs; lane/scale-grounds-sweep put the Sewer on the Danger scale): this file's subject is the watched
-     settle's frames and cost on a tier hunt, so its own database withdraws the Sewer's scale rows and the hunt freezes no stance */
-  await withdrawScale(db, [HUNT]);
+  /* the Sewer plays the Danger scale (lane/scale-grounds-sweep; the tier path retired, lane/retire-tier-chain): the watched settle's frames and
+     cost are read on the scale, the default stance the server freezes */
   await db.query('begin');
   const kit = { level: 20, inv: { cooked_shrimp: 400 }, gold: 200000 };
   const bag = JSON.stringify([{ item: 'cooked_shrimp', qty: 300 }]);

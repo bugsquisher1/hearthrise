@@ -302,9 +302,6 @@ function drivers(db) {
 /* Heroes `slots` of account `uid` on Mill Cellar `mins` minutes ago: solo each, or one party of them. */
 async function hunting(d, uid, slots, o = {}) {
   await d.q('update public.hr_hunt_config set enabled = true where id');
-  /* (lane/scale-early-grounds) these arms size a window's coin rows on the Cellar's tier path; the Cellar joined the Danger scale, so its
-     scale rows leave this database (tests/_tier-path.mjs says why) */
-  await d.q("do $w$ begin if to_regclass('public.hr_store_grounds') is not null then delete from public.hr_store_grounds where hunt_id = 'mill_cellar'; end if; if to_regclass('public.hr_danger_grounds') is not null then delete from public.hr_danger_grounds where hunt_id = 'mill_cellar'; end if; end $w$");
   if (o.party) {
     await d.as(uid);
     for (const s of slots.slice(1)) {

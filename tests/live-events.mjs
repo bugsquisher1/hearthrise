@@ -483,9 +483,7 @@ async function main() {
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(1); }
   await H.pinDice(db);
-  /* the XP dial's bound is read on the Thicket's tier path; the Thicket joined the Danger scale (lane/scale-early-grounds), so its scale rows
-     leave this database (tests/_tier-path.mjs) */
-  await (await import('./_tier-path.mjs')).withdrawScale(db, [GROUND]);
+  /* the XP dial's bound is read on the Thicket, a ground of the Danger scale (the tier path retired, lane/retire-tier-chain) */
   const at = (root, f) => import(pathToFileURL(join(root, f)).href + V);
   const load = async (root) => ({ ...(await H.loadEdge(root)), root, LE: await at(root, 'src/core/live-events.js'), XS: await at(root, 'src/core/hunt/xp-share.js'),
     PCX: await at(root, 'src/data/party-class-xp.js') });

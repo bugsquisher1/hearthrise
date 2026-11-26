@@ -85,7 +85,7 @@ const rarityOf = (id) => (catacombs.hunt.spawns.find((s) => s.monster === id) ||
 
 /** The wings' hunt rows (src/data/hunts.js HUNTS), staged with the pack: the pack's place and family, its own spawn weights. */
 export const CATACOMB_WING_HUNTS = Object.freeze(LIVE.map((w) => Object.freeze({
-  id: w.id, region: catacombs.hunt.region, name: catacombs.hunt.name + ', ' + w.name, theme: w.theme, band: w.band || catacombs.hunt.band,
+  id: w.id, region: catacombs.hunt.region, name: catacombs.hunt.name + ', ' + w.name, theme: w.theme, band: 'band' in w ? w.band : catacombs.hunt.band,
   spawns: Object.freeze(Object.entries(weightsOf(w.pockets)).map(([monster, n]) => Object.freeze({ monster, w: n, rarity: rarityOf(monster) }))),
   family: catacombs.hunt.family, art: catacombs.hunt.art, travelS: 0, pull: catacombs.hunt.pull, respawnMs: g.respawnMs,
   ...(catacombs.status === 'staged' ? { staged: true } : {}),

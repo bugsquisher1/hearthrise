@@ -36,6 +36,8 @@ export function cardHtml() {
 }
 
 const COUNTRY = (c) => t('talents.country_' + c);
+/* a stone's name as the card says it: a rank stone by its move ("Greater Mend +1 rank"), any other by its own */
+const nameOf = (n) => (n.kind === 'rank' && n.move && ABILITIES[n.move] ? t('talents.rank_name', { move: ABILITIES[n.move].n }) : n.n);
 const kindWords = (n) => {
   const k = t('talents.kind_' + n.kind);
   if (n.move && ABILITIES[n.move]) return t('talents.kind_of', { kind: k, of: ABILITIES[n.move].n });
@@ -67,7 +69,7 @@ export function patchCard(root, ctx, v) {
     const ps = none.querySelectorAll('.rdw-row');
     text(ps[0].querySelector('span'), t('talents.points_label')); text(ps[0].querySelector('b'), whole(tl ? tl.left : 0));
     const f = v.fork && NODE_INDEX[v.fork];
-    text(ps[1].querySelector('span'), t('talents.next_label')); text(ps[1].querySelector('b'), f ? f.n : '');
+    text(ps[1].querySelector('span'), t('talents.next_label')); text(ps[1].querySelector('b'), f ? nameOf(f) : '');
     attr(ps[1], 'hidden', f ? null : '');
     const show = none.querySelector('.rdw-none-show');
     text(show, t('talents.show')); attr(show, 'hidden', f ? null : '');
@@ -75,7 +77,7 @@ export function patchCard(root, ctx, v) {
   }
   text(root.querySelector('.rdw-x'), t('talents.close'));
   text(root.querySelector('.rdw-kind'), kindWords(n));
-  text(root.querySelector('.rdw-name'), n.kind === 'rank' && n.move && ABILITIES[n.move] ? t('talents.rank_name', { move: ABILITIES[n.move].n }) : n.n);
+  text(root.querySelector('.rdw-name'), nameOf(n));
   /* a rank stone's name says it all ("Greater Mend +1 rank"); every other stone's tip is its rule */
   text(root.querySelector('.rdw-tip'), n.kind === 'rank' ? '' : n.tip || '');
   const st = v.states[sel] || 'locked';
@@ -150,5 +152,5 @@ export function patchCard(root, ctx, v) {
   const first = r && r.path.length > 1 ? NODE_INDEX[r.path[0]] : null;
   attr(step, 'data-node', first ? first.id : null);
   attr(step, 'hidden', first ? null : '');
-  text(step, first ? t('talents.next_step', { name: first.kind === 'rank' && first.move && ABILITIES[first.move] ? t('talents.rank_name', { move: ABILITIES[first.move].n }) : first.n }) : '');
+  text(step, first ? t('talents.next_step', { name: nameOf(first) }) : '');
 }

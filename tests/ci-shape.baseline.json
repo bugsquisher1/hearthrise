@@ -950,6 +950,7 @@
     "node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --mutate": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/plot-tier-price-replay.mjs --mutate": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/kill-daily-credit.mjs --selftest": "db-replay-11",
+    "node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest": "db-replay-11",
     "node tests/edge-jwt-gate.mjs --strict": "edge",
     "node tests/edge-body-cap.mjs": "edge",
     "node tools/mutant-gate.mjs node tests/edge-body-cap.mjs --mutate": "edge",

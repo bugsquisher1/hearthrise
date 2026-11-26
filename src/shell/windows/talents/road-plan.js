@@ -18,7 +18,7 @@ import { NODE_INDEX, PICK_KINDS } from '../../../data/talents.js';
 import { HUNT_INDEX } from '../../../data/hunts.js';
 import { buildProblems } from '../../../core/talents.js';
 import { planRoute, planLeft, plannedOf, nextPlanStep } from '../../../core/talent-route.js';
-import { planGroundOf } from '../../../session/plan-share.js';
+import { planGroundOf } from '../../../session/company-sections.js';
 import { saveBuild, spendTalent } from '../../../session/talent-intents.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { text, prop, attr } from '../../../render/paint.js';

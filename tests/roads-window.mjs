@@ -79,6 +79,27 @@ const GROUND = 'millrace_sewer';
 /* a far plain stone, four points out: Power Strike's road past its first crossroads */
 const FAR = 'power_strike.r5';
 
+/* RW-11: the section exactly as 1069's hr_talents_view builds it, read by a talentsSectionOf (node's, and the page's own module, which a
+   mutant plants into): RW11_IN are its inputs, RW11_READ the readings, sectionFails the verdict */
+const RW11_IN = Object.freeze([
+  { live: true, level: 90, points: 89, spent: 2, nodes: OWNED, auto: 'solo', vow_slots: 2,
+    borrowed: [{ move: 'greater_mend', opens_at: 80, open: true }, { move: 'turning_cut', opens_at: null, open: false }],
+    builds: { [GROUND]: { ...OWNED, 'power_strike.r3': true, 'no.such.node': true }, 'Bad Ground!': OWNED }, reset: { price: 0 } },
+  { live: true, level: 7, nodes: {}, auto: 'always' },
+]);
+const RW11_READ = (read) => RW11_IN.map((x) => read(x));
+function sectionFails([sec, noWord]) {
+  const fails = [];
+  const lent = sec && sec.borrowed;
+  if (JSON.stringify(lent) !== JSON.stringify([{ move: 'greater_mend', opensAt: 80, open: true }, { move: 'turning_cut', opensAt: null, open: false }])) {
+    fails.push('RW-11 the server\'s borrowed rows read as ' + JSON.stringify(lent));
+  }
+  if (!sec || sec.auto !== 'solo') fails.push('RW-11 the standing rule\'s plan reads as ' + JSON.stringify(sec && sec.auto));
+  if (!sec || Object.keys(sec.builds).join() !== GROUND || Object.keys(sec.builds[GROUND]).length !== 3) fails.push('RW-11 the saved builds read as ' + JSON.stringify(sec && sec.builds));
+  if (!noWord || noWord.auto !== null || noWord.borrowed.length !== 0) fails.push('RW-11 a word off the list is not off: ' + JSON.stringify(noWord));
+  return fails;
+}
+
 // ── the pure half ─────────────────────────────────────────────────────────
 function pure() {
   const fails = [];
@@ -126,18 +147,7 @@ function pure() {
   const cam = { cx: 10, cy: -20, s: 1 }, z = zoomAbout(cam, 800, 600, 200, 150, 2.5);
   const p0 = toMap(cam, 800, 600, 200, 150), p1 = toMap(z, 800, 600, 200, 150);
   if (Math.hypot(p0.x - p1.x, p0.y - p1.y) > 1e-6) fails.push('RW-3 a zoom moved the point under the pointer');
-  /* RW-11: the section exactly as 1069's hr_talents_view builds it */
-  const sec = talentsSectionOf({ live: true, level: 90, points: 89, spent: 2, nodes: OWNED, auto: 'solo', vow_slots: 2,
-    borrowed: [{ move: 'greater_mend', opens_at: 80, open: true }, { move: 'turning_cut', opens_at: null, open: false }],
-    builds: { [GROUND]: { ...OWNED, 'power_strike.r3': true, 'no.such.node': true }, 'Bad Ground!': OWNED }, reset: { price: 0 } });
-  const lent = sec && sec.borrowed;
-  if (JSON.stringify(lent) !== JSON.stringify([{ move: 'greater_mend', opensAt: 80, open: true }, { move: 'turning_cut', opensAt: null, open: false }])) {
-    fails.push('RW-11 the server\'s borrowed rows read as ' + JSON.stringify(lent));
-  }
-  if (!sec || sec.auto !== 'solo') fails.push('RW-11 the standing rule\'s plan reads as ' + JSON.stringify(sec && sec.auto));
-  if (!sec || Object.keys(sec.builds).join() !== GROUND || Object.keys(sec.builds[GROUND]).length !== 3) fails.push('RW-11 the saved builds read as ' + JSON.stringify(sec && sec.builds));
-  const noWord = talentsSectionOf({ live: true, level: 7, nodes: {}, auto: 'always' });
-  if (!noWord || noWord.auto !== null || noWord.borrowed.length !== 0) fails.push('RW-11 a word off the list is not off: ' + JSON.stringify(noWord));
+  fails.push(...sectionFails(RW11_READ(talentsSectionOf)));
   /* RW-13 (pure): the plan over the build, its points and its steps */
   const plan = planRoute(OWNED, null, FAR, null, 'party');
   const x1 = suggestedPick(NODE_INDEX['power_strike.x1'], 'party');
@@ -370,6 +380,9 @@ async function checks(overrides, opts = {}) {
       const { ctx, page, errors, s } = await open(SECTION(), undefined, false, COMPANY);
       await openMap(page);
       await page.waitForTimeout(400);
+      /* RW-11 in the page: the section reader the page itself serves */
+      const read = await page.evaluate(async (ins) => { const m = await import('/src/session/talent-sections.js'); return ins.map((x) => m.talentsSectionOf(x)); }, RW11_IN);
+      fails.push(...sectionFails(read).map((f) => f + ' (the page\'s reader)'));
       /* RW-12: the standing rule, drawn from the server's `auto` only */
       let b = await band(page);
       if (!b || b.pressed !== 'false') fails.push('RW-12 with the server\'s auto off the toggle reads ' + JSON.stringify(b));

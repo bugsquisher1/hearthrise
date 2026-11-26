@@ -6,7 +6,6 @@
 //                               Start repeats), the stance, the company's two lines, and the Roads build for that ground (its saved build,
 //                               else the nodes it holds; none while the Talents switch is off). Display only
 //   shareCodeOf(cs)             that plan as a code, or null (nothing to share yet)
-//   planGroundOf(cs)            the ground the plan (and its saved Roads build) is for, or null
 //   planChanges(cs, plan)       THE EDITOR: what a decoded plan would change on THIS hero, one row a part:
 //                               { part, to, from, state } with state 'same' (nothing to send), 'send', or why it cannot be sent ('closed':
 //                               the Talents switch is off, 'no_ground': a build with no ground to save it on, 'unread': the server's section
@@ -20,9 +19,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { encodePlanCode } from '../core/plan-code.js';
 import { normalize, pointsSpent } from '../core/talents.js';
-import { companyPlanOf } from './company-sections.js';
+import { companyPlanOf, planGroundOf } from './company-sections.js';
 import { dangerOf } from './danger-sections.js';
-import { huntOf } from './hunt-sections.js';
 import { setHeroPlan } from './company-intents.js';
 import { setRisk } from './danger-intents.js';
 import { setCompanyLine } from './carry-on-intents.js';
@@ -45,16 +43,9 @@ function roadsOf(cs) {
   return { nodes: normalize(sec.nodes), builds, points: Number.isSafeInteger(sec.points) ? sec.points : null };
 }
 
-/* The ground the hero's next Start goes to: the plan's, else the one it hunted last (the Start repeats it). */
-function groundOf(cs, co) {
-  if (co && co.planHunt) return co.planHunt;
-  const h = huntOf(cs);
-  return h && h.huntId && ID.test(h.huntId) ? h.huntId : null;
-}
-
-/** The ground a hero's Roads plan is saved for (the saved build its share code carries, the Roads map's Plan route): the plan's
-    ground, else the one its next Start repeats; null for none. */
-export const planGroundOf = (cs) => groundOf(cs, companyPlanOf(cs));
+/* The ground the hero's next Start goes to: the plan's, else the one it hunted last (the Start repeats it); the Roads map's Plan route
+   saves its build on the same ground (company-sections.js planGroundOf, the one reading). */
+const groundOf = (cs, co) => planGroundOf(cs, co);
 
 /** The plan the server holds for this hero ({ ground, risk, lines, nodes }, each null when unknown). Display only. */
 function heroPlanOf(cs) {

@@ -536,8 +536,8 @@ const MUTATIONS = {
   marker_guard_removed: {
     why: 'the combat-XP patch loses its own-marker guard, so a re-apply double-inserts the block and the '
        + 'migration stops being idempotent',
-    find: "    if strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0 then\n    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor",
-    repl: "    if false then\n    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor",
+    find: "  if strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0 then\n    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor",
+    repl: "  if false then\n    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor",
   },
 };
 /* ── ARM 2 MUTATIONS. The brief's two named shapes, in both bodies: strip the
@@ -781,14 +781,6 @@ Object.assign(MUTATIONS, {
     repl: "    raise exception 'F1 self-check (disabled q): hr_apply does not refuse to shorten a running knockout",
   },
 });
-
-/* `marker_guard_removed`'s find must match the file's real indentation. */
-MUTATIONS.marker_guard_removed.find =
-  "  if strpos(v_def, 'SECURITY F1 - THE RECOVERY FLOOR') > 0 then\n"
-  + "    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor";
-MUTATIONS.marker_guard_removed.repl =
-  '  if false then\n'
-  + "    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor";
 
 /* ── THE LIVE BODY, NOT ONLY THIS FILE (Security, lane/b567 2026-10-17) ─────
    This file PATCHES hr_credit_kills__ungated in place. Any LATER migration that

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f9bf6154ca16f89b",
+ "authored": "b726ca6cbbb6be79",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 771,
-  "typed": 17665,
+  "bindings": 772,
+  "typed": 17666,
   "files": 262,
   "lever": 341,
-  "notLever": 430,
+  "notLever": 431,
   "unclaimed": 0
  },
  "problems": [],
@@ -11372,10 +11372,10 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/signature-rules.mjs",
      "tests/hunt-core/talents.mjs",
-     "tests/special-attributes.mjs",
-     "tests/weapon-line.mjs"
+     "tests/kit-recipes.mjs",
+     "tests/special-attributes.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11535,7 +11535,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 124,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11633,7 +11633,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 124,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13916,7 +13916,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 124,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -15064,10 +15064,11 @@
     ],
     "mentions": [
      "tests/econ-levers.mjs",
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/wage-prices.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17616,6 +17617,10 @@
   {
    "at": "src/data/talents.js#road",
    "why": "a road's rank stones numbered 1 to 5 (17 section 2's shape): ids, no value"
+  },
+  {
+   "at": "src/data/trades.js#KIT_SAMPLE_MAX",
+   "why": "a content process bound: at most 5 named kit recipes until the sample is read (CLAUDE.md section 10), no outcome reads it"
   },
   {
    "at": "src/data/talents.js#reactProblems",

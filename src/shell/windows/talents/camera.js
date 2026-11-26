@@ -35,8 +35,6 @@ export function scaleOf(tier, fit, phone) {
 
 /** The map point under screen point (sx, sy) of a `w` x `h` stage. */
 export const toMap = (cam, w, h, sx, sy) => ({ x: cam.cx + (sx - w / 2) / cam.s, y: cam.cy + (sy - h / 2) / cam.s });
-/** The screen point of map point (x, y). */
-export const toScreen = (cam, w, h, x, y) => ({ x: (x - cam.cx) * cam.s + w / 2, y: (y - cam.cy) * cam.s + h / 2 });
 
 /** `cam` held over the map: its centre inside `bounds`, its scale inside [fit, S_MAX]. */
 export function clampCam(cam, bounds, fit) {

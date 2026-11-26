@@ -38,6 +38,12 @@
         "gzipBytes": 202673,
         "on": "2026-11-21",
         "why": "lane/c-job-counts merged after the raise above (every job takes a count and a THEN: windows/work.js +62 lines, town-work.js +59, away-work.js +34, hunt-after.js JOB_NEXTS +41, skill-sim, work and away text, the coach's tutorial row) and this lane's rule-11 halves (farm-tend.js and carry-on-intents.js take the carried envelope, a few bytes): the Work window's own feature code on the game half; sign-in moved by under 0.1 KB"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 204336,
+        "on": "2026-11-26",
+        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in and town); the Talents door and its text rows ride the game half; the map itself (src/shell/windows/talents/, 7 modules, about 11 KB gzip) loads by URL on the window's first open (a second bundle entry, so esbuild splits 1 shared chunk onto sign-in and 4 onto town). The set itself measured 946.9 KB to town on 79f265559 (0.6 over its ceiling) before this lane"
       }
     ],
     "town": [
@@ -346,6 +352,12 @@
         "gzipBytes": 969002,
         "on": "2026-11-26",
         "why": "lane/signatures-sample: the worn-Signature rules (src/core/hunt/signature-rules.js, src/data/signatures.js) and the shared reaction pieces join the game half with combat-sim, dark (+1.5 KB gzip)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 973718,
+        "on": "2026-11-26",
+        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in and town); the Talents door and its text rows ride the game half; the map itself (src/shell/windows/talents/, 7 modules, about 11 KB gzip) loads by URL on the window's first open (a second bundle entry, so esbuild splits 1 shared chunk onto sign-in and 4 onto town). The set itself measured 946.9 KB to town on 79f265559 (0.6 over its ceiling) before this lane"
       }
     ]
   }

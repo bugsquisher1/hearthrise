@@ -1,5 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/talents/index.js — THE TALENTS WINDOW: THE ROADS MAP (lane/r-ui-roads, 2026-11-26).
+// src/shell/windows/talents/index.js — THE TALENTS WINDOW'S BODY: THE ROADS MAP (lane/r-ui-roads, 2026-11-26).
+//
+// Loaded on need by its door (src/shell/windows/talents.js) the first time the window opens with the server's `talents` section, so
+// the map's code is never on the boot path (tools/build-site.mjs SITE-10). renderBody / patchBody / actBody are the door's three calls
+// on the door's own host element.
 //
 // docs/design/redesign/20-v030-the-roads.md section 4 (R-UI), 18-roads-review-ux.md, 17-talent-tree.md v3. One component: a window
 // over the World on desktop (src/data/shell-windows.js `talents`, offered only while the server sends the `talents` section, i.e. while
@@ -44,7 +48,7 @@ const scratchOf = (cs) => {
 const roleKeyOf = (cs) => { const eq = /** @type {{ weapon?: string }} */ (equipmentOf(cs) || {}); return eq && eq.weapon && ITEMS[eq.weapon] ? wornRoleKey(eq, ITEMS) : null; };
 
 /** The skeleton (built once per opening): an opening starts where the hero is (the camera is chosen at the first paint). */
-export function renderTalentsMap(ctx) {
+export function renderBody(ctx) {
   if (ctx.character) { const sc = scratchOf(ctx.character); sc.cam = null; sc.sel = null; sc.hover = null; sc.msg = ''; }
   return '<div class="rdw">'
     + '<div class="rdw-band">'
@@ -88,11 +92,11 @@ const phoneOf = (ctx) => { const w = ctx.doc && ctx.doc.defaultView; return !!(w
 function schedule(body, ctx, sc) {
   if (sc.frame) return;
   const w = ctx.doc && ctx.doc.defaultView;
-  const go = () => { sc.frame = 0; if (body.isConnected) renderTalentsMap.patch(body, ctx); };
+  const go = () => { sc.frame = 0; if (body.isConnected) patchBody(body, ctx); };
   sc.frame = w && w.requestAnimationFrame ? w.requestAnimationFrame(go) : (setTimeout(go, 16), 1);
 }
 
-renderTalentsMap.patch = function patchTalentsMap(body, ctx) {
+export function patchBody(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const root = body.querySelector('.rdw');
@@ -155,7 +159,7 @@ renderTalentsMap.patch = function patchTalentsMap(body, ctx) {
   const card = root.querySelector('.rdw-card');
   cls(root, 'is-picked', !!sc.sel);
   patchCard(card, ctx, { tl, sel: sc.sel, route: routeOf(memo, tl, sc.sel), states: memo.states, fork: homeOf(cs, tl) === 'hearth' ? null : homeOf(cs, tl), pending: sc.pending, msg: sc.msg });
-};
+}
 
 /* a size change repaints (the window docks, the phone turns, the card opens) */
 const WATCHED = new WeakSet();
@@ -219,11 +223,11 @@ function gestures(body, ctx, sc, M) {
 /* a country's place to fly to: its first crossroads */
 const firstStone = (country) => { const L = roadsLayout(); const m = COUNTRY_ROADS[country] && COUNTRY_ROADS[country][0]; return (m && L.pos[m + '.x1']) || L.pos.hearth; };
 
-renderTalentsMap.act = function actTalentsMap(ctx, body, action, ev, el) {
+export function actBody(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  const repaint = () => renderTalentsMap.patch(body, ctx);
+  const repaint = () => patchBody(body, ctx);
   const v = sc.view;
   if (action === 'rd-tier' && v && sc.cam) {
     const tier = el.getAttribute('data-tier');
@@ -261,4 +265,4 @@ renderTalentsMap.act = function actTalentsMap(ctx, body, action, ev, el) {
     return true;
   }
   return false;
-};
+}

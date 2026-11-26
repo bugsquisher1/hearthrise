@@ -335,6 +335,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/roads-window.mjs
+      - name: Roads window - the Talents map zooms Country Road Node, previews a route with its cost and spends only from the server's state
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/roads-window.mjs
+          node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
+      # ── END SELF-REGISTERED GUARDS ──
+
   # db-replay-12: the two proofs that PLANT INTO THE WORKING TREE (tests/mutation-safety.mjs restores and hash-verifies),
   # so they share a job with nothing else that reads those files (2026-11-13, lane/a-audit-guards). Measured locally:
   # leaderboard-server-source --mutate 852 s (14 mutants, each a cold full-chain replay) + live-settlement --mutate 263 s

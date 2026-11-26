@@ -11,7 +11,7 @@
 
 /* ── the window: the map takes what the band leaves ── */
 .hs-win[data-hs-win="talents"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.rdw { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.rdw-door, .rdw { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .rdw-band { flex: none; display: flex; align-items: center; gap: 14px; margin: 0 2px 8px; min-height: 40px; }
 .rdw-band .hs-note { margin: 0; }
 .rdw-band .hs-note:empty { display: none; }

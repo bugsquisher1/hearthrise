@@ -42,7 +42,7 @@ import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { judgePlanted, report, exitOf, cleanControl, harnessFail } from './_mutant-verdict.mjs';
-import { roadsLayout, densityOf, D } from '../src/render/roads-layout.js';
+import { roadsLayout, D } from '../src/render/roads-layout.js';
 import { nodeStates, routeTo, nextSuggested } from '../src/core/talent-route.js';
 import { spend, pointsAt } from '../src/core/talents.js';
 import { tierOf, stepScale, zoomAbout, toMap, TIER_SCALE } from '../src/shell/windows/talents/camera.js';
@@ -71,9 +71,10 @@ function pure() {
     if (Math.hypot(a.x - b.x, a.y - b.y) < 0.62 * D) { near = ids[i] + ' / ' + ids[j]; break; }
   }
   if (near) fails.push('RW-1 two stones on top of each other: ' + near);
-  const dens = L.countries.map((c) => densityOf(c));
-  if (Math.max(...dens) / Math.min(...dens) > 1.5) fails.push('RW-1 the countries\' densities spread past 1.5x: ' + dens.map((d) => d.toFixed(2)).join(', '));
   const area = (c) => { let a = 0; const p = c.poly; for (let i = 0; i < p.length; i++) { const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length]; a += x1 * y2 - x2 * y1; } return Math.abs(a) / 2; };
+  /* a country's nodes per 10,000 square map units (18 P3) */
+  const dens = L.countries.map((c) => (c.total / area(c)) * 10000);
+  if (Math.max(...dens) / Math.min(...dens) > 1.5) fails.push('RW-1 the countries\' densities spread past 1.5x: ' + dens.map((d) => d.toFixed(2)).join(', '));
   const areas = L.countries.map(area).sort((a, b) => a - b), median = areas[Math.floor(areas.length / 2)];
   const rest = area(L.countries.find((c) => c.id === 'restoration'));
   if (!(rest >= 1.4 * median)) fails.push('RW-1 Restoration has ' + (rest / median).toFixed(2) + 'x the median country\'s room (wants 1.4x or more)');
@@ -311,7 +312,8 @@ const MUTANTS = [
   { name: 'it opens on Havora, not where the hero is', file: 'src/shell/windows/talents/index.js', from: 'const p = L.pos[homeOf(cs, tl)] || L.pos.hearth;', to: 'const p = L.pos.hearth;', want: /RW-5/ },
   { name: 'the wheel zooms past the tier\'s own scale', file: 'src/shell/windows/talents/camera.js', from: 'return scaleOf(TIERS[i + Math.sign(j - i)], fit, phone);', to: 'return want;', want: /RW-6/ },
   { name: 'the stone is owned before the answer', file: 'src/shell/windows/talents/index.js', from: "runIntent(sc, repaint, () => spendTalent(ctx.account, cs, node, pick || null),",
-    to: "if (sc.memo) sc.memo.states[node] = 'owned'; runIntent(sc, repaint, () => spendTalent(ctx.account, cs, node, pick || null),", want: /RW-8/ },
+    to: "if (sc.memo) { sc.memo.states[node] = 'owned'; sc.memo.routes.set(node, null); } runIntent(sc, repaint, () => spendTalent(ctx.account, cs, node, pick || null),", want: /RW-8/ },
+  { name: 'Take stays on while the spend is out', file: 'src/shell/windows/talents/card.js', from: "prop(take, 'disabled', !can || v.pending);", to: "prop(take, 'disabled', !can);", want: /RW-8/ },
   { name: 'Country view keeps the rank stones', file: 'src/shell/windows/talents/map.js', from: "attr(M.svg, 'data-tier', tier);", to: "attr(M.svg, 'data-tier', tier === 'country' ? 'road' : tier);", want: /RW-6/ },
 ];
 

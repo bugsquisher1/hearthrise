@@ -143,6 +143,7 @@ function edgeKind(n, parent) {
 }
 
 function build() {
+  /** @type {Record<string, { x: number, y: number }>} */
   const pos = { hearth: { x: 0, y: 0 } };
   const countries = wedges();
   const ring = placeRing(pos, COUNTRY_ROADS[HEARTH] || [], countries);
@@ -217,10 +218,3 @@ let MEMO = null;
 /** THE MAP (computed once). */
 export function roadsLayout() { return MEMO || (MEMO = build()); }
 
-/** Nodes a country's area holds per 10,000 square map units (18 section 1 P3: the density the layout keeps level). */
-export function densityOf(country) {
-  const p = country.poly;
-  let a = 0;
-  for (let i = 0; i < p.length; i++) { const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length]; a += x1 * y2 - x2 * y1; }
-  return (country.total / (Math.abs(a) / 2)) * 10000;
-}

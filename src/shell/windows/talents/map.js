@@ -219,7 +219,10 @@ function paintLabels(M, v, tier) {
     const cty = r.country ? L.countries.find((c) => c.id === r.country) : null;
     const p = r.node ? L.pos[r.node] : big ? cty.name : r.at;
     const kr = r.node ? (MARK_R[NODE_INDEX[r.node].kind] || 6) : 0;
-    const tries = r.country ? [[0, 0, big ? cty.name.anchor : 'middle']] : r.id === 'havora' ? [[0, 44, 'middle']] : beside(kr);
+    /* a name past the rim that meets a neighbour's steps out along its own side (the two top countries' names meet at 12 o'clock) */
+    const out = big ? [Math.sign(cty.name.x) || 0, Math.sign(cty.name.y) || -1] : [0, 0];
+    const tries = r.country ? (big ? [0, 1, 2, 3].map((k) => [out[0] * 24 * k, out[1] * 26 * k, cty.name.anchor]) : [[0, 0, 'middle']])
+      : r.id === 'havora' ? [[0, 44, 'middle']] : beside(kr);
     want.push({ id: r.id, x: p.x * s, y: p.y * s, w: widthOf(M, r.id), h: big ? 26 : 16, tries, pri: (owned ? r.pri - 0.5 : r.pri),
       block: !(r.country && !big), force: big || r.id === 'havora' });
   }

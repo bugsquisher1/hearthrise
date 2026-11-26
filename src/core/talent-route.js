@@ -25,12 +25,6 @@ import { spendProblem, optionsOf, suggestedOrder, normalize, vowSlotsAt } from '
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const owns = (nodes, id) => id === 'hearth' || own(nodes, id);
 
-/** The nodes that leave each node (its children on the map), by id. */
-export const NODE_CHILDREN = Object.freeze(TALENT_NODES.reduce((m, n) => {
-  for (const a of n.after) (m[a] || (m[a] = [])).push(n.id);
-  return m;
-}, /** @type {Record<string, string[]>} */ ({})));
-
 /* the problems that do not stop a node being the frontier: it is where the next point can go once there is one */
 const FRONTIER_OK = new Set([null, 'no_points']);
 
@@ -38,7 +32,7 @@ const FRONTIER_OK = new Set([null, 'no_points']);
  * WHY a node cannot be bought now, the points aside: the first option's problem that is not `no_points`, or null when some option
  * (a plain node: the node) passes. `owned` for an owned node (an open road is never `owned`: it takes more).
  */
-export function frontierProblem(nodes, id, level) {
+function frontierProblem(nodes, id, level) {
   const n = own(NODE_INDEX, id) ? NODE_INDEX[id] : null;
   if (!n) return 'unknown_node';
   if (n.kind === 'start') return 'owned';

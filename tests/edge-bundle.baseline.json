@@ -493,6 +493,11 @@
         "bytes": 3879874,
         "on": "2026-11-24",
         "why": "scale-grounds-sweep: five more grounds on the Danger scale (the Glade, the Warrens, the Slake, Pyre Field, Krell's Hold) carry their formula rows, drop rows in hours and gear stats into src/data the edge imports; 6.8 KB"
+      },
+      {
+        "bytes": 3896347,
+        "on": "2026-11-26",
+        "why": "lane/signatures-sample: the worn-Signature rules (src/core/hunt/signature-rules.js, src/data/signatures.js) and the reaction pieces they share with the Roads (death, heal and hp_below moments; ready, pass and boon) join the engine, dark (+16,473 B)"
       }
     ]
   }

@@ -44,7 +44,6 @@ async function load(root) {
   M.DG = await imp('src/data/danger.js');
   M.RO = await imp('src/data/hunt-roles.js');
   M.SPAWN = await imp('src/core/hunt-spawn.js');
-  M.TR = await imp('src/core/hunt/talent-rows.js');
   M.SE = await imp('src/core/hunt/status-effects.js');
   return M;
 }
@@ -62,9 +61,9 @@ const cases = {
     const set = M.SPAWN.heroSetup({ weaponType: 'shield', wornSignature: ['cairn_belt', 'brewers_apron'] });
     if (!set || set.wornSignature !== 'cairn_belt') return 'heroSetup carries ' + JSON.stringify(set && set.wornSignature);
     if ('wornSignature' in M.SPAWN.heroSetup({ weaponType: 'shield' })) return 'heroSetup wrote a Signature for a hero with none';
-    /* after the Roads: their rows stay, the Signature's join named by it, at full size (no ramp at Level 1) */
+    /* after the Roads (a row as syncTalents writes one): theirs stay, the Signature's join named by it, at full size (never ramped) */
     const u = H(M, 1, 12, 3, 'tank');
-    M.TR.syncTalents(u, { talents: { 'vow.cold_iron': true }, discipline: 'shield' }, 1);
+    u.reacts = Object.freeze([Object.freeze({ kind: 'react', id: 'cold_iron', on: 'hit_taken', do: 'status', status: 'chill', ms: 2000, melee: true })]);
     const roads = (u.reacts || []).length;
     wear(M, u, 'cairn_belt');
     wear(M, u, 'cairn_belt');
@@ -134,7 +133,7 @@ const cases = {
   },
   'pass-on-death': (M) => {
     const r = H(M, 1, 10, 3, 'ranger'), k = H(M, 2, 12, 3, 'tank');
-    const dead = E(M, 10, 0, 13, 3, 2, { hp: 5, maxHp: 50 }), near = E(M, 11, 0, 14, 3, 2), far = E(M, 12, 0, 18, 3, 2), marked = E(M, 13, 0, 13, 4, 2);
+    const dead = E(M, 10, 0, 13, 3, 2, { hp: 5, maxHp: 50 }), near = E(M, 11, 0, 15, 3, 2), far = E(M, 12, 0, 18, 3, 2), marked = E(M, 13, 0, 13, 4, 2);
     const inst = fight(M, [r, k, dead, near, far, marked]);
     wear(M, r, 'lurchers_collar');
     const sc = sc2(M, 33, 1000);
@@ -245,7 +244,8 @@ const cases = {
 
 const SR = 'src/core/hunt/signature-rules.js', RX = 'src/core/hunt/reactions.js', RQ = 'src/core/hunt/react-queue.js', DM = 'src/core/hunt/damage.js';
 const mutants = [
-  { name: 'a list plays its last Signature', case: 'worn-signature', edits: [[SR, '  for (const id of Array.isArray(x) ? x : [x]) if (own(SIGNATURES, id)) return id;', '  for (const id of (Array.isArray(x) ? x : [x]).slice().reverse()) if (own(SIGNATURES, id)) return id;']] },
+  { name: 'a list plays its last Signature', case: 'worn-signature', edits: [[SR, '.filter((id) => own(SIGNATURES, id)).slice(0, SIGNATURE_RULES.perHero);', '.filter((id) => own(SIGNATURES, id)).reverse();']] },
+  { name: 'no Signature plays at all', case: 'worn-signature', edits: [['src/data/signatures.js', '  perHero: 1,', '  perHero: 0,']] },
   { name: 'heroSetup drops the Signature', case: 'worn-signature', edits: [['src/core/hunt-spawn.js', '    ...(sg ? { wornSignature: sg } : {}),\n', '']] },
   { name: 'a boundary adds the rows again', case: 'worn-signature', edits: [[SR, '.filter((r) => r.sig !== true)', '.filter(() => true)']] },
   { name: 'the Roads\' rows go with the Signature', case: 'worn-signature', edits: [[SR, '    u.reacts = rest && rest.length ? rest.concat(signatureReacts(id)) : signatureReacts(id);', '    u.reacts = signatureReacts(id);']] },

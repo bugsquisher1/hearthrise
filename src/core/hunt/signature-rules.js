@@ -16,15 +16,15 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { SIGNATURES } from '../../data/signatures.js';
+import { SIGNATURES, SIGNATURE_RULES } from '../../data/signatures.js';
 
 const own = (o, k) => !!o && typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
 
 /** THE SIGNATURE A HERO PLAYS from the server's projection: an id, or ids in the order they were equipped (the first known one plays; an
-    unknown id is dropped). The id, or null. */
+    unknown id is dropped; SIGNATURE_RULES.perHero, one). The id, or null. */
 export function wornSignatureOf(x) {
-  for (const id of Array.isArray(x) ? x : [x]) if (own(SIGNATURES, id)) return id;
-  return null;
+  const ids = (Array.isArray(x) ? x : [x]).filter((id) => own(SIGNATURES, id)).slice(0, SIGNATURE_RULES.perHero);
+  return ids.length ? ids[0] : null;
 }
 
 /* THE REACTION ROWS ONE SIGNATURE PLAYS (cached: one frozen list a Signature): each row named by the Signature (its clock's key), `sig` set */

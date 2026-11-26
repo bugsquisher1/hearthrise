@@ -25,7 +25,7 @@
     { "id": "P14", "name": "Spell scaling (the spell rule)", "computes": "a cast = a permille share of the caster's own largest blow (hitPm rolled half to full, healPm and shieldPm whole) x the rune version's step, never under the row's base floor; Mend heals a share of max HP", "impl": ["src/data/abilities.js:20-36", "src/core/hunt/abilities.js (castAmount, hitRange)", "src/data/runes.js (stepPm)"], "params": { "versionSteps": "x1.0 / 1.1 / 1.2 / 1.3 / 1.4" }, "reads": ["P13", "P11"], "readBy": ["P08", "kill speed"], "random": "a hit rolls half to full", "overlap": "combat" },
     { "id": "P15", "name": "+skill on worn gear", "computes": "a worn piece's meleePlus / rangedPlus / magicPlus / defensePlus adds whole skill levels wherever a fight reads the skill", "impl": ["src/core/combat.js:89-110", "src/data/core-model.js:252", "src/data/tower-weapons.js", "src/data/catacomb-armor.js:47-54", "src/data/special-attributes.js"], "params": { "towerWeapon": "+1 / +2 / +3 / +4 by key", "catacombHelm": "+2 / +2 / +3 / +3", "caps": "armor and cape +6, Defense +2" }, "reads": [], "readBy": ["P13", "to-hit (combat)"], "random": false },
     { "id": "P16", "name": "Gear tier ladder", "computes": "seven material tiers worn at Levels 1 / 15 / 30 / 45 / 60 / 75 / 88; every stat is a hand-typed array of seven numbers per slot or weapon family", "impl": ["src/data/gear-tiers.js:43-58 (tiers), 66-73 (armor), 80-150 (weapons), 157-162 (spellbooks)", "past Dawnsteel only in tools: tools/balance-sim/staged/weapon-line.js:72-75 and armor-line.js:69-72 (Dawnsteel x Level / 110)"], "params": { "tiers": 7, "topLevel": 88 }, "reads": ["P01 (worn by Level)"], "readBy": ["P13", "armor mitigation (combat)", "P17", "prices (economy)"], "random": false },
-    { "id": "P17", "name": "Tempering", "computes": "a rung adds 1% to blows and heals or takes 1% off what reaches the hero, 5 rungs a track, one ladder per gear tier; a part of a point is one seeded draw", "impl": ["src/core/temper.js:27-91", "src/data/temper.js:17-126", "SQL hr_unlocks / hr_unlock_offers via tools/gen-temper.mjs"], "params": { "rungPm": 10, "tier7RungPm": 4, "uniqueRungPm": 5, "gold": "tier 2: 62k a track ... tier 7: 1.24M a track, each rung double the last" }, "reads": ["P16"], "readBy": ["blows (combat)", "damage taken (combat)", "gold sinks (economy)"], "random": "temperedAmount draws once for the part of a point (the hunt's seeded stream)" },
+    { "id": "P17", "name": "Temper on steps", "computes": "a seated rank is +1 item Level on its gear slot inside the gear part, five ranks a slot, rank r opens at hero Level 40r, a whole kit at 5 is 5 steps; a rank is priced in hours of wage at the worn piece's item Level, half of it that band's Temper kits (the old 1% rungs retired with lane/tp-im-steps)", "impl": ["src/core/temper-steps.js", "src/data/temper.js TEMPER_STEPS", "SQL hr_temper_rules / hr_temper_rank via tools/gen-flame-temper.mjs"], "params": { "ranks": 5, "rankEvery": 40, "hoursPm": 3000, "kitSharePm": 500, "carryPm": 350 }, "reads": ["P16"], "readBy": ["the gear part (combat)", "gold sinks (economy)"], "random": false },
     { "id": "P18", "name": "Jewelry tiers, perks, Hallmark and reforge", "computes": "a perk's size by tier (the largest worn counts once), the roll odds by Crafting level, the Hallmark fee by tier, a reforge at the fee difference", "impl": ["src/data/jewelry.js:39-104,136,325-355", "src/core/combat.js:235-250 (jewelPerksOf)"], "params": { "tiersBuilt": "2 and 3", "hallmarkGold": "25,000 / 100,000 (tiers 4 to 7 ruled 150k / 250k / 400k / 600k, not built)", "rollOdds": "per 10,000 at Crafting 15 / 30 / 60 / 99" }, "reads": ["P04"], "readBy": ["crit, accuracy, casts (combat)", "gold sinks (economy)"], "random": "the craft roll (server stream)" },
     { "id": "P19", "name": "Special attributes and chest gear", "computes": "one attribute a piece at a size by gear tier, with a cap across everything worn", "impl": ["src/data/special-attributes.js:20-90", "src/data/catacomb-armor.js:36-54", "src/data/chests.js:143-270 (the Hearth Chest's warmth and stoke odds)"], "params": {}, "reads": ["P16"], "readBy": ["P15", "resists (combat)", "rare gear odds (economy)"], "random": "the chest roll" },
     { "id": "P20", "name": "Kill XP split", "computes": "hero Level XP = floor(kill XP x mode share / living heroes x party factor / 1000 x scaled-hunt party share x the hero's own multiplier x the under-floor share)", "impl": ["src/core/hunt/xp-share.js:66-85"], "params": {}, "reads": ["P21", "P22", "P23", "P25", "P26", "P27", "P32"], "readBy": ["P01", "the hunt summary", "personal bests"], "random": false },
@@ -99,9 +99,9 @@
   ],
   "edges": [
     ["P02", "P01"], ["P02", "P32"], ["P32", "P20"], ["P21", "P20"], ["P22", "P20"], ["P23", "P20"], ["P24", "P20"], ["P25", "P20"], ["P26", "P20"], ["P27", "P20"],
-    ["P20", "P01"], ["P01", "P11"], ["P01", "P35"], ["P35", "P16"], ["P16", "P13"], ["P03", "P13"], ["P15", "P13"], ["P17", "P13"], ["P13", "P14"], ["P13", "P06"],
+    ["P20", "P01"], ["P01", "P11"], ["P01", "P35"], ["P35", "P16"], ["P16", "P13"], ["P03", "P13"], ["P15", "P13"], ["P13", "P14"], ["P13", "P06"],
     ["P06", "P05"], ["P07", "P05"], ["P08", "P05"], ["P31", "P05"], ["P05", "P03"], ["P09", "P03"], ["P03", "P10"], ["P03", "P12"], ["P24", "P07"],
-    ["P01", "P28"], ["P03", "P28"], ["P25", "P28"], ["P29", "P28"], ["P01", "P29"], ["P01", "P23"], ["P04", "P18"], ["P16", "P17"], ["P16", "P19"], ["P19", "P15"],
+    ["P01", "P28"], ["P03", "P28"], ["P25", "P28"], ["P29", "P28"], ["P01", "P29"], ["P01", "P23"], ["P04", "P18"], ["P01", "P17"], ["P16", "P19"], ["P19", "P15"],
     ["P25", "P33"], ["P22", "P33"], ["P03", "P36"], ["P02", "P36"], ["P03", "P37"], ["P11", "P14"]
   ],
   "edgesOut": [
@@ -110,12 +110,12 @@
     { "from": "P11", "to": "combat", "what": "monster blows are written as a share of hero HP" },
     { "from": "P36", "to": "combat", "what": "monster aim and evasion" },
     { "from": "P16", "to": "combat", "what": "armor mitigation reads armor points against the attacker's Level" },
-    { "from": "P17", "to": "combat", "what": "blows up, damage taken down" },
+    { "from": "P17", "to": "combat", "what": "a seated rank is +1 item Level on its slot in the gear part" },
     { "from": "P32", "to": "hunting and economy", "what": "per-monster XP values (owner)" },
     { "from": "P24", "to": "hunting and economy", "what": "tier pulls, HP and kill rates" },
     { "from": "P26", "to": "hunting and economy", "what": "scaled hunt price and coin" },
     { "from": "P10", "to": "hunting and economy", "what": "yard fee as a gold sink" },
-    { "from": "P17", "to": "hunting and economy", "what": "Tempering gold and salts" },
+    { "from": "P17", "to": "hunting and economy", "what": "Temper kits and gold, in hours of wage" },
     { "from": "P18", "to": "hunting and economy", "what": "Hallmark and reforge fees" },
     { "from": "P29", "to": "hunting and economy", "what": "Blessing gold" },
     { "from": "P34", "to": "hunting and economy", "what": "drop odds" }

@@ -84,7 +84,7 @@ function blowOf(X, c, addUp, kind) {
 function fight(X, call, roles, o = {}) {
   const windows = [];
   const res = X.play.run(call.hunt, o.L || STRONG.L, roles, { ground: X.G.CALLED_GROUNDS[call.hunt], spanMs: X.B.BOSS_CALL_RULES.limitMs + 2 * MINUTE, windowMs: o.cut || 30000,
-    secret: o.secret || '-4611686018427387904', leaveTogether: o.box !== false, ...(o.temper ? { temper: o.temper } : {}), ...(o.start ? { start: o.start } : {}), equipment: (role) => o.kit || (role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : STRONG.kit),
+    secret: o.secret || '-4611686018427387904', leaveTogether: o.box !== false, ...(o.temperSteps ? { temperSteps: o.temperSteps } : {}), ...(o.start ? { start: o.start } : {}), equipment: (role) => o.kit || (role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : STRONG.kit),
     ...(o.bar ? { bar: o.bar } : {}), ...(o.session ? { session: o.session } : {}), onWindow: (w) => windows.push(w) });
   const members = windows.flatMap((w) => w.members);
   const ended = {};
@@ -247,7 +247,7 @@ async function guard(X) {
     /* (seated in the order the runner entered it until lane/d-audit-fixes-sim made the entry order the seats': the same fight, where an add falls) */
     ['a four, mixed', king, ['healer', 'mage', 'melee_dps', 'tank'], {}],
     ['a four on the Chief', chief, ['tank', 'healer', 'melee_dps', 'ranger'], {}],
-    ['Tempering at every rung', king, ['tank', 'melee_dps'], { temper: { 'temper:blows:2': 5, 'temper:armor:2': 5, 'temper:blows:3': 5, 'temper:armor:3': 5 } }],
+    ['Temper at rank 5 on every slot', king, ['tank', 'melee_dps'], { temperSteps: { weapon: 5, shield: 5, helmet: 5, body: 5, pants: 5, boots: 5, gloves: 5 } }],
   ];
   for (const [name, c, roles, o] of PATHS) {
     const f = fight(X, c, roles, o);

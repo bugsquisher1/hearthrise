@@ -192,11 +192,11 @@ export function stepCell(D, K, built, { L, gear, from, styles, ground, slots }) 
   const skills = built.cell.skillsBySeat;
   const lower = styles.map((style, i) => K.kitFor(L, from, style, { ground, mainSkill: skills[i][MAIN[style] || 'melee'] }));
   const plans = built.plans.map((p, i) => K.mixPlan(p, lower[i], slots));
-  const temper = {};
-  for (const p of plans) for (const [k, n] of Object.entries(p.temper || {})) temper[k] = Math.max(temper[k] || 0, n);
-  const { temper: _t, ...rest } = built.cell;
+  const temperSteps = {};
+  for (const p of plans) for (const [k, n] of Object.entries(p.temperSteps || {})) temperSteps[k] = Math.max(temperSteps[k] || 0, n);
+  const { temperSteps: _t, ...rest } = built.cell;
   void _t;
-  const cell = { ...rest, gearBySeat: plans.map((p) => p.gear), ...(Object.keys(temper).length ? { temper } : {}) };
+  const cell = { ...rest, gearBySeat: plans.map((p) => p.gear), ...(Object.keys(temperSteps).length ? { temperSteps } : {}) };
   let whatIf = built.whatIf;
   if (whatIf) {
     const items = {};
@@ -278,7 +278,7 @@ export function planMatrix(D, K, run, o = {}) {
     /* the seeds: the caller's, else the block's, else the run's */
     const seeds = o.seeds || meta.seeds || run.seeds;
     /* `skills`: each seat's main skill and Defense as played (the career line, skill-lines.mjs, and the gear state's offset) */
-    cells.push({ ...meta, seeds, stretch: STD.stretchOf(meta.L).state, kits: b.plans.map((p) => ({ style: p.style, kit: p.kit, temper: p.temper })),
+    cells.push({ ...meta, seeds, stretch: STD.stretchOf(meta.L).state, kits: b.plans.map((p) => ({ style: p.style, kit: p.kit, temperSteps: p.temperSteps })),
       skills: meta.styles.map((st, i) => { const sk = (b.cell.skillsBySeat || [])[i] || {}; return [sk[MAIN[st] || 'melee'] || null, sk.defense || null]; }) });
     for (let s = 0; s < seeds; s++) jobs.push({ id: meta.key + '#' + s, key: meta.key, whatIf: b.whatIf, cell: { ...b.cell, id: 'MATRIX:' + meta.key, hours, seeds: 1, seedBase: s } });
   };

@@ -23,7 +23,6 @@ import { text, cls, style, attr } from '../../../render/paint.js';
 import { whole, hoursMinutes } from '../../../render/format.js';
 import { escapeHtml as esc } from '../../../utils/dom.js';
 import { combatLedger } from '../skills.js';
-import { temperNowOf } from '../../../session/temper-sections.js';
 import { sheetXpLine } from '../../live-events-view.js';
 
 /* [key, label] of each number line; a line shows only when its value exists. A value is a number and its unit, a genre stat
@@ -31,7 +30,7 @@ import { sheetXpLine } from '../../live-events-view.js';
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Bag space'], ['stamina', 'Stamina']]);
 const VITAL_TIPS = Object.freeze({ regen: 'Health and mana recovery · Source: Inner Flame', speed: 'Walking speed in tiles a second', cap: 'Spaces in the bag' });
 const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defense'],
-  ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward'], ['steady', 'Damage cut'], ['temper', 'Tempered']]);
+  ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward'], ['steady', 'Damage cut']]);
 /* What each line means and what it is measured against, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
    a blow meets them in that order: dodge, absorb, resistances, ward, then health). The engine prices the armor lines against a
    monster of the hero's own Level: a stronger one gets through more. */
@@ -42,7 +41,6 @@ const COMBAT_TIPS = Object.freeze({
   absorb: 'Share of each blow blocked, vs a monster of your Level · Source: Heavy armor',
   ward: 'Flat damage off each blow · Source: Light armor',
   steady: 'Share off each blow, applied last · Source: cape, some foods',
-  temper: 'Smith upgrades on worn gear: damage dealt, damage taken · Get: Shop → Services',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
@@ -125,10 +123,6 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '%' : null);
   line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) : null);
   line(root, '[data-combat="steady"]', c && c.steadyPct ? c.steadyPct + '%' : null);
-  /* Tempering: the server's rungs through the fight's own rule, over the server's worn set (src/session/temper-sections.js):
-     damage dealt up, damage taken down. */
-  const tempered = temperNowOf(cs);
-  line(root, '[data-combat="temper"]', tempered ? [tempered.blowsPm ? '+' + tempered.blowsPm / 10 + '% dealt' : '', tempered.armorPm ? '-' + tempered.armorPm / 10 + '% taken' : ''].filter(Boolean).join(', ') : null);
   const wait = root.querySelector('.hw-cs-wait');
   text(wait, !sh ? '' : c ? '' : 'Loading combat stats…');
   cls(wait, 'is-on', !!sh && !c);

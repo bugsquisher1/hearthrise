@@ -32,8 +32,8 @@
     ]
    }
   },
-  "formulas": 107,
-  "formulasMerged": 24,
+  "formulas": 108,
+  "formulasMerged": 23,
   "exceptions": 129,
   "exceptionsMerged": 28,
   "exceptionsAdded": 3,
@@ -52,8 +52,8 @@
   "class4Left": [
    "E-X36"
   ],
-  "edges": 197,
-  "crossEdges": 67,
+  "edges": 199,
+  "crossEdges": 68,
   "inCycle": 59,
   "knobs": 35,
   "knobsPlanned": 20
@@ -176,17 +176,14 @@
    "state": "live"
   },
   {
-   "id": "C-TEMPER",
-   "also": [
-    "P17"
-   ],
+   "id": "C-STEADY",
+   "also": [],
    "categories": [
-    "combat",
-    "progression"
+    "combat"
    ],
-   "owner": "combat lands the rung. Economy prices it (E38)",
-   "what": "Tempering: Blows raises what lands on a monster and every heal by rungs x the ladder's permille. Armor (with worn steadyPm and a food's steady) lowers what reaches the hero, last, never past the cap. The part of a point is a chance",
-   "where": "src/core/temper.js:38-57",
+   "owner": null,
+   "what": "The steady cut: worn steadyPm (a cape) and a food's steady lower what reaches the hero, last, never past the cap. The part of a point is a chance (the old Tempering rungs that shared it retired with lane/tp-im-steps)",
+   "where": "src/core/mitigation.js:29-40",
    "state": "live"
   },
   {
@@ -232,7 +229,7 @@
     "combat"
    ],
    "owner": null,
-   "what": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges",
+   "what": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at each tier's skill gate, runes.js versionLevel) x the store's share for a store rune x Surge when it surges",
    "where": "src/data/runes.js versionStep, versionLevel",
    "state": "live"
   },
@@ -510,8 +507,8 @@
     "combat"
    ],
    "owner": null,
-   "what": "Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
-   "where": "src/data/gear-tiers.js:64-69 the slot table",
+   "what": "Armor points: the one gear formula (src/core/gear-stats.js gearStats): the weight's profile (plate 1000, leather 550, cloth 300 permille) x the slot's share (GEAR_SLOT_PM) x the defense budget at the piece's item Level, each line's trades a share of the same budget, a named piece its statPlus; on a Danger-scale ground read at the ground's base item Level (scaleItems). Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
+   "where": "src/core/gear-stats.js gearStats, scaleItems",
    "state": "live"
   },
   {
@@ -524,8 +521,8 @@
     "progression"
    ],
    "owner": "combat owns what a piece carries (also C-GEAR-ARMOR). Progression owns the Level it is worn at (P35)",
-   "what": "Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
-   "where": "src/data/gear-tiers.js:77-150 WEAPON_FAMILIES",
+   "what": "Weapon accuracy and damage: the one gear formula, the family's profile x the slot's share (a two-handed weapon the shield's too) x the offense budget at the piece's item Level; on a Danger-scale ground read at the ground's base item Level. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
+   "where": "src/core/gear-stats.js gearStats, scaleItems",
    "state": "live"
   },
   {
@@ -689,6 +686,17 @@
    "state": "live"
   },
   {
+   "id": "P17",
+   "also": [],
+   "categories": [
+    "progression"
+   ],
+   "owner": null,
+   "what": "Temper on steps: a seated rank is +1 item Level on its gear slot inside the gear part, five ranks a slot, rank r opens at hero Level 40r, a whole kit at 5 is 5 steps; a rank is priced in hours of wage at the worn piece's item Level, half of it that band's Temper kits (the old 1% rungs retired with lane/tp-im-steps)",
+   "where": "src/core/temper-steps.js",
+   "state": "live"
+  },
+  {
    "id": "P19",
    "also": [],
    "categories": [
@@ -734,7 +742,7 @@
     "progression"
    ],
    "owner": null,
-   "what": "Run ground pay: a Tower kill pays each hero the Level share at the floor's gap (the one pay rule) x payPm and the room's share, split evenly",
+   "what": "Run ground pay: a Tower kill pays each hero the hours table's share of its own Level over refKillsHead x the depth ratio at the floor's gap x payPm x the room's share, split evenly (lane/tower-boss-formula)",
    "where": "src/core/hunt/tower.js#towerShareXp",
    "state": "live"
   },
@@ -1928,8 +1936,8 @@
    ],
    "class": 3,
    "status": "CONFIRMED",
-   "what": "Tempering rounds by chance (the part of a point is a draw). Every other step floors",
-   "where": "src/core/temper.js:13-15",
+   "what": "The steady cut rounds by chance (the part of a point is a draw). Every other step floors",
+   "where": "src/core/mitigation.js:29-36",
    "fix": "the right idea in one place only. See X-FLOOR-CHAIN",
    "decided": null
   },
@@ -3377,8 +3385,16 @@
    "to": "C-HURT"
   },
   {
-   "from": "C-TEMPER",
+   "from": "C-STEADY",
    "to": "C-HURT"
+  },
+  {
+   "from": "C-BUFF-BONUS",
+   "to": "C-STEADY"
+  },
+  {
+   "from": "C-JEWEL-PERKS",
+   "to": "C-STEADY"
   },
   {
    "from": "C-BOSS-PHASE",
@@ -3397,7 +3413,7 @@
    "to": "C-ARMOR-CHAIN"
   },
   {
-   "from": "C-TEMPER",
+   "from": "C-STEADY",
    "to": "C-ARMOR-CHAIN"
   },
   {
@@ -3415,10 +3431,6 @@
   {
    "from": "C-HURT",
    "to": "C-LEECH"
-  },
-  {
-   "from": "C-TEMPER",
-   "to": "C-SPELL-HEAL"
   },
   {
    "from": "C-REF-HERO",
@@ -3613,10 +3625,6 @@
    "to": "C-HERO-POWER"
   },
   {
-   "from": "C-TEMPER",
-   "to": "C-HERO-POWER"
-  },
-  {
    "from": "C-HERO-POWER",
    "to": "P06"
   },
@@ -3685,8 +3693,8 @@
    "to": "C-JEWEL-PERKS"
   },
   {
-   "from": "C-GEAR-WEAPON",
-   "to": "C-TEMPER"
+   "from": "P01",
+   "to": "P17"
   },
   {
    "from": "C-GEAR-WEAPON",
@@ -3703,14 +3711,6 @@
   {
    "from": "P22",
    "to": "C-RUN-ROOM"
-  },
-  {
-   "from": "P01",
-   "to": "P22"
-  },
-  {
-   "from": "C-SCALED",
-   "to": "P22"
   },
   {
    "from": "P03",
@@ -4026,7 +4026,15 @@
   },
   {
    "from": "E38",
-   "to": "C-TEMPER"
+   "to": "P17"
+  },
+  {
+   "from": "P01",
+   "to": "P22"
+  },
+  {
+   "from": "C-SCALED",
+   "to": "P22"
   },
   {
    "from": "E40",
@@ -4078,84 +4086,84 @@
    "id": "C-MON-STATS",
    "category": "combat",
    "feeds": 12,
-   "reaches": 78,
-   "categoriesReached": 3
-  },
-  {
-   "id": "C-GEAR-WEAPON",
-   "category": "combat",
-   "feeds": 9,
-   "reaches": 78,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "P03",
    "category": "progression",
    "feeds": 9,
-   "reaches": 78,
+   "reaches": 80,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-GEAR-WEAPON",
+   "category": "combat",
+   "feeds": 8,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "C-TIER",
    "category": "combat",
    "feeds": 8,
-   "reaches": 78,
+   "reaches": 80,
+   "categoriesReached": 3
+  },
+  {
+   "id": "P01",
+   "category": "progression",
+   "feeds": 7,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "C-HERO-POWER",
    "category": "combat",
    "feeds": 6,
-   "reaches": 78,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "P11",
    "category": "progression",
    "feeds": 6,
-   "reaches": 78,
-   "categoriesReached": 3
-  },
-  {
-   "id": "P01",
-   "category": "progression",
-   "feeds": 5,
-   "reaches": 78,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "C-CAST-POWER",
    "category": "combat",
    "feeds": 4,
-   "reaches": 78,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "C-GEAR-ARMOR",
    "category": "combat",
    "feeds": 4,
-   "reaches": 78,
+   "reaches": 80,
+   "categoriesReached": 3
+  },
+  {
+   "id": "C-JEWEL-PERKS",
+   "category": "combat",
+   "feeds": 4,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "C-STATUS",
    "category": "combat",
    "feeds": 4,
-   "reaches": 78,
-   "categoriesReached": 3
-  },
-  {
-   "id": "C-TEMPER",
-   "category": "combat",
-   "feeds": 4,
-   "reaches": 78,
+   "reaches": 80,
    "categoriesReached": 3
   },
   {
    "id": "E14",
    "category": "economy",
    "feeds": 4,
-   "reaches": 78,
+   "reaches": 80,
    "categoriesReached": 3
   }
  ],
@@ -4187,8 +4195,8 @@
   "C-SPELL-HIT",
   "C-SPELL-SHELL",
   "C-STATUS",
+  "C-STEADY",
   "C-TARGET",
-  "C-TEMPER",
   "C-TIER",
   "C-VULN",
   "C-WEAKNESS",
@@ -4201,7 +4209,6 @@
   "E29",
   "E30",
   "E37",
-  "E38",
   "E40",
   "E46",
   "E55",
@@ -4216,6 +4223,7 @@
   "P15",
   "P19",
   "P20",
+  "P22",
   "P23",
   "P28",
   "P35"

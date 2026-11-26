@@ -126,7 +126,6 @@ export const LEVER_MOVES = Object.freeze({
   'gear.jewel-perks': ['+gear.perk'],
   'gear.uniques': ['+gear.armor', '+gear.special'],
   'gear.item-stats': ['~gear.armor', '~gear.weapon'],
-  'gear.temper-effect': ['+temper.blows', '+temper.armor'],
   // ── supplies ──
   'cons.store-supplies': ['+shop.price'],
   'cons.food-buffs': ['+hero.buff', '+hero.coin'],
@@ -139,7 +138,6 @@ export const LEVER_MOVES = Object.freeze({
   // ── the economy outside a hunt ──
   'econ.sale-rates': ['+sale.rate'],
   'econ.blessing-price': ['+blessing.price'],
-  'econ.temper-price': ['+sink.temper'],
   'econ.house': ['+sink.house', '~perk.permanent'],
   'econ.training': ['+hero.skillXp', '+sink.other'],
   'econ.scaled-hunts': ['~kill.xp', '~kill.coin', '~drop.rolls', '~xp.share'],

@@ -23,7 +23,7 @@ export const SIZES = Object.freeze({ plain: Object.freeze({ hours: 1, seeds: 2 }
 export const BY_ID = Object.freeze(Object.fromEntries(REF_POINTS.map((p) => [p.id, p])));
 const P = (...ids) => ids.map((id) => BY_ID[id]);
 export const ALL_POINTS = REF_POINTS;
-export const POOL_POINTS = P('glade', 'slake', 'hold');                         // G10, G11, G12: "Levels 30, 60, 105"
+export const POOL_POINTS = P('glade', 'slake', 'hold');                         // G11, G12: "Levels 30, 60, 105"
 export const DEADLY_POINTS = P('ford', 'pyre', 'hold');                          // G8, D1, D2: "Ford, Pyre, Krell" / "Levels 50, 80, 105"
 /* THE SCALE'S CELLS (lane/econ-followups, 2026-11-22): G1 on every Danger scale ground (src/data/danger.js DANGER_GROUNDS) at the Level its
    reference step was measured at (tests/level-curve.mjs REF_LEVEL, the same as C7 and V4): the mixed four from its held start (refStep -
@@ -86,11 +86,9 @@ export const LINES = Object.freeze([
      1.0 the next ground's first depth pays less than this ground's top (a pay cut for moving on). */
   { id: 'G7', words: 'The next scale ground pays more from its first depth: depth 1 / the last ground\'s depth 20 (C-11)', on: 'consecutive Danger scale grounds by base item Level, read from data', target: [1.1, null], keep: [1.0, null], turnsRedIn: 'R10 (12-targets C-11)', mode: 'report' },
   { id: 'G8', words: 'Deadly costs gold and never loses it: net a hero-hour, Krell-kit four', on: 'Levels 50, 80, 105', target: [3000, 8000], keep: [0, null], turnsRedIn: 'L16 (re-read L32)', mode: 'report', gate: 'gold' },
-  { id: 'G10', words: 'The gear pool over the played kit: XP, and its damage cut / one armor step\'s', on: 'Levels 30, 60, 105, lone and four', target: null, keep: null, turnsRedIn: 'L15 (damage), L37 (XP)', mode: 'report',
-    parts: { xp: { target: [null, 1.09], keep: [null, 1.10] }, dmg: { target: [null, 1], keep: [null, 1] } } },
   { id: 'G11', words: 'The hero that trains every idle hour: XP, and damage cut', on: 'Levels 30, 60, 105', target: null, keep: null, turnsRedIn: 'never (a report line, never a gate: 30-plan 31-7)', mode: 'report',
     parts: { xp: { target: [null, 1.05], keep: [null, 1.05] }, dmg: { target: [null, 0.15], keep: [null, 0.15] } } },
-  { id: 'G12', words: 'No gold-for-power offer under 1 lone hour of gold a +1% Level XP', on: 'Tempering, the yard, training items', target: [1, null], keep: [1, null], turnsRedIn: 'L19', mode: 'report' },
+  { id: 'G12', words: 'No gold-for-power offer under 1 lone hour of gold a +1% Level XP', on: 'the yard, training items', target: [1, null], keep: [1, null], turnsRedIn: 'L19', mode: 'report' },
   { id: 'G13', words: 'Magic Find from every source at 5,000 hours with the ring', on: 'the Luck bar (not built)', target: [null, 104], keep: [null, 104], turnsRedIn: 'L20', mode: 'report', notBuilt: 'L20' },
   { id: 'G14', words: 'The lever list is closed: every lever in the data has a class; cut and dark levers never grow', on: 'a scan of src/data/*', target: null, keep: null, turnsRedIn: 'L14', mode: 'red', bands: '0 strangers, every cut or dark lever at its pin / red on a stranger or a pin passed' },
   { id: 'G15', words: 'Every price past Krell is a share of the band index (shares sum 1.2 to 1.4)', on: 'the price rows (not built)', target: [1.2, 1.4], keep: [1.2, 1.4], turnsRedIn: 'L47', mode: 'report', notBuilt: 'L47' },
@@ -127,6 +125,10 @@ export const RETIRED = Object.freeze({
     + 'climb pushes a company until its pulls stop being clean (RISKS cleanPm) and it breaks off at fallPm, so its low point sits between them '
     + 'by construction (src/data/danger.js); a weaker company holds shallower instead of dying. Deaths by stance are 12-targets C-3 and C-4 '
     + '(V2 stance runs).',
+  G10: 'The gear pool (the old Tempering ladders at 5 of 5 on both tracks, + main and Defense +10) over the played kit: the rungs it read '
+    + 'retired with lane/tp-im-steps (2026-11-26). Temper on steps is item Levels in the gear part, a whole kit at rank 5 is 5 steps by '
+    + 'construction (tests/temper-steps.mjs TS-4, tests/hunt-core/amount.mjs temper-paths), and what gold buys over a plain hero is 19-power-ledger '
+    + 'section 1\'s gold ceiling (Temper 5 + consumables 6 + bought Traits, under two tiers), read on the redesign Lab (21 section 2.8 T1, T2).',
 });
 
 /* ── THE CELLS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -136,7 +138,6 @@ export const RETIRED = Object.freeze({
    cell.mjs runCell plays. */
 const STYLES_ALONE = ['hammer', 'mage', 'tank', 'sword', 'axes', 'bow', 'crossbow', 'healer'];   // tools/balance-sim/styles.mjs, every way
 const staged = (p) => (p.open ? {} : { uniques: true, openAlso: [p.ground] });
-const temperAt = (tier, tracks = ['blows', 'armor']) => Object.fromEntries(tracks.map((t) => ['temper:' + t + ':' + tier, 5]));
 
 /** Skills a seat by seat: the career line (party or alone) at the Level, `bump` added to the listed skills ('main' = the style's own). */
 export function seatSkills(ctx, party, level, bump = {}) {
@@ -174,17 +175,10 @@ export function plainCells(ctx, size = SIZES.plain) {
     push('scale-four:' + g.id, ctx.scaleCell(g.id, g.level, SCALE_FOUR, g.heldStart));
     for (const style of SCALE_LONE) push('scale-lone:' + g.id + ':' + style, ctx.scaleCell(g.id, g.level, [style], g.floorStep));
   }
-  /* G10, G11, G12 at Levels 30, 60, 105 */
+  /* G11, G12 at Levels 30, 60, 105 */
   for (const p of POOL_POINTS) {
-    const lone = ref(p, LONE), four = ref(p, FOUR);
-    const pool = { temper: temperAt(p.gearTier) };
-    push('lone-pool:' + p.id, { ...lone, ...pool, skillsBySeat: seatSkills(ctx, lone.party, p.level, { main: 10, defense: 10 }) });
-    push('four-pool:' + p.id, { ...four, ...pool, skillsBySeat: seatSkills(ctx, four.party, p.level, { main: 10, defense: 10 }) });
-    /* one armor step: the same hero in armor one tier behind (gear.mjs tierOffset on the armour group) */
-    push('lone-armor-1:' + p.id, { ...lone, gear: { ...(lone.gear || {}), tierOffset: -1, only: 'armour' } });
-    push('four-armor-1:' + p.id, { ...four, gear: { ...(four.gear || {}), tierOffset: -1, only: 'armour' } });
-    /* G12's prices: Blows 5 of 5 alone, and the main skill 10 over the line alone */
-    push('lone-blows:' + p.id, { ...lone, temper: temperAt(p.gearTier, ['blows']) });
+    const lone = ref(p, LONE);
+    /* G12's price: the main skill 10 over the line alone */
     push('lone-main10:' + p.id, { ...lone, skillsBySeat: seatSkills(ctx, lone.party, p.level, { main: 10 }) });
     /* G11: every idle hour in the yard, all on the main skill (the XP reading) or all on Defense (the damage reading) */
     const t = ctx.yardLevels(p.level);

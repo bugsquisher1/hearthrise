@@ -610,9 +610,9 @@ insert into public.hr_item_levels (item_id, item_level) values
 delete from public.hr_imbue_rules;
 insert into public.hr_imbue_rules (imbue_id, kind, equip_slot, raises, key, part_item, band, item_id) values
   ('brute_edge', 'edge', 'weapon', 'offense', 'edge_brute', 'pike_ferrule', 70, 'imbue_brute_edge'),
-  ('fire_edge', 'edge', 'weapon', 'offense', 'edge_fire', 'coal_tongs', 110, 'imbue_fire_edge'),
-  ('fire_ward', 'ward', 'body', 'defense', 'ward_fire', 'fire_gland', 128, 'imbue_fire_ward'),
-  ('life_leech', 'leech', 'helmet', 'heal', 'leech_life', 'leech_jaw', 165, 'imbue_life_leech'),
+  ('fire_edge', 'edge', 'weapon', 'offense', 'edge_fire', 'rake_tine', 70, 'imbue_fire_edge'),
+  ('fire_ward', 'ward', 'body', 'defense', 'ward_fire', 'ford_weed', 45, 'imbue_fire_ward'),
+  ('life_leech', 'leech', 'helmet', 'heal', 'leech_life', 'mudlark_hook', 50, 'imbue_life_leech'),
   ('mana_leech', 'leech', 'helmet', 'mana', 'leech_mana', 'urn_shard', 55, 'imbue_mana_leech');
 delete from public.hr_imbue_levers;
 insert into public.hr_imbue_levers (id, hours, life_rung_pm, fee_hours_pm, ramp_level, qualities) values

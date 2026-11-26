@@ -97,8 +97,8 @@ out.death = LEVELS.filter((L) => L >= 10).map((L) => {
   out.deathParity = { upTo2M: { checked, mismatches: bad }, upTo9e15: { checked: big, mismatches: bigBad, jsOverSql: over }, samples };
 }
 
-/* 5. TEMPERING and the gear ladder */
-out.temper = Object.entries(TP.TEMPER_TIERS).map(([t, g]) => ({ tier: Number(t), wornAt: GT.MATERIAL_TIERS[Number(t) - 1].level, oneTrack: g.reduce((a, b) => a + b, 0), bothTracks: 2 * g.reduce((a, b) => a + b, 0), trackPm: TP.temperLadder('blows', Number(t)).pm * TP.TEMPER_RUNGS }));
+/* 5. TEMPER ON STEPS (the old rungs retired with lane/tp-im-steps) and the gear ladder */
+out.temper = Array.from({ length: TP.TEMPER_STEPS.ranks }, (_, i) => ({ rank: i + 1, opensAt: (i + 1) * TP.TEMPER_STEPS.rankEvery, ilPerRank: TP.TEMPER_STEPS.ilPerRank }));
 out.gearLadder = GT.MATERIAL_TIERS.map((t, i) => ({ tier: t.tier, level: t.level, hammerStr: hammerStr(i), hammerStepPct: i ? r1((hammerStr(i) / hammerStr(i - 1) - 1) * 100) : null, plateBodyDef: plateBodyDef(i), bodyStepPct: i ? r1((plateBodyDef(i) / plateBodyDef(i - 1) - 1) * 100) : null }));
 
 /* 6. PARTY: the Level XP a head, permille of a monster's kill, by size and classes (a hero alone 1150) */

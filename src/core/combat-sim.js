@@ -67,6 +67,7 @@ import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 import { syncTalents } from './hunt/talent-rows.js';
 import { syncTraits } from './hunt/trait-rules.js';
+import { wornImbuesOf } from './imbue.js';
 import { syncSignature } from './hunt/signature-rules.js';
 import { traitSwing } from './trait-roll.js';
 import { scaleItems } from './gear-stats.js';
@@ -169,8 +170,7 @@ function syncUnit(u, m, roles) {
   u.skillGapPm = Number.isInteger(snap.skillGapPm) ? snap.skillGapPm : 0;
   /* THE AMOUNT PIPELINE'S READS (src/core/hunt/amount.js, on the Danger scale only), the same: never persisted. */
   for (const k of PIPELINE_SNAP) u[k] = Number.isInteger(snap[k]) ? snap[k] : 0;
-  /* TEMPERING, the same: at every boundary from the server's rungs, never persisted, absent at rung 0 (damage.js hurt, abilities.js healOne). */
-  if (snap.blowsPm) u.blowsPm = snap.blowsPm; else if (u.blowsPm) delete u.blowsPm;
+  /* THE STEADY CUT (a cape's steadyPm and a steady meal: mitigation.js steadyPmOf), the same: never persisted, absent with none (damage.js hurt). */
   if (snap.armorPm) u.armorPm = snap.armorPm; else if (u.armorPm) delete u.armorPm;
   /* CRAFTED JEWELRY'S PERKS, the same: never persisted, absent on a hero that wears none (damage.js roll, abilities.js fire). */
   if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;
@@ -186,6 +186,9 @@ function syncUnit(u, m, roles) {
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
   syncTraits(u, m.hero);                // THE TRAITS it wears, the same (trait-rules.js syncTraits): none while Traits are dark
+  /* THE IMBUEMENTS it wears, the same (src/core/imbue.js: amount.js reads them as consumable rows): never persisted, none while dark */
+  const imb = wornImbuesOf(m.hero.wornImbues);
+  if (imb) u.imbues = imb; else if (u.imbues !== undefined) delete u.imbues;
   syncSignature(u, m.hero);             // THE SIGNATURE it plays, after the Roads' reactions (signature-rules.js): none while dark
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;

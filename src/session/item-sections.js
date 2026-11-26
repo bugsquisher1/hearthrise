@@ -36,6 +36,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { huntBagOf } from './hunt-sections.js';
 import { SHOP_SOLD_KINDS } from '../data/supply-basics.js';
+import { IMBUE_RULES, IMBUE_SLOTS } from '../data/imbue-rules.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -304,23 +305,38 @@ export function buffsOf(cs) {
     .map((x) => ({ type: x.type, magnitude: x.magnitude, msLeft: x.remaining_ms }));
 }
 
-const IMBUE_KINDS = Object.freeze(['keen', 'life_leech', 'mana_leech', 'ward', 'element_ward']);
-
 /**
- * `imbuements` (ruling D v2; NOT on the server yet): per worn slot, how many
- * imbuement slots the piece has and what fills them,
- *   { equip_slot: { slots: 0..3, filled: [{ kind, ms_left }] } }.
- * Null while the server sends none: the Inventory then shows nothing for it.
+ * `temper_steps` (hr_temper_steps_view, 1063-flame-temper.sql; 21 section 2.6; null while the `temper_steps` switch is off): each equip
+ * slot's Temper as the server holds it, { equip_slot: { rank, cap, seated, itemLevel, nextAt } }: the ranks bought, the most this hero's
+ * Level opens, whether they count on what the slot wears, the worn piece's item Level (null with nothing worn) and the Level the next
+ * rank opens at. A row that is no count is dropped. Null with none.
  */
-export function imbuementsOf(cs) {
-  const m = read(cs, 'imbuements');
-  if (!isObj(m)) return null;
+export function temperStepsOf(cs) {
+  const s = read(cs, 'temper_steps');
+  if (!isObj(s)) return null;
   const out = {};
-  for (const [slot, v] of Object.entries(m)) {
-    if (!/^[a-z0-9_]{1,32}$/.test(slot) || !isObj(v) || !Number.isInteger(v.slots) || v.slots < 0 || v.slots > 3) continue;
-    const filled = (Array.isArray(v.filled) ? v.filled : []).slice(0, v.slots)
-      .filter((f) => isObj(f) && IMBUE_KINDS.includes(f.kind) && count(f.ms_left) !== null).map((f) => ({ kind: f.kind, msLeft: f.ms_left }));
-    out[slot] = { slots: v.slots, filled };
+  for (const [slot, v] of Object.entries(s)) {
+    if (!/^[a-z0-9]{1,16}$/.test(slot) || !isObj(v) || count(v.rank) === null || count(v.cap) === null) continue;
+    out[slot] = { rank: v.rank, cap: v.cap, seated: v.seated === true, itemLevel: count(v.item_level), nextAt: count(v.next_at) };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** @type {Set<string>} */
+const IMBUE_SLOT_SET = new Set(Object.values(IMBUE_SLOTS));
+/**
+ * `imbues` (hr_imbues_view, 1063-flame-temper.sql; 21 section 3.6; null while the `imbuements` switch is off): what each equip slot wears
+ * and the hunted time it has left, { equip_slot: { id, name, band, quality, msLeft } }. An unknown imbuement, a slot no kind sits in and a
+ * timer that is no count are dropped. Null with none: the Inventory then shows nothing for it. The timer is the server's.
+ */
+export function imbuesOf(cs) {
+  const s = read(cs, 'imbues');
+  const w = isObj(s) && isObj(s.worn) ? s.worn : null;
+  if (!w) return null;
+  const out = {};
+  for (const [slot, v] of Object.entries(w)) {
+    if (!IMBUE_SLOT_SET.has(slot) || !isObj(v) || !Object.prototype.hasOwnProperty.call(IMBUE_RULES, v.imbue) || count(v.ms_left) === null || count(v.band) === null) continue;
+    out[slot] = { id: v.imbue, name: IMBUE_RULES[v.imbue].name, band: v.band, quality: str(v.quality, 16) ? v.quality : 'plain', msLeft: v.ms_left };
   }
   return Object.keys(out).length ? out : null;
 }

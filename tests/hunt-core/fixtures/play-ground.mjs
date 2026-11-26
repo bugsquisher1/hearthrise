@@ -164,8 +164,10 @@ export async function loadPlay(root) {
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* opts.plan: the Danger scale's plan on every hero ({ risk, danger }: the stance and the step it starts at, as the server freezes it) */
     if (opts.plan) for (const m of members) m.hero = Object.assign({}, m.hero, opts.plan);
-    /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */
-    if (opts.temper) for (const m of members) m.perks = { temper: opts.temper };
+    /* opts.temperSteps: every hero's seated Temper ranks by equip slot, the map hr_perks_of's `temperSteps` carries (src/core/temper-steps.js) */
+    if (opts.temperSteps) for (const m of members) m.perks = { temperSteps: opts.temperSteps };
+    /* opts.wornImbues ((role, seat) -> [{ id, band, msLeft }] or null): a hero's worn imbuements on its hero (src/core/imbue.js wornImbuesOf) */
+    if (typeof opts.wornImbues === 'function') members.forEach((m, i) => { const w = opts.wornImbues(roles[i], i); if (w) m.hero = Object.assign({}, m.hero, { wornImbues: w }); });
     /* opts.talents ((role, seat) -> { force, footing, grit, reserve } permille, or null): a hero's Talents beside its rungs, on m.perks.talents
        (tools/balance-program/talents.mjs; read only where the engine has the seam: the matrix's scratch hook, patches/talents-hook.json) */
     if (typeof opts.talents === 'function') members.forEach((m, i) => { const t = opts.talents(roles[i], i); if (t) m.perks = { ...(m.perks || {}), talents: t }; });

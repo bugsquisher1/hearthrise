@@ -101,13 +101,14 @@ export default definePack({
       hp: 354, atk: 138, aim: 154, evasion: 68, def: 39, xp: 3847, gp: [52, 156], formula: true },
   },
   roster: { troll_picker: 'swarm', slate_thrower: 'glass', stable_troll: 'heavy', troll_brewer: 'regular', the_landlord: 'elite' },
-  /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw). */
+  /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an
+     imbuement from once an imbuement row names it (src/data/imbue-rules.js), and what a step bench takes (drop-hours.js made.part). */
   items: {
-    pewter_spoon: { n: 'Pewter Spoon', icon: '🥄', v: 222, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
-    roof_slate: { n: 'Roof Slate', icon: '🪨', v: 228, raw: true, imbue: { kind: 'keen', tier: 3 } },
-    stable_bit: { n: 'Stable Bit', icon: '🐴', v: 234, raw: true, imbue: { kind: 'ward', tier: 3 } },
-    coal_tongs: { n: 'Coal Tongs', icon: '🔥', v: 238, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
-    cellar_tally: { n: 'Cellar Tally', icon: '🪵', v: 246, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
+    pewter_spoon: { n: 'Pewter Spoon', icon: '🥄', v: 222, raw: true, part: true },
+    roof_slate: { n: 'Roof Slate', icon: '🪨', v: 228, raw: true, part: true },
+    stable_bit: { n: 'Stable Bit', icon: '🐴', v: 234, raw: true, part: true },
+    coal_tongs: { n: 'Coal Tongs', icon: '🔥', v: 238, raw: true, part: true },
+    cellar_tally: { n: 'Cellar Tally', icon: '🪵', v: 246, raw: true, part: true },
   },
   itemText: {
     pewter_spoon: 'One of the inn\'s good spoons. The trolls took every one of them and don\'t know what they\'re for',

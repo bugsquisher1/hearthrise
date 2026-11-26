@@ -68,18 +68,19 @@ Every clip keeps the reference identity: no gear appearing or disappearing betwe
 - **Ability tiles are their own family, off the world palette by decision (Art Director, 2026-11-04):** 32×32, a hot gold frame with white corner studs, a slate field lit from the top, one black-outlined emblem. They are spells on a bar, not objects in the world, so the palette law does not reach them. All 16 stay one family: a snap of the 13 to `hr-world-56-v2` was tried and read worse at the bar's size (the frame went patchy, every glow lost its top step). A new tile copies the family's frame (`tools/world-art/ability-tiles.mjs`); a bar is never half one and half the other.
 
 ## 8. Rarity and rewards (decided)
-| Rarity | Colour (world palette) | Rank pips | Reward presentation |
-|---|---|---|---|
-| Common | stone `#aaa49a` | 0 | log line only |
-| Uncommon | leaf `#73944c` | 1 | log line in colour; the bag's ground mark tinted |
-| Rare | frost `#4fa8e8` | 2 | light column + name for 4 s + HUD toast |
-| Epic | arcane `#9b72d0` (**new ramp**, Asset Director) | 3 | as rare, plus a sound when audio exists |
-| Legendary | torch `#f2a03a` | 4 | the spoils reveal (`spoils.css`) |
-| Mythic / unique | blood `#c23a2a` / gold `#e8c547` | 5 | the reveal, a clan broadcast and a shareable card (super-rare drops) |
+| Rarity (a drop's band in the world) | Colour (world palette) | Reward presentation |
+|---|---|---|
+| Common | stone `#aaa49a` | log line only |
+| Uncommon | leaf `#73944c` | log line in colour; the bag's ground mark tinted |
+| Rare | frost `#4fa8e8` | light column + name for 4 s + HUD toast |
+| Epic | arcane `#9b72d0` (**new ramp**, Asset Director) | as rare, plus a sound when audio exists |
+| Legendary | torch `#f2a03a` | the spoils reveal (`spoils.css`) |
+| Mythic / unique | blood `#c23a2a` / gold `#e8c547` | the reveal, a clan broadcast and a shareable card (super-rare drops) |
 
-- The colours become `--rar-*` tokens in `tokens.css` at the cutover (`samples/samples.css` holds the proposal). They are world colours so the light column in the world and the slot border in the bag match.
-- **Colour is never the only cue:** equipment slots carry rank pips and a 2 px border; mythic adds a double border. Selection is a neutral `--ink` outline, because gold is the primary action and legendary is orange.
-- **Kinds read from the pocket:** equipment is framed in its rarity, a consumable shows its count and bar key, a quest or key item sits on parchment with a seal and never shows a price, a material is a plain pocket (`samples/slots.html`).
+- The colours are the `--rar-*` tokens in `tokens.css`. They are world colours so the light column in the world and a find's frame in the bag match.
+- **A piece's step, not the catalogue's rung, stands out (v0.3.0 A1, 2026-11-26; the redesign's four steps: Plain, Rare, Very Rare, Signature).** A catalogue row's `rarity` is its metal's rung (a steel sword reads "rare" there), so it paints nothing: plain gear is a plain pocket with a quiet `--line-soft` rim, no rank pips, no rung in its kind line. **A Rare** (a piece carrying a Trait) wears the Rare frame: a frost line, lit up-left, with a 2x2 frost stud in each corner. **A Signature** wears a double gold rule with cut corners and a torch-lit point. Very Rare uses the Rare frame until it has its own. Both are pixel art in the steel family (`tools/make-ui-steel-art.mjs`, `assets/ui/std-frame-*.png`), drawn by ONE component (`bits.js itemIconHtml`, `hunt.css .hh-std`) one art px outside the icon and under it, so no well changes size; the tooltip and a chat link name it in the frame's colour, the share card draws the same frame. Which pieces: `src/shell/item-standing.js`. Held by `tests/item-standing.mjs`.
+- **Colour is never the only cue:** the Rare frame is a single line with corner studs, the Signature's a double rule with cut corners. Selection is a neutral `--ink` outline, because gold is the primary action.
+- **Kinds read from the pocket:** equipment is a quiet rim (a Rare or Signature in its frame), a consumable shows its count and bar key, a quest or key item sits on parchment with a seal and never shows a price, a material is a plain pocket (`samples/slots.html`).
 - Drop odds shown to a player come from the server's catalogue, never from a client constant.
 
 ## 9. UI chrome (law for colour/radius/shadow; decided for the frame)

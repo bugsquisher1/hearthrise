@@ -8,14 +8,10 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const ITEM_TEXT = Object.freeze({
-  /* The kind line. */
-  rarity_common: 'Common',
-  rarity_uncommon: 'Uncommon',
+  /* The kind line. A piece that stands out names its step after the kind (src/shell/item-standing.js): plain gear names none. */
   rarity_rare: 'Rare',
-  rarity_epic: 'Epic',
-  rarity_legendary: 'Legendary',
-  rarity_mythic: 'Mythic',
-  rarity_unique: 'Unique',
+  rarity_very_rare: 'Very Rare',
+  rarity_signature: 'Signature',
   type_weapon: 'Weapon',
   type_armor: 'Armor',
   type_jewelry: 'Jewelry',

@@ -39,7 +39,8 @@ import { FLAMES } from '../data/hearth.js';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js';
 import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS, JEWEL_PIECES, JEWEL_PERKS, JEWEL_GUARANTEES, JEWEL_SWITCH, perksFor } from '../data/jewelry.js';
-import { t, hasText } from '../render/player-text.js';
+import { t } from '../render/player-text.js';
+import { standingOf } from './item-standing.js';
 import { baneIndex, baneMultFor, classOfMonster } from '../core/bane.js';
 import { resistProfile } from '../core/elements.js';
 import { groundOfHunt, monstersOn } from '../data/hunt-grounds.js';
@@ -48,8 +49,7 @@ import { HUNT_INDEX } from '../data/hunts.js';
 import { OUTFIT_ROWS } from '../data/outfits.js';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
-/* A rarity's word (item.rarity_<rarity>, else Common) and a type's (item.type_<type>, else `or`); own-property reads only. */
-const rarityWord = (r) => (typeof r === 'string' && hasText('item.rarity_' + r) ? t('item.rarity_' + r) : t('item.rarity_common'));
+/* A type's word (item.type_<type>, else `or`); own-property reads only. */
 const TYPES = new Set(['weapon', 'armor', 'jewelry', 'tool', 'trophy', 'training']);
 const typeWord = (type, or) => (TYPES.has(type) ? t('item.type_' + type) : t(or));
 
@@ -87,8 +87,9 @@ function index() {
   return INDEX;
 }
 
-/** The one line under the name: what kind of thing it is. */
-export function kindWords(id) {
+/** The one line under the name: what kind of thing it is. `piece` (src/shell/item-standing.js), when the bag holds one, adds its
+    step: "Sword, Tier 3, Rare". Plain gear names no step (the catalogue's rarity is its metal's rung, never a find's). */
+export function kindWords(id, piece) {
   const it = ITEMS[id], dr = DRINK_ITEMS[id];
   if (dr) return t('item.kind_drink', { mana: dr.mana });
   if (!it) return '';
@@ -96,7 +97,8 @@ export function kindWords(id) {
   if (k === 'gear') {
     const parts = [typeWord(it.type, 'item.type_gear')];
     if (it.tier) parts.push(t('item.tier', { tier: it.tier }));
-    parts.push(rarityWord(it.rarity));
+    const std = standingOf(piece || id);
+    if (std) parts.push(t('item.rarity_' + std));
     return parts.join(', ');
   }
   /* the ammo pocket holds more than shots: a rune fuels spells and a whetstone sharpens a blade (panel 2026-11-01) */

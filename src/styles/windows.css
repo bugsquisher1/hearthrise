@@ -157,17 +157,10 @@
    (shell.css .is-sending) from the press until the server's envelope lands. Nothing else changes early. */
 .hw-pocket.is-wearing, .hw-doll .hw-slot.is-wearing { cursor: progress; outline: 2px solid var(--gold-2); outline-offset: 1px; animation: hs-sending 900ms ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .hw-pocket.is-wearing, .hw-doll .hw-slot.is-wearing { animation: none; } }
-.rar-common { --pocket-rar: var(--rar-common); }
-.rar-uncommon { --pocket-rar: var(--rar-uncommon); }
-.rar-rare { --pocket-rar: var(--rar-rare); }
-.rar-epic { --pocket-rar: var(--rar-epic); }
-.rar-legendary { --pocket-rar: var(--rar-legendary); }
-.rar-mythic { --pocket-rar: var(--rar-mythic); }
-.rar-unique { --pocket-rar: var(--rar-unique); }
-.hw-pocket.is-gear, .hw-slot[class*="rar-"] { border-color: var(--pocket-rar, var(--line-soft)); }
-.hw-pocket.rar-mythic, .hw-pocket.rar-unique, .hw-slot.rar-mythic, .hw-slot.rar-unique { border-style: double; border-width: 3px; }
-.hw-pips { position: absolute; left: 1px; bottom: 1px; display: flex; gap: 1px; }
-.hw-pips i { width: 2px; height: 2px; background: var(--pocket-rar, var(--ink-3)); }
+/* Gear is a plain pocket with a quiet rim (v0.3.0 A1: the catalogue's rarity is its metal's rung, not a find's, so it paints
+   nothing). A Rare or Signature piece wears the standout frame its icon carries (hunt.css .hh-std), and the rim steps aside. */
+.hw-pocket.is-gear, .hw-slot:not(.is-empty) { border-color: var(--line-soft); }
+.hw-pocket:has(.hh-std), .hw-slot:has(.hh-std) { border-color: transparent; }
 /* The count: the floor size on a phone's 36 px well, the supporting size (16 px) in the 44 px well, off the art's corner. */
 .hw-count {
   position: absolute; right: clamp(0px, (100vw - 1024px) / 128, 2px); bottom: clamp(-1px, -1px + (100vw - 1024px) / 128, 1px);
@@ -231,7 +224,9 @@
 }
 .hw-tip.is-on { display: block; }
 .hw-tip-name { display: block; font-size: var(--t-small); color: var(--ink); }
-.hw-tip-name[class*="rar-"] { color: var(--pocket-rar); }
+/* a piece that stands out names itself in its frame's colour (src/shell/item-standing.js); plain gear reads in ink */
+.hw-tip-name.is-rare, .hw-tip-name.is-very_rare { color: var(--rar-rare); }
+.hw-tip-name.is-signature { color: var(--rar-unique); }
 .hw-tip-kind { display: block; color: var(--ink-3); }
 .hw-tip-flavour { display: block; margin-top: 4px; color: var(--ink-2); }
 .hw-tip-stats { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; margin: 6px 0 0; }

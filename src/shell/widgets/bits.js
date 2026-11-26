@@ -17,6 +17,7 @@ import { escapeHtml as esc } from '../../utils/dom.js';
 import { text, style, attr } from '../../render/paint.js';
 import { t, hasText } from '../../render/player-text.js';
 import { sourceName } from '../../render/source-names.js';
+import { itemIdOf, standingOf } from '../item-standing.js';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
@@ -82,10 +83,18 @@ export function elementName(id) { return spelled(id); }
 const hasSupplyArt = (id) => Boolean(BASIC_INDEX[id]) || SUPPLY_ART_AHEAD.includes(id);
 
 /** An item's 32 px pixel icon at x2 (a shop basic supply's, from its own folder), or the glyph `fallback` when the id is neither. */
-export function itemIconHtml(glyphs, id, fallback) {
-  if (ITEMS[id]) return '<img class="hh-icon" src="' + esc(PIXEL_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
-  if (hasSupplyArt(id)) return '<img class="hh-icon" src="' + esc(SUPPLY_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
-  return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, fallback || (DRINK_ITEMS[id] ? 'uiPotion' : 'uiChest')) + '</span>';
+export function itemIconHtml(glyphs, item, fallback) {
+  /* `item` is an item id or a piece (src/shell/item-standing.js): a Rare, Very Rare or Signature piece is drawn inside its STANDOUT
+     FRAME, the one frame every surface shows (hunt.css .hh-std, pixel art from tools/make-ui-steel-art.mjs, under the icon and one
+     art px outside it, so no well changes size). A surface never draws its own. */
+  const id = itemIdOf(item);
+  const std = standingOf(item);
+  const src = ITEMS[id] ? PIXEL_DIR + id + '.png' : hasSupplyArt(id) ? SUPPLY_DIR + id + '.png' : null;
+  const glyph = () => glyphSvg(glyphs, fallback || (DRINK_ITEMS[id] ? 'uiPotion' : 'uiChest'));
+  if (std) return '<span class="hh-icon hh-std is-' + std + (src ? '' : ' is-glyph') + '" data-std="' + std + '">'
+    + (src ? '<img class="hh-std-art" src="' + esc(src) + '" alt="" width="32" height="32" decoding="async">' : glyph()) + '</span>';
+  if (src) return '<img class="hh-icon" src="' + esc(src) + '" alt="" width="32" height="32" decoding="async">';
+  return '<span class="hh-icon is-glyph">' + glyph() + '</span>';
 }
 
 /** A faction's 32 px pixel icon at x2 (a side's mark or a piece standing buys, src/data/item-art.js FACTION_ART), or a flame glyph for an

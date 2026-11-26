@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 320,
+  "total": 309,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/world-pane.js": {"TS2322":1},
@@ -63,7 +63,6 @@
     "src/shell/market-model.js": {"TS2362":1,"TS2363":1},
     "src/shell/readiness.js": {"TS2339":4},
     "src/shell/report-model.js": {"TS2339":11},
-    "src/shell/share-card.js": {"TS2339":8,"TS2345":1,"TS2353":2},
     "src/shell/shell.js": {"TS2339":35,"TS4104":1},
     "src/shell/town-ticker.js": {"TS2353":1},
     "src/shell/widgets/action-bar.js": {"TS2554":2},

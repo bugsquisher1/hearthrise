@@ -86,7 +86,9 @@
 --   A block is one ledger row and one intent row (~600 B): at most 6 a hero-day (2 hunting, 4 work), 48,000 rows a day at the extreme,
 --   ~10 MB before the prune. A rule change is one ledger row. The index holds only bought-time rows. The quotes now read the day's count
 --   through it (a few rows) where 1058/1059 read the hero's whole day of ledger rows. The sweep each minute reads the rules of heroes
---   hunting or working (at most 8,000 small rows) and one quote each; it locks only a hero it buys for. No per-tick journal row.
+--   hunting or working (at most 8,000 small rows) and quotes at most 2,000 of them (a fresh order each minute past that, so at 100x
+--   every hero with a rule is reached within a few minutes, inside a block's lead); it locks only a hero it buys for. A refusal the
+--   sweep keeps meeting (the reserve, the day's end) is one hr_rejections row a hero, code and day (aggregated). No per-tick journal row.
 --   APPLY: the partial index is built inside the apply's transaction (no CONCURRENTLY there), one pass over player_ledger, holding its
 --   writes for that pass (seconds on production's ledger; the big release's apply window).
 --
@@ -533,18 +535,20 @@ begin
   return jsonb_build_object('ok', true, 'kind', p_kind, 'price', v_price, 'n', (v_q->>'bought')::int + 1);
 end $fn$;
 
-create or replace function public.hr_time_auto_sweep(p_limit integer default 500)
+create or replace function public.hr_time_auto_sweep(p_limit integer default 2000)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare c record; v jsonb; v_seen int := 0; v_bought int := 0; v_busy int := 0; v_err int := 0; v_msg text;
 begin
   -- WORK-BLOCKS (1071-work-blocks.sql): THE STANDING RULE, EVERY MINUTE (cron 'hr-time-auto'): each hero with a rule that is hunting or
-  -- doing town work gets one attempt (hr_time_auto_buy), in its own subtransaction, acting as that hero. Longest-waiting rule first.
+  -- doing town work gets one attempt (hr_time_auto_buy), in its own subtransaction, acting as that hero. Past p_limit candidates the
+  -- order is a fresh permutation each minute (md5 with the minute), so no hero waits behind the same others every minute; a block is
+  -- due for minutes on end (a hunting pool under a block, a work day's last 10 minutes), so a hero is reached long before it runs out.
   for c in select r.user_id, r.slot, r.kind from public.hero_time_rules r
              join public.player_state ps on ps.user_id = r.user_id and ps.slot = r.slot
             where (r.kind = 'hunt' and exists (select 1 from public.hunt_sessions h where h.user_id = r.user_id and h.slot = r.slot and h.ended_at is null))
                or (r.kind = 'work' and ps.active_kind = any (public.hr_work_kinds()))
-            order by r.set_at, r.user_id, r.slot, r.kind
-            limit greatest(1, least(coalesce(p_limit, 500), 5000)) loop
+            order by md5(r.user_id::text || ':' || r.slot::text || ':' || r.kind || ':' || date_trunc('minute', now())::text)
+            limit greatest(1, least(coalesce(p_limit, 2000), 5000)) loop
     v_seen := v_seen + 1;
     begin
       perform set_config('request.jwt.claim.sub', c.user_id::text, true);
@@ -599,7 +603,7 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
   ('hr_time_offer_answer', 'p_slot integer, p_up_to integer, p_idem uuid', 'authenticated',
    'added 1071-work-blocks.sql (lane B1): a SETTING - the account''s one answer to the block-rule card (12-targets 9.3): a choice sets every hero''s rule, Not now sets none; offer_answered on a second; pre-EA Security list S-22')
   on conflict (proname, identity_args, grantee) do update set note = excluded.note;
-do $mig$ begin perform public.hr_cron_ensure('hr-time-auto', '* * * * *', 'select public.hr_time_auto_sweep(500)'); end $mig$;
+do $mig$ begin perform public.hr_cron_ensure('hr-time-auto', '* * * * *', 'select public.hr_time_auto_sweep(2000)'); end $mig$;
 
 -- ── §9 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- The catalogue's rows are 1072's (after this file): on a first apply the probe plants a `work` row, the leads and the rule's row inside
@@ -607,7 +611,7 @@ do $mig$ begin perform public.hr_cron_ensure('hr-time-auto', '* * * * *', 'selec
 -- (a) THE PRESS, TOWN WORK: a hero whose day's work is used up buys four work blocks at the twin's price, each raising today's cap by
 --     a block and writing ONE shop row; the fifth is quoted block_limit and a forged press of it is refused and moves nothing; a wrong
 --     price is quote_changed; a replayed key moves nothing; a kind with no branch is bad_kind. Late in the UTC day (less than a block
---     and a minute before midnight) the first block is quoted day_ending instead, and its press is refused day_ending.
+--     before midnight: now() is one instant in the apply) the first block is quoted day_ending instead, and its press is refused.
 -- (b) THE RULE: off by default (no row, `auto` null); a working hero with a rule of 1 and its day's bought work under the lead is bought
 --     ONE block by hr_time_auto_buy (meta.auto), and the next attempt is rule_limit; a purse that would fall under the reserve is
 --     rule_reserve; a hero not working is not_working; the setting off deletes the row; a forged count is bad_intent.
@@ -652,7 +656,7 @@ begin
     q := public.hr_state_of(v_u, 0)->'time_blocks'->'work';
     if q is distinct from public.hr_work_block_quote(v_u, 0) then raise exception 'VERIFY(a): the section reads % not the quote', q; end if;
     if q->'auto' <> 'null'::jsonb then raise exception 'VERIFY(b): a new hero''s rule is not off: %', q; end if;
-    if v_room < v_block + 60000 then
+    if v_room < v_block then
       if q->>'why' is distinct from 'day_ending' then raise exception 'VERIFY(a): % ms before midnight the block quotes %', v_room, q; end if;
       v := public.hr_time_buy('work', 0, public.hr_time_block_price('work', v_lv, 1), '000000c0-0000-4000-a000-000000b17101');
       if v->>'error' is distinct from 'day_ending' then raise exception 'VERIFY(a): a block today cannot use answered %', v; end if;
@@ -716,10 +720,10 @@ begin
     update public.account_wallet set gold = v_p + (select ceil(s.reserve_hours_pm::numeric * public.hr_wage(v_lv) / 1000)::bigint from public.hr_time_standing s) - 1
      where user_id = v_u;
     v := public.hr_time_auto_buy(v_u, 1, 'work');
-    if v_room >= v_block + 120000 and v->>'why' is distinct from 'rule_reserve' then raise exception 'VERIFY(b): a purse under the reserve answered %', v; end if;
+    if v_room >= v_block + 60000 and v->>'why' is distinct from 'rule_reserve' then raise exception 'VERIFY(b): a purse under the reserve answered %', v; end if;
     update public.account_wallet set gold = v_g where user_id = v_u;
     v := public.hr_time_auto_buy(v_u, 1, 'work');
-    if v_room >= v_block + 120000 then
+    if v_room >= v_block + 60000 then
       if coalesce(v->>'ok', '') <> 'true' or public.hr_purse_of(v_u) <> v_g - v_p
          or not exists (select 1 from public.player_ledger where user_id = v_u and slot = 1 and intent = 'time_buy:work:' || v_p and meta->>'auto' = 'true') then
         raise exception 'VERIFY(b): the due block answered % (purse % want %)', v, public.hr_purse_of(v_u), v_g - v_p; end if;

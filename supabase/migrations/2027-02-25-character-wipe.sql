@@ -202,7 +202,9 @@ declare
     'hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_item_levels', 'hr_imbue_rules',
     'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules',
     /* the Trait-piece catalogue (1071-trait-pieces-catalogue.generated.sql): the rules, the Traits, each ground's ranks, depths and bases */
-    'hr_piece_rules', 'hr_piece_traits', 'hr_piece_fixed', 'hr_piece_grounds', 'hr_piece_depths', 'hr_piece_bases', 'hr_piece_signatures'];
+    'hr_piece_rules', 'hr_piece_traits', 'hr_piece_fixed', 'hr_piece_grounds', 'hr_piece_depths', 'hr_piece_bases', 'hr_piece_signatures',
+    /* the store's price for a Trait piece (1072-piece-verbs-catalogue.generated.sql) */
+    'hr_piece_value_rules', 'hr_piece_value_hours'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

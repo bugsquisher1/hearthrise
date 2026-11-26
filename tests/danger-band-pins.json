@@ -249,12 +249,12 @@
    ]
   },
   "carters_rest": {
-   "refStep": 40,
-   "floorStep": 0,
-   "topStep": 55,
-   "refKillsHead": 165,
+   "refStep": 90,
+   "floorStep": 5,
+   "topStep": 110,
+   "refKillsHead": 160,
    "coinPm": 1800,
-   "print": "44322bb805f96672",
+   "print": "99947026dd123d0f",
    "verdict": "OPEN",
    "levels": {
     "entry": 110,
@@ -271,7 +271,7 @@
   "ox_road": {
    "refStep": 160,
    "floorStep": 70,
-   "topStep": 200,
+   "topStep": 230,
    "coinPm": 4800,
    "print": "57e70ea7700daed6",
    "verdict": "OPEN",
@@ -308,9 +308,10 @@
   },
   "wyvern_roost": {
    "refStep": 190,
-   "floorStep": 75,
-   "topStep": 200,
-   "coinPm": 1300,
+   "floorStep": 70,
+   "topStep": 235,
+   "refHeld": 185,
+   "coinPm": 3700,
    "print": "fd373fa332c37429",
    "verdict": "OPEN",
    "levels": {

@@ -258,9 +258,9 @@ export const DANGER_GROUNDS = Object.freeze({
   /* THE MORROW HILLS ON THE SCALE (lane/scale-grounds-sweep step 3; 12-targets 8.3): Carter's Rest on Emberforged (100), the Ox Road on Dawnsteel
      (120, its reference its middle), Wyvern Roost on Cobalt (140, Levels 128-150), each the highest tier at or under its refLevel; the same anchor
      and the same measuring as the third batch (new-ground.mjs --hold-level); their own bodies carry roles (each pack's header words) */
-  carters_rest: ground({ refStep: 100, floorStep: 0, topStep: 200, refKillsHead: 165, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
-  ox_road: ground({ refStep: 160, floorStep: 70, topStep: 400, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
-  wyvern_roost: ground({ refStep: 190, floorStep: 75, topStep: 400, coinPm: 1300, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
+  carters_rest: ground({ refStep: 90, floorStep: 5, topStep: 110, refKillsHead: 160, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
+  ox_road: ground({ refStep: 160, floorStep: 70, topStep: 230, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
+  wyvern_roost: ground({ refStep: 190, floorStep: 70, topStep: 235, refHeld: 185, coinPm: 3700, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
   catacomb_flooded_wing: ground({ refStep: 490, floorStep: 455, topStep: 505, refKillsHead: 150, refHeld: 495, coinPm: 3400, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
 });
 

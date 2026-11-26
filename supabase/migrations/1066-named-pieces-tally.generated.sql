@@ -73,8 +73,8 @@ update public.hr_tally_tasks set ord = ord + 1000000;
 insert into public.hr_tally_tasks (task_id, ord, hunt_id, monster_id, target, gold, party) values
   ('cellar_giant_rats', 1, 'mill_cellar', 'rat', 25, 420, false),
   ('thicket_gray_wolves', 2, 'meadowbrook_thicket', 'gray_wolf', 200, 4700, false),
-  ('wickstead_turncoats', 3, 'wickstead', 'turncoat', 50, 780, false),
-  ('sewer_rat_king', 4, 'millrace_sewer', 'rat_king', 5, 1020, true),
+  ('wickstead_turncoats', 3, 'wickstead', 'turncoat', 50, 4700, false),
+  ('sewer_rat_king', 4, 'millrace_sewer', 'rat_king', 5, 4700, true),
   ('glade_poachers', 5, 'mosslight_glade', 'glade_poacher', 60, 4900, false),
   ('warrens_goblin_diggers', 6, 'coppercap_warrens', 'goblin_digger', 30, 5300, true),
   ('ford_fordsunk', 7, 'hasks_ford', 'fordsunk', 40, 5500, false),
@@ -112,29 +112,29 @@ insert into public.hr_tally_pieces (hunt_id, item_id, weight, equip_slot, tier) 
   ('meadowbrook_thicket', 'apprentice_pants', 'light', 'pants', 1),
   ('meadowbrook_thicket', 'apprentice_boots', 'light', 'boots', 1),
   ('wickstead', 'bronze_helm', 'heavy', 'helmet', 1),
-  ('wickstead', 'iron_platebody', 'heavy', 'body', 2),
-  ('wickstead', 'iron_platelegs', 'heavy', 'pants', 2),
+  ('wickstead', 'bronze_platebody', 'heavy', 'body', 1),
+  ('wickstead', 'bronze_platelegs', 'heavy', 'pants', 1),
   ('wickstead', 'bronze_boots', 'heavy', 'boots', 1),
   ('wickstead', 'leather_helmet', 'medium', 'helmet', 1),
-  ('wickstead', 'studded_body', 'medium', 'body', 2),
-  ('wickstead', 'studded_pants', 'medium', 'pants', 2),
+  ('wickstead', 'leather_body', 'medium', 'body', 1),
+  ('wickstead', 'leather_pants', 'medium', 'pants', 1),
   ('wickstead', 'leather_boots', 'medium', 'boots', 1),
   ('wickstead', 'apprentice_helmet', 'light', 'helmet', 1),
-  ('wickstead', 'adept_body', 'light', 'body', 2),
-  ('wickstead', 'adept_pants', 'light', 'pants', 2),
+  ('wickstead', 'apprentice_body', 'light', 'body', 1),
+  ('wickstead', 'apprentice_pants', 'light', 'pants', 1),
   ('wickstead', 'apprentice_boots', 'light', 'boots', 1),
-  ('millrace_sewer', 'iron_helm', 'heavy', 'helmet', 2),
+  ('millrace_sewer', 'bronze_helm', 'heavy', 'helmet', 1),
   ('millrace_sewer', 'bronze_platebody', 'heavy', 'body', 1),
   ('millrace_sewer', 'bronze_platelegs', 'heavy', 'pants', 1),
-  ('millrace_sewer', 'iron_boots', 'heavy', 'boots', 2),
-  ('millrace_sewer', 'studded_helmet', 'medium', 'helmet', 2),
+  ('millrace_sewer', 'bronze_boots', 'heavy', 'boots', 1),
+  ('millrace_sewer', 'leather_helmet', 'medium', 'helmet', 1),
   ('millrace_sewer', 'leather_body', 'medium', 'body', 1),
   ('millrace_sewer', 'leather_pants', 'medium', 'pants', 1),
-  ('millrace_sewer', 'studded_boots', 'medium', 'boots', 2),
-  ('millrace_sewer', 'adept_helmet', 'light', 'helmet', 2),
+  ('millrace_sewer', 'leather_boots', 'medium', 'boots', 1),
+  ('millrace_sewer', 'apprentice_helmet', 'light', 'helmet', 1),
   ('millrace_sewer', 'apprentice_body', 'light', 'body', 1),
   ('millrace_sewer', 'apprentice_pants', 'light', 'pants', 1),
-  ('millrace_sewer', 'adept_boots', 'light', 'boots', 2),
+  ('millrace_sewer', 'apprentice_boots', 'light', 'boots', 1),
   ('mosslight_glade', 'steel_helm', 'heavy', 'helmet', 3),
   ('mosslight_glade', 'steel_platebody', 'heavy', 'body', 3),
   ('mosslight_glade', 'steel_platelegs', 'heavy', 'pants', 3),
@@ -465,7 +465,7 @@ do $$
 declare v_role text; v_bad text;
 begin
   if (select count(*) from public.hr_tally_tasks) <> 11
-     or (select sum(gold) from public.hr_tally_tasks) <> 46820
+     or (select sum(gold) from public.hr_tally_tasks) <> 54420
      or (select count(*) from public.hr_tally_pieces) <> 123
      or (select count(*) from public.hr_tally_materials) <> 30
      or (select held_max from public.hr_tally_config) <> 3
@@ -507,5 +507,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 11 tasks (46820 g in all), 123 pieces on 11 grounds, 30 materials, 202 worn tiers; all green';
+  raise notice 'tally-catalogue: 11 tasks (54420 g in all), 123 pieces on 11 grounds, 30 materials, 202 worn tiers; all green';
 end $$;

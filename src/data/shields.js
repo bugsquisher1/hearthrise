@@ -67,7 +67,7 @@ const shield = (n, v, tier, rarity, gearProfile) => {
 export const SHIELD_ITEMS = Object.freeze(withGearStats({
   bronze_rimmed_shield: shield('Bronze-Rimmed Shield', 70, 1, 'common'),
   ironbound_shield: shield('Ironbound Shield', 200, 2, 'common'),
-  kingsgrate: shield('Kingsgrate', 300, 2, 'rare', 'grate'),
+  kingsgrate: shield('Kingsgrate', 300, 1, 'rare', 'grate'),   // tier 1 (lane/scale-grounds-sweep): the Sewer's base is bronze (12-targets 8.3), so the King's grate is too
   coppercap_shield: shield('Coppercap Shield', 600, 3, 'common'),
   steelgrate: shield('Steelgrate', 750, 3, 'rare', 'grate'),
   /* book: about 0.75 of the tier's sword, as the Coppercap is of the Steel Sword (600 / 800) */

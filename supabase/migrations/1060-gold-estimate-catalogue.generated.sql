@@ -9,9 +9,9 @@
 -- WHAT (lane/gold-per-hour, systems-engineer, 2026-11-22; Tyler 2026-11-22): the Hunts window's "About N gold an hour, before supplies"
 -- on each Danger scale ground, computed here, never in the browser (CLAUDE.md §6).
 --   hr_gold_estimate(hunt, risk, level)  internal, the twin of goldEstimate: floor(hr_wage(min(Level, the band top)) x risk permille / 1000),
---                                        to two significant figures, halves up; null under the band floor, off the scale (11 grounds:
---                                        catacomb_bone_wing Levels 165-185, catacomb_flooded_wing Levels 165-185, coppercap_warrens Levels 32-50, hasks_ford Levels 45-60, krells_hold Levels 85-110, meadowbrook_thicket Levels 5-15, mill_cellar Levels 1-8, mosslight_glade Levels 16-31, muster_barrows Levels 55-75, pyre_field Levels 70-90, the_slake Levels 50-65) or for a Risk with no ratio
---                                        (bold 1190, careful 760, steady 1000). Pinned at 462 values (§3).
+--                                        to two significant figures, halves up; null under the band floor, off the scale (16 grounds:
+--                                        carters_rest Levels 110-125, catacomb_bone_wing Levels 165-185, catacomb_flooded_wing Levels 165-185, coppercap_warrens Levels 32-50, hasks_ford Levels 45-60, krells_hold Levels 85-110, meadowbrook_thicket Levels 5-15, mill_cellar Levels 1-8, millrace_sewer Levels 5-19, mosslight_glade Levels 16-31, muster_barrows Levels 55-75, ox_road Levels 112-128, pyre_field Levels 70-90, the_slake Levels 50-65, wickstead Levels 8-18, wyvern_roost Levels 128-150) or for a Risk with no ratio
+--                                        (bold 1190, careful 760, steady 1000). Pinned at 672 values (§3).
 --   SECTION `gold_estimate` (hr_gold_estimate_view): { level, grounds: { <hunt>: { <risk>: gold } } }, every ground that is both in this
 --                                        file and in the server's own scale catalogue (hr_danger_grounds); null with no hero or no ground.
 -- READERS: the client's src/session/gold-estimate-sections.js (the Hunts window's line under the Risk pick). Nothing that moves value.
@@ -40,8 +40,8 @@ end $mig$;
 create or replace function public.hr_gold_estimate(p_hunt text, p_risk text, p_level int)
 returns bigint language plpgsql immutable set search_path = public, pg_catalog as $fn$
 declare
-  v_floor int := case p_hunt when 'catacomb_bone_wing' then 165 when 'catacomb_flooded_wing' then 165 when 'coppercap_warrens' then 32 when 'hasks_ford' then 45 when 'krells_hold' then 85 when 'meadowbrook_thicket' then 5 when 'mill_cellar' then 1 when 'mosslight_glade' then 16 when 'muster_barrows' then 55 when 'pyre_field' then 70 when 'the_slake' then 50 end;
-  v_top int := case p_hunt when 'catacomb_bone_wing' then 185 when 'catacomb_flooded_wing' then 185 when 'coppercap_warrens' then 50 when 'hasks_ford' then 60 when 'krells_hold' then 110 when 'meadowbrook_thicket' then 15 when 'mill_cellar' then 8 when 'mosslight_glade' then 31 when 'muster_barrows' then 75 when 'pyre_field' then 90 when 'the_slake' then 65 end;
+  v_floor int := case p_hunt when 'carters_rest' then 110 when 'catacomb_bone_wing' then 165 when 'catacomb_flooded_wing' then 165 when 'coppercap_warrens' then 32 when 'hasks_ford' then 45 when 'krells_hold' then 85 when 'meadowbrook_thicket' then 5 when 'mill_cellar' then 1 when 'millrace_sewer' then 5 when 'mosslight_glade' then 16 when 'muster_barrows' then 55 when 'ox_road' then 112 when 'pyre_field' then 70 when 'the_slake' then 50 when 'wickstead' then 8 when 'wyvern_roost' then 128 end;
+  v_top int := case p_hunt when 'carters_rest' then 125 when 'catacomb_bone_wing' then 185 when 'catacomb_flooded_wing' then 185 when 'coppercap_warrens' then 50 when 'hasks_ford' then 60 when 'krells_hold' then 110 when 'meadowbrook_thicket' then 15 when 'mill_cellar' then 8 when 'millrace_sewer' then 19 when 'mosslight_glade' then 31 when 'muster_barrows' then 75 when 'ox_road' then 128 when 'pyre_field' then 90 when 'the_slake' then 65 when 'wickstead' then 18 when 'wyvern_roost' then 150 end;
   v_pm int := case p_risk when 'bold' then 1190 when 'careful' then 760 when 'steady' then 1000 end;
   v_step int := greatest(1, least(4000, coalesce(p_level, 1)));
   v_g bigint; v_h bigint := 1;
@@ -65,7 +65,7 @@ begin
   -- plan's Risk and draws the number; it computes nothing.
   if not exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot) then return null; end if;
   v_lv := greatest(1, coalesce(public.hr_level_of(p_user, p_slot), 1));
-  for v_h in select g.hunt_id from public.hr_danger_grounds g where g.hunt_id in ('catacomb_bone_wing', 'catacomb_flooded_wing', 'coppercap_warrens', 'hasks_ford', 'krells_hold', 'meadowbrook_thicket', 'mill_cellar', 'mosslight_glade', 'muster_barrows', 'pyre_field', 'the_slake') order by g.hunt_id loop
+  for v_h in select g.hunt_id from public.hr_danger_grounds g where g.hunt_id in ('carters_rest', 'catacomb_bone_wing', 'catacomb_flooded_wing', 'coppercap_warrens', 'hasks_ford', 'krells_hold', 'meadowbrook_thicket', 'mill_cellar', 'millrace_sewer', 'mosslight_glade', 'muster_barrows', 'ox_road', 'pyre_field', 'the_slake', 'wickstead', 'wyvern_roost') order by g.hunt_id loop
     v_out := v_out || jsonb_build_object(v_h, (select jsonb_object_agg(k.risk, public.hr_gold_estimate(v_h, k.risk, v_lv) order by k.risk)
                                                  from unnest(array['bold', 'careful', 'steady']) k(risk)));
   end loop;
@@ -92,6 +92,48 @@ do $mig$
 declare v_r record; v_p bigint;
 begin
   for v_r in select * from (values
+    ('carters_rest', 'bold', 1, null::bigint),
+    ('carters_rest', 'bold', 10, null::bigint),
+    ('carters_rest', 'bold', 40, null::bigint),
+    ('carters_rest', 'bold', 54, null::bigint),
+    ('carters_rest', 'bold', 55, null::bigint),
+    ('carters_rest', 'bold', 60, null::bigint),
+    ('carters_rest', 'bold', 63, null::bigint),
+    ('carters_rest', 'bold', 70, null::bigint),
+    ('carters_rest', 'bold', 74, null::bigint),
+    ('carters_rest', 'bold', 75, null::bigint),
+    ('carters_rest', 'bold', 76, null::bigint),
+    ('carters_rest', 'bold', 200, 25000::bigint),
+    ('carters_rest', 'bold', 4000, 25000::bigint),
+    ('carters_rest', 'bold', 5000, 25000::bigint),
+    ('carters_rest', 'careful', 1, null::bigint),
+    ('carters_rest', 'careful', 10, null::bigint),
+    ('carters_rest', 'careful', 40, null::bigint),
+    ('carters_rest', 'careful', 54, null::bigint),
+    ('carters_rest', 'careful', 55, null::bigint),
+    ('carters_rest', 'careful', 60, null::bigint),
+    ('carters_rest', 'careful', 63, null::bigint),
+    ('carters_rest', 'careful', 70, null::bigint),
+    ('carters_rest', 'careful', 74, null::bigint),
+    ('carters_rest', 'careful', 75, null::bigint),
+    ('carters_rest', 'careful', 76, null::bigint),
+    ('carters_rest', 'careful', 200, 16000::bigint),
+    ('carters_rest', 'careful', 4000, 16000::bigint),
+    ('carters_rest', 'careful', 5000, 16000::bigint),
+    ('carters_rest', 'steady', 1, null::bigint),
+    ('carters_rest', 'steady', 10, null::bigint),
+    ('carters_rest', 'steady', 40, null::bigint),
+    ('carters_rest', 'steady', 54, null::bigint),
+    ('carters_rest', 'steady', 55, null::bigint),
+    ('carters_rest', 'steady', 60, null::bigint),
+    ('carters_rest', 'steady', 63, null::bigint),
+    ('carters_rest', 'steady', 70, null::bigint),
+    ('carters_rest', 'steady', 74, null::bigint),
+    ('carters_rest', 'steady', 75, null::bigint),
+    ('carters_rest', 'steady', 76, null::bigint),
+    ('carters_rest', 'steady', 200, 21000::bigint),
+    ('carters_rest', 'steady', 4000, 21000::bigint),
+    ('carters_rest', 'steady', 5000, 21000::bigint),
     ('catacomb_bone_wing', 'bold', 1, null::bigint),
     ('catacomb_bone_wing', 'bold', 10, null::bigint),
     ('catacomb_bone_wing', 'bold', 40, null::bigint),
@@ -386,6 +428,48 @@ begin
     ('mill_cellar', 'steady', 200, 13000::bigint),
     ('mill_cellar', 'steady', 4000, 13000::bigint),
     ('mill_cellar', 'steady', 5000, 13000::bigint),
+    ('millrace_sewer', 'bold', 1, null::bigint),
+    ('millrace_sewer', 'bold', 10, 16000::bigint),
+    ('millrace_sewer', 'bold', 40, 17000::bigint),
+    ('millrace_sewer', 'bold', 54, 17000::bigint),
+    ('millrace_sewer', 'bold', 55, 17000::bigint),
+    ('millrace_sewer', 'bold', 60, 17000::bigint),
+    ('millrace_sewer', 'bold', 63, 17000::bigint),
+    ('millrace_sewer', 'bold', 70, 17000::bigint),
+    ('millrace_sewer', 'bold', 74, 17000::bigint),
+    ('millrace_sewer', 'bold', 75, 17000::bigint),
+    ('millrace_sewer', 'bold', 76, 17000::bigint),
+    ('millrace_sewer', 'bold', 200, 17000::bigint),
+    ('millrace_sewer', 'bold', 4000, 17000::bigint),
+    ('millrace_sewer', 'bold', 5000, 17000::bigint),
+    ('millrace_sewer', 'careful', 1, null::bigint),
+    ('millrace_sewer', 'careful', 10, 10000::bigint),
+    ('millrace_sewer', 'careful', 40, 11000::bigint),
+    ('millrace_sewer', 'careful', 54, 11000::bigint),
+    ('millrace_sewer', 'careful', 55, 11000::bigint),
+    ('millrace_sewer', 'careful', 60, 11000::bigint),
+    ('millrace_sewer', 'careful', 63, 11000::bigint),
+    ('millrace_sewer', 'careful', 70, 11000::bigint),
+    ('millrace_sewer', 'careful', 74, 11000::bigint),
+    ('millrace_sewer', 'careful', 75, 11000::bigint),
+    ('millrace_sewer', 'careful', 76, 11000::bigint),
+    ('millrace_sewer', 'careful', 200, 11000::bigint),
+    ('millrace_sewer', 'careful', 4000, 11000::bigint),
+    ('millrace_sewer', 'careful', 5000, 11000::bigint),
+    ('millrace_sewer', 'steady', 1, null::bigint),
+    ('millrace_sewer', 'steady', 10, 13000::bigint),
+    ('millrace_sewer', 'steady', 40, 14000::bigint),
+    ('millrace_sewer', 'steady', 54, 14000::bigint),
+    ('millrace_sewer', 'steady', 55, 14000::bigint),
+    ('millrace_sewer', 'steady', 60, 14000::bigint),
+    ('millrace_sewer', 'steady', 63, 14000::bigint),
+    ('millrace_sewer', 'steady', 70, 14000::bigint),
+    ('millrace_sewer', 'steady', 74, 14000::bigint),
+    ('millrace_sewer', 'steady', 75, 14000::bigint),
+    ('millrace_sewer', 'steady', 76, 14000::bigint),
+    ('millrace_sewer', 'steady', 200, 14000::bigint),
+    ('millrace_sewer', 'steady', 4000, 14000::bigint),
+    ('millrace_sewer', 'steady', 5000, 14000::bigint),
     ('mosslight_glade', 'bold', 1, null::bigint),
     ('mosslight_glade', 'bold', 10, null::bigint),
     ('mosslight_glade', 'bold', 40, 17000::bigint),
@@ -470,6 +554,48 @@ begin
     ('muster_barrows', 'steady', 200, 17000::bigint),
     ('muster_barrows', 'steady', 4000, 17000::bigint),
     ('muster_barrows', 'steady', 5000, 17000::bigint),
+    ('ox_road', 'bold', 1, null::bigint),
+    ('ox_road', 'bold', 10, null::bigint),
+    ('ox_road', 'bold', 40, null::bigint),
+    ('ox_road', 'bold', 54, null::bigint),
+    ('ox_road', 'bold', 55, null::bigint),
+    ('ox_road', 'bold', 60, null::bigint),
+    ('ox_road', 'bold', 63, null::bigint),
+    ('ox_road', 'bold', 70, null::bigint),
+    ('ox_road', 'bold', 74, null::bigint),
+    ('ox_road', 'bold', 75, null::bigint),
+    ('ox_road', 'bold', 76, null::bigint),
+    ('ox_road', 'bold', 200, 26000::bigint),
+    ('ox_road', 'bold', 4000, 26000::bigint),
+    ('ox_road', 'bold', 5000, 26000::bigint),
+    ('ox_road', 'careful', 1, null::bigint),
+    ('ox_road', 'careful', 10, null::bigint),
+    ('ox_road', 'careful', 40, null::bigint),
+    ('ox_road', 'careful', 54, null::bigint),
+    ('ox_road', 'careful', 55, null::bigint),
+    ('ox_road', 'careful', 60, null::bigint),
+    ('ox_road', 'careful', 63, null::bigint),
+    ('ox_road', 'careful', 70, null::bigint),
+    ('ox_road', 'careful', 74, null::bigint),
+    ('ox_road', 'careful', 75, null::bigint),
+    ('ox_road', 'careful', 76, null::bigint),
+    ('ox_road', 'careful', 200, 16000::bigint),
+    ('ox_road', 'careful', 4000, 16000::bigint),
+    ('ox_road', 'careful', 5000, 16000::bigint),
+    ('ox_road', 'steady', 1, null::bigint),
+    ('ox_road', 'steady', 10, null::bigint),
+    ('ox_road', 'steady', 40, null::bigint),
+    ('ox_road', 'steady', 54, null::bigint),
+    ('ox_road', 'steady', 55, null::bigint),
+    ('ox_road', 'steady', 60, null::bigint),
+    ('ox_road', 'steady', 63, null::bigint),
+    ('ox_road', 'steady', 70, null::bigint),
+    ('ox_road', 'steady', 74, null::bigint),
+    ('ox_road', 'steady', 75, null::bigint),
+    ('ox_road', 'steady', 76, null::bigint),
+    ('ox_road', 'steady', 200, 21000::bigint),
+    ('ox_road', 'steady', 4000, 21000::bigint),
+    ('ox_road', 'steady', 5000, 21000::bigint),
     ('pyre_field', 'bold', 1, null::bigint),
     ('pyre_field', 'bold', 10, null::bigint),
     ('pyre_field', 'bold', 40, null::bigint),
@@ -553,12 +679,96 @@ begin
     ('the_slake', 'steady', 76, 17000::bigint),
     ('the_slake', 'steady', 200, 17000::bigint),
     ('the_slake', 'steady', 4000, 17000::bigint),
-    ('the_slake', 'steady', 5000, 17000::bigint)) p(hunt, risk, l, gold) loop
+    ('the_slake', 'steady', 5000, 17000::bigint),
+    ('wickstead', 'bold', 1, null::bigint),
+    ('wickstead', 'bold', 10, 16000::bigint),
+    ('wickstead', 'bold', 40, 16000::bigint),
+    ('wickstead', 'bold', 54, 16000::bigint),
+    ('wickstead', 'bold', 55, 16000::bigint),
+    ('wickstead', 'bold', 60, 16000::bigint),
+    ('wickstead', 'bold', 63, 16000::bigint),
+    ('wickstead', 'bold', 70, 16000::bigint),
+    ('wickstead', 'bold', 74, 16000::bigint),
+    ('wickstead', 'bold', 75, 16000::bigint),
+    ('wickstead', 'bold', 76, 16000::bigint),
+    ('wickstead', 'bold', 200, 16000::bigint),
+    ('wickstead', 'bold', 4000, 16000::bigint),
+    ('wickstead', 'bold', 5000, 16000::bigint),
+    ('wickstead', 'careful', 1, null::bigint),
+    ('wickstead', 'careful', 10, 10000::bigint),
+    ('wickstead', 'careful', 40, 11000::bigint),
+    ('wickstead', 'careful', 54, 11000::bigint),
+    ('wickstead', 'careful', 55, 11000::bigint),
+    ('wickstead', 'careful', 60, 11000::bigint),
+    ('wickstead', 'careful', 63, 11000::bigint),
+    ('wickstead', 'careful', 70, 11000::bigint),
+    ('wickstead', 'careful', 74, 11000::bigint),
+    ('wickstead', 'careful', 75, 11000::bigint),
+    ('wickstead', 'careful', 76, 11000::bigint),
+    ('wickstead', 'careful', 200, 11000::bigint),
+    ('wickstead', 'careful', 4000, 11000::bigint),
+    ('wickstead', 'careful', 5000, 11000::bigint),
+    ('wickstead', 'steady', 1, null::bigint),
+    ('wickstead', 'steady', 10, 13000::bigint),
+    ('wickstead', 'steady', 40, 14000::bigint),
+    ('wickstead', 'steady', 54, 14000::bigint),
+    ('wickstead', 'steady', 55, 14000::bigint),
+    ('wickstead', 'steady', 60, 14000::bigint),
+    ('wickstead', 'steady', 63, 14000::bigint),
+    ('wickstead', 'steady', 70, 14000::bigint),
+    ('wickstead', 'steady', 74, 14000::bigint),
+    ('wickstead', 'steady', 75, 14000::bigint),
+    ('wickstead', 'steady', 76, 14000::bigint),
+    ('wickstead', 'steady', 200, 14000::bigint),
+    ('wickstead', 'steady', 4000, 14000::bigint),
+    ('wickstead', 'steady', 5000, 14000::bigint),
+    ('wyvern_roost', 'bold', 1, null::bigint),
+    ('wyvern_roost', 'bold', 10, null::bigint),
+    ('wyvern_roost', 'bold', 40, null::bigint),
+    ('wyvern_roost', 'bold', 54, null::bigint),
+    ('wyvern_roost', 'bold', 55, null::bigint),
+    ('wyvern_roost', 'bold', 60, null::bigint),
+    ('wyvern_roost', 'bold', 63, null::bigint),
+    ('wyvern_roost', 'bold', 70, null::bigint),
+    ('wyvern_roost', 'bold', 74, null::bigint),
+    ('wyvern_roost', 'bold', 75, null::bigint),
+    ('wyvern_roost', 'bold', 76, null::bigint),
+    ('wyvern_roost', 'bold', 200, 28000::bigint),
+    ('wyvern_roost', 'bold', 4000, 28000::bigint),
+    ('wyvern_roost', 'bold', 5000, 28000::bigint),
+    ('wyvern_roost', 'careful', 1, null::bigint),
+    ('wyvern_roost', 'careful', 10, null::bigint),
+    ('wyvern_roost', 'careful', 40, null::bigint),
+    ('wyvern_roost', 'careful', 54, null::bigint),
+    ('wyvern_roost', 'careful', 55, null::bigint),
+    ('wyvern_roost', 'careful', 60, null::bigint),
+    ('wyvern_roost', 'careful', 63, null::bigint),
+    ('wyvern_roost', 'careful', 70, null::bigint),
+    ('wyvern_roost', 'careful', 74, null::bigint),
+    ('wyvern_roost', 'careful', 75, null::bigint),
+    ('wyvern_roost', 'careful', 76, null::bigint),
+    ('wyvern_roost', 'careful', 200, 18000::bigint),
+    ('wyvern_roost', 'careful', 4000, 18000::bigint),
+    ('wyvern_roost', 'careful', 5000, 18000::bigint),
+    ('wyvern_roost', 'steady', 1, null::bigint),
+    ('wyvern_roost', 'steady', 10, null::bigint),
+    ('wyvern_roost', 'steady', 40, null::bigint),
+    ('wyvern_roost', 'steady', 54, null::bigint),
+    ('wyvern_roost', 'steady', 55, null::bigint),
+    ('wyvern_roost', 'steady', 60, null::bigint),
+    ('wyvern_roost', 'steady', 63, null::bigint),
+    ('wyvern_roost', 'steady', 70, null::bigint),
+    ('wyvern_roost', 'steady', 74, null::bigint),
+    ('wyvern_roost', 'steady', 75, null::bigint),
+    ('wyvern_roost', 'steady', 76, null::bigint),
+    ('wyvern_roost', 'steady', 200, 23000::bigint),
+    ('wyvern_roost', 'steady', 4000, 23000::bigint),
+    ('wyvern_roost', 'steady', 5000, 23000::bigint)) p(hunt, risk, l, gold) loop
     v_p := public.hr_gold_estimate(v_r.hunt, v_r.risk, v_r.l);
     if v_p is distinct from v_r.gold then
       raise exception 'VERIFY(a): % on % at Level % is % in SQL, % in src/core/gold-estimate.js', v_r.hunt, v_r.risk, v_r.l, v_p, v_r.gold; end if;
   end loop;
-  if public.hr_gold_estimate('the_burning_tower', 'steady', 60) is not null or public.hr_gold_estimate('catacomb_bone_wing', 'reckless', 60) is not null then
+  if public.hr_gold_estimate('the_burning_tower', 'steady', 60) is not null or public.hr_gold_estimate('carters_rest', 'reckless', 60) is not null then
     raise exception 'VERIFY(b): an estimate off the scale or for an unknown Risk'; end if;
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r)
               where has_function_privilege(g.r, 'public.hr_gold_estimate(text,text,integer)', 'execute')
@@ -566,5 +776,5 @@ begin
     raise exception 'VERIFY(c): a client role runs the estimate'; end if;
   if not exists (select 1 from public.hr_state_sections where key = 'gold_estimate' and fn = 'hr_gold_estimate_view') then
     raise exception 'VERIFY(d): the gold_estimate section is not registered'; end if;
-  raise notice 'gen-gold-estimate: % ground(s), % Risks, % pins; all green', 11, 3, 462;
+  raise notice 'gen-gold-estimate: % ground(s), % Risks, % pins; all green', 16, 3, 672;
 end $mig$;

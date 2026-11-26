@@ -163,7 +163,7 @@ export const GEAR_STATS = f({
   "juniper_crossbow": f({ iL: 140, rangeAtkB: 68, rangeStrB: 59 }),
   "juniper_staff": f({ iL: 140, magicAtkB: 57, magicStrB: 78 }),
   "juniper_wand": f({ iL: 140, magicAtkB: 67, magicStrB: 72 }),
-  "kingsgrate": f({ iL: 20, defB: 8, atkB: -4, rangeAtkB: -4, magicAtkB: -4 }),
+  "kingsgrate": f({ iL: 0, defB: 4, atkB: -2, rangeAtkB: -2, magicAtkB: -2 }),
   "kingstooth": f({ iL: 20, atkB: 10, strB: 8 }),
   "klappas_club": f({ iL: 5, atkB: 4, strB: 8 }),
   "krells_tollgate": f({ iL: 120, defB: 20 }),

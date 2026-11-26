@@ -34,7 +34,7 @@
 --   hunt-settle.js memberInput hands both to heroSetup; the frozen peer row (src/core/member.js) and the viewer's live start point carry
 --   the hero, so the browser plays the same list the settle does.
 -- THE ROLL'S INPUTS (the same read): instance `trait_drops` (hr_flag_on) and each member's `drops` = hr_trait_drops_of: { pity: { rare,
---   very_rare } (hero_pity, the finds the hero was owed since its last, in PERSONAL_LOOT.pityUnit parts: the one pity, src/core/
+--   very_rare } (hero_pity, the finds the hero was owed since its last, in PITY_UNIT parts, src/data/party.js: the one pity, src/core/
 --   personal-loot.js, 12-targets 8.6), luck_pm (the company flame's luck, 0 while inner_flame is
 --   off) }, null while dark. Read at the window's start, never after it.
 -- THE LAND (hr_trait_pieces_land, owner-only; hr_hunt_apply_instance RESTATED WHOLE, its chain 4 deep since 2027-03-21-scaled-hunts.sql):
@@ -163,7 +163,7 @@ revoke all on public.trait_pieces from public, anon, authenticated, service_role
 grant select on public.trait_pieces to authenticated;
 drop policy if exists trait_pieces_own on public.trait_pieces;
 create policy trait_pieces_own on public.trait_pieces for select to authenticated using (user_id = auth.uid());
-comment on column public.hero_pity.misses is '1071-trait-pieces.sql: the finds of this rarity the hero was owed since its last (the sum of each missed roll''s p0, in PERSONAL_LOOT.pityUnit parts: src/core/personal-loot.js pityAfter, read by src/core/trait-roll.js rollKillFor; 12-targets 8.6), written by hr_trait_pieces_land only.';
+comment on column public.hero_pity.misses is '1071-trait-pieces.sql: the finds of this rarity the hero was owed since its last (the sum of each missed roll''s p0, in PITY_UNIT parts: src/core/personal-loot.js pityAfter, read by src/core/trait-roll.js rollKillFor; 12-targets 8.6), written by hr_trait_pieces_land only.';
 
 -- ── §3 THE READERS: what a hero wears, what it rolls with, the account's pieces ──
 create or replace function public.hr_worn_traits_of(p_user uuid, p_slot int)

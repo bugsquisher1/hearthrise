@@ -69,7 +69,7 @@ export function rowsOf(d) {
   if (slotSum !== 1000) problems.push('GEAR_STEPS.slotPm sums to ' + slotSum + ', not 1000');
   for (const k of ['hours', 'steps', 'lifeRungPm', 'feeHoursPm']) if (!(whole(I[k]) && I[k] > 0)) problems.push('IMBUE.' + k + ' is not a whole number above 0');
   if (!(whole(P.pityGrowPm) && whole(P.pityBasePm) && P.pityBasePm > 0 && P.pityBasePm <= 1000)) problems.push('PERSONAL_LOOT: pityGrowPm whole, pityBasePm in 1..1000');
-  if (!(whole(P.pityUnit) && P.pityUnit >= 1000000000)) problems.push('PERSONAL_LOOT.pityUnit is not a whole number of at least 1e9 (a Very Rare miss in a party of four at depth 1 must not round away)');
+  if (!(whole(d.party.PITY_UNIT) && d.party.PITY_UNIT >= 1000000000)) problems.push('PITY_UNIT is not a whole number of at least 1e9 (a Very Rare miss in a party of four at depth 1 must not round away)');
   if (!(whole(C.hoursPerStepPm) && C.hoursPerStepPm > 0 && whole(C.partsBase) && whole(C.workPm) && C.workPm > 0)) problems.push('CARRY levers are not whole numbers above 0');
   if (problems.length) throw new Error('gen-flame-temper: ' + problems.join('; '));
 
@@ -108,7 +108,7 @@ export function rowsOf(d) {
   }
   return {
     F, T, I, P, C, G, slots, itemLevels, imbues, levels: d.flameD.FLAME_LEVELS, fuel: d.flameD.FLAME_FUEL, powerStep: d.danger.DANGER.powerStep,
-    rampLevel: d.ledger.POWER_LEDGER.rampLevel, pins,
+    rampLevel: d.ledger.POWER_LEDGER.rampLevel, pins, unit: d.party.PITY_UNIT,
   };
 }
 
@@ -381,13 +381,13 @@ create or replace function public.hr_pity_chance(p_p float8, p_missed bigint)
 returns float8 language sql stable set search_path = public, pg_catalog as $fn$
   select case when coalesce(p_p, 0) <= 0 then 0::float8
               else least(1::float8, ((p_p * l.pity_base_pm::float8) / 1000::float8)
-                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / ${P.pityUnit}::float8))) end
+                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / ${r.unit}::float8))) end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_pity_after(p_missed bigint, p_p float8, p_hit boolean)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
   select case when p_hit then 0::bigint
-              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * ${P.pityUnit}::float8)::bigint else 0 end end
+              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * ${r.unit}::float8)::bigint else 0 end end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_carry_fee(p_steps int, p_item_level int)
@@ -524,13 +524,13 @@ async function selftest() {
   plant('a re-seat that costs the whole ranks', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, carryPm: 1000 }; });
   plant('a Temper Kit that is no item', (d) => { d.temperD.TEMPER_STEPS = { ...base.temperD.TEMPER_STEPS, kitItem: 'no_such_kit' }; });
   plant('a pity that never keeps the stated rate', (d) => { d.party.PERSONAL_LOOT = { ...base.party.PERSONAL_LOOT, pityBasePm: 0 }; });
-  plant('a pity unit a Very Rare miss rounds away in', (d) => { d.party.PERSONAL_LOOT = { ...base.party.PERSONAL_LOOT, pityUnit: 1000000 }; });
+  plant('a pity unit a Very Rare miss rounds away in', (d) => { d.party.PITY_UNIT = 1000000; });
   plant('a carry with no price', (d) => { d.danger = { ...base.danger, CARRY: { ...base.danger.CARRY, hoursPerStepPm: 0 } }; });
   plant('slot weights off 1000', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, slotPm: { ...base.danger.GEAR_STEPS.slotPm, weapon: 300 } } }; });
   const sql = buildSql(rowsOf(base));
   for (const v of 'abcdefghijklmnopq') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
   if (bites.length) { console.error('gen-flame-temper --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-flame-temper --selftest: 9 refusals bite, 17 verifications pinned');
+  console.log('gen-flame-temper --selftest: 10 refusals bite, 17 verifications pinned');
 }
 
 if (isMain(import.meta.url)) {

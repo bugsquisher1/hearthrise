@@ -35,14 +35,16 @@ export const PARTY = Object.freeze({
    (the mean of the survival exp(-x - grow x^2 / 2), computed; tests/personal-loot.mjs re-derives both). Lab run L2 moves them.
    THE ONE PITY (designer, lane/designer-pity, 2026-11-26; 12-targets 8.6): the Trait roller (src/core/trait-roll.js) reads this pity and no
    other. It counts the finds a hero was owed, never the kills it missed, so a miss in a party of four, at depth 1 or on a slow ground
-   weighs what it was worth and none can be banked where a kill's chance is small and spent where it is big. x is held in pityUnit parts
-   (hero_pity.misses): a billionth, so a Very Rare miss in a party of four at depth 1 (p0 about 1e-6) never rounds away. */
+   weighs what it was worth and none can be banked where a kill's chance is small and spent where it is big. x is held in PITY_UNIT parts
+   (hero_pity.misses, below). */
 export const PERSONAL_LOOT = Object.freeze({
   pityGrowPm: 4000,
   pityBasePm: 438,
-  pityUnit: 1000000000,
   rarities: Object.freeze(['rare', 'very_rare']),
 });
+/* THE PITY'S UNIT (a unit, not a lever): hero_pity holds x in billionths of a find, so a Very Rare miss in a party of four at depth 1 (p0
+   about 1e-6) never rounds away. tools/gen-flame-temper.mjs refuses one under 1e9 and writes it into the SQL twins */
+export const PITY_UNIT = 1000000000;
 
 /* LEAVE TOGETHER (Tyler 2026-10-22): every hero's own box, default on, kept per hero on the server
    (player_state.party_leave_together). When any other member's party hunt ends, a ticked hero is paid up to

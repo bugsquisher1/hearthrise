@@ -12,10 +12,10 @@
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random: the roller draws on the server-only loot stream, seeded per hero.
 // ════════════════════════════════════════════════════════════════════════
-import { PERSONAL_LOOT } from '../data/party.js';
+import { PERSONAL_LOOT, PITY_UNIT } from '../data/party.js';
 
 const P = PERSONAL_LOOT;
-const UNIT = P.pityUnit;
+const UNIT = PITY_UNIT;
 
 /** A hero's chance on one row at a kill with `n` heroes alive at it, its company's flame at `luck` permille (luck reads only on a Rare row). */
 export function heroChance(ch, n, luck) {
@@ -24,7 +24,7 @@ export function heroChance(ch, n, luck) {
   return Math.min(1, (c / k) * ((1000 + l) / 1000));
 }
 
-/** The chance a hero rolls a Rare at, `p` its stated chance (heroChance x depth), `missed` its hero_pity row (x in PERSONAL_LOOT.pityUnit parts). */
+/** The chance a hero rolls a Rare at, `p` its stated chance (heroChance x depth), `missed` its hero_pity row (x in PITY_UNIT parts). */
 export function pityChance(p, missed) {
   const pr = Number(p);
   if (!(pr > 0)) return 0;
@@ -32,7 +32,7 @@ export function pityChance(p, missed) {
   return Math.min(1, p0 * (1 + (P.pityGrowPm / 1000) * x));
 }
 
-/** The hero_pity row after one roll at stated chance `p`: 0 on a find, else the miss's p0 added (whole pityUnit parts, rounded once). */
+/** The hero_pity row after one roll at stated chance `p`: 0 on a find, else the miss's p0 added (whole PITY_UNIT parts, rounded once). */
 export function pityAfter(missed, p, hit) {
   if (hit) return 0;
   const pr = Number(p);

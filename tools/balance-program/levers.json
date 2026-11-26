@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "0daea587a2ecbbdd",
+ "authored": "c97ec975d7a9d296",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -119,7 +119,7 @@
  "census": {
   "bindings": 769,
   "typed": 17534,
-  "files": 264,
+  "files": 263,
   "lever": 331,
   "notLever": 438,
   "unclaimed": 0
@@ -7263,7 +7263,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 49,
+    "mentionCount": 50,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7351,7 +7351,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 50,
+    "mentionCount": 51,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7781,7 +7781,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7860,7 +7860,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7936,7 +7936,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8005,7 +8005,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10901,7 +10901,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 60,
+    "mentionCount": 61,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11536,7 +11536,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 122,
+    "mentionCount": 124,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11634,7 +11634,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 122,
+    "mentionCount": 124,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11847,25 +11847,25 @@
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 91,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 92,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 90,
+     "line": 93,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 91,
+     "line": 94,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -12076,43 +12076,43 @@
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 53,
+     "line": 55,
      "text": "chDigits: 3,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 56,
+     "line": 58,
      "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 57,
+     "line": 59,
      "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 58,
+     "line": 60,
      "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 63,
+     "line": 65,
      "text": "depthPm: Object.freeze([1000, 3000]),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 64,
+     "line": 66,
      "text": "topRankPm: 500,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 65,
+     "line": 67,
      "text": "topRankMaxPm: 800,",
      "binding": "DROP_HOURS"
     }
@@ -12140,9 +12140,10 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
-     "tests/drop-formula.mjs"
+     "tests/drop-formula.mjs",
+     "tests/trait-pieces-db.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12994,9 +12995,10 @@
      "tests/hearth-moods.mjs",
      "tests/hunt-sessions-settle.mjs",
      "tests/inner-flame.mjs",
-     "tests/town-shows.mjs"
+     "tests/town-shows.mjs",
+     "tests/trait-pieces-db.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13188,7 +13190,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 114,
+     "line": 117,
      "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
      "binding": "CARRY"
     }
@@ -13246,13 +13248,13 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 37,
+     "line": 41,
      "text": "pityGrowPm: 4000,",
      "binding": "PERSONAL_LOOT"
     },
     {
      "file": "src/data/party.js",
-     "line": 38,
+     "line": 42,
      "text": "pityBasePm: 438,",
      "binding": "PERSONAL_LOOT"
     }
@@ -13787,7 +13789,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 122,
+    "mentionCount": 124,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14337,7 +14339,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 60,
+    "mentionCount": 61,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -17043,8 +17045,8 @@
    "why": "a unit: the milliseconds in an hour (IMBUE.hours is the lever)"
   },
   {
-   "at": "src/core/personal-loot.js#UNIT",
-   "why": "a unit: hero_pity holds millionths of x"
+   "at": "src/data/party.js#PITY_UNIT",
+   "why": "a unit: hero_pity holds billionths of a find owed (the one pity, 12-targets 8.6.1)"
   },
   {
    "at": "src/core/temper-steps.js#rankQuote",

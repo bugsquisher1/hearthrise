@@ -59,7 +59,7 @@ async function load(root) {
 }
 
 /** THE PITY STEP (designer, lane/designer-pity, 2026-11-26; 12-targets 8.6): the most one missed roll of `rarity` may add to a hero's pity
-    on `ground` (PERSONAL_LOOT.pityUnit parts): pityAfter's p0 at the highest chance a hero rolls there, alone (n 1), at the ground's top
+    on `ground` (PITY_UNIT parts, src/data/party.js): pityAfter's p0 at the highest chance a hero rolls there, alone (n 1), at the ground's top
     depth (depthRarePm at its topStep) and on a flame at its ceiling (FLAME.luckMaxPm, never reached), rounded up. A window's pity grows by
     at most its kills times this, so a forged pity is refused while every honest one lands. */
 export function pityStep({ dr, dh, party, flame, danger }, ground, rarity) {
@@ -67,7 +67,7 @@ export function pityStep({ dr, dh, party, flame, danger }, ground, rarity) {
   const ch = dh.chanceOf(dh.DROP_HOURS.rarity[rarity].everyHours, dr.killsHeadHour(ground));
   if (!(ch > 0)) return 0;
   const p = ch * (dr.depthRarePm(ground.id, row.topStep) / 1000) * ((1000 + flame.FLAME.luckMaxPm) / 1000);
-  return Math.ceil((p * P.pityBasePm / 1000) * P.pityUnit);
+  return Math.ceil((p * P.pityBasePm / 1000) * party.PITY_UNIT);
 }
 
 /** The resolved rows of the data, refused on a defect. */
@@ -352,7 +352,7 @@ async function selftest() {
   {
     const r = rowsOf(base), g = base.grounds.HUNT_GROUNDS.muster_barrows, row = r.ground.find((x) => x.id === 'muster_barrows');
     const ch = base.dh.chanceOf(base.dh.DROP_HOURS.rarity.rare.everyHours, base.dr.killsHeadHour(g));
-    const topMiss = Math.round((ch * (base.dr.depthRarePm(g.id, base.danger.DANGER_GROUNDS[g.id].topStep) / 1000) * base.party.PERSONAL_LOOT.pityBasePm / 1000) * base.party.PERSONAL_LOOT.pityUnit);
+    const topMiss = Math.round((ch * (base.dr.depthRarePm(g.id, base.danger.DANGER_GROUNDS[g.id].topStep) / 1000) * base.party.PERSONAL_LOOT.pityBasePm / 1000) * base.party.PITY_UNIT);
     if (!row || !(row.pity.rare >= topMiss && row.pity.rare < 2 * topMiss)) bites.push('the pity step ' + (row && row.pity.rare) + ' is not the top honest miss (' + topMiss + ') on the flame ceiling');
   }
   /* a staged ground is judged, never served */

@@ -123,7 +123,7 @@ function basesOf(ground) {
  * `key` the hero's member key, `unit` its unit id, `n` the heroes at the kill, `rng` the hero's own stream, `atMs` the kill's instant and
  * `kill` the dead monster's unit id (the kill that made the piece), `worn` the hero's equipment (the base's kind, step 5). Pushes a piece
  * onto tr.found and answers it, or null. Pity is held in tr.pity[key][rarity] (the server's carry, hero_pity: read in, written back after
- * the window), in PERSONAL_LOOT.pityUnit parts of the finds owed.
+ * the window), in PITY_UNIT parts of the finds owed (src/data/party.js).
  */
 export function rollKillFor(tr, key, unit, n, rng, atMs, kill, worn) {
   if (!tr || !(n >= 1)) return null;

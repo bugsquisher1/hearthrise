@@ -65,8 +65,8 @@ async function pure(base) {
   const seq = [false, false, true, false, false, false, true, false];
   const one = seq.reduce((m, hit) => L.pityAfter(m, 0.001, hit), 0);
   const parts = [seq.slice(0, 3), seq.slice(3, 5), seq.slice(5)].reduce((m, w) => w.reduce((mm, hit) => L.pityAfter(mm, 0.001, hit), m), 0);
-  /* (lane/designer-pity) x in pityUnit parts: one miss at 0.001 adds 0.001 x basePm / 1000 of a find */
-  if (one !== parts || one !== Math.round((0.001 * P.pityBasePm / 1000) * P.pityUnit)) out.push('PL-5 pity after the same rolls in one window and three is ' + one + ' / ' + parts);
+  /* (lane/designer-pity) x in PITY_UNIT parts: one miss at 0.001 adds 0.001 x basePm / 1000 of a find */
+  if (one !== parts || one !== Math.round((0.001 * P.pityBasePm / 1000) * party.PITY_UNIT)) out.push('PL-5 pity after the same rolls in one window and three is ' + one + ' / ' + parts);
   if (L.pityAfter(5000, 0.01, true) !== 0) out.push('PL-5 a find did not reset the pity');
   return out;
 }

@@ -498,6 +498,11 @@
         "bytes": 3896347,
         "on": "2026-11-26",
         "why": "lane/signatures-sample: the worn-Signature rules (src/core/hunt/signature-rules.js, src/data/signatures.js) and the reaction pieces they share with the Roads (death, heal and hp_below moments; ready, pass and boon) join the engine, dark (+16,473 B)"
+      },
+      {
+        "bytes": 3896447,
+        "on": "2026-11-26",
+        "why": "lane/signatures-sample: one Signature a hero reads SIGNATURE_RULES.perHero (signature-rules.js wornSignatureOf, +100 B)"
       }
     ]
   }

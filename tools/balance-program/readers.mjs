@@ -302,7 +302,7 @@ export function cellsOf(doc) {
 /** What the readers read beyond the cells, from a tree (the repo, or the tree a results doc was played on: its data, not its code). */
 export async function contextOf(root = ROOT, o = {}) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [TI, AB, XP, BS] = await Promise.all(['src/data/hunt-tiers.js', 'src/data/abilities.js', 'src/core/xp.js', 'src/data/balance-sheet.js'].map(imp));
+  const [TI, AB, XP, BS] = await Promise.all(['tools/balance-program/tier-axis.mjs', 'src/data/abilities.js', 'src/core/xp.js', 'src/data/balance-sheet.js'].map(imp));
   const ctx = {
     hardestOf: (g) => { const t = TI.tiersOf(g); return t[t.length - 1]; },
     isHeal: (a) => { const r = AB.ABILITIES[a]; return !!(r && (r.lane === 'heal' || r.healPm > 0)); },

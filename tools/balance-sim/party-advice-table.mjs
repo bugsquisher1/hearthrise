@@ -26,7 +26,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const G = await import(u('src/data/hunt-grounds.js'));
-const T = await import(u('src/data/hunt-tiers.js'));
+const T = await import(u('tools/balance-program/tier-axis.mjs'));
 const { huntRows, recommendation } = await import(u('src/shell/hunt-list.js'));
 const { STYLES } = await import(u('tools/balance-sim/gear.mjs'));
 

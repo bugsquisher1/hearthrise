@@ -321,7 +321,7 @@ export function interaction(P, joint, singles, groups, outIds) {
 export async function structure(P, root = ROOT) {
   const { pathToFileURL } = await import('node:url');
   const GM = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href), G = GM.HUNT_GROUNDS;
-  const TI = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href);
+  const TI = await import(pathToFileURL(join(root, 'tools/balance-program/tier-axis.mjs')).href);
   const col = (id) => P.ids.indexOf(id);
   const rows = [];
   for (const c of P.meta) {

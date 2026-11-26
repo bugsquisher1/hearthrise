@@ -77,10 +77,10 @@ const workersOf = () => Math.max(1, Number(arg('workers', Math.min(MAX_WORKERS, 
 export async function dataView(D, root) {
   if (resolve(root) === ROOT) return D;
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [XP, BS, MON, SB, TI, BL, LB, AR, WG] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'src/data/hunt-tiers.js', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js', 'src/core/wage.js'].map(imp));
+  const [XP, BS, MON, SB, TI, BL, LB, AR, WG] = await Promise.all(['src/core/xp.js', 'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/data/supply-basics.js', 'tools/balance-program/tier-axis.mjs', 'src/data/blessings.js', 'src/data/loot-bands.js', 'src/core/action-rules.js', 'src/core/wage.js'].map(imp));
   /* AR: the tree's own death price (progression-grid.mjs deathXpAt), so a patch that moves it moves every reader */
   return { ...D, XP, BS, MONSTERS: MON.MONSTERS, SB, TI, BL, AR, WG, REVEAL_BANDS: LB.REVEAL_BANDS,
-    projectD: { ...D.projectD, MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: BS.tierRowFor, tiersOf: TI.tiersOf } };
+    projectD: { ...D.projectD, MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: TI.tierRowOf, tiersOf: TI.tiersOf } };
 }
 
 /* ── THE POOL: tools/balance-sim/worker.mjs processes on `root`, at most MAX_WORKERS unless asked ──────────────────────────────── */

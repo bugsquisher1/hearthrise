@@ -28,7 +28,7 @@ export async function loadAxes(root) {
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
-  const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
+  const { tierRowOf } = await import(u('tools/balance-program/tier-axis.mjs'));
   /* A ground's band is the Levels a hero can hunt it at: a ground that ends its hunt at endsAtLevel (the Mill Cellar at 5, lane/d-first-day-path) is
      played to the Level under it. The ladder played the Cellar at 5 and 8, where its hunt ends on the first boundary, and read 3,411 Level XP an
      hour against its 9,884 (level-curve C5 went red on the steeper fit; lane/d-142-rulings, 2026-11-19). */

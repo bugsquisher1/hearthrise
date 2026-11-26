@@ -97,7 +97,7 @@ async function playGround(spec) {
   const SEEDS = Number(arg('seeds', spec.seeds)), HOURS = Number(arg('hours', spec.hours));
   const { rows, AL } = await rowsFor(spec.variants.filter((v) => v.kind === 'line').map((v) => v.m));
   const R = await engine(rows);
-  const T = await import(u('src/data/hunt-tiers.js'));
+  const T = await import(u('tools/balance-program/tier-axis.mjs'));
   head(spec.title + ' ' + SEEDS + ' seeds x ' + HOURS + ' h a cell, the same dice in every variant. Deaths are per 16 hero-hours (the sheet: a Deadly four at most 9); "low" is the typical low point (the sheet: Normal at least 60%).',
     ['Kit', 'Food', ...spec.cells.map((c) => c.label)]);
   /* --only 0,2 plays those variants (by row), --food 1 that food (by row): one table split over processes, the same dice */

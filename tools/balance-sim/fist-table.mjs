@@ -61,7 +61,7 @@ async function withSample(o, fn) {
     const R = await loadCellRunner(p.root);
     const M = { AD: await imp('src/data/abilities.js'), FISTS: await imp('src/data/fists.js'), XP: await imp('src/core/xp.js'), EL: await imp('src/core/elements.js'),
       MON: await imp('src/data/monsters.js'), G: await imp('src/data/hunt-grounds.js'), SB: await imp('src/data/supply-basics.js'), RUNES: await imp('src/data/runes.js'),
-      T: await imp('src/data/hunt-tiers.js') };
+      T: await imp('tools/balance-program/tier-axis.mjs') };
     return await fn(R, M);
   } finally { p.done(); }
 }

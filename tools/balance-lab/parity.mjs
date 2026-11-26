@@ -9,14 +9,11 @@
 //             dist/engine.js and by tools/balance-sim/cell.mjs on the same cell: the whole measured answer is equal
 //             (every field cell.mjs reports; the lab's own extra reads aside)
 //   split     the same cell played seed by seed (the worker pool's road) and merged equals it played whole
-//   dials     today's dials move nothing; a harder dial moves the fight; a written tier row is the row the engine reads;
+//   dials     today's dials move nothing; a harder dial moves the fight;
 //             after every run the rows are put back (the next baseline is today's again)
 //   protocol  the worker's own message handler (play, then summary) answers what runCell answers
-//   scaled    a scaled hunt in the Lab is the game's (src/data/scaled-hunts.js): on three grounds at three leader Levels each, every
-//             roster row the engine reads equals scaledMonsters, every other monster is untouched, the tier row equals scaledTierRow
-//             on Normal and Dangerous, a scaled Deadly and a leader who has not outgrown the ground are refused, and all is put back
-//   v3resolved  Balance Lab v3: three of the matrix's live cells (a hammer at 110 with uniques and rungs, a PROJECTED Mage at 400, the four
-//             on its hardest tier at 30), resolved by cell.mjs resolveOnly and played by the v3 bundle, answer what the matrix's worker does
+//   v3resolved  Balance Lab v3: three of the matrix's live cells (a hammer at 110 with uniques and rungs, a PROJECTED Mage at 400, a four
+//             at 30), resolved by cell.mjs resolveOnly and played by the v3 bundle, answer what the matrix's worker does
 //   v3knobs   a v3 lab created with knobs (one read at a blow, one the monster rows are written from) plays what the scratch copy plays
 //   v3regen   the rows the v3 lab re-writes from the formula are the rows matrix-regen.mjs writes, field for field
 //   v3metrics the page's live metrics (lab-v3.mjs liveMetrics) are the matrix's (matrix-metrics.mjs cellMetrics) on the same answer
@@ -47,7 +44,6 @@ R = await loadCellRunner(ROOT);
 /* THE GAME'S SCALED HUNTS, read straight from src (pristine rows, the module's own functions) */
 const GAME = {
   MONSTERS: (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href)).MONSTERS,
-  scaled: existsSync(join(ROOT, 'src/data/scaled-hunts.js')) ? await import(pathToFileURL(join(ROOT, 'src/data/scaled-hunts.js')).href) : null,
 };
 /* three grounds (a capped-danger ground, a party ground, a solo ground) at three leader Levels each, past the band's top, the last over the cap */
 const SCALED_CASES = [['meadowbrook_thicket', [20, 35, 60]], ['millrace_sewer', [30, 41, 60]], ['mosslight_glade', [32, 45, 60]]];
@@ -55,7 +51,7 @@ const SCALED_CASES = [['meadowbrook_thicket', [20, 35, 60]], ['millrace_sewer', 
 /* every field cell.mjs reports (the lab's `lab` block is its own) */
 const shape = (r) => JSON.stringify({ party: r.party, heroes: r.heroes.map((h) => { const { lab, ...rest } = h; return rest; }) });
 const SOLO = { ground: 'meadowbrook_thicket', party: ['tank'], level: 10, hours: 0.25, seeds: 1 };
-const FOUR = { ground: 'mosslight_glade', party: ['tank', 'healer', 'bow', 'mage'], level: 24, density: 5, options: { tier: 'dangerous' }, windowMs: 120000,
+const FOUR = { ground: 'mosslight_glade', party: ['tank', 'healer', 'bow', 'mage'], level: 24, density: 5, windowMs: 120000,
   hours: 0.25, seeds: 2, gearBySeat: [{}, { tierOffset: -1, only: 'all' }, { starter: true }, { armourSlots: ['helmet', 'body'] }] };
 const GLADE_MONSTERS = () => E.grounds().find((g) => g.id === 'mosslight_glade').monsters.map((m) => m.id);
 /* the four played whole on today's rows, once (every check below compares against it) */
@@ -76,14 +72,14 @@ const V3 = await (async () => {
   const MM = await imp('tools/balance-program/matrix-metrics.mjs'), SC = await imp('tools/balance-program/matrix-scratch.mjs');
   const D = await PG.loadGridData(ROOT), K = await loadKits(ROOT);
   const plan = MP.planMatrix(D, K, MP.RUNS.live);
-  /* a hammer alone at the end of open content (uniques, rungs), a Mage alone at 400 (PROJECTED: placeholder rows and the projected line), the four on its hardest tier at 30 */
-  const keys = ['110|mid|1:h|normal', '400|mid|1:mage|normal', plan.cells.find((c) => c.L === 30 && c.party === 4 && c.tier !== 'normal').key];
+  /* a hammer alone at the end of open content (uniques, rungs), a Mage alone at 400 (PROJECTED: placeholder rows and the projected line), a four at 30 */
+  const keys = ['110|mid|1:h|normal', '400|mid|1:mage|normal', plan.cells.find((c) => c.L === 30 && c.party === 4).key];
   const meta = keys.map((k) => plan.cells.find((c) => c.key === k));
   const jobs = keys.map((k) => plan.jobs.find((j) => j.key === k));
   const resolved = await BM.playJobs(jobs.map((j) => ({ ...j, id: j.id + ':r', cell: { ...j.cell, resolveOnly: true } })), ROOT, 3);
   const plain = await BM.playJobs(jobs, ROOT, 3);
-  /* one knob read at a blow, one the rows are written from (it reaches the PROJECTED Mage's placeholder rows), one a harder tier's pull */
-  const KNOBS = { playerAttack: 1.25, monsterHp: 1.2, tierPull: 0.75 };
+  /* one knob read at a blow, one the rows are written from (it reaches the PROJECTED Mage's placeholder rows) */
+  const KNOBS = { playerAttack: 1.25, monsterHp: 1.2 };
   const s = await SC.plantScratch({ knobs: KNOBS });
   let patched, scratchMonsters;
   try {
@@ -134,70 +130,37 @@ const CHECKS = {
   dials(m) {
     const ids = GLADE_MONSTERS();
     const ref = four();
-    const same = E.applyDials(E.defaultDials('mosslight_glade'), { groundId: 'mosslight_glade', tier: 'dangerous', monsterIds: ids });
+    const same = E.applyDials(E.defaultDials('mosslight_glade'), { groundId: 'mosslight_glade', tier: 'normal', monsterIds: ids });
     let a;
     try { a = shape(E.runCell(FOUR)); } finally { same(); }
     if (a !== ref) return 'today\'s dials moved the fight';
     const d = E.defaultDials('mosslight_glade');
     d.monsters.dmgPm = 1500;
-    d.tiers.dangerous = { ...d.tiers.dangerous, xpPm: 1300, hpPm: 1100 };
-    const hard = E.applyDials(d, { groundId: 'mosslight_glade', tier: 'dangerous', monsterIds: ids });
-    let b, read;
+    const hard = E.applyDials(d, { groundId: 'mosslight_glade', tier: 'normal', monsterIds: ids });
+    let b;
     try {
-      read = E.tierDefaults('mosslight_glade').tiers.dangerous;
       b = E.runCell(FOUR);
     } finally { if (!m) hard(); }
-    if (read.xpPm !== 1300) return 'the written Dangerous row is not the row the engine reads (xpPm ' + read.xpPm + ')';
     const base = JSON.parse(ref);
     const taken = (r) => r.heroes.reduce((s, h) => s + h.takenPerH, 0);
     if (!(taken(b) > taken(base))) return 'monster damage at 150% did not raise the damage the four took';
-    if (b.heroes[0].levelXpPerH === base.heroes[0].levelXpPerH) return 'Level XP at 130% did not move';
     const after = shape(E.runCell(FOUR));
     if (m) hard();
     return after === ref ? null : 'a run after the dials is not today\'s game again (a row was not put back)';
   },
   protocol(m) {
     const page = { ground: FOUR.ground, heroes: FOUR.party.map((s, i) => ({ style: s, level: 24, gear: ['level', 'behind', 'starter', 'light'][i] })),
-      density: 5, tier: 'dangerous', hours: 0.25, seeds: 2, windowMs: 120000 };
+      density: 5, hours: 0.25, seeds: 2, windowMs: 120000 };
     const got = [];
     const post = (x) => got.push(x);
     E.handle({ type: 'play', id: 1, cell: page, seeds: [0], dials: null }, post);
     E.handle({ type: 'play', id: 2, cell: page, seeds: m ? [0] : [1], dials: null }, post);
     const parts = got.filter((x) => x.type === 'played').map((x) => x.totals);
     if (parts.length !== 2) return 'the handler did not answer two plays: ' + JSON.stringify(got.find((x) => x.type === 'error') || {}).slice(0, 300);
-    E.handle({ type: 'summary', id: 3, cell: page, parts, ctx: { band: [16, 31], tier: 'dangerous' } }, post);
+    E.handle({ type: 'summary', id: 3, cell: page, parts, ctx: { band: [16, 31], tier: 'normal' } }, post);
     const s = got.find((x) => x.type === 'summary');
     if (!s) return 'no summary: ' + JSON.stringify(got.find((x) => x.type === 'error') || {}).slice(0, 300);
     return shape(s.run) === four() ? null : 'the page\'s road (play, play, summary) differs from runCell';
-  },
-  scaled(m) {
-    /* the game's own answer, computed here from src/data/scaled-hunts.js on today's rows (no lab code in the way) */
-    if (!GAME.scaled) return 'src/data/scaled-hunts.js is not in this tree: the Lab has no scaled hunt to check';
-    if (!E.hasScaled()) return 'the bundle did not pick up src/data/scaled-hunts.js';
-    const canon = (x) => JSON.stringify(x, (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((key) => [key, v[key]])) : v));
-    for (const [ground, levels] of SCALED_CASES) for (const leader of levels) {
-      const want = GAME.scaled.scaledMonsters(GAME.MONSTERS, ground, leader);
-      if (!Object.keys(want).length) return ground + ' at ' + leader + ': the game scales nothing (the case list is wrong)';
-      for (const tier of ['normal', 'dangerous']) {
-        /* the mutant asks the Lab for a leader one Level off */
-        const undo = E.applyDials({ scale: { leaderLevel: m ? leader + 1 : leader } }, { groundId: ground, tier });
-        try {
-          for (const [id, row] of Object.entries(want)) if (canon(E.liveMonster(id)) !== canon(row)) return ground + ' at ' + leader + ': the Lab\'s ' + id + ' is not the game\'s scaledMonsters row';
-          for (const g of E.grounds().find((x) => x.id === ground).monsters) if (!want[g.id] && canon(E.liveMonster(g.id)) !== canon(GAME.MONSTERS[g.id])) return ground + ': ' + g.id + ' (on no roster) moved';
-          const row = E.tierDefaults(ground).tiers[tier], game = E.tierDialOf(GAME.scaled.scaledTierRow(ground, tier, leader));
-          if (canon(row) !== canon(game)) return ground + ' at ' + leader + ': the engine reads ' + canon(row) + ' for ' + tier + ', the game\'s scaledTierRow is ' + canon(game);
-        } finally { undo(); }
-      }
-      for (const id of Object.keys(want)) if (canon(E.liveMonster(id)) !== canon(GAME.MONSTERS[id])) return ground + ': ' + id + ' was not put back after the scaled run';
-      /* the game offers no Deadly scaled: the Lab refuses it rather than playing the ground's own row */
-      let refused = false;
-      try { E.applyDials({ scale: { leaderLevel: leader } }, { groundId: ground, tier: 'deadly' })(); } catch (e) { refused = true; }
-      if (!refused) return ground + ' at ' + leader + ': the Lab played a scaled Deadly the game does not offer';
-    }
-    /* a leader who has not outgrown the ground: the game refuses, so does the Lab */
-    let refused = false;
-    try { E.applyDials({ scale: { leaderLevel: 20 } }, { groundId: 'mosslight_glade', tier: 'normal' })(); } catch (e) { refused = /outgrown/.test(e.message); }
-    return refused ? null : 'a Level 20 leader scaled the Glade (band top 31)';
   },
   /* v3: the matrix's cells resolved (cell.mjs resolveOnly) and played by the v3 bundle answer what the matrix's worker answers for the cell */
   v3resolved(m) {

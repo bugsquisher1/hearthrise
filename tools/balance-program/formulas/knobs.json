@@ -470,168 +470,6 @@
    ]
   },
   {
-   "id": "tierDanger",
-   "label": "Harder-tier blows",
-   "group": "Tiers",
-   "formula": "C-TIER",
-   "what": "Dangerous and Deadly blows, permille of Normal (TIER_DIALS dmgPm). Today it also moves aim and the Level armor reads (X-TIER-TRIPLE)",
-   "value": [
-    1170,
-    1330
-   ],
-   "sharesLineWith": [
-    "tierHp",
-    "tierXp",
-    "tierPull"
-   ],
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  dangerous: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "dmgPm: "
-     ]
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  deadly: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "dmgPm: "
-     ]
-    }
-   ],
-   "steps": [
-    0.9,
-    0.95,
-    1,
-    1.05,
-    1.1
-   ]
-  },
-  {
-   "id": "tierHp",
-   "label": "Harder-tier HP",
-   "group": "Tiers",
-   "formula": "C-TIER",
-   "what": "Dangerous and Deadly monster HP, permille of Normal (TIER_DIALS hpPm)",
-   "value": [
-    1100,
-    1150
-   ],
-   "sharesLineWith": [
-    "tierDanger",
-    "tierXp",
-    "tierPull"
-   ],
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  dangerous: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "hpPm: "
-     ]
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  deadly: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "hpPm: "
-     ]
-    }
-   ],
-   "steps": [
-    0.9,
-    0.95,
-    1,
-    1.05,
-    1.1
-   ]
-  },
-  {
-   "id": "tierXp",
-   "label": "Harder-tier XP",
-   "group": "Tiers",
-   "formula": "C-TIER",
-   "what": "Dangerous and Deadly XP a kill, permille of Normal (TIER_DIALS xpPm): the reward half of risk against reward",
-   "value": [
-    1100,
-    1250
-   ],
-   "sharesLineWith": [
-    "tierDanger",
-    "tierHp",
-    "tierPull"
-   ],
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  dangerous: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "xpPm: "
-     ]
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  deadly: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "xpPm: "
-     ]
-    }
-   ],
-   "steps": [
-    0.9,
-    0.95,
-    1,
-    1.05,
-    1.1
-   ]
-  },
-  {
-   "id": "tierPull",
-   "label": "Harder-tier pull",
-   "group": "Tiers",
-   "formula": "C-PULL",
-   "what": "How many monsters a Dangerous or Deadly fight brings (TIER_DIALS pull). Kill rate, area damage worth, and the damage a tank holds",
-   "value": [
-    8,
-    8
-   ],
-   "sharesLineWith": [
-    "tierDanger",
-    "tierHp",
-    "tierXp"
-   ],
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  dangerous: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "pull: "
-     ]
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": "  deadly: Object.freeze({ pull: ",
-     "count": 1,
-     "nums": [
-      "pull: "
-     ]
-    }
-   ],
-   "steps": [
-    0.75,
-    1,
-    1.25
-   ]
-  },
-  {
    "id": "heroHp",
    "label": "Hero HP",
    "group": "Survival",
@@ -1033,7 +871,26 @@
    "reach": {
     "module": "src/core/xp.js",
     "call": "charXpForLevel",
-    "args": [[30], [31], [120], [121], [400], [401]],
+    "args": [
+     [
+      30
+     ],
+     [
+      31
+     ],
+     [
+      120
+     ],
+     [
+      121
+     ],
+     [
+      400
+     ],
+     [
+      401
+     ]
+    ],
     "steps": true
    },
    "value": [

@@ -134,7 +134,7 @@ export async function manifest(root) {
   const tree = treeRecord(root);
   const { BUILD } = await imp('src/build-info.js');
   const { COMBAT_BALANCE } = await imp('src/core/combat.js');
-  const TI = await imp('src/data/hunt-tiers.js');
+  const TI = await imp('tools/balance-program/tier-axis.mjs');
   const catalogues = filesUnder(root, 'supabase/migrations').filter((f) => f.endsWith('.generated.sql'));
   const config = { build: { version: BUILD.version, cache: BUILD.cache, date: BUILD.date || null }, combat: COMBAT_BALANCE, tierDials: TI.DIALS || null, groundTiers: TI.GROUND_TIERS || null, switches: switches(root) };
   return {

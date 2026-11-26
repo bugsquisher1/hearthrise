@@ -113,7 +113,6 @@ export const QUANTITIES = Object.freeze([
   q('hero.coin', S, 'Coin a hero banks from a kill'),
   q('drop.base', S, 'A drop row\'s written chance (the band\'s promise)', ['BAND_TARGETS', 'ch']),
   q('drop.chance', S, 'A drop row\'s chance after every multiplier', ['effectiveDropChance', 'dropMult', 'dropBuff', 'dropBonus', 'featuredMult', 'trophyDropMultFor', 'memoryDropMult']),
-  q('drop.rolls', S, 'Rolls a kill makes on its drop table', ['rollsOf', 'lootPm']),
   q('drop.items', S, 'Items a kill drops', ['rollDropTable', 'dropped']),
   q('drop.rare', S, 'Rare, Trophy, prize and chest odds, and who takes the piece', ['rareRoll', 'prizeChance', 'prizeSlices', 'rollPrize', 'deriveOneIn', 'CHEST_LUCK']),
   q('item.book', S, 'An item\'s book value', ['book', 'imbueValueFor']),

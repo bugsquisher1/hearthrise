@@ -80,7 +80,7 @@ export const ownShareAt = (L) => (L >= STD.SUPPLY.ownFromLevel ? STD.SUPPLY.ownS
 /* ── the data the plan and the tables read (no engine) ─────────────────────────────────────────────────────────────────────────── */
 export async function loadGridData(root = ROOT) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [G, H, TI, BS, MON, XP, HS, BL, SB, HL, PCX, SL, LB, AR, WG] = await Promise.all(['src/data/hunt-grounds.js', 'src/data/hunts.js', 'src/data/hunt-tiers.js',
+  const [G, H, TI, BS, MON, XP, HS, BL, SB, HL, PCX, SL, LB, AR, WG] = await Promise.all(['src/data/hunt-grounds.js', 'src/data/hunts.js', 'tools/balance-program/tier-axis.mjs',
     'src/data/balance-sheet.js', 'src/data/monsters.js', 'src/core/xp.js', 'src/data/hunt-sessions.js', 'src/data/blessings.js', 'src/data/supply-basics.js',
     'src/shell/hunt-list.js', 'src/data/party-class-xp.js', 'tools/balance-sim/skill-lines.mjs', 'src/data/loot-bands.js', 'src/core/action-rules.js', 'src/core/wage.js'].map(imp));
   const S = await imp('tools/gen-ground-stats.mjs');
@@ -109,7 +109,7 @@ export async function loadGridData(root = ROOT) {
       if (!row) throw new Error('grid: the advice has no ground at Level ' + L + ' for ' + n);
       return G.groundOfHunt(row.hunt).id || row.hunt;
     },
-    projectD: { MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: BS.tierRowFor, tiersOf: TI.tiersOf, floorOf, fitOf },
+    projectD: { MONSTERS: MON.MONSTERS, GROUND_ROSTER: BS.GROUND_ROSTER, formulaStats: BS.formulaStats, tierRowFor: TI.tierRowOf, tiersOf: TI.tiersOf, floorOf, fitOf },
   };
 }
 

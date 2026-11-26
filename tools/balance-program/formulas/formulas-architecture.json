@@ -15,47 +15,47 @@
  },
  "counts": {
   "raw": {
-   "formulas": 131,
-   "exceptions": 154,
+   "formulas": 128,
+   "exceptions": 149,
    "byLane": {
     "combat": [
-     42,
-     67
+     41,
+     65
     ],
     "progression": [
-     37,
-     48
+     36,
+     47
     ],
     "economy": [
-     52,
-     39
+     51,
+     37
     ]
    }
   },
-  "formulas": 107,
-  "formulasMerged": 24,
-  "exceptions": 129,
-  "exceptionsMerged": 28,
+  "formulas": 106,
+  "formulasMerged": 22,
+  "exceptions": 125,
+  "exceptionsMerged": 27,
   "exceptionsAdded": 3,
   "byClass": {
    "1": 12,
-   "2": 25,
-   "3": 35,
-   "4": 57
+   "2": 24,
+   "3": 33,
+   "4": 56
   },
-  "confirmed": 115,
-  "hypothesis": 14,
-  "class3Approved": 26,
-  "class3NoApproval": 9,
-  "classDecided": 6,
-  "class4Removed": 56,
+  "confirmed": 112,
+  "hypothesis": 13,
+  "class3Approved": 25,
+  "class3NoApproval": 8,
+  "classDecided": 5,
+  "class4Removed": 55,
   "class4Left": [
    "E-X36"
   ],
-  "edges": 197,
-  "crossEdges": 67,
-  "inCycle": 59,
-  "knobs": 35,
+  "edges": 193,
+  "crossEdges": 64,
+  "inCycle": 56,
+  "knobs": 31,
   "knobsPlanned": 20
  },
  "formulas": [
@@ -232,7 +232,7 @@
     "combat"
    ],
    "owner": null,
-   "what": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges",
+   "what": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at each tier's skill gate, runes.js versionLevel) x the store's share for a store rune x Surge when it surges",
    "where": "src/data/runes.js versionStep, versionLevel",
    "state": "live"
   },
@@ -441,22 +441,6 @@
    "state": "live"
   },
   {
-   "id": "C-SCALED",
-   "also": [
-    "P26",
-    "E07"
-   ],
-   "categories": [
-    "combat",
-    "progression",
-    "economy"
-   ],
-   "owner": "combat owns the stats, progression the XP share, economy the hourly price",
-   "what": "A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only",
-   "where": "src/data/scaled-hunts.js:159-190",
-   "state": "live"
-  },
-  {
    "id": "C-TARGET",
    "also": [],
    "categories": [
@@ -510,8 +494,8 @@
     "combat"
    ],
    "owner": null,
-   "what": "Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
-   "where": "src/data/gear-tiers.js:64-69 the slot table",
+   "what": "Armor points: the one gear formula (src/core/gear-stats.js gearStats): the weight's profile (plate 1000, leather 550, cloth 300 permille) x the slot's share (GEAR_SLOT_PM) x the defense budget at the piece's item Level, each line's trades a share of the same budget, a named piece its statPlus; on a Danger-scale ground read at the ground's base item Level (scaleItems). Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
+   "where": "src/core/gear-stats.js gearStats, scaleItems",
    "state": "live"
   },
   {
@@ -524,8 +508,8 @@
     "progression"
    ],
    "owner": "combat owns what a piece carries (also C-GEAR-ARMOR). Progression owns the Level it is worn at (P35)",
-   "what": "Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
-   "where": "src/data/gear-tiers.js:77-150 WEAPON_FAMILIES",
+   "what": "Weapon accuracy and damage: the one gear formula, the family's profile x the slot's share (a two-handed weapon the shield's too) x the offense budget at the piece's item Level; on a Danger-scale ground read at the ground's base item Level. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
+   "where": "src/core/gear-stats.js gearStats, scaleItems",
    "state": "live"
   },
   {
@@ -734,7 +718,7 @@
     "progression"
    ],
    "owner": null,
-   "what": "Run ground pay: a Tower kill pays each hero the Level share at the floor's gap (the one pay rule) x payPm and the room's share, split evenly",
+   "what": "Run ground pay: a Tower kill pays each hero the hours table's share of its own Level over refKillsHead x the depth ratio at the floor's gap x payPm x the room's share, split evenly (lane/tower-boss-formula)",
    "where": "src/core/hunt/tower.js#towerShareXp",
    "state": "live"
   },
@@ -1653,32 +1637,6 @@
    "where": "src/data/tower.js:54 floorTop 300",
    "fix": "a cap on an endless mode. Needs Tyler's yes or a formula that reads any floor",
    "decided": "combat filed it 3, progression 4. Nobody designed \"the Tower ends at floor 300\": the server's bound is a generated table with a last row. A limit of the build, not a design choice: 4"
-  },
-  {
-   "id": "X-SCALED-THICKET",
-   "also": [],
-   "categories": [
-    "combat"
-   ],
-   "class": 4,
-   "status": "CONFIRMED",
-   "what": "A scaled Thicket reaches only half danger",
-   "where": "src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS",
-   "fix": "a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle",
-   "decided": null
-  },
-  {
-   "id": "X-SCALED-NO-DEADLY",
-   "also": [],
-   "categories": [
-    "combat"
-   ],
-   "class": 3,
-   "status": "CONFIRMED",
-   "what": "Deadly is not offered on a scaled hunt",
-   "where": "src/data/scaled-hunts.js:144",
-   "fix": "a content rule. For Tyler with the scaled-hunt card",
-   "decided": null
   },
   {
    "id": "X-SPELL-HOLDS",
@@ -2722,35 +2680,6 @@
    "decided": null
   },
   {
-   "id": "E-X11",
-   "also": [
-    "P-X10"
-   ],
-   "categories": [
-    "economy",
-    "progression"
-   ],
-   "class": 3,
-   "status": "CONFIRMED",
-   "what": "Scaled hunts: XP x0.73, a party x0.70, coin x0.5 of the rise, fitted cell by cell so a bought hour is never the best grind",
-   "where": "src/data/scaled-hunts.js:107, 128, 137",
-   "fix": "keep the mechanic (Tyler 2026-11-07). The three numbers are compensations for X01 and should be re-derived once X01 is fixed",
-   "decided": "economy filed it 3 (the mode is approved, 2026-11-07), progression 4 (its XP share was re-dialed seven times). The mode is intentional: 3. Its numbers are outputs of the kill reward and get re-derived, not re-fitted"
-  },
-  {
-   "id": "E-X12",
-   "also": [],
-   "categories": [
-    "economy"
-   ],
-   "class": 2,
-   "status": "HYPOTHESIS",
-   "what": "SCALE_EXCEPTIONS: grounds left off the scale ladder by name",
-   "where": "src/data/scaled-hunts.js:41",
-   "fix": "confirm by reading the rows; move to a field on the ground",
-   "decided": null
-  },
-  {
    "id": "E-X14",
    "also": [],
    "categories": [
@@ -3095,12 +3024,6 @@
    "why": "A content flag on the tutorial ground. It changes no formula"
   },
   {
-   "id": "X-SCALED-NO-DEADLY",
-   "recommendation": "fold",
-   "approved": null,
-   "why": "A tier a ground does not offer is the same content flag the Mill Cellar uses. One mechanic, read from the mode's row"
-  },
-  {
    "id": "X-SPELL-FLOOR",
    "recommendation": "fold",
    "approved": "2026-11-21 (32-8, the effect)",
@@ -3249,12 +3172,6 @@
    "recommendation": "fold",
    "approved": "2026-11-03 (\"harder pays more on one line\")",
    "why": "The coin line that climbs from x0.5 to x1.4 over the first grounds is one of four stacked coin dials. Fold all four into one coin line by monster Level"
-  },
-  {
-   "id": "E-X11",
-   "recommendation": "fold",
-   "approved": "2026-11-07",
-   "why": "Keep scaled hunts. Their XP and party shares become outputs of the kill reward formula, so nobody re-dials them an eighth time"
   },
   {
    "id": "E-X29",
@@ -3498,15 +3415,7 @@
   },
   {
    "from": "C-MON-STATS",
-   "to": "C-SCALED"
-  },
-  {
-   "from": "C-MON-STATS",
    "to": "C-BOSS-ROOM"
-  },
-  {
-   "from": "C-TIER",
-   "to": "C-SCALED"
   },
   {
    "from": "C-TARGET",
@@ -3582,10 +3491,6 @@
   },
   {
    "from": "P25",
-   "to": "P20"
-  },
-  {
-   "from": "C-SCALED",
    "to": "P20"
   },
   {
@@ -3678,6 +3583,10 @@
   },
   {
    "from": "P01",
+   "to": "P22"
+  },
+  {
+   "from": "P01",
    "to": "P23"
   },
   {
@@ -3703,14 +3612,6 @@
   {
    "from": "P22",
    "to": "C-RUN-ROOM"
-  },
-  {
-   "from": "P01",
-   "to": "P22"
-  },
-  {
-   "from": "C-SCALED",
-   "to": "P22"
   },
   {
    "from": "P03",
@@ -3817,10 +3718,6 @@
    "to": "E33"
   },
   {
-   "from": "E26",
-   "to": "C-SCALED"
-  },
-  {
    "from": "E31",
    "to": "E26"
   },
@@ -3830,10 +3727,6 @@
   },
   {
    "from": "E44",
-   "to": "E45"
-  },
-  {
-   "from": "C-SCALED",
    "to": "E45"
   },
   {
@@ -4077,7 +3970,7 @@
   {
    "id": "C-MON-STATS",
    "category": "combat",
-   "feeds": 12,
+   "feeds": 11,
    "reaches": 78,
    "categoriesReached": 3
   },
@@ -4098,7 +3991,7 @@
   {
    "id": "C-TIER",
    "category": "combat",
-   "feeds": 8,
+   "feeds": 7,
    "reaches": 78,
    "categoriesReached": 3
   },
@@ -4110,16 +4003,16 @@
    "categoriesReached": 3
   },
   {
-   "id": "P11",
+   "id": "P01",
    "category": "progression",
    "feeds": 6,
    "reaches": 78,
    "categoriesReached": 3
   },
   {
-   "id": "P01",
+   "id": "P11",
    "category": "progression",
-   "feeds": 5,
+   "feeds": 6,
    "reaches": 78,
    "categoriesReached": 3
   },
@@ -4183,7 +4076,6 @@
   "C-REF-HERO",
   "C-REGEN",
   "C-RESIST-HERO",
-  "C-SCALED",
   "C-SPELL-HIT",
   "C-SPELL-SHELL",
   "C-STATUS",
@@ -4196,9 +4088,6 @@
   "E10",
   "E12",
   "E14",
-  "E26",
-  "E27",
-  "E29",
   "E30",
   "E37",
   "E38",
@@ -4216,6 +4105,7 @@
   "P15",
   "P19",
   "P20",
+  "P22",
   "P23",
   "P28",
   "P35"

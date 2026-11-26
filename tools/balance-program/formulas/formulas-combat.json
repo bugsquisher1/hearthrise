@@ -14,15 +14,15 @@
   "H": "hypothesis: the row says what would confirm it"
  },
  "counts": {
-  "formulas": 42,
-  "exceptions": 67,
+  "formulas": 41,
+  "exceptions": 65,
   "byClass": {
    "1": 8,
    "2": 10,
-   "3": 17,
-   "4": 32
+   "3": 16,
+   "4": 31
   },
-  "confirmed": 58,
+  "confirmed": 56,
   "hypothesis": 9
  },
  "formulas": [
@@ -104,7 +104,7 @@
     "src/core/combat.js:488-494 rollCrit, applyCrit",
     "src/core/combat.js:252-270 armorSetBonus"
    ],
-   "params": "COMBAT_BALANCE.critMult 1.5, critCap 0.60 (combat.js:64-65). Leather critB 0.004 x tier a piece (gear-tiers.js:215)",
+   "params": "COMBAT_BALANCE.critMult 1.5, critCap 0.60 (combat.js:64-65). Leather critB the same on every piece, the leather profile even critB over the defense budget (gear-profiles.js; 0.028 at Dawnsteel)",
    "deps": [
     "C-GEAR-ARMOR",
     "C-JEWEL-PERKS",
@@ -305,7 +305,7 @@
   },
   {
    "id": "C-CAST-POWER",
-   "computes": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges",
+   "computes": "A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at each tier's skill gate, runes.js versionLevel) x the store's share for a store rune x Surge when it surges",
    "impl": [
     "src/data/runes.js versionStep, versionLevel",
     "src/data/abilities.js:429-432 versionOf",
@@ -544,7 +544,6 @@
     "C-MON-DEF",
     "C-HERO-TOHIT",
     "C-RUN-ROOM",
-    "C-SCALED",
     "P-KILL-XP (progression: xp is on the same row)",
     "E-KILL-COIN (economy: gp is on the same row)"
    ],
@@ -665,23 +664,6 @@
    "random": "deterministic (rooms are picked by number, no dice)"
   },
   {
-   "id": "C-SCALED",
-   "computes": "A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only",
-   "impl": [
-    "src/data/scaled-hunts.js:159-190"
-   ],
-   "params": "SCALED_HUNTS { xpPm 730, partyPm 700, coinPm, tiers }. SCALE_EXCEPTIONS (the Thicket at half danger)",
-   "deps": [
-    "C-MON-STATS",
-    "C-TIER"
-   ],
-   "consumers": [
-    "P-KILL-XP (progression)",
-    "E-SCALED-FEE (economy)"
-   ],
-   "random": "deterministic"
-  },
-  {
    "id": "C-TARGET",
    "computes": "Aggro is rules, not threat numbers: a pack turns on the pull's leader. Challenge takes every monster within 6 tiles that is not on a tank and holds it 8 s. A Healer's basic draws a free monster 18% of the time. A shooter aims at the hero farthest back. A tank under 90% of the strongest tank's HP never takes a turn",
    "impl": [
@@ -754,13 +736,13 @@
   },
   {
    "id": "C-GEAR-ARMOR",
-   "computes": "Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
+   "computes": "Armor points: the one gear formula (src/core/gear-stats.js gearStats): the weight's profile (plate 1000, leather 550, cloth 300 permille) x the slot's share (GEAR_SLOT_PM) x the defense budget at the piece's item Level, each line's trades a share of the same budget, a named piece its statPlus; on a Danger-scale ground read at the ground's base item Level (scaleItems). Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-sized under it",
    "impl": [
-    "src/data/gear-tiers.js:64-69 the slot table",
-    "src/data/gear-tiers.js:204-234 ARMOUR_LINES",
+    "src/core/gear-stats.js gearStats, scaleItems",
+    "src/data/gear-profiles.js GEAR_CURVES, GEAR_SLOT_PM, GEAR_PROFILES",
     "tools/balance-sim/staged/armor-line.js:64-70 lineArmor"
    ],
-   "params": "the slot table. defMul. LINE_ANCHOR_LEVEL 110, LINE_TRADE 0.05",
+   "params": "the defense curve, the slot split, the weights' profiles. LINE_ANCHOR_LEVEL 110, LINE_TRADE 0.05",
    "deps": [
     "P-GEAR-LEVELS (progression: worn by Level)"
    ],
@@ -774,12 +756,13 @@
   },
   {
    "id": "C-GEAR-WEAPON",
-   "computes": "Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
+   "computes": "Weapon accuracy and damage: the one gear formula, the family's profile x the slot's share (a two-handed weapon the shield's too) x the offense budget at the piece's item Level; on a Danger-scale ground read at the ground's base item Level. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110)",
    "impl": [
-    "src/data/gear-tiers.js:77-150 WEAPON_FAMILIES",
+    "src/core/gear-stats.js gearStats, scaleItems",
+    "src/data/gear-profiles.js GEAR_CURVES, GEAR_PROFILES",
     "tools/balance-sim/staged/weapon-line.js:72-81 lineWeapon"
    ],
-   "params": "the family tables. WEAPON_LINE_ANCHOR 110",
+   "params": "the offense curve and the family profiles. WEAPON_LINE_ANCHOR 110",
    "deps": [
     "P-GEAR-LEVELS (progression)"
    ],
@@ -1072,24 +1055,6 @@
    "class": 3,
    "status": "C",
    "fix": "a cap on an endless mode. Needs Tyler's yes or a formula that reads any floor"
-  },
-  {
-   "id": "X-SCALED-THICKET",
-   "where": "src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS",
-   "what": "A scaled Thicket reaches only half danger",
-   "why": "2026-11-07: \"its wolves run down a lone archer\"",
-   "class": 4,
-   "status": "C",
-   "fix": "a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle"
-  },
-  {
-   "id": "X-SCALED-NO-DEADLY",
-   "where": "src/data/scaled-hunts.js:144",
-   "what": "Deadly is not offered on a scaled hunt",
-   "why": "designer 2026-11-07",
-   "class": 3,
-   "status": "C",
-   "fix": "a content rule. For Tyler with the scaled-hunt card"
   },
   {
    "id": "X-SPELL-HOLDS",
@@ -1675,15 +1640,7 @@
   },
   {
    "from": "C-MON-STATS",
-   "to": "C-SCALED"
-  },
-  {
-   "from": "C-MON-STATS",
    "to": "C-BOSS-ROOM"
-  },
-  {
-   "from": "C-TIER",
-   "to": "C-SCALED"
   },
   {
    "from": "C-TARGET",
@@ -1798,7 +1755,7 @@
   },
   {
    "lane": "economy",
-   "edge": "C-BOSS-ROOM, C-SCALED, C-RUN-ROOM -> fees, keys and what they pay",
+   "edge": "C-BOSS-ROOM, C-RUN-ROOM -> fees, keys and what they pay",
    "why": "the modes share the monster formula and differ only in pay"
   }
  ]

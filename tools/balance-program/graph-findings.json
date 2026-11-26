@@ -62,10 +62,6 @@
    "kind": "carrier",
    "key": "P11>C-SPELL-HIT"
   },
-  "GF-09dc8f79": {
-   "kind": "undeclared-move",
-   "key": "tierDanger|dps"
-  },
   "GF-09df4953": {
    "kind": "carrier",
    "key": "C-MON-BLOW>E18"
@@ -93,10 +89,6 @@
   "GF-1102e9d3": {
    "kind": "feeds",
    "key": "C-BUFF-BONUS>C-TEMPER"
-  },
-  "GF-125608ba": {
-   "kind": "writers",
-   "key": "C-SCALED|E01"
   },
   "GF-12a6bf23": {
    "kind": "carrier",
@@ -166,17 +158,9 @@
    "kind": "feeds",
    "key": "E11>O-FIGHT"
   },
-  "GF-1ba9cba2": {
-   "kind": "feeds",
-   "key": "P01>C-SCALED"
-  },
   "GF-1c65c9f9": {
    "kind": "writers",
    "key": "E44|E52"
-  },
-  "GF-1c8d02b6": {
-   "kind": "writers",
-   "key": "C-RUN-ROOM|C-SCALED"
   },
   "GF-1c8e0e40": {
    "kind": "writers",
@@ -198,17 +182,9 @@
    "kind": "feeds",
    "key": "P37>C-HERO-POWER"
   },
-  "GF-20ad9c6e": {
-   "kind": "undeclared-move",
-   "key": "tierHp|takenPerH"
-  },
   "GF-20fb95f8": {
    "kind": "carrier",
    "key": "C-GEAR-WEAPON>E38"
-  },
-  "GF-212248fe": {
-   "kind": "feeds",
-   "key": "C-SCALED>C-MON-DEF"
   },
   "GF-21c102d6": {
    "kind": "feeds",
@@ -253,10 +229,6 @@
   "GF-28ded27e": {
    "kind": "feeds",
    "key": "E31>E32"
-  },
-  "GF-290fdd2a": {
-   "kind": "feeds",
-   "key": "C-SCALED>C-PULL"
   },
   "GF-29534f77": {
    "kind": "call",
@@ -334,10 +306,6 @@
    "kind": "carrier",
    "key": "P22>C-RUN-ROOM"
   },
-  "GF-330ac7f5": {
-   "kind": "feeds",
-   "key": "C-SCALED>E25"
-  },
   "GF-345d49c0": {
    "kind": "feeds",
    "key": "C-LEASH>O-TAKEN"
@@ -386,10 +354,6 @@
    "kind": "undeclared-move",
    "key": "heroAccuracy|netLevelXpPerH"
   },
-  "GF-3bba4b76": {
-   "kind": "writers",
-   "key": "C-SCALED|P25"
-  },
   "GF-3bf19fff": {
    "kind": "writers",
    "key": "C-RESIST-HERO|C-STATUS"
@@ -409,10 +373,6 @@
   "GF-3e3d385f": {
    "kind": "feeds",
    "key": "P11>C-LEECH"
-  },
-  "GF-3e3fde78": {
-   "kind": "undeclared-move",
-   "key": "tierDanger|ttkS"
   },
   "GF-3e7cb559": {
    "kind": "writers",
@@ -450,10 +410,6 @@
    "kind": "dead-outcome",
    "key": "deathLoss|deathsPer1000h"
   },
-  "GF-4453592c": {
-   "kind": "call",
-   "key": "C-MON-STATS+E01+E23>C-TIER"
-  },
   "GF-4457f664": {
    "kind": "call",
    "key": "C-LEASH>C-PULL"
@@ -477,10 +433,6 @@
   "GF-465d8e39": {
    "kind": "dead-outcome",
    "key": "manaRegen|dps"
-  },
-  "GF-466bde9f": {
-   "kind": "undeclared-move",
-   "key": "tierHp|lowHpP10"
   },
   "GF-47164d66": {
    "kind": "sign",
@@ -550,10 +502,6 @@
    "kind": "carrier",
    "key": "C-GEAR-ARMOR>C-MON-TOHIT"
   },
-  "GF-543a1042": {
-   "kind": "writers",
-   "key": "C-SCALED|E23"
-  },
   "GF-5636bf35": {
    "kind": "dead-outcome",
    "key": "manaRegen|hoursPerLevel"
@@ -622,10 +570,6 @@
    "kind": "writers",
    "key": "E51|E52"
   },
-  "GF-5f31828a": {
-   "kind": "feeds",
-   "key": "C-SCALED>C-MON-BLOW"
-  },
   "GF-5f4ed97b": {
    "kind": "writers",
    "key": "P06|P08"
@@ -673,10 +617,6 @@
   "GF-68e5fcd5": {
    "kind": "undeclared-move",
    "key": "levelCurve|lowHpP10"
-  },
-  "GF-69bdef84": {
-   "kind": "sign",
-   "key": "tierPull|netPerH"
   },
   "GF-6a18ad1d": {
    "kind": "dead-outcome",
@@ -734,10 +674,6 @@
    "kind": "dead-outcome",
    "key": "monsterAccuracy|ttkS"
   },
-  "GF-732017c3": {
-   "kind": "undeclared-move",
-   "key": "tierXp|lowHpP10"
-  },
   "GF-73583d64": {
    "kind": "feeds",
    "key": "E55>E18"
@@ -778,10 +714,6 @@
    "kind": "writers",
    "key": "C-JEWEL-PERKS|C-REGEN"
   },
-  "GF-78e71beb": {
-   "kind": "feeds",
-   "key": "C-SCALED>E01"
-  },
   "GF-79270c9b": {
    "kind": "dead-outcome",
    "key": "manaRegen|ttkS"
@@ -810,10 +742,6 @@
    "kind": "call",
    "key": "C-PULL>E11"
   },
-  "GF-7c210945": {
-   "kind": "writers",
-   "key": "C-BOSS-PHASE|C-SCALED"
-  },
   "GF-7e115a01": {
    "kind": "undeclared-move",
    "key": "armorCurve|netPerH"
@@ -837,10 +765,6 @@
   "GF-825afc0c": {
    "kind": "feeds",
    "key": "C-JEWEL-PERKS>O-REGENSHARE"
-  },
-  "GF-82a7002e": {
-   "kind": "writers",
-   "key": "C-SCALED|P21"
   },
   "GF-8353da8d": {
    "kind": "undeclared-move",
@@ -946,10 +870,6 @@
    "kind": "carrier",
    "key": "C-TEMPER>C-HERO-POWER"
   },
-  "GF-941bda02": {
-   "kind": "undeclared-move",
-   "key": "tierHp|hpUnder30"
-  },
   "GF-9472920b": {
    "kind": "dead",
    "key": "monsterDefense"
@@ -1002,10 +922,6 @@
    "kind": "feeds",
    "key": "E11>O-KILLS"
   },
-  "GF-9c1bed6c": {
-   "kind": "feeds",
-   "key": "C-SCALED>P07"
-  },
   "GF-9c4ab5e4": {
    "kind": "undeclared-move",
    "key": "monsterDamage|netPerH"
@@ -1025,10 +941,6 @@
   "GF-9cf3cc21": {
    "kind": "carrier",
    "key": "C-GEAR-WEAPON>E27"
-  },
-  "GF-9f5c4e9b": {
-   "kind": "undeclared-move",
-   "key": "tierDanger|killsPerH"
   },
   "GF-9fd734d9": {
    "kind": "feeds",
@@ -1110,14 +1022,6 @@
    "kind": "undeclared-move",
    "key": "heroAccuracy|lowHpP10"
   },
-  "GF-ac847334": {
-   "kind": "carrier",
-   "key": "C-TIER>C-SCALED"
-  },
-  "GF-aede70c9": {
-   "kind": "undeclared-move",
-   "key": "tierHp|storePerH"
-  },
   "GF-afc60ce4": {
    "kind": "undeclared-move",
    "key": "spellRollLow|storePerH"
@@ -1166,10 +1070,6 @@
    "kind": "carrier",
    "key": "E55>C-LEECH"
   },
-  "GF-b97607b2": {
-   "kind": "feeds",
-   "key": "C-SCALED>C-MON-TOHIT"
-  },
   "GF-ba41ddaf": {
    "kind": "feeds",
    "key": "C-BOSS-PHASE>O-KILLS"
@@ -1190,17 +1090,9 @@
    "kind": "carrier",
    "key": "C-HERO-POWER>P06"
   },
-  "GF-bf6c8728": {
-   "kind": "dead-outcome",
-   "key": "tierPull|hoursPerLevel"
-  },
   "GF-c0593096": {
    "kind": "writers",
    "key": "C-WEAKNESS|E51"
-  },
-  "GF-c07966f0": {
-   "kind": "feeds",
-   "key": "C-SCALED>C-ARMOR-CHAIN"
   },
   "GF-c08837a8": {
    "kind": "feeds",
@@ -1230,10 +1122,6 @@
    "kind": "undeclared-move",
    "key": "mitigationCap|killsPerH"
   },
-  "GF-c5b45363": {
-   "kind": "feeds",
-   "key": "C-SCALED>E23"
-  },
   "GF-c613578f": {
    "kind": "carrier",
    "key": "C-GEAR-WEAPON>E30"
@@ -1245,10 +1133,6 @@
   "GF-c6a7d6ac": {
    "kind": "feeds",
    "key": "C-JEWEL-PERKS>C-HERO-POWER"
-  },
-  "GF-c8c669bb": {
-   "kind": "carrier",
-   "key": "C-MON-STATS>C-SCALED"
   },
   "GF-c921822d": {
    "kind": "undeclared-move",
@@ -1286,17 +1170,9 @@
    "kind": "feeds",
    "key": "C-LEASH>O-TTK"
   },
-  "GF-ce9d72c0": {
-   "kind": "lever-reader",
-   "key": "spawn.tier-pull-floor|C-TIER"
-  },
   "GF-ced2c8e5": {
    "kind": "undeclared-move",
    "key": "playerAttack|lowHpP10"
-  },
-  "GF-cff5dda9": {
-   "kind": "lever-reader",
-   "key": "mon.danger-ramp|C-SCALED"
   },
   "GF-d019270a": {
    "kind": "feeds",
@@ -1305,14 +1181,6 @@
   "GF-d078483b": {
    "kind": "feeds",
    "key": "E18>O-SUPPLIES"
-  },
-  "GF-d0bae3b5": {
-   "kind": "undeclared-move",
-   "key": "tierHp|suppliesPerH"
-  },
-  "GF-d1344426": {
-   "kind": "lever-reader",
-   "key": "reward.coin-line|C-SCALED"
   },
   "GF-d171f129": {
    "kind": "carrier",
@@ -1338,10 +1206,6 @@
    "kind": "dead-outcome",
    "key": "attackInterval|netLevelXpPerH"
   },
-  "GF-d41b7d88": {
-   "kind": "undeclared-move",
-   "key": "tierHp|netLevelXpPerH"
-  },
   "GF-d5208d21": {
    "kind": "dead-outcome",
    "key": "regen|hpUnder30"
@@ -1354,10 +1218,6 @@
    "kind": "carrier",
    "key": "C-GEAR-WEAPON>C-TEMPER"
   },
-  "GF-d7fe4a4f": {
-   "kind": "undeclared-move",
-   "key": "tierDanger|levelXpPerH"
-  },
   "GF-d92b5f90": {
    "kind": "undeclared-move",
    "key": "monsterHp|storePerH"
@@ -1365,14 +1225,6 @@
   "GF-d948c4a9": {
    "kind": "feeds",
    "key": "E34>E56"
-  },
-  "GF-db8a270f": {
-   "kind": "writers",
-   "key": "C-SCALED|P23"
-  },
-  "GF-dbab6c68": {
-   "kind": "undeclared-move",
-   "key": "tierHp|huntedShare"
   },
   "GF-dd647ab2": {
    "kind": "feeds",
@@ -1410,10 +1262,6 @@
    "kind": "undeclared-move",
    "key": "xpPerKill|storePerH"
   },
-  "GF-e475a408": {
-   "kind": "undeclared-move",
-   "key": "tierDanger|netPerH"
-  },
   "GF-e4a95bed": {
    "kind": "feeds",
    "key": "E55>C-STATUS"
@@ -1434,10 +1282,6 @@
    "kind": "feeds",
    "key": "C-GEAR-ARMOR>C-TEMPER"
   },
-  "GF-e775a2d8": {
-   "kind": "carrier",
-   "key": "E26>C-SCALED"
-  },
   "GF-e7b82b2e": {
    "kind": "feeds",
    "key": "E54>E56"
@@ -1457,10 +1301,6 @@
   "GF-e8a33331": {
    "kind": "undeclared-move",
    "key": "spellRollLow|lowHpP10"
-  },
-  "GF-e97dac49": {
-   "kind": "feeds",
-   "key": "C-SCALED>C-HERO-TOHIT"
   },
   "GF-e9ae7e8d": {
    "kind": "feeds",
@@ -1486,10 +1326,6 @@
    "kind": "feeds",
    "key": "C-SPELL-HEAL>O-REGENSHARE"
   },
-  "GF-eb9cc7c3": {
-   "kind": "writers",
-   "key": "C-SCALED|E52"
-  },
   "GF-ebfadf1d": {
    "kind": "feeds",
    "key": "C-LEECH>O-SUSTAIN"
@@ -1509,14 +1345,6 @@
   "GF-ef1d6487": {
    "kind": "undeclared-move",
    "key": "playerAttack|hpUnder30"
-  },
-  "GF-efc573cb": {
-   "kind": "feeds",
-   "key": "C-SCALED>E31"
-  },
-  "GF-f007eb0f": {
-   "kind": "undeclared-move",
-   "key": "tierDanger|hoursPerLevel"
   },
   "GF-f039b768": {
    "kind": "writers",
@@ -1549,10 +1377,6 @@
   "GF-fbcd2e97": {
    "kind": "feeds",
    "key": "C-JEWEL-PERKS>C-BASIC-BLOW"
-  },
-  "GF-fc33421a": {
-   "kind": "lever-reader",
-   "key": "mon.party-fit|C-SCALED"
   },
   "GF-fc6b39a2": {
    "kind": "feeds",

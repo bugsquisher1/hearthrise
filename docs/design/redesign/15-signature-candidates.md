@@ -64,7 +64,9 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 |---|---|---|---|---|---|
 | The Wood Book | as built | 12 | +5.5 (2.8) | +2.3% | Under the band |
 | The Wood Book | + 6% mana on the same hit | 12 | +5.5 (2.8) | +2.3% | Identical hunt: the mage's mana is full when Frost Lance lands |
+| The Wood Book | **any Frost Lance hit readies Hoarfrost** (no chill filter) | 12 | **+9.9 (2.9)** | +4.3% | **In band. Built** |
 | Brewer's Apron | as built (Emboldened 4 s) | 12 | +5.3 (2.5) | +2.9% | Under the band |
+| Brewer's Apron | Emboldened 6 s | 12 | +3.6 (3.2) | +3.2% | No gain: the boon's length is not its lever |
 | Barrow Knight's Blade | as built (reset per kill) | 6 | -11.5 (5.5) | -2.9% | Fails |
 | Barrow Knight's Blade | + 4% mana a Turning Cut kill | 6 | -11.5 (5.5) | -2.9% | Identical hunt: **mana is not the cause**, the sword's mana is full at its kills |
 | Barrow Knight's Blade | 5% mana a kill, no reset | 6 | 0.0 (0.0) | 0.0% | Identical hunt to none (the refund never lands) |
@@ -78,7 +80,7 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 **What the readings say.**
 
 - **The Blade's cause is the kill, not mana.** Every rule hung on a Turning Cut kill reads -3 to -12 against one plain 6-seed run, so that plain run sits high and a kill rule's true size on the sword four is near zero. A kill lands when the pull is already thinning, and the sword's depth is its health while the pull is full. A rule that pays on the kill pays at the wrong moment.
-- **The Collar's cause is the Mark.** A Mark kept up nearly all the time (ready on any death) buys nothing: the Mark is one held step on blows at one monster, and the four's other conditional steps already reach the gear slice cap on it (`amount.js` markPm through `held`). No rule that only keeps the Mark up can reach 10.
+- **The Collar's cause is the Mark.** A Mark kept up nearly all the time (ready on any death) buys nothing: the Mark is one conditional step on blows at one monster, held to the conditional ceiling (`amount.js` markPm through `held`), and Pyre's four kills a marked monster fast enough that more Mark time adds little. No rule that only keeps the Mark up can reach 10.
 - **Mana is not a lever in the reference company.** Both mana refunds played the identical hunt. A Signature that gives mana reads zero until a cell runs dry. Batch 2 writes no mana Signature without a cell where mana binds.
 
 ## Decision: how a Signature stays inside the gear slice (game designer, 2026-11-26, lane/designer-sig-1126)

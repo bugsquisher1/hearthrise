@@ -24,7 +24,7 @@
 //   dark              SIGNATURE_RULES.live is false and no src or server file but the engine's three readers names `wornSignature`; a hero
 //                     with none writes no field (the switch off plays as before: engine-parity holds with no re-pin)
 //
-// mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js
+// mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -241,7 +241,9 @@ const cases = {
   },
   dark: (M) => {
     if (M.SG.SIGNATURE_RULES.live !== false) return 'SIGNATURE_RULES.live is ' + M.SG.SIGNATURE_RULES.live + ': Signatures are dark until wave 4';
-    const allowed = new Set(['src/core/hunt/signature-rules.js', 'src/core/hunt-spawn.js', 'src/core/member.js']);
+    /* (lane/t1-traits-drop) the settle's projection hands it, the server's own read only (hr_hunt_instance_read `worn_signature`, null while
+       the server's `signatures` switch is off: 1071-trait-pieces.sql, tests/trait-pieces-db.mjs), so the edge file joins the engine's readers */
+    const allowed = new Set(['src/core/hunt/signature-rules.js', 'src/core/hunt-spawn.js', 'src/core/member.js', 'supabase/functions/hr-accrue/hunt-settle.js']);
     const strip = (x) => x.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     const walk = (abs, rel, out) => {
       if (!existsSync(abs)) return out;
@@ -254,6 +256,9 @@ const cases = {
     const files = [...walk(join(M.root, 'src'), 'src', []), ...walk(join(M.root, 'supabase', 'functions'), 'supabase/functions', [])];
     if (files.length < 50) return 'CONTROL: ' + files.length + ' files read';
     for (const [rel, text] of files) if (!allowed.has(rel) && /\bwornSignature\b/.test(strip(text))) return rel + ' names wornSignature: it hands a hero a Signature while Signatures are dark';
+    /* the settle hands only the read's own field, never a value of its own making */
+    const settle = files.find(([rel]) => rel === 'supabase/functions/hr-accrue/hunt-settle.js');
+    if (settle && /\bwornSignature\b/.test(strip(settle[1])) && !/_wornSignature: typeof m\.worn_signature === 'string' && m\.worn_signature \? m\.worn_signature : null,/.test(settle[1])) return 'hunt-settle.js hands a Signature that is not the server read\'s worn_signature';
     const u = H(M, 1, 12, 3, 'tank');
     M.SR.syncSignature(u, {});
     if (u.signature !== undefined || u.reacts !== undefined) return 'a hero with no Signature got a field';
@@ -261,7 +266,11 @@ const cases = {
   },
 };
 
-const SR = 'src/core/hunt/signature-rules.js', RX = 'src/core/hunt/reactions.js', RQ = 'src/core/hunt/react-queue.js', DM = 'src/core/hunt/damage.js';
+/* one declaration a line: tests/mutant-anchors.mjs resolves a file constant by its own line (four on one line read as the last, damage.js) */
+const SR = 'src/core/hunt/signature-rules.js';
+const RX = 'src/core/hunt/reactions.js';
+const RQ = 'src/core/hunt/react-queue.js';
+const DM = 'src/core/hunt/damage.js';
 const mutants = [
   { name: 'a list plays its last Signature', case: 'worn-signature', edits: [[SR, '.filter((id) => own(SIGNATURES, id)).slice(0, SIGNATURE_RULES.perHero);', '.filter((id) => own(SIGNATURES, id)).reverse();']] },
   { name: 'no Signature plays at all', case: 'worn-signature', edits: [['src/data/signatures.js', '  perHero: 1,', '  perHero: 0,']] },
@@ -283,6 +292,9 @@ const mutants = [
   { name: 'the member drops the Signature', case: 'real-settle', edits: [['src/core/member.js', "        ...(typeof h.wornSignature === 'string' && h.wornSignature ? { wornSignature: h.wornSignature } : {}),\n", '']] },
   { name: 'Signatures switched on', case: 'dark', edits: [['src/data/signatures.js', '  live: false,', '  live: true,']] },
   { name: 'the settle hands a hero its Signature', case: 'dark', edits: [['src/core/combat-sim.js', '  syncSignature(u, m.hero);', '  syncSignature(u, { wornSignature: m.hero.wornSignature });']] },
+  /* (lane/t1-traits-drop) the scan still bites past the settle's projection, and the projection hands the read's own field */
+  { name: 'another server file hands a Signature', case: 'dark', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'export function accrueHunt(inp) {', 'export const wornSignature = null;\nexport function accrueHunt(inp) {']] },
+  { name: 'the settle hands a Signature of its own making', case: 'dark', edits: [['supabase/functions/hr-accrue/hunt-settle.js', "_wornSignature: typeof m.worn_signature === 'string' && m.worn_signature ? m.worn_signature : null,", "_wornSignature: 'cairn_belt',"]] },
 ];
 
 const R = makeReport('signature-rules');

@@ -22,7 +22,11 @@
 //      one key, never a banned pair)
 //   4. each Trait's rank: the top rank open at the depth (rankDepths, held to the ground's maxRank), landing at topRankPm x (1 + luck), at
 //      most topRankMaxPm, else one under (21 D-4: depth sets the ceiling, luck how often it is reached)
-// The piece: { key, unit, rarity, slot, traits: [{ id, rank }], ground, depth, iL } (iL the ground's gearLevel: the ground fixes the base).
+//   5. the BASE (lane/t1-traits-drop): uniformly over the pieces the ground drops in that slot at its base item Level (drop-rate.js
+//      traitBasesOf), drawn LAST so no draw above moves
+// The piece: { key, unit, rarity, slot, base, traits: [{ id, rank }], ground, step, depth, iL, kill, atMs } (iL the ground's gearLevel: the
+// ground fixes the base; step the swing's, the one the server derives the depth from; kill the monster's unit, so the kill that made it is
+// named and the server lands it once).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -30,7 +34,7 @@
 import { GEAR_STEPS, TRAITS } from '../data/gear-steps.js';
 import { DANGER_GROUNDS } from '../data/danger.js';
 import { DROP_HOURS, chanceOf } from '../data/drop-hours.js';
-import { killsHeadHour, depthOf, depthRarePm, traitSlotsDropped } from './drop-rate.js';
+import { killsHeadHour, depthOf, depthRarePm, traitSlotsDropped, traitBasesOf } from './drop-rate.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
@@ -78,8 +82,8 @@ export function rankRoll(depth, maxRank, luckPm, rng) {
 
 const pick = (list, rng) => list[Math.min(list.length - 1, Math.floor(rng.next() * list.length))];
 
-/* the piece a hit makes: slot, then Traits, then ranks (the header's steps 1 to 4) */
-function makePiece(rarity, ground, depth, luckPm, rng, cells, slots) {
+/* the piece a hit makes: slot, then Traits, then ranks, then the base (the header's steps 1 to 5) */
+function makePiece(rarity, ground, step, depth, luckPm, rng, cells, slots, bases) {
   const row = DANGER_GROUNDS[ground.id];
   const banned = GEAR_STEPS.veryRareBanned;
   const slot = pick(slots, rng);
@@ -92,15 +96,26 @@ function makePiece(rarity, ground, depth, luckPm, rng, cells, slots) {
   }
   const traits = ids.map((id) => ({ id, rank: rankRoll(depth, row.maxRank, luckPm, rng) }));
   if (traits.some((t) => t.rank < 1)) return null;
-  return { rarity, slot, traits, ground: ground.id, depth, iL: row.gearLevel };
+  const list = bases[slot] || [];
+  if (!list.length) return null;
+  return { rarity, slot, base: pick(list, rng), traits, ground: ground.id, step, depth, iL: row.gearLevel };
+}
+
+/* a ground's bases (traitBasesOf), read once a ground: its rows and its gearLevel never change inside a run */
+const BASES = new WeakMap();
+function basesOf(ground) {
+  let b = BASES.get(ground);
+  if (!b) { b = traitBasesOf(ground, GEAR_STEPS.traitSlots, DANGER_GROUNDS[ground.id].gearLevel); BASES.set(ground, b); }
+  return b;
 }
 
 /**
  * ONE HERO'S ROLL ON ONE KILL. `tr` is the swing's roll (traitSwing): { ground, step, depth, rarePm, kills, hours?, luckPm, pity, found }.
- * `key` the hero's member key, `unit` its unit id, `n` the heroes at the kill, `rng` the hero's own stream. Pushes a piece onto
- * tr.found and answers it, or null. Pity counts in tr.pity[key][rarity] (the server's carry: read in, written back after the window).
+ * `key` the hero's member key, `unit` its unit id, `n` the heroes at the kill, `rng` the hero's own stream, `atMs` the kill's instant and
+ * `kill` the dead monster's unit id (the kill that made the piece). Pushes a piece onto tr.found and answers it, or null. Pity counts in
+ * tr.pity[key][rarity] (the server's carry: read in, written back after the window).
  */
-export function rollKillFor(tr, key, unit, n, rng, atMs) {
+export function rollKillFor(tr, key, unit, n, rng, atMs, kill) {
   if (!tr || !(n >= 1)) return null;
   const luck = (tr.luckPm && Number.isFinite(tr.luckPm[key]) && tr.luckPm[key] > 0) ? tr.luckPm[key] : 0;
   const pity = tr.pity[key] || (tr.pity[key] = {});
@@ -112,9 +127,9 @@ export function rollKillFor(tr, key, unit, n, rng, atMs) {
     const misses = Number.isInteger(pity[rarity]) ? pity[rarity] : 0;
     if (rng.next() >= pityChance(p, misses, tr.pityOn[rarity] === true)) { pity[rarity] = misses + 1; continue; }
     pity[rarity] = 0;
-    const piece = makePiece(rarity, tr.ground, tr.depth, luck, rng, tr.cells, tr.slots[rarity]);
+    const piece = makePiece(rarity, tr.ground, tr.step, tr.depth, luck, rng, tr.cells, tr.slots[rarity], tr.bases);
     if (!piece) return null;
-    const out = { key, unit, ...piece, ...(Number.isFinite(atMs) ? { atMs } : {}) };
+    const out = { key, unit, ...piece, ...(Number.isInteger(kill) ? { kill } : {}), ...(Number.isFinite(atMs) ? { atMs } : {}) };
     tr.found.push(out);
     return out;
   }
@@ -136,7 +151,7 @@ export function traitSwing(drops, ground, step, streamOf) {
   const all = DANGER_GROUNDS[ground.id].maxRank >= 1 ? Object.keys(cells).sort() : [];
   const slots = { rare: all, very_rare: all.filter((s) => veryRarePairs(TRAITS, GEAR_STEPS.veryRareBanned, ground.id, s).length) };
   return {
-    cells, slots,
+    cells, slots, bases: basesOf(ground),
     ground, step, depth: depthOf(ground.id, step), rarePm: depthRarePm(ground.id, step), kills: killsHeadHour(ground),
     hours: drops.hours || null, pityOn: drops.pityOn || GEAR_STEPS.pity, luckPm: drops.luckPm || {}, pity: drops.pity || (drops.pity = {}), found: drops.found || (drops.found = []),
     rngOf: (unit) => { if (!streams.has(unit)) streams.set(unit, streamOf(unit)); return streams.get(unit); },

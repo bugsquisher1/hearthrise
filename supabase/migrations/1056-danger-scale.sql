@@ -107,9 +107,11 @@ begin
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     -- A RETRY AFTER 1062-store-step.sql finds hr_hunt_apply_member at 1062's image (restated whole with this file's DANGER-SCALE lines
-    -- in it, its store priced at the buyer's step): the splices below find their marker and move nothing.
+    -- in it, its store priced at the buyer's step): the splices below find their marker and move nothing. AFTER 1071-trait-pieces.sql,
+    -- the instance read at 1071's image (restated whole with this file's DANGER-SCALE overlay in it, plus the worn pieces): the same.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = '209f8462d94db3fc386a12980342f2e8') then
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = '209f8462d94db3fc386a12980342f2e8')
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 = 'fc3028f121261dd3b7a15476c5164c40') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
@@ -122,7 +124,10 @@ declare v_md5 text;
 begin
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)');
   if v_md5 is null then raise exception 'PIN: hr_hunt_apply_instance is missing'; end if;
-  if v_md5 is distinct from '1b940aa14719f1ea5693a870799d93b6' and v_md5 is distinct from '3a6748518733987584b75e42e1d204d5' then
+  -- (or, a retry after 1071-trait-pieces.sql, 1071's image: restated whole with this file's two splices in it, plus the land; its
+  -- splices below find their marker and move nothing)
+  if v_md5 is distinct from '1b940aa14719f1ea5693a870799d93b6' and v_md5 is distinct from '3a6748518733987584b75e42e1d204d5'
+     and v_md5 is distinct from 'af3629d543bf9c063a1853860f4e43b2' then
     raise exception 'PIN: hr_hunt_apply_instance is neither the image this file was written against (1b940aa1...) nor its own (3a6748518733987584b75e42e1d204d5): md5 % - another file moved it; re-pin', v_md5;
   end if;
 end $mig$;

@@ -27,7 +27,8 @@
 --   hr_party_hold_set      ONE SPLICE (marker hr_party_hold_put): its update becomes the writer.
 --   hr_party_hold_clear    RESTATED (trigger, a seat emptied): through the writer.
 --   hr_hunt_instance_read  ONE SPLICE: `hold_seat` is hr_party_hold_played(p, v_i.settled_to), the window's own.
--- THE SCALE. public.hunt_scale_holds (instance_id, until, scale, at)   NEW TABLE, RLS on, no policy, no client or engine privilege:
+-- THE SCALE (RETIRED with the scaled hunts, lane/retire-tier-chain 2026-11-26: §2 is gone, 1071-retire-tier-chain.sql; as written:)
+--   public.hunt_scale_holds (instance_id, until, scale, at)   NEW TABLE, RLS on, no policy, no client or engine privilege:
 --   the instance's scale as it stood (hr_scaled_hunt_of's answer with its owner's spent_ms, or JSON null) for every window
 --   starting at or before `until`.
 --   hr_scaled_hours_hold() NEW trigger fn, BEFORE INSERT / BEFORE UPDATE (use_on moved, or banked_ms rose) on player_scaled_hours:

@@ -33,6 +33,7 @@
 //                Glade summons the Brook Bear", its link the creature's facts, and the page's "A harder hunt summons the Brook Bear.", the
 //                name a link, no drop list (Tyler 2026-11-11).
 // ════════════════════════════════════════════════════════════════════════
+import { offScale } from './_off-scale.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -68,7 +69,9 @@ async function gladeHunter(db, H, M, uid) {
   await db.query('update public.hr_hunt_config set enabled = true where id');
   await asUser(db, uid);
   await calm(db);
-  /* ON THE DANGER SCALE (the Glade's own, the server's default stance): a hero alone meets the bear in the room (the designer's ruling 3, 2026-11-10) */
+  /* HP-1 reads the room as built (a hero alone meets the bear there: the designer's ruling 3, 2026-11-10), so the fixture takes the Glade off
+     the scale (tests/_off-scale.mjs; its re-aim onto the scale's pulls is named debt, CONFLICTS 2026-11-26) */
+  await offScale(db, [GLADE]);
   const e = await one(db, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)", [GLADE, idem()]);
   if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
   await asUser(db, '');

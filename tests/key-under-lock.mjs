@@ -169,7 +169,8 @@ const DB_ARMS = {
       else if (!s.ok && s.src.indexOf(safe.check, s.lock) < 0) bad.push(name + ' is safe by state only through ' + safe.check + ' after its lock, and its body no longer has it');
     }
     for (const name of Object.keys(SAFE_BY_STATE)) if (!shaped.has(name)) bad.push('SAFE_BY_STATE names ' + name + ', which no longer has the shape (or is gone): drop the entry');
-    for (const sig of Object.values(SIG)) if (!shaped.get(sig.slice('public.'.length, sig.indexOf('(')))) bad.push('CONTROL: ' + sig + ' is not in the census');
+    /* (the scaled purchase is KL-AGAIN's alone: 1071-retire-tier-chain.sql drops it before the chain's end, where this census reads) */
+    for (const sig of [SIG.hearth, SIG.time]) if (!shaped.get(sig.slice('public.'.length, sig.indexOf('(')))) bad.push('CONTROL: ' + sig + ' is not in the census');
     return bad;
   },
 

@@ -503,6 +503,11 @@
         "bytes": 3896447,
         "on": "2026-11-26",
         "why": "lane/signatures-sample: one Signature a hero reads SIGNATURE_RULES.perHero (signature-rules.js wornSignatureOf, +100 B)"
+      },
+      {
+        "bytes": 3896745,
+        "on": "2026-11-26",
+        "why": "lane/signatures-sample: the Signature rows carry 24 section 4's home { kind, id } and their move (src/data/signatures.js, +298 B)"
       }
     ]
   }

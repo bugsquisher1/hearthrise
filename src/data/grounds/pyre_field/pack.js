@@ -224,14 +224,6 @@ export default definePack({
      grade's median lone way at 80 read 1.07 of the contract, so about 1.01. */
   xpFit: { k: 0.89, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape: ONE number a tier for every group), measured as opened, full grade. Dangerous brings six,
-     one over the table's five: on five a Melee and Healer pair two Levels under the floor still netted gold on Dangerous, where the
-     weight-class ruling (11-06) asks them to lose it. On six they lose 1.9k an hour, 3.4k three under and 7.5k five under. Deadly brings six
-     too, two under the table's eight: on eight a four with no Healer died 30 times in 16 hero-hours at the floor, on seven 36, on six 3
-     (the sheet allows 9; with a Healer 2, 3 and 0). It can't go under Dangerous (tests/hunt-core/hunt-tiers.mjs rows), so here the two
-     tiers bring the same number and Deadly is the harder blow, the thicker body and the bigger XP. On six a four with a Healer earns
-     1.28 of its Normal XP on Deadly (the sheet asks 1.25) and 1.23 on Dangerous (1.10). */
-  tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. With five, a pair a couple of Levels too low still made money on Dangerous. With eight, a group of four with no Healer kept dying on Deadly' },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.84-0.90, threes 0.83-0.94, fours 0.79-0.91 at 1150, times 1120/1150). Two of two is the

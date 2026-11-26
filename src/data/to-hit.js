@@ -79,10 +79,3 @@ export function evasionFor(heroHit, level, mult = 1, table = REF_HERO) {
   const h = heldToHit(heroHit), r = refHeroAt(level, table), a = TO_HIT.base + r.main + r.accuracy;
   return (h >= 0.5 ? 2 * (1 - h) * a : a / (2 * h)) * mult;
 }
-
-/** The chance of an aim written to land `hit` on its reference, raised `k` times (a tier's or an enrage's harder blow), against
-    that same reference: free of the reference's numbers, since the aim is a multiple of them (balance-sheet.js swingWorth). Pure. */
-export function raisedHit(hit, k) {
-  const h = heldToHit(hit), x = (h >= 0.5 ? 1 / (2 * (1 - h)) : 2 * h) * k;
-  return heldToHit(x >= 1 ? 1 - 1 / (2 * x) : x / 2);
-}

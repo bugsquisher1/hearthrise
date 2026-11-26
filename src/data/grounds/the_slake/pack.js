@@ -164,12 +164,6 @@ export default definePack({
      levels about 7% faster here than on the Ford). */
   xpFit: { k: 0.93, why: 'Monsters here give a little less XP than the base formula, so the Muster Barrows above pay a party more' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* DANGEROUS BRINGS SIX, one more than the table's five, for every group (TIER_PULL_OVERRIDES' shape: one number). On five a Melee
-     and Healer pair two or three Levels under the floor made 2.3k to 5.5k gold an hour a head on Dangerous, and 1.2k five under,
-     where the weight-class ruling (11-06) asks them to lose gold. On six they lose 2.2k, 3.1k and 5.7k (as opened, 2 seeds x 1 h).
-     What six costs a lone hero at the floor: 24 deaths in 16 hours where five gave 1, for the same XP. A four holds it with no
-     death at 465k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
-     did. Every solo ground fails that row today. */
   /* THE BARGEMAN'S SPELL (the area spells board's seed row, lane/b-pack-fields): river water over the whole group, frost. One of
      the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer.
      1800 EVERY 12 S (was 1500 every 16; lane/d-harder-monsters, 2026-11-19, the balance audit's fix 2): it was the Slake's one spell on the back

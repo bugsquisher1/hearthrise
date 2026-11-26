@@ -14,7 +14,7 @@
 //                      commit (envelope.js E2): it replaces the record like a load, never asks the engine
 //   setResidue(f, v)   a display preference: the residue changes at once, one hr_put_client_state per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the new settings arrive only in the re-read
-//   setHuntTier(h, t)    the tier picked on one ground (hr_hunt_tier_set), re-read; a Danger scale ground's Risk: danger-intents.js / -sections.js
+//   (a ground's Risk on the Danger scale is danger-intents.js setRisk, read from danger-sections.js)
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
 //   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read (every hero shows it: bankOf); refused: resync(); many whole stacks at once: storage-intents.js
@@ -257,13 +257,6 @@ export class CharacterSession {
       if (ans.ok && ans.body && ans.body.ok === true && this._huntOpen()) this.liveLink.ask();
       return this._settled(ans);
     });
-  }
-
-  /** The tier picked on one ground (hr_hunt_tier_set; hunt-tiers.js: per hero and ground, never a setup): the server checks the ground
-      offers it and refuses a party member; shown only from the re-read; a running hunt keeps its frozen one. */
-  async setHuntTier(hunt, tier) {
-    if (this._closed || !HUNT_ID.test(String(hunt)) || typeof tier !== 'string') return { ok: false, error: 'bad_intent' };
-    return this._ask('hunt_tier_set', () => this._server.rpc('hr_hunt_tier_set', { p_slot: this.slot, p_hunt: hunt, p_tier: tier, p_idem: newIdem() }));
   }
 
   /** Go hunting (hr_hunt_enter): this character alone (a party of one), or its party's ground when it is in one.

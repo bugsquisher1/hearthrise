@@ -504,11 +504,6 @@
 .hw-tiers { display: none; align-items: center; gap: 8px; }
 .hw-tiers.is-on { display: flex; }
 .hw-tiers .hh-seg { min-height: 36px; padding: 0 12px; }
-.hw-tiers .hh-seg[hidden] { display: none; }
-.hw-tiers .hh-segs:not(:has(.hh-seg:not([hidden]))) { display: none; }
-.hw-tier-read:empty { display: none; }
-.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); white-space: pre-line; }
-.hw-tier-note:empty { display: none; }
 /* THE RISK on a Danger scale ground (company-pane.js stanceHtml): its name beside the pick, and its two lines as quiet as the tier's note. */
 .hw-stance { margin: 4px 0 0; }
 .hw-stance-k { font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-2); letter-spacing: .04em; }
@@ -581,19 +576,6 @@
 .hw-call-drop b { font-weight: 400; color: var(--ink); }
 .hw-call-drop span { white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hw-call-danger { margin: 0 0 6px; padding: 0; list-style: none; }
-/* A scaled hunt (scale-pane.js, audit F26): its facts, the dials in the small ink, Use scaled hours, then the hours slider with Buy beside it. */
-.hw-hd-scale[hidden], .hw-scale-use[hidden], .hw-scale-buy[hidden], .hw-scale-dials[hidden], .hw-scale-note[hidden] { display: none; }
-.hw-scale-facts { margin: 0 0 4px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
-.hw-scale-dials, .hw-scale-note { margin: 0 0 6px; }
-.hw-scale-note { color: var(--gold-2); }
-.hw-scale-use { display: flex; align-items: center; gap: 6px; min-height: 30px; margin: 0 0 6px; color: var(--ink-2); cursor: pointer; }
-.hw-scale-use input { accent-color: var(--gold); }
-.hw-scale-buy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-.hw-scale-buy input[type="range"] { flex: 1; min-width: 96px; max-width: 280px; }
-.hw-scale-n { min-width: 40px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
-.hw-scale-buy .hh-tool { min-height: 36px; padding: 0 10px; }
-.hw-hunt-scale { display: block; font-size: var(--t-micro); color: var(--gold-2); }
-.hw-hunt-scale[hidden] { display: none; }
 /* A keyed hall (boss-hall-pane.js): the door first, then what wins under it, a step apart from the press. */
 .hw-hall-bars { margin-top: var(--gap); }
 .hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }

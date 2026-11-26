@@ -248,27 +248,6 @@ export default definePack({
      sends a lone hero to (ONE DIFFICULTY, Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"). */
   xpFit: { k: 0.81, why: 'Monsters here give less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
-     the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
-     weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two
-     harder tiers differ by their blows and their pay, not their pull. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet
-     also asks that pair to die, and it never did in the hour, on a pull of 5, 7 or 8 (its tank's typical low 44%). The next step up
-     in the monsters' own blows is Deadly's, where it died 8 times. The pair pays in gold here, not in deaths.
-     (Since 2026-11-16 the table's Dangerous is 8 everywhere, so the pull is no longer this ground's own; and Deadly's HP is the table's, below.)
-     THE HARDER TIERS ADD NO HP HERE (the table adds 10%). A tank and Healer pair holding Deadly at the floor earned 1.17 of its Normal
-     at the table's dials, where the sheet asks 1.25 of whoever holds it: its kills are held by its damage, and these party-built
-     bodies already carry 2.5 times a solo ground's HP. A kill never pays more than +25% for a tier (Tyler 11-05, hunt-tiers rows),
-     so the answer is the HP, not the pay. */
-  /* THE HARDER TIERS ARE THE TABLE'S (lane/d-flat-party-xp, 2026-11-17): its own Dangerous HP of 1000 made Dangerous pay a party and a hero alone as much as
-     Deadly an hour (0.97-1.02, party-tier-xp) for less risk. On the table's 1100 and 1150 Deadly pays the more. */
-  /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 60 (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue
-     2026-11-18; graded so since designer Q4 2026-11-12, checks.deadlyFourNeeds, and the page never said it). MEASURED on set/v0.2.139 (the
-     table's Deadly: pull 8, blows 1330, HP 1150), the ladder kit, 2 h a seed, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage,
-     deaths in 16 hero-hours. The full grade (node tools/balance-sim/grade.mjs --mode full --grounds muster_barrows --tiers deadly, 2 seeds):
-     Level 50 38 / 1, 52 18 / 1, 53 18 / 0, 55 (the floor) 10 / 0, over the sheet's bar of 9, 65 0 / 0, 75 0 / 0. Then 6 seeds a cell across
-     the band: 55 9.3 / 0, 57 3 / 0, 58 1.3 / 0, 59 1 / 0, 60 0 / 0, 61 0 / 0, 63 0 / 0, 65 0 / 0. The rule (Krell's Hold's too): the page says it
-     under the first Level measured at less than one death in 16 hero-hours without a Healer, here 60. */
-  healerTiers: { deadly: 60 },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours

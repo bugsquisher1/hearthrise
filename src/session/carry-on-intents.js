@@ -66,7 +66,6 @@ function heroOf(h) {
     slot: h.slot, state: h.state,
     name: typeof h.name === 'string' && h.name.trim() ? h.name.trim().slice(0, 40) : null,
     hunt: typeof h.hunt === 'string' && ITEM.test(h.hunt) ? h.hunt : null,
-    tier: typeof h.tier === 'string' && CODE.test(h.tier) ? h.tier : null,
     why: typeof h.why === 'string' && CODE.test(h.why) ? h.why : null,
     leader: isObj(h.detail) && typeof h.detail.leader === 'string' ? h.detail.leader.slice(0, 40) : null,
     party: h.party === true,

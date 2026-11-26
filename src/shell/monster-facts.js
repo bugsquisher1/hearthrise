@@ -5,7 +5,7 @@
 // (2026-11-08) the formulas are public. PURE, no DOM: the page (src/shell/windows/monster.js) only writes
 // what this answers, and this types no number of its own. Each fact is read from the row the server's
 // catalogue is generated from (src/data/monsters.js), through the function the engine itself calls:
-//   Health        the row's HP on Normal (hunt-tiers.js atTier), the same for every group size (Tyler 2026-11-08)
+//   Health        the row's HP as the ground builds it (src/core/hunt/dial.js atTier, no dial), the same for every group size (Tyler 2026-11-08)
 //   Max Hit       combat.js monsterMaxHit, the ceiling the engine rolls a landed blow under (the game's label, Tyler 2026-11-11)
 //   Attack Speed  combat.js COMBAT_BALANCE.tickMs, the one basic-attack interval
 //   Damage Type   physical: the engine gives a monster's blow no element (hunt-spawn.js)
@@ -17,19 +17,16 @@
 //                 before any hero's bonus; and what the item is for (item-lore.js: the windows that spend
 //                 it, each a place a link opens, then its other uses in the item tip's words)
 //   where         the open grounds it stands on, or that a bigger pull brings it to (hunt-ground-facts.js)
-//   harder tiers  each harder tier's Health and damage dials on the ground the page was opened from (its first ground when
-//                 no ground opened it): hunt-tiers.js tiersOf and tierRowOf, the rows the engine fights with; none on a
-//                 Normal-only ground (the Cellar)
 // ONE DIFFICULTY FOR EVERY GROUP SIZE (Tyler 2026-11-08): the numbers are Normal's, the same alone or in a party.
-// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). The page's Tier row names Normal, and a line under
-// the stats says what each harder tier changes (the Hunts page says a tier in words only, hunt-list.js tierWords). A server-revealed surprise row
-// (`lucky`, `salvage`) stays unlisted, as on the ground's page.
+// A boss whose hall is built for a group says so in the Hunts list's own words (hunt-list.js partyNote). How deep a ground is hunted moves
+// these numbers (the Danger scale's step: the Hunts page says the depth). A server-revealed surprise row (`lucky`, `salvage`) stays unlisted,
+// as on the ground's page.
 // ════════════════════════════════════════════════════════════════════════
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js';
 import { ITEMS } from '../data/items.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 import { OPEN_GROUNDS } from '../data/hunt-grounds.js';
-import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js';
+import { atTier } from '../core/hunt/dial.js';
 import { partyNote, shownBand } from './hunt-list.js';
 import { ELEMENTS, PHYSICAL } from '../data/elements.js';
 import { elementPermille } from '../core/elements.js';
@@ -88,8 +85,8 @@ export function monsterFactsOf(id, from = null) {
   const row = MONSTERS[id];
   const homes = homesOf(id);
   const home = homes.find((h) => h.hunt === from) || homes[0];
-  /* the row as it fights on Normal: the engine's own read (pull-cycle.js spawns it so) */
-  const fights = atTier(row, tierRowOf(home.ground.id, DEFAULT_TIER));
+  /* the row as the ground builds it: the engine's own read with no dial (pull-cycle.js spawns it so) */
+  const fights = atTier(row, null);
   const top = monsterMaxHit(fights);
   const weak = weaknessInfo(row, { weaponType: row.weaponWeak });
   const lone = weaknessInfo(row, null);
@@ -109,9 +106,5 @@ export function monsterFactsOf(id, from = null) {
       uses: usesFor(d.id),
     })),
     homes,
-    tiers: tiersOf(home.ground.id).filter((tier) => tier !== DEFAULT_TIER).map((tier) => {
-      const dial = tierRowOf(home.ground.id, tier);
-      return { tier, hpPm: dial.hpPm, dmgPm: dial.dmgPm };
-    }),
   };
 }

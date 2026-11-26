@@ -123,12 +123,11 @@ function fightOf(sim, unitId, call) {
  *        + the envelope inputs (skills, levelXp,
  *        xpFrac, hp, gold, equipment, inventory, deathsLifetimeBefore, perks,
  *        hearthfindReady) }]
- * @param inp.scale    { level } when the server scales this window (hr_scaled_hunt_of through the instance read), else absent
  * @param inp.sessionMode  the instance's frozen session mode id (hunt_instances.session_mode through the instance read; src/data/session-modes.js)
  * @param inp.towerFloor  the Burning Tower's floor whose room stands, or stands next (hr_hunt_instance_read `tower_floor`: the run's start, or
  *        the highest floor its heroes cleared + 1); required on the Tower's ground (src/core/hunt/tower.js), never read elsewhere
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
- *            track, events, members: [{ key, delta, hunt }], scaleLevel }
+ *            track, events, members: [{ key, delta, hunt }] }
  */
 export function accrueHunt(inp) {
   const w = inp.window || {};
@@ -138,8 +137,8 @@ export function accrueHunt(inp) {
   if (!inp.ground || !inp.grid) return { accrued: false, reason: SKIP.NO_TARGET };
   const tickMs = COMBAT_BALANCE.tickMs;
   /* A FIGHT ON THE DANGER SCALE sizes every worn piece at the ground's base item Level (combat-sim.js fightItems, gear-stats.js scaleItems):
-     its item Level is the power step, never its stats. Any other fight, a tier hunt on a scale ground included: the catalogue as written. */
-  const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members, inp.scale), monsters: inp.monsters || {} };
+     its item Level is the power step, never its stats. Any other fight: the catalogue as written. */
+  const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members), monsters: inp.monsters || {} };
   const sides = (inp.members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((mi) => memberSide(mi, ctx));
   /* ONE PURSE PER ACCOUNT (2026-12-15-account-gold.sql): an account's heroes in this instance spend the same gold. */
   sharePurses(sides);
@@ -152,15 +151,13 @@ export function accrueHunt(inp) {
   /* THE INSTANCE'S KEYED SEEDER: built once per settle; throws on a missing or
      malformed secret — an unseeded hunt swing is a predictable one. */
   const seed = seederFor(String(inp.secret ?? ''), String(inp.instance.id));
-  /* A SCALED HUNT (combat-sim.js huntPlayOf): the server's scale of this window, { level } or none; the engine answers what it played. */
-  const scale = inp.scale && Number.isInteger(inp.scale.level) ? { level: inp.scale.level } : null;
   /* A LIVE EVENT (hr_live_xp_windows through the instance read): each member's own windows; none live, no hook, the hunt as it always ran. */
   const xpMultOf = xpMultFor(sides, (sd) => sd.mi.liveXp);
   /* THE SESSION MODE (src/data/session-modes.js): the instance's, frozen by the server at its start (hunt-settle.js reads it back). A
      death is priced at its share, so in a mode that costs nothing the proposal's death_xp is empty; the database bounds it again. */
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
-    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
+    { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items,
       ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode, ...(Number.isInteger(inp.towerFloor) ? { towerFloor: inp.towerFloor } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
   /* THE LEDGER'S WINDOW (analyzerOf): on the scale, the swings this settle played and the seat of each hero (the server's hunt_sessions.seat) */
@@ -200,8 +197,6 @@ export function accrueHunt(inp) {
     tickMs,
     track: sim.track, events: sim.events, units: sim.units,
     members: out,
-    /* the Level the window played at (null: the ground's own), the commit's claim the server re-proves (hr_hunt_apply_instance) */
-    scaleLevel: Number.isInteger(sim.scale) ? sim.scale : null,
   };
 }
 

@@ -49,7 +49,6 @@ import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-
 import { createRng } from './rng.js';
 import { charLevelFromXp } from './xp.js';
 import { densityFor, partyPick } from '../data/hunt-grounds.js';
-import { DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { stepSwing } from './hunt/world-step.js';
 import { makeEvent, trackStep } from './hunt/events.js';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js';
@@ -95,30 +94,27 @@ function seedOf(ctx, domain, index) {
    the server's settle and the browser's live view (a peer's `hero` carries `lead`, member.js FROZEN_KEYS). */
 const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead: x.hero.lead === true, seat: x.seat })));
 
-/* THE HUNT'S TIER: the party leader's hero's, else the first standing hero's. The server freezes one on the instance and overlays it on every member (hr_hunt_instance_read `options.tier`). The SAME call on
-   the server's settle and the browser's live view (a peer's `hero` carries `tier`). */
-const tierPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || ms[0]; return (lead && lead.hero.tier) || DEFAULT_TIER; };
-/* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js): the same leader's stance and the step it starts at, or null (a tier hunt), and always
-   null on a yard, a room, the Tower or a scaled hunt's window (`play`, huntPlayOf's). Read once, when the world opens, and by fightItems. */
-function planOf(ground, play, heroes) {
-  if (trainOf(ground) || towerOf(ground) || roomOf(ground) || play.level !== null) return null;
+/* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js): the leader's stance and the step it starts at (the party leader's hero's, else the
+   first standing hero's), or null: a world off the scale, and always on a yard, a room or the Tower. Read once, when the world opens, and
+   by fightItems. Off the scale a ground plays its rows as written (no dial). */
+function planOf(ground, heroes) {
+  if (trainOf(ground) || towerOf(ground) || roomOf(ground)) return null;
   const lead = heroes.find((h) => !!h && h.lead === true) || heroes[0];
   return riskOf(lead);
 }
 
 /**
  * THE ITEMS A FIGHT ON `ground` READS (lane/scale-early-grounds, 2026-11-23): the scale view (src/core/gear-stats.js scaleItems) only
- * when its world opens on a plan (planOf, the one rule the world itself opens by), the catalogue as written for every other fight, a tier
- * hunt on a scale ground included. `members`: input rows ({ key, hero }) or a start point's frozen peers ({ key, frozen: { hero } }),
- * read in key order as the engine reads them; `scale` { level } as the server handed the window, or none. The server freezes one stance
- * an instance and overlays it on every member, and a scaled window restarts the world, so a standing world carries the same answer.
+ * when its world opens on a plan (planOf, the one rule the world itself opens by), the catalogue as written for every other fight.
+ * `members`: input rows ({ key, hero }) or a start point's frozen peers ({ key, frozen: { hero } }), read in key order as the engine
+ * reads them. The server freezes one stance an instance and overlays it on every member, so a standing world carries the same answer.
  * One door for every reader of a member's gear: the edge settle (accrue-hunt.js), the start point's frozen peers (hunt-settle.js) and
  * the browser's live view (live-engine.js).
  */
-export function fightItems(items, ground, members, scale) {
+export function fightItems(items, ground, members) {
   if (!items || !ground) return items;
   const heroes = (members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((m) => (m.frozen ? m.frozen.hero : m.hero) || {});
-  return planOf(ground, huntPlayOf(ground.id, scale || null), heroes) ? scaleItems(items, ground) : items;
+  return planOf(ground, heroes) ? scaleItems(items, ground) : items;
 }
 
 /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
@@ -299,21 +295,20 @@ export function bornHpOf(u, evs) {
  * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number, traitDrops?: any}} ctx
  *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
- *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled),
  *        traitDrops? (the server's Trait roll, src/core/trait-roll.js traitSwing: DARK, nothing hands one while GEAR_STEPS.traitsLive is false),
  *        sessionMode? (the instance's frozen mode id, src/data/session-modes.js; absent = the default, an unknown id throws),
  *        towerFloor? (the Burning Tower, src/core/hunt/tower.js: the floor whose room stands, or stands next, at this span's start: the
  *        server's read, hr_hunt_instance_read `tower_floor`; required on the Tower's ground, never read elsewhere) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary (on the Tower, `tower`: { floors: the floors
- *            this member cleared standing, in order }) }, scale (the Level it played at, or null) }
+ *            this member cleared standing, in order }) } }
  */
 export function simulateHuntInstance(inst, ctx) {
   const tick = Number.isInteger(ctx.tickMs) && ctx.tickMs > 0 ? ctx.tickMs : COMBAT_BALANCE.tickMs;
   const toMs = Math.floor(Number(ctx.toMs) || 0);
   const members = inst.members;
   let world = inst.world || null;
-  /* A SCALED HUNT (huntPlayOf): its rows, its tier and its pull, the same for every swing of this span. */
-  const play = huntPlayOf(ctx.ground.id, ctx.scale || null);
+  /* THE GROUND'S ROWS (huntPlayOf): a hall's table or the ground's own drop rows, the same for every swing of this span. */
+  const play = huntPlayOf(ctx.ground.id);
   const monsOf = (onScale) => swingRows(ctx.ground.id, play, onScale);
   /* A TRAINING GROUND (src/core/hunt/training.js): its one dummy as built at any pick, the trained skill its only pay, and no stamina
      spent or proposed (the server's pool rests while the hero trains): the same for every member, from the ground, never stored. */
@@ -327,15 +322,16 @@ export function simulateHuntInstance(inst, ctx) {
      hunt plays exactly as it did. */
   const pay = sessionPayOf(ctx.sessionMode);
   const fullPay = pay.xpPm === 1000 && pay.coin && pay.drops && pay.bestiary;
-  /* THE LEVEL THE GROUND IS OUTGROWN AT (hunt-grounds.js endsAtLevel), or null; none on a SCALED window, which plays at its leader's Level. */
-  const endsAt = play.level === null && Number.isInteger(ctx.ground && ctx.ground.endsAtLevel) ? ctx.ground.endsAtLevel : null;
+  /* THE LEVEL THE GROUND IS OUTGROWN AT (hunt-grounds.js endsAtLevel), or null. */
+  const endsAt = Number.isInteger(ctx.ground && ctx.ground.endsAtLevel) ? ctx.ground.endsAtLevel : null;
   /* THE BURNING TOWER (src/core/hunt/tower.js): the floor the server says stands (or stands next) when this span starts, a working value of
      the world from here (a world carried from the last span keeps its own: the browser's live view); every swing reads that floor's table
-     through play.monsters (huntPlayOf: Normal, never scaled), and the floor's time is an end every member meets. */
+     through play.monsters, and the floor's time is an end every member meets. */
   const tw = towerOf(ctx.ground);
   if (tw && !(Number.isInteger(ctx.towerFloor) && ctx.towerFloor >= 1)) throw new Error('simulateHuntInstance: a Tower climb needs the floor the server read (ctx.towerFloor)');
   if (tw && world && !Number.isInteger(world.towerFloor)) world.towerFloor = ctx.towerFloor;
-  const pickOf = (ms) => (train || play.normalOf(tierPick(ms)) ? 0 : picker(ms));
+  /* the pull off the scale: the leader's frozen pick (picker), the room as built on a yard and on a run ground (the Tower's floor is its dial) */
+  const pickOf = (ms) => (train || tw ? 0 : picker(ms));
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
   /* A BOSS ROOM (src/core/hunt/boss-room.js: a called room or a keyed hall): its limit from the party's first swing (one instant for every member however the windows were cut), and ONE
@@ -426,10 +422,10 @@ export function simulateHuntInstance(inst, ctx) {
           /* The first packs spawn at the ENTERING party's density (its leader's pick, clamped for their
              number), the same number every respawn reads below, never the first hero's pick alone. */
           const standing = members.filter((x) => !x.left);
-          /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first), or on the
-             Danger scale at the step its plan starts at (src/core/hunt/danger.js; never on a yard, a room, the Tower or a scaled hunt). */
-          const plan = planOf(ctx.ground, play, standing.map((x) => x.hero));
-          const tier = plan ? dangerDial(ctx.ground, plan.step, standing.length) : play.tierOf(tierPick(standing));
+          /* ...and on the Danger scale at the step its plan starts at (src/core/hunt/danger.js; never on a yard, a room or the Tower), the dial
+             every respawn reads below (its health is the packs' from the first); off the scale none: the ground's rows as written. */
+          const plan = planOf(ctx.ground, standing.map((x) => x.hero));
+          const tier = plan ? dangerDial(ctx.ground, plan.step, standing.length) : null;
           if (tw) play.monsters = towerMonsters(ctx.towerFloor, tw);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: monsOf(!!plan), ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}), ...(plan ? { density: tier.pull[0] } : {}) });
@@ -495,20 +491,18 @@ export function simulateHuntInstance(inst, ctx) {
          in a world just made (every member that enters with it has joined by now). */
       world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
       if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
-      /* THE TIER (hunt-tiers.js): read every swing, like the hold pick, and never stored on the world. */
       const { ground } = ctx;
-      const tier = play.tierOf(tierPick(members.filter((m) => !m.left && m.unitId !== null)));
       /* the floor standing's table on the Tower (read before the swing: a room cleared in it stands again only after the stair) */
       if (tw) play.monsters = towerMonsters(world.towerFloor, tw);
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
-        ground, grid: ctx.grid, heroes, tier: scale || tier, ...(monsOf(!!scale) ? { monsters: monsOf(!!scale) } : {}),
+        ground, grid: ctx.grid, heroes, tier: scale, ...(monsOf(!!scale) ? { monsters: monsOf(!!scale) } : {}),
         ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}), ...(fullPay ? {} : { xpPm: pay.xpPm }) });
       seen(r.events);
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
       /* A KEYED HALL'S BOSS pays his rows as the hall's DAILY PRIZE (boss-halls.js; hunt-rewards.js payPrize): the room names him. */
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call, ...(scale ? { tier: scale } : {}),
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier: scale, hearthfind: ctx.hearthfind, call,
         ...(fullPay ? {} : { pay }), ...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ...(train ? { train } : {}), emit: (e) => worldEvents.push(e),
         /* THE TRAIT ROLL (src/core/trait-roll.js), DARK: only on the scale and only when the server hands one (ctx.traitDrops; none while
            GEAR_STEPS.traitsLive is false). Each hero's own stream for the swing, seed domain t:<unit> (action-rules.js SEED_DOMAIN) */
@@ -581,5 +575,5 @@ export function simulateHuntInstance(inst, ctx) {
       ...(tw ? { tower: { floors: o.floors } } : {}),
     };
   }
-  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, units, members: summaries, scale: play.level };
+  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, units, members: summaries };
 }

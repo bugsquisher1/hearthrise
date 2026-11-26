@@ -4,7 +4,7 @@
 // docs/design/redesign/02-architecture.md package 3 and section 11: "The step is read for each pull inside the one settle. Climb and
 // fall back are engine states, viewed or not", and "the settle starts a pull only when the party meets the readiness rule". Every
 // number is src/data/danger.js's. A hunt plays the scale when its leader's plan names a risk stance (`hero.risk`, frozen on the world
-// when it opens, with the step the company held before, `hero.danger`); a hunt with none plays its tier row exactly as before.
+// when it opens, with the step the company held before, `hero.danger`); a hunt with none plays the ground's rows as written (no dial).
 //
 // HUNT STATE, PERSISTED WITH THE WORLD (so any cut of the settle windows walks the same steps, and a viewed hunt and a closed one
 // are the one hunt):
@@ -78,7 +78,7 @@ function basePull(ground) {
 }
 
 /**
- * THE DIAL OF STEP `step` ON `ground` (a hunt-tiers.js-shaped dial, read through atTier / levelAtTier by every engine reader):
+ * THE DIAL OF STEP `step` ON `ground` (read through src/core/hunt/dial.js atTier / levelAtTier by every engine reader):
  *   pull   monsters a pull, one entry per party size (the same for every size, as a tier's)
  *   hpPm   each monster's health, permille of its row: the step's ratio over the pull, times the as-built mean over this pull's size
  *   dmgPm  each monster's blow, the same share

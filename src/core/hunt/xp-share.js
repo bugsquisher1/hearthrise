@@ -4,8 +4,6 @@
 // THE RULE (one place; a solo hunt is a party of one):
 //   base share = monster XP / heroes alive at the kill        (XP-01)
 //   hero XP    = floor(base share x party factor x that hero's multiplier)   (XP-02)
-//   on a SCALED hunt a party's factor is thinned by the row's partyPm (src/data/scaled-hunts.js, on every scaled row: the kill
-//   carries it from damage.js); a hero alone is never thinned
 //   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 375) the monster XP is that share
 //   of the row's before anything else (inst.xpPm, world-step.js; absent, the whole kill, exactly as before)
 // ON THE DANGER SCALE (src/core/hunt/danger.js levelShareXp, wave 1) a kill pays each hero a share of its OWN Level from the hours
@@ -67,7 +65,7 @@ const xpOf = (kill) => {
  * Answers { [id]: { xp, raw, ev } }; nobody alive is nobody paid. `ev`: the part of `xp` the hero's multiplier added (a live event's, its
  * only user), so a personal best can leave it out (hunt_session_tally.xp_event); 0 when the multiplier is 1.
  */
-function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000, world = null) {
+function splitKillXp(xp, heroes, sc, ground, xpPm = 1000, world = null) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   if (world && dangerOn(world)) return depthSplit(heroes, sc, ground, world.danger);
@@ -77,8 +75,7 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000, world 
   if (run && world && Number.isInteger(world.towerFloor)) return towerSplit(heroes, sc, run, world.towerFloor);
   /* THE MODE'S SHARE of the kill, first (never multiplied at 1000: a hunt's split is the same arithmetic it always was) */
   const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;
-  const cell = partyClassXp(heroes.map((h) => h.role)).permille;
-  const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;
+  const party = partyClassXp(heroes.map((h) => h.role)).permille;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
   for (const h of heroes) {
     const paid = (raw * party * multOf(sc, h)) / 1000;
@@ -122,7 +119,7 @@ export function shareKillXp(inst, kill, sc) {
      the world pays every living hero) */
   const dead = units.find((u) => u.id === kill.t) || null;
   const living = units.filter((u) => isHero(u) && u.alive === true && (!dead || isEnemy(dead, u)));
-  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000,
+  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null,
     inst && Number.isInteger(inst.xpPm) ? inst.xpPm : 1000, inst && inst.world ? inst.world : null);
   const ids = Object.keys(paid);
   const answer = {};

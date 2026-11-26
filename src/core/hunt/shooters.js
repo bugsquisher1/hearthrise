@@ -32,7 +32,7 @@ import { isEnemy, isMonster } from './sides.js';
 import { roleOf, roleRange, reachPick } from './monster-roles.js';
 
 /** The tiles monster unit `m` shoots from, or 0: a hero, or a monster that fights beside its target. Its row through the
-    instance's one door (world-step.js inst.monsters: a scaled hunt's table), the catalogue for a bare caller; a row with no range of
+    instance's one door (world-step.js inst.monsters), the catalogue for a bare caller; a row with no range of
     its own takes its ROLE's on the Danger scale (monster-roles.js roleRange: 0 off it). */
 export function rangeOf(inst, m) {
   return isMonster(m) ? monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) || roleRange(inst, m) : 0;

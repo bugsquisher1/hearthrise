@@ -73,9 +73,9 @@ function stepWorld(world, swingCtx, track, events) {
   if (!swingCtx.ground || !swingCtx.grid) throw new Error('world-step: a world needs its ground row and grid');
   const n = substepsOf(swingCtx.swingMs);
   /* `heroes`: the per-hero settings, bar and supply session the settle injects (spec §2 world-step).
-     tier: the hunt's hunt-tiers.js row, the settle's read of its frozen pick (null = Normal); never persisted, so the world's shape doesn't move.
+     tier: the swing's dial (src/core/hunt/dial.js: the Danger scale step's, null = the rows as written); never persisted, so the world's shape doesn't move.
      makeUnit: how pull-cycle.js spawns a pack with every persisted field (it may not import world-state).
-     monsters: the ONE door to a monster's row (combat-sim.js huntPlayOf: a scaled hunt's table), the catalogue when the settle names none. */
+     monsters: the ONE door to a monster's row (combat-sim.js huntPlayOf), the catalogue when the settle names none. */
   /* indexed / ix: the sub-step's unit lists, read once (unit-index.js), dropped at every sub-step and by every writer. */
   /* xpPm: the session mode's share of a kill's XP (session-modes.js sessionPayOf, handed by combat-sim.js only when it is not the whole kill), read by
      the split (xp-share.js); absent, the whole kill, as every hunt. */

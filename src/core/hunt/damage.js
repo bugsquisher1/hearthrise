@@ -13,7 +13,7 @@
 // `resolveAttacks` swings every unit whose swing is due, on the universal
 // COMBAT_BALANCE.tickMs (the one basic-attack interval). A hero swings with the combat snapshot on its unit
 // (acc permille, maxHit, element, def), which the settle writes from the
-// character's own gear and skills; a monster swings from its row (rowOf: the instance's table, a scaled hunt's or the catalogue).
+// character's own gear and skills; a monster swings from its row (rowOf: the instance's table or the catalogue).
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
@@ -28,7 +28,7 @@
 // ============================================================
 
 import { MONSTERS, monsterLevelOf } from '../../data/monsters.js';
-import { atTier, levelAtTier } from '../../data/hunt-tiers.js';
+import { atTier, levelAtTier } from './dial.js';
 import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js';
@@ -105,10 +105,10 @@ export function slowedWindup(u, ms, inst) {
 }
 
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
-/* A MONSTER'S ROW, through the instance's one door (world-step.js inst.monsters: a scaled hunt's table, combat-sim.js huntPlayOf), the catalogue for a bare caller. */
+/* A MONSTER'S ROW, through the instance's one door (world-step.js inst.monsters, combat-sim.js huntPlayOf), the catalogue for a bare caller. */
 export const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
 
-/* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the ground's tier on it (hunt-tiers.js). A status tick whose dealer has left the world has no level to read: 1. */
+/* WHAT THE HERO'S ARMOUR DOES TO THIS BLOW (mitigation.js): its values against the attacker's own level, the swing's dial on it (dial.js levelAtTier). A status tick whose dealer has left the world has no level to read: 1. */
 const armourVs = (inst, target, source) => (target.armour
   ? mitigationOf(target.armour, isMonster(source) ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1) : NO_MITIGATION);
 
@@ -281,7 +281,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (isMonster(target)) { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); focusBack(source, target); }
+    if (isMonster(target)) { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp) }, sc); focusBack(source, target); }
   }
   /* THE GUARD'S SHARE (landOn `guard`, Bodyguard): what it took off this blow lands on the guard as it is, after it */
   if (r.guard) landHit(inst, sc, source, r.guard.u, r.guard.n, element, { id: 'bodyguard', dot: true, exact: true });
@@ -391,7 +391,7 @@ export function resolveAttacks(inst, sc) {
       const row = atTier(rowOf(inst, u.kind), inst.tier);
       /* A called boss under his enrage line swings that row raised (boss-phases.js). */
       const blowRow = swingRow(u, row);
-      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The tier the party picked is the monster's stats too (hunt-tiers.js). */
+      /* The monster's own stats against the hero's own stats, whatever the hero's Level (Tyler 2026-11-04: "They are just simply harder"). The swing's dial is the monster's stats too (dial.js atTier). */
       swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));
       /* A ROLE THAT HITS AN AREA (monster-roles.js splashOn, the Danger scale only): the same blow on each hero beside its target, a share
          of it, each its own roll; none once a hero is under the stance's line (the fall back stops every blow). Off the scale: none. */

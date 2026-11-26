@@ -3,7 +3,7 @@
 // tools/balance-program/redesign/trades/measure.mjs — THE SUPPLY BILL AND A WORK-HOUR'S VALUE ON 09'S FORMULAS (lane/trade-formulas,
 //   backend-architect, 2026-11-22; docs/design/redesign/09-crafting.md sections 2.5, 3.7, 4.3, 5.3, 5.5 and 5.8 items 1 to 3).
 //
-//   node tools/balance-program/redesign/trades/measure.mjs [--from <v1-climb report.json>] [--seeds 200] [--json <out.json>]
+//   node tools/balance-program/redesign/trades/measure.mjs [--from <v1-climb report.json>] [--seeds 200] [--days 6,10,12,14] [--json <out.json>]
 //
 // READ-ONLY. It prices what the real engine burned and plays the closed-form job; it writes nothing but --json.
 //
@@ -21,6 +21,9 @@
 //     less the inputs it spent (returned sets back), before and after the job fee, over the wage at the goods' band.
 //   Also: the labor the measured kit asks for (09 5.3's ratio, at the 10 h hunting day and the 8 h work day used at 0.8), what tools
 //   add (09 3.7), and the store floor's faucet (09 5.5).
+//   K1 (lane/k1-kit-trades-sample, game designer, 2026-11-26; 09 4.9): the kit trades' labor ratio at each --days hunting day on the free
+//   and Premium work days, what a company of four makes and buys, the store against the crafted good an hour of effect at every band,
+//   and the pace of trade Levels against the bands the heroes wear, played day by day.
 // ═════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
@@ -170,6 +173,91 @@ const idle = steady ? Math.max(0, 4 * (workDayH * workUsed - 6 * kitWorkMeasured
 out.floor = steady ? { huntedHPerHero: 6, idleWorkHoursPerAccountDay: r2(idle), floorHoursOfWage: r3(idle * STORE_KIT.townWageShare * TRADE_LEVERS.store.floorShare),
   budgetHoursOfWage: TRADE_LEVERS.store.budgetHours, mintedHoursOfWage: r2(4 * 6 * steady.grossOverWage) } : null;
 
+/* ── K1: THE KIT TRADES ON 10, 12 AND 14 HOUR DAYS (lane/k1-kit-trades-sample, game designer, 2026-11-26; 09 section 4.9) ──────────
+   THE LABOR RATIO by day length: a hero hunting H hours asks H x the kit's work-hours a hunted hour; it has the work day (free 8 h,
+   Premium 10 h) at a share used. The kit trades' lines are meal and charge (K1); imbuements are Artificing's (IM), shown beside. A
+   company of four alike makes min(1, 1 / ratio) of its kit and the store fills the rest (v0.3.0 has no market, 20 section 1.2), so the
+   gold a hunted hour spends is the job fee on what it makes plus the store's ask on what it buys. One clock: hunting and work fit a day.
+   THE FALLBACK at every band: gold an hour of effect (a good's price over its strength against the hero, the contest curve) for the
+   store, the crafted good at the hero's band, the crafted good one band behind, and the fee alone (the company's own goods).
+   THE PACE by band: the hero Level a band's gear is worn from (20 b - 10), its hunted hours and days on the 10 h day, against the
+   trade Level the band's recipe opens at (bandRung) and the days a company of four on the reference mix (a hammer, a bow, two casters)
+   takes to reach it in each kit trade, from the trade's own share of the kit's work and the labor left over going to the slowest. */
+const { hoursToLevel } = await imp('src/data/core-model.js');
+const DAYS = String(arg('days', '6,10,12,14')).split(',').map(Number).filter((x) => x > 0);
+const WORK_H = { free: WORK_DAY.freeMin / 60, premium: (WORK_DAY.freeMin + WORK_DAY.premiumExtraMin) / 60 };
+if (steady) {
+  const kwK1 = (steady.mealKh * LINE_SHARE.meal + steady.chargeKh * LINE_SHARE.charge) * STORE_KIT.kitWork;
+  const kwAll = kwK1 + LINE_SHARE.imbuement * STORE_KIT.kitWork;
+  const band = steady.band, L = steady.L, w = steady.wage, gross = steady.grossPerH;
+  const craftedK1 = steady.mealKh * mealLineV(band) + steady.chargeKh * T.value(K.honing_stone, band, 0);
+  const feeK1 = steady.mealKh * (T.jobFee(K.meal, band, 1) + T.jobFee(K.drink, band, 1)) + steady.chargeKh * T.jobFee(K.honing_stone, band, 1);
+  const storeK1 = steady.mealKh * mealLineAsk(L) + steady.chargeKh * T.storeAsk(K.honing_stone, L);
+  out.k1 = { kitWorkK1: r3(kwK1), kitWorkWithImbue: r3(kwAll), craftedOfGross: r3(craftedK1 / gross), feeOfGross: r3(feeK1 / gross), storeOfGross: r3(storeK1 / gross), days: [] };
+  for (const h of DAYS) for (const [day, wh] of Object.entries(WORK_H)) for (const used of [workUsed, 1]) {
+    const ratio = (h * kwK1) / (wh * used), self = Math.min(1, 1 / ratio);
+    out.k1.days.push({ huntH: h, workDay: day, workH: wh, used, fitsTheDay: h + wh <= 24, ratioK1: r3(ratio), ratioWithImbue: r3((h * kwAll) / (wh * used)),
+      selfShare: r3(self), storeShare: r3(1 - self), spendOfGross: r3((self * feeK1 + (1 - self) * storeK1) / gross), spareWorkH: r2(Math.max(0, wh * used - h * kwK1)) });
+  }
+  /* THE FALLBACK, a hero at each band's first step (band 0 to 8), meal and charge, gold an hour of effect */
+  const strength = (heroStep, itemStep) => T.behindPm(heroStep - itemStep) / 1000;
+  out.k1.fallback = [];
+  for (let b = 0; b <= 8; b++) {
+    const s = T.bandStep(b);
+    for (const [line, kind] of [['meal', K.meal], ['charge', K.honing_stone]]) {
+      const store = T.storeAsk(kind, s) / strength(s, T.storeStep(s));
+      const here = T.value(kind, b, 0) / strength(s, s);
+      const back = b > 0 ? T.value(kind, b - 1, 0) / strength(s, T.bandStep(b - 1)) : here;
+      const fee = T.jobFee(kind, b, 1) / strength(s, s);
+      out.k1.fallback.push({ band: b, line, store: Math.round(store), craftedHere: Math.round(here), craftedBack: Math.round(back), feeOnly: Math.round(fee),
+        storeOverHere: r3(store / here), storeOverBack: r3(store / back), storeIsDearest: store > here && store > back && store > fee });
+    }
+  }
+  /* THE PACE, played day by day: a company of four (seats: hammer, bow, caster, caster) hunting `huntH` a hero, its kit's own work
+     by trade (09 4.5: every work-hour is trade XP), the spare work-hours to the trade furthest behind the band the heroes wear (the
+     stock plan trains what lags). A chain's kit band is the lowest band its trades open (bandRung); the lag is the heroes' band less it */
+  const ownByTrade = (id, n, acc) => { const k = K[id]; acc[k.trade] = (acc[k.trade] || 0) + n * k.ownUh / 1e6; for (const i of k.inputs) ownByTrade(i.kind, n * i.n, acc); return acc; };
+  const perHero = {};
+  ownByTrade('meal', steady.mealKh, perHero); ownByTrade('drink', steady.mealKh, perHero);
+  for (const seat of ['honing_stone', 'arrow', 'rune_fire', 'rune_fire']) ownByTrade(seat, steady.chargeKh / 4, perHero);
+  const xpTo = T.tradeXpTable(), hoursAt = (lv) => xpTo[Math.min(99, lv) - 1] / 3600;
+  const levelOf = (h) => T.tradeLevel(Math.floor(h * 3600));
+  const CHAINS = { meal: ['fishing', 'cooking'], drink: ['farming', 'cooking'], honing: ['mining', 'smithing'],
+    arrow: ['mining', 'smithing', 'woodcutting', 'woodcrafting'], rune: ['mining', 'runecutting'] };
+  /* a band's trade Level by span (the shipped span is the rung ladder's; the others are what-ifs of the same rule) */
+  const bandLevel = (b, span) => 1 + span * Math.min(b, T.TRADE_PM.rungCount - 1);
+  const bandAt = (lv, span) => { let b = 0; while (b < 12 && bandLevel(b + 1, span) <= lv) b++; return b; };
+  const heroBandAt = (hours) => { let L = 1; while (hoursToLevel(L + 1) <= hours) L++; return { L, band: Math.min(8, Math.floor((L + 10) / 20)) }; };
+  const pace = (huntH, workH, used, span) => {
+    const labor = 4 * workH * used;
+    const need = Object.fromEntries(Object.entries(perHero).map(([t, x]) => [t, 4 * huntH * x]));
+    const needSum = Object.values(need).reduce((a, x) => a + x, 0), scale = Math.min(1, labor / needSum), spare = Math.max(0, labor - needSum);
+    const h = Object.fromEntries(Object.keys(need).map((t) => [t, 0]));
+    const lagDays = { 0: 0, 1: 0, 2: 0 }, bands = [];
+    let seen = -1;
+    for (let day = 0; day < 140; day++) {
+      const hero = heroBandAt(day * huntH);
+      for (const t of Object.keys(h)) h[t] += need[t] * scale;
+      for (let left = spare; left > 1e-9; left -= 0.25) {
+        const target = (t) => hoursAt(bandLevel(hero.band, span)) - h[t];
+        let worst = null;
+        for (const t of Object.keys(h)) if (worst === null || target(t) > target(worst)) worst = t;
+        if (target(worst) <= 0) { const nxt = (t) => hoursAt(bandLevel(hero.band + 1, span)) - h[t]; for (const t of Object.keys(h)) if (nxt(t) > nxt(worst)) worst = t; }
+        h[worst] += Math.min(0.25, left);
+      }
+      const kit = Object.fromEntries(Object.entries(CHAINS).map(([c, ts]) => [c, Math.min(...ts.map((t) => bandAt(levelOf(h[t]), span)))]));
+      const worstLag = Math.max(...Object.values(kit).map((kb) => Math.max(0, hero.band - kb)));
+      lagDays[Math.min(2, worstLag)]++;
+      if (hero.band > seen) { seen = hero.band; bands.push({ band: hero.band, day, heroLevel: hero.L, kitBand: kit, worstLag }); }
+    }
+    return { huntH, workH, used, span, spareWorkH: r2(spare), daysByWorstLag: lagDays, bands };
+  };
+  out.k1.pace = { perHeroHourByTrade: Object.fromEntries(Object.entries(perHero).map(([t, x]) => [t, r3(x)])),
+    runs: [pace(10, WORK_H.free, workUsed, T.TRADE_PM.rungSpan), pace(10, WORK_H.free, 1, T.TRADE_PM.rungSpan), pace(10, WORK_H.premium, workUsed, T.TRADE_PM.rungSpan),
+      pace(12, WORK_H.free, 1, T.TRADE_PM.rungSpan), pace(14, WORK_H.free, 1, T.TRADE_PM.rungSpan), pace(14, WORK_H.free, workUsed, T.TRADE_PM.rungSpan),
+      pace(10, WORK_H.free, workUsed, 8)] };
+}
+
 /* ── PRINT ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const pad = (s, n) => String(s).padEnd(n), lp = (s, n) => String(s).padStart(n);
 console.log(`THE FORMULA TABLE (band ${BAND}, a Level ${HERO} hero; V / Fine / Master in gold, fee and store at the same band)`);
@@ -192,5 +280,19 @@ console.log(`\nLABOR: kitWork ${out.labor.kitWorkAtReference} at the reference (
 for (const [h, x] of Object.entries(out.labor.ratio)) console.log(`  the labor ratio hunting ${h} a hero: ${x.referenceV030} at the reference (v0.3.0 lines), ${x.measured} on the measured burn, ${x.measuredWithTools} with tools`);
 console.log(`TOOLS: ${out.labor.toolHoursOfWagePerWorkHour} hours of wage a work-hour, life ${out.labor.toolLifeH.join(' / ')} h, the store's rent ${out.labor.toolRentPerWorkHourL60} gold a work-hour at Level ${HERO}`);
 if (out.floor) console.log(`THE FLOOR (09 5.5, 6 h hunted a hero): ${out.floor.idleWorkHoursPerAccountDay} idle work-hours an account-day at the floor = ${out.floor.floorHoursOfWage} hours of wage (budget ${out.floor.budgetHoursOfWage}) against ${out.floor.mintedHoursOfWage} minted`);
+if (out.k1) {
+  const k = out.k1;
+  console.log(`\nK1, THE KIT TRADES BY DAY LENGTH (Steady L60, the measured burn): kit-trade work ${k.kitWorkK1} work-hours a hunted hour (${k.kitWorkWithImbue} with imbuements);`
+    + ` a hunted hour's kit is ${k.craftedOfGross} of gross at V, ${k.feeOfGross} in job fees made at home, ${k.storeOfGross} from the store`);
+  for (const d of k.days) console.log(`  hunt ${lp(d.huntH, 2)} h, ${pad(d.workDay, 7)} work ${d.workH} h used ${d.used}${d.fitsTheDay ? '' : ' (PAST 24 H)'}: ratio ${lp(d.ratioK1, 5)} (${d.ratioWithImbue} with imbuements)`
+    + `  makes ${lp(d.selfShare, 5)} of its kit, store ${lp(d.storeShare, 5)}, spends ${d.spendOfGross} of gross, spare ${d.spareWorkH} work-h a hero`);
+  console.log('  THE FALLBACK, gold an hour of effect for a hero at the band\'s first step: store / crafted at the band / crafted one band behind / fee only');
+  for (const f of k.fallback) console.log(`    band ${f.band} ${pad(f.line, 6)} ${lp(f.store, 5)} / ${lp(f.craftedHere, 5)} / ${lp(f.craftedBack, 5)} / ${lp(f.feeOnly, 4)}  store ${f.storeOverHere}x the band, ${f.storeOverBack}x one behind${f.storeIsDearest ? '' : '  STORE IS NOT THE DEAREST'}`);
+  console.log(`  THE PACE, a company of four, day by day (kit work an hour by trade ${JSON.stringify(k.pace.perHeroHourByTrade)})`);
+  for (const r of k.pace.runs) {
+    console.log(`    hunt ${r.huntH} h, work ${r.workH} h at ${r.used}, band span ${r.span} trade Levels (spare ${r.spareWorkH} work-h a day): days the worst kit line is at the band / one behind / two or more: ${r.daysByWorstLag[0]} / ${r.daysByWorstLag[1]} / ${r.daysByWorstLag[2]}`);
+    for (const b of r.bands) console.log(`      band ${b.band} from day ${lp(b.day, 3)} (Level ${lp(b.heroLevel, 3)}): kit bands ${Object.entries(b.kitBand).map(([c, x]) => c + ' ' + x).join(', ')}${b.worstLag ? '  (' + b.worstLag + ' behind)' : ''}`);
+  }
+}
 const jf = arg('json');
 if (jf) writeFileSync(jf, JSON.stringify(out, null, 1) + '\n');

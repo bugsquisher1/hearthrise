@@ -641,6 +641,80 @@ Against `townWageShare` 0.25: a work-hour is worth it on the first rung from abo
 
 **Not built: the job slice (section 6).** No verb, engine or client reads the catalogue yet, and the live town work (`src/data/recipes.js`, `gathering.js`, `hr_activities`) is untouched until the slice replaces it. The slice's contract, so it is plumbing: a `trade_jobs` row (account, hero, kind, rung, band, count, start on the server's clock, a seed drawn by the server, the fee paid, the inputs held, the tool's band, quality and wear, and the milliseconds of an unfinished attempt carried across a stop, or a stop at the work day's end loses up to one attempt: 32 minutes on an imbuement). `hr_trade_job_start(slot, kind, rung, band, count, price, idem)` under the hero lock and the trade key: refuses `bad_kind`, `rung_locked` (the company's Level under R), `band_locked` (no depth record at that band), `work_cap`, `quote_changed` (the fee re-quoted by `hr_trade_job_fee`), `short_inputs`; debits the inputs and burns the fee through `hr_apply`. The settle runs `settleJob` from the stored seed and `hr_apply` admits it only inside `hr_trade_job_bound` (attempts and XP exact, units and sets back at most). Banded stacks keyed (kind, band, quality); the store's good a tier behind in strength and price at once, inside the hunt; Mastery verbs; the tool swap; Weighhouse orders. All of it is money: `13-security-list.md` S-10.
 
+### 4.9 The kit trades' recipes, banded by step (2026-11-26, game designer, lane/k1-kit-trades-sample)
+
+**How it plays:** each metal is a new recipe. On day one your company cooks shrimp and fletches bronze arrows. When your heroes start wearing iron, Cooking 11 and Woodcrafting 11 open the iron band's food and arrows. One crafted good feeds or arms a hero for one hunted hour, so your stock reads in hours. The store always sells the same thing one band behind for half again the price. It keeps you hunting and never beats your own goods.
+
+**The rule.**
+
+1. **A recipe is one kind at one band.** The band is its materials' band, one gear tier and one metal (`12-targets.md` 8.3). It opens at trade Level 1 + 10 x band: rung band + 1, band 9 and every band past it at Level 91, never before the kind's own rung (`src/core/trades.js bandRung`). Its good stands at step 20 x band, plus 5 for Fine and 10 for Master.
+2. **One finished good is one hunted hour of its line for one hero** (section 3.3's bundle). Its work is `kitWork` x its line share x its split: a meal or a drink 0.14 work-hours, any charge 0.28. That work runs down its chain at gather 0.5, refine 0.2, make 0.3, and its inputs are the same band's goods by those shares: a meal is 1 fish, an arrow 1 arrowhead and 1 shaft, a rune 2 cut stones and 0.15 hour-units of remains. V is its work x `townWageShare` x wage(its step), as in 4.8.
+3. **The store sells the same kind, Plain, one band behind the hero's band** (band 0 sells band 0), at `storeCeiling` 1.5 x its V there, by the use. Per hour of effect that is 1.49 to 1.50 times the crafted good at the hero's band, and 1.50 times the crafted good one band behind, at every band from 0 to 8. The store is the floor and never the best buy.
+
+**Calls made here.**
+
+- **The trade Level gates the band.** Under 4.8 alone the band was the job's and the rung was only an XP choice, so a company at Cooking 16 cooked every band at full yield. Levels 16 to 99 bought quality and speed and nothing else, which is a skill nobody needs to level. Now each metal is ten Levels on. That is the OSRS shape: a new product as you level. The training choice is the newest band (full XP, yield 0.75 to 0.92, the strongest good) or the band behind (yield 1.0, 7% weaker, 7% cheaper).
+- **Band 0 needs no depth record.** The first band is open to every company, so a new account's first visit to town can work every recipe in the sample. Every other band keeps 4.2's rule: a depth record at that band. A band 0 record would cost one kill, so it never bounded an idle alt's labor. The store floor's daily budget does that (5.5), and an alt earns far more by hunting.
+- **The good is the bundle, counted in hours.** The band 0 goods keep the live items the first hour already names (`20` section 3.2: Cooked Shrimp, Bronze Arrows, Copper Ore), and the job slice re-cuts each to one hunted hour. A good with no live item yet (the arrowhead) becomes an item with the verb that makes it, never before (the W0 rule).
+- **Own stock first, never two bands behind.** The plan spends the company's own goods at the heroes' band or one behind, then the store. A good two or more bands behind is weaker than the store's, so the plan sells it to the store floor or leaves it in storage.
+- **The work day is planned whole.** The server plans every work-hour from the stock rules (3.4), so a company that has something to make uses its whole day. The pace table below is why: at 0.8 of the day used, the kit lags its heroes by a band or more on 76 days of 140.
+
+**The sample** (`src/data/trades.js` `KIT_RECIPES`, resolved by `tradeCatalogue()` as `named`, five rows, one a trade, CLAUDE.md section 10). Each row holds only its kind, its band and a label: the id, the trade Level, the inputs, the hours and every price are derived. Read on `src/core/trades.js` at band 0, a Level 1 company.
+
+| Recipe | Trade | Kind, band | Opens at | Inputs (band 0 items) | Work in one good | One attempt at Level 1 | V | Job fee | Store ask, Level 1 / Level 60 |
+|---|---|---|---|---|---|---|---|---|---|
+| Mine Copper Ore | Mining | ore, 0 | 1 | none | 0.07 h | 4.2 min | 226 | none (raw) | none |
+| Forge Bronze Arrowheads | Smithing | arrowhead, 0 | 1 | 1 Bronze Bar | 0.14 h | 2.5 min | 452 | none (a part) | none |
+| Fletch Bronze Arrows | Woodcrafting | arrow, 0 | 1 | 1 Bronze Arrowheads, 1 Normal Plank | 0.28 h | 2.5 min | 905 | 227 | 1,358 / 1,587 |
+| Cook Shrimp | Cooking | meal, 0 | 1 | 1 Shrimp | 0.14 h | 4.2 min | 452 | 113 | 679 / 794 |
+| Cut Chalked Fire Runes | Runecutting | rune_fire, 0 | 1 | 2 Blank Runes, 0.15 hour-units of Bones | 0.28 h | 5.0 min | 905 | 227 | 1,358 / 1,587 |
+
+The arrowhead and the arrow are chain 1 of 3.3, two trades and one join, so the sample plays the one recipe that needs another trade's part. Bronze Arrowheads is the sample's one new good: made by one row and used by another. `tests/kit-recipes.mjs` holds all of this: one row a trade, rung by band (swept over every kind and bands 0 to 12), every input a door and every output a use (read from `catalogue-coherence.js`), the store the dearest option at every band, and a good one hunted hour (13 mutants, each caught by its own arm).
+
+**Walk-through: the first day, on real data.** What the company holds at each step comes only from the steps before it and the real starting kit (`src/data/start-kit.js`: 500 gold, 10 Shrimp, 20 Cooked Shrimp, 50 Bronze Arrows, 10 Coarse Whetstone). Every item, node and monster below was grepped on the set. "Job slice" means the verb that plays it is the backend lane in HANDOFFS (2026-11-26, K1), and the step is doable once it lands.
+
+| # | Step | Holds and can reach | Real source | Doable |
+|---|---|---|---|---|
+| 0 | Hunt the Mill Cellar | The starting kit | `hunts.js mill_cellar` spawns `rat` (Giant Rat), which drops `bones` (ch 0.21, `monsters.js`) | Yes |
+| 1 | Mine Copper Ore, Mining 1 | Nothing needed. Band 0 needs no depth record | `gathering.js copper_rock` (req 1, makes `copper_ore`). Kind `ore`, rung 1 | Job slice |
+| 2 | Smelt bars, Smithing 1 (the catalogue's refine) | Copper Ore from step 1 | Kind `bar` from 1 ore. Item `bronze_bar` | Job slice |
+| 3 | Forge Bronze Arrowheads, Smithing 1 | Bronze Bar from step 2 | Kind `arrowhead`, 1 bar. New good `bronze_arrowheads` | Job slice |
+| 4 | Chop logs and saw planks, Woodcutting 1 and Woodcrafting 1 | Nothing needed | `gathering.js normal_tree` (req 1, `normal_log`). Kind `shaft`, item `normal_plank` | Job slice |
+| 5 | Fletch Bronze Arrows, Woodcrafting 1 | Arrowheads from step 3, planks from step 4 | Kind `arrow`, 1 arrowhead and 1 shaft. Item `bronze_arrows` | Job slice |
+| 6 | Cook Shrimp, Cooking 1 | The kit's 10 Shrimp, or more from the Shrimp Spot | `start-kit.js` shrimp 10. `gathering.js shrimp_s` (req 1). Kind `meal`, item `cooked_shrimp` | Job slice |
+| 7 | Mine Rune Essence and cut Blank Runes, Mining 1 and Runecutting 1 | Nothing needed | `gathering.js essence_rock` (req 1, `rune_essence`). Kind `cut_stone`, item `rune_blank` | Job slice |
+| 8 | Cut Chalked Fire Runes, Runecutting 1 | 2 Blank Runes from step 7, bones from step 0 | Kind `rune_fire`. Item `chalked_fire_rune`. Remains as bones | Job slice |
+
+No step needs a trade Level above 1, a depth record, the market or a second day. The walk found one gap, now ruled: under 4.2's depth-record rule a brand-new company could not gather anything, so band 0 is open to all.
+
+**The labor ratio at 10, 12 and 14 hours,** MEASURED: the tuning pass's burn (`tools/balance-program/redesign/tuning/final/c0-muster-ref.json`, the Steady four at Level 60 on Muster Barrows, 8 seeds x 10 h) priced by `node tools/balance-program/redesign/trades/measure.mjs --from tools/balance-program/redesign/tuning/final/c0-muster-ref.json`. The kit trades' two lines ask 0.56 work-hours a hunted hour (0.64 with imbuements, which are Artificing's). A company of four alike makes the share of its kit its labor covers and the store fills the rest, since v0.3.0 has no market.
+
+| Hunting a hero a day | Free work day 8 h, 0.8 used | Free, whole day used | Premium work day 10 h, 0.8 used | Kit made at home / from the store (free, 0.8) | Gold the kit costs, share of gross (free, 0.8) |
+|---|---|---|---|---|---|
+| 10 h | 0.875 (1.00 with imbuements) | 0.70 | 0.70 | 100% / 0% | 0.034 |
+| 12 h | 1.05 (1.20) | 0.84 | 0.84 | 95% / 5% | 0.041 |
+| 14 h | 1.225 (1.40) | 0.98 | 0.98 | 82% / 18% | 0.062 |
+
+At V the same kit is 0.135 of gross and from the store 0.187. So a 10 h day sits inside the 0.8 to 1.0 this page wants, 12 h tips just over 1 and the store fills a twentieth, and 14 h (two bought hunting blocks) leans on the store for a fifth of its kit. Every day here fits one clock (hunting plus work at most 24 h).
+
+**The pace: do trade Levels keep up with the heroes?** Played day by day in the same tool: a company of four (a hammer, a bow, two casters) hunting each day, its kit's own work is that trade's XP, and the spare hours go to the trade furthest behind the band its heroes wear. A chain's band is the lowest band its trades open.
+
+| Hunting, work day, share used | Days the worst kit line is at the heroes' band / one behind / two or more (of 140) | At band 8 (day 107 on the 10 h day, Level 150) |
+|---|---|---|
+| 10 h, 8 h, whole day | 122 / 18 / 0 | every line one behind |
+| 10 h, 8 h, 0.8 | 64 / 57 / 19 | arrows and honing stones two behind |
+| 10 h, Premium 10 h, 0.8 | 122 / 18 / 0 | every line one behind |
+| 12 h, 8 h, whole day | 67 / 73 / 0 | every line one behind |
+| 14 h, 8 h, whole day | 1 / 21 / 118 | arrows four behind |
+| What-if: 10 h, 8 h, 0.8, ten Levels a band cut to eight | 139 / 1 / 0 | at band |
+
+- **The band span stays 10.** A planned day keeps the kit at its heroes' band 87% of days and never two behind. A span of 8 keeps pace even at 0.8, but every band past the eighth would then open at Level 73, and Levels 74 to 99 would open nothing. The span is the lever if a played week shows lag (`TRADE_LEVERS.rungs.span`, search 8 to 10).
+- **What lags is the low-demand trade.** One bow in four burns a quarter of the charge line, so Woodcrafting and Woodcutting get 0.7 work-hours a day of kit work against Cooking's 5.6. The plan's spare hours are what carry them, which is why the day is planned whole.
+- **At 14 h the store is the floor, as it should be.** The arrow line is four bands behind only in the company's own stock. The plan buys the store's arrows a band behind in its place, so the hero hunts at store strength and pays the store's price. Hunting all day and working only the free day is a choice with a gold cost, never a dead end.
+- **Premium's work hours keep the kit at band like a planned free day.** That is hours, never rate (5.3), it is inside the kit's `kitWeight`, and a free company matches it by planning its whole day or buying one work block.
+
+**Not built here (the backend lane, HANDOFFS 2026-11-26, K1):** the job verb and its settle, the face items and the bundle unit in the hunt engine, the band 0 open rule, the store a band behind in strength as well as price (W1's remainder), and the rest of the recipes. The rest land in batches of 20 or fewer once the sample is read: band 0's other kinds first (the drink, the honing stone, the bolt, the ward charm, the other five rune families and the gather and refine rows), then a band a batch.
+
 ---
 
 ## 5. The supply and demand lifecycle

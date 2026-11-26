@@ -505,7 +505,7 @@ No new client verb. The settle credits each hero's bag with its own drops (`hr_h
 | The engine reads them on the scale: a worn set rides the hero (`wornImbues`), Temper the perks (`temperSteps`) | `src/core/member.js`, `hunt-spawn.js`, `combat-sim.js`, `amount.js`, `damage.js` | `tests/hunt-core/amount.mjs` imbue, temper-paths, imbue-paths (both paths: 10-minute and 100-second windows play one hunt) |
 | The client reads the two dark sections | `src/session/item-sections.js temperStepsOf, imbuesOf`, the Advanced view, the smith crier | `tests/envelope-contract.mjs`, `tests/town-criers.mjs` |
 
-Still owed elsewhere: the leech rule and the Fire Edge conversion in the engine (3.9 items 2 and 3: today they only take room), the Artificing and Smithing jobs (K1's job slice), the server's kit-by-band and worn-imbue projection (HANDOFFS 2026-11-26 TP and IM), and the Temper tab and imbue apply in the client.
+Still owed elsewhere: the leech rule and the Fire Edge conversion in the engine (3.9 items 2 and 3: today they only take room), the Artificing and Smithing jobs (K1's job slice), the server's worn-imbue projection (HANDOFFS 2026-11-26 lane/tp-server-1; the kit by band and the band lock are staged in 1071-tp-im-server.sql, section 7.7), and the Temper tab and imbue apply in the client.
 
 ### 7.4 Readings
 
@@ -525,7 +525,7 @@ Still owed elsewhere: the leech rule and the Fire Edge conversion in the engine 
 | 2 | Smithing 21 | Town work | `temper_kit` opens at rung 3 (`bandRung`: band 2 at rung 3, Level 21) | Job slice (K1) |
 | 3 | Three Steel Bars | Ore and the refine at band 2 | `KIT_FACES.bar[2]` `steel_bar` (an item) | Job slice (K1) |
 | 4 | Mix Fine Tempering Salts | Three bars from step 3 | `temper_kit_b2`, makes `fine_temper_salts` (an item) | Job slice (K1) |
-| 5 | Temper the weapon slot to rank 1 | 3 salts from step 4, 3,929 gold (`rankQuote('weapon', 1, 40)`) | `hr_temper_rank` | Owed: the server's kit by band (today `kits_owed`), the Temper tab |
+| 5 | Temper the weapon slot to rank 1 | 3 salts from step 4, 3,929 gold (`rankQuote('weapon', 1, 40)`) | `hr_temper_rank` | Staged (1071: the band's salts, bag then Storage; TP-RANK in tests/tp-im-server.mjs plays this row). Owed: the Temper tab |
 
 ### 7.6 Walk-through: a hero's first imbuement (real data)
 
@@ -535,6 +535,17 @@ Still owed elsewhere: the leech rule and the Fire Edge conversion in the engine 
 | 2 | Five Pike Ferrules drop | Step 1 | Charred Pikeman's row, one every 0.22 hunted hours | Yes |
 | 3 | Four Remains | Bones and Big Bones from any ground | Pack rows (the Remains good a band is `13-market` 2.4's, its face owed) | Yes |
 | 4 | Make Brute Edge at the Artificing bench | Steps 2 and 3, 0.53 work-hours | `imbueRecipe('brute_edge')`: 5 `pike_ferrule`, 4 Remains, band 70 | Job slice (K1), `imbue_brute_edge` is not an item yet |
-| 5 | Apply it to the weapon | Step 4, 1,964 gold at Level 60 (`applyFee(60, 60)`) | `hr_imbue_apply` | Owed: the item (today `imbue_owed`), the switch |
+| 5 | Apply it to the weapon | Step 4, 1,964 gold at Level 60 (`applyFee(60, 60)`) | `hr_imbue_apply` | Staged (1071: the band lock, bag then Storage). Owed: the item (today `imbue_owed`), the switch |
 | 6 | It counts on Muster's knights | Step 5, a hero of Level 60 or more (band 70 within wearAhead) | `muster_knight`, `captain_hask` role `brute`; the engine reads `wornImbues` | Owed: the server's projection of `hero_worn_imbue` onto the hero |
+
+### 7.7 The server half, part 1 (2026-11-26, backend architect, `lane/tp-server-1`; STAGED in `1071-tp-im-server.sql`)
+
+| Verb or read | Contract |
+|---|---|
+| The old rungs | Gone: the 60 `gen-temper` offers, the 12 `temper:*` ladders, every hero's rung of them (not converted, not refunded), the `temper` section and `hr_temper_view`, `hr_perks_of`'s `temper` key, and `temper` in `hr_unlock_buy`'s Storage list. A rung id answers `unknown_offer` |
+| `hr_temper_rank(p_slot, p_equip_slot, p_price, p_idem)` | The kit is `hr_temper_kits` at the worn piece's band (`hr_temper_kit_at`, the twin of `temperKitAt`), never another band's. Kits from the bag, then the account's Storage, all or nothing, then one `hr_apply` of the fee, journalled `shop`, intent `temper:<slot>:<fee>`, `meta.kit` and `meta.took`. Refusals in order: `not_open`, `bad_slot`, `bad_equip_slot`, `bad_idem`, `bad_quote`, `intent_mismatch`, `rate_limited`, `no_character`, `no_piece`, `not_seated`, `rank_max`, `rank_locked`, `kits_owed` (no row for the band, or its kit is no item yet), `quote_changed`, `insufficient_item` (bag plus Storage short), `insufficient_gold`. A success answers the envelope |
+| `temper_steps` section | The next rank's quote is `{ rank, fee, kits, kit, kits_owed }` |
+| `hr_imbue_apply(p_slot, p_equip_slot, p_imbue, p_price, p_idem)` | `band_locked { band, level }` when the band stands more than `wearAhead` over the server's Level (`hr_imbue_wearable`, the twin of `imbueStepsAt`), after `no_piece` and before `quote_changed`. The item from the bag, then Storage |
+| `imbues` section | Gains `wearable { <imbue>: bool }` at the hero's Level |
+| Owed next | The settle's `wornImbues` projection (HANDOFFS 2026-11-26 lane/tp-server-1 has the field contract), the bench's quality roll, the K1 job slice that makes `dawn_temper_salts` and `imbue_<id>` |
 

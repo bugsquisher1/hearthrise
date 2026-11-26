@@ -16,13 +16,14 @@
 // rest a fee in gold, burned (12-targets section 9 counts it as a sink in wage hours).
 // THE KIT is a K1 kit trade: Smithing's `temper_kit` kind (src/data/trades.js KINDS, three bars of its band), one face a band (KIT_FACES
 // temper_kit: the Tempering Salts, Iron to Dawnsteel). A kit is kitHoursPm of wage (0.1 h: its 0.4 work-hours x townWageShare), and a rank
-// on a piece of item Level iL takes the kits of that piece's band (src/core/temper-steps.js temperKitAt), so a cheap band's kit can never
-// pay for a dear band's rank. kitItem stays null: the server's one kit column cannot name a kit a band, so hr_temper_rank answers
-// `kits_owed` until the backend's kit-by-band row lands (HANDOFFS 2026-11-26 TP and IM). No rank is ever sold for gold alone.
+// on a piece of item Level iL takes the kits of that piece's band (src/core/trades.js temperKitAt), so a cheap band's kit can never
+// pay for a dear band's rank. The server sells it from hr_temper_kits, one row a band written from TEMPER_KITS (tools/gen-flame-temper.mjs,
+// lane/tp-server-1): a band with no row, or whose kit is no item yet (Dawnsteel's until the job slice makes it), is refused `kits_owed`.
+// No rank is ever sold for gold alone. The kits come from the hero's bag, then the account's Storage (1071-tp-im-server.sql).
 // STARTING VALUES (21 section 2.2 levers; the Lab moves them in band): rankEvery 40 (30 to 50), hoursPm 3000 (2 to 4 hours a piece),
 // kitSharePm 500 (300 to 700), carryPm 350 (250 to 500).
-// The server's catalogue (hr_temper_rules, hr_temper_slots) is written from this by tools/gen-flame-temper.mjs. Behind the hr_flags
-// switch `temper_steps` (off at apply).
+// The server's catalogue (hr_temper_rules, hr_temper_slots, hr_temper_kits) is written from this by tools/gen-flame-temper.mjs. Behind
+// the hr_flags switch `temper_steps` (off at apply).
 //
 // PURE ESM, no imports, no I/O. Node, Deno and the browser read it verbatim.
 // ============================================================================
@@ -41,5 +42,4 @@ export const TEMPER_STEPS = Object.freeze({
   kitSharePm: 500,
   carryPm: 350,
   kitHoursPm: 100,
-  kitItem: null,
 });

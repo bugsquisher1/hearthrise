@@ -41,9 +41,9 @@ import { isMain } from './_is-main.mjs';
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const DESC_PATH = join(ROOT, 'src', 'data', 'item-descriptions.js');
 
-/* The 13 WAVE3 uniques whose lines were authored, and approved, ending in a
+/* The WAVE3 uniques whose lines were authored, and approved, ending in a
    full stop before this guard existed (the Warband Bulwark left with its
-   new line, a crafted cloak, 2026-11-18). Nothing NEW may end in one; these 13
+   new line, a crafted cloak, 2026-11-18). Nothing NEW may end in one; these
    are grandfathered and must STAY grandfathered — an allowlisted id whose
    line no longer ends in '.' is a stale entry (FLV-8) just as much as a new
    line that gained one is a violation. */
@@ -135,7 +135,7 @@ export function check(items, desc, srcText, spreadKeys = new Set(), droppers = {
     const endsPeriod = line.endsWith('.');
     const allowed = FULL_STOP_ALLOWLIST.has(id);
     if (endsPeriod && !allowed) {
-      add('FLV-8', `"${id}" line ends in a full stop and is not one of the 14 grandfathered `
+      add('FLV-8', `"${id}" line ends in a full stop and is not one of the ${FULL_STOP_ALLOWLIST.size} grandfathered `
         + `WAVE3 ids: ${JSON.stringify(line)}`);
     } else if (!endsPeriod && allowed) {
       add('FLV-8', `"${id}" is on the full-stop allowlist but its line no longer ends in '.' `
@@ -221,19 +221,22 @@ function run() {
    where every arm's effect is exact and legible. A clean arm first (the
    false-positive floor), then the ten mutations the brief names, each
    required to be caught by its OWN named FLV id. */
+/* the allowlisted id the clean arm keeps ending in a full stop: read from the list, so a cut id (the
+   named-pieces lane cut dragonrend_greatblade, 2026-11-23) never leaves the fixture pointing at nothing */
+const GRANDFATHERED = [...FULL_STOP_ALLOWLIST][0];
 function fixture() {
   const items = {
     emberheart: { n: 'Emberheart' },
     bronze_axe: { n: 'Bronze Axe' },
     iron_sword: { n: 'Iron Sword' },
-    dragonrend_greatblade: { n: 'Dragonrend Greatblade' },
+    [GRANDFATHERED]: { n: 'Grandfathered Unique' },
     goblin_seal: { n: 'Goblin Seal' },
   };
   const desc = {
     emberheart: 'A coal that has burned since before the first hearth was laid, and will outlast the last',
     bronze_axe: 'Cast-bronze felling axe, a woodcutter\'s first honest tool',
     iron_sword: 'Honest iron blade, the balanced workhorse of any young fighter',
-    dragonrend_greatblade: 'A greatblade that tears the sky itself, forged to slay the oldest dragon.',
+    [GRANDFATHERED]: 'A greatblade that tears the sky itself, forged to slay the oldest dragon.',
     goblin_seal: 'A stamped seal that grants passage into the Goblin Warcamp',
   };
   const srcText = [
@@ -244,7 +247,7 @@ function fixture() {
     "  'emberheart': 'A coal that has burned since before the first hearth was laid, and will outlast the last',",
     "  'bronze_axe': 'Cast-bronze felling axe, a woodcutter\\'s first honest tool',",
     "  'iron_sword': 'Honest iron blade, the balanced workhorse of any young fighter',",
-    "  'dragonrend_greatblade': 'A greatblade that tears the sky itself, forged to slay the oldest dragon.',",
+    `  '${GRANDFATHERED}': 'A greatblade that tears the sky itself, forged to slay the oldest dragon.',`,
     "  'goblin_seal': 'A stamped seal that grants passage into the Goblin Warcamp',",
     '};',
   ].join('\n');

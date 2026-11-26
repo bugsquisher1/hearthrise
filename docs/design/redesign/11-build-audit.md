@@ -57,8 +57,8 @@ Tyler asked on 2026-11-22: "let's audit what's built so far - and have the lane 
   - CLAUDE.md section 3.3 says the Coordinator never resolves a conflict by hand; Tyler ruled the opposite on 2026-11-21.
   - 1056's sidecar carries no Security flag.
 - **Release hazards:**
-  - 49 sidecars from 1009 to 1056 read STAGED, and 33 of them have no place in the handoff's apply order. Those with no decided fate: 1020, 1023, 1031 ("retire once FB-8's catalogues hold") and 1026 ("re-cut by FB-10").
-  - The edge timing rules collide: 1016 is edge-first; 1052-settle-flush and 1053-hunt-report must be before the edge, 1055 and 1056 after it; 1026 is apply-then-deploy.
+  - 49 sidecars from 1009 to 1056 read STAGED, and 33 of them have no place in the handoff's apply order. Those with no decided fate: 1020, 1023, 1031 ("retire once FB-8's catalogues hold") and 1026 ("re-cut by FB-10"). **Decided 2026-11-22** (12-targets 2.7, lane/r3c-fates): all four Keep, 1026 re-cut in R12. **2026-11-26** (lane/ro-release-order): 1023 and 1031 are scaled-hunt catalogues, so their fate is now lane/retire-tier-chain's (scaled hunts leave this release); 1020 rewrites the ground-tier rows, which are expected to leave with the tier pick in the same lane. Until that lane lands, all three stay Keep and plan.
+  - The edge timing rules collide: 1016 is edge-first; 1052-settle-flush and 1053-hunt-report must be before the edge, 1055 and 1056 after it; 1026 is apply-then-deploy. **Resolved:** `node tools/release-plan.mjs --strict` derives one edge point from the notes (right after 1054) and exits 0 on 2026-11-26 with 85 files, none held.
   - There is no point-in-time restore, the release is about 75 files, and no restore drill has run on this chain.
   - The flush kill switch is untested.
   - Four visual passes are owed: the away card, the recruit screens, the summary and return card, and the HUD.

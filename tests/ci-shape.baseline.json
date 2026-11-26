@@ -245,6 +245,8 @@
     "node tools/mutant-gate.mjs node tools/gen-flame-temper.mjs --selftest": "economy-selftests",
     "node tests/imbue.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/imbue.mjs --mutate": "economy-selftests",
+    "node tests/kit-recipes.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate": "economy-selftests",
     "node tests/personal-loot.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/personal-loot.mjs --mutate": "economy-selftests",
     "node tests/release-plan.mjs": "economy-selftests",

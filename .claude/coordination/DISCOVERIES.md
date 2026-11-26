@@ -15,6 +15,15 @@ No emoji is rendered anywhere for an item: the `icon:` emoji fields in `src/data
 | 3 | `share-card.js` (the rare find's card) | no ITEMS row: no icon, so no frame; the name in gold | lands with #1 |
 | 4 | the rare-drop alert line (`src/shell/widgets/alerts.js`) and the combat log / scene float | a glyph and the item's name, never its icon or frame; the event names an item id, not a piece | T1's drop moment: the rare_drop event carries the piece (its rarity, its Signature), the alert shows `itemIconHtml(piece)` |
 | 5 | every bag stack before T1 | the client has no piece row, only `{ id: qty }`, so no Rare can show its frame yet | T1: project trait_pieces rows and pass them to the surfaces (one call each, `itemIconHtml(glyphs, piece)`) |
+## 2026-11-26 · qa-engineer (lane/ro-release-order) · the release order's first pass
+
+| # | Found | Sev | Affected | Action |
+|---|---|---|---|---|
+| 1 | `release-plan` read "the hr-accrue right after NNNN" (an earlier NNNN) only as "this file goes after the edge", never checking NNNN was the file the edge follows. `1061-bar-metrics` asked for the deploy right after 1058 while the plan deployed after 1054, and nothing showed it | P2 | tools/release-plan.mjs | Fixed: rule `anchor` (EDGE ANCHOR refusal), a planted case, mutation-proved. The 1061 sidecar was re-cut to either |
+| 2 | Hunts hold `world_shape_pending` from 1054's apply until `1058-hunting-blocks-hunt-sessions-catalogue` applies, because today's src matches only that file's shape row (production 2858418573, 1054 2158801959, src 2244835175). That is harmless in one sitting, but no note or tool said so | P3 | the release sitting | Written in HANDOFFS and 13-security-list section 6 |
+| 3 | 1023's "scaled hunts are dark" is false on production (switch `everyone`, one hero with 57.6 bought minutes) | P3 | 1023, 1031, scaled hunts | Routed to lane/retire-tier-chain (CONFLICTS 2026-11-26) |
+| 4 | 33 history sidecars still lead with STAGED for files production ran or later dropped. The DR record overstates what is left to run | P3 | supabase/migration-notes (history) | Evidence in 13-security-list section 5. Coordinator flips them with `migration-note.mjs applied` |
+| 5 | 13-security-list was stale: four "held" rows were in the plan, and eight flagged sidecars (1059-company-trades, 1061-danger-grounds, two 1063-tower files, four 1069 files) plus 1024's gold-moving verb had no row | P2 | docs/design/redesign/13-security-list.md | Fixed: S-14 to S-21, L-3, section 3 re-titled, section 5 given production evidence |
 
 ## 2026-11-23 · qa-engineer (lane/ci-reds-orphans) · the orphaned "not mine" reds on set/v0.2.144
 

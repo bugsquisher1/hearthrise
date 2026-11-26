@@ -17,6 +17,8 @@
 //               of its measured pay; Careful and Bold at most 0.33
 //   EL-PAY      each stance's measured pay is 0.75 to 1.33 of wage(Level) (the wage tracks the scale's pay); Steady's Levels 0.95 to 1.05
 //   EL-STANCE   Careful's measured XP is 0.55 to 0.70 of Steady's (12-targets C-5, through the pay floor of 2.1)
+//   EL-SINK     gate 7's gold ledger (tools/balance-program/redesign/sinks/ledger.mjs, lane/sn-sinks, 12-targets section 9): the reference
+//               company burns 0.85 to 0.90 of what it mints by day 180, without and with its hall, on this file's kept reading
 //
 //   node tests/econ-levers.mjs            the guard
 //   node tests/econ-levers.mjs --mutate   each arm driven red by a defect planted on in-memory copies (no tracked file is patched)
@@ -41,6 +43,7 @@ import { DRINK_ITEMS, DRINK_RECIPES } from '../src/data/drinks.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { RUNE_TIERS, isRune, runeTierOf, versionLevel } from '../src/data/runes.js';
 import { SHOP_BUYBACK_RATE } from '../supabase/functions/hr-accrue/catalogue.js';
+import { referenceReading, SINK_BAND, KEPT_READING, PRICING } from '../tools/balance-program/redesign/sinks/ledger.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /* the kept reading since the tuning pass (lane/tuning-pass, 2026-11-23, 29-tuning-pass.md): Muster Barrows on its monster formula, the
@@ -64,7 +67,7 @@ function expectedPrice(b, kit) {
 }
 
 /** Every arm's failures for the given rows, levers and report (the guard passes the shipped ones; --mutate passes planted copies). */
-export function check({ basics = BASIC_SUPPLIES, runePrices = STORE_RUNE_PRICE, kit = STORE_KIT, pay = PAY, wageOf = wage, buyback = SHOP_BUYBACK_RATE, useAt = storeUsePrice, report } = {}) {
+export function check({ basics = BASIC_SUPPLIES, runePrices = STORE_RUNE_PRICE, kit = STORE_KIT, pay = PAY, wageOf = wage, buyback = SHOP_BUYBACK_RATE, useAt = storeUsePrice, report, sinks = null, ledgerReads = KEPT_READING } = {}) {
   const fails = [];
   const f = (arm, msg) => fails.push(arm + ' ' + msg);
   for (const b of basics) {
@@ -103,6 +106,11 @@ export function check({ basics = BASIC_SUPPLIES, runePrices = STORE_RUNE_PRICE, 
     const x = careful.payX.mean / steady.payX.mean;
     if (!(x >= CAREFUL_XP[0] && x <= CAREFUL_XP[1])) f('EL-STANCE', 'Careful earns ' + x.toFixed(3) + ' of Steady\'s XP an hour, C-5 says ' + CAREFUL_XP.join(' to '));
   }
+  /* gate 7: the gold ledger reads this file's kept reading, and its reference company burns inside the band by day 180 */
+  if (ledgerReads !== REPORT) f('EL-SINK', 'the gold ledger reads ' + ledgerReads + ', this file\'s kept reading is ' + REPORT);
+  for (const [k, x] of Object.entries(sinks || referenceReading())) {
+    if (!(x >= SINK_BAND[0] && x <= SINK_BAND[1])) f('EL-SINK', 'the ledger\'s ' + k + ' company burns ' + x.toFixed(3) + ' of what it mints by day 180, gate 7 says ' + SINK_BAND.join(' to '));
+  }
   return fails;
 }
 
@@ -120,6 +128,8 @@ function mutate(report) {
     ['EL-KIT', 'the old store ladder (shark 693, carrot 18, mithril 4, etched 12)', () => ({ useAt: (id, step) => ({ salted_lobster: 180, thin_carrot_juice: 18, plain_mithril_arrows: 4 }[id] ?? (/^plain_etched_/.test(id) ? 12 : storeUsePrice(id, step))) })],
     ['EL-KIT', 'a use priced at the raw Danger step (wage(576) is 8x a Level 60 hour)', () => ({ useAt: (id) => storeUsePrice(id, 576) })],
     ['EL-PAY', 'the wage left at lane W\'s 3,800 after the coin level moved', () => ({ wageOf: (L) => Math.floor(3800 * 1.004 ** L) })],
+    ['EL-SINK', 'hunting blocks at half their price (the bought blocks are the sink that closes the ledger)', () => ({ sinks: referenceReading({ ...PRICING, blockPrice: (o) => { const g = PRICING.blockPrice(o); return g === null ? null : Math.floor(g / 2); } }) })],
+    ['EL-SINK', 'the ledger reading another kept report', () => ({ ledgerReads: 'tools/balance-program/redesign/econ/after-muster-L60.json' })],
     ['EL-STANCE', 'Careful measured with no pay floor (0.32x)', () => ({ report: { ...report, cells: { ...report.cells, 'base:careful': { ...report.cells['base:careful'], payX: { mean: 0.32 } } } } })],
   ];
   let missed = 0;

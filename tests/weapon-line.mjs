@@ -227,12 +227,12 @@ const MUTANTS = [
   ['an importer appears', 'WL2', (L, A, o) => { o.importers = ['/src/data/items.js']; }],
   ['a sample takes an item\'s name', 'WL2', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.n = 'Dawnsteel Sword'; }],
   ['a sample takes the armor line\'s name', 'WL2', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.n = 'Watchman\'s Helm'; }],
-  ['the mallet hits over the line', 'WL3', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.strB = 102; }],
-  ['the Carter\'s Rest sword over the line', 'WL3', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.strB = 37; }],
+  ['the mallet hits over the line', 'WL3', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.strB = 139; }],  // (restated on 8.3, 12-targets 8.4: every staged number x 120 / 88)
+  ['the Carter\'s Rest sword over the line', 'WL3', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.strB = 52; }],
   ['the line read at a lower Level (the scale lies)', 'WL3', (L) => { L.weaponLineScale = () => 1; }],
-  ['a template: the line\'s own numbers', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 63, strB: 53, critB: 0.1 }); }],
-  ['one sword wins everywhere (the other gave up too much)', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 40, strB: 36 }); }],
-  ['the Carter\'s Rest sword under tempered Dawnsteel everywhere', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.wagon_guards_sword.row, { atkB: 30, strB: 22 }); }],
+  ['a template: the line\'s own numbers', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 86, strB: 72, critB: 0.1 }); }],
+  ['one sword wins everywhere (the other gave up too much)', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 55, strB: 49 }); }],
+  ['the Carter\'s Rest sword under tempered Dawnsteel everywhere', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.wagon_guards_sword.row, { atkB: 41, strB: 30 }); }],
   ['tempered Dawnsteel out-hits the Carter\'s Rest sword (the tempering read as x1.1)', 'WL4', (L) => { L.TEMPERED_DAWNSTEEL = 1.1; }],
   /* row 1a's tier-7 arm and its three mutants (Krell's sword, a named wand, a special weapon on Dawnsteel's numbers) were retired with it: at
      tier 7 and below the standard piece plus one attribute is the rule (Tyler 11-14; the designer 2026-11-18 row 3b), so none is a defect */

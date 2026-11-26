@@ -25,7 +25,7 @@
 //   risk-ladder    THE RISK IS THE MONSTERS (Tyler 2026-11-04): in range is safe; on a harder ground a hero earns well over the ground that fits and its supply bill follows, an unready hero dies and
 //                  a built one holds, with no rule behind any of it (hunt-core/damage.mjs same-blow-at-any-level); a watched hunt and a closed browser die alike; a Level 1 behind high friends earns
 //                  next to nothing, and a party that pushes together is paid in full.
-//   armor-rungs    balance ruling 2026-10-25 §9: every armor rung on its own ground, exact: each weight's mean piece takes 5-8% off what reaches HP (one grid tier, 12-targets 8.3; cloth its own 3-9.5%), and only the cloth pieces named here stand still.
+//   armor-rungs    every armor rung on its upper tier's own grounds, exact: each weight's mean piece takes plate 5-8%, leather 3-8%, cloth 3-9.5% off what reaches HP (12-targets 8.4); only the cloth pieces named here stand still.
 //   vs-alone       the Party window's measured line against a full mix on two grounds, and on a harder tier of two (the line the leader's tier picks).
 //   weapon-rungs   the hammer's and the hatchets' tier 2 and tier 3 each pay at least +5% Level XP an hour over the tier behind, on the first ground the rung is worn for.
 //   glade-harder   Tyler's harder monsters (accuracy 0.80), both paths: felt at the floor, no death, pace, the top eases, a held pull pays more XP.
@@ -186,7 +186,12 @@ cases['risk-ladder'] = (R) => {
    stays under 5.5. Cloth is over the band on its second rung and stays: its flat ward is worth more against bigger blows, and that step lands it level with leather on its own ground (board 2026-11-05). */
 /* ONE GRID TIER A RUNG (12-targets 8.3, the designer 2026-11-23): 5 to 8% a rung for plate and leather (04 section 1 puts a tier at +7.2% of power;
    bronze to iron reads 6.7%); the 3 to 5.5% band was the 15-Level rung. Cloth keeps its own wider bar, its flat ward (above). */
-const RUNG_BAR = Object.freeze({ plate: [5, 8], leather: [5, 8], cloth: [3, 9.5] });
+/* RE-RULED (12-targets 8.4, the designer 2026-11-26): each rung is read on its upper tier's own grounds (cell.mjs armorRungs), and leather's piece bar is 3 to 8%.
+   Leather's tier is half armor and half aim (gear-profiles.js defB 550, rangeAtkB 500) and its dodge tops out sooner than plate's absorb (650 against 750),
+   so its armor rung shrinks first: iron to steel reads 3.3 to 3.4% a piece on the Warrens, the Ford and the Slake, and 14.5 to 14.9% the whole set. Plate
+   is all armor and keeps 5 to 8 (5.0 to 5.1 on steel's grounds). The whole set still reads at least twice its mean piece (below): plate 19.3 to 25.8%,
+   leather 14.5 to 23.1%. The Glade's 2.6% was a steel piece on a ground that drops none. */
+const RUNG_BAR = Object.freeze({ plate: [5, 8], leather: [3, 8], cloth: [3, 9.5] });
 const STANDS_STILL = Object.freeze(['cloth:1:boots', 'cloth:1:gloves', 'cloth:1:belt']);
 /* EIGHT SEEDS (lane/b-one-difficulty, 2026-11-08): one hour's cut swings 0.8-10.4% seed by seed at the Warrens (seeds 0-7, the same seed bare and caped), so four
    seeds read a 7% cloak anywhere from about 3.5% to 8%; eight pool to 6.1%. The bar is the same 4-10%. */
@@ -211,7 +216,7 @@ cases['cape-cut'] = (R) => {
 };
 cases['armor-rungs'] = (R) => {
   const rows = R.armorRungs();
-  if (rows.length !== 15) return 'the rungs read ' + rows.length + ' rows, not 15';
+  if (rows.length !== 18) return 'the rungs read ' + rows.length + ' rows, not 18';
   for (const r of rows) {
     const tag = r.line + ' tier ' + r.from + ' to ' + r.to + ' on ' + r.ground;
     if (r.mean < RUNG_BAR[r.line][0] || r.mean > RUNG_BAR[r.line][1]) return tag + ': the mean piece takes ' + r.mean + '% off, outside ' + RUNG_BAR[r.line].join('-') + '%';
@@ -329,12 +334,18 @@ const mutants = [
     edits: GLADE_SOFT.map(([f, a]) => [f, a, a.replace(/atk: \d+/, 'atk: 2').replace(/aim: \d+/, 'aim: 20')]) },
   { name: 'armor reads the hero\'s Level again: a swing ten Levels under lands no harder than at the floor', case: 'risk-ladder',
     edits: [['src/core/hunt/damage.js', "mitigationOf(target.armour, isMonster(source) ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1)", 'mitigationOf(target.armour, target.heroLv || 1)']] },
-  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"leather_boots": f({', '"leather_boots": f({ defB: 2, rangeAtkB: 1, critB: 0.002 }), "leather_boots~shipped": f({']] },
+  /* RE-AIMED (12-targets 8.4): at defB 2 the Studded Boots (3) still stop more, so only the 5% leather bar caught it; at 3 the two are one boot, the defect its name says */
+  { name: 'Studded Boots stop no more than Leather Boots again', case: 'armor-rungs', expect: 'leather tier 1 to 2', edits: [['src/data/gear-stats.generated.js', '"leather_boots": f({', '"leather_boots": f({ defB: 3, rangeAtkB: 1, critB: 0.002 }), "leather_boots~shipped": f({']] },
   { name: 'Studded leather is thin as cloth: its rung stops being worth finding', case: 'armor-rungs', edits: [
     ['src/data/gear-stats.generated.js', '"studded_body": f({', '"studded_body": f({ defB: 3, rangeAtkB: 6, magicAtkB: -2, critB: 0.004 }), "studded_body~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_pants": f({', '"studded_pants": f({ defB: 2, rangeAtkB: 4, magicAtkB: -1, critB: 0.004 }), "studded_pants~shipped": f({'],
     ['src/data/gear-stats.generated.js', '"studded_helmet": f({', '"studded_helmet": f({ defB: 2, rangeAtkB: 3, magicAtkB: -1, critB: 0.004 }), "studded_helmet~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_belt": f({', '"studded_belt": f({ defB: 1, rangeAtkB: 2, magicAtkB: -1, critB: 0.004 }), "studded_belt~shipped": f({'],
     ['src/data/gear-stats.generated.js', '"studded_boots": f({', '"studded_boots": f({ defB: 1, rangeAtkB: 2, magicAtkB: -1, critB: 0.004 }), "studded_boots~shipped": f({'], ['src/data/gear-stats.generated.js', '"studded_gloves": f({', '"studded_gloves": f({ defB: 1, rangeAtkB: 1, critB: 0.004 }), "studded_gloves~shipped": f({']] },
   /* (lane/scale-early-grounds) bronze is tier 0, item Level 0, since the Cellar and the Thicket joined the scale: its body is defB 5, so the flat rung is iron at 5 */
+  /* (12-targets 8.4) leather's steel rung, read on the Warrens, the Ford and the Slake: Boarhide's three big pieces a third of the way back to Studded */
+  { name: 'Boarhide is barely over Studded: leather\'s steel rung stops being worth finding', case: 'armor-rungs', edits: [
+    ['src/data/gear-stats.generated.js', '"boarhide_body": f({', '"boarhide_body": f({ iL: 40, defB: 10, rangeAtkB: 15, magicAtkB: -4, critB: 0.009 }), "boarhide_body~shipped": f({'],
+    ['src/data/gear-stats.generated.js', '"boarhide_pants": f({', '"boarhide_pants": f({ iL: 40, defB: 7, rangeAtkB: 10, magicAtkB: -3, critB: 0.009 }), "boarhide_pants~shipped": f({'],
+    ['src/data/gear-stats.generated.js', '"boarhide_helmet": f({', '"boarhide_helmet": f({ iL: 40, defB: 5, rangeAtkB: 7, magicAtkB: -2, critB: 0.009 }), "boarhide_helmet~shipped": f({']] },
   { name: 'an Iron Platebody is barely over Bronze: plate\'s first rung goes flat', case: 'armor-rungs', edits: [['src/data/gear-stats.generated.js', '"iron_platebody": f({', '"iron_platebody": f({ defB: 5, rangeAtkB: -3, magicAtkB: -6 }), "iron_platebody~shipped": f({']] },
   { name: 'the level share is gone: a Level 1 earns what its friends earn', case: 'risk-ladder', edits: [['src/core/hunt/xp-share.js', 'const seat = underFloorSharePm(ground, h.heroLv, top);', 'const seat = 1000;']] },
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',

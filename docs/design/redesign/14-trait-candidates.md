@@ -254,6 +254,8 @@ Note: Needs Green Sickness in the party. It's the only Sickness left after the s
 
 Re-homed 2026-11-22 (the designer, lane/band-floor; 24-content-pipeline.md G4 and G8): Hask's Ford had none, and most scale Traits sat on a slot their ground never drops. Moved: 37 Hask's Bargain, 13 Slack Water, 25 Numbed, 14 Goaded and 20 Carter's Flight to Hask's Ford; 5 Snuffed and 26 Long Rite to Muster Barrows; 15 Keeper's Carry to the Flooded Wing (Keeper Dunn's wing). All 40 kept.
 
+Narrowed 2026-11-26 (the designer, lane/designer-reds-1126; 12-targets.md 8.4, measured on the census of 8.2): six "when"s that were the strong four's resting state. 10 First Rank and 32 Early Start read the target's health over 70% (was the hero's own over 90%), 19 Ledge Footing reads nobody under 90% (was 70%), 13 Slack Water the party over 95% (was 90%), 37 Hask's Bargain holds below 90% health (was above), 12 Empty Wagon below 15% mana (was 30%). No rank's size moved. The cards below keep their first wording; `src/data/traits.js` is the row of record.
+
 Re-homed 2026-11-23 (the designer, lane/designer-reads-1123; 29-tuning-pass.md 7.8): the Slake joins the scale with no Trait, so 13 Slack Water (the river goes slack at the Slake) and 25 Numbed (its cold bilge water) move there from Hask's Ford. The Slake drops both slots and serves two seats; the Ford keeps three on two seats.
 
 - **Muster Barrows:** 1, 5, 6, 10, 26, 27, 33

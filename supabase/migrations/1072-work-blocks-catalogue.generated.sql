@@ -63,24 +63,44 @@ create table if not exists public.hr_time_blocks (
   growth_den    int    not null check (growth_den >= 1),
   price_hour_pm int    not null,
   earns_pm      int,
+  lead_min      int,
   check (growth_num >= growth_den)
 );
 alter table public.hr_time_blocks enable row level security;
 revoke all on public.hr_time_blocks from public, anon, authenticated, service_role;
 comment on table public.hr_time_blocks is '1072-work-blocks-catalogue.generated.sql: bought time, one row a kind (src/data/time-blocks.js through tools/gen-time-blocks.mjs).';
+create table if not exists public.hr_time_standing (
+  id               boolean primary key default true check (id),
+  reserve_hours_pm int     not null check (reserve_hours_pm >= 0),
+  offer_kind       text    not null check (offer_kind ~ '^[a-z]{1,16}$'),
+  offer_days_pm    int     not null check (offer_days_pm >= 1),
+  offer_choices    int[]   not null
+);
+alter table public.hr_time_standing enable row level security;
+revoke all on public.hr_time_standing from public, anon, authenticated, service_role;
 
 -- ── §2 THE ROWS, AND THE TABLE CONVERGED TO THIS SHAPE ───────────────────────
 -- 1058's table priced every kind above an hour of wage (price_hour_pm > 1000), the hunting floor. A work-hour earns back a quarter of
--- that, so the floor is each row's own: price_hour_pm > earns_pm (src/data/time-blocks.js EARNS_PM, 04 section 11).
+-- that, so the floor is each row's own: price_hour_pm > earns_pm (src/data/time-blocks.js EARNS_PM, 04 section 11). lead_min is the
+-- standing rule's (src/data/time-blocks.js STANDING.leadMin): its sweep buys a block when the pool, or today's bought work left, is under it.
 delete from public.hr_time_blocks;
 alter table public.hr_time_blocks add column if not exists earns_pm int;
+alter table public.hr_time_blocks add column if not exists lead_min int;
 alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_price_hour_pm_check;
 alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_earns_ck;
-insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm) values
-  ('hunt', 120, 2, 3, 2, 2000, 1000),
-  ('work', 120, 4, 3, 2, 500, 375);
+alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_lead_ck;
+insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm, lead_min) values
+  ('hunt', 120, 2, 3, 2, 2000, 1000, 120),
+  ('work', 120, 4, 3, 2, 500, 375, 10);
 alter table public.hr_time_blocks alter column earns_pm set not null;
+alter table public.hr_time_blocks alter column lead_min set not null;
 alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck check (earns_pm >= 1 and price_hour_pm > earns_pm);
+alter table public.hr_time_blocks add constraint hr_time_blocks_lead_ck check (lead_min between 1 and block_min);
+-- THE STANDING RULE'S NUMBERS (src/data/time-blocks.js STANDING): the reserve (milli-hours of the hero's wage it never spends under) and
+-- the offer (its kind, milli-days of the company's pay, the card's choices). Rewritten whole.
+delete from public.hr_time_standing;
+insert into public.hr_time_standing (id, reserve_hours_pm, offer_kind, offer_days_pm, offer_choices) values
+  (true, 20000, 'hunt', 3000, array[1, 2]);
 
 -- ── §2b THE PRICE'S SQL TWIN (internal) ──────────────────────────────────────
 create or replace function public.hr_time_block_price(p_kind text, p_level int, p_n int)
@@ -116,12 +136,19 @@ begin
   if (select count(*) from public.hr_time_blocks) <> 2 then
     raise exception 'VERIFY(a): the catalogue holds % kinds, want 2', (select count(*) from public.hr_time_blocks); end if;
   for v_r in select * from (values
-    ('hunt', 120, 2, 3, 2, 2000, 1000),
-    ('work', 120, 4, 3, 2, 500, 375)) d(kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm) loop
+    ('hunt', 120, 2, 3, 2, 2000, 1000, 120),
+    ('work', 120, 4, 3, 2, 500, 375, 10)) d(kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm, lead_min) loop
     if not exists (select 1 from public.hr_time_blocks b where b.kind = v_r.kind and b.block_min = v_r.block_min and b.per_day = v_r.per_day
-                     and b.growth_num = v_r.growth_num and b.growth_den = v_r.growth_den and b.price_hour_pm = v_r.price_hour_pm and b.earns_pm = v_r.earns_pm) then
+                     and b.growth_num = v_r.growth_num and b.growth_den = v_r.growth_den and b.price_hour_pm = v_r.price_hour_pm
+                     and b.earns_pm = v_r.earns_pm and b.lead_min = v_r.lead_min) then
       raise exception 'VERIFY(a): the % row is not src/data/time-blocks.js''s', v_r.kind; end if;
   end loop;
+  if (select count(*) from public.hr_time_standing) <> 1
+     or not exists (select 1 from public.hr_time_standing s where s.reserve_hours_pm = 20000 and s.offer_kind = 'hunt'
+                      and s.offer_days_pm = 3000 and s.offer_choices = array[1, 2]) then
+    raise exception 'VERIFY(a): the standing rule''s row is not src/data/time-blocks.js STANDING'; end if;
+  if exists (select 1 from unnest(array['anon', 'authenticated']) g(r) where has_table_privilege(g.r, 'public.hr_time_standing', 'select')) then
+    raise exception 'VERIFY(b): a client role reads the standing rule''s catalogue'; end if;
   -- the table itself refuses a block hour that sells for no more than it earns back
   begin
     update public.hr_time_blocks set price_hour_pm = earns_pm where kind = 'hunt';

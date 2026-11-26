@@ -29,10 +29,10 @@
 // The price reads the hero's LEVEL, never its depth (Tyler 2026-11-22: "some things, like stamina, should be based off of level").
 //
 // THE STANDING RULE (20-v030-the-roads.md section 3.3, lane B1; 04 section 11: "A plan may hold a standing limit for each kind, in
-// blocks and in price, and the same call honors it, so nobody buys by hand every day"): a hero's plan may say "buy up to N work
-// blocks a day, at most P gold each". The SERVER buys a block the moment the hero's town work enters it (1071-work-blocks.sql), never
-// past the day's cap, the hero's N, P or the account's gold, and only a block that fits whole before midnight. STANDING_KINDS names
-// the kinds the server has a standing rule for: town work only (a hunting rule needs the hunt settle's stamina bound: not built).
+// blocks and in price, and the same call honors it, so nobody buys by hand every day"): a hero's plan may say "buy up to N blocks of
+// this kind a day, at most P gold each". The SERVER buys each block as it comes due (1071-work-blocks.sql, the sweep), inside the
+// press's own rules (the cap, the ceiling, day_ending), never past N or P and never under the reserve (STANDING below). It is never on
+// by default: it is offered once by the coach card when the purse fills (the designer, 12-targets.md section 9.3).
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -73,8 +73,26 @@ export const RULED = Object.freeze({
    kind joins this list only with the branch that adds what it sells. */
 export const SOLD_KINDS = Object.freeze(['hunt', 'work']);
 
-/* THE KINDS A STANDING "BUY UP TO N" RULE MAY BUY (hr_time_auto_set; the server charges at the settle that enters a block). */
-export const STANDING_KINDS = Object.freeze(['work']);
+/* THE KINDS A STANDING "BUY UP TO N A DAY" RULE MAY BUY (hr_time_auto_set; the server's sweep buys them, hr_time_auto_sweep). */
+export const STANDING_KINDS = Object.freeze(['hunt', 'work']);
+
+/* THE STANDING RULE (1071-work-blocks.sql; the designer's ruling, 12-targets.md section 9.3, lane/sn-sinks 2026-11-26). Never on by
+   default: no rule row is off. The server's sweep (every minute) buys a hero's next block only while it can use it:
+     leadMin       a hunting hero's pool, or today's bought town work left, is under this many minutes (hunting: one block, so the
+                   pool never runs dry while the rule has blocks; bought stamina banks, so nothing is wasted. Town work: a few minutes,
+                   because a work block is today's and a job may be stopped by hand)
+     reserveHours  LEVER (econ.block-rule-reserve): it never takes the purse under this many hours of the hero's wage (the gold
+                   ledger's reference company buys "while the purse keeps 20 hours of wage", 12-targets 9.2)
+     offerDays     LEVER (econ.block-rule-offer): the coach card offers the rule once, when the company's purse first holds this many
+                   days of its pay (a day of pay: the free hunting day x the wage at each hero's Level, summed)
+     offerKind / offerChoices  the card: [Up to 1 a day] [Up to 2 a day] [Not now] for hunting blocks */
+export const STANDING = Object.freeze({
+  leadMin: Object.freeze({ hunt: 120, work: 10 }),
+  reserveHours: 20,
+  offerDays: 3,
+  offerKind: 'hunt',
+  offerChoices: Object.freeze([1, 2]),
+});
 
 /* WHAT ONE HOUR OF EACH KIND EARNS BACK AT MOST, in permille of an hour of wage (04 section 11, "why the bands' floors sit where they
    do"): a hunted hour pays one hour of wage (the wage's definition); a work-hour's goods fetch townWageShare x the wage, at most
@@ -105,6 +123,19 @@ export function validate(table = TIME_BLOCKS) {
     if (!ruled) out.push(kind + ': no RULED row (its block, cap and growth are Tyler\'s)');
     else for (const [k, v] of Object.entries(ruled)) if (R[k] !== v) out.push(kind + '.' + k + ' is ruled at ' + v + ' (Tyler 2026-11-22), got ' + R[k]);
   }
-  for (const k of STANDING_KINDS) if (!Object.prototype.hasOwnProperty.call(table, k)) out.push(k + ': a standing kind with no row');
+  for (const k of STANDING_KINDS) {
+    if (!Object.prototype.hasOwnProperty.call(table, k)) out.push(k + ': a standing kind with no row');
+    const lead = STANDING.leadMin[k];
+    if (!Number.isInteger(lead) || lead < 1) out.push(k + ': the standing rule\'s lead must be a whole number of minutes, got ' + lead);
+    /* hunting buys when the pool is under the lead: a lead past one block would buy into a full pool (stamina_full) */
+    else if (table[k] && lead > table[k].blockMin) out.push(k + ': a lead of ' + lead + ' min is past one block (' + table[k].blockMin + ' min)');
+  }
+  if (!(Number.isFinite(STANDING.reserveHours) && STANDING.reserveHours >= 0)) out.push('STANDING.reserveHours must be hours of wage, 0 or more');
+  if (!(Number.isFinite(STANDING.offerDays) && STANDING.offerDays > 0)) out.push('STANDING.offerDays must be days of pay, more than 0');
+  if (!STANDING_KINDS.includes(STANDING.offerKind)) out.push('STANDING.offerKind ' + STANDING.offerKind + ' has no standing rule');
+  const per = table[STANDING.offerKind] ? table[STANDING.offerKind].perDay : 0;
+  if (!STANDING.offerChoices.length || STANDING.offerChoices.some((n) => !Number.isInteger(n) || n < 1 || n > per)) {
+    out.push('STANDING.offerChoices must be block counts from 1 to the kind\'s cap (' + per + ')');
+  }
   return out;
 }

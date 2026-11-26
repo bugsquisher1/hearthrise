@@ -54,8 +54,8 @@ async function load(root) {
   const q = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + q);
   const [blocks, wageData, danger, core] = await Promise.all([imp('src/data/time-blocks.js'), imp('src/data/wage.js'), imp('src/data/danger.js'), imp('src/core/wage.js')]);
-  return { TIME_BLOCKS: blocks.TIME_BLOCKS, EARNS_PM: blocks.EARNS_PM, validate: blocks.validate, WAGE: wageData.WAGE, stepMax: danger.DANGER.stepMax,
-    wage: core.wage, blockPriceOf: core.blockPriceOf };
+  return { TIME_BLOCKS: blocks.TIME_BLOCKS, EARNS_PM: blocks.EARNS_PM, STANDING: blocks.STANDING, validate: blocks.validate, WAGE: wageData.WAGE,
+    stepMax: danger.DANGER.stepMax, wage: core.wage, blockPriceOf: core.blockPriceOf };
 }
 
 /** The resolved rows and pins of the data, refused on a defect. */
@@ -79,19 +79,33 @@ export function rowsOf(data) {
     if (!Number.isInteger(earnsPm) || earnsPm < 1 || !(R.priceHourPm > earnsPm)) {
       throw new Error('gen-time-blocks: ' + kind + ' earns back ' + earnsPm + ' permille an hour, priced at ' + R.priceHourPm + ': bought time would print gold');
     }
-    return { kind, blockMin: R.blockMin, perDay: R.perDay, growthNum: R.growthNum, growthDen: R.growthDen, priceHourPm: R.priceHourPm, earnsPm };
+    const S = data.STANDING || {};
+    const leadMin = S.leadMin && S.leadMin[kind];
+    if (!Number.isInteger(leadMin) || leadMin < 1 || leadMin > R.blockMin) throw new Error('gen-time-blocks: ' + kind + '\'s standing lead ' + leadMin + ' is not 1 to ' + R.blockMin + ' minutes');
+    return { kind, blockMin: R.blockMin, perDay: R.perDay, growthNum: R.growthNum, growthDen: R.growthDen, priceHourPm: R.priceHourPm, earnsPm, leadMin };
   });
+  const S = data.STANDING || {};
+  const standing = { reserveHoursPm: Math.round(S.reserveHours * 1000), offerKind: S.offerKind, offerDaysPm: Math.round(S.offerDays * 1000),
+    offerChoices: Array.isArray(S.offerChoices) ? [...S.offerChoices] : [] };
+  const offerRow = rows.find((x) => x.kind === standing.offerKind);
+  if (!Number.isInteger(standing.reserveHoursPm) || standing.reserveHoursPm < 0) throw new Error('gen-time-blocks: the reserve is not hours of wage');
+  if (!offerRow || !(standing.offerDaysPm >= 1) || !standing.offerChoices.length
+      || standing.offerChoices.some((n) => !Number.isInteger(n) || n < 1 || n > offerRow.perDay)) {
+    throw new Error('gen-time-blocks: the offer (' + JSON.stringify(S) + ') is not a sold kind, a positive number of days and choices inside its cap');
+  }
   const wagePins = WAGE_PINS.map((s) => ({ s, w: data.wage(s) }));
   const pins = [];
   for (const r of rows) {
     for (const L of PIN_LEVELS) for (let n = 1; n <= r.perDay + 1; n++) pins.push({ kind: r.kind, L, n, price: data.blockPriceOf(data.TIME_BLOCKS[r.kind], L, n) });
   }
-  return { rows, pins, wagePins, wage: { base: W.wageBase, step: W.payStepCoin, stepMax: data.stepMax } };
+  return { rows, pins, wagePins, standing, wage: { base: W.wageBase, step: W.payStepCoin, stepMax: data.stepMax } };
 }
 
 export function buildSql(r) {
-  const values = r.rows.map((x) => `  ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm}, ${x.earnsPm})`).join(',\n');
-  const rowValues = r.rows.map((x) => `    ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm}, ${x.earnsPm})`).join(',\n');
+  const values = r.rows.map((x) => `  ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm}, ${x.earnsPm}, ${x.leadMin})`).join(',\n');
+  const rowValues = r.rows.map((x) => `    ('${x.kind}', ${x.blockMin}, ${x.perDay}, ${x.growthNum}, ${x.growthDen}, ${x.priceHourPm}, ${x.earnsPm}, ${x.leadMin})`).join(',\n');
+  const st = r.standing;
+  const standingValue = `(true, ${st.reserveHoursPm}, '${st.offerKind}', ${st.offerDaysPm}, array[${st.offerChoices.join(', ')}])`;
   const pinValues = r.pins.map((p) => `    ('${p.kind}', ${p.L}, ${p.n}, ${p.price === null ? 'null' : p.price}::bigint)`).join(',\n');
   const wageValues = r.wagePins.map((p) => `    (${p.s}, ${p.w}::bigint)`).join(',\n');
   return `-- ════════════════════════════════════════════════════════════════════════
@@ -159,23 +173,43 @@ create table if not exists public.hr_time_blocks (
   growth_den    int    not null check (growth_den >= 1),
   price_hour_pm int    not null,
   earns_pm      int,
+  lead_min      int,
   check (growth_num >= growth_den)
 );
 alter table public.hr_time_blocks enable row level security;
 revoke all on public.hr_time_blocks from public, anon, authenticated, service_role;
 comment on table public.hr_time_blocks is '${OUT_NAME}: bought time, one row a kind (src/data/time-blocks.js through tools/gen-time-blocks.mjs).';
+create table if not exists public.hr_time_standing (
+  id               boolean primary key default true check (id),
+  reserve_hours_pm int     not null check (reserve_hours_pm >= 0),
+  offer_kind       text    not null check (offer_kind ~ '^[a-z]{1,16}$'),
+  offer_days_pm    int     not null check (offer_days_pm >= 1),
+  offer_choices    int[]   not null
+);
+alter table public.hr_time_standing enable row level security;
+revoke all on public.hr_time_standing from public, anon, authenticated, service_role;
 
 -- ── §2 THE ROWS, AND THE TABLE CONVERGED TO THIS SHAPE ───────────────────────
 -- 1058's table priced every kind above an hour of wage (price_hour_pm > 1000), the hunting floor. A work-hour earns back a quarter of
--- that, so the floor is each row's own: price_hour_pm > earns_pm (src/data/time-blocks.js EARNS_PM, 04 section 11).
+-- that, so the floor is each row's own: price_hour_pm > earns_pm (src/data/time-blocks.js EARNS_PM, 04 section 11). lead_min is the
+-- standing rule's (src/data/time-blocks.js STANDING.leadMin): its sweep buys a block when the pool, or today's bought work left, is under it.
 delete from public.hr_time_blocks;
 alter table public.hr_time_blocks add column if not exists earns_pm int;
+alter table public.hr_time_blocks add column if not exists lead_min int;
 alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_price_hour_pm_check;
 alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_earns_ck;
-insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm) values
+alter table public.hr_time_blocks drop constraint if exists hr_time_blocks_lead_ck;
+insert into public.hr_time_blocks (kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm, lead_min) values
 ${values};
 alter table public.hr_time_blocks alter column earns_pm set not null;
+alter table public.hr_time_blocks alter column lead_min set not null;
 alter table public.hr_time_blocks add constraint hr_time_blocks_earns_ck check (earns_pm >= 1 and price_hour_pm > earns_pm);
+alter table public.hr_time_blocks add constraint hr_time_blocks_lead_ck check (lead_min between 1 and block_min);
+-- THE STANDING RULE'S NUMBERS (src/data/time-blocks.js STANDING): the reserve (milli-hours of the hero's wage it never spends under) and
+-- the offer (its kind, milli-days of the company's pay, the card's choices). Rewritten whole.
+delete from public.hr_time_standing;
+insert into public.hr_time_standing (id, reserve_hours_pm, offer_kind, offer_days_pm, offer_choices) values
+  ${standingValue};
 
 -- ── §2b THE PRICE'S SQL TWIN (internal) ──────────────────────────────────────
 create or replace function public.hr_time_block_price(p_kind text, p_level int, p_n int)
@@ -211,11 +245,18 @@ begin
   if (select count(*) from public.hr_time_blocks) <> ${r.rows.length} then
     raise exception 'VERIFY(a): the catalogue holds % kinds, want ${r.rows.length}', (select count(*) from public.hr_time_blocks); end if;
   for v_r in select * from (values
-${rowValues}) d(kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm) loop
+${rowValues}) d(kind, block_min, per_day, growth_num, growth_den, price_hour_pm, earns_pm, lead_min) loop
     if not exists (select 1 from public.hr_time_blocks b where b.kind = v_r.kind and b.block_min = v_r.block_min and b.per_day = v_r.per_day
-                     and b.growth_num = v_r.growth_num and b.growth_den = v_r.growth_den and b.price_hour_pm = v_r.price_hour_pm and b.earns_pm = v_r.earns_pm) then
+                     and b.growth_num = v_r.growth_num and b.growth_den = v_r.growth_den and b.price_hour_pm = v_r.price_hour_pm
+                     and b.earns_pm = v_r.earns_pm and b.lead_min = v_r.lead_min) then
       raise exception 'VERIFY(a): the % row is not src/data/time-blocks.js''s', v_r.kind; end if;
   end loop;
+  if (select count(*) from public.hr_time_standing) <> 1
+     or not exists (select 1 from public.hr_time_standing s where s.reserve_hours_pm = ${st.reserveHoursPm} and s.offer_kind = '${st.offerKind}'
+                      and s.offer_days_pm = ${st.offerDaysPm} and s.offer_choices = array[${st.offerChoices.join(', ')}]) then
+    raise exception 'VERIFY(a): the standing rule''s row is not src/data/time-blocks.js STANDING'; end if;
+  if exists (select 1 from unnest(array['anon', 'authenticated']) g(r) where has_table_privilege(g.r, 'public.hr_time_standing', 'select')) then
+    raise exception 'VERIFY(b): a client role reads the standing rule''s catalogue'; end if;
   -- the table itself refuses a block hour that sells for no more than it earns back
   begin
     update public.hr_time_blocks set price_hour_pm = earns_pm where kind = '${r.rows[0].kind}';
@@ -254,9 +295,10 @@ async function selftest() {
     const W = { ...base.WAGE };
     const d = { stepMax: base.stepMax };
     const E = { ...base.EARNS_PM };
-    patch(T, W, d, E);
+    const S = JSON.parse(JSON.stringify(base.STANDING));
+    patch(T, W, d, E, S);
     /* the data module's own validate, read over the planted table */
-    const data = { ...base, TIME_BLOCKS: T, EARNS_PM: E, WAGE: W, stepMax: d.stepMax, validate: () => base.validate(T) };
+    const data = { ...base, TIME_BLOCKS: T, EARNS_PM: E, STANDING: S, WAGE: W, stepMax: d.stepMax, validate: () => base.validate(T) };
     try { rowsOf(data); bites.push(name + ': NOT refused'); } catch { /* refused */ }
   };
   plant('a later block cheaper than the one before it', (T) => { T.hunt.growthNum = 1; T.hunt.growthDen = 2; });
@@ -267,6 +309,11 @@ async function selftest() {
   plant('the ruled work cap moved (a fifth work block a day)', (T) => { T.work.perDay = 5; });
   plant('a work block hour sold at what its goods fetch at the store\'s top (prints gold)', (T) => { T.work.priceHourPm = 375; });
   plant('a kind whose hour earns nothing back (no floor to price above)', (T, W, d, E) => { delete E.work; });
+  plant('a standing lead past one block (the rule would buy into a full pool)', (T, W, d, E, S) => { S.leadMin.hunt = T.hunt.blockMin + 1; });
+  plant('a standing kind with no lead', (T, W, d, E, S) => { delete S.leadMin.work; });
+  plant('the offer\'s choice past its kind\'s daily cap', (T, W, d, E, S) => { S.offerChoices = [1, 3]; });
+  plant('an offer of a kind that is not sold', (T, W, d, E, S) => { S.offerKind = 'rest'; });
+  plant('a negative reserve', (T, W, d, E, S) => { S.reserveHours = -1; });
   plant('a kind that is no word', (T) => { T['Hunt-2'] = { ...T.hunt }; });
   plant('an empty table', (T) => { delete T.hunt; delete T.work; });
   plant('a wage of no gold', (T, W) => { W.wageBase = 0; });
@@ -280,7 +327,7 @@ async function selftest() {
   if (!sql.includes("'" + VERB_MARK + "'") || !/PRECONDITION: 1071-work-blocks\.sql first/.test(sql)) bites.push('the catalogue no longer refuses to land before ' + VERB_FILE);
   if (!/check \(earns_pm >= 1 and price_hour_pm > earns_pm\)/.test(sql)) bites.push('the table no longer refuses a price at its earns_pm floor');
   if (bites.length) { console.error('gen-time-blocks --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-time-blocks --selftest: 14 refusals bite, both twins are pinned, the work row waits on its verb');
+  console.log('gen-time-blocks --selftest: 19 refusals bite, both twins are pinned, the work row waits on its verb');
 }
 
 if (isMain(import.meta.url)) {

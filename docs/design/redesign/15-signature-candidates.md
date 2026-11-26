@@ -56,6 +56,25 @@ MEASURED on `set/v0.2.144` 5d2434803 (`tools/balance-program/redesign/signature-
 - **What the words do in the engine.** "Each hero it heals" is each hero a cast lands on, even one already at full health. A Signature's reset can't set off another (the reaction queue never chains). "Below 30% health" and "vs a chilled target" are read as the blow lands.
 - **Designer's calls (nothing nerfed or raised here):** the Blade and the Collar fail their size as written. The Wood Book and the Apron want a 12-seed re-read before any number moves.
 
+## Decision: how a Signature stays inside the gear slice (game designer, 2026-11-26, lane/designer-sig-1126)
+
+**How it plays:** a lucky hero with a full Trait kit and a Signature is never more than the gear slice (20 steps) ahead of an unlucky one. The cap can't see a shield, a reset or a moved Mark, so each Signature earns its place by what it measures, before it ships.
+
+| Call | Ruling |
+|---|---|
+| The rule | **Measured size, one rule for every Signature.** No Signature is routed through the gear slice ledger, the offense boons (#16, #18, #38) included |
+| The size bar | Held delta on its best cell **10 +- 3**, read paired on 12 seeds x 8 h (`tools/balance-program/redesign/signature-depth/`), its se at most 3. Over 13 is cut in its number, under 7 is raised or reshaped |
+| The spread bar | Its average over the scale grounds its seat hunts is at most half its best cell (`29` section 3.8 step 2). A Signature that is big everywhere is a stat, and is reshaped |
+| The ceiling | The kit sampler (`19` V10) reads Traits at the cap plus each Signature on its best cell. The lucky kit stays inside the luck ceiling (`19` line "Luck ceiling", gear slice 20). A Signature that breaks it is cut in its number |
+| When | Every batch (2, 3, 4) lands with its rows' readings in this doc. No row turns on (`SIGNATURE_RULES.live`) without them |
+
+**Why measured size, not a ledger row for the boons.**
+
+- Most Signatures are mechanics. A shield, a reset, a ready, a moved status have no steps, so a ledger row would cap three of 53 and leave the rest on size anyway. Two rules where one does the job is a second path to keep right.
+- The cap clamps one blow. The luck ceiling is about the whole hunt. Held depth is what the ceiling protects, so held depth is what we read.
+- Emboldened is +10% dealt for 4 s, already capped at 20 by its own step. A short timed boon is small next to a Trait that holds all hunt, and its size reads in the held delta like any other.
+- `19-power-ledger.md` row 6 now reads "by measured size (15)" instead of "through the gear slice cap".
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.

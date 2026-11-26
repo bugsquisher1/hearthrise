@@ -59,6 +59,9 @@ export const TRADE_PM = Object.freeze({
 
 /** The trade Level rung `rung` (1-based) opens at. */
 export const rungLevel = (rung) => 1 + (rung - 1) * TRADE_PM.rungSpan;
+/** THE RUNG A BAND'S RECIPE OPENS AT (lane/k1-kit-trades-sample, game designer, 2026-11-26; 09 section 4.9): band b at rung b + 1, every
+    band past the last rung at the last, never before the kind's own rung. So each new metal is a new recipe ten trade Levels on. */
+export const bandRung = (kind, band) => Math.max(kind.opens, Math.min(TRADE_PM.rungCount, Math.max(0, Math.floor(Number(band) || 0)) + 1));
 /** The band of a step (one band is one gear tier), and the step a band's goods are made at. */
 export const bandOf = (step) => Math.max(0, Math.floor((Number(step) || 0) / TRADE_PM.tierSteps));
 export const bandStep = (band) => Math.max(0, Math.floor(Number(band) || 0)) * TRADE_PM.tierSteps;

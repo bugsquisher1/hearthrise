@@ -278,6 +278,8 @@ export function dollTip(ctx, st, el, action) {
   const slot = action === 'slot' ? el.getAttribute('data-slot') : st.sc.slot;
   const shop = shopOf(st.cs);
   const lv = levelOf(st.cs);
+  /* a worn Trait piece's tip names its step (item-tip.js `piece`): the server's row, read while its base is the slot's */
+  const piece = action === 'slot' && el.getAttribute('data-piece') ? wornPieceOf(st.cs, slot) : null;
   showTip(ctx.doc, el, id, { worn: action === 'slot' ? id : (st.eq[slot] || null), skills: skillsOf(st.cs), level: lv ? lv.level : null,
-    bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, ground: heroGroundOf(st.cs) });
+    bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, ground: heroGroundOf(st.cs), piece });
 }

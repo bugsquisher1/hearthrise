@@ -1,0 +1,145 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   src/styles/roads.css — THE ROADS: the Talents window's map, its node card and its band (src/shell/windows/talents/, lane/r-ui-roads).
+   docs/design/redesign/18-roads-review-ux.md sections 3 to 6, ART_DIRECTION §9-§10. Tokens only, not one colour literal. Stones and
+   labels are drawn in screen px and never scale (the map's scale moves the gaps between them). One node language: the kind is the
+   mark's shape and size (marks.js), the state its fill and edge, the same for every kind:
+     Locked   bg-3 fill, steel edge          Can buy  bg-0 fill, a 2 px ink ring (the frontier lights up)
+     On route gold wash, a 2 px gold-2 ring   Owned    solid gold, a gold-2 edge
+   Gold means owned or the route, never a stone you cannot buy. Red is never a stone's colour. No glow, gradient or texture: the world is
+   the only painted thing. Text never under --t-micro (14.5 px).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── the window: the map takes what the band leaves ── */
+.hs-win[data-hs-win="talents"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.rdw { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.rdw-band { flex: none; display: flex; align-items: center; gap: 14px; margin: 0 2px 8px; min-height: 40px; }
+.rdw-band .hs-note { margin: 0; }
+.rdw-band .hs-note:empty { display: none; }
+.rdw-stat { margin: 0; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
+.rdw-stat b { margin-left: 6px; color: var(--ink); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+.rdw-gap { flex: 1 1 auto; }
+.rdw-tiers { margin-bottom: 0; border-bottom: 0; }
+.rdw-main { flex: 1 1 auto; height: 640px; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 10px; }
+
+/* ── the map: sunk into the window, the world's own floor ── */
+.rdw-mapbox { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-0); box-shadow: var(--steel-well); }
+.rdw-stage { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+.rdw-stage:active { cursor: grabbing; }
+.rdm { display: block; overflow: hidden; }
+.rdm [hidden] { display: none; }
+
+/* regions and the yard */
+.rdm-rg { fill: var(--bg-1); stroke: var(--steel-sep); stroke-width: 1.5; }
+.rdm-heart { fill: var(--bg-2); stroke: var(--steel-sep); stroke-width: 1.5; }
+
+/* roads (18 section 2, rank 5): the trunk out of Havora 5 px, a move road 3 px, a side path dotted 2 px, a vow road 2 px, a border
+   road 3 px; owned is gold at the same width; nothing that is not owned is gold */
+.rdm-e { stroke: var(--steel-btn); stroke-width: 3; stroke-linecap: round; fill: none; }
+.rdm-e.is-trunk { stroke-width: 5; }
+.rdm-e.is-side { stroke: var(--steel-edge); stroke-width: 2; stroke-dasharray: 1 5; }
+.rdm-e.is-vow { stroke: var(--steel-edge); stroke-width: 2; }
+.rdm-e.is-border { stroke-dasharray: 10 4; }
+.rdm-e.is-owned { stroke: var(--gold); stroke-dasharray: none; }
+.rdm-e.is-route { stroke: var(--gold-2); stroke-width: 3; stroke-dasharray: 7 5; }
+
+/* stones: the four states */
+.rdm-n { cursor: pointer; }
+.rdm-f { stroke-width: 1.5; }
+.rdm-n.is-locked .rdm-f { fill: var(--bg-3); stroke: var(--steel-btn); }
+.rdm-n.is-open .rdm-f { fill: var(--bg-0); stroke: var(--ink); stroke-width: 2; }
+.rdm-n.is-route .rdm-f { fill: var(--gold-bg); stroke: var(--gold-2); stroke-width: 2; }
+.rdm-n.is-owned .rdm-f { fill: var(--gold); stroke: var(--gold-2); }
+.rdm-n.is-rank.is-locked .rdm-f { stroke: var(--steel-edge); stroke-width: 1; }
+.rdm-dot { fill: var(--steel); }
+.rdm-n.is-open .rdm-dot { fill: var(--ink); }
+.rdm-n.is-owned .rdm-dot { fill: var(--bg-0); }
+.rdm-in { fill: none; stroke: var(--gold-3); stroke-width: 1.5; }
+.rdm-cut { stroke: var(--bg-0); stroke-width: 1.5; }
+.rdm-n.is-owned .rdm-cut { stroke: var(--gold-3); }
+.rdm-od { fill: var(--ink-3); }
+.rdm-n.is-owned .rdm-od { fill: var(--gold); }
+.rdm-n.is-route .rdm-od { fill: var(--gold-2); }
+.rdm-hit { fill: transparent; }
+/* the Great Hearth: its house on the yard and its flame, the one anchor */
+.rdm-yard { fill: var(--bg-2); stroke: var(--gold-3); stroke-width: 1.5; }
+.rdm-wall { fill: var(--bg-3); stroke: var(--gold-3); stroke-width: 1.5; }
+.rdm-flame { fill: var(--scene-lit); }
+/* the pick: four forged corner brackets */
+.rdm-sel path { fill: none; stroke: var(--gold-2); stroke-width: 2; vector-effect: non-scaling-stroke; }
+/* the route's cost badge on its far stone */
+.rdm-badge rect { fill: var(--gold); }
+.rdm-badge text { fill: var(--bg-0); font: 700 var(--t-micro) var(--f-ui); text-anchor: middle; }
+
+/* a crossroads' signpost (Node view): its three options on spokes */
+.rdm-post { display: none; }
+.rdm-spoke { stroke: var(--steel-btn); stroke-width: 2; }
+.rdm-opt { fill: var(--bg-3); stroke: var(--steel-btn); stroke-width: 1.5; }
+.rdm-opt.is-owned { fill: var(--gold); stroke: var(--gold-2); }
+.rdm-opt.is-passed { fill: var(--bg-0); stroke: var(--ink-3); }
+
+/* labels: screen size at every zoom, each on a halo of the map's floor */
+.rdl { font-family: var(--f-label); font-size: var(--t-micro); fill: var(--ink-2); paint-order: stroke; stroke: var(--bg-0); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.rdl-move { fill: var(--ink); font-weight: 700; }
+.rdl-move.is-owned, .rdl-vow.is-owned { fill: var(--gold-2); }
+.rdl-place { font-family: var(--f-display); font-weight: 700; fill: var(--gold-2); letter-spacing: .04em; }
+.rdl-country { font-family: var(--f-display); font-size: var(--t-h2); font-weight: 700; fill: var(--gold-3); letter-spacing: .06em; text-anchor: middle; }
+.rdl-country.is-mark { opacity: .35; stroke: none; }
+.rdl-count { font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 400; letter-spacing: 0; fill: var(--ink-2); }
+
+/* ── what each tier shows (18 section 3) ── */
+.rdm[data-tier="country"] :is(.rdm-n.is-rank, .rdm-n.is-waystone, .rdm-n.is-open, .rdm-n.is-vow:not(.is-owned)),
+.rdm[data-tier="country"] :is(.rdm-e.is-side, .rdm-e.is-vow) { display: none; }
+.rdm[data-tier="node"] .rdm-post { display: inline; }
+
+/* ── Country view's list: each country and its owned count, a press that flies there ── */
+.rdw-countries { position: absolute; left: 0; top: 0; bottom: 0; width: 196px; margin: 0; padding: 8px 12px; list-style: none; overflow-y: auto;
+  box-sizing: border-box; background: var(--fill-1); box-shadow: 2px 0 0 var(--steel-sep); }
+.rdw-countries[hidden] { display: none; }
+.rdw-country { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-height: 32px; padding: 0; }
+.rdw-country span { font-size: var(--t-micro); font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── the node card ── */
+.rdw-card { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 4px 8px; }
+.rdw-card [hidden] { display: none; }
+.rdw-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rdw-kind { margin: 0; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
+.rdw-x { flex: none; min-height: 32px; }
+.rdw-name { margin: 2px 0 4px; font-family: var(--f-display); font-size: var(--t-lead); font-weight: 700; color: var(--gold-2); letter-spacing: .03em; }
+.rdw-tip { margin: 0 0 4px; font-size: var(--t-micro); color: var(--ink); line-height: 1.35; }
+.rdw-tip:empty, .rdw-state:empty, .rdw-why:empty { display: none; }
+.rdw-state { margin: 0 0 4px; font-size: var(--t-micro); font-weight: 700; color: var(--gold-2); }
+.rdw-opts { margin: 8px 0 0; padding: 0; list-style: none; }
+.rdw-opts:empty { display: none; }
+.rdw-opt { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; padding: 6px 8px 6px 10px; background: var(--fill-1); box-shadow: inset 0 0 0 1px var(--steel-sep); }
+.rdw-opt.is-current { background: var(--gold-bg); box-shadow: inset 0 0 0 1px var(--gold), inset 4px 0 0 var(--gold); }
+.rdw-opt.is-passed { opacity: .7; }
+.rdw-opt-name { flex: 1 1 auto; min-width: 0; }
+.rdw-opt-name b { display: block; font-size: var(--t-micro); color: var(--ink); }
+.rdw-opt-name small { display: block; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.25; }
+.rdw-opt-name small:empty { display: none; }
+.rdw-opt-at { color: var(--ink-3); }
+.rdw-route { margin-top: 10px; }
+.rdw-row { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.6; }
+.rdw-row b { color: var(--ink); text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.rdw-row[data-row="cost"] b { color: var(--gold-2); }
+.rdw-do { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.rdw-do .hs-note { margin: 0; }
+.rdw-step { margin-top: 6px; }
+.rdw-none { padding-top: 4px; }
+.rdw-card .hh-intent-msg { margin-top: 8px; }
+
+/* ── Phone, landscape: the sheet is the whole width, the map fills it, the card slides in over the map's right edge (18 section 6) ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-win[data-hs-win="talents"] { width: 100%; max-width: 100%; }
+  .hs-win[data-hs-win="talents"] .hs-win-body { padding: 4px 6px 6px; }
+  .rdw-band { gap: 10px; margin-bottom: 4px; min-height: 40px; }
+  .rdw-band .hh-tool, .rdw-tiers .hw-tab { min-height: 40px; }
+  .rdw-main { display: block; position: relative; height: auto; }
+  .rdw-mapbox { position: absolute; inset: 0; }
+  .rdw-card { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 70%); box-sizing: border-box; padding: 8px 10px; z-index: 1;
+    background: var(--bg-2); box-shadow: -2px 0 0 var(--steel-btn); transform: translateX(105%); transition: transform 120ms ease-out; }
+  .rdw.is-picked .rdw-card { transform: none; }
+  .rdw-x { min-height: var(--tap); }
+  .rdw-opt .hh-tool, .rdw-take { min-height: var(--tap); }
+}
+@media (prefers-reduced-motion: reduce) { .rdw-card { transition: none; } }

@@ -79,6 +79,11 @@ export const SHELL_WINDOWS = Object.freeze([
       'bag.key_sell', 'bag.key_lock']),
     beside: Object.freeze(['storage', 'shop', 'character']) }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
+  /* THE ROADS (lane/r-ui-roads, 18-roads-review-ux.md): the Talents map, a window wider than the dock (it lies over it, as Hunts does);
+     offered only while the server sends the `talents` section (the Roads switch). Every letter is a window's or WASD's: its icon and
+     the Character window's Talents tab open it. */
+  Object.freeze({ id: 'talents', label: 'Talents', title: 'The Roads', key: null, noShortcut: true, section: 'talents', glyph: 'uiStar', width: 1000,
+    object: 'plain', rise: true, over: true, help: 'windows.help_talents' }),
   /* The band says "Skills" (UI audit 2026-11-18: "Gathering and crafting" took two lines beside Back, ?, the key and Close, and the
      window can't be wider: it docks beside Party, 440, inside 60% of a 1440 World, tests/shell-core.mjs W18). Its two sections
      name the rest; the icon row keeps the full label. */

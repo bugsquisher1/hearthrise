@@ -28,6 +28,7 @@ import { runIntent } from '../intent-words.js';
 import { t } from '../../render/player-text.js';
 import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js';
 import { blessAll } from '../bless-all.js';
+import { timeRuleHtml, patchTimeRule, actTimeRule } from './time-rule-pane.js';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 /* A Blessing's name: "Blessing" when the server sells one, "Blessing II" among several (lane/level-costs, 2026-11-22). */
@@ -44,6 +45,8 @@ export function servicesPaneHtml() {
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the stamina purchase"><p class="hw-confirm-q"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="stam-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="stam-no">Cancel</button></div></div>'
+    /* THE "BUY DAILY" RULE for hunting blocks (1071-work-blocks.sql; ./time-rule-pane.js): off by default, the server buys */
+    + timeRuleHtml('hunt')
     + '<h3 class="hs-sub">Blessings</h3>'
     + '<p class="hs-note hw-bless-note"></p>'
     + '<ul class="hw-ledger hw-bless"></ul>'
@@ -116,6 +119,8 @@ export function patchServicesPane(body, ctx) {
   const allWhy = !b || !b.tiers.length ? '' : !missing ? t('shop.bless_all_on', { count: b.tiers.length }) : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short') : '';
   text(root.querySelector('.hw-bless-all-why'), allWhy);
   prop(root.querySelector('.hw-bless-all-why'), 'hidden', !allWhy);
+  /* THE HUNTING BLOCK'S "BUY DAILY" RULE (under the stamina block's controls) */
+  patchTimeRule(root, cs, sc, 'hunt');
   patchTemperPane(root, ctx, sc);
   /* the tab's line answers Stamina and Blessings; Tempering's answer stands in its own section (temper-pane.js) */
   text(root.querySelector('.hh-intent-msg'), sc.msgAt === 'temper' ? '' : sc.msg);
@@ -129,6 +134,7 @@ export function actServicesPane(ctx, body, action, ev, el) {
   const sc = scratchOf(cs);
   const repaint = () => patchServicesPane(body, ctx);
   if (actTemperPane(ctx, action, el, sc, repaint)) return true;
+  if (action === 'time-rule') { sc.msgAt = null; return actTimeRule(ctx, action, el, sc, repaint); }
   if (action === 'stam-ask') { const q = huntBlockOf(cs); if (q && q.available) { sc.confirm = true; sc.msg = ''; repaint(); } return true; }
   if (action === 'stam-no') { sc.confirm = false; repaint(); return true; }
   if (action === 'stam-yes' && sc.confirm) {

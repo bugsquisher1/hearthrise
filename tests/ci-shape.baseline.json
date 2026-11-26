@@ -602,6 +602,8 @@
     "node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest": "db-replay",
     "node tests/trade-formulas.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate": "db-replay",
+    "node tests/work-blocks.mjs": "db-replay",
+    "node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate": "db-replay",
     "node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest": "db-replay",
     "node tests/observability.mjs": "in-page-21",
     "node tools/mutant-gate.mjs node tests/observability.mjs --mutate": "in-page-21",

@@ -80,7 +80,7 @@
 --   a UTC day, refused when today cannot use it, journalled. Two new client verbs, both SETTINGS: a hero's own rule (a count and an
 --   optional ceiling) and the account's one answer to the offer. Neither moves gold; they authorise the server to spend the account's
 --   own gold on its own heroes' own time, only inside the press's rules, the rule's count, its ceiling and the reserve. Nothing a client
---   sends reaches another player. Crowns reach bought time only as gold bought from players. ON THE PRE-EA SECURITY LIST (S-17).
+--   sends reaches another player. Crowns reach bought time only as gold bought from players. ON THE PRE-EA SECURITY LIST (S-22).
 --
 -- ── COST (rows and bytes at 100x players: 2,000 accounts x 4 heroes) ─────────
 --   A block is one ledger row and one intent row (~600 B): at most 6 a hero-day (2 hunting, 4 work), 48,000 rows a day at the extreme,
@@ -595,9 +595,9 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
   ('hr_time_buy', 'p_kind text, p_slot integer, p_price bigint, p_idem uuid', 'authenticated',
    'added 1058-hunting-blocks.sql (lane/r8-hunting-day), work kind 1071-work-blocks.sql (lane B1): MONEY (a gold sink) - a 2 h hunting block (2 a day) or town-work block (4 a day, refused day_ending), x1.5 each that UTC day, priced by the server; refuses quote_changed'),
   ('hr_time_auto_set', 'p_kind text, p_slot integer, p_up_to integer, p_max_price bigint, p_idem uuid', 'authenticated',
-   'added 1071-work-blocks.sql (lane B1): a SETTING - the hero''s standing rule, buy up to N blocks of a kind a UTC day at most P gold each (off by default); the server buys them (hr_time_auto_sweep); keyed, journalled; pre-EA Security list S-17'),
+   'added 1071-work-blocks.sql (lane B1): a SETTING - the hero''s standing rule, buy up to N blocks of a kind a UTC day at most P gold each (off by default); the server buys them (hr_time_auto_sweep); keyed, journalled; pre-EA Security list S-22'),
   ('hr_time_offer_answer', 'p_slot integer, p_up_to integer, p_idem uuid', 'authenticated',
-   'added 1071-work-blocks.sql (lane B1): a SETTING - the account''s one answer to the block-rule card (12-targets 9.3): a choice sets every hero''s rule, Not now sets none; offer_answered on a second; pre-EA Security list S-17')
+   'added 1071-work-blocks.sql (lane B1): a SETTING - the account''s one answer to the block-rule card (12-targets 9.3): a choice sets every hero''s rule, Not now sets none; offer_answered on a second; pre-EA Security list S-22')
   on conflict (proname, identity_args, grantee) do update set note = excluded.note;
 do $mig$ begin perform public.hr_cron_ensure('hr-time-auto', '* * * * *', 'select public.hr_time_auto_sweep(500)'); end $mig$;
 

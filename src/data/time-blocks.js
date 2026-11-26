@@ -50,17 +50,10 @@ export const TIME_BLOCKS = Object.freeze({
     /* LEVER (econ.hunt-block): one block hour's price in permille of an hour of wage (04 section 11: 2.0, band 1.5 to 2.5). */
     priceHourPm: 2000,
   }),
-  work: Object.freeze({
-    /* Minutes of town work one block adds to the hero's day (Tyler: 2 h). */
-    blockMin: 120,
-    /* Blocks a hero may buy a server day (Tyler: "Bought town work stays at 4 blocks"). */
-    perDay: 4,
-    /* Each block of the day costs x1.5 the one before it (Tyler: the hunting block's rule). */
-    growthNum: 3,
-    growthDen: 2,
-    /* LEVER (econ.work-block): one block hour's price in permille of an hour of wage (04 section 11: 0.5, band 0.4 to 0.6). */
-    priceHourPm: 500,
-  }),
+  /* Town work: 2 h more of the hero's day a block (Tyler), at most 4 a server day (Tyler: "Bought town work stays at 4 blocks"), each
+     x1.5 the one before it (the hunting block's rule). LEVER (econ.work-block): priceHourPm, one block hour's price in permille of an
+     hour of wage (04 section 11: 0.5, band 0.4 to 0.6). One line, so each lever's anchor names one row. */
+  work: Object.freeze({ blockMin: 120, perDay: 4, growthNum: 3, growthDen: 2, priceHourPm: 500 }),
 });
 
 /* The ruled numbers that are not levers (validate refuses a row that moves them). */

@@ -683,11 +683,11 @@ async function main() {
 /* ── THE SELFTEST ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const lone = (w) => [[w], w === 'hammer' ? 'h' : w];
 /* (the tier column is Normal alone since the tier rows retired, lane/retire-tier-chain: block a's hardest tier, the cell whose fights dipped,
-   is block d's hammers at Level 40 played on Krell's Hold, a ground far over them, which dip and hunt on: measured 2026-11-26, the LOW one's
-   worst tenth of fights at 17% HP and 0.6% of its time under 30%, the MID one's under monsterDamage x1.6) */
+   is block d's LOW hammer at Level 40 played on Krell's Hold, a ground far over it, which dips and hunts on: measured 2026-11-26, its worst
+   tenth of fights at 17% HP and 0.6% of its time under 30%; block a plays Level 45 too, so the plan keeps six cells and more) */
 const MINI = Object.freeze({ id: 'selftest', levels: [], seeds: 1, hours: 0.25, blocks: [
-  { id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid', 'low'], tiers: ['normal'] },
-  { id: 'd', levels: [40], comps: [lone('hammer')], gears: ['low', 'mid'], tiers: ['normal'], variants: [{ tag: 'under', ground: 'krells_hold' }] },
+  { id: 'a', levels: [30, 45], comps: [lone('hammer')], gears: ['mid', 'low'], tiers: ['normal'] },
+  { id: 'd', levels: [40], comps: [lone('hammer')], gears: ['low'], tiers: ['normal'], variants: [{ tag: 'under', ground: 'krells_hold' }] },
   { id: 'b', levels: [60], comps: compsOf(4), gears: ['mid'], tiers: ['normal'] },
   { id: 'c', levels: [HIGH_LEVELS[0]], comps: [lone('mage')], gears: ['mid'], tiers: ['normal'] },
 ] });
@@ -862,14 +862,16 @@ async function selftest() {
   check('every cell whose fights dip under 30% HP records time under 30% (' + dipped.length + ' such cells)', dipped.length > 0 && dipped.every((c) => c.m.hpUnder30 > 0), dipped.filter((c) => !(c.m.hpUnder30 > 0)).map((c) => c.key).join('; ') || 'no cell dipped');
   check('the seat damage shares of a four add to 1', base.cells.filter((c) => c.party === 4).every((c) => Math.abs(c.m.seatsM.reduce((a, s) => a + (s.takenShare || 0), 0) - 1) < 0.01));
   /* 8. THE GROUND AXIS IS JUDGED (the Coordinator 2026-11-21: four ground diffs read INTO 0, OUT 0, UNTARGETED 0): a ground patch,
-     the Slake's group spell at five times its dose (found on its row as written), flags that ground's survival bands as the patch targets them */
+     every Slake body's attack doubled (found on its rows as written), flags that ground's survival bands as the patch targets them. (The Slake's
+     group spell at five times its dose was the patch while the block played the hardest tier; on Normal alone, since the tier rows retired,
+     lane/retire-tier-chain, it moved no band at five or ten times. Measured 2026-11-26: doubled attack flags S1 INTO on all four cells, one of them into its band) */
   const GROUNDS = { id: 'selftest-grounds', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'grounds', grounds: true, quick: true, only: ['the_slake'] }] };
   const packFile = 'src/data/grounds/the_slake/pack.js';
-  const spell = readFileSync(join(ROOT, packFile), 'utf8').match(/cold_bilge:[^\n]*hitPm: (\d+)/);
-  if (!spell) check('the ground axis is judged', false, 'no Cold Bilge hitPm on ' + packFile);
+  const bodies = [...readFileSync(join(ROOT, packFile), 'utf8').matchAll(/hp: \d+, atk: (\d+),/g)];
+  if (!bodies.length) check('the ground axis is judged', false, 'no body with hp and atk on ' + packFile);
   else {
     const gb = await playRun(D, K, GROUNDS, ROOT, o);
-    const gs = await plantScratch({ edits: [{ file: packFile, from: spell[0], to: spell[0].replace('hitPm: ' + spell[1], 'hitPm: ' + Number(spell[1]) * 5) }] });
+    const gs = await plantScratch({ edits: bodies.map((b) => ({ file: packFile, from: b[0], to: b[0].replace('atk: ' + b[1], 'atk: ' + Number(b[1]) * 2) })) });
     let ga;
     try { ga = await playRun(D, K, GROUNDS, gs.root, o); } finally { gs.done(); }
     const rowsG = judgeMatrix(D, K, gb.cells).filter((r) => r.way === 'G:the_slake');
@@ -878,7 +880,7 @@ async function selftest() {
        patch names every group the ground axis grades (the cell-level groups): the Slake's own rows must flag, none of them untargeted */
     const gd = diffMatrices({ rows: judgeMatrix(D, K, gb.cells), cells: gb.cells }, { rows: judgeMatrix(ga.V, K, ga.cells), cells: ga.cells }, { targets: ['survival', 'pace', 'gold'] });
     const flagged = gd.bands.filter((b) => b.way === 'G:the_slake' && b.flag !== 'UNTARGETED');
-    check('a ground patch (the Slake\'s Cold Bilge x5) flags the Slake\'s own bands INTO or OUT (' + flagged.length + ': ' + [...new Set(flagged.map((b) => b.band))].join(', ') + ')', flagged.length > 0, JSON.stringify(gd.counts));
+    check('a ground patch (every Slake body\'s attack x2, ' + bodies.length + ' bodies) flags the Slake\'s own bands INTO or OUT (' + flagged.length + ': ' + [...new Set(flagged.map((b) => b.band))].join(', ') + ')', flagged.length > 0, JSON.stringify(gd.counts));
     /* 12-balance-pass.md section 5 row 6: P2 reads one row a ground, the mean of its two ends */
     const p2g = judgeMatrix(D, K, gb.cells).filter((r) => r.way === 'G:the_slake' && r.band === 'P2');
     check('P2 on the ground axis is one row a ground, the mean of its two ends (' + p2g.length + ': ' + (p2g[0] ? p2g[0].at : '-') + ')', p2g.length === 1 && /^the mean of /.test(p2g[0].at));

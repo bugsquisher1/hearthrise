@@ -51,7 +51,8 @@ const WINGS = Object.freeze([
     theme: 'The Keepers stacked the old bones down here to make room. Now the walls get up.',
     /* in down the Night Carters' tunnel, as the whole ground starts */
     start: Object.freeze([[3, 1], [2, 1], [4, 1], [3, 2]]) }),
-  Object.freeze({ id: 'catacomb_flooded_wing', name: 'Flooded Wing', lean: 'waterlogged', pockets: Object.freeze([5, 4, 3]), valueToday: 14496,
+  /* the Flooded Wing opens first (12-targets 8.4 row 3): Levels 150-170, reference 160, where Wolfram is worn and the Roost hands over */
+  Object.freeze({ id: 'catacomb_flooded_wing', name: 'Flooded Wing', lean: 'waterlogged', pockets: Object.freeze([5, 4, 3]), valueToday: 14496, band: Object.freeze([150, 170]),
     theme: 'The river seeps into the lowest vaults. Keeper Dunn still reads the names out down there.',
     /* down the hoist shaft into the Carters' yard */
     start: Object.freeze([[4, 17], [3, 17], [5, 17], [4, 18]]) }),
@@ -84,7 +85,7 @@ const rarityOf = (id) => (catacombs.hunt.spawns.find((s) => s.monster === id) ||
 
 /** The wings' hunt rows (src/data/hunts.js HUNTS), staged with the pack: the pack's place and family, its own spawn weights. */
 export const CATACOMB_WING_HUNTS = Object.freeze(LIVE.map((w) => Object.freeze({
-  id: w.id, region: catacombs.hunt.region, name: catacombs.hunt.name + ', ' + w.name, theme: w.theme, band: catacombs.hunt.band,
+  id: w.id, region: catacombs.hunt.region, name: catacombs.hunt.name + ', ' + w.name, theme: w.theme, band: w.band || catacombs.hunt.band,
   spawns: Object.freeze(Object.entries(weightsOf(w.pockets)).map(([monster, n]) => Object.freeze({ monster, w: n, rarity: rarityOf(monster) }))),
   family: catacombs.hunt.family, art: catacombs.hunt.art, travelS: 0, pull: catacombs.hunt.pull, respawnMs: g.respawnMs,
   ...(catacombs.status === 'staged' ? { staged: true } : {}),

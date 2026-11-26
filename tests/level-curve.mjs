@@ -66,7 +66,7 @@ const SNAP = JSON.parse(readFileSync(join(ROOT, 'tools/balance-sim/level-pace.js
 
 /* C7: the Level each scale ground's refStep was measured at (src/data/danger.js: muster_barrows 590, the Steady four at Level 60; lane/r10: Hask's
    Ford 590 at 45 to 55 in its own tier's kit (held 573 and 594; at 62 the four wears Muster's tier and holds deeper), each wing 480 / 440 at 175) */
-export const REF_LEVEL = { muster_barrows: 60, hasks_ford: 45, catacomb_bone_wing: 175, catacomb_flooded_wing: 175 };
+export const REF_LEVEL = { muster_barrows: 60, hasks_ford: 45, catacomb_bone_wing: 175, catacomb_flooded_wing: 160 };   // the Flooded Wing 150-170, reference 160 (12-targets 8.4)
 const C7_BAND = 0.2, C7_OVER = 10, C7_SEEDS = 3, C7_HOURS = 2;
 /* (lane/scale-early-grounds, 27 K-5: "REF_LEVEL ... then reads the row") a ground with no entry above reads its row's refLevel; the Level over
    it is C7_OVER higher, or the band's last Level where that is lower (the Mill Cellar's hunt ends at 5, the Thicket's band tops at 15), and

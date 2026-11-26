@@ -261,7 +261,7 @@ export const DANGER_GROUNDS = Object.freeze({
   carters_rest: ground({ refStep: 90, floorStep: 5, topStep: 110, refKillsHead: 160, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
   ox_road: ground({ refStep: 160, floorStep: 70, topStep: 240, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
   wyvern_roost: ground({ refStep: 190, floorStep: 70, topStep: 235, refHeld: 185, coinPm: 3700, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
-  catacomb_flooded_wing: ground({ refStep: 490, floorStep: 455, topStep: 505, refKillsHead: 150, refHeld: 495, coinPm: 3400, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 510, floorStep: 460, topStep: 525, refKillsHead: 145, coinPm: 3500, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

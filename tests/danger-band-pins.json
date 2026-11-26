@@ -64,18 +64,17 @@
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 490,
-   "floorStep": 455,
-   "topStep": 505,
-   "refKillsHead": 150,
-   "refHeld": 495,
-   "coinPm": 3400,
+   "refStep": 510,
+   "floorStep": 460,
+   "topStep": 525,
+   "refKillsHead": 145,
+   "coinPm": 3500,
    "print": "1cb50454048f9ba8",
    "verdict": "OPEN",
    "levels": {
-    "entry": 165,
-    "top": 185,
-    "mid": 175
+    "entry": 150,
+    "top": 170,
+    "mid": 160
    },
    "measured": "2026-11-26",
    "evidence": [

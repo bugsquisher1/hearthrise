@@ -8,7 +8,7 @@
 -- WHAT (lane/econ-followups, backend-architect, 2026-11-22; 04-math-strategy.md section 11, 09-crafting.md 4.6; Tyler 2026-11-22: goods
 -- are priced by depth): the rule a store use is priced by, so the server prices it at the BUYER's store step, never at the row's own.
 --   hr_store_terms     49 rows, one a store row (hr_hunt_basic_supplies' ids), rewritten whole.
---   hr_store_grounds   16 rows (carters_rest 117, catacomb_bone_wing 175, catacomb_flooded_wing 175, coppercap_warrens 41, hasks_ford 52, krells_hold 97, meadowbrook_thicket 10, mill_cellar 3, millrace_sewer 12, mosslight_glade 23, muster_barrows 60, ox_road 120, pyre_field 80, the_slake 57, wickstead 13, wyvern_roost 140): each Danger scale ground's reference wage step.
+--   hr_store_grounds   16 rows (carters_rest 117, catacomb_bone_wing 175, catacomb_flooded_wing 160, coppercap_warrens 41, hasks_ford 52, krells_hold 97, meadowbrook_thicket 10, mill_cellar 3, millrace_sewer 12, mosslight_glade 23, muster_barrows 60, ox_road 120, pyre_field 80, the_slake 57, wickstead 13, wyvern_roost 140): each Danger scale ground's reference wage step.
 --   hr_store_price     internal, the twin of store-kit.js storePriceOf: greatest(floor, round(coef x hr_wage(step) [x amount] / per)),
 --                      float8 in the JS's order (each operation exactly rounded, the same bits), Math.round as floor plus one at a
 --                      fraction of a half or more; pinned at 1176 prices (every row at 24 steps, §3).
@@ -109,7 +109,7 @@ delete from public.hr_store_grounds;
 insert into public.hr_store_grounds (hunt_id, ref_wage_step) values
   ('carters_rest', 117),
   ('catacomb_bone_wing', 175),
-  ('catacomb_flooded_wing', 175),
+  ('catacomb_flooded_wing', 160),
   ('coppercap_warrens', 41),
   ('hasks_ford', 52),
   ('krells_hold', 97),

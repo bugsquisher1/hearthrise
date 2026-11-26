@@ -53,6 +53,7 @@ export function cardLayout(f) {
   const { w, h, icon, iconScale } = CARD;
   const well = icon * iconScale + 16;
   const x = 24 + well + 24;
+  /** @type {Array<Record<string, any>>} the drawing steps: rect, frame, nine, icon, text (each its own fields) */
   const steps = [
     { op: 'rect', x: 0, y: 0, w, h, fill: '--bg-2' },
     { op: 'frame', x: 1, y: 1, w: w - 2, h: h - 2, stroke: '--line-strong' },

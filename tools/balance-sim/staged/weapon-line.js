@@ -43,13 +43,13 @@ export const WEAPON_LINE_ANCHOR = 110;
 /* The Dawnsteel (tier 7) weapon each family's line starts from, with the numbers the line scales (gear-tiers.js WEAPON_FAMILIES
    at tier 7). Restated, never read, so this file imports nothing; tests/weapon-line.mjs WL1 holds it to the generated rows. */
 export const WEAPON_LINE_BASE = Object.freeze({
-  sword: Object.freeze({ id: 'dawn_sword', atkB: 42, strB: 35 }),
-  hatchets: Object.freeze({ id: 'dawn_hatchets', atkB: 42, strB: 38 }),
-  warhammer: Object.freeze({ id: 'dawn_warhammer', atkB: 32, strB: 68 }),
-  bow: Object.freeze({ id: 'duskwood_bow', rangeAtkB: 45, rangeStrB: 36 }),
-  crossbow: Object.freeze({ id: 'duskwood_crossbow', rangeAtkB: 43, rangeStrB: 37 }),
-  wand: Object.freeze({ id: 'duskwood_wand', magicAtkB: 42, magicStrB: 45 }),
-  staff: Object.freeze({ id: 'duskwood_staff', magicAtkB: 36, magicStrB: 49 }),
+  sword: Object.freeze({ id: 'dawn_sword', atkB: 57, strB: 48 }),
+  hatchets: Object.freeze({ id: 'dawn_hatchets', atkB: 57, strB: 52 }),
+  warhammer: Object.freeze({ id: 'dawn_warhammer', atkB: 44, strB: 93 }),
+  bow: Object.freeze({ id: 'duskwood_bow', rangeAtkB: 61, rangeStrB: 49 }),
+  crossbow: Object.freeze({ id: 'duskwood_crossbow', rangeAtkB: 59, rangeStrB: 51 }),
+  wand: Object.freeze({ id: 'duskwood_wand', magicAtkB: 57, magicStrB: 61 }),
+  staff: Object.freeze({ id: 'duskwood_staff', magicAtkB: 49, magicStrB: 67 }),
 });
 
 /* TEMPERED DAWNSTEEL IS THE FLOOR A UNIQUE MUST CLEAR (lane/d-temper-dawnsteel, board "2026-11-16 Tempering Dawnsteel": tier 7 tempers
@@ -60,10 +60,11 @@ export const TEMPERED_DAWNSTEEL = 1.02;
 /* THE LINE'S FIRST LEVEL by family: the lowest Level from the anchor where the line's weapon beats fully tempered Dawnsteel on every late
    ground, pace and safety (weapon-power.mjs firstLevel; tests/weapon-line.mjs WL10 re-measures it). Under it the line can't carry a
    unique: at the anchor the line IS Dawnsteel, so nothing can stay under it and beat tempered Dawnsteel anywhere. A unique whose home opens
-   under its family's first Level is worn from that Level (WL5): Carter's Rest opens at the anchor, 110, so its sword is worn from 117.
+   under its family's first Level is worn from that Level (WL5): Carter's Rest opens at the anchor, 110, so its sword is worn from 116.
    Re-measured 2026-11-20 on the to-hit ratio (lane/c-tohit-ratio, src/data/to-hit.js, weapon-power.mjs firstLevel): only the staff
-   moved, 115 -> 117. */
-export const WEAPON_FIRST_LEVEL = Object.freeze({ sword: 117, hatchets: 119, warhammer: 116, bow: 115, crossbow: 116, wand: 114, staff: 117 });
+   moved, 115 -> 117. RESTATED ON 8.3 (the designer, lane/designer-reds-1126, 12-targets 8.4): the base is Dawnsteel at item Level 120,
+   worn from 110 (every number x 120 / 88, the formula's own growth past 88), so the anchor is Dawnsteel's own wear Level; re-measured. */
+export const WEAPON_FIRST_LEVEL = Object.freeze({ sword: 116, hatchets: 116, warhammer: 115, bow: 117, crossbow: 115, wand: 115, staff: 115 });
 
 /** The fields the line scales: a weapon's attack and damage, in every style it carries them. */
 export const LINE_FIELDS = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB']);
@@ -90,20 +91,20 @@ export function lineWeapon(family, reqLv) {
    measured by tests/weapon-line.mjs and printed by `node tools/balance-sim/weapon-power.mjs`.
    THE GRID WINS (the designer 2026-11-18 row 1b): the Wagon Guard's Sword left the Roost (the bow's ground) for Carter's Rest's sword cell. It
    can't keep its Dragon bane there (no dragon lives at the inn), so it went keen, chosen while the trolls still had no bane class (row 3a gave
-   them their `cls`, Humanoid, src/core/bane.js classOfMonster), and it is worn from the sword's first Level, 117 (Carter's Rest opens at the anchor). Its numbers are the line's at 117 spent its own way:
+   them their `cls`, Humanoid, src/core/bane.js classOfMonster), and it is worn from the sword's first Level, 116 (Carter's Rest opens at the anchor). Its numbers are the line's at 116 spent its own way:
    measured, the most accuracy and damage under the line on every late ground that still beats tempered Dawnsteel on a ground a 117 hero is
    sent to (the Ox Road). ── */
 export const WEAPON_SAMPLE = Object.freeze({
   wagon_guards_sword: Object.freeze({
-    row: Object.freeze({ n: 'Wagon Guard\'s Sword', icon: '⚔️', v: 38290, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 47, strB: 31,
-      critB: 0.1, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 117 }),
+    row: Object.freeze({ n: 'Wagon Guard\'s Sword', icon: '⚔️', v: 37965, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 62, strB: 45,
+      critB: 0.1, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 116 }),
     family: 'sword', attr: Object.freeze(['crit', null]),
-    spend: 'keen: a little more accuracy than the line, a sixth less damage, and one blow in ten more lands critical',
+    spend: 'keen: a little more accuracy than the line, an eighth less damage, and one blow in ten more lands critical',
     source: Object.freeze({ place: 'carters_rest', monster: 'the_landlord', ground: 'carters_rest', how: 'rare', ch: 0.0093 }), use: 'worn',
     text: 'It lands a critical hit 10% more often. The wagon guards stopped at Carter\'s Rest on every trip, and the Landlord kept the swords of the ones who couldn\'t pay.',
   }),
   watchmans_sword: Object.freeze({
-    row: Object.freeze({ n: 'Watchman\'s Sword', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 84, strB: 46,
+    row: Object.freeze({ n: 'Watchman\'s Sword', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 115, strB: 63,
       bane: Object.freeze({ class: 'human', mult: 1.1 }), effects: Object.freeze(['bane']), rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'sword', attr: Object.freeze(['bane', 'human']),
     spend: 'precise: a third more accuracy than the line and an eighth less damage, for the hard-skinned heads and the men',
@@ -111,7 +112,7 @@ export const WEAPON_SAMPLE = Object.freeze({
     text: 'It hits Humans 10% harder. The Havora Watch carried these against the town\'s thieves, and the Watchmen buried down here took theirs with them.',
   }),
   limewashed_sword: Object.freeze({
-    row: Object.freeze({ n: 'Limewashed Sword', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 50, strB: 45,
+    row: Object.freeze({ n: 'Limewashed Sword', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 68, strB: 61,
       critB: 0.1, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'sword', attr: Object.freeze(['crit', null]),
     spend: 'keen: under the line\'s accuracy and damage, and one blow in ten more lands critical, for the soft heads',
@@ -119,7 +120,7 @@ export const WEAPON_SAMPLE = Object.freeze({
     text: 'It lands a critical hit 10% more often. A hundred years in the ossuary lime ate its edge rough, and a rough edge bites deep.',
   }),
   hoist_hooks: Object.freeze({
-    row: Object.freeze({ n: 'Hoist Hooks', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'axe', atkB: 76, strB: 47,
+    row: Object.freeze({ n: 'Hoist Hooks', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'axe', atkB: 104, strB: 64,
       critB: 0.1, twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'hatchets', attr: Object.freeze(['crit', null]),
     spend: 'sure and keen: a fifth more accuracy than the line and a sixth less damage, and one blow in ten more lands critical, best on the hard-skinned',
@@ -127,7 +128,7 @@ export const WEAPON_SAMPLE = Object.freeze({
     text: 'It lands a critical hit 10% more often. The Night Carters dragged the dead up the hoist shaft on these, and a hook that\'s caught doesn\'t let go.',
   }),
   dunns_mallet: Object.freeze({
-    row: Object.freeze({ n: 'Dunn\'s Mallet', icon: '🔨', v: 59400, type: 'weapon', slot: 'weapon', weaponType: 'hammer', atkB: 66, strB: 92,
+    row: Object.freeze({ n: 'Dunn\'s Mallet', icon: '🔨', v: 59400, type: 'weapon', slot: 'weapon', weaponType: 'hammer', atkB: 90, strB: 125,
       bane: Object.freeze({ class: 'construct', mult: 1.1 }), effects: Object.freeze(['bane']), twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'warhammer', attr: Object.freeze(['bane', 'construct']),
     spend: 'a hammer that lands: a third more accuracy than the line and a tenth less damage, and the walls of bone break',

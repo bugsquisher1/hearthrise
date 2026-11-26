@@ -263,11 +263,16 @@ async function selftest() {
   const g = { cellFields: cf, rateFields: rf, cells: [[[0, 30, 'mid', 1, 'h', 'normal', 'g', [], 'OPEN', 'M', null, null, 0], [100, 50, 10, {}]], [[0, 30, 'bis', 1, 'h', 'normal', 'g', [], 'OPEN', 'M', null, null, 0], [150, 80, 15, {}]]] };
   const sg = gridScale(g, { level: 30, party: 1, tier: 'normal', gear: 'bis' });
   check('the packed cache on disk reads the same', sg.kills === 1.5 && sg.xp === 1.5 && sg.netDelta === 30, JSON.stringify(sg));
-  const band = 'b30-45', sc = { id: 'st', goal: 'bis', party: 1, comp: ['hammer'], payer: 'free', townH: 12, bands: [band] };
-  /* control */
+  /* control: the first gear band (GEAR_BANDS order) whose lone hammer chases a DROPPED piece to BiS, read from the play. A fixed b30-45
+     stopped having one once steel and mithril shared item Level 40 (gear 8.3, 2026-11-23): its MID kit is already its BiS plate */
   const c0 = await setup({ quick: true, beam: 1, maxDays: 120 });
-  const r0 = playScenario(c0, sc);
-  const target = r0.bands[0].fills.filter((f) => f.system === 'loot' && !f.item.startsWith('temper:')).sort((a, b) => b.days - a.days)[0];
+  const lootOf = (r) => r.bands[0].fills.filter((f) => f.system === 'loot' && !f.item.startsWith('temper:')).sort((a, b) => b.days - a.days)[0];
+  let sc = null, r0 = null, target = null;
+  for (const gb of GEAR_BANDS) {
+    const s = { id: 'st', goal: 'bis', party: 1, comp: ['hammer'], payer: 'free', townH: 12, bands: [gb.id] };
+    const r = playScenario(c0, s);
+    if (lootOf(r)) { sc = s; r0 = r; target = lootOf(r); break; }
+  }
   check('control: the band has a dropped piece to plant against', !!target, target ? target.item + ' ' + r2(target.days) + ' d' : 'none');
   if (!target) return finish();
   const v0 = judge({ runs: [r0], atlas: c0.atlas, rules: VERDICT_RULES, systemIds: [] }).rows;

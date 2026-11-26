@@ -567,16 +567,19 @@ export async function selftest({ ROOT, loadGridData, loadKits, readGrid, quick }
     console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'gear cost past 185 (no price rows) is not judged' + (ok ? '' : ': ' + bad.map((r) => r.band + ' ' + r.at + ' ' + r.status).join(', ')));
   }
   /* the heroes past the measured skill line (Level 100) are the game's own reference hero, never a straight line in skill levels (fault F15:
-     Melee 198 at Level 400 where the curve allows 129) */
+     Melee 198 at Level 400 where the curve allows 129). Read AS MEASURED, as tools/gen-ref-hero.mjs writes REF_HERO: since the Level clock
+     (stage 7, lane/skills-time-parity 2026-11-23) the harness hero plays this tree's curve (Melee 139 at 110), and the reference hero keeps
+     the levels the monsters were authored on (82), by design (skill-lines.mjs AS_MEASURED) */
   {
     const TH = await import(pathToFileURL(join(ROOT, 'src/data/to-hit.js')).href);
+    const { AS_MEASURED } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/skill-lines.mjs')).href);
     const bad = [];
     for (const L of [110, 200, 400]) {
-      const sk = D.skillsAt(D.lines, 'alone', 'hammer', L), ref = TH.REF_HERO.find((r) => r[0] === L);
+      const sk = D.skillsAt(D.lines, 'alone', 'hammer', L, AS_MEASURED), ref = TH.REF_HERO.find((r) => r[0] === L);
       if (!ref || sk.melee !== ref[1] || sk.defense !== ref[2]) bad.push('Level ' + L + ': Melee ' + sk.melee + ' Defense ' + sk.defense + ', the reference hero ' + (ref ? ref[1] + ' / ' + ref[2] : 'has no row'));
     }
     const ok = !bad.length; if (!ok) fails++;
-    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'the lone hammer past Level 100 is the reference hero the monsters are written against' + (ok ? ' (Melee ' + D.skillsAt(D.lines, 'alone', 'hammer', 400).melee + ' at Level 400)' : ': ' + bad.join('; ')));
+    console.log('  ' + (ok ? 'SILENT ' : 'NOISY  ') + 'the lone hammer past Level 100 is the reference hero the monsters are written against' + (ok ? ' (Melee ' + D.skillsAt(D.lines, 'alone', 'hammer', 400, AS_MEASURED).melee + ' at Level 400, as measured)' : ': ' + bad.join('; ')));
   }
   /* the kits: a changed RULE (LOW two tiers under), a changed DATA row (a planted gettable ring of a higher tier) */
   {

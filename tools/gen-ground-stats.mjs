@@ -62,13 +62,13 @@ export const groundFit = (g) => ((g.pockets || []).some((p) => p.forParty) ? 'pa
 async function load() {
   const u = (p) => pathToFileURL(join(ROOT, p)).href;
   const { MONSTERS } = await import(u('src/data/monsters.js'));
-  const { formulaStats, tierRowFor } = await import(u('src/data/balance-sheet.js'));
+  const { formulaStats } = await import(u('src/data/balance-sheet.js'));
   const { HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   /* a ground's floor: its hunt's band floor (src/data/hunts.js) */
   const floorOf = (gid) => { const g = HUNT_GROUNDS[gid]; if (!g || !HUNT_INDEX[g.hunt]) throw new Error('gen-ground-stats: no ground ' + gid); return HUNT_INDEX[g.hunt].band[0]; };
   const fitOf = (gid) => groundFit(HUNT_GROUNDS[gid]);
-  return { MONSTERS, formulaStats, tierRowFor, floorOf, fitOf };
+  return { MONSTERS, formulaStats, floorOf, fitOf };
 }
 const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ', aim ' + r.aim + ', evasion ' + r.evasion + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + (r.gp || []).join('-');
 
@@ -106,14 +106,12 @@ async function main() {
   if (argv.includes('--selftest')) { selftest(D); return; }
   const gi = argv.indexOf('--grounds');
   const grounds = gi >= 0 ? argv[gi + 1].split(',') : Object.keys(ROSTER);
-  const out = {}, tierRows = {};
+  const out = {};
   let drift = 0;
   for (const g of grounds) {
     const rows = proposeGround(g, D);
     out[g] = Object.fromEntries(rows.map((r) => [r.id, r]));
-    const tiers = Object.fromEntries(['dangerous', 'deadly'].map((t) => [t, D.tierRowFor(D.floorOf(g), t, { ground: g, fit: D.fitOf(g) })]));
-    tierRows[g] = tiers;
-    console.log('\n' + g + ' (floor ' + D.floorOf(g) + '; engine tier rows: Dangerous ' + JSON.stringify(tiers.dangerous) + ', Deadly ' + JSON.stringify(tiers.deadly) + ')');
+    console.log('\n' + g + ' (floor ' + D.floorOf(g) + ')');
     for (const r of rows) {
       drift += r.drift.length ? 1 : 0;
       console.log('  ' + r.id.padEnd(16) + ' L' + String(r.level).padEnd(3) + r.role.padEnd(8) + ' today   ' + fmt(r.today));
@@ -122,7 +120,7 @@ async function main() {
   }
   if (argv.includes('--propose')) {
     mkdirSync(dirname(PROPOSAL), { recursive: true });
-    writeFileSync(PROPOSAL, JSON.stringify({ schema: 'hearthrise.formula-proposal/2', grounds: out, tiers: tierRows }, null, 1) + '\n');
+    writeFileSync(PROPOSAL, JSON.stringify({ schema: 'hearthrise.formula-proposal/2', grounds: out }, null, 1) + '\n');
     console.log('\nwrote ' + PROPOSAL);
   }
   if (argv.includes('--write')) {

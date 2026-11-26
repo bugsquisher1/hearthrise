@@ -73,16 +73,16 @@ Three lanes filed 131 formulas and 154 exceptions. The same thing was often file
 <!-- GENERATED:COUNTS (tools/balance-program/formulas/architecture-register.mjs --write) -->
 | | The three lanes | After dedupe |
 |---|---|---|
-| Formulas | 131 (combat 42, progression 37, economy 52) | **107** (24 were the same formula filed twice) |
-| Exceptions | 154 (combat 67, progression 48, economy 39) | **129** (28 merged away, 3 added from the design reviews) |
+| Formulas | 128 (combat 41, progression 36, economy 51) | **106** (22 were the same formula filed twice) |
+| Exceptions | 149 (combat 65, progression 47, economy 37) | **125** (27 merged away, 3 added from the design reviews) |
 | Class 1, foundational | | 12 |
-| Class 2, content number | | 25 |
-| Class 3, intentional special rule | | 35 (26 with a ruling on record, 9 with none) |
-| Class 4, accidental | | 57 |
-| Confirmed, hypothesis | | 115, 14 |
-| Rows where two lanes disagreed on the class | | 6 |
-| Edges between formulas | | 197 (67 cross a category) |
-| Formulas that sit on a circle | | 59 |
+| Class 2, content number | | 24 |
+| Class 3, intentional special rule | | 33 (25 with a ruling on record, 8 with none) |
+| Class 4, accidental | | 56 |
+| Confirmed, hypothesis | | 112, 13 |
+| Rows where two lanes disagreed on the class | | 5 |
+| Edges between formulas | | 193 (64 cross a category) |
+| Formulas that sit on a circle | | 56 |
 <!-- END GENERATED:COUNTS -->
 
 Ids. Combat rows keep their ids (`C-...`, `X-...`). Progression and economy both numbered their exceptions X01 on, so those are `P-X01` and `E-X01` here. Three rows are mine, `S-X...`, raised by the design reviews and checked: an authored resistance column that no engine code reads, the store's hand-typed heal prices, and the mana ladder (a hypothesis, not read). One thing a review raised was wrong: `SUPPLY_SHOP_OFFERS` is not dead. The Shop's price list is built from it (`src/data/shops.js:451-454`).
@@ -110,7 +110,7 @@ Full parameters, every implementation site and every consumer are in each lane's
 | C-SPELL-HIT | P14 | combat, progression | A damaging cast: each hit rolls a whole number from max(ceil(top / 2), base lo) to max(top, base hi), top = floor(maxHit x hitPm / 1000). Then C-HURT. It never misses and never crits **Owner:** combat owns what a cast lands (also C-SPELL-HEAL, C-SPELL-SHELL, C-CAST-POWER). Progression owns what it trains | src/data/abilities.js:356-360 hitRange | live |
 | C-SPELL-HEAL |  | combat | A heal: floor(max(floor(maxHit x healPm / 1000), base) x power / 1000), whole (no roll), x Tempering, less the heal cut, capped at missing HP. Mend alone: floor(maxHp x 110 / 1000) x power | src/data/abilities.js:367-376 castAmount | live |
 | C-SPELL-SHELL |  | combat | A shell: floor(max(floor(maxHit x shieldPm / 1000), base) x power / 1000), a pool that a blow spends before HP. A recast of a self shell refunds the unused part as mana. A party shell never lowers a bigger one | src/data/abilities.js:367-376 | live |
-| C-CAST-POWER |  | combat | A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at skill 1 / 15 / 30 / 45 / 60) x the store's share for a store rune x Surge when it surges | src/data/runes.js versionStep, versionLevel | live |
+| C-CAST-POWER |  | combat | A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at each tier's skill gate, runes.js versionLevel) x the store's share for a store rune x Surge when it surges | src/data/runes.js versionStep, versionLevel | live |
 | C-STATUS |  | combat | Statuses, one generic engine: a ticking one (Bleed: scale = max(tier share, floor(maxHit x 33 x tier share / 1000)), tick = round(roll 1..3 x scale / 1000) a stack a second, 5 stacks, 6 s), a marking one (takenPm), a slowing one (Chill: cl… | src/core/hunt/status.js:58-124 | live |
 | C-HEAL-CUT |  | combat | Every heal a Withered unit takes: n - floor(n x cut / 1000). A hero 30% (less by its necrotic resistance), a monster 50% | src/core/hunt/heal-cut.js:26-43 | live |
 | C-LEECH |  | combat | Life leech: floor(HP a hit took x leechPm / 1000) back to the caster (Reave 300). Mana back: min(mana spent, hits x manaPerHit + kills x manaPerKill). Focus: a kill returns focusPm of max mana | src/core/hunt/abilities.js:367-373 leechBack | live |
@@ -128,13 +128,12 @@ Full parameters, every implementation site and every consumer are in each lane's
 | C-BOSS-PHASE |  | combat | A boss's two lines on his HP: adds arrive at addsPm and he takes only guardPm of every blow while one stands. Under enragePm his atk and aim are x enrageAtkPm, and one named spell's cooldown is x cdPm | src/core/hunt/boss-phases.js:38-89 | live |
 | C-BOSS-ROOM |  | combat | A boss room: one fight, a time limit, his kill ends it, nothing resets. A called room pays nothing. A keyed hall pays as a ground. A boss is the formula's boss role: HP x5, blow x1.1 held to 33% of the FLOOR hero's HP | src/core/hunt/boss-room.js:21-32 | live |
 | C-RUN-ROOM | P33 | combat, progression | A Burning Tower floor or a Catacomb room F: 5 monsters, each the stat formula at Level F on a floor-F ground, a Keeper (boss role) every 10th. Past floor 100 every blow is x1.012 a floor, compounding. Floor 300 is the last row **Owner:** combat owns a floor's monsters. Progression owns what a floor pays | src/core/hunt/tower.js | live |
-| C-SCALED | P26, E07 | combat, progression, hunting and economy | A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only **Owner:** combat owns the stats, progression the XP share, economy the hourly price | src/data/scaled-hunts.js:159-190 | live |
 | C-TARGET |  | combat | Aggro is rules, not threat numbers: a pack turns on the pull's leader. Challenge takes every monster within 6 tiles that is not on a tank and holds it 8 s. A Healer's basic draws a free monster 18% of the time. A shooter aims at the hero f… | src/core/hunt/targeting.js:164-260 | live |
 | C-AREA |  | combat | Area and extra targets: a shape (the 3x3, a line of len, a ring of r) hits every engaged monster it covers for the FULL roll each, up to maxHits. Follow-through repeats a basic blow on one neighbour. An area arrow hits its footprint | src/core/hunt/abilities.js:424-435 | live |
 | C-LEASH |  | combat | A pack lives in its room plus a margin (1 tile unless the ground says more). If the aggro holder leaves, the pack resets and heals. A called or keyed boss never resets | src/core/hunt/leash.js | live |
 | C-PULL | E13 | combat, hunting and economy | How many stand in a fight: the ground's packs on Normal, the tier's pull on a harder tier (8, the Glade's Dangerous 6, none under floor 16). A monster's HP is its row's x hpPm for every party size **Owner:** combat owns how many stand. Economy reads it as kill rate | src/core/hunt/pull-cycle.js:99-100 | live |
-| C-GEAR-ARMOR |  | combat | Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.30 cloth, with each line's trades derived from the points. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110), and each unique is hand-size… | src/data/gear-tiers.js:64-69 the slot table | live |
-| C-GEAR-WEAPON | P16 | combat, progression | Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged line is Dawnsteel x max(1, Level / 110) **Owner:** combat owns what a piece carries (also C-GEAR-ARMOR). Progression owns the Level it is worn at (P35) | src/data/gear-tiers.js:77-150 WEAPON_FAMILIES | live |
+| C-GEAR-ARMOR |  | combat | Armor points: the one gear formula (src/core/gear-stats.js gearStats): the weight's profile (plate 1000, leather 550, cloth 300 permille) x the slot's share (GEAR_SLOT_PM) x the defense budget at the piece's item Level, each line's trades… | src/core/gear-stats.js gearStats, scaleItems | live |
+| C-GEAR-WEAPON | P16 | combat, progression | Weapon accuracy and damage: the one gear formula, the family's profile x the slot's share (a two-handed weapon the shield's too) x the offense budget at the piece's item Level; on a Danger-scale ground read at the ground's base item Level.… **Owner:** combat owns what a piece carries (also C-GEAR-ARMOR). Progression owns the Level it is worn at (P35) | src/core/gear-stats.js gearStats, scaleItems | live |
 | C-JEWEL-PERKS | P18 | combat, progression | Worn modifiers and how each stacks: jewel perks (Keen, Steady, Follow, Surge, Focus) count the largest once. Resistance sums, then caps. +skill sums. The own heal takes the largest. critB sums **Owner:** combat lands the perk. Economy prices the Hallmark (E40) | src/core/combat.js:96-109 | live |
 | C-BUFF-BONUS |  | combat | The injected bonus reader: a food buff or a perk adds to damage, crit and steady (a damage cut). Permanent perks are held to 20% | src/core/combat.js:425-428 | live |
 | C-TRAINING |  | combat | The training yard's dummy: its blow never takes a hero under a floor, and it never falls | src/core/hunt/training.js dummyBlow, dummyStands | live |
@@ -152,7 +151,7 @@ Full parameters, every implementation site and every consumer are in each lane's
 | P19 |  | progression | Special attributes and chest gear: one attribute a piece at a size by gear tier, with a cap across everything worn | src/data/special-attributes.js:20-90 | live |
 | P20 | E03 | progression, hunting and economy | Kill XP split: hero Level XP = floor(kill XP x mode share / living heroes x party factor / 1000 x scaled-hunt party share x the hero's own multiplier x the under-floor share) **Owner:** progression owns the split | src/core/hunt/xp-share.js:66-85 | live |
 | P21 | E05 | progression, hunting and economy | Party class table: permille of a kill shared by the living heroes, by party size and classes held; a hero alone 1150 **Owner:** progression owns the party table | src/data/party-class-xp.js:54,79,141-152 | live |
-| P22 |  | progression | Run ground party table: permille of a kill shared in the Tower and the Catacombs, by size only | src/data/tower.js:60 | live |
+| P22 |  | progression | Run ground pay: a Tower kill pays each hero the hours table's share of its own Level over refKillsHead x the depth ratio at the floor's gap x payPm x the room's share, split evenly (lane/tower-boss-formula) | src/core/hunt/tower.js#towerShareXp | live |
 | P23 | E06 | progression, hunting and economy | Under-floor Level share: a seat under the ground's floor AND under 66.7% of the party's top Level keeps floor(1000 x (Level / (top x 0.667))^2) permille of its share **Owner:** progression owns the under-floor share | src/data/hunt-grounds.js:536-541 | live |
 | P25 | E08 | progression, hunting and economy | Session mode share: the Tower and the Catacombs pay 37.5% of a kill's Level XP and a death there costs nothing **Owner:** progression owns the mode share | src/data/session-modes.js:26-45 | live |
 | P27 |  | progression | XP weekend: +25% Level XP a kill for 72 hours every 14 days; live rows add, never past +50% | src/data/live-events.js:26-34,90-95 | live |
@@ -231,7 +230,6 @@ Class 4 first, then 3, 2 and 1.
 | X-TIER-TRIPLE |  | 4 | CONFIRMED | A tier's dmgPm is applied three times: to the blow, to the aim, and to the monster's Level as armor reads it (and as Defense XP is paid). On the Thicket and Wickstead the solved dmgPm is 2115 and 2685, so on Wickstead's Deadly a Level 8 monster is read by arm… | src/data/hunt-tiers.js:122,130 and src/core/hunt/damage.js:108 | formula layer: the dial moves the blow and the aim. Armor and Defense XP read the row's own Level. Overlap: progression lane (P-DEFENSE-XP) |
 | X-TOWER-HEAT | P-X16 | 4 | CONFIRMED | Past floor 100 every blow is x1.012 a floor, compounding: x10.9 by floor 300. The number moved 10 to 12 to hold a guard | src/data/tower.js:57 and src/core/hunt/tower.js heatOpts | already ruled. Listed so it is not forgotten |
 | X-TOWER-TOP | P-X17 | 4 | CONFIRMED | A floor above 300 plays floor 300's monsters **Class decided here:** combat filed it 3, progression 4. Nobody designed "the Tower ends at floor 300": the server's bound is a generated table with a last row. A limit of the build, not a design choice: 4 | src/data/tower.js:54 floorTop 300 | a cap on an endless mode. Needs Tyler's yes or a formula that reads any floor |
-| X-SCALED-THICKET |  | 4 | CONFIRMED | A scaled Thicket reaches only half danger | src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS | a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle |
 | X-SPELL-HOLDS |  | 4 | HYPOTHESIS | Three monster spells had their multiples lowered so the +10% monster step would not pass 35% of a floor hero | src/data/balance-sheet.js:121-123 (named there: Hot Coal, Bone Slide, Snuff the Candles) | the rows were not read. If true, the 35% rule belongs in the spell formula as a bound, not in three rows |
 | X-SPELLS-SKIP-WEAKNESS |  | 4 | CONFIRMED | Weapon weakness (+20% damage, +15% accuracy, on 189 of 190 monsters) and bane apply to basic blows only. A spell is a share of the NEUTRAL blow. A spell also never misses and never crits, so accuracy, evasion, Keen and critB do nothing for it | src/core/hunt/damage.js:305-316 (blow) against src/core/hunt/abilities.js:392-400 (strike) | see Conflicts 2. THAT IT IS UNINTENDED IS A HYPOTHESIS |
 | X-SET-CRIT |  | 4 | HYPOTHESIS | Five pieces of one tier and line give crit, 1% a tier, for plate and cloth as much as leather. Its default line is "plate" | src/core/combat.js:252-270 armorSetBonus | looks like a leftover. If wanted it is a data row (set bonuses), not a function |
@@ -274,7 +272,6 @@ Class 4 first, then 3, 2 and 1.
 | X-PARTY-FIT | E-X06 | 3 | CONFIRMED | A party ground's monsters are a different formula: HP x2.5, blow x0.75, XP x0.8 **Class decided here:** combat filed it 2 (an encounter type in data), economy 3. It is a second set of stat coefficients picked by what kind of ground a monster lives on, and 53-review-world asks to remove it. A rule that changes the monster formula by ground needs Tyler's yes: 3 | src/data/balance-sheet.js:193-195 STAT_FORMULA.fit.party | keep as an ENCOUNTER TYPE in data (it is one row for every party ground, not a per-ground number) |
 | X-TIER-PULL-FLOOR | P-X13, E-X07 | 3 | CONFIRMED | Under ground floor 16 a harder tier brings no more monsters **Class decided here:** combat and economy filed it 3, progression 4 as a hypothesis. It is a deliberate rule of 2026-11-08 that conflicts with a ruling of 2026-11-07, so it is Tyler's to settle: 3. That it is unneeded stays a hypothesis | src/data/balance-sheet.js:413 TIER_PULL_FROM_FLOOR 16 | conflicts with Tyler 2026-11-07 "Dangerous and Deadly keep the bigger pulls". For Tyler |
 | X-CELLAR-NORMAL-ONLY | P-X12, E-X09 | 3 | CONFIRMED | The Mill Cellar offers only Normal | src/data/balance-sheet.js:450 | keep. A content flag |
-| X-SCALED-NO-DEADLY |  | 3 | CONFIRMED | Deadly is not offered on a scaled hunt | src/data/scaled-hunts.js:144 | a content rule. For Tyler with the scaled-hunt card |
 | X-SPELL-FLOOR | P-X40 | 3 | CONFIRMED | The beginner's floor: every cast lands max(its share of the blow, its old version-I number). Past about Level 15 the share is always larger. At Level 1 a Greater Mend lands its floor of 50 on a hero with 150 HP | src/data/abilities.js:356-376 (hitRange, castAmount `floored`) and src/core/hunt/status.js:69 | see Conflicts 1. The clean alternative is a floor on POWER (one number: a hero's blow is never read under N), not a second number on every row |
 | X-MEND-MAXHP | P-X39 | 3 | CONFIRMED | Mend heals a share of max HP, not of the blow | src/data/abilities.js:335 healHpPm 110 | approved. Documented as the second of two heal kinds |
 | X-THREE-ROLLS |  | 3 | CONFIRMED | Three shapes for "an amount": a swing rolls 1..max (mean 50%), a spell hit rolls 50%..100% (mean 75%), a heal or shell does not roll | src/core/combat.js:484, src/data/abilities.js:422, src/data/abilities.js:373 | see Conflicts 6. One roll rule with a per-kind spread in data would do all three |
@@ -300,7 +297,6 @@ Class 4 first, then 3, 2 and 1.
 | P-X41 |  | 3 | CONFIRMED | The three weapon skills advance on three different bases: Melee and Ranged on damage dealt, Magic on mana spent, Defense on the attacker's Level per blow aimed | src/core/hunt-rewards.js:59-63,245,266 |  |
 | P-X44 |  | 3 | CONFIRMED | The XP weekend: +25%, added, never past +50% | src/data/live-events.js:27-33,91-92 |  |
 | E-X03 |  | 3 | CONFIRMED | The coin line climbs x0.5 to x1.4 with the ground's floor between 1 and 16, then is flat forever | src/data/balance-sheet.js:175 (STAT_FORMULA.gp.line) | keep as the early-game ramp, documented. Past floor 16 coin a HP point never moves again, which is the inflation finding |
-| E-X11 | P-X10 | 3 | CONFIRMED | Scaled hunts: XP x0.73, a party x0.70, coin x0.5 of the rise, fitted cell by cell so a bought hour is never the best grind **Class decided here:** economy filed it 3 (the mode is approved, 2026-11-07), progression 4 (its XP share was re-dialed seven times). The mode is intentional: 3. Its numbers are outputs of the kill reward and get re-derived, not re-fitted | src/data/scaled-hunts.js:107, 128, 137 | keep the mechanic (Tyler 2026-11-07). The three numbers are compensations for X01 and should be re-derived once X01 is fixed |
 | E-X29 |  | 3 | CONFIRMED | A hero's first roll on a hall boss always lands a piece | src/core/drops.js:101-106 | keep. Already approved |
 | E-X30 |  | 3 | CONFIRMED | Chest luck: warmth after dry keys and paid stokes | src/data/chests.js:143-153 | keep. One formula for every key family already |
 | E-X32 |  | 3 | CONFIRMED | 29 imbuement parts drop with nothing to feed: they only sell, and their tier steps at monster Levels 30 and 80 | src/data/imbuements.js:50-110, src/data/catalogue-coherence.js VENDOR_TRASH | BUILD-LATER as linings (E55). Do not cut |
@@ -319,7 +315,6 @@ Class 4 first, then 3, 2 and 1.
 | P-X31 |  | 2 | CONFIRMED | Gear stats are hand-typed arrays, and single cells were tuned to pass one guard on one ground (the warhammer's tiers 2 and 3, Steel Hatchets 14/16, Mithril Hatchets 19/21) | src/data/gear-tiers.js:66-150 |  |
 | P-X47 |  | 2 | CONFIRMED | The Luck bar is ruled and lives only in a simulator file | tools/balance-sim/staged/luck.js |  |
 | P-X48 |  | 2 | CONFIRMED | Magic XP a mana is two stacked constants: 1.5 for every cast, times the row's own multiplier (1.6 on 30 rows, 0.25 on 16, 0 on 2). A caster's real rate is 2.4 a mana and no row uses 1.0 | src/data/hunt-xp.js:23; src/data/abilities.js (magicXpMult); src/data/hunt-roles.js |  |
-| E-X12 |  | 2 | HYPOTHESIS | SCALE_EXCEPTIONS: grounds left off the scale ladder by name | src/data/scaled-hunts.js:41 | confirm by reading the rows; move to a field on the ground |
 | E-X16 |  | 2 | CONFIRMED | Two ways to know a row's band: its own `band`, else its odds against DROP_BAND_MAX (rare 5%, uncommon 15%) | src/core/drops.js:14-30 | every row names its band (lucky finds stay, ruled 11-20); delete the odds fallback |
 | E-X20 |  | 2 | CONFIRMED | VENDOR_RAW_RATE 0.20 and SHOP_BUYBACK_RATE 0.5 are authored in the edge function, and restated in src/data/shops.js | supabase/functions/hr-accrue/catalogue.js:307, 324, src/data/shops.js DERIVED_PRICES, src/data/scaled-hunts.j… | author them in src/data; the edge imports them |
 | E-X22 |  | 2 | CONFIRMED | The market's fee (1%), cut (1.5%), ceiling (book x 100) and gates live only as SQL column defaults in hr_market_config | supabase/migrations/2027-01-12-market-account.sql:302-336, supabase/migrations/2026-08-17-market-v2.sql:542 | a src/data/market.js row and a generated config, like every other catalogue |
@@ -384,17 +379,17 @@ Class 4 first, then 3, 2 and 1.
 Ranked by how many formulas read each one directly. "Reaches in all" is nearly flat, and that is a finding in itself: three out of four formulas can reach the game's two play loops (a skill trains by fighting, a Level raises health), so a change almost anywhere comes back round.
 
 <!-- GENERATED:HUBS (tools/balance-program/formulas/architecture-register.mjs --write) -->
-| formula | what it is | category | read directly by | reaches in all | of 107 |
+| formula | what it is | category | read directly by | reaches in all | of 106 |
 |---|---|---|---|---|---|
-| C-MON-STATS | A monster row from its Level, role, ground floor and fit: HP = (4.95 + 1.76 x L) x role x… | combat | 12 | 78 | 74% |
-| C-GEAR-WEAPON | Weapon accuracy and damage: tiers 1-7 are hand tables per family. Past tier 7 the staged… | combat | 9 | 78 | 74% |
+| C-MON-STATS | A monster row from its Level, role, ground floor and fit: HP = (4.95 + 1.76 x L) x role x… | combat | 11 | 78 | 74% |
+| C-GEAR-WEAPON | Weapon accuracy and damage: the one gear formula, the family's profile x the slot's share… | combat | 9 | 78 | 74% |
 | P03 | Combat skill curve: XP from skill level s to s+1 = floor(15 x s^2 x 1.04^(s-1)), no cap | progression | 9 | 78 | 74% |
-| C-TIER | Normal, Dangerous, Deadly: a pull size and three dials. dmgPm multiplies atk, aim AND the… | combat | 8 | 78 | 74% |
+| C-TIER | Normal, Dangerous, Deadly: a pull size and three dials. dmgPm multiplies atk, aim AND the… | combat | 7 | 78 | 74% |
 | C-HERO-POWER | A hero's largest blow (maxHit): floor(0.35 x (weapon skill + worn +skill) + 0.6 x summed… | combat | 6 | 78 | 74% |
+| P01 | Level curve: total Level XP to reach a Level, and the Level a total makes | progression | 6 | 78 | 74% |
 | P11 | Max HP and max mana: HP = floor((150 + 10 x (L-1)) x (1000 + 280 x heavy slots / 6) / 100… | progression | 6 | 78 | 74% |
-| P01 | Level curve: total Level XP to reach a Level, and the Level a total makes | progression | 5 | 78 | 74% |
-| C-CAST-POWER | A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at ski… | combat | 4 | 78 | 74% |
-| C-GEAR-ARMOR | Armor points: tiers 1-7 are a hand table per slot (plate) x 1.00 plate, 0.55 leather, 0.3… | combat | 4 | 78 | 74% |
+| C-CAST-POWER | A cast's power in permille: the rune tier's step (1000 / 1100 / 1200 / 1300 / 1400 at eac… | combat | 4 | 78 | 74% |
+| C-GEAR-ARMOR | Armor points: the one gear formula (src/core/gear-stats.js gearStats): the weight's profi… | combat | 4 | 78 | 74% |
 | C-STATUS | Statuses, one generic engine: a ticking one (Bleed: scale = max(tier share, floor(maxHit… | combat | 4 | 78 | 74% |
 | C-TEMPER | Tempering: Blows raises what lands on a monster and every heal by rungs x the ladder's pe… | combat | 4 | 78 | 74% |
 | E14 | XP an hour, kills an hour and gold an hour. No formula computes these. The target is cont… | economy | 4 | 78 | 74% |
@@ -415,13 +410,12 @@ One more sits at the center and is not a formula at all: **kills an hour** (`E14
 ### 3.3 Edges and circles
 
 <!-- GENERATED:EDGES (tools/balance-program/formulas/architecture-register.mjs --write) -->
-Edges that cross a category (67, read "left feeds right"):
+Edges that cross a category (64, read "left feeds right"):
 
 - P03 (progression) -> C-HERO-POWER (combat)
 - P02 (progression) -> E01 (economy)
 - E01 (economy) -> P20 (progression)
 - C-TIER (combat) -> P20 (progression)
-- C-SCALED (combat) -> P20 (progression)
 - P35 (progression) -> C-GEAR-WEAPON (combat)
 - P15 (progression) -> C-HERO-POWER (combat)
 - C-HERO-POWER (combat) -> P06 (progression)
@@ -442,8 +436,6 @@ Edges that cross a category (67, read "left feeds right"):
 - C-TIER (combat) -> E10 (economy)
 - C-PULL (combat) -> E10 (economy)
 - C-BASIC-BLOW (combat) -> E18 (economy)
-- E26 (economy) -> C-SCALED (combat)
-- C-SCALED (combat) -> E45 (economy)
 - P03 (progression) -> C-HERO-TOHIT (combat)
 - P03 (progression) -> C-MON-TOHIT (combat)
 - P03 (progression) -> C-CAST-POWER (combat)
@@ -485,7 +477,7 @@ Edges that cross a category (67, read "left feeds right"):
 - P28 (progression) -> E37 (economy)
 - E14 (economy) -> P02 (progression)
 
-Formulas that sit on a circle, where a change comes back round to its own input (59): C-AREA, C-ARMOR-CHAIN, C-BASIC-BLOW, C-CAST-POWER, C-CLOCKS, C-CRIT, C-ELEMENT-MON, C-GEAR-ARMOR, C-GEAR-WEAPON, C-HERO-POWER, C-HERO-TOHIT, C-HURT, C-JEWEL-PERKS, C-MANA, C-MON-BLOW, C-MON-DEF, C-MON-SPELL, C-MON-STATS, C-MON-TOHIT, C-PULL, C-REF-HERO, C-REGEN, C-RESIST-HERO, C-SCALED, C-SPELL-HIT, C-SPELL-SHELL, C-STATUS, C-TARGET, C-TEMPER, C-TIER, C-VULN, C-WEAKNESS, E01, E10, E12, E14, E26, E27, E29, E30, E37, E38, E40, E46, E55, P01, P02, P03, P05, P06, P07, P08, P11, P15, P19, P20, P23, P28, P35
+Formulas that sit on a circle, where a change comes back round to its own input (56): C-AREA, C-ARMOR-CHAIN, C-BASIC-BLOW, C-CAST-POWER, C-CLOCKS, C-CRIT, C-ELEMENT-MON, C-GEAR-ARMOR, C-GEAR-WEAPON, C-HERO-POWER, C-HERO-TOHIT, C-HURT, C-JEWEL-PERKS, C-MANA, C-MON-BLOW, C-MON-DEF, C-MON-SPELL, C-MON-STATS, C-MON-TOHIT, C-PULL, C-REF-HERO, C-REGEN, C-RESIST-HERO, C-SPELL-HIT, C-SPELL-SHELL, C-STATUS, C-TARGET, C-TEMPER, C-TIER, C-VULN, C-WEAKNESS, E01, E10, E12, E14, E30, E37, E38, E40, E46, E55, P01, P02, P03, P05, P06, P07, P08, P11, P15, P19, P20, P22, P23, P28, P35
 <!-- END GENERATED:EDGES -->
 
 Two kinds of circle are in that list, and they are not the same thing.
@@ -598,7 +590,7 @@ That removes the hand brackets (`P-X01`, `P-X02`, `P-X03`), is exact at every ru
 | Dead rules deleted | R1 | `E-X26`, `E-X27`, `E-X28`, `X-STALE-HP-NOTE` |
 | Power from named constants, and a row that stores its blow | R2, R4, R7 | `X-POWER-LITERALS`, `X-ART-TIER-SCALE`, `X-REFHP-OFF-BY-ONE` |
 | Each duplicate becomes one | R3 | `X-ROLL-TWINS`, `X-TIER-LADDER-TWINS`, `X-MARK-TWO-WAYS`, `X-ROW-DOOR-BYPASS`, `X-STEADY-TWO-MEANINGS`, `P-X19`, `P-X21`, `E-X38` |
-| One tier table, applied once | R7, R12 | `X-TIER-TRIPLE`, `X-TIER-PER-GROUND`, `X-SCALED-THICKET`, `X-PARTY-FIT-PATCHES` |
+| One tier table, applied once | R7, R12 | `X-TIER-TRIPLE`, `X-TIER-PER-GROUND`, `X-PARTY-FIT-PATCHES` |
 | One XP chain | R5, R8, R22 | `P-X06`, `X-TOWER-HEAT`, `X-TOWER-TOP` |
 | One coin line and one sale formula | R9, R17 | `E-X02`, `E-X05`, `E-X17`, `E-X18`, `E-X19` |
 | The gear curve and exchange rates | R10, R11 | `X-LINE-IN-TOOLS`, `X-ARMOR-LINE-FIT`, `P-X34`, `X-POWER-TOOLS` |
@@ -610,7 +602,7 @@ That removes the hand brackets (`P-X01`, `P-X02`, `P-X03`), is exact at every ru
 | Every monster reads the formula | R21 | `X-HAND-ROWS`, `X-NAMED-HASK-LOOKOUT`, `X-LEVEL-BY-TIER`, `X-SPELL-HOLDS` |
 | One skill grant | later, with the wipe | `P-X24`, `P-X25`, `P-X26`, `P-X27` |
 | The simulator stops editing and approximating | R23 | `X-MUTABLE-ROWS`, `E-X37` |
-| **In all** | | **56 of 57** |
+| **In all** | | **55 of 56** |
 | No framework behind it | | `E-X36` |
 <!-- END GENERATED:REMOVES -->
 
@@ -811,7 +803,6 @@ Ordered. Each step improves the system without breaking what works, and each is 
 | X-PARTY-FIT (E-X06) | A party ground's monsters are a different formula: HP x2.5, blow x0.75, XP x0.8 | **none on record** | **Keep and document** | Keep "built for a party" as one encounter type with three numbers (HP, blow, XP). Remove its three inner patches. 53-review-world asks to remove the whole type: the matrix decides between them |
 | X-TIER-PULL-FLOOR (P-X13, E-X07) | Under ground floor 16 a harder tier brings no more monsters | **none on record** | **Remove** | It contradicts the 2026-11-07 ruling that harder tiers keep the bigger pulls. Its cause is kill reward with no kill-rate term, which the kill reward formula fixes |
 | X-CELLAR-NORMAL-ONLY (P-X12, E-X09) | The Mill Cellar offers only Normal | 2026-11-05 | **Keep and document** | A content flag on the tutorial ground. It changes no formula |
-| X-SCALED-NO-DEADLY | Deadly is not offered on a scaled hunt | **none on record** | **Fold into a shared mechanic** | A tier a ground does not offer is the same content flag the Mill Cellar uses. One mechanic, read from the mode's row |
 | X-SPELL-FLOOR (P-X40) | The beginner's floor: every cast lands max(its share of the blow, its old version-I number). Past about Level 15 the share is always larger. At Level 1 a Greater Mend la… | 2026-11-21 (32-8, the effect) | **Fold into a shared mechanic** | Keep the effect you ruled. Replace 17 per-row floors with one number: a cast never reads a hit under N |
 | X-MEND-MAXHP (P-X39) | Mend heals a share of max HP, not of the blow | 2026-11-21 (32-4) | **Keep and document** | The second of two heal kinds, a share of max HP. It is the one heal that never falls behind at high Level |
 | X-THREE-ROLLS | Three shapes for "an amount": a swing rolls 1..max (mean 50%), a spell hit rolls 50%..100% (mean 75%), a heal or shell does not roll | **none on record** | **Fold into a shared mechanic** | One roll rule with the spread as one number a kind of amount: swings, spell hits, heals. Three rows of one rule |
@@ -837,7 +828,6 @@ Ordered. Each step improves the system without breaking what works, and each is 
 | P-X41 | The three weapon skills advance on three different bases: Melee and Ranged on damage dealt, Magic on mana spent, Defense on the attacker's Level per blow aimed | **none on record** | **Keep and document** | Melee trains on damage dealt, Magic on mana spent, Defense on blows taken. Three bases for three different jobs. It needs your yes on record |
 | P-X44 | The XP weekend: +25%, added, never past +50% | 2026-11-20 (27-5) | **Keep and document** | Events add and never pass +50%. One line of the XP chain |
 | E-X03 | The coin line climbs x0.5 to x1.4 with the ground's floor between 1 and 16, then is flat forever | 2026-11-03 ("harder pays more on one line") | **Fold into a shared mechanic** | The coin line that climbs from x0.5 to x1.4 over the first grounds is one of four stacked coin dials. Fold all four into one coin line by monster Level |
-| E-X11 (P-X10) | Scaled hunts: XP x0.73, a party x0.70, coin x0.5 of the rise, fitted cell by cell so a bought hour is never the best grind | 2026-11-07 | **Fold into a shared mechanic** | Keep scaled hunts. Their XP and party shares become outputs of the kill reward formula, so nobody re-dials them an eighth time |
 | E-X29 | A hero's first roll on a hall boss always lands a piece | 2026-11-14 | **Keep and document** | A hero's first hall roll always lands. A good first-time moment |
 | E-X30 | Chest luck: warmth after dry keys and paid stokes | 2026-11-14 to 2026-11-16 | **Keep and document** | Chest warmth and stokes are the pity rule. Bounded by construction |
 | E-X32 | 29 imbuement parts drop with nothing to feed: they only sell, and their tier steps at monster Levels 30 and 80 | 2026-11-18 (linings, BUILD LATER) | **Keep and document** | The parts wait for linings. Nothing planned is cut. When linings land, part value becomes one line by monster Level with no steps |

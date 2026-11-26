@@ -45,16 +45,10 @@ export const LEVER_CARRIERS = Object.freeze([
     read: (m) => rowsOf(m.MONSTERS).filter(([, r]) => Number(r.dropBonus) > 0 && Number(r.dropBonus) !== 1).map(([id]) => ['monster:dropBonus', id]) },
   { file: 'companions.js', what: 'a companion\'s bonus or proc (COMPANIONS.*.bonus, .proc)', claims: [],
     read: (m) => rowsOf(m.COMPANIONS).flatMap(([id, r]) => [...Object.keys(r.bonus || {}).map((k) => ['companion:bonus', id + '.' + k]), ...(r.proc ? [['companion:proc', id + '.' + r.proc.effect]] : [])]) },
-  { file: 'balance-sheet.js', what: 'a tier\'s dials (TIER_DIALS)', claims: [pat('TIER_DIALS.*.(xpPm|dmgPm|hpPm)')],
-    read: (m) => Object.keys(m.TIER_DIALS).filter((t) => t !== 'normal').map((t) => ['tier:' + t, t]) },
-  { file: 'hunt-tiers.js', what: 'a ground\'s tier row (GROUND_TIERS)', claims: [pat('GROUND_TIERS.*.*.(xpPm|dmgPm|hpPm)')],
-    read: (m) => rowsOf(m.GROUND_TIERS).flatMap(([g, byTier]) => Object.keys(byTier).map((t) => ['tier:' + t, g])) },
   { file: 'party-class-xp.js', what: 'the party class XP and the solo boost (PARTY_CLASS_XP, SOLO_XP_PM)', claims: [],
     read: (m) => [['party:class-xp', 'PARTY_CLASS_XP'], ...(m.SOLO_XP_PM !== 1000 ? [['party:solo', 'SOLO_XP_PM']] : [])] },
   { file: 'session-modes.js', what: 'a session mode\'s Level XP share (SESSION_MODES.*.xpPm)', claims: [pat('SESSION_MODES.*.xpPm')],
     read: (m) => rowsOf(m.SESSION_MODES).filter(([, r]) => r.xpPm !== 1000).map(([id]) => ['session-mode:' + id, id]) },
-  { file: 'scaled-hunts.js', what: 'a scaled hunt\'s dials (SCALED_HUNTS)', claims: [pat('SCALED_HUNTS.(xpPm|coinPm|dropsPm|lootPm)')],
-    read: (m) => (m.SCALED_HUNTS ? [['scaled-hunt', 'SCALED_HUNTS']] : []) },
   /* a type with a dial moves a number and answers event:<type>; a type with none (`dial: null`, the world boss's window) only opens
      something and answers event-window, which NOT_LEVERS explains. A dial-less type that gains a dial reads as event:<type>, a stranger. */
   { file: 'live-events.js', what: 'a live event type (LIVE_EVENT_TYPES)', claims: [pat('LIVE_EVENT_TYPES.*'), pat('LIVE_EVENT_TYPES.*.*')],

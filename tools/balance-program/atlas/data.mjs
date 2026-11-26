@@ -14,7 +14,7 @@ const mod = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 export async function loadData() {
-  const [I, M, HG, H, LB, CH, TW, TWW, CA, BH, BC, BE, HF, SH, SB, RC, GA, TP, JW, IM, LE, TT, SK, CC, PR, TR, ST, GT, HT, XP, PA, BS, CAT, BT, SR, SC] = await Promise.all([
+  const [I, M, HG, H, LB, CH, TW, TWW, CA, BH, BC, BE, HF, SH, SB, RC, GA, TP, JW, IM, LE, TT, SK, CC, PR, TR, ST, GT, HT, XP, PA, BS, CAT, BT, SC] = await Promise.all([
     mod('src/data/items.js'), mod('src/data/monsters.js'), mod('src/data/hunt-grounds.js'), mod('src/data/hunts.js'), mod('src/data/loot-bands.js'),
     mod('src/data/chests.js'), mod('src/data/tower.js'), mod('src/data/tower-weapons.js'), mod('src/data/catacomb-armor.js'), mod('src/data/boss-halls.js'),
     mod('src/data/boss-calls.js'), mod('src/data/bestiary.js'), mod('src/data/hearthfind.js'), mod('src/data/shops.js'), mod('src/data/supply-basics.js'),
@@ -22,7 +22,7 @@ export async function loadData() {
     mod('src/data/live-events.js'), mod('src/data/tally-tasks.js'), mod('src/data/start-kit.js'), mod('src/data/catalogue-coherence.js'), mod('src/data/premium.js'),
     mod('src/data/training.js'), mod('src/data/stamina-refill.js'), mod('src/data/gear-tiers.js'), mod('tools/balance-program/tier-axis.mjs'), mod('src/core/xp.js'),
     mod('src/core/pacing.js'), mod('src/data/balance-sheet.js'), mod('supabase/functions/hr-accrue/catalogue.js'), mod('src/data/bench-tax.js'),
-    mod('src/data/scaled-hunts.js'), mod('src/data/shields.js'),
+    mod('src/data/shields.js'),
   ]);
   const ITEMS = { ...I.ITEMS };
   const basics = new Map(SB.BASIC_SUPPLIES.map((b) => [b.id, b]));
@@ -53,7 +53,6 @@ export async function loadData() {
     STAMINA_REFILL: ST.STAMINA_REFILL, refillPrice: ST.refillPrice,
     GEAR_LADDERS: GT.GEAR_LADDERS, MATERIAL_TIERS: GT.MATERIAL_TIERS, SHIELD_ITEMS: SC.SHIELD_ITEMS,
     tiersOf: HT.tiersOf,
-    SCALABLE_GROUNDS: SR.SCALABLE_GROUNDS, SCALED_HUNTS: SR.SCALED_HUNTS, lootPmFor: SR.lootPmFor, scaledPricePerHour: SR.pricePerHour,
     BENCH_TAX: BT.BENCH_TAX, BENCH_TAX_FREE_UNDER_MG: BT.BENCH_TAX_FREE_UNDER_MG, benchTaxed: BT.benchTaxed,
     contractXpPerH: BS.contractXpPerH,
     VENDOR_TRASH: CC.VENDOR_TRASH, CODED_SOURCES: CC.CODED_SOURCES, AWAITING_ROSTER: CC.AWAITING_ROSTER, UNREACHABLE: CC.UNREACHABLE, UNREACHABLE_CEILING: CC.UNREACHABLE_CEILING,

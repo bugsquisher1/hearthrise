@@ -145,7 +145,6 @@ if (argv.includes('--selftest')) {
     process.exit(1);
   }
   const plant = (rel, line) => ({ [rel]: readFileSync(join(ROOT, rel), 'utf8') + '\n' + line + '\n' });
-  // mutant-lists: not cases — each plant APPENDS its line to the file, so there is no anchor to match
   const cases = [
     ['the b511 typo, window.HearthriseAccrue', 'src/app/boot.js', 'const __p = window.HearthriseAccrue;', 'HearthriseAccrue', true],
     ['the 10-22 shape, a scrapped global through a `win` alias', 'src/world/world-boot.js', 'const __p = (w) => w.HearthriseRooms;', 'HearthriseRooms', true],

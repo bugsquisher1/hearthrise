@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 7d0466b42a0dd8b1641778ad07ed81e9e95951a4632f1f9402f1bbfb8a179395
+--   digest: d847149bd9672cd98850c3f39937bcffab71f5a22dccfb06388860f856cad98c
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   707 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
@@ -861,7 +861,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bannerman', 74, 1648, '{"big_bones":1,"grave_dust":1,"toll_token":1,"coppercap_shield":1,"steel_gauntlets":1,"boarhide_gloves":1,"scholar_gloves":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
   ('bargeman', 53, 1049, '{"bones":1,"coal":1,"barge_nail":1,"steel_platelegs":1,"boarhide_pants":1,"scholar_pants":1,"steel_warhammer":1,"steel_belt":1,"boarhide_belt":1,"scholar_belt":1}'::jsonb),
   ('barn_spider', 11, 133, '{"silk_thread":1,"dry_husk":1,"loft_web":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1,"bronze_gauntlets":1,"apprentice_gloves":1}'::jsonb),
-  ('barn_wasp', 8, 87, '{"venom_sac":1,"dry_husk":1,"barn_wasp_sting":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"bronze_belt":1,"leather_belt":1,"apprentice_belt":1}'::jsonb),
+  ('barn_wasp', 8, 87, '{"venom_sac":1,"dry_husk":1,"barn_wasp_sting":1,"bronze_helm":1,"leather_helmet":1,"apprentice_helmet":1,"leather_belt":1,"apprentice_belt":1}'::jsonb),
   ('barrow_king', 200, 828, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"barrowking_mantle":1}'::jsonb),
   ('barrow_knight', 104, 504, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"mithril_gauntlets":1}'::jsonb),
   ('barrow_pikeman', 50, 1306, '{"bones":1,"bone_chips":1,"coffin_nail":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1,"mithril_sword":1,"mithril_faced_shield":1}'::jsonb),
@@ -869,7 +869,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
   ('briarcoat_wolf', 7, 90, '{"wolf_pelt":1,"bones":1,"briar_burr":1,"bronze_platelegs":1,"leather_pants":1,"apprentice_pants":1,"bronze_gauntlets":1,"apprentice_gloves":1}'::jsonb),
   ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
-  ('brook_bear', 26, 311, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"oak_wand":1,"bear_claw":1}'::jsonb),
+  ('brook_bear', 26, 311, '{"raw_bear_meat":1,"bear_pelt":1,"brook_bear_tooth":1,"bear_claw":1}'::jsonb),
   ('cairn_wight', 49, 1500, '{"grave_dust":1,"urn_shard":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1,"maple_staff":1,"maple_wand":1,"maple_spellbook":1}'::jsonb),
   ('captain_hask', 401, 13319, '{"big_bones":1,"grave_dust":1,"hasks_coin":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1,"maple_bow":1,"maple_crossbow":1}'::jsonb),
   ('carnivorous_plant', 100, 465, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
@@ -1003,7 +1003,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('vharek', 620, 1919, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"ember_bar":1,"hollow_sigil":1}'::jsonb),
   ('void_mote', 126, 482, '{"void_chitin":1,"magic_essence":1,"rune_frag":1,"void_censer":1}'::jsonb),
   ('void_parasite', 420, 1410, '{"void_chitin":1,"plague_ichor":1,"void_core":1,"archmage_boots":1}'::jsonb),
-  ('walking_vine', 23, 277, '{"magic_essence":1,"pithwood":1,"mosslight_tendril":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"oak_staff":1,"bramble_blade":1,"oak_spellbook":1,"mosslight_clump":1}'::jsonb),
+  ('walking_vine', 23, 277, '{"magic_essence":1,"pithwood":1,"mosslight_tendril":1,"iron_helm":1,"studded_helmet":1,"adept_helmet":1,"oak_staff":1,"bramble_blade":1,"oak_wand":1,"oak_spellbook":1,"mosslight_clump":1}'::jsonb),
   ('war_king', 520, 1680, '{"captain_medal":1,"war_crown":1}'::jsonb),
   ('warband_captain', 225, 885, '{"warlord_badge":1,"captain_medal":1,"rune_sword":1}'::jsonb),
   ('warlock', 60, 222, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"willow_wand":1,"willow_spellbook":1,"scholar_gloves":1}'::jsonb),
@@ -2974,7 +2974,6 @@ begin
     ('wickstead', 'barn_wasp_sting', 1),
     ('wickstead', 'boar_bristle', 1),
     ('wickstead', 'bones', 1),
-    ('wickstead', 'bronze_belt', 1),
     ('wickstead', 'bronze_boots', 1),
     ('wickstead', 'bronze_gauntlets', 1),
     ('wickstead', 'bronze_helm', 1),
@@ -3258,7 +3257,6 @@ begin
     ('mudlark_hook'),
     ('barn_wasp_sting'),
     ('boar_bristle'),
-    ('bronze_belt'),
     ('granary_whisker'),
     ('loft_web'),
     ('orchard_boar_tusk'),

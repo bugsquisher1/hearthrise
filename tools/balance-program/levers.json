@@ -117,14 +117,23 @@
   }
  },
  "census": {
-  "bindings": 769,
-  "typed": 17657,
-  "files": 261,
+  "bindings": 771,
+  "typed": 17665,
+  "files": 262,
   "lever": 340,
   "notLever": 429,
-  "unclaimed": 0
+  "unclaimed": 2
  },
- "problems": [],
+ "problems": [
+  {
+   "kind": "unclaimed",
+   "what": "src/data/signatures.js#SIGNATURES:48 holds 10 typed number(s) [36 300 250 60000 6 60 ...] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/data/talents.js#reactProblems:737 holds 1 typed number(s) [8] and no lever row or NOT_LEVERS reason claims it"
+  }
+ ],
  "levers": [
   {
    "id": "blow.skill-term",
@@ -1260,9 +1269,9 @@
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/roles.mjs",
      "tests/hunt-core/sewer.mjs",
-     "tests/hunt-core/targeting.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -2603,9 +2612,9 @@
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/roles.mjs",
      "tests/hunt-core/sewer.mjs",
-     "tests/hunt-core/targeting.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3235,7 +3244,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 33,
+    "mentionCount": 34,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3883,7 +3892,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6233,7 +6242,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 118,
+    "mentionCount": 119,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6619,7 +6628,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 118,
+    "mentionCount": 119,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8416,7 +8425,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8585,7 +8594,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8666,7 +8675,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10233,7 +10242,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 118,
+    "mentionCount": 119,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10303,7 +10312,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 118,
+    "mentionCount": 119,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10424,7 +10433,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 118,
+    "mentionCount": 119,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10543,7 +10552,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 118,
+    "mentionCount": 119,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10567,10 +10576,10 @@
       "key",
       "trophy"
      ],
-     "rows": 309,
-     "distinct": 87,
+     "rows": 308,
+     "distinct": 86,
      "low": 0.0005,
-     "high": 0.0686
+     "high": 0.05
     }
    },
    "flags": [
@@ -11370,12 +11379,12 @@
      "tests/cron-health.mjs",
      "tests/hunt-core/fist-play.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
+     "tests/hunt-core/signature-rules.mjs",
      "tests/hunt-core/talents.mjs",
      "tests/special-attributes.mjs",
-     "tests/weapon-line.mjs",
-     "tests/world-tick-parity.mjs"
+     "tests/weapon-line.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 9,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12350,7 +12359,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12426,7 +12435,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14263,7 +14272,7 @@
      "tests/hunt-core/monster-roles.mjs",
      "tests/hunt-core/party-defense.mjs"
     ],
-    "mentionCount": 15,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {

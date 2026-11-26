@@ -664,7 +664,7 @@ const pulledKinds = (ground, pocket) => {
 /* The hunts the server has seen this hero in: the open one and the `visited` record. */
 const been = (facts) => [facts.huntId, ...(facts.visited instanceof Set ? facts.visited : [])].filter((h) => HUNT_INDEX[h]);
 /* Is ground `h` PAST ground `hunt` on the road: a higher band floor, or the same floor and a higher top (the chain only moves forward,
-   Cellar -> Thicket -> Sewer -> on; the Thicket and the Sewer both open at 5 since lane/d-party-pace, Tyler 2026-11-18, and the Sewer's band runs on to 25). */
+   Cellar -> Thicket -> Sewer -> on; the Thicket and the Sewer both open at 5 since lane/d-party-pace, Tyler 2026-11-18, and the Sewer's band runs on to 19, 12-targets 8.3). */
 const past = (h, hunt) => { const a = HUNT_INDEX[h].band, b = HUNT_INDEX[hunt].band; return a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]); };
 /* Has the hero hunted `hunt`, or a ground past it? `past` alone asks only for a ground past it. */
 const reached = (facts, hunt, onlyPast) => been(facts).some((h) => (!onlyPast && h === hunt) || past(h, hunt));

@@ -8,7 +8,7 @@
 --
 -- WHAT (lane/flame-temper-build, systems, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md): the rule the server reads, so no
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
---   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (6 Remains goods by band)
+--   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (8 Remains goods by band)
 --   hr_temper_rules (1 row, kit_item null: Temper Kits are owed, a rank is refused kits_owed), hr_temper_slots (13 slots)
 --   hr_item_levels (395 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
@@ -187,6 +187,8 @@ insert into public.hr_flame_fuel (item_id, band) values
   ('big_bones', 45),
   ('bone_chips', 45),
   ('bones', 45),
+  ('dragon_bones', 128),
+  ('dragon_scale', 128),
   ('grave_dust', 45),
   ('razor_claw', 70),
   ('wraith_veil', 70);
@@ -309,8 +311,8 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('dawn_shield', 120),
   ('dawn_sword', 120),
   ('dawn_warhammer', 120),
-  ('dawnbound_amulet', 86),
-  ('dawnforged_signet', 84),
+  ('dawnbound_amulet', 120),
+  ('dawnforged_signet', 120),
   ('dawnhide_belt', 120),
   ('dawnhide_body', 120),
   ('dawnhide_boots', 120),
@@ -320,7 +322,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('dawnlit_mantle', 120),
   ('demoncaller_staff', 68),
   ('dockhands_boots', 160),
-  ('dragon_gem_earrings', 82),
+  ('dragon_gem_earrings', 140),
   ('dragonhide_belt', 100),
   ('dragonhide_body', 100),
   ('dragonhide_boots', 100),
@@ -404,7 +406,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('juniper_staff', 140),
   ('juniper_wand', 140),
   ('kindling_wand', 120),
-  ('kingsgrate', 20),
+  ('kingsgrate', 0),
   ('kingstooth', 20),
   ('klappas_club', 5),
   ('krells_tollgate', 120),
@@ -522,7 +524,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('sorcerer_gloves', 80),
   ('sorcerer_helmet', 80),
   ('sorcerer_pants', 80),
-  ('spellstone_ring', 68),
+  ('spellstone_ring', 100),
   ('spidereye_studs', 40),
   ('spidersilk_choker', 40),
   ('steel_belt', 40),
@@ -813,7 +815,7 @@ end $mig$;
 do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
-  if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 6
+  if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 8
      or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 395
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
@@ -1299,5 +1301,5 @@ begin
     (10, 200, 143095::bigint)) p(st, il, g) loop
     if public.hr_carry_fee(v_r.st, v_r.il) <> v_r.g then raise exception 'VERIFY(q): a carry of % steps onto item Level % costs % in SQL, % in JS', v_r.st, v_r.il, public.hr_carry_fee(v_r.st, v_r.il), v_r.g; end if;
   end loop;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 395 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 8 fuels, 13 Temper slots, 395 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

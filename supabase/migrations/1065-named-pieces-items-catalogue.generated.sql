@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 6610bce5202db5e968d23a13edf065805ff3f651c28394ae2cb118418a882e8a
+--   catalogue digest: d999686d84efd17e92803b3aa6520a3dbf95c5b5400971d65f6c0d0467b442e3
 --   rows: 750 items (27 untradeable) ·
 --         464 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -562,7 +562,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('kennel_tag','Kennel Tag',true,null,144,null,null,null,false,null,false),
   ('keystone','Keystone',true,null,3000,null,null,null,false,null,false),
   ('kindling_wand','Kindling Wand',true,'weapon',32400,'level',110,null,false,null,false),
-  ('kingsgrate','Kingsgrate',true,'offhand',300,'level',10,null,false,null,false),
+  ('kingsgrate','Kingsgrate',true,'offhand',300,'level',1,null,false,null,false),
   ('kingstooth','Kingstooth',true,'weapon',600,'level',10,null,false,null,false),
   ('klappas_club','Klappa''s Klub',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
@@ -1897,7 +1897,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '6610bce5202db5e968d23a13edf065805ff3f651c28394ae2cb118418a882e8a', now())
+  values (true, 'd999686d84efd17e92803b3aa6520a3dbf95c5b5400971d65f6c0d0467b442e3', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2127,7 +2127,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 6610bce5202db5e968d23a13edf065805ff3f651c28394ae2cb118418a882e8a',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d999686d84efd17e92803b3aa6520a3dbf95c5b5400971d65f6c0d0467b442e3',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

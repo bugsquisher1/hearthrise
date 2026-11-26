@@ -192,7 +192,16 @@ const SEED = '-4611686018427387904';
    (tools/gen-drop-hours.mjs) move its TALLY from settle 2; world and timeline hold.
    Re-pinned again on lane/scale-grounds-sweep (all five: kills warrens-4 228 -> 234, glade-4 508 -> 512, glade-1-kite 148 -> 147, muster-steps-4 170 -> 171, sewer-2 105 held): the worlds moved on DATA alone, the REF_HERO evasion
    regeneration (tools/gen-ref-hero.mjs, then pack.mjs propose --write on every formula ground) and the Warrens' re-measured band (new-ground.mjs). The
-   engine is the pin's: the diff of src/core and supabase/functions against the set is empty. Not laid back on a copy (usage). */
+   engine is the pin's: the diff of src/core and supabase/functions against the set is empty. Not laid back on a copy (usage).
+   RE-PINNED 2026-11-26 (lane/scale-grounds-sweep steps 2-3), warrens-4's RUN TOTALS ONLY: every world, timeline and per-settle tally hash and
+   every kill count held (234); the one moved field is totals.rares 2,762 -> 2,679. Cause, data: the Iron Sword and Iron Warhammer left the
+   Sewer for the Glade (one base a ground), so their sale dial is the Glade's (loot-sale.js, the highest dial of the grounds that drop it) and the
+   Steel Sword's and Steel Warhammer's LOWER_TWIN floor followed (vendor bid 100 -> 78, 72 -> 55). Proof: warrens-4 played on the set's tree
+   (5d2434803, git archive) and on this one, the totals diffed field by field. The engine diff against the set is empty.
+   glade-4's TALLY, the same lane after its Glade rows settled: the iron pieces the bronze grounds gave up drop in the Glade (the Iron Sword on
+   the crow, the Oak Wand on the bear, the Oakboard Spellbook and the Bramble Blade on the vine, the Iron Hatchets on the poacher), so its
+   loot draws shift from the first settle: items and the coin rolls beside them move (coin 6,052 -> 6,041), kills hold (512), world and timeline
+   hold. Proof: glade-4 played on the set's tree and on this one, totals diffed field by field. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

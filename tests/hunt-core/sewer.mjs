@@ -2494,7 +2494,7 @@ const mutants = [
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: THICKET }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',
-    edits: [['src/data/hunts.js', 'band: [5, 25],', 'band: [1, 25],']] },
+    edits: [['src/data/hunts.js', 'band: [5, 19],', 'band: [1, 19],']] },
   { name: 'the party card walls a solo hero again', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!(f.inParty === true && f.charLevel >= HUNT_INDEX[r.done.hunt].band[0])) return false;', 'if (!true) return false;']] },
   /* lane/d-party-pace (Tyler 2026-11-18 "Yes, open at 5"): a party at 5 is sent below before the wolves, never through the Thicket first */

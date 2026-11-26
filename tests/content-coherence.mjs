@@ -220,7 +220,8 @@ export const MUTANTS = [
   ['CC-2 a stale pin', (d) => { d.pins.nowhere_field = { ...d.pins[first(d)] }; }],
   ['CC-2 a hand pin that no longer matches', (d) => { const g = first(d); d.pins[g].hand = 'set by hand'; d.danger[g].topStep -= 5; }],
   ['CC-3 a Trait homed nowhere', (d) => { d.traits[Object.keys(d.traits)[0]].source = 'nowhere_field'; }],
-  ['CC-3 live Traits, one homed off the scale', (d) => { d.traitsLive = true; }],
+  /* (lane/scale-grounds-sweep: every Trait home is on the scale now, so the plant homes one on a ground off it) */
+  ['CC-3 live Traits, one homed off the scale', (d) => { d.traitsLive = true; d.traits[Object.keys(d.traits)[0]].source = Object.keys(d.grounds).find((g) => !Object.prototype.hasOwnProperty.call(d.danger, g)); }],
   ['CC-4 a live move with no icon', (d) => { d.art = d.art.filter((m) => m !== d.moves[0]); }],
   ['CC-5 live Roads, a move short a rank stone', (d) => { sample(d, true); const i = d.talents.nodes.findIndex((n) => n.kind === 'rank'); d.talents.nodes.splice(i, 1); }],
   ['CC-5 live Roads, a crossroads of one option', (d) => { sample(d, true); d.talents.nodes.find((n) => n.kind === 'crossroads').options = ['a']; }],
@@ -232,7 +233,7 @@ export const MUTANTS = [
   ['CC-7 a node on a move that is not live', (d) => { sample(d, false); d.talents.nodes.push({ id: 'x', kind: 'rank', move: 'brand' }); }],
   ['CC-7 a vow in no country', (d) => { sample(d, false); d.talents.nodes.push({ id: 'v', kind: 'vow', country: 'spear' }); }],
   ['CC-8 live Traits, a made slot on a home that drops no part', (d) => { d.traitsLive = true; for (const g of Object.keys(d.dropSlots)) d.dropSlots[g] = [...new Set([...d.dropSlots[g], 'weapon', 'shield', 'body', 'pants', 'helmet', 'boots', 'gloves', 'belt'])]; d.made.parts.muster_barrows = false; }],
-  ['CC-8 live Traits, one on a slot its home never drops', (d) => { d.traitsLive = true; for (const g of Object.keys(d.dropSlots)) d.dropSlots[g] = [...new Set([...d.dropSlots[g], 'cape', 'necklace', 'ring', 'earrings'])]; d.dropSlots.hasks_ford = d.dropSlots.hasks_ford.filter((s) => s !== 'belt'); }],
+  ['CC-8 live Traits, one on a slot its home never drops', (d) => { d.traitsLive = true; for (const g of Object.keys(d.dropSlots)) d.dropSlots[g] = [...new Set([...d.dropSlots[g], 'cape', 'necklace', 'ring', 'earrings'])]; d.dropSlots.hasks_ford = d.dropSlots.hasks_ford.filter((s) => s !== 'pants'); }],   // (the Ford's Goaded rolls on its legs; it homes no belt Trait)
   ['CC-7 a border inside one country', (d) => { sample(d, false); d.talents.nodes.push({ id: 'b', kind: 'border', countries: ['club', 'club'] }); }],
 ];
 

@@ -508,6 +508,11 @@
         "bytes": 3896745,
         "on": "2026-11-26",
         "why": "lane/signatures-sample: the Signature rows carry 24 section 4's home { kind, id } and their move (src/data/signatures.js, +298 B)"
+      },
+      {
+        "bytes": 3904210,
+        "on": "2026-11-26",
+        "why": "lane/scale-grounds-sweep steps 2-3 merged onto set 3cbce4572: five grounds join DANGER_GROUNDS (Wickstead, the Sewer, Carter's Rest, the Ox Road, Wyvern Roost) with roles and drops in hours, the Glade takes the bronze grounds' iron pieces, the Flooded Wing's own band (+7,465 B of data over the set's ceiling)"
       }
     ]
   }

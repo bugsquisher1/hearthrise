@@ -104,10 +104,11 @@ const BASE_HUNTS = Object.freeze([
      weights below are the pockets' head-count (the Rat King, a boss, is never a
      weighted spawn; he holds the last room). Its floor is 5, the Thicket's (lane/d-party-pace;
      Tyler 2026-11-18 "Yes, open at 5"): a four at 5-7 here earns about 1.6x the same heroes alone in the
-     Thicket, so a party is sent below from 5 while a hero alone still starts in the Thicket. */
+     Thicket, so a party is sent below from 5 while a hero alone still starts in the Thicket. Its top 25 -> 19 (12-targets 8.3, lane/scale-grounds-sweep):
+     inside tier 0, bronze its one base, so its Levels sit in one gear tier (29 7.5). */
   {
     id: 'millrace_sewer', region: 'greenhaven', name: 'The Sewer', theme: 'The mill race runs under town, and its rats follow the Rat King.',
-    band: [5, 25],
+    band: [5, 19],
     spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
       { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
       { monster: 'cistern_spider', w: 2, rarity: 'rare' }],

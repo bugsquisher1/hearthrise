@@ -176,11 +176,12 @@ async function huntsPure(imp) {
     if (got.some((x, i) => x.trophy && got.slice(i + 1).some((y) => !y.trophy))) fails.push('AW-25 ' + r.hunt + ' lists a Trophy before a Rare');
   }
   const sets = (h, w) => scarceSetOf(h, w).map((e) => e.lines.join(',') + ':' + e.slots.join(',') + ':' + e.weapons.join(',')).join('|');
-  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Ironbound Shield,Oakboard Spellbook,Oak Wand,Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
+  /* (lane/scale-grounds-sweep, 12-targets 8.3: the Sewer is bronze, one base, and bronze's weapons are the practice kit) */
+  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:helmets,bodies,legs,boots:') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
   /* the page's words are one list (v0.2.100 played on Wickstead: "Iron, Studded, Adept: bodies, legs; Bramble Blade") */
   const wick = scarceSetOf('wickstead', 'medium').map((e) => e.what).join('|');
-  if (wick !== 'helmets and boots|bodies, legs, Iron Hatchets and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
-  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Oak Staff,Longbow,Iron Warhammer,Oak Crossbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
+  if (wick !== 'helmets, bodies, legs and boots') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
+  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Iron Sword,Oak Staff,Longbow,Iron Warhammer,Oak Crossbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
   /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
      (monsters.js, the catalogue hr-accrue rolls), the whole kill's for every party size since 2026-11-08. Worked here from the
      rows on the Sewer (a hall built for a party, two tiers): a tier line = any piece of it on one kill of the ground's mix (every
@@ -199,7 +200,7 @@ async function huntsPure(imp) {
       return t + (k / all) * (1 - rows.reduce((p, d) => p * (1 - Math.min(0.95, d.ch)), 1));
     }, 0);
     const shown = scarceSetOf('millrace_sewer', 'medium').map((e) => chance(e.chance)).join('|');
-    const want = [1, 2].map((t) => chance(tierOdds(t))).join('|');
+    const want = [1].map((t) => chance(tierOdds(t))).join('|');   // one tier since the Sewer is bronze (12-targets 8.3)
     if (shown !== want || /under|^0%/.test(want)) fails.push('AW-25 the Sewer\'s gear odds read ' + shown + ', the rows say ' + want);
     const rr = raresOf('millrace_sewer').map((x) => x.name + ' ' + chance(x.chance)).join('|');
     const rw = residentsOf('millrace_sewer').flatMap((m) => MONSTERS[m.id].drops.filter((d) => d.band === 'rare' || d.band === 'trophy')
@@ -221,21 +222,26 @@ async function huntsPure(imp) {
     for (const i of sewer.route) for (const s of sewer.pockets[i].spawns) pts[s.monster] = (pts[s.monster] || 0) + 1;
     const all = Object.values(pts).reduce((t, k) => t + k, 0);
     const near = (a, b) => Math.abs(a - b) < 1e-12;
-    const SLIME = 'sump_slime', had = MV[SLIME].dropBonus;
+    /* the Rares are the Rat King's since the Sewer went bronze (lane/scale-grounds-sweep), so the Rare half reads him (KING) and the Materials half
+       the Slime: both bonused alike */
+    const SLIME = 'sump_slime', KING = 'rat_king', had = MV[SLIME].dropBonus, hadKing = MV[KING].dropBonus;
     try {
-      MV[SLIME].dropBonus = 1.5;
+      MV[SLIME].dropBonus = 1.5; MV[KING].dropBonus = 1.5;
       const tierOdds = (tier) => Object.entries(pts).reduce((t, [id, k]) => t + (k / all) * (1 - rolls(id).filter((r) => r.d.band === 'scarce' && (Number(ITEMS[r.d.id].tier) || 1) === tier).reduce((p, r) => p * (1 - r.c), 1)), 0);
       const gear = scarceSetOf('millrace_sewer', 'medium');
-      if (gear.length !== 2 || gear.some((e) => !near(e.chance, tierOdds(e.tier)))) fails.push('AW-25 a monster\'s own drop bonus is not in the gear odds: ' + gear.map((e) => e.chance).join(' | ') + ', the roller says ' + [1, 2].map(tierOdds).join(' | '));
-      const mine = rolls(SLIME);
-      const rares = raresOf('millrace_sewer').filter((x) => x.carrier.id === SLIME);
-      if (!rares.length) fails.push('AW-25 CONTROL: the Sump Slime carries no Rare, so the bonus check reads no Rare line');
-      if (rares.some((x) => !near(x.chance, mine.find((r) => r.d.id === x.id).c))) fails.push('AW-25 a monster\'s own drop bonus is not in its Rare odds: ' + rares.map((x) => x.name + ' ' + x.chance).join(' | '));
+      if (gear.length !== 1 || gear.some((e) => !near(e.chance, tierOdds(e.tier)))) fails.push('AW-25 a monster\'s own drop bonus is not in the gear odds: ' + gear.map((e) => e.chance).join(' | ') + ', the roller says ' + [1].map(tierOdds).join(' | '));
+      const mine = rolls(SLIME), his = rolls(KING);
+      const rares = raresOf('millrace_sewer').filter((x) => x.carrier.id === KING);
+      if (!rares.length) fails.push('AW-25 CONTROL: the Rat King carries no Rare, so the bonus check reads no Rare line');
+      if (rares.some((x) => !near(x.chance, his.find((r) => r.d.id === x.id).c))) fails.push('AW-25 a monster\'s own drop bonus is not in its Rare odds: ' + rares.map((x) => x.name + ' ' + x.chance).join(' | '));
       /* the materials only it drops here, one at least under the roller's 95% cap, where a bonus shows (today its Lamp Jelly; its Slime Gel sits at the cap either way) */
       const mats = materialsOf('millrace_sewer').filter((e) => e.carriers.length === 1 && e.carriers[0] === MV[SLIME].name);
       if (!mats.some((e) => mine.find((r) => r.d.id === e.id).c < 0.95)) fails.push('AW-25 CONTROL: the Sump Slime alone drops no material under the cap here, so the bonus check reads no Materials line');
       if (mats.some((e) =>!near(e.chance, (pts[SLIME] / all) * mine.find((r) => r.d.id === e.id).c))) fails.push('AW-25 a monster\'s own drop bonus is not in the Materials odds: ' + mats.map((e) => e.name + ' ' + e.chance).join(' | '));
-    } finally { if (had === undefined) delete MV[SLIME].dropBonus; else MV[SLIME].dropBonus = had; }
+    } finally {
+      if (had === undefined) delete MV[SLIME].dropBonus; else MV[SLIME].dropBonus = had;
+      if (hadKing === undefined) delete MV[KING].dropBonus; else MV[KING].dropBonus = hadKing;
+    }
   }
   const fmt =[0.0035, 0.021, 0.12, 0.00009, 0.0001].map(chance).join('|');
   if (fmt !== '0.35%|2.1%|12%|under 0.01%|0.01%') fails.push('AW-25 the odds read ' + fmt + ' (two significant figures, "under 0.01%" below it)');
@@ -736,7 +742,7 @@ async function checks(overrides, shots, opts) {
         /* the Cellar reads Levels 1-4: its hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and the list reads the band's top as the Level under it */
         const want = ['mill_cellar:picked:Levels 1–4:in:In range:Recommended:No record yet:Players: 1 to 4',
           'meadowbrook_thicket::Levels 5–15:above:Above level::No record yet:Players: 1 to 4',
-          'millrace_sewer::Levels 5–25:above:Above level::No record yet:Players: 1 to 4',
+          'millrace_sewer::Levels 5–19:above:Above level::No record yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
           'wickstead::Levels 8–18:above:Above level::No record yet:Players: 1 to 4',
           'mosslight_glade::Levels 16–31:far:Far above level::No record yet:Players: 1 to 4',
@@ -971,7 +977,7 @@ async function checks(overrides, shots, opts) {
         await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 6, W, 4000);
         const sewer = await page1();
         if (sewer.name !== 'The Sewer' || !sewer.rares.includes('Crown Shard / Rat King') || sewer.rares[sewer.rares.length - 1] !== 'Rat King\'s Crown / Rat King (trophy)'
-          || sewer.sets.length !== 2 || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, sets: sewer.sets, rares: sewer.rares, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
+          || sewer.sets.length !== 1 || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-25 the Sewer page reads ' + JSON.stringify({ name: sewer.name, sets: sewer.sets, rares: sewer.rares, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
         /* the area casters, one note under the line (lane/d-area-playtest), never a taller card */
         const castNote = await page.evaluate((w) => { const n = document.querySelector(w + '.hw-hd-casts'); return n && !n.hidden ? n.textContent : null; }, W);
         if (castNote !== 'Sewer Kobold casts: Muck Fling · Rat King casts: Tail Lash and Squeal') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));

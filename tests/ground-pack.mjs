@@ -63,12 +63,14 @@ function gp2() {
   return lint;
 }
 
-function gp3() {
+/* `unfold` { pack: whole file name } (--mutate only): read that pack as NOT folded into that whole file, so the partly folded branch has a
+   subject when every shipped pack is folded whole (lane/scale-grounds-sweep: gen-factions' 1067 folds Krell's Hold too) */
+function gp3(unfold = {}) {
   for (const id of packIds()) {
     const f = packSqlOf(id);
     if (!f) continue;
     const covered = COVERED.map((g) => outOf(g));
-    const folded = covered.filter((o) => foldedPacks(o).includes(id));
+    const folded = covered.filter((o) => foldedPacks(o).includes(id) && unfold[id] !== o);
     if (folded.length === covered.length) continue; /* folded: the whole --check guards its rows */
     const have = existsSync(join(MIG, f)) ? readFileSync(join(MIG, f), 'utf8').replace(/\r\n/g, '\n') : null;
     const ship = shipText(id);
@@ -343,14 +345,21 @@ async function mutate() {
   /* GP-2: an open pack naming a file that is not in the order */
   await bites('GP-2 an open pack whose file is in no apply order', async () => { const p = await plantAll([g]); try { gp2(); } finally { unplant(p); } });
   /* GP-3: a PARTLY folded pack (Krell's Hold: every whole file folds it but the faction catalogue) whose row moves with no whole file re-issued: the
-     Grave Guard's shield row turned into a helmet, so its kill bound reads a new drop set that neither its applied file nor a whole file carries */
+     Grave Guard's shield row turned into a body, so its kill bound reads a new drop set that neither its applied file nor a whole file carries */
   await bites('GP-3 a partly folded pack row moved with no whole file re-issued', async () => {
     const file = join(GROUNDS_DIR(), 'krells_hold', 'pack.js'), was = readFileSync(file, 'utf8');
-    const planted = was.replace("{ id: 'ember_tower_shield', ch: 0.017, band: 'scarce' }", "{ id: 'ember_helm', ch: 0.017, band: 'scarce' }");
+    /* (lane/scale-grounds-sweep step 1 put Krell's Hold on rune 80: the shield row is the Runebound Shield. The plant is a Rune Platebody, worth more
+       than his legs, his best piece, so the kill bound moves; a Rune Helm is worth less than the legs and moved nothing) */
+    const planted = was.replace("{ id: 'runebound_shield', everyHours: ", "{ id: 'rune_platebody', everyHours: ");
     if (planted === was) throw new Error('the GP-3 mutant planted nothing');
     const { writeFileSync } = await import('node:fs');
+    /* Krell's Hold is folded into every whole file now, so the mutant reads it as the paragraph above had it: folded everywhere but the faction
+       catalogue. Its control (the same fold, no row moved) is green, so the bite is the moved row's */
+    const UNFOLD = { krells_hold: outOf('gen-factions.mjs') };
+    const before = fail.length; gp3(UNFOLD);
+    if (fail.length !== before) { fail.length = before; throw new Error('GP-3 control: the unfolded Krell\'s Hold reads red with no row moved'); }
     writeFileSync(file, planted);
-    try { gp3(); } finally { writeFileSync(file, was); }
+    try { gp3(UNFOLD); } finally { writeFileSync(file, was); }
   });
   /* GP-5: a pack that moves a base row (the fixture's monster takes a base monster's id: refused at load) */
   await bites('GP-5 a pack taking a base monster id', async () => {

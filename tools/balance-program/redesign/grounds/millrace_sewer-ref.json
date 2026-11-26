@@ -1,0 +1,288 @@
+{
+ "ground": "millrace_sewer",
+ "levels": [
+  12,
+  15,
+  70
+ ],
+ "seeds": 4,
+ "hours": 10,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 12,
+   "start": 0,
+   "seedsRead": 4,
+   "payX": {
+    "mean": 0.88,
+    "sd": 0.16,
+    "n": 4,
+    "perSeed": [
+     1.12,
+     0.8,
+     0.81,
+     0.8
+    ],
+    "fromH": 4,
+    "windowH": 6
+   },
+   "held": {
+    "mean": 21.2,
+    "sd": 21.8,
+    "se": 10.9,
+    "perSeed": [
+     54,
+     9,
+     11,
+     11
+    ]
+   },
+   "drift": -2.9,
+   "within10": 81.6,
+   "within20": 100,
+   "changesPerH": 10.5,
+   "fallsPerH": 0.7,
+   "reachH": 0.8,
+   "pullsPerH": 59.1,
+   "killsPerH": 418,
+   "xpPerHeroH": 42905,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 12732,
+     "sd": 1299,
+     "n": 4
+    },
+    "incomePerHeroH": {
+     "mean": 13420,
+     "sd": 1359,
+     "n": 4
+    },
+    "storePerHeroH": {
+     "mean": 3449,
+     "sd": 11,
+     "n": 4
+    },
+    "commonPerHeroH": {
+     "mean": 181,
+     "sd": 10,
+     "n": 4
+    },
+    "uncommonPerHeroH": {
+     "mean": 43,
+     "sd": 5,
+     "n": 4
+    },
+    "scarcePerHeroH": {
+     "mean": 465,
+     "sd": 47,
+     "n": 4
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 4
+    }
+   },
+   "kit": {
+    "meal": 71,
+    "drink": 2027,
+    "charge": 623,
+    "shot": 729
+   },
+   "kitIds": {
+    "salted_shrimp": 11.8,
+    "thin_turnip_juice": 225.2,
+    "plain_barbed_arrows": 728.9,
+    "plain_fire_rune": 122.1,
+    "plain_ice_rune": 152.6,
+    "plain_earth_rune": 66.3,
+    "plain_poison_rune": 57.3,
+    "plain_water_rune": 224.5
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 10,
+   "fourH": 6,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 1934,
+    "climb": 399,
+    "fall": 28
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.808
+    },
+    {
+     "style": "bow",
+     "mean": 0.173
+    },
+    {
+     "style": "mage",
+     "mean": 0.014
+    },
+    {
+     "style": "healer",
+     "mean": 0.005
+    }
+   ],
+   "causes": {
+    "fall:drain_rat@0": 5,
+    "fall:kobold_tosher@2": 1,
+    "fall:sump_slime@0": 22
+   },
+   "seats": [
+    {
+     "style": "hammer",
+     "dps": 6.52,
+     "landedPct": 75.63,
+     "dmgPerSwing": 12.13,
+     "swingsPerH": 3719.5,
+     "takenPerH": 45096.25
+    },
+    {
+     "style": "bow",
+     "dps": 5.87,
+     "landedPct": 80.25,
+     "dmgPerSwing": 5.15,
+     "swingsPerH": 1872,
+     "takenPerH": 9656.75
+    },
+    {
+     "style": "mage",
+     "dps": 7.52,
+     "landedPct": 40.05,
+     "dmgPerSwing": 2.85,
+     "swingsPerH": 129.25,
+     "takenPerH": 736.5
+    },
+    {
+     "style": "healer",
+     "dps": 3.67,
+     "landedPct": 85.65,
+     "dmgPerSwing": 11.17,
+     "swingsPerH": 37.5,
+     "takenPerH": 285.5
+    }
+   ],
+   "kinds": {
+    "drain_rat": {
+     "role": "swarm",
+     "killsPerH": 129.7,
+     "ttkS": 25.2,
+     "takenPerKill": 147
+    },
+    "sump_slime": {
+     "role": "brute",
+     "killsPerH": 69.7,
+     "ttkS": 45.9,
+     "takenPerKill": 271
+    },
+    "culvert_bat": {
+     "role": "stalker",
+     "killsPerH": 100.4,
+     "ttkS": 33.1,
+     "takenPerKill": 42
+    },
+    "cistern_spider": {
+     "role": "brute",
+     "killsPerH": 38.9,
+     "ttkS": 30.7,
+     "takenPerKill": 194
+    },
+    "kobold_tosher": {
+     "role": "shooter",
+     "killsPerH": 69.7,
+     "ttkS": 23.4,
+     "takenPerKill": 71
+    },
+    "rat_king": {
+     "role": "caster",
+     "killsPerH": 9.7,
+     "ttkS": 61.7,
+     "takenPerKill": 112
+    }
+   },
+   "abs": {
+    "level": 3,
+    "depth": 11
+   },
+   "sustain": {
+    "freePm": 106,
+    "spellPm": 839,
+    "foodPm": 55,
+    "takenPmS": 13.93
+   }
+  }
+ },
+ "wallS": 57,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

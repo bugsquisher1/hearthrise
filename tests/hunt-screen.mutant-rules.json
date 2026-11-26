@@ -101,8 +101,6 @@
   "the struck reason of a food slot ignores the server": "HS-20",
   "the summary has no balance per hour (HS-25)": "HS-25",
   "the tier note drops its numbers": "HS-8",
-  "the tier note reads one line whatever the pull": "HS-8",
-  "the tier note says its numbers again": "HS-8",
   "the tutorial card hangs over the hunt bar": "HS-10b",
   "the world HUD stays under the alerts while a tooltip is open (HS-22)": "HS-22"
 }

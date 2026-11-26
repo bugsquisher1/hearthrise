@@ -15,11 +15,11 @@
 // ci-run: node tests/carry-on.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
 //
-//   CO-CLOSED  BOTH PATHS, THE BROWSER CLOSED: four heroes of one account on four different last plans (the Cellar alone; the Thicket on a
-//              harder tier with an hours limit; a party of the account's own two on the Cellar) hunt with nobody watching; the world tick's
+//   CO-CLOSED  BOTH PATHS, THE BROWSER CLOSED: four heroes of one account on four different last plans (the Cellar alone; the Thicket with
+//              an hours limit; a party of the account's own two on the Cellar) hunt with nobody watching; the world tick's
 //              engine ends every hunt on stamina; time passes and NO hunt starts by itself. The account comes back: the plan names all four,
 //              each topped up from Storage to its last loaded count (Storage drawn in slot order); ONE press puts all four back, each on its
-//              own ground, tier, hours and party (one instance for the two), Storage less what they took, one journal row a line taken
+//              own ground, hours and party (one instance for the two), Storage less what they took, one journal row a line taken
 //   CO-VIEWED  BOTH PATHS, THE HUNT VIEWED: the real client (CharacterSession, carry-on-intents.js, the end card's press in src/shell/carry-on.js)
 //              over the replayed server: a leader of a party the account fills alone watches the hunt end; its card reads "Hunt again, both";
 //              the press reads the plan and sends ONE hr_carry_on naming the two slots and the plan's gold; both heroes are read again and
@@ -153,16 +153,11 @@ async function tickUntilHome(db, M, uid, o = {}) {
 /* Each phase's ended sessions an hour back: a fixture in one transaction enters every session at the same now(). */
 const ageEnded = (db, uid) => db.query(`update public.hunt_sessions set entered_at = entered_at - interval '1 hour' where user_id = $1 and ended_at is not null`, [uid]);
 
-/* THE FOUR LAST PLANS: slot 0 the Cellar alone; slot 1 the Thicket on its harder tier for 2 hours; slots 2 and 3 a party of the account's own. */
+/* THE FOUR LAST PLANS: slot 0 the Cellar alone; slot 1 the Thicket for 2 hours (its tier pick left with the tiers, 1071-retire-tier-chain.sql);
+   slots 2 and 3 a party of the account's own. */
 async function fourPlans(db, M) {
   await heroes(db, M, A, 4);
   await levelTo(db, M, A, 1, 6);
-  const tiers = (await q(db, 'select tier from public.hr_ground_tiers where hunt_id = $1 order by tier', [THICKET])).map((r) => r.tier).filter((x) => x !== 'normal');
-  const tier = tiers[0] || 'normal';
-  if (tier !== 'normal') {
-    const r = await as(db, A, 'select public.hr_hunt_tier_set(1, $1, $2, $3::uuid)', [THICKET, tier, idem()]);
-    if (!r || r.ok !== true) throw new Error('tier refused: ' + JSON.stringify(r));
-  }
   const bag = JSON.stringify([{ item: FOOD, qty: 20 }]);
   let r = await as(db, A, `select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, $3::uuid)`, [CELLAR, bag, idem()]);
   if (!r || r.ok !== true) throw new Error('slot 0 enter refused: ' + JSON.stringify(r));
@@ -174,7 +169,7 @@ async function fourPlans(db, M) {
   if (!r || r.ok !== true) throw new Error('party start refused: ' + JSON.stringify(r));
   const party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 2)', [A]);
   await backdate(db, A, 6, 60000);
-  return { tier, party };
+  return { party };
 }
 /* Hunted, home on their own, and each hero ate 15 of its 20. */
 async function homeHungry(db, M) {
@@ -189,7 +184,7 @@ async function homeHungry(db, M) {
 async function closedArm(db, M) {
   return H.inTx(db, async () => {
     const bad = [];
-    const { tier, party } = await homeHungry(db, M);
+    const { party } = await homeHungry(db, M);
     const ends = await q(db, `select slot, end_reason from public.hunt_sessions where user_id = $1 order by slot, entered_at`, [A]);
     if (ends.length !== 4 || ends.some((e) => !['stamina', 'party_member_left'].includes(e.end_reason))) bad.push('CO-CLOSED HARNESS: the tick ended ' + JSON.stringify(ends));
     /* time passes with nobody here: the tick settles nothing, the after-hunt sweep starts no hunt */
@@ -208,8 +203,6 @@ async function closedArm(db, M) {
     const at = (s) => open.find((o) => o.slot === s);
     if (at(0).hunt_id !== CELLAR || at(0).hours_limit !== null) bad.push('CO-CLOSED slot 0 went on ' + JSON.stringify(at(0)));
     if (at(1).hunt_id !== THICKET || at(1).hours_limit !== 2) bad.push('CO-CLOSED slot 1 lost its ground or hours: ' + JSON.stringify(at(1)));
-    const t1 = await one(db, 'select tier from public.hunt_instances where id = $1', [at(1).instance_id]);
-    if ((t1 || 'normal') !== tier) bad.push('CO-CLOSED slot 1 went on tier ' + t1 + ', its last was ' + tier);
     if (at(2).instance_id !== party || at(3).instance_id !== party || at(2).hunt_id !== CELLAR) bad.push('CO-CLOSED the party did not go together: ' + JSON.stringify([at(2), at(3), party]));
     const loaded = await q(db, `select h.slot, b.qty_loaded::int as q from public.hunt_bag b join public.hunt_sessions h on h.id = b.session_id
                                  where h.user_id = $1 and h.ended_at is null and b.item_id = $2 order by h.slot`, [A, FOOD]);
@@ -457,7 +450,7 @@ async function wordsArm() {
   const S = await imp('src/shell/carry-on.js');
   const I = await imp('src/session/carry-on-intents.js');
   const p = I.planOf({ go: 1, gold: 450, heroes: [
-    { slot: 0, state: 'go', name: 'Wren', hunt: THICKET, tier: 'normal', storage: [{ item: FOOD, qty: 40 }], short: [{ item: FOOD, qty: 5 }], bless: [{ tier: 1, price: 450 }], bless_gold: 450, loot: true, job: 'gather' },
+    { slot: 0, state: 'go', name: 'Wren', hunt: THICKET, storage: [{ item: FOOD, qty: 40 }], short: [{ item: FOOD, qty: 5 }], bless: [{ tier: 1, price: 450 }], bless_gold: 450, loot: true, job: 'gather' },
     { slot: 1, state: 'no', name: 'Bryn', why: 'no_stamina' },
     { slot: 2, state: 'no', name: 'Tess', why: 'party_leader', detail: { leader: 'Marlow' } },
     { slot: 3, state: 'parked', name: 'Dorn' },
@@ -470,9 +463,9 @@ async function wordsArm() {
   if (!/^Wren: Meadowbrook Thicket \(Steady\) · From Storage: 40 Cooked Shrimp · Short: 5 Cooked Shrimp \(store refills in the hunt\) · Bless again: 450 gp · Loot plan first · Stops gathering$/.test(txt[0] || '')) bad.push('CO-WORDS the go line reads ' + JSON.stringify(txt[0]));
   if (txt[1] !== 'Bryn: stays in town (no stamina left)' || txt[2] !== 'Tess: waiting for Marlow (party leader)' || txt[3] !== 'Dorn: unchanged') bad.push('CO-WORDS the other lines read ' + JSON.stringify(txt.slice(1)));
   if (txt.some((s) => /[;—–]/.test(s))) bad.push('CO-WORDS a line has a semicolon or a dash: ' + JSON.stringify(txt));
-  /* a Danger scale ground has no tier (visual pass 2: "The Muster Barrows, Normal."): the line names the hero's Risk, Steady where none is read */
+  /* a Danger scale ground names no tier (visual pass 2: "The Muster Barrows, Normal."): the line names the hero's Risk, Steady where none is read */
   const scale = I.planOf({ go: 2, gold: 0, heroes: [
-    { slot: 0, state: 'go', name: 'Wren', hunt: 'muster_barrows', tier: 'normal' }, { slot: 1, state: 'go', name: 'Bryn', hunt: 'muster_barrows', tier: 'normal' }] });
+    { slot: 0, state: 'go', name: 'Wren', hunt: 'muster_barrows' }, { slot: 1, state: 'go', name: 'Bryn', hunt: 'muster_barrows' }] });
   const onRisk = S.carryLinesOf(scale, (slot) => (slot === 0 ? 'bold' : null)).map((l) => l.text);
   if (onRisk[0] !== 'Wren: The Muster Barrows (Bold)' || onRisk[1] !== 'Bryn: The Muster Barrows (Steady)') bad.push('CO-WORDS a scale ground reads ' + JSON.stringify(onRisk));
   if (S.againAllWords(2) !== 'Hunt again, both' || S.againAllWords(3) !== 'Hunt again, all three' || S.againAllWords(4) !== 'Hunt again, all four') bad.push('CO-WORDS the end card reads ' + [2, 3, 4].map(S.againAllWords).join(' / '));

@@ -30,9 +30,9 @@
 //   (iii) Both chains applied through the REPLAYED hr_apply (this checkout's
 //         migration chain, PGlite) from ONE starting row seeded from the
 //         probe: the same accept/refuse answer per window, and identical state
-//         (player_state/skills/inventory/progress/equipment/bank) and ledger
-//         rows, excluding ids and timestamps. One transaction, so hr_apply's
-//         now() is one instant for both characters.
+//         (player_state/skills/inventory/progress/equipment, the account's
+//         Storage and purse) and ledger rows, excluding ids and timestamps. One
+//         transaction, so hr_apply's now() is one instant for both characters.
 //
 // Read-only on git and on production: no network, no credentials, no writes
 // outside the OS temp dir. Exit: 0 identical · 1 mismatch · 2 harness.
@@ -211,21 +211,21 @@ try { ({ db } = await bootReplay({})); } catch (e) { await cleanup(); harness(`t
 const q = async (sql, p) => (await db.query(sql, p)).rows;
 const uOld = '00000000-0000-4000-8000-0000000dd001';
 const uNew = '00000000-0000-4000-8000-0000000dd002';
-/* Wallet-aware: since 2026-10-19-account-wallet.sql gems live in
-   account_wallet (player_state.gems is dropped). The replayed chain is the
-   checkout's, so the column is read, not assumed; gems start at 0 either way. */
-const HAS_GEMS_COL = (await q(`select 1 from information_schema.columns
-  where table_schema = 'public' and table_name = 'player_state' and column_name = 'gems'`)).length > 0;
-const HAS_WALLET = (await q(`select to_regclass('public.account_wallet') as t`))[0].t !== null;
-/* The depot became the ACCOUNT's (2026-11-27-account-depot.sql): player_bank folded into account_bank. */
-const BANK_TABLE = (await q(`select to_regclass('public.account_bank') as t`))[0].t !== null ? 'account_bank' : 'player_bank';
+/* THE STARTING ROW, WRITTEN TO THIS CHECKOUT'S SCHEMA. The replayed chain is the tool's own tree, so the
+   schema is known, not sniffed: a column the chain drops must turn this arm red (exit 2, named) on the
+   nightly that first replays the drop, never be skipped by a branch that only a database without it takes.
+   Gold and gems are the ACCOUNT's purse, account_wallet (2026-10-19-account-wallet.sql moved gems,
+   2026-12-15-account-gold.sql folded player_state.gold in and dropped the column); max HP is DERIVED from
+   level_xp and the worn armour (2026-10-27-core-schema.sql dropped max_hp), so the row carries level_xp;
+   Storage is the account's account_bank (2026-11-27-account-depot.sql). */
 const seed = async (u) => {
   await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-  await q(`insert into public.player_state (user_id, slot, gold, ${HAS_GEMS_COL ? 'gems, ' : ''}hp, max_hp, version, accrued_to,
+  await q('insert into public.account_wallet (user_id, gold) values ($1, $2)', [u, Math.max(0, Math.floor(probe.gold || 0))]);
+  await q(`insert into public.player_state (user_id, slot, hp, level_xp, version, accrued_to,
              active_kind, active_id, active_since, companion_equipped)
-           values ($1, 0, $2, ${HAS_GEMS_COL ? '0, ' : ''}$3, $4, 1, to_timestamp($5::double precision / 1000), $6, $7,
-                   to_timestamp($8::double precision / 1000), $9)`,
-  [u, Math.max(0, Math.floor(probe.gold || 0)), probe.hp, probe.maxHp, probe.accruedToMs, probe.activeKind,
+           values ($1, 0, $2, $3, 1, to_timestamp($4::double precision / 1000), $5, $6,
+                   to_timestamp($7::double precision / 1000), $8)`,
+  [u, probe.hp, Math.max(0, Math.floor(probe.levelXp || 0)), probe.accruedToMs, probe.activeKind,
     probe.activeId, probe.activeSinceMs ?? probe.accruedToMs, probe.perks?.companion?.id ?? null]);
   if (probe.toolCarry) await q('update public.player_state set tool_carry = $2::jsonb where user_id = $1', [u, JSON.stringify(probe.toolCarry)]);
   for (const [k, v] of Object.entries(probe.skills || {})) {
@@ -253,8 +253,8 @@ const STRIP = new Set(['user_id', 'id', 'ts', 'at', 'created_at', 'updated_at'])
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !STRIP.has(k)).sort(([a], [b]) => (a < b ? -1 : 1)));
 const stateOf = async (u) => {
   const out = {};
-  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', BANK_TABLE,
-    ...(HAS_WALLET ? ['account_wallet'] : [])]) {
+  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', 'account_bank',
+    'account_wallet']) {
     out[t] = (await q(`select to_jsonb(t) as j from public.${t} t where user_id = $1`, [u])).map((r) => JSON.stringify(clean(r.j))).sort();
   }
   return out;
@@ -284,7 +284,7 @@ check('iii', ad < 0 && accepted > 0, `hr_apply answered the same for all ${answe
 const [sO, sN] = [await stateOf(uOld), await stateOf(uNew)];
 let sdiff = null;
 for (const t of Object.keys(sO)) if (!isDeepStrictEqual(sO[t], sN[t])) { sdiff = t; break; }
-check('iii', !sdiff, 'state byte-identical (player_state, skills, inventory, progress, equipment, bank)',
+check('iii', !sdiff, 'state byte-identical (player_state, skills, inventory, progress, equipment, storage, purse)',
   `${sdiff} differs:\n      old ${js(sO[sdiff])}\n      new ${js(sN[sdiff])}`);
 const [lO, lN] = [await ledgerOf(uOld), await ledgerOf(uNew)];
 const ld = firstDiff(lO, lN);

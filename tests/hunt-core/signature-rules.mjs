@@ -6,7 +6,8 @@
 //                     the boundary adds its rows after the Roads' own (named by the Signature, never ramped), twice adds them once, gone
 //                     takes them off and leaves the Roads' rows
 //   rows              every row passes the one reaction check the Roads read (src/data/talents.js reactProblems) on the live moves; its home
-//                     monster is on its home ground's pack, its seat a hunt role, its ground a Danger scale ground; the five are the ruled sample
+//                     is a monster that exists (24 section 4's contract), its move live, its seat a hunt role, its ground a Danger scale ground;
+//                     the five are the ruled sample
 //   low-health-shield Cairn Belt: a blow that leaves the wearer under 30% shields it for 25% of its max health, once a 60 s clock; a blow
 //                     that leaves it over the line shields nothing; another hero's line is not the wearer's
 //   reset-per-kill    Barrow Knight's Blade: a Turning Cut kill takes 1 s off Turning Cut, at most 4 s a cast; another move's kill nothing
@@ -45,6 +46,7 @@ async function load(root) {
   M.RO = await imp('src/data/hunt-roles.js');
   M.SPAWN = await imp('src/core/hunt-spawn.js');
   M.SE = await imp('src/core/hunt/status-effects.js');
+  M.MON = await imp('src/data/monsters.js');
   return M;
 }
 
@@ -87,8 +89,9 @@ const cases = {
       if (s.id !== id || nums.has(s.n) || !Number.isInteger(s.n)) return id + ': its id or number';
       nums.add(s.n);
       for (const r of s.reacts) { const bad = M.TD.reactProblems({ kind: 'react', id, ...r }, moves); if (bad.length) return id + ': ' + bad.join('; '); }
-      const pack = join(M.root, 'src/data/grounds', s.home.ground, 'pack.js');
-      if (!existsSync(pack) || !readFileSync(pack, 'utf8').includes(s.home.monster)) return id + ': ' + s.home.monster + ' is not on ' + s.home.ground;
+      /* the home as 24-content-pipeline.md section 4 reads it (content-coherence CC-6 holds the kinds): a monster that exists */
+      if (s.home.kind !== 'monster' || !M.MON.MONSTERS[s.home.id]) return id + ': its home ' + JSON.stringify(s.home);
+      if (s.move !== undefined && !moves.includes(s.move)) return id + ': move ' + s.move + ' is not a live move';
       if (!M.RO.HUNT_ROLES[s.best.seat]) return id + ': seat ' + s.best.seat;
       if (!M.DG.DANGER_GROUNDS[s.best.ground]) return id + ': sized on ' + s.best.ground + ', off the Danger scale';
       if (typeof s.tip !== 'string' || /[;—]/.test(s.tip)) return id + ': its tip';

@@ -95,7 +95,7 @@ export default definePack({
       /* the heavy: a dead ox still in its yoke, dragging a wagon. It puts its head down and runs straight through whoever it's facing and
          everyone lined up behind them (Trample, a marked line, `spells`). Undead, no override. What's in its wagon: the warhammer, and now and then a crossbow. */
       spells: ['trample'],
-      drops: [{ id: 'big_bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.1482, ch: 0.3, band: 'common' }, { id: 'ox_shoe', everyHours: 0.5556, ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'big_bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.08892, ch: 0.5, band: 'common' }, { id: 'ox_shoe', everyHours: 0.5556, ch: 0.08, band: 'uncommon' },
         /* 0.038 to 0.0326 (lane/c-spell-rule, 2026-11-21): the spell rule's faster lone tank read a Warhammer every 0.73 h a hero, under the band's 0.75 */
         { id: 'dawn_warhammer', everyHours: 1.363, ch: 0.0326, band: 'scarce' }, { id: 'duskwood_crossbow', everyHours: 17.36, ch: 0.00256, band: 'rare' }],
       hp: 257, atk: 107, aim: 114, evasion: 61, def: 29, xp: 2499, gp: [38, 113], formula: true },
@@ -115,7 +115,7 @@ export default definePack({
       role: 'brute',
       /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No trick, just the hardest
          thing on the road. Undead, no override. The lead wagon's Dawnstone and the Dawnsteel sword. */
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', everyHours: 1.999, ch: 0.2, band: 'common' }, { id: 'waybill', everyHours: 4, ch: 0.1, band: 'uncommon' },
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', everyHours: 1.333, ch: 0.3, band: 'common' }, { id: 'waybill', everyHours: 4, ch: 0.1, band: 'uncommon' },
         /* 0.0056 to 0.0049 (lane/c-spell-rule, 2026-11-21): a Sword every 9.92 h a hero under the spell rule, under the Rare band's 10 */
         { id: 'dawn_sword', everyHours: 81.6, ch: 0.0049, band: 'rare' }],
       hp: 360, atk: 140, aim: 155, evasion: 68, def: 40, xp: 3732, gp: [53, 159], formula: true },

@@ -74,7 +74,7 @@ export default definePack({
       role: 'shooter',
       /* the glass: a lanky troll on the roof, throwing slates from 5 tiles at whoever stands farthest back (`range`) */
       range: 5,
-      drops: [{ id: 'bones', everyHours: 0.05001, ch: 0.667, band: 'common' }, { id: 'troll_hide', everyHours: 0.08325, ch: 0.4, band: 'common' }, { id: 'roof_slate', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'bones', everyHours: 0.06671, ch: 0.5, band: 'common' }, { id: 'troll_hide', everyHours: 0.111, ch: 0.3, band: 'common' }, { id: 'roof_slate', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
         { id: 'ember_gauntlets', everyHours: 15.15, ch: 0.0022, band: 'rare' }, { id: 'dragonhide_gloves', everyHours: 15.15, ch: 0.0022, band: 'rare' }, { id: 'archmage_gloves', everyHours: 15.15, ch: 0.0022, band: 'rare' }],
       hp: 154, atk: 142, aim: 179, evasion: 40, def: 5, xp: 1694, gp: [23, 68], formula: true },
     stable_troll: {
@@ -82,7 +82,7 @@ export default definePack({
       role: 'brute',
       /* the heavy: the big one that sleeps in the stable and swings the water trough */
       spells: ['trough_swing'],
-      drops: [{ id: 'big_bones', everyHours: 0.06668, ch: 0.5, band: 'common' }, { id: 'troll_hide', everyHours: 0.1042, ch: 0.32, band: 'common' }, { id: 'stable_bit', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'big_bones', everyHours: 0.06668, ch: 0.5, band: 'common' }, { id: 'troll_hide', everyHours: 0.06669, ch: 0.5, band: 'common' }, { id: 'stable_bit', everyHours: 0.4167, ch: 0.08, band: 'uncommon' },
         { id: 'ember_platelegs', everyHours: 1.008, ch: 0.0331, band: 'scarce' }, { id: 'dragonhide_pants', everyHours: 1.008, ch: 0.0331, band: 'scarce' }, { id: 'archmage_pants', everyHours: 1.008, ch: 0.0331, band: 'scarce' }],
       hp: 253, atk: 106, aim: 113, evasion: 60, def: 28, xp: 2578, gp: [37, 112], formula: true },
     troll_brewer: {
@@ -90,7 +90,7 @@ export default definePack({
       role: 'caster',
       /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone */
       spells: ['boiling_mash'],
-      drops: [{ id: 'bones', everyHours: 0.05624, ch: 0.889, band: 'common' }, { id: 'coal', everyHours: 0.09998, ch: 0.5, band: 'common' }, { id: 'coal_tongs', everyHours: 0.6247, ch: 0.08, band: 'uncommon' }],
+      drops: [{ id: 'bones', everyHours: 0.09999, ch: 0.5, band: 'common' }, { id: 'coal', everyHours: 0.09998, ch: 0.5, band: 'common' }, { id: 'coal_tongs', everyHours: 0.6247, ch: 0.08, band: 'uncommon' }],
       hp: 214, atk: 134, aim: 152, evasion: 45, def: 10, xp: 1996, gp: [31, 95], formula: true },
     the_landlord: {
       name: 'The Landlord', icon: '🧌', tier: 6, level: 123, cls: 'humanoid', family: 'Troll', speed: 2800,

@@ -523,6 +523,11 @@
         "bytes": 3908954,
         "on": "2026-11-26",
         "why": "lane/t1-traits-drop: the settle hands the engine the worn pieces and the Trait roll and carries what it found (hunt-settle.js memberInput, traitDropsOf, traitsFor; trait-roll.js draws the base, drop-rate.js traitBasesOf), +4,735 B on the merged set"
+      },
+      {
+        "bytes": 3909095,
+        "on": "2026-11-26",
+        "why": "lane/t1b-piece-verbs: src/data/refusal-words.js (packed through boss-calls.js) gains the six Trait piece refusals of 1072 (pieces_dark, piece_worn, piece_escrowed, not_sellable, sell_day_cap, equip_slot_needed); no engine code moved"
       }
     ]
   }

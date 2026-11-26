@@ -404,6 +404,13 @@ function contract(R, cs, body, tl) {
   const tc = ta && ta.held.find((x) => x.task === 'cellar_giant_rats');
   need('tally', !!ta && ta.perDay === 3 && ta.heldMax === 3 && ta.weight === 'light' && ta.order.length === 6 && !!tc && tc.kills > 0 && tc.kills <= tc.target,
     'tallyOf yields ' + JSON.stringify(ta) + ' from ' + JSON.stringify(body.tally));
+  /* hunt_settle (the player door's own member answer, hunt-settle.js): the settle names no `found` while trait_drops is dark, so the drop
+     moment (piece-sections.js foundNowOf) reads none; and the dark `pieces` section reads nothing (piece-verbs-db and piece-client read both lit) */
+  const hsb = body.hunt_settle;
+  need('hunt_settle', (hsb === null || hsb === undefined || (typeof hsb === 'object' && !('found' in hsb))) && R.PC.foundNowOf(cs).length === 0,
+    'foundNowOf yields ' + JSON.stringify(R.PC.foundNowOf(cs)) + ' from ' + String(JSON.stringify(hsb)).slice(0, 200));
+  need('pieces', body.pieces === null && R.PC.piecesOf(cs) === null && R.PC.freePiecesOf(cs).length === 0,
+    'piecesOf yields ' + JSON.stringify(R.PC.piecesOf(cs)) + ' from ' + JSON.stringify(body.pieces));
   return out;
 }
 
@@ -425,13 +432,9 @@ function sheetContract(R, cs, body) {
   /* talents (1064-roads-sample.sql): the Roads switch is off, so the server projects null and the reader yields null (the tab stays hidden) */
   need('talents', body.talents === null && R.TL.talentsOf(cs, 'shield', 'party') === null,
     'talentsOf yields ' + JSON.stringify(R.TL.talentsOf(cs, 'shield', 'party')) + ' from ' + JSON.stringify(body.talents));
-  /* pieces (1071-trait-pieces.sql, 1072-piece-verbs.sql): the trait_pieces switch is off, so the server projects null and every reader yields
-     nothing (no piece on the doll, the bag, the alert or the return card); tests/piece-verbs-db.mjs and piece-client.mjs read it lit */
-  need('pieces', body.pieces === null && R.PC.piecesOf(cs) === null && R.PC.freePiecesOf(cs).length === 0 && R.PC.wornPieceOf(cs, 'body') === null,
+  /* pieces (1071-trait-pieces.sql, 1072-piece-verbs.sql), the sheet's envelope too: the switch is off, so no piece reads worn */
+  need('pieces', body.pieces === null && R.PC.piecesOf(cs) === null && R.PC.wornPieceOf(cs, 'body') === null,
     'piecesOf yields ' + JSON.stringify(R.PC.piecesOf(cs)) + ' from ' + JSON.stringify(body.pieces));
-  /* hunt_settle (the player door's own member answer, hunt-settle.js): dark it names no `found`, so the drop moment reads none */
-  need('hunt_settle', (body.hunt_settle === null || (!!body.hunt_settle && typeof body.hunt_settle === 'object' && !('found' in body.hunt_settle))) && R.PC.foundNowOf(cs).length === 0,
-    'foundNowOf yields ' + JSON.stringify(R.PC.foundNowOf(cs)) + ' from ' + JSON.stringify(body.hunt_settle).slice(0, 200));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
     'deathLogOf yields ' + JSON.stringify(dl) + ' from ' + JSON.stringify(body.death_log));

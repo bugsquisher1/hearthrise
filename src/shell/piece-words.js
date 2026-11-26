@@ -2,14 +2,15 @@
 // src/shell/piece-words.js — A TRAIT PIECE IN WORDS, AND ITS DROP MOMENT (lane/t1b-piece-verbs, 2026-11-26; 12-targets 8.6, 21 section 4.5).
 //
 //   pieceName(p)          the piece's name: its Signature's, else its base item's
-//   traitWords(p)         "First Rank III" or "File Breaker I · Worrier II"; '' for a Signature (the piece is its rule)
+//   traitWords(p)         each Trait's name and rank in Roman numerals, joined by " · "; '' for a Signature (the piece is its rule). The
+//                         names are the hunt view's own resolver's (src/render/source-names.js), so no screen file reads the Trait table
 //   foundWords(p)         "Item Level 60 · Muster Barrows, depth 3"
 //   standingWord(p)       "Rare" / "Very Rare" / "Signature"
 //   pieceNewsOf(cs, told, who, nowMs)   the drop moment: one `rare` alert a piece this hero just found (the answer's hunt_settle.found,
 //                         or the section's newest finds of its open hunt), each once (`told` by id)
 // Display only: every fact is the server's row (src/session/piece-sections.js). Nothing here counts or prices.
 // ════════════════════════════════════════════════════════════════════════
-import { TRAITS } from '../data/traits.js';
+import { nameOf } from '../render/source-names.js';
 import { SIGNATURES } from '../data/signatures.js';
 import { itemName } from './widgets/bits.js';
 import { huntName } from '../session/party-sections.js';
@@ -27,7 +28,7 @@ export const PIECE_NEWS_MS = 10 * 60 * 1000;
 export const pieceName = (p) => (p && p.signature && own(SIGNATURES, p.signature) ? SIGNATURES[p.signature].name : itemName(p ? p.base : ''));
 export const standingWord = (p) => (p && own(STANDING, p.rarity) ? STANDING[p.rarity] : '');
 export function traitWords(p) {
-  return (p && p.traits ? p.traits : []).map((t) => (own(TRAITS, t.id) ? TRAITS[t.id].name : t.id) + (ROMAN[t.rank] ? ' ' + ROMAN[t.rank] : '')).join(' · ');
+  return (p && p.traits ? p.traits : []).map((t) => (nameOf(t.id) || t.id) + (ROMAN[t.rank] ? ' ' + ROMAN[t.rank] : '')).join(' · ');
 }
 export function foundWords(p) {
   if (!p) return '';

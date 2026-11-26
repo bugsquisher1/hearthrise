@@ -5432,6 +5432,14 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
           node tests/trade-formulas.mjs
           node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
+      # tests/trait-pieces-db.mjs
+      - name: Trait pieces - the worn projection and the settle's Trait roll, both paths, the bounds through the real commit (1071)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-trait-pieces.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-trait-pieces.mjs --selftest
+          node tests/trait-pieces-db.mjs
+          node tools/mutant-gate.mjs node tests/trait-pieces-db.mjs --mutate
       # tests/whats-new.mjs
       - name: What's new - one card an account, the fresh line for a returning account
         if: ${{ !cancelled() }}

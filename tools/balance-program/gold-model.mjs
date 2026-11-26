@@ -26,7 +26,9 @@ const data = (f) => import(pathToFileURL(join(ROOT, 'src', 'data', f)).href);
 const REF = JSON.parse(readFileSync(join(HERE, 'ref.json'), 'utf8'));
 const { STAMINA_REFILL } = await data('stamina-refill.js');
 const { blessingPrice } = await import(pathToFileURL(join(ROOT, 'src', 'core', 'wage.js')).href);
-const { TEMPER_TIERS } = await data('temper.js');
+const TS = await import(pathToFileURL(join(ROOT, 'src', 'core', 'temper-steps.js')).href);
+const { GEAR_STEPS } = await data('danger.js');
+const { wage } = await data('wage.js');
 const { SINK_RULES } = await data('gold-sinks.js');
 const { TOWN_WORKS } = await data('town-works.js');
 const { BANK_LADDER } = await data('gold-ladders.js');
@@ -93,15 +95,17 @@ const sum = (ids) => ids.reduce((s, id) => s + offer(id), 0);
 const ROOMS = ['cellar', 'forge', 'garden', 'kitchen', 'library', 'shrine', 'trophy', 'workshop'].filter((r) => !HELD_HOME_ROOMS.includes(r));
 const CHEAP = ['cellar', 'garden', 'shrine', 'trophy'].filter((r) => ROOMS.includes(r)), BENCH = ['forge', 'kitchen', 'library', 'workshop'];
 const rooms = (from, to, set = ROOMS) => sum(set.flatMap((r) => Array.from({ length: to - from + 1 }, (_, i) => 'room.' + r + '.' + (from + i))));
-const temper = (t) => TEMPER_TIERS[t].reduce((s, n) => s + n, 0) * 2;
+/* TEMPER ON STEPS (src/core/temper-steps.js; the old rungs retired with lane/tp-im-steps): ranks `from` to `to` on a whole kit at item step iL,
+   the whole price in gold (its kits counted at their V, half of it) */
+const temper = (from, to, iL) => { let mh = 0; for (const s of Object.keys(GEAR_STEPS.slotPm)) for (let r = from; r <= to; r++) mh += TS.rankMilliHours(s, r); return Math.ceil((mh * wage(iL)) / 1000); };
 const HALLMARK = { 2: 25000, 3: 100000, 4: 150000, 5: 250000, 6: 400000, 7: 600000 };   /* RULED 11-18; tiers 2 and 3 built */
 const REFORGE = { 2: 150000, 3: 450000, 4: 300000, 5: 600000, 6: 900000, 7: 1200000 };  /* six pieces carried up, itemization-plan section 10 */
 const SHELF = [
   { L: 10, rows: [['Homestead and Farmstead', sum(['property.homestead', 'property.farmstead']), 1], [CHEAP.map((r) => r[0].toUpperCase() + r.slice(1)).join(', ') + ', rungs 1 to 3', rooms(1, 3, CHEAP), 1], ['Key Ring', 25000, 1]] },
-  { L: 30, rows: [['Manor', offer('property.manor'), 1], ['Forge, Kitchen, Library, Workshop, rungs 1 to 2 (each ends its bench tax)', rooms(1, 2, BENCH), 1], ['Tempering tier 2, both tracks', temper(2), 'h'], ['Six crafted pieces Hallmarked, tier 2', REFORGE[2], 'h', 1]] },
-  { L: 50, rows: [['Keep', offer('property.keep'), 1], ['The bench rooms to rung 4, the other four rooms rung 4', rooms(3, 4, BENCH) + rooms(4, 4, CHEAP), 1], ['House dummy, four skills', SINK_RULES.house_dummy.prices.reduce((a, b) => a + b, 0), 1], ['Tempering tiers 3 and 4, both tracks', temper(3) + temper(4), 'h'], ['Six pieces carried to tiers 3 and 4 (tier 4 fee RULED, not built)', REFORGE[3] + REFORGE[4], 'h', 1]] },
-  { L: 80, rows: [['Rooms, rung 5', rooms(5, 5), 1], ['Castle', offer('property.castle'), 1], ['Tempering tiers 5 and 6, both tracks', temper(5) + temper(6), 'h'], ['Six pieces carried to tiers 5 and 6 (RULED, not built)', REFORGE[5] + REFORGE[6], 'h', 1]] },
-  { L: 105, rows: [['Tempering tier 7, both tracks', temper(7), 'h'], ['Six pieces carried to tier 7 (RULED, not built)', REFORGE[7], 'h', 1]] },
+  { L: 30, rows: [['Manor', offer('property.manor'), 1], ['Forge, Kitchen, Library, Workshop, rungs 1 to 2 (each ends its bench tax)', rooms(1, 2, BENCH), 1] ['Six crafted pieces Hallmarked, tier 2', REFORGE[2], 'h', 1]] },
+  { L: 50, rows: [['Keep', offer('property.keep'), 1], ['The bench rooms to rung 4, the other four rooms rung 4', rooms(3, 4, BENCH) + rooms(4, 4, CHEAP), 1], ['House dummy, four skills', SINK_RULES.house_dummy.prices.reduce((a, b) => a + b, 0), 1], ['Temper rank 1 on a whole kit (item step 60)', temper(1, 1, 60), 'h'], ['Six pieces carried to tiers 3 and 4 (tier 4 fee RULED, not built)', REFORGE[3] + REFORGE[4], 'h', 1]] },
+  { L: 80, rows: [['Rooms, rung 5', rooms(5, 5), 1], ['Castle', offer('property.castle'), 1], ['Temper rank 2 on a whole kit (item step 80)', temper(2, 2, 80), 'h'], ['Six pieces carried to tiers 5 and 6 (RULED, not built)', REFORGE[5] + REFORGE[6], 'h', 1]] },
+  { L: 105, rows: [['Temper ranks 1 and 2 re-seated on a whole kit (item step 120)', Math.ceil(temper(1, 2, 120) * 0.35), 'h'], ['Six pieces carried to tier 7 (RULED, not built)', REFORGE[7], 'h', 1]] },
   { L: 118, rows: [['Nothing new is built past Krell (linings, worn in and unique reforges are designed)', 0, 1]] },
 ];
 const bankAll = BANK_LADDER.reduce((s, r) => s + r.gold, 0);
@@ -155,16 +159,14 @@ function refills() {
   }
 }
 function offers() {
-  /* XP sizes: CITED. Tempering Blows 5 of 5 +3.1 to +3.8% Level XP (itemization-plan section 10, measured at the Slake and the Glade); 01-model
-     section 2: x1.030 at the Ford; tier 7 +2% by rule. A refill: 4 hunt hours. A hero slot: one more hero's whole output. The yard: 30,000 skill XP an hour. */
+  /* XP sizes: Temper rank 1 on a whole kit is 1 step, about 0.7% pace (19-power-ledger: 14 steps is 10% pace). 01-model section 2: x1.030 at the Ford. A refill: 4 hunt hours. A hero slot: one more hero's whole output. The yard: 30,000 skill XP an hour. */
   console.log('### Gold for power and gold for time, one line each (REF hour = the free gold of one hero-hour of a four at that Level)\n');
   console.log('| Offer | Level | Price | What it gives | REF hours of gold | REF hours for +1% Level XP, or for one hunt hour | Label |\n|---|---|---|---|---|---|---|');
   const net = (L) => FOUR[L].coin + FOUR[L].sold - FOUR[L].store;
   const line = (o, L, price, gives, per, lab) => console.log('| ' + [o, L, k(price), gives, (price / net(L)).toFixed(1), per, lab].join(' | ') + ' |');
-  for (const [t, L, pct] of [[2, 30, 3.4], [4, 50, 3.0], [6, 80, 3.4], [7, 105, 2.0]]) {
-    const all = TEMPER_TIERS[t].reduce((a, b) => a + b, 0), three = TEMPER_TIERS[t].slice(0, 3).reduce((a, b) => a + b, 0);
-    line('Tempering Blows, tier ' + t + ', rungs 1 to 3', L, three, '+' + (pct * 0.6).toFixed(1) + '% XP', (three / net(L) / (pct * 0.6)).toFixed(1) + ' h a 1%', 'CITED size');
-    line('Tempering Blows, tier ' + t + ', rungs 4 and 5', L, all - three, '+' + (pct * 0.4).toFixed(1) + '% XP', ((all - three) / net(L) / (pct * 0.4)).toFixed(1) + ' h a 1%', 'CITED size');
+  for (const [rank, L, iL] of [[1, 50, 60], [2, 80, 80], [2, 105, 100]]) {
+    const price = temper(rank, rank, iL);
+    line('Temper rank ' + rank + ', a whole kit (item step ' + iL + ')', L, price, '+1 step, about +0.7% pace', (price / net(L) / 0.7).toFixed(1) + ' h a 1%', 'READ FROM DATA');
   }
   for (const L of [30, 50, 80, 105]) { const b = STAMINA_REFILL.base + STAMINA_REFILL.perLevel * L; line('Stamina refill, first of the day', L, b, '4 hunt hours', (b / net(L) / 4).toFixed(2) + ' h a hunt hour', 'READ FROM DATA'); line('Stamina refill, sixth of the day', L, Math.ceil(b * refillStep(5)), '4 hunt hours', (b * refillStep(5) / net(L) / 4).toFixed(2) + ' h a hunt hour', 'READ FROM DATA'); }
   /* (no hero slot line: all four are free from the start, Tyler 2026-11-21; patches/fb5-free-hero-slots.json) */

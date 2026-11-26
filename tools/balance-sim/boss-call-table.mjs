@@ -227,7 +227,7 @@ function tryOnce(call, c, seed) {
   const nameOf = (id) => (units[id] ? units[id][0] : String(id)).replace('_called', '');
   const out = play.run(call.hunt, c.level, roles, {
     ground, spanMs: (call.hall ? BOSS_HALL_RULES : BOSS_CALL_RULES).limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
-    bar, leaveTogether: true, ...(c.temper ? { temper: c.temper } : {}),
+    bar, leaveTogether: true, ...(c.temperSteps ? { temperSteps: c.temperSteps } : {}),
     ...(named ? { options: (role) => (role === 'tank' || role === 'healer' || !named.tmode ? {} : { target_mode: named.tmode }) } : {}),
     bag: (role, i) => (kits[i].ammo === 'bronze_arrows' ? { bronze_arrows: { loaded: 1 } } : {}),
     onWindow: (o) => {
@@ -364,7 +364,7 @@ const RUNS = {
     ['Optimized: tank + healer + 2 dps, L45', { level: 45, party: ['tank', 'healer', 'hammer', 'mage'] }],
     ['Optimized: tank + healer + bow, L45', { level: 45, party: ['tank', 'healer', 'bow'] }],
     ['Optimized: tank + healer, L45', { level: 45, party: ['tank', 'healer'] }],
-    ['Tempered: tank + healer, all rungs, L45', { level: 45, party: ['tank', 'healer'], temper: { 'temper:blows:3': 5, 'temper:armor:3': 5 } }],
+    ['Tempered: tank + healer, rank 1 on every slot, L45', { level: 45, party: ['tank', 'healer'], temperSteps: Object.freeze(Object.fromEntries(['weapon', 'shield', 'helmet', 'body', 'pants', 'boots', 'gloves', 'belt', 'cape', 'necklace', 'earrings', 'ring1', 'ring2'].map((s) => [s, 1]))) }],
     ['Over: tank + healer + 2 dps, L55', { level: 55, party: ['tank', 'healer', 'hammer', 'mage'] }],
     ['Under: tank + healer + 2 dps, L36', { level: 36, party: ['tank', 'healer', 'hammer', 'mage'] }],
     ['Careless: four dps, no tank or healer, L45', { level: 45, party: ['hammer', 'axes', 'bow', 'mage'] }],

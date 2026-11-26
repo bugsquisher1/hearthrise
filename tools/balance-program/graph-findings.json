@@ -90,10 +90,6 @@
    "kind": "feeds",
    "key": "C-SPELL-SHELL>O-MANAWAIT"
   },
-  "GF-1102e9d3": {
-   "kind": "feeds",
-   "key": "C-BUFF-BONUS>C-TEMPER"
-  },
   "GF-125608ba": {
    "kind": "writers",
    "key": "C-SCALED|E01"
@@ -562,10 +558,6 @@
    "kind": "carrier",
    "key": "P28>E37"
   },
-  "GF-56cb625d": {
-   "kind": "feeds",
-   "key": "C-JEWEL-PERKS>C-TEMPER"
-  },
   "GF-57bf9123": {
    "kind": "writers",
    "key": "E47|E49"
@@ -941,10 +933,6 @@
   "GF-935e425c": {
    "kind": "feeds",
    "key": "P28>O-NETXP"
-  },
-  "GF-9411a106": {
-   "kind": "carrier",
-   "key": "C-TEMPER>C-HERO-POWER"
   },
   "GF-941bda02": {
    "kind": "undeclared-move",
@@ -1350,10 +1338,6 @@
    "kind": "feeds",
    "key": "E55>O-REGENSHARE"
   },
-  "GF-d7014299": {
-   "kind": "carrier",
-   "key": "C-GEAR-WEAPON>C-TEMPER"
-  },
   "GF-d7fe4a4f": {
    "kind": "undeclared-move",
    "key": "tierDanger|levelXpPerH"
@@ -1429,10 +1413,6 @@
   "GF-e606524e": {
    "kind": "call",
    "key": "C-RESIST-HERO>C-JEWEL-PERKS"
-  },
-  "GF-e714037e": {
-   "kind": "feeds",
-   "key": "C-GEAR-ARMOR>C-TEMPER"
   },
   "GF-e775a2d8": {
    "kind": "carrier",

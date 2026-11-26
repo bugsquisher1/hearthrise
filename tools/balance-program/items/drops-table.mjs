@@ -15,7 +15,7 @@ import { MONSTERS } from '../../../src/data/monsters.js';
 import { OPEN_GROUNDS, OPEN_HALL_GROUNDS, HUNT_GROUNDS, HALL_GROUNDS } from '../../../src/data/hunt-grounds.js';
 import { ARTISAN_RECIPES_EVERY } from '../../../src/data/recipes.js';
 import { recipeInputs } from '../../../src/core/artisan.js';
-import { TEMPER_MATERIALS } from '../../../src/data/temper.js';
+import { KIT_FACES } from '../../../src/data/trades.js';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../../../src/data/gathering.js';
 import { vendorPriceOf } from '../../../supabase/functions/hr-accrue/catalogue.js';
 
@@ -35,7 +35,7 @@ for (const [gid, g] of Object.entries(OPEN)) for (const m of placed(g)) {
 }
 const USES = {};
 for (const [skill, list] of Object.entries(ARTISAN_RECIPES_EVERY)) for (const r of list) for (const id of Object.keys(recipeInputs(r))) (USES[id] = USES[id] || []).push(skill + ':' + r.id);
-const temperText = JSON.stringify(TEMPER_MATERIALS);
+const temperText = JSON.stringify(KIT_FACES.temper_kit);
 
 if (mode === 'inputs') {
   console.log('input | recipes that take it | open sources (ground: monster chance band)');

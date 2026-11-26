@@ -114,7 +114,7 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads, borrowed, traits) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar, bag, session, options, start, leaveTogether, gold, roads, borrowed, traits, signature) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25), unless
        opts.start gives its own Level XP and skill XP (a career run carries them from one run to the next). */
     const st = (start && start(role, i, L)) || {};
@@ -139,7 +139,10 @@ export async function loadPlay(root) {
         ...(borrowed && borrowed(role, i) ? { borrowed: borrowed(role, i) } : {}),
         /* opts.traits ((role, seat) -> [{ id, rank }] | null): the Traits the hero's pieces carry, as the server would project them
            (src/core/hunt/trait-rules.js; DARK in the game: only the Lab and the tests hand them) */
-        ...(traits && traits(role, i) ? { wornTraits: traits(role, i) } : {}) }),
+        ...(traits && traits(role, i) ? { wornTraits: traits(role, i) } : {}),
+        /* opts.signature ((role, seat) -> Signature id | null): the Signature the hero plays, as the server would project it
+           (src/core/hunt/signature-rules.js; DARK in the game: only the Lab and the tests hand one) */
+        ...(signature && signature(role, i) ? { wornSignature: signature(role, i) } : {}) }),
     };
   };
   const run = (huntId, L, roles, opts = {}) => {
@@ -148,7 +151,8 @@ export async function loadPlay(root) {
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true, opts.gold, typeof opts.roads === 'function' ? opts.roads : null,
-      typeof opts.borrowed === 'function' ? opts.borrowed : null, typeof opts.traits === 'function' ? opts.traits : null));
+      typeof opts.borrowed === 'function' ? opts.borrowed : null, typeof opts.traits === 'function' ? opts.traits : null,
+      typeof opts.signature === 'function' ? opts.signature : null));
     /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
        (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });

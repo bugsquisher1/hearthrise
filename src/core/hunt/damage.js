@@ -301,9 +301,13 @@ function noteMoments(inst, source, target, before, r, ability, crit, brokeBy) {
     if (r.killed && isMonster(target)) queueOn(inst, source, 'kill', { t: target, over: r.over || 0, ability: id });
   }
   if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });
+  const rs = reactorsOf(inst);
+  /* A MONSTER'S DEATH, whoever's blow (a Signature's `pass`, Lurcher's Collar): its Mark as it fell rides the moment */
+  if (r.killed && isMonster(target)) for (const h of rs) queueOn(inst, h, 'death', { t: target, markPm: Number.isInteger(target.markPm) ? target.markPm : 0, markUntil: Number.isInteger(target.markUntil) ? target.markUntil : 0 });
   if (!isHero(target) || !(r.dmg > 0)) return;
   if (blow) queueOn(inst, target, 'hit_taken', { src: source, melee: isMonster(source) && cheb(source, target) <= 1, ability: id });
-  const rs = reactorsOf(inst);
+  /* THE HERO'S OWN HEALTH after a blow (a row's line, belowPm, read as it lands: Cairn Belt) */
+  if (target.alive) queueOn(inst, target, 'hp_below', { t: target });
   if (blow && isMonster(source)) for (const h of rs) if (h !== target && isAlly(h, target)) queueOn(inst, h, 'ally_hit', { t: target, src: source });
   if (target.alive && !nearFall(inst, target, before) && nearFall(inst, target, target.hp)) for (const h of rs) if (isAlly(h, target)) queueOn(inst, h, 'near_fall', { t: target });
 }

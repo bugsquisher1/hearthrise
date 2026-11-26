@@ -16,6 +16,7 @@ import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js
 import { isHero } from './hunt/sides.js';
 import { normalize, grantsOf } from './talents.js';
 import { wornTraitsOf } from './hunt/trait-rules.js';
+import { wornSignatureOf } from './hunt/signature-rules.js';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -59,6 +60,9 @@ export function heroSetup(o) {
   /* THE TRAITS IT WEARS (src/core/hunt/trait-rules.js): the server's projection of its worn pieces' Traits, [{ id, rank }]. DARK: nothing
      hands one while GEAR_STEPS.traitsLive is false (tests/hunt-core/trait-rules.mjs dark); the Lab and the tests do */
   const worn = wornTraitsOf(o.wornTraits);
+  /* THE SIGNATURE IT PLAYS (src/core/hunt/signature-rules.js): the first it equipped, the server's projection. DARK: nothing hands one while
+     SIGNATURE_RULES.live is false (tests/hunt-core/signature-rules.mjs dark) */
+  const sg = wornSignatureOf(o.wornSignature);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
   /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */
   const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });
@@ -74,6 +78,8 @@ export function heroSetup(o) {
     ...(talents ? { talents: Object.freeze(talents), discipline } : {}),
     /* the Traits as the engine plays them (unknown ids and ranks dropped, the key rule applied); absent with none */
     ...(worn ? { wornTraits: worn } : {}),
+    /* the Signature as the engine plays it (an unknown id dropped, one a hero); absent with none */
+    ...(sg ? { wornSignature: sg } : {}),
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */

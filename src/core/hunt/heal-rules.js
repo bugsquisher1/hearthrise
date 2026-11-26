@@ -28,6 +28,7 @@ import { outPmFor, nearFall } from './talent-rows.js';
 import { traitsField } from './trait-rules.js';
 import { dist2 } from './grid.js';
 import { isAlly, isHero } from './sides.js';
+import { queueOn } from './react-queue.js';
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 const NONE = Object.freeze([]);
@@ -70,6 +71,8 @@ export function landHeal(u, t, n, sc, surge, row, piped, cast) {
     if (row && row.overShieldPm) overflowShield(sc, u, t, cut, missing, row.overShieldPm);
     if (fx && fx.hotPm > 0 && fx.hotMs > 0) layOverTime(inst, sc, u, t, Math.floor((n * fx.hotPm) / 1000), fx.hotMs);
   }
+  /* THE CAST LANDED ON `t` (a reaction's `heal` moment, Brewer's Apron): once a hero a cast, laid over time or not (a tick is no cast) */
+  if (inst && row) queueOn(inst, u, 'heal', { t, ability: row.id });
   if (fx) afterHeal(inst, sc, u, t, n, row, fx);
 }
 

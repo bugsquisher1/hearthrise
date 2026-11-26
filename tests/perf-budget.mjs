@@ -305,12 +305,15 @@ async function makeServer(second = 'melee_dps') {
   const NAMES = ['Ada', 'Bram'];
   const SESS = [randomUUID(), randomUUID()];
   const PARTY = randomUUID();
-  const S = { ended: false, endedAt: null, killAt: null, killWall: null, storm: false, version: [LIVE.version, LIVE.version], tally: [0, 1].map(() => ({ kills: 0, xp: 0, gold: 0, loot: {} })) };
+  /* `settles`: each settle this process ran, [wall ms, its ms]. The engine settles HERE, on the page's machine (GitHub's runner has 2 cores),
+     so a held frame with no frame attribution is read against them (printHeld): the page's task, or the box busy with the server's work */
+  const S = { ended: false, endedAt: null, killAt: null, killWall: null, storm: false, version: [LIVE.version, LIVE.version], tally: [0, 1].map(() => ({ kills: 0, xp: 0, gold: 0, loot: {} })), settles: [] };
   const tick = () => {
     if (S.ended) return;
     const to = back(Date.now());
     const before = mis.map((m) => ({ xp: m.levelXp, gold: m.gold, unit: m.unitId }));
-    const c = srv.commit(to - (to - T0) % 100);
+    const t0 = Date.now(), c = srv.commit(to - (to - T0) % 100);
+    S.settles.push([t0, Date.now() - t0]);
     if (S.killAt !== null && to >= S.killAt && !S.killed) {
       /* THE TANK'S DEATH MID-PULL: from this settle on the tank's bar is empty (no food, no Challenge), a
          setup change the start points carry, so the browser's prediction plays the death live */
@@ -908,6 +911,8 @@ function analyse(out, w0, o, srv) {
     fpsMedian: pct(fps, 0.5), fpsP5: pct(fps, 0.05), longFrames: long.length, worstFrame: gaps.length ? Math.max(...gaps) : null, resumeWorst, stallWorst, pageTimed: !!out.ltOk,
     longTasks: out.long.filter((l) => l[0] >= w0.t).length,
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
+    /* the server's settles this process ran over the window (Node, the page's machine): { n, avg, max } ms, as the probes' clocks read */
+    serverSettle: (() => { const d = ((srv && srv.S && srv.S.settles) || []).filter(([w]) => w - off >= w0.t).map(([, x]) => x); return d.length ? { n: d.length, avg: d.reduce((p, x) => p + x, 0) / d.length, max: Math.max(...d) } : null; })(),
     domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
     logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
     groundInFrame: out.c.groundInFrame || 0, groundRemade: out.c.groundRemade || 0, ground: per('ground'), groundSlice: per('groundSlice'), tokenReadsInDraw: out.c.tokenReadsInDraw || 0,
@@ -916,6 +921,8 @@ function analyse(out, w0, o, srv) {
     held: held.map(([a, g, page]) => { const m = out.marks.filter((x) => x[0] <= a).pop();
       return { at: Math.round(a - w0.t), after: m ? m[1] + ' +' + Math.round(a - m[0]) : 'start', gap: Math.round(g), page: Math.round(page),
         loaf: (out.loaf || []).filter((l) => l[0] < a + g && l[0] + l[1] > a),
+        /* the server's settles in this process that overlap the gap, on the page's clock (`off` pairs the two clocks): their ms */
+        settles: ((srv && srv.S && srv.S.settles) || []).filter(([w, d]) => w - off < a + g && w - off + d > a).map(([, d]) => d),
         spans: (out.spans || []).filter((x) => x[0] < a + g && x[0] + x[1] > a).map((x) => x[2] + ' ' + Math.round(x[1])) }; }),
     path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom, sheets: out.sheets || { bitmap: 0, img: 0 },
   };
@@ -995,7 +1002,7 @@ function heapBytes(s) {
 }
 function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
-    + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
+    + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)} settle ${ms(m.serverSettle)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB (code +' + m.heapCodeMb.toFixed(1) + ', used +' + m.heapUsedMb.toFixed(1) + ', with the probe records ' + m.heapRawMb.toFixed(1) + ')'} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
     + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) slice ${ms(m.groundSlice)} (${m.groundSlice ? m.groundSlice.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade} tokens-in-draw ${m.tokenReadsInDraw}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
@@ -1010,7 +1017,8 @@ function row(m) {
 function printHeld(m) {
   for (const h of m.held) console.log(`   held ${h.page} ms (gap ${h.gap}) at ${h.at} ms, ${h.after}: `
     + (h.loaf.map((l) => `frame ${Math.round(l[1])} block ${Math.round(l[2])}${l[3] ? ' render ' + Math.round(l[0] + l[1] - l[3]) : ''}${l[4] ? ' style+layout ' + Math.round(l[0] + l[1] - l[4]) : ''} [${l[5].map((x) => x[2] + ' ' + x[0] + ' ' + x[3] + 'ms' + (x[4] ? ' layout ' + x[4] : '')).join('; ')}]`).join(' / ') || 'no frame attribution')
-    + (h.spans.length ? ' {' + h.spans.join(', ') + '}' : ''));
+    + (h.spans.length ? ' {' + h.spans.join(', ') + '}' : '')
+    + (h.settles && h.settles.length ? ' (a server settle in this process ran inside it: ' + h.settles.map((d) => d + ' ms').join(', ') + ')' : ''));
 }
 
 /* --shard=K/N: a pixel mutant costs a second, a scenario mutant its minutes + about 20 s of boot (run 41339988105). */

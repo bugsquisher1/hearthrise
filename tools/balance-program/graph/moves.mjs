@@ -204,6 +204,7 @@ export const LEVER_MOVES = Object.freeze({
   'gear.trait-budget': [['+gear.special', 'a Trait of rank r adds traitSteps[r] to the gear part while its condition holds (gear-steps.js)']],
   'gear.trait-trade': [['+gear.special', 'a trade Trait adds tradeSteps to offense and takes traitSteps from defense while its condition holds (traits.js trade)']],
   'gear.traits': [['~gear.special','each Trait\'s condition and source decide when its steps count and on which ground it rolls']],
+  'gear.signatures': [['~gear.special', 'each Signature\'s moment, size and clock decide what its one rule buys the hero wearing it (signature-rules.js)']],
   'gear.rarity-hours': [['+gear.special', 'fewer hours a rung (or deeper, or a taller flame) find Trait pieces sooner, so the special gear a kit carries rises (drop-hours.js, trait-roll.js)']],
   /* THE POWER LEDGER (src/data/power-ledger.js, src/core/power-ledger.js, lane/ledger-l1-l3) */
   'gear.trait-rank-gate': [['+gear.special', 'a later entry Level opens a higher Trait rank on the ground (gear-steps.js maxRankAt), so more steps a found Trait can carry']],

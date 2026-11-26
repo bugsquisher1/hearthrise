@@ -10,6 +10,8 @@
 //                   (a raw unit is the gathering behind one meal) by their stage shares, its parts are shares of a host kind, and its own
 //                   make work is the make share (plus the refine share where its material is raw). A RECIPE is (kind, rung): rung r
 //                   opens at trade Level rungLevel(r). Its BAND is the job's, never the recipe's (09 4.2).
+//   NAMED           the kit recipes a player sees (src/data/trades.js KIT_RECIPES, 09 4.9): one kind at one band, opening at the band's
+//                   rung (bandRung), its inputs as the same band's items (faceOf). The catalogue resolves them as `named`.
 //   ONE CURVE       for a recipe that opens at R worked at trade Level L (09 4.4), in permille:
 //                     yieldPm   atReq + (1000 - atReq) x min(L - R, noFailSpan) / noFailSpan (+ Mastery, + bench), at most cap
 //                     finePm    fineBase + (fineTop - fineBase) x (L - R) / (99 - R)
@@ -33,7 +35,7 @@
 //
 // PURE ESM, dual-runtime. No clock, no Math.random: the dice are src/core/rng.js from the job's seed.
 // ════════════════════════════════════════════════════════════════════════
-import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate } from '../data/trades.js';
+import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate, KIT_RECIPES, faceOf, streamFaceOf } from '../data/trades.js';
 import { STORE_KIT } from '../data/store-kit.js';
 import { GEAR_STEPS, DANGER } from '../data/danger.js';
 import { wage, powSquare } from '../data/wage.js';
@@ -59,6 +61,9 @@ export const TRADE_PM = Object.freeze({
 
 /** The trade Level rung `rung` (1-based) opens at. */
 export const rungLevel = (rung) => 1 + (rung - 1) * TRADE_PM.rungSpan;
+/** THE RUNG A BAND'S RECIPE OPENS AT (lane/k1-kit-trades-sample, game designer, 2026-11-26; 09 section 4.9): band b at rung b + 1, every
+    band past the last rung at the last, never before the kind's own rung. So each new metal is a new recipe ten trade Levels on. */
+export const bandRung = (kind, band) => Math.max(kind.opens, Math.min(TRADE_PM.rungCount, Math.max(0, Math.floor(Number(band) || 0)) + 1));
 /** The band of a step (one band is one gear tier), and the step a band's goods are made at. */
 export const bandOf = (step) => Math.max(0, Math.floor((Number(step) || 0) / TRADE_PM.tierSteps));
 export const bandStep = (band) => Math.max(0, Math.floor(Number(band) || 0)) * TRADE_PM.tierSteps;
@@ -119,7 +124,14 @@ export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LIN
   for (const id of Object.keys(kinds)) resolve(id);
   const recipes = [];
   for (const id of Object.keys(kinds)) for (let r = kinds[id].opens; r <= levers.rungs.count; r++) recipes.push(Object.freeze({ kind: id, rung: r, R: 1 + (r - 1) * levers.rungs.span }));
-  return Object.freeze({ rawUh, refineUh, kinds: Object.freeze(out), recipes: Object.freeze(recipes) });
+  /* THE NAMED KIT RECIPES (09 4.9): each row at its band's rung, its inputs as the same band's faces by the catalogue's counts */
+  const named = KIT_RECIPES.map((r) => {
+    const k = out[r.kind], rung = bandRung(k, r.band);
+    return Object.freeze({ id: r.id, kind: r.kind, band: r.band, name: r.name, rung, R: 1 + (rung - 1) * levers.rungs.span, face: faceOf(r.kind, r.band),
+      inputs: Object.freeze(k.inputs.map((i) => Object.freeze({ kind: i.kind, face: faceOf(i.kind, r.band), n: i.n }))),
+      hunted: Object.freeze(k.hunted.map((h) => Object.freeze({ stream: h.stream, face: streamFaceOf(h.stream, r.band), pm: h.pm }))) });
+  });
+  return Object.freeze({ rawUh, refineUh, kinds: Object.freeze(out), recipes: Object.freeze(recipes), named: Object.freeze(named) });
 }
 
 /* ── ONE CURVE (09 4.4) ───────────────────────────────────────────────── */

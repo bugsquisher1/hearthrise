@@ -481,3 +481,51 @@ The 8-cell dominance count can't tell a strong Trait from the only live Trait in
 | 1 | No kitted hero past content dies on Deadly alone in 0.25 h (145 on the Roost in Cobalt, 185 / 300 / 400 on the Unmarked Catacombs, MEASURED, `baseline.mjs` 5b) | **Correct, kept.** Deadly is cut for its own ground's band. A hero past the band has outgrown it and may sit there unharmed. The death checks play a hero at or under the ground's top Level (the Blessings check's 145 on the Catacombs, as re-pointed). No Danger grows with the hero's Level | Level 200 is a big deal. A scale that rises with the hero makes every Level a tax (section 2, "a higher Level is paid less for the same depth"). It is not a farm: depth pays only up to the band's top (sections 2 and 3), so the outgrown ground pays less than the hero's own. The answer past the last ground is the next ground, a data row |
 | 2 | REF_HERO (2026-11-23 skills-time-parity): the harness hero on the clock reads Melee 139 at Level 110 against REF_HERO's 82 | **The measured career wins. REF_HERO is whatever `gen-ref-hero` writes from careers played on the Level clock, never a typed table.** The monster lanes re-derive every `aim` and `evasion` from it in the same pass as lane/scale-grounds-sweep's re-cut, so the ground rows move once. The roll to hit stays | A monster written for a hero the game no longer makes misses or lands by accident. The check already follows the generator (ci-reds-1126), so the re-measure needs no edit. Retiring the roll to hit is a combat-engine change with no player problem named |
 | 3 | The lone Level 10 at the Thicket kills about 66 an hour (2 a settle, MEASURED in `per-player-cost`) | **Kept. Kills an hour is not a first-hour target. Level XP a hunted hour against the hours table is** (section 2, T-02's re-aim). The guard's excuse for that fixture stands | Pay a kill is floored by the hours table, so a lone hero's pace is held by XP, not by kill count. The scale is cut for a four, so a lone hero on its ground's reference sees fewer, longer kills by design. The blind first-hour pass after the big release (CLAUDE.md 3.3b) reads how a kill near a minute looks on the hunt screen |
+
+## 9. Sinks priced in wage hours, and the gold ledger (2026-11-26, designer, lane/sn-sinks; 20 lane SN and gate 7)
+
+**How it plays.** Your heroes earn gold every hunt. Gold buys extra hunting time, your kit, Temper, imbuements, carry-over, a Blessing before a risky Bold hunt, a Talent reset, and your hall. Each price is a number of hours of pay at your hero's Level, so a reset or a Blessing feels the same at Level 30 and at Level 300.
+
+### 9.1 The three per-hero sinks: kept as built
+
+Each is already a row priced in milli-hours of the wage at the hero's Level (lane/level-costs; `src/core/wage.js`, `src/core/action-rules.js`), with its SQL twin in `hr_level_costs`. No price moved in this lane, so no catalogue was regenerated.
+
+| Sink | Rule | Level 30 | Level 60 | Level 100 | Level 200 | Why this size |
+|---|---|---|---|---|---|---|
+| Talent reset | 0.5 h of wage, x2 for each paid reset that hero made that day, at most 16 a day (`talent-reset.js`) | 7,259 | 8,183 | 9,600 | 14,310 | A first reset is 5% of a 10 h day's pay: cheap enough to try a build, dear enough that thrashing costs (the fourth that day is 4 h of wage). Saved builds and Premium's free daily reset carry the repeat case, so the price never taxes a remembered choice |
+| Blessing | 1.0 h of wage, free under Level 30, cuts 50% of one death and is used by it (`blessings.js`) | 14,518 | 16,365 | 19,199 | 28,619 | It saves 3.75 hours of progress for one hour of pay, so a Bold player always wants one. Only Bold dies, so it is a choice and never a tax |
+| Death | the lesser of 6% of total Level XP and 7.5 hours of progress at the hero's Level (`levelDeathLoss`); skills lose 6% of their progress | 6% (2.3 h) | 6% (6.8 h) | 7.5 h | 7.5 h | XP, not gold. A gold death would double the price of Bold when the Blessing already prices safety. The Level step is in the hours: past about Level 100 a death costs the same share of a Level's time at every Level |
+
+### 9.2 The gold ledger
+
+`node tools/balance-program/redesign/sinks/ledger.mjs` (output kept in `sinks/ledger.txt` and `ledger.json`) walks an account of four heroes day by day for 180 days. Pay, coin, the store kit and Bold's deaths are MEASURED on the kept reading (`tests/econ-levers.mjs` REPORT, the tuning pass's Muster four). Every price is the server's own twin on the shipped rows. Behavior is ASSUMED and printed. Minted is coin, loot at the store's price and the store floor. The castle is 0.
+
+**The reference company.** Four heroes on the full 10 h day, Steady, working the whole 8 h work day, making their own kit (the store fills the rest), three imbuements from their band, Temper as ranks open, one Rare in five carried, a reset every five days, and the plan's hunting block rule at 2 a day while the purse keeps 20 hours of wage.
+
+| Company | Day 30 | Day 180 | Purse at day 180 |
+|---|---|---|---|
+| **Reference** | 82.4% | **87.7%** | 17.6 days of minting |
+| **Reference, buying its hall as the purse allows** | 92.1% (34 of 35 rungs bought) | **89.2%** | 15.1 days |
+| Reference working 0.8 of its day (09 5.1) | 86.0% | 91.2% | 12.6 days |
+| Reference, block rule at 1 | 43.6% | 46.6% | 73.2 days |
+| Reference, no block rule | 8.7% | 11.2% | 118.8 days |
+| Full day, every use bought at the store | 96.1% | 99.2% | 1.1 days |
+| 09's mix (20% reference, 50% at 6 h, 30% at 2 h; SPECULATIVE) | 80.2% | 58.8% | |
+
+At day 180 the reference burns, as shares of what it mints: bought blocks 70.6%, store kit 7.6%, job fees 3.5%, imbuements 3.4%, carry-over 1.2%, resets 0.7%, Temper 0.6%, Blessings 0 (Steady never dies).
+
+**Reading: in band.** The reference burns 87.7 to 89.2% by day 180, with or without its hall. Day 30 sits at 82 to 92% depending on how fast the hall is bought, which brackets the band.
+
+### 9.3 Calls
+
+- **Bought hunting time is the sink that closes the ledger.** A company with no block rule burns 11%, and one block a day takes it to 47%. Kit, fees and the gear sinks are about a sixth of what a hero mints once the company makes its own kit. The second block is the dial that owns gate 7, and nothing else in v0.3.0 can carry it. Resets, Blessings and death are decisions, so they stay small.
+- **The block rule is offered once, at the moment gold piles up** (first principle). When a company's purse first holds 3 days of its pay, the coach shows one card: "Your purse is filling up. Gold can buy extra hunting time every day." Buttons: [Up to 1 a day] [Up to 2 a day] [Not now]. The pick becomes the plan's standing rule, and the return card shows what it bought ("Bought 2 hunting blocks"). It is never on by default, so a new player's first gold is never spent for them. B1 builds the rule and H1 the card.
+- **Guard.** `tests/econ-levers.mjs` EL-SINK holds both reference readings at day 180 inside 0.85 to 0.90. A lane that moves a block price, the wage or a sink re-reads the ledger in the same pass. Its proof plants half-price blocks and a different kept reading.
+
+### 9.4 Found, for other owners
+
+- **Light companies pile gold.** At 6 h a hero a company holds 106 days of minting by day 180, and at 2 h it holds 77. After the hall they have nothing to buy. The castle and the market are their sink, and the ledger is read again when either ships (09's mix reads 59% at day 180).
+- **The hall is bought out in month one.** A full-day company buys 34 of its 35 deeds and rungs by day 30, 32% of that month's minting. Its rows are list prices at fixed property steps. The hall's redesign (02 package 6) should price it as a long goal.
+- **Level-priced costs outgrow pay past the last open ground.** v0.3.0 opens through Krell's Hold (reference Level 97). A reference company passes it about day 37, and its pay stops growing at Level 217 (about day 136). Blocks, resets and Blessings keep reading the hero's Level, so by day 180 a block costs 1.19x what the pay's step would charge. The staged grounds move the stop and are the answer.
+
+**Not done.** No engine cell was run here: the ledger reads the kept reading and prices on the server's twins. Behavior (who buys blocks, crafts, resets, carries) is assumed and printed. Market fees, looks, town shows, renames, faction pieces and bought work blocks are left out (each under 1% of minted, or never bought by a rational company).

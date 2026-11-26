@@ -1,5 +1,11 @@
 # CONFLICTS
 
+## 2026-11-26 · RELEASE ORDER, FIRST PASS (qa-engineer, `lane/ro-release-order`) → lane/retire-tier-chain, GAME DESIGNER, COORDINATOR · **OPEN (owner named per row)**
+- **`release-plan --strict`: exit 0, no refusal left.** One refusal was found and fixed here (EDGE ANCHOR on `1061-bar-metrics`, HANDOFFS 2026-11-26 item 3).
+- **1023's edge re-cut rests on a false premise (owner: lane/retire-tier-chain).** Its note and 12-targets 2.7 say "scaled hunts are dark", so no scaled window settles before the deploy. Production (read-only, 2026-11-26): `hr_feature_switches.scaled_hunts` is `everyone`, and one hero holds 57.6 bought scaled minutes with `use_on` true. Expected fate: 1023 and 1031 leave with the scaled hunts in that lane, and the release note says bought scaled hours are gone (no refund, CLAUDE.md section 1). If they stay instead, either the switch goes off in the release before 1023, or 1023 goes back to edge-first. That would collide with 1028's [B], so the designer rules.
+- **1020 (owner: lane/retire-tier-chain).** It rewrites the harder-tier `dmg_pm` rows of the ground-tier table that lane is dropping with the tier pick. Expected fate: it leaves the chain with that lane. Until then it plans as Keep.
+- **1026 (decided, no owner):** Keep, re-cut in R12 (12-targets 2.7). It is in the plan, before the edge.
+
 ## 2026-11-26 · EVERY GROUND ON THE 8.3 LADDER, STEPS 2 AND 3 (systems-engineer, `lane/scale-grounds-sweep`) → GAME DESIGNER, COORDINATOR · **OPEN (designer items below, NOT decided here)**
 - **Built (MEASURED, `new-ground.mjs --hold-level --hours 10`, the Steady mixed four, 4 seeds; each coin level read back as played; evidence `tools/balance-program/redesign/grounds/<g>-{floor,ref,top}`):**
 

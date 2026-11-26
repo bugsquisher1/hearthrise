@@ -6,6 +6,9 @@
 //   spendSuggested(account, cs, plan)  ONE hr_talent_spend_suggested(p_slot, p_plan, p_idem): every point left along the server's
 //                                   suggested order for the worn weapon, never a vow
 //   spendTalent(account, cs, node, pick)  ONE hr_talent_spend(p_slot, p_node, p_pick, p_idem): one point on one node
+//   saveBuild(account, cs, hunt, nodes)   ONE hr_talent_build_save(p_slot, p_hunt, p_nodes, p_idem): a saved build (a plan, past the
+//                                   hero's Level allowed) for one ground, checked whole by the server; nodes null deletes it. A pasted
+//                                   share code lands here (src/session/plan-share.js): it spends nothing
 // Refused settle_first (a hunt still being caught up): the hunter's own settle ONCE, then ONE ask under a NEW key (the first wrote
 // nothing; src/session/catch-up.js's rule). On ok the hero is taken from the answer's envelope (rule 11), so points and nodes change only
 // from the server.
@@ -17,6 +20,7 @@ import { catchingUp, newIdem } from './catch-up.js';
 const NODE = /^[a-z_][a-z_0-9.]{0,63}$/;
 const PICK = /^[a-z_]{1,48}$/;
 const PLANS = new Set(['party', 'solo']);
+const HUNT = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /* `send` asks once under a fresh key (each verb names its own RPC, so the client's whole surface reads in one grep). Each verb is its
@@ -48,4 +52,11 @@ export function spendTalent(account, cs, node, pick) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !NODE.test(String(node))
     || !(pick === null || PICK.test(String(pick)))) return Promise.resolve({ ok: false, error: 'bad_intent' });
   return askVia(cs, 'talent_spend', () => press(cs, () => account.server.rpc('hr_talent_spend', { p_slot: cs.slot, p_node: node, p_pick: pick, p_idem: newIdem() })));
+}
+
+/** A saved build for ground `hunt` ({ nodeId: value }, or null to delete it). The server checks every node against its catalogue. */
+export function saveBuild(account, cs, hunt, nodes) {
+  if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !HUNT.test(String(hunt))
+    || !(nodes === null || (isObj(nodes) && Object.keys(nodes).every((id) => NODE.test(id))))) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return askVia(cs, 'talent_build', () => press(cs, () => account.server.rpc('hr_talent_build_save', { p_slot: cs.slot, p_hunt: hunt, p_nodes: nodes, p_idem: newIdem() })));
 }

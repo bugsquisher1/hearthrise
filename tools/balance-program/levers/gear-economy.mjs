@@ -127,6 +127,14 @@ export const GEAR_ECONOMY = [
     tests: [['tests/gear-steps.mjs', 'GS-4 and GS-5 the rows']], testReads: ['TRAITS'],
     perturb: NP('not-built', 'hidden: nothing rolls or plays them'),
     ev: 'STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)' }),
+  L('gear.signatures', 'equipment', 'content', 'Signatures: each named piece\'s one rule, as reaction rows', {
+    rows: rows('the Signatures (a reaction row each: its line, size, clock and boon time; lane/signatures-sample)', [home('src/data/signatures.js#SIGNATURES', 'keys')]),
+    def: 'a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, death, heal) doing a shield, a ready, a pass or a boon (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row\'s number in 15-signature-candidates.md, an id',
+    range: 'each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)',
+    touches: 'which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)', out: [...KILL, ...SURVIVE], f: [],
+    tests: [['tests/hunt-core/signature-rules.mjs', 'every case']], testReads: ['SIGNATURES'],
+    perturb: NP('not-built', 'dark: SIGNATURE_RULES.live false, nothing drops or hands one; only the tests hand a hero `wornSignature` (tests/hunt-core/signature-rules.mjs)'),
+    ev: 'STATED (15-signature-candidates.md starting values; the Lab sizes them)' }),
   L('gear.rarity-hours', 'equipment', 'global', 'The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece\'s roll', {
     at: [at('src/data/base-drops.js', 'export const EVERY_HOURS'), at('src/data/drop-hours.js', 'chDigits: 3,'), at('src/data/drop-hours.js', '    rare: Object.freeze({ everyHours: 40,'), at('src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400'),
       at('src/data/drop-hours.js', 'signature: Object.freeze({ everyHours: 45'), at('src/data/drop-hours.js', 'depthPm: Object.freeze([1000, 3000]),'),

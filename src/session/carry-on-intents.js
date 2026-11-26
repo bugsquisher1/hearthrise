@@ -31,6 +31,7 @@ import { askVia } from './intent-ledger.js';
 import { afterRefusal } from './quoted-ask.js';
 import { settleTownActivity } from './party-intents.js';
 import { huntOf } from './hunt-sections.js';
+import { COMPANY_LINES } from '../data/company-lines.js';
 
 const VERB = 'carry_on';
 const PLAN = 'carry_on_plan';
@@ -39,8 +40,6 @@ const ITEM = /^[a-z0-9_]{1,64}$/;
 const CODE = /^[a-z0-9_]{1,48}$/;
 const STATES = Object.freeze(['go', 'no', 'busy', 'parked', 'went']);
 const EQUIP = /^[a-z0-9_]{1,24}$/;
-/* The company's plan lines and the values each takes (1051-company-start.sql hr_company_line_set). */
-export const COMPANY_LINES = Object.freeze({ wear_upgrades: Object.freeze(['on', 'off']), if_one_falls: Object.freeze(['hunt_on', 'all_home']) });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const whole = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const usable = (account, cs) => !!account && !!account.server && typeof account.server.rpc === 'function' && !!cs && cs.status !== 'closed';

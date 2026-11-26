@@ -170,6 +170,9 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', group: 'menu', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
   /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help: a phone's way in). */
   Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', group: 'menu', glyph: 'uiWarn', width: 420, object: 'plain' }),
+  /* SHARE PLAN (lane/wn-sh SH, 20-v030 band 5): this hero's plan and Roads build as a code, and a friend's code read into this hero's own
+     plan editor (src/shell/windows/plan-share.js). No key: every letter is taken; the Menu is the way in. */
+  Object.freeze({ id: 'plan-share', label: 'Share plan', key: null, noShortcut: true, group: 'menu', glyph: 'uiQuests', width: 460, object: 'ledger' }),
   /* One monster's facts, a page of the encyclopedia (Tyler 2026-11-09: every monster's stats are visible). A creature on a hunt's page opens it
      (src/shell/goto.js), so it has no icon and no key. It opens at the bottom-left, beside the Hunts window it was opened from: docked, it would close it. */
   Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book',

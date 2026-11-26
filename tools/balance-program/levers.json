@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "971c9cc6b51c605f",
+ "authored": "94f90f2590db4230",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 234,
+  "levers": 235,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 11,
@@ -80,7 +80,7 @@
    "spawn": 10,
    "monster-rewards": 18,
    "rare-drops": 8,
-   "equipment": 24,
+   "equipment": 25,
    "imbuements": 2,
    "economy": 45,
    "consumables": 9,
@@ -89,7 +89,7 @@
   "byClass": {
    "global": 128,
    "archetype": 28,
-   "content": 52,
+   "content": 53,
    "exception-intentional": 17,
    "exception-accidental": 9
   },
@@ -102,11 +102,11 @@
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 40,
    "variant": 5,
-   "not-playable:not-built": 27,
+   "not-playable:not-built": 28,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 130,
+   "asserted": 131,
    "mentioned only": 85,
    "none": 19
   },
@@ -117,25 +117,33 @@
   }
  },
  "census": {
-  "bindings": 761,
-  "typed": 17612,
-  "files": 261,
-  "lever": 333,
-  "notLever": 425,
-  "unclaimed": 3
+  "bindings": 766,
+  "typed": 17624,
+  "files": 263,
+  "lever": 334,
+  "notLever": 427,
+  "unclaimed": 5
  },
  "problems": [
   {
    "kind": "unclaimed",
-   "what": "src/data/signatures.js#SIGNATURES:48 holds 10 typed number(s) [36 300 250 60000 6 60 ...] and no lever row or NOT_LEVERS reason claims it"
+   "what": "src/core/plan-code.js#CODE:34 holds 2 typed number(s) [8192 2000] and no lever row or NOT_LEVERS reason claims it"
   },
   {
    "kind": "unclaimed",
-   "what": "src/data/talents.js#reactProblems:737 holds 1 typed number(s) [8] and no lever row or NOT_LEVERS reason claims it"
+   "what": "src/core/plan-code.js#check:48 holds 4 typed number(s) [2166136261 16777619 36 7] and no lever row or NOT_LEVERS reason claims it"
   },
   {
    "kind": "unclaimed",
-   "what": "src/data/trades.js#KIT_SAMPLE_MAX:300 holds 1 typed number(s) [5] and no lever row or NOT_LEVERS reason claims it"
+   "what": "src/core/plan-code.js#fromB64url:54 holds 3 typed number(s) [4 4 4] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/core/plan-code.js#decodePlanCode:126 holds 1 typed number(s) [3] and no lever row or NOT_LEVERS reason claims it"
+  },
+  {
+   "kind": "unclaimed",
+   "what": "src/data/whats-new.js#semverCmp:26 holds 1 typed number(s) [3] and no lever row or NOT_LEVERS reason claims it"
   }
  ],
  "levers": [
@@ -170,7 +178,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -254,7 +262,7 @@
    ],
    "reach": {
     "feeds": 14,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -314,7 +322,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -371,7 +379,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -440,7 +448,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -510,7 +518,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -554,7 +562,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -600,7 +608,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -649,7 +657,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -695,7 +703,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -757,7 +765,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -820,7 +828,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -868,7 +876,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -940,7 +948,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1029,7 +1037,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1080,7 +1088,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1141,7 +1149,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1194,7 +1202,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1257,7 +1265,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1323,7 +1331,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -1377,7 +1385,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -1430,7 +1438,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1508,7 +1516,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1660,8 +1668,8 @@
     "P01"
    ],
    "reach": {
-    "feeds": 5,
-    "closure": 77
+    "feeds": 6,
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1733,8 +1741,8 @@
     "P01"
    ],
    "reach": {
-    "feeds": 5,
-    "closure": 77
+    "feeds": 6,
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1815,7 +1823,7 @@
    ],
    "reach": {
     "feeds": 16,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1889,7 +1897,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2131,7 +2139,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2193,7 +2201,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2263,7 +2271,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -2332,7 +2340,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2388,7 +2396,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2470,7 +2478,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2531,7 +2539,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -2599,7 +2607,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2656,7 +2664,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -2735,7 +2743,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "exception-intentional",
    "change": "mixed: ",
@@ -2798,7 +2806,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -2860,7 +2868,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -2930,7 +2938,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -2997,7 +3005,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3083,7 +3091,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3146,7 +3154,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3229,7 +3237,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3302,7 +3310,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3439,7 +3447,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3537,7 +3545,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3596,7 +3604,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3664,7 +3672,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3738,7 +3746,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3797,7 +3805,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "mixed: ",
@@ -3951,7 +3959,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4021,7 +4029,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4085,7 +4093,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4172,7 +4180,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 76
+    "closure": 77
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4244,7 +4252,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4299,7 +4307,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4360,7 +4368,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4420,7 +4428,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4472,7 +4480,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -4538,7 +4546,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4612,7 +4620,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -4677,7 +4685,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 76
+    "closure": 77
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4727,7 +4735,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-accidental",
    "change": "code: a typed number in engine code",
@@ -4874,7 +4882,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4938,7 +4946,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4999,7 +5007,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5039,7 +5047,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5106,7 +5114,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5168,7 +5176,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5231,7 +5239,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5286,7 +5294,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5351,7 +5359,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5425,7 +5433,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5498,7 +5506,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5565,7 +5573,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 75
+    "closure": 76
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5647,7 +5655,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5727,7 +5735,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5793,7 +5801,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "mixed: data and code",
@@ -5863,7 +5871,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5957,7 +5965,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6041,7 +6049,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6066,7 +6074,9 @@
     "also": [
      "partyGroundBlow"
     ],
-    "existingPatches": []
+    "existingPatches": [
+     "tools/balance-program/patches/world-1-one-fit.json"
+    ]
    },
    "flags": [
     {
@@ -6127,7 +6137,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-accidental",
    "change": "mixed: code and data",
@@ -6212,7 +6222,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6297,7 +6307,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 76
+    "closure": 77
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6363,7 +6373,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6445,7 +6455,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6551,7 +6561,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6606,7 +6616,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -6687,7 +6697,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6833,7 +6843,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6962,7 +6972,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -7050,7 +7060,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "mixed: ",
@@ -7148,7 +7158,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7211,7 +7221,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7337,7 +7347,7 @@
    ],
    "reach": {
     "feeds": 15,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7416,7 +7426,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7492,7 +7502,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7561,7 +7571,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7630,7 +7640,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7711,7 +7721,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7728,9 +7738,10 @@
     "mentions": [
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
-     "tests/hunt-core/danger.mjs"
+     "tests/hunt-core/danger.mjs",
+     "tests/plan-share.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7775,7 +7786,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7972,7 +7983,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7996,7 +8007,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8141,7 +8152,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8165,7 +8176,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8246,7 +8257,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8296,7 +8307,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8442,7 +8453,7 @@
    ],
    "reach": {
     "feeds": 10,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8533,7 +8544,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8640,7 +8651,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8706,7 +8717,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8775,7 +8786,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8841,7 +8852,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8903,7 +8914,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8965,7 +8976,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9041,7 +9052,7 @@
    ],
    "reach": {
     "feeds": 11,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9124,7 +9135,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9201,7 +9212,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9324,7 +9335,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9377,7 +9388,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9447,7 +9458,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9507,7 +9518,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9723,7 +9734,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "mixed: ",
@@ -10024,7 +10035,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "mixed: ",
@@ -10500,7 +10511,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 75
+    "closure": 76
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10599,7 +10610,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10686,7 +10697,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10778,7 +10789,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10865,7 +10876,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10968,7 +10979,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11025,7 +11036,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -11123,7 +11134,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11241,7 +11252,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11622,6 +11633,71 @@
    "evidence": "STATED (Tyler picked all 40 of 14-trait-candidates.md, 2026-11-22)"
   },
   {
+   "id": "gear.signatures",
+   "category": "equipment",
+   "name": "Signatures: each named piece's one rule, as reaction rows",
+   "sites": [],
+   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, death, heal) doing a shield, a ready, a pass or a boon (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
+   "range": "each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)",
+   "touches": "which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)",
+   "outcomes": [
+    "dps",
+    "dpsHero",
+    "ttkS",
+    "killsPerH",
+    "levelXpPerH",
+    "netPerH",
+    "hoursPerLevel",
+    "xContract",
+    "takenPerH",
+    "healPerH",
+    "deathsPer1000h",
+    "lowHpTypical",
+    "lowHpP10",
+    "hpUnder30",
+    "hpUnder10",
+    "netLevelXpPerH",
+    "storePerH",
+    "suppliesPerH",
+    "huntedShare"
+   ],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "content",
+   "change": "mixed: ",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/hunt-core/signature-rules.mjs",
+      "what": "every case",
+      "reads": [
+       "SIGNATURES"
+      ]
+     }
+    ],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "not-built",
+    "note": "dark: SIGNATURE_RULES.live false, nothing drops or hands one; only the tests hand a hero `wornSignature` (tests/hunt-core/signature-rules.mjs)",
+    "existingPatches": []
+   },
+   "rows": {
+    "what": "the Signatures (a reaction row each: its line, size, clock and boon time; lane/signatures-sample)",
+    "homes": [
+     "src/data/signatures.js#SIGNATURES"
+    ]
+   },
+   "flags": [],
+   "evidence": "STATED (15-signature-candidates.md starting values; the Lab sizes them)"
+  },
+  {
    "id": "gear.rarity-hours",
    "category": "equipment",
    "name": "The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll",
@@ -11856,7 +11932,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11932,7 +12008,7 @@
      "tests/gear-stats.mjs",
      "tests/gear-steps.mjs"
     ],
-    "mentionCount": 22,
+    "mentionCount": 23,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12884,7 +12960,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12958,7 +13034,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13083,7 +13159,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 76
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13341,7 +13417,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -13541,7 +13617,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13601,7 +13677,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13672,7 +13748,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13745,7 +13821,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13829,7 +13905,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 76
+    "closure": 77
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13891,7 +13967,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -15343,7 +15419,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -15564,7 +15640,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 76
+    "closure": 77
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -15641,7 +15717,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -15792,7 +15868,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 77
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -15865,7 +15941,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16031,7 +16107,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "code: a typed number in engine code",
@@ -16122,7 +16198,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 77
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16220,7 +16296,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 78
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16967,6 +17043,14 @@
   {
    "at": "src/data/talents.js#road",
    "why": "a road's rank stones numbered 1 to 5 (17 section 2's shape): ids, no value"
+  },
+  {
+   "at": "src/data/trades.js#KIT_SAMPLE_MAX",
+   "why": "a content process bound: at most 5 named kit recipes until the sample is read (CLAUDE.md section 10), no outcome reads it"
+  },
+  {
+   "at": "src/data/talents.js#reactProblems",
+   "why": "a validation bound: a carry reaches at most 8 tiles (a row past it is refused, no outcome reads the bound); the reach itself is the row's `r`, a roads.nodes lever"
   },
   {
    "at": "src/core/gear-stats.js#gearStats",
@@ -17790,6 +17874,17 @@
    "keys": [
     "n",
     "when"
+   ],
+   "bindings": 1
+  },
+  "src/data/signatures.js#SIGNATURES": {
+   "pin": "keys",
+   "keys": [
+    "belowPm",
+    "clockMs",
+    "ms",
+    "n",
+    "pm"
    ],
    "bindings": 1
   },

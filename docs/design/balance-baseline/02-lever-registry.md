@@ -34,22 +34,22 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 33 | 13 | 8 | 4 | 8 | 5 | 18 | 22 |
 | Spawn pacing and encounter composition | 10 | 7 | 0 | 3 | 0 | 0 | 6 | 5 |
 | Monster XP and loot values | 18 | 9 | 0 | 2 | 7 | 2 | 8 | 10 |
-| Equipment stats and progression | 24 | 11 | 4 | 9 | 0 | 0 | 15 | 18 |
+| Equipment stats and progression | 25 | 11 | 4 | 10 | 0 | 0 | 16 | 19 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
 | Economy sources and sinks | 45 | 31 | 2 | 12 | 0 | 0 | 40 | 33 |
-| **All** | **234** | 128 | 28 | 52 | 26 | 27 | 125 | 130 |
+| **All** | **235** | 128 | 28 | 53 | 26 | 27 | 126 | 131 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 761 (in 261 files, 17612 typed numbers) |
-| Claimed by a lever | 333 |
-| Claimed by a not-a-lever reason | 425 |
-| Unclaimed | 3 |
+| Top-level bindings in the rule code that hold a typed number | 766 (in 263 files, 17624 typed numbers) |
+| Claimed by a lever | 334 |
+| Claimed by a not-a-lever reason | 427 |
+| Unclaimed | 5 |
 | Exceptions, intentional and accidental | 17 and 9 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
 <!-- END GENERATED:CENSUS -->
@@ -245,6 +245,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `flame.levers` The Inner Flame: burn, room, luck, top rank, curve, fuel worth | Rare-drop probabilities | no roller reads luck until lane/drop-formula (wave 4). The switch inner_flame is off |
 | not-built | `gear.ground-tier` The base tier a scale ground drops | Equipment stats and progression | read as the item Level of every scale drop (danger.js scaleItemLevels, lane/r10) and the base of the power step. No matrix RUN names a scale ground |
 | not-built | `gear.rarity-hours` The rarity ladder in hunted hours, depth on the Rare odds, the top rank and the made piece's roll | Equipment stats and progression | dark: GEAR_STEPS.traitsLive false, nothing hands the settle a roll (tools/balance-program/redesign/drops/first-trait.mjs reads the roller alone) |
+| not-built | `gear.signatures` Signatures: each named piece's one rule, as reaction rows | Equipment stats and progression | dark: SIGNATURE_RULES.live false, nothing drops or hands one. Only the tests hand a hero `wornSignature` (tests/hunt-core/signature-rules.mjs) |
 | not-built | `gear.slot-weights` Gear slot weights | Equipment stats and progression | the power step (R9) reads it |
 | not-built | `gear.step-tier` A gear tier in steps, and how far ahead gear is worn | Equipment stats and progression | the power step (R9) reads it. No engine path does yet |
 | not-built | `gear.trait-budget` Trait steps by rank and the Trait guards | Equipment stats and progression | no roller or fight reads Traits until wave 4 (V7 sizes them on the engine) |
@@ -365,31 +366,31 @@ Ranked by the formulas a lever's own formulas feed directly (COMPUTED from the 1
 <!-- GENERATED:REACH (tools/balance-program/levers.mjs --write) -->
 | Lever | Formulas it feeds directly (COMPUTED) | Matrix outcomes it moves (JUDGED) | Formulas downstream (COMPUTED) | Perturbed by | Class |
 |---|---|---|---|---|---|
-| `level.hero-hp` Hero HP a Level | 16 | 11 | 76 | knob `heroHp` | global |
-| `danger.power-step` Danger power step | 15 | 19 | 76 | NOT PLAYABLE (not-in-runs) | global |
+| `level.hero-hp` Hero HP a Level | 16 | 11 | 77 | knob `heroHp` | global |
+| `danger.power-step` Danger power step | 15 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
 | `danger.pay` Pay by depth | 15 | 6 | 75 | NOT PLAYABLE (not-in-runs) | global |
-| `blow.gear-term` Gear term of the largest blow | 14 | 8 | 76 | knob `playerAttack` | global |
-| `gear.item-stats` Item rows' stats and requirements | 13 | 19 | 76 | patch | content |
-| `mon.rows` A monster row's stats (formula rows and hand rows) | 13 | 19 | 76 | patch | content |
-| `gear.material-tiers` Gear tiers: their Levels and value | 13 | 19 | 75 | patch | archetype |
-| `mon.hp-line` Monster HP line | 13 | 9 | 75 | knob `monsterHp` | global |
-| `mon.aim-evasion` Monster aim and evasion | 12 | 9 | 76 | knob `monsterAccuracy` | global |
-| `mon.level-by-tier` A Level from the art tier | 12 | 0 | 76 | patch | exception-accidental |
-| `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | 11 | 20 | 77 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mf.ref` The reference company a formula ground is anchored on | 11 | 19 | 77 | NOT PLAYABLE (not-in-runs) | exception-intentional |
-| `mon.boss-kinds` Boss kinds and the ramp | 11 | 19 | 77 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mon.party-fit` Party ground monster formula | 11 | 19 | 77 | knob `partyGroundHp` | exception-intentional |
-| `mon.roles` Monster roles | 11 | 19 | 77 | patch | archetype |
-| `danger.formula-step` Where a formula ground's reference monsters stand | 11 | 15 | 77 | NOT PLAYABLE (not-in-runs) | exception-intentional |
-| `mf.blow-cap` A formula monster's largest steady blow | 11 | 11 | 77 | NOT PLAYABLE (not-in-runs) | global |
-| `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | 11 | 11 | 77 | NOT PLAYABLE (not-in-runs) | global |
-| `mon.blow-line` Monster blow line and the gentle cap | 11 | 11 | 77 | knob `monsterDamage` | global |
-| `mon.danger-ramp` The gentle-ground ramp | 11 | 11 | 77 | patch | exception-intentional |
-| `skill.reference-career` The reference hero monsters are written against | 11 | 9 | 76 | patch | content |
-| `mf.encounter-size` A formula monster size by encounter type | 11 | 8 | 77 | NOT PLAYABLE (not-in-runs) | archetype |
-| `mf.mend` A Warder's mend | 11 | 8 | 77 | NOT PLAYABLE (not-in-runs) | archetype |
-| `danger.power-gear` The power step on gear | 10 | 19 | 76 | NOT PLAYABLE (not-in-runs) | global |
-| `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 76 | patch | archetype |
+| `blow.gear-term` Gear term of the largest blow | 14 | 8 | 77 | knob `playerAttack` | global |
+| `gear.item-stats` Item rows' stats and requirements | 13 | 19 | 77 | patch | content |
+| `mon.rows` A monster row's stats (formula rows and hand rows) | 13 | 19 | 77 | patch | content |
+| `gear.material-tiers` Gear tiers: their Levels and value | 13 | 19 | 76 | patch | archetype |
+| `mon.hp-line` Monster HP line | 13 | 9 | 76 | knob `monsterHp` | global |
+| `mon.aim-evasion` Monster aim and evasion | 12 | 9 | 77 | knob `monsterAccuracy` | global |
+| `mon.level-by-tier` A Level from the art tier | 12 | 0 | 77 | patch | exception-accidental |
+| `mf.role-dials` Role power dials (armor, seconds to kill, pressure, wind-up share and size) | 11 | 20 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mf.ref` The reference company a formula ground is anchored on | 11 | 19 | 78 | NOT PLAYABLE (not-in-runs) | exception-intentional |
+| `mon.boss-kinds` Boss kinds and the ramp | 11 | 19 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mon.party-fit` Party ground monster formula | 11 | 19 | 78 | knob `partyGroundHp` | exception-intentional |
+| `mon.roles` Monster roles | 11 | 19 | 78 | patch | archetype |
+| `danger.formula-step` Where a formula ground's reference monsters stand | 11 | 15 | 78 | NOT PLAYABLE (not-in-runs) | exception-intentional |
+| `mf.blow-cap` A formula monster's largest steady blow | 11 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `mf.windup-scale` Wind-up size and frequency (the death-risk dials) | 11 | 11 | 78 | NOT PLAYABLE (not-in-runs) | global |
+| `mon.blow-line` Monster blow line and the gentle cap | 11 | 11 | 78 | knob `monsterDamage` | global |
+| `mon.danger-ramp` The gentle-ground ramp | 11 | 11 | 78 | patch | exception-intentional |
+| `skill.reference-career` The reference hero monsters are written against | 11 | 9 | 77 | patch | content |
+| `mf.encounter-size` A formula monster size by encounter type | 11 | 8 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
+| `mf.mend` A Warder's mend | 11 | 8 | 78 | NOT PLAYABLE (not-in-runs) | archetype |
+| `danger.power-gear` The power step on gear | 10 | 19 | 77 | NOT PLAYABLE (not-in-runs) | global |
+| `armor.weights` Armor weights: points, HP and mana | 9 | 11 | 77 | patch | archetype |
 <!-- END GENERATED:REACH -->
 
 ## 6. Keeping it true

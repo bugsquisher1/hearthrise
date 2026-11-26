@@ -402,22 +402,30 @@ async function selftest() {
     const stray2 = planHook(planted)(D, K, planMatrix(D, K, baselineRun(planted), {})).cells.filter(strayCell(planted));
     check('MUTANT a spec that leaves out one open ground: its cells read as strays (' + stray2.length + ')', stray2.length > 0);
     /* 5b. THE GAME'S OWN BLESSINGS: no baseline job carries the matrix's S-5 ladder (a proposal), so a death past Level 100 is cut by the tree's
-       table (three Blessings leave a quarter), where the matrix's own job of the same cell halves it again. A lone hammer on Deadly past live
-       content dies within minutes (01-baseline.md section 6.8): both plays must see a death, or the check says so */
+       table (three Blessings leave a quarter), where the matrix's own job of the same cell halves it again. Both plays must see a death,
+       or the check says so. Since every tier has its home and kit (gear 8.3, 2026-11-23), a beyond-block hammer on its own ground's kit no
+       longer dies (145 on Wyvern Roost in Cobalt, 185 to 400 on the Unmarked Catacombs: none in 0.25 h, measured 2026-11-26). So the check
+       plays the beyond block's LOWEST Level lone hammer on Deadly, as kitted, on the ground its TOP Level plays: a hero a band under its
+       ground, read from the plan (145 on the Catacombs dies) */
     {
       const ladder = plan.jobs.filter((j) => 'blessedShare' in j.cell).length;
-      const job = plan.jobs.find((j) => j.key.startsWith('145|mid|1:h|deadly') && j.cell.seedBase === 0);
+      const beyondKeys = new Set(plan.cells.filter((c) => c.block === 'beyond').map((c) => c.key));
+      const hammers = plan.jobs.filter((j) => beyondKeys.has(j.key) && /^\d+\|mid\|1:h\|deadly/.test(j.key) && j.cell.seedBase === 0)
+        .sort((a, b) => a.cell.level - b.cell.level);
+      const job = hammers.length > 1 ? hammers[0] : null;
+      const over = job && hammers[hammers.length - 1].cell.ground;
       const matrixJob = job && planMatrix(D, K, baselineRun(spec), { blocks: ['beyond'] }).jobs.find((j) => j.key === job.key && j.cell.seedBase === 0);
       const cut = (r) => (r && r.heroes[0].raw.xpLostLevel > 0 ? r.heroes[0].raw.xpLostLevelBlessed / r.heroes[0].raw.xpLostLevel : null);
       let game = null, matrix = null, why = '';
-      if (!job || !matrixJob) why = 'no beyond job at 145 on this tree';
+      if (!job || !matrixJob) why = 'no two lone hammers on Deadly in the beyond block on this tree';
       else {
-        const p = await playJobs([{ ...job, id: 'g', cell: { ...job.cell, hours: 0.25 } }, { ...matrixJob, id: 'm', cell: { ...matrixJob.cell, hours: 0.25 } }], ROOT, 2);
+        const at = { hours: 0.25, ground: over };
+        const p = await playJobs([{ ...job, id: 'g', cell: { ...job.cell, ...at } }, { ...matrixJob, id: 'm', cell: { ...matrixJob.cell, ...at } }], ROOT, 2);
         game = cut(p.results.g); matrix = cut(p.results.m);
         if (game === null || matrix === null) why = 'no death in 0.25 h: the check read nothing';
       }
       const share = 1 - D.BL.BLESSING.cutPm / 1000;
-      check('the baseline plays the game\'s own Blessings: ' + ladder + ' jobs carry the S-5 ladder, a death at 145 keeps ' + game + ' of its loss (the tree\'s table: ' + share + '), where the matrix\'s job keeps ' + matrix,
+      check('the baseline plays the game\'s own Blessings: ' + ladder + ' jobs carry the S-5 ladder, a death at ' + (job && job.cell.level) + ' on ' + over + ' keeps ' + game + ' of its loss (the tree\'s table: ' + share + '), where the matrix\'s job keeps ' + matrix,
         ladder === 0 && game !== null && Math.abs(game - share) < 1e-9 && matrix !== null && matrix < game, why);
     }
     /* 6. one real cell, seed 0, twice: byte-identical; the comparator sees a planted change */

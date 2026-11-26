@@ -652,8 +652,9 @@ function mutate() {
     return { restore: () => { it.armourClass = was; } };
   });
   run('a higher tier gives less defence', 'C8b', () => {
+    /* under the rung below, read from it: a fixed 5 stopped biting once bronze plate rose to 5 (2026-11-23) */
     const it = ITEMS.iron_platebody; const was = it.defB;
-    it.defB = 5;
+    it.defB = (ITEMS.bronze_platebody.defB || 0) - 1;
     return { restore: () => { it.defB = was; } };
   });
   run('iron plate drops the plate line magic penalty', 'C8d', () => {

@@ -65,15 +65,15 @@ const MUTATIONS = {
   shop_drops_bronze_arrows: {
     file: 'src/data/shops.js',
     why: 'a player who sells their starter arrows can never buy the free rung back',
-    find: 'grant: [{ kind: "item", id: "bronze_arrows", amount: 50 }],',
-    repl: 'grant: [{ kind: "item", id: "iron_arrows", amount: 50 }],',
+    find: "  bundleOffer('bronze_arrows', 50),\n",
+    repl: '',
   },
   chalked_back_at_15: {
     file: 'src/data/runes.js',
     why: 'Runecrafting\'s first rung that makes a SPENT rune is gated at 15 again, so the first '
        + 'hour makes nothing anybody burns',
-    find: "Object.freeze({ tier: 1, name: 'Chalked', level: 1 }),",
-    repl: "Object.freeze({ tier: 1, name: 'Chalked', level: 15 }),",
+    find: "Object.freeze({ tier: 1, name: 'Chalked', level: 1, stepPm: 1000 }),",
+    repl: "Object.freeze({ tier: 1, name: 'Chalked', level: 15, stepPm: 1000 }),",
   },
   blanks_need_stonemason: {
     file: 'src/data/stonecraft.js',

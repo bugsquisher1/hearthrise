@@ -1221,6 +1221,10 @@ async function shellGuard() {
        handed over by hunt-settle.js proposeHuntSettle on the Tower's ground only, after readHuntSettle's towerPending check; never
        hr_state_of, never a client field. */
     'towerFloor',
+    /* THE TRAIT ROLL (1071-trait-pieces.sql): each member's pity and its company flame's luck, the instance read's members[].drops
+       (hr_trait_drops_of, server rows only), built by hunt-settle.js traitDropsOf only when the read's `instance.trait_drops` is true
+       (the server's switch); never hr_state_of, never a client field. */
+    'traitDrops',
     /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
        can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
     'worldMaxBytes',

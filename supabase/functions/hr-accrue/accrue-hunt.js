@@ -127,6 +127,8 @@ function fightOf(sim, unitId, call) {
  * @param inp.sessionMode  the instance's frozen session mode id (hunt_instances.session_mode through the instance read; src/data/session-modes.js)
  * @param inp.towerFloor  the Burning Tower's floor whose room stands, or stands next (hr_hunt_instance_read `tower_floor`: the run's start, or
  *        the highest floor its heroes cleared + 1); required on the Tower's ground (src/core/hunt/tower.js), never read elsewhere
+ * @param inp.traitDrops  the Trait roll (hunt-settle.js traitDropsOf: { luckPm, pity, found }), only when the server's read says it is on;
+ *        the engine pushes what it finds onto `found` and counts `pity` in place (src/core/trait-roll.js)
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
@@ -161,7 +163,10 @@ export function accrueHunt(inp) {
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
     { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
-      ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode, ...(Number.isInteger(inp.towerFloor) ? { towerFloor: inp.towerFloor } : {}) });
+      ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode, ...(Number.isInteger(inp.towerFloor) ? { towerFloor: inp.towerFloor } : {}),
+      /* THE TRAIT ROLL (hunt-settle.js traitDropsOf, only when the server's read says it is on; 1071-trait-pieces.sql): its found list and
+         pity are the objects the caller reads back */
+      ...(inp.traitDrops ? { traitDrops: inp.traitDrops } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
   /* THE LEDGER'S WINDOW (analyzerOf): on the scale, the swings this settle played and the seat of each hero (the server's hunt_sessions.seat) */
   const ledger = sim.world && dangerOn(sim.world) ? { step: sim.world.danger, fromMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), toMs: sim.nextSwingAtMs,

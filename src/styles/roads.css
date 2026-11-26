@@ -141,7 +141,8 @@
     background: var(--bg-2); box-shadow: -2px 0 0 var(--steel-btn); transform: translateX(105%); transition: transform 120ms ease-out; }
   .rdw.is-picked:not([data-tier="country"]) .rdw-card { transform: none; }
   .rdw-countries:not([hidden]) { display: block; }
-  .rdl-country.is-big { font-size: var(--t-lead); }
+  /* Country view on a phone names the countries in its list: the map's own names would stack on a map this small */
+  .rdm[data-tier="country"] .rdl-country { display: none; }
   .rdw-x { min-height: var(--tap); }
   .rdw-opt .hh-tool, .rdw-take { min-height: var(--tap); }
 }

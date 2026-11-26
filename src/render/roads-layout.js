@@ -22,8 +22,7 @@
 //
 // roadsLayout() is computed once (memoized) and frozen: { D, pos, countries, edges, bounds, heart }.
 //   pos[id]      { x, y }
-//   countries[]  { id, a0, a1, mid, total, far, poly: [[x, y]...], label: { x, y }, name: { x, y, anchor } }
-//                the wedge as a polygon; `label` its watermark's place (Road view), `name` its name's place past its rim (Country view)
+//   countries[]  { id, a0, a1, mid, total, far, poly: [[x, y]...], label: { x, y } }   the wedge as a polygon; `label` its name's place, mid-wedge
 //   edges[]      { from, to, kind: 'trunk' | 'road' | 'side' | 'vow' | 'border' }
 //   bounds       { x0, y0, x1, y1 } every stone, padded
 // PURE: no DOM. Imported by the Talents window (src/shell/windows/talents/) and tests/roads-window.mjs.
@@ -193,7 +192,7 @@ function build() {
   const padB = 1.4 * D;
   const bounds = Object.freeze({ x0: x0 - padB, y0: y0 - padB, x1: x1 + padB, y1: y1 + padB });
 
-  /* each country's wedge as a polygon from the yard's rim out past its farthest stone; its watermark midway; its name past the rim */
+  /* each country's wedge as a polygon from the yard's rim out past its farthest stone, and its name's place midway out */
   const out = countries.map((c) => {
     const mine = TALENT_NODES.filter((n) => n.country === c.id).map((n) => pos[n.id]);
     const far = Math.max(...mine.map((p) => Math.hypot(p.x, p.y))) + 1.2 * D;
@@ -202,16 +201,11 @@ function build() {
     for (let i = 0; i <= steps; i++) { const a = c.a0 + ((c.a1 - c.a0) * i) / steps; poly.push([Math.round(Math.cos(a) * HEART_R), Math.round(Math.sin(a) * HEART_R)]); }
     for (let i = steps; i >= 0; i--) { const a = c.a0 + ((c.a1 - c.a0) * i) / steps; poly.push([Math.round(Math.cos(a) * far), Math.round(Math.sin(a) * far)]); }
     const lr = (HEART_R + far) / 2, cx = Math.cos(c.mid), cy = Math.sin(c.mid);
-    const name = Object.freeze({ x: Math.round(cx * (far + 0.5 * D)), y: Math.round(cy * (far + 0.5 * D) + (cy > 0.3 ? 0.4 * D : 0)),
-      anchor: cx > 0.35 ? 'start' : cx < -0.35 ? 'end' : 'middle' });
-    return Object.freeze({ ...c, far, poly: Object.freeze(poly), label: Object.freeze({ x: Math.round(cx * lr), y: Math.round(cy * lr) }), name });
+    return Object.freeze({ ...c, far, poly: Object.freeze(poly), label: Object.freeze({ x: Math.round(cx * lr), y: Math.round(cy * lr) }) });
   });
-  /* the names past the rims are inside the bounds too */
-  const nb = { x0: Math.min(bounds.x0, ...out.map((c) => c.name.x - 4 * D)), x1: Math.max(bounds.x1, ...out.map((c) => c.name.x + 4 * D)),
-    y0: Math.min(bounds.y0, ...out.map((c) => c.name.y - D)), y1: Math.max(bounds.y1, ...out.map((c) => c.name.y + D)) };
 
   return Object.freeze({ D, heart: Object.freeze({ r: HEART_R, ring: RING_R }), pos: Object.freeze(pos), countries: Object.freeze(out),
-    edges: Object.freeze(edges), bounds: Object.freeze(nb) });
+    edges: Object.freeze(edges), bounds });
 }
 
 let MEMO = null;

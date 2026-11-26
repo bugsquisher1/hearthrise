@@ -214,14 +214,11 @@ function paintLabels(M, v, tier) {
     cls(el, 'is-owned', owned);
     cls(el, 'is-mark', tier !== 'country' && !!r.country);
     if (r.country) text(el.querySelector('.rdl-count'), tier === 'country' && v.counts ? t('talents.country_count', { owned: v.counts[r.country][0], total: v.counts[r.country][1] }) : '');
-    /* a country's name stands past its rim in Country view (where no stone is), its watermark mid-wedge in Road view */
+    /* a country's name stands mid-wedge: over its stones in Country view (the overview's one name), a faint watermark in Road view */
     const big = !!r.country && tier === 'country';
-    const cty = r.country ? L.countries.find((c) => c.id === r.country) : null;
-    const p = r.node ? L.pos[r.node] : big ? cty.name : r.at;
+    const p = r.node ? L.pos[r.node] : r.at;
     const kr = r.node ? (MARK_R[NODE_INDEX[r.node].kind] || 6) : 0;
-    /* a name past the rim that meets a neighbour's steps out along its own side (the two top countries' names meet at 12 o'clock) */
-    const out = big ? [Math.sign(cty.name.x) || 0, Math.sign(cty.name.y) || -1] : [0, 0];
-    const tries = r.country ? (big ? [0, 1, 2, 3].map((k) => [out[0] * 24 * k, out[1] * 26 * k, cty.name.anchor]) : [[0, 0, 'middle']])
+    const tries = r.country ? (big ? [0, 1, -1, 2, -2].map((k) => [0, k * 26, 'middle']) : [[0, 0, 'middle']])
       : r.id === 'havora' ? [[0, 44, 'middle']] : beside(kr);
     want.push({ id: r.id, x: p.x * s, y: p.y * s, w: widthOf(M, r.id), h: big ? 26 : 16, tries, pri: (owned ? r.pri - 0.5 : r.pri),
       block: !(r.country && !big), force: big || r.id === 'havora' });
@@ -253,9 +250,7 @@ function paintLabels(M, v, tier) {
     attr(el, 'hidden', null);
     attr(el, 'x', r1(spot[0])); attr(el, 'y', r1(spot[1])); attr(el, 'text-anchor', spot[2]);
     const sub = el.querySelector('.rdl-count');
-    if (sub) attr(sub, 'x', r1(spot[0]));
-    cls(el, 'is-big', id.startsWith('c:') && tier === 'country');
-  }
+    if (sub) attr(sub, 'x', r1(spot[0]));  }
 }
 
 /** The stone nearest screen point (sx, sy) within TAP_PX at this tier, or null (Country view: none, a tap there picks a country). */

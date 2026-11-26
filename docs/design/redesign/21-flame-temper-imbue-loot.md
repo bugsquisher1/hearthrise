@@ -317,13 +317,13 @@ Each is sized on its `best` cell. Shown at full ramp (Level 200 and up). The par
 
 | Name | Tooltip | Slot | Made from | Best on | Why there |
 |---|---|---|---|---|---|
-| Fire Ward | `−8% Fire damage taken · 20 hunted hours` | Body | Fire Gland (Wyvern Roost) | Krell's Hold, front hero | Hot Pitch, Rake the Coals and Hall Fire are Fire. Worth nothing on Muster, where nothing casts |
-| Fire Edge | `5% of damage dealt as Fire · 20 hunted hours` | Weapon | Coal Tongs (Carter's Rest) | Ox Road, any damage seat | Undead take 15% more Fire. Against a target that resists Fire it costs damage, so the bestiary page decides |
+| Fire Ward | `−8% Fire damage taken · 20 hunted hours` | Body | Ford Weed (Hask's Ford) | Krell's Hold, front hero | Hot Pitch, Rake the Coals and Hall Fire are Fire. Worth nothing on Muster, where nothing casts |
+| Fire Edge | `5% of damage dealt as Fire · 20 hunted hours` | Weapon | Rake Tine (Pyre Field) | Muster Barrows, any damage seat | Undead take 15% more Fire. Against a target that resists Fire it costs damage, so the bestiary page decides |
 | Brute Edge | `+3% damage vs Brutes · 20 hunted hours` | Weapon | Pike Ferrule (Pyre Field) | Muster Barrows, melee | Barrow Knight and Captain Hask are brutes. Off against the Pikeman swarm, most of a pull |
-| Life Leech | `Life Leech 1% · 20 hunted hours` | Helmet | Leech Jaw (Unmarked Catacombs) | Wyvern Roost, melee front | Long fights against big bodies. Fewer meals between pulls |
+| Life Leech | `Life Leech 1% · 20 hunted hours` | Helmet | Mudlark Hook (the Slake) | Krell's Hold, melee front | Long fights against big bodies. Fewer meals between pulls |
 | Mana Leech | `Mana Leech 1% · 20 hunted hours` | Helmet | Urn Shard (Muster Barrows) | Pyre Field, mage | A caster's drinks bill. Useless to a healer, who deals little damage |
 
-Every part comes from a different ground than its best one, so every imbuement makes a trade between two grounds (`02` package 5). Fire Edge and Brute Edge share the Edge slot, so a melee hero on Muster chooses between them by the pull. The shares behind the sizes (Fire as a tenth of a front hero's damage taken on Krell's Hold, brutes as a quarter of a pull's health on Muster) are ASSUMED until I1.
+(Re-homed 2026-11-26 by D-12: every part and best ground is one v0.3.0 opens. Coal Tongs, Fire Gland and Leech Jaw bring their higher-band rows when Carter's Rest, Wyvern Roost and the Catacombs open.) Every part comes from a different ground than its best one, so every imbuement makes a trade between two grounds (`02` package 5). Fire Edge and Brute Edge share the Edge slot, so a melee hero on Muster chooses between them by the pull. The shares behind the sizes (Fire as a tenth of a front hero's damage taken on Krell's Hold, brutes as a quarter of a pull's health on Muster) are ASSUMED until I1.
 
 ### 3.4 Data shape
 
@@ -475,3 +475,66 @@ No new client verb. The settle credits each hero's bag with its own drops (`hr_h
 - `19-power-ledger.md` and `20-v030-the-roads.md` arrived on the base mid-lane. D-1 and D-2 are written here; the one-line edits to `19` rows 4 and 10 and lane L11 are owed by the next lane that touches `19`.
 - The base name in the Temper and carry-over examples ("Barrow Pike") is a placeholder. Scale drop tables come with R10.
 - Hired heroes are not designed elsewhere yet. D-9 is the rule they must follow.
+
+---
+
+## 7. Built on steps (2026-11-26, game designer, `lane/tp-im-steps`; `20` lanes TP and IM, the design and data half)
+
+### 7.1 How it plays
+
+- **Temper.** From Level 40 the smith tempers each gear slot, one rank every 40 Levels. A rank is one item Level on whatever that slot wears, so a whole kit at rank 5 is 5 Levels of power and never more. Each rank takes gold and that piece's band of Tempering Salts, which your company's Smithing mixes from three bars of the same metal. Iron's salts temper Iron, Steel's temper Steel, and so on to Dawnsteel.
+- **Imbuements.** From about Level 45 an Artificing hero makes an imbuement from five of one body's part and four Remains. You get one Edge, one Ward and one Leech a hero. Each one works on its own ground's problem (a Brute Edge on Muster's knights, a Fire Ward on Krell's Hold) and lasts 20 hunted hours. Three imbuements fill your hero's consumable room, so a damage meal on top of them adds nothing, and the hero card says so.
+
+### 7.2 Rulings made here
+
+| # | Ruling | Amends | Why |
+|---|---|---|---|
+| D-11 | **The room rule.** A worn imbuement takes its steps of the consumable slice's room on every blow, firing or not. On a blow its condition holds, it counts its steps. A draught or a damage meal gets only what is left, so three imbuements leave a meal nothing. Built as one clamp rule: a ledger row with `holds: false` reserves room in a gains-only slice (`src/core/power-ledger.js`) | D-1 (states the rule the clamp needed) | Per-channel caps alone let an Edge (offense), a Ward (defense) and a meal (offense) stack past 6 between them. Room by what is worn is what "in place of, never on top" means |
+| D-12 | **The sample is re-homed onto the grounds v0.3.0 opens.** Fire Ward from Ford Weed (Hask's Ford), Fire Edge from Rake Tine (Pyre Field) with its best on Muster, Life Leech from Mudlark Hook (the Slake) with its best on Krell's Hold. Brute Edge and Mana Leech keep their parts. The element word is the data's (`ember`, shown as Fire) | Section 3.3's table | Three of the five rows were made from staged grounds' parts, so v0.3.0 could make no Ward and no Life Leech, and a hero could never fill three slots. `validateImbues` now refuses a row whose part or best ground is not open, a condition that names no role or element, and a key a Trait uses |
+| D-13 | **A part is a Material only when an imbuement row names it.** The old `imbue: { kind, tier }` field on every body's part is gone (`part: true` marks the drop rule's row). The five sample parts are Materials and never bulk-sold. Every other part, the first grounds' included, is Junk and sells | Section 3.4 (the old field retires) | A bag full of parts that feed nothing is a dead reward. Under Level 45 an imbuement is worth under a quarter of a step after the ramp, so a new player's parts are gold. A new imbuement row files its part as a Material by itself |
+| D-14 | **The Temper kit is the Tempering Salts, one a band** (`src/data/temper.js TEMPER_KITS`): Iron to Emberforged are the live salts, Dawnsteel's is a new good. A rank on a piece takes the kits of that piece's band, never another band's. Bronze has none (rank 1 opens at Level 40, where Steel is worn). The kit is a K1 kit trade: Smithing's `temper_kit` kind, three bars of its band, named `Mix Fine Tempering Salts` and its sisters (`src/data/trades.js KIT_RECIPES`, batch 2) | Section 2.2 ("half is Temper kits") | One kit for every band would let a cheap band's kit pay for a dear band's rank. Reusing the salts keeps the item players already know, the Tower keys' prize stays the same item, and no new art is owed until Dawnsteel |
+| D-15 | **The old Tempering rungs are retired whole**: the tier ladders, Dawnsteel's small rungs, the unique bands, the Blows and Armor numbers in the fight, the smith's pane, the coach and next-buy lines, and their guards. The steady cut (a cape's `steadyPm` and a steady meal) shared their hook, so it keeps the hook and its old cap of 5 steps in the temper slice until its own slice is ruled (CONFLICTS 2026-11-26) | `19` row 4, `20` TP ("the old rungs are gone") | Two Tempers would be two rules for one sink. The cape's cut is a separate stat, and moving it to another slice is a balance change of its own, so it is named and left in place |
+
+### 7.3 What is built (data and pure core, each with its test)
+
+| Piece | Where | Test |
+|---|---|---|
+| Temper on steps: ranks by Level, the price, the seat, the gear and defense parts, the cap on a full kit | `src/data/temper.js`, `src/core/temper-steps.js`, `src/core/hunt/danger.js`, `amount.js` | `tests/temper-steps.mjs` TS-1 to TS-7 (15 mutants) |
+| The Temper kit a band, and its named recipes | `src/data/temper.js TEMPER_KITS`, `src/data/trades.js`, `src/core/trades.js temperKitAt` | TS-6, `tests/kit-recipes.mjs` (14 mutants) |
+| Imbuements: rows, recipe, worn set, steps by band, ledger rows, the room rule | `src/data/imbue-rules.js`, `src/core/imbue.js`, `src/core/power-ledger.js` | `tests/imbue.mjs` IM-1 to IM-7 (16 mutants) |
+| The engine reads them on the scale: a worn set rides the hero (`wornImbues`), Temper the perks (`temperSteps`) | `src/core/member.js`, `hunt-spawn.js`, `combat-sim.js`, `amount.js`, `damage.js` | `tests/hunt-core/amount.mjs` imbue, temper-paths, imbue-paths (both paths: 10-minute and 100-second windows play one hunt) |
+| The client reads the two dark sections | `src/session/item-sections.js temperStepsOf, imbuesOf`, the Advanced view, the smith crier | `tests/envelope-contract.mjs`, `tests/town-criers.mjs` |
+
+Still owed elsewhere: the leech rule and the Fire Edge conversion in the engine (3.9 items 2 and 3: today they only take room), the Artificing and Smithing jobs (K1's job slice), the server's kit-by-band and worn-imbue projection (HANDOFFS 2026-11-26 TP and IM), and the Temper tab and imbue apply in the client.
+
+### 7.4 Readings
+
+| Reading | Value | Kind |
+|---|---|---|
+| Whole kit at rank 5 on the gear part, the armor part and the ward part | +5.000 steps each, a forged rank 9 the same | COMPUTED on the engine's own functions (TS-4, TS-7) |
+| Three imbuements at Level 200, own band, on a brute: offense | 2.0 steps (Brute Edge), a 6-step meal on top adds 0 | COMPUTED through the clamp (IM-7) |
+| The same at Level 60 | 0.6 of a 1.8 cap | COMPUTED (IM-7) |
+| One blow on Muster's knight, Level 200 hero, three worn | +2 conditional steps on the knight, 0 on a pikeman; a Fire Ward takes 2 off an ember blow only | ENGINE (amount.mjs imbue) |
+| Muster's four at Level 60, Steady, 4 seeds x 8 h, the held step: C0 against Temper 5 on every slot plus the three imbuements | see the lane report (`v1-climb --candidate tp-im-full`) | MEASURED |
+
+### 7.5 Walk-through: a hero's first Temper rank (real data, grepped on the set)
+
+| # | Step | Holds and can reach, from earlier steps only | Real source | Doable |
+|---|---|---|---|---|
+| 1 | Reach Level 40 wearing Steel | Hunting from the first hour | `steel_sword` (item Level 40, worn from 30) | Yes |
+| 2 | Smithing 21 | Town work | `temper_kit` opens at rung 3 (`bandRung`: band 2 at rung 3, Level 21) | Job slice (K1) |
+| 3 | Three Steel Bars | Ore and the refine at band 2 | `KIT_FACES.bar[2]` `steel_bar` (an item) | Job slice (K1) |
+| 4 | Mix Fine Tempering Salts | Three bars from step 3 | `temper_kit_b2`, makes `fine_temper_salts` (an item) | Job slice (K1) |
+| 5 | Temper the weapon slot to rank 1 | 3 salts from step 4, 3,929 gold (`rankQuote('weapon', 1, 40)`) | `hr_temper_rank` | Owed: the server's kit by band (today `kits_owed`), the Temper tab |
+
+### 7.6 Walk-through: a hero's first imbuement (real data)
+
+| # | Step | Holds and can reach, from earlier steps only | Real source | Doable |
+|---|---|---|---|---|
+| 1 | Hunt Pyre Field (Levels 70 to 90) | A company at about Level 60 or more | Pyre Field pack, open | Yes |
+| 2 | Five Pike Ferrules drop | Step 1 | Charred Pikeman's row, one every 0.22 hunted hours | Yes |
+| 3 | Four Remains | Bones and Big Bones from any ground | Pack rows (the Remains good a band is `13-market` 2.4's, its face owed) | Yes |
+| 4 | Make Brute Edge at the Artificing bench | Steps 2 and 3, 0.53 work-hours | `imbueRecipe('brute_edge')`: 5 `pike_ferrule`, 4 Remains, band 70 | Job slice (K1), `imbue_brute_edge` is not an item yet |
+| 5 | Apply it to the weapon | Step 4, 1,964 gold at Level 60 (`applyFee(60, 60)`) | `hr_imbue_apply` | Owed: the item (today `imbue_owed`), the switch |
+| 6 | It counts on Muster's knights | Step 5, a hero of Level 60 or more (band 70 within wearAhead) | `muster_knight`, `captain_hask` role `brute`; the engine reads `wornImbues` | Owed: the server's projection of `hero_worn_imbue` onto the hero |
+

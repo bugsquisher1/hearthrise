@@ -213,7 +213,7 @@ export function buildCell(D, K, { L, gear, styles, tier, ground, step = null, bu
   const cell = { ground, party: [...styles], level: L, profile: 'played', supply: 'store', skillsBySeat: skills, gearBySeat: plans.map((p) => p.gear),
     talentsBySeat, build, deathRule: 'real', blessings, ...(Number.isFinite(blessedShareAt(L, blessings)) ? { blessedShare: blessedShareAt(L, blessings) } : {}), shopping: gear === 'bis' ? 'allowed' : 'real', ...(endTogether ? { endTogether: true } : {}),
     ...(rows.length ? { buffs: rows } : {}), ...(Number.isFinite(staminaH) ? { staminaH } : {}), ...(Number.isFinite(purse) ? { purse } : {}), ...(Number.isInteger(goldFloor) ? { goldFloor } : {}),
-    ...(Object.keys(temper).length ? { temper } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
+    ...(Object.keys(temperSteps).length ? { temperSteps } : {}), ...(tier !== 'normal' ? { options: { tier } } : {}), ...(pull ? { density: pull } : {}) };
   return { cell, whatIf, plans };
 }
 

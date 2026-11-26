@@ -3,8 +3,9 @@
 // OF THE GAME (Tyler's "super-rare drop moments": a shareable card).
 //
 // The owner's rare-drop alert (src/shell/alerts.js) carries its Share button;
-// the card shows the item's pixel icon at an integer scale, its name in its
-// rarity, the hero, the hunt and the date. Display only: every fact is the
+// the card shows the item's pixel icon at an integer scale (a Rare or Signature
+// in its standout frame, src/shell/item-standing.js), its name in that frame's
+// colour, the hero, the hunt and the date. Display only: every fact is the
 // alert's (the server's rare_drop event and the character's record), and
 // nothing on the card is ever read back by the game or sent to the server.
 //   cardFacts(alert)        the card's facts, or null (not a rare alert)
@@ -17,11 +18,17 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js';
 import { PIXEL_DIR, fileFor } from '../data/item-art.js';
-import { rarityOf } from './bag-model.js';
+import { standingOf } from './item-standing.js';
 import { itemName } from './widgets/bits.js';
 
 /* The card in CSS pixels, the integer it is exported at, and the icon's integer scale (32 px art). */
 export const CARD = Object.freeze({ w: 420, h: 200, px: 2, icon: 32, iconScale: 4 });
+/* The standout frames (tools/make-ui-steel-art.mjs) and the name's ink, by a piece's step. */
+const STD_FRAMES = Object.freeze({
+  rare: { src: 'assets/ui/std-frame-rare.png', slice: 3, ink: '--rar-rare' },
+  very_rare: { src: 'assets/ui/std-frame-rare.png', slice: 3, ink: '--rar-rare' },
+  signature: { src: 'assets/ui/std-frame-signature.png', slice: 4, ink: '--rar-unique' },
+});
 const MONTHS = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
 
 /** A find's date as the player's calendar reads it: '22 Oct 2026' (null when unknown). */
@@ -33,7 +40,7 @@ export function cardDate(ms) {
 /** The card's facts from a rare-drop alert, or null. */
 export function cardFacts(a) {
   if (!a || a.kind !== 'rare' || typeof a.item !== 'string' || !a.item) return null;
-  return { item: a.item, name: itemName(a.item), rarity: rarityOf(a.item), hero: typeof a.hero === 'string' ? a.hero : null,
+  return { item: a.item, name: itemName(a.item), standing: standingOf(a.item), hero: typeof a.hero === 'string' ? a.hero : null,
     place: typeof a.place === 'string' ? a.place : null, date: cardDate(a.at),
     icon: ITEMS[a.item] ? PIXEL_DIR + fileFor(a.item) : null };
 }
@@ -51,10 +58,13 @@ export function cardLayout(f) {
     { op: 'frame', x: 1, y: 1, w: w - 2, h: h - 2, stroke: '--line-strong' },
     { op: 'rect', x: 24, y: (h - well) / 2, w: well, h: well, fill: '--bg-1' },
   ];
+  /* the standout frame (the game's own PNG, hunt.css .hh-std) one art px outside the icon at the icon's scale, under it */
+  const std = STD_FRAMES[f.standing];
+  if (f.icon && std) steps.push({ op: 'nine', src: std.src, slice: std.slice, x: 32 - iconScale, y: (h - well) / 2 + 8 - iconScale, size: icon * iconScale + 2 * iconScale, px: iconScale });
   if (f.icon) steps.push({ op: 'icon', src: f.icon, x: 32, y: (h - well) / 2 + 8, size: icon * iconScale });
   const lines = [
     { text: 'A rare find', font: '600 13px', family: '--f-ui', fill: '--ink-3' },
-    { text: f.name, font: '600 24px', family: '--f-display', fill: f.rarity ? '--rar-' + f.rarity : '--gold-2' },
+    { text: f.name, font: '600 24px', family: '--f-display', fill: std ? std.ink : '--gold-2' },
     f.hero && { text: 'Found by ' + f.hero, font: '500 16px', family: '--f-ui', fill: '--ink' },
     f.place && { text: 'in ' + f.place, font: '500 14px', family: '--f-ui', fill: '--ink-2' },
     f.date && { text: f.date, font: '500 13px', family: '--f-ui', fill: '--ink-3' },
@@ -87,12 +97,24 @@ function loadImage(doc, src) {
   });
 }
 
+/* A 9-slice's border (its centre left empty), each art px `s.px` card px: the four corners as drawn, the edges stretched. */
+function drawNine(g, im, s) {
+  const n = s.slice, c = n * s.px, mid = im.width - 2 * n, inner = s.size - 2 * c;
+  const cuts = [[0, n, 0, c], [n, mid, c, inner], [n + mid, n, c + inner, c]];
+  for (const [sy, sh, dy, dh] of cuts) for (const [sx, sw, dx, dw] of cuts) {
+    if (sx === n && sy === n) continue;
+    g.drawImage(im, sx, sy, sw, sh, s.x + dx, s.y + dy, dw, dh);
+  }
+}
+
 /** The card on a canvas (CARD.px device pixels per CSS pixel, so the icon lands on an integer grid). */
 export async function drawCard(doc, f) {
   const layout = cardLayout(f);
   const tok = tokensOf(doc, layout);
   const icon = layout.steps.find((s) => s.op === 'icon');
   const img = icon ? await loadImage(doc, icon.src) : null;
+  const nine = layout.steps.find((s) => s.op === 'nine');
+  const frame = nine ? await loadImage(doc, nine.src) : null;
   if (doc.fonts && doc.fonts.ready) await doc.fonts.ready;
   const cv = doc.createElement('canvas');
   cv.width = layout.w * CARD.px;
@@ -104,6 +126,7 @@ export async function drawCard(doc, f) {
   for (const s of layout.steps) {
     if (s.op === 'rect') { g.fillStyle = tok[s.fill]; g.fillRect(s.x, s.y, s.w, s.h); }
     else if (s.op === 'frame') { g.strokeStyle = tok[s.stroke]; g.lineWidth = 2; g.strokeRect(s.x, s.y, s.w, s.h); }
+    else if (s.op === 'nine') { if (frame) drawNine(g, frame, s); }
     else if (s.op === 'icon') { if (img) g.drawImage(img, s.x, s.y, s.size, s.size); }
     else if (s.op === 'text') {
       g.font = s.font + ' ' + tok[s.family];

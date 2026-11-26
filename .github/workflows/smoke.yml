@@ -6941,6 +6941,12 @@ jobs:
         run: |
           node tests/hunt-screen-pure.mjs
           node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
+      # tests/item-standing.mjs
+      - name: Presentation floor - the Rare and Signature frame
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/item-standing.mjs
+          node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate
       # tests/needs-you.mjs
       - name: Needs you on the return card - three at most, ranked, one row a kind, providers by kind
         if: ${{ !cancelled() }}

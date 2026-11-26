@@ -3,7 +3,7 @@
 //
 // The left-hand half of the Inventory (index.js). The worn slots stand in the
 // shape of a body, three across and five down, each a small 36 px pocket with
-// the piece's 32 px icon at ×1 framed in its rarity (an empty slot shows its
+// the piece's 32 px icon at ×1 (a Rare or Signature in its standout frame; an empty slot shows its
 // ghost glyph):
 //     amulet   helmet   cape
 //     weapon   body     offhand
@@ -25,7 +25,7 @@ import { rows, text, cls, attr, prop, element } from '../../../render/paint.js';
 import { escapeHtml as esc } from '../../../utils/dom.js';
 import { glyphSvg } from '../../launcher.js';
 import { itemIconHtml, itemName } from '../../widgets/bits.js';
-import { compare, rarityOf, sortFits } from '../../bag-model.js';
+import { compare, sortFits } from '../../bag-model.js';
 import { needOf } from '../../item-lore.js';
 import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js';
 import { busyWords } from '../../training-words.js';
@@ -135,8 +135,6 @@ export function patchDoll(root, st, ctx) {
     if (b.getAttribute('data-item') !== id) {
       attr(b, 'data-item', id);
       b.querySelector('.hw-ico').innerHTML = id ? itemIconHtml(ctx.glyphs, id) : '';
-      for (const c of Array.from(b.classList)) if (c.startsWith('rar-')) b.classList.remove(c);
-      if (id && rarityOf(id)) b.classList.add('rar-' + rarityOf(id));
       attr(b, 'draggable', id ? 'true' : 'false');
     }
     cls(b, 'is-empty', !id);

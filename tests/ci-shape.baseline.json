@@ -776,6 +776,8 @@
     "node tools/mutant-gate.mjs node tests/hunt-report.mjs --mutate": "client-guards",
     "node tests/hunt-screen-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate": "client-guards",
+    "node tests/item-standing.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate": "client-guards",
     "node tests/needs-you.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate": "client-guards",
     "node tests/tally-window-pure.mjs": "client-guards",

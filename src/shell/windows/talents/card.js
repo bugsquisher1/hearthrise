@@ -16,21 +16,27 @@ import { rows, text, prop, cls, attr, element } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { t } from '../../../render/player-text.js';
+import { planFor, patchPlanNone, patchPlanPick } from './plan.js';
 
 /** The card's skeleton. */
 export function cardHtml() {
   return '<aside class="rdw-card" aria-live="polite">'
     + '<div class="rdw-none"><p class="rdw-row"><span></span><b class="rdw-none-points"></b></p><p class="rdw-row"><span></span><b class="rdw-none-fork"></b></p>'
-    + '<button type="button" class="hh-tool is-link rdw-none-show" data-hs-act="rd-show"></button></div>'
+    + '<button type="button" class="hh-tool is-link rdw-none-show" data-hs-act="rd-show"></button>'
+    /* the plan (./plan.js): the server's saved build for the hero's hunt */
+    + '<div class="rdw-plan"><p class="rdw-row"><span></span><b></b></p><p class="rdw-row"><span></span><b></b></p>'
+    + '<div class="rdw-do"><button type="button" class="hh-tool" data-hs-act="rd-plan-pay"></button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="rd-plan-clear"></button><p class="hs-note rdw-plan-why"></p></div></div></div>'
     + '<div class="rdw-sel">'
     + '<div class="rdw-card-head"><p class="rdw-kind"></p><button type="button" class="hh-tool is-link rdw-x" data-hs-act="rd-clear"></button></div>'
-    + '<h3 class="rdw-name"></h3><p class="rdw-tip"></p><p class="rdw-state"></p>'
+    + '<h3 class="rdw-name"></h3><p class="rdw-tip"></p><p class="rdw-state"></p><p class="rdw-state rdw-planned"></p>'
     + '<ul class="rdw-opts"></ul>'
     + '<div class="rdw-route"><h4 class="hs-sub rdw-route-h"></h4>'
     + '<p class="rdw-row" data-row="cost"><span></span><b></b></p><p class="rdw-row" data-row="have"><span></span><b></b></p>'
     + '<p class="rdw-row" data-row="reach"><span></span><b></b></p><p class="rdw-row" data-row="way"><span></span><b></b></p>'
     + '<p class="rdw-row" data-row="needs"><span></span><b></b></p></div>'
     + '<div class="rdw-do"><button type="button" class="hh-tool rdw-take" data-hs-act="rd-take"></button><p class="hs-note rdw-why"></p></div>'
+    + '<div class="rdw-do"><button type="button" class="hh-tool rdw-plan-go" data-hs-act="rd-plan"></button><p class="hs-note rdw-plan-off"></p></div>'
     + '<button type="button" class="hh-tool is-link rdw-step" data-hs-act="rd-step"></button>'
     + '</div><p class="hh-intent-msg" role="status" aria-live="polite"></p></aside>';
 }
@@ -56,7 +62,8 @@ const row = (root, k, label, value, on = true) => {
 
 /**
  * Patch the card. `v`: { tl (the section), sel (node id | null), route (talent-route routeTo | null), states, fork (the next suggested
- * node id | null), pending, msg }.
+ * node id | null), pending, msg, plan (./plan.js planOf: the server's saved build for the hero's hunt), suggest (the plan word a
+ * choice on a planned route takes its suggested option for) }.
  */
 export function patchCard(root, ctx, v) {
   const { tl, sel, pending } = v;
@@ -73,6 +80,7 @@ export function patchCard(root, ctx, v) {
     attr(ps[1], 'hidden', f ? null : '');
     const show = none.querySelector('.rdw-none-show');
     text(show, t('talents.show')); attr(show, 'hidden', f ? null : '');
+    patchPlanNone(none.querySelector('.rdw-plan'), tl, v.plan, pending);
     return;
   }
   text(root.querySelector('.rdw-x'), t('talents.close'));
@@ -95,7 +103,8 @@ export function patchCard(root, ctx, v) {
   rows(root.querySelector('.rdw-opts'), isPick ? optionsOf(n) : [], {
     key: (o) => sel + ':' + o.id,
     build: (o) => element(ctx.doc, '<li class="rdw-opt"><span class="rdw-opt-name"><b></b><small></small><small class="rdw-opt-at"></small></span>'
-      + '<button type="button" class="hh-tool" data-hs-act="rd-take" data-pick="' + o.id + '"></button></li>'),
+      + '<button type="button" class="hh-tool" data-hs-act="rd-take" data-pick="' + o.id + '"></button>'
+      + '<button type="button" class="hh-tool rdw-opt-plan" data-hs-act="rd-plan" data-pick="' + o.id + '"></button></li>'),
     patch: (li, o) => {
       const picked = held === o.id;
       cls(li, 'is-current', picked);
@@ -106,10 +115,17 @@ export function patchCard(root, ctx, v) {
       const lend = o.effects.find((e) => e.kind === 'borrow');
       const band = lend ? borrowBand(lend.move, n.kind === 'crossing' ? 'havora' : 'border') : null;
       text(li.querySelector('.rdw-opt-at'), band && band.opensAt > level ? t('talents.opens_at', { level: whole(band.opensAt) }) : '');
-      const b = li.querySelector('button');
+      const b = li.querySelector('[data-hs-act="rd-take"]');
+      const now = !held && problemOf(o.id) === null;
       text(b, t('talents.take'));
-      prop(b, 'hidden', !!held || problemOf(o.id) !== null);
+      prop(b, 'hidden', !now);
       prop(b, 'disabled', pending);
+      /* a choice the next point cannot buy is planned on its own row (./plan.js): shown only when the server's catalogue twin takes it */
+      const p = !held && !now ? planFor(tl, v.plan, sel, o.id, v.suggest) : { nodes: null, why: '' };
+      const pb = li.querySelector('[data-hs-act="rd-plan"]');
+      text(pb, t('talents.plan'));
+      prop(pb, 'hidden', !p.nodes || !!p.why);
+      prop(pb, 'disabled', pending);
     },
   });
   /* the route (18 section 5): what it costs to get here from the server's build */
@@ -153,4 +169,6 @@ export function patchCard(root, ctx, v) {
   attr(step, 'data-node', first ? first.id : null);
   attr(step, 'hidden', first ? null : '');
   text(step, first ? t('talents.next_step', { name: nameOf(first) }) : '');
+  /* Plan route (./plan.js), for a stone the next point cannot take here */
+  patchPlanPick(root, tl, v.plan, sel, pending, v.suggest, can);
 }

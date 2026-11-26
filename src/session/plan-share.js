@@ -6,6 +6,7 @@
 //                               Start repeats), the stance, the company's two lines, and the Roads build for that ground (its saved build,
 //                               else the nodes it holds; none while the Talents switch is off). Display only
 //   shareCodeOf(cs)             that plan as a code, or null (nothing to share yet)
+//   planGroundOf(cs)            the ground the plan (and its saved Roads build) is for, or null
 //   planChanges(cs, plan)       THE EDITOR: what a decoded plan would change on THIS hero, one row a part:
 //                               { part, to, from, state } with state 'same' (nothing to send), 'send', or why it cannot be sent ('closed':
 //                               the Talents switch is off, 'no_ground': a build with no ground to save it on, 'unread': the server's section
@@ -50,6 +51,10 @@ function groundOf(cs, co) {
   const h = huntOf(cs);
   return h && h.huntId && ID.test(h.huntId) ? h.huntId : null;
 }
+
+/** The ground a hero's Roads plan is saved for (the saved build its share code carries, the Roads map's Plan route): the plan's
+    ground, else the one its next Start repeats; null for none. */
+export const planGroundOf = (cs) => groundOf(cs, companyPlanOf(cs));
 
 /** The plan the server holds for this hero ({ ground, risk, lines, nodes }, each null when unknown). Display only. */
 function heroPlanOf(cs) {

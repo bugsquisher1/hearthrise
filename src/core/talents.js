@@ -323,18 +323,3 @@ export function heldRules(nodes = TALENT_NODES) {
   for (const n of nodes) for (const e of [...(n.effects || NONE), ...optionsOf(n).flatMap((o) => o.effects)]) if (e.kind === 'rule') s.add(e.id);
   return [...s].sort();
 }
-
-/** THE ENVELOPE SECTION `talents` as the client reads it (hr_talents_view): { live, level, points, spent, nodes, borrowed, vowSlots },
-    normalized; null for none. Display only: every spend is a server intent. */
-export function talentsSectionOf(sec) {
-  if (!sec || typeof sec !== 'object' || sec.live !== true) return null;
-  const nodes = normalize(sec.nodes);
-  const level = Number.isInteger(sec.level) ? sec.level : 1;
-  return {
-    live: true, level, nodes,
-    points: Number.isInteger(sec.points) ? sec.points : pointsAt(level),
-    spent: Number.isInteger(sec.spent) ? sec.spent : pointsSpent(nodes),
-    borrowed: Array.isArray(sec.borrowed) ? sec.borrowed.filter((m) => typeof m === 'string') : [],
-    vowSlots: Number.isInteger(sec.vow_slots) ? sec.vow_slots : vowSlotsAt(level),
-  };
-}

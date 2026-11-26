@@ -91,4 +91,29 @@ export const TALENTS_TEXT = Object.freeze({
   next_step: 'Next step: {name}',
   /* a spend problem the refusal table has no words for (a town's move not offered yet) */
   locked: 'Not offered yet',
+
+  /* THE STANDING RULE (lane/r-ui-roads-2, 1069): the band's one toggle, and its answer */
+  auto_on: 'Spend as suggested: On',
+  auto_off: 'Spend as suggested: Off',
+  /* THE PLAN (lane/r-ui-roads-2): a saved build for the hero's hunt, paid one point at a time */
+  plan_route: 'Plan route',
+  plan: 'Plan',
+  planned: 'Planned',
+  plan_label: 'Plan',
+  plan_to_go: 'To go',
+  plan_done: 'Done',
+  plan_spend: 'Spend on plan',
+  plan_clear: 'Clear plan',
+  plan_waiting: 'Waiting for a Level',
+  plan_no_ground: 'Requires a planned hunt',
+  planning: 'Saving…',
+  plan_saved: 'Plan saved',
+  plan_cleared: 'Plan cleared',
+  /* FIND TALENT AND THE FILTERS (lane/r-ui-roads-2, 18 section 3) */
+  find: 'Find talent',
+  find_none: 'No match',
+  find_road: 'Road',
+  filter_vow: 'Vows',
+  filter_crossroads: 'Crossroads',
+  filter_town: 'Towns',
 });

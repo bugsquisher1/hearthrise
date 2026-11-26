@@ -22,8 +22,10 @@ import { escapeHtml as esc } from '../../../utils/dom.js';
 import { t } from '../../../render/player-text.js';
 import { markOf, bracketsOf, placeLabels, beside, MARK_R, BLOCKS } from './marks.js';
 import { tierOf } from './camera.js';
+import { FILTERS } from './find.js';
 
 const TAP_PX = 22;
+const NO_SET = Object.freeze(new Set());
 const DRAG_PX = 5;
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -70,7 +72,8 @@ export function mapHtml() {
   const labels = labelRows(L).map((r) => '<text class="rdl ' + r.cls + '" data-rd-label="' + esc(r.id) + '">' + esc(r.text)
     + (r.country ? '<tspan class="rdl-count" dy="1.25em"></tspan>' : '') + '</text>').join('')
     + TALENT_NODES.filter((n) => PICK_KINDS.includes(n.kind) && n.kind !== 'crossing').flatMap((n) => optionsOf(n).map((o) => '<text class="rdl rdl-opt" data-rd-label="' + esc('o:' + n.id + ':' + o.id) + '">' + esc(o.n) + '</text>')).join('');
-  return '<div class="rdw-stage" data-rd-stage>'
+  /* the stage takes the keys (find.js): an arrow picks the nearest stone that way, Enter takes it, Escape lets go, + and - zoom */
+  return '<div class="rdw-stage" data-rd-stage tabindex="0" data-hs-act="rd-keys">'
     + '<svg class="rdm" data-tier="road" role="img" aria-label="' + esc(t('talents.map')) + '"><g class="rdm-world">'
     + '<g class="rdm-regions"><circle class="rdm-heart" cx="0" cy="0"/>' + regions + '</g>'
     + '<g class="rdm-edges">' + edges + '</g><g class="rdm-nodes">' + nodes + '</g><g class="rdm-posts">' + opts + '</g>'
@@ -139,7 +142,8 @@ function placeAll(M, s) {
 }
 
 /**
- * PAINT THE MAP. `v`: { cam, w, h, states: {id: state}, route: null | { path, cost, id }, sel: id | null, counts: {country: [owned, total]} }.
+ * PAINT THE MAP. `v`: { cam, w, h, states: {id: state}, route: null | { path, cost, id }, sel: id | null, counts: {country: [owned, total]},
+ * planned: Set of the plan's stones not held (plan.js), filters: Set of find.js FILTERS keys }.
  * Writes only what changed (src/render/paint.js).
  */
 export function paintMap(M, v) {
@@ -153,11 +157,18 @@ export function paintMap(M, v) {
   /* the states object is replaced whole by each server section (index.js memoOf), so its identity, the route's stones and the pick are
      the key: an unchanged display tick writes nothing and builds no string of 299 states */
   const routeKey = v.route ? v.route.path.join() : '';
-  if (v.states !== M.states || routeKey !== M.routeKey || v.sel !== M.pick) {
-    M.states = v.states; M.routeKey = routeKey; M.pick = v.sel; M.key = (M.key || 0) + 1; M.labelKey = null;
+  /* the filters (find.js FILTERS): the svg's classes, roads.css dims every other kind */
+  const filters = v.filters || NO_SET;
+  cls(M.svg, 'is-filtered', filters.size > 0);
+  for (const f of Object.keys(FILTERS)) cls(M.svg, 'is-f-' + f, filters.has(f));
+  /* the plan's stones (plan.js, the server's saved build) the hero does not hold: a stone on the route preview shows the preview */
+  const planned = v.planned || NO_SET;
+  if (v.states !== M.states || routeKey !== M.routeKey || v.sel !== M.pick || planned !== M.planned) {
+    M.states = v.states; M.routeKey = routeKey; M.pick = v.sel; M.planned = planned; M.key = (M.key || 0) + 1; M.labelKey = null;
     for (const [id, g] of Object.entries(M.nodes)) {
       const st = onRoute.has(id) ? 'route' : (v.states[id] || 'locked');
       for (const s of ['locked', 'open', 'route', 'owned']) cls(g, 'is-' + s, s === st);
+      cls(g, 'is-plan', planned.has(id) && st !== 'route');
       cls(g, 'is-sel', id === v.sel);
     }
     M.L.edges.forEach((e, i) => {
@@ -165,6 +176,7 @@ export function paintMap(M, v) {
       const ownA = v.states[e.from] === 'owned', ownB = v.states[e.to] === 'owned';
       cls(el, 'is-owned', ownA && ownB);
       cls(el, 'is-route', onRoute.has(e.to) && (ownA || onRoute.has(e.from)));
+      cls(el, 'is-plan', planned.has(e.to) && (ownA || planned.has(e.from)));
     });
     for (const [id, g] of Object.entries(M.posts)) {
       const pick = v.picks && v.picks[id];

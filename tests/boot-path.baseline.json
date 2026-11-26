@@ -41,9 +41,9 @@
       },
       {
         "modules": 13,
-        "gzipBytes": 204336,
+        "gzipBytes": 204380,
         "on": "2026-11-26",
-        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in and town); the Talents door and its text rows ride the game half; the map itself (src/shell/windows/talents/, 7 modules, about 11 KB gzip) loads by URL on the window's first open (a second bundle entry, so esbuild splits 1 shared chunk onto sign-in and 4 onto town). The set itself measured 946.9 KB to town on 79f265559 (0.6 over its ceiling) before this lane"
+        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI): src/styles/roads.css loads with the page like every surface's sheet (+3.2 KB gzip to sign-in, about the same to town); the Talents door and its text rows ride the game half; the map itself (src/shell/windows/talents/, 7 modules) loads by URL on the window's first open, which kept 11.4 KB gzip off the town stage (962.3 eager against 950.9 on need), and as a second bundle entry esbuild splits 1 shared chunk onto sign-in and 4 onto town. The set itself measured 946.9 KB to town on 79f265559, 0.6 over its ceiling, before this lane"
       }
     ],
     "town": [
@@ -355,9 +355,9 @@
       },
       {
         "modules": 25,
-        "gzipBytes": 973718,
+        "gzipBytes": 973762,
         "on": "2026-11-26",
-        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in and town); the Talents door and its text rows ride the game half; the map itself (src/shell/windows/talents/, 7 modules, about 11 KB gzip) loads by URL on the window's first open (a second bundle entry, so esbuild splits 1 shared chunk onto sign-in and 4 onto town). The set itself measured 946.9 KB to town on 79f265559 (0.6 over its ceiling) before this lane"
+        "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI): src/styles/roads.css loads with the page like every surface's sheet (+3.2 KB gzip to sign-in, about the same to town); the Talents door and its text rows ride the game half; the map itself (src/shell/windows/talents/, 7 modules) loads by URL on the window's first open, which kept 11.4 KB gzip off the town stage (962.3 eager against 950.9 on need), and as a second bundle entry esbuild splits 1 shared chunk onto sign-in and 4 onto town. The set itself measured 946.9 KB to town on 79f265559, 0.6 over its ceiling, before this lane"
       }
     ]
   }

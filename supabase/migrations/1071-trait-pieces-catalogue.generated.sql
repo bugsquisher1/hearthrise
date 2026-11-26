@@ -221,19 +221,22 @@ insert into public.hr_piece_signatures (signature_id, slot) values
   ('the_wood_book', 'shield');
 
 -- ── §2b THE TWINS (internal) ─────────────────────────────────────────────────
+-- (plpgsql, so a call is plan-cached: a LANGUAGE sql function with a SET clause is re-planned on every call, tests/settle-budget.mjs SB-3)
 create or replace function public.hr_piece_depth_of(p_hunt text, p_step int)
-returns int language sql stable set search_path = public, pg_catalog as $fn$
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- TRAIT-PIECES (1071-trait-pieces-catalogue.generated.sql): src/core/drop-rate.js depthOf, the depth step p_step reads on p_hunt (null where it rolls no rank).
-  select max(d.depth) from public.hr_piece_depths d where d.hunt_id = p_hunt and d.step_from <= greatest(p_step, 0)
-$fn$;
+  return (select max(d.depth) from public.hr_piece_depths d where d.hunt_id = p_hunt and d.step_from <= greatest(p_step, 0));
+end $fn$;
 create or replace function public.hr_piece_top_rank(p_hunt text, p_depth int)
-returns int language sql stable set search_path = public, pg_catalog as $fn$
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- TRAIT-PIECES (1071-trait-pieces-catalogue.generated.sql): the top rank open at depth p_depth on p_hunt (src/core/trait-roll.js rankRoll's ceiling: rankDepths, held to
   -- the ground's max_rank); 0 where none is.
-  select coalesce(max(i), 0)::int from public.hr_piece_grounds g cross join public.hr_piece_rules r
-   cross join lateral generate_subscripts(r.rank_depths, 1) i
-   where g.hunt_id = p_hunt and r.id and i <= g.max_rank and coalesce(p_depth, 0) >= r.rank_depths[i]
-$fn$;
+  return (select coalesce(max(i), 0)::int from public.hr_piece_grounds g cross join public.hr_piece_rules r
+           cross join lateral generate_subscripts(r.rank_depths, 1) i
+          where g.hunt_id = p_hunt and r.id and i <= g.max_rank and coalesce(p_depth, 0) >= r.rank_depths[i]);
+end $fn$;
 revoke execute on function public.hr_piece_depth_of(text, int) from public, anon, authenticated, service_role;
 revoke execute on function public.hr_piece_top_rank(text, int) from public, anon, authenticated, service_role;
 

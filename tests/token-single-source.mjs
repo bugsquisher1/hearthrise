@@ -86,7 +86,6 @@ const COMPONENT_SCOPED = {
   '--tr-colw': 'the Burning Tower stage: the chimney width, set from src/data/tower-art.js on .tt-stage and narrowed on the phone sheet (.tt-shaft)',
   '--tr-lw': 'the Burning Tower stage: a landing band width, set from src/data/tower-art.js on .tt-stage and narrowed on the phone sheet (.tt-shaft)',
   '--tr-hi': 'the Burning Tower stage: one marker head in heads.png (its outfit), set per marker by src/shell/tower-stage.js',
-  '--pocket-rar': 'the rarity colour of one pocket, slot or tooltip name, set by its .rar-* class from the --rar-* tokens; varies per element',
   '--hw-doll-well': 'the Inventory paper doll: one well size for its columns, rows and slots, from the screen width and the room its column has (--hw-doll-fit, written by inventory/doll.js fitDoll); local to .hw-doll',
 };
 

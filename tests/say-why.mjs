@@ -227,6 +227,13 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/talents.js': [
     { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested: the line beside it says No points while the server\'s section holds none to spend (the busy line says Spending… for a press)' },
   ],
+  /* the Roads map (lane/r-ui-roads, src/shell/windows/talents/): Spend as suggested in its band and a stone's Take, each off with its line beside it */
+  'src/shell/windows/talents/index.js': [
+    { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested (the map band): the line beside it says No points while the server section holds none to spend' },
+  ],
+  'src/shell/windows/talents/card.js': [
+    { cond: '!can || pending', words: "plain ? (can ? '' : why(problem))", where: 'Take (the node card): shown for the stone the next point could buy, its line says why it is off in the server words (No points, Requires the node before it, No free vow slot)' },
+  ],
   /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
   'src/shell/windows/character/faction.js': [
     { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },

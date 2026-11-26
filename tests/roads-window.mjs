@@ -307,13 +307,13 @@ async function checks(overrides, opts = {}) {
 
 /* each planted defect and the rule that must go red */
 const MUTANTS = [
-  { name: 'Take on whatever the server holds', file: 'src/shell/windows/talents/card.js', from: "prop(take, 'disabled', !can || v.pending);", to: "prop(take, 'disabled', v.pending);", want: /RW-[79]/ },
+  { name: 'Take on whatever the server holds', file: 'src/shell/windows/talents/card.js', from: "prop(take, 'disabled', !can || pending);", to: "prop(take, 'disabled', pending);", want: /RW-[79]/ },
   { name: 'the route not drawn', file: 'src/shell/windows/talents/map.js', from: "const st = onRoute.has(id) ? 'route' : (v.states[id] || 'locked');", to: "const st = v.states[id] || 'locked';", want: /RW-7/ },
   { name: 'it opens on Havora, not where the hero is', file: 'src/shell/windows/talents/index.js', from: 'const p = L.pos[homeOf(cs, tl)] || L.pos.hearth;', to: 'const p = L.pos.hearth;', want: /RW-5/ },
   { name: 'the wheel zooms past the tier\'s own scale', file: 'src/shell/windows/talents/camera.js', from: 'return scaleOf(TIERS[i + Math.sign(j - i)], fit, phone);', to: 'return want;', want: /RW-6/ },
   { name: 'the stone is owned before the answer', file: 'src/shell/windows/talents/index.js', from: "runIntent(sc, repaint, () => spendTalent(ctx.account, cs, node, pick || null),",
     to: "if (sc.memo) { sc.memo.states[node] = 'owned'; sc.memo.routes.set(node, null); } runIntent(sc, repaint, () => spendTalent(ctx.account, cs, node, pick || null),", want: /RW-8/ },
-  { name: 'Take stays on while the spend is out', file: 'src/shell/windows/talents/card.js', from: "prop(take, 'disabled', !can || v.pending);", to: "prop(take, 'disabled', !can);", want: /RW-8/ },
+  { name: 'Take stays on while the spend is out', file: 'src/shell/windows/talents/card.js', from: "prop(take, 'disabled', !can || pending);", to: "prop(take, 'disabled', !can);", want: /RW-8/ },
   { name: 'Country view keeps the rank stones', file: 'src/shell/windows/talents/map.js', from: "attr(M.svg, 'data-tier', tier);", to: "attr(M.svg, 'data-tier', tier === 'country' ? 'road' : tier);", want: /RW-6/ },
 ];
 

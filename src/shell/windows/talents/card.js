@@ -57,7 +57,7 @@ const row = (root, k, label, value, on = true) => {
  * node id | null), pending, msg }.
  */
 export function patchCard(root, ctx, v) {
-  const { tl, sel } = v;
+  const { tl, sel, pending } = v;
   const n = sel && NODE_INDEX[sel] ? NODE_INDEX[sel] : null;
   cls(root, 'is-open', !!n);
   const none = root.querySelector('.rdw-none'), box = root.querySelector('.rdw-sel');
@@ -76,7 +76,8 @@ export function patchCard(root, ctx, v) {
   text(root.querySelector('.rdw-x'), t('talents.close'));
   text(root.querySelector('.rdw-kind'), kindWords(n));
   text(root.querySelector('.rdw-name'), n.kind === 'rank' && n.move && ABILITIES[n.move] ? t('talents.rank_name', { move: ABILITIES[n.move].n }) : n.n);
-  text(root.querySelector('.rdw-tip'), n.tip || '');
+  /* a rank stone's name says it all ("Greater Mend +1 rank"); every other stone's tip is its rule */
+  text(root.querySelector('.rdw-tip'), n.kind === 'rank' ? '' : n.tip || '');
   const st = v.states[sel] || 'locked';
   const owned = st === 'owned';
   const held = tl && tl.nodes ? tl.nodes[sel] : undefined;
@@ -106,7 +107,7 @@ export function patchCard(root, ctx, v) {
       const b = li.querySelector('button');
       text(b, t('talents.take'));
       prop(b, 'hidden', !!held || problemOf(o.id) !== null);
-      prop(b, 'disabled', v.pending);
+      prop(b, 'disabled', pending);
     },
   });
   /* the route (18 section 5): what it costs to get here from the server's build */
@@ -135,8 +136,9 @@ export function patchCard(root, ctx, v) {
   const plain = !isPick && n.kind !== 'start';
   const can = plain && problem === null && (!owned || n.kind === 'open');
   text(take, n.kind === 'open' && owned ? t('talents.take_more') : t('talents.take'));
-  prop(take, 'hidden', !plain || (owned && n.kind !== 'open'));
-  prop(take, 'disabled', !can || v.pending);
+  /* shown for the stone the next point could buy (a farther one shows its route and Next step), off with its words beside it */
+  prop(take, 'hidden', !plain || (owned && n.kind !== 'open') || (!owned && !!r && r.cost > 1));
+  prop(take, 'disabled', !can || pending);
   /* why it is off, from the server's numbers, for the stone the next point could buy (a farther one has its route and Next step instead;
      a choice says it under its options, whose Take rows are gone) */
   const next = !owned && r && r.cost === 1;

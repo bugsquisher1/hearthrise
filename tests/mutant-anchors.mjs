@@ -144,8 +144,12 @@ function constants(src, ctx) {
     m.splice(1, 1, ...(m[1] && !/^[A-Z_][A-Z0-9_]*$/.test(m[2]) ? [null] : []));
     if (m[1] === null || m[1] in ctx.env || LIST_NAME.test(m[1])) continue;
     try {
-      const v = evalData(m[2], ctx);
-      if (typeof v === 'string' || typeof v === 'number' || (typeof v === 'function' && !isOpaque(v) && /=>/.test(m[2]))) ctx.env[m[1]] = v;
+      /* every declarator of the line: `const SR = 'a.js', DM = 'b.js';` gives SR 'a.js', never the
+         comma's last value (signature-rules.mjs read its SR mutants against damage.js, 2026-11-26) */
+      for (const [k, v] of Object.entries(evalDeclarators(m[1], m[2], ctx))) {
+        if (k in ctx.env || LIST_NAME.test(k)) continue;
+        if (typeof v === 'string' || typeof v === 'number' || (typeof v === 'function' && !isOpaque(v) && /=>/.test(m[2]))) ctx.env[k] = v;
+      }
     } catch { /* stays opaque */ }
   }
   /* multi-line UPPER_CASE data tables: `const FILES = { renderers: 'src/…', … };` */
@@ -159,6 +163,20 @@ function constants(src, ctx) {
       if (v && typeof v === 'object' && !isOpaque(v)) ctx.env[m[1]] = v;
     } catch { /* stays opaque */ }
   }
+}
+
+/** `NAME = <rest of the declaration>` run as assignments: { name: value } for each declarator
+    (`A = 'x', B = 'y'` parses as two assignments, so each name keeps its own value). */
+function evalDeclarators(name, text, ctx) {
+  const got = Object.create(null);
+  const scope = new Proxy(ctx.env, {
+    has: (t, k) => typeof k === 'string' && (k === name || !(k in ctx.globals)),
+    get: (t, k) => (k === Symbol.unscopables ? undefined : k in got ? got[k] : k in t ? t[k] : opaque(String(k))),
+    set: (t, k, v) => { got[k] = v; return true; },
+  });
+  ctx.sandbox.__scope = scope;
+  vm.runInContext(`(function () { with (__scope) { ${name} = ${text}\n; } })()`, ctx.sandbox);
+  return got;
 }
 
 function evalData(text, ctx, opts = undefined) {
@@ -452,6 +470,18 @@ function selftest() {
     const ok = r.findings.some((f) => /STALE .*SQL_MUTANTS.*matches no file/.test(f));
     if (!ok) bad++;
     console.log(`  ${ok ? 'ok    ' : 'FAILED'} a stale implied-target SQL anchor goes red`);
+  }
+  /* the declarator arm: `const SA = 'src/a.js', SB = 'src/b.js';` gives SA its own file, not the comma's last */
+  writeFileSync(join(dir, 'src', 'b.js'), 'export const onlyInB = 1;\n');
+  {
+    const two = "const SA = 'src/a.js', SB = 'src/b.js';\n";
+    writeFileSync(join(dir, 'tests', 'g.mjs'), two + guard(CLEAN + "\n  ['sa', SA, 'export const x = 1;', ''],\n  ['sb', SB, 'export const onlyInB = 1;', ''],"));
+    const clean = check(dir, { files: ['tests/g.mjs'] });
+    writeFileSync(join(dir, 'tests', 'g.mjs'), two + guard(CLEAN + "\n  ['saStale', SA, 'export const onlyInB = 1;', ''],"));
+    const red = check(dir, { files: ['tests/g.mjs'] });
+    const ok = clean.findings.length === 0 && clean.checked >= 7 && red.findings.some((f) => /STALE .*"saStale".*src\/a\.js/.test(f));
+    if (!ok) bad++;
+    console.log(`  ${ok ? 'ok    ' : 'FAILED'} two declarators on one line keep their own files (${clean.findings.length} red clean, ${red.findings.length} red planted)${ok ? '' : ': ' + JSON.stringify({ clean: clean.findings, red: red.findings })}`);
   }
   /* the CRLF arm: a CRLF checkout must not read as stale */
   writeFileSync(join(dir, 'src', 'a.js'), 'export const x = 1;\r\nexport const y = 2;\r\nconst pad = 0; const pad = 0;\r\n');

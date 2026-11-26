@@ -229,8 +229,9 @@ const MUTANTS = [
   { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
   { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_lobster',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
   /* HIS HEALTH IS THE HALL KIND'S LEVER since the hall's switch (lane/hall-formula: src/core/hunt/hall-formula.js; his row's hand `hp` is read
-     only with the switch off): half as much again */
-  { name: 'Krell at half as much health again', edits: [['src/data/bosses.js', "hall: Object.freeze({ role: 'elite', hpPpm: ", "hall: Object.freeze({ role: 'elite', hpPpm: 1.5 * "]], want: /HA-WIN/ },
+     only with the switch off). Twice it: half as much again ESCAPED on set/v0.2.144 (GitHub 45879403066), the card's four winning 39 of 40 on
+     the clean tree and 36 of 40 at x1.5; at x2 it wins 8 of 40 (lane/ci-reds-1126b, measured with --table; the margin is the designer's read) */
+  { name: 'Krell at twice his health', edits: [['src/data/bosses.js', "hall: Object.freeze({ role: 'elite', hpPpm: ", "hall: Object.freeze({ role: 'elite', hpPpm: 2 * "]], want: /HA-WIN/ },
   { name: 'a healer line naming no spell', edits: [[PACK, "'Healer: Greater Mend under 85%'", "'Healer: Great Mend under 85%'"]], want: /HA-READ .*no spell named Great Mend/ },
 ];
 

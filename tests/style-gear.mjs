@@ -211,9 +211,15 @@ function mutate() {
   /* a frozen row (the shields, shields.js) is swapped whole for a copy, and put back */
   const swap = (id, patch) => { const was = ITEMS[id]; ITEMS[id] = { ...was, ...patch }; return () => { ITEMS[id] = was; }; };
   const unbench = (skill, rid) => { const list = ARTISAN_RECIPES[skill]; const at = list.findIndex((x) => x.id === rid); const [row] = list.splice(at, 1); return () => list.splice(at, 0, row); };
-  /* a rung's one door is its drop row since 2026-11-18 (the Oak Wand: the Sewer's slimes, about hourly) */
+  /* a rung's one door is its drop row since 2026-11-18. The Oak Wand's homes are read from the rows: the Sewer's slimes dropped it until
+     the sweep put the Sewer on bronze and the wand on the Glade's vine (12-targets 8.3), and a named home stopped biting (2026-11-26) */
   const undrop = (mid, item) => { const m = MONSTERS[mid]; const was = m.drops; m.drops = was.filter((d) => d.id !== item); return () => { m.drops = was; }; };
-  run('the wand rung loses its drop (a style with no reachable upgrade)', 'SG-1', () => undrop('sump_slime', 'oak_wand'));
+  const undropAll = (item) => {
+    const undo = Object.keys(MONSTERS).filter((mid) => (MONSTERS[mid].drops || []).some((d) => d.id === item)).map((mid) => undrop(mid, item));
+    if (!undo.length) throw new Error('style-gear --mutate: no monster drops ' + item + ', so its plant removes nothing');
+    return () => undo.reverse().forEach((u) => u());
+  };
+  run('the wand rung loses its drop (a style with no reachable upgrade)', 'SG-1', () => undropAll('oak_wand'));
   /* a reforge's one door is its bench: the Steelgrate unbenched leaves the Kingsgrate's reforge with no source */
   run('the Steelgrate loses its reforge (a made piece no bench makes)', 'SG-6', () => { const a = unbench('smithing', 'reforge_steelgrate'); return a; });
   /* every body that drops it, read from the rows (the Chief and his called copy, and now the Warlock and the Color

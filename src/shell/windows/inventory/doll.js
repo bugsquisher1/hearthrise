@@ -34,6 +34,9 @@ import { levelOf } from '../../../session/character-sections.js';
 import { showTip } from '../item-tip.js';
 import { t } from '../../../render/player-text.js';
 import { heroGroundOf } from '../../widgets/first-target.js';
+import { wornPieceOf, freePiecesOf, piecesOf } from '../../../session/piece-sections.js';
+import { pieceName, traitWords, foundWords, standingWord } from '../../piece-words.js';
+import { gold } from '../../../render/format.js';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -117,7 +120,9 @@ export function slotLineHtml() {
   return '<div class="hw-slotline"><h3 class="hw-slothead"></h3>'
     + '<div class="hw-worn"><span class="hw-ico"></span><span class="hw-worn-name"></span><button type="button" class="hh-tool" data-hs-act="unequip">' + t('controls.unequip') + '</button></div>'
     + '<p class="hw-why hw-slot-why" role="status" aria-live="polite"></p>'
-    + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in bag fits here</p></div>';
+    + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in bag fits here</p>'
+    /* the account's free Trait pieces that fit this slot (the server's `pieces` section): Wear, or Sell at the store's price */
+    + '<ul class="hw-fits hw-piece-fits"></ul></div>';
 }
 
 /* Bag stacks that fit an equip slot, best first by the change against what is worn (bag-model.js sortFits: a weapon by its gain in the
@@ -132,9 +137,12 @@ export function patchDoll(root, st, ctx) {
   for (const b of root.querySelectorAll('.hw-slot')) {
     const s = b.getAttribute('data-slot');
     const id = eq[s] || '';
-    if (b.getAttribute('data-item') !== id) {
+    /* a Trait piece worn here draws in its standout frame (the server's `pieces` row; item-standing.js) */
+    const piece = id ? wornPieceOf(st.cs, s) : null;
+    if (b.getAttribute('data-item') !== id || b.getAttribute('data-piece') !== (piece ? piece.id : null)) {
       attr(b, 'data-item', id);
-      b.querySelector('.hw-ico').innerHTML = id ? itemIconHtml(ctx.glyphs, id) : '';
+      attr(b, 'data-piece', piece ? piece.id : null);
+      b.querySelector('.hw-ico').innerHTML = id ? itemIconHtml(ctx.glyphs, piece || id) : '';
       attr(b, 'draggable', id ? 'true' : 'false');
     }
     cls(b, 'is-empty', !id);
@@ -143,7 +151,7 @@ export function patchDoll(root, st, ctx) {
     const busy = !!sc.wearing && sc.wearing.slots.includes(s);
     cls(b, 'is-wearing', busy);
     attr(b, 'aria-busy', busy ? 'true' : null);
-    attr(b, 'aria-label', SLOT_LABEL.get(s) + ': ' + (id ? itemName(id) : 'empty'));
+    attr(b, 'aria-label', SLOT_LABEL.get(s) + ': ' + (piece ? pieceName(piece) + ', ' + standingWord(piece) : id ? itemName(id) : 'empty'));
   }
 }
 
@@ -154,11 +162,16 @@ export function patchSlotLine(root, st, ctx) {
   cls(line, 'is-on', !!sc.slot);
   if (!sc.slot) return;
   const worn = eq[sc.slot] || null;
+  const wornPiece = worn ? wornPieceOf(st.cs, sc.slot) : null;
   text(line.querySelector('.hw-slothead'), SLOT_LABEL.get(sc.slot) || (EQUIP_SLOT_META[sc.slot] && EQUIP_SLOT_META[sc.slot].label) || sc.slot);
   const wr = line.querySelector('.hw-worn');
   cls(wr, 'is-on', !!worn);
-  if (wr.getAttribute('data-item') !== (worn || '')) { attr(wr, 'data-item', worn || ''); wr.querySelector('.hw-ico').innerHTML = worn ? itemIconHtml(ctx.glyphs, worn) : ''; }
-  text(wr.querySelector('.hw-worn-name'), worn ? itemName(worn) : '');
+  if (wr.getAttribute('data-item') !== (worn || '') || wr.getAttribute('data-piece') !== (wornPiece ? wornPiece.id : null)) {
+    attr(wr, 'data-item', worn || ''); attr(wr, 'data-piece', wornPiece ? wornPiece.id : null);
+    wr.querySelector('.hw-ico').innerHTML = worn ? itemIconHtml(ctx.glyphs, wornPiece || worn) : '';
+  }
+  /* a worn piece reads as itself: its name and its Traits (Unequip frees it to the account's pieces, never a plain copy: 1072) */
+  text(wr.querySelector('.hw-worn-name'), wornPiece ? pieceName(wornPiece) + (traitWords(wornPiece) ? ' · ' + traitWords(wornPiece) : '') : worn ? itemName(worn) : '');
   /* A running hunt turns every gear press here off (gear-gate.js: the engine refuses it), and the line says why: the hunt's words
      (GEAR_HUNT_WORDS.one), or the yard's while the hero trains (training-words.js busyWords, post-140 audit C7); else the line holds
      its last press's answer. */
@@ -191,7 +204,42 @@ export function patchSlotLine(root, st, ctx) {
       attr(li.querySelector('button'), 'data-off-why', short ? need.text : locked ? lockWhy : null);
     },
   });
-  cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length);
+  const pieces = patchPieceFits(line, st, ctx, { locked, lockWhy, skills, level: lv ? lv.level : null });
+  cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length && !pieces);
+}
+
+/* THE PIECES THAT FIT THE OPEN SLOT (1072-piece-verbs.sql): every free Trait piece of the account whose base goes here, each with Equip (ONE
+   hr_piece_wear) and Sell at the price the server sent (`sell`; ONE hr_piece_sell after a second press says the price: a Rare is never sold
+   unasked). Off while a press is out, a hunt runs, the hero's Level is short, the store buys none or the day's sales are spent. How many rows. */
+function patchPieceFits(line, st, ctx, o) {
+  const { sc } = st;
+  const sec = piecesOf(st.cs);
+  const list = sec ? freePiecesOf(st.cs).filter((p) => fitsSlot(p.base, sc.slot)) : [];
+  rows(line.querySelector('.hw-piece-fits'), list, {
+    key: (p) => p.id,
+    build: (p) => element(ctx.doc, '<li class="hw-fit" data-piece="' + esc(p.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, p) + '</span>'
+      + '<span class="hw-fit-name"><b></b><small class="hw-fit-delta"></small><small class="hw-fit-need"></small></span>'
+      + '<button type="button" class="hh-tool" data-hs-act="wear-piece" data-piece="' + esc(p.id) + '">' + t('controls.equip') + '</button>'
+      + '<button type="button" class="hh-tool" data-hs-act="sell-piece" data-piece="' + esc(p.id) + '"></button></li>'),
+    patch: (li, p) => {
+      text(li.querySelector('b'), standingWord(p) + ' ' + pieceName(p));
+      text(li.querySelector('.hw-fit-delta'), traitWords(p));
+      const need = needOf(p.base, o.skills, o.level);
+      const short = !!need && need.short;
+      text(li.querySelector('.hw-fit-need'), short ? need.text : foundWords(p));
+      const wearB = li.querySelector('[data-hs-act="wear-piece"]');
+      prop(wearB, 'disabled', sc.pending || o.locked || short);
+      attr(wearB, 'data-off-why', short ? need.text : o.locked ? o.lockWhy : null);
+      const sellB = li.querySelector('[data-hs-act="sell-piece"]');
+      const asking = sc.sellPiece === p.id;
+      text(sellB, p.sell === null ? t('controls.sell') : asking ? 'Sell for ' + gold(p.sell) + '?' : t('controls.sell') + ' · ' + gold(p.sell));
+      cls(sellB, 'is-primary', asking);
+      const why = p.sell === null ? 'The store does not buy this' : sec.sellLeft <= 0 ? 'No more sales to the store today' : null;
+      prop(sellB, 'disabled', sc.pending || !!why);
+      attr(sellB, 'data-off-why', why);
+    },
+  });
+  return list.length;
 }
 
 /** The compare tooltip for a worn slot or a fitting stack. */

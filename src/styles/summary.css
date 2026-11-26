@@ -116,6 +116,7 @@
 .haway-hero .hres-fig small > span { white-space: nowrap; }
 .haway-best { display: flex; align-items: center; gap: 10px; margin: 0 2px 6px; }
 .haway-best[hidden] { display: none; }
+.haway-pieces { margin: 0; padding: 0; list-style: none; }
 .haway-best-name { display: flex; flex-direction: column; min-width: 0; }
 .haway-best-name small { font-family: var(--f-label); font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 .haway-best-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

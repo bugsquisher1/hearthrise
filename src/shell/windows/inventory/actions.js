@@ -67,6 +67,8 @@ import { patternRowOf, learnBlock, armLearn, learnPattern } from './pattern.js';
 import { actPlanCopy } from './plan-copy.js';
 import { text, attr } from '../../../render/paint.js';
 import { heroGroundOf } from '../../widgets/first-target.js';
+import { freePiecesOf } from '../../../session/piece-sections.js';
+import { wearPiece, sellPiece } from '../../../session/piece-intents.js';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -151,6 +153,31 @@ function wear(st, repaint, slot, id, at) {
     try { return await equipAndTidy(st.cs, ops); } finally { sc.wearing = null; }
   /* a new way to fight is said on the window's own line: the stack the press was on has left the bag */
   }, id ? 'Equipping…' : 'Taking it off…', said ? () => said : null, said ? null : at);
+}
+
+/* A TRAIT PIECE (1072-piece-verbs.sql): one of the account's free pieces, as the server's `pieces` section holds it now. */
+const freePiece = (st, id) => freePiecesOf(st.cs).find((p) => p.id === id) || null;
+
+/** Wear a free piece in `slot`: ONE hr_piece_wear, unless the server's sections already say it would be refused (gear-gate.js). The slot
+    carries the pending mark until the answer's envelope lands; the doll shows the piece only from it. */
+function wearPieceIn(st, repaint, slot, id) {
+  const sc = st.sc, p = freePiece(st, id);
+  if (sc.pending || !p) return;
+  const why = wearBlock(st.cs, p.base);
+  if (why) { say(st, repaint, why, 'slot'); return; }
+  sc.sellPiece = null;
+  sc.wearing = { slots: [slot], items: [] };
+  send(st, repaint, async () => { try { return await wearPiece(st.account, st.cs, p, slot); } finally { sc.wearing = null; } }, 'Equipping…', null, 'slot');
+}
+
+/** Sell a free piece to the store: the first press says the server's price, the second sends ONE hr_piece_sell at it (a Rare is never
+    sold unasked, Tyler 2026-10-14). The piece leaves the screen only with the answer's envelope. */
+function sellPieceAt(st, repaint, id) {
+  const sc = st.sc, p = freePiece(st, id);
+  if (sc.pending || !p || p.sell === null) return;
+  if (sc.sellPiece !== p.id) { sc.sellPiece = p.id; repaint(); return; }
+  sc.sellPiece = null;
+  send(st, repaint, () => sellPiece(st.account, st.cs, p), 'Selling…', () => 'Sold for ' + gold(p.sell), 'slot');
 }
 
 function doPrimary(st, id, repaint) {
@@ -450,10 +477,12 @@ function onDoll(ctx, st, action, ev, el, repaint) {
   if (action === 'slot') { const s = el.getAttribute('data-slot'); sc.slot = sc.slot === s ? null : s; sc.msg = ''; sc.msgAt = null; repaint(); return true; }
   if (action === 'wear' && sc.slot) { wear(st, repaint, sc.slot, el.getAttribute('data-item'), 'slot'); return true; }
   if (action === 'unequip' && sc.slot && st.eq[sc.slot]) { wear(st, repaint, sc.slot, null, 'slot'); return true; }
+  if (action === 'wear-piece' && sc.slot) { wearPieceIn(st, repaint, sc.slot, el.getAttribute('data-piece')); return true; }
+  if (action === 'sell-piece' && sc.slot) { sellPieceAt(st, repaint, el.getAttribute('data-piece')); return true; }
   return false;
 }
 
-const DOLL_ACTS = new Set(['slot', 'fit-row', 'wear', 'unequip']);
+const DOLL_ACTS = new Set(['slot', 'fit-row', 'wear', 'unequip', 'wear-piece', 'sell-piece']);
 
 function onPocket(ctx, body, st, action, ev, el, repaint) {
   const sc = st.sc;

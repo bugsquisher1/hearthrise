@@ -65,6 +65,7 @@ import { awayRecapOf, awayRecapFrom, awayLineNow, awaySettled, stampAway as stam
 import { askPastHunt } from '../session/past-hunt.js';
 import { benchStopRecapOf } from './bench-fee.js';
 import { workDoneOf, runningRunKey, titleNewsOf } from './town-news.js';
+import { pieceNewsOf } from './piece-words.js';
 import { workRow } from './town-work.js';
 import { tallyOf, pickWords } from '../session/tally-sections.js';
 import { tallyTask } from '../data/tally-tasks.js';
@@ -406,6 +407,8 @@ export function createAlertCenter(account, opts) {
     if (running) benchSeen.set(cs.slot, running);
     const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));
     if (titled) now.push(titled);
+    /* A Trait piece this hero just found (piece-words.js: the answer's hunt_settle.found, or a frame's fresh find), once a piece. */
+    now.push(...pieceNewsOf(cs, (id) => wasSeen(cs, id), who(cs), typeof cs.serverNow === 'function' ? cs.serverNow() : NaN));
     /* A level-up in this record that unlocked moves (spell-news.js): one line for all of them, never on a load. */
     const spell = spells.news(cs, (id) => wasSeen(cs, id), who(cs));
     if (spell) now.push(spell);

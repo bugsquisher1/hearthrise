@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/talents/plan.js — THE ROADS' PLAN: "PLAN ROUTE" AS A SAVED BUILD THE SERVER HOLDS, AND ITS STEPS PAID ONE SPEND
+// src/shell/windows/talents/road-plan.js — THE ROADS' PLAN: "PLAN ROUTE" AS A SAVED BUILD THE SERVER HOLDS, AND ITS STEPS PAID ONE SPEND
 // AT A TIME (lane/r-ui-roads-2, 2026-11-26; docs/design/redesign/18-roads-review-ux.md section 5 item 3, 17-talent-tree.md section 11).
 //
 // The plan is NEVER client state: it is the saved build the server holds for the hero's ground (hr_talent_build_save, the `talents`

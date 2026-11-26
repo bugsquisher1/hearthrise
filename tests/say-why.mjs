@@ -230,7 +230,7 @@ export const REASONS = Object.freeze({
   /* the Roads map (lane/r-ui-roads, src/shell/windows/talents/): a stone's Take, off with its line beside it (the band's Spend as
      suggested is the standing rule's toggle since lane/r-ui-roads-2, off only while its press is out) */
   /* the Roads plan (lane/r-ui-roads-2): Plan route and Spend on plan, each off with its line beside it */
-  'src/shell/windows/talents/plan.js': [
+  'src/shell/windows/talents/road-plan.js': [
     { cond: '!p.nodes || !!p.why || pending', words: "text(root.querySelector('.rdw-plan-off'), show", where: 'Plan route (the node card): the line beside it says why (Requires a planned hunt, Borrowed moves full, No free vow slot) in the server words' },
     { cond: '!!off || pending', words: "text(box.querySelector('.rdw-plan-why'), has ? off : '')", where: 'Spend on plan (the card with nothing picked): the line beside it says No points, or Waiting for a Level while the plan\'s next stone waits on a vow slot' },
   ],

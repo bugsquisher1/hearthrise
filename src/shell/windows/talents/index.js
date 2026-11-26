@@ -11,7 +11,7 @@
 //   band   Points and Vows (the server's), Spend as suggested (the standing rule: a toggle drawn from the server's `auto`, ONE intent
 //          a press, never flipped before the answer), the zoom tier (Country, Road, Node), Recenter
 //   map    ./map.js: every stone in one of four states, the route to the stone under the pointer or picked, its cost badge, the plan's
-//          stones (./plan.js: the server's saved build); over it Find talent and the filters (./find.js); the stage takes the keys
+//          stones (./road-plan.js: the server's saved build); over it Find talent and the filters (./find.js); the stage takes the keys
 //   card   ./card.js: what the picked stone is, its route and cost, its Take (ONE intent, on only from the server's state) and its Plan
 //          route (ONE saveBuild); with nothing picked, the plan and Spend on plan
 //   list   Country view: each country with its owned count; a press flies there at Road view
@@ -34,7 +34,7 @@ import { t } from '../../../render/player-text.js';
 import { mapHtml, mapOf, paintMap, bindGestures, nodeAt, countryAt } from './map.js';
 import { cardHtml, patchCard } from './card.js';
 import { fitScale, tierOf, scaleOf, toMap, clampCam, zoomAbout, stepScale, tierIn, TIERS } from './camera.js';
-import { planOf, actPlan } from './plan.js';
+import { planOf, actPlan } from './road-plan.js';
 import { findTalents, FILTERS, stoneToward } from './find.js';
 import { keyBelongsToField } from '../../../utils/dom.js';
 

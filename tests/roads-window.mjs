@@ -9,7 +9,7 @@
 // ci-run: node tests/roads-window.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
 //
-// mutant-anchors: src/shell/windows/talents/index.js src/shell/windows/talents/card.js src/shell/windows/talents/map.js src/shell/windows/talents/camera.js src/session/talent-sections.js src/shell/windows/talents/plan.js src/shell/windows/talents/find.js src/core/talent-route.js
+// mutant-anchors: src/shell/windows/talents/index.js src/shell/windows/talents/card.js src/shell/windows/talents/map.js src/shell/windows/talents/camera.js src/session/talent-sections.js src/shell/windows/talents/road-plan.js src/shell/windows/talents/find.js src/core/talent-route.js
 //
 // docs/design/redesign/20-v030-the-roads.md section 4 (R-UI), 18-roads-review-ux.md sections 3 to 6. The pure half reads the layout,
 // the route and the camera in node; the page half is play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs),
@@ -39,7 +39,7 @@
 //   RW-12 SPEND AS SUGGESTED, THE STANDING RULE: the band's toggle is pressed exactly while the server's `auto` says so; a press sends
 //         ONE hr_talent_auto_set (on: the plan word, off: null), stays as it was and off while the answer is out, and turns only from
 //         the answer's envelope
-//   RW-13 PLAN ROUTE (src/core/talent-route.js planRoute, ./plan.js): a far stone's Plan route sends ONE hr_talent_build_save for the
+//   RW-13 PLAN ROUTE (src/core/talent-route.js planRoute, ./road-plan.js): a far stone's Plan route sends ONE hr_talent_build_save for the
 //         hero's planned hunt naming the route over the build (each choice at its suggested option); nothing shows planned before the
 //         answer; Spend on plan then pays the plan in the map's order, one hr_talent_spend a point, each choice at its planned option,
 //         never past the server's points
@@ -534,10 +534,10 @@ const MUTANTS = [
   { name: 'the standing rule shown turned before the answer', file: 'src/shell/windows/talents/index.js', from: "attr(go, 'aria-pressed', String(!!(tl && tl.auto)));",
     to: "attr(go, 'aria-pressed', String(sc.pending ? !(tl && tl.auto) : !!(tl && tl.auto)));", want: /RW-12/ },
   { name: 'the toggle only ever turns the rule on', file: 'src/shell/windows/talents/index.js', from: 'setTalentAuto(ctx.account, cs, on ? PLAN : null)', to: 'setTalentAuto(ctx.account, cs, PLAN)', want: /RW-12/ },
-  { name: 'the plan shown before the server saved it', file: 'src/shell/windows/talents/plan.js', from: 'runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)',
+  { name: 'the plan shown before the server saved it', file: 'src/shell/windows/talents/road-plan.js', from: 'runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)',
     to: 'tl.builds[plan.ground] = p.nodes; MEMO.delete(tl); repaint(); runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)', want: /RW-13/ },
   { name: 'a planned choice paid with no pick', file: 'src/core/talent-route.js', from: 'const pick = PICK_KINDS.includes(n.kind) ? draft[n.id] : null;', to: 'const pick = null;', want: /RW-13/ },
-  { name: 'Spend on plan pays past the server\'s points', file: 'src/shell/windows/talents/plan.js', from: 'if (!tl || !(tl.left > 0)) break;', to: 'if (!tl) break;', want: /RW-13/ },
+  { name: 'Spend on plan pays past the server\'s points', file: 'src/shell/windows/talents/road-plan.js', from: 'if (!tl || !(tl.left > 0)) break;', to: 'if (!tl) break;', want: /RW-13/ },
   { name: 'Find talent ignores the options\' names', file: 'src/shell/windows/talents/find.js', from: "if (PICK_KINDS.includes(n.kind) && n.kind !== 'crossing') for (const o of optionsOf(n))", to: 'if (false) for (const o of optionsOf(n))', want: /RW-14/ },
   { name: 'a filter dims nothing', file: 'src/shell/windows/talents/map.js', from: "cls(M.svg, 'is-filtered', filters.size > 0);", to: "cls(M.svg, 'is-filtered', false);", want: /RW-14/ },
   { name: 'an arrow key picks nothing', file: 'src/shell/windows/talents/index.js', from: 'if (next) pickStone(body, ctx, sc, next);', to: 'if (next) patchBody(body, ctx);', want: /RW-15/ },

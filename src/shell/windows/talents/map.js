@@ -143,7 +143,7 @@ function placeAll(M, s) {
 
 /**
  * PAINT THE MAP. `v`: { cam, w, h, states: {id: state}, route: null | { path, cost, id }, sel: id | null, counts: {country: [owned, total]},
- * planned: Set of the plan's stones not held (plan.js), filters: Set of find.js FILTERS keys }.
+ * planned: Set of the plan's stones not held (road-plan.js), filters: Set of find.js FILTERS keys }.
  * Writes only what changed (src/render/paint.js).
  */
 export function paintMap(M, v) {
@@ -161,7 +161,7 @@ export function paintMap(M, v) {
   const filters = v.filters || NO_SET;
   cls(M.svg, 'is-filtered', filters.size > 0);
   for (const f of Object.keys(FILTERS)) cls(M.svg, 'is-f-' + f, filters.has(f));
-  /* the plan's stones (plan.js, the server's saved build) the hero does not hold: a stone on the route preview shows the preview */
+  /* the plan's stones (road-plan.js, the server's saved build) the hero does not hold: a stone on the route preview shows the preview */
   const planned = v.planned || NO_SET;
   if (v.states !== M.states || routeKey !== M.routeKey || v.sel !== M.pick || planned !== M.planned) {
     M.states = v.states; M.routeKey = routeKey; M.pick = v.sel; M.planned = planned; M.key = (M.key || 0) + 1; M.labelKey = null;

@@ -16,14 +16,14 @@ import { rows, text, prop, cls, attr, element } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { t } from '../../../render/player-text.js';
-import { planFor, patchPlanNone, patchPlanPick } from './plan.js';
+import { planFor, patchPlanNone, patchPlanPick } from './road-plan.js';
 
 /** The card's skeleton. */
 export function cardHtml() {
   return '<aside class="rdw-card" aria-live="polite">'
     + '<div class="rdw-none"><p class="rdw-row"><span></span><b class="rdw-none-points"></b></p><p class="rdw-row"><span></span><b class="rdw-none-fork"></b></p>'
     + '<button type="button" class="hh-tool is-link rdw-none-show" data-hs-act="rd-show"></button>'
-    /* the plan (./plan.js): the server's saved build for the hero's hunt */
+    /* the plan (./road-plan.js): the server's saved build for the hero's hunt */
     + '<div class="rdw-plan"><p class="rdw-row"><span></span><b></b></p><p class="rdw-row"><span></span><b></b></p>'
     + '<div class="rdw-do"><button type="button" class="hh-tool" data-hs-act="rd-plan-pay"></button>'
     + '<button type="button" class="hh-tool is-link" data-hs-act="rd-plan-clear"></button><p class="hs-note rdw-plan-why"></p></div></div></div>'
@@ -62,7 +62,7 @@ const row = (root, k, label, value, on = true) => {
 
 /**
  * Patch the card. `v`: { tl (the section), sel (node id | null), route (talent-route routeTo | null), states, fork (the next suggested
- * node id | null), pending, msg, plan (./plan.js planOf: the server's saved build for the hero's hunt), suggest (the plan word a
+ * node id | null), pending, msg, plan (./road-plan.js planOf: the server's saved build for the hero's hunt), suggest (the plan word a
  * choice on a planned route takes its suggested option for) }.
  */
 export function patchCard(root, ctx, v) {
@@ -120,7 +120,7 @@ export function patchCard(root, ctx, v) {
       text(b, t('talents.take'));
       prop(b, 'hidden', !now);
       prop(b, 'disabled', pending);
-      /* a choice the next point cannot buy is planned on its own row (./plan.js): shown only when the server's catalogue twin takes it */
+      /* a choice the next point cannot buy is planned on its own row (./road-plan.js): shown only when the server's catalogue twin takes it */
       const p = !held && !now ? planFor(tl, v.plan, sel, o.id, v.suggest) : { nodes: null, why: '' };
       const pb = li.querySelector('[data-hs-act="rd-plan"]');
       text(pb, t('talents.plan'));
@@ -169,6 +169,6 @@ export function patchCard(root, ctx, v) {
   attr(step, 'data-node', first ? first.id : null);
   attr(step, 'hidden', first ? null : '');
   text(step, first ? t('talents.next_step', { name: nameOf(first) }) : '');
-  /* Plan route (./plan.js), for a stone the next point cannot take here */
+  /* Plan route (./road-plan.js), for a stone the next point cannot take here */
   patchPlanPick(root, tl, v.plan, sel, pending, v.suggest, can);
 }

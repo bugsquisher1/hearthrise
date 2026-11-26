@@ -45,9 +45,10 @@ export function bracketsOf(r) {
 }
 
 /**
- * PLACE THE LABELS. `labels`: [{ id, x, y, w, h, tries: [[dx, dy, anchor]...], pri, block? }] in screen px (x, y the anchor point,
- * `w` its measured width, `h` its line height); `obstacles`: [[x0, y0, x1, y1]...]. A label with block false is drawn wherever its
- * first spot is and covers nothing (a watermark). Returns { id: [x, y, anchor] | null }.
+ * PLACE THE LABELS. `labels`: [{ id, x, y, w, h, tries: [[dx, dy, anchor]...], pri, block?, force? }] in screen px (x, y the anchor
+ * point, `w` its measured width, `h` its line height); `obstacles`: [[x0, y0, x1, y1]...]. A label with block false is drawn wherever
+ * its first spot is and covers nothing (a watermark); one with force (a country's name, Havora) is drawn at its first spot whatever lies
+ * there and keeps its room from the labels after it. Returns { id: [x, y, anchor] | null }.
  */
 export function placeLabels(labels, obstacles) {
   const placed = obstacles.slice();
@@ -59,7 +60,7 @@ export function placeLabels(labels, obstacles) {
       const x = L.x + dx, y = L.y + dy;
       const x0 = anchor === 'middle' ? x - L.w / 2 : anchor === 'end' ? x - L.w : x;
       const b = [x0 - 2, y - L.h * 0.8, x0 + L.w + 2, y + L.h * 0.25];
-      if (L.block !== false && hit(b)) continue;
+      if (L.block !== false && !L.force && hit(b)) continue;
       out[L.id] = [x, y, anchor];
       if (L.block !== false) placed.push(b);
       break;

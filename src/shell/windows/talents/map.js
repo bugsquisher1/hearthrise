@@ -107,7 +107,7 @@ function widthOf(M, id) {
   let w = 0;
   try { w = el && typeof el.getComputedTextLength === 'function' ? el.getComputedTextLength() : 0; } catch (e) { w = 0; }
   if (!w) w = ((el && el.textContent) || '').length * 7.6;
-  else M.widths[id] = w;
+  else if (!id.startsWith('c:')) M.widths[id] = w;   // a country's name changes size with the tier: measured each time
   return w;
 }
 
@@ -192,7 +192,9 @@ export function paintMap(M, v) {
 }
 
 function paintLabels(M, v, tier) {
-  const key = tier + '|' + M.s + '|' + M.key;
+  /* placed again when the scale, the tier or the states move (a pan moves the whole group); in Country view a pan too, since the
+     countries' names are held on the stage */
+  const key = tier + '|' + M.s + '|' + M.key + (tier === 'country' ? '|' + v.cam.cx + ',' + v.cam.cy + ',' + v.w + ',' + v.h : '');
   if (key === M.labelKey) return;
   M.labelKey = key;
   const s = M.s, L = M.L;
@@ -212,11 +214,14 @@ function paintLabels(M, v, tier) {
     cls(el, 'is-owned', owned);
     cls(el, 'is-mark', tier !== 'country' && !!r.country);
     if (r.country) text(el.querySelector('.rdl-count'), tier === 'country' && v.counts ? t('talents.country_count', { owned: v.counts[r.country][0], total: v.counts[r.country][1] }) : '');
-    const p = r.node ? L.pos[r.node] : r.at;
-    const kr = r.node ? (MARK_R[NODE_INDEX[r.node].kind] || 6) : 0;
+    /* a country's name stands past its rim in Country view (where no stone is), its watermark mid-wedge in Road view */
     const big = !!r.country && tier === 'country';
-    const tries = r.country ? [[0, 0, 'middle']] : r.id === 'havora' ? [[0, 42, 'middle']] : beside(kr);
-    want.push({ id: r.id, x: p.x * s, y: p.y * s, w: widthOf(M, r.id), h: big ? 26 : 16, tries, pri: (owned ? r.pri - 0.5 : r.pri), block: !(r.country && tier !== 'country') });
+    const cty = r.country ? L.countries.find((c) => c.id === r.country) : null;
+    const p = r.node ? L.pos[r.node] : big ? cty.name : r.at;
+    const kr = r.node ? (MARK_R[NODE_INDEX[r.node].kind] || 6) : 0;
+    const tries = r.country ? [[0, 0, big ? cty.name.anchor : 'middle']] : r.id === 'havora' ? [[0, 44, 'middle']] : beside(kr);
+    want.push({ id: r.id, x: p.x * s, y: p.y * s, w: widthOf(M, r.id), h: big ? 26 : 16, tries, pri: (owned ? r.pri - 0.5 : r.pri),
+      block: !(r.country && !big), force: big || r.id === 'havora' });
   }
   if (tier === 'node') {
     for (const [id, g] of Object.entries(M.posts)) {
@@ -229,6 +234,16 @@ function paintLabels(M, v, tier) {
     }
   }
   const got = placeLabels(want, obstacles);
+  /* a country's name past the rim stays on the stage (Country view fits the stones, and a name is wider than the gap it stands in) */
+  const tx = v.w / 2 - v.cam.cx * s, ty = v.h / 2 - v.cam.cy * s;
+  for (const L of want) {
+    const spot = got[L.id];
+    if (!spot || !L.force || !L.id.startsWith('c:')) continue;
+    const x0 = spot[2] === 'middle' ? spot[0] - L.w / 2 : spot[2] === 'end' ? spot[0] - L.w : spot[0];
+    const dx = Math.max(0, 6 - (x0 + tx)) - Math.max(0, x0 + L.w + tx - (v.w - 6));
+    const dy = Math.max(0, L.h + 2 - (spot[1] + ty)) - Math.max(0, spot[1] + 22 + ty - v.h);
+    got[L.id] = [spot[0] + dx, spot[1] + dy, spot[2]];
+  }
   for (const [id, el] of Object.entries(M.labels)) {
     const spot = got[id];
     if (!spot) { attr(el, 'hidden', ''); continue; }
@@ -236,6 +251,7 @@ function paintLabels(M, v, tier) {
     attr(el, 'x', r1(spot[0])); attr(el, 'y', r1(spot[1])); attr(el, 'text-anchor', spot[2]);
     const sub = el.querySelector('.rdl-count');
     if (sub) attr(sub, 'x', r1(spot[0]));
+    cls(el, 'is-big', id.startsWith('c:') && tier === 'country');
   }
 }
 

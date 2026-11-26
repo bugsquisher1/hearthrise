@@ -2,42 +2,46 @@
 // src/render/roads-layout.js — WHERE EVERY STONE OF THE ROADS STANDS ON THE MAP (systems, lane/r-ui-roads, 2026-11-26).
 //
 // docs/design/redesign/17-talent-tree.md section 1 (Havora in the middle, a country per weapon, roads out of the Great Hearth),
-// 18-roads-review-ux.md sections 3, 4 and 9 (countries sized by node count: Restoration at about 2.5x the sketch's room, density held
-// level across countries; trunks, move roads, side paths, vow roads and border roads). The art lane redraws the map over this
-// geometry (20 section 4, A2); until then this is the map, and it is DERIVED from src/data/talents.js alone, so a new country, road
-// or node is a data row and never a coordinate typed here (CLAUDE.md §1: grow content by adding rows).
+// 18-roads-review-ux.md sections 3, 4 and 9 (countries sized by node count, density held level: Restoration gets about 2.5x the
+// sketch's room; trunks, move roads, side paths, vow roads and border roads). The art lane redraws the map over this geometry (20
+// section 4, A2); until then this is the map, DERIVED from src/data/talents.js alone, so a new country, road or node is a data row and
+// never a coordinate typed here (CLAUDE.md §1: grow content by adding rows).
 //
 // THE SHAPE (map units, D a road step):
-//   Havora   the start at (0, 0), on a yard of radius HEART_R; the Great Hearth's own road (Mend) curls inside the yard in the widest gap
-//            between two trunks, the Havora crossing beside the hearth in the second widest
-//   country  a wedge round Havora, its angle in proportion to its nodes (plus PAD, so a small country still has room for its borders),
-//            in COUNTRY_ROADS' order (the ring: each next country borders the one before, the last the first). Its roads run out from
-//            the yard along the wedge's middle: road 0's 3 rank stones and crossroads I, then road 1's from that crossroads, and so on
-//            (each road leaves the one before at its crossroads I, 17 section 2); each road's tail (2 rank stones, crossroads II and the
-//            open road) bends off to one side, the sides alternating, its waystones beside it; the country's vows stand in a lane
-//            beside its first road, on the side its first tail leaves free
-//   border   a border town between its two countries' first crossroads, its hybrid crossroads and hybrid vow beyond it
+//   Havora   the start at (0, 0) on a yard of radius HEART_R. The Great Hearth's own road (Mend) is the town's ring road round the
+//            hearth, its stones set between the trunks; the Havora crossing just outside the ring
+//   country  a wedge round Havora, as wide as its nodes need at one density for every country, in COUNTRY_ROADS' order (the ring:
+//            each next country borders the one before, the last the first). Its roads run out along the wedge's middle: road 0's 3 rank
+//            stones and crossroads I, then road 1's from that crossroads, and so on (each road leaves the one before at its crossroads
+//            I, 17 section 2); each road's tail (2 rank stones, crossroads II, the open road) bends off to one side, the sides
+//            alternating, its waystones beside it. The country's vows stand round its first crossroads on the side its first tail leaves
+//            free, clear of the border roads
+//   border   a border town between its two countries' first crossroads, pushed out past them; its hybrid crossroads and hybrid vow
+//            beyond it
 //   then     a relaxation pass pushes apart any two stones nearer than MIN_GAP (deterministic, a fixed count of passes)
 //
 // roadsLayout() is computed once (memoized) and frozen: { D, pos, countries, edges, bounds, heart }.
 //   pos[id]      { x, y }
-//   countries[]  { id, a0, a1, mid, total, poly: [[x, y]...], label: { x, y } }   the wedge as a polygon, its name's place
+//   countries[]  { id, a0, a1, mid, total, far, poly: [[x, y]...], label: { x, y }, name: { x, y, anchor } }
+//                the wedge as a polygon; `label` its watermark's place (Road view), `name` its name's place past its rim (Country view)
 //   edges[]      { from, to, kind: 'trunk' | 'road' | 'side' | 'vow' | 'border' }
 //   bounds       { x0, y0, x1, y1 } every stone, padded
-//   roadLabel[move]  { x, y, angle }   where a move's name sits: beside its road's second rank stone
-// PURE: no DOM. Imported by the Talents window (src/shell/windows/talents/) and the layout test (tests/roads-window.mjs).
+// PURE: no DOM. Imported by the Talents window (src/shell/windows/talents/) and tests/roads-window.mjs.
 // ════════════════════════════════════════════════════════════════════════
 
 import { TALENT_NODES, NODE_INDEX, COUNTRY_ROADS, HEARTH } from '../data/talents.js';
 
 export const D = 44;
-const HEART_R = 4.6 * D;
-const ROAD_R0 = HEART_R + 0.9 * D;   // a country's first rank stone
-
+const RING_R = 1.55 * D;              // Mend's ring road round the hearth
+const HEART_R = 2.45 * D;             // the yard
+const ROAD_R0 = HEART_R + 0.75 * D;   // a country's first rank stone
 const MIN_GAP = 0.68 * D;
 const PASSES = 80;
-const TAIL_LAT = 1.5 * D;
-const VOW_LAT = 0.95 * D;
+const TAIL_LAT = 1.5;                 // a tail's sideways reach, in D
+/* the vows round the first crossroads, on the side its tail leaves free: degrees from the road's outward line, and their distance (D).
+   The border road to that side leaves the crossroads at about -70 degrees; the vows stand either side of it */
+const VOW_AT = Object.freeze([-40, -100, -126, -152]);
+const VOW_R = 1.6;
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const rot = (a, along, lat) => ({ x: Math.cos(a) * along - Math.sin(a) * lat, y: Math.sin(a) * along + Math.cos(a) * lat });
@@ -49,7 +53,7 @@ const RING = Object.keys(COUNTRY_ROADS).filter((c) => c !== HEARTH);
 /* A country's wedge is as wide as its nodes need at the density every country shares (18 P3: "a density of 4 to 6 nodes per 10k units
    for every country"): its area runs from the yard's rim out to its last road's end, which its roads' count sets (each road leaves the
    one before), so the angle is its nodes over that ring's area. No wedge is narrower than MIN_WEDGE, the room its two borders need. */
-const MIN_WEDGE = (34 / 360) * Math.PI * 2;
+const MIN_WEDGE = (34 / 360) * TAU;
 const farOf = (c) => ROAD_R0 + 4 * D * Math.max(0, COUNTRY_ROADS[c].length - 1) + 7 * D;
 function wedges() {
   const need = RING.map((c) => TALENT_NODES.filter((n) => n.country === c).length / (farOf(c) ** 2 - HEART_R ** 2));
@@ -63,29 +67,48 @@ function wedges() {
     const hi = need.reduce((a, v, i) => a + (low[i] ? 0 : v), 0);
     share = need.map((v, i) => (low[i] ? MIN_WEDGE : (v / hi) * rest));
   }
-  const weight = share;
-  const total = TAU;
-  /* the ring starts at the top (12 o'clock) and runs clockwise (SVG y down) */
-  let a = -Math.PI / 2 - (weight[0] / total) * Math.PI;
+  /* the ring starts with its first country straight up (12 o'clock) and runs clockwise (SVG y down) */
+  let a = -Math.PI / 2 - share[0] / 2;
   return RING.map((c, i) => {
-    const w = (weight[i] / total) * TAU;
-    const out = { id: c, a0: a, a1: a + w, mid: a + w / 2, total: TALENT_NODES.filter((n) => n.country === c).length };
-    a += w;
+    const out = { id: c, a0: a, a1: a + share[i], mid: a + share[i] / 2, total: TALENT_NODES.filter((n) => n.country === c).length };
+    a += share[i];
     return out;
   });
 }
 
-/* A move's road in its country's frame (angle `a`): its first stone at `along`, its tail to `side` (+1 / -1). */
-function placeRoad(pos, move, a, along, side, step = D, scale = 1) {
-  const at = (s, la, lt) => { const id = move + '.' + s; if (own(NODE_INDEX, id)) pos[id] = rot(a, along + la * step, lt * scale); };
+/* A move's road in its country's frame (angle `a`): its first stone `along` out, its tail to `side` (+1 / -1). Returns crossroads I's
+   distance out. */
+function placeRoad(pos, move, a, along, side) {
+  const at = (s, la, lt) => { const id = move + '.' + s; if (own(NODE_INDEX, id)) pos[id] = rot(a, along + la * D, lt * side * D); };
   at('r1', 0, 0); at('r2', 1, 0); at('r3', 2, 0); at('x1', 3, 0);
   /* the tail bends off to `side`: two rank stones, crossroads II, the open road; its waystones beside it */
-  const t = side * TAIL_LAT / D;
-  at('r4', 3.85, t * 0.5 * D); at('r5', 4.7, t * D); at('x2', 5.55, t * D); at('open', 6.4, t * D);
-  at('w1', 2.4, t * 0.55 * D); at('w2', 5.75, t * 0.5 * D);
-  /* the axes' two more waystones (17 section 4): one by each crossroads, on the far side of the tail */
-  at('w3', 1.6, t * 0.55 * D); at('w4', 5.55, t * 1.5 * D);
-  return along + 3 * step;
+  at('r4', 3.85, TAIL_LAT * 0.5); at('r5', 4.7, TAIL_LAT); at('x2', 5.55, TAIL_LAT); at('open', 6.4, TAIL_LAT);
+  at('w1', 2.4, TAIL_LAT * 0.55); at('w2', 5.75, TAIL_LAT * 0.5);
+  /* the axes' two more waystones (17 section 4): one by each crossroads, the second on the tail's outer side */
+  at('w3', 1.6, TAIL_LAT * 0.55); at('w4', 5.55, TAIL_LAT * 1.5);
+  return along + 3 * D;
+}
+
+/* THE GREAT HEARTH'S ROAD: a ring round the hearth, its stones in road order, each set midway between two trunks where it can be */
+function placeRing(pos, moves, countries) {
+  const ids = moves.flatMap((m) => ['r1', 'r2', 'r3', 'x1', 'r4', 'r5', 'x2', 'open'].map((s) => m + '.' + s)).filter((id) => own(NODE_INDEX, id));
+  const trunks = countries.map((c) => c.mid);
+  const off = (a) => Math.min(...trunks.map((t) => { const d = Math.abs(((a - t) % TAU + TAU) % TAU); return Math.min(d, TAU - d); }));
+  /* the turn of the whole ring that keeps its stones farthest from the trunks it crosses */
+  let best = 0, bestOff = -1;
+  for (let k = 0; k < 90; k++) {
+    const turn = (k / 90) * (TAU / Math.max(1, ids.length));
+    const worst = Math.min(...ids.map((_, i) => off(turn + (i / ids.length) * TAU)));
+    if (worst > bestOff + 1e-9) { bestOff = worst; best = turn; }
+  }
+  const angle = {};
+  ids.forEach((id, i) => { angle[id] = best + (i / ids.length) * TAU; pos[id] = rot(angle[id], RING_R, 0); });
+  /* a waystone stands outside the ring by its crossroads */
+  for (const m of moves) for (const [w, x] of [['w1', 'x1'], ['w2', 'x2'], ['w3', 'x1'], ['w4', 'x2']]) {
+    const id = m + '.' + w, at = angle[m + '.' + x];
+    if (own(NODE_INDEX, id) && at !== undefined) pos[id] = rot(at, RING_R + 0.75 * D, 0);
+  }
+  return angle;
 }
 
 function relax(pos, fixed) {
@@ -122,18 +145,28 @@ function edgeKind(n, parent) {
 function build() {
   const pos = { hearth: { x: 0, y: 0 } };
   const countries = wedges();
-  /* the yard's gaps between trunks, widest first: Mend's road takes the widest, the crossing the next */
-  const gaps = countries.map((c, i) => { const nx = countries[(i + 1) % countries.length]; let g = nx.mid - c.mid; if (g <= 0) g += TAU; return { at: c.mid + g / 2, g }; })
-    .sort((a, b) => b.g - a.g || a.at - b.at);
-  for (const m of COUNTRY_ROADS[HEARTH] || []) placeRoad(pos, m, gaps[0].at, 0.95 * D, 1, 0.58 * D, 0.5);
-  if (own(NODE_INDEX, 'havora')) pos.havora = rot(gaps[1 % gaps.length].at, 1.5 * D, 0);
+  const ring = placeRing(pos, COUNTRY_ROADS[HEARTH] || [], countries);
+  /* the crossing: outside the ring in the widest gap between two trunks that the ring's waystones leave */
+  if (own(NODE_INDEX, 'havora')) {
+    const taken = [...countries.map((c) => c.mid), ...Object.values(ring)];
+    let at = 0, room = -1;
+    for (let k = 0; k < 180; k++) {
+      const a = (k / 180) * TAU;
+      const r = Math.min(...taken.map((t) => { const d = Math.abs(((a - t) % TAU + TAU) % TAU); return Math.min(d, TAU - d); }));
+      if (r > room) { room = r; at = a; }
+    }
+    pos.havora = rot(at, RING_R + 0.8 * D, 0);
+  }
   for (const c of countries) {
     let along = ROAD_R0;
-    const roads = COUNTRY_ROADS[c.id];
-    roads.forEach((m, i) => { const next = placeRoad(pos, m, c.mid, along, i % 2 ? -1 : 1); along = next + D; });
-    /* the vows of the country (beside its first crossroads): a lane by its first road, on the side its tail leaves free */
+    COUNTRY_ROADS[c.id].forEach((m, i) => { along = placeRoad(pos, m, c.mid, along, i % 2 ? -1 : 1) + D; });
+    /* the vows round the country's first crossroads (17 section 2: "a vow sits beside its country's first crossroads") */
+    const x1 = pos[COUNTRY_ROADS[c.id][0] + '.x1'];
     const vows = TALENT_NODES.filter((n) => n.kind === 'vow' && n.country === c.id);
-    vows.forEach((v, k) => { pos[v.id] = rot(c.mid, ROAD_R0 - 0.2 * D + k * 0.8 * D, -VOW_LAT); });
+    vows.forEach((v, k) => {
+      const deg = VOW_AT[k % VOW_AT.length] - 18 * Math.floor(k / VOW_AT.length), a = c.mid + (deg * Math.PI) / 180;
+      pos[v.id] = { x: x1.x + Math.cos(a) * VOW_R * D, y: x1.y + Math.sin(a) * VOW_R * D };
+    });
   }
   /* borders: the town between the two first crossroads, pushed out past them; the hybrid and the vow beyond */
   for (const n of TALENT_NODES) {
@@ -159,31 +192,32 @@ function build() {
   const padB = 1.4 * D;
   const bounds = Object.freeze({ x0: x0 - padB, y0: y0 - padB, x1: x1 + padB, y1: y1 + padB });
 
-  /* each country's wedge as a polygon from the yard's rim out past its farthest stone, and its name's place */
+  /* each country's wedge as a polygon from the yard's rim out past its farthest stone; its watermark midway; its name past the rim */
   const out = countries.map((c) => {
-    const mine = TALENT_NODES.filter((n) => n.country === c.id || (n.countries && n.countries[0] === c.id)).map((n) => pos[n.id]);
+    const mine = TALENT_NODES.filter((n) => n.country === c.id).map((n) => pos[n.id]);
     const far = Math.max(...mine.map((p) => Math.hypot(p.x, p.y))) + 1.2 * D;
     const poly = [];
     const steps = Math.max(4, Math.ceil((c.a1 - c.a0) / (TAU / 72)));
     for (let i = 0; i <= steps; i++) { const a = c.a0 + ((c.a1 - c.a0) * i) / steps; poly.push([Math.round(Math.cos(a) * HEART_R), Math.round(Math.sin(a) * HEART_R)]); }
     for (let i = steps; i >= 0; i--) { const a = c.a0 + ((c.a1 - c.a0) * i) / steps; poly.push([Math.round(Math.cos(a) * far), Math.round(Math.sin(a) * far)]); }
-    const lr = (HEART_R + far) / 2;
-    return Object.freeze({ ...c, far, poly: Object.freeze(poly), label: Object.freeze({ x: Math.round(Math.cos(c.mid) * lr), y: Math.round(Math.sin(c.mid) * lr) }) });
+    const lr = (HEART_R + far) / 2, cx = Math.cos(c.mid), cy = Math.sin(c.mid);
+    const name = Object.freeze({ x: Math.round(cx * (far + 0.5 * D)), y: Math.round(cy * (far + 0.5 * D) + (cy > 0.3 ? 0.4 * D : 0)),
+      anchor: cx > 0.35 ? 'start' : cx < -0.35 ? 'end' : 'middle' });
+    return Object.freeze({ ...c, far, poly: Object.freeze(poly), label: Object.freeze({ x: Math.round(cx * lr), y: Math.round(cy * lr) }), name });
   });
+  /* the names past the rims are inside the bounds too */
+  const nb = { x0: Math.min(bounds.x0, ...out.map((c) => c.name.x - 4 * D)), x1: Math.max(bounds.x1, ...out.map((c) => c.name.x + 4 * D)),
+    y0: Math.min(bounds.y0, ...out.map((c) => c.name.y - D)), y1: Math.max(bounds.y1, ...out.map((c) => c.name.y + D)) };
 
-  /* a move's name: beside its road's second rank stone, on the side away from its tail */
-  const roadLabel = {};
-  for (const n of TALENT_NODES) if (n.kind === 'rank' && /\.r2$/.test(n.id)) roadLabel[n.move] = Object.freeze({ x: pos[n.id].x, y: pos[n.id].y });
-
-  return Object.freeze({ D, heart: Object.freeze({ r: HEART_R }), pos: Object.freeze(pos), countries: Object.freeze(out), edges: Object.freeze(edges),
-    bounds, roadLabel: Object.freeze(roadLabel) });
+  return Object.freeze({ D, heart: Object.freeze({ r: HEART_R, ring: RING_R }), pos: Object.freeze(pos), countries: Object.freeze(out),
+    edges: Object.freeze(edges), bounds: Object.freeze(nb) });
 }
 
 let MEMO = null;
 /** THE MAP (computed once). */
 export function roadsLayout() { return MEMO || (MEMO = build()); }
 
-/** Points a country's area holds per 10,000 square map units (18 section 1 P3: the density the layout keeps level). */
+/** Nodes a country's area holds per 10,000 square map units (18 section 1 P3: the density the layout keeps level). */
 export function densityOf(country) {
   const p = country.poly;
   let a = 0;

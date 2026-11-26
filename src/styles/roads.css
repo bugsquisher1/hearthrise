@@ -29,7 +29,7 @@
 .rdm [hidden] { display: none; }
 
 /* regions and the yard */
-.rdm-rg { fill: var(--bg-1); stroke: var(--steel-sep); stroke-width: 1.5; }
+.rdm-rg { fill: var(--bg-1); stroke: var(--steel-edge); stroke-width: 1.5; }
 .rdm-heart { fill: var(--bg-2); stroke: var(--steel-sep); stroke-width: 1.5; }
 
 /* roads (18 section 2, rank 5): the trunk out of Havora 5 px, a move road 3 px, a side path dotted 2 px, a vow road 2 px, a border
@@ -38,7 +38,7 @@
 .rdm-e.is-trunk { stroke-width: 5; }
 .rdm-e.is-side { stroke: var(--steel-edge); stroke-width: 2; stroke-dasharray: 1 5; }
 .rdm-e.is-vow { stroke: var(--steel-edge); stroke-width: 2; }
-.rdm-e.is-border { stroke-dasharray: 10 4; }
+.rdm-e.is-border { stroke: var(--steel-edge); stroke-width: 2; }
 .rdm-e.is-owned { stroke: var(--gold); stroke-dasharray: none; }
 .rdm-e.is-route { stroke: var(--gold-2); stroke-width: 3; stroke-dasharray: 7 5; }
 
@@ -94,7 +94,8 @@
 /* ── Country view's list: each country and its owned count, a press that flies there ── */
 .rdw-countries { position: absolute; left: 0; top: 0; bottom: 0; width: 196px; margin: 0; padding: 8px 12px; list-style: none; overflow-y: auto;
   box-sizing: border-box; background: var(--fill-1); box-shadow: 2px 0 0 var(--steel-sep); }
-.rdw-countries[hidden] { display: none; }
+/* the desktop names the countries on the map itself: the list is the phone's (18 section 6) */
+.rdw-countries, .rdw-countries[hidden] { display: none; }
 .rdw-country { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-height: 32px; padding: 0; }
 .rdw-country span { font-size: var(--t-micro); font-variant-numeric: lining-nums tabular-nums; }
 
@@ -138,7 +139,9 @@
   .rdw-mapbox { position: absolute; inset: 0; }
   .rdw-card { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 70%); box-sizing: border-box; padding: 8px 10px; z-index: 1;
     background: var(--bg-2); box-shadow: -2px 0 0 var(--steel-btn); transform: translateX(105%); transition: transform 120ms ease-out; }
-  .rdw.is-picked .rdw-card { transform: none; }
+  .rdw.is-picked:not([data-tier="country"]) .rdw-card { transform: none; }
+  .rdw-countries:not([hidden]) { display: block; }
+  .rdl-country.is-big { font-size: var(--t-lead); }
   .rdw-x { min-height: var(--tap); }
   .rdw-opt .hh-tool, .rdw-take { min-height: var(--tap); }
 }

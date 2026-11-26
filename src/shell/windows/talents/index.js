@@ -33,7 +33,12 @@ const PLAN = 'party';
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { cam: null, sel: null, hover: null, pending: false, msg: '', memo: null, frame: 0 }; SCRATCH.set(cs, s); }
+  if (!s) {
+    s = { cam: null, sel: null, hover: null, pending: false, msg: '', memo: null, frame: 0,
+      /* the stage as last painted ({ w, h, fit, phone }), the country list's measured width, and a pending Country fit */
+      view: null, listW: 0, fitCountry: false };
+    SCRATCH.set(cs, s);
+  }
   return s;
 };
 const roleKeyOf = (cs) => { const eq = /** @type {{ weapon?: string }} */ (equipmentOf(cs) || {}); return eq && eq.weapon && ITEMS[eq.weapon] ? wornRoleKey(eq, ITEMS) : null; };
@@ -115,22 +120,28 @@ renderTalentsMap.patch = function patchTalentsMap(body, ctx) {
   bindGestures(stage, gestures(body, ctx, sc, M));
   watchSize(stage, body, ctx, sc);
   const w = Math.round(stage.clientWidth), h = Math.round(stage.clientHeight);
+  /* Country view's list shows before the map is fitted beside it (its width measured, never typed twice) */
+  const list = root.querySelector('.rdw-countries');
+  attr(list, 'hidden', sc.cam && tierOf(sc.cam.s) === 'country' ? null : '');
+  if (list.offsetWidth) sc.listW = list.offsetWidth;
   if (w > 0 && h > 0) {
-    const fit = fitScale(L.bounds, w, h);
+    const fit = fitScale(L.bounds, Math.max(1, w - (sc.listW || 0)), h);
     if (!sc.cam) { const p = L.pos[homeOf(cs, tl)] || L.pos.hearth; sc.cam = { cx: p.x, cy: p.y, s: scaleOf('road', fit, phone) }; }
+    /* a press on Country: the whole map, its middle in the room right of the list */
+    if (sc.fitCountry) { const b = L.bounds; sc.cam = { cx: (b.x0 + b.x1) / 2 - (sc.listW || 0) / 2 / fit, cy: (b.y0 + b.y1) / 2, s: fit }; sc.fitCountry = false; }
     sc.cam = clampCam(sc.cam, L.bounds, fit);
     sc.view = { w, h, fit, phone };
     const shown = sc.hover && NODE_INDEX[sc.hover] ? sc.hover : sc.sel;
     paintMap(M, { cam: sc.cam, w, h, states: memo.states, picks: memo.picks, route: routeOf(memo, tl, shown), sel: sc.sel, counts: memo.counts });
   }
   const tier = sc.cam ? tierOf(sc.cam.s) : 'road';
+  attr(root, 'data-tier', tier);
   for (const b of root.querySelectorAll('.rdw-tiers [data-tier]')) {
     const k = b.getAttribute('data-tier');
     text(b, t('talents.tier_' + k));
     attr(b, 'aria-selected', String(k === tier));
   }
   /* Country view: the countries as a list, each a press that flies there */
-  const list = root.querySelector('.rdw-countries');
   attr(list, 'hidden', tier === 'country' ? null : '');
   rows(list, tier === 'country' ? L.countries : [], {
     key: (c) => c.id,
@@ -190,7 +201,11 @@ function gestures(body, ctx, sc, M) {
       sc.sel = id;
       sc.hover = null;
       sc.msg = '';
-      schedule(body, ctx, sc);
+      /* a phone's card covers the map's right edge: a stone picked under it moves to the middle of the room left of it (18 section 6) */
+      const card = body.querySelector('.rdw-card');
+      const cw = v.phone && card ? card.offsetWidth : 0;
+      if (id && cw && sx > v.w - cw - 24) { const p = roadsLayout().pos[id]; moveTo(body, ctx, sc, { ...sc.cam, cx: p.x + (cw / 2) / sc.cam.s, cy: p.y }); }
+      else schedule(body, ctx, sc);
     },
     hover: (sx, sy) => {
       const v = sc.view;
@@ -211,9 +226,12 @@ renderTalentsMap.act = function actTalentsMap(ctx, body, action, ev, el) {
   const repaint = () => renderTalentsMap.patch(body, ctx);
   const v = sc.view;
   if (action === 'rd-tier' && v && sc.cam) {
-    const s = scaleOf(el.getAttribute('data-tier'), v.fit, v.phone);
+    const tier = el.getAttribute('data-tier');
+    const s = scaleOf(tier, v.fit, v.phone);
     const p = sc.sel && roadsLayout().pos[sc.sel];
-    if (p) flyTo(body, ctx, sc, p, s); else moveTo(body, ctx, sc, { ...sc.cam, s });
+    /* Country view shows the whole map beside its list: fitted at the next paint, once the list stands (patch's fitCountry) */
+    if (tier === 'country') { sc.fitCountry = true; moveTo(body, ctx, sc, { ...sc.cam, s }); }
+    else if (p) flyTo(body, ctx, sc, p, s); else moveTo(body, ctx, sc, { ...sc.cam, s });
     return true;
   }
   if (action === 'rd-home' && v) {

@@ -84,6 +84,9 @@ export function patchCard(root, ctx, v) {
   const level = tl ? tl.level : 1;
   const nodes = tl ? tl.nodes : {};
   const live = !!tl;
+  /* the gate reads the server's own numbers: its nodes and Level through the rules hr_talent_spend asks, and its points left, so a press
+     is never on while the server's section says there is no point to spend (CLAUDE.md §6: fail safe to off) */
+  const problemOf = (pick) => (!live ? 'talents_closed' : !(tl.left > 0) ? 'no_points' : spendProblem(nodes, sel, pick, level));
   /* the options of a choice: each its own Take, on only when the server's build lets this one be bought now */
   const isPick = PICK_KINDS.includes(n.kind);
   rows(root.querySelector('.rdw-opts'), isPick ? optionsOf(n) : [], {
@@ -102,7 +105,7 @@ export function patchCard(root, ctx, v) {
       text(li.querySelector('.rdw-opt-at'), band && band.opensAt > level ? t('talents.opens_at', { level: whole(band.opensAt) }) : '');
       const b = li.querySelector('button');
       text(b, t('talents.take'));
-      prop(b, 'hidden', !!held || !live || spendProblem(nodes, sel, o.id, level) !== null);
+      prop(b, 'hidden', !!held || problemOf(o.id) !== null);
       prop(b, 'disabled', v.pending);
     },
   });
@@ -128,19 +131,22 @@ export function patchCard(root, ctx, v) {
   /* ONE press for a plain stone (a rank, a waystone, a vow, an open road's next point), on only when the server's build lets it be bought
      now; a choice is taken on its option's own row */
   const take = root.querySelector('.rdw-take');
-  const problem = live ? spendProblem(nodes, sel, null, level) : 'talents_closed';
+  const problem = problemOf(null);
   const plain = !isPick && n.kind !== 'start';
   const can = plain && problem === null && (!owned || n.kind === 'open');
   text(take, n.kind === 'open' && owned ? t('talents.take_more') : t('talents.take'));
   prop(take, 'hidden', !plain || (owned && n.kind !== 'open'));
   prop(take, 'disabled', !can || v.pending);
-  /* why it is off, from the server's numbers (a choice says it on its rows' absence: the same words) */
-  const off = plain ? (can ? '' : why(problem)) : (!held && !optionsOf(n).some((o) => spendProblem(nodes, sel, o.id, level) === null) ? why(spendProblem(nodes, sel, (optionsOf(n)[0] || {}).id || null, level)) : '');
+  /* why it is off, from the server's numbers, for the stone the next point could buy (a farther one has its route and Next step instead;
+     a choice says it under its options, whose Take rows are gone) */
+  const next = !owned && r && r.cost === 1;
+  const off = !next ? '' : plain ? (can ? '' : why(problem))
+    : (!optionsOf(n).some((o) => problemOf(o.id) === null) ? why(problemOf((optionsOf(n)[0] || {}).id || null)) : '');
   text(root.querySelector('.rdw-why'), off);
   /* the next stone on the way, when this one is farther than one point */
   const step = root.querySelector('.rdw-step');
-  const next = r && r.path.length > 1 ? NODE_INDEX[r.path[0]] : null;
-  attr(step, 'data-node', next ? next.id : null);
-  attr(step, 'hidden', next ? null : '');
-  text(step, next ? t('talents.next_step', { name: next.kind === 'rank' && next.move && ABILITIES[next.move] ? t('talents.rank_name', { move: ABILITIES[next.move].n }) : next.n }) : '');
+  const first = r && r.path.length > 1 ? NODE_INDEX[r.path[0]] : null;
+  attr(step, 'data-node', first ? first.id : null);
+  attr(step, 'hidden', first ? null : '');
+  text(step, first ? t('talents.next_step', { name: first.kind === 'rank' && first.move && ABILITIES[first.move] ? t('talents.rank_name', { move: ABILITIES[first.move].n }) : first.n }) : '');
 }

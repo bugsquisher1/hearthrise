@@ -9,6 +9,8 @@
     "node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate": "in-page-23",
     "node tests/boss-hall-window.mjs": "in-page-23",
     "node tools/mutant-gate.mjs node tests/boss-hall-window.mjs --mutate": "in-page-23",
+    "node tests/roads-window.mjs": "in-page-23",
+    "node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate": "in-page-23",
     "node tools/mutant-gate.mjs node tests/leaderboard-server-source.mjs --mutate": "db-replay-12",
     "node tools/mutant-gate.mjs node tests/live-settlement.mjs --mutate": "db-replay-12",
     "node tests/gold-intents.mjs": "db-replay-12",

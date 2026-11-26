@@ -16,6 +16,7 @@ export const WINDOWS_TEXT = Object.freeze({
 
   /* Each window's one help line: what it is for, in a sentence or two. @sentence: the ? button teaches the window, a label can't. */
   help_hunts: 'Pick a hunt, then press Enter',
+  help_talents: 'Drag to move · Wheel or pinch to zoom · Press a stone for its route',
   help_inventory: 'Press a stack: Equip, Use or Sell',
   help_storage: 'Press a stack: move to bag or back',
   help_wiki: 'Chronicle · Search skills, grounds and formulas',

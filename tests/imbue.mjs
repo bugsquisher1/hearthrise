@@ -35,8 +35,8 @@ const near = (a, b) => Math.abs(a - b) < 1e-9;
 
 async function pure(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + '?t=' + Date.now());
-  const [D, C, wage, PL, TR] = await Promise.all([imp('src/data/imbue-rules.js'), imp('src/core/imbue.js'), imp('src/data/wage.js'),
-    imp('src/core/power-ledger.js'), imp('src/core/trades.js')]);
+  const [D, C, wage, PL, TR, TT] = await Promise.all([imp('src/data/imbue-rules.js'), imp('src/core/imbue.js'), imp('src/data/wage.js'),
+    imp('src/core/power-ledger.js'), imp('src/core/trades.js'), imp('src/data/traits.js')]);
   const out = [];
   /* IM-1 */
   for (const p of D.validateImbues()) out.push('IM-1 ' + p);
@@ -54,7 +54,9 @@ async function pure(base) {
   plant({ when: { metric: 'target_role', eq: 'giant' } }, 'matches nothing');
   plant({ best: { ground: 'pyre_field', seat: 'melee' } }, 'own best ground');
   plant({ part: 'coal_tongs' }, 'does not open');
-  plant({ key: 'boss' }, 'Trait');
+  /* an imbuement never stacks with a Trait of its key: no imbuement key is a Trait's (held here, since the Traits are hidden data) */
+  const traitKeys = new Set(Object.values(TT.TRAITS).map((t) => t.key));
+  for (const [id, r] of Object.entries(D.IMBUE_RULES)) if (traitKeys.has(r.key)) out.push('IM-1 ' + id + ': key ' + r.key + ' is a Trait key');
   plant({ kind: 'charm' }, 'has no slot');
   /* IM-2 */
   const H = 3600000;
@@ -100,7 +102,7 @@ const MUTANTS = [
   ['a part from its own best ground passes', 'src/data/imbue-rules.js', 'else if (home.ground === r.best.ground)', 'else if (false)'],
   ['a staged ground\'s part passes', 'src/data/imbue-rules.js', "else if (!home.open || !OPEN_GROUNDS.has(r.best.ground))", 'else if (false)'],
   ['a condition that matches nothing passes', 'src/data/imbue-rules.js', '!(own(METRICS, r.when.metric) && METRICS[r.when.metric](r.when.eq))', 'false'],
-  ['a Trait\'s key passes', 'src/data/imbue-rules.js', 'if (TRAIT_KEYS.has(r.key))', 'if (false)'],
+  ['an imbuement takes a Trait key', 'src/data/imbue-rules.js', "key: 'edge_brute',", "key: 'boss',"],
   ['a flat row passes', 'src/data/imbue-rules.js', 'if (!r.when && !r.convert && !r.leech)', 'if (false)'],
   ['quality sets no life', 'src/core/imbue.js', '(1000 + IMBUE.lifeRungPm * rung)', '(1000)'],
   ['the fee ignores the ramp', 'src/core/imbue.js', 'const L = Math.max(0, Math.min(POWER_LEDGER.rampLevel, Math.floor(Number(heroLevel) || 0)));', 'const L = POWER_LEDGER.rampLevel;'],

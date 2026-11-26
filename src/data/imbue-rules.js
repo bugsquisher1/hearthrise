@@ -6,7 +6,8 @@
 //
 // A ROW: { id, name, kind ('edge' | 'ward' | 'leech'), raises ('offense' | 'defense' | 'heal' | 'mana'), when (a condition the fight
 // reads: the role of the monster struck, `target_role`, or the element of a blow taken, `hit_element`; null for a rule that answers
-// itself: a conversion or a leech), key (the stacking key: one of a key counts, and never a Trait's key), part (an item id: the part it is
+// itself: a conversion or a leech), key (the stacking key: one of a key counts, and never a Trait's key, which tests/imbue.mjs IM-1 holds since the Traits are hidden data no
+// src file but gear-steps.js imports), part (an item id: the part it is
 // made from, a body's own drop on its pack), best ({ ground, seat }: where its 2 steps are sized, 04 guard 1), tip (the tooltip, {pct} the
 // hero's own number), and the rule fields convert / leech where they apply }. The slot is the kind's (IMBUE_SLOTS). D-8: no row keys on a
 // monster family.
@@ -35,7 +36,6 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 import { GROUND_PACKS } from './grounds/index.js';
-import { TRAITS } from './traits.js';
 import { MONSTER_ROLES } from './monster-roles.js';
 import { ELEMENTS } from './elements.js';
 
@@ -79,7 +79,6 @@ const PART_HOME = (() => {
   return out;
 })();
 const OPEN_GROUNDS = new Set(GROUND_PACKS.filter((p) => p.status === 'open').map((p) => p.id));
-const TRAIT_KEYS = new Set(Object.values(/** @type {Record<string, { key: string }>} */ (/** @type {unknown} */ (TRAITS))).map((t) => t.key));
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 /* what a condition may name: a role the monsters play, an element a blow carries (anything else would never hold) */
 const METRICS = Object.freeze({ target_role: (v) => own(MONSTER_ROLES, v), hit_element: (v) => ELEMENTS.includes(v) });
@@ -112,7 +111,6 @@ export function validateImbues(rows = IMBUE_RULES) {
     else if (r.when && !(own(METRICS, r.when.metric) && METRICS[r.when.metric](r.when.eq))) out.push(id + ': condition ' + r.when.metric + ' ' + r.when.eq + ' matches nothing the fight has');
     if (!r.when && !r.convert && !r.leech) out.push(id + ': no condition and no rule: it would be a flat number (04 guard 2)');
     if (r.convert && !ELEMENTS.includes(r.convert.element)) out.push(id + ': converts to ' + r.convert.element + ', no element the data names');
-    if (TRAIT_KEYS.has(r.key)) out.push(id + ': key ' + r.key + ' is a Trait\'s: an imbuement never stacks with a Trait of its key');
     const home = PART_HOME.get(r.part);
     if (!home) out.push(id + ': part ' + r.part + ' is in no ground pack');
     else if (home.ground === r.best.ground) out.push(id + ': its part comes from its own best ground; every imbuement makes a trade between two grounds');

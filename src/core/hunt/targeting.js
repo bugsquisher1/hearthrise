@@ -22,6 +22,7 @@
 // ============================================================
 
 import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { MONSTERS } from '../../data/monsters.js';
 import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js';
 import { elementPermille, heroElementPermille } from '../elements.js';
@@ -268,6 +269,7 @@ function inReachOf(inst, k, row) {
    tauntHoldMs from src/core/talents.js grantsOf; absent with no build) */
 const tauntReach = (k) => (Number.isInteger(k.tauntRadius) && k.tauntRadius > 0 ? k.tauntRadius : CHALLENGE.radius);
 const tauntHold = (k) => (Number.isInteger(k.tauntHoldMs) && k.tauntHoldMs > 0 ? k.tauntHoldMs : CHALLENGE.holdMs);
+const STEP = HUNT_TUNING.stepMs;
 
 /**
  * THE CHALLENGE'S EFFECT, the one writer of a taunt: every monster `challengeable`
@@ -278,7 +280,7 @@ const tauntHold = (k) => (Number.isInteger(k.tauntHoldMs) && k.tauntHoldMs > 0 ?
 export function challengeFrom(inst, sc, k, row) {
   const took = challengeable(inst, k, row);
   /* (a borrowed Challenge holds at its price: holdPm permille of the hold, on the engine's step grid) */
-  const hold = row && Number.isInteger(row.holdPm) ? Math.max(100, Math.floor((tauntHold(k) * row.holdPm) / 100000) * 100) : tauntHold(k);
+  const hold = row && Number.isInteger(row.holdPm) ? Math.max(STEP, Math.floor((tauntHold(k) * row.holdPm) / 1000 / STEP) * STEP) : tauntHold(k);
   for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = hold; }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
   if (took.length) queueOn(inst, k, 'taunt', { n: took.length });

@@ -113,15 +113,18 @@ export const BORROW_VALUES = Object.freeze({
   shelter: 1.4,
   hoarfrost: 2.7,
   protective_ward: 18.4,
-  /* +97.4 held, a sword in a four with no healer, at 17's 7-tile reach (the engine's 1 tile: +20.2), before the heal rule. Past the last
-     band: not offered until V4 */
-  greater_mend: 97.4,
+  /* UNDER THE HEAL RULE (lane/e5-borrowing, the engine's own borrow on Mend's clock at the healer's 7 tiles; roads/e5/run.sh, v1-climb's
+     base cell, 12 seeds x 8 h): a sword in a four with no healer +40.3 held (pace +29.0 pace steps), was +97.4 before the rule; beside a
+     healer (19 V4's hammer) +7.5. Still past the last band on 17's cell: not offered (the ledger's fallback, 20-v030 "Known risks") */
+  greater_mend: 40.3,
   power_strike: 4.2,
   flame_strike: 6.3,
   turning_cut: 11,
   rend: 7.1,
   raking_shot: 0,
-  circle_of_renewal: 7.1,
+  /* under the heal rule (lane/e5-borrowing, as Greater Mend's above): the sword in a four with no healer +2.0 held (+1.8 pace steps) on
+     Mend's clock, 214 casts an hour; was 7.1 before the rule */
+  circle_of_renewal: 2,
   /* wave 3 (lane/roads-wave3, roads-run.mjs --plan v0w3: same method, 8 seeds x 8 h): Stagger on the sword in S +5.8 held (+2.9% XP, 4.2
      pace steps, 98.6 casts an hour on Muster's Brutes); Gash on the hammer in M +6.2 held, +11.4% XP = 16.2 pace steps */
   stagger: 5.8,

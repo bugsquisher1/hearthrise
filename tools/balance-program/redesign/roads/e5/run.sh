@@ -34,7 +34,7 @@ run m-gm hammer,bow,mage,healer --borrowed greater_mend,-,-,-
 run n-plain hammer,bow,mage,sword
 run n-gm hammer,bow,mage,sword --borrowed -,-,-,greater_mend
 run n-cr hammer,bow,mage,sword --borrowed -,-,-,circle_of_renewal
-# at the band's penalty (set once the V0 above places the band: 17's bands, border -30% for 4 to 10, -50% for 10 to 20)
-run m-gm-500 hammer,bow,mage,healer --borrowed greater_mend@500,-,-,-
+# the four with no healer at the bands' two prices (17: -30% for a V0 of 4 to 10, -50% for 10 to 20): what a price would leave, for the
+# designer's call (Greater Mend's V0 is past the last band, so no price offers it by the rule; the M cell is already in band at full power)
 run n-gm-500 hammer,bow,mage,sword --borrowed -,-,-,greater_mend@500
 run n-gm-300 hammer,bow,mage,sword --borrowed -,-,-,greater_mend@300

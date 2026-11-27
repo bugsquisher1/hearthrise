@@ -22,7 +22,6 @@ const PAIRS = [
   ['Greater Mend on the hammer, a second healer (M, 19 V4)', 'm-plain', 'm-gm', 0, 'greater_mend'],
   ['Greater Mend on the sword, no healer (N, 17\'s V0 cell)', 'n-plain', 'n-gm', 3, 'greater_mend'],
   ['Circle of Renewal on the sword, no healer (N)', 'n-plain', 'n-cr', 3, 'circle_of_renewal'],
-  ['Greater Mend on the hammer at -50% (M)', 'm-plain', 'm-gm-500', 0, 'greater_mend'],
   ['Greater Mend on the sword at -50% (N)', 'n-plain', 'n-gm-500', 3, 'greater_mend'],
   ['Greater Mend on the sword at -30% (N)', 'n-plain', 'n-gm-300', 3, 'greater_mend'],
 ];

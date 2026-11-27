@@ -464,7 +464,7 @@ const mutants = [
   { name: 'a wave-3 road left off the map', case: 'whole-map', edits: [['src/data/talents.js', "  club: Object.freeze(['turning_cut', 'stagger']),", "  club: Object.freeze(['turning_cut']),"]] },
   { name: 'a shared road is never walked', case: 'whole-map', edits: [[T, ".flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));", ".flatMap(() => []);"]] },
   { name: 'the cast path reads the shared rows', case: 'engine-rows', edits: [['src/core/hunt/abilities.js', '  const ABILITIES = rowsFor(hero);\n', '']] },
-  { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'row.holdPm) / 100000) * 100) : tauntHold(k);', 'row.holdPm) / 100000) * 100) : CHALLENGE.holdMs;']] },
+  { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'row.holdPm) / 1000 / STEP) * STEP) : tauntHold(k);', 'row.holdPm) / 1000 / STEP) * STEP) : CHALLENGE.holdMs;']] },
   { name: 'a conditional row always holds', case: 'engine-rows', edits: [[TR, '  for (const r of when) if (holds(inst, u, r.when)) (out || (out = rows.slice())).push(r);', '  for (const r of when) (out || (out = rows.slice())).push(r);']] },
   { name: 'the auras forget the hero\'s rows', case: 'engine-rows', edits: [['src/core/hunt/auras.js', ' ? withTalentRows(inst, unit, auras) : auras;', ' ? auras : auras;']] },
   { name: 'the member drops the build (the settle never grants it)', case: 'real-settle-both-paths', edits: [['src/core/member.js', "        ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),\n", '']] },

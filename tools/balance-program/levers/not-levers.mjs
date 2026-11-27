@@ -91,6 +91,7 @@ export const NOT_LEVERS = Object.freeze([
   /* the Roads (lane/roads-sample): units, rounding, a memo bound, a road's stone numbering */
   { at: 'src/core/hunt/talent-rows.js#scaled', why: 'a unit conversion (two permilles in millionths)' }, { at: 'src/core/hunt/talent-rows.js#moddedRow', why: 'a unit conversion (two permilles in millionths)' },
   { at: 'src/core/talents.js#borrowBand', why: 'rounding (an epsilon under a whole openRound)' }, { at: 'src/core/talents.js#grantsOf', why: 'a memo bound (2048 grants kept): a cache size, no outcome reads it' },
+  { at: 'src/core/hunt/talent-rows.js#lentModsOf', why: 'a memo bound (256 borrow lists kept a grant): a cache size, no outcome reads it (lane/e5-borrowing)' },
   { at: 'src/data/talents.js#road', why: 'a road\'s rank stones numbered 1 to 5 (17 section 2\'s shape): ids, no value' },
   { at: 'src/data/trades.js#KIT_BATCH_MAX', why: 'a content process bound: at most 20 named kit recipes a batch, each batch on its own (CLAUDE.md section 10; 09 4.13), no outcome reads it' },
   { at: 'src/data/trades.js#KIT_BATCHES', why:'content rows: each named recipe band is which metal it is, a row, never a size (the Temper kits a band, Iron to Dawnsteel; its work and price are derived, src/core/trades.js)' },

@@ -26,14 +26,16 @@
 //         (nothing hands the settle a roll); a made piece (drop-hours.js made, data until the bench verb) is a cape or a jewel, a slot no
 //         scale ground drops, named by a part a scale ground does drop
 //   DF-7  NO RARE ON A BODY UNDER ITS GROUND'S TIER (12-targets 8.6.1): every Trait base a scale ground offers is its tier's piece or a later
-//         tier's (the wings' Hearth Chest hats and boots were key-tier bodies stamped 160)
+//         tier's (the wings' Hearth Chest hats and boots were key-tier bodies stamped 160); and NO NAMED PIECE IS A BASE (8.9 item 8): every
+//         base is a rung of the plain ladder (src/data/base-drops.js PLAIN_PIECES), which holds no twin, no ground's own piece, no cape,
+//         jewel or grate, while the Sewer, the Thicket and the Glade still drop the four one-offs the ruling named
 //
 //   node tests/drop-formula.mjs           the guard and every planted mutant (each caught by its case)
 //
 // ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
 // ci-run: node tests/drop-formula.mjs
 //
-// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js, src/data/catacomb-wings.js, src/data/items.js
+// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js, src/data/catacomb-wings.js, src/data/items.js, src/data/base-drops.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -54,6 +56,7 @@ async function load(root) {
   M.D = await imp('src/data/danger.js');
   M.PACKS = (await imp('src/data/grounds/index.js')).GROUND_PACKS;
   M.LB = await imp('src/data/loot-bands.js');
+  M.BD = await imp('src/data/base-drops.js');
   M.SESSION_DEPTH = existsSync(join(root, 'src/session/danger-sections.js')) ? (await imp('src/session/danger-sections.js')).depthOf : null;
   /* the edge's gate (only where the planted tree carries the edge: DF-6's edge mutants plant it) */
   M.HS = existsSync(join(root, 'supabase/functions/hr-accrue/hunt-settle.js')) ? await imp('supabase/functions/hr-accrue/hunt-settle.js') : null;
@@ -308,6 +311,7 @@ const CASES = {
      Rare could land on a bronze-tier hat; each wing drops its tier's base alone now (catacomb-wings.js, base-drops.js). */
   'DF-7'(M) {
     let read = 0;
+    const plain = new Set(M.BD.PLAIN_PIECES);
     for (const [gid, row] of Object.entries(M.D.DANGER_GROUNDS)) {
       const g = M.grounds.HUNT_GROUNDS[gid];
       if (!g) continue;
@@ -319,10 +323,26 @@ const CASES = {
           if (!it || !(it.tier >= tier)) return gid + ' offers ' + id + ' (tier ' + (it && it.tier) + ') as a ' + slot + ' base, under its tier ' + tier;
           /* (lane/named-piece-drops) a named twin's door is its own Rare row: never a Trait base (its plain piece is) */
           if (typeof it.statsAs === 'string') return gid + ' offers the named twin ' + id + ' (of ' + it.statsAs + ') as a ' + slot + ' base: a Trait piece is the plain base';
+          /* (lane/no-named-trait-bases, 12-targets 8.9 item 8) NO named piece is a base: every base is a rung of the plain ladder */
+          if (!plain.has(id)) return gid + ' offers the named piece ' + id + ' as a ' + slot + ' base: a Trait piece lands on the plain ladder (base-drops.js PLAIN_PIECES)';
+          if ((row.pieces || []).includes(id)) return gid + ' offers its own one-off piece ' + id + ' as a ' + slot + ' base';
         }
       }
     }
     if (read < 200) return 'CONTROL: only ' + read + ' Trait bases read';
+    /* the plain ladder itself holds no named piece: no twin, no ground's own piece, no cape or jewel (made, never a ground's base), no grate */
+    const groundPieces = new Set(Object.values(M.D.DANGER_GROUNDS).flatMap((r) => r.pieces || []));
+    for (const id of plain) {
+      const it = M.ITEMS[id];
+      if (!it || !it.slot) return 'PLAIN_PIECES names ' + id + ', which is no gear item';
+      if (typeof it.statsAs === 'string' || groundPieces.has(id) || it.gearProfile || it.slot === 'cape' || it.type === 'jewelry') return 'PLAIN_PIECES names the named piece ' + id;
+    }
+    /* the four one-offs the ruling named (8.9 item 8) are still dropped in a Trait slot on their grounds, so the rule above reads them */
+    for (const [gid, id] of [['millrace_sewer', 'kingsgrate'], ['meadowbrook_thicket', 'grayjaws_ruff'], ['mosslight_glade', 'houndskin_cloak'], ['mosslight_glade', 'bramble_blade']]) {
+      const g = M.grounds.HUNT_GROUNDS[gid];
+      const dropped = g && [...M.grounds.monstersOn(g)].some((m) => ((M.MONSTERS[m] || {}).drops || []).some((d) => d.id === id));
+      if (!dropped || !M.ITEMS[id] || !M.DR.traitSlotOf(M.ITEMS[id].slot, M.GS.GEAR_STEPS.traitSlots)) return 'CONTROL: ' + gid + ' no longer drops ' + id + ' in a Trait slot (the named-piece rule reads nothing there)';
+    }
     /* the twins this reads are dropped: the six named pieces past Dawnsteel ride their homes' rows (28-named-pieces 2.7) */
     const twins = Object.keys(M.D.DANGER_GROUNDS).filter((gid) => M.grounds.HUNT_GROUNDS[gid]).flatMap((gid) => {
       const g = M.grounds.HUNT_GROUNDS[gid], ids = new Set([...M.grounds.monstersOn(g)].flatMap((m) => ((M.MONSTERS[m] || {}).drops || []).map((d) => d.id)));
@@ -385,15 +405,21 @@ const CASES = {
 };
 
 const MUTANTS = [
-  /* both halves of the old state: the wing's drop row, and the chest pieces carried at the wing's item Level (the stamp did it; the plant
-     gives them the Wolfram step so items.js ITEM_LEVELS writes 160). A row alone is no base: traitBasesOf takes the ground's item Level only */
-  { name: 'a wing drops a Hearth Chest hat again (a bronze-tier body at item Level 160)', case: 'DF-7', edits: [['src/data/catacomb-wings.js',
+  /* both halves of the old state: the wing's drop row, and a lower tier's body carried at the wing's item Level (the stamp did it). A row
+     alone is no base: traitBasesOf takes the ground's item Level only. (lane/no-named-trait-bases) The Hearth Chest hat it once planted is
+     a named piece, never a base now whatever its Level, so the plant is a plain one, the Adept Helmet, a tier-2 rung of the plain ladder */
+  { name: 'a wing drops a tier-2 helmet again (a lower-tier body at item Level 160)', case: 'DF-7', edits: [['src/data/catacomb-wings.js',
     '  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n',
-    "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'midwifes_hat', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"],
-    ['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };',
-      'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };\nfor (const [id, it] of Object.entries(ITEMS)) if (it && it.catacombTier) ITEMS[id] = { ...it, step: 8 };']] },
+    "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'adept_helmet', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"],
+    ['src/data/items.js', 'export function foodClassOf(item) {', "ITEMS.adept_helmet = { ...ITEMS.adept_helmet, iL: 160 };\nexport function foodClassOf(item) {"]] },
   { name: 'a named twin offered as a Trait base (the Limewashed Plate beside Wolfram plate)', case: 'DF-7', edits: [['src/core/drop-rate.js',
-    "const isTwin = (it) => !!it && typeof it.statsAs === 'string';", 'const isTwin = () => false;']] },
+    'const isNamed = (id, it) => !!it && !PLAIN.has(id);', 'const isNamed = () => false;']] },
+  /* (lane/no-named-trait-bases) the old rule, only twins out: the Kingsgrate, Grayjaw's Ruff, Houndskin Cloak and Bramble Blade turn bases */
+  { name: 'a one-off named piece offered as a Trait base (only statsAs twins kept out)', case: 'DF-7', edits: [['src/core/drop-rate.js',
+    'const isNamed = (id, it) => !!it && !PLAIN.has(id);', "const isNamed = (id, it) => !!it && typeof it.statsAs === 'string';"]] },
+  /* the plain shield ladder taking every shield of a tier (the Kingsgrate is tier 1's second shield) */
+  { name: 'a named shield on the plain ladder', case: 'DF-7', edits: [['src/data/base-drops.js',
+    '...GEAR_LADDERS.flatMap((l) => l.ids), ...SHIELD_LADDER].filter(Boolean)', "...GEAR_LADDERS.flatMap((l) => l.ids), ...SHIELD_LADDER, 'kingsgrate'].filter(Boolean)"]] },
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', ch: 0.016,"]] },
   /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */

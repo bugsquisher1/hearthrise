@@ -25,4 +25,4 @@ held as absolute steps (src/core/bands.js: a Level of reference strength) and su
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
   base:steady       abs 164.1 (depth 11)  free 165  spell 821  food 13  taken 18.09 pm/s
 
-wall 33 s
+wall 56 s

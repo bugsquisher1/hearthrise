@@ -3,26 +3,26 @@ V1 on hasks_ford (4 seeds x 10 h, held step read from hour 4; step 0 = the groun
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       637.9 +- 2.5     -1.8    93   100    2.4    0.2     2.4     72.7      0     0  0 (0/0/0)                       6  {"hold":2212,"climb":688,"fall":4}
+base:steady       650.3 +- 8.3      8.4  69.5  99.6    7.8    0.2     3.3     71.2      0     0  0 (0/0/0)                       6  {"hold":2205,"climb":632,"fall":6}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady         1.3x  sd 0.01  n 4  window 6 h  seeds 1.31 1.29 1.32 1.29
+  base:steady        1.32x  sd 0.01  n 4  window 6 h  seeds 1.33 1.32 1.3 1.32
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L60  coin 16694 +- 223  income 19603 +- 234  store 7473  kit share 0.38 (meal 191, drink 3822, charge 1975, shot 1485)  loot by band: common 826, uncommon 298, scarce 1785, other 0  n 4
+  base:steady       L60  coin 16792 +- 107  income 19787 +- 117  store 7708  kit share 0.39 (meal 233, drink 3971, charge 2016, shot 1487)  loot by band: common 823, uncommon 299, scarce 1874, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.645  bow 0.111  mage 0.116  healer 0.127
+  base:steady       hammer 0.643  bow 0.112  mage 0.116  healer 0.128
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 18.71 land 57.5% hit 31.54 (5471.25/h) | bow dps 18.51 land 91.33% hit 60.98 (488.75/h) | mage dps 24.32 land 79.85% hit 30.89 (1006/h) | healer dps 10.03 land 85.65% hit 46.1 (736.75/h)
-                    banded_pikeman(swarm) 289.3/h 21.8 s 296 | fordsunk(brute) 121.2/h 28.2 s 448 | bannerman(warder) 33.9/h 29.9 s 170 | ledger_wight(caster) 88.7/h 33.9 s 1373
-                    broke off by: fall:ledger_wight@2 4
+  base:steady       hammer dps 18.79 land 57.8% hit 32.85 (5489.25/h) | bow dps 18.53 land 91.55% hit 63.68 (493.25/h) | mage dps 24.42 land 80.02% hit 31.97 (1020.5/h) | healer dps 10.04 land 85.6% hit 47.37 (758/h)
+                    banded_pikeman(swarm) 282.4/h 22.4 s 316 | fordsunk(brute) 118.3/h 28.9 s 477 | bannerman(warder) 33.1/h 30.7 s 185 | ledger_wight(caster) 86.6/h 35.4 s 1484
+                    broke off by: fall:ledger_wight@2 4, fall:banded_pikeman@0 1, fall:ledger_wight@0 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 59.2 (depth 20)  free 116  spell 856  food 27  taken 23.46 pm/s
+  base:steady       abs 60 (depth 20)  free 115  spell 853  food 32  taken 24.58 pm/s
 
-wall 37 s
+wall 62 s

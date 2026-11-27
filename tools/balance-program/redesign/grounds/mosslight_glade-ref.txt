@@ -23,6 +23,6 @@ the formula readers (lane/monster-formula): per seat dps (dealt a hunted second)
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 21.4 (depth 10)  free 131  spell 832  food 36  taken 23.69 pm/s
+  base:steady       abs 21.3 (depth 10)  free 131  spell 832  food 36  taken 23.69 pm/s
 
-wall 39 s
+wall 68 s

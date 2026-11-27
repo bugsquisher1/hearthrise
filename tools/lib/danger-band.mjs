@@ -28,6 +28,8 @@
 // not the pay's (refTo): on the Flooded Wing's narrow top (15 steps for 9 depths) the pay's rounding, 453.5 to 450, read the reference
 // four 2 depths deep (bands BD-9). refHeld is pinned wherever that hold is not refStep. Three readers, two overrides: the pay reads
 // refStep, the monsters formulaStep ?? refStep, the depth reading refHeld ?? refStep.
+// THE CLIMB IS MEASURED FREE (lane/designer-bd9, topFreeCandidate): the three cells play with the engine's cap at the scale's
+// stepMax, so the top is where the strong four holds, not the cap it was cut at last time.
 // The floor needs the LOW cell: no band is cut without it. C-3 (12-targets: Steady dies never) is the open gate: any death in any of
 // the three cells holds the ground off.
 // ════════════════════════════════════════════════════════════════════════
@@ -185,4 +187,23 @@ export function rewriteRow(src, id, band) {
     + (band.refKillsHead !== undefined ? 'refKillsHead: ' + band.refKillsHead + ', ' : '')
     + (band.refHeld !== undefined ? 'refHeld: ' + band.refHeld + ', ' : '')
     + (band.coinPm !== undefined ? 'coinPm: ' + band.coinPm + ', ' : ''));
+}
+
+/**
+ * THE CLIMB IS MEASURED FREE (the designer, lane/designer-bd9, 2026-11-27; 12-targets 8.10). The engine climbs no step past a row's
+ * topStep (src/core/hunt/danger.js stepOn), so a cell played on the tree measures the old top, not the four: the strong four holds a few
+ * steps under the cap it falls from and climbs back to, every re-cut rounds that down, and the top ratchets (Carter's Rest 75 -> 70 while
+ * its strong four holds 98 with nothing over it). Every cell is played on a copy whose climb stops only at the scale's DANGER.stepMax: the
+ * one edit a Lab candidate makes (tools/balance-program/candidates.mjs `edits`), on the engine's cap line alone, the tree never written.
+ * The row itself is untouched, so the depth reading and the drop odds it feeds (src/core/bands.js depthAt, drop-rate.js) and the pay's
+ * gap read the band as it stands: lifting the row's topStep instead read the Flooded Wing's reference loot 7% low (every step a shallower
+ * depth). Returns the manifest, or null when `engineSrc` (src/core/hunt/danger.js) has no such line (the guard, tests/new-ground.mjs NG-9).
+ */
+export const TOP_FREE_ID = 'top-free';
+export const TOP_CAP_LINE = '  return Math.min(row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax, clampStep(s));';
+export function topFreeCandidate(engineSrc) {
+  if (typeof engineSrc !== 'string' || engineSrc.split(TOP_CAP_LINE).length !== 2) return null;
+  return { schema: 'hearthrise.balance-candidate/1', id: TOP_FREE_ID, base: 'tree',
+    why: 'the cells measure where each company holds with nothing over it: the climb stops only at the scale\'s stepMax',
+    edits: [{ file: 'src/core/hunt/danger.js', from: TOP_CAP_LINE, to: '  return clampStep(s);' }] };
 }

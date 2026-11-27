@@ -4,8 +4,8 @@
  "grounds": {
   "muster_barrows": {
    "refStep": 610,
-   "floorStep": 525,
-   "topStep": 690,
+   "floorStep": 520,
+   "topStep": 710,
    "refHeld": 605,
    "coinPm": 7700,
    "print": "06453719f7056c77",
@@ -25,7 +25,7 @@
   "hasks_ford": {
    "refStep": 590,
    "floorStep": 535,
-   "topStep": 640,
+   "topStep": 650,
    "refKillsHead": 135,
    "refHeld": 595,
    "coinPm": 6600,
@@ -46,7 +46,7 @@
   "catacomb_bone_wing": {
    "refStep": 500,
    "floorStep": 405,
-   "topStep": 545,
+   "topStep": 550,
    "refKillsHead": 140,
    "coinPm": 4200,
    "print": "add23be43d8ea656",
@@ -66,10 +66,10 @@
   "catacomb_flooded_wing": {
    "refStep": 480,
    "floorStep": 440,
-   "topStep": 485,
+   "topStep": 500,
    "refKillsHead": 140,
    "refHeld": 475,
-   "coinPm": 3300,
+   "coinPm": 3700,
    "print": "ceebfb7f4f490a5b",
    "verdict": "OPEN",
    "levels": {
@@ -87,7 +87,7 @@
   "mill_cellar": {
    "refStep": 60,
    "floorStep": 0,
-   "topStep": 110,
+   "topStep": 125,
    "refKillsHead": 135,
    "coinPm": 114400,
    "print": "fc1c09eab1dc8185",
@@ -107,7 +107,7 @@
   "meadowbrook_thicket": {
    "refStep": 110,
    "floorStep": 0,
-   "topStep": 145,
+   "topStep": 170,
    "refKillsHead": 125,
    "refHeld": 105,
    "coinPm": 38800,
@@ -128,7 +128,7 @@
   "mosslight_glade": {
    "refStep": 60,
    "floorStep": 0,
-   "topStep": 115,
+   "topStep": 130,
    "refKillsHead": 140,
    "refHeld": 55,
    "coinPm": 7900,
@@ -148,8 +148,8 @@
   },
   "coppercap_warrens": {
    "refStep": 80,
-   "floorStep": 30,
-   "topStep": 125,
+   "floorStep": 25,
+   "topStep": 150,
    "refHeld": 75,
    "coinPm": 3900,
    "print": "f1f434304c6ceaf6",
@@ -169,7 +169,7 @@
   "the_slake": {
    "refStep": 100,
    "floorStep": 45,
-   "topStep": 130,
+   "topStep": 145,
    "coinPm": 4900,
    "print": "fd5f34ef46e65df6",
    "verdict": "OPEN",
@@ -188,7 +188,7 @@
   "pyre_field": {
    "refStep": 50,
    "floorStep": 0,
-   "topStep": 100,
+   "topStep": 110,
    "refKillsHead": 140,
    "coinPm": 2900,
    "print": "13fb7306dd123d43",
@@ -208,7 +208,7 @@
   "krells_hold": {
    "refStep": 40,
    "floorStep": 0,
-   "topStep": 115,
+   "topStep": 130,
    "coinPm": 3100,
    "print": "693ccf7e0438cc65",
    "verdict": "OPEN",
@@ -227,7 +227,7 @@
   "wickstead": {
    "refStep": 80,
    "floorStep": 0,
-   "topStep": 125,
+   "topStep": 145,
    "refKillsHead": 140,
    "coinPm": 18300,
    "print": "42a2065f09f31687",
@@ -247,9 +247,8 @@
   "carters_rest": {
    "refStep": 60,
    "floorStep": 0,
-   "topStep": 70,
+   "topStep": 100,
    "refKillsHead": 145,
-   "refHeld": 55,
    "coinPm": 2100,
    "print": "ddcaabb95b97356c",
    "verdict": "OPEN",
@@ -268,7 +267,7 @@
   "ox_road": {
    "refStep": 100,
    "floorStep": 0,
-   "topStep": 165,
+   "topStep": 180,
    "refKillsHead": 125,
    "refHeld": 95,
    "coinPm": 2400,
@@ -289,9 +288,9 @@
   "millrace_sewer": {
    "refStep": 60,
    "floorStep": 0,
-   "topStep": 110,
+   "topStep": 135,
    "refHeld": 65,
-   "coinPm": 8200,
+   "coinPm": 7500,
    "print": "674310ffaedb19f8",
    "verdict": "OPEN",
    "levels": {
@@ -309,7 +308,7 @@
   "wyvern_roost": {
    "refStep": 110,
    "floorStep": 0,
-   "topStep": 190,
+   "topStep": 195,
    "refKillsHead": 140,
    "refHeld": 105,
    "coinPm": 2100,

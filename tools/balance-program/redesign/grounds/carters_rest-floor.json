@@ -244,7 +244,7 @@
     }
    },
    "abs": {
-    "level": 89.3,
+    "level": 89.2,
     "depth": 2
    },
    "sustain": {
@@ -255,8 +255,8 @@
    }
   }
  },
- "wallS": 37,
- "candidate": "C0",
+ "wallS": 58,
+ "candidate": "top-free",
  "moves": {
   "levels:careful": null,
   "weapon:careful": null,

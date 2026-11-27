@@ -27,11 +27,15 @@
 //         cut keeps it, caps the top at it + gapMax and pins the MID four's hold as refHeld (the depth reading's middle), none when the
 //         hold IS the anchor; a rows ground's cut, or a formula ground whose anchor is its own formulaStep (its refStep is the measured
 //         hold, lane/monster-roles-ford-wings), carries no refHeld; a hold outside the band is a REVIEW note
+//   NG-9  THE CLIMB IS MEASURED FREE (lane/designer-bd9, 12-targets 8.10): every pinned band's three reports were played with the engine's
+//         cap at the scale's stepMax (report.candidate 'top-free'), never under the top the last cut set (a capped strong four reads a few
+//         steps under its cap, so each re-cut lowered the top: Carter's Rest 75 -> 70 while its four held 98 free); the candidate's one edit
+//         is the engine's cap line, found exactly once in src/core/hunt/danger.js, and nothing else (the row, its depth reading, the pay)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bandFromReports, rewriteRow, packPrint, lowestSeed, BAND_KEYS, coinLevelFrom, COIN_BAND, anchorOf } from '../tools/lib/danger-band.mjs';
+import { bandFromReports, rewriteRow, packPrint, lowestSeed, BAND_KEYS, coinLevelFrom, COIN_BAND, anchorOf, topFreeCandidate, TOP_FREE_ID, TOP_CAP_LINE } from '../tools/lib/danger-band.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
@@ -153,6 +157,21 @@ ok(h2 && /topStep: 710, refKillsHead: 235, (?:rowsKillsHead: \d+, )?gearLevel/.t
   ok(coinLevelFrom(withGold(500, 1000), null) === null, 'NG-8 a cut with no wage read a coin level');
   const atZero = { ...ev, floor: { ...ev.floor, cells: { ...ev.floor.cells, 'base:steady': { ...ev.floor.cells['base:steady'], held: { mean: 1, perSeed: [0, 1, 2] } } } } };
   ok(cut(atZero).band.floorStep === 0, 'NG-8 a fresh four at the scale\'s bottom cut a floor under step 0: ' + cut(atZero).band.floorStep);
+}
+/* NG-9 */
+{
+  const eng = readFileSync(join(ROOT, 'src', 'core', 'hunt', 'danger.js'), 'utf8'), free = topFreeCandidate(eng);
+  ok(free && free.id === TOP_FREE_ID && free.edits.length === 1 && free.edits[0].file === 'src/core/hunt/danger.js' && eng.split(free.edits[0].from).length === 2,
+    'NG-9 src/core/hunt/danger.js stepOn does not read its cap on tools/lib/danger-band.mjs TOP_CAP_LINE once: new-ground cannot play its cells free of the top');
+  const played = free ? eng.replace(free.edits[0].from, free.edits[0].to) : eng;
+  ok(!/topStep/.test(played.slice(played.indexOf('const stepOn'), played.indexOf('};', played.indexOf('const stepOn')))) && played.split('\n').length === eng.split('\n').length,
+    'NG-9 the free climb\'s edit leaves stepOn reading topStep, or moves more than its one line');
+  ok(topFreeCandidate(eng.replace(TOP_CAP_LINE, '')) === null && topFreeCandidate(eng + '\n' + TOP_CAP_LINE) === null, 'NG-9 a cap line missing or doubled still made a candidate');
+  for (const [g, pin] of Object.entries(PINS)) {
+    if (pin.hand) continue;
+    const ev = evidenceOf(g, pin);
+    for (const cell of ['floor', 'ref', 'top']) ok(ev[cell].candidate === TOP_FREE_ID, 'NG-9 ' + g + ' ' + cell + ' cell was played as ' + JSON.stringify(ev[cell].candidate) + ', not free of the top (' + TOP_FREE_ID + '): node tools/new-ground.mjs ' + g + ' ... --write');
+  }
 }
 /* NG-5 */
 const g = HUNT_GROUNDS.muster_barrows, base = packPrint(g, MONSTERS, monstersOn);

@@ -53,14 +53,14 @@
    "start": 0,
    "seedsRead": 4,
    "payX": {
-    "mean": 0.59,
+    "mean": 0.55,
     "sd": 0.01,
     "n": 4,
     "perSeed": [
-     0.58,
-     0.6,
-     0.59,
-     0.58
+     0.54,
+     0.56,
+     0.55,
+     0.55
     ],
     "fromH": 4,
     "windowH": 6
@@ -84,16 +84,16 @@
    "reachH": 1.3,
    "pullsPerH": 62.1,
    "killsPerH": 407,
-   "xpPerHeroH": 471817,
+   "xpPerHeroH": 442892,
    "gold": {
     "coinPerHeroH": {
-     "mean": 11189,
-     "sd": 147,
+     "mean": 11757,
+     "sd": 150,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 16606,
-     "sd": 306,
+     "mean": 16867,
+     "sd": 257,
      "n": 4
     },
     "storePerHeroH": {
@@ -102,12 +102,12 @@
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 1020,
-     "sd": 32,
+     "mean": 957,
+     "sd": 28,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 501,
+     "mean": 472,
      "sd": 24,
      "n": 4
     },
@@ -117,8 +117,8 @@
      "n": 4
     },
     "otherPerHeroH": {
-     "mean": 3897,
-     "sd": 161,
+     "mean": 3681,
+     "sd": 146,
      "n": 4
     }
    },
@@ -257,8 +257,8 @@
    }
   }
  },
- "wallS": 32,
- "candidate": "C0",
+ "wallS": 53,
+ "candidate": "top-free",
  "moves": {
   "levels:careful": null,
   "weapon:careful": null,

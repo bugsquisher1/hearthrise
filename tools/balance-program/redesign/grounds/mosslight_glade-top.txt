@@ -3,26 +3,26 @@ V1 on mosslight_glade (4 seeds x 10 h, held step read from hour 4; step 0 = the 
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       113.8 +- 0.6     -1.5    94   100    1.7    0.2     0.4     67.7      0     0  0 (0/0/0)                       6  {"hold":1910,"climb":784,"fall":12}
+base:steady       129.5 +- 8.4     -5.4  56.1  90.6     14      1     0.8       65      0     0  0 (0/0/0)                       6  {"hold":1971,"climb":589,"fall":35}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        1.38x  sd 0.01  n 4  window 6 h  seeds 1.39 1.38 1.38 1.37
+  base:steady         1.4x  sd 0.01  n 4  window 6 h  seeds 1.41 1.4 1.39 1.39
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L31  coin 13804 +- 59  income 14729 +- 61  store 5743  kit share 0.39 (meal 67, drink 3615, charge 1307, shot 753)  loot by band: common 327, uncommon 64, scarce 534, other 0  n 4
+  base:steady       L31  coin 14070 +- 125  income 15031 +- 104  store 5985  kit share 0.4 (meal 111, drink 3778, charge 1341, shot 755)  loot by band: common 337, uncommon 66, scarce 558, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.659  bow 0.113  mage 0.1  healer 0.128
+  base:steady       hammer 0.658  bow 0.113  mage 0.101  healer 0.128
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 11.28 land 56.93% hit 18.55 (5746.25/h) | bow dps 10.08 land 83.68% hit 36.09 (507/h) | mage dps 14.67 land 74% hit 19.25 (844/h) | healer dps 6.43 land 77.78% hit 25.98 (796.25/h)
-                    carrion_crow(swarm) 257.8/h 22.5 s 190 | glade_poacher(shooter) 100.6/h 26.4 s 124 | walking_vine(brute) 112/h 36.9 s 735 | goblin_sluicer(brute) 33.7/h 29.1 s 284 | brook_bear(brute) 22.4/h 31.9 s 323 | rook_poacher(warder) 11.2/h 31.4 s 110
-                    broke off by: fall:carrion_crow@0 6, fall:walking_vine@0 4, fall:goblin_sluicer@0 2
+  base:steady       hammer dps 11.37 land 56.8% hit 19.71 (5784.5/h) | bow dps 10.08 land 83.65% hit 38.26 (511.5/h) | mage dps 14.69 land 73.78% hit 20.06 (869.5/h) | healer dps 6.47 land 77.8% hit 27.96 (793.75/h)
+                    carrion_crow(swarm) 244.9/h 23.7 s 212 | glade_poacher(shooter) 95.7/h 28.1 s 140 | walking_vine(brute) 106.3/h 39.3 s 834 | goblin_sluicer(brute) 32/h 31.4 s 324 | brook_bear(brute) 21.3/h 34 s 365 | rook_poacher(warder) 10.7/h 32.8 s 123
+                    broke off by: fall:carrion_crow@0 15, fall:walking_vine@0 9, fall:brook_bear@0 6, fall:goblin_sluicer@0 4, fall:walking_vine@2 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 39.7 (depth 20)  free 112  spell 870  food 18  taken 23.34 pm/s
+  base:steady       abs 39.7 (depth 20)  free 107  spell 865  food 28  taken 24.98 pm/s
 
-wall 41 s
+wall 69 s

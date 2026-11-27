@@ -220,15 +220,18 @@ export function roleOf(cs) {
    showed stacks the server no longer held and every press on them was refused). REPLACED whole, never merged. */
 const serverMs = (v) => (typeof v === 'string' ? Date.parse(v) : NaN);
 
-/** This envelope's OWN account storage, { at, bank, depot } (at: the server's ms), or null without a `bank` or a clock. */
+/** This envelope's OWN account storage, { at, bank, depot, pieces } (at: the server's ms), or null without a `bank` or a clock.
+    `pieces` (the account's Trait pieces, 1072-piece-verbs.sql) rides along: one hero's wear or sale moves the list every open hero shows
+    (lane/piece-gear-fixes: another hero's list stayed stale until its own next envelope). */
 export function storageOf(cs) {
   const at = serverMs(read(cs, 'now')), bank = read(cs, 'bank');
-  return Number.isFinite(at) && isObj(bank) ? { at, bank, depot: isObj(read(cs, 'depot')) ? read(cs, 'depot') : null } : null;
+  return Number.isFinite(at) && isObj(bank) ? { at, bank, depot: isObj(read(cs, 'depot')) ? read(cs, 'depot') : null,
+    pieces: isObj(read(cs, 'pieces')) ? read(cs, 'pieces') : null } : null;
 }
 
-/* The account's copy (AccountSession keeps the newest of every open hero's reads, this one's included), else this
-   envelope's own (a session read alone, or a section the newest read did not carry). */
-function accountSection(cs, key) {
+/** The account's copy of an account-wide section (AccountSession keeps the newest of every open hero's reads, this one's included), else
+    this envelope's own (a session read alone, or a section the newest read did not carry). */
+export function accountSection(cs, key) {
   const acct = cs && typeof cs.accountStorage === 'function' ? cs.accountStorage() : null;
   return acct && isObj(acct[key]) ? acct[key] : read(cs, key);
 }

@@ -118,7 +118,8 @@ function gainsOf(before, after, cost = false) {
 
 /**
  * What "Equip upgrades" would put on: src/core/upgrade-pick.js's pick, with each pick's gains (and a move's costs) in words.
- * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null }} o
+ * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null, pieces?: object|null }} o
+ *        `pieces`: the Trait pieces the hero wears (piece-sections.js wornPiecesOf), weighed in steps by the core's pick
  * @returns {{ ops: object, picks: {slot:string, id:string, replaces:string|null, gains:{label:string,text:string}[], costs?:{label:string,text:string}[], ends?:number}[],
  *             choices: {slot:string, ids:string[]}[] }}  `ops` is the ONE `equip` delta (empty: nothing to do); `costs`: what a move to the chosen weight gives up
  */

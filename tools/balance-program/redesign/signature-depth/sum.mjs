@@ -42,10 +42,12 @@ const ROWS2 = [
   ['#15 Catacomb Shroud (mage)', ['Bone Wing', 'b2-bone-mixed', 'b2-bone-shroud'], ['Krell\'s Hold', 'b2-krell-mixed', 'b2-krell-shroud']],
   /* (the mage takes 0.1% of the damage on Muster and 12% on Pyre Field: its barrier breaks only where it is hit) */
   ['#16 Lamplighter\'s Robe (mage)', ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-robe'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-robe']],
-  /* (a low-health rule's best cell is Bold: Steady falls back at 25%, so a hero is seldom under 30% or 20%; its Steady reading is the second) */
-  ['#17 Bargeman\'s Pole (healer)', ['The Slake, Bold', 'b2-slake-mixed-bold', 'b2-slake-pole-bold'], ['The Slake, Steady', 'b2-slake-mixed', 'b2-slake-pole']],
+  /* (the low-health lines reshaped to where Steady meets them: it falls back at 25%, and Bold pins the Slake's four at its top) */
+  ['#17 Bargeman\'s Pole (healer, under half)', ['The Slake', 'b2-slake-mixed', 'b2-slake-pole50'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-pole50']],
   ['#21 Drover\'s Hat (healer)', ['Ox Road', 'b2-ox-mixed', 'b2-ox-hat'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-hat']],
-  ['#23 Ferry Pennies (tank)', ['Muster Barrows, Bold', 'b2-muster-tank-bold', 'b2-muster-pennies-bold'], ['Muster Barrows, Steady', 'b2-muster-tank', 'b2-muster-pennies']],
+  ['#23 Ferry Pennies (tank, under 40%)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pennies40'], ['Hask\'s Ford (pinned)', 'b2-none', 'b2-none']],
+  /* (as written: the 20% line on Steady) */
+  ['#23 as written (under 20%)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pennies'], ['(none)', 'b2-none', 'b2-none']],
 ];
 /* (the home ground pinned: the tank four at Hask's Ford's top; printed under the table as the reading of why the tank reads elsewhere) */
 const PINNED = [['#1 Bannerman\'s Pavise on Hask\'s Ford, its home', 'b2-ford-tank', 'b2-ford-pavise', 655]];

@@ -45,9 +45,9 @@
 //   #13 Hall Fire Wand          mage      kill (of Fireball) -> burst, 30% of the fallen's max health on every monster next to it
 //   #15 Catacomb Shroud         mage      hit (of Hoarfrost) -> Silenced 3 s
 //   #16 Lamplighter's Robe      mage      shield_break (its own Arcane Barrier) -> Kindled (its next Fireball or Frost Lance +30%)
-//   #17 Bargeman's Pole         healer    heal (of Greater Mend) on a target under 30% -> Guarded at twice its row (-20% taken) 4 s
+//   #17 Bargeman's Pole         healer    heal (of Greater Mend) on a target under half (RESHAPED from 30%: Steady falls back at 25%) -> Guarded at twice its row (-20% taken) 4 s
 //   #21 Drover's Hat            healer    absorb (a shell the wearer cast: a healer's is Protective Ward) -> reflect 50% on the attacker
-//   #23 Ferry Pennies           any       heal (of Mend) under 20% -> Chill 3 s on every monster next to the wearer
+//   #23 Ferry Pennies           any       heal (of Mend) under 40% (RESHAPED from 20%, the same reason) -> Chill 3 s on every monster next to the wearer
 // NOT BUILT here: #19 Passing Bell and #20 Greened Bracers (mana: 15 "Batch 2 writes no mana Signature without a cell where mana binds",
 // none read so; 15 "Batch 2, measured"), #8 (Stagger's), #22 (an Alone Signature, batch 3).
 //
@@ -142,16 +142,16 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'shield_break', do: 'boon', status: 'kindled' }] }),
   bargemans_pole: sig({ id: 'bargemans_pole', n: 17, name: 'Bargeman\'s Pole', slot: 'weapon', weapon: 'magic', move: 'greater_mend',
     home: { kind: 'monster', id: 'bargeman' }, best: { seat: 'healer', ground: 'the_slake' },
-    tip: 'Greater Mend on a target below 30% health: also gives 20% damage reduction for 4 s',
-    reacts: [{ on: 'heal', of: 'greater_mend', belowPm: 300, do: 'boon', status: 'guarded', pw: 2000, ms: 4000 }] }),
+    tip: 'Greater Mend on a target below half health: also gives 20% damage reduction for 4 s',
+    reacts: [{ on: 'heal', of: 'greater_mend', belowPm: 500, do: 'boon', status: 'guarded', pw: 2000, ms: 4000 }] }),
   drovers_hat: sig({ id: 'drovers_hat', n: 21, name: 'Drover\'s Hat', slot: 'helmet', move: 'protective_ward',
     home: { kind: 'monster', id: 'drover' }, best: { seat: 'healer', ground: 'ox_road' },
     tip: 'Protective Ward: returns 50% of the damage it absorbs to the attacker',
     reacts: [{ on: 'absorb', do: 'reflect', pm: 500 }] }),
   ferry_pennies: sig({ id: 'ferry_pennies', n: 23, name: 'Ferry Pennies', slot: 'earrings', move: 'mend',
     home: { kind: 'monster', id: 'fordsunk' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'Mend below 20% health: also Chills every monster next to you for 3 s',
-    reacts: [{ on: 'heal', of: 'mend', belowPm: 200, do: 'status', status: 'chill', r: 1, ms: 3000 }] }),
+    tip: 'Mend below 40% health: also Chills every monster next to you for 3 s',
+    reacts: [{ on: 'heal', of: 'mend', belowPm: 400, do: 'status', status: 'chill', r: 1, ms: 3000 }] }),
 });
 
 /* THE RULES (15 "Proposed rules"): one Signature a hero plays (the first equipped); the switch that hands one, off until wave 4 */

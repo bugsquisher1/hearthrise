@@ -106,6 +106,24 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 - Emboldened is +10% dealt for 4 s, already capped at 20 by its own step. A short timed boon is small next to a Trait that holds all hunt, and its size reads in the held delta like any other.
 - `19-power-ledger.md` row 6 now reads "by measured size (15)" instead of "through the gear slice cap".
 
+## Batch 2, measured (systems, lane/signatures-batch-2, 2026-11-26)
+
+**How it plays:** the batch's Signatures work in the fight engine for a hero that wears one. Players still see none (`SIGNATURE_RULES.live` false). Each is reaction rows on the pieces the sample built, plus these, each general (`src/core/hunt/reactions.js`, `react-queue.js`, `src/data/statuses.js`):
+
+| Piece | What it is | First used by | Later rows that can reuse it |
+|---|---|---|---|
+| A cast's own moment | a hero's cast landed: the HP its hits took and the monsters its status landed on | #2 (a shield for each monster Chilled), #7 (Poison of the whole cast) | any rule read once a cast, not once a hit |
+| A shell's blow | a monster's blow a shell the hero cast took: what it took and from whom | #21 (half back on the attacker) | |
+| A status's reach, a fixed tick, a patch | a status on every monster within `r` of the hero, on each monster a taunt took, a tick of `pm` of the moment's damage, or a ground patch at the moment's target | #23 (Chill round the wearer), #7 and #12 (Poison), #1 (Blunted on each taunted) | #42 (Chill on the pull, with a pull-start moment) |
+| Cast again | a reaction's free cast that waits on no cooldown and spends no supply | #4 (Flame Strike again on a kill) | |
+| A burst | pm of the fallen's max health on every monster within `r` of it, exact, never chaining | #13 | |
+| A boon's strength | a boon at `pw` permille of its row (Guarded at -20%, its row -10%) | #17 | #38 |
+| Blunted, Kindled | a monster's next blow cut (spent on it); a hero's next cast of named moves raised (spent on it) | #1, #16 | |
+
+**Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, each with a mutant: 25 cases, 47 mutants caught) and on the real settle (both paths: 10-minute and 100-second windows play one hunt). The sizes below are MEASURED. The luck ceiling (the V10 kit sampler) is COMPUTED only.
+
+READINGS_PENDING
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.
@@ -223,9 +241,9 @@ Note: The opposite of Charged Barrier, which wants the shield to hold.
 ## Restoration
 
 **17. Bargeman's Pole** · Weapon (staff) · Drops from: The Slake, Bargeman
-Greater Mend on a target below 30% health: also gives 20% damage reduction for 4s
+Greater Mend on a target below half health: also gives 20% damage reduction for 4s
 Best for: Healer
-Note: For saves, not top-ups. Best on Bold. Best with Deep Mending, still useful with the others. Re-measure after Greater Mend's re-size (20% less healing).
+Note: For saves, not top-ups. Best with Deep Mending, still useful with the others. (Reshaped 2026-11-26, batch 2: Steady falls back at 25%, so a target under 30% seldom met the heal, and on Bold the Slake's four sits at its top.)
 
 **18. Brewer's Apron** · Body · Drops from: Carter's Rest, Troll Brewer
 Circle of Renewal: each hero it heals deals 10% more damage for 4s (once per cast)
@@ -252,9 +270,9 @@ Note: Puts the ward on the tank and it hits back.
 ## Every weapon
 
 **23. Ferry Pennies** · Earrings · Drops from: Hask's Ford, Fordsunk
-Mend below 20% health: also Chills every monster next to you for 3s
+Mend below 40% health: also Chills every monster next to you for 3s
 Best for: Any
-Note: A last-second escape for any hero. Best with Second Wind.
+Note: A late escape for any hero. Best with Second Wind. (Reshaped 2026-11-26, batch 2: under 20% read +0.3 (0.7), its Mend under the line about once an hour, since Steady falls back at 25%.)
 
 ## Runes
 

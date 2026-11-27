@@ -34,11 +34,11 @@
 //   hit-silence       #15 Catacomb Shroud: a Hoarfrost hit Silences its monster 3 s; another move's hit nothing
 //   break-kindle      #16 Lamplighter's Robe: the wearer's own shell breaking Kindles it; its next Fireball casts 30% stronger and spends it,
 //                     the one after casts plain
-//   heal-guard        #17 Bargeman's Pole: a Greater Mend on a hero under 30% as it begins (healed past the line or not) Guards it -20%
+//   heal-guard        #17 Bargeman's Pole: a Greater Mend on a hero under half its health as it begins (healed past the line or not) Guards it -20%
 //                     taken for 4 s; one on a hero over the line nothing
 //   absorb-reflect    #21 Drover's Hat: a monster's blow the wearer's shell takes lands half of what it took back on that monster, exact;
 //                     another hero's shell nothing
-//   low-mend-chill    #23 Ferry Pennies: a Mend begun under 20% Chills every monster next to the wearer 3 s, none further; over the line nothing
+//   low-mend-chill    #23 Ferry Pennies: a Mend begun under 40% Chills every monster next to the wearer 3 s, none further; over the line nothing
 //   reset-from-move   The Wood Book: any Frost Lance hit makes Hoarfrost ready now, another move's nothing; the has filter (a planted
 //                     row): only on a chilled target, or another move's
 //                     hit on a chilled one, nothing; the chill is read as the hit lands

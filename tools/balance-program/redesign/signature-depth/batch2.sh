@@ -65,12 +65,12 @@ run b2-krell-wand         krells_hold 97 $X --signatures -,-,hall_fire_wand,-
 run b2-bone-mixed         catacomb_bone_wing 175 $X
 run b2-bone-shroud        catacomb_bone_wing 175 $X --signatures -,-,catacomb_shroud,-
 run b2-slake-mixed        the_slake 57 $X
-run b2-slake-pole         the_slake 57 $X --signatures -,-,-,bargemans_pole
-# (the low-health rules on Bold: Steady falls back at 25%, so "below 30%" and "below 20%" seldom hold there, 15 #17 "Best on Bold")
+# (the low-health rules: Steady falls back at 25%, so "below 30%" and "below 20%" seldom held (#23 as written read +0.3 (0.7), its
+#  Mend under 20% about once an hour), and on Bold the Slake's four sits at its top (140 of 140, b2-slake-mixed-bold); reshaped to the lines
+#  Steady meets, half health for #17 and 40% for #23, the steps renamed for their line so the as-written readings stay)
 run b2-slake-mixed-bold   the_slake 57 $X
-run b2-slake-pole-bold    the_slake 57 $X --signatures -,-,-,bargemans_pole
-run b2-muster-tank-bold   muster_barrows 60 $T
-run b2-muster-pennies-bold muster_barrows 60 $T --signatures ferry_pennies,-,-,-
+run b2-muster-pennies40   muster_barrows 60 $T --signatures ferry_pennies,-,-,-
+run b2-slake-pole50       the_slake 57 $X --signatures -,-,-,bargemans_pole
 # ── the second scale ground (the spread bar) ──
 run b2-muster-sabre         muster_barrows 60 $S --signatures charred_sabre,-,-,-
 run b2-pyre-gauntlets       pyre_field 80 $S --signatures pikemans_gauntlets,-,-,-
@@ -84,4 +84,5 @@ run b2-pyre-barb            pyre_field 80 $C --signatures -,wyvern_barb_crossbow
 run b2-muster-wand          muster_barrows 60 $X --signatures -,-,hall_fire_wand,-
 run b2-krell-shroud         krells_hold 97 $X --signatures -,-,catacomb_shroud,-
 run b2-muster-robe          muster_barrows 60 $X --signatures -,-,lamplighters_robe,-
+run b2-muster-pole50        muster_barrows 60 $X --signatures -,-,-,bargemans_pole
 run b2-muster-hat           muster_barrows 60 $X --signatures -,-,-,drovers_hat

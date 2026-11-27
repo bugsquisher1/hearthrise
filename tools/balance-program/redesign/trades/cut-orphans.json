@@ -1,0 +1,1726 @@
+{
+ "count": 145,
+ "byBand": {
+  "0": {
+   "ammo": [
+    "chalked_earth_rune",
+    "chalked_ice_rune",
+    "chalked_poison_rune",
+    "chalked_rupture_rune",
+    "chalked_water_rune",
+    "copper_whetstone"
+   ],
+   "food": [
+    "cooked_copper_crab",
+    "cooked_herring",
+    "cooked_wolf_meat",
+    "copper_crab",
+    "roasted_carrot",
+    "turnip_mash"
+   ],
+   "material": [
+    "copper_bar"
+   ],
+   "armor": [
+    "graypelt_cloak"
+   ],
+   "weapon": [
+    "klappas_club"
+   ]
+  },
+  "1": {
+   "jewelry": [
+    "banded_signet_follow",
+    "banded_signet_keen",
+    "banded_signet_keen_follow",
+    "banded_signet_keen_surge",
+    "banded_signet_surge",
+    "banded_signet_surge_follow",
+    "fang_studs_focus",
+    "fang_studs_steady",
+    "fang_studs_steady_focus"
+   ],
+   "ammo": [
+    "barbed_arrows",
+    "iron_arrows",
+    "iron_bolts",
+    "iron_whetstone",
+    "scored_earth_rune",
+    "scored_fire_rune",
+    "scored_ice_rune",
+    "scored_poison_rune",
+    "scored_rupture_rune",
+    "scored_water_rune"
+   ],
+   "drink": [
+    "carrot_juice"
+   ],
+   "food": [
+    "cooked_pikeperch",
+    "cooked_trout",
+    "wheat_bread"
+   ],
+   "tool": [
+    "iron_axe",
+    "iron_pickaxe"
+   ],
+   "material": [
+    "oak_plank"
+   ]
+  },
+  "2": {
+   "food": [
+    "baked_potato",
+    "cooked_goldgill",
+    "cooked_lobster",
+    "cooked_panther_meat",
+    "cooked_silverfin",
+    "pikeperch"
+   ],
+   "ammo": [
+    "etched_earth_rune",
+    "etched_fire_rune",
+    "etched_ice_rune",
+    "etched_poison_rune",
+    "etched_rupture_rune",
+    "etched_water_rune",
+    "steel_arrows",
+    "steel_whetstone"
+   ],
+   "material": [
+    "field_ration",
+    "willow_plank"
+   ],
+   "jewelry": [
+    "seam_jasper_band_follow",
+    "seam_jasper_band_keen",
+    "seam_jasper_band_keen_follow",
+    "seam_jasper_band_keen_surge",
+    "seam_jasper_band_surge",
+    "seam_jasper_band_surge_follow"
+   ],
+   "tool": [
+    "steel_axe",
+    "steel_pickaxe"
+   ],
+   "armor": [
+    "steelgrate",
+    "warband_bulwark"
+   ],
+   "drink": [
+    "tomato_juice"
+   ]
+  },
+  "3": {
+   "food": [
+    "cooked_bear_meat",
+    "goldgill",
+    "roasted_pumpkin",
+    "silverfin",
+    "tomato_soup"
+   ],
+   "material": [
+    "flux_salt",
+    "maple_plank",
+    "verdite_ore"
+   ],
+   "ammo": [
+    "mithril_arrows",
+    "mithril_whetstone"
+   ],
+   "tool": [
+    "mithril_axe",
+    "mithril_pickaxe"
+   ]
+  },
+  "4": {
+   "food": [
+    "carrot_stew",
+    "cooked_swordfish",
+    "vegetable_stew"
+   ],
+   "ammo": [
+    "carved_earth_rune",
+    "carved_fire_rune",
+    "carved_ice_rune",
+    "carved_poison_rune",
+    "carved_rupture_rune",
+    "carved_water_rune",
+    "rune_arrows",
+    "rune_whetstone"
+   ],
+   "drink": [
+    "pumpkin_cider"
+   ],
+   "tool": [
+    "rune_axe",
+    "rune_pickaxe"
+   ],
+   "material": [
+    "verdite_bar",
+    "yew_plank"
+   ]
+  },
+  "5": {
+   "armor": [
+    "archmage_cloak"
+   ],
+   "food": [
+    "cooked_shark",
+    "ember_tart",
+    "fishers_pie",
+    "pumpkin_pie",
+    "river_chowder",
+    "swordfish"
+   ],
+   "tool": [
+    "ember_axe",
+    "ember_pickaxe"
+   ],
+   "jewelry": [
+    "ember_earrings",
+    "ember_necklace",
+    "ember_ring"
+   ],
+   "drink": [
+    "goldenroot_tea"
+   ],
+   "ammo": [
+    "graven_earth_rune",
+    "graven_fire_rune",
+    "graven_ice_rune",
+    "graven_poison_rune",
+    "graven_rupture_rune",
+    "graven_water_rune"
+   ],
+   "material": [
+    "heartgarnet"
+   ]
+  },
+  "6": {
+   "food": [
+    "bear_claw_pie",
+    "cooked_frostfin",
+    "goldenroot_roast"
+   ],
+   "tool": [
+    "dawn_axe",
+    "dawn_pickaxe"
+   ],
+   "material": [
+    "dawn_bar"
+   ],
+   "jewelry": [
+    "dawn_earrings",
+    "dawn_necklace",
+    "dawn_ring"
+   ],
+   "ammo": [
+    "dawn_whetstone"
+   ],
+   "armor": [
+    "duskweave_cloak"
+   ]
+  },
+  "7": {
+   "jewelry": [
+    "cobalt_earrings",
+    "cobalt_necklace",
+    "cobalt_ring"
+   ],
+   "drink": [
+    "emberfruit_cordial"
+   ],
+   "ammo": [
+    "emberhead_arrows"
+   ],
+   "material": [
+    "runewood_plank"
+   ],
+   "armor": [
+    "samite_cloak"
+   ],
+   "food": [
+    "shark"
+   ]
+  },
+  "8": {
+   "armor": [
+    "cerecloth_cloak"
+   ],
+   "food": [
+    "cooked_moonfish",
+    "moonfish"
+   ],
+   "material": [
+    "duskwood_plank"
+   ],
+   "jewelry": [
+    "wolfram_earrings",
+    "wolfram_necklace",
+    "wolfram_ring"
+   ]
+  },
+  "9": {
+   "ammo": [
+    "dawnpoint_arrows"
+   ],
+   "food": [
+    "moonbloom_elixir",
+    "void_banquet"
+   ]
+  }
+ },
+ "orphans": [
+  {
+   "id": "archmage_cloak",
+   "name": "Archmage Cloak",
+   "kind": "armor",
+   "band": 5,
+   "by": "item Level 100",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "baked_potato",
+   "name": "Baked Potato",
+   "kind": "food",
+   "band": 2,
+   "by": "bench Level 25",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "banded_signet_follow",
+   "name": "Banded Signet (Follow-through)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "banded_signet_keen",
+   "name": "Banded Signet (Keen)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "banded_signet_keen_follow",
+   "name": "Hallmarked Banded Signet (Keen, Follow-through)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "banded_signet_keen_surge",
+   "name": "Hallmarked Banded Signet (Keen, Surge)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "banded_signet_surge",
+   "name": "Banded Signet (Surge)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "banded_signet_surge_follow",
+   "name": "Hallmarked Banded Signet (Surge, Follow-through)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "barbed_arrows",
+   "name": "Barbed Arrows",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 18",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "bear_claw_pie",
+   "name": "Bear Claw Pie",
+   "kind": "food",
+   "band": 6,
+   "by": "bench Level 70",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "carrot_juice",
+   "name": "Carrot Juice",
+   "kind": "drink",
+   "band": 1,
+   "by": "bench Level 12",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "carrot_stew",
+   "name": "Carrot Stew",
+   "kind": "food",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "carved_earth_rune",
+   "name": "Carved Earth Rune",
+   "kind": "ammo",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "carved_fire_rune",
+   "name": "Carved Fire Rune",
+   "kind": "ammo",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "carved_ice_rune",
+   "name": "Carved Ice Rune",
+   "kind": "ammo",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "carved_poison_rune",
+   "name": "Carved Poison Rune",
+   "kind": "ammo",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "carved_rupture_rune",
+   "name": "Carved Rupture Rune",
+   "kind": "ammo",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "carved_water_rune",
+   "name": "Carved Water Rune",
+   "kind": "ammo",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "cerecloth_cloak",
+   "name": "Cerecloth Cloak",
+   "kind": "armor",
+   "band": 8,
+   "by": "item Level 160",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "chalked_earth_rune",
+   "name": "Chalked Earth Rune",
+   "kind": "ammo",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "chalked_ice_rune",
+   "name": "Chalked Ice Rune",
+   "kind": "ammo",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "chalked_poison_rune",
+   "name": "Chalked Poison Rune",
+   "kind": "ammo",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "chalked_rupture_rune",
+   "name": "Chalked Rupture Rune",
+   "kind": "ammo",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "chalked_water_rune",
+   "name": "Chalked Water Rune",
+   "kind": "ammo",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "cobalt_earrings",
+   "name": "Cobalt Earrings",
+   "kind": "jewelry",
+   "band": 7,
+   "by": "item Level 140",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "cobalt_necklace",
+   "name": "Cobalt Necklace",
+   "kind": "jewelry",
+   "band": 7,
+   "by": "item Level 140",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "cobalt_ring",
+   "name": "Cobalt Ring",
+   "kind": "jewelry",
+   "band": 7,
+   "by": "item Level 140",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "cooked_bear_meat",
+   "name": "Cooked Bear Meat",
+   "kind": "food",
+   "band": 3,
+   "by": "bench Level 40",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_copper_crab",
+   "name": "Steamed Copper Crab",
+   "kind": "food",
+   "band": 0,
+   "by": "metal copper",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_frostfin",
+   "name": "Frostfin Supper",
+   "kind": "food",
+   "band": 6,
+   "by": "bench Level 70",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_goldgill",
+   "name": "Goldgill Steak",
+   "kind": "food",
+   "band": 2,
+   "by": "bench Level 27",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_herring",
+   "name": "Cooked Herring",
+   "kind": "food",
+   "band": 0,
+   "by": "bench Level 8",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_lobster",
+   "name": "Cooked Lobster",
+   "kind": "food",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_moonfish",
+   "name": "Moonfish Fillet",
+   "kind": "food",
+   "band": 8,
+   "by": "bench Level 88",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_panther_meat",
+   "name": "Cooked Panther Meat",
+   "kind": "food",
+   "band": 2,
+   "by": "bench Level 25",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_pikeperch",
+   "name": "Grilled Pikeperch",
+   "kind": "food",
+   "band": 1,
+   "by": "bench Level 18",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_shark",
+   "name": "Cooked Shark",
+   "kind": "food",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_silverfin",
+   "name": "Silverfin Fillet",
+   "kind": "food",
+   "band": 2,
+   "by": "bench Level 24",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_swordfish",
+   "name": "Swordfish Steak",
+   "kind": "food",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_trout",
+   "name": "Cooked Trout",
+   "kind": "food",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "cooked_wolf_meat",
+   "name": "Cooked Wolf Meat",
+   "kind": "food",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "copper_bar",
+   "name": "Copper Bar",
+   "kind": "material",
+   "band": 0,
+   "by": "metal copper",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "copper_crab",
+   "name": "Copper Crab",
+   "kind": "food",
+   "band": 0,
+   "by": "metal copper",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "copper_whetstone",
+   "name": "Copper Whetstone",
+   "kind": "ammo",
+   "band": 0,
+   "by": "metal copper",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_axe",
+   "name": "Dawnsteel Axe",
+   "kind": "tool",
+   "band": 6,
+   "by": "metal dawn",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_bar",
+   "name": "Dawnsteel Bar",
+   "kind": "material",
+   "band": 6,
+   "by": "metal dawn",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_earrings",
+   "name": "Dawnsteel Earrings",
+   "kind": "jewelry",
+   "band": 6,
+   "by": "item Level 120",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_necklace",
+   "name": "Dawnsteel Necklace",
+   "kind": "jewelry",
+   "band": 6,
+   "by": "item Level 120",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_pickaxe",
+   "name": "Dawnsteel Pickaxe",
+   "kind": "tool",
+   "band": 6,
+   "by": "metal dawn",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_ring",
+   "name": "Dawnsteel Ring",
+   "kind": "jewelry",
+   "band": 6,
+   "by": "item Level 120",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawn_whetstone",
+   "name": "Dawnsteel Whetstone",
+   "kind": "ammo",
+   "band": 6,
+   "by": "metal dawn",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "dawnpoint_arrows",
+   "name": "Dawnpoint Arrows",
+   "kind": "ammo",
+   "band": 9,
+   "by": "bench Level 91",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "duskweave_cloak",
+   "name": "Duskweave Cloak",
+   "kind": "armor",
+   "band": 6,
+   "by": "item Level 120",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "duskwood_plank",
+   "name": "Duskwood Plank",
+   "kind": "material",
+   "band": 8,
+   "by": "bench Level 88",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "ember_axe",
+   "name": "Emberforged Axe",
+   "kind": "tool",
+   "band": 5,
+   "by": "metal ember",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "ember_earrings",
+   "name": "Emberforged Earrings",
+   "kind": "jewelry",
+   "band": 5,
+   "by": "item Level 100",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "ember_necklace",
+   "name": "Emberforged Necklace",
+   "kind": "jewelry",
+   "band": 5,
+   "by": "item Level 100",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "ember_pickaxe",
+   "name": "Emberforged Pickaxe",
+   "kind": "tool",
+   "band": 5,
+   "by": "metal ember",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "ember_ring",
+   "name": "Emberforged Ring",
+   "kind": "jewelry",
+   "band": 5,
+   "by": "item Level 100",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "ember_tart",
+   "name": "Ember Tart",
+   "kind": "food",
+   "band": 5,
+   "by": "metal ember",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "emberfruit_cordial",
+   "name": "Emberfruit Cordial",
+   "kind": "drink",
+   "band": 7,
+   "by": "bench Level 72",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "emberhead_arrows",
+   "name": "Emberhead Arrows",
+   "kind": "ammo",
+   "band": 7,
+   "by": "bench Level 78",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "etched_earth_rune",
+   "name": "Etched Earth Rune",
+   "kind": "ammo",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "etched_fire_rune",
+   "name": "Etched Fire Rune",
+   "kind": "ammo",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "etched_ice_rune",
+   "name": "Etched Ice Rune",
+   "kind": "ammo",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "etched_poison_rune",
+   "name": "Etched Poison Rune",
+   "kind": "ammo",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "etched_rupture_rune",
+   "name": "Etched Rupture Rune",
+   "kind": "ammo",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "etched_water_rune",
+   "name": "Etched Water Rune",
+   "kind": "ammo",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "fang_studs_focus",
+   "name": "Fang Studs (Focus)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "fang_studs_steady",
+   "name": "Fang Studs (Steady)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "fang_studs_steady_focus",
+   "name": "Hallmarked Fang Studs (Steady, Focus)",
+   "kind": "jewelry",
+   "band": 1,
+   "by": "item Level 20",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "field_ration",
+   "name": "Field Ration",
+   "kind": "material",
+   "band": 2,
+   "by": "bench Level 22",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "fishers_pie",
+   "name": "Fisher's Pie",
+   "kind": "food",
+   "band": 5,
+   "by": "bench Level 56",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "flux_salt",
+   "name": "Fluxsalt",
+   "kind": "material",
+   "band": 3,
+   "by": "bench Level 40",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "goldenroot_roast",
+   "name": "Goldenroot Roast",
+   "kind": "food",
+   "band": 6,
+   "by": "bench Level 65",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "goldenroot_tea",
+   "name": "Goldenroot Tea",
+   "kind": "drink",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "goldgill",
+   "name": "Raw Goldgill",
+   "kind": "food",
+   "band": 3,
+   "by": "bench Level 36",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "graven_earth_rune",
+   "name": "Graven Earth Rune",
+   "kind": "ammo",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "graven_fire_rune",
+   "name": "Graven Fire Rune",
+   "kind": "ammo",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "graven_ice_rune",
+   "name": "Graven Ice Rune",
+   "kind": "ammo",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "graven_poison_rune",
+   "name": "Graven Poison Rune",
+   "kind": "ammo",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "graven_rupture_rune",
+   "name": "Graven Rupture Rune",
+   "kind": "ammo",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "graven_water_rune",
+   "name": "Graven Water Rune",
+   "kind": "ammo",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "graypelt_cloak",
+   "name": "Graypelt Cloak",
+   "kind": "armor",
+   "band": 0,
+   "by": "item Level 0",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "heartgarnet",
+   "name": "Heartgarnet",
+   "kind": "material",
+   "band": 5,
+   "by": "bench Level 56",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "iron_arrows",
+   "name": "Iron Arrows",
+   "kind": "ammo",
+   "band": 1,
+   "by": "metal iron",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "iron_axe",
+   "name": "Iron Axe",
+   "kind": "tool",
+   "band": 1,
+   "by": "metal iron",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "iron_bolts",
+   "name": "Iron Bolts",
+   "kind": "ammo",
+   "band": 1,
+   "by": "metal iron",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "iron_pickaxe",
+   "name": "Iron Pickaxe",
+   "kind": "tool",
+   "band": 1,
+   "by": "metal iron",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "iron_whetstone",
+   "name": "Iron Whetstone",
+   "kind": "ammo",
+   "band": 1,
+   "by": "metal iron",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "klappas_club",
+   "name": "Klappa's Klub",
+   "kind": "weapon",
+   "band": 0,
+   "by": "item Level 5",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "maple_plank",
+   "name": "Maple Plank",
+   "kind": "material",
+   "band": 3,
+   "by": "metal maple",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "mithril_arrows",
+   "name": "Mithril Arrows",
+   "kind": "ammo",
+   "band": 3,
+   "by": "metal mithril",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "mithril_axe",
+   "name": "Mithril Axe",
+   "kind": "tool",
+   "band": 3,
+   "by": "metal mithril",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "mithril_pickaxe",
+   "name": "Mithril Pickaxe",
+   "kind": "tool",
+   "band": 3,
+   "by": "metal mithril",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "mithril_whetstone",
+   "name": "Mithril Whetstone",
+   "kind": "ammo",
+   "band": 3,
+   "by": "metal mithril",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "moonbloom_elixir",
+   "name": "Moonbloom Elixir",
+   "kind": "food",
+   "band": 9,
+   "by": "bench Level 92",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "moonfish",
+   "name": "Raw Moonfish",
+   "kind": "food",
+   "band": 8,
+   "by": "bench Level 90",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "oak_plank",
+   "name": "Oak Plank",
+   "kind": "material",
+   "band": 1,
+   "by": "metal oak",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "pikeperch",
+   "name": "Raw Pikeperch",
+   "kind": "food",
+   "band": 2,
+   "by": "bench Level 24",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "pumpkin_cider",
+   "name": "Pumpkin Cider",
+   "kind": "drink",
+   "band": 4,
+   "by": "bench Level 45",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "pumpkin_pie",
+   "name": "Pumpkin Pie",
+   "kind": "food",
+   "band": 5,
+   "by": "bench Level 60",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "river_chowder",
+   "name": "River Chowder",
+   "kind": "food",
+   "band": 5,
+   "by": "bench Level 52",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "roasted_carrot",
+   "name": "Roasted Carrot",
+   "kind": "food",
+   "band": 0,
+   "by": "bench Level 5",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "roasted_pumpkin",
+   "name": "Roasted Pumpkin",
+   "kind": "food",
+   "band": 3,
+   "by": "bench Level 40",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "rune_arrows",
+   "name": "Rune Arrows",
+   "kind": "ammo",
+   "band": 4,
+   "by": "metal rune",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "rune_axe",
+   "name": "Rune Axe",
+   "kind": "tool",
+   "band": 4,
+   "by": "metal rune",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "rune_pickaxe",
+   "name": "Rune Pickaxe",
+   "kind": "tool",
+   "band": 4,
+   "by": "metal rune",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "rune_whetstone",
+   "name": "Rune Whetstone",
+   "kind": "ammo",
+   "band": 4,
+   "by": "metal rune",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "runewood_plank",
+   "name": "Runewood Plank",
+   "kind": "material",
+   "band": 7,
+   "by": "bench Level 75",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "samite_cloak",
+   "name": "Samite Cloak",
+   "kind": "armor",
+   "band": 7,
+   "by": "item Level 140",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "scored_earth_rune",
+   "name": "Scored Earth Rune",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "scored_fire_rune",
+   "name": "Scored Fire Rune",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "scored_ice_rune",
+   "name": "Scored Ice Rune",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "scored_poison_rune",
+   "name": "Scored Poison Rune",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "scored_rupture_rune",
+   "name": "Scored Rupture Rune",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "scored_water_rune",
+   "name": "Scored Water Rune",
+   "kind": "ammo",
+   "band": 1,
+   "by": "bench Level 15",
+   "doors": [
+    "made by runecrafting"
+   ]
+  },
+  {
+   "id": "seam_jasper_band_follow",
+   "name": "Seam Jasper Band (Follow-through)",
+   "kind": "jewelry",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "seam_jasper_band_keen",
+   "name": "Seam Jasper Band (Keen)",
+   "kind": "jewelry",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "seam_jasper_band_keen_follow",
+   "name": "Hallmarked Seam Jasper Band (Keen, Follow-through)",
+   "kind": "jewelry",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "seam_jasper_band_keen_surge",
+   "name": "Hallmarked Seam Jasper Band (Keen, Surge)",
+   "kind": "jewelry",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "seam_jasper_band_surge",
+   "name": "Seam Jasper Band (Surge)",
+   "kind": "jewelry",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "seam_jasper_band_surge_follow",
+   "name": "Hallmarked Seam Jasper Band (Surge, Follow-through)",
+   "kind": "jewelry",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "shark",
+   "name": "Raw Shark",
+   "kind": "food",
+   "band": 7,
+   "by": "bench Level 76",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "silverfin",
+   "name": "Raw Silverfin",
+   "kind": "food",
+   "band": 3,
+   "by": "bench Level 32",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "steel_arrows",
+   "name": "Steel Arrows",
+   "kind": "ammo",
+   "band": 2,
+   "by": "metal steel",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "steel_axe",
+   "name": "Steel Axe",
+   "kind": "tool",
+   "band": 2,
+   "by": "metal steel",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "steel_pickaxe",
+   "name": "Steel Pickaxe",
+   "kind": "tool",
+   "band": 2,
+   "by": "metal steel",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "steel_whetstone",
+   "name": "Steel Whetstone",
+   "kind": "ammo",
+   "band": 2,
+   "by": "metal steel",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "steelgrate",
+   "name": "Steelgrate",
+   "kind": "armor",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "swordfish",
+   "name": "Raw Swordfish",
+   "kind": "food",
+   "band": 5,
+   "by": "bench Level 55",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "tomato_juice",
+   "name": "Tomato Juice",
+   "kind": "drink",
+   "band": 2,
+   "by": "bench Level 30",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "tomato_soup",
+   "name": "Tomato Soup",
+   "kind": "food",
+   "band": 3,
+   "by": "bench Level 35",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "turnip_mash",
+   "name": "Turnip Mash",
+   "kind": "food",
+   "band": 0,
+   "by": "bench Level 1",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "vegetable_stew",
+   "name": "Vegetable Stew",
+   "kind": "food",
+   "band": 4,
+   "by": "bench Level 50",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "verdite_bar",
+   "name": "Verdite Bar",
+   "kind": "material",
+   "band": 4,
+   "by": "bench Level 42",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "verdite_ore",
+   "name": "Verdite Ore",
+   "kind": "material",
+   "band": 3,
+   "by": "bench Level 36",
+   "doors": [
+    "gathered"
+   ]
+  },
+  {
+   "id": "void_banquet",
+   "name": "Void Banquet",
+   "kind": "food",
+   "band": 9,
+   "by": "bench Level 99",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "warband_bulwark",
+   "name": "Warband Bulwark",
+   "kind": "armor",
+   "band": 2,
+   "by": "item Level 40",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "wheat_bread",
+   "name": "Wheat Bread",
+   "kind": "food",
+   "band": 1,
+   "by": "bench Level 20",
+   "doors": [
+    "made by cooking"
+   ]
+  },
+  {
+   "id": "willow_plank",
+   "name": "Willow Plank",
+   "kind": "material",
+   "band": 2,
+   "by": "metal willow",
+   "doors": [
+    "made by crafting"
+   ]
+  },
+  {
+   "id": "wolfram_earrings",
+   "name": "Wolfram Earrings",
+   "kind": "jewelry",
+   "band": 8,
+   "by": "item Level 160",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "wolfram_necklace",
+   "name": "Wolfram Necklace",
+   "kind": "jewelry",
+   "band": 8,
+   "by": "item Level 160",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "wolfram_ring",
+   "name": "Wolfram Ring",
+   "kind": "jewelry",
+   "band": 8,
+   "by": "item Level 160",
+   "doors": [
+    "made by smithing"
+   ]
+  },
+  {
+   "id": "yew_plank",
+   "name": "Yew Plank",
+   "kind": "material",
+   "band": 4,
+   "by": "metal yew",
+   "doors": [
+    "made by crafting"
+   ]
+  }
+ ]
+}

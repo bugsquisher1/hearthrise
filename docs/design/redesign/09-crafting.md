@@ -793,6 +793,44 @@ The walk found the gap in row 1b: with the sample alone, steps 4, 6 and 8 have i
 
 The four land as one merge on the set, after the designer's item batches, in the release that ships `trade_jobs`.
 
+**The 145 the cut would orphan, by band and kind** (game designer, lane/designer-kit-band1, 2026-11-27). Counted from the data by `node tools/balance-program/redesign/trades/cut-orphans.mjs` (its `--check` holds `cut-orphans.json`), on set/v0.2.144 before band 1 landed. An item is orphaned when every door it has is the bench (every skill but the hearth's fuel runs, which make no item) or a gathering node, and no job makes it. The farm, drops, the store, the kit and the chests stay doors. Its band is its item Level over 20, else the metal or wood in its name (bronze and copper 0, iron and oak 1, steel and willow 2, mithril and maple 3, rune and yew 4, ember 5, dawn 6, cobalt 7, wolfram 8), else its bench or node Level read on the job ladder (band = (Level - 1) / 10, rounded down). Kind: ammo (arrows, bolts, whetstones, runes), food, drink (mana), jewelry, tool, armor (cloaks and a shield), weapon, material.
+
+| Band | Ammo | Food | Drink | Jewelry | Tool | Armor | Weapon | Material | All |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 6 | 6 | 0 | 0 | 0 | 1 | 1 | 1 | 15 |
+| 1 | 10 | 3 | 1 | 9 | 2 | 0 | 0 | 1 | 26 |
+| 2 | 8 | 6 | 1 | 6 | 2 | 2 | 0 | 2 | 27 |
+| 3 | 2 | 5 | 0 | 0 | 2 | 0 | 0 | 3 | 12 |
+| 4 | 8 | 3 | 1 | 0 | 2 | 0 | 0 | 2 | 16 |
+| 5 | 6 | 6 | 1 | 3 | 2 | 1 | 0 | 1 | 20 |
+| 6 | 1 | 3 | 0 | 3 | 2 | 1 | 0 | 1 | 11 |
+| 7 | 1 | 1 | 1 | 3 | 0 | 1 | 0 | 1 | 8 |
+| 8 | 0 | 2 | 0 | 3 | 0 | 1 | 0 | 1 | 7 |
+| 9 | 1 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
+| All | 43 | 37 | 5 | 27 | 12 | 7 | 1 | 13 | 145 |
+
+| Band | The items |
+|---|---|
+| 0 | Ammo: `chalked_earth_rune`, `chalked_ice_rune`, `chalked_poison_rune`, `chalked_rupture_rune`, `chalked_water_rune`, `copper_whetstone`. Food: `cooked_copper_crab`, `cooked_herring`, `cooked_wolf_meat`, `copper_crab`, `roasted_carrot`, `turnip_mash`. Armor: `graypelt_cloak`. Weapon: `klappas_club`. Material: `copper_bar` |
+| 1 | Ammo: `barbed_arrows`, `iron_arrows`, `iron_bolts`, `iron_whetstone`, `scored_earth_rune`, `scored_fire_rune`, `scored_ice_rune`, `scored_poison_rune`, `scored_rupture_rune`, `scored_water_rune`. Food: `cooked_pikeperch`, `cooked_trout`, `wheat_bread`. Drink: `carrot_juice`. Jewelry: `banded_signet_follow`, `banded_signet_keen`, `banded_signet_keen_follow`, `banded_signet_keen_surge`, `banded_signet_surge`, `banded_signet_surge_follow`, `fang_studs_focus`, `fang_studs_steady`, `fang_studs_steady_focus`. Tool: `iron_axe`, `iron_pickaxe`. Material: `oak_plank` |
+| 2 | Ammo: `etched_earth_rune`, `etched_fire_rune`, `etched_ice_rune`, `etched_poison_rune`, `etched_rupture_rune`, `etched_water_rune`, `steel_arrows`, `steel_whetstone`. Food: `baked_potato`, `cooked_goldgill`, `cooked_lobster`, `cooked_panther_meat`, `cooked_silverfin`, `pikeperch`. Drink: `tomato_juice`. Jewelry: the six `seam_jasper_band_*`. Tool: `steel_axe`, `steel_pickaxe`. Armor: `steelgrate`, `warband_bulwark`. Material: `field_ration`, `willow_plank` |
+| 3 | Ammo: `mithril_arrows`, `mithril_whetstone`. Food: `cooked_bear_meat`, `goldgill`, `roasted_pumpkin`, `silverfin`, `tomato_soup`. Tool: `mithril_axe`, `mithril_pickaxe`. Material: `flux_salt`, `maple_plank`, `verdite_ore` |
+| 4 | Ammo: the six `carved_*_rune`, `rune_arrows`, `rune_whetstone`. Food: `carrot_stew`, `cooked_swordfish`, `vegetable_stew`. Drink: `pumpkin_cider`. Tool: `rune_axe`, `rune_pickaxe`. Material: `verdite_bar`, `yew_plank` |
+| 5 | Ammo: the six `graven_*_rune`. Food: `cooked_shark`, `ember_tart`, `fishers_pie`, `pumpkin_pie`, `river_chowder`, `swordfish`. Drink: `goldenroot_tea`. Jewelry: `ember_earrings`, `ember_necklace`, `ember_ring`. Tool: `ember_axe`, `ember_pickaxe`. Armor: `archmage_cloak`. Material: `heartgarnet` |
+| 6 | Ammo: `dawn_whetstone`. Food: `bear_claw_pie`, `cooked_frostfin`, `goldenroot_roast`. Jewelry: `dawn_earrings`, `dawn_necklace`, `dawn_ring`. Tool: `dawn_axe`, `dawn_pickaxe`. Armor: `duskweave_cloak`. Material: `dawn_bar` |
+| 7 | Ammo: `emberhead_arrows`. Food: `shark`. Drink: `emberfruit_cordial`. Jewelry: `cobalt_earrings`, `cobalt_necklace`, `cobalt_ring`. Armor: `samite_cloak`. Material: `runewood_plank` |
+| 8 | Food: `cooked_moonfish`, `moonfish`. Jewelry: `wolfram_earrings`, `wolfram_necklace`, `wolfram_ring`. Armor: `cerecloth_cloak`. Material: `duskwood_plank` |
+| 9 | Ammo: `dawnpoint_arrows`. Food: `moonbloom_elixir`, `void_banquet` |
+
+**What each becomes (the designer's rule for the batches to come).**
+
+- **A band's kit face, in its band's batch:** the band's arrow, bolt, honing stone, rune tier (all six families), one meal, one drink, its plank and its bar. Band 1's are built (4.13). `dawn_bar` is band 6's bar and lands with band 6 (or as a one-row batch before the cut, since the Dawnsteel Temper kit spends it).
+- **A second good of one kind at one band is cut with the bench** (4.9 rule 1: a recipe is one kind at one band, so two meals a band are the same hour of food twice): the extra foods and drinks at each band once its batch has picked its one meal and one drink, the raw fish no batch picks and no monster drops, `barbed_arrows`, `copper_whetstone`, `copper_bar`, and the Deep Seam bridge (`verdite_ore`, `verdite_bar`, `flux_salt`: one bar a band). Named arrows past a band's metal (`emberhead_arrows`, `dawnpoint_arrows`) are cut too: a band's arrow is its metal's.
+- **Jewelry (27), the cloaks and `heartgarnet` are Artificing's Trait crafts** (section 2: crafted jewelry and cloaks roll Traits from the part used). They need kinds `KINDS` does not have yet, so they are their own batch, designed with the Trait crafts and landed before the cut.
+- **The gathering tools (12) are cut with the bench.** They speed the gathering nodes the cut removes. The `tool_*` kinds bring tools back as job tools when they ship (20 section 1.4).
+- **The named-piece reforges** (`klappas_club`, `steelgrate`) are gear, and gear drops (section 2): each becomes a drop of its named source in `28-named-pieces.md` or is cut.
+- **Uses that outlive their source** are re-pointed by the cut's data lane to the band's face: the room and property costs on `cooked_trout`, `cooked_lobster`, `cooked_shark`, `wheat_bread`, `field_ration`, `goldenroot_roast`, `moonbloom_elixir` and the oak, willow, maple, runewood and duskwood planks, and the Hallmark and reforge offers on the crafted jewelry.
+
 ### 4.13 The cut's four calls, ruled, and band 1 (2026-11-27, game designer, lane/designer-kit-band1)
 
 **How it plays:** a job you start and never finish costs you nothing for the sets it never got to, whatever ended it. Farming has a job like every other gathering trade, and the plots keep growing on their own beside it. The Great Hearth is fed from the Hearth panel and by your stoke rule while you hunt, never by a hero standing at it. Each new metal arrives as one batch of jobs.

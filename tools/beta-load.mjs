@@ -647,6 +647,7 @@ async function main() {
   const lagSeries = [];
   /* every open hunt's own lag at every sample (the load test's percentiles are over these, not over each sample's max) */
   const lagReadings = [];
+  const waits = new Map(); let waitSamples = 0;
   const sampleLag = async () => {
     const [r] = await admin.unsafe(`select count(*)::int n, coalesce(max(extract(epoch from now() - i.settled_to)), 0)::float8 mx,
         coalesce(percentile_cont(0.95) within group (order by extract(epoch from now() - i.settled_to)), 0)::float8 p95,
@@ -656,6 +657,14 @@ async function main() {
     const { lags, ...row } = r;
     lagSeries.push({ t: Date.now(), ...row });
     if (Array.isArray(lags)) for (const l of lags) lagReadings.push(Number(l));
+    /* WHAT THE BUSY BACKENDS WAIT ON, at the same instant (pg_stat_activity): CPU (no wait), a lock and on what, an LWLock or I/O.
+       A settle's mean time well over the server's CPU share is time spent here; a hot row reads as Lock:transactionid or Lock:tuple. */
+    const w = await admin.unsafe(`select coalesce(a.wait_event_type, 'CPU') || ':' || coalesce(a.wait_event, '-') k, count(*)::int n,
+        coalesce(string_agg(distinct l.relation::regclass::text, ' '), '') rel
+      from pg_stat_activity a left join pg_locks l on l.pid = a.pid and not l.granted and l.relation is not null
+      where a.datname = current_database() and a.state = 'active' and a.pid <> pg_backend_pid() group by 1`).catch(() => []);
+    for (const x of w) { const e = waits.get(x.k) || { n: 0, rel: new Set() }; e.n += Number(x.n); for (const t of String(x.rel).split(' ').filter(Boolean)) e.rel.add(t); waits.set(x.k, e); }
+    waitSamples += 1;
   };
 
   const pmPid = DATA ? Number(readFileSync(join(DATA, 'postmaster.pid'), 'utf8').split('\n')[0]) : 0;
@@ -684,7 +693,7 @@ async function main() {
   /* THE MEASURED WINDOW. */
   say({ t: 'reset' });
   await admin.unsafe('select extensions.pg_stat_statements_reset()').catch(() => admin.unsafe('select pg_stat_statements_reset()'));
-  fires = 0; bodiesPosted = 0; fireWalls.length = 0; bodiesPerFire.length = 0; lagSeries.length = 0; lagReadings.length = 0;
+  fires = 0; bodiesPosted = 0; fireWalls.length = 0; bodiesPerFire.length = 0; lagSeries.length = 0; lagReadings.length = 0; waits.clear(); waitSamples = 0;
   const cpu0 = pmPid ? await cpuOf(pmPid) : NaN;
   const [s0] = await admin.unsafe(statSql); const [w0] = await admin.unsafe(walSql);
   const tables0 = new Map((await admin.unsafe(tableSql)).map((r) => [r.relname, Number(r.b)]));
@@ -791,6 +800,9 @@ async function main() {
     edge_invocations_per_min: perMin((merged.get('hello')?.n || 0) + (merged.get('hello_early')?.n || 0) + (merged.get('market')?.n || 0) + bodiesPosted),
     lag: { max_s: lagMax, p95_of_p95_s: pct(lagSeries.map((r) => r.p95), 0.95), stalled_samples: lagSeries.filter((r) => r.stalled > 0).length, samples: lagSeries.length, last: lagSeries[lagSeries.length - 1],
       readings: { n: lagReadings.length, p50: r1(pct(lagReadings, 0.5)), p95: r1(pct(lagReadings, 0.95)), p99: r1(pct(lagReadings, 0.99)), max: r1(pct(lagReadings, 1)) } },
+    waits: { samples: waitSamples, active_mean: r2([...waits.values()].reduce((n, e) => n + e.n, 0) / Math.max(1, waitSamples)),
+      top: [...waits.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 10).map(([k, e]) => ({ k, per_sample: r2(e.n / Math.max(1, waitSamples)), on: [...e.rel].slice(0, 4) })) },
+    fires_at_cap: report.dials && Number(report.dials.hunt_bodies_max) > 0 ? bodiesPerFire.filter((b) => b >= Number(report.dials.hunt_bodies_max)).length : null,
     rows, crons: Object.fromEntries(Object.entries(cronWalls).map(([k, v]) => [k, typeof v[0] === 'string' ? v[0] : { n: v.length, mean: Math.round(v.reduce((a, b) => a + b, 0) / v.length), max: Math.round(Math.max(...v)) }])),
     tables_grew: tables1.slice(0, 12),
     top_statements: pss.map((r) => ({ role: r.rolname, calls: Number(r.calls), ms: Math.round(r.ms), mean: Math.round(r.mean * 10) / 10, max: Math.round(r.mx), wal_kb: Math.round(Number(r.wal) / 1024), q: r.q.slice(0, 160) })),
@@ -858,6 +870,7 @@ async function main() {
     log(`  a paid hero-hour (${c.paid_hero_hours} paid, ${Math.round(c.paid_share * 100)}% of the wall's): ${c.per.ledger_rows_a_hero_hour} journal rows, ${c.per.statements_a_hero_hour} statements, ${c.per.row_writes_a_hero_hour} row writes against the fixtures' blend ${JSON.stringify(c.expected)} (band +${c.band * 100}%)`);
     if (c.per_save) log(`  a save (${c.saves}): ${c.per_save.statements} statements, ${c.per_save.row_writes} row writes, ${c.per_save.ledger_rows} journal rows; engine max ${m.rows.tick_body?.engineRunMax ?? '-'} ms a run, a body p50 ${m.rows.tick_body?.bodyEngineMs?.p50 ?? '-'} / p95 ${m.rows.tick_body?.bodyEngineMs?.p95 ?? '-'} / max ${m.rows.tick_body?.bodyEngineMs?.max ?? '-'} ms (budget ${c.engine_budget_ms}), deferred ${m.rows.tick_body?.deferred || 0}, bodies ${m.bodies_posted} (${m.bodies_per_fire_p95} a fire p95), fire p50 ${m.fire_ms_p50} ms`);
     log(`  the switches wrote ${JSON.stringify(L.drops)}; refusals ${JSON.stringify(L.refusals)}`);
+    log(`  fan-out: ${m.fires_at_cap} of ${m.fires} fires at the ${report.dials.hunt_bodies_max}-body cap; busy backends ${m.waits.active_mean} a sample, waiting on ${m.waits.top.map((x) => `${x.k} ${x.per_sample}${x.on.length ? ' (' + x.on.join(' ') + ')' : ''}`).join(', ')}`);
     log(`  bench: ${b.busy_cores ?? '-'} of ${b.cores} cores busy, postgres ${b.postgres_cores ?? '-'}, worker loops ${b.worker_elu.join(' / ')}${b.saturated ? ' SATURATED' : ''}`);
     for (const r of ltRed) log('  RED ' + r);
     for (const r of c.low || []) log('  LOW cost ' + r + ' (not red: read the lag above)');
@@ -872,6 +885,7 @@ async function main() {
         row(`Past the ${g.flush_s} s flush (s)`, `p50 ${g.past_due.p50} · p95 ${g.past_due.p95} · p99 ${g.past_due.p99} · max ${g.past_due.max} (budget ${g.budget_s})`),
         row('A paid hero-hour', `(${Math.round(c.paid_share * 100)}% of the wall paid) ${c.per.ledger_rows_a_hero_hour} journal rows · ${c.per.statements_a_hero_hour} statements · ${c.per.row_writes_a_hero_hour} row writes; blend ${JSON.stringify(c.expected)} +${c.band * 100}%`),
         row('A save', c.per_save ? `${c.per_save.statements} statements · ${c.per_save.row_writes} row writes · ${c.per_save.ledger_rows} journal rows (${c.saves} saves)` : '-'),
+        row('Fan-out and waits', `${m.fires_at_cap} of ${m.fires} fires at the ${report.dials.hunt_bodies_max}-body cap · busy backends ${m.waits.active_mean} a sample: ${m.waits.top.slice(0, 5).map((x) => x.k + ' ' + x.per_sample).join(', ')}`),
         row('Bench', `${b.busy_cores ?? '-'} of ${b.cores} cores busy · postgres ${b.postgres_cores ?? '-'} · worker loops ${b.worker_elu.join(' / ')}${b.saturated ? ' · SATURATED' : ''}`),
         row('Audit', `${audit.sessions} sessions, ${audit.windows} windows, ${audit.red.length} red`),
         ...ltRed.map((r) => row('RED', r)), ''].join('\n'));

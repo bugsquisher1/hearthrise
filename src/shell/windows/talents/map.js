@@ -92,7 +92,7 @@ export function mapOf(stage) {
   const L = roadsLayout();
   const svg = stage.querySelector('svg.rdm');
   M = { stage, svg, L, world: svg.querySelector('.rdm-world'), heart: svg.querySelector('.rdm-heart'), s: null, key: 0, labelKey: null, states: null, routeKey: null, pick: null,
-    nodes: {}, edges: [], regions: {}, posts: {}, labels: {}, rows: labelRows(L), widths: {}, spoke: signposts(L),
+    nodes: {}, edges: [], regions: {}, posts: {}, labels: {}, got: {}, boxes: [], marksGot: {}, marksKey: null, rows: labelRows(L), widths: {}, spoke: signposts(L),
     sel: svg.querySelector('.rdm-sel'), badge: svg.querySelector('.rdm-badge') };
   for (const g of svg.querySelectorAll('[data-rd-node]')) M.nodes[g.getAttribute('data-rd-node')] = g;
   for (const e of svg.querySelectorAll('[data-rd-edge]')) M.edges[Number(e.getAttribute('data-rd-edge'))] = e;
@@ -103,14 +103,22 @@ export function mapOf(stage) {
   return M;
 }
 
-/* a label's width in px, measured once (its size never changes with the zoom) */
+/* a label's width in px, measured once (its size never changes with the zoom; a country's once for each of its two looks) */
 function widthOf(M, id) {
-  if (M.widths[id] !== undefined) return M.widths[id];
   const el = M.labels[id];
+  /* a country's name changes size with the tier and carries its count in Country view: measured each time there, once as Road view's
+     watermark (measured on every pan otherwise) */
+  const big = id.startsWith('c:') && !(el && el.classList.contains('is-mark'));
+  const key = id.startsWith('c:') && !big ? id + '|mark' : id;
+  if (!big && M.widths[key] !== undefined) return M.widths[key];
   let w = 0;
+  /* a label the last pass hid measures 0: shown for the one read */
+  const was = !!el && el.hasAttribute('hidden');
+  if (was) el.removeAttribute('hidden');
   try { w = el && typeof el.getComputedTextLength === 'function' ? el.getComputedTextLength() : 0; } catch (e) { w = 0; }
+  if (was) el.setAttribute('hidden', '');
   if (!w) w = ((el && el.textContent) || '').length * 7.6;
-  else if (!id.startsWith('c:')) M.widths[id] = w;   // a country's name changes size with the tier: measured each time
+  else if (!big) M.widths[key] = w;
   return w;
 }
 
@@ -201,16 +209,58 @@ export function paintMap(M, v) {
     const tx = M.badge.querySelector('text');
     attr(tx, 'x', r1(bw / 2)); text(tx, label);
     attr(M.badge, 'hidden', null);
-  } else attr(M.badge, 'hidden', '');
+    /* a watermark keeps off the badge (placeMarks): its box in the world group's px */
+    M.badgeBox = [p.x + r + 4, p.y - r - 21, p.x + r + 4 + bw, p.y - r - 1];
+  } else { attr(M.badge, 'hidden', ''); M.badgeBox = null; }
   paintLabels(M, v, tier);
 }
 
+/* the spots a country's watermark tries in Road view, round its mid-wedge place (px): it takes the first that is clear */
+const MARK_TRIES = Object.freeze([[0, 0], [0, -48], [0, 48], [-96, 0], [96, 0], [-96, -48], [96, -48], [-96, 48], [96, 48], [0, -96], [0, 96]]
+  .map(([dx, dy]) => Object.freeze([dx, dy, 'middle'])));
+
 function paintLabels(M, v, tier) {
   /* placed again when the scale, the tier or the states move (a pan moves the whole group); in Country view a pan too, since the
-     countries' names are held on the stage */
-  const key = tier + '|' + M.s + '|' + M.key + (tier === 'country' ? '|' + v.cam.cx + ',' + v.cam.cy + ',' + v.w + ',' + v.h : '');
-  if (key === M.labelKey) return;
-  M.labelKey = key;
+     countries' names are held on the stage. Road view's country watermarks are a second pass on every pan (below). */
+  const pan = '|' + v.cam.cx + ',' + v.cam.cy + ',' + v.w + ',' + v.h;
+  const key = tier + '|' + M.s + '|' + M.key + (tier === 'country' ? pan : '');
+  if (key !== M.labelKey) { M.labelKey = key; M.marksKey = null; placeMain(M, v, tier); }
+  /* ROAD VIEW'S WATERMARKS (visual read 2026-11-26: "CLUB" lay under "STAGGER", "AL AXE" was cut at the stage's edge): a country's name
+     takes a spot only where no stone's label or decision stone stands and only whole on the stage, after every other label; else it
+     is not drawn there. It covers nothing, so no label ever gives way to it */
+  if (tier === 'road' && M.marksKey !== key + pan) { M.marksKey = key + pan; placeMarks(M, v); }
+  else if (tier !== 'road') M.marksGot = {};
+  for (const [id, el] of Object.entries(M.labels)) {
+    const spot = M.got[id] || M.marksGot[id];
+    if (!spot) { attr(el, 'hidden', ''); continue; }
+    attr(el, 'hidden', null);
+    attr(el, 'x', r1(spot[0])); attr(el, 'y', r1(spot[1])); attr(el, 'text-anchor', spot[2]);
+    const sub = el.querySelector('.rdl-count');
+    if (sub) attr(sub, 'x', r1(spot[0]));
+  }
+}
+
+/* Road view's country watermarks against the boxes the main pass placed, inside the stage (in the world group's own px) */
+function placeMarks(M, v) {
+  const s = M.s, tx = v.w / 2 - v.cam.cx * s, ty = v.h / 2 - v.cam.cy * s;
+  const within = [6 - tx, 6 - ty, v.w - 6 - tx, v.h - 6 - ty];
+  const want = M.rows.filter((r) => r.country && r.tiers.includes('road'))
+    .map((r) => ({ id: r.id, x: r.at.x * s, y: r.at.y * s, w: widthOf(M, r.id), h: 26, tries: MARK_TRIES, pri: 0, within }));
+  /* Find talent's plate over the map's corner hides what is under it: a watermark keeps off it too (measured once per stage size) */
+  const sz = v.w + 'x' + v.h;
+  if (!M.tools || M.tools.sz !== sz) {
+    const el = M.stage.parentElement && M.stage.parentElement.querySelector('.rdw-tools');
+    const a = el ? el.getBoundingClientRect() : null, b = M.stage.getBoundingClientRect();
+    M.tools = { sz, box: a && a.width ? [a.left - b.left, a.top - b.top, a.right - b.left, a.bottom - b.top] : null };
+  }
+  const plate = M.tools.box ? [[M.tools.box[0] - tx, M.tools.box[1] - ty, M.tools.box[2] - tx, M.tools.box[3] - ty]] : [];
+  /* nor off the route's cost badge (its place moves with the route, which moves M.key and so this pass's key) */
+  if (M.badgeBox) plate.push(M.badgeBox);
+  M.marksGot = placeLabels(want, plate, (M.boxes || []).slice());
+}
+
+/* every label but Road view's watermarks: the main pass, its spots in M.got and its boxes in M.boxes */
+function placeMain(M, v, tier) {
   const s = M.s, L = M.L;
   const obstacles = [];
   for (const n of TALENT_NODES) {
@@ -228,14 +278,16 @@ function paintLabels(M, v, tier) {
     cls(el, 'is-owned', owned);
     cls(el, 'is-mark', tier !== 'country' && !!r.country);
     if (r.country) text(el.querySelector('.rdl-count'), tier === 'country' && v.counts ? t('talents.country_count', { owned: v.counts[r.country][0], total: v.counts[r.country][1] }) : '');
-    /* a country's name stands mid-wedge: over its stones in Country view (the overview's one name), a faint watermark in Road view */
+    /* a country's name stands mid-wedge: over its stones in Country view (the overview's one name), a faint watermark in Road view,
+       placed by placeMarks after this pass */
     const big = !!r.country && tier === 'country';
+    if (r.country && !big) continue;
     const p = r.node ? L.pos[r.node] : r.at;
     const kr = r.node ? (MARK_R[NODE_INDEX[r.node].kind] || 6) : 0;
-    const tries = r.country ? (big ? [0, 1, -1, 2, -2].map((k) => [0, k * 26, 'middle']) : [[0, 0, 'middle']])
+    const tries = r.country ? [0, 1, -1, 2, -2].map((k) => [0, k * 26, 'middle'])
       : r.id === 'havora' ? [[0, 44, 'middle']] : beside(kr);
     want.push({ id: r.id, x: p.x * s, y: p.y * s, w: widthOf(M, r.id), h: big ? 26 : 16, tries, pri: (owned ? r.pri - 0.5 : r.pri),
-      block: !(r.country && !big), force: big || r.id === 'havora' });
+      force: big || r.id === 'havora' });
   }
   if (tier === 'node') {
     for (const [id, g] of Object.entries(M.posts)) {
@@ -247,7 +299,8 @@ function paintLabels(M, v, tier) {
       }
     }
   }
-  const got = placeLabels(want, obstacles);
+  const boxes = [];
+  const got = placeLabels(want, obstacles, boxes);
   /* a country's name past the rim stays on the stage (Country view fits the stones, and a name is wider than the gap it stands in) */
   const tx = v.w / 2 - v.cam.cx * s, ty = v.h / 2 - v.cam.cy * s;
   for (const L of want) {
@@ -258,13 +311,8 @@ function paintLabels(M, v, tier) {
     const dy = Math.max(0, L.h + 2 - (spot[1] + ty)) - Math.max(0, spot[1] + 22 + ty - v.h);
     got[L.id] = [spot[0] + dx, spot[1] + dy, spot[2]];
   }
-  for (const [id, el] of Object.entries(M.labels)) {
-    const spot = got[id];
-    if (!spot) { attr(el, 'hidden', ''); continue; }
-    attr(el, 'hidden', null);
-    attr(el, 'x', r1(spot[0])); attr(el, 'y', r1(spot[1])); attr(el, 'text-anchor', spot[2]);
-    const sub = el.querySelector('.rdl-count');
-    if (sub) attr(sub, 'x', r1(spot[0]));  }
+  M.got = got;
+  M.boxes = boxes;
 }
 
 /** The stone nearest screen point (sx, sy) within TAP_PX at this tier, or null (Country view: none, a tap there picks a country). */

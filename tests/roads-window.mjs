@@ -3,7 +3,7 @@
 // tests/roads-window.mjs — THE ROADS SCREEN: THE TALENTS MAP, PLAYED IN A REAL CHROMIUM (src/shell/windows/talents/, lane/r-ui-roads).
 //
 //   node tests/roads-window.mjs            the rules
-//   node tests/roads-window.mjs --mutate   every planted defect must turn a NAMED rule red
+//   node tests/roads-window.mjs --mutate   every planted defect must turn a NAMED rule red (--only RW-n: the mutants that want rule n)
 //
 // ci-step: in-page-23 | Roads window - the Talents map zooms Country Road Node, previews a route with its cost and spends only from the server's state
 // ci-run: node tests/roads-window.mjs
@@ -49,6 +49,12 @@
 //         keeps its kind bright and dims the rest, and Vows shows every vow in Country view
 //   RW-15 THE KEYS: an arrow picks the next stone that way (the suggested one first), Enter is the card's own Take (ONE spend), Escape
 //         lets go
+//   RW-16 THE CARD WITH NOTHING PICKED (visual read 2026-11-26: 450 px of empty floor on the desktop): the server's points, the next
+//         suggested stone and its rule, the plan (None when nothing is saved; else its ground, points to go and its next step, the
+//         server's walk: RW-13) and the key of the four states and Planned, drawn by the map's own classes; an open road's card says
+//         Open road once (its kind line) and names the stone by its move
+//   RW-17 ROAD VIEW'S COUNTRY NAMES (visual read: "CLUB" under "STAGGER", "AL AXE" cut at the edge): every one shown lies whole on the
+//         stage and under no other label, where the map opens and after drags across it, desktop and phone
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -256,6 +262,45 @@ const look = (page) => page.evaluate(({ W }) => {
     rankShown: getComputedStyle(win.querySelector('.rdm-n.is-rank')).display !== 'none',
     postShown: getComputedStyle(win.querySelector('.rdm-post')).display !== 'none' };
 }, { W });
+/* RW-17: every country name Road view shows lies whole on the stage and under no other label, where the map opens and after a drag in
+   each direction across the map (the stage dragged, never the camera set) */
+const marksNow = (page) => page.evaluate(({ W }) => {
+  const win = document.querySelector(W), st = win.querySelector('[data-rd-stage]').getBoundingClientRect();
+  if (win.querySelector('svg.rdm').getAttribute('data-tier') !== 'road') return { tier: false, out: [] };
+  const shown = [...win.querySelectorAll('[data-rd-label]:not([hidden])')];
+  const out = [];
+  /* the other labels, the route's cost badge and Find talent's plate */
+  const others = shown.concat([...win.querySelectorAll('.rdm-badge:not([hidden]), .rdw-tools')]);
+  for (const m of shown.filter((e) => e.classList.contains('rdl-country'))) {
+    const a = m.getBoundingClientRect();
+    if (a.left < st.left || a.right > st.right || a.top < st.top || a.bottom > st.bottom) out.push(m.textContent + ' cut at the stage\'s edge');
+    for (const o of others) {
+      if (o === m) continue;
+      const b = o.getBoundingClientRect();
+      if (!(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)) out.push(m.textContent + ' under ' + o.textContent);
+    }
+  }
+  return { tier: true, out, marks: shown.filter((e) => e.classList.contains('rdl-country')).length };
+}, { W });
+async function marksFails(page, where) {
+  const fails = [];
+  const st = await page.evaluate(({ W }) => { const r = document.querySelector(W + ' [data-rd-stage]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height }; }, { W });
+  const dx = Math.round(st.w * 0.4), dy = Math.round(st.h * 0.4);
+  let seen = 0;
+  for (const [mx, my] of [[0, 0], [dx, 0], [0, dy], [-dx, 0], [-dx, 0], [0, -dy], [0, -dy], [dx, 0], [dx, 0], [dx, dy], [-dx, dy]]) {
+    if (mx || my) {
+      await page.mouse.move(st.x, st.y); await page.mouse.down();
+      await page.mouse.move(st.x + mx / 2, st.y + my / 2, { steps: 3 }); await page.mouse.move(st.x + mx, st.y + my, { steps: 3 }); await page.mouse.up();
+      await page.waitForTimeout(200);
+    }
+    const m = await marksNow(page);
+    if (!m.tier) { fails.push('RW-17 fixture: ' + where + ' left Road view'); break; }
+    seen += m.marks;
+    for (const o of m.out) fails.push('RW-17 on ' + where + ', ' + o);
+  }
+  if (!seen) fails.push('RW-17 fixture: ' + where + ' showed no country name in Road view');
+  return [...new Set(fails)];
+}
 const scaleOfLook = (L, lk) => { const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(lk.r1), p = L.pos['power_strike.r1']; return Math.hypot(Number(m[1]), Number(m[2])) / Math.hypot(p.x, p.y); };
 
 async function checks(overrides, opts = {}) {
@@ -314,6 +359,33 @@ async function checks(overrides, opts = {}) {
       if (lk.st['power_strike.r1'] !== 'owned' || lk.st['power_strike.r2'] !== 'owned' || lk.st.hearth !== 'owned') fails.push('RW-5 the server\'s owned stones are not owned');
       if (lk.st['power_strike.r3'] !== 'open' || lk.st['power_strike.x1'] !== 'locked') fails.push('RW-5 the states are not the server\'s: ' + lk.st['power_strike.r3'] + ' ' + lk.st['power_strike.x1']);
       if (Object.values(lk.st).filter((v) => v === 'owned').length !== 3) fails.push('RW-5 more stones owned than the server holds');
+
+      /* RW-16: nothing picked, the desktop's card column says what is next, the plan and the key */
+      const none = await page.evaluate(({ W }) => {
+        const c = document.querySelector(W + ' .rdw-none');
+        /* each key stone as the map's stylesheet paints it: fill and edge */
+        const paint = (k) => { const f = c.querySelector('[data-key="' + k + '"] .rdm-f'); if (!f) return null; const cs = getComputedStyle(f); return cs.fill + '/' + cs.stroke; };
+        return { text: c.innerText.replace(/\s+/g, ' '), shown: c.offsetParent !== null,
+          key: [...c.querySelectorAll('.rdw-key [data-key]')].filter((li) => li.offsetParent !== null).map((li) => li.getAttribute('data-key') + ':' + li.textContent.trim()
+            + ':' + li.querySelector('.rdm-n').classList.contains('is-' + li.getAttribute('data-key'))),
+          paints: ['locked', 'open', 'route', 'plan', 'owned'].map(paint) };
+      }, { W });
+      const wantKey = ['locked:Locked:true', 'open:Can buy:true', 'route:On route:true', 'plan:Planned:true', 'owned:Owned:true'];
+      if (!none.shown || !/Points 4\b/.test(none.text) || !/Next Power Strike \+1 rank/.test(none.text) || !/\+1 Power Strike rank\b/.test(none.text) || !/Plan None/.test(none.text)) {
+        fails.push('RW-16 with nothing picked the card reads ' + JSON.stringify(none.text.slice(0, 240)));
+      }
+      if (JSON.stringify(none.key) !== JSON.stringify(wantKey) || new Set(none.paints).size !== 5 || none.paints.includes(null)) fails.push('RW-16 the key reads ' + JSON.stringify(none));
+      /* RW-17: Road view's country names, here and after pans across the map */
+      fails.push(...(await marksFails(page, 'the desktop')));
+      /* RW-16: an open road's card names it once (its kind line), the stone by its move; picked by the card's own Next-step press */
+      await page.evaluate(({ W }) => { const b = document.querySelector(W + ' .rdw-step'); b.setAttribute('data-node', 'power_strike.open'); b.click(); }, { W });
+      await page.waitForTimeout(400);
+      const openCard = await page.evaluate(({ W }) => ({ kind: document.querySelector(W + ' .rdw-kind').textContent, name: document.querySelector(W + ' .rdw-name').textContent,
+        tip: document.querySelector(W + ' .rdw-sel .rdw-tip').innerText, times: (document.querySelector(W + ' .rdw-card').innerText.match(/open road/gi) || []).length }), { W });
+      if (openCard.kind !== 'Open road · Power Strike' || openCard.name !== 'Power Strike' || openCard.times !== 1 || openCard.tip !== '+1 Power Strike rank a point') fails.push('RW-16 an open road\'s card reads ' + JSON.stringify(openCard));
+      await page.click(W + ' [data-hs-act="rd-clear"]');
+      await page.click(W + ' [data-hs-act="rd-home"]');
+      await page.waitForTimeout(300);
 
       /* RW-6 */
       await page.click(W + ' [data-hs-act="rd-tier"][data-tier="country"]');
@@ -518,8 +590,11 @@ async function checks(overrides, opts = {}) {
         await page.click(W + ' [data-hs-act="rd-clear"]');
         await page.mouse.move(2, 2);
         await page.waitForTimeout(300);
-        const marks = await page.evaluate(({ W }) => [...document.querySelectorAll(W + ' .rdm-n.is-plan')].map((g) => g.getAttribute('data-rd-node')).sort(), { W });
+        const marks = await page.evaluate(({ W }) => [...document.querySelectorAll(W + ' [data-rd-node].is-plan')].map((g) => g.getAttribute('data-rd-node')).sort(), { W });
         if (marks.join() !== [...plannedOf(OWNED, want)].sort().join()) fails.push('RW-13 the map marks ' + JSON.stringify(marks) + ' planned');
+        /* with nothing picked the plan's rows say its next step, the server's walk's first (nextPlanStep: Power Strike's stone 3) */
+        const planRows = await page.evaluate(({ W }) => document.querySelector(W + ' .rdw-plan').innerText.replace(/\s+/g, ' '), { W });
+        if (!/To go 4 points Next step Power Strike \+1 rank/.test(planRows)) fails.push('RW-13 the plan\'s rows read ' + JSON.stringify(planRows));
         const pay = await page.evaluate(({ W }) => { const b = document.querySelector(W + ' [data-hs-act="rd-plan-pay"]'); return !!b && !b.hidden && !b.disabled; }, { W });
         if (!pay) fails.push('RW-13 Spend on plan is off: ' + (await look(page)).card.slice(0, 240));
         else {
@@ -538,7 +613,7 @@ async function checks(overrides, opts = {}) {
           const held = s.env.talents.nodes;
           const order = { ...OWNED, 'power_strike.r3': true, 'power_strike.x1': want['power_strike.x1'], 'power_strike.r4': true };
           if (JSON.stringify(held) !== JSON.stringify(order)) fails.push('RW-13 Spend on plan with 3 points left the build ' + JSON.stringify(held));
-          const after = await page.evaluate(({ W }) => ({ marks: [...document.querySelectorAll(W + ' .rdm-n.is-plan')].map((g) => g.getAttribute('data-rd-node')),
+          const after = await page.evaluate(({ W }) => ({ marks: [...document.querySelectorAll(W + ' [data-rd-node].is-plan')].map((g) => g.getAttribute('data-rd-node')),
             pay: document.querySelector(W + ' [data-hs-act="rd-plan-pay"]').disabled, why: document.querySelector(W + ' .rdw-plan-why').textContent,
             card: document.querySelector(W + ' .rdw-plan').innerText.replace(/\s+/g, ' ') }), { W });
           if (after.marks.join() !== FAR || !after.pay || after.why !== 'No points' || !/To go 1 point/.test(after.card)) fails.push('RW-13 after the points ran out: ' + JSON.stringify(after));
@@ -551,6 +626,9 @@ async function checks(overrides, opts = {}) {
     {
       const { ctx, page, errors } = await open(SECTION(OWNED, LEVEL, pointsAt(LEVEL), { builds: { [GROUND]: planRoute(OWNED, null, FAR, null, 'party') } }), { width: 922, height: 423 }, true, COMPANY);
       await openMap(page);
+      await page.waitForTimeout(400);
+      fails.push(...(await marksFails(page, 'the phone')));
+      await page.click(W + ' [data-hs-act="rd-home"]');
       await page.waitForTimeout(400);
       let lk = await look(page);
       if (!(lk.room > 800) || Math.abs(lk.width - lk.room) > 2) fails.push('RW-10 the phone sheet is ' + lk.width + ' px of the World\'s ' + lk.room);
@@ -624,6 +702,15 @@ const MUTANTS = [
   { name: 'the found list stretches the plate', file: 'src/styles/roads.css', from: '.rdw-found { position: absolute; left: 0; top: calc(100% + 2px); z-index: 1; ', to: '.rdw-found { ', want: /RW-14/ },
   { name: 'Plan opens nothing in Country view', file: 'src/styles/roads.css', from: '.rdw.is-sheet .rdw-card { transform: none; }', to: '.rdw.is-sheet:not([data-tier="country"]) .rdw-card { transform: none; }', want: /RW-10/ },
   { name: 'an arrow key picks nothing', file: 'src/shell/windows/talents/index.js', from: 'if (next) pickStone(body, ctx, sc, next);', to: 'if (next) patchBody(body, ctx);', want: /RW-15/ },
+  /* lane/roads-polish (visual read 2026-11-26) */
+  { name: 'an open road\'s card says Open road twice', file: 'src/shell/windows/talents/card.js', from: ": n.kind === 'open' ? ABILITIES[n.move].n : n.n);", to: ': n.n);', want: /RW-16/ },
+  { name: 'the empty card\'s line takes the picked stone\'s rule', file: 'src/shell/windows/talents/card.js', from: "+ '<p class=\"rdw-none-tip\"></p>'", to: "+ '<p class=\"rdw-tip rdw-none-tip\"></p>'", want: /RW-16/ },
+  { name: 'the empty card has no key', file: 'src/shell/windows/talents/card.js', from: "text(li.querySelector('span'), t('talents.state_' + li.getAttribute('data-key')))", to: 'null', want: /RW-16/ },
+  { name: 'the empty card hides the plan when none is saved', file: 'src/shell/windows/talents/road-plan.js', from: "attr(box, 'hidden', tl ? null : '');", to: "attr(box, 'hidden', plan.draft ? null : '');", want: /RW-16/ },
+  { name: 'the plan\'s next step is not said', file: 'src/shell/windows/talents/road-plan.js', from: "attr(r[2], 'hidden', has && stepName ? null : '');", to: "attr(r[2], 'hidden', '');", want: /RW-13/ },
+  { name: 'a country\'s name lies under a stone\'s label again', file: 'src/shell/windows/talents/map.js', from: 'M.marksGot = placeLabels(want, plate, (M.boxes || []).slice());',
+    to: 'M.marksGot = placeLabels(want.map((x) => ({ ...x, block: false, within: null, tries: x.tries.slice(0, 1) })), [], []);', want: /RW-17/ },
+  { name: 'a country\'s name cut at the stage\'s edge', file: 'src/shell/windows/talents/map.js', from: 'tries: MARK_TRIES, pri: 0, within }));', to: 'tries: MARK_TRIES, pri: 0, within: null }));', want: /RW-17/ },
 ];
 
 async function main() {
@@ -632,7 +719,10 @@ async function main() {
     console.log(control.line);
     if (control.code) process.exit(control.code);
     const counts = { caught: 0, escaped: 0, harness: 0 };
-    for (const m of MUTANTS) {
+    /* --only <rule>: the mutants whose wanted rule names it (a lane proves its own rules; the sweep runs every one) */
+    const at = process.argv.indexOf('--only'), only = at > 0 ? process.argv[at + 1] : null;
+    const run = only ? MUTANTS.filter((m) => m.want.test(only)) : MUTANTS;
+    for (const m of run) {
       const src = await readFile(join(ROOT, m.file), 'utf8');
       if (src.split(m.from).length !== 2) { console.log('  ✗ ' + m.name + ' — HARNESS, not a catch: its anchor is not in ' + m.file + ' exactly once'); counts.harness++; continue; }
       const planted = { [m.file]: src.replace(m.from, () => m.to) };
@@ -640,12 +730,12 @@ async function main() {
       if (v.kind === 'caught' && !m.want.test(v.rule)) { counts.escaped++; console.log('  ✗ ' + m.name + ' — caught by ' + v.rule + ', not ' + m.want); continue; }
       console.log(report(m.name, v, counts));
     }
-    console.log('roads-window --mutate: ' + counts.caught + '/' + MUTANTS.length + ' caught');
+    console.log('roads-window --mutate' + (only ? ' --only ' + only : '') + ': ' + counts.caught + '/' + run.length + ' caught');
     process.exit(exitOf(counts));
   }
   const fails = [...pure(), ...await checks()];
   for (const f of fails) console.log('FAIL  ' + f);
-  console.log(fails.length ? 'roads-window: ' + fails.length + ' FAILED' : 'roads-window: green (the layout, the route, the camera, the tiers, the route preview, one spend from the server\'s state, the phone, the section\'s shape, the standing rule, the plan, find and filters, the keys)');
+  console.log(fails.length ? 'roads-window: ' + fails.length + ' FAILED' : 'roads-window: green (the layout, the route, the camera, the tiers, the route preview, one spend from the server\'s state, the phone, the section\'s shape, the standing rule, the plan, find and filters, the keys, the card with nothing picked, the country names)');
   process.exit(fails.length ? 1 : 0);
 }
 

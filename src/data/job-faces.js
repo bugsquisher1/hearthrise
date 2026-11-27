@@ -10,7 +10,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 import { IMBUE_RULES, imbueBandOf, imbueItemOf } from './imbue-rules.js';
-import { GEAR_STEPS } from './gear-steps.js';
+import { GEAR_STEPS } from './danger.js';
 
 /* THE REMAINS A BAND (imbue-rules.js: "the Remains good is one a band, and the job slice names its face"). JUDGMENT, the designer re-rules
    it (CONFLICTS 2026-11-26 k1-job-slice): band 0 is Bones (the designer's, 09 4.9), band 2 is Bones too (inner-flame.js FLAME_FUEL stands

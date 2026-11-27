@@ -62,6 +62,24 @@
         "gzipBytes": 206436,
         "on": "2026-11-27",
         "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206438,
+        "on": "2026-11-27",
+        "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206619,
+        "on": "2026-11-27",
+        "why": "lane/designer-text-1126: the one-time block-offer card in the coach box (time-offer-card.js, coach rows) and the What's new v0.3.0 copy"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206701,
+        "on": "2026-11-27",
+        "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
       }
     ],
     "town": [
@@ -409,9 +427,27 @@
       },
       {
         "modules": 25,
-        "gzipBytes": 984370,
+        "gzipBytes": 980148,
         "on": "2026-11-27",
-        "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js) and the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows)"
+        "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981173,
+        "on": "2026-11-27",
+        "why": "lane/designer-text-1126: the one-time block-offer card in the coach box (time-offer-card.js, coach rows) and the What's new v0.3.0 copy"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981179,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1126c on the set's ceiling 3a8c2cbca: src/data/drop-hours.js DROP_HOURS.made.part names 'part', the field every part carries since lane/tp-im-steps (it named the retired 'imbue'); one string, a few bytes gzip"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983681,
+        "on": "2026-11-27",
+        "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
       }
     ]
   }

@@ -297,6 +297,8 @@ export const REASONS = Object.freeze({
   'src/shell/windows/inventory/doll.js': [
     { cond: '!worn || locked', words: 'GEAR_HUNT_WORDS.one', where: 'the slot line says a hunt is running' },
     { cond: 'locked || short', words: "text(li.querySelector('.hw-fit-need'), short ? need.text : '')", where: 'the fit row\'s need line ("Needs Level 30 — you\'re 28")' },
+    /* a Trait piece's Sell (1072-piece-verbs.sql): off when the store prices none or the account's sales today are spent */
+    { cond: 'sc.pending || !!why', words: 'text(sellB, why ? why', where: 'a Trait piece\'s Sell: the button reads why it is off (the store does not buy it, no more sales today)' },
   ],
   'src/shell/windows/shop.js': [
     { cond: 'short > 0', words: "', need ' + gold(short) + ' more'", where: 'the offer row: "You need 40 gp more."' },
@@ -319,6 +321,12 @@ export const REASONS = Object.freeze({
     /* a bought block of town work (1071-work-blocks.sql): the quote line's words live in the text home (work.block_day_ending, block_used, block_quote_short) */
     { cond: '!can || !!sc.wblockConfirm', words: "q.why === 'day_ending' ? t('work.block_day_ending') : t('work.block_used', { max: whole(q.perDay) })", where: 'the work block quote line: not enough of today left, all of today\'s blocks bought, or how much more gold (work.block_quote_short); off while its own confirmation is open' },
     { cond: '!can || !!sc.wblockConfirm', words: "t(purse !== null && purse < q.price ? 'work.block_quote_short' : 'work.block_quote'", where: 'the work block quote line: how much more gold the next block needs' },
+  ],
+  'src/shell/windows/work-jobs.js': [
+    /* a kit-trade job (1073-k1-job-slice.sql): the row's quote line is the server's refusal in words; the job line above names a running job */
+    { cond: '!(q && q.ok) || !!job || sc.pending', words: 'shutWords(r)', where: 'a job row\'s Start: its quote line says why it is shut (the trade Level, the band\'s depth record, the day used, the materials); while a job runs the line above names it' },
+    { cond: '!done || sc.pending', words: "t('work.job_now'", where: 'the job line\'s Collect: off until the server\'s end, and the line says the time left' },
+    { cond: '!job || done || sc.pending', words: "t('work.job_due'", where: 'the job line\'s Stop: off once the job is done, and the line says done (Collect lands it)' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },

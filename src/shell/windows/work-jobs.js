@@ -17,7 +17,7 @@ import { TRADES } from '../../data/trades.js';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js';
 import { whole, gold, hoursWords, listWords } from '../../render/format.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
-import { itemName, itemIconHtml } from '../widgets/bits.js';
+import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js';
 import { runIntent } from '../intent-words.js';
 import { t } from '../../render/player-text.js';
 
@@ -51,7 +51,7 @@ function shutWords(r) {
 
 function patchRow(li, r, sc, job, now) {
   text(li.querySelector('.hw-job-name'), r.name);
-  const ins = Object.entries(r.inputs).map(([id, n]) => whole(n) + ' ' + itemName(id));
+  const ins = Object.entries(r.inputs).map(([id, n]) => whole(n) + ' ' + itemNameFor(id, n));
   text(li.querySelector('.hw-job-inputs'), ins.length ? t('work.job_inputs', { list: listWords(ins) }) : '');
   const q = r.quote;
   const hours = q && q.ok && q.endsAt !== null ? hoursWords(Math.max(0, q.endsAt - now)) : '';
@@ -84,7 +84,8 @@ export function patchJobsPane(root, ctx, sc) {
   if (last && last.fine) made.push(t('work.job_last_fine', { n: whole(last.fine) }));
   if (last && last.master) made.push(t('work.job_last_master', { n: whole(last.master) }));
   const lastRecipe = last ? s.recipes.find((r) => r.id === last.recipe) : null;
-  text(pane.querySelector('.hw-jobs-last'), !last || job ? '' : t('work.job_last', { made: made.join(', '), name: last.face ? itemName(last.face) : last.name,
+  text(pane.querySelector('.hw-jobs-last'), !last || job ? '' : t('work.job_last', { made: made.join(', '),
+    name: last.face ? itemNameFor(last.face, last.plain + last.fine + last.master) : last.name,
     xp: whole(last.xp), trade: lastRecipe ? tradeName(lastRecipe.trade) : '' }));
   rows(pane.querySelector('.hw-jobs-rows'), s.recipes, {
     key: (r) => r.id,

@@ -252,8 +252,9 @@ async function selftest() {
      and as it is packed on disk (a step cell, E1's one-slot move, is never a gear state) */
   const { fromGridPlan } = await import('./atlas/kits.mjs');
   const { gridScale } = await import('./atlas/rates.mjs');
-  const plan = fromGridPlan({ kit: { weapon: 'w', ammo: 'x', ring1: 'r' }, temper: { 'temper:blows:3': 2 }, projectedAdds: [{ id: 'linings' }] });
-  check('the grid kit plan reads as slots and rungs', JSON.stringify(plan.slots) === '{"weapon":"w","ring1":"r"}' && plan.upgrades.join() === 'temper:blows:3:1,temper:blows:3:2');
+  /* a grid plan's Temper is its seated ranks by slot (grid-kit.mjs temperSteps, Temper on steps since lane/tp-im-steps) */
+  const plan = fromGridPlan({ kit: { weapon: 'w', ammo: 'x', ring1: 'r' }, temperSteps: { weapon: 2 }, projectedAdds: [{ id: 'linings' }] });
+  check('the grid kit plan reads as slots and rungs', JSON.stringify(plan.slots) === '{"weapon":"w","ring1":"r"}' && plan.upgrades.join() === 'temper:weapon:1,temper:weapon:2', JSON.stringify(plan));
   const cell = (L, gear, k, xp, net, step = null) => ({ key: [L, gear, step].join('|'), L, gear, party: 1, comp: 'h', tier: 'normal', ground: 'g', step, rates: { killsPerH: k, levelXpPerH: xp, netPerH: net, killsByPerH: {} } });
   const plain = { cells: Object.fromEntries([cell(30, 'mid', 10, 100, 50), cell(30, 'bis', 99, 990, 990, 'weapon'), cell(30, 'bis', 15, 150, 80), cell(60, 'low', 5, 50, -20), cell(60, 'mid', 10, 100, 40)].map((c) => [c.key, c])) };
   const sb = gridScale(plain, { level: 33, party: 1, tier: 'normal', gear: 'bis' }), sl = gridScale(plain, { level: 58, party: 1, tier: 'normal', gear: 'low' });

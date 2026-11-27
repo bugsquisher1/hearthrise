@@ -530,9 +530,9 @@
         "why": "lane/designer-pity: the Trait roller reads the one pity (src/core/personal-loot.js + src/data/party.js PERSONAL_LOOT/PITY_UNIT), 12-targets 8.6.1"
       },
       {
-        "bytes": 3931485,
+        "bytes": 3926348,
         "on": "2026-11-27",
-        "why": "lane/k1-job-slice +5,137 B: src/data/job-faces.js (the hunted streams' faces and the imbuement jobs) and the made imbuements' item rows in items.js; the other +10,034 B is the base set's own, already red on origin/set/v0.2.144 at 12a3dd111 before this lane (cause not read here)"
+        "why": "lane/b1-work-blocks merged after lane/designer-pity's ceiling: src/data/work-day.js reads the bought work block from src/data/time-blocks.js (TIME_BLOCKS.work, the one row; its WORK_BLOCK_RULED copy retired), so the edge now packs time-blocks.js (+10,745 B, no other new file); +10,034 B over the set's ceiling, measured on the merged set 723e91713"
       }
     ]
   }

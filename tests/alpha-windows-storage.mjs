@@ -359,6 +359,10 @@ async function checks(overrides, shots, opts) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = { oak_logs: 12 };
+        /* a LOCKED Material stack for Deposit all materials to leave (the fixture's own lock, the Sticky Core, has been a part, Junk in the bag,
+           since lane/tp-im-steps, so the lock rule had nothing to hold) */
+        e.inventory = Object.assign({}, e.inventory, { iron_ore: 6 });
+        e.bag_rules = Object.assign({}, e.bag_rules, { locked: [...((e.bag_rules && e.bag_rules.locked) || []), 'iron_ore'] });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
       const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
@@ -398,6 +402,8 @@ async function checks(overrides, shots, opts) {
           const bm = await import('/src/shell/bag-model.js?v=' + v);
           return { kinds: Object.fromEntries(ids.map((id) => [id, bm.kindOf(id)])) };
         }, Object.keys(s.env.inventory));
+        const lockedMats = s.env.bag_rules.locked.filter((id) => s.env.inventory[id] && plan.kinds[id] === 'material');
+        if (!lockedMats.length) fails.push('AW-18m CONTROL: the bag holds no locked Material stack, so the lock rule is unproven (' + JSON.stringify(s.env.bag_rules.locked) + ')');
         if (!btn || btn.off || !/^Deposit all materials \(\d+\)$/.test(btn.text)) fails.push('AW-18m the press reads ' + JSON.stringify(btn));
         else {
           await page.click(W + '[data-hs-act="deposit-materials"]');

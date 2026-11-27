@@ -6,19 +6,25 @@
 // show it again, and a row a later release adds is a new card. Older rows are never shown once a newer one is out.
 //   version  the release the card is for (semver)
 //   card     its seen mark (^[a-z0-9_]{1,64}$, unique)
-//   lines    text ids (src/data/text/share.js), one sentence each, in order
-//   fresh    a text id shown only to a RETURNING account (made before the release: this release starts every hero fresh), or null
+//   fresh    a text id shown first and only to a RETURNING account (made before the release: this release starts every hero fresh), or null
+//   lead     a text id: the release in a few plain sentences
+//   lines    text ids (src/data/text/share.js), one LABEL a feature ("Risk · Careful, Steady or Bold"), in order
 //   since    the release's date (YYYY-MM-DD) "returning" is read against; null until the release sets it, and then the running build's own
 //            date (src/build-info.js BUILD.date) stands in while the running version is this row's
 //   forNew   true: a brand-new account sees the card too (without the fresh line)
-// Placeholder copy: the designer owns the final words (lane PN). PURE ESM. Data only.
+//
+// 0.3.0's forNew is FALSE (designer, 2026-11-26): a brand-new account has nothing to compare against, and the first hour's coach teaches
+// every line on the card as the player meets it. So the card is for the accounts this release starts fresh. Set `since` at the release.
+// PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
 export const WHATS_NEW = Object.freeze([
   Object.freeze({
     version: '0.3.0', card: 'whats_new_0_3_0',
-    lines: Object.freeze(['share.news_030_roads', 'share.news_030_risk', 'share.news_030_share']),
-    fresh: 'share.news_030_fresh', since: null, forNew: true,
+    fresh: 'share.news_030_fresh', lead: 'share.news_030_lead',
+    lines: Object.freeze(['share.news_030_talents', 'share.news_030_depth', 'share.news_030_risk', 'share.news_030_recruits',
+      'share.news_030_day', 'share.news_030_share']),
+    since: null, forNew: false,
   }),
 ]);
 

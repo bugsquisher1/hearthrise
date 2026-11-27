@@ -223,6 +223,11 @@ export const LEVER_MOVES = Object.freeze({
   'gear.ground-tier': [['+gear.tier', 'a scale ground drops one base item Level (danger.js DANGER_GROUNDS gearLevel); a tier up is the next ground\'s base']],
   /* THE WAGE (src/data/wage.js, lane/w-wage) and the day's town work (src/data/work-day.js, R12): priced or capped outside the register */
   'econ.hunt-block': [['+refill.price', 'a bought hunting block is stamina sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice)']],
+  /* THE BOUGHT WORK BLOCK AND THE STANDING RULE (src/data/time-blocks.js, lane/b1-work-blocks; generated into 1072's hr_time_blocks and
+     hr_time_standing, read by no hunt cell) */
+  'econ.work-block': [['+sink.other', 'a bought work block is town work sold for gold at priceHourPm hours of wage an hour (src/core/wage.js blockPrice, hr_time_buy)']],
+  'econ.block-rule-reserve': [['-sink.other', 'the standing rule buys a block only while the purse keeps reserveHours of wage (hr_time_auto_buy), so a higher reserve buys fewer']],
+  'econ.block-rule-offer': [['~sink.other', 'the card offers the standing rule once the purse holds offerDays of the company\'s pay (hr_time_offer_of): a later offer is a later first rule, whose buys are the player\'s pick']],
   'econ.wage-base': [['+refill.price', 'every block price is written in hours of wage (wage.js wage, read by blockPrice)'],
     ['+blessing.price', 'the Blessing is written in hours of wage at the hero\'s Level (wage.js blessingPrice, lane/level-costs)'],
     ['+reset.price', 'a Talent reset is written in hours of wage at the hero\'s Level (wage.js resetPrice, lane/level-costs)'],

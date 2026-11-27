@@ -1,25 +1,26 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/talents/road-plan.js — THE ROADS' PLAN: "PLAN ROUTE" AS A SAVED BUILD THE SERVER HOLDS, AND ITS STEPS PAID ONE SPEND
-// AT A TIME (lane/r-ui-roads-2, 2026-11-26; docs/design/redesign/18-roads-review-ux.md section 5 item 3, 17-talent-tree.md section 11).
+// src/shell/windows/talents/road-plan.js — THE ROADS' PLAN: "PLAN ROUTE" AS A SAVED BUILD THE SERVER HOLDS, AND "SPEND ON PLAN" AS ONE
+// PRESS THE SERVER WALKS (lane/r-ui-roads-2, 2026-11-26; lane/talents-plan-server, 2026-11-27; docs/design/redesign/18-roads-review-ux.md
+// section 5 item 3, 17-talent-tree.md sections 11 and 14).
 //
 // The plan is NEVER client state: it is the saved build the server holds for the hero's ground (hr_talent_build_save, the `talents`
-// section's `builds`), the ground its share code carries too (src/session/plan-share.js planGroundOf). So it is what every reload shows,
-// and no gate reads anything the client holds (CLAUDE.md §6).
+// section's `builds`), the ground the server names (the section's `plan_hunt`, read by src/session/company-sections.js planGroundOf, the
+// ground its share code carries too). So it is what every reload shows, and no gate reads anything the client holds (CLAUDE.md §6).
 //   Plan route        ONE saveBuild: the draft with the path to the picked stone added (src/core/talent-route.js planRoute). On only
 //                     while the server's catalogue twin (buildProblems) has nothing against it; the marks change only from the answer
-//   Spend on plan     the plan's next step, as ONE ordinary spend (spendTalent), then the next from the answer's envelope, while the
-//                     server's section has points left (at most what the plan needed); it stops at the first refusal and says it.
-//                     Each point is the server's check
+//   Spend on plan     ONE spendPlan (hr_talent_spend_plan, 1073-talents-plan-server.sql): the server pays every point the plan can take
+//                     now, in map order (nextPlanStep is its twin, so the map's next step is the server's), each step its own spend
+//                     check; off while the answer is out, the marks change only from its envelope
 //   Clear plan        ONE saveBuild(null)
-// "PAYS AS POINTS ARRIVE" with the browser closed needs the server's standing rule to walk the plan (HANDOFFS, lane/r-ui-roads-2):
-// until then the standing rule walks the suggested road, and Spend on plan pays what the player sees.
+// The plan also pays as points arrive with the browser closed: the server's standing rule walks it first (1073), when the band's
+// Spend as suggested is on.
 // ════════════════════════════════════════════════════════════════════════
 import { NODE_INDEX, PICK_KINDS } from '../../../data/talents.js';
 import { HUNT_INDEX } from '../../../data/hunts.js';
 import { buildProblems } from '../../../core/talents.js';
 import { planRoute, planLeft, plannedOf, nextPlanStep } from '../../../core/talent-route.js';
 import { planGroundOf } from '../../../session/company-sections.js';
-import { saveBuild, spendTalent } from '../../../session/talent-intents.js';
+import { saveBuild, spendPlan } from '../../../session/talent-intents.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { text, prop, attr } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
@@ -117,29 +118,12 @@ export function actPlan(ctx, sc, action, el, repaint, tlOf, suggestPlan) {
     return true;
   }
   if (action === 'rd-plan-pay') {
-    runIntent(sc, repaint, () => payPlan(ctx, tlOf), t('talents.spending'),
+    /* ONE press for the ground the plan is drawn for; the server walks it and refuses (and says why) when nothing is left to pay */
+    const plan = roadPlanOf(cs, tlOf());
+    if (!plan.ground || !plan.draft) return true;
+    runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground), t('talents.spending'),
       (r) => (r.spent === 1 ? t('talents.spent_one') : t('talents.spent_many', { count: whole(r.spent || 0) })), cs);
     return true;
   }
   return false;
-}
-
-/* THE PLAN'S STEPS, each ONE spend read off the server's latest section (the answer's envelope), only while that section says a point is
-   left, and never more than the plan needed when the press began; the first refusal ends it and is said (the points already spent are
-   the server's) */
-async function payPlan(ctx, tlOf) {
-  const cs = ctx.character;
-  const first = tlOf();
-  const most = first ? roadPlanOf(cs, first).left : 0;
-  let spent = 0;
-  while (spent < most) {
-    const tl = tlOf();
-    if (!tl || !(tl.left > 0)) break;
-    const step = roadPlanOf(cs, tl).step;
-    if (!step) break;
-    const r = await spendTalent(ctx.account, cs, step.id, step.pick);
-    if (!r.ok) return spent ? { ...r, spent } : r;
-    spent++;
-  }
-  return spent ? { ok: true, spent } : { ok: false, error: 'no_points' };
 }

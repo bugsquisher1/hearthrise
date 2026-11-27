@@ -9,7 +9,7 @@
 --   1063-trade-formulas-catalogue.generated.sql (hr_trade_recipes, hr_trade_ground_bands and the roller twin hr_trade_roll, regenerated in
 --   this lane), 1059-company-trades.sql (the work day), 1071-work-blocks.sql (bought work in the day's cap) and
 --   1065-named-pieces-items-catalogue.generated.sql (regenerated in this lane: the job slice's new faces are hr_items rows).
---   Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §8 self-check.
+--   Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §9 self-check.
 -- EDGE: none. No engine file reads a job: the server settles it itself (§4), so either side of any hr-accrue deploy.
 -- CLIENT: the Work window's Jobs list (src/shell/windows/work-jobs.js), the start and end presses (src/session/trade-intents.js), the
 --   section's reader (src/session/trade-sections.js). Dark (switch `trade_jobs` off at apply): the section is null and both verbs not_open.
@@ -62,10 +62,11 @@
 --    hr_trade_job_end(p_slot, p_early, p_idem): p_early false collects a FINISHED job (not_due {ends_at} before the server says it is
 --      done, so a client clock ahead can never cut the last attempt); p_early true stops it now. Refusals: not_signed_in · not_open ·
 --      bad_slot · bad_idem · intent_mismatch · rate_limited · no_character · no_job · not_due · ok { result, envelope }.
--- §5 THE SWEEP hr_trade_jobs_sweep(p_limit) -> { seen, settled, busy, errors, pruned }, cron 'hr-trade-jobs' every minute: every open
+-- §5 THE SWEEP hr_trade_jobs_sweep(p_limit, p_user) -> { seen, settled, busy, errors }, cron 'hr-trade-jobs' every minute: every open
 --    job whose ends_at has passed is collected exactly as hr_trade_job_end(false) would (hr_trade_job_close at its true end), so a job
 --    with the browser closed lands the same goods as one watched to its end. Never waits on a lock (try-lock the hero, its row and the
---    depot; a busy hero is next minute's). Settled rows older than 30 days are pruned (the ledger is the history).
+--    depot; a busy hero is next minute's). p_user (null = every account) keeps the self-check to its own probe. The same cron runs
+--    hr_trade_jobs_prune(p_limit): settled rows older than 30 days go (the ledger is the history), never an open one.
 -- §6 THE GUARD hr_trade_job_busy, BEFORE UPDATE OF active_kind ON player_state, when it leaves idle: a hero holding a job cannot start
 --    a hunt, a gathering job or a bench run (raises HRJ01 trade_job_open), so a job's hours are never also hunted or worked twice.
 -- §7 THE SECTION `trade_jobs` (hr_trade_jobs_view): { trades { <trade>: { xp, level } }, job (the open one: recipe, name, face, count,
@@ -95,7 +96,7 @@
 -- the fee (V), the seed (gen_random_uuid's CSPRNG, stored, never projected), the band (the recipe's), the dice (the generated roller).
 -- A stop cannot re-roll (the seed is spent, a prefix of one sequence) and cannot dodge the work day (the span is folded either way).
 -- The Storage over its stack cap: a settle credits Storage even past hr_depot_cap (a hero's own goods are never destroyed, the rule of
--- hr_hunt_close's bag), bounded by the catalogue's faces (16 recipes). ON THE PRE-EA SECURITY LIST (13-security-list.md S-10, S-25).
+-- hr_hunt_close's bag), bounded by the catalogue's faces (16 recipes). ON THE PRE-EA SECURITY LIST (13-security-list.md S-10, S-27).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
 -- A job is three writes (09 6): the start (hr_apply's row + the job row + trade_in), the settle (Storage and stock upserts, the XP row,
@@ -484,14 +485,15 @@ begin
 end $fn$;
 
 -- ── §5 THE SWEEP (browser closed: the server collects every finished job) ───
-create or replace function public.hr_trade_jobs_sweep(p_limit integer default 500)
+create or replace function public.hr_trade_jobs_sweep(p_limit integer default 500, p_user uuid default null)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
-declare c record; v jsonb; v_seen int := 0; v_done int := 0; v_busy int := 0; v_err int := 0; v_pruned int := 0; v_msg text;
+declare c record; v jsonb; v_seen int := 0; v_done int := 0; v_busy int := 0; v_err int := 0; v_msg text;
 begin
   -- K1 (1073-k1-job-slice.sql): EVERY MINUTE (cron 'hr-trade-jobs'), each open job whose ends_at has passed is collected exactly as
   -- hr_trade_job_end(false) would, at its true end, so the goods are the watched job's. Each in its own subtransaction; never waits.
+  -- p_user (null: every account) keeps a probe to its own account (the §9 self-check).
   for c in select t.user_id, t.slot from public.trade_jobs t
-            where t.settled_at is null and t.ends_at <= now()
+            where t.settled_at is null and t.ends_at <= now() and (p_user is null or t.user_id = p_user)
             order by t.ends_at, t.id limit greatest(1, least(coalesce(p_limit, 500), 5000)) loop
     v_seen := v_seen + 1;
     begin
@@ -507,11 +509,20 @@ begin
       perform public.hr_record_rejection(c.user_id, c.slot, 'trade_jobs', 'sweep_fault', jsonb_build_object('error', left(v_msg, 200)), 1);
     end;
   end loop;
-  -- THE PRUNE: settled jobs past 30 days (the ledger keeps the history), a bounded batch a minute
-  with old as (select id from public.trade_jobs where settled_at is not null and settled_at < now() - interval '30 days' order by settled_at limit 1000)
+  return jsonb_build_object('seen', v_seen, 'settled', v_done, 'busy', v_busy, 'errors', v_err);
+end $fn$;
+
+create or replace function public.hr_trade_jobs_prune(p_limit integer default 1000)
+returns integer language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare v_n int;
+begin
+  -- K1 (1073-k1-job-slice.sql): THE PRUNE, with the sweep each minute: settled jobs past 30 days (the ledger keeps the history), a
+  -- bounded batch. Never an open job.
+  with old as (select id from public.trade_jobs where settled_at is not null and settled_at < now() - interval '30 days'
+                order by settled_at limit greatest(1, least(coalesce(p_limit, 1000), 10000)))
   delete from public.trade_jobs t using old where t.id = old.id;
-  get diagnostics v_pruned = row_count;
-  return jsonb_build_object('seen', v_seen, 'settled', v_done, 'busy', v_busy, 'errors', v_err, 'pruned', v_pruned);
+  get diagnostics v_n = row_count;
+  return v_n;
 end $fn$;
 
 -- ── §6 THE GUARD: a hero holding a job does nothing else ───────────────────
@@ -595,7 +606,7 @@ declare v_sig text; v_role text;
 begin
   foreach v_sig in array array['public.hr_trade_work_stop(uuid,integer,timestamp with time zone)', 'public.hr_trade_level_of(uuid,text)',
                                'public.hr_trade_band_open(uuid,integer)', 'public.hr_trade_job_quote(uuid,integer,text,integer)',
-                               'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer)',
+                               'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer,uuid)', 'public.hr_trade_jobs_prune(integer)',
                                'public.hr_trade_jobs_view(uuid,integer)', 'public.hr_trade_job_busy()'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
@@ -612,11 +623,11 @@ begin
 end $mig$;
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_trade_job_start', 'p_slot integer, p_recipe text, p_count integer, p_fee bigint, p_idem uuid', 'authenticated',
-   'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (a gold sink and an inventory debit) - start a kit-trade job: one catalogue recipe, a count up to one work day, the fee the server''s; inputs from the bag then Storage; refuses busy, rung_locked, band_locked, work_cap, count_cap, quote_changed, short_inputs; dark (trade_jobs); pre-EA Security list S-25'),
+   'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (a gold sink and an inventory debit) - start a kit-trade job: one catalogue recipe, a count up to one work day, the fee the server''s; inputs from the bag then Storage; refuses busy, rung_locked, band_locked, work_cap, count_cap, quote_changed, short_inputs; dark (trade_jobs); pre-EA Security list S-27'),
   ('hr_trade_job_end', 'p_slot integer, p_early boolean, p_idem uuid', 'authenticated',
-   'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (inventory and trade XP credit) - collect a finished kit-trade job (not_due before the server says) or stop one now; the goods from the stored seed; dark (trade_jobs); pre-EA Security list S-25')
+   'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (inventory and trade XP credit) - collect a finished kit-trade job (not_due before the server says) or stop one now; the goods from the stored seed; dark (trade_jobs); pre-EA Security list S-27')
   on conflict (proname, identity_args, grantee) do update set note = excluded.note;
-do $mig$ begin perform public.hr_cron_ensure('hr-trade-jobs', '* * * * *', 'select public.hr_trade_jobs_sweep(500)'); end $mig$;
+do $mig$ begin perform public.hr_cron_ensure('hr-trade-jobs', '* * * * *', 'select public.hr_trade_jobs_sweep(500), public.hr_trade_jobs_prune(1000)'); end $mig$;
 
 -- ── §9 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- (a) THE SURFACE: three tables with RLS on, no policy and no client privilege; the switch is off; dark, both verbs answer not_open and
@@ -650,7 +661,7 @@ begin
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r),
                        unnest(array['public.hr_trade_work_stop(uuid,integer,timestamp with time zone)', 'public.hr_trade_level_of(uuid,text)',
                                     'public.hr_trade_band_open(uuid,integer)', 'public.hr_trade_job_quote(uuid,integer,text,integer)',
-                                    'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer)',
+                                    'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer,uuid)', 'public.hr_trade_jobs_prune(integer)',
                                     'public.hr_trade_jobs_view(uuid,integer)']) f(s)
               where has_function_privilege(g.r, f.s, 'execute')) then
     raise exception 'VERIFY(a): a client role reaches an internal job function'; end if;
@@ -758,7 +769,7 @@ begin
     q := public.hr_work_fold(null, 0, v_job.started_at, v_job.started_at + v_ms * interval '1 millisecond',
                              (public.hr_work_state(v_u, 0)->>'base_ms')::bigint, (public.hr_work_state(v_u, 0)->>'extra_ms')::bigint,
                              (now() at time zone 'utc')::date);
-    v := public.hr_trade_jobs_sweep(50);
+    v := public.hr_trade_jobs_sweep(50, v_u);
     if (v->>'settled')::int < 1 or exists (select 1 from public.trade_jobs where user_id = v_u and settled_at is null) then
       raise exception 'VERIFY(d): the sweep did not collect the job: %', v; end if;
     v_plain := coalesce((select qty from public.account_bank where user_id = v_u and item_id = 'cooked_shrimp'), 0);
@@ -776,7 +787,7 @@ begin
     if (select count(*) from public.player_ledger where user_id = v_u and meta->>'job' = v_job.id::text and meta->>'reason' in ('trade_out', 'trade_xp')) <> 2 then
       raise exception 'VERIFY(d): the collect''s journal is %', (select jsonb_agg(meta) from public.player_ledger where user_id = v_u and meta->>'job' = v_job.id::text); end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    if (public.hr_trade_jobs_sweep(50)->>'settled')::int <> 0 or public.hr_trade_job_end(0, false, gen_random_uuid())->>'error' is distinct from 'no_job' then
+    if (public.hr_trade_jobs_sweep(50, v_u)->>'settled')::int <> 0 or public.hr_trade_job_end(0, false, gen_random_uuid())->>'error' is distinct from 'no_job' then
       raise exception 'VERIFY(d): a collected job was collected again'; end if;
 
     -- (e) a stop at once: nothing made, every set back to Storage, the seed spent

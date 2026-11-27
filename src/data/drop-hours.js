@@ -33,7 +33,7 @@
 // ground DROPS a piece of and holds a Trait for (its rollable cells), then a Trait of that ground and slot, so a new Trait dilutes only its
 // own cell. A Rare's hours are the ground's whatever its cells: every Rare is a Trait piece, none is lost to an empty cell.
 // A MADE PIECE (capes and jewelry are bench-made, never dropped: the 14 Traits on those slots roll here; the designer's call, made in this
-// lane at the band-floor lane's ask). A cape or a jewel made with a ground's PART (`made.part`: the imbuement item one of its bodies drops,
+// lane at the band-floor lane's ask). A cape or a jewel made with a ground's PART (`made.part`: the field on the part one of its bodies drops,
 // imbuements.js's one-a-body rule) rolls a Trait from that ground's (ground, slot) cell with the same roller and the same hours: each make is
 // worth the hunted hours its part took to find, so a make rolls Rare at partHours / 40 and Very Rare at partHours / 400 (never pity: a bench
 // press is not a kill; never depth: a part carries none, so its odds and its rank roll as at the ground's reference step, the flame's luck
@@ -65,8 +65,8 @@ export const DROP_HOURS = Object.freeze({
   depthPm: Object.freeze([1000, 3000]),
   topRankPm: 500,
   topRankMaxPm: 800,
-  /* A MADE PIECE'S ROLL (the header): the Trait slots the bench makes, and what names a made piece's ground (its imbuement part's home) */
-  made: Object.freeze({ slots: Object.freeze(['cape', 'necklace', 'ring', 'earrings']), part: 'imbue' }),
+  /* A MADE PIECE'S ROLL (the header): the Trait slots the bench makes, and what names a made piece's ground (its part's home) */
+  made: Object.freeze({ slots: Object.freeze(['cape', 'necklace', 'ring', 'earrings']), part: 'part' }),
 });
 
 /** THE FORMULA: the per-kill chance of a row authored `everyHours`, for a hero who sees `killsHeadHour` of its kills an hour (the ground's

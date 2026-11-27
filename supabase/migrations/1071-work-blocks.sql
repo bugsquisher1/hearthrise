@@ -281,7 +281,9 @@ begin
     from public.player_state ps where ps.user_id = p_user;
   if v_pay is null then return null; end if;
   v_need := ceil(v_pay * coalesce(public.hr_hunt_limit('stamina_free_min'), 600) / 60 * s.offer_days_pm / 1000)::bigint;
-  v_purse := public.hr_purse_of(p_user);
+  -- the purse read here, as hr_purse_of reads it: this body runs in every envelope (hr_time_blocks_view), and a SECURITY DEFINER SQL
+  -- function with a SET clause is re-planned per call on PostgreSQL 17 (tests/settle-budget.mjs SB-3); a plpgsql statement is planned once
+  v_purse := coalesce((select w.gold from public.account_wallet w where w.user_id = p_user), 0)::bigint;
   if v_purse < v_need then return null; end if;
   return jsonb_build_object('kind', s.offer_kind, 'choices', to_jsonb(s.offer_choices), 'threshold', v_need, 'purse', v_purse);
 end $fn$;

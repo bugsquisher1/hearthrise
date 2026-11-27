@@ -107,14 +107,15 @@
 -- settle's one transaction and a key derived from the job id), from the stored fee and count, never a client number. Start-then-stop
 -- returns exactly what the start took (no gold made); it does not buy free work (no set attempted, no goods, no XP).
 -- The Storage over its stack cap: a settle credits Storage even past hr_depot_cap (a hero's own goods are never destroyed, the rule of
--- hr_hunt_close's bag), bounded by the catalogue's faces (16 recipes). ON THE PRE-EA SECURITY LIST (13-security-list.md S-10, S-27).
+-- hr_hunt_close's bag), bounded by the catalogue's faces (25 recipes since lane/one-town-work's band 0 batch). ON THE PRE-EA SECURITY LIST (13-security-list.md S-10, S-27).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
 -- A job is three writes (09 6): the start (hr_apply's row + the job row + trade_in), the settle (Storage and stock upserts, the XP row,
 -- player_state, at most four ledger rows). At most ~6 ledger rows a job, a job about a hero-day: ~48,000 rows a day at the extreme,
 -- ~15 MB, inside the prune. trade_jobs: one row a job, 30 days kept (~240,000 rows, ~70 MB). The sweep reads its partial index on
 -- ends_at (open jobs only) each minute and settles only what is due. Dark, every envelope pays one hr_flags read; lit, the section quotes
--- 16 recipes from shared reads (a handful of PK lookups each).
+-- 25 recipes from shared reads (a handful of PK lookups each). A fee refund is one more hr_apply and ledger row on a settle with
+-- unattempted sets (a stop or the day's cap), never a row a tick.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Drop the cron 'hr-trade-jobs', the trigger hr_trade_job_busy, the section row, the two verbs (+ their baseline rows) and the internal

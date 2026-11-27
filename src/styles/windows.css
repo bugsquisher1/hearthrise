@@ -351,6 +351,11 @@
 .hw-worn .hw-ico .hh-icon, .hw-fit .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-worn-name { flex: 1; font-weight: 700; color: var(--ink); }
 .hw-fits { margin: 0; padding: 0; list-style: none; }
+/* the account's free Trait pieces under the bag (doll.js pieceStripHtml), each its own framed pocket */
+.hw-piece-strip { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 2px 0; }
+.hw-piece-strip[hidden] { display: none; }
+.hw-piece-strip small { font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-2); }
+.hw-piece-icons { display: flex; gap: 4px; flex-wrap: wrap; }
 .hw-fit { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--line-soft); }
 .hw-fit-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-fit-delta { font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }

@@ -889,8 +889,11 @@
     "1069-wave3-moves-rune-spells.generated.sql",
     "1070-prices-wage-hours-farm-catalogues.generated.sql",
     "1070-wave3-moves.sql",
+    "1071-tp-im-server.sql",
     "1071-trait-pieces-catalogue.generated.sql",
     "1071-trait-pieces.sql",
+    "1072-piece-verbs-catalogue.generated.sql",
+    "1072-piece-verbs.sql",
     "2026-08-10-dr-legacy-cloud-save.sql",
     "2026-08-12-clan-members-rls-drop.sql",
     "2026-09-13-town-presence-off.sql",
@@ -942,6 +945,16 @@
       "restatements": 1,
       "lastRestatement": "2026-08-25-workers.sql"
     },
+    "hr_apply": {
+      "depth": 2,
+      "files": [
+        "1059-company-trades.sql",
+        "1072-piece-verbs.sql"
+      ],
+      "totalPatches": 85,
+      "restatements": 15,
+      "lastRestatement": "1040-rested-bank-cut.sql"
+    },
     "hr_hunt_party_view": {
       "depth": 2,
       "files": [
@@ -951,6 +964,16 @@
       "totalPatches": 8,
       "restatements": 11,
       "lastRestatement": "2027-04-26-party-stamina-truth.sql"
+    },
+    "hr_unlock_buy": {
+      "depth": 2,
+      "files": [
+        "2027-02-28-temper-craft.sql",
+        "1071-tp-im-server.sql"
+      ],
+      "totalPatches": 6,
+      "restatements": 4,
+      "lastRestatement": "2027-01-10-house-from-storage.sql"
     },
     "hr_hunt_settings_view": {
       "depth": 2,
@@ -991,16 +1014,6 @@
       "restatements": 1,
       "lastRestatement": "2026-08-17-cutover-import.sql"
     },
-    "hr_perks_of": {
-      "depth": 2,
-      "files": [
-        "2027-03-31-watched-settle-cost.sql",
-        "1063-flame-temper.sql"
-      ],
-      "totalPatches": 2,
-      "restatements": 6,
-      "lastRestatement": "2027-03-22-dead-plot-deed.sql"
-    },
     "hr_set_auto_eat": {
       "depth": 2,
       "files": [
@@ -1021,15 +1034,6 @@
       "restatements": 8,
       "lastRestatement": "2027-02-21-tick-gateway-apikey.sql"
     },
-    "hr_apply": {
-      "depth": 1,
-      "files": [
-        "1059-company-trades.sql"
-      ],
-      "totalPatches": 84,
-      "restatements": 15,
-      "lastRestatement": "1040-rested-bank-cut.sql"
-    },
     "hr_hunt_settle_session": {
       "depth": 1,
       "files": [
@@ -1038,15 +1042,6 @@
       "totalPatches": 16,
       "restatements": 11,
       "lastRestatement": "1025-own-heroes-apart.sql"
-    },
-    "hr_unlock_buy": {
-      "depth": 1,
-      "files": [
-        "2027-02-28-temper-craft.sql"
-      ],
-      "totalPatches": 5,
-      "restatements": 4,
-      "lastRestatement": "2027-01-10-house-from-storage.sql"
     },
     "hr_hunt_admit": {
       "depth": 1,
@@ -1514,6 +1509,13 @@
       "totalPatches": 2,
       "restatements": 7,
       "lastRestatement": "1062-store-step.sql"
+    },
+    "hr_perks_of": {
+      "depth": 0,
+      "files": [],
+      "totalPatches": 2,
+      "restatements": 7,
+      "lastRestatement": "1071-tp-im-server.sql"
     },
     "hr_put_client_state__ungated": {
       "depth": 0,

@@ -41,7 +41,9 @@ export function huntFor(activeId) {
  *
  * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), lead (leads its party), borrowed,
  *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns),
- *            leaveTogether (the hero's "Leave if anyone leaves the hunt or dies") }
+ *            leaveTogether (the hero's "Leave if anyone leaves the hunt or dies"),
+ *            wornTraits, wornSignature, wornImbues (the server's projections, hr_hunt_instance_read), readAtMs (the hunt session's
+ *            settled_to that read stood at: a worn imbuement's msLeft counts from it) }
  */
 export function heroSetup(o) {
   const opt = (o && o.options && typeof o.options === 'object') ? o.options : {};
@@ -64,9 +66,10 @@ export function heroSetup(o) {
   /* THE SIGNATURE IT PLAYS (src/core/hunt/signature-rules.js): the first it equipped, the server's projection. DARK: nothing hands one while
      SIGNATURE_RULES.live is false (tests/hunt-core/signature-rules.mjs dark) */
   const sg = wornSignatureOf(o.wornSignature);
-  /* THE IMBUEMENTS IT WEARS (src/core/imbue.js): the server's projection of hero_worn_imbue, [{ id, band, msLeft }], one a kind. DARK:
-     nothing hands one while the `imbuements` switch is off; the Lab and the tests do */
-  const imb = wornImbuesOf(o.wornImbues);
+  /* THE IMBUEMENTS IT WEARS (src/core/imbue.js): the server's projection of hero_worn_imbue, [{ id, band, msLeft }], one a kind, each to
+     the server instant it runs out (`readAtMs`, the hunt session's settled_to the read stood at, plus its msLeft). DARK: nothing hands one
+     while the `imbuements` switch is off; the Lab and the tests do (with no readAtMs: it lasts the span) */
+  const imb = wornImbuesOf(o.wornImbues, o.readAtMs);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
   /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */
   const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });

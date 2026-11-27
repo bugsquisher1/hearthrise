@@ -5,8 +5,10 @@
 //
 // THE SERVER OWNS THE TIMER. hero_worn_imbue (user, hero slot, equip slot, imbue, band, quality, ms_left) is written by hr_imbue_apply and
 // counted down by the settle's hunted milliseconds only (never in town). The browser shows ms_left; it never runs a clock on it.
-// THE WORN SET the fight reads is the hero's `wornImbues` ([{ id, band, msLeft }], the server's projection, owed): wornImbuesOf keeps one a
-// kind (the slot's), drops an unknown id, a spent one and one more than wearAhead over the hero, so a forged list can never stack.
+// THE WORN SET the fight reads is the hero's `wornImbues` ([{ id, band, msLeft }], the server's projection hr_worn_imbues_of, handed by
+// hr_hunt_instance_read `worn_imbues`, 1077-worn-imbues.sql): wornImbuesOf keeps one a kind (the slot's), drops an unknown id and a spent
+// one, and turns msLeft into the server instant it runs out (untilMs); imbuesAt drops it there at every boundary; imbueStepsAt counts one
+// more than wearAhead over the hero 0. So a forged list can never stack, and a run-out lands at one instant on both doors.
 // THE ROWS (imbueRows), one a worn imbuement on every blow or heal, in the consumable slice at full size times its band's contest curve:
 //   it fires   { slice: 'consumable', raises, steps, key }                its channel, and its condition holds on this blow
 //   it waits   the same row with holds: false                               any other blow: it still takes its room (21 D-11)
@@ -59,18 +61,38 @@ export function imbueStepsAt(band, heroLevel) {
   return IMBUE.steps / powSquare(1 + DANGER.powerStep, Math.max(0, L - b));
 }
 
-/** THE WORN SET AS THE FIGHT PLAYS IT, from the server's list [{ id, band, msLeft }]: an unknown id, a band no whole number, a spent one
-    (msLeft 0) and a second of one kind are dropped (the first of a kind stays). Frozen [{ id, band, kind }], or null with none. */
-export function wornImbuesOf(list) {
+/** THE WORN SET AS THE FIGHT PLAYS IT, from the server's list [{ id, band, msLeft }] (hr_hunt_instance_read `worn_imbues`, read when the
+    hero's hunt session stood at `fromMs`, its settled_to: the instant msLeft counts from): an unknown id, a band no whole number, a spent
+    one (msLeft 0) and a second of one kind are dropped (the first of a kind stays). Frozen [{ id, band, kind, untilMs }], or null with none.
+    UNTILMS is the server instant it runs out, fromMs + msLeft. The timer (hr_flame_temper_settle) takes every settled millisecond off
+    ms_left as settled_to moves, so settled_to + ms_left is ONE instant however the hunt's windows are cut, and the fight drops the
+    imbuement there (imbuesAt), viewed or closed alike (CLAUDE.md section 6). null with no fromMs (a Lab or test hero: it lasts the span).
+    An entry already in this shape (its own untilMs, a whole instant or null) keeps it, so the engine re-reads its own output; msLeft is not
+    carried on, so the hero a peer's frozen row holds (member.js frozenKey) is the same from one window to the next. */
+export function wornImbuesOf(list, fromMs) {
   if (!Array.isArray(list) || !list.length) return null;
+  const from = Number.isSafeInteger(fromMs) ? fromMs : null;
   const byKind = new Map();
   for (const x of list) {
     const id = x && x.id;
-    if (!own(IMBUE_RULES, id) || !whole(x.band) || !whole(x.msLeft)) continue;
+    if (!own(IMBUE_RULES, id) || !whole(x.band)) continue;
+    const untilMs = own(x, 'untilMs') ? (Number.isSafeInteger(x.untilMs) ? x.untilMs : null)
+      : whole(x.msLeft) ? (from === null ? null : from + whole(x.msLeft)) : undefined;
+    if (untilMs === undefined) continue;
     const kind = IMBUE_RULES[id].kind;
-    if (!byKind.has(kind)) byKind.set(kind, Object.freeze({ id, band: whole(x.band), kind }));
+    if (!byKind.has(kind)) byKind.set(kind, Object.freeze({ id, band: whole(x.band), kind, untilMs }));
   }
   return byKind.size ? Object.freeze([...byKind.values()]) : null;
+}
+
+/** THE WORN SET STANDING AT server instant `atMs` (combat-sim.js syncUnit, at every boundary): wornImbuesOf's, less each one whose untilMs is
+    at or before atMs. It ran out there: the timer deletes its row in the settle whose window holds that instant, so the next read hands it
+    no more. Null with none; the whole set when atMs is no number. */
+export function imbuesAt(worn, atMs) {
+  const set = wornImbuesOf(worn);
+  if (!set || !Number.isFinite(atMs)) return set;
+  const left = set.filter((w) => w.untilMs === null || w.untilMs > atMs);
+  return left.length === set.length ? set : left.length ? Object.freeze(left) : null;
 }
 
 /* a row's condition on this blow: the role of the monster struck (`role`) or the element of the blow taken (`element`) */

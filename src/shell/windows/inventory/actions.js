@@ -152,7 +152,7 @@ function wear(st, repaint, slot, id, at) {
   return send(st, repaint, async () => {
     try { return await equipAndTidy(st.cs, ops); } finally { sc.wearing = null; }
   /* a new way to fight is said on the window's own line: the stack the press was on has left the bag */
-  }, id ? 'Equipping…' : 'Taking it off…', said ? () => said : null, said ? null : at);
+  }, id ? t('bag.equipping') : t('bag.taking_off'), said ? () => said : null, said ? null : at);
 }
 
 /* A TRAIT PIECE (1072-piece-verbs.sql): one of the account's free pieces, as the server's `pieces` section holds it now. */
@@ -167,7 +167,7 @@ function wearPieceIn(st, repaint, slot, id) {
   if (why) { say(st, repaint, why, 'slot'); return; }
   sc.sellPiece = null;
   sc.wearing = { slots: [slot], items: [] };
-  send(st, repaint, async () => { try { return await wearPiece(st.account, st.cs, p, slot); } finally { sc.wearing = null; } }, 'Equipping…', null, 'slot');
+  send(st, repaint, async () => { try { return await wearPiece(st.account, st.cs, p, slot); } finally { sc.wearing = null; } }, t('bag.equipping'), null, 'slot');
 }
 
 /** Sell a free piece to the store: the first press says the server's price, the second sends ONE hr_piece_sell at it (a Rare is never
@@ -177,7 +177,7 @@ function sellPieceAt(st, repaint, id) {
   if (sc.pending || !p || p.sell === null) return;
   if (sc.sellPiece !== p.id) { sc.sellPiece = p.id; repaint(); return; }
   sc.sellPiece = null;
-  send(st, repaint, () => sellPiece(st.account, st.cs, p), 'Selling…', () => 'Sold for ' + gold(p.sell), 'slot');
+  send(st, repaint, () => sellPiece(st.account, st.cs, p), t('bag.selling'), () => t('bag.piece_sold', { gold: gold(p.sell) }), 'slot');
 }
 
 function doPrimary(st, id, repaint) {
@@ -257,7 +257,7 @@ function doSell(st, repaint) {
   const cs = st.cs;
   const lines = c.plan.lines;
   st.sc.confirm = null;
-  send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), 'Selling…', (r) => {
+  send(st, repaint, () => cs.edgeIntent('vendor_sell_many', { lines }), t('bag.selling'), (r) => {
     clearSelection(st.sc);   // the action is done with it
     return r && Number.isSafeInteger(r.paid) ? 'The shop paid ' + gold(r.paid) + '.' : 'Sold.';
   });

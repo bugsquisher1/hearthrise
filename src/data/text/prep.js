@@ -21,6 +21,8 @@ export const PREP_TEXT = Object.freeze({
   /* the setup in use after a mid-hunt swap: its bar is on, another setup's gear is still worn */
   in_use_bar: 'In use (bar only)',
   gear_count: { one: '{count} piece of gear', other: '{count} pieces of gear' },
+  /* a setup whose Trait piece was sold (1074-setup-pieces.sql `gone`): Use refuses it until the setup is saved again */
+  piece_sold: 'Piece sold',
   not_saved: 'not saved',
   setup_n: 'Setup {n}',
   name_this: 'Name this setup',

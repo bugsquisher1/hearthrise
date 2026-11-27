@@ -32,6 +32,9 @@
 //         longer, a Signature is never taken off, a piece another hero wears is no reason; the Start never hands a freed Rare's base on
 //   PC-6  ANOTHER OPEN HERO READS THE NEWEST LIST (item-sections.js storageOf / accountSection): a piece sold on one hero is gone from the
 //         other's list at once, its sales left with it; a hero read alone keeps its own
+//   PC-7  A SETUP SAYS ITS PIECE WAS SOLD (item-sections.js presetsOf, 1074-setup-pieces.sql): a setup's pieces read as the server sent them
+//         (a malformed id dropped) and its `gone` slots only among them; a setup with none reads neither; piece_gone and the Setups line's
+//         label have words
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -165,6 +168,16 @@ async function pure(base) {
   if (!shown || shown.pieces.some((p) => p.id === B) || shown.sellLeft !== 18) out.push('PC-6 another open hero still lists a piece sold on this one: ' + JSON.stringify(shown && { ids: shown.pieces.map((p) => p.id), left: shown.sellLeft }));
   const alone = PS.piecesOf(csOf({ pieces: SECTION, now: '2026-11-27T10:00:00Z', bank: {} }));
   if (!alone || !alone.pieces.some((p) => p.id === B)) out.push('PC-6 a hero read alone lost its own list');
+
+  /* PC-7 */
+  const RW = await u('src/data/refusal-words.js'), TX = await u('src/render/player-text.js');
+  const sets = IS.presetsOf(csOf({ hunt_presets: [
+    { preset: 1, name: 'Rare', action_set: 1, gear: { body: 'steel_platebody' }, pieces: { body: A, ring1: 'nope' }, gone: ['body', 'ring1'] },
+    { preset: 2, name: 'Plain', action_set: 2, gear: { body: 'bronze_platebody' } }] }));
+  const rare = sets && sets.find((x) => x.preset === 1), plain = sets && sets.find((x) => x.preset === 2);
+  if (!rare || JSON.stringify(rare.pieces) !== JSON.stringify({ body: A }) || JSON.stringify(rare.gone) !== '["body"]') out.push('PC-7 a setup with a sold piece reads ' + JSON.stringify(rare && { pieces: rare.pieces, gone: rare.gone }));
+  if (!plain || Object.keys(plain.pieces).length || plain.gone.length) out.push('PC-7 a setup with no piece reads ' + JSON.stringify(plain && { pieces: plain.pieces, gone: plain.gone }));
+  if (!RW.REFUSAL_WORDS.piece_gone || !TX.hasText('prep.piece_sold')) out.push('PC-7 piece_gone or the line\'s label has no words');
   return out;
 }
 
@@ -188,6 +201,8 @@ const MUTANTS = [
   ['the window reads no pieces', 'src/shell/widgets/upgrade-line.js', 'pieces: wornPiecesOf(cs),', 'pieces: null,'],
   ['another hero reads its own old list', 'src/session/piece-sections.js', "accountSection(cs, 'pieces')", "cs.read('pieces')"],
   ['the account copy carries no pieces', 'src/session/item-sections.js', "pieces: isObj(read(cs, 'pieces')) ? read(cs, 'pieces') : null } : null;", 'pieces: null } : null;'],
+  ['a setup never says its piece was sold', 'src/session/item-sections.js', "const gone = Array.isArray(r.gone) ? r.gone.filter((s) => typeof s === 'string' && s in pieces) : [];", 'const gone = [];'],
+  ['a setup\'s pieces are any text', 'src/session/item-sections.js', "typeof id === 'string' && UUID.test(id)) pieces[slot] = id;", "typeof id === 'string') pieces[slot] = id;"],
 ];
 
 process.exitCode = await runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/piece-client.mjs', pure, mutants: MUTANTS,

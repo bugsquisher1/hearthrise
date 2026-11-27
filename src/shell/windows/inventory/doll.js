@@ -261,9 +261,10 @@ function patchPieceFits(line, st, ctx, o) {
       attr(wearB, 'data-off-why', short ? need.text : o.locked ? o.lockWhy : null);
       const sellB = li.querySelector('[data-hs-act="sell-piece"]');
       const asking = sc.sellPiece === p.id;
-      text(sellB, p.sell === null ? t('controls.sell') : asking ? 'Sell for ' + gold(p.sell) + '?' : t('controls.sell') + ' · ' + gold(p.sell));
-      cls(sellB, 'is-primary', asking);
+      /* off for a rule, the button says which (say-why SW-2): the store buys none, or the day's sales are spent */
       const why = p.sell === null ? 'The store does not buy this' : sec.sellLeft <= 0 ? 'No more sales to the store today' : null;
+      text(sellB, why ? why : asking ? 'Sell for ' + gold(p.sell) + '?' : t('controls.sell') + ' · ' + gold(p.sell));
+      cls(sellB, 'is-primary', asking && !why);
       prop(sellB, 'disabled', sc.pending || !!why);
       attr(sellB, 'data-off-why', why);
     },

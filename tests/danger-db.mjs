@@ -319,4 +319,7 @@ async function main() {
   process.exitCode = problems.length ? 1 : 0;
 }
 
-if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });
+/* The verdict is printed, then the process EXITS (as the other replay guards do): on GitHub something left open after the last line kept
+   it alive until db-replay-8's 62-minute limit, twice in four runs on set/v0.2.144 (45961730452 after "--mutate: 15/15 caught",
+   45974870746 after "danger-db: green"), while the step takes under 3 minutes when it ends. */
+if (isMain(import.meta.url)) main().then(() => process.exit(process.exitCode ?? 0), (e) => { console.error(e && e.stack ? e.stack : e); process.exit(1); });

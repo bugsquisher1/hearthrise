@@ -91,14 +91,31 @@ function gp3(unfold = {}) {
       const inWhole = !same && wholes.some((w) => w.has(t) && rows.every((r) => w.get(t).includes(r)));
       ok(same || inWhole, 'GP-3 ' + f + ': its ' + t + ' rows are not what tools/pack.mjs ship ' + id + ' renders today, and no folded whole file (' + folded.join(', ') + ') carries them');
     }
+    /* A table a later file of the chain drops is history: the pack's applied rows for it need no carrier (lane/ci-reds-1127b: 1072-retire-tier-chain
+       drops hr_ground_tiers, so Krell's Hold's applied tier rows read "in no folded whole file" and GP-3's control went red, run 45986445932). */
+    const dropped = droppedAfter(f);
     for (const [t, rows] of mine) {
-      if (now.has(t)) continue;
+      if (now.has(t) || dropped.has(t)) continue;
       const keyCols = PACK_TABLES[t] ? PACK_TABLES[t].length : 1;
       const keyOf = (r) => r.split(',').slice(0, keyCols).join(',');
       const carried = wholes.some((w) => w.has(t) && rows.every((r) => w.get(t).some((x) => keyOf(x) === keyOf(r))));
       ok(carried, 'GP-3 ' + f + ': its ' + t + ' rows are in no folded whole file (' + folded.join(', ') + ')');
     }
   }
+}
+/* the tables a migration after `file` in the apply order drops (`drop table [if exists] public.<t>`), read as text */
+const DROPPED = new Map();
+function droppedAfter(file) {
+  if (DROPPED.has(file)) return DROPPED.get(file);
+  const order = applyOrder(), at = order.indexOf(file), out = new Set();
+  DROPPED.set(file, out);
+  if (at < 0) return out;
+  for (const m of order.slice(at + 1)) {
+    const p = join(MIG, m);
+    if (!existsSync(p)) continue;
+    for (const x of readFileSync(p, 'utf8').matchAll(/^\s*drop table (?:if exists )?public\.([a-z_0-9]+)/gim)) out.add(x[1]);
+  }
+  return out;
 }
 /* a covered generator's whole file name, read as text */
 function outOf(gen) {

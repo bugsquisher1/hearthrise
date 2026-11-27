@@ -430,6 +430,12 @@
         "gzipBytes": 981173,
         "on": "2026-11-27",
         "why": "lane/designer-text-1126: the one-time block-offer card in the coach box (time-offer-card.js, coach rows) and the What's new v0.3.0 copy"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981179,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1126c on the set's ceiling 3a8c2cbca: src/data/drop-hours.js DROP_HOURS.made.part names 'part', the field every part carries since lane/tp-im-steps (it named the retired 'imbue'); one string, a few bytes gzip"
       }
     ]
   }

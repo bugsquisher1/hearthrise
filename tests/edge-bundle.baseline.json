@@ -528,6 +528,11 @@
         "bytes": 3916314,
         "on": "2026-11-27",
         "why": "lane/designer-pity: the Trait roller reads the one pity (src/core/personal-loot.js + src/data/party.js PERSONAL_LOOT/PITY_UNIT), 12-targets 8.6.1"
+      },
+      {
+        "bytes": 3926348,
+        "on": "2026-11-27",
+        "why": "lane/b1-work-blocks merged after lane/designer-pity's ceiling: src/data/work-day.js reads the bought work block from src/data/time-blocks.js (TIME_BLOCKS.work, the one row; its WORK_BLOCK_RULED copy retired), so the edge now packs time-blocks.js (+10,745 B, no other new file); +10,034 B over the set's ceiling, measured on the merged set 723e91713"
       }
     ]
   }

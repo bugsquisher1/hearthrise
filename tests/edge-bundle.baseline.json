@@ -608,6 +608,11 @@
         "bytes": 3907836,
         "on": "2026-11-27",
         "why": "lane/p1-personal-loot: drops.js effectiveDropChance's params typed for the type ratchet (+61 B)"
+      },
+      {
+        "bytes": 3908376,
+        "on": "2026-11-27",
+        "why": "lane/designer-recut-calls: the Warder's mend at 0.6 s and the re-derived drop chances on four re-cut grounds (monsters.js rows the engine carries)"
       }
     ]
   }

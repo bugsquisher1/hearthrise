@@ -538,6 +538,16 @@
         "bytes": 3931473,
         "on": "2026-11-27",
         "why": "lane/k1-job-slice +5,125 B: src/data/job-faces.js (the hunted streams' faces and the imbuement jobs) and the made imbuements' item rows in items.js"
+      },
+      {
+        "bytes": 3937159,
+        "on": "2026-11-27",
+        "why": "lane/piece-gear-fixes +5,686 B: src/core/upgrade-pick.js weighs a worn Trait piece in steps (plainStepsPm, pieceStepsPm, wornPiecesIn; the company Start's pick reads the envelope's pieces section through company-wear.js), no new import"
+      },
+      {
+        "bytes": 3959122,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: 16 move Signature reaction rows and their engine pieces (signature-rules, reactions); lane/piece-gear-fixes: upgrade-pick weighs a piece's Traits"
       }
     ]
   }

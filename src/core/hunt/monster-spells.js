@@ -58,7 +58,7 @@ import { stepsOn } from './amount.js';
 import { swingRow, spellCdOf } from './boss-phases.js';
 import { healTaken } from './heal-cut.js';
 import { hasEffect } from './status-effects.js';
-import { spendFlag } from './status.js';
+import { spendFlag, spendOnce } from './status.js';
 import { breaksOff } from './danger.js';
 import { isEnemy, isAlly, isMonster } from './sides.js';
 
@@ -172,6 +172,8 @@ function land(inst, sc, u, sp) {
   /* on the scale the pipeline draws the one roll from the hit's mean (src/core/hunt/amount.js) */
   const piped = stepsOn(inst);
   for (const h of struck) if (h.alive) landHit(inst, sc, u, h, piped ? (lo + top) / 2 : sc.rng.int(lo, top), sp.element || null, marked(sp) && h.shieldWorn === true ? braced : plain, false);
+  /* the landing was the caster's blow: a one-blow status it held (statuses.js `once`, Blunted) is spent on it */
+  if (struck.length) spendOnce(u, sc);
 }
 
 /* THE FIRST CASTS of a monster joining a fight: { spell id: ms to wait }, each a drawn whole number of sub-steps (header). */

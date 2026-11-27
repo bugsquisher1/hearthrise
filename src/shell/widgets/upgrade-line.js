@@ -16,6 +16,7 @@ import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js';
 import { levelOf } from '../../session/character-sections.js';
 import { tallyOf } from '../../session/tally-sections.js';
 import { settingsOf } from '../../session/hunt-sections.js';
+import { wornPiecesOf } from '../../session/piece-sections.js';
 import { text, cls, prop, attr } from '../../render/paint.js';
 import { runIntent } from '../intent-words.js';
 import { upgradePlan, upgradeWords, preferredWeight } from '../upgrade-plan.js';
@@ -24,12 +25,13 @@ import { whyLine } from './why-line.js';
 
 /** This character's plan, from what the server sent (empty `ops` when nothing is better); a tie between armor weights
     goes to the weight the hero chose at Tamsin's (the server's tally row), else the one it wears, else its role's, and
-    a worn piece moves only to the one chosen there (upgrade-plan.js weightFits). `over`: { bag, equipment } read instead of the hero's own
+    a worn piece moves only to the one chosen there (upgrade-plan.js weightFits), and a worn Trait piece is weighed in steps, its Traits
+    and all (src/core/upgrade-pick.js pieceStepsPm). `over`: { bag, equipment } read instead of the hero's own
     (the company's Start, ../carry-on.js wearListOf: a bag pooled from the heroes going out, the gear after its own picks). */
 export function upgradeOf(cs, over) {
   const lv = levelOf(cs), t = tallyOf(cs), s = settingsOf(cs);
   const eq = (over && over.equipment) || equipmentOf(cs) || {};
-  return upgradePlan({ bag: (over && over.bag) || bagOf(cs) || [], equipment: eq, skills: skillsOf(cs), level: lv ? lv.level : null,
+  return upgradePlan({ bag: (over && over.bag) || bagOf(cs) || [], equipment: eq, skills: skillsOf(cs), level: lv ? lv.level : null, pieces: wornPiecesOf(cs),
     chosen: t ? t.weight : null, prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });
 }
 

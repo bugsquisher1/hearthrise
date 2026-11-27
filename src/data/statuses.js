@@ -49,6 +49,12 @@
 //   healCutPm    { hero, monster } permille LESS of every heal its unit takes while it lasts, by the unit's side (heal-cut.js healTaken,
 //                 the one reader). guard (optional): an element; a HERO's resistance to it lowers the hero's cut by the same percent,
 //                 fixed as the stack lands: cut = floor(healCutPm.hero x taken / 1000). A monster's cut is never guarded
+//   castPm       permille MORE of what its unit's next cast of a move in `castOf` (a list of move ids) lands, and the stack is spent on
+//                 that cast (abilities.js fire: the cast's output, as a version's step, so a hit and a heal both read it; 15 #16). Fixed
+// A MODIFIER (no effect of its own):
+//   once          true: what the row does holds for its unit's NEXT BLOW only, and the stack is spent once that blow has landed (status.js
+//                 spendOnce: damage.js resolveAttacks after a swing and its splash, monster-spells.js after a wind-up's landing). A tick
+//                 is no blow (15 #1: "the first blow from each monster you taunt lands at half")
 // THE KEYS' COUNT (status-effects.js effectPm): a unit's value of one effect is, over its keys, the key's value summed:
 //   strongest  the largest (by size) live stack of the key counts, alone (15: "doesn't stack, the largest counts")
 //   add        the strongest stack of each ROW of the key counts, the rows added, held to the key's capPm (15: "different sources add")
@@ -77,6 +83,10 @@ export const STATUS_KEYS = Object.freeze({
   silenced: Object.freeze({ combine: 'strongest' }),            // one at a time, restarts the time
   parried: Object.freeze({ combine: 'strongest' }),             // one at a time: a second Parry restarts the window, never a second blow
   burning_ground: Object.freeze({ combine: 'strongest' }),
+  /* (lane/signatures-batch-2) a monster's next blow, cut (15 #1 Bannerman's Pavise): its own key, so it adds to Weakened and never
+     replaces it; and a hero's next cast of a named move, raised (15 #16 Lamplighter's Robe) */
+  blunted: Object.freeze({ combine: 'strongest' }),
+  kindled: Object.freeze({ combine: 'strongest' }),
   /* "different sources add, the Lab sets one cap for the total" (15): PROVISIONAL caps, the Lab's to set */
   hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),
   hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),
@@ -166,6 +176,12 @@ export const STATUSES = Object.freeze({
   frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',
     ground: Object.freeze({ r: 1 }), tick: Object.freeze([1, 1]), everyMs: 1000, durationMs: 4000, maxStacks: 1, blowPm: 1,
     tierPermille: TIERS, lays: 'chill' }),
+  /* BLUNTED (15 #1 Bannerman's Pavise: "the first blow from each monster you taunt lands at half damage"): the monster's next blow, a
+     swing and its splash or a wind-up's landing, deals half, and the stack is spent on it; 10 s if it never swings */
+  blunted: Object.freeze({ id: 'blunted', name: 'Blunted', key: 'blunted', hidden: true, durationMs: 10000, maxStacks: 1, dealtPm: -500, once: true }),
+  /* KINDLED (15 #16 Lamplighter's Robe: "your next Fireball or Frost Lance deals 30% more damage"): spent on that cast; 30 s to use it */
+  kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,
+    castOf: Object.freeze(['fireball', 'frost_lance']) }),
 });
 
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */
@@ -195,13 +211,13 @@ const ID = /^[a-z0-9_]{1,32}$/;
 const SIGNED = Object.freeze(['takenPm', 'dealtPm', 'armorPm']);
 const TICK_FIELDS = Object.freeze(['tick', 'everyMs', 'blowPm', 'damageType', 'heals', 'lays']);
 const KNOWN = new Set(['id', 'name', 'key', 'durationMs', 'maxStacks', 'refresh', 'hidden', ...TICK_FIELDS, 'tierPermille', 'ground',
-  ...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm', 'guard']);
-/** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry, healCutPm. */
+  ...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm', 'guard', 'castPm', 'castOf', 'once']);
+/** The effects a row carries, by name: tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry, healCutPm, castPm. */
 export function effectsOf(row) {
   const out = [];
   if (row.tick !== undefined) out.push('tick');
   if (row.ground !== undefined) out.push('ground');
-  for (const k of [...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm']) if (row[k] !== undefined) out.push(k);
+  for (const k of [...SIGNED, 'slowPm', 'silence', 'parry', 'healCutPm', 'castPm']) if (row[k] !== undefined) out.push(k);
   return out;
 }
 
@@ -224,7 +240,7 @@ export function validateStatus(row) {
   for (const k of ['durationMs', 'maxStacks']) posInt(k);
   onGrid('durationMs');
   const fx = effectsOf(row);
-  if (!fx.length) out.push(at + 'does nothing: it needs an effect (tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry or healCutPm)');
+  if (!fx.length) out.push(at + 'does nothing: it needs an effect (tick, ground, takenPm, dealtPm, armorPm, slowPm, silence, parry, healCutPm or castPm)');
   /* ONE SCALE A STACK: a tick's (its source's blow), a tiered slow's (its rune tier) or a guarded heal cut's (the hero's guard) */
   const scaled = [row.tick !== undefined, row.slowPm !== undefined && row.tierPermille !== undefined, row.healCutPm !== undefined].filter(Boolean).length;
   if (scaled > 1) out.push(at + 'a tick, a tiered slow and a heal cut each fix a stack\'s scale: one a row');
@@ -235,6 +251,12 @@ export function validateStatus(row) {
   if (row.slowPm !== undefined && (!Number.isInteger(row.slowPm) || row.slowPm <= 0 || row.slowPm > 1000)) out.push(at + 'slowPm must be an integer 1..1000');
   if (row.silence !== undefined && row.silence !== true) out.push(at + 'silence is true or absent');
   if (row.parry !== undefined && row.parry !== true) out.push(at + 'parry is true or absent');
+  /* A NEXT CAST RAISED (castPm, kindled): a whole permille and the moves whose cast spends it */
+  if (row.castPm !== undefined && (!Number.isInteger(row.castPm) || row.castPm <= 0 || row.castPm > 1000)) out.push(at + 'castPm must be an integer 1..1000');
+  if ((row.castPm === undefined) !== (row.castOf === undefined)) out.push(at + 'castPm and castOf come together (the share and the moves that spend it)');
+  if (row.castOf !== undefined && !(Array.isArray(row.castOf) && row.castOf.length && row.castOf.every((m) => typeof m === 'string' && ID.test(m)))) out.push(at + 'castOf is a list of move ids');
+  /* ONCE: a blow's effect (more or less dealt), spent on the next blow; nothing that ticks, slows or lies on the ground */
+  if (row.once !== undefined && (row.once !== true || row.dealtPm === undefined || row.tick !== undefined || row.ground !== undefined || row.slowPm !== undefined)) out.push(at + 'once is true on a status that moves what its unit deals (dealtPm), nothing that ticks, slows or lies on the ground');
   if (row.healCutPm !== undefined) {
     const c = row.healCutPm;
     if (!c || typeof c !== 'object' || Object.keys(c).sort().join() !== 'hero,monster' || !['hero', 'monster'].every((k) => Number.isInteger(c[k]) && c[k] > 0 && c[k] < 1000)) {

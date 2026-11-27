@@ -38,7 +38,7 @@ const slotsLiteral = (slots) => '{' + slots.join(',') + '}';
 /** The named heroes' wear lines from their envelopes ([{ slot, env }], slot order): the core's pick. Pure. */
 export function wearLinesFor(heroes) {
   return companyWearLines(heroes.filter((h) => h.env && h.env.ok === true)
-    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => h.env[k]) })));
+    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => h.env[k], h.slot) })));
 }
 
 /**

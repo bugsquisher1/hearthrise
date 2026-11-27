@@ -33,13 +33,17 @@ export const reactsOn = (u, on) => !!u && u.alive === true && Array.isArray(u.re
 
 /* A ROW'S READING OF THE MOMENT AS IT HAPPENS (a Signature's, src/data/signatures.js; read here, not when the queue drains, since the same
    hook may change it before then): `has` the moment's unit carries a live stack of that status (The Wood Book: "vs a chilled target"),
-   `belowPm` the moment's unit is under that share of its max health (Cairn Belt: "below 30% health") */
+   `belowPm` the moment's unit is under that share of its max health (Cairn Belt: "below 30% health"), read at the health the moment
+   started from when it names one (`was`: a heal's target before the heal, Bargeman's Pole), and `marked` the moment's monster carries
+   a live Hunter's Mark (Lurcher's Collar) */
 const carries = (t, id) => !!t && Array.isArray(t.statuses) && t.statuses.some((st) => st.s === id && st.left > 0);
-const under = (t, pm) => !!t && Number(t.maxHp) > 0 && Math.floor(Number(t.hp) || 0) * 1000 < pm * Math.floor(Number(t.maxHp));
-const holdsNow = (row, ctx) => (row.has === undefined || carries(ctx.t, row.has)) && (row.belowPm === undefined || under(ctx.t, row.belowPm));
+const under = (t, pm, was) => !!t && Number(t.maxHp) > 0 && (Number.isInteger(was) ? was : Math.floor(Number(t.hp) || 0)) * 1000 < pm * Math.floor(Number(t.maxHp));
+const markedAt = (t, atMs) => !!t && Number.isInteger(t.markPm) && t.markPm > 0 && Number.isInteger(t.markUntil) && t.markUntil > atMs;
+const holdsNow = (row, ctx, atMs) => (row.has === undefined || carries(ctx.t, row.has)) && (row.belowPm === undefined || under(ctx.t, row.belowPm, ctx.was))
+  && (row.marked !== true || markedAt(ctx.t, atMs));
 
 /** QUEUE every row of hero `u` that reacts to moment `on`, with what the moment says (`ctx`). Nothing while the queue drains. */
 export function queueOn(inst, u, on, ctx) {
   if (!inst || inst.reacting || !reactsOn(u, on)) return;
-  for (const row of u.reacts) if (row.on === on && holdsNow(row, ctx)) (inst.reactQ || (inst.reactQ = [])).push({ u, row, ctx });
+  for (const row of u.reacts) if (row.on === on && holdsNow(row, ctx, inst.atMs)) (inst.reactQ || (inst.reactQ = [])).push({ u, row, ctx });
 }

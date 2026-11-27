@@ -555,9 +555,19 @@
         "why": "lane/designer-sig-metric: new tips for Signatures #3, #9 and #21 and the re-sized rows in src/data/signatures.js, which the engine carries"
       },
       {
-        "bytes": 3960103,
+        "bytes": 3890640,
         "on": "2026-11-27",
-        "why": "lane/ci-reds-1127: the cast's JSDoc type names its tally field (abilities.js, typecheck-ratchet TS2339 from signatures-batch-2), +13 B"
+        "why": "cut locked in (69450 bytes)"
+      },
+      {
+        "bytes": 3893833,
+        "on": "2026-11-27",
+        "why": "lane/retire-dawnsteel-lines on the merged set: the six kept uniques past Dawnsteel as item rows in the Roost and Catacomb packs, their lore and generated stats (28-named-pieces 2.7), less the dead monsterCombatRolls"
+      },
+      {
+        "bytes": 3893846,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1127 (re-raised on the merged base): the cast's JSDoc type names its tally field (abilities.js, typecheck-ratchet TS2339 from signatures-batch-2), +13 B"
       }
     ]
   }

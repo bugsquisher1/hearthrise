@@ -12,7 +12,7 @@
 //                            (10 min settles): the same kills, Level XP, damage taken, deaths and landed share, to the unit; and its
 //                            monsters land 55-75% of their blows on it (the career hammer: the ratio's 70% on a regular, less on the rest).
 //
-// mutant-anchors: src/core/combat.js src/data/to-hit.js src/data/hunt-tiers.js src/core/hunt/boss-phases.js src/core/hunt/damage.js
+// mutant-anchors: src/core/combat.js src/data/to-hit.js src/core/hunt/dial.js src/core/hunt/boss-phases.js src/core/hunt/damage.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
@@ -80,8 +80,8 @@ const mutants = [
     edits: [['src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + (Number(playerDefense) || 0)));', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + 10 + (Number(playerDefense) || 0)));']] },
   { name: 'the ratio halves the wrong side (1 - D / 3A)', case: 'monsters-land-the-ratio',
     edits: [['src/data/to-hit.js', 'return a >= d ? 1 - d / (2 * a) : a / (2 * d);', 'return a >= d ? 1 - d / (3 * a) : a / (2 * d);']] },
-  { name: 'a tier raises the blow and not the aim', case: 'monsters-land-the-ratio',
-    edits: [['src/data/hunt-tiers.js', '...(Number.isFinite(row.aim) ? { aim: (row.aim * aim) / 1000 } : {}),', '']] },
+  { name: 'a dial raises the blow and not the aim', case: 'monsters-land-the-ratio',
+    edits: [['src/core/hunt/dial.js', '...(Number.isFinite(row.aim) ? { aim: (row.aim * aim) / 1000 } : {}),', '']] },
   { name: 'an enrage raises the blow and not the aim', case: 'monsters-land-the-ratio',
     edits: [['src/core/hunt/boss-phases.js', 'Number.isFinite(row.aim) ? { aim: (row.aim * ph.enrageAtkPm) / 1000 } : {});', '{});']] },
   { name: 'the old straight line comes back (0.50 + 2% an attack point over Defense)', case: 'monsters-land-the-ratio',

@@ -6,11 +6,7 @@
 // new ground is a data row and shows up here with nothing else to edit.
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
-//   packWords(row, n)   "6 packs of 7 · respawns every 60 seconds": the pull size the
-//                        server spawns on the shown tier; the room as built only at 0
-//   tierPull(row, tier, size)  how many monsters a pull brings on a tier for this group
-//   tierWords(row, tier, size)  what a tier does, in plain words (hunt-tiers.js TIER_LINES; the numbers are the wiki's)
-//   tierChoiceWords(row, tier, size)  the same choice in one line, beside Enter
+//   packWords(row, n)   "6 packs of 7 · respawns every 60 seconds": `n` a pull size, the room as built at 0 or none
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
@@ -30,7 +26,6 @@
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, underFloorSharePm, groundOfHunt } from '../data/hunt-grounds.js';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js';
 import { PARTY } from '../data/party.js';
 import { partyBestLine } from '../data/party-class-xp.js';
 import { HUNT_INDEX } from '../data/hunts.js';
@@ -68,7 +63,7 @@ export function healerNote(hunt, level, discipline, healed) {
 }
 
 /* WHAT A PARTY EARNS HERE, MEASURED (lane/a-party-advice-glade): by party size 2..PARTY.maxSize, the most a mixed party earns against the same heroes
-   alone on any tier this ground offers, whole percent (party-class-xp.js partyBestLine: the Party window's own lines, written from the real settle by
+   alone on any of the ground's measured lines, whole percent (party-class-xp.js partyBestLine: the Party window's own lines, written from the real settle by
    tests/party-class-xp-line.mjs --mixed --write); null for a size with no line. */
 function partyBestOf(groundId) {
   const out = {};
@@ -120,40 +115,12 @@ export function huntRows() {
 
 /**
  * How crowded a ground is, in words: its packs, their size, the boss, the respawn. `n` is the
- * pull the server spawns this ground at on the shown tier (every pack holds n), 0 or unknown = the room as built.
+ * pull size (every pack holds n), 0 or unknown = the room as built.
  */
 export function packWords(r, n) {
   const built = r.packMin === r.packMax ? String(r.packMin) : t('hunts.pack_range', { min: r.packMin, max: r.packMax });
   const picked = Number.isInteger(n) && n > 0;
   return t(r.boss ? 'hunts.packs_boss' : 'hunts.packs', { count: r.packs, size: picked ? n : built, secs: r.respawnS });
-}
-
-/** How many monsters a pull brings on tier `id` for a group of `size` (0 = the room as built: Normal, for every group since Tyler 2026-11-11). The tier's row. Pure. */
-export function tierPull(r, id, size = 1) {
-  return pullOfTier(tierRowOf(r.hunt, id), size);
-}
-
-/**
- * WHAT A TIER DOES, the page's words (Tyler 2026-11-08: "Simplify this ... it's way too 'exact' it seems AI"): the plain line for the tier
- * (hunt-tiers.js TIER_LINES), `more` when its pull brings more monsters at once than Normal does for this group, else `same`, and one short
- * death line. No percent, HP or blow here: the wiki says the numbers. Normal says '' (the ground as the page describes it). Pure.
- */
-const tierLine = (r, tier, size) => { const L = TIER_LINES[tier.id]; return typeof L === 'string' ? L : tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same; };
-/* `level`: the server's Level for this hero (null: unknown). A Healer's tier on this ground (hunt-tiers.js HEALER_TIERS, measured) adds its
-   line under the Level it was measured to hold to, for a hero alone and a party alike (lane/a-honest-lines, re-landed by lane/a-honesty-rescue). */
-export function tierWords(r, id, size = 1, level = null) {
-  const tier = tierRowOf(r.hunt, id);
-  if (tier.id === DEFAULT_TIER) return '';
-  const healer = isHealerTier(r.hunt, tier.id, level) ? [t('hunts.tier_healer')] : [];
-  return [tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\n');
-}
-
-/** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: big groups that hit hard." '' on Normal. Pure. */
-export function tierChoiceWords(r, id, size = 1) {
-  const tier = tierRowOf(r.hunt, id);
-  if (tier.id === DEFAULT_TIER) return '';
-  const first = tierLine(r, tier, size).split('\n')[0].replace(/\.$/, '');
-  return t('hunts.tier_choice', { tier: TIER_NAME[tier.id], head: first.charAt(0).toLowerCase() + first.slice(1) });
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */
@@ -358,7 +325,7 @@ export function openingPick(rec, list, last) {
 /** THE LIST'S TWO TAGS on one ground: "Recommended" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure.
     A party reads the same Level tag as a hero alone (lane/d-party-pace, 2026-11-18): "Recommended for the party" sat on the Mill Cellar while the Party window
     said a four earns 60% under solo there (the full-game sweep, A1). The advice reads Levels, never what a party earns, and no card says which grounds suit
-    parties (Tyler 2026-11-16: "nothing at all"); the Party window says what this party earns on the leader's tier. */
+    parties (Tyler 2026-11-16: "nothing at all"); the Party window says what this party earns there. */
 export function adviceTag(r, rec, step) {
   if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');
   return step && step.hunt === r.hunt ? t('hunts.tag_next_step') : '';

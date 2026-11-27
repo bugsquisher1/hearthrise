@@ -1266,7 +1266,7 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', '    if (!waits.length || !waits.every(([, key]) => kept(key))) {', '    if (!waits.length) {']] },
   { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },
   /* ONE PACK FOR EVERY GROUP (Tyler 2026-11-08): the old party scale, the yield share and the party-only hall, each planted back */
-  { name: 'a lone hero\'s kill pays 55% of its row\'s XP', case: 'whole-kill', edits: [['src/core/hunt/damage.js', 'xp: Math.round(atTier(row, inst.tier).xp),', "xp: Math.round(atTier(row, inst.tier).xp * (inst.world.units.filter((x) => x.side === 'hero').length === 1 ? 0.55 : 1)),"]] },
+  { name: 'a lone hero\'s kill pays 55% of its row\'s XP', case: 'whole-kill', edits: [['src/core/hunt/damage.js', 'xp: Math.round(atTier(row, inst.tier).xp) }', "xp: Math.round(atTier(row, inst.tier).xp * (inst.world.units.filter((x) => x.side === 'hero').length === 1 ? 0.55 : 1)) }"]] },
   { name: 'a sure drop thinned by a yield share', case: 'whole-kill', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch);', '  if (row.ch >= 1) return Math.min(1, row.ch * 0.55);']] },
   { name: 'a lone hero skips the King\'s hall', case: 'every-route', edits: [['src/core/hunt/pull-cycle.js', 'const routeOf = (inst) => inst.ground.route;', "const routeOf = (inst) => (inst.world.units.filter((u) => u.side === 'hero').length > 1 ? inst.ground.route : inst.ground.route.filter((i) => !inst.ground.pockets[i].forParty));"]] },
   { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
@@ -1320,7 +1320,7 @@ const mutants = [
   { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
     edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },
   { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },
-  { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, tier: h.tier || null, lead: h.lead === true,', ' density: h.density || 0, tier: h.tier || null,']] },
+  { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, lead: h.lead === true,', ' density: h.density || 0,']] },
   { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: monsOf(!!plan), ...(tw', '            { tier, monsters: monsOf(!!plan), ...(tw']] },
   { name: 'respawns read every member\'s pick, smallest first (Andy 10-20, v0.2.20)', case: 'density-laps',
     edits: [['src/core/combat-sim.js', '        pickOf(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },

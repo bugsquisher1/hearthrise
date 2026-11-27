@@ -122,12 +122,13 @@ async function build(exportPath, heroesPath, outPath, instPath, since) {
 }
 
 /* ── RUN ────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
-/** The cell a sample plays: its seats as recorded, the tier's own pull, the stock each seat spent (scaled to the hours played). */
-export function cellOfSample(fx, s, o, tierRowOf) {
-  const hours = o.hours, row = tierRowOf(s.ground, s.tier), pull = row.pull[s.size - 1];
+/** The cell a sample plays: its seats as recorded on the ground as this engine plays it, the stock each seat spent (scaled to the hours played).
+    A sample recorded on a harder tier (s.tier) plays the ground with no tier: the tier rows retired (lane/retire-tier-chain, 2026-11-26), and the
+    guard declares what that moves on these hunts (tests/balance-calibration.mjs DECLARED_SHIFTS). */
+export function cellOfSample(fx, s, o) {
+  const hours = o.hours;
   return {
     id: s.id, ground: s.ground, hours, seeds: o.seeds, segmentH: Math.min(hours, 2), seedBase: o.seedBase || 0,
-    ...(pull ? { density: pull } : {}), ...(s.tier !== 'normal' ? { options: { tier: s.tier } } : {}),
     ...(o.windowMs ? { windowMs: o.windowMs } : {}), ...(o.profile ? { profile: o.profile, supply: 'own' } : {}),
     /* o.use: which of the recorded hero's fields are played (default: all of them). A field left out is the HARNESS'S OWN (cell.mjs: the
        ladder kit of the seat's style, skills at the Level, the reference bar and the role's default rules, no hunt options, store supplies):
@@ -188,7 +189,6 @@ export async function scaleMonsters(mult) {
 export async function run(args) {
   const fx = args.fx || JSON.parse(readFileSync(args.fixture || FIXTURE, 'utf8'));
   const { loadCellRunner } = await import('./cell.mjs');
-  const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
   const R = args.runner || await loadCellRunner(ROOT);
   const picked = fx.samples.filter((s) => (!args.only || s.id.includes(args.only)) && (!args.since || s.date >= args.since) && (!args.pick || args.pick(s)));
   const results = [];
@@ -202,7 +202,7 @@ export async function run(args) {
   function one(s) {
     const console = { log: say };
     const t0 = Date.now();
-    const res = R.runCell(cellOfSample(fx, s, { hours: args.hours, seeds: args.seeds, windowMs: args.windowMs, use: args.use, profile: args.profile, seedBase: args.seedBase, items: R.gear.ITEMS }, tierRowOf));
+    const res = R.runCell(cellOfSample(fx, s, { hours: args.hours, seeds: args.seeds, windowMs: args.windowMs, use: args.use, profile: args.profile, seedBase: args.seedBase, items: R.gear.ITEMS }));
     const sim = simRates(res), cmp = compare(s, sim);
     const row = { id: s.id, date: s.date, kit: s.kit, size: s.size, realHours: s.hours, cmp, sim, real: s.seats.map((x) => x.real), secs: Math.round((Date.now() - t0) / 1000) };
     console.log(`\n${s.id}  ${s.date}  real ${s.hours} h  kit ${s.kit}  levels ${sim.seats.map((x) => x.level).join('/')}  (${row.secs}s)`);

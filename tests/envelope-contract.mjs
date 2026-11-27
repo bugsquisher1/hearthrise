@@ -86,7 +86,7 @@ function contract(R, cs, body, tl) {
     /* role + discipline: the Configure window locks a spell by the server's discipline (2027-01-13-spell-roles.sql) */
     const m = missing(s, ['preset', 'role', 'discipline', 'targetMode', 'stance', 'distance', 'chase', 'supplySource', 'onEmpty', 'gatherShare']);
     need('hunt_settings', !m.length && Array.isArray(s.slots) && s.slots.length > 0 && s.presets.length > 0, 'settingsOf misses ' + m.join(', ') + (s.slots.length ? '' : ' slots') + (s.presets.length ? '' : ' presets'));
-    /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting (hunt_tier). */
+    /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting. */
     need('hunt_settings', s.slots.every((x) => x.empty || (x.action && Array.isArray(x.conditions) && (x.join === 'and' || x.join === 'or')))
       && s.slots.some((x) => !x.empty && x.action.type === 'consume') && !('density' in s) && !('density' in body.hunt_settings) && s.gatherInert === true && s.stopRules.length === 1,
       'settingsOf slots / density / gather / stop rules: ' + JSON.stringify({ density: s.density, inert: s.gatherInert, stops: s.stopRules, slots: s.slots.slice(0, 3) }).slice(0, 300));
@@ -107,9 +107,8 @@ function contract(R, cs, body, tl) {
   const mc = hb && hb.grounds.mill_cellar;
   need('hunt_bests', !!hb && hb.minMs === 600000 && !!mc && !!mc.solo && mc.solo.xpH === 2000 && mc.solo.balanceH === 200 && mc.party === null,
     'huntBestsOf yields ' + JSON.stringify(hb) + ' from ' + JSON.stringify(body.hunt_bests));
-  // hunt_tier (the hunt picker's pick per ground and the tier the running hunt froze, 2027-02-27-hunt-tiers.sql): the hero's own Dangerous on its ground
-  const dm = R.HS.huntTierOf(cs);
-  need('hunt_tier', !!dm && dm.picks.mill_cellar === 'dangerous' && dm.playing === 'dangerous', 'huntTierOf yields ' + JSON.stringify(dm) + ' from ' + JSON.stringify(body.hunt_tier));
+  /* (hunt_tier, the hunt picker's tier per ground, and scaled_hunts left with the tiers and the scaled hunts: 1072-retire-tier-chain.sql) */
+  need('hunt_tier', !('hunt_tier' in body) && !('scaled_hunts' in body), 'the envelope still carries a retired section: ' + JSON.stringify(Object.keys(body).filter((k) => k === 'hunt_tier' || k === 'scaled_hunts')));
   // hunt_target_kind (the bar's First target per ground, 2027-04-22-target-kind.sql): the hero's own Giant Rat on its ground
   const fk = R.HS.huntTargetKindOf(cs);
   need('hunt_target_kind', !!fk && fk.picks.mill_cellar === 'rat', 'huntTargetKindOf yields ' + JSON.stringify(fk) + ' from ' + JSON.stringify(body.hunt_target_kind));
@@ -140,7 +139,7 @@ function contract(R, cs, body, tl) {
   }
   const pm = R.PS.partyMembershipOf(cs);
   /* LEAVE TOGETHER (2026-12-18-party-leave-together.sql): the viewer's own box, on by default beside another account's hero (1025-own-heroes-apart.sql hr_party_leave_together_of) */
-  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.tiers && pm.tiers.mill_cellar === 'dangerous' && pm.leaveTogether === true,
+  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !('tiers' in pm) && pm.leaveTogether === true,
     'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, tiers: pm.tiers, leaveTogether: pm.leaveTogether }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
   const pp = R.PS.partyPeopleOf(cs);
@@ -206,12 +205,6 @@ function contract(R, cs, body, tl) {
     && tr.quotes.every((q) => Number.isInteger(q.feeH) && q.feeH > 0 && Number.isInteger(q.level))
     && !!tr.dummy && tr.dummy.ladder.length === 4 && Number.isInteger(tr.dummy.nextPrice) && tr.dummy.nextPrice > 0,
     'trainingOf yields ' + JSON.stringify(tr) + ' from ' + JSON.stringify(body.training).slice(0, 200));
-  /* scaled hunts (2027-03-21-scaled-hunts.sql hr_scaled_hunts_view; src/shell/windows/scale-pane.js, audit F26), switched on for everyone inside this
-     test's transaction: the slider's clamps and a row per scalable ground; this Level 25 hero has outgrown some (a Level and a price) and not others */
-  const shv = R.SH.scaledHuntsOf(cs), shg = shv ? Object.values(shv.grounds) : [];
-  need('scaled_hunts', !!shv && shv.minHours === 1 && shv.maxHours === 24 && shv.bankMaxMs === 24 * 3600000 && shv.dayMaxHours > 0 && shg.length >= 5
-    && shg.every((g) => g.fromLevel > 1 && g.bankedMs === 0 && g.on === true) && shg.some((g) => g.level === null) && shg.some((g) => g.level > 1 && g.price > 0) && !!shv.grounds.mill_cellar,
-    'scaledHuntsOf yields ' + JSON.stringify(shv) + ' from ' + JSON.stringify(body.scaled_hunts).slice(0, 240));
   // the factions (2027-04-23-faction-section.sql, the switch on inside this test): a hero with no side and no Krell kill, both sides' standing
   // at the server's 0, every piece's need, and the swap's need and cooldown the Faction tab says
   const fx = R.FX.factionOf(cs);
@@ -448,8 +441,8 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'time_blocks', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper_steps', 'imbues', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper_steps', 'imbues', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
   'work_day', 'gold_estimate', 'watched', 'talents', 'pieces', 'hunt_settle', 'trade_jobs']);
 
@@ -518,7 +511,6 @@ async function readers(root) {
     TL: await import(u('src/session/talent-sections.js')),
     PC: await import(u('src/session/piece-sections.js')),
     TJ: await import(u('src/session/trade-sections.js')),
-    SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
@@ -528,7 +520,7 @@ async function readers(root) {
 
 /* The real body: a premium two-hero party, six minutes settled, then ONE player-door settle. */
 async function realBody(db, M, H) {
-  const P = { ...H.STRONG, premium: true, tier: { id: 'dangerous', pull: 2 }, options: { gather_share: 10,
+  const P = { ...H.STRONG, premium: true, options: { gather_share: 10,
     stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 1 }], join: 'and', forMs: 60000 }] } };
   /* The named setup is saved in TOWN, before the hunt opens: hr_hunt_preset_save refuses an open hunt (hunt_open). */
   const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }], beforeEnter: async () => {
@@ -552,8 +544,6 @@ async function realBody(db, M, H) {
   /* LIVE EVENTS (1043-hearthrise.sql): the XP switch on for everyone and the Hearthrise's window holding now (inside this test's
      transaction only), so the section lists it and the fire is projected; set AFTER the settle above, so no settle number moves. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'event_xp_bonus'");
-  /* SCALED HUNTS (2027-03-21-scaled-hunts.sql): the switch on for everyone, so the section is projected (off, it is null) */
-  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'scaled_hunts'");
   await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'hearthrise'");
   /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
@@ -621,13 +611,11 @@ const DB_MUTANTS = [
   /* (food_pct / drink_pct are no reader's since the eat-at / drink-at options retired: the discipline is) */
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'discipline', v_disc,", "'disc', v_disc,"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
-  ['hunt_tier', 'public.hr_hunt_tier_view(uuid,integer)', "'playing', (select i.tier", "'playing_now', (select i.tier"],
   ['hunt_target_kind', 'public.hr_hunt_target_kind_view(uuid,integer)', "'picks', coalesce(", "'pick', coalesce("],
   ['boss_halls', 'public.hr_boss_halls_view(uuid,integer)', "'taken', v_taken,", "'took', v_taken,"],
   ['boss_halls', 'public.hr_boss_halls_view(uuid,integer)', "'left', v_left));", "'remaining', v_left));"],
   ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "v_tower := jsonb_build_object('need', v_need,", "v_tower := jsonb_build_object('needs', v_need,"],
   ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "'need', c.wins, 'have', v_have,", "'need', c.wins, 'count', v_have,"],
-  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', public.hr_party_leave_together_of(", "'leave_togther', public.hr_party_leave_together_of("],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
@@ -692,9 +680,6 @@ const DB_MUTANTS = [
   /* lane/c-combat-training: the Training window prices each hour from the quote and the House the next unlock from the dummy */
   ['training', 'public.hr_training_section(uuid,integer)', "'fee_h', public.hr_training_fee(q.lv),", "'fee', public.hr_training_fee(q.lv),"],
   ['training', 'public.hr_training_section(uuid,integer)', "'ladder', coalesce(to_jsonb(", "'prices', coalesce(to_jsonb("],
-  /* audit F26: the Hunts page reads each scalable ground's row and the slider's clamps from the section */
-  ['scaled_hunts', 'public.hr_scaled_hunts_view(uuid,integer)', "'level', x.lv, 'from_level', g.top + 1,", "'level', x.lv, 'from', g.top + 1,"],
-  ['scaled_hunts', 'public.hr_scaled_hunts_view(uuid,integer)', "'min_hours', r.min_hours, 'max_hours', r.max_hours,", "'min_hours', r.min_hours, 'hours_max', r.max_hours,"],
   /* lane/b-faction-ui: the Faction tab reads each piece's need and the swap's need */
   ['factions', 'public.hr_faction_view(uuid,integer)', "'need_ms', o.need_ms,", "'need', o.need_ms,"],
   ['factions', 'public.hr_faction_section(uuid,integer)', "jsonb_build_object('swap_need_ms', r.swap_ms,", "jsonb_build_object('swap_ms', r.swap_ms,"],

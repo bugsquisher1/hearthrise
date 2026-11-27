@@ -52,7 +52,7 @@ import { ITEMS } from '../src/data/items.js';
 import { TROPHY_STAGES, MAX_TROPHY_STAGE } from '../src/data/bestiary.js';
 import { trophyIndex, monsterIdIn } from '../src/core/trophies.js';
 import { charmIndex, killsByClass } from '../src/core/charms.js';
-import { playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats } from '../src/core/combat.js';
+import { playerCombatRolls, weaknessInfo, equipmentStats } from '../src/core/combat.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 /* The hunt engine seam lives in the member assembly (src/core/member.js memberSide since option B). */
@@ -108,11 +108,11 @@ async function run(accrualSrc) {
   // eslint-disable-next-line no-new-func
   const engine = new Function(
     'eq', 'equipment', 'items', 'state', 'bonus', 'setBonus', 'profile', 'style',
-    'playerCombatRolls', 'monsterCombatRolls', 'weaknessInfo',
+    'playerCombatRolls', 'weaknessInfo',
     `${ctxSrc}
 return { playerRolls: rollsVs, weakness };`,
   )(EQ, EQUIPMENT, ITEMS, { skills: {} }, 0, null, undefined, undefined,
-    playerCombatRolls, monsterCombatRolls, weaknessInfo);
+    playerCombatRolls, weaknessInfo);
   const engRolls = engine.playerRolls(ROW);
   const engWeak = engine.weakness(ROW, MON_ID);
 

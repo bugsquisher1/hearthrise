@@ -79,7 +79,7 @@ export const DEFAULT_PROFILE = {
 /* ── +SKILL ON WORN GEAR (Tyler 2026-11-14, the Burning Tower's weapons: "+ respective combat skill. bronze +1, silver +2, gold +3,
    plat +4", and "correct, it functions like it does in tibia": the mechanic only). An item's `<skill>Plus` field (a whole number above 0)
    raises the hero's level in that combat skill WHILE IT IS WORN, wherever a fight reads that skill: a blow's accuracy and max hit
-   (playerCombatRolls), a monster's chance to land (monsterCombatRolls, the snapshot's `def`), a spell's or heal's output and a bleed's
+   (playerCombatRolls), a monster's chance to land (the snapshot's `def`, member.js heroSnapshot), a spell's or heal's output and a bleed's
    strength (hunt/abilities.js powerLevel). It is never skill XP or a skill level: a rune's version, an ability's unlock, an item's
    requirement, a task, a title and the boards read the BASE level (levelOf), so they never see it. Summed over every worn piece.
    The field names are an item row's vocabulary, so they live in src/data/core-model.js (src/data/chests.js writes them). */
@@ -434,26 +434,16 @@ export function playerCombatRolls(monster, ctx) {
   return { accuracy, maxHit, critChance, weak, profile };
 }
 
-/**
- * A monster's swing at a hero: its chance to land against the hero's defence
- * (Defense level + the to-hit defence of gear outside the armour weights + a
- * defence buff) and its largest blow.
- * @param ctx { eq, skills, bonus }
- */
-export function monsterCombatRolls(monster, ctx) {
-  const c = ctx || {};
-  const eq = c.eq || {};
-  const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const playerDefense = levelOf(c.skills || {}, 'defense') + skillPlusOf(eq, 'defense') + (eq.guardB || 0);
-  return { accuracy: monsterAccuracy(monster, playerDefense), maxHit: monsterMaxHit(monster) };
-}
+/* (A monster's swing at a hero is the unit's: src/core/member.js heroSnapshot `def` (Defense level, worn + Defense, guardB) against
+   monsterAccuracy below, and monsterMaxHit. Its old twin here, monsterCombatRolls, lost its last reader with the weapon line's power read,
+   lane/retire-dawnsteel-lines.) */
 
 /* ── THE PIECES OF A MONSTER'S DEFENCE AND SWING ──
    One expression each, shared by the rolls above and the party hunt's one
    hurt() (src/core/hunt/damage.js), so the two cannot price a blow differently. */
 
 /* A monster's two to-hit ratings (src/data/to-hit.js) as its row writes them (balance-sheet.js formulaStats, or a hand row's own). A tier's
-   or an enrage's harder blow raises `aim` the way it raises `atk` (hunt-tiers.js atTier, boss-phases.js swingRow). A foe with none (the
+   or an enrage's harder blow raises `aim` the way it raises `atk` (src/core/hunt/dial.js atTier, boss-phases.js swingRow). A foe with none (the
    snapshot's neutral foe) reads 0: the rails hold the chance. Every MONSTERS row carries both (tests/balance-sheet.mjs). */
 const monsterEvasion = (monster) => (monster && Number.isFinite(monster.evasion) && monster.evasion > 0 ? monster.evasion : 0);
 const monsterAim = (monster) => (monster && Number.isFinite(monster.aim) && monster.aim > 0 ? monster.aim : 0);

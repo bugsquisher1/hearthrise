@@ -15,7 +15,6 @@ const ENG = {
   monsters: [(await import(pathToFileURL(join(root, 'src/data/monsters.js')).href + v)).MONSTERS, (await import(pathToFileURL(join(root, 'src/data/monsters.js')).href)).MONSTERS],
   items: [(await import(pathToFileURL(join(root, 'src/data/items.js')).href + v)).ITEMS, (await import(pathToFileURL(join(root, 'src/data/items.js')).href)).ITEMS],
   combat: [(await import(pathToFileURL(join(root, 'src/core/combat.js')).href + v)).COMBAT_BALANCE],
-  tiers: [(await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v)).GROUND_TIERS],
   /* the monsters' area spells (src/data/monster-spells.js, lane/b-area-engine): a what-if tunes a row's fields
      ({ spells: { venom_spray: { hitPm: 3000 } } }); a monster casts the rows its own `spells` list names ({ monsters: { id: { spells: [] } } }
      plays it with none) */
@@ -26,13 +25,12 @@ const ENG = {
   /* the first cast's wait (SPELL_STAGGER): { stagger: { spanPm: 0 } } plays a cell with every spell ready as the fight starts */
   stagger: [(await import(pathToFileURL(join(root, 'src/data/monster-spells.js')).href + v)).SPELL_STAGGER],
 };
-const { DIALS: TIER_DIALS } = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
 /* THE GAME'S OWN HUNT ADVICE (the Hunts window's default pick): a career hunts where the game tells it to */
 const { recommendedHunt } = await import(pathToFileURL(join(root, 'src/shell/hunt-list.js')).href + v);
 const recommend = (levels, n) => recommendedHunt(levels, n).hunt;
 
-/* A WHAT-IF: { monsters: { id | '*': { field: value | '*x' multiplier } }, items: { id: { field: value } }, tiers: { ground: { tier id: a whole row } },
-   combat: { field: value } } on every engine instance; answers the undo list. Scratch only: never written to disk. */
+/* A WHAT-IF: { monsters: { id | '*': { field: value | '*x' multiplier } }, items: { id: { field: value } }, combat: { field: value } } on every engine
+   instance; answers the undo list. Scratch only: never written to disk. */
 function applyWhatIf(w) {
   const undo = [];
   const set = (row, k, val) => {
@@ -40,11 +38,8 @@ function applyWhatIf(w) {
     row[k] = typeof val === 'string' && val.startsWith('*') ? Math.max(1, Math.round(Number(row[k] || 0) * Number(val.slice(1)))) : val;
   };
   for (const [table, rows] of Object.entries(w || {})) {
-    /* A tier row names only the dials the engine reads (hunt-tiers.js DIALS): a stale or misspelt one would play at 1000, silently. */
-    if (table === 'tiers') for (const [g, byTier] of Object.entries(rows)) for (const [id, row] of Object.entries(byTier)) {
-      const stray = Object.keys(row).filter((k) => !['id', 'pull', ...TIER_DIALS].includes(k));
-      if (stray.length || !TIER_DIALS.every((k) => row[k] === undefined || Number.isInteger(row[k]))) throw new Error('whatIf tiers ' + g + ' ' + id + ': ' + (stray.join() || 'a dial is not whole'));
-    }
+    /* the tier rows retired (lane/retire-tier-chain, 2026-11-26): a what-if on them would play as nothing, silently, so it is refused */
+    if (table === 'tiers') throw new Error('whatIf tiers: the tier rows are retired; a ground plays its Danger scale step');
     for (const inst of new Set(ENG[table] || [])) {   // one instance once: with a bare source the two are the same rows
       /* one row, not a table of rows: the combat constants, and the spells' switch ({ spellSwitch: { live: false } }: a cell with no monster casting) */
       if (table === 'combat' || table === 'spellSwitch' || table === 'stagger') {

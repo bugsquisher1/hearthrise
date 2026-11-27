@@ -16,7 +16,7 @@
 //   - FOUR CLASSES: Melee (a shield or not), Ranger, Mage, Healer.
 //   - Read from the LIVING heroes at EACH kill, never latched: a death or a leave
 //     changes the next kill. A hero alone earns SOLO_XP_PM, on every ground.
-//   - ONE TABLE for every ground and every tier (PARTY_CLASS_XP): the cell is the factor on
+//   - ONE TABLE for every ground (PARTY_CLASS_XP): the cell is the factor on
 //     the even share by how many heroes are alive and how many classes they hold. No ground
 //     carries a row of its own (src/data/grounds/shape.js refuses one in a pack); what a party
 //     earns on a ground is that ground's own pull, density and monster rows (balance-sheet.js).
@@ -31,7 +31,13 @@ import { HUNT_ROLES } from './hunt-roles.js';
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
 import { CATACOMB_WING_GROUNDS } from './catacomb-wings.js';
-import { TIER_IDS, DEFAULT_TIER, tiersOf } from './hunt-tiers.js';
+/* THE MEASURED LINES' LABELS (lane/retire-tier-chain, 2026-11-26). Each ground's Party window lines were measured on the three ways a ground was
+   hunted before the Danger scale (the old tiers, retired with it: 12-targets 8.4 item 4). The window reads the plain one (PLAIN_LINE); the Hunts
+   window's party advice reads the best of them (partyBestLine), so it sends a party where it sent one. Neither describes a party on the scale,
+   where a kill pays each hero a share of its own Level (xp-share.js depthSplit): both wait on a measure there (27 E-10, stage 6; CONFLICTS
+   2026-11-26), and the labels go with that measure. */
+const LINE_KEYS = Object.freeze(['normal', 'dangerous', 'deadly']);
+const PLAIN_LINE = 'normal';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -159,14 +165,14 @@ export function partyClassXp(roles) {
   return { permille: cell, classes };
 }
 
-/** The measured percent (PARTY_VS_ALONE) for these living roles on this ground and tier (the leader's pick, Normal when none); null with no row, no line
-    for that tier, or under two heroes. The one-role line (ONE_ROLE_VS_ALONE) was measured on Normal and reads only there. */
-export function partyVsAlone(groundId, roles, tier = DEFAULT_TIER) {
+/** The measured percent (PARTY_VS_ALONE) for these living roles on this ground, on its plain line unless `tier` names another; null with no row, no
+    such line, or under two heroes. The one-role line (ONE_ROLE_VS_ALONE) was measured on the plain line and reads only there. */
+export function partyVsAlone(groundId, roles, tier = PLAIN_LINE) {
   if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId) || !Object.hasOwn(PARTY_VS_ALONE[groundId], tier)) return null;
   const { classes } = partyClassXp(roles);
   const tab = PARTY_VS_ALONE[groundId][tier];
   const n = Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)));
-  const oneRole = tier === DEFAULT_TIER && Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
+  const oneRole = tier === PLAIN_LINE && Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
   if (oneRole && roles.every((r) => r === roles[0]) && Object.hasOwn(oneRole, roles[0])) return oneRole[roles[0]];
   const cells = tab[n];
   return cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
@@ -175,13 +181,13 @@ export function partyVsAlone(groundId, roles, tier = DEFAULT_TIER) {
 /* A PARTY THAT HOLDS EVERY CLASS IT CAN (PARTY_CLASSES order: a Melee, a Ranger, a Mage, a Healer, then round again): the party the lines are the most for. */
 const MIXED_ROLES = Object.values(PARTY_CLASSES).map((c) => c.roles[0]);
 
-/** THE MOST A MIXED PARTY OF `size` EARNS ON THIS GROUND against the same heroes alone, on the tier that pays it best (PARTY_VS_ALONE), whole percent;
+/** THE MOST A MIXED PARTY OF `size` EARNS ON THIS GROUND against the same heroes alone, on the line that pays it best (PARTY_VS_ALONE), whole percent;
     null under two heroes or with no line. The one reading of "does a party belong here" (lane/a-party-advice-glade): the Hunts window's party advice
     (src/shell/hunt-list.js fitsGroup, at or over 0) and its Next step up on a tie of floors (hunt-tutorial.js nextStepUp) read it. */
 export function partyBestLine(groundId, size) {
   if (!Number.isInteger(size) || size < 2) return null;
   const roles = Array.from({ length: size }, (_, i) => MIXED_ROLES[i % MIXED_ROLES.length]);
-  const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier)).filter(Number.isInteger);
+  const lines = Object.keys(Object.hasOwn(PARTY_VS_ALONE, groundId) ? PARTY_VS_ALONE[groundId] : {}).map((tier) => partyVsAlone(groundId, roles, tier)).filter(Number.isInteger);
   return lines.length ? Math.max(...lines) : null;
 }
 
@@ -207,15 +213,14 @@ export function validate(grounds) {
     if (cells.some((v) => !Number.isInteger(v) || v <= 0)) out.push(n + ' heroes: cells are whole permille > 0');
     for (let i = 1; i < cells.length; i++) if (cells[i] <= cells[i - 1]) out.push(n + ' heroes: another class pays no more');
   }
-  /* the Party window's measured lines, one per tier a ground offers (lane/d-party-pace): a ground a row may name, a tier it offers, whole fives, one per class count */
+  /* the Party window's measured lines (lane/d-party-pace): a ground a row may name, a label of LINE_KEYS, whole fives, one per class count */
   for (const [g, byTier] of Object.entries(PARTY_VS_ALONE)) {
     if (grounds && !grounds.includes(g)) out.push(g + ': the Party window\'s line names no ground');
     for (const [tier, words] of Object.entries(byTier)) {
-      if (!TIER_IDS.includes(tier)) { out.push(g + ': the Party window\'s line names no tier ' + tier); continue; }
-      if (grounds && !tiersOf(g).includes(tier)) out.push(g + ': the Party window has a line for ' + tier + ', a tier the ground does not offer');
+      if (!LINE_KEYS.includes(tier)) { out.push(g + ': the Party window\'s line names no line ' + tier); continue; }
       for (const n of [2, 3, 4]) if (!Array.isArray(words[n]) || words[n].length !== Math.min(n, classCount) || words[n].some((v) => !Number.isInteger(v) || v % 5 !== 0)) out.push(g + ' ' + tier + ': ' + n + ' heroes: PARTY_VS_ALONE needs whole fives, one per class count');
     }
   }
-  if (grounds) for (const g of grounds) for (const tier of tiersOf(g)) if (!Object.hasOwn(PARTY_VS_ALONE, g) || !Object.hasOwn(PARTY_VS_ALONE[g], tier)) out.push(g + ': the Party window has no measured line for ' + tier + ' on this ground');
+  if (grounds) for (const g of grounds) if (!Object.hasOwn(PARTY_VS_ALONE, g) || !Object.hasOwn(PARTY_VS_ALONE[g], PLAIN_LINE)) out.push(g + ': the Party window has no measured line on this ground');
   return out;
 }

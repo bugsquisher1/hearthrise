@@ -13,10 +13,11 @@
 // one blow at a time, which is what a scaling audit needs; hunt outcomes are tools/balance-program/progression-grid.mjs's (the real settle).
 //
 // THE HERO IT READS. Skills: the reference hero (to-hit.js REF_HERO, the measured lone hammer; past Level 1,000 its own straight
-// extrapolation). Gear, two ways, because the game has no item past tier 7 (Level 90) today:
-//   FROZEN   tier-7 (Dawnsteel) plate and the Dawnsteel warhammer, worn forever: the game as it is built.
-//   LINE     the staged lines' formula (tools/balance-sim/staged/armor-line.js lineArmor, weapon-line.js lineWeapon: Dawnsteel x Level / 110):
-//            PROJECTED, not in the game.
+// extrapolation). Gear, two ways, each the one gear formula (src/core/gear-stats.js statsOfRow) on the top named warhammer and plate rows
+// at the item Level of the tier the Level wears (12-targets 8.3: one tier every tierSteps item Levels, worn from it less wearAhead):
+//   FROZEN   held at the last named tier (Wolfram, item Level 160) past it: the game as it is built.
+//   FORMULA  every tier the same formula past it (12-targets 8.3 a and 8.8: "a ground's gear ceiling is its base tier's formula piece";
+//            the staged lines past Dawnsteel, Dawnsteel x Level / 110, retired with that ruling): PROJECTED past 160, not in the game.
 // The monster: a `regular` of the hero's own Level on a full ground (floor = Level), fit `both`, the formula's row.
 // Changes nothing, writes nothing. PURE but for the imports.
 // ════════════════════════════════════════════════════════════════════════
@@ -28,29 +29,29 @@ import { refHeroAt, TO_HIT } from '../../../src/data/to-hit.js';
 import { ABILITIES, castAmount, hitRange } from '../../../src/data/abilities.js';
 import { STATUSES } from '../../../src/data/statuses.js';
 import { TOWER_RULES } from '../../../src/data/tower.js';
-import { LINE_BASE, lineArmor } from '../../balance-sim/staged/armor-line.js';
-import { WEAPON_LINE_BASE, lineWeapon } from '../../balance-sim/staged/weapon-line.js';
+import { statsOfRow } from '../../../src/core/gear-stats.js';
+import { ITEMS } from '../../../src/data/items.js';
+import { GEAR_LADDERS } from '../../../src/data/gear-tiers.js';
+import { GEAR_STEPS } from '../../../src/data/gear-steps.js';
 
 const LEVELS = [1, 10, 30, 60, 110, 185, 400, 1000, 2000, 5000];
 const SLOTS = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
+/* the top named rung of a ladder (the last tier the game names: Wolfram) */
+const topOf = (key) => { const ids = (GEAR_LADDERS.find((l) => l.key === key) || { ids: [] }).ids.filter((id) => id && ITEMS[id]); return ids[ids.length - 1]; };
+const HAMMER = topOf('weapon:warhammer'), PLATE = Object.fromEntries(SLOTS.map((s) => [s, topOf('plate:' + s)]));
+const TOP_IL = ITEMS[HAMMER].iL;
+/** The item Level of the tier a hero of Level L wears (one tier every tierSteps item Levels, worn from it less wearAhead). */
+const wornIL = (L) => GEAR_STEPS.tierSteps * Math.floor((L + GEAR_STEPS.wearAhead) / GEAR_STEPS.tierSteps);
 /* xp for a skill level is never read here: playerCombatRolls takes skills as XP, so the probe hands it a levelOf-free context instead:
    a one-item catalogue whose `meleePlus` carries the whole skill (the engine adds worn +skill to the level, combat.js skillPlusOf). */
 function heroAt(L, mode) {
   const ref = refHeroAt(L);
-  const scaleLv = mode === 'line' ? Math.max(110, L) : 110;
-  const w = lineWeapon('warhammer', scaleLv) || WEAPON_LINE_BASE.warhammer;
+  const iL = mode === 'formula' ? wornIL(L) : Math.min(wornIL(L), TOP_IL);
+  const w = statsOfRow(ITEMS[HAMMER], iL, ITEMS);
   const items = { w: { slot: 'weapon', weaponType: 'club', atkB: w.atkB || 0, strB: w.strB || 0, meleePlus: Math.max(0, Math.round(ref.main) - 1) } };
   const equipment = { weapon: 'w' };
   let heavy = 0;
-  for (const s of SLOTS) { const d = lineArmor(s, 'plate', scaleLv); items[s] = { slot: s, armourClass: 'plate', defB: d }; equipment[s] = s; heavy += d; }
-  /* under Level 90 a hero wears less than Dawnsteel: scale both by Level / 90 so the early rows are not a twinked hero (a straight read
-     of the tier tables' own climb, gear-tiers.js; labelled, never a claim about a real kit) */
-  if (L < 90) {
-    const k = Math.max(0.05, L / 90);
-    items.w.atkB = Math.round(items.w.atkB * k); items.w.strB = Math.round(items.w.strB * k);
-    heavy = 0;
-    for (const s of SLOTS) { items[s].defB = Math.max(1, Math.round(items[s].defB * k)); heavy += items[s].defB; }
-  }
+  for (const s of SLOTS) { const d = statsOfRow(ITEMS[PLATE[s]], iL, ITEMS).defB || 0; items[s] = { slot: s, armourClass: 'plate', defB: d }; equipment[s] = s; heavy += d; }
   const rolls = (mon) => playerCombatRolls(mon, { equipment, items, skills: {} });
   return { ref, items, equipment, armour: { heavy, medium: 0, light: 0 }, maxHp: maxHpFor(L, 6), rolls, defense: Math.round(ref.defense) };
 }
@@ -60,7 +61,7 @@ function rowAt(L) {
   const mon = (role, tier = 1) => { const s = formulaStats({ level: L, role, tier, floor: L, fit: 'both' }); return { ...s, tier, level: L }; };
   const reg = mon('regular'), elite = mon('elite');
   const out = { L, monster: { hp: reg.hp, atk: reg.atk, def: reg.def, aim: reg.aim, evasion: reg.evasion, maxHit: monsterMaxHit(reg) } };
-  for (const mode of ['frozen', 'line']) {
+  for (const mode of ['frozen', 'formula']) {
     const h = heroAt(L, mode);
     const free = h.rolls(null), vs = h.rolls(reg);
     const M = free.maxHit;                       // the unit's snapshot maxHit: what every spell is a share of
@@ -88,9 +89,10 @@ function rowAt(L) {
       bleed5StacksPctMonHpPerS: +(100 * 5 * 2 * bleedScale / 1000 / reg.hp).toFixed(1),
     };
   }
-  /* the Tower's heat at room L (tower.js heatOpts: compounding past heat.from, read to floorTop) */
+  /* the Tower's heat at room L (tower.js heatOpts: compounding past heat.from, read to floorTop); null where the rules carry no heat (the
+     Tower on the formula, lane/tower-formula) */
   const F = Math.min(L, TOWER_RULES.floorTop), h = TOWER_RULES.heat;
-  out.towerHeat = +(F > h.from ? (1 + h.perFloorPm / 1000) ** (F - h.from) : 1).toFixed(2);
+  out.towerHeat = h ? +(F > h.from ? (1 + h.perFloorPm / 1000) ** (F - h.from) : 1).toFixed(2) : null;
   return out;
 }
 
@@ -100,8 +102,8 @@ const pad = (v, n) => String(v).padStart(n);
 console.log('THE MONSTER (a regular of Level L on a full ground, the formula\'s row)');
 console.log('     L      hp    atk  maxHit    def    aim  evasion  towerHeat');
 for (const r of rows) console.log(pad(r.L, 6) + pad(r.monster.hp, 8) + pad(r.monster.atk, 7) + pad(r.monster.maxHit, 8) + pad(r.monster.def, 7) + pad(r.monster.aim, 7) + pad(r.monster.evasion, 9) + pad(r.towerHeat, 11));
-for (const mode of ['frozen', 'line']) {
-  console.log('\nTHE HERO, ' + (mode === 'frozen' ? 'FROZEN on tier 7 (the game as built)' : 'ON THE LINE (PROJECTED: Dawnsteel x Level / 110)'));
+for (const mode of ['frozen', 'formula']) {
+  console.log('\nTHE HERO, ' + (mode === 'frozen' ? 'FROZEN at the last named tier, item Level ' + TOP_IL + ' (the game as built)' : 'ON THE FORMULA (the tier the Level wears, PROJECTED past item Level ' + TOP_IL + ')'));
   console.log('     L  skill  maxHit  skill%  heroHit  swings  (elite)   maxHp  monHit  absorb  topBlow%  in%/s  deadly8%/s  mend%  gMendV%  defCut%  bleed%/s');
   for (const r of rows) {
     const m = r[mode];

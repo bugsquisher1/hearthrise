@@ -802,23 +802,6 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-plan-cache.mjs --selftest
           node tests/settle-budget.mjs
           node tools/mutant-gate.mjs node tests/settle-budget.mjs --mutate
-      # A PARTY'S DEFAULT PULL STAYS INSIDE THE KILL BOUND (designer 2026-11-01): a Thicket four with no pick lands its windows
-      # on the replayed chain. --mutate: the catalogue's as-built spawns back, refused kills_over.
-      - name: Party pull — a four with no pick lands inside the server's kill bound
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-pull-bound.mjs
-          node tools/mutant-gate.mjs node tests/party-pull-bound.mjs --mutate
-      # THE TIER IS THE SERVER'S (2027-02-27-hunt-tiers.sql): a pick frozen with its pull at hunt start, browser closed and hunt viewed store one world, a four plays its leader's, refused not clamped.
-      # The catalogue is GENERATED from hunt-tiers.js's one table (tools/gen-ground-tiers.mjs): --check holds the file to the data,
-      # --selftest proves each refusal bites (a tier no harder, a pull lost, a dial past the server's value bound).
-      - name: Hunt tiers — the server freezes the pick, both paths
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-ground-tiers.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest
-          node tests/hunt-tiers-db.mjs
-          node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate
       # THE DANGER SCALE IS THE SERVER'S (1056-danger-scale.sql, lane/v1-climb wave 1): the plan's stance frozen with its start a margin under the
       # lowest step the party last held, browser closed and hunt viewed storing one world and paying one Level XP (the share of each hero's own
       # Level, never the row's), the section and the end stamp the server's. The catalogue is GENERATED (tools/gen-danger.mjs --check holds it
@@ -977,9 +960,6 @@ jobs:
           node tools/mutant-gate.mjs node tests/ground-pack.mjs --mutate
           node tests/balance-grade.mjs
           node tools/mutant-gate.mjs node tools/balance-sim/grade.mjs --selftest
-          # SCALED HUNTS (lane/b-scaled-hunts, hidden): on the real engine a scaled ground pays under the right-Level ground and over its own, nobody dies on Normal at the leader's Level, coin scales and drops don't
-          node tests/scaled-hunts.mjs
-          node tools/mutant-gate.mjs node tests/scaled-hunts.mjs --mutate
           node tools/gen-level-curve.mjs --check
           node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest
           node tests/hearth-fuel-rate.mjs
@@ -1736,7 +1716,8 @@ jobs:
           node tests/mutant-control.mjs
           node tools/mutant-gate.mjs node tests/mutant-control.mjs --selftest
 
-  # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), and live events (lane/c-live-events), its own job: db-replay-8 already runs near its
+  # db-replay-11: live events (lane/c-live-events) and the steps after them, its own job (its scaled hunts step retired with the tier chain,
+  # lane/retire-tier-chain 2026-11-26): db-replay-8 already runs near its
   # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
   # + hero-slot-buy --selftest 136 s, plot-tier-price-replay --mutate 92 s, kill-daily-credit --selftest 48 s
   # (2026-11-13, lane/a-audit-guards, measured locally) = 276 s; x2 = 9.2 min, 34 -> 44.
@@ -1769,19 +1750,6 @@ jobs:
 
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
-
-      # SCALED HUNTS, THE SERVER HALF (2027-03-21-scaled-hunts*.sql, lane/c-scaled-hunts): a gold purchase priced by the server, capped by
-      # the bank and the day, paid once with one ledger row; the leader's hours spent only by the window's world swings, browser closed and
-      # hunt viewed alike; the hours running out, the switch and a leader change at the next settle; every forged claim refused; the
-      # server feature switch (2027-03-21-feature-switches.sql) turns the whole feature off and on with a row, no release. The
-      # catalogue is GENERATED from src/data/scaled-hunts.js (tools/gen-scaled-hunts.mjs): --check holds the file to the data.
-      - name: Scaled hunts — the purchase, the bank and the settle, both paths
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-scaled-hunts.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-scaled-hunts.mjs --selftest
-          node tests/scaled-hunts-server.mjs
-          node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate
 
       # ARCHITECTURE AUDIT RULES 10 AND 11 (CLAUDE.md §6, lane/c-ops-gates 2026-11-19). per-player-cost: statements a settle, ledger rows
       # a hero-hour and row writes a settle for a lone hero and a party of four, on the replay with the shipped engine, browser closed;
@@ -7637,18 +7605,6 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-bench-tax.mjs --selftest
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
-
-      # PAST DAWNSTEEL (Tyler 2026-11-14/15/16: unique gear past tier 7, the armor and weapon lines as power budgets, a small Tempering cap;
-      # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
-      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden (the unique Tempering bands retired with the old
-      # rungs, lane/tp-im-steps). Seconds each; the proofs plant in memory.
-      - name: Past Dawnsteel - the armor and weapon lines
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/armor-line.mjs
-          node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
-          node tests/weapon-line.mjs
-          node tools/mutant-gate.mjs node tests/weapon-line.mjs --mutate
 
       # SPECIAL-ATTRIBUTE GEAR (designer, lane/d-special-attributes; Tyler 2026-11-14 "sprinkle items like this throughout the game"): each of the
       # five sample rows in src/data/special-attributes.js is the standard piece plus one attribute at its tier's size, with a home a player can

@@ -173,6 +173,8 @@ The 13 hidden samples of `tools/balance-sim/staged/armor-line.js` and `weapon-li
 
 Kept 6, cut 7. The kept rows go into their homes' drop rows when those grounds' art lands, sized by the formula at the base tier and carrying the rule (Systems, HANDOFFS 2026-11-27). Their Temper is Temper on steps like any piece (21 section 2).
 
+Built (lane/retire-dawnsteel-lines): the six are item rows in their homes' packs (`src/data/grounds/wyvern_roost/pack.js`, `unmarked_catacombs/pack.js`), each its plain piece to the number (`statsAs`) plus its rule, held by `tests/gear-stats.mjs` GSF-11. Each one's Rare row on its monster waits for the home's art (the reveal's pixel icon), so until then it is a `PENDING_SOURCE` row in `tests/catalogue-coherence.mjs`. The seven cut rows and the staged line files are gone.
+
 ## 3. The two straight curves and the grate
 
 Applied in `src/data/gear-profiles.js`:

@@ -102,7 +102,7 @@ begin
   if not exists (select 1 from public.hr_hunt_world_shape w where w.id and w.fields->'world' ? 'danger' and w.fields->'world' ? 'risk') then
     raise exception 'PRECONDITION: apply 1054-danger-scale-hunt-sessions-catalogue.generated.sql first (the world shape)'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_instance_read(uuid,integer)', '01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '558e8c46c20b0d06bd770fa67c2ec6f9', '4bea2795d54d2a680390d46b8d7c0f0b'),
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '309c695dc4dfc41d7cf0effe5f9b1dd1', 'bdf1e6f5d5bf7266b64b82b2b9f7e5c1')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
@@ -110,8 +110,9 @@ begin
     -- in it, its store priced at the buyer's step): the splices below find their marker and move nothing. AFTER 1071-trait-pieces.sql,
     -- the instance read at 1071's image (restated whole with this file's DANGER-SCALE overlay in it, plus the worn pieces): the same.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = '209f8462d94db3fc386a12980342f2e8')
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 = 'fc3028f121261dd3b7a15476c5164c40') then
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = 'e3d169248d2c291574fd4d3fcd148a3f')
+       -- ...and after 1071-trait-pieces.sql, hr_hunt_instance_read restated whole (this file's overlay in it, the tier and the scale out)
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 = '293bfcbd1027c4665941a29de791ba6e') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
@@ -124,10 +125,10 @@ declare v_md5 text;
 begin
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)');
   if v_md5 is null then raise exception 'PIN: hr_hunt_apply_instance is missing'; end if;
-  -- (or, a retry after 1071-trait-pieces.sql, 1071's image: restated whole with this file's two splices in it, plus the land; its
-  -- splices below find their marker and move nothing)
+  -- (or, a retry after 1071-trait-pieces.sql, 1071's image: restated whole with this file's two splices in it, plus the land, the scale
+  -- out; its splices below find their marker and move nothing)
   if v_md5 is distinct from '1b940aa14719f1ea5693a870799d93b6' and v_md5 is distinct from '3a6748518733987584b75e42e1d204d5'
-     and v_md5 is distinct from '6c70ab34d2a622207521a56706d55dd3' then
+     and v_md5 is distinct from 'f964e04415c9e6c6a45fbefcae11c442' then
     raise exception 'PIN: hr_hunt_apply_instance is neither the image this file was written against (1b940aa1...) nor its own (3a6748518733987584b75e42e1d204d5): md5 % - another file moved it; re-pin', v_md5;
   end if;
 end $mig$;
@@ -411,8 +412,9 @@ declare v_def text; v_old text; v_new text; v_n int;
 begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_instance_read(uuid,integer)'::regprocedure), chr(13), '');
   if strpos(v_def, 'DANGER-SCALE') = 0 then
-    v_old := $a$jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))) end,$a$;
-    v_new := $a$jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))
+    -- (no `tier` beside the density since 1072-retire-tier-chain.sql's fold into 1053-lever-gates.sql)
+    v_old := $a$jsonb_build_object('density', v_i.density)) end,$a$;
+    v_new := $a$jsonb_build_object('density', v_i.density)
                                    -- DANGER-SCALE (1056-danger-scale.sql): the stance and start step the instance froze, null on a tier hunt (overlaid last)
                                    || jsonb_build_object('risk', v_i.risk, 'danger', v_i.danger)) end,$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);

@@ -37,15 +37,12 @@ export function runCareer(R, job) {
     const levels = seats.map(lv);
     const chunkH = chunkOf(Math.min(...levels));
     const ground = job.ground || rec(levels, n);
-    /* job.tier (skill-lines.mjs, the party-levelled line): each chunk on that tier where the ground offers it, at the tier's own pull for the
-       party's size, as a party picks Deadly on the ground the advice names (the recorded fours, 2026-11-16 to 11-18); Normal where it doesn't */
-    const tier = job.tier && R.tiers && R.tiers.tiersOf(ground).includes(job.tier) && job.tier !== 'normal' ? job.tier : null;
-    const pull = tier ? R.tiers.pullOfTier(R.tiers.tierRowOf(ground, tier), n) : 0;
+    /* (job.tier, the party-levelled line's harder tier, left with the tier rows: lane/retire-tier-chain 2026-11-26; a chunk plays the ground) */
     const cell = { id: job.id + ':' + chunk, ground, party: job.party, startBySeat: seats.map((s) => ({ levelXp: s.levelXp, skills: { ...s.skills } })),
       hours: chunkH, seeds: 1, seedBase: (job.seed || 0) * 100000 + chunk, segmentH: chunkH, windowMs: 600000,
-      ...(Number.isInteger(job.density) ? { density: job.density } : pull ? { density: pull } : {}), ...(job.gear ? { gear: job.gear } : {}),
+      ...(Number.isInteger(job.density) ? { density: job.density } : {}), ...(job.gear ? { gear: job.gear } : {}),
       /* job.profile 'played' (played.mjs) + job.supply: the hero as players set one up, its own career's skills (startBySeat) */
-      ...(job.profile ? { profile: job.profile } : {}), ...(job.supply ? { supply: job.supply } : {}), ...(tier ? { options: { tier } } : {}) };
+      ...(job.profile ? { profile: job.profile } : {}), ...(job.supply ? { supply: job.supply } : {}) };
     const m = R.runCell(cell);
     const h = m.party.hours;
     const before = seats.map((s) => s.levelXp);

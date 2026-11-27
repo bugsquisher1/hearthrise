@@ -30,7 +30,6 @@ import { huntName, partyMembershipOf } from '../session/party-sections.js';
 import { huntOf } from '../session/hunt-sections.js';
 import { carryOnPlan, carryOn, setCompanyLine } from '../session/carry-on-intents.js';
 import { companyPlanOf } from '../session/company-sections.js';
-import { TIER_NAME, DEFAULT_TIER } from '../data/hunt-tiers.js';
 import { dangerOf, onScale, STANCE_IDS } from '../session/danger-sections.js';
 import { DEFAULT_RISK } from '../data/danger.js';
 
@@ -38,10 +37,10 @@ const itemsWords = (lines) => lines.map((l) => whole(l.qty) + ' ' + itemNameFor(
 /* a refusal's line inside a sentence: "stays in town: no stamina left" */
 const lower = (s) => (s && /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 
-/* What a hero goes back on: a tier, or on a Danger scale ground (no tiers) its Risk, the server's default where its plan names none (visual
-   pass 2: "The Muster Barrows, Normal." on a ground that has no Normal). */
+/* What a hero goes back on: on a Danger scale ground its Risk, the server's default where its plan names none (visual pass 2: "The Muster
+   Barrows, Normal." on a ground that has no Normal); off the scale (a yard, a room) nothing. */
 const playsOn = (h, riskOf) => {
-  if (!onScale(h.hunt)) return TIER_NAME[h.tier] || TIER_NAME[DEFAULT_TIER];
+  if (!onScale(h.hunt)) return '';
   const r = typeof riskOf === 'function' ? riskOf(h.slot) : null;
   return t('hunts.stance_' + (STANCE_IDS.includes(r) ? r : DEFAULT_RISK));
 };

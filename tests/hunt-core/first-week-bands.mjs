@@ -67,7 +67,7 @@ const HL = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href
 const PCX = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
 /* THE WINDOW'S LINES AND THE TIER ROWS as the played tree has them: this tree's, a mutant's own copy while a mutant plays (the vs-alone case reads a written line
    against the settle, so a line or a pull planted in the copy must be read from the copy) */
-const linesAt = async (root) => ({ PCX: await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V), T: await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + V) });
+const linesAt = async (root) => ({ PCX: await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V) });
 let LINES = await linesAt(ROOT);
 const groundOf = (hunt) => Object.values(G.OPEN_GROUNDS).find((g) => g.hunt === hunt).id;
 const SOLO = [...new Set(Array.from({ length: 15 }, (_, i) => recommendedHunt([i + 1], 1)).filter(Boolean).map((r) => r.hunt))].map(groundOf);
@@ -262,16 +262,6 @@ cases['vs-alone'] = (R) => {
     const got = Math.round((each / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, roles);
     if (Math.abs(got - said) > 10) return g + ': a full mix measures ' + got + '% against alone, and the Party window says ' + said + '%';
   }
-  /* A HARDER TIER'S LINE IS MEASURED TOO (lane/d-party-pace, the full-game sweep's A1: the window read the Normal line whatever tier the leader picked,
-     -20% on the Glade's Deadly where a four earned over its heroes alone). At the floor, on the tier's own pull, the same heroes alone on the same tier. */
-  for (const [g, tier] of [['mosslight_glade', 'deadly'], ['millrace_sewer', 'dangerous']]) {
-    const L = floorOf(g), pull = LINES.T.pullOfTier(LINES.T.tierRowOf(g, tier), MIX.length);
-    const on = { options: { tier }, ...(pull ? { density: pull } : {}) };
-    const alone = MIX.reduce((s, x) => s + R.runCell({ id: 'vt:' + g + ':' + tier + ':' + x, ground: g, party: [x], level: L, hours: 0.5, seeds: 2, windowMs: 120000, ...on }).heroes[0].levelXpPerH, 0) / MIX.length;
-    const hs = R.runCell({ id: 'vt:' + g + ':' + tier, ground: g, party: MIX, level: L, hours: 0.5, seeds: 2, windowMs: 120000, ...on }).heroes;
-    const got = Math.round((hs.reduce((s, h) => s + h.levelXpPerH, 0) / hs.length / alone - 1) * 100), said = LINES.PCX.partyVsAlone(g, ['tank', 'healer', 'ranger', 'mage'], tier);
-    if (said === null || Math.abs(got - said) > 10) return g + ' ' + tier + ': a full mix measures ' + got + '% against alone on the tier, and the Party window says ' + said + '%';
-  }
   /* A THICKET FOUR OF ONE ROLE READS ITS OWN LINE (ONE_ROLE_VS_ALONE; CLAUDE.md §6), played on the two that sit furthest apart: a four of wands over solo, a four of shields under. */
   for (const s of ['mage', 'tank']) {
     const cell = (party) => R.runCell({ id: 'va1:' + party.length + ':' + s, ground: 'meadowbrook_thicket', party, level: floorOf('meadowbrook_thicket'), hours: HOURS, seeds: 2, windowMs: 120000 });
@@ -369,14 +359,6 @@ const mutants = [
   /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
   { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
     edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },
-  /* lane/d-party-pace: the harder tier's line binds both ways. A pull dial moved and the line not re-measured; the line itself written as Normal's. */
-  { name: 'the Glade\'s Deadly brings no bigger pull (8 -> 0), and its window still says what 8 measured', case: 'vs-alone', expect: 'mosslight_glade deadly',
-    edits: [['src/data/balance-sheet.js', 'mosslight_glade: Object.freeze({ dangerous: 6, dials:', 'mosslight_glade: Object.freeze({ dangerous: 6, deadly: 0, dials:']] },
-  { name: 'the window reads the Normal line on every tier again (the sweep\'s A1)', case: 'vs-alone', expect: 'mosslight_glade deadly',
-    edits: [['src/data/party-class-xp.js', 'const tab = PARTY_VS_ALONE[groundId][tier];', 'const tab = PARTY_VS_ALONE[groundId][DEFAULT_TIER];']] },
-  { name: 'the Glade\'s Deadly monsters carry no more health than the table\'s Normal (1450 -> 1000), and its window still says what 1450 measured (it was twice, 2900, until the 11-19 step: on monsters a tenth harder a hero alone dies there so often that doubling both sides moved the reading under 10 points)', case: 'vs-alone', expect: 'mosslight_glade deadly',
-    edits: [['src/data/balance-sheet.js', 'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1450 }) }),',
-      'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1000 }) }),']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',

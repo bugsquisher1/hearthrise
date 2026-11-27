@@ -44,9 +44,6 @@ export const COACH_TEXT = Object.freeze({
   back_down_in: 'Press the {ground}, then Enter',
   /* THE FIRST DANGEROUS RUN (board 2026-11-15 F5: Normal costs no food to Level 15, Dangerous does and gives more XP); {ground} a ground in the
      hero's range with a Dangerous tier */
-  first_dangerous_title: 'Try Dangerous',
-  first_dangerous: 'Hunts → {ground} → Dangerous → Enter',
-  first_dangerous_in: 'Press {ground}, then Dangerous, then Enter',
   keep_hunting: 'Safe to close the game · Hunts on to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */

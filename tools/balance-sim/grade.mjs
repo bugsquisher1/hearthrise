@@ -13,7 +13,7 @@
 //                                                                                   the gear ladder too (a staged graded ground's own always are)
 //   ... [--uniques]                                                                each hero in the best piece it can get per slot, the
 //                                                                                   staged gear catalogues' hidden rows included (gear.mjs
-//                                                                                   uniques: the armor and weapon lines past Dawnsteel); cells of their own.
+//                                                                                   uniques: named and special pieces off the ladder); cells of their own.
 //                                                                                   Ground and boss drops only (row 1f); the report prints
 //                                                                                   each way's Hearth Chest swap as a what-if row
 //   ... [--uniques --chest]                                                        the what-if played: the Hearth Chest's pieces worn too
@@ -102,7 +102,6 @@ export async function buildGrid(root, mode, opts = {}) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
-  const T = await import(u('src/data/hunt-tiers.js'));
   const BAG = (await import(u('src/data/supplies.js'))).BAG_GUIDE_BY_HUNT;
   const START_STORE_FOOD = (await import(u('src/data/start-kit.js'))).START_BAR.find((x) => x.id === 'd_food_store').action.id;
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
@@ -123,10 +122,10 @@ export async function buildGrid(root, mode, opts = {}) {
     const ch = uq && opts.chest === true;
     const og = (opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '') + (uq ? ',uniq' : '') + (ch ? ',chest' : '');
     const ogear = opens.length || uq ? { ...(opens.length ? { openAlso: opens } : {}), ...(uq ? { uniques: true } : {}), ...(ch ? { chest: true } : {}) } : null;
-    for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
-      const row = T.tierRowOf(g.id, tier);
+    /* ONE WAY TO HUNT A GROUND OFF THE SCALE: the tier rows retired (lane/retire-tier-chain, 2026-11-26), so every cell is the ground as built */
+    for (const tier of ['normal'].filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
-        const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
+        const n = Number(size), pull = 0, { seeds, hours } = dice(mode, n, tier, offset);
         /* the graded profile, and a lone hero on Normal's played twin (above) */
         const graded = gradedProfile({ size: n, tier, gear: 'ladder' });
         for (const profile of graded === 'plain' ? ['plain', 'played'] : ['played']) {
@@ -598,14 +597,14 @@ if (isMain(import.meta.url)) {
     let refused = false;
     try { gradeCells(synthSet(), { ...SHEET, rules: [...SHEET.rules, { id: 'a-profit-floor', metric: 'margin', min: 0.25, binding: true }] }, flat); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
     if (!refused) bad.push('a sheet with a profit rule (margin >= +25%) was not refused as a profit rule');
-    /* THE UNIQUES KIT (uniques-proof.mjs): a staged unique's armor and attribute reach the live settle's member, and each planted defect is caught */
+    /* THE UNIQUES KIT (uniques-proof.mjs): a worn staged row's attribute reaches the live settle's member, the report says so honestly, and each planted defect is caught */
     const gearLib = await loadGear(ROOT);
     const proof = proveUniques(gearLib);
     if (proof.length) bad.push('the uniques kit: ' + proof.join('; '));
     for (const m of UNIQUES_MUTANTS) if (!proveUniques(gearLib, m).length) bad.push('uniques mutant ' + m + ' was not caught');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
     console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the party lines bind Dangerous and Deadly (a four under the hero alone, a Deadly four past the contract ceiling) and never Normal, the needs-a-Healer scope holds, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused; '
-      + 'a unique\'s armor and attribute reach the engine, ' + UNIQUES_MUTANTS.length + ' of ' + UNIQUES_MUTANTS.length + ' uniques mutants caught');
+      + 'a worn staged attribute reaches the engine and the report says so, ' + UNIQUES_MUTANTS.length + ' of ' + UNIQUES_MUTANTS.length + ' uniques mutants caught');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');
@@ -625,8 +624,8 @@ if (isMain(import.meta.url)) {
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT), await packChecksOf(ROOT));
-  const { isHealerTier } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
-  for (const v of feelVerdicts(cells, await fitsOf(ROOT), isHealerTier)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
+  /* no tier is a Healer's: the tier rows retired with their healerTiers (lane/retire-tier-chain) */
+  for (const v of feelVerdicts(cells, await fitsOf(ROOT), () => false)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   const gold = goldRows(cells, await fitsOf(ROOT));
   /* WHAT THE UNIQUES CELLS WORE past the ladder (gear.mjs uniquesIn): each piece, its attribute and whether that reaches the engine */

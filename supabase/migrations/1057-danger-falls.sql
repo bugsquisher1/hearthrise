@@ -90,7 +90,7 @@ begin
   for v_r in select * from (values
     ('public.hr_hunt_report_ok(jsonb)', 'a735dfe0e7d1cc0431ae6acef76d6848', 'b911a0ddf2a7dde3819efba30aa86b3d'),
     ('public.hr_hunt_report_add(jsonb,jsonb)', '48ed840a0601e1a005eeccf866c2035c', 'ac10b01bb463d158d5ab755633ec318a'),
-    ('public.hr_hunt_view(uuid)', 'cd3f12fac63713be3c9d853b40106784', '32668b16635573452a939532e2c9ec9f'),
+    ('public.hr_hunt_view(uuid)', '9b06a593569430f6dca6c8cc5575c08e', '812ab2041a78d10ad28eb9e91011b05b'),
     ('public.hr_hunt_analyzer_basic(jsonb)', '039309e15bfe6d18c2314216f7075b26', '8d5fe398a14f4b44e0133e477b1ff2a4'),
     ('public.hr_danger_freeze()', '57f421e32f561527e25422a967ea96f1', 'f236ffa1d6854e55d198025ba05c5cc1')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
@@ -305,6 +305,8 @@ begin
 end $fn$;
 revoke execute on function public.hr_hunt_report_add(jsonb, jsonb) from public, anon, authenticated, service_role;
 
+-- (lane/retire-tier-chain, 2026-11-26: an ended session's `tier` is out of this body, folded in from 1072-retire-tier-chain.sql, which
+--  drops hunt_sessions.tier: a staged body is edited in place, never moved by a later file)
 -- ── §3 THE HUNT VIEW: hr_hunt_view RESTATED WHOLE (1053's, its plan-cache wrapper kept) ─────────────────────────────────────────────
 -- The report's falls each name the character that held the seat (DANGER-FALLS), and an ended scale session its end stance and step.
 CREATE OR REPLACE FUNCTION public.hr_hunt_view(p_session uuid)
@@ -329,8 +331,6 @@ begin
     'leave_at', s.leave_at, 'change_at', s.change_at, 'change_to', s.change_to,
     'ended_at', s.ended_at, 'end_reason', s.end_reason,
     'forfeit', s.forfeit,
-    -- ENDED-TIER (2027-03-16-ended-hunt-tier.sql): the tier an ended session ran at; null while open (hunt_tier.playing says it then)
-    'tier', s.tier,
     -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): a cascade end names the member whose own end at the same
     -- instant sent this hero home (its death for party_member_died), from the server's rows; else null.
     'end_by', case when s.end_reason in ('party_member_died', 'party_member_left') then (

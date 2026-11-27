@@ -65,7 +65,7 @@ const cases = {
     const t = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 1000 }); t.armour = plate;
     return M.damage.hurt(inst, t, 100, null, null, { id: 'bleed', dot: true }).dmg > 0 ? null : 'a status tick with no dealer dealt nothing';
   },
-  /* A TIER IS THE MONSTER'S OWN STATS (hunt-tiers.js, Tyler 2026-11-04): on a harder tier the same monster's blow reads a higher atk, armor reads its higher Level and its kill pays more Level XP. No hero Level anywhere; Normal is the row to the digit. Both paths: this hook is the one a watched hunt and a closed browser both step through. */
+  /* A DIAL IS THE MONSTER'S OWN STATS (src/core/hunt/dial.js, the Danger scale step's; the case's name kept from the tier rows that first filled it, Tyler 2026-11-04): on a harder tier the same monster's blow reads a higher atk, armor reads its higher Level and its kill pays more Level XP. No hero Level anywhere; Normal is the row to the digit. Both paths: this hook is the one a watched hunt and a closed browser both step through. */
   'a-tier-is-the-monsters-stats': (M) => {
     const T = { id: 'deadly', pull: [8, 8, 8, 8], dmgPm: 1500, hpPm: 1000, xpPm: 1200 };
     const row = M.MONSTERS.hobgoblin_foreman;
@@ -85,7 +85,7 @@ const cases = {
     if (!(top(bare) > M.C.monsterMaxHit(row)) || top(bare) > M.C.monsterMaxHit({ ...row, atk: row.atk * 1.5 })) return 'on Deadly, in no armor, the foreman tops out at ' + top(bare) + '; his row\'s biggest blow is ' + M.C.monsterMaxHit(row);
     for (const lv of [1, 16, 60]) if (swings(T, lv).join() !== hard.join()) return 'a Level ' + lv + ' hero is struck differently on Deadly: a tier reads no hero';
     /* the kill: the row's XP on the tier, before the party factor (a lone hero's small boost, Tyler 2026-11-08: party-class-xp.js, the xp event's `raw`);
-       its coin and drops aren't this file's (hunt-tiers.mjs harder-tier-costs) */
+       its coin and drops aren't this file's (the scale's coinPm and dropPm: danger.mjs) */
     const killXp = (tier) => {
       const k = H(M, 1, 12, 3, 'tank', { hp: 1000, maxHp: 1000, target: 2 });
       const m = E(M, 2, 0, 13, 3, 1, { kind: 'goblin_scavenger', hp: 5, maxHp: 5 });

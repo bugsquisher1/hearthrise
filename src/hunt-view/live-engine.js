@@ -70,12 +70,9 @@ const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
    frozenKey: its `hero` and the numbers it fights with). The server reads them afresh at every settle, so a start
    point naming another one is a setup changed mid-hunt (r10), or a peer that gained a Level or a skill (LV-PULL). */
 const setupOf = (live) => JSON.stringify(live.members.map((m) => [String(m.key), (m.frozen ? frozenKey(m.frozen) : m.hero) ?? null])
-  .sort((a, b) => (a[0] < b[0] ? -1 : 1)).concat([['scale', scaleOf(live)]]));
+  .sort((a, b) => (a[0] < b[0] ? -1 : 1)));
 /* Each peer's frozenKey by member key: what a commit's hunt_check.peers is judged against (peersStale). */
 const peerKeysOf = (live) => Object.fromEntries(live.members.filter((m) => m.frozen).map((m) => [String(m.key), frozenKey(m.frozen)]));
-/* THE SERVER'S SCALE OF THE HUNT (hunt-settle.js huntLive `scale`, src/data/scaled-hunts.js): { level } or null. The engine plays the same rows
-   from it (combat-sim.js huntPlayOf), so the prediction is the server's; a start point naming another one is a setup changed mid-hunt. */
-const scaleOf = (live) => (live.instance && live.instance.scale && Number.isInteger(live.instance.scale.level) ? { level: live.instance.scale.level } : null);
 /* The monster kinds of `world` this build's catalogue lacks (a newer server's), in first-seen order. */
 const unknownKinds = (world, monsters) => [...new Set((world ? world.units : [])
   .filter((u) => u.side === 'mon' && !Object.hasOwn(monsters, u.kind)).map((u) => String(u.kind)))];
@@ -219,7 +216,7 @@ export function createLiveEngine(o) {
       if (towerOf(where.ground) && towerFloor === null) throw new Error('tower_floor');
       world = text ? decodeWorldRow(JSON.parse(text)) : null;
       /* the catalogue as this fight reads it (combat-sim.js fightItems: on the Danger scale every piece at the ground's base), the server's own */
-      fight = fightItems(items, where.ground, live.members, scaleOf(live));
+      fight = fightItems(items, where.ground, live.members);
       sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
         .map((mi) => (mi.frozen ? frozenSide(mi)
           : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items: fight })));
@@ -240,7 +237,7 @@ export function createLiveEngine(o) {
       /* THE HUD'S LEDGER (src/shell/hud-predict.js; display only): the viewer's Level XP and kills this prediction played, by swing end */
       gains: [{ at: Number(live.instance.next_swing_at_ms), lx: 0, kills: {}, share: {} }],
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
-      setup: setupOf(live), scale: scaleOf(live), peers: peerKeysOf(live),
+      setup: setupOf(live), peers: peerKeysOf(live),
       /** @type {((hero: { id: number }, atMs: number) => number) | null} the per-hero Level XP hook (src/core/live-events.js), null when no window */
       xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,
     };
@@ -271,7 +268,7 @@ export function createLiveEngine(o) {
     for (const u of (s.world ? s.world.units : [])) speeds.set(u.id, u.speed);
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
-    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items: s.items, ...(s.scale ? { scale: s.scale } : {}),
+    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items: s.items,
       ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}), ...(s.sessionMode ? { sessionMode: s.sessionMode } : {}),
       ...(s.towerFloor !== null ? { towerFloor: s.towerFloor } : {}) });
     /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):

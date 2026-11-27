@@ -17,14 +17,15 @@
 //   four      the standard four (the real Krell four's seats) x the three gear states x the three tiers, at the spine Levels
 //   pace4     the standard four, MID, Normal, at every open checkpoint from Level 5
 //   parties   the pairs and the three (standards.mjs PARTIES), MID, every tier, at the spine Levels
-//   lineups   the eight fours of matrix-plan.mjs LINEUPS, MID, Normal and Deadly, at the spine Levels from 30
+//   lineups   the eight fours of matrix-plan.mjs LINEUPS, MID, Normal, at the spine Levels from 30
 //   steps     the lone hammer and the four with ONE slot class (weapon, armor, jewelry) a gear state back, Normal, spine Levels from 10
 //   grounds   every OPEN ground at both ends of its band, every party of standards.mjs PARTIES, every tier it has, MID
 //   c3        check C3, the default company on the Millrace Sewer at Level 5 (matrix-plan.mjs C3_BLOCK), 8 hours a seed
 //   c2        calibration C-2: the matrix four on each ground and tier real fours played, at the rows' middle Level and C-1's gear
-//   beyond    PAST LIVE CONTENT, never live: every way alone and the four, MID, Normal and Deadly, at the guard Levels above the top of live
+//   beyond    PAST LIVE CONTENT, never live: every way alone and the four, MID, Normal, at the guard Levels above the top of live
 //             content, on the matrix's STAGED grounds (110 to 185, the staged rows opened) and PROJECTED placeholder grounds (past 185). The only
 //             cells off an open ground, labelled so in every report: long-term scaling, and a change that acts past the top (a gear curve)
+// THE TIER COLUMN is Normal alone since the tier rows retired (lane/retire-tier-chain, tools/balance-sim/tier-axis.mjs): 'all' is Normal.
 // The spine is standards.mjs GUARD_CHECKPOINTS inside live content (the release guard's Levels), so no Level list is typed here.
 //
 // SEEDS AND HOURS. Eight seeds a cell (the brief's floor is four; usage allowed the full size, and eight halves a mean's variance) (seed k plays seedBase k: the same key and seed play the same dice on any tree). Hours by Level
@@ -80,11 +81,11 @@ export function baselineRun(spec) {
     { id: 'four', comps: four, gears: STD.GEAR_STATE_IDS, tiers: 'all', levels: spec.spine },
     { id: 'pace4', comps: four, gears: ['mid'], tiers: ['normal'], levels: spec.levels },
     { id: 'parties', comps: [2, 3].flatMap((n) => compsOf(n)), gears: ['mid'], tiers: 'all', levels: spec.spine },
-    { id: 'lineups', comps: LINEUPS.map((s) => [s, lineupComp(s)]), gears: ['mid'], tiers: ['normal', 'deadly'], levels: spec.spine.filter((L) => L >= 30) },
+    { id: 'lineups', comps: LINEUPS.map((s) => [s, lineupComp(s)]), gears: ['mid'], tiers: ['normal'], levels: spec.spine.filter((L) => L >= 30) },
     { id: 'steps', comps: [lone('hammer'), ...four], steps: true, tiers: ['normal'], levels: spec.spine.filter((L) => L >= 10) },
     { id: 'grounds', grounds: true, only: spec.openGrounds },
     C3_BLOCK,
-    ...((spec.beyond || []).length ? [{ id: 'beyond', comps: [...WAYS.map(lone), ...four], gears: ['mid'], tiers: ['normal', 'deadly'], levels: spec.beyond }] : []),
+    ...((spec.beyond || []).length ? [{ id: 'beyond', comps: [...WAYS.map(lone), ...four], gears: ['mid'], tiers: ['normal'], levels: spec.beyond }] : []),
   ] };
 }
 

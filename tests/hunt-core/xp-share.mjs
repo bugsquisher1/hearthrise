@@ -69,33 +69,7 @@ function killOn(M, id, roles, xp) {
   return M.xpshare.shareKillXp({ world: w, ground: { id }, grid: null, occ: null }, { t: 99, u: 1, xp }, ctx35(M, 5));
 }
 
-/* A SCALED KILL (src/data/scaled-hunts.js partyPm, carried on the kill by damage.js from the scaled row's partyPm). */
-function scaledKillOn(M, id, roles, xp, partyPm) {
-  const w = worldOf(M, [...roles.map((role, i) => unit(M, i + 1, 'hero', { role })), unit(M, 99, 'mon')]);
-  return M.xpshare.shareKillXp({ world: w, ground: { id }, grid: null, occ: null }, { t: 99, u: 1, xp, partyPm }, ctx35(M, 5));
-}
-
 const cases = {
-  /* ON A SCALED HUNT A PARTY KEEPS partyPm OF ITS CELL, A HERO ALONE THE WHOLE SOLO BOOST (designer 2026-11-11, lane/d-solo-fifteen): the kill carries the
-     scaled row's partyPm; an unscaled kill carries none and pays the cell whole. Both paths share splitKillXp, so the one call is the proof. */
-  'scaled-party-share': async (M) => {
-    const { SCALED_HUNTS, scaledRow } = await import(new URL('src/data/scaled-hunts.js', rootUrl(M)).href + M.V);
-    const pm = SCALED_HUNTS.partyPm;
-    if (!(Number.isInteger(pm) && pm > 0 && pm < 1000)) return 'partyPm ' + pm + ' is not a thinning (1-999)';
-    const { MONSTERS } = await import(new URL('src/data/monsters.js', rootUrl(M)).href + M.V);
-    const { GROUND_ROSTER } = await import(new URL('src/data/balance-sheet.js', rootUrl(M)).href + M.V);
-    const mid = Object.keys(GROUND_ROSTER.mill_cellar)[0], row = scaledRow(MONSTERS[mid], mid, 'mill_cellar', 40);
-    if (row.partyPm !== pm) return 'a scaled row carries partyPm ' + row.partyPm + ', the module says ' + pm;
-    const cell = PARTY_TABLE[2][1];
-    const pair = scaledKillOn(M, 'meadowbrook_thicket', ['tank', 'healer'], BIG, pm);
-    const want = Math.floor((BIG / 2) * ((cell * pm) / 1000) / 1000 + 1e-9);
-    if (Object.values(pair).some((v) => v !== want)) return 'a scaled pair paid ' + JSON.stringify(pair) + ', want ' + want + ' each (cell ' + cell + ' x ' + pm + ')';
-    const plain = scaledKillOn(M, 'meadowbrook_thicket', ['tank', 'healer'], BIG, undefined);
-    if (Object.values(plain).some((v) => v !== Math.floor((BIG / 2) * cell / 1000 + 1e-9))) return 'an unscaled pair paid ' + JSON.stringify(plain) + ', not the cell';
-    const alone = scaledKillOn(M, 'meadowbrook_thicket', ['tank'], BIG, pm);
-    if (alone[1] !== (BIG * SOLO) / 1000) return 'a hero alone on a scaled hunt paid ' + alone[1] + ', the solo boost says ' + (BIG * SOLO) / 1000;
-    return null;
-  },
   'hunt-xp-valid': (M) => {
     const bad = M.huntxp.validate();
     if (bad.length) return bad.join('; ');
@@ -428,28 +402,22 @@ const mutants = [
   { name: 'the multiplier is ignored', case: 'each-hero-own-multiplier',
     edits: [['src/core/hunt/xp-share.js', 'const paid = (raw * party * multOf(sc, h)) / 1000;', 'const paid = (raw * party * (multOf(sc, h) ? 1 : 1)) / 1000;']] },
   /* THE PARTY FACTOR (Tyler 2026-10-31, src/data/party-class-xp.js) */
-  { name: 'a scaled kill pays the whole cell (partyPm ignored)', case: 'scaled-party-share',
-    edits: [['src/core/hunt/xp-share.js', "const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;", 'const party = cell;']] },
-  { name: 'a hero alone on a scaled hunt is thinned too', case: 'scaled-party-share',
-    edits: [['src/core/hunt/xp-share.js', "const party = heroes.length > 1 && Number.isInteger(partyPm)", "const party = heroes.length > 0 && Number.isInteger(partyPm)"]] },
-  { name: 'the scaled row carries no partyPm', case: 'scaled-party-share',
-    edits: [['src/data/scaled-hunts.js', 'partyPm: SCALED_HUNTS.partyPm };', '};']] },
   { name: 'the party factor is not paid', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', '(raw * party * multOf(sc, h))', '(raw * 1000 * multOf(sc, h))']] },
   { name: 'a shield Melee and a Melee count as two classes', case: 'party-class-melee-is-one',
     edits: [['src/data/party-class-xp.js', "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
       "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),"]] },
   { name: 'the table is read once, at the first kill, and latched', case: 'party-class-death-changes-next-kill',
-    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;',
-      'const cell = (globalThis.__partyLatch = globalThis.__partyLatch || partyClassXp(heroes.map((h) => h.role)).permille);']] },
+    edits: [['src/core/hunt/xp-share.js', 'const party = partyClassXp(heroes.map((h) => h.role)).permille;',
+      'const party = (globalThis.__partyLatch = globalThis.__partyLatch || partyClassXp(heroes.map((h) => h.role)).permille);']] },
   /* ONE TABLE (Tyler 2026-11-16): the per-ground mutants retire with the per-ground rows ('the ground is ignored' is now the rule); a ground's own
      cell, typed in the engine or the table, is the slip that matters. */
   { name: 'one ground pays its own cell (the Glade x0.55, the stopgap\'s shape)', case: 'party-class-every-cell',
-    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'mosslight_glade' ? 0.55 : 1));"]] },
+    edits: [['src/core/hunt/xp-share.js', 'const party = partyClassXp(heroes.map((h) => h.role)).permille;', "const party = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'mosslight_glade' ? 0.55 : 1));"]] },
   { name: 'one cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',
     edits: [['src/data/party-class-xp.js', 'export const PARTY_CLASS_XP = row([880,', 'export const PARTY_CLASS_XP = row([1000,']] },
   { name: 'a ground the data never named pays the even share', case: 'party-class-no-row-is-even',
-    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = ground && ground.id === 'a_ground_with_no_row' && heroes.length > 1 ? 1000 : partyClassXp(heroes.map((h) => h.role)).permille;"]] },
+    edits: [['src/core/hunt/xp-share.js', 'const party = partyClassXp(heroes.map((h) => h.role)).permille;', "const party = ground && ground.id === 'a_ground_with_no_row' && heroes.length > 1 ? 1000 : partyClassXp(heroes.map((h) => h.role)).permille;"]] },
   { name: 'a hero alone reads a party cell', case: 'party-class-no-row-is-even',
     edits: [['src/data/party-class-xp.js', "if (n === 1) return { permille: SOLO_XP_PM, classes };", "if (n === 1) return { permille: PARTY_CLASS_XP[2][1], classes };"]] },
   /* THE SOLO BOOST (Tyler 2026-11-08), on both paths: gone, a hero alone earns the even share again */

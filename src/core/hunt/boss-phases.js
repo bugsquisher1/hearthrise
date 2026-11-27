@@ -48,7 +48,7 @@ export function rampTick(u, row, dtMs) {
 }
 
 /** The row monster `u` swings with, from `row` (his own at the party's tier): that row, or, a boss under his enrage line, it at his raised
-    attack and aim (a harder blow is a surer one, as a tier's: src/data/hunt-tiers.js atTier); a boss with a ramp, his attack x the ramp
+    attack and aim (a harder blow is a surer one, as a dial's: src/core/hunt/dial.js atTier); a boss with a ramp, his attack x the ramp
     at his fight clock (the pressure, never the aim: 04 section 6's ramp grows the share he deals, not how often he lands). */
 export function swingRow(u, row) {
   const ph = (MONSTERS[u.kind] || {}).phases;

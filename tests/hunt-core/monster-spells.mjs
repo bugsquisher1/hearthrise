@@ -42,7 +42,7 @@ async function load(root) {
   M.EL = await imp('src/core/elements.js');
   M.DEL = await imp('src/data/elements.js');
   M.ITEMS = (await imp('src/data/items.js')).ITEMS;
-  M.tiers = await imp('src/data/hunt-tiers.js');
+  M.tiers = await imp('src/core/hunt/dial.js');
   M.AD = await imp('src/data/abilities.js');
   M.ST = await imp('src/data/statuses.js');
   M.memberMod = await imp('src/core/member.js');

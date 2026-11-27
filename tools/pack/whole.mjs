@@ -3,7 +3,7 @@
 // (lane/b-ground-pack phase 4; the board's "2026-11-05 Ground Packs", "How catalogue migrations shrink").
 //
 // A shipped pack's server rows live in its own additive file (<date>-pack-<id>.generated.sql, tools/pack.mjs ship). The
-// whole generators (gen-hunts, gen-hunt-sessions, gen-catalogues, gen-ground-tiers) keep re-issuing their tables whole, so:
+// whole generators (gen-hunts, gen-hunt-sessions, gen-catalogues) keep re-issuing their tables whole, so:
 //   A pack is FOLDED into a whole file when its own file comes BEFORE that file in tests/schema-apply-order.json: the whole
 //   file's `delete` + re-insert would otherwise wipe its rows, so it must carry them. Every other pack (a staged one, one not
 //   shipped, one shipped after the whole file) is left out, so adding a pack moves no whole file: its --check stays green and

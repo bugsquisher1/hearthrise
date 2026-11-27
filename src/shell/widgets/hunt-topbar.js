@@ -11,8 +11,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_INDEX } from '../../data/hunts.js';
 import { roomOfHunt } from '../../data/boss-halls.js';
-import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js';
-import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js';
+import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js';
 import { text, prop, attr } from '../../render/paint.js';
 import { clock, whole } from '../../render/format.js';
 import { track } from '../../net/observability.js';
@@ -22,7 +21,6 @@ import { connection } from '../../net/connection.js';
 import { t } from '../../render/player-text.js';
 import { trainingNowOf } from '../training-now.js';
 import { patchTowerBar } from './tower-bar.js';
-import { scalePlaying } from '../windows/scale-pane.js';
 import { dangerOf, depthOf } from '../../session/danger-sections.js';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
@@ -70,11 +68,8 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* Over, the hero stands in town: the plaque names the hunt as the LAST one, never as where the hero is (core-loop
      play 2026-10-30: Corliss in Havora read "Wickstead · Summary"). */
   const gname = ground ? ground.name : h ? t('hud.hunting') : '';
-  /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands),
-     and a scaled hunt's Level as the server proved it (scale-pane.js scalePlaying): "Mill Cellar (Scaled: Level 9)". */
-  const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
-  const marks = [tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? TIER_NAME[tiers.playing] : '',
-    h && !h.ended && h.huntId ? scalePlaying(ctx.character, h.huntId) : '', h && !h.ended ? depthMark(ctx.character, h.huntId) : ''].filter(Boolean);
+  /* the Risk and the depth this hunt stands at on the Danger scale: "The Muster Barrows (Steady, Depth 1 of 20)" */
+  const marks = [h && !h.ended ? depthMark(ctx.character, h.huntId) : ''].filter(Boolean);
   const now = serverNowOf(ctx.character);
   const train = trainingNowOf(ctx.character, now);
   text(el.querySelector('.ht-name'), train ? train.doing : h && h.ended && ground ? t('hud.last_hunt', { ground: gname }) : gname);

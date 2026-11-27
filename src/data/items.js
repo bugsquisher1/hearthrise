@@ -874,11 +874,13 @@ export const ITEM_LEVELS = (() => {
     ITEMS[id] = { ...it, iL };
   }
   /* A TWIN (`statsAs`: a named piece that is another row's piece to the number, 12-targets 8.3 "every named twin stamped to a tier") is worn
-     as its base is: its step, its item Level and its wear, whatever stamp the base carries */
+     as its base is: its step, its item Level and its wear, whatever stamp the base carries. A twin that states no tier or book value is its
+     base's there too (28-named-pieces.md 2.7: a named piece is its tier's piece plus its rule, so its tier and book are never typed twice) */
   for (const [id, it] of Object.entries(ITEMS)) {
     const b = it && typeof it.statsAs === 'string' ? ITEMS[it.statsAs] : null;
     if (!b) continue;
-    ITEMS[id] = { ...it, reqLv: b.reqLv, ...(Number.isInteger(b.step) ? { step: b.step } : {}), ...(Number.isInteger(b.iL) ? { iL: b.iL } : {}) };
+    ITEMS[id] = { ...it, reqLv: b.reqLv, ...(Number.isInteger(b.step) ? { step: b.step } : {}), ...(Number.isInteger(b.iL) ? { iL: b.iL } : {}),
+      ...(it.tier === undefined && b.tier !== undefined ? { tier: b.tier } : {}), ...(it.v === undefined && b.v !== undefined ? { v: b.v } : {}) };
     if (Number.isInteger(b.iL)) out[id] = b.iL;
   }
   return Object.freeze(out);

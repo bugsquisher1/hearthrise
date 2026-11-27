@@ -104,6 +104,12 @@
         "gzipBytes": 207102,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206836,
+        "on": "2026-11-27",
+        "why": "a cut locked in"
       }
     ],
     "town": [
@@ -499,9 +505,21 @@
       },
       {
         "modules": 25,
-        "gzipBytes": 992208,
+        "gzipBytes": 981425,
         "on": "2026-11-27",
-        "why": "lane/ci-reds-1127: the Trait piece words moved into the text table (bag.js, item.js rows read by piece-words, inventory actions and doll: text-home TH-1), +0.2 KB; the merged base already read 968.8 (lane/one-town-work's band 0 rows, not raised there)"
+        "why": "a cut locked in"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 982096,
+        "on": "2026-11-27",
+        "why": "lane/retire-dawnsteel-lines: the 6 named uniques re-homed as item rows (items.js statsAs twins) and their placeholder icons"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 982234,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1127 (re-raised on the merged base): the Trait piece words moved into the text table (bag.js, item.js rows read by piece-words, inventory actions and doll: text-home TH-1), +0.1 KB"
       }
     ]
   }

@@ -117,65 +117,6 @@ async function climb() {
   void measure;
 }
 
-async function scaled() {
-  const S = await import(u('src/data/scaled-hunts.js'));
-  const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
-  console.log('SCALED HUNTS (src/data/scaled-hunts.js): topLevel ' + S.SCALED_HUNTS.topLevel + ', price ' + S.SCALED_HUNTS.price.perLevel + ' g x Level an hour, XP ' + S.SCALED_HUNTS.xpPm + '‰ of the formula, party keeps ' + S.SCALED_HUNTS.partyPm + '‰ of its cell, tiers ' + S.SCALED_HUNTS.tiers.join(', '));
-  console.log('exports: ' + Object.keys(S).join(', '));
-  for (const [k, v] of Object.entries(S)) if (typeof v !== 'function' && k !== 'SCALED_HUNTS' && k !== 'SCALE_EXCEPTIONS') console.log(k, JSON.stringify(v).slice(0, 1500));
-  for (const L of arg('levels', '50,80,110').split(',').map(Number)) console.log(`Level ${L}: an hour costs ${(S.SCALED_HUNTS.price.perLevel * L).toLocaleString('en-US')} g; a 24 h bank ${(24 * S.SCALED_HUNTS.price.perLevel * L).toLocaleString('en-US')} g`);
-  void HUNT_INDEX;
-}
-
-/* PLAY. A scaled ground at the leader's Level (scaled-hunts.js scaledRow as what-if rows, the way tests/scaled-hunts.mjs plays it) beside the
-   reference cell of that Level (tools/balance-program/ref.json): Level XP and gold an hour a head, the fee, and the ratio to REF. */
-async function scaledplay() {
-  const { readFileSync, mkdtempSync, rmSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
-  const S = await import(u('src/data/scaled-hunts.js'));
-  const B = await import(u('src/data/balance-sheet.js'));
-  const { MONSTERS } = await import(u('src/data/monsters.js'));
-  const { runPool } = await import(u('tools/balance-sim/pool.mjs'));
-  const ref = JSON.parse(readFileSync(join(ROOT, 'tools/balance-program/ref.json'), 'utf8'));
-  const points = arg('points', 'ford,pyre,hold').split(',');
-  const grounds = arg('grounds', 'meadowbrook_thicket,mosslight_glade,coppercap_warrens,hasks_ford,the_slake,pyre_field').split(',');
-  const SEATS = { lone: ['hammer'], mage: ['mage'], four: ['tank', 'healer', 'bow', 'mage'] };
-  const jobs = [];
-  for (const pid of points) {
-    const pt = ref.points[pid]; if (!pt) continue;
-    for (const gid of grounds) {
-      const rows = {};
-      let ok = true;
-      for (const id of Object.keys(B.GROUND_ROSTER[gid] || {})) {
-        const r = S.scaledRow(MONSTERS[id], id, gid, pt.level);
-        if (r === MONSTERS[id]) { ok = false; break; }
-        rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
-      }
-      if (!ok || !Object.keys(rows).length) { console.log(`${gid} does not scale to Level ${pt.level}`); continue; }
-      for (const [seat, party] of Object.entries(SEATS)) jobs.push({ id: [pid, gid, seat].join(','), ground: gid, party, level: pt.level, hours: 1, seeds: 2, profile: 'played', whatIf: { monsters: rows }, groundPatch: { endsAtLevel: null } });
-    }
-  }
-  const dir = mkdtempSync(join(tmpdir(), 'endgame-scaled-'));
-  let cells;
-  try {
-    const file = join(dir, 'cells.jsonl');
-    const res = await runPool(jobs, file, { root: ROOT, workers: 4, cpuMax: 100, log: () => {} });
-    if (res.failed) console.log(res.failed + ' cell(s) failed: ' + readFileSync(join(dir, 'cells.errors.jsonl'), 'utf8').slice(0, 600));
-    cells = new Map(readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => { const c = JSON.parse(l); return [c.id, c]; }));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-  console.log('SCALED HUNTS ON NORMAL against REF (ref.json; the four\'s REF is its hardest tier): point | ground | seat | Level XP/h a head | x REF | gold in/h a head | store/h | fee/h a head | net after fee | REF net | deaths');
-  for (const pid of points) for (const gid of grounds) for (const seat of Object.keys(SEATS)) {
-    const c = cells.get([pid, gid, seat].join(',')); if (!c) continue;
-    const pt = ref.points[pid], r = pt.seats[seat], n = c.heroes.length;
-    const xp = c.heroes.reduce((s, h) => s + h.levelXpPerH, 0) / n, inc = c.heroes.reduce((s, h) => s + h.incomePerH, 0) / n, store = c.heroes.reduce((s, h) => s + h.storePerH, 0) / n;
-    const fee = S.pricePerHour(gid, pt.level) / n;
-    console.log([pid + ' L' + pt.level, gid, seat, Math.round(xp), (xp / r.levelXpPerH).toFixed(2), Math.round(inc), Math.round(store), Math.round(fee), Math.round(inc - store - fee), r.netPerH, c.heroes.reduce((s, h) => s + h.deaths, 0)].join(' | '));
-  }
-}
-
-/* NO PLAY. THE OWN FOUR AT THE CHEST: weeks until a tank, a Healer, a bow and a Mage each hold their own weapon of one key tier (Tower keys),
-   and their own helmet and boots of it (Catacomb keys), opening 6 a family a hero a week with no stoke, pieces passed between the account's
-   heroes (they trade). The same for one hero alone. Warmth is a hero's, a family's (chest_warmth). Monte Carlo, seeded. */
 async function account() {
   const { CHEST_KEYS, CHEST_LUCK, chestChancePpm } = await import(u('src/data/chests.js'));
   const LIVES = Number(arg('lives', 8000));
@@ -229,6 +170,6 @@ async function account() {
   }
 }
 
-const run = { rows, chest, climb, scaled, scaledplay, account }[mode];
+const run = { rows, chest, climb, account }[mode];
 if (!run) { console.error('usage: endgame.mjs rows | chest | climb | scaled   (see this file\'s header)'); process.exit(2); }
 await run();

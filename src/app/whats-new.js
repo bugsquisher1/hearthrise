@@ -27,8 +27,9 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
  * (the auth user's created_at), `buildDate` the running build's date (BUILD.date): an account made before the row's day is RETURNING and
  * reads the fresh line; a new one sees the card only when the row says forNew.
  * @param {{ version?: string, read?: { has: (id: string) => boolean } | null, createdAtMs?: number | null, buildDate?: string,
- *   rows?: ReadonlyArray<{ version: string, card: string, lines: readonly string[], fresh: string | null, since: string | null, forNew: boolean }> }} [o]
- * @returns {null | { card: string, version: string, lines: string[], fresh: string | null }}
+ *   rows?: ReadonlyArray<{ version: string, card: string, lead?: string | null, lines: readonly string[], fresh: string | null, since: string | null,
+ *   forNew: boolean }> }} [o]
+ * @returns {null | { card: string, version: string, lead: string | null, lines: string[], fresh: string | null }}
  */
 export function whatsNewOf({ version = BUILD.version, read, createdAtMs = null, buildDate = BUILD.date, rows = WHATS_NEW } = {}) {
   const row = rows.filter((r) => semverCmp(r.version, version) <= 0).pop() || null;
@@ -37,13 +38,20 @@ export function whatsNewOf({ version = BUILD.version, read, createdAtMs = null, 
   const since = day ? Date.parse(day + 'T00:00:00Z') : NaN;
   const returning = Number.isFinite(createdAtMs) && Number.isFinite(since) && createdAtMs < since;
   if (!returning && !row.forNew) return null;
-  return { card: row.card, version: row.version, lines: row.lines.map((id) => t(id)), fresh: returning && row.fresh ? t(row.fresh) : null };
+  return { card: row.card, version: row.version, lead: row.lead ? t(row.lead) : null, lines: row.lines.map((id) => t(id)),
+    fresh: returning && row.fresh ? t(row.fresh) : null };
 }
 
-/** The card's markup (escaped). */
+/* A feature line is a label, "Risk · Careful, Steady or Bold": its glossary word before the first " · " stands out. */
+const lineHtml = (l) => {
+  const at = l.indexOf(' · ');
+  return '<li>' + (at > 0 ? '<b>' + esc(l.slice(0, at)) + '</b>' + esc(l.slice(at)) : esc(l)) + '</li>';
+};
+/** The card's markup (escaped): the fresh line first (what a returning player needs before anything), the lead, the features. */
 const cardHtml = (c) => '<h2 class="whats-new-head">' + esc(t('share.news_head', { version: c.version })) + '</h2>'
-  + c.lines.map((l) => '<p class="auth-lead">' + esc(l) + '</p>').join('')
   + (c.fresh ? '<p class="auth-lead whats-new-fresh">' + esc(c.fresh) + '</p>' : '')
+  + (c.lead ? '<p class="auth-lead">' + esc(c.lead) + '</p>' : '')
+  + (c.lines.length ? '<ul class="whats-new-list">' + c.lines.map(lineHtml).join('') + '</ul>' : '')
   + '<p class="whats-new-do"><button type="button" class="hh-tool whats-new-ok">' + esc(t('share.news_got_it')) + '</button></p>';
 
 /**

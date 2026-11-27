@@ -13,10 +13,12 @@
 // ci-run: node tests/whats-new.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
 //
-//   WN-ROWS   the rows: a semver each, oldest first, a unique card id the coach takes (^[a-z0-9_]{1,64}$), every line a text row, written
-//             as plain sentences (no semicolon, em dash or colon-joined clause, CLAUDE.md section 10)
-//   WN-CARD   whatsNewOf: no card under the row's version; at it, a new account sees the card with no fresh line, an account made before
-//             the release's day sees the fresh line; a read card is gone; only the NEWEST row is ever shown (an older unread one is not)
+//   WN-ROWS   the rows: a semver each, oldest first, a unique card id the coach takes (^[a-z0-9_]{1,64}$), every id a text row; the fresh
+//             line and the lead written as plain sentences (no semicolon, em dash or colon-joined clause, CLAUDE.md section 10), every
+//             feature line a short LABEL (no sentence's period, at most 10 words); forNew a boolean
+//   WN-CARD   whatsNewOf: no card under the row's version; at it, an account made before the release's day sees the card with its fresh
+//             line; 0.3.0 is forNew false (designer 2026-11-26), so a brand-new account and one of no known age see none; a forNew row
+//             shows a new account the card with no fresh line; a read card is gone; only the NEWEST row is ever shown
 //   WN-ONCE   THE REAL SERVER (PGlite, hr_account_coach): a returning account signs in and the characters screen shows the card with its
 //             fresh line; Got it marks it read; A RELOAD (a new AccountCoach, the server read again) and A SECOND DEVICE show nothing;
 //             another account still sees it; a coach the server will not read shows no card (never on every sign-in)
@@ -70,11 +72,19 @@ const ARMS = {
       if (last && semverCmp(last, r.version) >= 0) p.push(`${r.card}: rows are oldest first`);
       last = r.version;
       if (r.since !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(r.since))) p.push(`${r.card}: since ${r.since}`);
-      for (const id of [...r.lines, ...(r.fresh ? [r.fresh] : [])]) {
+      if (typeof r.forNew !== 'boolean') p.push(`${r.card}: forNew ${r.forNew}`);
+      for (const id of [r.fresh, r.lead].filter(Boolean)) {
         if (!hasText(id)) { p.push(`${r.card}: no text row ${id}`); continue; }
         const s = t(id);
         if (/[;—–]|\w:\s/.test(s)) p.push(`${id} is not a plain sentence: "${s}"`);
         if (!/[.!?]$/.test(s)) p.push(`${id} does not end as a sentence: "${s}"`);
+      }
+      if (!r.lines.length) p.push(`${r.card}: no feature lines`);
+      for (const id of r.lines) {
+        if (!hasText(id)) { p.push(`${r.card}: no text row ${id}`); continue; }
+        const s = t(id);
+        if (/[;—–]/.test(s) || /\.$/.test(s)) p.push(`${id} is not a label: "${s}"`);
+        if (s.split(/\s+/).filter((w) => w !== '·').length > 10) p.push(`${id} is more than a label's 10 words: "${s}"`);
       }
     }
     return p;
@@ -87,16 +97,21 @@ const ARMS = {
     const of = (o) => whatsNewOf({ buildDate: day, read: new Set(), ...o });
     if (of({ version: '0.2.143', createdAtMs: at - DAY }) !== null) p.push('a card under its version');
     const fresh = of({ version: '0.3.0', createdAtMs: at - 30 * DAY });
-    if (!fresh || fresh.card !== 'whats_new_0_3_0' || !fresh.fresh || fresh.lines.length < 1) p.push('a returning account: ' + JSON.stringify(fresh));
+    if (!fresh || fresh.card !== 'whats_new_0_3_0' || !fresh.fresh || !fresh.lead || fresh.lines.length < 1) p.push('a returning account: ' + JSON.stringify(fresh));
+    /* 0.3.0 is for the accounts it starts fresh: a brand-new one has nothing to compare against (forNew false) */
     const newbie = of({ version: '0.3.0', createdAtMs: at + 3600 * 1000 });
-    if (!newbie || newbie.fresh !== null) p.push('a new account: ' + JSON.stringify(newbie));
-    if (of({ version: '0.3.0', createdAtMs: null }).fresh !== null) p.push('an account of no known age reads the fresh line');
+    if (newbie !== null) p.push('a brand-new account sees the 0.3.0 card: ' + JSON.stringify(newbie));
+    if (of({ version: '0.3.0', createdAtMs: null }) !== null) p.push('an account of no known age sees the 0.3.0 card');
     if (of({ version: '0.3.0', createdAtMs: at - DAY, read: new Set(['whats_new_0_3_0']) }) !== null) p.push('a read card shows again');
-    /* a later build with no date on the row: the card still shows, its fresh line waits on the row's own date */
-    const later = of({ version: '0.3.1', createdAtMs: at - DAY });
+    /* a forNew row: a new account sees it with no fresh line; a later build with no date on the row still shows it, its fresh line
+       waiting on the row's own date */
+    const open = [{ version: '0.3.0', card: 'open_card', lead: null, lines: ['share.news_030_risk'], fresh: 'share.news_030_fresh', since: null, forNew: true }];
+    const nu = whatsNewOf({ version: '0.3.0', buildDate: day, read: new Set(), createdAtMs: at + 3600 * 1000, rows: open });
+    if (!nu || nu.fresh !== null) p.push('a forNew row to a new account: ' + JSON.stringify(nu));
+    const later = whatsNewOf({ version: '0.3.1', buildDate: day, read: new Set(), createdAtMs: at - DAY, rows: open });
     if (!later || later.fresh !== null) p.push('0.3.1 with no `since`: ' + JSON.stringify(later));
     /* only the NEWEST row: a newer release's card replaces an older unread one */
-    const rows = [{ version: '0.3.0', card: 'old_card', lines: ['share.news_030_roads'], fresh: null, since: null, forNew: true },
+    const rows = [{ version: '0.3.0', card: 'old_card', lines: ['share.news_030_talents'], fresh: null, since: null, forNew: true },
       { version: '0.4.0', card: 'new_card', lines: ['share.news_030_risk'], fresh: null, since: null, forNew: true }];
     const newest = whatsNewOf({ version: '0.4.2', read: new Set(), rows });
     if (!newest || newest.card !== 'new_card') p.push('an older card than the newest: ' + JSON.stringify(newest));
@@ -161,7 +176,9 @@ const MUTANTS = [
   { arm: 'WN-CARD', why: 'a read card shows again', over: () => swap('src/app/whats-new.js', "if (!row || (read && typeof read.has === 'function' && read.has(row.card))) return null;", 'if (!row) return null;') },
   { arm: 'WN-CARD', why: 'every account reads the fresh line', over: () => swap('src/app/whats-new.js', 'const returning = Number.isFinite(createdAtMs) && Number.isFinite(since) && createdAtMs < since;', 'const returning = true;') },
   { arm: 'WN-CARD', why: 'the version gate is gone', over: () => swap('src/app/whats-new.js', '.filter((r) => semverCmp(r.version, version) <= 0)', '') },
-  { arm: 'WN-ROWS', why: 'a line with a semicolon', over: () => swap('src/data/text/share.js', "Bold pays more and can cost you.'", "Bold pays more; it can cost you.'") },
+  { arm: 'WN-ROWS', why: 'the lead with a semicolon', over: () => swap('src/data/text/share.js', "'The Roads are open. Every weapon", "'The Roads are open; every weapon") },
+  { arm: 'WN-ROWS', why: 'a feature line written as a sentence', over: () => swap('src/data/text/share.js', "Only Bold can die',", "Only Bold can die.',") },
+  { arm: 'WN-CARD', why: 'a brand-new account sees the 0.3.0 card', over: () => swap('src/data/whats-new.js', 'since: null, forNew: false,', 'since: null, forNew: true,') },
 ];
 
 async function main() {
